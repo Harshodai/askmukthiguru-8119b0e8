@@ -4,8 +4,8 @@
 Contextual chunk headers preserve document-level context for each chunk, ensuring retrieval systems understand where text originates.
 
 ## Frameworks Introduced
-- **Running Header**: Anchors chunks to their source by prepending a small piece of context (e.g., document title).  
-  - When to use: Any scenario involving chunked documents.  
+- **Running Header**: Anchors chunks to their source by prepending a small piece of context (e.g., document title).
+  - When to use: Any scenario involving chunked documents.
   - How: Prepend headers like "Document Title: <chunk>" before embedding.
 
 ## Key Concepts
@@ -13,7 +13,7 @@ Contextual chunk headers preserve document-level context for each chunk, ensurin
 - **Header Richness**: Varies from simple titles to full section paths or summaries for varying needs.
 
 ## Mental Models
-- Use a running header when chunking documents.  
+- Use a running header when chunking documents.
   - Think of it as adding page headers in a printed book; they keep chunks anchored even when torn out.
 
 ## Anti-patterns
@@ -24,11 +24,11 @@ Contextual chunk headers preserve document-level context for each chunk, ensurin
 def add_context_header(header: str, chunk: str) -> str:
     """
     Prepend a contextual header to a chunk for enhanced retrieval.
-    
+
     Args:
         header (str): The header text, e.g., "Document Title."
         chunk (str): The raw chunk content.
-        
+
     Returns:
         str: The chunk with the header added at the beginning.
     """

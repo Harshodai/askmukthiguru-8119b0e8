@@ -4,8 +4,8 @@
 The chapter introduces explainable retrieval as a method to enhance transparency in search results by providing clear explanations for why documents are retrieved, addressing trust issues in high-stakes domains.
 
 ## Frameworks Introduced
-- **Explainable Retrieval**:  
-  - When to use: After standard retrieval systems return documents.  
+- **Explainable Retrieval**:
+  - When to use: After standard retrieval systems return documents.
   - How: Wrap retrieval outputs with explanations using a language model to link queries to document relevance.
 
 ## Key Concepts
@@ -13,7 +13,7 @@ The chapter introduces explainable retrieval as a method to enhance transparency
 - Explainable Retrieval: Systematically adding context or rationale behind each retrieval decision.
 
 ## Mental Models
-- Use explainable retrieval when trust in AI systems is critical.  
+- Use explainable retrieval when trust in AI systems is critical.
   Think of it as providing "why" behind the results to build user confidence.
 
 ## Anti-patterns
@@ -23,7 +23,7 @@ The chapter introduces explainable retrieval as a method to enhance transparency
 ```python
 def explain_retrieval(query, docs):
     """Generate explanations for each document's relevance."""
-    prompts = [f"Explain why {doc.content} is relevant to the query: {query}" 
+    prompts = [f"Explain why {doc.content} is relevant to the query: {query}"
                for doc in docs]
     responses = client.lm.generate_explanations(prompts)
     return [(doc.content, response) for doc, response in zip(docs, responses)]

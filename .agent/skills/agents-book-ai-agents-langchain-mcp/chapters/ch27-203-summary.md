@@ -7,16 +7,16 @@ This chapter explores advanced indexing strategies and question transformation t
 - **Multi-vector Indexing**: Uses multiple embeddings per document for better search precision.
   - When to use: For high-dimensional data requiring precise retrieval.
   - How: Embeds each chunk in multiple ways to capture different aspects of the content.
-  
+
 - **Parent-Child Indexing**: Stores small chunks as leaves and larger parent chunks for context.
   - When to use: To balance search granularity with contextual relevance.
   - How: Child chunks reference their parent documents, allowing retrieval at varying levels of detail.
 
 ## Key Concepts
-- **Chunking Strategies**: 
+- **Chunking Strategies**:
   - Size-based splitting (e.g., by character count or sentences) for content without explicit structure.
   - Structure-based splitting (e.g., using headers in Markdown or book chapters).
-  
+
 - **Context Expansion**: Retrieves adjacent chunks to maintain context during retrieval.
   - When to use: To ensure continuity and relevance in multi-document responses.
 

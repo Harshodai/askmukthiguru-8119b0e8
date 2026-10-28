@@ -50,7 +50,7 @@ class MultiHeadAttention(nn.Module):
 
         # Output projection
         self.output = nn.Linear(embed_dim, embed_dim)
-        
+
         # Dropout layer
         self.dropout = nn.Dropout(dropout)
 
@@ -72,7 +72,7 @@ class MultiHeadAttention(nn.Module):
 
         # Multiply by value vectors and sum across heads
         out = torch.matmul(attn_scores, v)
-        
+
         return out
 ```
 

@@ -1,26 +1,26 @@
-# Chapter 9: Building a Technical Replication Stack  
+# Chapter 9: Building a Technical Replication Stack
 
-## Core Idea  
+## Core Idea
 This chapter explores the challenges of achieving consistency in distributed systems through replication, focusing on linearizability, CAP theorem limitations, and consensus algorithms. It emphasizes that while strong consistency guarantees like linearizability are powerful, they come with significant implementation complexities and performance trade-offs.
 
 ---
 
-### Frameworks Introduced  
-1. **Linearizable Storage**  
+### Frameworks Introduced
+1. **Linearizable Storage**
    - When: Implementing fault-tolerant databases or replicating state across nodes.
    - How: Ensures reads return the most recent write, even in the face of network partitions or node failures.
 
-2. **CAP Theorem**  
+2. **CAP Theorem**
    - When: Designing distributed systems with conflicting goals of consistency, availability, and partition tolerance.
    - How: Highlights that achieving all three simultaneously is impossible, forcing trade-offs between them.
 
-3. **Consensus Algorithms**  
+3. **Consensus Algorithms**
    - When: Implementing fault-tolerant agreement in distributed systems.
    - How: Uses replication and quorums to achieve eventual or strong consistency among nodes.
 
 ---
 
-### Key Concepts  
+### Key Concepts
 - **Linearizability**: A system provides linearizability if reads return the most recent write, ensuring recency guarantees. Achieved through atomic operations and ordering constraints like total ordering or partial ordering.
 - **CAP Theorem**: States that in a distributed system, you cannot simultaneously achieve consistency, availability, and partition tolerance. It is often misunderstood but emphasizes trade-offs between these properties.
 - **Quorums**: A set of nodes required for replication to ensure fault tolerance, with size determined by the system's fault tolerance level (e.g., f+1 for f failures).
@@ -28,19 +28,19 @@ This chapter explores the challenges of achieving consistency in distributed sys
 
 ---
 
-### Mental Models  
-- Use linearizable storage when your system requires strong consistency guarantees.  
-- Avoid CAP trade-offs by understanding the specific requirements of your system (e.g., whether partition tolerance is necessary).  
+### Mental Models
+- Use linearizable storage when your system requires strong consistency guarantees.
+- Avoid CAP trade-offs by understanding the specific requirements of your system (e.g., whether partition tolerance is necessary).
 
 ---
 
-### Anti-Patterns  
+### Anti-Patterns
 1. **Avoiding CAP Trade-Offs**: The CAP theorem often leads to suboptimal design choices, so it's better to prioritize other factors like availability over consistency when possible.
 2. **Not Relying on Network Partitions**: Many systems fail to account for network partitions as a common failure mode and instead treat them as rare events.
 
 ---
 
-### Code Examples  
+### Code Examples
 ```python
 class LinearizableRegister:
     def __init__(self):
@@ -64,7 +64,7 @@ This example demonstrates a simple linearizable register using write-ahead loggi
 
 ---
 
-### Reference Tables  
+### Reference Tables
 | **Algorithm**          | **Use Case**                          | **Performance Impact**                     |
 |-------------------------|----------------------------------------|-------------------------------------------|
 | Linearizability        | Strong consistency guarantees         | Higher latency for complex operations       |
@@ -73,7 +73,7 @@ This example demonstrates a simple linearizable register using write-ahead loggi
 
 ---
 
-### Key Takeaways  
+### Key Takeaways
 1. Linearizability is a powerful consistency guarantee but comes with significant implementation complexity and performance trade-offs.
 2. The CAP theorem highlights the impossibility of achieving all three goals (consistency, availability, partition tolerance) simultaneously in distributed systems.
 3. Choosing the right consistency model depends on the specific requirements and constraints of your system.

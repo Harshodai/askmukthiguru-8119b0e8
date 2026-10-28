@@ -1,4 +1,4 @@
-# Chapter 7: Chapter 5 
+# Chapter 7: Chapter 5
 
 ## Core Idea
 The chapter emphasizes responsible AI practices, focusing on methods to prevent information leakage, control AI-generated data usage, and optimize post-training techniques for better model performance.
@@ -26,7 +26,7 @@ The chapter emphasizes responsible AI practices, focusing on methods to prevent 
 # Example of Supervised Finetuning in Python using InstructGPT
 from instructgpt import InstructGPT
 
-model = InstructGPT.from_pretrained('microsoft/InstructGPT', 
+model = InstructGPT.from_pretrained('microsoft/InstructGPT',
                                     temperature=0.7,
                                     max_new_tokens=200)
 
@@ -37,7 +37,7 @@ demonstration_data = [
 ]
 
 # Fine-tune the model with demonstration data
-model.finetune(demonstration_data, 
+model.finetune(demonstration_data,
                n_epochs=3,
                batch_size=128)
 ```

@@ -9,7 +9,7 @@ This chapter teaches the fundamental principles of transaction processing in dat
 - **Page Caching with Eviction Policies**: Uses algorithms like FIFO, LRU, and TinyLFU to manage memory efficiently.
   - When to use: Optimize for systems with limited memory resources.
   - How: Evict pages based on recency or frequency of access.
-  
+
 - **Checkpointing and Recovery**: Implements strategies like checkpointing and ARIES for handling failures.
   - When to use: Systems requiring robust recovery from hardware failures.
   - How: Checkpoint periodically, log writes, and manage transactions during recovery.

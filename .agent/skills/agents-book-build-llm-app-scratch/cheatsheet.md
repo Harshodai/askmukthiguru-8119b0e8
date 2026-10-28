@@ -1,10 +1,10 @@
 # Cheatsheet
 
-### Cheatsheet for Large Language Models and Related Topics  
+### Cheatsheet for Large Language Models and Related Topics
 
 ---
 
-#### **Decision Table: When to Use Certain Components**  
+#### **Decision Table: When to Use Certain Components**
 | **Component**          | **Use Case**                                                                 | **Example Model/Technique**                     |
 |------------------------|-----------------------------------------------------------------------------|-----------------------------------------------|
 | Input Embedding         | Convert raw text into dense vectors for processing.                    | BERT, RoBERTa, GPT-3 (Chapters 1, 3)           |
@@ -17,7 +17,7 @@
 
 ---
 
-#### **Comparison Matrix: Model Features**  
+#### **Comparison Matrix: Model Features**
 | **Feature**              | **BERT**                     | **GPT-3**                    | **RAG Models**                 |
 |--------------------------|-------------------------------|-------------------------------|-------------------------------|
 | Speed                   | Faster training and inference.   | Slower but more accurate.      | Depends on retrieval speed.    |
@@ -26,7 +26,7 @@
 
 ---
 
-#### **Quick Reference Rules**  
+#### **Quick Reference Rules**
 1. **BERT Processing Pipeline**: Always start with tokenization and positional encoding before feeding into the decoder.
 2. **Decoder Activation**: Use beam search decoding when generating text from BERT or GPT models.
 3. **Encoder-Decoder Trade-off**: Encoder-only models are faster but may lack context handling; decoder-only models generate more accurate outputs.

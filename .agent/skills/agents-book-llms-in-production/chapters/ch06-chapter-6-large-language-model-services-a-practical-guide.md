@@ -7,7 +7,7 @@ The chapter provides a comprehensive overview of deploying large language models
 - **vLLM**: A general-purpose LLM framework built on the Hugging Face Hub.
   - When to use: Enterprise-level applications requiring high performance and reliability.
   - How: Integrates with existing infrastructure, supports multiple languages, and offers paid enterprise support.
-  
+
 - **TGI (The Great Inference Graph)**: An open-source prompt-tuning framework for LLMs.
   - When to use: Research or exploratory tasks where flexibility is key.
   - How: Allows users to create custom prompts that guide the model's output.

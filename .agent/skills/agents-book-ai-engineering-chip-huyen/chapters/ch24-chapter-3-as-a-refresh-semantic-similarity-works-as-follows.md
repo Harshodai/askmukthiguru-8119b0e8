@@ -4,15 +4,15 @@
 The chapter emphasizes semantic similarity as a fundamental concept in machine learning systems, focusing on how to design, evaluate, and deploy models that effectively capture and generate human-like language.
 
 ## Frameworks Introduced
-- **Prompt-Based Fine-Tuning (PBF)**: A method for fine-tuning large language models by conditioning them on specific prompts.  
+- **Prompt-Based Fine-Tuning (PBF)**: A method for fine-tuning large language models by conditioning them on specific prompts.
   - When to use: For targeted model adaptation in specific domains or tasks.
   - How: Through prompt engineering and optimization techniques like LoRA or PEFT.
 
-- **LoRA (Low-Rank Adaptation)**: A parameter-efficient approach for adapting language models to new tasks without retraining the entire model.  
+- **LoRA (Low-Rank Adaptation)**: A parameter-efficient approach for adapting language models to new tasks without retraining the entire model.
   - When to use: For resource-constrained environments requiring real-time adaptation.
   - How: By decomposing the model's parameters into low-rank components and applying task-specific adapters.
 
-- **Inference Optimization**: Techniques to improve the efficiency of ML models during inference, such as chunking, parallel decoding, and quantization.  
+- **Inference Optimization**: Techniques to improve the efficiency of ML models during inference, such as chunking, parallel decoding, and quantization.
   - When to use: For deploying models on constrained hardware or improving real-time performance.
   - How: Through algorithmic optimizations and hardware acceleration.
 

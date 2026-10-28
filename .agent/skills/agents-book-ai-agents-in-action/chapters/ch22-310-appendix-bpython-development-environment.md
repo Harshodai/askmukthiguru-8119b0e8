@@ -4,7 +4,7 @@
 The single most important thing this chapter teaches is how to set up a robust Python development environment using VS Code, with a focus on prerequisites, plugin installation, and extension utilization.
 
 ## Frameworks Introduced
-- **VS Code Setup**: 
+- **VS Code Setup**:
   - When to use: For modern Python development with advanced features.
   - How: Install extensions like linter and formatter for code quality.
 

@@ -4,8 +4,8 @@
 This chapter provides guidance on accessing OpenAI's API using API keys and explores alternative platforms like Azure OpenAI Studio for model access.
 
 ## Frameworks Introduced
-- **Creating a Secret API Key**:  
-  - When to use: When integrating with OpenAI services.  
+- **Creating a Secret API Key**:
+  - When to use: When integrating with OpenAI services.
   - How: Create a new key in the OpenAI platform, copy it securely, and use it for API requests.
 
 ## Key Concepts
@@ -14,7 +14,7 @@ This chapter provides guidance on accessing OpenAI's API using API keys and expl
 - **Deployment**: Wrapping a model (e.g., GPT-4) in an Azure resource for access and management.
 
 ## Mental Models
-- Use API keys when integrating with AI services like OpenAI or Azure OpenAI Studio.  
+- Use API keys when integrating with AI services like OpenAI or Azure OpenAI Studio.
   - Think of API keys as the entry ticket to access and utilize AI models.
 
 ## Anti-patterns

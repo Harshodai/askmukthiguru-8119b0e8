@@ -6,7 +6,7 @@ Understanding transaction isolation levels is crucial for ensuring correctness i
 ---
 
 ### Frameworks Introduced
-- **MVCC (Multi-Version Concurrent Control)**:  
+- **MVCC (Multi-Version Concurrent Control)**:
   - When to use: Implementing snapshot isolation in distributed systems.
   - How: Uses version numbers to ensure consistent reads and detect conflicting operations during writes.
 
@@ -39,7 +39,7 @@ public class Transaction {
 
     public void begin() {
         // Log statements for optimistic concurrency control
-        if (ts1 > nlock) { 
+        if (ts1 > nlock) {
             // Write a log indicating the transaction is in progress
             writeLog("locking", lock);
             // Check if we can proceed without locking
@@ -47,7 +47,7 @@ public class Transaction {
                 // We can lock ourselves now and release existing locks later
                 lock = true;
             }
-        } else { 
+        } else {
             // Lock the transaction
             lock = true;
         }
@@ -66,7 +66,7 @@ public class Transaction {
     public void rollback() {
         // Log a rollback to ensure serializability
         log("rollback", this);
-        
+
         // Revert all operations in the transaction
         try {
             for (int i = txId; i > lockId; --i) {

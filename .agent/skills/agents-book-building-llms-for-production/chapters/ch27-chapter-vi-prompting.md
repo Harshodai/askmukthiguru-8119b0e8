@@ -20,19 +20,19 @@ This chapter explores advanced techniques for creating effective prompts using L
 
 ## Code Examples
 ```python
-from langchain import LLMChain, PromptTemplate  
-from langchain.chat_models import ChatOpenAI  
+from langchain import LLMChain, PromptTemplate
+from langchain.chat_models import ChatOpenAI
 
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)  
-template = """Answer the question based on the context below. If the question cannot be answered using the information provided, answer with "I don't know".  
-Context: Quantum computing is an emerging field that leverages quantum mechanics to solve complex problems faster than classical computers. ... 
-Question: What are some advantages of quantum computing over classical computing? """  
-prompt = PromptTemplate(  
-    input_variables=["question"],  
-    template=template  
-)  
+llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+template = """Answer the question based on the context below. If the question cannot be answered using the information provided, answer with "I don't know".
+Context: Quantum computing is an emerging field that leverages quantum mechanics to solve complex problems faster than classical computers. ...
+Question: What are some advantages of quantum computing over classical computing? """
+prompt = PromptTemplate(
+    input_variables=["question"],
+    template=template
+)
 
-response = llm.run({"question": "What are some advantages of quantum computing over classical computing?"})  
+response = llm.run({"question": "What are some advantages of quantum computing over classical computing?"})
 print(response)
 ```
 

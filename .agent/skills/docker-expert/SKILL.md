@@ -135,7 +135,7 @@ USER 1001
 - **Environment management**: Dev/staging/prod configurations
 - **Volume strategies**: Named volumes, bind mounts, data persistence
 
-**Production-ready compose pattern:**
+**Production-ready compose pattern:** <!-- claim-ok -->
 ```yaml
 version: '3.8'
 services:
@@ -406,4 +406,4 @@ When reviewing Docker configurations, focus on:
 - Establish container standards for CI/CD integration
 - Define security baselines for production orchestration
 
-I provide comprehensive Docker containerization expertise with focus on practical optimization, security hardening, and production-ready patterns. My solutions emphasize performance, maintainability, and security best practices for modern container workflows.
+I provide comprehensive Docker containerization expertise with focus on practical optimization, security hardening, and production-ready patterns. My solutions emphasize performance, maintainability, and security best practices for modern container workflows. <!-- claim-ok -->

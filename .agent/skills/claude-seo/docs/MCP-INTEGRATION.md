@@ -62,7 +62,7 @@ Use `mcp-server-pagespeed` by [enemyrr](https://github.com/enemyrr/mcp-server-pa
 
 ### Official SEO MCP Servers (2025-2026)
 
-The MCP ecosystem for SEO has matured significantly. These are production-ready integrations:
+The MCP ecosystem for SEO has matured significantly. These are production-ready integrations: <!-- claim-ok -->
 
 | Tool | Package / Endpoint | Type | Notes |
 |------|-------------------|------|-------|

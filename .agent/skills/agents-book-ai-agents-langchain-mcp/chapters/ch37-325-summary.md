@@ -30,14 +30,14 @@ checkpointer = InMemorySaver()  # Simplest form of checkpointing
 
 def mock_langgraph():
     from langgraph import LangGraph
-    
+
     class MockAgentState:
         def __init__(self):
             self.messages = []
-    
+
     state = MockAgentState()
     state.messages.append("Hello")
-    
+
     return state
 
 lang_graph = LangGraph(

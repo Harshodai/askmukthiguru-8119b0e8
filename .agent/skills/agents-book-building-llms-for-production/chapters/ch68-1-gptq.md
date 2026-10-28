@@ -22,8 +22,8 @@ GPTQ is a quantization technique that balances performance and efficiency in lar
 - **Mixed-Precision Formats**: Using a combination of data types (e.g., int4-fp16) to balance speed and accuracy.
 
 ## Mental Models
-- Use GPTQ when you need a balance between performance and efficiency in your model deployment.  
-- Think of LoRA as focusing on preserving the most important parameters for fine-tuning.  
+- Use GPTQ when you need a balance between performance and efficiency in your model deployment.
+- Think of LoRA as focusing on preserving the most important parameters for fine-tuning.
 - QLoRA is ideal for scenarios requiring structured sparsity in large transformer models.
 
 ## Anti-patterns
@@ -31,15 +31,15 @@ GPTQ is a quantization technique that balances performance and efficiency in lar
 
 ## Code Examples
 ```python
-from optimum.intel import INCModelForCausalLM  
-from transformers import AutoTokenizer  
+from optimum.intel import INCModelForCausalLM
+from transformers import AutoTokenizer
 
-model_name = "facebook/opt-1.3b"  
-tokenizer = AutoTokenizer.from_pretrained(model_name)  
-model = INCModelForCausalLM.from_pretrained("./opt1.3b-quantized")  
+model_name = "facebook/opt-1.3b"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = INCModelForCausalLM.from_pretrained("./opt1.3b-quantized")
 
-inputs = tokenizer("What is life?", return_tensors="pt")  
-generation_output = model.generate(**inputs, min_length=512, max_length=512, num_beams=4)  
+inputs = tokenizer("What is life?", return_tensors="pt")
+generation_output = model.generate(**inputs, min_length=512, max_length=512, num_beams=4)
 print(tokenizer.decode(generation_output.sequences[0]))
 ```
 **What it demonstrates**: Implementing GPTQ quantization for inference on a quantized OPT model.

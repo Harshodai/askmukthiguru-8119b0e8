@@ -28,10 +28,10 @@ from langmodel import LLM
 def rag_query(query):
     # Convert query to embedding
     query_embedding = model.encode(query)
-    
+
     # Retrieve top documents from vector store
     docs = vector_store.similarity_search(query_embedding, k=3)
-    
+
     # Generate response using LLM with retrieved documents
     response = llm.generate_response(query, docs)
     return response

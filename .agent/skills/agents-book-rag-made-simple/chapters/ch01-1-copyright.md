@@ -4,12 +4,12 @@
 This chapter introduces Retrieval-Augmented Generation (RAG) as a foundational approach for building document-powered AI systems. It explains how RAG combines retrieval systems with generative models to process and answer questions using structured or semi-structured documents.
 
 ## Frameworks Introduced
-- **RAG Pipeline**:  
-  - When to use: When dealing with structured or semi-structured documents that need to be analyzed, processed, and answered in natural language.  
+- **RAG Pipeline**:
+  - When to use: When dealing with structured or semi-structured documents that need to be analyzed, processed, and answered in natural language.
   - How: Retrieve relevant text chunks from a document collection, transform them into structured facts, generate responses using a generative model, and validate the output for accuracy.
 
 ## Key Concepts
-- **Text Chunking**: The process of organizing retrieved text into coherent, semantically meaningful chunks that can be processed by downstream systems.  
+- **Text Chunking**: The process of organizing retrieved text into coherent, semantically meaningful chunks that can be processed by downstream systems.
 - **Query Transformation**: A technique to refine search results before they are passed to a generative model, ensuring more relevant and accurate responses.
 
 ## Mental Models

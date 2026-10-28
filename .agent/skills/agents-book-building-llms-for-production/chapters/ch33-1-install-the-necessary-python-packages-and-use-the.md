@@ -15,7 +15,7 @@ This chapter teaches you how to set up an environment for text generation using 
 - **Vector Store**: A system that stores embeddings to allow fast and accurate retrieval of semantically related documents.
 
 ## Mental Models
-- Use Deep Lake Vector Store when you need to efficiently retrieve relevant documents from a large text collection.  
+- Use Deep Lake Vector Store when you need to efficiently retrieve relevant documents from a large text collection.
   - Think of it as a tool that organizes your text data into a searchable index based on semantic meaning.
 
 ## Anti-patterns
@@ -25,18 +25,18 @@ This chapter teaches you how to set up an environment for text generation using 
 ## Code Examples
 ```python
 # Example code snippet demonstrating setup:
-from langchain.document_loaders import TextLoader  
-from langchain.text_splitter import CharacterTextSplitter  
-from langchain.embeddings import OpenAIEmbeddings  
-from langchain.vectorstores import DeepLake  
+from langchain.document_loaders import TextLoader
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import DeepLake
 
-text = """Google opens up its AI language model PaLM to challenge OpenAI and GPT-3..."""  
-loader = TextLoader("my_file.txt")  
-docs_from_file = loader.load()  
-text_splitter = CharacterTextSplitter(chunk_size=200, chunk_overlap=20)  
-docs = text_splitter.split_documents(docs_from_file)  
-embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")  
-db = DeepLake(dataset_path=f"hub://{my_activeloop_org_id}/{my_activeloop_dataset_name}", embedding_function=embeddings)  
+text = """Google opens up its AI language model PaLM to challenge OpenAI and GPT-3..."""
+loader = TextLoader("my_file.txt")
+docs_from_file = loader.load()
+text_splitter = CharacterTextSplitter(chunk_size=200, chunk_overlap=20)
+docs = text_splitter.split_documents(docs_from_file)
+embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
+db = DeepLake(dataset_path=f"hub://{my_activeloop_org_id}/{my_activeloop_dataset_name}", embedding_function=embeddings)
 db.add_documents(docs)
 
 # What it demonstrates: Setting up the environment for text generation and retrieval.

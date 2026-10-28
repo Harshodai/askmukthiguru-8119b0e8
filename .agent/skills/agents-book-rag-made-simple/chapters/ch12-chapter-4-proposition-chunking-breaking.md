@@ -4,7 +4,7 @@
 Proposition chunking refines text chunks into individual propositions—smaller, precise facts—that enhance retrieval accuracy by isolating relevant information.
 
 ## Frameworks Introduced
-- **Proposition Chunking**: 
+- **Proposition Chunking**:
   - When to use: When you need precise fact retrieval.
   - How: Split initial chunks using a language model to generate self-contained propositions.
 

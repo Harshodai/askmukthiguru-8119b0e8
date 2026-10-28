@@ -42,10 +42,10 @@ from typing import Optional
 class EventSource:
     def __init__(self):
         self.events = []
-    
+
     def append_event(self, event: dict) -> None:
         self.events.append(event)
-        
+
     def get_events(self) -> list[dict]:
         return self.events.copy()
 ```
@@ -57,7 +57,7 @@ from time import sleep
 class RESTAPI:
     def __init__(self):
         self URL = "http://localhost:8080/api"
-    
+
     async def fetch_stream(self, endpoint: str) -> list[dict]:
         results = []
         while True:

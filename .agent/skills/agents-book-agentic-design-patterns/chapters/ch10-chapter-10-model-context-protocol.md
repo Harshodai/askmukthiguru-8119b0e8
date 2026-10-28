@@ -4,8 +4,8 @@
 The Model Context Protocol (MCP) is an open standard that enables large language models (LLMs) and intelligent agents to interact with external systems, including databases, APIs, and tools, by providing a standardized communication framework.
 
 ## Frameworks Introduced
-- **Model Context Protocol (MCP)**: An open standard for LLM-external system interaction.  
-  - When to use: When building complex AI/AGI systems that require dynamic access to external capabilities.  
+- **Model Context Protocol (MCP)**: An open standard for LLM-external system interaction.
+  - When to use: When building complex AI/AGI systems that require dynamic access to external capabilities.
   - How: Through client-server architecture, exposing resources, tools, and prompts in a standardized manner.
 
 ## Key Concepts
@@ -16,7 +16,7 @@ The Model Context Protocol (MCP) is an open standard that enables large language
 - **Tool**: An executable function provided by MCP servers for specific actions.
 
 ## Mental Models
-- Use MCP when building complex systems requiring dynamic external interactions.  
+- Use MCP when building complex systems requiring dynamic external interactions.
   - Think of MCP as enabling scalable, interoperable AI/AGI capabilities through standardized communication.
 
 ## Anti-patterns

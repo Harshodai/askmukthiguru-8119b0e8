@@ -24,7 +24,7 @@ Understanding the differences between OLTP (Online Transaction Processing) and O
 - **Columnar Storage**: Stores each column as a separate file, enabling efficient range scans and compression.
 
 ## Mental Models
-- Use Columnar Storage when your application requires fast aggregations or pivots on large datasets.  
+- Use Columnar Storage when your application requires fast aggregations or pivots on large datasets.
   - Example: E-commerce platforms needing to quickly summarize sales data by product category.
 
 ## Anti-Patterns
@@ -43,7 +43,7 @@ def query(sum_query):
     storage = pa.pyext.PyExt()
     table = pa.table.from_pandas(sum_query)
     pq.write(table, "sum_data/pq")
-    
+
     # Read back the data using Pandas
     result = pc.read_parquet("sum_data/pq", columns=["sum"])
     return result

@@ -36,7 +36,7 @@ class SwiGEL(nn.Module):
         self.dropout = config.dropout
         self.position_embedding_type = config.n_positions
         self.position_embeddings = nn.Embedding(config.n_positions, config.n embedding_dim)
-        
+
         # ... rest of the SwiGEL implementation ...
 
 class LlamaStack(nn.Module):

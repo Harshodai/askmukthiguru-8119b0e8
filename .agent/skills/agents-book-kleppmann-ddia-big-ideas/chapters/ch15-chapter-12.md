@@ -7,7 +7,7 @@ The chapter emphasizes the importance of designing scalable, high-performance di
 - **Linearizable Replication**: Used for achieving strong consistency in distributed replicated state.
   - When to use: For systems requiring strict consistency across nodes.
   - How: Implements linearizability with efficient locking mechanisms.
-- **Sharding (Horizontal vs Vertical)**: 
+- **Sharding (Horizontal vs Vertical)**:
   - Horizontal sharding: Distributes data by key range or column family.
     - Used for large-scale datasets and complex queries.
   - Vertical sharding: Organizes data vertically, ideal for specific types of queries.

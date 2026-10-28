@@ -4,13 +4,13 @@
 This chapter emphasizes the critical role of exception handling and recovery in building robust, reliable AI agents capable of managing unpredictable real-world environments.
 
 ## Frameworks Introduced
-- **Exception Handling and Recovery Pattern**:  
-  - When to use: For AI agents operating in dynamic, unpredictable settings where failures are inevitable.  
+- **Exception Handling and Recovery Pattern**:
+  - When to use: For AI agents operating in dynamic, unpredictable settings where failures are inevitable.
   - How: Implement proactive error detection, logging, retries, fallbacks, graceful degradation, and recovery strategies like state rollback or escalation.
 
 ## Key Concepts
-- **Error Detection**: Identifying operational issues through validated tool outputs, API errors, response times, and coherent responses.  
-- **Error Handling**: A structured approach including logging, retries with timeouts, fallback mechanisms, and notifications for human intervention.  
+- **Error Detection**: Identifying operational issues through validated tool outputs, API errors, response times, and coherent responses.
+- **Error Handling**: A structured approach including logging, retries with timeouts, fallback mechanisms, and notifications for human intervention.
 - **Recovery**: Restoring agents to stable operation through state management, diagnosis, self-correction, or escalation.
 
 ## Mental Models
@@ -33,7 +33,7 @@ primary_handler = Agent(
 
 fallback_handler = Agent(
     name="fallback_handler",
-    model="gemini-2.0-flash-exp", 
+    model="gemini-2.0-flash-exp",
     instruction="""Check if primary lookup failed and retry with general info.""",
     tools=[get_general_area_info]
 )

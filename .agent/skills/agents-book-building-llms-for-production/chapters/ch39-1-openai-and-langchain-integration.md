@@ -24,9 +24,9 @@ This chapter teaches how to build end-to-end Retrieval-Augmented Generation (RAG
 ## Code Examples
 
 ```python
-from langchain import LLMChain  
-from langchain.llms import OpenAI  
-import tiktoken  
+from langchain import LLMChain
+from langchain.llms import OpenAI
+import tiktoken
 
 # Initialize the model
 llm = OpenAI(model_name="gpt-3.5-turbo", temperature=0)

@@ -4,7 +4,7 @@
 The chapter introduces semantic chunking, a method that splits documents into coherent chunks based on topic boundaries identified through sentence embeddings.
 
 ## Frameworks Introduced
-- **Embedding Similarity for Breakpoints**:  
+- **Embedding Similarity for Breakpoints**:
   - When to use: For splitting text at natural topic shifts.
   - How: Compute distances between consecutive sentences' embeddings and set thresholds (percentile, standard deviation, or IQR) to identify breakpoints.
 

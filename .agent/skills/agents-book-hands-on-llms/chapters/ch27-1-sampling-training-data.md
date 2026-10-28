@@ -46,5 +46,5 @@ This demonstrates how to initialize and configure a SetFit model for few-shot cl
 3. Leverage continued pretraining to enhance model performance beyond the initial classification task.
 
 ## Connects To
-- Chapter 10: Pretrained BER T Models and Their Applications  
+- Chapter 10: Pretrained BER T Models and Their Applications
 - Chapter 12: Few-Shot Learning Techniques

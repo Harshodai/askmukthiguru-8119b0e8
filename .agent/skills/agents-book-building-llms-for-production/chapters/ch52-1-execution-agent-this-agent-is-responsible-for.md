@@ -24,10 +24,10 @@ BabyAGI is an autonomous AI agent designed to execute tasks autonomously by leve
 ```python
 # Example code demonstrating BabyAGI setup and execution
 
-from langchain.embeddings import OpenAIEmbeddings  
-import faiss 
-from langchain.vectorstores import FAISS 
-from langchain import OpenAI 
+from langchain.embeddings import OpenAIEmbeddings
+import faiss
+from langchain.vectorstores import FAISS
+from langchain import OpenAI
 from langchain.experimental import BabyAGI
 
 # Initialize embedding model

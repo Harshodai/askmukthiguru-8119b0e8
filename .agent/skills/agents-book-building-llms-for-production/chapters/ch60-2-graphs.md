@@ -29,7 +29,7 @@ The chapter focuses on extracting meaningful insights from charts, graphs, and d
 
 ## Code Examples
 ```python
-from pdf2image import convert_from_path  
+from pdf2image import convert_from_path
 
 # Convert each page of the PDF to a PNG file
 pages_png = [file for file in os.listdir("./pages") if file.endswith('.png')]
@@ -53,19 +53,19 @@ def encode_image(image_path):
 for idx, page in enumerate(pages_png):
     # Get the base64 string for the current image
     base64_image = encode_image(f"./pages/{page}")
-    
+
     # Adjust the payload to include the encoded image
     tmp_payload = copy.deepcopy(payload)
     tmp_payload["messages"][0]["content"].append({
         "type": "image_url",
         "image_url": f"data:image/png;base64,{base64_image}"
     })
-    
+
     try:
         response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=tmp_payload)
         response.raise_for_status()
         graph_data = json.loads(response.content.decode('utf-8'))["choices"][0]["message"]["content"]
-        
+
         # Construct the final description for storage
         desc = f"[Element] {graph_data}"
         graphs_description.append(desc)

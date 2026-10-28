@@ -4,7 +4,7 @@
 The chapter emphasizes the critical importance of reliable evaluation pipelines for ensuring trustworthiness in AI systems. It highlights methods for determining appropriate sample sizes and evaluating the robustness of evaluation processes.
 
 ## Frameworks Introduced
-- **Bootstrapping Method**: 
+- **Bootstrapping Method**:
   - When to use: To estimate the reliability of evaluation results when the original dataset is insufficient.
   - How: Draw multiple resamples with replacement from the original dataset, evaluate each, and analyze variability.
 
@@ -29,12 +29,12 @@ def bootstrap_evaluation(original_samples):
     n_bootstraps = 100
     sample_size = len(original_samples)
     results = []
-    
+
     for _ in range(n_bootstraps):
         bootstrap_sample = np.random.choice(original_samples, size=sample_size, replace=True)
         result = evaluate_model(bootstrap_sample)
         results.append(result)
-        
+
     return np.std(results)
 
 # Example usage

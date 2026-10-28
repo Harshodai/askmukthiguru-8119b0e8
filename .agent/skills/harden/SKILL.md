@@ -1,6 +1,6 @@
 ---
 name: harden
-description: Improve interface resilience through better error handling, i18n support, text overflow handling, and edge case management. Makes interfaces robust and production-ready. Use when the user asks to harden, make production-ready, handle edge cases, add error states, or fix overflow and i18n issues.
+description: Improve interface resilience through better error handling, i18n support, text overflow handling, and edge case management. Makes interfaces robust and production-ready. Use when the user asks to harden, make production-ready, handle edge cases, add error states, or fix overflow and i18n issues. <!-- claim-ok -->
 user-invocable: true
 argument-hint: "[target]"
 ---
@@ -35,7 +35,7 @@ Identify weaknesses and edge cases:
    - Number formats (1,000 vs 1.000)
    - Currency symbols
 
-**CRITICAL**: Designs that only work with perfect data aren't production-ready. Harden against reality.
+**CRITICAL**: Designs that only work with perfect data aren't production-ready. Harden against reality. <!-- claim-ok -->
 
 ## Hardening Dimensions
 

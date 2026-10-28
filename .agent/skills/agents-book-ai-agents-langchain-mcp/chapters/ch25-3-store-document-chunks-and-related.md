@@ -4,8 +4,8 @@
 Advanced indexing techniques can significantly enhance the accuracy and efficiency of Retrieval-Augmented Generation (RAG) systems by addressing retrieval challenges and improving question processing.
 
 ## Frameworks Introduced
-- **Advanced Indexing Techniques**:  
-  - When to use: When dealing with complex queries that require precise data retrieval or when handling broad, abstract questions.  
+- **Advanced Indexing Techniques**:
+  - When to use: When dealing with complex queries that require precise data retrieval or when handling broad, abstract questions.
   - How: By calculating multiple embeddings for each text chunk, leveraging distinct features of the content, and implementing tailored indexing strategies based on chunk size, overlap length, and query specificity.
 
 ## Key Concepts
@@ -13,12 +13,12 @@ Advanced indexing techniques can significantly enhance the accuracy and efficien
 - **Vector Store**: A database storing embeddings as high-dimensional vectors for efficient similarity searches.
 
 ## Mental Models
-- Use advanced indexing techniques when you need to handle complex or ambiguous queries.  
+- Use advanced indexing techniques when you need to handle complex or ambiguous queries.
   - Think of advanced indexing techniques as a solution to retrieval challenges in RAG systems.
 
 ## Anti-patterns
 - **Ignoring indexing improvements**: Failing to implement advanced indexing can lead to inaccurate or irrelevant results due to insufficient data organization and retrieval strategies.
-- **Improper question transformation**: Not transforming questions appropriately can result in weak context retrieval, leading to poor answers.  
+- **Improper question transformation**: Not transforming questions appropriately can result in weak context retrieval, leading to poor answers.
   - Think of question transformation as a critical step before and during the RAG process.
 
 ## Code Examples
@@ -53,5 +53,5 @@ What it demonstrates: This code calculates multiple embeddings for each text chu
 3. Combining multiple indexing strategies, tailored question transformations, and structured data sources can lead to more accurate and relevant answers.
 
 ## Connects To
-- Relates to vector store architecture (Chapter 5).  
+- Relates to vector store architecture (Chapter 5).
 - Connects with content routing and query optimization in Chapter 7.

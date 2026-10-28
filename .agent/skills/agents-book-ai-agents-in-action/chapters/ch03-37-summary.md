@@ -26,16 +26,16 @@ def data_science_assistant(csv_path):
     # Step 1: Load the CSV file
     import pandas as pd
     df = pd.read_csv(csv_path)
-    
+
     # Step 2: Perform Exploratory Data Analysis (EDA)
     print("Data Shape:", df.shape)
     print("\nFirst few rows of data:")
     print(df.head())
-    
+
     # Step 3: Handle missing values
     print("\nMissing Values:")
     print(df.isnull().sum())
-    
+
     # Step 4: Visualize data distributions
     import matplotlib.pyplot as plt
     import seaborn as sns

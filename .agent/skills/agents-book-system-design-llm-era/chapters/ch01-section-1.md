@@ -4,7 +4,7 @@
 The chapter focuses on designing and deploying Large Language Models (LLMs) in production environments, emphasizing principles like prompt engineering, context windows, fine-tuning, reasoning mechanisms, and cost optimization while addressing security and trust concerns.
 
 ### Frameworks Introduced
-- **Prompt Engineering**: A structured approach to crafting prompts that guide LLMs effectively.  
+- **Prompt Engineering**: A structured approach to crafting prompts that guide LLMs effectively.
   - When to use: To achieve specific tasks or improve accuracy by tailoring input formats.
   - How: Crafting clear, concise, and contextual prompts with boundaries on context windows.
 
@@ -13,7 +13,7 @@ The chapter focuses on designing and deploying Large Language Models (LLMs) in p
   - How: Systematically tuning parameters like learning rate, batch size, and regularization.
 
 ### Key Concepts
-- **Context Window Size**: The number of tokens a model can process at once.  
+- **Context Window Size**: The number of tokens a model can process at once.
   - Importance: Affects generation speed, memory usage, and context preservation.
 
 - **Temperature Parameter**: Controls output randomness in LLMs.
@@ -24,7 +24,7 @@ The chapter focuses on designing and deploying Large Language Models (LLMs) in p
   - Importance: Enhances explainability and debugging capabilities.
 
 ### Mental Models
-- "Think before you type": Setting clear boundaries on context windows to avoid hallucinations.  
+- "Think before you type": Setting clear boundaries on context windows to avoid hallucinations.
   - Application: Limiting the scope of inputs to ensure reliability.
 
 ### Anti-patterns

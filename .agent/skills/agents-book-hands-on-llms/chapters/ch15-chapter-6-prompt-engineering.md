@@ -4,7 +4,7 @@
 The chapter emphasizes the importance of prompt engineering in controlling and enhancing large language model (LLM) outputs. By crafting effective prompts, tuning parameters like temperature and top_p, and employing techniques such as chain-of-thought prompting, zero-shot prompting, and output verification, practitioners can guide LLMs to produce high-quality, relevant, and controllable responses.
 
 ## Frameworks Introduced
-- **Zero-Shot Prompting (ZSP)**: A method that uses a single example or description without any setup or instructions.  
+- **Zero-Shot Prompting (ZSP)**: A method that uses a single example or description without any setup or instructions.
   - When to use: When the model can infer from context alone.
   - How: Provide a brief example followed by the task, allowing the model to generate outputs based on its training.
 

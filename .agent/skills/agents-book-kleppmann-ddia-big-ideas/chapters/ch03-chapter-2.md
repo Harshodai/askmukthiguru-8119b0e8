@@ -7,7 +7,7 @@ The chapter emphasizes that selecting the right data model is crucial for effect
 - **Hierarchical Data Model (HDM)**: Best for tree-like hierarchies with a flat table structure.
   - When to use: Applications requiring simple hierarchical relationships.
   - How: Uses parent-child relationships without complex joins.
-  
+
 - **Relational Model (RM)**: Designed for complex queries and relational operations.
   - When to use: Applications needing rich query capabilities and transaction support.
   - How: Uses SQL with tables, rows, columns, and constraints.
@@ -45,11 +45,11 @@ The chapter emphasizes that selecting the right data model is crucial for effect
 ## Code Examples
 ```python
 # Example of a simple query in Cypher
-CREATE QUERY person { 
-  name: "Lucy" 
-  :bornIn: location 
-  :livesIn: location 
-} 
+CREATE QUERY person {
+  name: "Lucy"
+  :bornIn: location
+  :livesIn: location
+}
 
 # Example of querying using SPARQL
 SELECT ?person WHERE {

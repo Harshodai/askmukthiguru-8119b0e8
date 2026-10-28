@@ -82,6 +82,6 @@ Here’s an organized extraction of concrete technical techniques, patterns, or 
 - **How**: Uses metrics like accuracy, precision, recall, F1-score, and ROC-AUC to evaluate classification models or R² for regression models.
 - **Trade-offs**: Different metrics prioritize different aspects of model performance; selecting the right metric depends on the problem's requirements.
 
---- 
+---
 
 This structured approach ensures clarity and conciseness while highlighting key points for each pattern.

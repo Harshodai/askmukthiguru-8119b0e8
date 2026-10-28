@@ -4,7 +4,7 @@
 Enabling conversational agents with external tools expands their functionality beyond chat models by allowing them to access real-world data, perform non-language tasks, and interact with the environment.
 
 ## Frameworks Introduced
-- **Tool Usage**: 
+- **Tool Usage**:
   - When to use: When tasks require accessing external information or performing real-world actions.
   - How: Integrate JSON schemas for tool definitions and map functions to available APIs within the model.
 

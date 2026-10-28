@@ -4,7 +4,7 @@
 Fine-tuning BERT models can significantly improve performance in classification tasks by leveraging pre-trained language representations, offering advantages over task-specific models.
 
 ## Frameworks Introduced
-- **Fine-Tuning BERT**: 
+- **Fine-Tuning BERT**:
   - When to use: When you have sufficient data and want to adapt a pre-trained model for your specific task.
   - How: Fine-tune both the representation model and classification head together or freeze certain layers (e.g., encoder blocks) during training.
 
@@ -20,8 +20,8 @@ Fine-tuning BERT models can significantly improve performance in classification 
 
 ## Code Examples
 ```python
-from transformers import AutoTokenizer, 
-                    AutoModelForSequenceClassification, 
+from transformers import AutoTokenizer,
+                    AutoModelForSequenceClassification,
                     TrainingArguments, Trainer
 
 model_id = "bert-base-cased"

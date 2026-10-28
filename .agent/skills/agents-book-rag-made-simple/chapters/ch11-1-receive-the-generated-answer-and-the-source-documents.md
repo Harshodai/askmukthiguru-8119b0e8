@@ -4,8 +4,8 @@
 The chapter introduces a reliable RAG (Retrieval-Augmented Generation) pipeline that incorporates verification steps to enhance accuracy and user trust by filtering noise, checking for hallucinations, and tracing sources.
 
 ## Frameworks Introduced
-- **Reliable RAG Pipeline**:  
-  - When to use: For applications where answer accuracy is critical, such as legal, medical, or financial systems.  
+- **Reliable RAG Pipeline**:
+  - When to use: For applications where answer accuracy is critical, such as legal, medical, or financial systems.
   - How: Adds three verification checkpoints (relevancy grading, hallucination checking, and source highlighting) to a basic RAG pipeline.
 
 ## Key Concepts

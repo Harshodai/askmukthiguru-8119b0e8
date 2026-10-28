@@ -7,7 +7,7 @@ The Google A2A protocol enables collaboration between AI agents built on differe
 - **Google Agent Development Kit (ADK)**:
   - When to use: Building agents for complex tasks requiring specialized skills.
   - How: Integrates with tools like Google Calendar via `CalendarToolset`.
-  
+
 - **LangGraph**:
   - When to use: Implementing custom language understanding agents.
   - How: Defined through JSON-RPC 2.0 methods and payloads.
@@ -17,7 +17,7 @@ The Google A2A protocol enables collaboration between AI agents built on differe
   - How: Configured with input/output modes, capabilities, and discovery parameters.
 
 ## Key Concepts
-- **Agent Card**: A digital identity defining an agent's capabilities, skills, and network address.  
+- **Agent Card**: A digital identity defining an agent's capabilities, skills, and network address.
 - **Interaction Mechanisms**: Includes synchronous requests, asynchronous polling, streaming updates (Server-Sent Events), and push notifications.
 - **Security**: Built-in mechanisms like mutual TLS (mTLS) and authentication requirements ensure secure communication.
 
@@ -56,5 +56,5 @@ This demonstrates creating an ADK agent configured for Google Calendar integrati
 3. Leverage modular architecture by delegating tasks among specialized agents.
 
 ## Connects To
-- Agent Discovery Patterns  
+- Agent Discovery Patterns
 - Model Context Protocol (MCP)

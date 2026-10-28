@@ -1,25 +1,25 @@
 # Chapter 2: Designing Agent Systems
 
-## Core Idea  
+## Core Idea
 The chapter emphasizes designing an agent system by focusing on a specific, bounded workflow to automate customer support tasks. It demonstrates how to use LangChain tools and LLMs effectively for narrow but impactful automation.
 
-## Frameworks Introduced  
-- **LangChain**: A framework for building custom LLM integrations, used to create the `cancel_order` tool and agent brain.  
-  - When to use: For automating specific tasks with LLMs.  
+## Frameworks Introduced
+- **LangChain**: A framework for building custom LLM integrations, used to create the `cancel_order` tool and agent brain.
+  - When to use: For automating specific tasks with LLMs.
   - How: Define tools with parameters, integrate them into an agent brain that uses LLM prompts to decide actions.
 
-## Key Concepts  
-- **Single Business Tool**: A focused function (e.g., `cancel_order`) that performs a narrow task.  
-- **Agent Brain**: An LLM model that decides which tool to call and processes its output.  
+## Key Concepts
+- **Single Business Tool**: A focused function (e.g., `cancel_order`) that performs a narrow task.
+- **Agent Brain**: An LLM model that decides which tool to call and processes its output.
 - **StateGraph**: A Directed Acyclic Graph for coordinating agent interactions, ensuring predictable workflows.
 
-## Mental Models  
+## Mental Models
 - Use LangChain when you need to automate specific tasks with LLMs. Think of it as a structured framework for creating custom LLM integrations.
 
-## Anti-patterns  
+## Anti-patterns
 - Avoid broad goals that lead to edge cases or vague success metrics. Instead, focus on clear, measurable outcomes for narrow tasks.
 
-## Code Examples  
+## Code Examples
 ```python
 # Example of constructing the agent system
 from langchain.tools import tool
@@ -46,19 +46,19 @@ result = graph.invoke({"order": {"order_id": "B73973"}, "messages": [HumanMessag
 
 This code demonstrates creating a narrow workflow for order cancellation, ensuring predictable and testable behavior.
 
-## Reference Tables  
+## Reference Tables
 | **Metric**         | **Evaluation Aspect**                                                                 |
 |--------------------|---------------------------------------------------------------------------------------|
 | Tool Accuracy      | Ensures the correct `cancel_order` tool is called.                                 |
 | Parameter Precision | Verifies exact match of `order_id` in tool calls.                                   |
 | Confirmation Clarity| Checks for clear, correct messages to customers.                                     |
 
-## Key Takeaways  
-1. Start with a clear, bounded workflow for automation.  
-2. Use LangChain tools to create focused functions (e.g., `cancel_order`).  
-3. Test agent functionality with evaluation metrics like tool calls and message clarity.  
+## Key Takeaways
+1. Start with a clear, bounded workflow for automation.
+2. Use LangChain tools to create focused functions (e.g., `cancel_order`).
+3. Test agent functionality with evaluation metrics like tool calls and message clarity.
 4. Avoid broad or vague goals; focus on specific tasks for effective automation.
 
-## Connects To  
-- Relates to Chapter 1's introduction to agent design principles.  
+## Connects To
+- Relates to Chapter 1's introduction to agent design principles.
 - Builds upon later chapters on evaluation methods and StateGraph usage.

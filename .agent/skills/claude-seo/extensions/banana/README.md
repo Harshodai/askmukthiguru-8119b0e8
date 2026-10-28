@@ -1,6 +1,6 @@
 # Banana Image Generation Extension for Claude SEO
 
-Generate production-ready SEO images using AI: OG/social previews, blog heroes,
+Generate production-ready SEO images using AI: OG/social previews, blog heroes, <!-- claim-ok -->
 product photography, infographics, and more. Powered by Google Gemini via the
 banana Creative Director pipeline.
 

@@ -36,7 +36,7 @@ Here is an alphabetical glossary of key terms based on the provided chapter titl
 
 **Scaled System** — A system designed to handle a large number of users or tasks while maintaining performance and reliability. (Ch 10)
 
-**Synchronized Clocks** — Clocks that are synchronized with each other to ensure accurate timing in distributed systems. (Ch 8, Ch 11)  
+**Synchronized Clocks** — Clocks that are synchronized with each other to ensure accurate timing in distributed systems. (Ch 8, Ch 11)
 *See page 291 for more details.*
 
 **System Design** — The process of designing computer systems, focusing on architecture, functionality, and performance optimization. (Ch 4, Ch 7)

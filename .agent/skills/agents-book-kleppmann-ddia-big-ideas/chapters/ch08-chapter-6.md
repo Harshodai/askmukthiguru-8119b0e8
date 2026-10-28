@@ -4,21 +4,21 @@
 The most important thing this chapter teaches is that **partitioning allows you to distribute data across multiple machines to handle large datasets efficiently**, avoiding monolithic systems and scaling challenges.
 
 ## Frameworks Introduced
-- **Key-Range Partitioning**: Uses sorted keys, with each partition owning a contiguous range of keys.  
+- **Key-Range Partitioning**: Uses sorted keys, with each partition owning a contiguous range of keys.
   - When to use: Suitable for ordered keys where range queries are common.
   - How: Sort the keys, then split them into ranges assigned to different partitions.
 
-- **Hash-Based Partitioning**: Applies a hash function to keys, distributing data across partitions based on hash values.  
+- **Hash-Based Partitioning**: Applies a hash function to keys, distributing data across partitions based on hash values.
   - When to use: Appropriate when keys are not uniformly distributed or do not follow an order that lends itself to range queries.
   - How: Hash the key and assign it to a partition based on the hash value.
 
 ## Key Concepts
-- **Partition Boundary**: The dividing line between two partitions, where data is stored.  
+- **Partition Boundary**: The dividing line between two partitions, where data is stored.
 - **Rebalancing Partitions**: Adjusting the distribution of data across partitions when load imbalances occur or nodes are added/removed.
 - **Hash Partitioning**: Uses a hash function to distribute data across multiple partitions.
 
 ## Mental Models
-- Use consistent hashing when you need to minimize changes to partition assignments during rebalancing.  
+- Use consistent hashing when you need to minimize changes to partition assignments during rebalancing.
   - Think of it as maintaining stable connections between key ranges and their assigned partitions.
 
 ## Anti-patterns
@@ -47,5 +47,5 @@ This demonstrates how to use a hash-based partitioning approach in SQL, assignin
 3. Rebalance partitions dynamically as load or node configurations change.
 
 ## Connects To
-- Chapter 5: Distributed Systems Basics  
+- Chapter 5: Distributed Systems Basics
 - Chapter 7: Replication Strategies

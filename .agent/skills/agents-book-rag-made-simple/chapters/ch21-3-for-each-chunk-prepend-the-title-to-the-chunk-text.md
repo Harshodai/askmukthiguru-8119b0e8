@@ -4,7 +4,7 @@
 Prepend document titles to chunks to preserve context during retrieval, enhancing accuracy especially in multi-source knowledge bases.
 
 ## Frameworks Introduced
-- **Reranking with Context**: 
+- **Reranking with Context**:
   - When to use: When retrieving topically relevant but contextually incorrect chunks.
   - How: Pass augmented chunks through a reranker to refine results.
 

@@ -23,7 +23,7 @@ This chapter explores prompting strategies for Large Language Models (LLMs), foc
 - **Few-Shot Learning**: Training models with minimal examples to improve their performance on complex tasks.
 
 ## Mental Models
-- Use zero-shot prompting when you need quick, context-free outputs from an LLM without extensive data or explicit instructions.  
+- Use zero-shot prompting when you need quick, context-free outputs from an LLM without extensive data or explicit instructions.
 - Think of few-shot prompting as a way to provide limited guidance through examples, enabling the model to generalize better for new tasks.
 
 ## Anti-patterns
@@ -33,21 +33,21 @@ This chapter explores prompting strategies for Large Language Models (LLMs), foc
 ## Code Examples
 ```python
 # Example Few-Shot Prompting Implementation with LangChain
-from langchain import PromptTemplate, FewShotPromptTemplate, LLMChain  
-from langchain.chat_models import ChatOpenAI  
+from langchain import PromptTemplate, FewShotPromptTemplate, LLMChain
+from langchain.chat_models import ChatOpenAI
 
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)  
+llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
 examples = [
     {"color": "red", "emotion": "passion"},
     {"color": "blue", "emotion": "serenity"},
     {"color": "green", "emotion": "tranquility"}
-]  
+]
 
-example_formatter_template = """  
-Color: {color}  
-Emotion: {emotion}\n\n"""  
-example_prompt = PromptTemplate(input_variables=["color", "emotion"], template=example_formatter_template)  
+example_formatter_template = """
+Color: {color}
+Emotion: {emotion}\n\n"""
+example_prompt = PromptTemplate(input_variables=["color", "emotion"], template=example_formatter_template)
 
 few_shot_prompt = FewShotPromptTemplate(
     examples=examples,
@@ -56,12 +56,12 @@ few_shot_prompt = FewShotPromptTemplate(
     suffix=""",
     input_variables=["input"],
     example_separator="\n",
-)  
+)
 
-formatted_prompt = few_shot_prompt.format(input="purple")  
+formatted_prompt = few_shot_prompt.format(input="purple")
 
-chain = LLMChain(llm=llm, prompt=PromptTemplate(template=f"{formatted_prompt}", input_variables=[]))  
-response = chain.run({})  
+chain = LLMChain(llm=llm, prompt=PromptTemplate(template=f"{formatted_prompt}", input_variables=[]))
+response = chain.run({})
 
 print("Emotion:", response)
 ```

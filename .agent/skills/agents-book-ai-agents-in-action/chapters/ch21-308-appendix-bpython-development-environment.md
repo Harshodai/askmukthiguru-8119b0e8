@@ -4,7 +4,7 @@
 This chapter teaches readers how to efficiently manage Python dependencies by creating isolated virtual environments using VS Code and Dev Containers (Docker), ensuring project consistency and avoiding conflicts between packages.
 
 ## Frameworks Introduced
-- **Venv**: 
+- **Venv**:
   - When to use: For managing Python packages in isolated environments.
   - How: Create a new Venv via the command panel, select requirements.txt, and install dependencies within the environment.
 

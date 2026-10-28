@@ -16,7 +16,7 @@ The chapter emphasizes the critical role of dataset engineering in machine learn
 ## Mental Models
 - Use X when Y / Think of X as Y: This principle helps in understanding how to apply datasets effectively for specific tasks.
   - Example: Use pre-trained models when you have sufficient annotated data.
-  
+
 ## Anti-patterns
 - **Leverage Synthetic Data**: Avoid creating synthetic data without validation or testing, as it can introduce biases or inaccuracies.
 
@@ -30,10 +30,10 @@ def process_dataset(df):
     df = df.dropna()  # Remove rows with missing values
     df = df.drop_duplicates()  # Remove duplicates
     df = df.reset_index(drop=True)  # Reset index after dropping duplicates
-    
+
     # Example of data cleaning
     df['column'] = df['column'].fillna(df['column'].mean())  # Fill missing values with mean
-    
+
     return df
 
 # Example of dataset augmentation using synthetic data

@@ -4,15 +4,15 @@
 Distributed transactions ensure atomicity, consistency, availability, and performance across distributed systems by leveraging consensus algorithms like two-phase commit (2PC) and three-phase commit (3PC), as well as advanced methods such as Calvin, Spanner, and Percolator.
 
 ## Frameworks Introduced
-- **Two-Phase Commit (2PC)**: A simple atomicity mechanism requiring a prepare phase followed by a confirm phase.  
+- **Two-Phase Commit (2PC)**: A simple atomicity mechanism requiring a prepare phase followed by a confirm phase.
   - When to use: When simplicity is preferred over availability guarantees.
   - How: Cooperates with a transaction manager to handle coordination and failure recovery.
 
-- **Three-Phase Commit (3PC)**: An enhanced version of 2PC that handles network partitions by allowing a coordinator to act as a leader in the second phase.  
+- **Three-Phase Commit (3PC)**: An enhanced version of 2PC that handles network partitions by allowing a coordinator to act as a leader in the second phase.
   - When to use: In distributed systems where availability is critical.
   - How: Uses a pseudo-leader for coordination and failure recovery.
 
-- **Coordination Avoidance**: A technique that allows operations to proceed without full coordination, preserving performance while maintaining consistency.  
+- **Coordination Avoidance**: A technique that allows operations to proceed without full coordination, preserving performance while maintaining consistency.
   - When to use: When minimizing coordination overhead is crucial.
   - How: Implements read atomicity and invariant-based coordination.
 

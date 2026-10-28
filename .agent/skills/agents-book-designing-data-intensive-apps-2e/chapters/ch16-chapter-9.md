@@ -7,7 +7,7 @@ Distributed systems face inherent challenges due to network partitions, process 
 - **CAP**: For two-party systems with a single failure point, requiring an honest leader.
   - When to use: Two-node systems with a central clock.
   - How: Implement timeouts for client requests and atomic operations in critical tasks.
-  
+
 - **MPA (Multi-Party Agreement)**: Extends CAP to multiple parties, requiring an honest majority.
   - When to use: Systems with more than two nodes where honest majorities are possible.
   - How: Use timeouts for non-critical operations and atomic operations for critical tasks.
@@ -39,19 +39,19 @@ public static String fetch(String url) throws IOException {
     int retries = 3;
     int backoffMultiplier = 2;
     long backoffTime = 0;
-    
+
     for (int i = 0; i < retries; i++) {
         try {
             return new HttpURLConnection(url).fetch();
         } catch (IOException e) {
-            if (e.getExceptionType() == IOException.class && 
+            if (e.getExceptionType() == IOException.class &&
                 e.getExceptionMessage().contains("Connection refused")) {
                 backoffTime *= backoffMultiplier;
                 throw new Retries(retries - i, backoffTime);
             }
         }
     }
-    
+
     return null; // After all retries fail
 }
 ```
@@ -61,17 +61,17 @@ public static String fetch(String url) throws IOException {
 func twoNodeCAP(twoNodeFunc func) {
     leader := nodeA
     follower := nodeB
-    
+
     leader.Sent(f, t)
     if leader.Received(f, t) {
         return leader.Pick(f)
     }
-    
+
     for i := 0; i < maxRetries; i++ {
         defer leader.Wait(i*10ms)
-        
+
         f.Sleep(1s * i)
-        
+
         if leader.Received(f, t) {
             return leader.Pick(f)
         }

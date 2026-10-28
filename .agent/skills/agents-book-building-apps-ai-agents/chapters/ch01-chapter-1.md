@@ -4,19 +4,19 @@
 Autonomous agents represent a transformative advancement in AI, enabling systems to perform complex tasks with high autonomy by combining language models, structured reasoning, and domain-specific knowledge.
 
 ## Frameworks Introduced
-- **LangGraph**: A modular orchestration framework for building single or light multiagent systems.  
+- **LangGraph**: A modular orchestration framework for building single or light multiagent systems.
   - When to use: For robust, single-agent or simple multiagent systems with explicit workflows.
   - How: Implements directed graphs with discrete logic nodes (e.g., foundation model calls) and data flow management.
 
-- **AutoGen**: A powerful multiagent orchestration framework for dynamic role assignment and interaction.  
+- **AutoGen**: A powerful multiagent orchestration framework for dynamic role assignment and interaction.
   - When to use: For complex dialogues or distributed reasoning tasks requiring flexible agent interactions.
   - How: Supports advanced planning, message-based communication, and agent coordination.
 
-- **CrewAI**: An easy-to-use framework with abstractions like "crew" and "tasks."  
+- **CrewAI**: An easy-to-use framework with abstractions like "crew" and "tasks."
   - When to use: For rapid prototyping of human-centric agents (e.g., support or customer assistance).
   - How: Simplifies setup with intuitive constructs for basic agent functionality.
 
-- **OpenAI Agents SDK**: Integrates with OpenAI's tool ecosystem for secure, efficient agent development.  
+- **OpenAI Agents SDK**: Integrates with OpenAI's tool ecosystem for secure, efficient agent development.
   - When to use: For teams already utilizing the OpenAI API.
   - How: Provides function calls, memory primitives, and tool routing for custom agent architectures.
 
@@ -28,23 +28,23 @@ Autonomous agents represent a transformative advancement in AI, enabling systems
 - **Scalability, Modularity, Resilience, and Future-proofing**: Key principles for building robust, adaptable systems.
 
 ## Mental Models
-- Use LangGraph when you need to build single-agent or light multiagent systems with explicit workflows.  
+- Use LangGraph when you need to build single-agent or light multiagent systems with explicit workflows.
   - Example: Customer support agent handling structured queries.
-- Use AutoGen for complex dialogues or distributed reasoning tasks requiring flexible agent interactions.  
+- Use AutoGen for complex dialogues or distributed reasoning tasks requiring flexible agent interactions.
   - Example: Team collaboration tools managing knowledge sharing and workflow orchestration.
-- Use CrewAI for rapid prototyping of human-centric agents like assistants or support agents.  
+- Use CrewAI for rapid prototyping of human-centric agents like assistants or support agents.
   - Example: Chatbots tailored to specific industries with minimal setup.
-- Use OpenAI Agents SDK when you already leverage the OpenAI API for tool integration.  
+- Use OpenAI Agents SDK when you already leverage the OpenAI API for tool integration.
   - Example: Enhancing existing AI-driven applications with language model capabilities.
 
 ## Anti-patterns
-- Avoid rule-based workflows without learning or adaptation for tasks requiring dynamic reasoning.  
+- Avoid rule-based workflows without learning or adaptation for tasks requiring dynamic reasoning.
   - Why it fails: Limited to static, well-defined inputs and fails to handle novel or ambiguous cases.
-- Avoid rigid orchestrations that do not adapt to intermediate results or feedback loops.  
+- Avoid rigid orchestrations that do not adapt to intermediate results or feedback loops.
   - Why it fails: Inability to plan or learn from outcomes, leading to brittle systems.
-- Avoid over-reliance on foundation models for tasks with highly variable or unpredictable inputs.  
+- Avoid over-reliance on foundation models for tasks with highly variable or unpredictable inputs.
   - Why it fails: Lack of flexibility and robustness in dynamic environments.
-- Avoid inflexible architectures that do not support future-proofing or modular extensions.  
+- Avoid inflexible architectures that do not support future-proofing or modular extensions.
   - Why it fails: Limited scalability and adaptability to evolving requirements.
 
 ## Code Examples

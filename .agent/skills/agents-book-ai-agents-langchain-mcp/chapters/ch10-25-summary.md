@@ -4,33 +4,33 @@
 Leveraging prompt engineering techniques is crucial for building structured outputs from LLMs. By understanding different approaches like template-based prompting, chain-of-thought reasoning, and contextual learning, you can optimize performance across various applications.
 
 ## Frameworks Introduced
-- **Prompt Template Library (PTL)**: A collection of reusable templates that guide the model's responses.  
+- **Prompt Template Library (PTL)**: A collection of reusable templates that guide the model's responses.
   - When to use: For consistent and structured outputs in tasks like summarization or classification.
   - How: Templates provide a scaffold for coherent reasoning steps, ensuring alignment with user goals.
 
-- **Fine-Tuning**: Tailoring an LLM to specific domains enhances its effectiveness.  
+- **Fine-Tuning**: Tailoring an LLM to specific domains enhances its effectiveness.
   - When to use: After initial training on general data, fine-tune the model for domain-specific tasks like legal or technical applications.
   - How: Fine-tune the model using task-specific prompts and examples to improve performance.
 
-- **Contextual Learning**: Using in-context learning techniques (one-shot, few-shot) improves reasoning accuracy.  
+- **Contextual Learning**: Using in-context learning techniques (one-shot, few-shot) improves reasoning accuracy.
   - When to use: For complex tasks requiring logical steps or reasoning.
   - How: Provide explicit instructions and examples within prompts to guide the LLM's thought process.
 
 ## Key Concepts
-- **Prompt Engineering**: Crafting effective prompts is critical for achieving desired outputs.  
+- **Prompt Engineering**: Crafting effective prompts is critical for achieving desired outputs.
   *A well-designed prompt ensures clarity, specificity, and alignment with user goals.*
 
-- **Template-Based Prompting**: Uses predefined structures to guide responses in tasks like summarization or classification.  
+- **Template-Based Prompting**: Uses predefined structures to guide responses in tasks like summarization or classification.
   *Helps maintain consistency and improves output quality by providing a scaffold.*
 
-- **Chain-of-Thought (CoT)**: A reasoning technique that breaks down complex problems into logical steps.  
+- **Chain-of-Thought (CoT)**: A reasoning technique that breaks down complex problems into logical steps.
   *Improves problem-solving skills by allowing the model to reason step-by-step.*
 
 ## Mental Models
 - **Template-Based Prompting**: Structures prompts with predefined formats to ensure coherent responses.
   - Use when you need consistent and structured outputs for tasks like summarization or classification.
 
-- **Chain-of-Thought (CoT)**: Breaks down complex problems into logical steps.  
+- **Chain-of-Thought (CoT)**: Breaks down complex problems into logical steps.
   - Use for improving reasoning accuracy in tasks requiring strategic thinking.
 
 ## Anti-patterns

@@ -7,7 +7,7 @@ This chapter explores advanced techniques for improving technical documentation 
 - **Chunking Strategy**: A method to split text into manageable chunks for better retrieval.
   - When to use: Organizing technical documentation into coarse and fine-grained chunks.
   - How: Split documents using recursive character extraction or rule-based systems.
-  
+
 - **Hyperchunking with Metadata**: Enhancing chunk embeddings with semantic metadata for improved context.
   - When to use: When dealing with large datasets requiring detailed search accuracy.
   - How: Generate metadata from structured data and associate it with chunk embeddings.
@@ -29,7 +29,7 @@ This chapter explores advanced techniques for improving technical documentation 
 ### Mental Models
 - Use **chunking strategies** when organizing technical documentation for efficient retrieval.
   - Coarse chunks provide broad context, while fine-grained chunks offer detailed information.
-  
+
 - Apply **hyperchunking with metadata** to enhance search accuracy in large datasets.
   - Generate structured metadata from tables or images and associate it with chunk embeddings.
 

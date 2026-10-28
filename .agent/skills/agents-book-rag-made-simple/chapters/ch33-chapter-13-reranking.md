@@ -4,7 +4,7 @@
 Reranking improves the accuracy of retrieved chunks by evaluating them more thoroughly after initial retrieval.
 
 ## Frameworks Introduced
-- **Reranking Pipeline**: A two-stage process that combines retrieval and evaluation, inspired by hiring practices.  
+- **Reranking Pipeline**: A two-stage process that combines retrieval and evaluation, inspired by hiring practices.
   - When to use: When you need to enhance retrieval accuracy in RAG systems.
   - How: Retrieve a broad set of candidates (e.g., top 10-30) and evaluate each with a reranker.
 
@@ -15,7 +15,7 @@ Reranking improves the accuracy of retrieved chunks by evaluating them more thor
 - **LLM-based Reranking**: Uses prompts to score how well a chunk answers the query.
 
 ## Mental Models
-- Use reranking pipeline when you need accurate retrieval in large document collections.  
+- Use reranking pipeline when you need accurate retrieval in large document collections.
   - Think of reranking as a hiring process that narrows down candidates based on their relevance.
 
 ## Anti-patterns
@@ -46,5 +46,5 @@ def get_relevance_score(query: str, chunk: str) -> float:
 4. Leverage LLMs effectively by designing prompts that capture relevance signals.
 
 ## Connects To
-- Relates to Chapter 1: Embeddings, Vector Search, and Basic RAG Pipeline  
+- Relates to Chapter 1: Embeddings, Vector Search, and Basic RAG Pipeline
 - Connects to upcoming discussions on fusion retrieval

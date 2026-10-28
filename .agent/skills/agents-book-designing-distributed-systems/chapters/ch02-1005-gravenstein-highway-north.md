@@ -4,7 +4,7 @@
 Understanding the context, history, and foundational concepts is essential for designing reliable and scalable distributed systems.
 
 ## Frameworks Introduced
-- **Containerization**: A lightweight virtual machine abstraction layer independent of the host operating system.  
+- **Containerization**: A lightweight virtual machine abstraction layer independent of the host operating system.
   - When to use: Simplify development and deployment across different environments.
   - How: Wrap resources (CPU, memory) in a container image with a base image.
 
@@ -15,7 +15,7 @@ Understanding the context, history, and foundational concepts is essential for d
 - **Monitoring and Logging**: Tools used to track system performance, troubleshoot issues, and ensure reliability.
 
 ## Mental Models
-- Use containerization when building scalable and portable applications.  
+- Use containerization when building scalable and portable applications.
   - Think of containerization as a seamless abstraction layer that simplifies managing resources across environments.
 
 ## Anti-patterns

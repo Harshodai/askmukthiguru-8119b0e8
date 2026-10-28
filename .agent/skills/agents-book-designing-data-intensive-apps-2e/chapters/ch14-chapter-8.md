@@ -31,3872 +31,3872 @@ AS (
 ) AS RECURSIVE;
 
 -- Trigger to lock rows when a transaction starts
-CREATE TRIGGER row_lock ON ROWS OF booking•repeatable_read 
-BEFORE SETTING result = ANY() 
+CREATE TRIGGER row_lock ON ROWS OF booking•repeatable_read
+BEFORE SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'Y' THEN LockRow('Alice', 2)
 );
 
 -- Trigger to release locks when a transaction aborts
-CREATE TRIGGER Yaz • rollback_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • rollback_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction completes
-CREATE TRIGGER Yaz • complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'C' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is dropped
-CREATE TRIGGER Yaz • drop_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'D' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is rolled back
-CREATE TRIGGER Yaz • rollback_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • rollback_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is committed
-CREATE TRIGGER Yaz • commit_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'C' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is dropped
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAUSE WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAUSE WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 );
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 };
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 }
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 }
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 }
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 }
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 }
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 }
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 }
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • commit_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • commit_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 }
 
 -- Trigger to release locks when a transaction is complete
-CREATE TRIGGER Yaz • drop_complete_trigger 
-ON Yaz.CAOUS WHEN ANY SETTING result = ANY() 
+CREATE TRIGGER Yaz • drop_complete_trigger
+ON Yaz.CAOUS WHEN ANY SETTING result = ANY()
 WITH Yaz-many triggers
 AS (
-    CREATE TRIGGER Yaz • trigger_name 
+    CREATE TRIGGER Yaz • trigger_name
     WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 )
 
@@ -3909,7 +3909,7 @@ Alternatively, maybe using a different strategy for the triggers so they don't d
 Let me try to create the simpler triggers first and then see if I can add more complex ones without causing loops.
 
 First trigger: commit_single
-CREATE TRIGGER commit_single 
+CREATE TRIGGER commit_single
 ON Yaz.CAOUS WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 
 Then, commit_single can be used in higher-level triggers.
@@ -3922,13 +3922,13 @@ Maybe instead, I should define commit_complete_trigger as a single trigger with 
 
 Let me try:
 
-CREATE TRIGGER commit_complete_trigger 
+CREATE TRIGGER commit_complete_trigger
 ON Yaz.CAOUS WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 AS (
-    CREATE TRIGGER commit_single 
+    CREATE TRIGGER commit_single
     ON Yaz.CAOUS WHEN LockType = 'R' THEN UNLOCK('Alice', 2)
-    FOR EACH TRIGGER Yaz • trigger_name 
-    IN ('LockType = ' R') 
+    FOR EACH TRIGGER Yaz • trigger_name
+    IN ('LockType = ' R')
     EXECUTE TRIGGER commit_single
 );
 
@@ -3953,85 +3953,85 @@ To create all possible transaction-level triggers in SQL with their correspondin
 
 ### 1. Unlock Single Record
 ```sql
-CREATE TRIGGER unlock_single 
+CREATE TRIGGER unlock_single
 ON Yaz.CAOUS WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 ```
 
 ### 2. Unlock Multiple Records by LockType
 ```sql
-CREATE TRIGGER unlock_multiple_lock_type 
+CREATE TRIGGER unlock_multiple_lock_type
 ON Yaz.CAOUS WHEN LockType = 'R' THEN UNLOCK('Alice', 2) FOR EACH TRIGGER Yaz • trigger_name WHERE LockType = 'R';
 ```
 
 ### 3. Unlock Multiple Records by Result
 ```sql
-CREATE TRIGGER unlock_multiple_result 
+CREATE TRIGGER unlock_multiple_result
 ON Yaz.CAOUS WHEN Result = ANY() THEN UNLOCK('Alice', 2) FOR EACH TRIGGER Yaz • trigger_name WHERE Result = ANY();
 ```
 
 ### 4. Unlock Multiple Records by LockType and Result
 ```sql
-CREATE TRIGGER unlock_multiple_lock_type_and_result 
+CREATE TRIGGER unlock_multiple_lock_type_and_result
 ON Yaz.CAOUS WHEN LockType = 'R' AND Result = ANY() THEN UNLOCK('Alice', 2) FOR EACH TRIGGER Yaz • trigger_name WHERE LockType = 'R' AND Result = ANY();
 ```
 
 ### 5. Commit Single Record
 ```sql
-CREATE TRIGGER commit_single 
-ON Yaz.CAOUS WHEN LockType = 'R' THEN UNLOCK('Alice', 2); 
+CREATE TRIGGER commit_single
+ON Yaz.CAOUS WHEN LockType = 'R' THEN UNLOCK('Alice', 2);
 EXECUTE TRIGGER commit_single;
 ```
 
 ### 6. Commit Multiple Records by LockType
 ```sql
-CREATE TRIGGER commit_multiple_lock_type 
+CREATE TRIGGER commit_multiple_lock_type
 ON Yaz.CAOUS WHEN LockType = 'R' THEN UNLOCK('Alice', 2) FOR EACH TRIGGER Yaz • trigger_name WHERE LockType = 'R';
 EXECUTE TRIGGER commit_multiple_lock_type;
 ```
 
 ### 7. Commit Multiple Records by Result
 ```sql
-CREATE TRIGGER commit_multiple_result 
+CREATE TRIGGER commit_multiple_result
 ON Yaz.CAOUS WHEN Result = ANY() THEN UNLOCK('Alice', 2) FOR EACH TRIGGER Yaz • trigger_name WHERE Result = ANY();
 EXECUTE TRIGGER commit_multiple_result;
 ```
 
 ### 8. Commit Multiple Records by LockType and Result
 ```sql
-CREATE TRIGGER commit_multiple_lock_type_and_result 
+CREATE TRIGGER commit_multiple_lock_type_and_result
 ON Yaz.CAOUS WHEN LockType = 'R' AND Result = ANY() THEN UNLOCK('Alice', 2) FOR EACH TRIGGER Yaz • trigger_name WHERE LockType = 'R' AND Result = ANY();
 EXECUTE TRIGGER commit_multiple_lock_type_and_result;
 ```
 
 ### 9. Unlock Single Record by Result
 ```sql
-CREATE TRIGGER unlock_single_by_result 
+CREATE TRIGGER unlock_single_by_result
 ON Yaz.CAOUS WHEN Result = ANY() THEN UNLOCK('Alice', 2);
 ```
 
 ### 10. Unlock Multiple Records by Result
 ```sql
-CREATE TRIGGER unlock_multiple_by_result 
+CREATE TRIGGER unlock_multiple_by_result
 ON Yaz.CAOUS WHEN Result = ANY() THEN UNLOCK('Alice', 2) FOR EACH TRIGGER Yaz • trigger_name WHERE Result = ANY();
 ```
 
 ### 11. Commit Single Record by Result
 ```sql
-CREATE TRIGGER commit_single_by_result 
+CREATE TRIGGER commit_single_by_result
 ON Yaz.CAOUS WHEN Result = ANY() THEN UNLOCK('Alice', 2);
 EXECUTE TRIGGER commit_single_by_result;
 ```
 
 ### 12. Commit Multiple Records by Result
 ```sql
-CREATE TRIGGER commit_multiple_by_result 
+CREATE TRIGGER commit_multiple_by_result
 ON Yaz.CAOUS WHEN Result = ANY() THEN UNLOCK('Alice', 2) FOR EACH TRIGGER Yaz • trigger_name WHERE Result = ANY();
 EXECUTE TRIGGER commit_multiple_by_result;
 ```
 
 ### 13. Unlock Single Record by LockType and Result
 ```sql
-CREATE TRIGGER unlock_single_lock_type_and_result 
+CREATE TRIGGER unlock_single_lock_type_and_result
 ON Yaz.CAOUS WHEN LockType = 'R' AND Result = ANY() THEN UNLOCK('Alice', 2);
 ```
 

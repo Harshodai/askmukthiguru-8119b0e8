@@ -4,8 +4,8 @@
 Advanced indexing techniques enhance retrieval accuracy by leveraging multiple embeddings for each text chunk, improving searchability in vector stores.
 
 ## Frameworks Introduced
-- **Multiple Embeddings per Chunk**:  
-  - When to use: When dealing with complex or semi-structured data.  
+- **Multiple Embeddings per Chunk**:
+  - When to use: When dealing with complex or semi-structured data.
   - How: Calculate multiple embeddings (e.g., sentence-transformers) for each chunk to capture diverse contextual information.
 
 ## Key Concepts
@@ -13,7 +13,7 @@ Advanced indexing techniques enhance retrieval accuracy by leveraging multiple e
 - **Embeddings**: Mathematical representations of text that enable semantic searches.
 
 ## Mental Models
-- Use multiple embeddings when working with complex data sources.  
+- Use multiple embeddings when working with complex data sources.
   - Think of it as enhancing searchability by capturing more context.
 
 ## Anti-patterns

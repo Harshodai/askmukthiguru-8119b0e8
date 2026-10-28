@@ -4,7 +4,7 @@
 This chapter explains how to build an OpenAI-like agent using MongoDB's vector database and knowledge graph, focusing on integrating retrieval-augmented generation (RAG) for efficient information processing.
 
 ## Frameworks Introduced
-- **Knowledge Graph Framework**: 
+- **Knowledge Graph Framework**:
   - When to use: Represents structured data as nodes and relationships for semantic queries.
   - How: Queries entities and relationships using logical connections.
 ```markdown
@@ -12,7 +12,7 @@ This chapter explains how to build an OpenAI-like agent using MongoDB's vector d
 - Establish relationship edges between nodes
 - Index nodes with vector embeddings for efficient querying
 ```
-- **Vector Database Integration**: 
+- **Vector Database Integration**:
   - When to use: Enhances retrieval capabilities by embedding structured data in a vector space.
   - How: Indexes documents with vector representations for fast semantic searches.
 ```markdown
@@ -20,7 +20,7 @@ This chapter explains how to build an OpenAI-like agent using MongoDB's vector d
 - Index vectors using MongoDB's vector database
 - Enable efficient similarity-based querying
 ```
-- **Prompt Engineering**: 
+- **Prompt Engineering**:
   - When to use: Improves AI performance by crafting effective prompts.
   - How: Uses chunking, filtering, and context-aware prompting.
 ```markdown

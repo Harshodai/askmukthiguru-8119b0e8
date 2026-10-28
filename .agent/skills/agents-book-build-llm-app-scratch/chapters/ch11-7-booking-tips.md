@@ -7,7 +7,7 @@ The chapter emphasizes leveraging structured prompts to enhance AI-generated des
 - **Zero-Shot Prompting**: Uses explicit instructions without examples.
   - When to use: When the model must infer from minimal guidance.
   - How: Directs the AI to generate text based on partial information.
-  
+
 - **Few-Shot Prompting**: Includes a few examples within the prompt.
   - When to use: When guiding the model with clear precedents.
   - How: Provides explicit context for structured responses.

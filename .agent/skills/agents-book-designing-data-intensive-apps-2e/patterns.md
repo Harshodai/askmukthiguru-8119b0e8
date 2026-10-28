@@ -2,7 +2,7 @@
 
 Based on the analysis of the provided chapters, here are the identified concrete technical techniques:
 
-1. **ACID Transactions**: 
+1. **ACID Transactions**:
    - **Pattern Name**: ACID Transactions
    - **When to use**: Ensuring reliable data operations in databases by adhering to Atomicity, Consistency, Isolation, and Durability.
    - **How**: Used in systems requiring transactional integrity, such as financial applications or web services.

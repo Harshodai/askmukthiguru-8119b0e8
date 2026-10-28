@@ -13,7 +13,7 @@ This chapter demonstrates how to create an augmented question-answering system u
 - **Chunking**: Dividing documents into smaller, manageable segments (chunks) for efficient retrieval by LLMs.
 
 ## Mental Models
-- Use an index and retriever when you have structured document data for efficient querying.  
+- Use an index and retriever when you have structured document data for efficient querying.
   - Think of it as transforming documents into vectors that can be quickly searched to find relevant information for your prompts.
 
 ## Anti-patterns
@@ -23,23 +23,23 @@ This chapter demonstrates how to create an augmented question-answering system u
 ```python
 # Example code: Creating a retrieval chain with RetrievalQA
 
-from langchain.chains import RetrievalQA  
-from langchain.llms import OpenAI  
-from langchain.vectorstores import FAISS  
+from langchain.chains import RetrievalQA
+from langchain.llms import OpenAI
+from langchain.vectorstores import FAISS
 
 db = FAISS.load_local("path/to/vector/store")  # Load or create vector store
 retriever = db.as_retriever()               # Create retriever for indexing
-  
+
 qa_chain = RetrievalQA.from_chain_type(        # Build retrieval-augmented QA chain
-    llm=OpenAI(model="gpt-3.5-turbo"), 
-    chain_type="stuff", 
+    llm=OpenAI(model="gpt-3.5-turbo"),
+    chain_type="stuff",
     retriever=retriever,
     k=4,  # Number of documents to retrieve per query
     docsStore=db
 )
 
-query = "How does Google plan to challenge OpenAI?"  
-response = qa_chain.run(query)  
+query = "How does Google plan to challenge OpenAI?"
+response = qa_chain.run(query)
 print(response)
 ```
 

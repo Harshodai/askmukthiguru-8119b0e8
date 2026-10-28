@@ -4,7 +4,7 @@
 The chapter introduces adapting the RAG (Retrieval-Augmented Generation) pipeline for structured data like CSV files, treating each row as a self-contained document to avoid splitting records and mixing fields.
 
 ## Frameworks Introduced
-- **Structured Data RAG**: 
+- **Structured Data RAG**:
   - When to use: For tabular datasets where rows represent complete records.
   - How: Convert each row into a readable text description before embedding and storing in a vector database.
 

@@ -26,11 +26,11 @@ Dartboard Retrieval balances relevance and diversity in search results to provid
 def dartboard_retrieval(query, K=5, oversampling_factor=3):
     # Step 1: Retrieve a larger candidate pool
     candidates = retrieve_candidates(query, size=K * oversampling_factor)
-    
+
     # Step 2: Iteratively select top-K results with balance of relevance and diversity
     selected = []
     remaining_candidates = candidates.copy()
-    
+
     for i in range(K):
         if i == 0:
             # First selection based solely on relevance
@@ -43,11 +43,11 @@ def dartboard_retrieval(query, K=5, oversampling_factor=3):
                 diversity_score = max([distance(candidate, selected_chunk) for selected_chunk in selected])
                 score = (relevance_score * weight_relevance) + (diversity_score * weight_diversity)
                 scores[candidate] = score
-            
+
             # Select the highest scoring candidate
             selected.append(max(scores.values(), key=lambda x: next(iter(x))))
             remaining_candidates.remove(selected[-1])
-    
+
     return selected
 
 # Example of a similarity calculation function

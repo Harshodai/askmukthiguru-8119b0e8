@@ -13,7 +13,7 @@ metadata:
 
 # SEO Image Gen: AI Image Generation for SEO Assets (Extension)
 
-Generate production-ready images for SEO use cases using Gemini's image generation
+Generate production-ready images for SEO use cases using Gemini's image generation <!-- claim-ok -->
 via the banana Creative Director pipeline. Maps SEO needs to optimized domain modes,
 aspect ratios, and resolution defaults.
 

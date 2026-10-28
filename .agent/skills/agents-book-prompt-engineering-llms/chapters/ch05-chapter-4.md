@@ -8,7 +8,7 @@ The chapter emphasizes the importance of structuring LLM applications by transfo
 #### **LLM Application Framework**
 - **Structure**: Four-step loop involving user problem domain and model document domain.
 - **When to use**: When designing an LLM application that requires transforming user requests into function calls for the model.
-- **How**: 
+- **How**:
   - Identify the assistant's role (e.g., scheduling, travel planning).
   - Create prompts that clearly describe the request and any necessary context.
   - Ensure completion messages provide actionable information.
@@ -27,7 +27,7 @@ The chapter emphasizes the importance of structuring LLM applications by transfo
 - **Tool Usage**: Integration of external APIs and functions within prompts to enable more complex actions beyond simple generation.
 
 ### Mental Models
-- Use LLMs for reasoning when you need them to provide step-by-step thought processes or justify answers.  
+- Use LLMs for reasoning when you need them to provide step-by-step thought processes or justify answers.
   - Think of LLMs as tools that can be guided through logical steps to solve problems.
 
 ### Anti-patterns
@@ -44,12 +44,12 @@ def get_travel_recommendation(user_request):
         "The Eiffel Tower is a must-see in Paris.",
         "Book your flight early to secure the best prices."
     ]
-    
+
     prompt = f"""Based on the following context snippets, provide a detailed travel recommendation for {user_request}:
     {context_snippets[0]}
     {context_snippets[1]}
     {context_snippets[2]}"""
-    
+
     response = model completions.completions.create(
         model="gpt-3.5-turbo-instruct",
         prompt=prompt,

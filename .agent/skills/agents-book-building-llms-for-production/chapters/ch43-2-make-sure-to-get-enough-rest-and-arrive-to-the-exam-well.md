@@ -22,32 +22,32 @@ This chapter emphasizes the importance of ethical AI responses by introducing th
 
 ## Code Examples
 ```python
-from langchain.chains.constitutional_ai.base import ConstitutionalChain  
-from langchain.chains.constitutional_ai.models import ConstitutionalPrinciple  
+from langchain.chains.constitutional_ai.base import ConstitutionalChain
+from langchain.chains.constitutional_ai.models import ConstitutionalPrinciple
 
-# Define a Polite Principle  
-polite_principle = ConstitutionalPrinciple(  
-    name="Polite Principle", 
-    critique_request="The assistant should be polite to the users and not use offensive language.", 
-    revision_request="Rewrite the assistant's output to be polite."  
+# Define a Polite Principle
+polite_principle = ConstitutionalPrinciple(
+    name="Polite Principle",
+    critique_request="The assistant should be polite to the users and not use offensive language.",
+    revision_request="Rewrite the assistant's output to be polite."
 )
 
-# Create an Identity Chain for QA responses  
-prompt_template = """Rewrite the following text without changing anything: {text}"""  
-identity_prompt = PromptTemplate(template=prompt_template, input_variables=["text"])  
-identity_chain = LLMChain(llm=llm, prompt=identity_prompt)  
+# Create an Identity Chain for QA responses
+prompt_template = """Rewrite the following text without changing anything: {text}"""
+identity_prompt = PromptTemplate(template=prompt_template, input_variables=["text"])
+identity_chain = LLMChain(llm=llm, prompt=identity_prompt)
 
-# Create a Constitutional Chain using RetrievalQA  
-constitutional_chain = ConstitutionalChain.from_llm(  
-    chain=identity_chain,  
-    constitutional_principles=[polite_principle],  
-    llm=llm 
+# Create a Constitutional Chain using RetrievalQA
+constitutional_chain = ConstitutionalChain.from_llm(
+    chain=identity_chain,
+    constitutional_principles=[polite_principle],
+    llm=llm
 )
 
-# Use the chain to revise an offensive response  
+# Use the chain to revise an offensive response
 response = d_response_not_ok["answer"]  # Offensive response from model
 revised_response = constitutional_chain.run(text=response)
-print("Unchecked response:", response)  
+print("Unchecked response:", response)
 print("Revised response:", revised_response)
 ```
 

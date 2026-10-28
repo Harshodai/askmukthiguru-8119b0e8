@@ -30,20 +30,20 @@ def validate_policy_evaluation(output: Any) -> Tuple[bool, str, List[str]]:
         if isinstance(output, TaskOutput) and hasattr(output.pydantic):
             evaluation = output.pydantic
         else:
-            evaluation = PolicyEvaluation.model_validate(data=output) 
+            evaluation = PolicyEvaluation.model_validate(data=output)
     except Exception as e:
         logging.error(f"Guardrail FAILED: An unexpected error occurred during validation: {e}")
         return False, "Guardrail returned an unexpected output format."
 
     if evaluation.compliance_status not in ["compliant", "non-compliant"]:
         return False, f"Compliance status must be 'compliant' or 'non-compliant'. Got: {evaluation.compliance_status}"
-    
+
     # Perform logical checks on the validated data
     if not evaluation.evaluation_summary:
         return False, "Evaluation summary cannot be empty."
     if not isinstance(evaluation.triggered_policies, list):
         return False, "Triggered policies must be a list."
-      
+
     logging.info(f"Guardrail PASSED for policy evaluation.")
     # If valid, return True along with the parsed evaluation object
     return True, evaluation, evaluation.triggered_policies

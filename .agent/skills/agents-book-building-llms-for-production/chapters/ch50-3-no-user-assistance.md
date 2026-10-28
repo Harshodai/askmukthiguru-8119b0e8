@@ -5,7 +5,7 @@ The chapter emphasizes the importance of leveraging structured commands to manag
 
 ## Frameworks Introduced
 - **Command Line Management**: A framework that structures command usage for clarity and consistency, ensuring predictable outcomes through precise arguments.
-  
+
 ## Key Concepts
 - **JSON Schema Args**: A specification detailing argument types and purposes for commands like search, write_file, read_file, and finish to ensure data integrity.
 

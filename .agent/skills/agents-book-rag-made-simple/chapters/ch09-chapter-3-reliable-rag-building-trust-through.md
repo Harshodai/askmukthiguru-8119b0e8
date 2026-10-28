@@ -25,7 +25,7 @@ Use inspection stations when building RAG systems to ensure data quality. Think 
 
 ## Code Examples
 ```markdown
-Algorithm Sketch: Relevancy Grading  
+Algorithm Sketch: Relevancy Grading
 1. Examine each chunk for keyword overlap or semantic connection to the user's question.
 2. Grade the chunk as relevant if it meets basic criteria (even partial matches pass).
 3. Allow lenient grading to filter out obvious noise efficiently.

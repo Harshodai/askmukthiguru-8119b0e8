@@ -33,11 +33,11 @@ from transformers import SimilarityScore
 def hybrid_search_pipeline(query):
     # P90 Path: Fast vector search
     results_p90 = vector_search(query, k=10)
-    
+
     # P99 Path: High-cost LLM retrieval
     prompt = "Which of these products best matches your query?"
     response = model.chat asking prompt with examples
-    
+
     return combine_results(results_p90, response)
 
 def vector_search(query, k=5):

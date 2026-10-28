@@ -25,16 +25,16 @@ Fusion retrieval combines vector-based (semantic) and keyword-based (exact term)
 def bm25_score(query_terms, chunk):
     # Term Frequency: Number of times a query term appears in the chunk
     term_freq = count_of_term_in_chunk(term)
-    
+
     # Inverse Document Frequency: Logarithm of total documents divided by document frequency of the term
     idf = log(total_documents / doc_frequency(term))
-    
+
     # Length Normalization: Reduces score for longer chunks
     length_factor = 1.0 / (1 + len(chunk))
-    
+
     # Calculate raw score components
     raw_score = (term_freq * idf) * length_factor
-    
+
     return raw_score
 
 # Demonstrate how BM25 scores a chunk based on query terms, term frequency, and normalization factors.

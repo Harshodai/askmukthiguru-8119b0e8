@@ -4,7 +4,7 @@
 Multi-modal RAG with captioning enhances the traditional RAG system by converting visual content (images, tables) into text captions. These captions are then indexed alongside textual content, enabling retrieval of information from both sources.
 
 ## Frameworks Introduced
-- **Multi-Modal Retrieval**: 
+- **Multi-Modal Retrieval**:
   - When to use: When dealing with documents that contain a mix of text and visual elements.
   - How: By extracting separate streams for text and images, then using a vision model to generate captions for each image before indexing them alongside the regular text.
 

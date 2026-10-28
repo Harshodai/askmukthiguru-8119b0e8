@@ -36,11 +36,11 @@ def agent_profile_system():
         {"role": "Coder", "demographics": {"age": 25, "years_experience": 3}},
         {"role": "Tester", "demographics": {"role": " tester"}}
     ]
-    
+
     # Create proxy agents for different roles
     coder_profile = openai.create_profile(persona=personas[0])
     tester_profile = openai.create_profile(persona=personas[1])
-    
+
     return {
         'coder': coder_profile,
         'tester': tester_profile

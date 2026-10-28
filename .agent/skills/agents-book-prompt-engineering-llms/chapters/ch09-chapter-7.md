@@ -4,8 +4,8 @@
 The chapter emphasizes the importance of understanding and controlling large language model (LLM) outputs through techniques like chunking, prefix engineering, and logprobability analysis to ensure accurate, efficient, and cost-effective interactions.
 
 ## Frameworks Introduced
-- **Chunking with Recognizable Starts**:  
-  - When to use: When dealing with long completions that require specific formatting or structure.  
+- **Chunking with Recognizable Starts**:
+  - When to use: When dealing with long completions that require specific formatting or structure.
   - How: Identify recognizable start tokens (e.g., `]` at the end of a line) and ensure they appear consistently in the middle of a completion.
 
 ## Key Concepts
@@ -13,7 +13,7 @@ The chapter emphasizes the importance of understanding and controlling large lan
 - **Prefix Engineering**: Adding context or instructions to prompts to guide the model's output format and structure.
 
 ## Mental Models
-- Use chunking with recognizable starts when you need precise control over long completions.  
+- Use chunking with recognizable starts when you need precise control over long completions.
   - Think of chunking as a way to organize your prompt into manageable parts for the LLM to process effectively.
 
 ## Anti-patterns
@@ -32,8 +32,8 @@ The next part of the thought process should be generated based on the previous c
 No reference tables are provided in this chapter.
 
 ## Key Takeaways
-1. Use recognizable starts and chunking when dealing with long completions to ensure consistent formatting.  
-2. Monitor logprobs to gauge model confidence and adjust prompting strategies accordingly.  
+1. Use recognizable starts and chunking when dealing with long completions to ensure consistent formatting.
+2. Monitor logprobs to gauge model confidence and adjust prompting strategies accordingly.
 3. Avoid over-reliance on stopping sequences without considering their context or the model's response patterns.
 
 ## Connects To

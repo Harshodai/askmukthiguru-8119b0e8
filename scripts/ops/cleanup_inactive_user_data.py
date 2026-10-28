@@ -22,6 +22,7 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
+from typing import Any
 
 # Ensure backend/ is on path (this copy lives at <repo>/scripts/ops/)
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..", "backend")))
@@ -176,11 +177,17 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
 
 
 def cleanup_telemetry_logs(
-    days_retention: int = TELEMETRY_RETENTION_DAYS, dry_run: bool = False
+    days_retention: int = TELEMETRY_RETENTION_DAYS,
+    dry_run: bool = False,
+    client: Any = None,
 ) -> int:
     """Purge telemetry logs older than days_retention from Supabase."""
     try:
-        supabase = create_client(settings.supabase_url, settings.supabase_key)
+        supabase = (
+            client
+            if client is not None
+            else create_client(settings.supabase_url, settings.supabase_key)
+        )
         cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
         total = 0
         failed_tables: list[str] = []
@@ -260,10 +267,18 @@ def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool 
         raise
 
 
-def cleanup_staging_quality_queue(days_retention: int = 90, dry_run: bool = False) -> int:
+def cleanup_staging_quality_queue(
+    days_retention: int = 90,
+    dry_run: bool = False,
+    client: Any = None,
+) -> int:
     """Purge staging_quality_queue rows older than days_retention days."""
     try:
-        supabase = create_client(settings.supabase_url, settings.supabase_key)
+        supabase = (
+            client
+            if client is not None
+            else create_client(settings.supabase_url, settings.supabase_key)
+        )
         cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
         if dry_run:
             count_result = (
@@ -290,10 +305,18 @@ def cleanup_staging_quality_queue(days_retention: int = 90, dry_run: bool = Fals
         raise
 
 
-def cleanup_corpus_gate_rejections(days_retention: int = 90, dry_run: bool = False) -> int:
+def cleanup_corpus_gate_rejections(
+    days_retention: int = 90,
+    dry_run: bool = False,
+    client: Any = None,
+) -> int:
     """Purge corpus_gate_rejections rows older than days_retention days."""
     try:
-        supabase = create_client(settings.supabase_url, settings.supabase_key)
+        supabase = (
+            client
+            if client is not None
+            else create_client(settings.supabase_url, settings.supabase_key)
+        )
         cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
         if dry_run:
             count_result = (

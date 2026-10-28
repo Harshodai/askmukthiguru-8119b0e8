@@ -23,7 +23,7 @@ RAG (Retrieval-Augmented Generation) enhances AI models by augmenting their gene
 - **BM25**: A probabilistic ranking algorithm that improves upon TF-IDF for text retrieval, normalizing term frequencies by document length.
 
 ## Mental Models
-- Use RAG when your model lacks context and needs external information to improve its output.  
+- Use RAG when your model lacks context and needs external information to improve its output.
   - Think of RAG as a method for augmenting models with external knowledge to enhance their capabilities in specific tasks.
 
 - Use agents (e.g., web search tools) when you need direct interaction with the external world or automate complex processes that require human expertise.
@@ -40,12 +40,12 @@ from typing import Tuple
 def get_relevant_documents(query: str, retriever: Retrieval, top_k: int = 5) -> list:
     """
     Retrieves the most relevant documents for a given query using a retrieval system.
-    
+
     Args:
         query (str): The search query to retrieve documents for.
         retriever (Retrieval): The retrieval component that indexes and queries external data sources.
         top_k (int): The number of top documents to return. Defaults to 5.
-        
+
     Returns:
         list: A list of the most relevant documents retrieved from external sources.
     """

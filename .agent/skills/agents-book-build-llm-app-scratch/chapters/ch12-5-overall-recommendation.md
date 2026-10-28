@@ -27,10 +27,10 @@ def hotel_recommendation(search_results):
     """Generates a personalized hotel recommendation using retrieval augmented generation."""
     # Perform semantic search on the provided data
     relevant_hotels = retrieve_relevant_hotels(search_results)
-    
+
     # Use chain-of-thought prompting to analyze and rank hotels based on criteria
     analysis = coth_prompting(relevant_hotels, criteria=['location', 'price', 'rating'])
-    
+
     # Rank hotels based on analysis and return the top recommendation
     recommended_hotel = select_top_hotel(analysis_results)
     return recommended_hotel

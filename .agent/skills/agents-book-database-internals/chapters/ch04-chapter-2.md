@@ -4,8 +4,8 @@
 B-Trees are essential for efficient on-disk storage management due to their high fanout and minimal balancing requirements compared to binary search trees.
 
 ## Frameworks Introduced
-- **B-Tree**: A balanced tree structure optimized for disk access with high fanout (number of child nodes per parent).  
-  - When to use: On-disk data structures requiring efficient insertion, deletion, and lookup operations.  
+- **B-Tree**: A balanced tree structure optimized for disk access with high fanout (number of child nodes per parent).
+  - When to use: On-disk data structures requiring efficient insertion, deletion, and lookup operations.
   - How: Uses node splits and merges to maintain balance while maximizing node capacity.
 
 ## Key Concepts
@@ -14,7 +14,7 @@ B-Trees are essential for efficient on-disk storage management due to their high
 - **Node Splitting/Merging**: Processes for maintaining tree balance during insertions, deletions, and rebalancing.
 
 ## Mental Models
-- Use B-Trees when dealing with large datasets requiring efficient disk access.  
+- Use B-Trees when dealing with large datasets requiring efficient disk access.
   Think of B-Trees as optimal data structures for scenarios where minimizing pointer overhead and high fanout are critical.
 
 ## Anti-Patterns

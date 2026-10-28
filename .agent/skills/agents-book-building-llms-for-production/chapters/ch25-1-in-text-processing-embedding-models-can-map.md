@@ -4,7 +4,7 @@
 Embedding models transform data (text, images, user interactions) into vector representations that capture their meaning. Vector stores enable efficient similarity-based retrieval by indexing these embeddings, allowing semantic search to find relevant data regardless of specific terms or data types.
 
 ## Frameworks Introduced
-- **Embedding Model Framework**:  
+- **Embedding Model Framework**:
   - When to use: Mapping raw data (text, images, user interactions) into vector representations for semantic understanding.
   - How: Train models on large datasets to generate dense vectors that capture semantic meaning.
 
@@ -14,7 +14,7 @@ Embedding models transform data (text, images, user interactions) into vector re
 - **Semantic Search**: Querying by embedding similarity rather than keyword matches.
 
 ## Mental Models
-- Use embeddings when dealing with complex data that requires understanding meaning or relationships.  
+- Use embeddings when dealing with complex data that requires understanding meaning or relationships.
   Think of embeddings as compressed representations that preserve semantic context, enabling meaningful comparisons across different data types.
 
 ## Anti-patterns

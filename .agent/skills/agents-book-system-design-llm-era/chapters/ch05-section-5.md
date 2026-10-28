@@ -8,13 +8,13 @@ This chapter explores how AI can enhance learning platforms by enabling personal
 ## Frameworks Introduced
 
 ### 1. Offline Content Pipeline
-- **Process**: 
+- **Process**:
   - **Lesson Generation Service**: Creates offline lessons using AI templates.
   - **Quality Control**: Human experts review and vet content for errors or safety.
   - **Storage**: Content is stored in a database for later delivery.
 
   - **When to use**: When creating new educational material from scratch.
-  - **How**: 
+  - **How**:
     1. Generate questions using AI templates.
     2. Review for accuracy and relevance.
     3. Store validated content for distribution.
@@ -78,19 +78,19 @@ async def generate_questions(
 ) -> List[QuestionAndAnswer]:
     """Generate questions based on the given parameters."""
     prompt = f"""Generate {5} multiple-choice questions about {topic} at skill level {level} for language {language}. Use template ID {template_id}.
-    
+
     The questions should be in the format:
     Question: [Question]
     Answer: [Answer]
     Type: M
     Options: [Option1, Option2, Option3, Option4]"""
-    
+
     response = await call_api(
         "generate_question",
         prompt=prompt,
         **context
     )
-    
+
     return response.questions
 ```
 
@@ -100,11 +100,11 @@ def check_user_progress(user_id: str, lesson_history: List[LessonHistory]):
     """Check user progress and recent activity."""
     if not user_progress[user_id]:
         return False
-    
+
     for lesson in user_progress[user_id][-3:]:  # Check last 3 lessons
         if lesson.graded:
             return True
-            
+
     return False
 ```
 

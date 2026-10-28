@@ -20,7 +20,7 @@ Choosing an LLM involves balancing capabilities, deployment options, cost, and s
 - **Scalability**: Important consideration for models requiring token limits (e.g., Grok's 128K tokens).
 
 ## Mental Models
-- Use Phi-3 when you need a lightweight, scalable solution for resource-constrained environments.  
+- Use Phi-3 when you need a lightweight, scalable solution for resource-constrained environments.
 - Think of DeepSeek as a top-tier option for complex reasoning tasks like mathematics and programming.
 
 ## Anti-patterns

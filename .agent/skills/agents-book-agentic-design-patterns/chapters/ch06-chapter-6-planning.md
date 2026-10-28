@@ -4,8 +4,8 @@
 The chapter emphasizes the importance of Goal-Oriented Planning as a foundational strategy for intelligent agents to achieve complex objectives by breaking them into actionable steps.
 
 ## Frameworks Introduced
-- **Goal-Oriented Planning**: A structured approach where an agent creates a sequence of actions (a plan) to move from an initial state towards a goal.  
-  - When to use: Complex tasks that require foresight and adaptability.  
+- **Goal-Oriented Planning**: A structured approach where an agent creates a sequence of actions (a plan) to move from an initial state towards a goal.
+  - When to use: Complex tasks that require foresight and adaptability.
   - How: Identify the initial state, define the goal, and create actionable steps or subtasks.
 
 ## Key Concepts
@@ -18,7 +18,7 @@ The chapter emphasizes the importance of Goal-Oriented Planning as a foundationa
 - Avoid rigid task execution without planning (e.g., following predefined workflows) because they fail to adapt to new information or constraints.
 
 ## Anti-patterns
-- **Rigid Task Execution**: Performing tasks without considering their dynamic nature or incorporating feedback loops.  
+- **Rigid Task Execution**: Performing tasks without considering their dynamic nature or incorporating feedback loops.
   - What to avoid: Using simple task-execution agents that don't allow for replanning based on new information.
 
 ## Code Examples
@@ -26,16 +26,16 @@ The chapter emphasizes the importance of Goal-Oriented Planning as a foundationa
 # Example of Goal-Oriented Planning in CrewAI
 
 high_level_task = Task(
-    description=(f"1. Create a bullet-point plan for a summary on the topic: '{topic}'.\n" 
+    description=(f"1. Create a bullet-point plan for a summary on the topic: '{topic}'.\n"
                 f"2. Write the summary based on your plan, keeping it around 200 words."),
-    expected_output=(  
+    expected_output=(
         "A final report containing two distinct sections:\n\n"
-        "### Plan\n" 
-        "- A bulleted list outlining the main points of the summary.\n\n" 
-        "### Summary\n" 
+        "### Plan\n"
+        "- A bulleted list outlining the main points of the summary.\n\n"
+        "### Summary\n"
         "- A concise and well-structured summary of the topic."
-   ), 
-    agent=planner_writer_agent, 
+   ),
+    agent=planner_writer_agent,
 )
 ```
 

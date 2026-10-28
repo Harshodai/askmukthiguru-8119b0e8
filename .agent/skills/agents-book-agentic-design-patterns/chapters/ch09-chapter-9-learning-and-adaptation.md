@@ -18,7 +18,7 @@ Agents must learn and adapt by modifying their behavior based on experience to i
 
 ## Key Concepts
 - **Reinforcement Learning**: An agent learns by interacting with an environment and receiving rewards or penalties based on actions taken. The goal is to maximize cumulative reward over time (Sutton & Barto, 2018).
-  
+
 - **Proximal Policy Optimization (PPO)**: A reinforcement learning algorithm that optimizes a policy in steps while ensuring updates remain within a known working range (Schulman et al., 2017).
 
 - **Direct Preference Optimization (DPO)**: An alternative to using reward models, this method directly uses preference data from humans or systems to guide policy optimization without intermediate modeling (Robeyns et al., 2025).

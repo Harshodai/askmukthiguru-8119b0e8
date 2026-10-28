@@ -29,7 +29,7 @@ def scrape_all_content(base_url, relative_urls, filename):
         full_url = construct_full_url(base_url, relative_url)
         scraped_content = scrape_page_content(full_url)
         content.append(scraped_content.rstrip('\n'))
-    
+
     with open(filename, 'w', encoding='utf-8') as file:
         for item in content:
             file.write("%s\n" % item)

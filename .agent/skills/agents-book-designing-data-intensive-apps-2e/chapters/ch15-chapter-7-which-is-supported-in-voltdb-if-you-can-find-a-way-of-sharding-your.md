@@ -4,20 +4,20 @@
 Transactions are essential for maintaining data consistency in databases but require careful management to ensure atomicity, durability, and isolation from external factors.
 
 ## Frameworks Introduced
-- **Two-Phase Locking (2PL)**  
-  - When to use: In relational databases where serializability is critical.  
+- **Two-Phase Locking (2PL)**
+  - When to use: In relational databases where serializability is critical.
   - How: Implement two phases—pre-commit and post-commit—using row versions to maintain consistency across transactions.
 
 ## Key Concepts
-- **Transaction Isolation Levels**: Define how much read-write access a transaction has (e.g., Read-Write, Snapshot).  
-- **Serializability**: Ensures that the effect of one transaction is isolated from others.  
+- **Transaction Isolation Levels**: Define how much read-write access a transaction has (e.g., Read-Write, Snapshot).
+- **Serializability**: Ensures that the effect of one transaction is isolated from others.
 - **Two-Phase Locking (2PL)**: A mechanism for achieving serializability by acquiring locks in two phases.
 
 ## Mental Models
 - Use 2PL when you need strong consistency guarantees across multiple transactions to avoid issues like non-atomic rollbacks and dirty reads.
 
 ## Anti-patterns
-- **No Two-Phase Locking**: Fails to ensure atomicity, leading to potential data inconsistencies.  
+- **No Two-Phase Locking**: Fails to ensure atomicity, leading to potential data inconsistencies.
 - **Inadequate Isolation Levels**: Can result in optimistic concurrency control failures or inconsistent transaction outcomes.
 
 ## Code Examples

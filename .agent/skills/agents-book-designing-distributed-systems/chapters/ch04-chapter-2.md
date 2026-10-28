@@ -4,11 +4,11 @@
 APIs are the foundation of distributed systems due to their ability to support Service Level Objectives (SLOs) and scale horizontally.
 
 ## Frameworks Introduced
-- **RESTful APIs**: Defined by HTTP verbs, resource-based URLs, and well-known operational procedures.  
+- **RESTful APIs**: Defined by HTTP verbs, resource-based URLs, and well-known operational procedures.
   - When to use: For simple, scalable web services with RESTful principles.
   - How: Implement via frameworks like Django or Flask in Python.
 
-- **gRPC (Google Protobuf REST over Protocol Buffers)**: A high-performance messaging protocol for distributed systems.  
+- **gRPC (Google Protobuf REST over Protocol Buffers)**: A high-performance messaging protocol for distributed systems.
   - When to use: For high-throughput and low-latency applications requiring complex data types.
   - How: Use gRPC over HTTP(S) with a transport layer like WireGuard or HTTP2.
 
@@ -22,8 +22,8 @@ APIs are the foundation of distributed systems due to their ability to support S
 - **Data Consistency**: Combines strong or eventual consistency with transaction management for reliable state updates.
 
 ## Mental Models
-- Use RESTful APIs when you need a simple, scalable service with SLO support.  
-- Apply idempotent operations to avoid failures during retries.  
+- Use RESTful APIs when you need a simple, scalable service with SLO support.
+- Apply idempotent operations to avoid failures during retries.
 - Opt for eventual consistency in large-scale systems due to performance trade-offs.
 
 ## Anti-patterns
@@ -38,14 +38,14 @@ from fastapi import HTTPException
 class ApiService:
     def __init__(self):
         self.status = "idle"
-    
+
     async def get(self, id: int):
         if self.status != "idle":
             raise HTTPException(status_code=503, detail="Service is not idle")
         self.status = "processing"
         result = await self.process(id)
         return {"status": "success", "data": result}
-    
+
     async def post(self, id: int):
         if self.status != "idle":
             raise HTTPException(status_code=503, detail="Service is not idle")
@@ -70,5 +70,5 @@ This code demonstrates a RESTful API with idempotent operations to prevent race 
 3. Use idempotent operations to handle retries reliably without side effects.
 
 ## Connects To
-- Chapter 5: Single-Node Patterns  
+- Chapter 5: Single-Node Patterns
 - Chapter 6: Orchestrators and Kubernetes

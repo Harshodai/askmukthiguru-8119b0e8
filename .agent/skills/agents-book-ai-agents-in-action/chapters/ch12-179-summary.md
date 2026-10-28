@@ -41,7 +41,7 @@ loader = DirectoryLoader("sample_documents/mother_goose.html")
 data = loader.load()
 splitter = DocumentSplitter.from_tiktoken(
     chunk_size=100,
-    chunk_overlap=25,    
+    chunk_overlap=25,
     length_function=len
 )
 documents = splitter.split_documents(data, show=True)

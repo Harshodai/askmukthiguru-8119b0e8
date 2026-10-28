@@ -6,7 +6,7 @@ The single most important thing this chapter teaches is that **prompt engineerin
 ---
 
 ## Frameworks Introduced
-- **GPT Series**: A family of language models built on the foundation of GPT, with increasing capabilities as they evolve.  
+- **GPT Series**: A family of language models built on the foundation of GPT, with increasing capabilities as they evolve.
   - When to use: For building advanced LLM-based applications that require state-of-the-art text processing capabilities.
   - How: By selecting the appropriate model size (e.g., GPT-3.5 for moderate tasks or GPT-4 for more complex ones).
 
@@ -18,11 +18,11 @@ The single most important thing this chapter teaches is that **prompt engineerin
 ---
 
 ## Mental Models
-- **Prompt Engineering**: Think of it as an art-and-science of building iterative, context-aware interactions with LLMs.  
+- **Prompt Engineering**: Think of it as an art-and-science of building iterative, context-aware interactions with LLMs.
   - Use X when Y: Use prompt engineering when you need to build advanced applications that require understanding and responding to real-world needs through text-based interfaces.
 
 ## Anti-Patterns
-- **Lack of Context or Domain Knowledge**: Using LLMs without considering the problem's specific context or domain knowledge can lead to ineffective or incorrect results.  
+- **Lack of Context or Domain Knowledge**: Using LLMs without considering the problem's specific context or domain knowledge can lead to ineffective or incorrect results.
   - What to avoid: Overreliance on LLMs for tasks that require deep domain expertise without providing relevant guidance.
 
 ---

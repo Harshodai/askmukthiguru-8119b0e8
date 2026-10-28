@@ -7,7 +7,7 @@ This chapter introduces error-fixing techniques using PydanticOutputParser and R
 - **PydanticOutputParser**: Validates and fixes output based on Pydantic schemas.
   - When to use: When model outputs need validation against structured data.
   - How: Automatically corrects field name mismatches or missing keys.
-  
+
 - **RetryOutputParser**: Iteratively refines incorrect outputs by prompting for context.
   - When to use: When outputs require additional information to resolve issues.
   - How: Asks the model for clarification in prompt-based setups.

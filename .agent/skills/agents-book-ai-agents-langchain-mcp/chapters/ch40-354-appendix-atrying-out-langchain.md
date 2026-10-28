@@ -4,17 +4,17 @@
 This chapter teaches how to leverage LangChain's capabilities for creating structured text summarizations by crafting effective prompts and composing tasks into chains.
 
 ## Frameworks Introduced
-- **Prompt Engineering**: A methodical approach to designing prompts that yield optimal responses.  
+- **Prompt Engineering**: A methodical approach to designing prompts that yield optimal responses.
   - When to use: Whenever you need a reliable way to generate consistent and high-quality outputs from an AI model.
   - How: Craft prompts with clear instructions, including placeholders for parameters like number of words or tone.
 
 ## Key Concepts
-- **Prompt Template**: A structured format used to generate specific types of responses by filling in input parameters.  
+- **Prompt Template**: A structured format used to generate specific types of responses by filling in input parameters.
 - **LCEL (LangChain Expression Language)**: A declarative syntax for defining chains of tasks using LangChain components.
 - **Chain Composition**: Building a sequence of interconnected tasks to achieve a desired outcome.
 
 ## Mental Models
-- Use compose when you have sequential tasks that need to be executed in order, ensuring each step feeds into the next.  
+- Use compose when you have sequential tasks that need to be executed in order, ensuring each step feeds into the next.
   - Example: Compose a chain where web scraping is followed by summarization and emailing to automate data processing workflows.
 
 ## Anti-patterns

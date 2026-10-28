@@ -7,7 +7,7 @@ This chapter provides a comprehensive guide for selecting an LLM by addressing k
 - **Bias Mitigation Strategy**: Implement guardrails like content filtering, human oversight, or prompt engineering to minimize bias.
   - When to use: When sensitive user profiles are involved in the application.
   - How: Evaluate multiple LLMs based on their performance in your specific use case.
-  
+
 - **Open Source vs Proprietary Models Framework**: Choose open-source models for greater control over data handling and avoid proprietary content risks.
   - When to use: When privacy or IP compliance is critical.
   - How: Opt for open-source platforms with enterprise plans ensuring data privacy.

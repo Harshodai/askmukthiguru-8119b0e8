@@ -25,7 +25,7 @@ from py_trees import Composites  # Assuming the necessary imports are present
 
 def execute_behavior_tree():
     tree = py_trees.composites.Sequence("Root Sequence", memory=True)
-    
+
     search_term = "GPT 4"
     search_youtube_action = create_assistant_action(
         action_name="Search YouTube({search_term})",
@@ -39,7 +39,7 @@ def execute_behavior_tree():
         """),
         helper_functions=[helper_function_name]
     )
-    
+
     write_post_action = create_assistant_action(
         action_name="Write Post",
         assistant_name="Twitter Post Writer",
@@ -51,7 +51,7 @@ def execute_behavior_tree():
         """),
         helper_functions=[helper_function_name]
     )
-    
+
     post_action = create_assistant_action(
         action_name="Post",
         assistant_name="Social Media Assistant",
@@ -62,7 +62,7 @@ def execute_behavior_tree():
             """),
         helper_functions=[helper_function_name]
     )
-    
+
     tree.add_child(search_youtube_action)
     tree.add_child(write_post_action)
     tree.add_child(post_action)

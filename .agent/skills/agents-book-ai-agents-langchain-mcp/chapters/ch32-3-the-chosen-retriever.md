@@ -7,7 +7,7 @@ This chapter teaches how to route questions to appropriate data sources using ma
 - **Vector Store Retrieval**: Uses vector stores for general tourist information queries.
   - When to use: For questions about UK destinations or general tourist information.
   - How: Implements a retriever chain with configurable search parameters.
-  
+
 - **UK Booking Database Retrieval**: Specialized for accommodation-related queries.
   - When to use: For questions about hotels, bookings, or accommodation availability in the UK.
   - How: Uses a structured database and metadata query system.

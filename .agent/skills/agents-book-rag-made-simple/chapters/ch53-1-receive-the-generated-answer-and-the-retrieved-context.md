@@ -14,7 +14,7 @@ The chapter emphasizes the importance of rigorously evaluating and verifying RAG
 
 ### Key Concepts
 - **MRR (Mean Reciprocal Rank)**: A ranking metric that measures how quickly the first relevant document appears in search results. Lower values indicate better performance.
-  
+
 - **P@K**: A retrieval metric measuring the fraction of the top-K retrieved documents that are relevant.
   - When to use: To assess the effectiveness of retrieval systems at retrieving relevant information within a specific rank.
   - How: Calculates precision at K by checking if the first K documents contain only relevant results.
@@ -24,7 +24,7 @@ The chapter emphasizes the importance of rigorously evaluating and verifying RAG
   - How: Uses a language model to evaluate generated answers for accuracy against retrieved context.
 
 ### Mental Models
-- Use MRR when you need to assess retrieval systems' effectiveness at retrieving top-relevant documents.  
+- Use MRR when you need to assess retrieval systems' effectiveness at retrieving top-relevant documents.
 - Think of Hallucination Rate as the percentage of false claims in generated answers, requiring Corrective RAG to address them.
 
 ### Anti-patterns

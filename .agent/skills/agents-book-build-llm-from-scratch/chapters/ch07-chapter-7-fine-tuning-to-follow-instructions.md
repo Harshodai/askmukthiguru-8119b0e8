@@ -58,7 +58,7 @@ class LoRAXLlamaModel(nn.Module):
         self.lora_matrix = torch.nn.Parameter(
             torch.randn(rank, rank)
         )
-        
+
     def forward(self, x):
         # Implementation details omitted for brevity
 ```

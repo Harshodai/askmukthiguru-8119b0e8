@@ -1,24 +1,24 @@
 # Chapter 18: 117 Summary
 
-## Core Idea  
+## Core Idea
 LangGraph provides a robust framework for building extensible, intelligent agent workflows by enabling debugging, error handling, conditional routing, and state management.
 
-## Frameworks Introduced  
+## Frameworks Introduced
 - **StateGraph**: Manages workflow structure with typed states (Python TypedDict) to ensure data flow consistency. Used when creating complex, dynamic workflows that require precise control over processing steps.
   - When to use: For workflows requiring explicit state management and type safety.
   - How: Define nodes with functions that update partial states; connect them using edges based on runtime conditions.
 
-## Key Concepts  
+## Key Concepts
 - **TypedDict**: A Python dictionary for defining typed state objects (e.g., `ResearchState`). Ensures data flow consistency between workflow components.
 - **Conditional Edges**: Route execution dynamically based on runtime conditions, enabling loops or advanced decision-making paths.
 
-## Mental Models  
+## Mental Models
 - Use StateGraph when you need to manage complex workflows with conditional logic and extensibility. Think of StateGraph as a tool for building intelligent agents that adaptively process information.
 
-## Anti-patterns  
+## Anti-patterns
 - **Avoid using plain LangChain without LangGraph**: This can lead to monolithic, hard-to-debug workflows. Instead, use LangGraph's modular components for better maintainability and testability.
 
-## Code Examples  
+## Code Examples
 ```python
 # Example of defining a simple workflow with StateGraph
 
@@ -55,16 +55,16 @@ app = research_graph.compile()
 
 This code demonstrates how to create a basic two-node workflow using StateGraph. It shows how nodes can be defined with functions that update partial states and how they are connected based on runtime conditions.
 
-## Reference Tables  
+## Reference Tables
 
 | Parameter          | Type                     | Purpose                                      |
 |--------------------|--------------------------|----------------------------------------------|
 | TypedDict         | Python TypedDict       | Ensures type safety for state objects        |
 
-## Key Takeaways  
+## Key Takeaways
 1. Use StateGraph to build extensible and intelligent workflows with explicit state management.
 2. Leverage conditional edges to dynamically route execution based on runtime conditions.
 3. Avoid monolithic approaches; use LangGraph's modular components for better maintainability.
 
-## Connects To  
+## Connects To
 - Relates to Part 3: Q&A chatbots, as LangGraph can integrate RAG components for enhanced question answering capabilities.

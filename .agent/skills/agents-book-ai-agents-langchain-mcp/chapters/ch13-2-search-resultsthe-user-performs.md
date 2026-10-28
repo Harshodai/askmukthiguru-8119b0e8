@@ -55,13 +55,13 @@ print("Generated summary:", summary.choices[0].message.content)
 def research_pipeline(text):
     # Step 1: Web Search
     result = web_search(text)
-    
+
     # Step 2: Web Scraping
     extracted_data = web_scraping(result)
-    
+
     # Step 3: Summarization
     summary = summarize(extracted_data)
-    
+
     return summary
 
 # Example usage

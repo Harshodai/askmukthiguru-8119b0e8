@@ -20,12 +20,12 @@ This chapter introduces LangChain as a powerful framework for building applicati
 
 ## Code Examples
 ```python
-from langchain.chat_models import ChatOpenAI  
-from langchain.prompts.chat import ( 
-    ChatPromptTemplate , 
-    SystemMessagePromptTemplate , 
-    HumanMessagePromptTemplate , 
-) 
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts.chat import (
+    ChatPromptTemplate ,
+    SystemMessagePromptTemplate ,
+    HumanMessagePromptTemplate ,
+)
 
 # Example for movie information retrieval
 chat = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)

@@ -29,7 +29,7 @@ def create_user(data: UserData):
     ...
 ```
 
-More than 3 arguments means your function is doing too much or needs 
+More than 3 arguments means your function is doing too much or needs
 a data structure.
 
 ## F2: No Output Arguments

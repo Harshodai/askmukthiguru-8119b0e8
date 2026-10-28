@@ -5,7 +5,7 @@ The adapter pattern is a fundamental design approach for standardizing interface
 
 ## Frameworks Introduced
 - **Adapter Pattern**: A design pattern that provides a standardized interface between heterogeneous components, enabling compatibility and interoperability.
-  
+
   - **When to Use**: When your application contains diverse components with varying interfaces (e.g., different logging libraries, monitoring tools, or database drivers).
   - **How**: By creating modular adapter containers that transform data formats or expose consistent interfaces.
 

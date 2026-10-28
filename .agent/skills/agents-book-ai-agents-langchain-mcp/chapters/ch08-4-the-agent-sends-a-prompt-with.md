@@ -9,7 +9,7 @@ This chapter teaches how to adapt large language models (LLMs) to specific use c
   - How: Through a pipeline of components like loaders, splitters, vector stores, retrievers, and prompts.
 
 ## Key Concepts
-- **VectorStore**: A data structure storing embeddings and associated documents for efficient retrieval.  
+- **VectorStore**: A data structure storing embeddings and associated documents for efficient retrieval.
 - **Retriever**: A component that queries one or more backends (vector stores, SQL, etc.) to return relevant documents.
 - **PromptTemplate**: A reusable prompt structure with placeholders for dynamic inputs.
 
@@ -21,7 +21,7 @@ This chapter teaches how to adapt large language models (LLMs) to specific use c
 
 ## Code Examples
 ```python
-from langchain.document_loaders import DirectoryLoader  
+from langchain.document_loaders import DirectoryLoader
 loader = DirectoryLoader("path/to/documents", glob="**/*.txt")
 ```
 This demonstrates loading documents from a directory, showcasing LangChain's flexibility in handling various data sources.
@@ -43,5 +43,5 @@ This demonstrates loading documents from a directory, showcasing LangChain's fle
 3. Optimize workflows by fine-tuning models or retraining them for domain-specific tasks.
 
 ## Connects To
-- Chapter 4: Introduction to AI agents and applications  
+- Chapter 4: Introduction to AI agents and applications
 - Chapter 5: Building chatbots with LangChain

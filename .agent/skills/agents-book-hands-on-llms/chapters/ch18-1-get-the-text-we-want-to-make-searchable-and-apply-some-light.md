@@ -14,12 +14,12 @@ This chapter demonstrates how to use Cohere’s AI search capabilities to make t
 - **Nearest Neighbors**: A method for finding similar items in a dataset based on vector similarity.
 
 ## Mental Models
-- Use sentence-level embeddings with FAISS for efficient text search.  
+- Use sentence-level embeddings with FAISS for efficient text search.
   - When: When you need to quickly retrieve the most relevant text snippets from a large corpus.
   - Why: Embeddings allow for semantic understanding, while FAISS optimizes nearest neighbor searches for scalability.
 
 ## Anti-patterns
-- **Not processing and cleaning the input text**: Missing preprocessing steps can lead to irrelevant or inaccurate search results.  
+- **Not processing and cleaning the input text**: Missing preprocessing steps can lead to irrelevant or inaccurate search results.
   - Why it fails: Without proper cleaning and normalization, embeddings may not capture meaningful similarities.
 - **Using unsupported libraries or APIs**: Relying on unmaintained or poorly documented tools can result in unstable or broken code.
 
@@ -63,16 +63,16 @@ def search(query, number_of_results=3):
         texts=[query],
         input_type="search_query"
     ).embeddings[0]
-    
+
     # Perform nearest neighbor search
     distances, similar_item_ids = index.search(np.array([query_embedding], dtype=np.float32), number_of_results)
-    
+
     # Prepare results DataFrame
     results_df = pd.DataFrame({
         'text': processed_texts[similar_item_ids[0]],
         'distance': distances[0]
     })
-    
+
     return results_df
 
 # Example search

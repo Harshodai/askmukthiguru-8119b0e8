@@ -4,7 +4,7 @@
 Understanding correlated software faults is crucial for predicting and mitigating failures that arise due to shared assumptions within systems. This understanding helps in designing more reliable and scalable applications.
 
 ## Frameworks Introduced
-- **Correlated Faults**:  
+- **Correlated Faults**:
   - When to use: Identifying when multiple system components share common failure points.
   - How: Analyzing logs, monitoring for simultaneous errors, and isolating root causes through systematic testing.
 
@@ -14,7 +14,7 @@ Understanding correlated software faults is crucial for predicting and mitigatin
 - **Human Error as a Symptom**: Operator mistakes are often symptoms rather than causes, highlighting the need for comprehensive system design.
 
 ## Mental Models
-- Use correlated faults when designing systems with shared assumptions.  
+- Use correlated faults when designing systems with shared assumptions.
   Think of cascading failures as indicators of weak architectural foundations.
 
 ## Anti-patterns

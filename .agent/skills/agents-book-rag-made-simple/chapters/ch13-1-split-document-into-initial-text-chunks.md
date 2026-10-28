@@ -4,7 +4,7 @@
 Proposition chunking transforms dense text into precise, self-contained facts that improve retrieval accuracy and context preservation.
 
 ## Frameworks Introduced
-- **Proposition Chunking**: 
+- **Proposition Chunking**:
   - When to use: For documents requiring specific factual answers.
   - How: Decompose chunks into propositions with quality checks.
 

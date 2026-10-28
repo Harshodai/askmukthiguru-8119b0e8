@@ -4,16 +4,16 @@
 This chapter teaches how to structure data into a knowledge graph for enhanced memory and reasoning in intelligent agents.
 
 ## Frameworks Introduced
-- **Data Collection**: Gathering diverse sources like databases, documents, web pages, and user-generated content.  
+- **Data Collection**: Gathering diverse sources like databases, documents, web pages, and user-generated content.
   - When to use: When building an organization's knowledge base.
   - How: Implement techniques from the chapter on data collection.
 
-- **Preprocessing**: Cleaning and refining raw data for quality assurance.  
+- **Preprocessing**: Cleaning and refining raw data for quality assurance.
   - When to use: After data collection.
   - How: Remove irrelevant information, correct errors, standardize formats.
 
 ## Key Concepts
-- **Entity Recognition & Extraction**: Identifying entities using NLP models like BERT.  
+- **Entity Recognition & Extraction**: Identifying entities using NLP models like BERT.
 - **Relationship Extraction**: Parsing text to find relationships between entities.
 - **Neo4j**: A graph database for efficient storage and querying of knowledge graphs.
 

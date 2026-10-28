@@ -6,7 +6,7 @@ The chapter introduces attention mechanisms as a fundamental component of neural
 ## Frameworks Introduced
 - **Self-attention**: Computed using query, key, and value vectors within the same tensor.
   - When to use: For modeling interdependent relationships between data points.
-  - How: 
+  - How:
     1. Compute query, key, and value matrices from input embeddings.
     2. Calculate attention scores via scaled dot product.
     3. Apply softmax normalization to obtain attention weights.
@@ -18,7 +18,7 @@ The chapter introduces attention mechanisms as a fundamental component of neural
 
 - **Multi-Head Attention**: Implements multiple attention heads to capture diverse contextual relationships.
   - When to use: For modeling complex dependencies and improving model performance.
-  - How: 
+  - How:
     1. Project input data into multiple query/key/value representations.
     2. Compute attention weights for each head separately.
     3. Combine the outputs of all heads to form the final context vector.
@@ -50,44 +50,44 @@ class ScaledDotProductAttention(nn.Module):
         super().__init__()
         self.dim = dim
         self.dropout = nn.Dropout(dropout)
-        
+
         # Compute d_k (k is the dimension of keys) from input size
         self.register_buffer('d_k', torch.tensor(self.dim // 3))
-        
+
     def forward(self, x: Tensor) -> Tensor:
         # Get shape information
         batch_size, seq_len, embed_dim = x.size()
         assert embed_dim == self.dim, "Sequence dimension must match embedding dimension"
-        
+
         # Project input sequence to query, key, and value spaces at the attention layer level
         q, k, v = self.query(x), self.key(x), self.value(x)
-        
+
         # Compute scaled dot product attention scores
         attn_scores = torch.bmm(q.unsqueeze(1),
                                k.unsqueeze(2).transpose(1, 2))
         attn_scores = attn_scores / math.sqrt(self.dim)
-        
+
         # Apply causal mask to scores before softmax
         if seq_len > self.dim:
             # Create lower triangular mask with ones (with the first diagonal element set to zero)
             dim5 = torch.tril(torch.ones(seq_len, seq_len), diagonal=-1).to(attn_scores.device)
             dim5 = dim5.view(1, 1, seq_len, seq_len)
-            
+
             # Apply the causal mask
             attn_mask = (dim5 > 0).float()
             attn_scores = attn_scores.masked_fill(attn_mask == 0, float('-inf'))
-        
+
         # Normalize scores with softmax
         attn_weights = F.softmax(attn_scores, dim=-1)
-        
+
         # Apply dropout to the attention weights
         attn_weights = self.dropout(attn_weights)
-        
+
         # Context vectors are computed as the weighted sum of values
         context_vecs = torch.bmm(attn_weights, v)
-        
+
         return context_vecs.squeeze(2)  # Remove singleton dimension from output
-    
+
     def query(self, x: Tensor) -> List[Tensor]:
         """Computes query, key, and value vectors for a given input tensor."""
         return [self.query(x), self.key(x), self.value(x)]

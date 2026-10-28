@@ -22,31 +22,31 @@ Role prompting is a technique that instructs an LLM to assume a specific role, e
 
 ## Code Examples
 ```python
-from langchain import PromptTemplate, LLMChain  
-from langchain.chat_models import ChatOpenAI  
+from langchain import PromptTemplate, LLMChain
+from langchain.chat_models import ChatOpenAI
 
-# Initialize LLM  
-llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0) 
+# Initialize LLM
+llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
 
-template = """ 
+template = """
 As a futuristic robot band conductor, I need you to help me come up with a
-song title.  
-What's a cool song title for a song about {theme} in the year {year}? 
-""" 
+song title.
+What's a cool song title for a song about {theme} in the year {year}?
+"""
 
-prompt = PromptTemplate(  
-    input_variables=["theme", "year"], 
-    template=template,  
-)  
+prompt = PromptTemplate(
+    input_variables=["theme", "year"],
+    template=template,
+)
 
-# Create the LLMChain for the prompt  
-llm_chain = LLMChain(llm=llm, prompt=prompt)  
+# Create the LLMChain for the prompt
+llm_chain = LLMChain(llm=llm, prompt=prompt)
 
-input_data = {"theme": "interstellar travel", "year": "3030"}  
+input_data = {"theme": "interstellar travel", "year": "3030"}
 
-response = llm_chain.run(input_data)  
+response = llm_chain.run(input_data)
 
-print("AI-generated song title:", response)  
+print("AI-generated song title:", response)
 ```
 - **What it demonstrates**: How to use parameterized prompts in LangChain to generate tailored responses based on specific inputs.
 

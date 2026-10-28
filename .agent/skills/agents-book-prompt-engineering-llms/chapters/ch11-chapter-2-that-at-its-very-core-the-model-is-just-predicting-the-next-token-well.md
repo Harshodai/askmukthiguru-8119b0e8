@@ -22,14 +22,14 @@ This chapter teaches how to build conversational agents that leverage large lang
 - **Artifact Management**: The process of collecting, storing, and presenting information from prior exchanges to aid in current tasks.
 
 ### Mental Models
-- Use prompt engineering when you need to structure conversations around specific tasks or tools.  
+- Use prompt engineering when you need to structure conversations around specific tasks or tools.
 - Think of chain-of-thought prompting as a way to improve reasoning by breaking down complex tasks into smaller steps.
 - Organize context effectively by prioritizing relevant artifacts and using them to guide the model's actions.
 
 ### Anti-patterns
-- Overload the model with too many unrelated prompts without guiding it through structured interactions.  
-- Rely solely on human interaction for task completion, ignoring the model's reasoning capabilities.  
-- Ignore prior conversation or fail to extract enough information from artifacts when they are available.  
+- Overload the model with too many unrelated prompts without guiding it through structured interactions.
+- Rely solely on human interaction for task completion, ignoring the model's reasoning capabilities.
+- Ignore prior conversation or fail to extract enough information from artifacts when they are available.
 - Fail to organize context, leading to confusion and incomplete reasoning.
 
 ### Code Examples

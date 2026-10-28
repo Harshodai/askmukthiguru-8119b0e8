@@ -4,7 +4,7 @@
 The chapter explains how to transform document completion models into robust chat interfaces by leveraging Reward Model Hyper-fine Tuning (RLHF) fine-tuning. This approach enables models to act like helpful, honest, and harmless AI assistants while maintaining their alignment with user expectations.
 
 ## Frameworks Introduced
-- **ChatML Prompt Engineering**:  
+- **ChatML Prompt Engineering**:
   - When to use: When creating chat interfaces or integrating external APIs.
   - How: Involves crafting structured prompts with system messages that guide the model's behavior. The assistant's role is clearly defined, ensuring consistent and polite responses.
 

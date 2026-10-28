@@ -73,20 +73,20 @@ Bugs congregate at boundaries. Test them explicitly.
 ```python
 def test_pagination_boundaries():
     items = list(range(100))
-    
+
     # First page
     assert paginate(items, page=1, size=10) == items[0:10]
-    
+
     # Last page
     assert paginate(items, page=10, size=10) == items[90:100]
-    
+
     # Beyond last page
     assert paginate(items, page=11, size=10) == []
-    
+
     # Page zero (invalid)
     with pytest.raises(ValueError):
         paginate(items, page=0, size=10)
-    
+
     # Empty list
     assert paginate([], page=1, size=10) == []
 ```

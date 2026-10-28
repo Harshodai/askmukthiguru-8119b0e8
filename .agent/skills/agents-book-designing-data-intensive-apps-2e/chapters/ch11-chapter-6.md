@@ -4,7 +4,7 @@
 Replication is essential for building robust distributed systems that handle failures, scalability, and latency issues. Single-leader replication provides strong consistency but requires careful handling of replication lag and node failures.
 
 ## Frameworks Introduced
-- **Single-Leader Replication**: 
+- **Single-Leader Replication**:
   - When to use: When a single leader node is sufficient for high availability and strong consistency.
   - How: Write directly to the leader, have other nodes confirm updates via replication logs or checkpoints. Fallback involves replicating logs or using a failover process.
 

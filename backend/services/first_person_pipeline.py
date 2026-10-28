@@ -55,6 +55,7 @@ from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match
 from ingest.verbatim.boundaries import boundary_defects
 from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
+from services.first_person_context_selector import select_span_ids
 from services.first_person_graph_expansion import expand_query_concepts
 from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
@@ -3042,8 +3043,6 @@ class FirstPersonPipeline:
                     _local_tokens: list[int] = []
                     selected_span_ids = None
                     if bool(getattr(settings, "first_person_context_selector_enabled", False)):
-                        from services.first_person_context_selector import select_span_ids  # noqa: PLC0415
-
                         selected_span_ids = select_span_ids(
                             query, ctx.spans, llm_service=self._llm_service
                         )

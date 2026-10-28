@@ -4,22 +4,22 @@
 Knowledge and memory in agentic systems extend beyond context windows by incorporating retrieval-augmented generation (RAG) with semantic memory, enabling agents to reason over external knowledge and adaptively retrieve relevant information.
 
 ## Frameworks Introduced
-- **BM25Okapi**: A ranking function for keyword-based search using TF-IDF scoring.  
+- **BM25Okapi**: A ranking function for keyword-based search using TF-IDF scoring.
   - When to use: For exact keyword matching in large text corpora.
   - How: Implements the BM25 algorithm with configurable parameters like window size and overlap.
 
-- **GraphRAG**: An advanced RAG system that uses knowledge graphs to store structured data for multihop reasoning.  
+- **GraphRAG**: An advanced RAG system that uses knowledge graphs to store structured data for multihop reasoning.
   - When to use: For complex tasks requiring interconnected data relationships.
   - How: Combines retrieval from a graph database with generative models to produce contextually rich responses.
 
 ## Key Concepts
-- **BM25 Scoring Function**: A ranking algorithm that measures the relevance of documents to a query based on term frequency, inverse document frequency, and document length normalization.  
-- **Vector Store**: A data structure for storing high-dimensional vector representations of text, enabling efficient similarity searches.  
+- **BM25 Scoring Function**: A ranking algorithm that measures the relevance of documents to a query based on term frequency, inverse document frequency, and document length normalization.
+- **Vector Store**: A data structure for storing high-dimensional vector representations of text, enabling efficient similarity searches.
 - **Knowledge Graph**: A graph-based representation of entities (nodes) and their relationships (edges), used for structured reasoning.
 
 ## Mental Models
 - Use BM25 when you need exact keyword matches in a large text corpus.
-- Think of BM25 as a tool for retrieving precise, relevant information based on query terms.  
+- Think of BM25 as a tool for retrieving precise, relevant information based on query terms.
 - Use GraphRAG when you need to reason over interconnected data for complex tasks.
 
 ## Anti-patterns

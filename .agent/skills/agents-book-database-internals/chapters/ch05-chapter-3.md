@@ -4,7 +4,7 @@
 The chapter teaches how to organize data on disk efficiently using binary formats that support fast access while managing memory effectively.
 
 ## Frameworks Introduced
-- **Slotted Page Layout**: Uses fixed-size header, cells, and pointers.  
+- **Slotted Page Layout**: Uses fixed-size header, cells, and pointers.
   - When to use: For variable-size records requiring minimal overhead.
   - How: Cells are organized into pages with headers for offsets; keys are sorted alphabetically but stored in insertion order.
 
@@ -19,7 +19,7 @@ The chapter teaches how to organize data on disk efficiently using binary format
 - Think of B-Trees as a page-based structure where each node fits into a single page.
 
 ## Anti-Patterns
-- Avoid fragmented pages leading to wasted space or inefficient layouts.  
+- Avoid fragmented pages leading to wasted space or inefficient layouts.
   - What fails: Over-reliance on fixed-size cells causing fragmentation and inefficiency.
 
 ## Code Examples
@@ -28,7 +28,7 @@ The chapter teaches how to organize data on disk efficiently using binary format
 class Cell:
     def __init__(self, page_id):
         self.page_id = page_id
-        
+
     @classmethod
     def from_bytes(cls, bytes, offset=0):
         cls_size = 4

@@ -4,7 +4,7 @@
 Transformers have revolutionized natural language processing by enabling models to process sequential data through self-attention mechanisms, allowing them to capture long-range dependencies and generate context-aware representations.
 
 ## Frameworks Introduced
-- **Transformer Architecture**: 
+- **Transformer Architecture**:
   - When to use: For tasks requiring sequence-to-sequence modeling, such as translation or summarization.
   - How: Through encoder-decoder or decoder-only configurations, incorporating self-attention mechanisms for flexible processing.
 

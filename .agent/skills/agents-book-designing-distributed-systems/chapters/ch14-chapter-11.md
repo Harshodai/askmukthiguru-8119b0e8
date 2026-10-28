@@ -52,7 +52,7 @@ def make_container(item, obj):
 def make_job(item):
     response = requests.get(f"http://localhost/api/v1/items/{item}")
     obj = json.loads(response.text)
-    
+
     job = client.V1Job()
     job.metadata = client.V1ObjectMetadata()
     job.metadata.name = item
@@ -60,18 +60,18 @@ def make_job(item):
     job.spec.template = client.V1PodTemplate()
     job.spec.template.spec = client.V1PodTemplateSpec()
     job.spec.template.spec.restart_policy = "Never"
-    
+
     job.spec.template.spec.containers = [
         make_container(item, obj)
     ]
-    
+
     return job
 
 def update_queue(batch):
     response = requests.get("http://localhost/api/v1/items")
     items = response.json()["items"]
     ret = batch.list_namespaced_job(namespace, watch=False)
-    
+
     for item in items:
         found = False
         for i in ret.items:
@@ -81,7 +81,7 @@ def update_queue(batch):
         if not found:
             job = make_job(item)
             batch.create_namespaced_job(namespace, job)
-            
+
 config.load_kube_config()
 batch = client.BatchV1Api()
 while True:

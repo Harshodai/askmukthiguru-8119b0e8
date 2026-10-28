@@ -4,7 +4,7 @@
 The chapter introduces a method called Hypothetical Document Embedding (HyDE) that enhances document retrieval by generating a hypothetical answer from the query, embedding it, and using it to find relevant real documents.
 
 ## Frameworks Introduced
-- **Hypothetical Document Embedding (HyDE)**: 
+- **Hypothetical Document Embedding (HyDE)**:
   - When to use: When seeking to retrieve documents related to a topic where existing knowledge is insufficient.
   - How: Generate a hypothetical document from the query, embed it, and search for similar real documents.
 

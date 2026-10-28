@@ -7,7 +7,7 @@ Improving model accuracy beyond certain thresholds becomes increasingly costly d
 - **Neural Scaling Laws**: Explores how performance scales with resources.
   - When to use: Analyzing resource impacts on model performance.
   - How: Studies the relationship between model size and accuracy.
-  
+
 - **Scaling Extrapolation (Hyperparameter Transfer)**: Predicting optimal hyperparameters for large models based on smaller ones.
   - When to use: When limited by resource constraints for extensive tuning.
   - How: Analyzing how hyperparameters scale with model size.

@@ -14,7 +14,7 @@ This chapter teaches you how to build a research summarization engine by combini
 - **Text Scraping**: Extracting structured data from unstructured web content using libraries like Beautiful Soup.
 
 ## Mental Models
-- Use query rewriting when you need to refine or expand search results.  
+- Use query rewriting when you need to refine or expand search results.
   - Think of query rewriting as enhancing retrieval accuracy by generating multiple targeted queries.
 
 ## Anti-patterns

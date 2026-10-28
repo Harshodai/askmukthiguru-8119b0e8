@@ -3,7 +3,7 @@
 Here is an alphabetical glossary of key terms based on the provided chapter titles:
 
 - **Attention Mechanism** — A method used in neural networks to allow models to focus on specific parts of input data when making predictions or decisions. (Chapters 8, 9, 10)
-  
+
 - **Token Prediction** — The process by which a model predicts the next token in a sequence, commonly used in language modeling tasks. (Chapters 8, 9)
 
 - **Overfitting** — A situation where a model performs well on training data but poorly on new, unseen data due to excessive complexity or lack of generalization. (Chapters 10, 12)

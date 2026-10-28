@@ -1,10 +1,10 @@
 # Cheatsheet
 
-### Cheatsheet: Large Language Models (LLMs) - Decision Tables, Comparison Matrices, and Quick Reference Rules  
+### Cheatsheet: Large Language Models (LLMs) - Decision Tables, Comparison Matrices, and Quick Reference Rules
 
 ---
 
-#### **1. Setup and Platform Building**  
+#### **1. Setup and Platform Building**
 | **Action**                     | **Quick Reference Rule**                                                                 |
 |-------------------------------|---------------------------------------------------------------------------------------|
 | Choosing a Framework           | Use PyTorch or TensorFlow for flexibility and scalability.                              |
@@ -12,7 +12,7 @@
 
 ---
 
-#### **2. Data Engineering**  
+#### **2. Data Engineering**
 | **Action**                     | **Quick Reference Rule**                                                                 |
 |-------------------------------|---------------------------------------------------------------------------------------|
 | Data Collection               | Use web scraping, APIs, or surveys for structured/unstructured data.                  |
@@ -21,7 +21,7 @@
 
 ---
 
-#### **3. Training Techniques**  
+#### **3. Training Techniques**
 | **Action**                     | **Quick Reference Rule**                                                                 |
 |-------------------------------|---------------------------------------------------------------------------------------|
 | Model Architecture           | Choose between transformer-based (e.g., BERT) or simpler models for specific tasks.    |
@@ -30,7 +30,7 @@
 
 ---
 
-#### **4. Deployment Strategies**  
+#### **4. Deployment Strategies**
 | **Action**                     | **Quick Reference Rule**                                                                 |
 |-------------------------------|---------------------------------------------------------------------------------------|
 | Model Serving                | Use Flask, FastAPI, or TensorFlow serving for APIs.                                   |
@@ -38,7 +38,7 @@
 
 ---
 
-#### **5. Prompt Engineering**  
+#### **5. Prompt Engineering**
 | **Action**                     | **Quick Reference Rule**                                                                 |
 |-------------------------------|---------------------------------------------------------------------------------------|
 | Crafting Prompts             | Use clear, concise, and specific prompts to guide model behavior.                      |
@@ -46,7 +46,7 @@
 
 ---
 
-#### **6. Applications**  
+#### **6. Applications**
 | **Action**                     | **Quick Reference Rule**                                                                 |
 |-------------------------------|---------------------------------------------------------------------------------------|
 | Model Building Blocks         | Use pre-trained models as building blocks for custom applications.                    |
@@ -54,7 +54,7 @@
 
 ---
 
-#### **7. Deployment on Raspberry Pi**  
+#### **7. Deployment on Raspberry Pi**
 | **Action**                     | **Quick Reference Rule**                                                                 |
 |-------------------------------|---------------------------------------------------------------------------------------|
 | Hardware Setup               | Use Raspberry Pi Model 3 with sufficient RAM and storage.                              |
@@ -63,7 +63,7 @@
 
 ---
 
-#### **8. Production Challenges**  
+#### **8. Production Challenges**
 | **Action**                     | **Quick Reference Rule**                                                                 |
 |-------------------------------|---------------------------------------------------------------------------------------|
 | Model Optimization           | Use model compression or quantization to reduce size and improve inference speed.       |
@@ -71,7 +71,7 @@
 
 ---
 
-### **Decision Tables: Choosing Between Tools/Methods**  
+### **Decision Tables: Choosing Between Tools/Methods**
 
 #### **Table 1: Data Storage Options**
 | **Need**                     | **Recommendation**                                                                 |
@@ -84,7 +84,7 @@
 | **Framework**               | **Use Case**                                                                 |
 |-------------------------------|-----------------------------------------------------------------------------|
 | PyTorch                      | Research and complex models.                                                   |
-| TensorFlow                    | Production-ready models.                                                      |
+| TensorFlow                    | Production-ready models.                                                      | <!-- claim-ok -->
 | Hugging Face Transformers     | Pre-trained models for NLP tasks.                                                |
 
 #### **Table 3: Deployment Platforms**
@@ -95,11 +95,11 @@
 
 ---
 
-### **Quick Reference Rules for Practitioners**  
-1. Always start with a simple model before fine-tuning.  
-2. Use prompts to guide LLM outputs but avoid over-engineering them.  
-3. For deployment on edge devices, consider using TensorFlow Lite.  
-4. Regularly evaluate and optimize your data pipeline.  
+### **Quick Reference Rules for Practitioners**
+1. Always start with a simple model before fine-tuning.
+2. Use prompts to guide LLM outputs but avoid over-engineering them.
+3. For deployment on edge devices, consider using TensorFlow Lite.
+4. Regularly evaluate and optimize your data pipeline.
 
 ---
 

@@ -28,10 +28,10 @@ def generate_answer(prompt):
         max_tokens=2048,
         temperature=0.7
     )
-    
+
     # Step 2: Extract the final answer from the thought process
     answer = extract_answer_from_thoughts(thought_process)
-    
+
     return answer
 
 # Function to create a Chain of Thought prompt

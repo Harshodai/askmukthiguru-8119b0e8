@@ -4,7 +4,7 @@
 The chapter emphasizes the importance of evaluation as a critical challenge in AI engineering. It provides insights into optimizing model quality through prompt engineering, context handling, finetuning, data management, inference optimization, and end-to-end application design.
 
 ## Frameworks Introduced
-- **Prompt Engineering Best Practices**: 
+- **Prompt Engineering Best Practices**:
   - When to use: To shape model behavior and improve alignment with user expectations.
   - How: By crafting clear, structured prompts that guide the model's responses effectively.
 

@@ -4,7 +4,7 @@
 The chapter introduces a dartboard selection algorithm designed to balance relevance and diversity in information retrieval systems by iteratively selecting chunks that maximize these two objectives.
 
 ## Frameworks Introduced
-- **Greedy Loop Framework**: 
+- **Greedy Loop Framework**:
   - When to use: Suitable for scenarios where redundancy is a concern, such as knowledge bases with overlapping content.
   - How: Select the most relevant chunk first, then iteratively select additional chunks that optimize a weighted combination of relevance and diversity scores.
 
@@ -26,25 +26,25 @@ The chapter introduces a dartboard selection algorithm designed to balance relev
 def dartboard_selection(query, candidates):
     # Step 1: Compute distances from query to each candidate
     distances = compute_distances(query, candidates)
-    
+
     # Step 2: Iteratively select chunks based on combined scores
     selected = []
     remaining_candidates = candidates
-    
+
     while len(selected) < K:
         # Compute relevance and diversity scores
         relevance_scores = [compute_relevance(c) for c in remaining_candidates]
         diversity_scores = [compute_diversity(c, selected) for c in remaining_candidates]
-        
+
         # Combine scores with weights
-        combined_scores = [(relevance * alpha + diversity * beta), idx] 
+        combined_scores = [(relevance * alpha + diversity * beta), idx]
         for idx, (score, relevance, diversity) in enumerate(zip(relevance_scores, relevance_scores, diversity_scores))
-        
+
         # Select the chunk with highest score
         selected_idx = argmax(combined_scores)
         selected.append(remaining_candidates[selected_idx])
         remaining_candidates.pop(selected_idx)
-    
+
     return selected
 ```
 

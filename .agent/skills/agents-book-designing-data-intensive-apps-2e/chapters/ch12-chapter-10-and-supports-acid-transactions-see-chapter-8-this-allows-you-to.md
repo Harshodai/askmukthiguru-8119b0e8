@@ -7,7 +7,7 @@ This chapter explores various replication strategies for maintaining data consis
 - **Raft**: A simple, sequential leader election algorithm for replicating writes to a single leader node.
   - When to use: Suitable for systems requiring simplicity and ease of implementation.
   - How: Leaders handle writes sequentially, with other nodes following in order.
-  
+
 - **DynamoDB**: Uses a distributed key-value store with flexible replication strategies based on quorum intersection.
   - When to use: Ideal for systems needing high availability and fault tolerance without strict partition recovery requirements.
   - How: Nodes replicate data based on overlapping sets of peers.
@@ -22,7 +22,7 @@ This chapter explores various replication strategies for maintaining data consis
 
 ## Key Concepts
 - **Raft Algorithm**: Consensus algorithm where nodes vote on a single leader, which can change dynamically. It ensures sequential writes but struggles with high latency or failures.
-  
+
 - **DynamoDB's Quorum Intersection**: Nodes replicate data based on overlapping peer sets to achieve availability and fault tolerance without requiring global replication.
 
 - **Replication Protocol**: A protocol-based approach where nodes replicate writes across multiple peers, ensuring consistency even in the face of node failures.
@@ -44,7 +44,7 @@ This chapter explores various replication strategies for maintaining data consis
 public static class CRTP {
   private final int[] causalSequence;
   private final int[][] versionVectors;
-  
+
   public void write(Timestamp t, String key, String value) throws IOException {
     if (isLeader()) {
       if (!hasVersion(causalSequence, key)) {
@@ -71,7 +71,7 @@ public static class CRTP {
     for (int i = 0; i < size(); i++) {
       replica[i].write(t, key, value);
     }
-    
+
     commit();
   }
 }

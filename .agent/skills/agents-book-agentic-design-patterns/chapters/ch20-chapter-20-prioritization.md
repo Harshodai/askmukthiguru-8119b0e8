@@ -4,7 +4,7 @@
 Prioritization is essential for AI agents operating in complex environments with limited resources. It enables agents to focus on critical tasks, enhancing efficiency and effectiveness.
 
 ## Frameworks Introduced
-- **Prioritization Pattern**: 
+- **Prioritization Pattern**:
   - When to use: In complex, dynamic environments where multiple tasks or goals exist.
   - How: Establish criteria (urgency, importance, dependencies) and evaluate tasks based on these criteria. Dynamic re-prioritization allows agents to adapt as conditions change.
 
@@ -64,7 +64,7 @@ pm_tools = [
 # Create the agent executor
 pm_prompt_template = ChatPromptTemplate.from_messages([
     ("system", """You are a focused Project Manager LLM agent. Your goal is to manage project tasks efficiently.
-    
+
     When you receive a new task request, follow these steps:
     1. First, create the task with the given description using the `create_new_task` tool.
     2. Next, analyze the user's request to see if a priority or an assignee is mentioned.
@@ -72,7 +72,7 @@ pm_prompt_template = ChatPromptTemplate.from_messages([
        - If a worker is mentioned, use `assign_task_to_worker`.
     3. If any information (priority, assignee) is missing, default to P1 priority and 'Worker A'.
     4. Once the task is fully processed, use `list_tasks` to show the final state.
-    
+
     Available workers: 'Worker A', 'Worker B', 'Review Team'
     Priority levels: P0 (highest), P1 (medium), P2 (lowest)"""),
     ("placeholder", "{chat_history}"),

@@ -7,7 +7,7 @@ This chapter teaches how to implement B-Trees efficiently on disk, covering page
 - **Page Header Structure**: Stores keys, pointers, overflow pages, and metadata.
   - When to use: Implementing B-Trees in memory or on disk.
   - How: Page header includes fields like logical key, physical offset, and flags for overflow links.
-  
+
 - **High Key Concept**: Defines the maximum key size per node.
   - When to use: Managing variable-size nodes with fixed page sizes.
   - How: High keys ensure consistent node occupancy.

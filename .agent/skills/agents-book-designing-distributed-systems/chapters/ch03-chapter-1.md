@@ -4,13 +4,13 @@
 This chapter emphasizes the importance of distributed systems in modern computing, highlighting their role in ensuring reliability, scalability, and resilience. It introduces patterns and practices as essential tools for building robust distributed systems.
 
 ## Frameworks Introduced
-- **Containerization**: A framework for packaging software components with their dependencies into isolated environments (e.g., Docker, Singularity).  
+- **Containerization**: A framework for packaging software components with their dependencies into isolated environments (e.g., Docker, Singularity).
   - When to use: When building scalable, portable, and reliable applications.
   - How: By encapsulating code, dependencies, and configurations into containers that can be easily managed and deployed.
 
 ## Key Concepts
-- **Distributed Systems**: Networks of independent machines communicating to provide shared functionality (e.g., web search, retail platforms).  
-- **Shared Libraries/Components**:Reusable software packages that enhance scalability, reliability, and maintainability.  
+- **Distributed Systems**: Networks of independent machines communicating to provide shared functionality (e.g., web search, retail platforms).
+- **Shared Libraries/Components**:Reusable software packages that enhance scalability, reliability, and maintainability.
 - **Pattern-Based Design**:Using established blueprints for organizing systems to avoid reinventing the wheel.
 
 ## Mental Models
@@ -18,7 +18,7 @@ This chapter emphasizes the importance of distributed systems in modern computin
 - Think of container orchestration as a framework for managing and scaling applications across multiple environments (development, staging, production).
 
 ## Anti-patterns
-- **Monolithic Architecture**: Avoid monolithic systems because they are brittle, hard to debug, and lack scalability.  
+- **Monolithic Architecture**: Avoid monolithic systems because they are brittle, hard to debug, and lack scalability.
   - Why it fails: Lack of modularity leads to slower problem isolation and maintenance.
 
 ## Code Examples

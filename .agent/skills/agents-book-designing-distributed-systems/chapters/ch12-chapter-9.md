@@ -4,7 +4,7 @@
 Functions as a Service (FaaS) is a powerful approach for building event-driven applications that require scalability, flexibility, and efficient resource management. It allows developers to deploy simple functions that handle specific tasks while abstracting away the underlying infrastructure.
 
 ## Frameworks Introduced
-- **Decorator Pattern**: A design pattern used to add responsibilities to objects by wrapping them in stateless decorators.  
+- **Decorator Pattern**: A design pattern used to add responsibilities to objects by wrapping them in stateless decorators.
   - When to use: To incrementally enhance HTTP or RESTful APIs with features like validation, default values, and event handling.
   - How: Wrap an input request with a decorator function that performs additional processing before passing it on to the main service.
 

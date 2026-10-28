@@ -39,13 +39,13 @@ The most important concept taught in this chapter is the integration of external
 ## Code Examples
 ```python
 # LangChain Example: Google Giveaway Tool Integration
-from langchain_google_openai import ChatGoogleGenerativeAI 
+from langchain_google_openai import ChatGoogleGenerativeAI
 from langchain.tools import tool as tools
 
 google_api_key = getpass.getpass("Enter your Google API key: ")
 google_api_key = google_api_key.encode()
 
-@langchain_tool(name="Google Giveaway Tool") 
+@langchain_tool(name="Google Giveaway Tool")
 def search_information(query: str) -> str:
     """Provides helpful information on a given topic."""
     print(f"Query: {query}")
@@ -58,71 +58,71 @@ agents = create_tool_calling_agent(llm, tools=tools)
 
 ```python
 # CrewAI Example: Custom Tool Integration
-import os, getpass 
-import asyncio 
-from typing import List 
-from datetime import date 
+import os, getpass
+import asyncio
+from typing import List
+from datetime import date
 
-# Setup variables required for Session setup and Agent execution 
-APP_NAME="basic_search_agent" 
-USER_ID="user1234" 
+# Setup variables required for Session setup and Agent execution
+APP_NAME="basic_search_agent"
+USER_ID="user1234"
 SESSION_ID="1234"
 
-# Define Agent with access to search tool 
-code_agent = LLMAgent( 
-  name="basic_search_agent", 
-  model="gemini-2.0-flash", 
-  description="Agent to answer questions by searching the internet.", 
-  model_parameters={"temperature": 0.0} 
+# Define Agent with access to search tool
+code_agent = LLMAgent(
+  name="basic_search_agent",
+  model="gemini-2.0-flash",
+  description="Agent to answer questions by searching the internet.",
+  model_parameters={"temperature": 0.0}
 )
 
-# Agent Interaction 
-async def call_agent_async(query: str): 
+# Agent Interaction
+async def call_agent_async(query: str):
     """Helper function to call the agent with a query."""
-    print(f"\n--- Running Query: {query} ---") 
-    final_response_text = "No final text response created." 
-    try: 
-        # Use run_async to send the query to the agent and process the result 
-        async for event in runner.run_async(user_id=USER_ID, session_id=SESSION_ID, new_message=content): 
-            print(f"Event ID: {event.id}, Author: {event.author}") 
- 
-            if hasattr(event, 'content_part_delta') and event.content_part_delta: 
-                print(event.content_part_delta.text, end="", flush=True) 
- 
-            # Process the final response and its associated metadata 
-            if event.is_final_response(): 
-                print() # Newline after the streaming response 
-                if event.grounding_metadata: 
-                    print(f"  (Source Attributions: {len(event.grounding_metadata.grounding_attributions)} sources found)") 
-                else: 
-                    print("  (No grounding metadata found)") 
-                print("-" * 30) 
- 
-    except Exception as e: 
-        print(f"\nAn error occurred: {e}") 
+    print(f"\n--- Running Query: {query} ---")
+    final_response_text = "No final text response created."
+    try:
+        # Use run_async to send the query to the agent and process the result
+        async for event in runner.run_async(user_id=USER_ID, session_id=SESSION_ID, new_message=content):
+            print(f"Event ID: {event.id}, Author: {event.author}")
 
-# Main async function to run the examples 
-async def run_vsearch_example(): 
-   # Replace with a question relevant to YOUR datastore content 
-   await call_vsearch_agent_async("Summarize the main points about 
-the Q2 strategy document.") 
-   await call_vsearch_agent_async("What safety procedures are 
-mentioned for lab X?") 
- 
-# Main execution block 
-if __name__ == "__main__": 
-   if not DATASTORE_ID: 
-       print("Error: DATASTORE_ID environment variable is not set.") 
-   else: 
-       try: 
-           asyncio.run(run_vsearch_example()) 
-       except RuntimeError as e: 
-           # This handles cases where asyncio.run is called in an 
-           # running event loop (like a Jupyter notebook). 
-           if "cannot be called from a running event loop" in str(e): 
-               print("Skipping execution in a running event loop. Please run this script directly.") 
-           else: 
-               raise e 
+            if hasattr(event, 'content_part_delta') and event.content_part_delta:
+                print(event.content_part_delta.text, end="", flush=True)
+
+            # Process the final response and its associated metadata
+            if event.is_final_response():
+                print() # Newline after the streaming response
+                if event.grounding_metadata:
+                    print(f"  (Source Attributions: {len(event.grounding_metadata.grounding_attributions)} sources found)")
+                else:
+                    print("  (No grounding metadata found)")
+                print("-" * 30)
+
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+
+# Main async function to run the examples
+async def run_vsearch_example():
+   # Replace with a question relevant to YOUR datastore content
+   await call_vsearch_agent_async("Summarize the main points about
+the Q2 strategy document.")
+   await call_vsearch_agent_async("What safety procedures are
+mentioned for lab X?")
+
+# Main execution block
+if __name__ == "__main__":
+   if not DATASTORE_ID:
+       print("Error: DATASTORE_ID environment variable is not set.")
+   else:
+       try:
+           asyncio.run(run_vsearch_example())
+       except RuntimeError as e:
+           # This handles cases where asyncio.run is called in an
+           # running event loop (like a Jupyter notebook).
+           if "cannot be called from a running event loop" in str(e):
+               print("Skipping execution in a running event loop. Please run this script directly.")
+           else:
+               raise e
 ```
 
 ## Reference Tables

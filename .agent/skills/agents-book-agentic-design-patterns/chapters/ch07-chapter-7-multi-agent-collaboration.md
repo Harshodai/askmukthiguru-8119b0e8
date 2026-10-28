@@ -4,23 +4,23 @@
 Multi-agent collaboration is a powerful approach for solving complex problems by leveraging multiple specialized agents to achieve common goals through coordinated interactions and communication.
 
 ## Frameworks Introduced
-- **Multi-Agent Collaboration**: 
+- **Multi-Agent Collaboration**:
   - When to use: For complex tasks requiring diverse expertise or multiple stages.
   - How: Agents are defined with specific roles, tasks, and communication protocols.
 
-- **Sequential Handoffs**: 
+- **Sequential Handoffs**:
   - When to use: Linear workflows where each agent completes its task before the next begins.
   - How: Tasks are executed sequentially in a pipeline structure.
 
-- **Parallel Processing**: 
+- **Parallel Processing**:
   - When to use: Tasks that can be performed independently without dependency.
   - How: Multiple agents work on different parts of a problem simultaneously.
 
-- **Debate and Consensus**: 
+- **Debate and Consensus**:
   - When to use: Collaborative decision-making involving multiple agents with varying perspectives.
   - How: Agents present arguments, negotiate, and reach consensus through iterative communication.
 
-- **Hierarchical Structure**: 
+- **Hierarchical Structure**:
   - When to use: Complex problems requiring structured coordination among agents at different levels of management.
   - How: Higher-level agents delegate tasks to lower-level sub-agents for execution.
 
@@ -43,11 +43,11 @@ Use multi-agent collaboration when you need a distributed system capable of hand
 
 from langchain.agents import Agent, Task, Crew, Process
 from typing import Dict, List
-import os 
-from dotenv import load_dotenv 
+import os
+from dotenv import load_dotenv
 
 # Load environment variables and initialize
-load_dotenv() 
+load_dotenv()
 
 # Define agents with specific roles and goals
 researcher = Agent(
@@ -80,12 +80,12 @@ crew = Crew(
 # Execute crew and print results
 print("## Running the blog creation crew with Gemini 2.0 Flash... ##")
 try:
-    result = crew.kickoff() 
-    print("\n------------------\n") 
-    print("## Crew Final Output ##") 
-    print(result) 
-except Exception as e: 
-    print(f"\nAn unexpected error occurred: {e}") 
+    result = crew.kickoff()
+    print("\n------------------\n")
+    print("## Crew Final Output ##")
+    print(result)
+except Exception as e:
+    print(f"\nAn unexpected error occurred: {e}")
 
 ```
 

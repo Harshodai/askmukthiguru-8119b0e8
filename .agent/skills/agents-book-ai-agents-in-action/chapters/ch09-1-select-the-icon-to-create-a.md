@@ -5,15 +5,15 @@ This chapter demonstrates how to integrate custom native functions into semantic
 
 ### Frameworks Introduced
 - **Semantic Kernel (SK)**: A high-level abstraction layer that allows embedding native or semantic functions within plugins, facilitating the creation of extensible AI services.
-  
+
   - **When to use**: When you need to extend your AI capabilities with custom functionality while maintaining a clean and intuitive interface.
   - **How**: By defining native functions as plugins within the SK framework.
 
 ### Key Concepts
 - **Semantic Service Layer**: A layer that wraps external API calls, providing them access to natural language interfaces.
-  
+
   Example: The TMDB plugin allows users to ask questions like "give me list of currently playing movies for the action and comedy genres."
-  
+
 - **Kernel Arguments**: Parameters passed to functions within the semantic service layer.
 
 ### Mental Models
@@ -26,12 +26,12 @@ This chapter demonstrates how to integrate custom native functions into semantic
 ## Code Examples
 ```python
 tmdb.py
-```  
+```
 ```python
 class TMDbService:
     def __init__(self):
         self.api_key = "your-TMDb-api-key"
-    
+
     @kernel_function(description="Gets movie genre ID", name="get_movie_genre_id")
     def get_movie_genre_id(self, genre_name: str) -> str:
         print_function_call()

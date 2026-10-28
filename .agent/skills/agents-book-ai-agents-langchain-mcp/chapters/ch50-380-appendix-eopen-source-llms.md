@@ -15,7 +15,7 @@ The chapter explores various open-source large language models (LLMs) available 
 - **Foundation Model**: A general-purpose model trained on diverse data.
 
 ## Mental Models
-- Use an Instruct-tuned model when you need reliable responses to user queries.  
+- Use an Instruct-tuned model when you need reliable responses to user queries.
 - Think of Code Generation models as tools for automated debugging and code generation.
 
 ## Anti-patterns

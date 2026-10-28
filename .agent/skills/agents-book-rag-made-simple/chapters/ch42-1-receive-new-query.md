@@ -4,13 +4,13 @@
 This chapter introduces a robust framework for enhancing retrieval-Augmented Generation (RAG) systems by integrating feedback loops and periodic index enrichment. The primary goal is to continuously improve document relevance through user interaction data, ensuring the system adapts over time.
 
 ## Frameworks Introduced
-- **Feedback Loop System**: 
+- **Feedback Loop System**:
   - When to use: Ideal for RAG systems with recurring queries and engaged users.
   - How: Periodically collects explicit ratings on query responses' relevance and quality, using these scores to adjust document rankings dynamically.
 
 ## Key Concepts
 - **Synthetic Document**: A new document created by concatenating a high-quality interaction's original query with its verified response. This synthetic document captures proven patterns of question-answer pairs.
-  
+
 ## Mental Models
 - Use feedback loops when your RAG system requires continuous improvement through user interactions. Think of it as refining the system based on real-time data.
 
@@ -24,7 +24,7 @@ This chapter introduces a robust framework for enhancing retrieval-Augmented Gen
 def process_query(query):
     # Step 1: Retrieve candidate documents using vector search
     candidates = retrieve_candidate_documents(query)
-    
+
     # Step 2: Evaluate feedback on each document
     feedback_scores = []
     for doc in candidates:
@@ -33,10 +33,10 @@ def process_query(query):
             avg_score = calculate_average_relevance_score(scores)
             adjusted_score = adjust_document_score(avg_score / neutral_midpoint)
             feedback_scores.append(adjusted_score)
-    
+
     # Step 3: Re-rank documents based on adjusted scores
     re-ranked_documents = re_rank_documents(feedback_scores, candidates)
-    
+
     # Step 4: Pass top results to language model for generation
     return generate_response(reanked_documents)
 

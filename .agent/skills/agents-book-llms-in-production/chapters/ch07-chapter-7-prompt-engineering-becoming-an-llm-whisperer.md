@@ -4,25 +4,25 @@
 The single most important thing this chapter teaches is that prompt engineering is a powerful technique for achieving specific tasks with large language models (LLMs) without extensive training, fine-tuning, or tuning.
 
 ## Frameworks Introduced
-- **Fine Tuning your Existing Models**: Adjusts an LLM's parameters to improve performance on a specific task.  
+- **Fine Tuning your Existing Models**: Adjusts an LLM's parameters to improve performance on a specific task.
   - When to use: When you have a trained model and want to enhance its capabilities for a specific domain.
   - How: Fine-tune the model using prompts tailored to that domain.
 
-- **One-Shot and Few-Shot prompting**: Provides instructions or examples directly to an LLM to generate responses without extensive training.  
+- **One-Shot and Few-Shot prompting**: Provides instructions or examples directly to an LLM to generate responses without extensive training.
   - When to use: When you need quick, context-specific answers from an LLM without additional training.
   - How: Use specific prompts with "one-shot" or "few-shot" templates.
 
-- **Context Windowing**: Uses external knowledge sources (e.g., Wikipedia) to augment prompts and provide relevant context.  
+- **Context Windowing**: Uses external knowledge sources (e.g., Wikipedia) to augment prompts and provide relevant context.
   - When to use: When you need domain-specific information that isn't contained in the prompt itself.
   - How: Add RAG or database lookups to prompts to retrieve additional context.
 
-- **Prompt Hyperparameter Tuning**: Modifies prompt engineering rules (temperature, top_p) to optimize results for specific tasks.  
+- **Prompt Hyperparameter Tuning**: Modifies prompt engineering rules (temperature, top_p) to optimize results for specific tasks.
   - When to use: When you need consistent and high-quality outputs from an LLM across multiple tasks.
   - How: Adjust hyperparameters based on empirical testing or feedback loops.
 
 ## Key Concepts
-- **Prompt Engineering**: The process of crafting prompts that guide LLMs to perform specific tasks effectively.  
-- **Five Whys**: A troubleshooting technique for understanding root causes by asking "Why" iteratively.  
+- **Prompt Engineering**: The process of crafting prompts that guide LLMs to perform specific tasks effectively.
+- **Five Whys**: A troubleshooting technique for understanding root causes by asking "Why" iteratively.
 - **Fine-Tuning**: Modifying an LLM's training data or hyperparameters to improve performance on a specific task.
 
 ## Mental Models
@@ -31,7 +31,7 @@ The single most important thing this chapter teaches is that prompt engineering 
 - Consider Context Windowing when you need domain-specific information that isn't contained within the prompt itself.
 
 ## Anti-patterns
-- **Overfitting**: When prompts are too tailored to specific examples, leading to poor generalization.  
+- **Overfitting**: When prompts are too tailored to specific examples, leading to poor generalization.
   - Why it fails: Prompts become brittle and fail on variations or new inputs.
 
 ## Code Examples

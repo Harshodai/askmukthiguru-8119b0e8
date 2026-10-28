@@ -4,19 +4,19 @@
 Failure detection is essential in distributed systems as it enables processes to detect failures or unresponsiveness promptly, ensuring system availability and liveness.
 
 ## Frameworks Introduced
-- **Heartbeat Algorithm**: Uses periodic messaging to detect process failures.  
+- **Heartbeat Algorithm**: Uses periodic messaging to detect process failures.
   - When to use: Asynchronous distributed systems where failure detection must be performed without timing assumptions.
   - How: Processes send heartbeat messages, increment counters for neighbors, and stop propagating upon detecting unresponsive peers.
 
-- **φ-Accural Failure Detector**: Monitors heartbeats through pings or request-response sampling.  
+- **φ-Accural Failure Detector**: Monitors heartbeats through pings or request-response sampling.
   - When to use: Systems requiring continuous health monitoring with probabilistic accuracy.
   - How: Collects heartbeat arrival times to compute a failure probability threshold (φ).
 
-- **Gossip-Based Failure Detection**: Uses information dissemination through random neighbors for reliable state propagation.  
+- **Gossip-Based Failure Detection**: Uses information dissemination through random neighbors for reliable state propagation.
   - When to use: Systems where robustness against network partitions is crucial.
   - How: Nodes periodically share and update heartbeat counters, ensuring aggregated health information across the cluster.
 
-- **FUSE Failure Propagation Service**: Converts individual node failures into group failures using absence-based propagation.  
+- **FUSE Failure Propagation Service**: Converts individual node failures into group failures using absence-based propagation.
   - When to use: Systems requiring guaranteed failure detection even in partitioned networks.
   - How: Failsafe processes propagate unresponsiveness as group failures and stop responding upon detecting a failure.
 
@@ -28,14 +28,14 @@ Failure detection is essential in distributed systems as it enables processes to
 - **Ping**: A method to check if a process is still alive by expecting a response within a specified time period.
 
 ## Mental Models
-- Use failure detectors when solving consensus problems in asynchronous systems.  
+- Use failure detectors when solving consensus problems in asynchronous systems.
   - Think of failure detectors as abstractions that allow distributed systems to handle failures gracefully, trading off accuracy for completeness.
-- Avoid assuming all processes are reachable or not failed without proper detection.  
+- Avoid assuming all processes are reachable or not failed without proper detection.
   - Think of this as a critical step in designing robust distributed systems.
 
 ## Anti-patterns
 - **Assuming all processes are reachable**: Failsafe mechanisms like heartbeats and pings help detect unresponsive peers, avoiding false positives.
-- **Not implementing timeouts**: Can lead to infinite loops or delayed failure detection, missing failures that could propagate errors.  
+- **Not implementing timeouts**: Can lead to infinite loops or delayed failure detection, missing failures that could propagate errors.
   - Think of timeouts as essential for balancing accuracy and completeness in failure detection.
 
 ## Code Examples

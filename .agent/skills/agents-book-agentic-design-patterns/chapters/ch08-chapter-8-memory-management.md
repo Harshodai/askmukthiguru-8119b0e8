@@ -53,5 +53,5 @@ memory.save_context({"input": "I'm Jane"}, {"output": "Hello, Jane!"})
 4. Avoid direct state modifications to session dictionaries without proper event handling mechanisms.
 
 ## Connects To
-- Chapter 7: Agent Development Workflow  
+- Chapter 7: Agent Development Workflow
 - Chapter 9: Practical Applications & Case Studies

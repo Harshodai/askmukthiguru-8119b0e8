@@ -4,8 +4,8 @@
 This chapter teaches you how to access and use OpenAI's large language models through Python by setting up your development environment and integrating the OpenAI API.
 
 ## Frameworks Introduced
-- **OpenAI API Setup**:  
-  - When to use: Configuring a Python script or application to communicate with OpenAI's API.  
+- **OpenAI API Setup**:
+  - When to use: Configuring a Python script or application to communicate with OpenAI's API.
   - How: Initializing the OpenAI client, setting API key from environment variables, and making API requests.
 
 ## Key Concepts

@@ -13,7 +13,7 @@ Here is a structured extraction of technical techniques or algorithms from the g
 
 ### **Pattern: Hypothesis Testing**
 - **When to Use**: When comparing groups or determining if an effect exists (e.g., A/B testing, scientific research).
-- **How**: 
+- **How**:
   1. Formulate null and alternative hypotheses.
   2. Select appropriate tests (e.g., z-test for large samples, t-test for small samples).
   3. Calculate test statistics and p-values.
@@ -24,7 +24,7 @@ Here is a structured extraction of technical techniques or algorithms from the g
 
 ### **Pattern: Generate FastAPI Code**
 - **When to Use**: When developing microservices or APIs that require dynamic content handling.
-- **How**: 
+- **How**:
   1. Define API endpoints using FastAPI syntax and middleware.
   2. Use dependency injection for flexible request handling.
   3. Validate inputs with Pydantic models for structured data.
@@ -35,7 +35,7 @@ Here is a structured extraction of technical techniques or algorithms from the g
 
 ### **Pattern: Select Icons to Create UI/UX**
 - **When to Use**: When designing user interfaces or user experience components (e.g., wireframes, layout design).
-- **How**: 
+- **How**:
   1. Choose from a library of vector icons for consistency.
   2. Arrange icons in a layout tool like Adobe XD, Figma, or Sketch.
   3. Apply styling and animations to enhance visual appeal.
@@ -45,7 +45,7 @@ Here is a structured extraction of technical techniques or algorithms from the g
 
 ### **Pattern: Use OpenAI Large Language Models**
 - **When to Use**: When leveraging AI for text generation, analysis, or creative writing tasks.
-- **How**: 
+- **How**:
   1. Integrate the OpenAI API into your application.
   2. Use models like GPT-3.5-turbo for various NLP tasks.
   3. Fine-tune models for specific use cases (e.g., summarization, code generation).
@@ -55,7 +55,7 @@ Here is a structured extraction of technical techniques or algorithms from the g
 
 ### **Pattern: Python Development Environment**
 - **When to Use**: When working on Python projects that require efficient coding and testing environments.
-- **How**: 
+- **How**:
   1. Install necessary packages using pip or conda.
   2. Configure an IDE (e.g., VS Code, PyCharm) for code editing.
   3. Set up virtual environments to manage dependencies safely.

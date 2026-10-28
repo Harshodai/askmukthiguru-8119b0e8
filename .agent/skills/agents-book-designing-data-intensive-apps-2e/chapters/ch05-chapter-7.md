@@ -7,7 +7,7 @@ The chapter emphasizes that not all systems are equal, highlighting the importan
 - **Performance**: Using principles like horizontal scaling and microservices to ensure systems can handle increased workloads.
   - When to use: Optimal for systems requiring high availability and performance.
   - How: Implementing horizontal scaling strategies and breaking down monolithic architectures into smaller, independent services.
-  
+
 - **Reliability**: Incorporating fault-tolerance mechanisms such as replication, checkpointing, and heartbeats.
   - When to use: For systems with critical operations where downtime is unacceptable.
   - How: Using techniques like quorum-based replication for high availability and implementing heartbeat mechanisms.

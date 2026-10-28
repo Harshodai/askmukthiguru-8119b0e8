@@ -20,7 +20,7 @@ Improving search systems by combining dense retrieval (using text embeddings) wi
 ## Mental Models
 - Use dense retrieval when you need precise, context-aware search results for dense text data.
   - Example: Search for movie reviews with high box office success.
-  
+
 - Use rerankers like mono-BERT when you need fine-tuned relevance scores for a small set of results.
   - Example: Refining the top 10 results from dense retrieval.
 
@@ -38,7 +38,7 @@ reranker = co.reranker.Reranker(
     num_candidates=208,
     return_documents=True
 )
-results = reranker([query, query], ["BM25", "BM25"], top_n=3, 
+results = reranker([query, query], ["BM25", "BM25"], top_n=3,
                    return_documents=True)
 
 # Print results with relevance scores

@@ -20,17 +20,17 @@ This chapter demonstrates how to enhance retrieval efficiency by compressing doc
 
 ## Code Examples
 ```python
-from langchain.retrievers import ContextualCompressionRetriever  
-from langchain.retrievers.document_compressors import LLMChainExtractor  
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import LLMChainExtractor
 
-# Create GPT3 wrapper  
-llm = OpenAI(model ="gpt-3.5-turbo" , temperature =0)  
+# Create GPT3 wrapper
+llm = OpenAI(model ="gpt-3.5-turbo" , temperature =0)
 
-# create compressor for the retriever  
-compressor = LLMChainExtractor.from_llm(llm)  
-compression_retriever = ContextualCompressionRetriever(  
-    base_compressor =compressor,  
-    base_retriever =retriever  
+# create compressor for the retriever
+compressor = LLMChainExtractor.from_llm(llm)
+compression_retriever = ContextualCompressionRetriever(
+    base_compressor =compressor,
+    base_retriever =retriever
 )
 ```
 This code demonstrates how to create a compressed retriever using an LLM.

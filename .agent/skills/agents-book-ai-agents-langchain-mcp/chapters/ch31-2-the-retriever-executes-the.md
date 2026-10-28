@@ -18,7 +18,7 @@ The chapter explains how RAG architectures branch into multiple pathways based o
 - **Knowledge Graph DB**: A database that represents real-world entities and their relationships using nodes and edges.
 
 ## Mental Models
-- Use SPARQL when you need to query structured data from a knowledge graph.  
+- Use SPARQL when you need to query structured data from a knowledge graph.
   - Think of SPARQL as a tool for extracting specific information from a knowledge graph by defining the relationships between entities.
 
 ## Anti-patterns

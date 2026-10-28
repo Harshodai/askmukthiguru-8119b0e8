@@ -22,13 +22,13 @@ This chapter introduces the foundational principles and methodologies behind the
 def context_enrichment_window(text):
     # Split text into chunks with contextual headers
     chunks = split_into_chunks(text)
-    
+
     # Apply keyword and semantic search techniques
     results = keyword_and_semantic_search(chunks)
-    
+
     # Enhance retrieval using Dartboard Retrieval method
     refined_results = dartboard_retrieval(results, context_window=5)
-    
+
     return refined_results
 
 # Explanation: This code demonstrates how to implement the Context Enrichment Window by first splitting text into meaningful chunks, then applying advanced search techniques with a focus on contextual relevance.

@@ -4,7 +4,7 @@
 This chapter teaches how to implement semantic search using Bi-Encoder models and FAISS for efficient similarity search. It demonstrates the process of encoding queries and documents into dense vectors, leveraging cosine similarity to find similar items.
 
 ## Frameworks Introduced
-- **Bi-Encoder**: 
+- **Bi-Encoder**:
   - When to use: For large-scale document collections where efficiency is crucial.
   - How: Uses two encoder models (query and candidate) for pre-computing document embeddings, enabling fast retrieval during search.
 

@@ -4,7 +4,7 @@
 Text clustering is a powerful unsupervised technique for grouping similar texts based on semantic content, offering insights into large collections of unstructured data.
 
 ## Frameworks Introduced
-- **Text Clustering Pipeline**: 
+- **Text Clustering Pipeline**:
   - When to use: For exploratory analysis or when unlabeled text data needs categorization.
   - How: Preprocess text, apply clustering algorithm, and evaluate results using metrics like purity or silhouette score.
 

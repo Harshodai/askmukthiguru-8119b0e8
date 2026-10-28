@@ -7,13 +7,13 @@ This chapter introduces two techniques—contextual chunk headers and context en
 - **Contextual Chunk Headers**: Adds document-level information to each chunk.
   - When to use: For long documents where ideas span multiple paragraphs.
   - How: Prepend document-level metadata (title, summary, section path) to each chunk.
-  
+
 - **Context Enrichment Window**: Expands chunks with surrounding text for completeness.
   - When to use: For systems requiring precise answers and accuracy.
   - How: Expand retrieved chunks by including neighboring chunks during retrieval.
 
 ## Key Concepts
-- **Vertical Context (Chunk Headers)**: Provides document-level information, answering "which document is this from and what section?" 
+- **Vertical Context (Chunk Headers)**: Provides document-level information, answering "which document is this from and what section?"
 - **Horizontal Context (Enrichment Window)**: Adds surrounding text context, answering "what was the full thought being expressed here?"
 
 ## Mental Models
@@ -34,12 +34,12 @@ def add_headers_and_window(chunk):
     # Prepend document-level metadata (e.g., title, summary)
     header = f"**Context Header:** {chunk['title']} - {chunk['summary']}\n\n"
     enriched_chunk = header + chunk['text']
-    
+
     # Expand retrieval with context window
     left_context = retrieve_previous_chunks(1) if len(retrieve_previous_chunks(1)) > 0 else ""
     right_context = retrieve_next_chunks(1) if len(retrieve_next_chunks(1)) > 0 else ""
     final_chunk = f"**Context Window Enrichment:** {left_context}{enriched_chunk}{right_context}"
-    
+
     return final_chunk
 ```
 

@@ -4,26 +4,26 @@
 This chapter teaches how to combine retrieval-augmented generative (RAG) systems and active goal execution agents with large language models to solve complex tasks. It emphasizes leveraging external knowledge sources, planning, reflection, and memory management to enhance AI capabilities.
 
 ### Frameworks Introduced
-- **Retrieval-Augmented Generative (RAG)**: Uses pre-trained language models with external knowledge sources like search engines or document databases.  
+- **Retrieval-Augmented Generative (RAG)**: Uses pre-trained language models with external knowledge sources like search engines or document databases.
   - When to use: When a model needs to answer questions beyond its training data by combining retrieval and generation.
   - How: Retrieves relevant information using term-based or embedding-based retrieval, then generates responses based on the context.
 
-- **Agentic Pattern**: An AI-powered agent that uses tools (like GPT-4) with structured planning and reflection.  
+- **Agentic Pattern**: An AI-powered agent that uses tools (like GPT-4) with structured planning and reflection.
   - When to use: For complex tasks requiring multiple steps, tool chaining, and goal execution.
   - How: Plans tasks using a retrieval system, executes actions, reflects on progress, and manages memory.
 
 ### Key Concepts
-- **Model as a Tool**: AI models can be enhanced with external knowledge sources (e.g., search engines) to solve problems beyond their training data.  
+- **Model as a Tool**: AI models can be enhanced with external knowledge sources (e.g., search engines) to solve problems beyond their training data.
 - **Planning Graphs**: Represent tasks as nodes and dependencies between them as edges, enabling hierarchical planning of complex tasks.
-- **Tool Chaining**: Breaking down tasks into smaller subtasks that can be executed by different tools or models.  
+- **Tool Chaining**: Breaking down tasks into smaller subtasks that can be executed by different tools or models.
   - When to use: For modular systems where each tool handles a specific part of the task.
   - How: Uses predefined tool inventories and context-aware execution.
 
 ### Mental Models
-- **RAG System**: A model enhanced with external knowledge sources retrieves information and generates responses based on context.  
+- **RAG System**: A model enhanced with external knowledge sources retrieves information and generates responses based on context.
   - Think of it as using a search engine to augment your training data for better answers.
 
-- **Agentic Agent**: An AI system that plans tasks, executes actions, reflects on progress, and manages memory.  
+- **Agentic Agent**: An AI system that plans tasks, executes actions, reflects on progress, and manages memory.
   - Think of it as having an internal knowledge base (memory) and external resources (retrieval systems).
 
 ### Anti-patterns

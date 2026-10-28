@@ -4,28 +4,28 @@
 This chapter explores how to enhance search capabilities by combining embeddings with retrieval systems, addressing challenges like context window limitations and data sparsity through techniques such as chunking, efficient vector databases, and comprehensive evaluation frameworks.
 
 ### Frameworks Introduced
-- **Pinecone**: An embedding-based search engine that powers modern AI applications.  
+- **Pinecone**: An embedding-based search engine that powers modern AI applications.
   - When to use: Ideal for handling high-dimensional vector searches with fast similarity lookups.
   - How: Implements vector indexing and search algorithms optimized for performance and accuracy.
 
-- **Qdrant**: A distributed similarity search engine optimized for large-scale vector databases.  
+- **Qdrant**: A distributed similarity search engine optimized for large-scale vector databases.
   - When to use: Best suited for scenarios requiring efficient vector storage and querying.
   - How: Built on top of FAISS, Qdrant provides fast nearest neighbor searches with configurable vector sizes.
 
-- **RAGAS (Retrieval-Augmented Generation Framework)**: A comprehensive evaluation framework combining retrieval and generation components.  
+- **RAGAS (Retrieval-Augmented Generation Framework)**: A comprehensive evaluation framework combining retrieval and generation components.
   - When to use: For assessing the performance of RAG systems at both retrieval and generation levels.
   - How: Evaluates context precision, recall, faithfulness, and answer relevance using specialized metrics.
 
 ### Key Concepts
-- **Retrieval Augmented Generation (RAG)**: Combines embedding models with retrieval systems to generate contextual responses.  
+- **Retrieval Augmented Generation (RAG)**: Combines embedding models with retrieval systems to generate contextual responses.
   - Significance: Enables search capabilities beyond basic keyword matching by leveraging semantic understanding.
 
-- **Chunking**: A technique that splits text into manageable chunks for efficient processing and context preservation.  
+- **Chunking**: A technique that splits text into manageable chunks for efficient processing and context preservation.
   - Purpose: Helps mitigate context window limitations while maintaining semantic relevance.
 
 - **Evaluation Metrics**:
   - Context Precision, Recall, F1 Score: Assess retrieval quality based on query relevance and chunk precision.
-  - BLEU, ROUGE, SIMILARITY: Evaluate generation quality through text similarity and coherence.  
+  - BLEU, ROUGE, SIMILARITY: Evaluate generation quality through text similarity and coherence.
   - RAGAS Scores: Composite metrics combining retrieval and generation performance.
 
 ### Mental Models
@@ -82,5 +82,5 @@ result_tuples = [(score, doc_id) for score, doc_id in results]
 3. Continuously monitor and improve system performance through feedback loops and iterative testing.
 
 ### Connects To
-- Chapter 7: Embeddings for Search Engines  
+- Chapter 7: Embeddings for Search Engines
 - Chapter 8: Context Window Management

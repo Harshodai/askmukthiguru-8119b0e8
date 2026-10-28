@@ -7,7 +7,7 @@ The chapter emphasizes how AI agents can leverage external tools (both handcraft
 - **Local Tools**: Tools that run locally within an agent's framework, such as mathematical operations or arithmetic.
   - When to use: Perform simple, predictable operations without external dependencies.
   - How: Implement basic functions and rely on built-in libraries for execution.
-  
+
 - **API-Based Tools**: Tools that interact with external services via APIs, like weather prediction or database queries.
   - When to use: When the agent needs access to external data sources or APIs.
   - How: Bind tools to APIs using wrapper classes and invoke them as methods.

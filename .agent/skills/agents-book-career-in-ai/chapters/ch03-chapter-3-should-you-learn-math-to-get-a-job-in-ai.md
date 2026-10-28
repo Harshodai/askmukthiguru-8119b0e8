@@ -7,7 +7,7 @@ Math is crucial for deep understanding but not always necessary for all AI roles
 - **Math is a Double-Edged Sword**: Balances between mathematical rigor and practicality.
   - When to use: When the problem demands precision or optimization.
   - How: Apply advanced math only when needed, not for every task.
-  
+
 - **The 3 Cs of AI**: Conceptual Clarity, Computational Thinking, and Creativity.
   - When to use: For guiding AI development and troubleshooting.
   - How: Prioritize understanding concepts over computation unless necessary.

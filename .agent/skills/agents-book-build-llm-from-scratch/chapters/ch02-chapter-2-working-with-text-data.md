@@ -9,14 +9,14 @@ The chapter teaches how to convert raw text into numerical representations (embe
   - How: Tokenize text into subwords or words, convert to IDs with padding, create input windows with stride, generate embeddings, and pass through the transformer.
 
 ## Key Concepts
-- **Text Processing Pipeline**: The process of converting raw text into numerical representations for model training.  
+- **Text Processing Pipeline**: The process of converting raw text into numerical representations for model training.
 - **Tokenization**: Breaking text into tokens (words or subwords) using BPE tokenizer.
 - **Token IDs**: Unique integers assigned to each token in a vocabulary.
 - **Embedding Layer**: A lookup table that converts token IDs into dense vector representations.
 - **Positional Embeddings**: Add positional information to embeddings for models to understand word order.
 
 ## Mental Models
-- Use GPT-like models when working with text data.  
+- Use GPT-like models when working with text data.
   - Think of it as a system that processes sequential text and generates meaningful outputs like translations or completions.
 
 ## Anti-patterns
@@ -49,7 +49,7 @@ class GPTDataset(Dataset):
 class TokenEmbedding:
     def __init__(self, vocab_size, output_dim):
         self.embedding_layer = torch.nn.Embedding(vocab_size, output_dim)
-    
+
     def get_embedding(self, token_ids):
         return self.embedding_layer(torch.tensor([token_ids]))
 ```

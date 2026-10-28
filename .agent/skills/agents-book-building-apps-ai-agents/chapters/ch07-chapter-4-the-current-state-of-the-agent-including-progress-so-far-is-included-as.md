@@ -4,17 +4,17 @@
 The chapter emphasizes building robust agent orchestration by choosing appropriate planning strategies based on task complexity and requirements.
 
 ## Frameworks Introduced
-- **Single Tool Execution**:  
-  - When to use: Simple tasks requiring a single tool.  
+- **Single Tool Execution**:
+  - When to use: Simple tasks requiring a single tool.
   - How: Select the most appropriate tool for the task, parameterize it, execute, and compose the final response.
-- **Parallel Tools Execution**:  
-  - When to use: Tasks that can be split into multiple subtasks or require parallel actions.  
+- **Parallel Tools Execution**:
+  - When to use: Tasks that can be split into multiple subtasks or require parallel actions.
   - How: Use LangChain's LCEL to orchestrate tools independently while managing dependencies and latencies.
-- **Chains**:  
-  - When to use: Sequential workflows where each action depends on the previous one.  
+- **Chains**:
+  - When to use: Sequential workflows where each action depends on the previous one.
   - How: Define a linear sequence of tool executions, ensuring each step is completed before moving to the next.
-- **Graphs**:  
-  - When to use: Complex workflows with branching and merging steps.  
+- **Graphs**:
+  - When to use: Complex workflows with branching and merging steps.
   - How: Model decision points and consolidation paths using StateGraph for maximum flexibility.
 
 ## Key Concepts

@@ -4,11 +4,11 @@
 This chapter teaches you how to coordinate batch processing operations using join and reduce patterns to ensure data completeness and efficient aggregation for complex workflows.
 
 ## Frameworks Introduced
-- **Join Pattern**:  
-  - When to use: When all outputs must be processed before any can be used.  
+- **Join Pattern**:
+  - When to use: When all outputs must be processed before any can be used.
   - How: Synchronize work across parallel queues to wait for complete data before proceeding.
-- **Reduce Pattern**:  
-  - When to use: To combine outputs from multiple sources into a single comprehensive result.  
+- **Reduce Pattern**:
+  - When to use: To combine outputs from multiple sources into a single comprehensive result.
   - How: Merge and aggregate results incrementally until a final output is achieved.
 
 ## Key Concepts
@@ -17,7 +17,7 @@ This chapter teaches you how to coordinate batch processing operations using joi
 - **Merge**: Combining outputs from multiple shards into a single output.
 
 ## Mental Models
-- Use join when you need to wait for complete data before processing.  
+- Use join when you need to wait for complete data before processing.
 - Think of reduce as an incremental aggregation process that can be repeated until the final result is achieved.
 
 ## Anti-patterns
@@ -71,5 +71,5 @@ def histogram_reduce(numbers):
 3. Avoid map-reduce without synchronization, as it risks incomplete results.
 
 ## Connects To
-- Relates to distributed systems concepts in previous chapters on patterns and observability.  
+- Relates to distributed systems concepts in previous chapters on patterns and observability.
 - Builds upon earlier discussions of batch processing and coordination.

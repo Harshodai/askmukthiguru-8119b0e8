@@ -4,7 +4,7 @@
 The Scatter/Gather pattern enhances request responsiveness by distributing computation across multiple nodes, reducing latency through parallel processing.
 
 ## Frameworks Introduced
-- **Scatter/Gather Pattern**: 
+- **Scatter/Gather Pattern**:
   - When to use: Efficiently handle many simultaneous requests requiring independent computations.
   - How: Distribute tasks across a tree structure with a root and leaves; each leaf processes a portion of the task in parallel.
 
@@ -26,19 +26,19 @@ The Scatter/Gather pattern enhances request responsiveness by distributing compu
 def document_search(request):
     # Split request into terms
     terms = request.split()
-    
+
     # Distribute terms to leaf nodes
     leaves = distribute_terms(terms)
-    
+
     # Process each term on respective leaves
     responses = []
     for leaf, term in zip(leaves, terms):
         response = leaf.process(term)
         responses.append(response)
-    
+
     # Combine responses from all leaves
     combined_response = combine_responses(responses)
-    
+
     return combined_response
 ```
 

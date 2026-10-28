@@ -20,10 +20,10 @@ The chapter explains how to validate model outputs using validators with LangCha
 
 ## Code Examples
 ```python
-from langchain.prompts import PromptTemplate  
-template = """Offer a list of suggestions to substitute the specified target_word based on the presented context. {format_instructions} target_word= {target_word} context={context}"""  
-parser = PydanticOutputParser(...)  
-output = chain.run({"target_word": "behaviour", "context": "..."})  
+from langchain.prompts import PromptTemplate
+template = """Offer a list of suggestions to substitute the specified target_word based on the presented context. {format_instructions} target_word= {target_word} context={context}"""
+parser = PydanticOutputParser(...)
+output = chain.run({"target_word": "behaviour", "context": "..."})
 parser.parse(output)  # Returns structured suggestions like ['conduct', 'manner']
 ```
 

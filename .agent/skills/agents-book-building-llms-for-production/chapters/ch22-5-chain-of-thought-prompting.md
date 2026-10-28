@@ -4,13 +4,13 @@
 Chain of Thought prompting enhances an LLM's ability to solve complex tasks by guiding it through logical reasoning and thought processes, particularly for arithmetic, common sense, and symbolic reasoning.
 
 ## Frameworks Introduced
-- **Chain of Thought Prompting**: A method that structures prompts to guide the model through a series of logical steps.  
+- **Chain of Thought Prompting**: A method that structures prompts to guide the model through a series of logical steps.
   - When to use: For tasks requiring calculations, logical analysis, or multi-step reasoning.
   - How: By providing clear instructions and examples to direct the model's thought process.
 
 ## Key Concepts
-- **Chain of Thought**: A sequence of logical steps taken by an LLM to arrive at a conclusion.  
-- **Few Shot Prompting**: Uses limited examples to guide the model's responses, improving accuracy for complex tasks.  
+- **Chain of Thought**: A sequence of logical steps taken by an LLM to arrive at a conclusion.
+- **Few Shot Prompting**: Uses limited examples to guide the model's responses, improving accuracy for complex tasks.
 - **Predefined Examples**: Structured prompts that provide context and expected formats for the AI's responses.
 
 ## Mental Models
@@ -23,7 +23,7 @@ Chain of Thought prompting enhances an LLM's ability to solve complex tasks by g
 ```python
 # Example of implementing Chain of Thought Prompting using LangChain
 
-from langchain import LLMChain  
+from langchain import LLMChain
 from langchain.schema import HumanMessage, AIResponse
 
 llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)

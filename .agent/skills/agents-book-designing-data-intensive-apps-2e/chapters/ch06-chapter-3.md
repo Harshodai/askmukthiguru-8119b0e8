@@ -7,7 +7,7 @@ The chapter emphasizes understanding different data models (relational, document
 - **Relational Model**: Uses tables with rows and columns; supports complex queries via SQL.
   - When to use: Structured data with regular schemas.
   - How: Defines relationships explicitly between entities using tables.
-  
+
 - **Document Model (JSON)**: Represents data as JSON documents, ideal for flexible schemas and lightweight data storage.
   - When to use: Flexible schema needs or hierarchical data representation.
   - How: Stores data in a single document with key-value pairs.

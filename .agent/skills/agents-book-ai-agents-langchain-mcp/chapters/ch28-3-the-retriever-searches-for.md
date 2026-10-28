@@ -6,7 +6,7 @@ Query transformations are essential for enhancing retrieval accuracy in vector s
 ### Frameworks Introduced
 - **Rewrite-Retrieve-Read (R-R-E) Workflow**: A three-step process that involves rewording the query to better align with the vector store's content, retrieving relevant chunks, and synthesizing a comprehensive answer.
   - When to use: When dealing with complex or ambiguous user questions.
-  - How: 
+  - How:
     1. Rewrite the original question using domain-specific language or an automated query rewriter.
     2. Retrieve context from the vector store based on the rewritten query.
     3. Synthesize a response by combining the original question and retrieved context.
@@ -35,7 +35,7 @@ Query transformations are essential for enhancing retrieval accuracy in vector s
 ### Key Concepts
 - **Query Rewriting**: The process of rephrasing or modifying a user question to better match the vector store's content.
   - Example: "Tell me more about Cornwall" → "What are the key features of Cornwall?"
-  
+
 - **Context Retrieval**: The act of fetching relevant information from a vector store based on a query.
   - Example: Retrieving Cornwall-related chunks like Newquay, St Ives, and Tintagel.
 
@@ -53,7 +53,7 @@ Use X when Y:
 ### Anti-Patterns
 - **Poorly Worded Initial Queries**: Leading to irrelevant or incomplete results.
   - What to avoid: Overly vague or ambiguous questions that fail to elicit useful information.
-  
+
 - **Over-Reliance on Single-Step Decomposition**: Ignoring interdependencies between questions.
   - What to avoid: Failing to account for dependencies between questions when decomposing complex queries.
 

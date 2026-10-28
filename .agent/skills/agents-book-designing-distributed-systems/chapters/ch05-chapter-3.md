@@ -4,7 +4,7 @@
 The sidecar pattern enables extending legacy applications with additional functionality without major changes to their core logic by using two containers: an application container and a sidecar container.
 
 ## Frameworks Introduced
-- **Sidecar Pattern**: 
+- **Sidecar Pattern**:
   - When to use: To extend legacy applications or add new features without modifying the original codebase.
   - How: By creating a sidecar container that augments the application container with additional functionality, such as dynamic configuration management, monitoring, or adding new features like HTTPS.
 
@@ -26,7 +26,7 @@ Use the sidecar pattern when you need to add functionality to an existing applic
 # Application container
 $ docker run -d <my-app-image> \
     <my-app-image>
-    
+
 # Sidecar container (topz)
 $ docker run --pid=container: ${APP_ID} \
     -p 8080:8080 \

@@ -4,7 +4,7 @@
 The chapter teaches how to enhance a RAG system's performance over time by integrating user feedback into its retrieval process.
 
 ## Frameworks Introduced
-- **Feedback Loop Model**: 
+- **Feedback Loop Model**:
   - When to use: To continuously improve the accuracy and relevance of document retrieval.
   - How: After each query, collect explicit feedback (relevance and quality ratings) from users. Use this data to adjust document scores and enrich the index periodically.
 

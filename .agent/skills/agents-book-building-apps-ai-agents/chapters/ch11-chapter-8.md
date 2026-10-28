@@ -41,49 +41,49 @@ class SpecialPurposeLLActor(Actor):
 
     async def process_task(self, operation, messages):
         if not operation:
-            operation = {"operation_id": "UNKNOWN", 
+            operation = {"operation_id": "UNKNOWN",
                          "type": "task",
                          "priority": "medium"}
-        
+
         operation_json = json.dumps(operation)
         full_prompt = f"{self.prompt}\n\n{operation_json}"
-        
+
         # Add task to system state
         step_key = str(len(self.internal_state) + 1)
-        self.internal_state[step_key] = {"status": "processing", 
+        self.internal_state[step_key] = {"status": "processing",
                                         "timestamp": datetime.now().isoformat()}
-        
+
         result_messages = []
         result = self.llm.invoke(full_prompt)
-        
+
         # Handle retries based on success
         for attempt in range(3):
             if not hasattr(result, 'tool_calls'):
                 break
-            
+
             tool_calls = json.loads(result.tool_calls)
-            new_result = {"task_id": operation["task_id"], 
+            new_result = {"task_id": operation["task_id"],
                          "from": operation["from"],
-                         "to": operation["to"], 
+                         "to": operation["to"],
                          "messages": result['messages']}
-            
+
             # Add task to system state
             step_key = str(len(self.internal_state) + 1)
             self.internal_state[step_key] = {"status": "completed",
                                         "timestamp": datetime.now().isoformat(),
                                         "result": new_result}
-            
+
             if attempt == 2:
-                return {"task_id": operation["task_id"], 
+                return {"task_id": operation["task_id"],
                         "from": operation["from"],
-                        "to": operation["to"], 
+                        "to": operation["to"],
                         "messages": result['messages']}
-        
+
         # Update and return messages
         self._update_messages(result['messages'])
-        return {"task_id": operation["task_id"], 
+        return {"task_id": operation["task_id"],
                 "from": operation["from"],
-                "to": operation["to"], 
+                "to": operation["to"],
                 "messages": result['messages']}
 
 # Orleans Example: SpecialistActor
@@ -93,16 +93,16 @@ class SpecialistActor:
         self.llm = llm
         self.tools = tools
         self.prompt = prompt
-        
+
     def process_task(self, operation, messages):
         # Check if agent is available and has sufficient capacity
         if not hasattr(self, 'available') or \
            (datetime.now() - self.available_start) > self.service_time:
-            return {"task_id": task_id, 
-                    "from": from_, 
-                    "to": to, 
+            return {"task_id": task_id,
+                    "from": from_,
+                    "to": to,
                     "messages": messages}
-        
+
         # Process the task and schedule for next time
         result_messages = self.process_task_internal(operation, messages)
         self._schedule_task(operation_id, operation, result_messages)

@@ -4,7 +4,7 @@
 This chapter explores the fundamental trade-offs between operational and analytical systems, emphasizing the importance of understanding data infrastructure design principles to optimize performance, scalability, and maintainability.
 
 ## Frameworks Introduced
-- **Data Infrastructure Design**: 
+- **Data Infrastructure Design**:
   - When to use: To structure data systems for optimal performance and scalability.
   - How: Prioritize consistency, availability, partition tolerance, and scalability based on application needs.
 
@@ -31,10 +31,10 @@ This chapter explores the fundamental trade-offs between operational and analyti
 class OperationalDatabase:
     def __init__(self, db_name):
         self.db = sqlite3.connect(db_name)
-    
+
     def read(self, query, params=None):
         return self.db.execute(query, params).fetchall()
-    
+
     def write(self, query, params=None):
         self.db.commit(query, params)
 
@@ -45,7 +45,7 @@ class AnalyticalDatabase:
 
     def read(self, query, params=None):
         return self.execute_query(query, params)
-    
+
     def write(self, query, params=None):
         pass  # Analytics databases are read-only
 

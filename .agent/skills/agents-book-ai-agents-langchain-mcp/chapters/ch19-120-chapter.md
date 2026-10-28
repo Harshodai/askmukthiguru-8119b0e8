@@ -4,20 +4,20 @@
 Implementing Retrieval-Augmented Generation (RAG) using ChromaDB for semantic search.
 
 ## Frameworks Introduced
-- **RAG**: A design pattern that combines large language models (LLMs) with vector stores to enable semantic search.  
+- **RAG**: A design pattern that combines large language models (LLMs) with vector stores to enable semantic search.
   - When to use: When building systems requiring understanding and generating answers based on context from multiple documents.
   - How: Use LLM APIs alongside vector stores for efficient information retrieval and synthesis.
 
-- **Vector Store**: A data structure storing high-dimensional vectors for fast similarity searches.  
+- **Vector Store**: A data structure storing high-dimensional vectors for fast similarity searches.
   - When to use: For organizing and querying large document collections efficiently.
   - How: Utilize ChromaDB's capabilities for scalable, real-time vector storage and querying.
 
 ## Key Concepts
-- **Semantic Search**: Searching by meaning rather than exact keywords, using LLMs to understand queries and retrieve relevant information.  
-- **Vector Store**: Stores high-dimensional vectors representing document content for efficient retrieval.  
-- **Q&A Chatbot**: A chatbot that uses RAG to answer questions by querying a document store and synthesizing responses.  
-- **Prompt Engineering**: Crafting prompts to guide LLMs in retrieving and synthesizing answers from context.  
-- **Context**: The information provided alongside the user's query, used to formulate accurate answers.  
+- **Semantic Search**: Searching by meaning rather than exact keywords, using LLMs to understand queries and retrieve relevant information.
+- **Vector Store**: Stores high-dimensional vectors representing document content for efficient retrieval.
+- **Q&A Chatbot**: A chatbot that uses RAG to answer questions by querying a document store and synthesizing responses.
+- **Prompt Engineering**: Crafting prompts to guide LLMs in retrieving and synthesizing answers from context.
+- **Context**: The information provided alongside the user's query, used to formulate accurate answers.
 - **Synthesis**: Generating natural language answers from retrieved information.
 
 ## Mental Models

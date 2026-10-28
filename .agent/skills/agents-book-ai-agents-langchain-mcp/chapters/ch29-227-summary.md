@@ -7,7 +7,7 @@ This chapter explores advanced techniques for enhancing RAG systems by optimizin
 - **Step-back prompting**: A technique for generating broader questions to retrieve foundational knowledge.
   - When to use: When the initial question is too specific or vague.
   - How: Rephrase the user's query into a more general form before searching.
-  
+
 - **Query decomposition**: Breaking down complex questions into simpler subqueries.
   - When to use: For handling intricate or multi-step queries.
   - How: Split the original query into independent subqueries and retrieve results separately.

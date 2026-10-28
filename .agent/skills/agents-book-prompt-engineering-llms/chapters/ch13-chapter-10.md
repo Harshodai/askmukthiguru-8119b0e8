@@ -4,13 +4,13 @@
 Understanding how to evaluate LLM applications effectively through systematic approaches is crucial for improving their functionality and reliability.
 
 ## Frameworks Introduced
-- **GitHub Copilot Evaluation**: A case study demonstrating the application of evaluation techniques to an LLM-driven application.  
+- **GitHub Copilot Evaluation**: A case study demonstrating the application of evaluation techniques to an LLM-driven application.
   - When to use: For practical examples of evaluating large-scale applications.
   - How: By analyzing historical records, functional tests, and user feedback to assess model performance.
 
 ## Key Concepts
-- **Functional Testing Metrics**: Specific criteria used to evaluate if a model's output matches expected results after processing input.  
-- **A/B Testing**: A method for comparing two versions of an application to determine which performs better based on defined metrics.  
+- **Functional Testing Metrics**: Specific criteria used to evaluate if a model's output matches expected results after processing input.
+- **A/B Testing**: A method for comparing two versions of an application to determine which performs better based on defined metrics.
 - **Direct Feedback**: User input directly related to model evaluation, such as ratings or accept/reject decisions.
 
 ## Mental Models

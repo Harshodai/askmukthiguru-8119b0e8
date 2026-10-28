@@ -14,7 +14,7 @@ This chapter teaches how to leverage pretrained language models for text classif
 - **Embedding-Based Models**: Models that generate general-purpose embeddings suitable for various tasks beyond classification.
 
 ## Mental Models
-- Use pretrained language models when you have limited labeled data but want strong performance in text understanding tasks.  
+- Use pretrained language models when you have limited labeled data but want strong performance in text understanding tasks.
 - Think of BERT-based approaches as a starting point for quick experiments, while embedding models offer more flexibility.
 
 ## Anti-patterns
@@ -46,5 +46,5 @@ print(data)
 4. Compare model performance against simple baselines like TF-IDF + logistic regression.
 
 ## Connects To
-- Relates to Chapter 1's discussion of language models and their applications in various NLP tasks.  
+- Relates to Chapter 1's discussion of language models and their applications in various NLP tasks.
 - Prepares the reader for more advanced classification techniques covered in subsequent chapters.

@@ -42,7 +42,7 @@ The chapter explains how distributed systems can achieve consistency across repl
 ## Anti-patterns
 - **Do not use CAP**: Avoid using CAP directly without replication because it doesn't provide strong consistency guarantees.
   - Example: Using Raft for a system requiring atomic writes across multiple nodes.
-  
+
 - **Avoid lazy replication**: Do not replicate data minimally to ensure strong consistency. Instead, implement full replication with appropriate timeouts.
 
 ---

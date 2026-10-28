@@ -4,7 +4,7 @@
 The single most important thing this chapter teaches is how to design, develop, and deploy AI applications that are robust, scalable, and ethical by creating effective agent-based systems.
 
 ## Frameworks Introduced
-- **Agent Architectures**: 
+- **Agent Architectures**:
   - **Monolithic Architecture**: Combines all functionality into a single system. Benefits: Simplicity; drawbacks: Limited scalability.
   - **Layered Architecture**: Breaks down complexity into modular components. Benefits: Easier maintenance; drawbacks: More complex design.
   - **Multiagent System**: Uses multiple agents with distinct roles. Benefits: Specialization; drawbacks: Coordination challenges.

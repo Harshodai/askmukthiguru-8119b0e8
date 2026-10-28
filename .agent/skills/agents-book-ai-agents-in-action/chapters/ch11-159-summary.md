@@ -10,7 +10,7 @@ Nexus is a powerful framework for building custom agent platforms that integrate
   - Knowledge/Memory: Backed by semantic stores like SK or Gemini.
   - Planning and Feedback: Structures for goal setting and evaluation.
 
-When to use: Ideal for developers aiming to create tailored agent platforms without extensive infrastructure setup.  
+When to use: Ideal for developers aiming to create tailored agent platforms without extensive infrastructure setup.
 How: Compose profiles, define actions, power agents with APIs, and implement custom logic through code examples.
 
 ### Key Concepts

@@ -7,7 +7,7 @@ This chapter demonstrates how to use Docker and Kubernetes (with Minikube) to de
 - **Docker**: Used for creating container images.
   - When to use: For packaging applications in consistent environments.
   - How: Define a `DockerFile` that sets up the application and its dependencies.
-  
+
 - **Kubernetes**: Manages deployment, scaling, and orchestration of containerized services.
   - When to use: For automating deployment, monitoring, and scaling containerized applications at scale.
   - How: Create deployments, expose services, and manage pods.
@@ -25,8 +25,8 @@ This chapter demonstrates how to use Docker and Kubernetes (with Minikube) to de
 - **Port Exposure**: Exposing a containerized application's port to the outside world.
 
 ## Mental Models
-- Use Docker when you need consistent environments for your applications.  
-- Think of Minikube as a local Kubernetes setup that simplifies deployment in development environments.  
+- Use Docker when you need consistent environments for your applications.
+- Think of Minikube as a local Kubernetes setup that simplifies deployment in development environments.
 - Kubernetes is powerful for scaling applications dynamically, which this chapter demonstrates by scaling pods immediately upon adding more resources.
 
 ## Anti-patterns

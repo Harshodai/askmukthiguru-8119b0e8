@@ -7,7 +7,7 @@ The chapter teaches how to deploy large language models (LLMs) on resource-const
 - **RPi.GPIO**: A Python framework for controlling Raspberry Pi hardware.
   - When to use: For detecting hardware capabilities and configuring GPIO pins.
   - How: Installs automatically with RPi.GPIO and helps identify supported hardware features like GPU or RAM.
-  
+
 - **llama.cpp**: A lightweight serving library optimized for small devices.
   - When to use: For serving LLMs on edge devices after model preparation.
   - How: Converts models to PyTorch format, quantizes them, and provides a server script.
@@ -15,7 +15,7 @@ The chapter teaches how to deploy large language models (LLMs) on resource-const
 ### Key Concepts
 - **Quantization**: Reduces model size by converting weights to lower precision (e.g., 4-bit vs. 32-bit).
   - Benefits: Significantly reduces memory usage and improves inference speed.
-  
+
 - **Multimodal Models**: Extends LLMs with vision-language capabilities for tasks like image analysis.
   - Requires additional preprocessing steps for images.
 

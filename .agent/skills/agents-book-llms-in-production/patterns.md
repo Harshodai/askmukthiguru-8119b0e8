@@ -98,6 +98,6 @@ Here is a structured list of concrete technical techniques, patterns, or algorit
   - **How**: Implementing load balancing, error handling, and monitoring tools.
   - **Trade-offs**: Complexity vs. system reliability.
 
---- 
+---
 
 This list provides a high-level overview of the technical techniques introduced in each chapter, focusing on their application context and trade-offs.

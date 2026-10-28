@@ -21,7 +21,7 @@ argument-hint: [topic or chapter number]
 Here is an organized and comprehensive glossary of key terms from the provided chapters:
 
 - **Copyright** (Ch 1): The legal permission to reproduce or distribute copyrighted works.
-  
+
 - **How It Works** (Ch 2): An overview explaining the process and principles behind RAG.
 
 - **When to Use This** (Ch 3): Guidelines on appropriate scenarios for utilizing RAG technology.
@@ -50,7 +50,7 @@ Here is an organized and comprehensive glossary of key terms from the provided c
 
 - **Hypothetical Document Embedding** (Ch 17): Creates hypothetical documents based on embeddings for enhanced retrieval.
 
-- **Receive user question** (Ch 18, 
+- **Receive user question** (Ch 18,
 
 ---
 

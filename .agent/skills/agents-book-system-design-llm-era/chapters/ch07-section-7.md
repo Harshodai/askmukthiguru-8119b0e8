@@ -40,13 +40,13 @@ Optimizing an e-commerce search engine requires balancing speed, accuracy, and r
 
 ### Mental Models
 
-1. **Use Caching When**:  
+1. **Use Caching When**:
    Optimize for sub-second latency during peak traffic or slow response times.
 
-2. **Think of Machine Learning as**:  
+2. **Think of Machine Learning as**:
    A tool to enhance search accuracy but requiring careful model integration and validation.
 
-3. **Avoid Over-Reliance on ML**:  
+3. **Avoid Over-Reliance on ML**:
    Validate models with historical data and ensure they generalize well beyond training examples.
 
 ---
@@ -80,13 +80,13 @@ import numpy as np
 def product_vector_query(index, product_info):
     # Convert product_info to numpy array
     product_array = np.array(product_info)
-    
+
     # Query the vector index
     results = index.search(
         product_array,
         k=10  # Return top 10 similar products
     )
-    
+
     return results
 ```
 

@@ -7,7 +7,7 @@ This chapter introduces semantic search as an advanced method to enhance keyword
 - **TF-IDF (Term Frequency-Inverse Document Frequency)**:
   - When to use: For ranking documents based on keyword relevance.
   - How: Calculates term frequency (TF) and inverse document frequency (IDF) scores to determine relevance.
-  
+
 - **Inverted Index**:
   - When to use: For efficient keyword-based searches by mapping terms to documents they appear in.
 
@@ -44,7 +44,7 @@ def tfidf(word, document, indexed_docs):
     return tf * idf
 
 # Example usage:
-sentences = ["The cat is playing in the garden", 
+sentences = ["The cat is playing in the garden",
              "A dog and a cat are good pets",
              "Cats love to chase mice"]
 tokenized_docs = [word_tokenize(d) for d in sentences]

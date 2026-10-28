@@ -58,7 +58,7 @@ def load_dataset(tokenizer, model_name="gpt-3.5"):
 
     # Tokenize and prepare data
     tokenized_ds = ds.map(tokenizer_func, batch_size=32)
-    
+
     return ds
 
 # Example dataset preparation for training
@@ -67,7 +67,7 @@ def prepare_for_model(ds, model_name="gpt-3.5"):
     model = AutoModelForCausalLM.from_pretrained(model_name)
 
     # Tokenize and convert to features
-    tokenized_data = ds.map(lambda ex: tokenizer(ex['text'], 
+    tokenized_data = ds.map(lambda ex: tokenizer(ex['text'],
                                  return_tensors='pt',
                                  max_length=1024,
                                  padding=True))
@@ -75,7 +75,7 @@ def prepare_for_model(ds, model_name="gpt-3.5"):
     # Convert labels to indices
     label_map = {label: i for i, label in enumerate(ds['labels'])}
     tokenized_data['input_ids'] = tokenized_data['input_ids'].apply(lambda x: [label_map[i] for i in x])
-    
+
     return tokenized_data
 
 # Example model evaluation using perplexity
@@ -85,12 +85,12 @@ def evaluate_model(model, tokenizer, texts):
                      return_tensors='pt', return_token_type_ids=False)
 
     # Get perplexity scores
-    outputs = model.generate(input_ids, 
+    outputs = model.generate(input_ids,
                            min_length=100,
                            max_length=200,
                            temperature=0.7,
                            top_p=0.9)
-    
+
     return [calculate_perplexity(output) for output in outputs]
 ```
 

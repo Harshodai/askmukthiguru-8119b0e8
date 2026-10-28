@@ -31,8 +31,8 @@ This chapter explores the fundamentals of transactional data systems, emphasizin
 - **Regulatory Compliance**: GDPR impacts data storage requirements for personal information, necessitating strict data minimization practices.
 
 ### Mental Models
-- Use OLTP when you need real-time transaction processing with atomicity guarantees.  
-- Use ETL for seamless data integration across disparate systems.  
+- Use OLTP when you need real-time transaction processing with atomicity guarantees.
+- Use ETL for seamless data integration across disparate systems.
 - Opt for a Data Warehouse when you require historical data for reporting and analytics.
 
 ### Anti-patterns

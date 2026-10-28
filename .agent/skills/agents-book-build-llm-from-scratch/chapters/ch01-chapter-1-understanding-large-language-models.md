@@ -29,10 +29,10 @@ class LLM_Dataset(Dataset):
     def __init__(self, texts, block_size=128):
         self.texts = [text for text in texts]
         self.block_size = block_size
-    
+
     def __len__(self):
         return len(self.texts)
-    
+
     def __getitem__(self, idx):
         text = self.texts[idx]
         tokenized = tokenize(text)  # Implement tokenization

@@ -23,11 +23,11 @@ Parallelization is essential for optimizing agent workflows by enabling concurre
 ```python
 # Example using LangChain's RunnableParallel in Python
 
-from typing import Optional 
-from langchain_openai import ChatOpenAI 
-from langchain_core.prompts import ChatPromptTemplate 
-from langchain_core.output_parsers import StrOutputParser 
-from langchain_chain import LangChain 
+from typing import Optional
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_chain import LangChain
 
 # Define independent chains
 summarize_chain = (ChatPromptTemplate.from_messages([("system", "Summarize the following topic concisely:"), ("user", "{topic}")]) | llm | StrOutputParser())
@@ -36,12 +36,12 @@ terms_chain = (ChatPromptTemplate.from_messages([("system", "Identify 5-10 key t
 
 # Build parallel workflow
 map_chain = RunnableParallel(
-    { 
-        "summary": summarize_chain, 
-        "questions": questions_chain, 
-        "key_terms": terms_chain, 
-        "topic": RunnablePassthrough(),  
-    } 
+    {
+        "summary": summarize_chain,
+        "questions": questions_chain,
+        "key_terms": terms_chain,
+        "topic": RunnablePassthrough(),
+    }
 )
 
 full_parallel_chain = map_chain | synthesis_prompt | llm | StrOutputParser()
@@ -59,10 +59,10 @@ from google.adk.agents import LlmAgent, ParallelAgent
 researcher_agent_1 = LlmAgent(
     name="RenewableEnergyResearcher",
     model=GEMINI_MODEL,
-    instruction="""You are an AI Research Assistant specializing in energy. 
-    Research the latest advancements in 'renewable energy sources'. 
-    Use the Google Search tool provided. 
-    Summarize your key findings concisely (1-2 sentences). 
+    instruction="""You are an AI Research Assistant specializing in energy.
+    Research the latest advancements in 'renewable energy sources'.
+    Use the Google Search tool provided.
+    Summarize your key findings concisely (1-2 sentences).
     Output *only* the summary.""",
     output_key="renewable_energy_result"
 )
@@ -70,21 +70,21 @@ researcher_agent_1 = LlmAgent(
 researcher_agent_2 = LlmAgent(
     name="EVResearcher",
     model=GEMINI_MODEL,
-    instruction="""You are an AI Research Assistant specializing in transportation. 
-    Research the latest developments in 'electric vehicle technology'. 
-    Use the Google Search tool provided. 
-    Summarize your key findings concisely (1-2 sentences). 
+    instruction="""You are an AI Research Assistant specializing in transportation.
+    Research the latest developments in 'electric vehicle technology'.
+    Use the Google Search tool provided.
+    Summarize your key findings concisely (1-2 sentences).
     Output *only* the summary.""",
     output_key="ev_technology_result"
 )
 
 researcher_agent_3 = LlmAgent(
-    name="CarbonCaptureResearcher", 
+    name="CarbonCaptureResearcher",
     model=GEMINI_MODEL,
-    instruction="""You are an AI Research Assistant specializing in climate solutions. 
-    Research the current state of 'carbon capture methods'. 
-    Use the Google Search tool provided. 
-    Summarize your key findings concisely (1-2 sentences). 
+    instruction="""You are an AI Research Assistant specializing in climate solutions.
+    Research the current state of 'carbon capture methods'.
+    Use the Google Search tool provided.
+    Summarize your key findings concisely (1-2 sentences).
     Output *only* the summary.""",
     output_key="carbon_capture_result"
 )
@@ -97,8 +97,8 @@ parallel_research_agent = ParallelAgent(
 merger_agent = LlmAgent(
     name="SynthesisAgent",
     model=GEMINI_MODEL,
-    instruction="""You are an AI Assistant responsible for combining research findings into a structured report. 
-    Your primary task is to synthesize the following research summaries, clearly attributing findings to their source areas. 
+    instruction="""You are an AI Assistant responsible for combining research findings into a structured report.
+    Your primary task is to synthesize the following research summaries, clearly attributing findings to their source areas.
     Structure your response using headings for each topic. Ensure the report is coherent and integrates the key points smoothly.""",
     description="Combines research findings from parallel agents into a structured, cited report."
 )

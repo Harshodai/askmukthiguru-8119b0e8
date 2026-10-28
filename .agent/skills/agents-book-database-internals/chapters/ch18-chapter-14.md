@@ -28,7 +28,7 @@ The chapter focuses on optimizing database performance through algorithmic and a
 ## Code Examples
 ```
  PostgreSQL HyperLogLog Implementation
-``` 
+```
 SELECT COUNT(DISTINCT hash(oid::oid[1])) AS distinct_cardinality,
    BITWISE_AND(CHECKSUM oid::oid[1], 0x543),
    BITWISE_AND(CHECKSUM oid::oid[2], 0x543) AS second_hash

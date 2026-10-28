@@ -6,40 +6,40 @@ The single most important thing this chapter teaches is how to deploy large lang
 ---
 
 ### Frameworks Introduced
-- **Mist**: A framework that enables efficient deployment of LLMs using Mist-ML, designed for fast inference on various hardware setups.  
+- **Mist**: A framework that enables efficient deployment of LLMs using Mist-ML, designed for fast inference on various hardware setups.
   - When to use: Ideal for medium-sized enterprises with existing infrastructure and clear API requirements.
   - How: Integrates seamlessly with existing codebases, supports multiple formats (e.g., JSON, Protobuf), and provides tools for monitoring performance.
 
-- **ZeroSHOT**: A framework optimized for few-shot prompting, particularly useful when you have limited training data but need quick responses.  
+- **ZeroSHOT**: A framework optimized for few-shot prompting, particularly useful when you have limited training data but need quick responses.
   - When to use: Suitable for applications requiring rapid inference with minimal fine-tuning.
   - How: Uses specialized adapters (e.g., PEFT) to maintain model quality while reducing computational overhead.
 
-- **Mist-ML**: An enhanced version of Mist, specifically built for enterprise-level deployments with advanced features like automatic scaling and error handling.  
+- **Mist-ML**: An enhanced version of Mist, specifically built for enterprise-level deployments with advanced features like automatic scaling and error handling.
   - When to use: For large-scale enterprises with complex infrastructure requirements.
   - How: Includes built-in support for Kubernetes clusters, containerization, and robust monitoring tools.
 
 ---
 
 ### Key Concepts
-- **Cost-Efficient Training**: Techniques like LoRA (Low-Rank Adaptation) allow fine-tuning without retraining the entire model.  
+- **Cost-Efficient Training**: Techniques like LoRA (Low-Rank Adaptation) allow fine-tuning without retraining the entire model.
   - Formulated as: "Use LoRA when you need to adapt an existing LLM for a specific task without significant computational overhead."
 
-- **Prompt Engineering**: Crafting effective prompts is critical for achieving desired outcomes, especially in zero-shot scenarios.  
+- **Prompt Engineering**: Crafting effective prompts is critical for achieving desired outcomes, especially in zero-shot scenarios.
   - Key concept: "Think carefully about your prompt structure to guide the model effectively."
 
-- **Security and Reliability**: Implementing safety measures like differential prompt validation ensures consistent behavior across different environments.  
+- **Security and Reliability**: Implementing safety measures like differential prompt validation ensures consistent behavior across different environments.
   - Anti-pattern: Avoid using models without proper validation or deployment checks.
 
 ---
 
 ### Mental Models
-1. **Understanding Prompts**: Recognize that prompts are the primary interface to LLMs, and their structure significantly impacts results.  
+1. **Understanding Prompts**: Recognize that prompts are the primary interface to LLMs, and their structure significantly impacts results.
    - Use Mist when you need a reliable API for quick inference with minimal overhead.
 
-2. **ZeroSHOT**: Leverage this framework for few-shot prompting scenarios where you have limited training data but need fast responses.  
+2. **ZeroSHOT**: Leverage this framework for few-shot prompting scenarios where you have limited training data but need fast responses.
    - Think of ZeroSHOT as your go-to solution for rapid, cost-effective inference.
 
-3. **Mist-ML**: Optimize deployment performance by choosing the right infrastructure and tools for your specific needs.  
+3. **Mist-ML**: Optimize deployment performance by choosing the right infrastructure and tools for your specific needs.
    - Use Mist-ML when you have a medium to large enterprise with complex infrastructure requirements.
 
 ---
@@ -60,7 +60,7 @@ from typing import Any
 class LLM:
     def __init__(self, model_name: str):
         self.model = Mist.load(model_name)
-        
+
     async def infer(self, prompt: str) -> str:
         return await self.model(
             prompt,

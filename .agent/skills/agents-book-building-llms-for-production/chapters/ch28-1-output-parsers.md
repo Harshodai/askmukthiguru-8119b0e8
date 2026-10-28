@@ -24,18 +24,18 @@ This chapter demonstrates how to use Pydantic's `PydanticOutputParser` to struct
 
 ## Code Examples
 ```python
-from langchain.output_parsers import PydanticOutputParser  
-from pydantic import BaseModel, Field, validator  
+from langchain.output_parsers import PydanticOutputParser
+from pydantic import BaseModel, Field, validator
 
-class Suggestions(BaseModel):  
-    words: List[str] = Field(description="list of substitute words based on context")  
+class Suggestions(BaseModel):
+    words: List[str] = Field(description="list of substitute words based on context")
 
-@validator('words')  
-def not_start_with_number(cls, field):  
-    for item in field:  
-        if item[0].isnumeric():  
-            raise ValueError("The word can not start with numbers!")  
-    return field  
+@validator('words')
+def not_start_with_number(cls, field):
+    for item in field:
+        if item[0].isnumeric():
+            raise ValueError("The word can not start with numbers!")
+    return field
 
 parser = PydanticOutputParser(pydantic_object=Suggestions)
 ```

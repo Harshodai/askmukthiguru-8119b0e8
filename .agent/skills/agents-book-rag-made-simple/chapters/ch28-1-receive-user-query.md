@@ -25,23 +25,23 @@ The chapter introduces contextual compression as a method to enhance relevance b
 def process_query(query):
     # Step 1: Retrieve top-K chunks from vector store
     retrieved_chunks = retrieve_top_k(query)
-    
+
     # Step 2: Grade each chunk to remove irrelevant ones
     graded_chunks = []
     for chunk in retrieved_chunks:
         if is_relevant(chunk, query):
             graded_chunks.append(chunk)
-    
+
     # Step 3: Compress each chunk to extract relevant sentences
     compressed_excerpts = []
     for chunk in graded_chunks:
         excerpt = contextual_compress(chunk, query)
         if excerpt:
             compressed_excerpts.append(excerpt)
-    
+
     # Step 4: Pass compressed excerpts through generation LLM
     answer = generate回答(compressed_excerpts + [query])
-    
+
     return answer
 ```
 

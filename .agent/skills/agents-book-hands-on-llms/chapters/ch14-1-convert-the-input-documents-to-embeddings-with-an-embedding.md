@@ -6,7 +6,7 @@ This chapter demonstrates how to use BERTopic, a modular framework combining emb
 ## Frameworks Introduced
 - **BERTopic**: A modular framework combining embeddings, dimensionality reduction, clustering, and topic modeling.
   - When to use: For analyzing and clustering large collections of textual documents while preserving semantic meaning.
-  - How: 
+  - How:
     1. Convert text into dense vector representations using BERT models (e.g., sentence-transformers/all-mpnet-base-v2).
     2. Apply dimensionality reduction techniques like UMAP to simplify high-dimensional data.
     3. Use clustering algorithms like HDBSCAN for grouping similar documents.

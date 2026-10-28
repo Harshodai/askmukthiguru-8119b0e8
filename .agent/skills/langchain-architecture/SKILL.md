@@ -324,7 +324,7 @@ llm = OpenAI(streaming=True, callbacks=[StreamingStdOutCallbackHandler()])
 - **references/chains.md**: Chain composition strategies
 - **references/document-processing.md**: Document loading and indexing
 - **references/callbacks.md**: Monitoring and observability
-- **assets/agent-template.py**: Production-ready agent template
+- **assets/agent-template.py**: Production-ready agent template <!-- claim-ok -->
 - **assets/memory-config.yaml**: Memory configuration examples
 - **assets/chain-example.py**: Complex chain examples
 

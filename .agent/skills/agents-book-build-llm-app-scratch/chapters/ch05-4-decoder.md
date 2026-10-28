@@ -4,17 +4,17 @@
 The decoder is a critical component of the Transformer architecture responsible for generating coherent output sequences by leveraging self-attention, encoder-decoder attention, and feed-forward networks.
 
 ## Frameworks Introduced
-- **Decoder Model**: 
+- **Decoder Model**:
   - When to use: For tasks like text generation (e.g., translation, summarization).
   - How: Processes input from the encoder and generates outputs step-by-step using self-attention for output context and cross-attention for alignment with input.
-  
+
 - **Self-Attention Mechanism**:
   - When to use: To focus on relevant parts of the output sequence while generating each token.
   - How: Allows the model to weigh different positions in the output, ensuring context is maintained as it builds the response.
 
 ## Key Concepts
 - **Decoder Model**: Processes encoded inputs from the encoder and generates outputs step-by-step, maintaining context through self-attention mechanisms.
-  
+
 - **Self-Attention**: Enables the decoder to focus on relevant parts of the output sequence while generating each token, enhancing contextual understanding.
 
 ## Mental Models
@@ -28,15 +28,15 @@ The decoder is a critical component of the Transformer architecture responsible 
 def generate_response(decoder, encoder_output):
     # Initialize with empty response
     response = [START_TOKEN]
-    
+
     # Loop until stop condition is met (e.g., EOS token)
     while not stop_condition_met(response):
         # Use decoder to predict next token based on previous tokens and encoder output
         next_token = decoder.predict([response, encoder_output])
-        
+
         # Add the predicted token to the response
         response.append(next_token)
-    
+
     return ' '.join(response)
 ```
 

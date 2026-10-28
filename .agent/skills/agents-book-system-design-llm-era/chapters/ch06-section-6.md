@@ -4,7 +4,7 @@
 This chapter outlines the architecture and design principles for building an AI-driven e-commerce platform, focusing on search functionality, data management, and scalability.
 
 ## Frameworks Introduced
-1. **Caching Pipeline**: 
+1. **Caching Pipeline**:
    - When to use: For reducing latency in frequent requests by storing intermediate results.
    - How: Caches request outcomes (e.g., product recommendations) for quick access during subsequent calls.
 
@@ -12,7 +12,7 @@ This chapter outlines the architecture and design principles for building an AI-
    - When to use: For managing structured data like user profiles and orders.
    - How: Uses PostgreSQL for read-heavy operations and Redis for caching frequently accessed data.
 
-3. **Orchestrator Engine**: 
+3. **Orchestrator Engine**:
    - When to use: For coordinating AI/ML tasks across multiple workers.
    - How: Manages request distribution, error handling, and result aggregation.
 

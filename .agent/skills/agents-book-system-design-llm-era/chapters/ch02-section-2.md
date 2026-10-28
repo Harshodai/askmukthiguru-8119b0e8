@@ -84,7 +84,7 @@ class CircuitBreaker:
         self.primary_provider = primary_provider
         self.fallback_providers = fallback_providers
         self.last_failure_time = datetime.now()
-        
+
     def handle_request(self, prompt):
         start_time = time.time()
         try:
@@ -100,7 +100,7 @@ class CircuitBreaker:
                     )
                     return {"status": "recovery", "response": response}
             raise e
-        
+
         finally:
             self.last_failure_time = time.time()
 ```

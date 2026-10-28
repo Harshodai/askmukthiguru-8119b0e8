@@ -4,7 +4,7 @@
 Using Markdown for prompt assembly ensures clarity, structure, and compatibility with AI models like LLMs, which are trained on Markdown-formatted documents.
 
 ## Frameworks Introduced
-- **Markdown**: 
+- **Markdown**:
   - When to use: For creating structured prompts that AI can parse effectively.
   - How: By organizing content in YAML or simple text formats for clear hierarchical organization.
 

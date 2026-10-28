@@ -32,28 +32,28 @@ This chapter explores advanced techniques for enhancing language model capabilit
 
 ## Code Examples
 ```python
-from llama_index import SimpleDirectoryReader, ServiceContext  
-from llama_index.vector_stores import DeepLakeVectorStore  
+from llama_index import SimpleDirectoryReader, ServiceContext
+from llama_index.vector_stores import DeepLakeVectorStore
 
-# Load documents  
-documents = SimpleDirectoryReader("./paul_graham").load_data()  
+# Load documents
+documents = SimpleDirectoryReader("./paul_graham").load_data()
 
-# Create a service context and node parser  
-service_context = ServiceContext.from_defaults(chunk_size=512, chunk_overlap=64)  
-node_parser = service_context.node_parser  
+# Create a service context and node parser
+service_context = ServiceContext.from_defaults(chunk_size=512, chunk_overlap=64)
+node_parser = service_context.node_parser
 
-# Get nodes from documents  
-nodes = node_parser.get_nodes_from_documents(documents)  
+# Get nodes from documents
+nodes = node_parser.get_nodes_from_documents(documents)
 
-# Store nodes in a vector store database  
-vector_store = DeepLakeVectorStore(dataset_path="hub://genai360/paulgraham_essays", overwrite=False)  
+# Store nodes in a vector store database
+vector_store = DeepLakeVectorStore(dataset_path="hub://genai360/paulgraham_essays", overwrite=False)
 
-# Create and use a query engine  
-query_engine = vector_store.as_query_engine(similarity_top_k=10, streaming=True)  
+# Create and use a query engine
+query_engine = vector_store.as_query_engine(similarity_top_k=10, streaming=True)
 
-# Perform a query using the query engine  
-streaming_response = query_engine.query("What does Paul Graham do?")  
-streaming_response.print_response_stream()  
+# Perform a query using the query engine
+streaming_response = query_engine.query("What does Paul Graham do?")
+streaming_response.print_response_stream()
 ```
 
 This code demonstrates how to set up and use a vector store with LlamaIndex for advanced querying capabilities.

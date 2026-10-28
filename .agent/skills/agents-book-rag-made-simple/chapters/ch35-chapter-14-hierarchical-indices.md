@@ -4,8 +4,8 @@
 Hierarchical indexing organizes retrieval into two levels: summaries for coarse search and detailed chunks for fine-grained results, improving efficiency in large knowledge bases.
 
 ## Frameworks Introduced
-- **Hierarchical Indexing with Summaries and Detailed Chunks**  
-  - When to use: Large-scale knowledge bases requiring efficient retrieval.  
+- **Hierarchical Indexing with Summaries and Detailed Chunks**
+  - When to use: Large-scale knowledge bases requiring efficient retrieval.
   - How: Use summaries for initial coarse search and detailed chunks for precise results.
 
 ## Key Concepts
@@ -14,7 +14,7 @@ Hierarchical indexing organizes retrieval into two levels: summaries for coarse 
 - **Metadata**: Links between summaries and chunks, indicating the source section.
 
 ## Mental Models
-- Use summaries first when dealing with large knowledge bases to narrow down relevant sections.  
+- Use summaries first when dealing with large knowledge bases to narrow down relevant sections.
   Think of hierarchical indexing as navigating a department store: use a directory (summaries) to find aisles (chunks).
 
 ## Anti-patterns

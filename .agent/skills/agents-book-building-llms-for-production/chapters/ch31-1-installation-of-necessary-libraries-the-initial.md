@@ -32,42 +32,42 @@ This chapter introduces the essential libraries required for implementing text s
 ```python
 # Example code for knowledge graph visualization using NetworkX and Pyvis
 
-from langchain.prompts import PromptTemplate  
-from langchain.llms import OpenAI 
-from langchain.chains import LLMChain  
-from networkx import Graph as nxGraph  
-import pyvis.network as pyvisNetwork  
+from langchain.prompts import PromptTemplate
+from langchain.llms import OpenAI
+from langchain.chains import LLMChain
+from networkx import Graph as nxGraph
+import pyvis.network as pyvisNetwork
 
-# Create a prompt template for knowledge triple extraction  
-DEFAULT_KNOWLEDGE_TRIPLE_EXTRACTION_PROMPT = ( 
-    "You are a networked intelligence helping a human track knowledge triples"  
-    " about all relevant people, things, concepts, etc. and integrating"  
-    " them with your knowledge stored within your weights"  
-    " as well as that stored in a knowledge graph."  
-    " Extract all of the knowledge triples from the text."  
-    " A knowledge triple is a clause that contains a subject, a predicate,"  
-    " and an object. The subject is the entity being described,"  
-    " the predicate is the property of the subject that is being"  
-    " described, and the object is the value of the property. \n\n" 
-    f"Output: (N{subject}, is the capital of, France) {KG_TRIPLE_DELIMITER }(N{subject}, is in, Paris)}\n" 
-    "(Paris, is the capital of, France)"  
+# Create a prompt template for knowledge triple extraction
+DEFAULT_KNOWLEDGE_TRIPLE_EXTRACTION_PROMPT = (
+    "You are a networked intelligence helping a human track knowledge triples"
+    " about all relevant people, things, concepts, etc. and integrating"
+    " them with your knowledge stored within your weights"
+    " as well as that stored in a knowledge graph."
+    " Extract all of the knowledge triples from the text."
+    " A knowledge triple is a clause that contains a subject, a predicate,"
+    " and an object. The subject is the entity being described,"
+    " the predicate is the property of the subject that is being"
+    " described, and the object is the value of the property. \n\n"
+    f"Output: (N{subject}, is the capital of, France) {KG_TRIPLE_DELIMITER }(N{subject}, is in, Paris)}\n"
+    "(Paris, is the capital of, France)"
 )
 
-KNOWLEDGE_TRIPLE_EXTRACTION_PROMPT = PromptTemplate(  
-    input_variables =["text"], 
-    template =_DEFAULT_KNOWLEDGE_TRIPLE_EXTRACTION_TEMPLATE,  
-)  
+KNOWLEDGE_TRIPLE_EXTRACTION_PROMPT = PromptTemplate(
+    input_variables =["text"],
+    template =_DEFAULT_KNOWLEDGE_TRIPLE_EXTRACTION_TEMPLATE,
+)
 
-# Instantiate the OpenAI model  
-llm = OpenAI(model_name ="gpt-3.5-turbo" , temperature =0.9)  
+# Instantiate the OpenAI model
+llm = OpenAI(model_name ="gpt-3.5-turbo" , temperature =0.9)
 
-# Create an LLMChain using the knowledge triple extraction prompt  
-chain = LLMChain(llm =llm, prompt =KNOWLEDGE_TRIPLE_EXTRACTION_PROMPT)  
+# Create an LLMChain using the knowledge triple extraction prompt
+chain = LLMChain(llm =llm, prompt =KNOWLEDGE_TRIPLE_EXTRACTION_PROMPT)
 
-# Run the chain with the specified text  
+# Run the chain with the specified text
 text = """The city of Paris is the capital and most populous city of
-France. The Eiffel Tower is a famous landmark in Paris."""  
-triples = chain.run(text)  
+France. The Eiffel Tower is a famous landmark in Paris."""
+triples = chain.run(text)
 
 print(triples)
 (Paris, is the capital of, France)<|>(Paris, is the most populous

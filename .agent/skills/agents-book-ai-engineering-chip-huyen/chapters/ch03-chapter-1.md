@@ -4,22 +4,22 @@
 This chapter teaches readers how to apply foundation models effectively across diverse AI use cases, emphasizing practical steps, tools, and considerations for building robust AI applications.
 
 ### Frameworks Introduced
-- **The 5 Whys**: A framework for diagnosing problems by asking multiple 'why' questions.  
+- **The 5 Whys**: A framework for diagnosing problems by asking multiple 'why' questions.
   - When to use: Identifying root causes of issues in AI systems.
   - How: Ask "Why" iteratively to uncover underlying problems (e.g., diagnosing a car battery issue).
 
 #### Key Concepts
-- **Model Evaluation**: Techniques like MMLU and CoT@32 help assess model performance across tasks with open-ended outputs.  
+- **Model Evaluation**: Techniques like MMLU and CoT@32 help assess model performance across tasks with open-ended outputs.
 - **AI Interface Design**: Creating user-friendly interfaces for AI applications, such as chatbots or web apps.
 - **Prompt Engineering**: Crafting effective prompts to guide models without altering their weights.
 
 #### Mental Models
-1. **Prompt Engineering**: Tailoring prompts to elicit specific responses from models by focusing on context and examples.  
+1. **Prompt Engineering**: Tailoring prompts to elicit specific responses from models by focusing on context and examples.
 2. **Model Adaptation**: Adjusting pre-trained models for new tasks through techniques like fine-tuning or prompt engineering.
 3. **Context Construction**: Building retrieval systems to provide relevant context for AI applications.
 
 #### Anti-patterns
-1. Over-reliance on models without understanding their limitations.  
+1. Over-reliance on models without understanding their limitations.
 2. Neglecting validation and testing phases, leading to unreliable results.
 
 ### Code Examples

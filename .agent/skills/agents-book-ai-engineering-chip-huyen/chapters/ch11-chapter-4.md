@@ -4,15 +4,15 @@
 Evaluating AI systems ensures their outputs meet user expectations, avoids costly mistakes, and balances quality with practicality.
 
 ## Frameworks Introduced
-- **Factual Consistency**: Checks if model outputs are factually accurate.  
+- **Factual Consistency**: Checks if model outputs are factually accurate.
   - When to use: Assessing domain-specific applications like summarization or classification.
   - How: Verify responses against known facts using AI judges or predefined criteria.
 
-- **Generation Capability**: Measures how well models generate text aligned with user needs.  
+- **Generation Capability**: Measures how well models generate text aligned with user needs.
   - When to use: Evaluating applications requiring creative outputs, such as chatbots or content creation.
   - How: Use benchmarks like BLEU score for summarization tasks.
 
-- **Instruction-Following Capability**: Assesses if models can produce outputs following specific instructions.  
+- **Instruction-Following Capability**: Assesses if models can produce outputs following specific instructions.
   - When to use: Evaluating AI systems in controlled environments like customer support chatbots.
   - How: Use IFEval and INFOBench, which evaluate both format and content constraints.
 

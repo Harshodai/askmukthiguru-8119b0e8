@@ -27,14 +27,14 @@ Cross-encoder reranking improves query relevance by evaluating each chunk agains
 def cross_encoder_rerank(query, chunks):
     # Bi-encoder retrieves top-K candidates (e.g., K=20)
     top_k_chunks = bi_encoder_retriever.retrieve(query, k=20)
-    
+
     # Cross-encoder evaluates each query-chunk pair in batches
     scores = cross_encoder_model.predict([(query, chunk) for chunk in top_k_chunks])
-    
+
     # Sort chunks by relevance score and select top-N (e.g., N=5)
     sorted_chunks = [chunk for _, chunk in sorted(zip(scores, top_k_chunks), reverse=True)]
     selected_chunks = sorted_chunks[:5]
-    
+
     return selected_chunks
 ```
 

@@ -4,39 +4,39 @@
 This chapter teaches how to build intelligent agents that combine semantic search capabilities with multiple external tools (e.g., weather APIs) to provide dynamic, context-aware recommendations. The approach leverages the LangGraph framework to orchestrate tool usage and maintain a coherent knowledge base.
 
 ## Frameworks Introduced
-- **LLM Node**: Manages tool execution by deciding which tools to call based on user queries.  
+- **LLM Node**: Manages tool execution by deciding which tools to call based on user queries.
   - When to use: When building agents that require flexible tool chaining and dynamic information retrieval.
   - How: It evaluates the LLM's responses, identifies relevant tools, and executes them as needed.
 
-- **ReAct Agent**: A high-level abstraction of the LLM node, simplifying agent construction while maintaining reliable tool orchestration.  
+- **ReAct Agent**: A high-level abstraction of the LLM node, simplifying agent construction while maintaining reliable tool orchestration.
   - When to use: For rapid development and deployment of agents with prebuilt LangGraph support.
   - How: Automates the interaction flow, handling tool calls and response synthesis internally.
 
 ## Key Concepts
-- **Vector Store**: A database storing structured data (e.g., Cornwall beach locations) for semantic search.  
+- **Vector Store**: A database storing structured data (e.g., Cornwall beach locations) for semantic search.
   - Used to fetch relevant information when no direct tool results are available.
 
-- **Tool Execution Node**: Handles tool invocation by parsing query arguments and formatting responses.  
+- **Tool Execution Node**: Handles tool invocation by parsing query arguments and formatting responses.
   - Ensures tools are only called with valid parameters and organizes results for coherent output.
 
-- **System Message**: A prompt added to LLM requests that guides the assistant's behavior (e.g., limiting hallucinations).  
+- **System Message**: A prompt added to LLM requests that guides the assistant's behavior (e.g., limiting hallucinations).
   - Encourages reliability and accuracy in tool usage by providing explicit instructions.
 
 ## Mental Models
-- The "LLM as Oracle" model: The LLM provides context-aware responses while tools handle execution.  
+- The "LLM as Oracle" model: The LLM provides context-aware responses while tools handle execution.
   - Think of it as combining a powerful search engine with multiple specialized tools for specific tasks.
 
-- The "ReAct Chain" model: Breaking down complex queries into sequential tool calls, ensuring each step builds on the previous result.  
+- The "ReAct Chain" model: Breaking down complex queries into sequential tool calls, ensuring each step builds on the previous result.
   - Simplifies agent development by abstracting low-level orchestration details.
 
 ## Anti-patterns
-- **Over-reliance on manual tool binding**: Without proper guidance or system messages, tools may be invoked incorrectly.  
+- **Over-reliance on manual tool binding**: Without proper guidance or system messages, tools may be invoked incorrectly.
   - Solution: Use predefined tool descriptions and system prompts to ensure accurate execution.
 
-- **Neglecting user feedback**: Agents that provide irrelevant or incomplete results fail to build trust.  
+- **Neglecting user feedback**: Agents that provide irrelevant or incomplete results fail to build trust.
   - Solution: Implement a feedback loop where users refine queries based on previous interactions.
 
-- **Ignoring LLM capabilities**: Using tools without leveraging the full LLM's contextual understanding leads to less relevant results.  
+- **Ignoring LLM capabilities**: Using tools without leveraging the full LLM's contextual understanding leads to less relevant results.
   - Solution: Use the LLM's response API for richer information sharing between tools and the main query.
 
 ## Code Examples
@@ -51,7 +51,7 @@ llm = LlamaCpp(
 llm_with_tools = llm.bind_tools(["search_travel_info", "weather_forecast"])
 travel_info_agent = create_react_agent(
     model=llm,
-    tools={"search_travel_info": search_travel_info, 
+    tools={"search_travel_info": search_travel_info,
            "weather_forecast": weather_forecast},
     state_schema=AgentState,
     prompt="You are a helpful assistant that can search travel information and get the weather forecast. Only use the tools to find the information you need (including town names)."

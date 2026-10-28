@@ -4,7 +4,7 @@
 This chapter teaches how to implement agents that plan and execute tasks sequentially or in parallel, using feedback loops to improve performance, while understanding when and how to apply reasoning and evaluation.
 
 ## Frameworks Introduced
-- **Sequential Planner**: Uses JSON structures and callbacks to break down goals into sequential actions.  
+- **Sequential Planner**: Uses JSON structures and callbacks to break down goals into sequential actions.
   - When to use: For step-by-step task execution requiring order.
   - How: Defines tasks with JSON objects and triggers for completion.
 
@@ -14,7 +14,7 @@ This chapter teaches how to implement agents that plan and execute tasks sequent
 - **Reasoning**: Involves evaluating information and actions, crucial for complex tasks like time travel paradoxes.
 
 ## Mental Models
-- Use a Sequential Planner when you need structured task execution with clear dependencies.  
+- Use a Sequential Planner when you need structured task execution with clear dependencies.
   - Think of it as breaking down steps in order while accounting for prerequisites.
 
 ## Anti-patterns

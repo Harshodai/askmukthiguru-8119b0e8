@@ -7,7 +7,7 @@ This chapter explores the inner workings of foundation models, emphasizing their
 - **Prompt Engineering**: A systematic approach to designing prompts that guide models toward desired outputs.
   - When to use: To shape the behavior of foundation models in specific tasks.
   - How: Crafting precise instructions with examples and context.
-  
+
 - **Preference Finetuning (PFF)**: A method for training models to generate preferred responses by retraining them on pairwise comparisons.
   - When to use: For tasks requiring consistent and reliable outputs.
   - How: Comparing pairs of responses and refining the model based on user preferences.

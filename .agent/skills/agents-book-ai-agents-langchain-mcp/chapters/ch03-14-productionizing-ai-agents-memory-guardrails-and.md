@@ -7,7 +7,7 @@ The chapter emphasizes the implementation of persistent memory and guardrails in
 - **LangChain**: A framework for building reusable components like retrieval chains.
   - When to use: For constructing efficient prompt engineering and retrieval systems.
   - How: Integrates with tools such as OpenAI API and vector stores.
-  
+
 - **LangGraph**: Extends LangChain by structuring workflows into agents, nodes, and edges.
   - When to use: For managing complex agent-based systems requiring conditional logic and state management.
   - How: Enables explicit control flows for multi-agent coordination.

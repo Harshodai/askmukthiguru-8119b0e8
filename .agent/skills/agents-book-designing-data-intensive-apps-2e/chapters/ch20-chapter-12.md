@@ -4,14 +4,14 @@
 Stream processing is essential for handling unbounded, incrementally arriving data streams in a way that ensures continuous, low-latency processing without predefined end points.
 
 ## Frameworks Introduced
-- **Apache Kafka**: A distributed streaming system designed for high-throughput, low-latency event streaming.  
+- **Apache Kafka**: A distributed streaming system designed for high-throughput, low-latency event streaming.
   - When to use: Distributed stream processing with high throughput and low latency.
   - How: Uses producers to send events to brokers, which distribute them to consumers across partitions.
 
 ## Key Concepts
-- **Event (Stream)**: An atomic record containing a timestamp indicating when it was generated according to a time-of-day clock.  
+- **Event (Stream)**: An atomic record containing a timestamp indicating when it was generated according to a time-of-day clock.
   - Definition: A small, self-contained unit of data that represents an event or observation with a timestamp.
-- **Log-Based Message Broker**: A system where messages are stored on disk and only removed upon acknowledgment by consumers, ensuring durability.  
+- **Log-Based Message Broker**: A system where messages are stored on disk and only removed upon acknowledgment by consumers, ensuring durability.
   - Purpose: Provides reliable message delivery even when clients crash or disconnect.
 
 ## Mental Models
@@ -20,7 +20,7 @@ Stream processing is essential for handling unbounded, incrementally arriving da
   - How: Leverage Kafka's producers, brokers, and consumers to manage event distribution across a scalable system.
 
 ## Anti-patterns
-- **Batch Processing on Fixed-Time Windows**: This approach leads to stale data issues because it processes only the data available at each interval.  
+- **Batch Processing on Fixed-Time Windows**: This approach leads to stale data issues because it processes only the data available at each interval.
   - Why it fails: It results in delayed processing, inaccurate results, and inefficient resource utilization due to incomplete or outdated data being processed repeatedly.
 
 ## Code Examples

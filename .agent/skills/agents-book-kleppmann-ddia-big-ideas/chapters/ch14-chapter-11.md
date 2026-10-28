@@ -21,13 +21,13 @@ Stream processing presents challenges in managing time-based joins, ensuring fau
 ---
 
 ## Key Concepts
-- **Event Sourcing**: A technique where application events are pushed to multiple consumers, ensuring data consistency without requiring a central point of failure.  
+- **Event Sourcing**: A technique where application events are pushed to multiple consumers, ensuring data consistency without requiring a central point of failure.
   *Definition*: "The act of pushing event information to multiple destinations for processing by different consumers."
 
 - **Microbatching**: A strategy to split large data into small chunks for parallel processing, improving throughput and reducing latency.
   *Explanation*: Breaking data into manageable pieces allows efficient distribution and processing across distributed systems.
 
-- **Horizontal Partitioning**: Distributing data across multiple workers to improve scalability and fault tolerance by sharing responsibility for different aspects of the system.  
+- **Horizontal Partitioning**: Distributing data across multiple workers to improve scalability and fault tolerance by sharing responsibility for different aspects of the system.
   *Rationale*: Reduces reliance on any single component, enhancing resilience.
 
 - **Time-Based Joins**: Managing joins between time-based datasets using event sourcing and microbatching to ensure timely results while maintaining data consistency.
@@ -36,10 +36,10 @@ Stream processing presents challenges in managing time-based joins, ensuring fau
 ---
 
 ## Mental Models
-- Use Samza when you need low-latency, fault-tolerant stream processing with a focus on real-time analytics.  
+- Use Samza when you need low-latency, fault-tolerant stream processing with a focus on real-time analytics.
   *Advice*: Leverage its advanced topic models for efficient event sourcing and microbatching.
 
-- Apply Kafka for distributed streaming applications where data synchronization is critical but not the primary concern.  
+- Apply Kafka for distributed streaming applications where data synchronization is critical but not the primary concern.
   *Guidance*: Use it when maintaining state across multiple nodes is essential, such as in IoT systems or log aggregation.
 
 ---

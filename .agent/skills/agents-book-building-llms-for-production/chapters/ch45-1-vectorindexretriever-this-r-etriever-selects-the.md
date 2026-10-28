@@ -28,11 +28,11 @@ This chapter focuses on enhancing retrieval systems using vector-based indexing 
 
 ## Code Examples
 ```python
-from llama_index.postprocessor.cohere_rerank import CohereRerank  
-import os  
-os.environ[ 'COHERE_API_KEY' ] = "YOUR_COHERE_API_KEY"  
+from llama_index.postprocessor.cohere_rerank import CohereRerank
+import os
+os.environ[ 'COHERE_API_KEY' ] = "YOUR_COHERE_API_KEY"
 
-cohere_rerank = CohereRerank(api_key=os.environ['COHERE_API_KEY'], top_n=3)  
+cohere_rerank = CohereRerank(api_key=os.environ['COHERE_API_KEY'], top_n=3)
 ```
 - **What it demonstrates**: Integration of CohereRerank with LlamaIndex for enhanced retrieval.
 

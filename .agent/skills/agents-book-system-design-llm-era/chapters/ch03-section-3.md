@@ -23,16 +23,16 @@ The chapter focuses on building AI-native Integrated Development Environments (I
 - **Prompt Engineering**: Crafting effective prompts to extract desired responses from AI systems.
 
 ## Mental Models
-- Use LLMs when developing complex software that requires real-time language understanding and error correction.  
+- Use LLMs when developing complex software that requires real-time language understanding and error correction.
   Example: "LLMs can help developers validate syntax and provide context-aware completions in unfamiliar codebases."
 
 ## Anti-Patterns
 - **Persistent Storage Without Security**: Storing sensitive data without encryption or access controls.
   - Why it Fails: Exposes critical information to potential breaches.
-  
+
 - **Non-Context-Aware IDEs**: Lack awareness of the developer's current context and task.
   - Why it Fails: Provides irrelevant assistance, hindering productivity.
-  
+
 - **Over-engineered APIs**: Complex interfaces that obscure simple operations.
   - Why it Fails: Increases cognitive load and hinders efficient development.
 

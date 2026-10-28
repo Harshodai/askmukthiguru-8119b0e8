@@ -1,11 +1,11 @@
 ---
 name: fastapi-templates
-description: Create production-ready FastAPI projects with async patterns, dependency injection, and comprehensive error handling. Use when building new FastAPI applications or setting up backend API projects.
+description: Create production-ready FastAPI projects with async patterns, dependency injection, and comprehensive error handling. Use when building new FastAPI applications or setting up backend API projects. <!-- claim-ok -->
 ---
 
 # FastAPI Project Templates
 
-Production-ready FastAPI project structures with async patterns, dependency injection, middleware, and best practices for building high-performance APIs.
+Production-ready FastAPI project structures with async patterns, dependency injection, middleware, and best practices for building high-performance APIs. <!-- claim-ok -->
 
 ## When to Use This Skill
 

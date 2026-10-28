@@ -4,10 +4,10 @@
 Monitoring is essential for maintaining reliable distributed systems by providing visibility into system health, performance, and failures.
 
 ## Frameworks Introduced
-- **Seven Key Components of Observability**: 
+- **Seven Key Components of Observability**:
   - When to use: To ensure comprehensive monitoring in distributed systems.
   - How: By integrating logging, tracing, metrics, and alerting across the system.
-  
+
 ## Key Concepts
 - **Prometheus**: A widely used open-source metric collection and alerting service.
 - **Histograms**: Metrics that represent distributions of values over time.

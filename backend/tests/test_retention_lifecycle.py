@@ -43,8 +43,13 @@ def test_telemetry_retention_pruning_success():
         mock_supabase.table.return_value.delete.return_value.lt.return_value.execute.return_value
     ) = mock_delete_result
 
-    with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
-        total_purged = cleanup_telemetry_logs(days_retention=90, dry_run=False)
+    with (
+        patch("supabase.create_client", return_value=mock_supabase),
+        patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase),
+    ):
+        total_purged = cleanup_telemetry_logs(
+            days_retention=90, dry_run=False, client=mock_supabase
+        )
 
     assert total_purged == 15 * len(TELEMETRY_TABLES)
     # Check that each table in TELEMETRY_TABLES was targeted
@@ -62,8 +67,11 @@ def test_telemetry_retention_dry_run_does_not_delete():
         mock_supabase.table.return_value.select.return_value.lt.return_value.execute.return_value
     ) = mock_select_result
 
-    with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
-        total_purged = cleanup_telemetry_logs(days_retention=90, dry_run=True)
+    with (
+        patch("supabase.create_client", return_value=mock_supabase),
+        patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase),
+    ):
+        total_purged = cleanup_telemetry_logs(days_retention=90, dry_run=True, client=mock_supabase)
 
     assert total_purged == 8 * len(TELEMETRY_TABLES)
     # Assert delete() was never invoked on any table
@@ -102,8 +110,13 @@ def test_staging_quality_queue_retention_pruning():
         mock_supabase.table.return_value.delete.return_value.lt.return_value.execute.return_value
     ) = mock_delete_result
 
-    with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
-        purged = cleanup_staging_quality_queue(days_retention=90, dry_run=False)
+    with (
+        patch("supabase.create_client", return_value=mock_supabase),
+        patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase),
+    ):
+        purged = cleanup_staging_quality_queue(
+            days_retention=90, dry_run=False, client=mock_supabase
+        )
 
     assert purged == 27
     mock_supabase.table.assert_called_with("staging_quality_queue")
@@ -119,8 +132,13 @@ def test_staging_quality_queue_dry_run_never_deletes():
         mock_supabase.table.return_value.select.return_value.lt.return_value.execute.return_value
     ) = mock_select_result
 
-    with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
-        purged = cleanup_staging_quality_queue(days_retention=90, dry_run=True)
+    with (
+        patch("supabase.create_client", return_value=mock_supabase),
+        patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase),
+    ):
+        purged = cleanup_staging_quality_queue(
+            days_retention=90, dry_run=True, client=mock_supabase
+        )
 
     assert purged == 12
     mock_supabase.table.assert_called_with("staging_quality_queue")
@@ -136,8 +154,13 @@ def test_corpus_gate_rejections_retention_pruning():
         mock_supabase.table.return_value.delete.return_value.lt.return_value.execute.return_value
     ) = mock_delete_result
 
-    with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
-        purged = cleanup_corpus_gate_rejections(days_retention=90, dry_run=False)
+    with (
+        patch("supabase.create_client", return_value=mock_supabase),
+        patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase),
+    ):
+        purged = cleanup_corpus_gate_rejections(
+            days_retention=90, dry_run=False, client=mock_supabase
+        )
 
     assert purged == 45
     mock_supabase.table.assert_called_with("corpus_gate_rejections")
@@ -153,8 +176,13 @@ def test_corpus_gate_rejections_dry_run_never_deletes():
         mock_supabase.table.return_value.select.return_value.lt.return_value.execute.return_value
     ) = mock_select_result
 
-    with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
-        purged = cleanup_corpus_gate_rejections(days_retention=90, dry_run=True)
+    with (
+        patch("supabase.create_client", return_value=mock_supabase),
+        patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase),
+    ):
+        purged = cleanup_corpus_gate_rejections(
+            days_retention=90, dry_run=True, client=mock_supabase
+        )
 
     assert purged == 19
     mock_supabase.table.assert_called_with("corpus_gate_rejections")

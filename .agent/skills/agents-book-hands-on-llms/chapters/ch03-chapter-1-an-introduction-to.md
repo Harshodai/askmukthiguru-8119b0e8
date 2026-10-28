@@ -4,10 +4,10 @@
 Large Language Models are powerful tools for natural language processing tasks like classification, clustering, summarization, retrieval, and generation, but their application requires careful consideration of their complexity and limitations.
 
 ## Frameworks Introduced
-- **BER T**: An encoder-only model pre trained on masked language modeling.  
+- **BER T**: An encoder-only model pre trained on masked language modeling.
   - When to use: For tasks requiring contextual understanding without generating text.
   - How: Uses self-attention followed by feedforward neural networks in stacked encoder blocks.
-- **GPT (Generative Pre-trained Transformer)**: A decoder-only model pre trained on extensive text data.  
+- **GPT (Generative Pre-trained Transformer)**: A decoder-only model pre trained on extensive text data.
   - When to use: For generative tasks like text completion or classification through prompt engineering.
   - How: Employs masked language modeling for autoregressive sequence generation.
 
@@ -46,5 +46,5 @@ What it demonstrates: Using an LLM to generate a coherent continuation based on 
 3. Choose appropriate architectures based on task requirements.
 
 ## Connects To
-- Chapter 4: The History of Language AI  
+- Chapter 4: The History of Language AI
 - Chapter 5: The Future of Language AI

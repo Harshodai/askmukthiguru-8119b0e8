@@ -7,7 +7,7 @@ MCP (Model Context Protocol) enables external data sources to be exposed as tool
 - **MCP**: A protocol for exposing external data sources as tools in AI applications.
   - When to use: Integrating external data sources or APIs into agents.
   - How: Exposing features through MCP tools that can be called like native functionalities.
-  
+
 ### Key Concepts
 - **MCP Server**: A service that exposes one or more MCP tools for agent access.
 - **FastMCP 2**: An open-source implementation of the MCP protocol, supporting both local and remote server setups.
@@ -30,7 +30,7 @@ base_url = "http://data.blotter.com/surface/queries/v1/search"
 class AccuWeatherMCPServer:
     def __init__(self):
         self.url = f"{base_url}/locations/v1/search?api_key={ACCUWEATHER_API_KEY}"
-    
+
     async def get_weather_conditions(self, location: str) -> Dict:
         params = {"key": os.getenv("ACCUWEATHER_API_KEY")}
         async with Client("http://localhost:8020") as session:

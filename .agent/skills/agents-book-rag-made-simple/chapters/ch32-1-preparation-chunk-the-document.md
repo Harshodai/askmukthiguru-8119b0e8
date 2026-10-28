@@ -7,7 +7,7 @@ The chapter introduces a fusion retrieval pipeline that combines vector search (
 - **Vector Search**: Built using embeddings, designed for semantic understanding.
   - When to use: For natural language questions requiring meaning-based retrieval.
   - How: Embed each chunk, store in a vector store, and retrieve top-K chunks based on similarity scores.
-  
+
 - **BM25 Search**: Built using term statistics, optimized for keyword matching.
   - When to use: For queries needing exact term matches (e.g., product codes).
   - How: Tokenize each chunk, build term frequency-inverse document frequency (TF-IDF) vectors, and retrieve top-K chunks based on keyword match scores.
@@ -19,7 +19,7 @@ The chapter introduces a fusion retrieval pipeline that combines vector search (
 - **Score Normalization**: Scales similarity and keyword match scores (e.g., min-max normalization) to a common 0-1 range.
 
 ## Mental Models
-- Use vector search when the query is a natural language question requiring semantic understanding.  
+- Use vector search when the query is a natural language question requiring semantic understanding.
 - Think of BM25 as a tool for finding exact term matches in technical or factual queries.
 
 ## Anti-patterns

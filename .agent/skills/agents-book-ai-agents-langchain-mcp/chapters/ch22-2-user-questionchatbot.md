@@ -4,7 +4,7 @@
 The chapter demonstrates how to build Q&A chatbots using LangChain, integrating it with LangSmith for debugging and tracing. It emphasizes building conversational agents that combine vector stores, embedding models, and LLMs while maintaining context through memory.
 
 ## Frameworks Introduced
-- **LangChain**: A framework that abstracts Retrieval-Augmented Generation (RAG) components, enabling the use of different vector stores, embeddings, and LLMs with minimal code changes.  
+- **LangChain**: A framework that abstracts Retrieval-Augmented Generation (RAG) components, enabling the use of different vector stores, embeddings, and LLMs with minimal code changes.
   - When to use: When developing conversational agents or chatbots.
   - How: Provides a unified interface for chaining together document retrieval, embedding, and generation.
 
@@ -14,11 +14,11 @@ The chapter demonstrates how to build Q&A chatbots using LangChain, integrating 
 - **LangSmith**: A tool for debugging LLM applications, offering detailed trace analysis and execution visualization.
 
 ## Mental Models
-- **Vector store**: Stores high-dimensional vectors for semantic search.  
+- **Vector store**: Stores high-dimensional vectors for semantic search.
   - Example: Pinecone vs ChromaDB—use Pinecone for dense text data or ChromaDB for tabular data.
-- **Retriever**: Fetches relevant documents based on user queries.  
+- **Retriever**: Fetches relevant documents based on user queries.
   - Example: RecursiveCharacterTextSplitter with overlap=0.25 ensures context preservation.
-- **Embedding model**: Converts text into vectors for similarity matching.  
+- **Embedding model**: Converts text into vectors for similarity matching.
   - Example: OpenAI vs Cohere—choose based on required precision and computational efficiency.
 
 ## Anti-patterns

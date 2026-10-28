@@ -1,4 +1,4 @@
-# Chapter 9: Chapter 6 
+# Chapter 9: Chapter 6
 
 ## Core Idea
 Foundation models present unique challenges in evaluation due to their size and computational requirements, while also requiring careful consideration of subjective tasks that demand human judgment.
@@ -25,10 +25,10 @@ def calculate_perplexity(probabilities):
     """Calculate perplexity given a list of log probabilities."""
     if not probabilities:
         return 1.0
-    
+
     cross_entropy = -sum(probabilities)
     n = len(probabilities)
-    
+
     # For base 2: 2^(cross_entropy / n)
     p = 2 ** (cross_entropy / n) if n != 0 else 1.0
     return p

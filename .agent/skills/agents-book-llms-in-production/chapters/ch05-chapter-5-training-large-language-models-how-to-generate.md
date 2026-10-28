@@ -42,7 +42,7 @@ lora_config = LoraConfig(
 )
 
 model = AutoModelForCausalLMInference.from_pretrained(
-    model_name, 
+    model_name,
     config=config,
     device_map="auto",
     torch_dtype=torch.float16,

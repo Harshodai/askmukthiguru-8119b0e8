@@ -24,7 +24,7 @@ This chapter teaches how AI agents can be designed to operate autonomously by se
 - **Success Metrics**: Criteria for determining if a goal has been met.
 
 ## Mental Models
-- Use Goal Setting when you need an agent to have direction and self-assessment mechanisms.  
+- Use Goal Setting when you need an agent to have direction and self-assessment mechanisms.
 Think of Goal Setting as the foundation for Established Behavior Chains with additional monitoring capabilities.
 
 ## Anti-patterns

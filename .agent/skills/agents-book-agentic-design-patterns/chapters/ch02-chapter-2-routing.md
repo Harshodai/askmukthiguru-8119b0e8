@@ -13,7 +13,7 @@ The Routing pattern enables agentic systems to dynamically select appropriate ac
   - How: Agents are defined with tools (functions) and sub-agents, with routing handled automatically by the framework.
 
 ## Key Concepts
-- **LLM-based Routing**: Utilizes large language models to analyze input and output a specific identifier or instruction that directs task selection or distribution. 
+- **LLM-based Routing**: Utilizes large language models to analyze input and output a specific identifier or instruction that directs task selection or distribution.
 - **Embedding-based Routing**: Employs vector embeddings of inputs to find similar patterns in an operational database for semantic routing.
 - **Rule-based Routing**: Uses predefined rules (e.g., if-else statements) based on keywords or structured data extracted from input.
 - **Machine Learning Model-Based Routing**: Employs discriminative models trained on a corpus of labeled data to perform supervised classification.
@@ -43,9 +43,9 @@ branches = {
 
 # Define the router chain and delegation branch
 coordinator_router_prompt = ChatPromptTemplate.from_messages([
-    ("system", """Analyze the user's request and determine which specialist handler should process it. 
-                - If the request is related to booking flights or hotels, output 'booker'. 
-                - For all other general information questions, output 'info'. 
+    ("system", """Analyze the user's request and determine which specialist handler should process it.
+                - If the request is related to booking flights or hotels, output 'booker'.
+                - For all other general information questions, output 'info'.
                 - If the request is unclear or doesn't fit either category, output 'unclear'."""),
     ("user", "{request}")
 ])

@@ -4,7 +4,7 @@
 Hypothetical Document Embedding (HyDE) enhances search accuracy by generating a structured, plausible answer to a query before embedding it for retrieval. This approach bridges the gap between question and document embeddings, improving search effectiveness.
 
 ## Frameworks Introduced
-- **Hypothetical Document Embedding (HyDE)**: 
+- **Hypothetical Document Embedding (HyDE)**:
   - When to use: When searching with questions that lack sufficient document matches.
   - How: Generate a hypothetical answer similar in length and style to documents before embedding for retrieval.
 

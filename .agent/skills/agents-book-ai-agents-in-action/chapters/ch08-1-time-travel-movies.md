@@ -4,7 +4,7 @@
 The chapter introduces **Semantic Kernel (SK)**, a powerful framework for organizing and executing actions in intelligent agents. SK allows developers to define semantic functions (prompt templates) and native functions (code-based tasks), which can be registered as plugins. This approach simplifies task management, enhances organization, and integrates seamlessly with LLMs.
 
 ## Frameworks Introduced
-- **Semantic Kernel (SK)**: 
+- **Semantic Kernel (SK)**:
   - When to use: Organizing multiple skills or actions in an agent.
   - How: SK provides a unified interface for defining, registering, and executing functions as plugins or native tasks.
 

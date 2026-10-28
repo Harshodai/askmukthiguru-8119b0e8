@@ -4,14 +4,14 @@
 LangGraph enhances complex AI workflows by enabling stateful, multi-step processes with conditional branching and dynamic control, surpassing the limitations of linear LangChain chains.
 
 ## Frameworks Introduced
-- **LangGraph**: A framework for building stateful, multi-step AI applications using a graph-based structure.  
+- **LangGraph**: A framework for building stateful, multi-step AI applications using a graph-based structure.
   - When to use: For complex tasks requiring dynamic control, state management, or cyclical workflows.
   - How: By defining nodes (functions) and edges (conditional paths), it allows for flexible and adaptive processing.
 
 ## Key Concepts
-- **Typed State**: Data is explicitly typed and managed across the workflow, ensuring clarity and consistency.  
-- **Node Functions**: Modular components that perform specific tasks, such as generating queries or summarizing results.  
-- **Edge Definitions**: Conditional transitions between nodes based on runtime evaluation, enabling dynamic execution paths.  
+- **Typed State**: Data is explicitly typed and managed across the workflow, ensuring clarity and consistency.
+- **Node Functions**: Modular components that perform specific tasks, such as generating queries or summarizing results.
+- **Edge Definitions**: Conditional transitions between nodes based on runtime evaluation, enabling dynamic execution paths.
 - **Entry Points and End Conditions**: Clear start and termination points for workflows, with explicit control over state updates.
 
 ## Mental Models

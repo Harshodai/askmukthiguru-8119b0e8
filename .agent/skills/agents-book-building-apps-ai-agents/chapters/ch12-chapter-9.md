@@ -4,17 +4,17 @@
 The single most important thing this chapter teaches is the importance of rigorous measurement and validation in ensuring agent-based systems meet user expectations and operational efficiency.
 
 ## Frameworks Introduced
-- **Unit Testing**: A systematic approach to evaluating individual components (tools, planning, memory, learning) by isolating them for automated testing.  
+- **Unit Testing**: A systematic approach to evaluating individual components (tools, planning, memory, learning) by isolating them for automated testing.
   - When to use: When building or diagnosing issues with an agentic system.
   - How: Test each component's functionality independently using predefined metrics and evaluation sets.
 
 ## Key Concepts
-- **Tool Metrics**: A set of quantitative measures used to evaluate tool usage, parameter accuracy, and task success rates in agent-based systems.  
+- **Tool Metrics**: A set of quantitative measures used to evaluate tool usage, parameter accuracy, and task success rates in agent-based systems.
 - **Phrase Recall**: The ability of a system to generate relevant and accurate final responses based on user intents.
 - **Parametric Accuracy**: The consistency with which an agent provides correct parameters for executed tasks.
 
 ## Mental Models
-- Use unit testing when you need to ensure component reliability and identify issues early in the development process.  
+- Use unit testing when you need to ensure component reliability and identify issues early in the development process.
   - This helps maintain consistent behavior across different environments and user interactions.
 
 ## Anti-patterns
@@ -25,24 +25,24 @@ The single most important thing this chapter teaches is the importance of rigoro
 def evaluate_single_instance(raw: str, graph) -> Optional[Dict[str, float]]:
     if not raw.strip():
         return None
-    
+
     try:
         ex = json.loads(raw)
         order = ex["order"]
         messages  = [to_lc_message(t) for t in ex["conversation"]]
         expected  = ex["expected"]
         result = graph.invoke({"order": order, "messages" : messages })
-        
+
         pred_tools , pred_calls  = [], []
         for m in result["messages"]:
             if isinstance(m, AIMessage ):
                 for tc in m.additional_kwargs .get("tool_calls" , []):
                     name = tc.get("function" , {}).get("name") or tc.get("name")
-                    args = json.loads(tc["function" ]["arguments" ]) 
+                    args = json.loads(tc["function" ]["arguments" ])
                         if "function"  in tc else tc.get("args", {})
                     pred_tools .append(name)
                     pred_calls .append({"tool": name, "params" : args})
-        
+
         tm = tool_metrics (pred_tools , expected .get("tool_calls" , []))
         return {
             "phrase_recall" : phrase_recall (final_reply , expected .get("customer_msg_contains" , [])),

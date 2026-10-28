@@ -4,7 +4,7 @@
 This chapter teaches you how databases store and retrieve data efficiently by understanding different storage mechanisms, their trade-offs, and when to use each approach.
 
 ## Frameworks Introduced
-- **B-tree based indexes**: 
+- **B-tree based indexes**:
   - When to use: Relational databases with range queries and moderate write volumes.
   - How: Build a balanced tree structure for fast lookups, splits, and merges. Ideal for sequential scans but less efficient for heavy writes or complex queries.
 
@@ -45,17 +45,17 @@ def build_b_tree(keys: List[T], values: List[V]) -> IndexNode:
         node.key = key
         node.value = value
         nodes.append(node)
-    
+
     def split_child(node: IndexNode) -> Tuple[IndexNode, IndexNode]:
         if node.size == 1:
             return (node, None)
-        
+
         mid = (node.left + node.right) // 2
         child = next(n for n in reversed(nodes) if n.left <= mid and n.right >= mid)
         new_child = IndexNode(child.left, child.right, size=child.size - 1)
         new_child.children.append(child)
         return (child, new_child)
-    
+
     root = nodes[0]
     for node in nodes[1:]:
         left, right = split_child(node)
@@ -67,7 +67,7 @@ def build_b_tree(keys: List[T], values: List[V]) -> IndexNode:
             right.children.append(right)
         else:
             right = None
-    
+
     return root
 ```
 

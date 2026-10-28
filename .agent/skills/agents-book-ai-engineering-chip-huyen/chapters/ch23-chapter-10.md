@@ -7,7 +7,7 @@ This chapter teaches the importance of building AI applications incrementally by
 - **Simple Architecture**: Starts with basic models handling queries directly.
   - When to use: Initial phase of development for minimal complexity.
   - How: Implement retrieval mechanisms like text or document context.
-  
+
 - **Guardrail Architecture**: Adds input and output protection.
   - When to use: To mitigate risks like information leaks and factual errors.
   - How: Implement scorers, intent classifiers, and fallback policies.

@@ -32,10 +32,10 @@ Multimodal large language models (LLMs) enable machines to process and reason wi
 def image_to_tokens(image):
     # Convert image to patches
     patches = view_as_blocks(image, (16, 16))
-    
+
     # Flatten patches into tokens
     tokens = patches.view(-1, 16 * 16)
-    
+
     return linear_embedding(tokens)  # Project tokens into embedding space
 
 # Example CLIP Training Step
@@ -44,14 +44,14 @@ def train_clip(model, optimizer, criterion, text_loader, image_loader):
     model.train()
     for text, images in zip(text_loader, image_loader):
         optimizer.zero_grad()
-        
+
         # Encode text and images
         text_embeddings = model.encode_text(text)
         image_embeddings = model.encode_image(images)
-        
+
         # Calculate similarity between pairs
         similarities = cosine_similarity(text_embeddings, image_embeddings)
-        
+
         # Compute loss and backpropagate
         loss = criterion(similarities)
         loss.backward()

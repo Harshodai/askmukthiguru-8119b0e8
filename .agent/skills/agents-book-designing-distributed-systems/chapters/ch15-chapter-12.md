@@ -31,11 +31,11 @@ def shard_work_queue(work_queue: Queue):
     """
     num_shards = 4  # Number of shards to split the queue into
     workers = [Queue() for _ in range(num_shards)]
-    
+
     def shard_task(task):
         shard_index = hash(task) % num_shards
         workers[shard_index].put(task)
-    
+
     work_queue.put(lambda task: shard_task(task))
 ```
 

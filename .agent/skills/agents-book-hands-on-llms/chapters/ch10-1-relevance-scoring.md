@@ -7,7 +7,7 @@ The chapter explains how Transformers generate text one token at a time through 
 - **Original Transformer**: Uses multi-head attention with queries, keys, and values matrices. Applied when processing sequences in parallel.
   - When to use: For tasks requiring context-aware generation.
   - How: Each head processes input independently before aggregating results.
-  
+
 - **Grouped-Query Attention (GQA)**: Shares keys and values across heads for efficiency while maintaining quality. Used when model size constraints exist.
   - When to use: For large models needing efficient attention computation.
   - How: Groups of heads share key/value matrices, reducing memory usage.
@@ -38,20 +38,20 @@ class GQA(nn.Module):
         super().__init__()
         self.num_heads = num_heads
         self.embed_dim = embed_dim
-        
+
     def forward(self, x):
         B, S, _ = x.size()  # batch size, sequence length, embedding dimension
         head_dim = self.embed_dim // self.num_heads
         keys = x.view(B, S, self.num_heads, -1).transpose(1,2)
         values = x.view(B, S, self.num_heads, -1).transpose(1,2)
         queries = x.view(B, 1, self.num_heads, -1).expand(-1, S, -1, -1)
-        
+
         # Compute attention scores
         scores = torch.matmul(queries, keys.transpose(-1,-2)) \
                 / math.sqrt(self.embed_dim // self.num_heads)
         scores = F.softmax(scores, dim=-1)
         scores = F.dropout(scores, training=self.training)
-        
+
         # Apply attention to values
         out = torch.matmul(scores, values)
         return out.view(B, S, -1)

@@ -42,8 +42,8 @@ from langchain_core.runnables import RunnableLambda, RunnableParallel
 
 search_and_summarization_chain = (
     search_result_urls_chain     | search_result_text_and_summary_chain.map() # parallelize for each url
-    | RunnableLambda(lambda x: 
-        {            'summary': '\n\n'.join([i['summary'] for i in x]), 
+    | RunnableLambda(lambda x:
+        {            'summary': '\n\n'.join([i['summary'] for i in x]),
             'user_question': x[0]['user_question'] if len(x) > 0 else ''        })
     | RESEARCH_REPORT_PROMPT_TEMPLATE | get_llm() | StrOutputParser()
 )

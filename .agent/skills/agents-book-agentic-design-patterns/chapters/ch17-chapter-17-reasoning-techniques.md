@@ -4,17 +4,17 @@
 The chapter emphasizes enhancing AI agents' reasoning capabilities through structured methods like Chain-of-Thought (CoT), Tree-of-Thought (ToT), and ReAct. These techniques enable agents to break down complex problems, reason step-by-step, and dynamically adapt their strategies based on feedback.
 
 ## Frameworks Introduced
-- **Chain-of-Thought (CoT)**: A method where an agent generates a textual thought process before providing a final answer.  
+- **Chain-of-Thought (CoT)**: A method where an agent generates a textual thought process before providing a final answer.
   - When to use: When solving multi-step or complex reasoning tasks requiring explicit decomposition of the problem into actionable steps.
   - How: The agent breaks down the problem, formulates a plan, and synthesizes solutions step-by-step.
 
-- **ReAct**: A framework combining reasoning with action, allowing agents to interact with external tools and adapt dynamically based on feedback.  
+- **ReAct**: A framework combining reasoning with action, allowing agents to interact with external tools and adapt dynamically based on feedback.
   - When to use: When an agent needs to act iteratively or refine its approach based on environmental interactions.
   - How: Agents observe outcomes, receive feedback, and adjust their actions accordingly.
 
 ## Key Concepts
-- **Chain-of-Thought**: A structured problem-solving method using LLMs to break down complex tasks into manageable steps.  
-- **Tree-of-Thought (ToT)**: A multi-level reasoning approach that explores multiple paths to a solution before finalizing it.  
+- **Chain-of-Thought**: A structured problem-solving method using LLMs to break down complex tasks into manageable steps.
+- **Tree-of-Thought (ToT)**: A multi-level reasoning approach that explores multiple paths to a solution before finalizing it.
 - **ReAct**: Integrates reasoning and action, enabling agents to interact with external tools for deeper problem-solving.
 
 ## Mental Models
@@ -23,7 +23,7 @@ The chapter emphasizes enhancing AI agents' reasoning capabilities through struc
 - Leverage ReAct for agents interacting with external tools to gather information and adapt strategies dynamically.
 
 ## Anti-patterns
-- Over-reliance on a single model without sufficient context or resources can lead to inaccurate results.  
+- Over-reliance on a single model without sufficient context or resources can lead to inaccurate results.
   - What to avoid: Neglecting to provide enough context or resources when relying on an LLM for reasoning tasks.
 
 ## Code Examples

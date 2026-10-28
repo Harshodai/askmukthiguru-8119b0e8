@@ -35,24 +35,24 @@ This chapter introduces three query transformation strategies—rewriting, step-
 def improved_query_handling(query):
     # Step 1: Decompose the original query into sub-queries
     sub_queries = decompose_query(query)
-    
+
     # Step 2: Rewriting each sub-query for specificity
     rewritten_sub_queries = [
         rewrite_query(sub_q) for sub_q in sub_queries
     ]
-    
+
     # Step 3: Run vector search independently for each sub-query
     results = []
     for sub_q in rewritten_sub_queries:
         chunked_results = run_vector_search(sub_q)
         results.extend(chunked_results)
-        
+
     # Step 4: Deduplicate overlapping results
     unique_results = deduplicate(results)
-    
+
     # Step 5: Generate comprehensive answers using the generation model
     answer = generate_answer(query, unique_results)
-    
+
     return answer
 ```
 

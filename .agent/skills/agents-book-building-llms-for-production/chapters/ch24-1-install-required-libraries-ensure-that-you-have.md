@@ -4,8 +4,8 @@
 This chapter teaches how to build a news articles summarizer using Python libraries such as LangChain, requests, newspaper3k, and GPT-4. The approach involves scraping news articles, preprocessing text for language models, generating summaries in different formats (bullet points), and translating the output into other languages.
 
 ## Frameworks Introduced
-- **Summarizer Pipeline**:  
-  - When to use: For creating concise, structured summaries of news articles.  
+- **Summarizer Pipeline**:
+  - When to use: For creating concise, structured summaries of news articles.
   - How: Leverage LangChain, GPT-4, and template-based prompting to generate human-like text outputs in bullet points or translated formats.
 
 ## Key Concepts
@@ -16,11 +16,11 @@ This chapter teaches how to build a news articles summarizer using Python librar
 - **HumanMessage Schema**: A structured data format for user messages in chat-based interactions.
 
 ## Mental Models
-- Use LangChain when you need to integrate AI models with custom workflows or data processing pipelines.  
+- Use LangChain when you need to integrate AI models with custom workflows or data processing pipelines.
   Think of LangChain as a tool that enables modular and scalable AI applications by separating data flow from model interaction.
 
 ## Anti-patterns
-- **Over-reliance on Language-Specific Models**: Avoid using monolingual models for multilingual summarization tasks, as they may produce lower-quality outputs in non-English languages.  
+- **Over-reliance on Language-Specific Models**: Avoid using monolingual models for multilingual summarization tasks, as they may produce lower-quality outputs in non-English languages.
   What it fails: Provides inconsistent or degraded translation quality compared to English-only models.
 
 ## Code Examples
@@ -47,5 +47,5 @@ print(summary.content)
 4. Consider language-specific capabilities when translating summaries into non-English languages.
 
 ## Connects To
-- Relates to other LLM tooling frameworks (like LlamaIndex) for retrieval-augmented generation tasks.  
+- Relates to other LLM tooling frameworks (like LlamaIndex) for retrieval-augmented generation tasks.
 - Connects with vector stores and embeddings concepts for advanced summarization techniques in future chapters.

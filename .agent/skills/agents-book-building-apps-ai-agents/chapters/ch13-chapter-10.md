@@ -7,7 +7,7 @@ Monitoring is essential for maintaining reliable agent systems; it combines infr
 - **OpenTelemetry (OT)**: Collects spans and metrics from distributed applications.
   - When to use: Instrumentation for real-time monitoring of agent workflows.
   - How: Tracks tool calls, plan executions, and outputs for visualization tools.
-  
+
 - **Loki**: A logging framework for structured logs with indexing capabilities.
   - When to use: For detailed trace analysis in agent monitoring.
   - How: Builds hierarchical log structures for efficient querying.

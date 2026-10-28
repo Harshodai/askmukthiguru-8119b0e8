@@ -375,13 +375,13 @@ def route_request(user, prompt):
     # 1. Hard Rate Limit Check (Redis Sliding Window Counter)
     if redis.incr(f"rate:{user.id}") > 50:
         raise HTTPException(status_code=429, detail="Rate limit exceeded.")
-    
+
     # 2. Soft Financial Budget Limit (DB Spend Aggregation)
     daily_spend = db.get_spend(user.id)
     if daily_spend > 10.00:  # $10 daily budget
         # Soft throttle: downgrade model tier rather than breaking availability
         return call_llm(model="llama-3-8b", prompt=prompt)
-        
+
     return call_llm(model="gpt-4o", prompt=prompt)
 ```
 

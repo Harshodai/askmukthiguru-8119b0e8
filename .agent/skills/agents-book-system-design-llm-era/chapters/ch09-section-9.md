@@ -36,7 +36,7 @@ This chapter outlines the development of an AI-powered customer support agent us
 ```python
 from tenacity import retry, stop_after_retries
 
-@retry(max retries=3, wait=exponential, 
+@retry(max retries=3, wait=exponential,
        stop=stop_after_retries(total=5))
 def get_response():
     return {"status": "success", "message": "Hello from the AI!"}

@@ -4,7 +4,7 @@
 This chapter emphasizes the importance of reliability, scalability, and maintainability in building robust data-intensive applications. It provides insights into how to design systems that handle load effectively while maintaining performance and resilience.
 
 ## Frameworks Introduced
-- **Load Characterization**: 
+- **Load Characterization**:
   - When to use: To understand system behavior under varying workloads.
   - How: Analyze query patterns, request rates, and response times to optimize caching and replication strategies.
 

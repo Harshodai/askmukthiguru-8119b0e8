@@ -3,7 +3,7 @@
 Here is an organized glossary based on the provided chapters:
 
 - **AI** — Artificial Intelligence, a branch of computer science focused on creating systems that can perform tasks requiring human intelligence. (Ch12)
-  
+
 - **LLM** — Large Language Model, a type of AI system that understands and generates human language. (Ch1)
 
 - **Tokens** — The basic units in Natural Language Processing (NLP) used to represent words or subwords in models like BERT or GPT. (Ch2)
@@ -13,7 +13,7 @@ Here is an organized glossary based on the provided chapters:
 - **Pre-trained Models** — Models like BERT and GPT that have been trained on large datasets to perform various NLP tasks before being fine-tuned for specific applications. (Ch2)
 
 - **API** — Application Programming Interface, a set of protocols, tools, and definitions used to interact with a software application. (Ch3)
-  
+
 - **Rate Limits** — Restrictions in place to prevent abuse or overuse of an API by limiting the number of requests from a single source. (Ch3)
 
 - **RESTful APIs** — A set of protocols that define how resources can be accessed, updated, and deleted using HTTP methods like GET, POST, PUT, etc. (Ch3)

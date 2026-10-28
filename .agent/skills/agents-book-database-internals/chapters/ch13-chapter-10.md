@@ -4,10 +4,10 @@
 A single leader in a distributed system ensures efficient task coordination, avoids split brain issues, and minimizes communication overhead by centralizing responsibilities.
 
 ## Frameworks Introduced
-- **Bully Algorithm**: 
+- **Bully Algorithm**:
   - When to use: Distributed systems requiring a stable leader due to high latency or unreliable networks.
   - How: Elects the highest-ranked process as the leader; uses hierarchy for notifications.
-  
+
 - **Ring Algorithm**:
   - When to use: Systems with predictable network partitions where a single leader can handle multiple tasks efficiently.
   - How: Processes form a ring, electing a leader by circulating messages around the ring.
