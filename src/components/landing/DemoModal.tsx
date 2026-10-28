@@ -50,6 +50,7 @@ interface DemoModalProps {
 
 const STEPS = [
   {
+    key: 'conversation',
     eyebrow: 'Conversation',
     title: 'Talk through what is on your mind',
     description: 'Ask a question in your own words. AskMukthiGuru offers reflective guidance rooted in the teachings; it does not replace professional care.',
@@ -58,6 +59,7 @@ const STEPS = [
     to: '/chat?source=landing-tour&path=talk-now',
   },
   {
+    key: 'calm',
     eyebrow: 'Calm',
     title: 'Take a short pause when you need one',
     description: 'Serene Mind is a guided, three-minute breathing practice for settling into your next conversation, meeting, or rest.',
@@ -66,6 +68,7 @@ const STEPS = [
     to: '/practices/serene-mind?source=landing-tour&path=three-minute-calm',
   },
   {
+    key: 'practice',
     eyebrow: 'Practice',
     title: 'Return to a wisdom practice over time',
     description: 'Explore practices at your pace. Choose one that fits today, then come back whenever you want a steadier rhythm.',
@@ -108,10 +111,10 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
         <div className="flex items-start justify-between gap-3 pr-1">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ojas-ink">
-              Welcome tour · {stepIndex + 1} of {STEPS.length}
+              {t('landing.demo.welcomeTour', 'Welcome tour · {{current}} of {{total}}', { current: stepIndex + 1, total: STEPS.length })}
             </p>
             <DialogTitle className="mt-2 text-2xl leading-tight sm:text-3xl">
-              {step.title}
+              {t(`landing.demo.step_${step.key}_title`, step.title)}
             </DialogTitle>
           </div>
           <button
@@ -125,11 +128,11 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
         </div>
 
         <DialogDescription className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
-          {step.description}
+          {t(`landing.demo.step_${step.key}_description`, step.description)}
         </DialogDescription>
         {productVideoUrl && (
           <section
-            aria-label="AskMukthiGuru product demo video"
+            aria-label={t('landing.demo.videoSectionAria', 'AskMukthiGuru product demo video')}
             className="mt-5 overflow-hidden rounded-xl border border-ojas/25 bg-black"
           >
             <video
@@ -137,13 +140,13 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
               playsInline
               preload="metadata"
               className="aspect-video w-full"
-              aria-label="AskMukthiGuru product demo"
+              aria-label={t('landing.demo.videoAria', 'AskMukthiGuru product demo')}
             >
               <source src={productVideoUrl} />
-              Your browser does not support the product demo video.
+              {t('landing.demo.videoUnsupported', 'Your browser does not support the product demo video.')}
             </video>
             <p className="bg-background px-4 py-2.5 text-xs leading-relaxed text-muted-foreground">
-              A short product walkthrough. The interactive tour below remains available if you prefer to explore at your own pace.
+              {t('landing.demo.videoCaption', 'A short product walkthrough. The interactive tour below remains available if you prefer to explore at your own pace.')}
             </p>
           </section>
         )}
@@ -154,9 +157,9 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
               <StepIcon className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <p className="font-semibold">{step.eyebrow}</p>
+              <p className="font-semibold">{t(`landing.demo.step_${step.key}_eyebrow`, step.eyebrow)}</p>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Pick this path now or finish the tour first. Your choice stays available from navigation later.
+                {t('landing.demo.pickPathHint', 'Pick this path now or finish the tour first. Your choice stays available from navigation later.')}
               </p>
             </div>
           </div>
@@ -165,12 +168,12 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
             onClick={complete}
             className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-ojas px-4 py-2.5 font-semibold text-primary-foreground transition-colors hover:bg-ojas-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-auto"
           >
-            {step.action}
+            {t(`landing.demo.step_${step.key}_action`, step.action)}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
 
-        <div className="mt-6" aria-label={`Tour progress: step ${stepIndex + 1} of ${STEPS.length}`}>
+        <div className="mt-6" aria-label={t('landing.demo.tourProgressAria', 'Tour progress: step {{current}} of {{total}}', { current: stepIndex + 1, total: STEPS.length })}>
           <div className="flex gap-2" aria-hidden="true">
             {STEPS.map((item, index) => (
               <span
@@ -179,7 +182,7 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
               />
             ))}
           </div>
-          <span className="sr-only">Step {stepIndex + 1} of {STEPS.length}</span>
+          <span className="sr-only">{t('landing.demo.stepOf', 'Step {{current}} of {{total}}', { current: stepIndex + 1, total: STEPS.length })}</span>
         </div>
 
         <div className="mt-5 flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -188,18 +191,18 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
             onClick={dismiss}
             className="min-h-11 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Skip tour
+            {t('landing.demo.skipTour', 'Skip tour')}
           </button>
           <div className="grid grid-cols-2 gap-2 sm:flex">
             <button
               type="button"
               onClick={() => setStepIndex((index) => Math.max(0, index - 1))}
               disabled={stepIndex === 0}
-              aria-label="Back to previous tour step"
+              aria-label={t('landing.demo.backAria', 'Back to previous tour step')}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Back
+              {t('landing.demo.back', 'Back')}
             </button>
             {isLastStep ? (
               <button
@@ -208,16 +211,16 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ojas px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-ojas-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <Check className="h-4 w-4" aria-hidden="true" />
-                Finish tour
+                {t('landing.demo.finishTour', 'Finish tour')}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => setStepIndex((index) => Math.min(STEPS.length - 1, index + 1))}
-                aria-label="Next tour step"
+                aria-label={t('landing.demo.nextAria', 'Next tour step')}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-ojas px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-ojas-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
-                Next
+                {t('landing.demo.next', 'Next')}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
@@ -248,21 +251,21 @@ export const WelcomePrompt = ({ isVisible, onStartTour, onDismiss }: WelcomeProm
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-foreground">{t('landing.demo.newHere', 'New here?')}</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            See three honest ways to begin: a conversation, a short calm, or a wisdom practice.
+            {t('landing.demo.welcomeBody', 'See three honest ways to begin: a conversation, a short calm, or a wisdom practice.')}
           </p>
           <button
             type="button"
             onClick={onStartTour}
             className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-ojas px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-ojas-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            Take a three-step tour
+            {t('landing.demo.takeTour', 'Take a three-step tour')}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="Dismiss welcome prompt"
+          aria-label={t('landing.demo.dismissWelcomeAria', 'Dismiss welcome prompt')}
           className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <X className="h-5 w-5" aria-hidden="true" />

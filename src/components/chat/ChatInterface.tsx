@@ -2296,7 +2296,7 @@ const runSlashCommand = useCallback(
         handleNewConversation();
         break;
       case 'lang':
-        toast({ title: 'Language picker', description: 'Use the globe icon below the input.' });
+        toast({ title: t('chat.languagePicker', 'Language picker'), description: t('chat.languagePickerHint', 'Use the globe icon below the input.') });
         break;
       case 'teach':
         // Prefill the composer so the user can type the concept they want explained.
@@ -2838,11 +2838,11 @@ return (
         </p>
         <SheetFooter className="flex-row gap-2 mt-4 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
           <Button variant="ghost" className="flex-1 min-h-[44px] rounded-xl" onClick={cancelStarterPreview}>
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </Button>
           <Button className="flex-1 min-h-[44px] rounded-xl bg-ojas hover:bg-ojas-light text-primary-foreground" onClick={confirmStarterPreview}>
             <Send className="w-4 h-4 mr-2" />
-            Send
+            {t('common.send', 'Send')}
           </Button>
         </SheetFooter>
       </SheetContent>
