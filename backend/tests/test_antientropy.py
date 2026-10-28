@@ -12,11 +12,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.metrics import CORPUS_ORPHAN_POINTS_TOTAL
 from scripts.ops.reconcile_orphans import diff_point_ids, reconcile_source_orphans
-from scripts.ops.reindex_corpus import orchestrate_reindex, plan_reindex
+from scripts.ops.reindex_corpus import orchestrate_reindex
 
 
 def test_diff_point_ids():

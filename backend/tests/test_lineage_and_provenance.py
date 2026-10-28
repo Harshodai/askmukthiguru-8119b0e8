@@ -2,20 +2,16 @@
 
 from __future__ import annotations
 
-import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.admin import admin_router
 from app.dependencies import get_container
 from app.main import app, get_current_user_from_supabase
-from app.metrics import CORPUS_DRIFT_POINTS_TOTAL
 from ingest.raptor import RaptorIndexer
 from scripts.ops.cross_store_audit import audit_store_drift
 from services.qdrant.indexer import QdrantIndexer
-
 
 # ==============================================================================
 # DE-2.1: RAPTOR Lineage (source_point_ids & parent_summary_id)
@@ -55,7 +51,9 @@ async def test_raptor_summary_carries_source_point_ids_and_sets_parent():
 
     # Force 2 clusters and bypass real LettuceDetect faithfulness check in unit test
     with patch.object(indexer, "_cluster_texts", return_value={0: [0, 1, 2, 3], 1: [4, 5, 6, 7]}):
-        with patch.object(indexer, "_reduce_dimensions", return_value=[[0.1] * 2 for _ in range(8)]):
+        with patch.object(
+            indexer, "_reduce_dimensions", return_value=[[0.1] * 2 for _ in range(8)]
+        ):
             with patch("ingest.quality_gate.gate_summary_faithfulness", return_value=(True, 1.0)):
                 res = await indexer.build_tree(chunks)
 
@@ -114,7 +112,9 @@ async def test_raptor_summary_unfaithful_gated_out_and_logs_source_point_ids():
     ]
 
     with patch.object(indexer, "_cluster_texts", return_value={0: [0, 1, 2, 3]}):
-        with patch.object(indexer, "_reduce_dimensions", return_value=[[0.1] * 2 for _ in range(4)]):
+        with patch.object(
+            indexer, "_reduce_dimensions", return_value=[[0.1] * 2 for _ in range(4)]
+        ):
             with patch("ingest.quality_gate.gate_summary_faithfulness", return_value=(False, 0.2)):
                 with patch("ingest.raptor.logger.warning") as mock_log:
                     res = await indexer.build_tree(chunks)
@@ -127,7 +127,9 @@ async def test_raptor_summary_unfaithful_gated_out_and_logs_source_point_ids():
         if "source_point_ids" in str(args):
             found_log = True
             break
-    assert found_log, f"Expected logger.warning to mention source_point_ids: {mock_log.call_args_list}"
+    assert found_log, (
+        f"Expected logger.warning to mention source_point_ids: {mock_log.call_args_list}"
+    )
 
     # Verify that parent_summary_id was un-set on source chunks
     for c in chunks:

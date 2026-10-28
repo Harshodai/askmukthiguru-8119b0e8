@@ -8,8 +8,8 @@ Task types routed to separate queues:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from celery import Task
@@ -592,7 +592,7 @@ def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> li
     Flips matching jobs to 'failed' with error message 'stale_worker_heartbeat_timeout'.
     Returns list of swept job IDs.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeout_minutes)
+    cutoff = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
     cutoff_iso = cutoff.isoformat()
 
     if client is None:
@@ -621,7 +621,7 @@ def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> li
         )
         stale_jobs = resp.data or []
 
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
         for job in stale_jobs:
             job_id = job.get("id")
             if not job_id:
@@ -642,4 +642,3 @@ def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> li
         logger.warning(f"Error sweeping stale ingest jobs: {e}")
 
     return swept_job_ids
-

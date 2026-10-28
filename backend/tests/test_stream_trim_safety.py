@@ -10,7 +10,6 @@ Verifies:
 
 from __future__ import annotations
 
-import os
 import uuid
 
 import pytest
@@ -21,9 +20,23 @@ from app.queue.redis_stream_queue import RedisStreamQueue, RequestPriority
 from tests.conftest import _resolve_test_redis_url
 
 
+def _redis_available(url: str) -> bool:
+    try:
+        r = redis.Redis.from_url(url, socket_timeout=0.5, socket_connect_timeout=0.5)
+        return bool(r.ping())
+    except Exception:
+        return False
+
+
 @pytest.fixture
 def redis_url() -> str:
     return _resolve_test_redis_url()
+
+
+@pytest.fixture(autouse=True)
+def _check_redis(redis_url: str):
+    if not _redis_available(redis_url):
+        pytest.skip(f"Redis not available at {redis_url}")
 
 
 @pytest.fixture
@@ -56,7 +69,12 @@ async def test_xadd_exact_trim_bounds_stream_length(redis_url: str):
 
     try:
         for i in range(total_items):
-            await r.xadd(stream_key, {"seq": str(i), "payload": f"item_{i}"}, maxlen=maxlen, approximate=False)
+            await r.xadd(
+                stream_key,
+                {"seq": str(i), "payload": f"item_{i}"},
+                maxlen=maxlen,
+                approximate=False,
+            )
 
         length = await r.xlen(stream_key)
         assert length == maxlen, f"Expected exactly {maxlen} items, got {length}"
@@ -88,7 +106,9 @@ async def test_xadd_approximate_trim_bounds_stream_memory(redis_url: str):
 
     try:
         for i in range(total_items):
-            await r.xadd(stream_key, {"seq": str(i), "payload": "x" * 100}, maxlen=maxlen, approximate=True)
+            await r.xadd(
+                stream_key, {"seq": str(i), "payload": "x" * 100}, maxlen=maxlen, approximate=True
+            )
 
         length = await r.xlen(stream_key)
         # Approximate trim evicts whole macro-nodes; length is guaranteed >= maxlen

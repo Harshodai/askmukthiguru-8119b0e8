@@ -204,6 +204,7 @@ def test_golden_eval_fallback_does_not_fabricate_ragas_metrics():
     import tempfile
     from pathlib import Path
     from unittest.mock import patch
+
     from evaluation.run_golden_eval import main, score_golden_eval
 
     items = [
@@ -237,13 +238,23 @@ def test_golden_eval_fallback_does_not_fabricate_ragas_metrics():
         dataset_file.write_text(json.dumps({"items": items}))
         out_file = Path(tmpdir) / "report.json"
 
-        with patch("evaluation.run_golden_eval.call_backend", return_value={"response": answers[0], "citations": []}), \
-             patch("evaluation.run_golden_eval.settings.backend_url", "http://test-backend"):
-            exit_code = main([
-                "--dataset", str(dataset_file),
-                "--out", str(out_file),
-                "--faithfulness-min", "0.88",
-            ])
+        with (
+            patch(
+                "evaluation.run_golden_eval.call_backend",
+                return_value={"response": answers[0], "citations": []},
+            ),
+            patch("evaluation.run_golden_eval.settings.backend_url", "http://test-backend"),
+        ):
+            exit_code = main(
+                [
+                    "--dataset",
+                    str(dataset_file),
+                    "--out",
+                    str(out_file),
+                    "--faithfulness-min",
+                    "0.88",
+                ]
+            )
             assert exit_code == 0
             file_report = json.loads(out_file.read_text())
             assert file_report["faithfulness"] is None
@@ -253,4 +264,3 @@ def test_golden_eval_fallback_does_not_fabricate_ragas_metrics():
             assert file_report["faithfulness_pass"] == "unmeasured"
             assert isinstance(file_report["concept_overlap_score"], float)
             assert isinstance(file_report["concept_overlap_pass"], bool)
-

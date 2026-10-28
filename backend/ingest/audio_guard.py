@@ -83,7 +83,9 @@ def parse_wav_header(path: Path) -> dict[str, Any] | None:
         "actual_pcm_bytes": actual_pcm_bytes,
         "duration_s": duration_s,
         "bytes_per_second": bytes_per_second,
-        "audio_complete": bool(data_offset is not None and actual_pcm_bytes >= data_bytes and actual_pcm_bytes > 0),
+        "audio_complete": bool(
+            data_offset is not None and actual_pcm_bytes >= data_bytes and actual_pcm_bytes > 0
+        ),
     }
 
 

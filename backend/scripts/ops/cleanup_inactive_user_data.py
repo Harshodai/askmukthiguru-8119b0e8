@@ -283,9 +283,7 @@ def cleanup_staging_quality_queue(days_retention: int = 90, dry_run: bool = Fals
                 .execute()
             )
             purged = result.count if hasattr(result, "count") else 0
-        print(
-            f"✓ Staging quality queue: purged {purged} rows older than {days_retention} days."
-        )
+        print(f"✓ Staging quality queue: purged {purged} rows older than {days_retention} days.")
         return purged
     except Exception as e:
         print(f"ERROR: Staging quality queue cleanup failed ({e})")
@@ -315,9 +313,7 @@ def cleanup_corpus_gate_rejections(days_retention: int = 90, dry_run: bool = Fal
                 .execute()
             )
             purged = result.count if hasattr(result, "count") else 0
-        print(
-            f"✓ Corpus gate rejections: purged {purged} rows older than {days_retention} days."
-        )
+        print(f"✓ Corpus gate rejections: purged {purged} rows older than {days_retention} days.")
         return purged
     except Exception as e:
         print(f"ERROR: Corpus gate rejections cleanup failed ({e})")

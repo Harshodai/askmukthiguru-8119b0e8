@@ -70,18 +70,14 @@ def mock_pipeline_env(monkeypatch):
     monkeypatch.setattr("ingest.pipeline.QdrantService", _qdrant_factory)
 
     embedder = MagicMock()
-    embedder.encode_batch = MagicMock(
-        return_value={"dense": [[0.1] * 384], "sparse": [None]}
-    )
+    embedder.encode_batch = MagicMock(return_value={"dense": [[0.1] * 384], "sparse": [None]})
     llm = MagicMock()
     llm.generate = AsyncMock(
         return_value='{"score": 90, "verdict": "PASS", "is_spiritual": true, "coherence": "high", "reasons": ["Coherent"]}'
     )
 
     pipeline = IngestionPipeline(default_qdrant, embedder, llm)
-    pipeline._auditor.run = AsyncMock(
-        return_value=MagicMock(passed=True, score=90, reasons=[])
-    )
+    pipeline._auditor.run = AsyncMock(return_value=MagicMock(passed=True, score=90, reasons=[]))
     pipeline._raptor.build_tree = AsyncMock(return_value=1)
     pipeline._raptor.summarize_parent_chunks = AsyncMock(side_effect=lambda chunks: chunks)
     pipeline._lightrag = None
@@ -145,12 +141,8 @@ def test_backup_existing_source_success():
     assert backup_coll is not None
     assert backup_coll.startswith("spiritual_wisdom_ingest_backup_")
 
-    qdrant.backup_source.assert_called_once_with(
-        "https://example.com/existing-source", backup_coll
-    )
-    qdrant.prune_backups.assert_called_once_with(
-        "spiritual_wisdom_ingest_backup", max_backups=5
-    )
+    qdrant.backup_source.assert_called_once_with("https://example.com/existing-source", backup_coll)
+    qdrant.prune_backups.assert_called_once_with("spiritual_wisdom_ingest_backup", max_backups=5)
 
 
 def test_backup_failure_on_existing_source_raises_safe_ingestion_abort():
@@ -175,9 +167,7 @@ def test_backup_exception_on_existing_source_raises_safe_ingestion_abort():
     pipeline = IngestionPipeline(qdrant, MagicMock(), MagicMock())
 
     with pytest.raises(SafeIngestionAbort) as exc_info:
-        pipeline._backup_before_reindex(
-            "https://example.com/backup-err", qdrant_service=qdrant
-        )
+        pipeline._backup_before_reindex("https://example.com/backup-err", qdrant_service=qdrant)
 
     assert "Pre-reindex backup failed for existing source" in str(exc_info.value)
     assert "scratch_test" in str(exc_info.value)
@@ -207,9 +197,7 @@ def test_rollback_reindex_without_backup_deletes():
     scratch_qdrant = _make_mock_qdrant(collection="scratch_target")
     pipeline = IngestionPipeline(default_qdrant, MagicMock(), MagicMock())
 
-    pipeline._rollback_reindex(
-        "https://example.com/new-item", None, qdrant_service=scratch_qdrant
-    )
+    pipeline._rollback_reindex("https://example.com/new-item", None, qdrant_service=scratch_qdrant)
 
     scratch_qdrant.delete_by_source.assert_called_once_with(
         source_url="https://example.com/new-item"
@@ -237,9 +225,7 @@ def test_snapshots_across_default_vs_scratch_do_not_collide():
     assert def_backup.startswith("spiritual_wisdom_ingest_backup_")
     assert scratch_backup.startswith("scratch_target_ingest_backup_")
 
-    default_qdrant.backup_source.assert_called_once_with(
-        "https://example.com/shared", def_backup
-    )
+    default_qdrant.backup_source.assert_called_once_with("https://example.com/shared", def_backup)
     scratch_qdrant.backup_source.assert_called_once_with(
         "https://example.com/shared", scratch_backup
     )
@@ -432,9 +418,7 @@ async def test_ingest_video_aborts_on_safe_ingestion_abort(mock_pipeline_env, mo
     pipeline._backup_before_reindex = MagicMock(
         side_effect=SafeIngestionAbort("Pre-reindex backup failed for existing source")
     )
-    pipeline._hierarchical_split = MagicMock(
-        return_value=(["chunk one"], [{"is_child": False}])
-    )
+    pipeline._hierarchical_split = MagicMock(return_value=(["chunk one"], [{"is_child": False}]))
 
     monkeypatch.setattr(
         "ingest.pipeline.fetch_transcript_hybrid",
@@ -481,9 +465,7 @@ async def test_ingest_playlist_aborts_per_video_on_safe_ingestion_abort(
     monkeypatch.setattr(
         "ingest.pipeline.fetch_transcripts_concurrent",
         AsyncMock(
-            return_value=[
-                {"text": "Transcript of video one in playlist", "method": "caption"}
-            ]
+            return_value=[{"text": "Transcript of video one in playlist", "method": "caption"}]
         ),
     )
 

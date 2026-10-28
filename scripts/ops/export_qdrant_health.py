@@ -91,15 +91,25 @@ def check_qdrant_health(
     dry_run: bool = False,
 ) -> dict[str, Any]:
     """Inspect Qdrant health telemetry, update Prometheus gauges, and return report."""
-    url = qdrant_url or os.environ.get("QDRANT_URL") or getattr(settings, "qdrant_url", "http://localhost:6333")
+    url = (
+        qdrant_url
+        or os.environ.get("QDRANT_URL")
+        or getattr(settings, "qdrant_url", "http://localhost:6333")
+    )
     if "://qdrant:" in url:
         import socket
+
         try:
             socket.gethostbyname("qdrant")
         except socket.gaierror:
             url = url.replace("://qdrant:", "://localhost:")
 
-    key = api_key or os.environ.get("QDRANT_API_KEY") or getattr(settings, "qdrant_api_key", None) or None
+    key = (
+        api_key
+        or os.environ.get("QDRANT_API_KEY")
+        or getattr(settings, "qdrant_api_key", None)
+        or None
+    )
 
     client = QdrantClient(url=url, api_key=key, timeout=30)
     now = datetime.now(tz=UTC)
@@ -184,7 +194,9 @@ def check_qdrant_health(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Export Qdrant health and optimizer metrics")
     parser.add_argument("--collection", help="Specific collection to inspect (default: all)")
-    parser.add_argument("--dry-run", action="store_true", help="Print report without setting Prometheus gauges")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print report without setting Prometheus gauges"
+    )
     parser.add_argument("--json", action="store_true", help="Output report in JSON format")
     args = parser.parse_args()
 
@@ -196,13 +208,17 @@ def main() -> int:
     else:
         print("=== Qdrant Health & Optimizer Telemetry ===")
         print(f"URL: {report.get('qdrant_url')} | Dry-run: {report.get('dry_run')}")
-        print(f"{'Collection':<36} {'Status':<8} {'Optimizer':<10} {'Points':<8} {'Segments':<9} {'Snap Age (h)':<12}")
+        print(
+            f"{'Collection':<36} {'Status':<8} {'Optimizer':<10} {'Points':<8} {'Segments':<9} {'Snap Age (h)':<12}"
+        )
         print("-" * 88)
         for name, data in report.get("collections", {}).items():
             if "error" in data:
                 print(f"{name:<36} ERROR: {data['error']}")
                 continue
-            snap_str = f"{data['snapshot_age_hours']}h" if data['snapshot_age_hours'] >= 0 else "none"
+            snap_str = (
+                f"{data['snapshot_age_hours']}h" if data["snapshot_age_hours"] >= 0 else "none"
+            )
             print(
                 f"{name:<36} {data['status']:<8} {data['optimizer_status']:<10} "
                 f"{data['points_count']:<8} {data['segments_count']:<9} {snap_str:<12}"

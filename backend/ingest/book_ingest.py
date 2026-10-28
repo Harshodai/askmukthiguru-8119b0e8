@@ -50,7 +50,6 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
     why mixing pooling modes within one collection is a correctness bug, not
     an upgrade.
     """
-    from ingest.boundary_chunker import chunk_with_contextual_headers
 
     seen_hashes: set[str] = set()
     chunks: list[dict] = []
@@ -86,7 +85,9 @@ def flatten_book_structure(structure: list[dict]) -> list[dict]:
                     pass
 
                 # DE-1.2: Deterministic parent_id based on source and parent_index
-                parent_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{BOOK_SOURCE_NAME}:{parent_counter}"))
+                parent_id = str(
+                    uuid.uuid5(uuid.NAMESPACE_URL, f"{BOOK_SOURCE_NAME}:{parent_counter}")
+                )
                 parent_id_scheme = "deterministic_v1"
                 header = f"[Source: {BOOK_SOURCE_NAME} | Chapter: {context_title}]\n"
 

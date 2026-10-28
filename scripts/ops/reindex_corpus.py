@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -39,7 +38,7 @@ if str(_BACKEND) not in sys.path:
 from app.config import settings
 from app.index_fingerprint import build_index_fingerprint
 from services.qdrant.client import QdrantClientManager
-from services.qdrant.indexer import QdrantIndexer, get_chunker_version, get_parent_id_scheme
+from services.qdrant.indexer import get_chunker_version, get_parent_id_scheme
 from services.qdrant_aliases import QdrantAliasManager
 
 logger = logging.getLogger(__name__)
@@ -154,8 +153,8 @@ def validate_collection(
             )
             for r in records:
                 payload = getattr(r, "payload", {}) or {}
-                c_ver = get_chunker_version(payload)
-                p_scheme = get_parent_id_scheme(payload)
+                _c_ver = get_chunker_version(payload)
+                _p_scheme = get_parent_id_scheme(payload)
                 if not payload.get("text"):
                     sample_issues.append(f"Point {r.id} missing text payload")
                     sample_eval_passed = False
@@ -259,7 +258,9 @@ def orchestrate_reindex(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Reindex Qdrant corpus batch job (DE-1.5)")
-    parser.add_argument("--alias", default=getattr(settings, "qdrant_collection", "spiritual_wisdom_contextual"))
+    parser.add_argument(
+        "--alias", default=getattr(settings, "qdrant_collection", "spiritual_wisdom_contextual")
+    )
     parser.add_argument("--target-collection", default=None)
     parser.add_argument("--version", type=int, default=2)
     parser.add_argument("--min-points", type=int, default=0)

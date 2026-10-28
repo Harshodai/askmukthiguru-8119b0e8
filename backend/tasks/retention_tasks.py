@@ -32,12 +32,14 @@ def cleanup_retention_data(days_retention: int = 90) -> dict[str, int]:
 
     try:
         from scripts.ops.cleanup_inactive_user_data import cleanup_staging_quality_queue
+
         staging_purged = cleanup_staging_quality_queue(days_retention=days_retention)
     except Exception as e:
         logger.warning("Staging queue cleanup failed: %s", e)
 
     try:
         from scripts.ops.cleanup_inactive_user_data import cleanup_corpus_gate_rejections
+
         rejections_purged = cleanup_corpus_gate_rejections(days_retention=days_retention)
     except Exception as e:
         logger.warning("Corpus gate rejections cleanup failed: %s", e)

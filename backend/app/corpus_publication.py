@@ -12,7 +12,8 @@ import hashlib
 import re
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional
 
 from app.index_fingerprint import IndexFingerprint, IndexFingerprintError
 
@@ -168,8 +169,8 @@ def write_corpus_publication_manifest(
     target_path = get_publication_manifest_path(clean_id)
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
-    from datetime import datetime, UTC
     import json
+    from datetime import UTC, datetime
 
     manifest_payload: dict[str, Any] = {
         "manifest_version": "v1",
@@ -198,4 +199,3 @@ def verify_publication_manifest_exists(corpus_id: str) -> bool:
             f"Expected at: {manifest_path}"
         )
     return True
-

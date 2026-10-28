@@ -189,9 +189,7 @@ class SourceCatalogService:
                 )
                 data = res.data or []
                 seen = {
-                    row["source_identity"]: dict(row)
-                    for row in data
-                    if "source_identity" in row
+                    row["source_identity"]: dict(row) for row in data if "source_identity" in row
                 }
                 for k, v in self._memory_store.items():
                     if v.get("corpus_id") == corpus_id and k not in seen:
@@ -200,15 +198,9 @@ class SourceCatalogService:
             except Exception as exc:
                 logger.warning("Supabase list_sources failed: %s; using memory store", exc)
 
-        return [
-            dict(s)
-            for s in self._memory_store.values()
-            if s.get("corpus_id") == corpus_id
-        ]
+        return [dict(s) for s in self._memory_store.values() if s.get("corpus_id") == corpus_id]
 
-    def list_stale_sources(
-        self, corpus_id: str, max_age_days: int = 30
-    ) -> list[dict[str, Any]]:
+    def list_stale_sources(self, corpus_id: str, max_age_days: int = 30) -> list[dict[str, Any]]:
         """List sources older than max_age_days for a corpus, ordered oldest first."""
         sources = self.list_sources(corpus_id)
         now = datetime.now(UTC)
@@ -225,9 +217,7 @@ class SourceCatalogService:
         stale.sort(key=lambda x: x["age_days"], reverse=True)
         return stale
 
-    def get_source_stats(
-        self, corpus_id: str, stale_threshold_days: int = 30
-    ) -> dict[str, Any]:
+    def get_source_stats(self, corpus_id: str, stale_threshold_days: int = 30) -> dict[str, Any]:
         """Compute summary statistics for all sources in the given corpus."""
         sources = self.list_sources(corpus_id)
         if not sources:

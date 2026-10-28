@@ -47,17 +47,29 @@ logger = logging.getLogger("audit_lineage_completeness")
 LINEAGE_FIELDS = ("release", "encoder", "chunker", "gate_verdict", "asr_method")
 
 
-def _get_qdrant_client(qdrant_url: Optional[str] = None, api_key: Optional[str] = None) -> tuple[QdrantClient, str]:
+def _get_qdrant_client(
+    qdrant_url: Optional[str] = None, api_key: Optional[str] = None
+) -> tuple[QdrantClient, str]:
     """Build QdrantClient with automatic container/host URL fallback."""
-    url = qdrant_url or os.environ.get("QDRANT_URL") or getattr(settings, "qdrant_url", "http://localhost:6333")
+    url = (
+        qdrant_url
+        or os.environ.get("QDRANT_URL")
+        or getattr(settings, "qdrant_url", "http://localhost:6333")
+    )
     if "://qdrant:" in url:
         import socket
+
         try:
             socket.gethostbyname("qdrant")
         except socket.gaierror:
             url = url.replace("://qdrant:", "://localhost:")
 
-    key = api_key or os.environ.get("QDRANT_API_KEY") or getattr(settings, "qdrant_api_key", None) or None
+    key = (
+        api_key
+        or os.environ.get("QDRANT_API_KEY")
+        or getattr(settings, "qdrant_api_key", None)
+        or None
+    )
     return QdrantClient(url=url, api_key=key, timeout=60), url
 
 
@@ -67,23 +79,37 @@ def check_point_lineage(payload: Optional[dict[str, Any]]) -> dict[str, bool]:
         return {f: False for f in LINEAGE_FIELDS}
 
     # Release check: non-null, non-zero release version or release id
-    rel_ver = payload.get("source_release_version") or payload.get("source_release_id") or payload.get("release_version")
+    rel_ver = (
+        payload.get("source_release_version")
+        or payload.get("source_release_id")
+        or payload.get("release_version")
+    )
     has_release = bool(rel_ver is not None and str(rel_ver).strip() not in {"", "0", "None"})
 
     # Encoder check: embedding model specified
-    enc = payload.get("embedding_model") or payload.get("encoder_model") or payload.get("dense_encoder")
+    enc = (
+        payload.get("embedding_model")
+        or payload.get("encoder_model")
+        or payload.get("dense_encoder")
+    )
     has_encoder = bool(enc is not None and str(enc).strip())
 
     # Chunker check: chunker version recorded and not 'unknown_legacy'
     chk = payload.get("chunker_version")
-    has_chunker = bool(chk is not None and str(chk).strip() and str(chk).strip() != "unknown_legacy")
+    has_chunker = bool(
+        chk is not None and str(chk).strip() and str(chk).strip() != "unknown_legacy"
+    )
 
     # Gate verdict check
     gate = payload.get("gate_verdict") or payload.get("quality_gate_verdict")
     has_gate = bool(gate is not None and str(gate).strip())
 
     # ASR method check
-    asr = payload.get("asr_method") or payload.get("transcription_method") or payload.get("audio_format")
+    asr = (
+        payload.get("asr_method")
+        or payload.get("transcription_method")
+        or payload.get("audio_format")
+    )
     has_asr = bool(asr is not None and str(asr).strip())
 
     return {
@@ -176,9 +202,15 @@ def main() -> int:
         default=getattr(settings, "qdrant_collection", "spiritual_wisdom_contextual"),
         help="Collection to audit (default: spiritual_wisdom_contextual)",
     )
-    parser.add_argument("--limit", type=int, default=None, help="Max points to sample (default: all)")
-    parser.add_argument("--batch-size", type=int, default=500, help="Scroll batch size (default: 500)")
-    parser.add_argument("--dry-run", action="store_true", help="Print audit without setting Prometheus metrics")
+    parser.add_argument(
+        "--limit", type=int, default=None, help="Max points to sample (default: all)"
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=500, help="Scroll batch size (default: 500)"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print audit without setting Prometheus metrics"
+    )
     parser.add_argument("--json", action="store_true", help="Output report in JSON format")
 
     args = parser.parse_args()

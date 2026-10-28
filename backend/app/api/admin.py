@@ -2520,14 +2520,14 @@ async def get_corpus_provenance(
     """
     qdrant_client = getattr(container, "qdrant_client", None)
     if qdrant_client is None and hasattr(container, "qdrant"):
-        qdrant_client = getattr(container.qdrant, "_client", None) or getattr(container.qdrant, "client", None)
+        qdrant_client = getattr(container.qdrant, "_client", None) or getattr(
+            container.qdrant, "client", None
+        )
 
     if qdrant_client is None:
         raise HTTPException(status_code=503, detail="Vector store unavailable")
 
-    collection = getattr(
-        settings, "qdrant_collection", "spiritual_wisdom_contextual"
-    )
+    collection = getattr(settings, "qdrant_collection", "spiritual_wisdom_contextual")
 
     points = None
     if hasattr(qdrant_client, "retrieve"):
@@ -2579,9 +2579,8 @@ async def get_corpus_provenance(
         raise HTTPException(status_code=404, detail=f"Corpus point '{point_id}' not found")
 
     point = points[0]
-    payload = (
-        getattr(point, "payload", {})
-        or (point.get("payload", {}) if isinstance(point, dict) else {})
+    payload = getattr(point, "payload", {}) or (
+        point.get("payload", {}) if isinstance(point, dict) else {}
     )
     stored_id = str(getattr(point, "id", None) or payload.get("point_id") or point_id)
 

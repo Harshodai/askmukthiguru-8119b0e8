@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,15 @@ def filter_by_release(
     """
     from app.config import settings
 
-    mode = str(filter_mode if filter_mode is not None else getattr(settings, "release_filter_mode", "off")).strip().lower()
+    mode = (
+        str(
+            filter_mode
+            if filter_mode is not None
+            else getattr(settings, "release_filter_mode", "off")
+        )
+        .strip()
+        .lower()
+    )
     if mode not in ("shadow", "enforce"):
         return list(documents), 0
 
@@ -173,15 +181,14 @@ def filter_by_release(
                     fallback_version=fallback_version,
                 )
             except Exception as e:
-                logger.warning("Active release version lookup failed for %s: %s", source_identity, e)
+                logger.warning(
+                    "Active release version lookup failed for %s: %s", source_identity, e
+                )
                 active_version_cache[source_identity] = fallback_version
 
         active_ver = active_version_cache[source_identity]
 
-        is_mismatch = (
-            point_version is not None
-            and int(point_version) != int(active_ver)
-        )
+        is_mismatch = point_version is not None and int(point_version) != int(active_ver)
 
         if is_mismatch:
             if mode == "shadow":

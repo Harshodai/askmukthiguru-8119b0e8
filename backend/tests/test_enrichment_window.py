@@ -11,16 +11,14 @@ Pins:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.config import settings
-from app.metrics import ENRICHMENT_WINDOW_EXPANSIONS_TOTAL
 from domain.first_person_context import (
     BoundaryStatus,
     CompletenessStatus,
-    ParentContext,
     ParentUnit,
     ProvenanceKind,
     SourceSpan,
@@ -218,7 +216,9 @@ def test_fp_context_store_enrich_to_parent_window() -> None:
 
     def mock_retrieve(collection_name, ids, *args, **kwargs):
         if ids == [parent_point_id("p1")]:
-            return [_Record(parent_point_id("p1"), {**parent.to_payload(), "record_type": "parent"})]
+            return [
+                _Record(parent_point_id("p1"), {**parent.to_payload(), "record_type": "parent"})
+            ]
         return []
 
     mock_client.retrieve.side_effect = mock_retrieve

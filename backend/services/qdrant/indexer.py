@@ -34,12 +34,15 @@ def _load_rights_register() -> dict[str, bool]:
         return _RIGHTS_REGISTER_CACHE
 
     cleared_map: dict[str, bool] = {}
-    from pathlib import Path
     import json
+    from pathlib import Path
 
     possible_paths = [
         Path("audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json"),
-        Path(__file__).resolve().parents[3] / "audits" / "evidence" / "public_release_phase4_rights_manifest_2026-10-22.json",
+        Path(__file__).resolve().parents[3]
+        / "audits"
+        / "evidence"
+        / "public_release_phase4_rights_manifest_2026-10-22.json",
     ]
     manifest_path = next((p for p in possible_paths if p.is_file()), None)
     if manifest_path:
@@ -48,10 +51,11 @@ def _load_rights_register() -> dict[str, bool]:
             for asset in data.get("assets", []):
                 status = str(asset.get("rights_status") or "")
                 review_status = str(asset.get("owner_review_status") or "")
-                is_cleared = (
-                    status in ("confirmed_channel_owner", "confirmed_video_owner", "cleared")
-                    or review_status.startswith("owner_confirmed")
-                )
+                is_cleared = status in (
+                    "confirmed_channel_owner",
+                    "confirmed_video_owner",
+                    "cleared",
+                ) or review_status.startswith("owner_confirmed")
                 for key_field in ("canonical_source_url", "video_id", "source_asset_id"):
                     val = asset.get(key_field)
                     if val and isinstance(val, str) and val.strip():
@@ -76,6 +80,7 @@ def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None
         candidates.append(video_id.strip().lower())
     if source_url and ("youtube.com" in source_url or "youtu.be" in source_url):
         from ingest.youtube_loader import extract_video_id
+
         extracted_vid = extract_video_id(source_url)
         if extracted_vid:
             candidates.append(extracted_vid)
@@ -102,7 +107,6 @@ def get_parent_id_scheme(payload: Optional[dict]) -> str:
         return "legacy"
     val = payload.get("parent_id_scheme")
     return str(val) if val else "legacy"
-
 
 
 def retry_with_backoff(max_retries=3, initial_delay=1):
@@ -336,7 +340,9 @@ class QdrantIndexer:
             # DE-0.2: Stamp source_release_version (int) and content_checksum (str)
             rel_ver = payload.get("source_release_version")
             if rel_ver is None:
-                rel_ver = payload.get("source_version") or getattr(settings, "corpus_release_fallback_version", 1)
+                rel_ver = payload.get("source_version") or getattr(
+                    settings, "corpus_release_fallback_version", 1
+                )
             try:
                 payload["source_release_version"] = int(rel_ver)
             except (TypeError, ValueError):
@@ -345,6 +351,7 @@ class QdrantIndexer:
             chk = payload.get("content_checksum")
             if not chk or not isinstance(chk, str):
                 import hashlib
+
                 chk = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
             payload["content_checksum"] = str(chk)
 
@@ -442,13 +449,18 @@ class QdrantIndexer:
         )
 
         rows_to_insert = []
-        for idx, artifact, preview in rejected:
+        for idx, artifact, _preview in rejected:
             reason = str(artifact).strip() if artifact else "unknown"
             if "graceful" in reason.lower():
                 reason = "graceful_degradation"
             elif "loop" in reason.lower() or "repetition" in reason.lower():
                 reason = "repetition_loop"
-            elif reason not in ("too_short", "high_html_ratio", "low_spiritual_score", "prompt_injection"):
+            elif reason not in (
+                "too_short",
+                "high_html_ratio",
+                "low_spiritual_score",
+                "prompt_injection",
+            ):
                 reason = "artifact_detected"
 
             try:

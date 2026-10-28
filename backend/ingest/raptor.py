@@ -110,7 +110,9 @@ class RaptorIndexer:
             for s in summaries:
                 if not s.get("faithful", True):
                     for idx in clusters.get(s.get("cluster_id"), []):
-                        if idx < len(chunks) and chunks[idx].get("parent_summary_id") == s.get("point_id"):
+                        if idx < len(chunks) and chunks[idx].get("parent_summary_id") == s.get(
+                            "point_id"
+                        ):
                             chunks[idx].pop("parent_summary_id", None)
         summaries = kept
         if not summaries:
@@ -326,7 +328,11 @@ class RaptorIndexer:
                 for idx, c in zip(indices, cluster_chunks)
             ][:100]
 
-            primary_source_url = source_urls[0] if source_urls else (chunks[0].get("source_url", "") if chunks else "")
+            primary_source_url = (
+                source_urls[0]
+                if source_urls
+                else (chunks[0].get("source_url", "") if chunks else "")
+            )
             summary_point_id = str(
                 uuid.uuid5(uuid.NAMESPACE_URL, f"{primary_source_url}:raptor_1:{cluster_id}")
             )

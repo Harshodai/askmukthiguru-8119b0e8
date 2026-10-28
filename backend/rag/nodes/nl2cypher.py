@@ -26,7 +26,9 @@ warnings.warn(
 
 GRAPH_SCHEMA = ""
 _SYSTEM_PROMPT = ""
-_READ_VERBS = frozenset({"MATCH", "OPTIONAL", "RETURN", "WITH", "SHOW", "CALL", "PROFILE", "EXPLAIN"})
+_READ_VERBS = frozenset(
+    {"MATCH", "OPTIONAL", "RETURN", "WITH", "SHOW", "CALL", "PROFILE", "EXPLAIN"}
+)
 _WRITE_VERBS = frozenset({"CREATE", "MERGE", "DELETE", "SET", "REMOVE", "DROP", "DETACH"})
 
 

@@ -24,9 +24,7 @@ def _fake_driver():
 
 
 def test_returns_empty_when_container_has_no_driver(monkeypatch):
-    monkeypatch.setattr(
-        "app.dependencies.get_container", lambda: _container_with(None)
-    )
+    monkeypatch.setattr("app.dependencies.get_container", lambda: _container_with(None))
     assert expand_query_concepts(QUERY) == []
 
 
@@ -39,9 +37,7 @@ def test_returns_empty_when_container_construction_raises(monkeypatch):
 
 
 def test_returns_empty_when_expansion_raises(monkeypatch):
-    monkeypatch.setattr(
-        "app.dependencies.get_container", lambda: _container_with(_fake_driver())
-    )
+    monkeypatch.setattr("app.dependencies.get_container", lambda: _container_with(_fake_driver()))
 
     async def _boom(query, driver, **kwargs):
         raise RuntimeError("cypher exploded")
@@ -51,9 +47,7 @@ def test_returns_empty_when_expansion_raises(monkeypatch):
 
 
 def test_returns_empty_on_timeout_without_blocking_the_caller(monkeypatch):
-    monkeypatch.setattr(
-        "app.dependencies.get_container", lambda: _container_with(_fake_driver())
-    )
+    monkeypatch.setattr("app.dependencies.get_container", lambda: _container_with(_fake_driver()))
 
     async def _slow(query, driver, **kwargs):
         await asyncio.sleep(5.0)
@@ -76,9 +70,7 @@ def test_empty_and_whitespace_query_never_touch_the_graph(monkeypatch):
 
 
 def test_normalises_output(monkeypatch):
-    monkeypatch.setattr(
-        "app.dependencies.get_container", lambda: _container_with(_fake_driver())
-    )
+    monkeypatch.setattr("app.dependencies.get_container", lambda: _container_with(_fake_driver()))
 
     async def _neighbors(query, driver, **kwargs):
         return [" Anger ", "Karma", "karma", "   ", "Dharma", "Grace", 7, None]
@@ -93,9 +85,7 @@ def test_normalises_output(monkeypatch):
 
 
 def test_passes_max_hops_and_entity_bound_to_the_expansion(monkeypatch):
-    monkeypatch.setattr(
-        "app.dependencies.get_container", lambda: _container_with(_fake_driver())
-    )
+    monkeypatch.setattr("app.dependencies.get_container", lambda: _container_with(_fake_driver()))
     seen: dict[str, object] = {}
 
     async def _capture(query, driver, **kwargs):
@@ -104,9 +94,7 @@ def test_passes_max_hops_and_entity_bound_to_the_expansion(monkeypatch):
         return ["Karma"]
 
     monkeypatch.setattr("rag.kg_expansion.expand_query_via_kg", _capture)
-    assert expand_query_concepts(f"  {QUERY}  ", max_neighbors=3, timeout_s=0.4) == [
-        "Karma"
-    ]
+    assert expand_query_concepts(f"  {QUERY}  ", max_neighbors=3, timeout_s=0.4) == ["Karma"]
     assert seen["query"] == QUERY
     assert seen["max_hops"] == 1
     assert seen["max_entities"] == 3

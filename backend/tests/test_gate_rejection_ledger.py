@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.metrics import (
     CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL,
     INGEST_QUALITY_GATE_REJECTIONS_TOTAL,
@@ -37,10 +35,14 @@ def test_chokepoint_reject_persists_row_and_increments_metric():
 
     # Get starting metric counts
     chokepoint_labels = {"reason": "artifact_detected", "tier": "chokepoint", "layer": "chokepoint"}
-    initial_rejections = INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(**chokepoint_labels)._value.get()
+    initial_rejections = INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(
+        **chokepoint_labels
+    )._value.get()
     initial_persisted = CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL._value.get()
 
-    artifact_chunk = "My task is to extract teachings from this transcript. Spiritual teaching here."
+    artifact_chunk = (
+        "My task is to extract teachings from this transcript. Spiritual teaching here."
+    )
     source_url = "https://example.org/talk-with-artifact"
 
     with patch("app.telemetry_db._get_client", return_value=mock_supabase):

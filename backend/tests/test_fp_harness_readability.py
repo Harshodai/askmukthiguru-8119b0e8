@@ -10,8 +10,6 @@ Pins:
 
 from __future__ import annotations
 
-import pytest
-
 from app.config import settings
 from domain.first_person_context import (
     AnswerRole,

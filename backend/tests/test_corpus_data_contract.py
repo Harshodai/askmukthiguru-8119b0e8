@@ -12,9 +12,8 @@ from __future__ import annotations
 
 import hashlib
 import uuid
+from typing import Any
 from unittest.mock import MagicMock
-
-import pytest
 
 from app.config import settings
 from ingest.book_ingest import BOOK_SOURCE_NAME, flatten_book_structure
@@ -134,7 +133,9 @@ def test_required_payload_indexes_schema_in_qdrant_client():
 
     for name, schema_type in expected_indexes.items():
         assert name in indexes, f"Missing index: {name}"
-        assert indexes[name] == schema_type, f"Mismatched schema for {name}: {indexes[name]} != {schema_type}"
+        assert indexes[name] == schema_type, (
+            f"Mismatched schema for {name}: {indexes[name]} != {schema_type}"
+        )
 
 
 def test_book_ingest_deterministic_parent_ids_and_chunker_version():

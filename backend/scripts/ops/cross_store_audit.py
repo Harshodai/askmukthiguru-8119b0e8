@@ -101,7 +101,9 @@ def audit_store_drift(
             for table_name in ("corpus_records", "corpus_chunks", "documents"):
                 try:
                     res = supabase_client.table(table_name).select("point_id, id").execute()
-                    rows = res.data if hasattr(res, "data") else (res if isinstance(res, list) else [])
+                    rows = (
+                        res.data if hasattr(res, "data") else (res if isinstance(res, list) else [])
+                    )
                     for r in rows:
                         if isinstance(r, dict):
                             pid = r.get("point_id") or r.get("id")
@@ -118,7 +120,9 @@ def audit_store_drift(
         if hasattr(neo4j_driver, "session"):
             try:
                 with neo4j_driver.session() as s:
-                    res = s.run("MATCH (n:base) WHERE n.point_id IS NOT NULL RETURN n.point_id AS id")
+                    res = s.run(
+                        "MATCH (n:base) WHERE n.point_id IS NOT NULL RETURN n.point_id AS id"
+                    )
                     for r in res:
                         gid = r.get("id")
                         if gid:
@@ -161,7 +165,9 @@ def audit_store_drift(
                 remaining_drift = len(supabase_only)
                 store_pair_drift["qdrant_supabase"] = remaining_drift
                 try:
-                    CORPUS_DRIFT_POINTS_TOTAL.labels(store_pair="qdrant_supabase").set(remaining_drift)
+                    CORPUS_DRIFT_POINTS_TOTAL.labels(store_pair="qdrant_supabase").set(
+                        remaining_drift
+                    )
                 except Exception:
                     pass
             except Exception as e:
@@ -377,7 +383,9 @@ class CrossStoreAuditor:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Cross-store audit and anti-entropy drift check (DE-2.3)")
+    parser = argparse.ArgumentParser(
+        description="Cross-store audit and anti-entropy drift check (DE-2.3)"
+    )
     parser.add_argument(
         "--report-only",
         action="store_true",

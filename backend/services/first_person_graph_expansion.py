@@ -48,9 +48,7 @@ def _normalise(neighbors: Any, query: str, max_neighbors: int) -> list[str]:
     return out
 
 
-def _run_bounded(
-    make_awaitable: Callable[[], Awaitable[Any]], timeout_s: float
-) -> list[str]:
+def _run_bounded(make_awaitable: Callable[[], Awaitable[Any]], timeout_s: float) -> list[str]:
     """Run one coroutine on its own loop in a throwaway thread, bounded in time.
 
     A pipeline caller may already own a running loop in this thread, so

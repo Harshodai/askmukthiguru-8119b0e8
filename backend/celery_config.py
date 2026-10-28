@@ -10,6 +10,7 @@ Requires Redis (already in docker-compose.yml) as broker + backend.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 # Apply thread-count caps (OMP/MKL/BLIS/OpenBLAS) before any heavy import.
 # configure_threading() is also called from app/main.py for the uvicorn process;

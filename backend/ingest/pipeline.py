@@ -39,6 +39,7 @@ from ingest.raptor import RaptorIndexer
 _INGESTION_NEO4J_DRIVER = None
 _INGESTION_NEO4J_DRIVER_LOCK = threading.Lock()
 
+from ingest.chunker_protocol import get_chunker
 from ingest.sources.youtube_service import YouTubeIngestionService
 from ingest.youtube_loader import (
     extract_video_id,
@@ -55,7 +56,6 @@ from services.metadata_extractor import extract_video_metadata
 from services.ocr_service import OCRService
 from services.ollama_service import OllamaService
 from services.pii_scanner import redact_pii
-from ingest.chunker_protocol import Chunk, Chunker, get_chunker
 from services.qdrant_service import QdrantService
 from services.text_quality_filter import select_clean
 from services.whisper_local_service import (
@@ -759,7 +759,9 @@ class IngestionPipeline:
                     raise SafeIngestionAbort(
                         f"Corpus publication enforcement enabled: registration failed for {source_url}: {reg_err}"
                     ) from reg_err
-                release_version = self._resolve_active_source_version(source_identity, fallback_version)
+                release_version = self._resolve_active_source_version(
+                    source_identity, fallback_version
+                )
         else:
             release_version = self._resolve_active_source_version(source_identity, fallback_version)
 
@@ -1339,7 +1341,6 @@ class IngestionPipeline:
         does not touch the shared container instance other requests use. For isolated
         testing against a non-default collection without affecting live traffic.
         """
-        import hashlib
 
         qdrant_override = None
         raptor_override = None
@@ -1551,9 +1552,7 @@ class IngestionPipeline:
                     )
         except Exception as e:
             logger.error(f"Downstream ingestion step failed for {source_url}, rolling back: {e}")
-            self._rollback_reindex(
-                source_url, backup_collection, qdrant_service=qdrant_override
-            )
+            self._rollback_reindex(source_url, backup_collection, qdrant_service=qdrant_override)
             return {
                 "status": "error",
                 "message": f"Ingestion rolled back — downstream step failed: {e}",
@@ -2150,8 +2149,12 @@ class IngestionPipeline:
                 # DE-1.1: Unified Chunker Protocol for child chunks (replaces retired proposition chunking)
                 chunker = get_chunker("adaptive", embedding_service=self._embedder)
                 child_chunks_obj = chunker.chunk(parent_chunk, parent_index=parent_counter)
-                child_texts = [c.text for c in child_chunks_obj] if child_chunks_obj else [parent_chunk]
-                chunker_ver = child_chunks_obj[0].chunker_version if child_chunks_obj else "adaptive_v1"
+                child_texts = (
+                    [c.text for c in child_chunks_obj] if child_chunks_obj else [parent_chunk]
+                )
+                chunker_ver = (
+                    child_chunks_obj[0].chunker_version if child_chunks_obj else "adaptive_v1"
+                )
 
                 # Pass the full clean_text so ContextualChunkingService situates each child chunk
                 augmented = await self._augment_chunks(child_texts, full_document=clean_text)
@@ -2591,9 +2594,7 @@ class IngestionPipeline:
                 try:
                     backup_collection = self._backup_before_reindex(video["url"])
                 except SafeIngestionAbort as e:
-                    logger.error(
-                        f"Pre-reindex backup/probe failed for {video['url']}: {e}"
-                    )
+                    logger.error(f"Pre-reindex backup/probe failed for {video['url']}: {e}")
                     errors.append(
                         {
                             "url": video["url"],
@@ -3158,9 +3159,7 @@ class IngestionPipeline:
         try:
             exists = service.check_source_exists(source_url)
         except Exception as e:
-            raise SafeIngestionAbort(
-                f"Source existence probe failed for {source_url}: {e}"
-            ) from e
+            raise SafeIngestionAbort(f"Source existence probe failed for {source_url}: {e}") from e
 
         if not exists:
             return None
@@ -3546,7 +3545,9 @@ class IngestionPipeline:
                 chunks_count=upserted,
             )
         except Exception as pub_err:
-            logger.warning("Failed to write corpus publication manifest for %s: %s", source_url, pub_err)
+            logger.warning(
+                "Failed to write corpus publication manifest for %s: %s", source_url, pub_err
+            )
 
         # Invalidate semantic cache entries similar to newly ingested content
         if self._semantic_cache and self._semantic_cache.is_available:

@@ -17,7 +17,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from app.config import settings
 from app.metrics import RETRIEVAL_FEEDBACK_SUPPRESSIONS_TOTAL
@@ -65,7 +65,9 @@ class RetrievalFeedbackService:
         """
         signal_val = signal.lower().strip()
         if signal_val not in ("positive", "negative"):
-            raise ValueError(f"Invalid feedback signal {signal!r}; must be 'positive' or 'negative'")
+            raise ValueError(
+                f"Invalid feedback signal {signal!r}; must be 'positive' or 'negative'"
+            )
 
         now = created_at or datetime.now(UTC)
         ttl_days = int(getattr(settings, "retrieval_feedback_ttl_days", 30))
@@ -82,11 +84,13 @@ class RetrievalFeedbackService:
         }
 
         # Keep in memory store for immediate local visibility / fallback
-        self._memory_signals.append({
-            **record,
-            "created_at_dt": now,
-            "expires_at_dt": expires_at,
-        })
+        self._memory_signals.append(
+            {
+                **record,
+                "created_at_dt": now,
+                "expires_at_dt": expires_at,
+            }
+        )
 
         if self._supabase and not self._use_fallback:
             try:
@@ -94,7 +98,9 @@ class RetrievalFeedbackService:
             except Exception as exc:
                 logger.warning("Failed to persist retrieval feedback to Supabase: %s", exc)
 
-        logger.debug("Recorded %s feedback for query_hash=%s, source_url=%s", signal_val, q_hash, source_url)
+        logger.debug(
+            "Recorded %s feedback for query_hash=%s, source_url=%s", signal_val, q_hash, source_url
+        )
         return record
 
     def get_suppressed_sources(self, query: str) -> set[str]:
@@ -132,7 +138,10 @@ class RetrievalFeedbackService:
                     if s_url:
                         neg_counts[s_url] = neg_counts.get(s_url, 0) + 1
             except Exception as exc:
-                logger.warning("Error fetching retrieval feedback from Supabase: %s; falling back to memory", exc)
+                logger.warning(
+                    "Error fetching retrieval feedback from Supabase: %s; falling back to memory",
+                    exc,
+                )
                 neg_counts.clear()
 
         # Check memory store if fallback or Supabase empty/failed
@@ -148,13 +157,13 @@ class RetrievalFeedbackService:
                         neg_counts[s_url] = neg_counts.get(s_url, 0) + 1
 
         suppressed = {
-            source_url
-            for source_url, count in neg_counts.items()
-            if count >= min_samples
+            source_url for source_url, count in neg_counts.items() if count >= min_samples
         }
         return suppressed
 
-    def filter_suppressed(self, query: str, documents: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def filter_suppressed(
+        self, query: str, documents: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Filter out documents whose source_url is suppressed for the given query."""
         if not getattr(settings, "retrieval_feedback_enabled", False):
             return documents

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from services.qdrant.indexer import QdrantIndexer, resolve_source_rights_status
 from services.qdrant.utils import QdrantUtils
 

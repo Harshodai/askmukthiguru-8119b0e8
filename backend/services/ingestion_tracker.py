@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import json
 import logging
-import time
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -15,12 +14,12 @@ def _format_timestamp(ts: Any) -> str:
     If ts is None, returns current UTC time in ISO 8601 format.
     """
     if ts is None:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
     if isinstance(ts, (int, float)):
-        return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+        return datetime.fromtimestamp(ts, tz=UTC).isoformat()
     if isinstance(ts, datetime):
         if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
+            ts = ts.replace(tzinfo=UTC)
         return ts.isoformat()
     if isinstance(ts, str):
         return ts
@@ -262,7 +261,9 @@ class SupabaseIngestionTracker(IngestionTracker):
         updated_at: Optional[Any] = None,
     ) -> None:
         try:
-            up = _format_timestamp(updated_at) if updated_at is not None else _format_timestamp(None)
+            up = (
+                _format_timestamp(updated_at) if updated_at is not None else _format_timestamp(None)
+            )
             self._client.table("ingest_jobs").upsert(
                 {
                     "source_url": url,

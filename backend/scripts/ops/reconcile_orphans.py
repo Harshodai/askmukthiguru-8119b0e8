@@ -15,10 +15,10 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 _HERE = Path(__file__).resolve()
 if (_HERE.parents[2] / "backend").is_dir():
@@ -106,7 +106,9 @@ def reconcile_source_orphans(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Reconcile orphan Qdrant points (DE-1.4)")
     parser.add_argument("--source-url", required=True, help="Canonical source URL or identifier")
-    parser.add_argument("--expected-ids-file", help="Path to JSON file containing list of expected point IDs")
+    parser.add_argument(
+        "--expected-ids-file", help="Path to JSON file containing list of expected point IDs"
+    )
     parser.add_argument("--collection", default=None, help="Target Qdrant collection name")
     parser.add_argument("--dry-run", action="store_true", help="Report orphans without deleting")
     args = parser.parse_args()

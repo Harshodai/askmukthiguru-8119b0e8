@@ -29,7 +29,7 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -86,7 +86,13 @@ def classify_question(item: dict[str, Any]) -> str:
     query = (item.get("query") or item.get("question") or "").strip()
 
     # 1. Indic language check
-    if category in ("multilingual", "indic_language", "indic") or item.get("language") in ("hi", "te", "ta", "kn", "mr"):
+    if category in ("multilingual", "indic_language", "indic") or item.get("language") in (
+        "hi",
+        "te",
+        "ta",
+        "kn",
+        "mr",
+    ):
         return "indic_language"
     if re.search(r"[\u0900-\u0D7F]", query):
         return "indic_language"
@@ -94,17 +100,25 @@ def classify_question(item: dict[str, Any]) -> str:
     # 2. Distress adjacent
     if intent in ("CRISIS", "DISTRESS") or category in ("distress", "crisis"):
         return "distress_adjacent"
-    if any(w in query.lower() for w in ("suicid", "kill myself", "end my life", "hopeless", "depressed", "bipolar")):
+    if any(
+        w in query.lower()
+        for w in ("suicid", "kill myself", "end my life", "hopeless", "depressed", "bipolar")
+    ):
         return "distress_adjacent"
 
     # 3. Comparative
     if category in ("comparative", "comparison") or any(
-        w in query.lower() for w in (" vs ", "versus", "difference between", "compare", "distinction between")
+        w in query.lower()
+        for w in (" vs ", "versus", "difference between", "compare", "distinction between")
     ):
         return "comparative"
 
     # 4. Multi-hop
-    if category in ("multi_hop", "multihop", "relational") or item.get("is_multi_hop") or "relational" in category:
+    if (
+        category in ("multi_hop", "multihop", "relational")
+        or item.get("is_multi_hop")
+        or "relational" in category
+    ):
         return "multi_hop"
 
     # 5. FAQ
@@ -143,7 +157,11 @@ def evaluate_retrieval_hits(
             if citations and idx < len(citations):
                 cit = citations[idx]
                 cit_source = str(
-                    cit.get("source_id") or cit.get("video_id") or cit.get("source_url") or cit.get("url") or ""
+                    cit.get("source_id")
+                    or cit.get("video_id")
+                    or cit.get("source_url")
+                    or cit.get("url")
+                    or ""
                 ).lower()
                 if any(cs in cit_source for cs in correct_sources):
                     is_hit = True
@@ -192,7 +210,7 @@ def generate_release_artifact(
     Includes retrieval metrics, per-class breakdown, faithfulness, relevancy,
     citation correctness, and abstention stats.
     """
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     artifact = {
         "timestamp": timestamp,
         "release_verdict": (
@@ -216,7 +234,9 @@ def generate_release_artifact(
         ),
         "per_class_breakdown": report.get("per_class_breakdown", {}),
         "faithfulness": report.get("faithfulness"),
-        "relevancy": report.get("answer_relevancy") if report.get("relevancy") is None else report.get("relevancy"),
+        "relevancy": report.get("answer_relevancy")
+        if report.get("relevancy") is None
+        else report.get("relevancy"),
         "answer_relevancy": report.get("answer_relevancy"),
         "citation_correctness": report.get(
             "citation_correctness",
@@ -322,14 +342,10 @@ def score_golden_eval(
 
     if scoring_method == "ragas":
         faithfulness_pass: bool | str = (
-            faithfulness_score >= faithfulness_min
-            if faithfulness_score is not None
-            else False
+            faithfulness_score >= faithfulness_min if faithfulness_score is not None else False
         )
         relevancy_pass: bool | str = (
-            relevancy_score >= relevancy_min
-            if relevancy_score is not None
-            else False
+            relevancy_score >= relevancy_min if relevancy_score is not None else False
         )
         context_precision_pass: bool | str = (
             context_precision_score >= context_precision_min
@@ -343,10 +359,7 @@ def score_golden_eval(
         )
         concept_overlap_pass: bool | None = None
         judge_metrics_pass = (
-            faithfulness_pass
-            and relevancy_pass
-            and context_precision_pass
-            and context_recall_pass
+            faithfulness_pass and relevancy_pass and context_precision_pass and context_recall_pass
         )
     else:
         faithfulness_pass = "unmeasured"
@@ -442,11 +455,13 @@ def score_golden_eval(
 
     # Abstention stats
     expected_refusals = [
-        idx for idx, it in enumerate(items)
+        idx
+        for idx, it in enumerate(items)
         if it.get("expected_intent") == "REFUSE" or it.get("answerable") is False
     ]
     answerable_items = [
-        idx for idx, it in enumerate(items)
+        idx
+        for idx, it in enumerate(items)
         if it.get("expected_intent") != "REFUSE" and it.get("answerable") is not False
     ]
 
@@ -621,7 +636,7 @@ def main(cli_args: list[str] | None = None) -> int:
 
     if args.release_artifact is not None:
         if args.release_artifact == "default":
-            date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            date_str = datetime.now(UTC).strftime("%Y-%m-%d")
             artifact_path = Path("evals/reports") / f"{date_str}-corpus-release-eval.json"
         else:
             artifact_path = Path(args.release_artifact)
@@ -631,11 +646,7 @@ def main(cli_args: list[str] | None = None) -> int:
     judge_metrics_pass = report["judge_metrics_pass"]
     diversity_pass = report["diversity_pass"]
 
-    if not (
-        judge_metrics_pass
-        and diversity_pass
-        and failed == 0
-    ):
+    if not (judge_metrics_pass and diversity_pass and failed == 0):
         return 1
     return 0
 

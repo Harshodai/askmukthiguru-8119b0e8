@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from app.config import settings
 from scripts.ops.cleanup_inactive_user_data import (
     TELEMETRY_TABLES,
     cleanup_corpus_gate_rejections,
@@ -26,6 +27,8 @@ from tasks.retention_tasks import cleanup_retention_data
 
 @pytest.fixture(autouse=True)
 def _mock_env(monkeypatch):
+    monkeypatch.setattr(settings, "supabase_url", "http://localhost:54321")
+    monkeypatch.setattr(settings, "supabase_key", "test-key-mock")
     monkeypatch.setenv("SUPABASE_URL", "http://localhost:54321")
     monkeypatch.setenv("SUPABASE_KEY", "test-key-mock")
 
@@ -37,10 +40,7 @@ def test_telemetry_retention_pruning_success():
 
     # Setup delete execution chain
     (
-        mock_supabase.table.return_value
-        .delete.return_value
-        .lt.return_value
-        .execute.return_value
+        mock_supabase.table.return_value.delete.return_value.lt.return_value.execute.return_value
     ) = mock_delete_result
 
     with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
@@ -59,10 +59,7 @@ def test_telemetry_retention_dry_run_does_not_delete():
     mock_select_result = SimpleNamespace(count=8, data=[{"id": 1}])
 
     (
-        mock_supabase.table.return_value
-        .select.return_value
-        .lt.return_value
-        .execute.return_value
+        mock_supabase.table.return_value.select.return_value.lt.return_value.execute.return_value
     ) = mock_select_result
 
     with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
@@ -102,10 +99,7 @@ def test_staging_quality_queue_retention_pruning():
     mock_delete_result = SimpleNamespace(count=27)
 
     (
-        mock_supabase.table.return_value
-        .delete.return_value
-        .lt.return_value
-        .execute.return_value
+        mock_supabase.table.return_value.delete.return_value.lt.return_value.execute.return_value
     ) = mock_delete_result
 
     with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
@@ -122,10 +116,7 @@ def test_staging_quality_queue_dry_run_never_deletes():
     mock_select_result = SimpleNamespace(count=12, data=[])
 
     (
-        mock_supabase.table.return_value
-        .select.return_value
-        .lt.return_value
-        .execute.return_value
+        mock_supabase.table.return_value.select.return_value.lt.return_value.execute.return_value
     ) = mock_select_result
 
     with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
@@ -142,10 +133,7 @@ def test_corpus_gate_rejections_retention_pruning():
     mock_delete_result = SimpleNamespace(count=45)
 
     (
-        mock_supabase.table.return_value
-        .delete.return_value
-        .lt.return_value
-        .execute.return_value
+        mock_supabase.table.return_value.delete.return_value.lt.return_value.execute.return_value
     ) = mock_delete_result
 
     with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):
@@ -162,10 +150,7 @@ def test_corpus_gate_rejections_dry_run_never_deletes():
     mock_select_result = SimpleNamespace(count=19, data=[])
 
     (
-        mock_supabase.table.return_value
-        .select.return_value
-        .lt.return_value
-        .execute.return_value
+        mock_supabase.table.return_value.select.return_value.lt.return_value.execute.return_value
     ) = mock_select_result
 
     with patch("scripts.ops.cleanup_inactive_user_data.create_client", return_value=mock_supabase):

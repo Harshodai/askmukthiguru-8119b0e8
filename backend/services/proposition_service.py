@@ -10,7 +10,6 @@ harnesses and existing tests.
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import Any
 
 from app.config import settings

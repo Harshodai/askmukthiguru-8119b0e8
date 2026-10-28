@@ -524,7 +524,10 @@ async def enrich_context(state: GraphState, config: Optional[RunnableConfig] = N
         logger.info("Enrich context: bypassing for simple query tier")
         return {"relevant_docs": relevant_docs}
 
-    window_size = int(getattr(settings, "enrichment_window_size", settings.rag_context_window) or settings.rag_context_window)
+    window_size = int(
+        getattr(settings, "enrichment_window_size", settings.rag_context_window)
+        or settings.rag_context_window
+    )
     if not relevant_docs or window_size <= 0:
         return {"relevant_docs": relevant_docs}
 

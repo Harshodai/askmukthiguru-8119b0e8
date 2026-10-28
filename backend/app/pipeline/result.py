@@ -218,9 +218,7 @@ class PipelineResult:
 
         if not self.citations:
             if self.citations_verified is True:
-                contradiction += (
-                    " citations_verified=True is incompatible with empty citations"
-                )
+                contradiction += " citations_verified=True is incompatible with empty citations"
                 object.__setattr__(self, "citations_verified", False)
             if (
                 isinstance(self.verification, dict)

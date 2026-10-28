@@ -10,26 +10,23 @@ import copy
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pytest
 
 from app.config import settings
 from app.corpus_governance import (
-    CorpusGovernanceError,
-    SourceAssetManifest,
-    SourceAssetManifestRow,
     STATUS_CLEARED,
     STATUS_PENDING,
     STATUS_QUARANTINED,
     STATUS_REJECTED,
+    CorpusGovernanceError,
+    SourceAssetManifest,
+    SourceAssetManifestRow,
     assert_not_implied_clearance,
 )
 from services.memory.okf_store import (
     OKFStore,
-    _filter_entries_by_manifest,
-    _load_compiled_matrix,
     match_okf_entries,
 )
 
@@ -80,9 +77,7 @@ def sample_manifest(sample_valid_row) -> SourceAssetManifest:
         reviewer_id="reviewer_human_01",
         decision_date="2026-10-27",
     )
-    return SourceAssetManifest(
-        rows=[sample_valid_row, pending_row, quarantined_row, rejected_row]
-    )
+    return SourceAssetManifest(rows=[sample_valid_row, pending_row, quarantined_row, rejected_row])
 
 
 # ---------------------------------------------------------------------------
@@ -126,9 +121,7 @@ def test_status_fixtures_fail_closed(sample_manifest):
     assert reason == "ineligible_status_pending"
 
     # Quarantined status fails closed
-    ok, reason = sample_manifest.is_entry_eligible(
-        "vid_quarantined_03", "v1", tier="first_person"
-    )
+    ok, reason = sample_manifest.is_entry_eligible("vid_quarantined_03", "v1", tier="first_person")
     assert ok is False
     assert reason == "ineligible_status_quarantined"
 
@@ -186,9 +179,7 @@ def test_stale_manifest_fails_closed(sample_valid_row):
         stale_manifest.validate()
 
     # Stale by digest mismatch
-    mismatch_manifest = SourceAssetManifest(
-        [sample_valid_row], expected_digest="0" * 64
-    )
+    mismatch_manifest = SourceAssetManifest([sample_valid_row], expected_digest="0" * 64)
     assert mismatch_manifest.is_stale is True
     ok, reason = mismatch_manifest.is_entry_eligible("vid_valid_01", "v1")
     assert ok is False
@@ -215,16 +206,12 @@ def test_duplicate_keys_fail_closed(sample_valid_row):
 def test_hash_mismatch_fails_closed(sample_valid_row):
     manifest = SourceAssetManifest([sample_valid_row])
     # Exact match passes
-    ok, reason = manifest.is_entry_eligible(
-        "vid_valid_01", "v1", content_hash="h" * 64
-    )
+    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1", content_hash="h" * 64)
     assert ok is True
     assert reason == "cleared"
 
     # Mismatched hash fails closed
-    ok, reason = manifest.is_entry_eligible(
-        "vid_valid_01", "v1", content_hash="wrong_hash"
-    )
+    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1", content_hash="wrong_hash")
     assert ok is False
     assert reason == "content_hash_mismatch"
 
@@ -232,9 +219,7 @@ def test_hash_mismatch_fails_closed(sample_valid_row):
 # ---------------------------------------------------------------------------
 # 5. Missing reviewer, date, or evidence reference fails closed
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize(
-    "field_to_clear", ["reviewer_id", "decision_date", "evidence_reference"]
-)
+@pytest.mark.parametrize("field_to_clear", ["reviewer_id", "decision_date", "evidence_reference"])
 def test_missing_provenance_fails_closed(sample_valid_row, field_to_clear):
     bad_dict = sample_valid_row.to_dict()
     bad_dict[field_to_clear] = ""
@@ -371,15 +356,11 @@ def mock_compiled_bundle(tmp_path) -> Path:
         },
     ]
 
-    compiled_file.write_text(
-        json.dumps({"version": 2, "entries": entries}), encoding="utf-8"
-    )
+    compiled_file.write_text(json.dumps({"version": 2, "entries": entries}), encoding="utf-8")
     return compiled_file
 
 
-def test_okf_matrix_matching_with_manifest_filter_cleared_only(
-    mock_compiled_bundle, monkeypatch
-):
+def test_okf_matrix_matching_with_manifest_filter_cleared_only(mock_compiled_bundle, monkeypatch):
     dim = 1024
     query_vector = [1.0 / np.sqrt(dim)] * dim
 

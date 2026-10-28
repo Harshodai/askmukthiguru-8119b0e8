@@ -9,9 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, Union
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,7 @@ class SourceAssetManifest:
 
     def __init__(
         self,
-        rows: Optional[Sequence[Union[SourceAssetManifestRow, Mapping[str, Any]]]] = None,
+        rows: Optional[Sequence[SourceAssetManifestRow | Mapping[str, Any]]] = None,
         expected_digest: Optional[str] = None,
         stale: bool = False,
     ) -> None:
@@ -120,7 +121,9 @@ class SourceAssetManifest:
                 elif isinstance(item, Mapping):
                     # Check for malformed record without minimum required keys
                     if not item.get("source_id") or not item.get("corpus_version"):
-                        self._malformed_errors.append(f"Row missing source_id or corpus_version: {item}")
+                        self._malformed_errors.append(
+                            f"Row missing source_id or corpus_version: {item}"
+                        )
                     row = SourceAssetManifestRow.from_dict(item)
                 else:
                     self._malformed_errors.append(f"Invalid row type: {type(item)}")
@@ -158,7 +161,9 @@ class SourceAssetManifest:
                 key=lambda x: (x.source_id, x.corpus_version, x.serving_tier),
             )
         ]
-        serialised = json.dumps(canonical_rows, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        serialised = json.dumps(canonical_rows, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
         return hashlib.sha256(serialised).hexdigest()
 
     @property
@@ -183,14 +188,18 @@ class SourceAssetManifest:
             raise CorpusGovernanceError(f"Malformed manifest: {'; '.join(self._malformed_errors)}")
         if self._duplicate_keys:
             duplicates = [f"{k[0]}@{k[1]}" for k in sorted(self._duplicate_keys)]
-            raise CorpusGovernanceError(f"Duplicate manifest keys detected: {', '.join(duplicates)}")
+            raise CorpusGovernanceError(
+                f"Duplicate manifest keys detected: {', '.join(duplicates)}"
+            )
         if self.expected_digest and self.expected_digest != self.manifest_digest:
             raise CorpusGovernanceError(
                 f"Manifest digest mismatch: expected {self.expected_digest}, computed {self.manifest_digest}"
             )
         for row in self._raw_rows:
             if not row.source_id or not row.corpus_version:
-                raise CorpusGovernanceError(f"Row missing required source_id or corpus_version: {row}")
+                raise CorpusGovernanceError(
+                    f"Row missing required source_id or corpus_version: {row}"
+                )
             if not row.content_hash:
                 raise CorpusGovernanceError(f"Row missing content_hash: {row.source_id}")
             if not row.reviewer_id or not row.decision_date or not row.evidence_reference:
@@ -236,7 +245,11 @@ class SourceAssetManifest:
         if row.serving_tier != tier and tier != "*":
             return False, f"tier_mismatch_{row.serving_tier}"
 
-        if not row.reviewer_id.strip() or not row.decision_date.strip() or not row.evidence_reference.strip():
+        if (
+            not row.reviewer_id.strip()
+            or not row.decision_date.strip()
+            or not row.evidence_reference.strip()
+        ):
             return False, "incomplete_provenance"
 
         return True, "cleared"
@@ -244,7 +257,7 @@ class SourceAssetManifest:
     @classmethod
     def from_dict(
         cls,
-        data: Union[Mapping[str, Any], Sequence[Any]],
+        data: Mapping[str, Any] | Sequence[Any],
         expected_digest: Optional[str] = None,
         stale: bool = False,
     ) -> SourceAssetManifest:
@@ -275,7 +288,7 @@ class SourceAssetManifest:
     @classmethod
     def from_file(
         cls,
-        path: Union[str, Path],
+        path: str | Path,
         expected_digest: Optional[str] = None,
         stale: bool = False,
     ) -> SourceAssetManifest:
@@ -292,7 +305,7 @@ class SourceAssetManifest:
             "rows": [r.to_dict() for r in self._raw_rows],
         }
 
-    def to_file(self, path: Union[str, Path]) -> None:
+    def to_file(self, path: str | Path) -> None:
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         with open(p, "w", encoding="utf-8") as f:

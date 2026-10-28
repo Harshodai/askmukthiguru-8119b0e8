@@ -7,10 +7,8 @@ import logging
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-import pytest
-
 from app.config import settings
-from app.corpus_release_registry import CorpusReleaseRegistry, SourceReleaseRegistry
+from app.corpus_release_registry import SourceReleaseRegistry
 from services.first_person_serving_contract import CollectionContract, fingerprint_components
 from services.qdrant.indexer import QdrantIndexer
 from services.qdrant.source_policy import filter_by_release
@@ -262,7 +260,9 @@ def test_release_filter_shadow_and_enforce(caplog):
     ]
 
     # Mode 1: 'off' -> all 3 docs returned, no metrics incremented
-    allowed, dropped = filter_by_release(docs, filter_mode="off", registry=registry, corpus_id="askmukthiguru")
+    allowed, dropped = filter_by_release(
+        docs, filter_mode="off", registry=registry, corpus_id="askmukthiguru"
+    )
     assert len(allowed) == 3
     assert dropped == 0
 

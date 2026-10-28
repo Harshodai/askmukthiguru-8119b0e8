@@ -3,6 +3,7 @@ import math
 from pathlib import Path
 
 import pytest
+
 from benchmarks.check_golden_retrieval_drift import evaluate_item, validate_golden
 from benchmarks.retrieval_metrics import first_relevant_rank, summarize_rankings
 from evaluation.data_shape_validator import (
@@ -111,12 +112,42 @@ def test_ranking_metrics_calculation() -> None:
 def test_per_query_class_breakdown() -> None:
     """Metrics properly aggregated per question class."""
     items = [
-        {"id": "q-faq", "question": "What is meditation?", "question_class": "faq", "must_mention": ["stillness"]},
-        {"id": "q-comp", "question": "Meditation vs contemplation", "question_class": "comparative", "must_mention": ["focus"]},
-        {"id": "q-hop", "question": "How does karma affect rebirth?", "question_class": "multi_hop", "must_mention": ["action"]},
-        {"id": "q-dist", "question": "I feel hopeless", "question_class": "distress_adjacent", "expected_intent": "DISTRESS"},
-        {"id": "q-indic", "question": "ध्यान क्या है?", "question_class": "indic_language", "must_mention": ["शांति"]},
-        {"id": "q-std", "question": "Explain the teaching of oneness", "question_class": "standard", "must_mention": ["oneness"]},
+        {
+            "id": "q-faq",
+            "question": "What is meditation?",
+            "question_class": "faq",
+            "must_mention": ["stillness"],
+        },
+        {
+            "id": "q-comp",
+            "question": "Meditation vs contemplation",
+            "question_class": "comparative",
+            "must_mention": ["focus"],
+        },
+        {
+            "id": "q-hop",
+            "question": "How does karma affect rebirth?",
+            "question_class": "multi_hop",
+            "must_mention": ["action"],
+        },
+        {
+            "id": "q-dist",
+            "question": "I feel hopeless",
+            "question_class": "distress_adjacent",
+            "expected_intent": "DISTRESS",
+        },
+        {
+            "id": "q-indic",
+            "question": "ध्यान क्या है?",
+            "question_class": "indic_language",
+            "must_mention": ["शांति"],
+        },
+        {
+            "id": "q-std",
+            "question": "Explain the teaching of oneness",
+            "question_class": "standard",
+            "must_mention": ["oneness"],
+        },
     ]
     answers = [
         "Meditation is inner stillness.",
@@ -227,8 +258,20 @@ def test_release_eval_artifact_generation(tmp_path: Path) -> None:
             "ndcg_at_10": 0.88,
         },
         "per_class_breakdown": {
-            "faq": {"count": 2, "mrr": 1.0, "map_at_10": 1.0, "ndcg_at_10": 1.0, "generation_scores": {"faithfulness": 0.9}},
-            "standard": {"count": 3, "mrr": 0.75, "map_at_10": 0.70, "ndcg_at_10": 0.80, "generation_scores": {"faithfulness": 0.85}},
+            "faq": {
+                "count": 2,
+                "mrr": 1.0,
+                "map_at_10": 1.0,
+                "ndcg_at_10": 1.0,
+                "generation_scores": {"faithfulness": 0.9},
+            },
+            "standard": {
+                "count": 3,
+                "mrr": 0.75,
+                "map_at_10": 0.70,
+                "ndcg_at_10": 0.80,
+                "generation_scores": {"faithfulness": 0.85},
+            },
         },
         "faithfulness": 0.88,
         "answer_relevancy": 0.82,
@@ -250,6 +293,7 @@ def test_release_eval_artifact_generation(tmp_path: Path) -> None:
     artifact = generate_release_artifact(report, output_path=out_file)
 
     assert out_file.exists()
+    assert artifact["release_verdict"] == "PASS"
     saved = json.loads(out_file.read_text())
 
     assert saved["release_verdict"] == "PASS"

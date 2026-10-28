@@ -2136,7 +2136,9 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
 
         all_docs, _rel_dropped = filter_by_release(all_docs, filter_mode=_filter_mode)
         if _rel_dropped:
-            logger.info("Release filter removed %d document(s) in %s mode", _rel_dropped, _filter_mode)
+            logger.info(
+                "Release filter removed %d document(s) in %s mode", _rel_dropped, _filter_mode
+            )
 
     if len(all_docs) > getattr(
         settings, "rag_top_k_retrieval_after_cutoff", settings.rag_top_k_retrieval

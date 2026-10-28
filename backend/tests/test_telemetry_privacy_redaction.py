@@ -15,8 +15,8 @@ Verifies that:
 from __future__ import annotations
 
 from typing import Any
+
 from fastapi import FastAPI
-import pytest
 
 from app.observability import (
     PrivacyRedactionSpanProcessor,
@@ -24,10 +24,10 @@ from app.observability import (
     sanitize_span_attributes,
 )
 
-
 # ---------------------------------------------------------------------------
 # Unit tests: sanitize_span_attributes
 # ---------------------------------------------------------------------------
+
 
 def test_sanitize_span_attributes_strips_sensitive_keys():
     """Blocked keys (prompts, completions, documents, transcripts, credentials) must be stripped."""
@@ -157,7 +157,9 @@ def test_sanitize_span_attributes_preserves_allowlisted_metadata():
 
     for key, expected_value in safe_attrs.items():
         assert key in sanitized, f"Expected safe key '{key}' to be preserved"
-        assert sanitized[key] == expected_value, f"Mismatch for '{key}': {sanitized[key]} != {expected_value}"
+        assert sanitized[key] == expected_value, (
+            f"Mismatch for '{key}': {sanitized[key]} != {expected_value}"
+        )
 
 
 def test_sanitize_span_attributes_redacts_auth_and_sentinel_patterns():
@@ -212,6 +214,7 @@ def test_sanitize_span_attributes_handles_empty_and_nested_structures():
 # ---------------------------------------------------------------------------
 # Integration tests: PrivacyRedactionSpanProcessor with InMemorySpanExporter
 # ---------------------------------------------------------------------------
+
 
 def test_privacy_redaction_span_processor_with_in_memory_exporter():
     """Exported spans must have sensitive attributes stripped while trace ID, span ID, and safe metadata remain."""
@@ -291,10 +294,12 @@ def test_privacy_redaction_span_processor_with_in_memory_exporter():
 # Integration tests: init_observability registration
 # ---------------------------------------------------------------------------
 
+
 def test_init_observability_registers_privacy_redaction_processor(monkeypatch):
     """init_observability must register PrivacyRedactionSpanProcessor before BatchSpanProcessor."""
     from opentelemetry import trace
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
     from app import observability
 
     monkeypatch.setenv("OTEL_ENABLED", "true")
@@ -310,13 +315,19 @@ def test_init_observability_registers_privacy_redaction_processor(monkeypatch):
         active_processors = provider._active_span_processor._span_processors
 
         # Verify PrivacyRedactionSpanProcessor is registered
-        privacy_processors = [p for p in active_processors if isinstance(p, PrivacyRedactionSpanProcessor)]
-        assert len(privacy_processors) == 1, "PrivacyRedactionSpanProcessor was not registered in TracerProvider"
+        privacy_processors = [
+            p for p in active_processors if isinstance(p, PrivacyRedactionSpanProcessor)
+        ]
+        assert len(privacy_processors) == 1, (
+            "PrivacyRedactionSpanProcessor was not registered in TracerProvider"
+        )
 
         # Verify PrivacyRedactionSpanProcessor precedes BatchSpanProcessor
         processor_types = [type(p) for p in active_processors]
         privacy_idx = processor_types.index(PrivacyRedactionSpanProcessor)
         batch_idx = processor_types.index(BatchSpanProcessor)
-        assert privacy_idx < batch_idx, "PrivacyRedactionSpanProcessor must run before BatchSpanProcessor"
+        assert privacy_idx < batch_idx, (
+            "PrivacyRedactionSpanProcessor must run before BatchSpanProcessor"
+        )
     finally:
         provider.shutdown()

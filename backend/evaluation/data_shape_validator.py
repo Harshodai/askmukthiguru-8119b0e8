@@ -17,6 +17,7 @@ except ImportError:
 
 class DataShapeViolationError(Exception):
     """Raised when chunk data shape violates length, artifact, or duplicate thresholds."""
+
     pass
 
 

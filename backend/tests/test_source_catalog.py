@@ -12,18 +12,15 @@ Verifies:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+import uuid
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
-import uuid
-
-import pytest
 
 from celery_config import update_job_progress
 from services.ingestion_tracker import (
-    SupabaseIngestionTracker,
-    _InMemoryIngestionTracker,
     _format_timestamp,
+    _InMemoryIngestionTracker,
 )
 from tasks.ingest_tasks import sweep_stale_ingest_jobs
 
@@ -67,10 +64,12 @@ class FakeSupabaseTable:
             for r in self.rows:
                 if self._update_eq_col and r.get(self._update_eq_col) == self._update_eq_val:
                     r.update(self._pending_update)
-                    self.updates_executed.append({
-                        "id": self._update_eq_val,
-                        "updates": dict(self._pending_update),
-                    })
+                    self.updates_executed.append(
+                        {
+                            "id": self._update_eq_val,
+                            "updates": dict(self._pending_update),
+                        }
+                    )
                     updated_any = True
             self._pending_update = None
             return SimpleNamespace(data=self.rows if updated_any else [])
@@ -102,7 +101,7 @@ class FakeSupabaseClient:
 
 def test_stuck_job_is_swept():
     """Verify that stale running/processing jobs get swept to 'failed'."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     stale_heartbeat_25m = (now - timedelta(minutes=25)).isoformat()
     stale_heartbeat_20m = (now - timedelta(minutes=20)).isoformat()
     fresh_heartbeat_3m = (now - timedelta(minutes=3)).isoformat()
@@ -172,18 +171,20 @@ def test_stuck_job_is_swept():
 
 def test_stuck_job_is_swept_via_patch():
     """Verify sweep_stale_ingest_jobs resolves Supabase client via settings and creates updates."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     stale_time = (now - timedelta(minutes=30)).isoformat()
     job_id = str(uuid.uuid4())
 
-    fake_table = FakeSupabaseTable([
-        {
-            "id": job_id,
-            "source_url": "https://youtube.com/watch?v=stale",
-            "status": "running",
-            "heartbeat_at": stale_time,
-        }
-    ])
+    fake_table = FakeSupabaseTable(
+        [
+            {
+                "id": job_id,
+                "source_url": "https://youtube.com/watch?v=stale",
+                "status": "running",
+                "heartbeat_at": stale_time,
+            }
+        ]
+    )
     fake_client = FakeSupabaseClient(fake_table)
 
     with (
@@ -213,7 +214,7 @@ def test_timestamp_formatting_helpers():
     assert _format_timestamp(iso_str) == iso_str
 
     # 4. Datetime
-    dt = datetime(2026, 10, 28, 12, 0, 0, tzinfo=timezone.utc)
+    dt = datetime(2026, 10, 28, 12, 0, 0, tzinfo=UTC)
     assert _format_timestamp(dt) == "2026-10-28T12:00:00+00:00"
 
 

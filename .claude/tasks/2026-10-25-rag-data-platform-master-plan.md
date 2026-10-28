@@ -762,4 +762,3 @@ All 9 phases (Phase 0 through Phase 8) have been implemented, tested, and pinned
 - **SK.1**: Deduplicated 24 duplicate directory pairs between `agent-book-*` and `agents-book-*`, saving ~12 MB.
 - **SK.2**: Removed 7 broken stubs with invalid relative references to `engineering-team` and remapped agent orchestrator to active specialized skills.
 - **SK.3**: Realigned all 462 chapter index entries across 24 book skills to match their exact markdown H1 headers.
-

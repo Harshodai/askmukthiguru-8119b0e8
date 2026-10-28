@@ -38,17 +38,29 @@ from app.metrics import QDRANT_SNAPSHOT_AGE_HOURS
 logger = logging.getLogger("snapshot_qdrant")
 
 
-def _get_qdrant_client(qdrant_url: Optional[str] = None, api_key: Optional[str] = None) -> tuple[QdrantClient, str]:
+def _get_qdrant_client(
+    qdrant_url: Optional[str] = None, api_key: Optional[str] = None
+) -> tuple[QdrantClient, str]:
     """Build QdrantClient with automatic container/host URL fallback."""
-    url = qdrant_url or os.environ.get("QDRANT_URL") or getattr(settings, "qdrant_url", "http://localhost:6333")
+    url = (
+        qdrant_url
+        or os.environ.get("QDRANT_URL")
+        or getattr(settings, "qdrant_url", "http://localhost:6333")
+    )
     if "://qdrant:" in url:
         import socket
+
         try:
             socket.gethostbyname("qdrant")
         except socket.gaierror:
             url = url.replace("://qdrant:", "://localhost:")
 
-    key = api_key or os.environ.get("QDRANT_API_KEY") or getattr(settings, "qdrant_api_key", None) or None
+    key = (
+        api_key
+        or os.environ.get("QDRANT_API_KEY")
+        or getattr(settings, "qdrant_api_key", None)
+        or None
+    )
     return QdrantClient(url=url, api_key=key, timeout=120), url
 
 
@@ -87,13 +99,15 @@ def list_collection_snapshots(
             except Exception:
                 pass
 
-        results.append({
-            "name": name,
-            "creation_time": creation_time_str,
-            "size_mb": round(size_bytes / (1024 * 1024), 2) if size_bytes else 0.0,
-            "checksum": checksum,
-            "age_hours": round(age_hours, 2) if age_hours >= 0 else None,
-        })
+        results.append(
+            {
+                "name": name,
+                "creation_time": creation_time_str,
+                "size_mb": round(size_bytes / (1024 * 1024), 2) if size_bytes else 0.0,
+                "checksum": checksum,
+                "age_hours": round(age_hours, 2) if age_hours >= 0 else None,
+            }
+        )
 
     if update_metric:
         if newest_dt is not None:
@@ -115,7 +129,9 @@ def create_collection_snapshot(
     now = datetime.now(tz=UTC)
     if dry_run:
         simulated_name = f"{collection_name}-dryrun-{now.strftime('%Y-%m-%d-%H-%M-%S')}.snapshot"
-        logger.info("[DRY-RUN] Would create snapshot for collection %s: %s", collection_name, simulated_name)
+        logger.info(
+            "[DRY-RUN] Would create snapshot for collection %s: %s", collection_name, simulated_name
+        )
         return {
             "status": "dry_run",
             "collection": collection_name,
@@ -152,7 +168,9 @@ def restore_collection_snapshot(
     if dry_run:
         logger.info(
             "[DRY-RUN] Would restore snapshot %s (from %s) into collection %s",
-            snapshot_name, collection_name, target
+            snapshot_name,
+            collection_name,
+            target,
         )
         return {
             "status": "dry_run",
@@ -201,8 +219,12 @@ def main() -> int:
     group.add_argument("--create", action="store_true", help="Create a new collection snapshot")
     group.add_argument("--restore", help="Restore specified snapshot name or location")
 
-    parser.add_argument("--into-collection", help="Target collection for restore (default: same collection)")
-    parser.add_argument("--dry-run", action="store_true", help="Simulate action without mutating Qdrant")
+    parser.add_argument(
+        "--into-collection", help="Target collection for restore (default: same collection)"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Simulate action without mutating Qdrant"
+    )
     parser.add_argument("--json", action="store_true", help="Output results in JSON format")
 
     args = parser.parse_args()
@@ -222,7 +244,7 @@ def main() -> int:
                 print(f"{'Snapshot Name':<60} {'Size (MB)':<10} {'Age (h)':<10} {'Created'}")
                 print("-" * 105)
                 for s in snaps:
-                    age_str = f"{s['age_hours']}h" if s['age_hours'] is not None else "unknown"
+                    age_str = f"{s['age_hours']}h" if s["age_hours"] is not None else "unknown"
                     print(f"{s['name']:<60} {s['size_mb']:<10} {age_str:<10} {s['creation_time']}")
                 print("-" * 105)
         return 0
@@ -232,7 +254,9 @@ def main() -> int:
         if args.json:
             print(json.dumps(res, indent=2))
         else:
-            print(f"[{res['status'].upper()}] Snapshot created: {res['snapshot_name']} for {res['collection']}")
+            print(
+                f"[{res['status'].upper()}] Snapshot created: {res['snapshot_name']} for {res['collection']}"
+            )
         return 0
 
     elif args.restore:
@@ -246,7 +270,9 @@ def main() -> int:
         if args.json:
             print(json.dumps(res, indent=2))
         else:
-            print(f"[{res['status'].upper()}] Restored snapshot {res['snapshot_name']} into {res['target_collection']}")
+            print(
+                f"[{res['status'].upper()}] Restored snapshot {res['snapshot_name']} into {res['target_collection']}"
+            )
         return 0
 
     return 0
