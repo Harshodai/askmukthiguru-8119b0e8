@@ -112,7 +112,8 @@
     "securityPrivacy": "Security & privacy",
     "takeTour": "Take a Tour",
     "clear": "Clear",
-    "erasing": "Erasing…"
+    "erasing": "Erasing…",
+    "send": "Send"
   },
   "crisisDialog": {
     "heading": "Crisis Support Resources",
@@ -261,7 +262,36 @@
     "demo": {
       "newHere": "New here?",
       "tourAria": "See how AskMukthiGuru works in a three-step tour",
-      "closeTourAria": "Close tour"
+      "closeTourAria": "Close tour",
+      "welcomeTour": "Welcome tour · {{current}} of {{total}}",
+      "step_conversation_eyebrow": "Conversation",
+      "step_conversation_title": "Talk through what is on your mind",
+      "step_conversation_description": "Ask a question in your own words. AskMukthiGuru offers reflective guidance rooted in the teachings; it does not replace professional care.",
+      "step_conversation_action": "Talk now",
+      "step_calm_eyebrow": "Calm",
+      "step_calm_title": "Take a short pause when you need one",
+      "step_calm_description": "Serene Mind is a guided, three-minute breathing practice for settling into your next conversation, meeting, or rest.",
+      "step_calm_action": "Start 3-minute calm",
+      "step_practice_eyebrow": "Practice",
+      "step_practice_title": "Return to a wisdom practice over time",
+      "step_practice_description": "Explore practices at your pace. Choose one that fits today, then come back whenever you want a steadier rhythm.",
+      "step_practice_action": "Explore wisdom practices",
+      "videoSectionAria": "AskMukthiGuru product demo video",
+      "videoAria": "AskMukthiGuru product demo",
+      "videoUnsupported": "Your browser does not support the product demo video.",
+      "videoCaption": "A short product walkthrough. The interactive tour below remains available if you prefer to explore at your own pace.",
+      "pickPathHint": "Pick this path now or finish the tour first. Your choice stays available from navigation later.",
+      "tourProgressAria": "Tour progress: step {{current}} of {{total}}",
+      "stepOf": "Step {{current}} of {{total}}",
+      "skipTour": "Skip tour",
+      "backAria": "Back to previous tour step",
+      "back": "Back",
+      "finishTour": "Finish tour",
+      "nextAria": "Next tour step",
+      "next": "Next",
+      "welcomeBody": "See three honest ways to begin: a conversation, a short calm, or a wisdom practice.",
+      "takeTour": "Take a three-step tour",
+      "dismissWelcomeAria": "Dismiss welcome prompt"
     },
     "graph": {
       "badge": "8,750+ Node Doctrinal Ontology",
@@ -331,7 +361,13 @@
     "suggestedPractice": "A practice that may help",
     "startPractice": "Start practice",
     "submit": "Submit check-in",
-    "thanks": "Thanks for sharing. 🙏"
+    "thanks": "Thanks for sharing. 🙏",
+    "listening": "Listening",
+    "speak": "Speak",
+    "streakRooting_one": "{{count}} day streak — your beautiful state is taking root!",
+    "streakRooting_other": "{{count}} days streak — your beautiful state is taking root!",
+    "streakKeepGoing_one": "{{count}} day streak — keep it going!",
+    "streakKeepGoing_other": "{{count}} days streak — keep it going!"
   },
   "chat": {
     "pageTitle": "Chat — AskMukthiGuru",
@@ -749,7 +785,36 @@
     "academyReference": "O&O Academy Reference",
     "sourceLabel": "Source {{number}}",
     "sourcesCitedCount": "Sources cited: {{count}}",
-    "aiDisclosure": "AskMukthiGuru is an AI. It draws on recorded teachings where it can find them, and it can make mistakes."
+    "aiDisclosure": "AskMukthiGuru is an AI. It draws on recorded teachings where it can find them, and it can make mistakes.",
+    "backendDegraded": "The teaching service is not ready right now. You can still explore practices or return to a saved conversation.",
+    "backendUnreachable": "AskMukthiGuru cannot reach its teaching service right now, so new answers may not arrive. Practices and your saved conversations still work.",
+    "attachmentMaxFiles": "You can upload a maximum of {{max}} files.",
+    "attachmentSingleLimit": "Each extracted attachment must be under {{size}}.",
+    "attachmentTotalLimit": "Total attachment context cannot exceed {{size}}.",
+    "convertedToAttachment": "Converted to Attachment",
+    "pasteConverted": "Text paste exceeded 2,000 characters and was converted to a text file.",
+    "intentAnxious": "I am feeling anxious and overwhelmed. Can you guide me to find calm?",
+    "intentRestless": "My mind is restless and full of thoughts. How can I return to stillness?",
+    "intentPeace": "I want to experience deeper inner peace. What teachings or practices do you suggest?",
+    "intentGratitude": "I want to connect with gratitude and love today. How can I shift my state?",
+    "voiceOutputNotice": "Voice Output Notice",
+    "interruptedMarker": "\n\n*(Response was interrupted — tap Regenerate to try again)*",
+    "stoppedMarker": "\n\n_Stopped by you._",
+    "contextFull": "Conversation context is full",
+    "contextFullHint": "Start a new conversation to continue.",
+    "messageLimitReached": "Message limit reached",
+    "messageLimitHint": "Your free messages are used up for now. Please try again later.",
+    "sereneMindGatePrelude": "Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue. You can click the button below, or say \"can you open serene mind for me\" to begin.",
+    "sereneMindGateShort": "Please do Serene Mind now to continue. You can click the button below, or say \"can you open serene mind for me\" to begin.",
+    "messageBlocked": "Message blocked: {{reason}}",
+    "answerUnavailable": "AskMukthiGuru can't answer right now. Please try again in a moment.",
+    "incognitoWelcome": "Your questions remain confidential. Nothing from this session will be saved. What would you like to explore?",
+    "sendMessageFirst": "Send a message first.",
+    "exportFailed": "Could not save the file.",
+    "noAnswerYet": "No answer yet",
+    "askSomethingFirst": "Ask something first.",
+    "languagePicker": "Language picker",
+    "languagePickerHint": "Use the globe icon below the input."
   },
   "notFound": {
     "message": "Oops! Page not found",
@@ -2277,5 +2342,13 @@
     "privacyTitle": "Privacy",
     "privacyBody": "What we store, and how to export or delete it, is described in our",
     "backToHome": "Back to home"
+  },
+  "settings": {
+    "voiceGender_female": "Female",
+    "voiceGender_male": "Male",
+    "voiceHint_priya": "Warm, natural",
+    "voiceHint_ishita": "Calm, soothing",
+    "voiceHint_mani": "Deep, composed",
+    "voiceHint_shubh": "Clear, default"
   }
 }

@@ -320,7 +320,7 @@ export const DesktopSidebar = ({
           {/* ── Explore — always visible, no collapsible ── */}
           <div className="border-t border-hairline px-2 py-1.5">
             <p className="px-1 pb-1 pt-0.5 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase select-none">
-              {t('sidebar.explore', 'Explore')}
+              {t('desktopSidebar.explore', 'Explore')}
             </p>
             <div className="space-y-px">
               {exploreItems.map(({ id, icon: Icon, label, onClick, title, tour, accent }) => (
