@@ -999,10 +999,13 @@ def _format_pointer_and_questions(
         return None, None
 
     heading_parts: list[str] = []
+    framing_enabled = getattr(settings, "first_person_framing_enabled", False)
     if not getattr(settings, "first_person_continuous_layout_enabled", False):
         heading_parts.append(_pointer_for(opening, clips[0], is_opening=True))
         if len(clips) > 1:
             heading_parts.append(_pointer_for(connective, clips[1], is_opening=False))
+    elif framing_enabled and opening and not _CLAIMS_DIRECT_RE.search(opening):
+        heading_parts.append(opening)
     heading = "\n\n".join([p for p in heading_parts if p]) or None
 
     if not questions or "---" not in questions:

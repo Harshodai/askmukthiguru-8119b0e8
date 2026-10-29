@@ -159,4 +159,6 @@ def test_llm_pointer_naming_the_wrong_teacher_is_replaced(monkeypatch):
         "What is consciousness?", [clip], [], sources=sources_from_payloads([clip])
     )
     assert "Sri Krishnaji" not in res.text
-    assert res.text.startswith("Sri Preethaji speaks to a related theme:")
+    assert "Sri Krishnaji" not in (res.related_clips_heading or "")
+    assert res.related_clips_heading.startswith("Sri Preethaji speaks to a related theme:")
+    assert not res.text.startswith("Sri Preethaji speaks to a related theme:")
