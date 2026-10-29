@@ -784,4 +784,3 @@ All 9 phases (Phase 0 through Phase 8) have been implemented, tested, and pinned
   - `Eval Gate (RAGAS Faithfulness + Context Metrics)`: Passed
   - `Benchmark Gate (Golden Eval)`: Passed
   - `Migration Revert Block Check`: Passed
-
