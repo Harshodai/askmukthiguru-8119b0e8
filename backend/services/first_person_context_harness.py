@@ -307,12 +307,19 @@ class FirstPersonContextHarness:
 
     @staticmethod
     def _text_sanity_gate(spans: tuple[SourceSpan, ...]) -> bool:
-        from ingest.verbatim.gates import script_and_loop_problem
+        from ingest.verbatim.gates import expected_script_for, script_and_loop_problem
 
-        # Script detection is per span and script-agnostic: a wholly Hindi or Telugu
-        # span is legitimate, a span that mixes scripts or looped is not.
+        # The expected script comes from the span's DECLARED language (language ID, audit
+        # D10). An undeclared span belongs to the English corpus and must be Latin: the
+        # ASR stage cannot transcribe Indic speech, so non-Latin text there is decoder
+        # garbage (all 9 such spans in the 2,737-span v10 export were). A span that
+        # declares another language is held to that language's script, and a loop or a
+        # foreign letter inside it is still refused.
         return all(
-            script_and_loop_problem(span.verbatim_text, expected_script=None) is None
+            script_and_loop_problem(
+                span.verbatim_text, expected_script=expected_script_for(span.language)
+            )
+            is None
             for span in spans
         )
 

@@ -182,6 +182,8 @@ def test_case02_no_profile_never_direct():
     res = _ask(_pipeline([_clip()], profile=None)[0])
     assert res.status == "weak_match"
     assert res.is_direct_answer is False
+    # The label travels in status / is_direct_answer / verification metadata; the body is
+    # the clean verbatim clip (fix(fp) cd4d3e2 strips the label from the answer text).
     assert "Related, not a direct answer" not in res.answer_text
 
 
@@ -294,10 +296,16 @@ def test_case06_quote_with_wrong_start_is_not_rendered():
 
 
 def test_case07_asr_artifacts_cleaned():
-    # A whole-word restart across a comma is an ASR artifact and is collapsed.
+    # An IMMEDIATE whole-word restart is an ASR artifact and is collapsed. A repeat
+    # across a comma may have been spoken (emphasis), so it is left in place and only
+    # reported by asr_cleaner_notes (2026-10-28 review).
+    assert (
+        clean_verbatim_text("Our relationships relationships are the mirror of who we are.")
+        == "Our relationships are the mirror of who we are."
+    )
     assert (
         clean_verbatim_text("Our relationships, relationships, are the mirror of who we are.")
-        == "Our relationships are the mirror of who we are."
+        == "Our relationships, relationships, are the mirror of who we are."
     )
     # The same repeat across sentence-final punctuation is the teacher's rhetoric,
     # not a decoder artifact, so it is preserved verbatim (2026-10-26: the cleaner

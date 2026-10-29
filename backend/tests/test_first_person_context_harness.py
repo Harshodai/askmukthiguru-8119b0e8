@@ -543,3 +543,63 @@ def test_word_budget_is_not_applied_below_the_limit():
     ).decide(ctx, answerability="yes")
 
     assert decision.source_span_ids == (first.source_span_id, second.source_span_id)
+
+
+GARBAGE_MIXED = (
+    "کہ Ift my addiction isn't even physicalyфصل and then the rest of this long sentence"
+)
+GARBAGE_LOOP = "तुई अवेखन अवाँँँँँँ"
+
+
+def test_mixed_script_garbage_is_refused_even_with_every_label_true():
+    """D1: nine live v10 spans were ASR garbage carrying every positive label.
+
+    The refusal must come from the text itself: no quality blocklist or
+    allowlist is configured here, so nothing but the text gate can stop it.
+    """
+    harness = FirstPersonContextHarness()
+    decision = harness.decide(context([span(text=GARBAGE_MIXED)]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "asr_script_garbage"
+    assert decision.answer_text is None
+    assert decision.citations == ()
+
+
+def test_combining_mark_loop_is_refused_even_with_every_label_true():
+    harness = FirstPersonContextHarness()
+    decision = harness.decide(context([span(text=GARBAGE_LOOP)]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "asr_script_garbage"
+
+
+def test_clean_english_span_still_serves_after_the_text_gate():
+    harness = FirstPersonContextHarness()
+    decision = harness.decide(context([span()]), answerability="yes")
+    assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
+
+
+def test_serve_gate_refuses_a_wholly_devanagari_span_in_the_english_corpus():
+    harness = FirstPersonContextHarness()
+    text = "और वागशी है, तो वोगशी है. तुटिट ठीटने भी इलिटकी"
+    decision = harness.decide(context([span(text=text)]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "asr_script_garbage"
+
+
+def test_serve_gate_refuses_two_stray_arabic_letters_in_a_latin_span():
+    harness = FirstPersonContextHarness()
+    text = (
+        "Only these are destroying you slowly. Every addiction damages the brain. "
+        "I want you to know,every addiction chips away at your self world. "
+        "د Database because youد my poems every addiction makes hard."
+    )
+    decision = harness.decide(context([span(text=text)]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "asr_script_garbage"
+
+
+def test_legacy_payload_without_a_language_still_parses():
+    """The language field is optional: every v10 payload built before it exists must parse."""
+    payload = span().model_dump(mode="json")
+    payload.pop("language", None)
+    assert SourceSpan.model_validate(payload).language is None

@@ -17,6 +17,7 @@ import argparse
 import json
 import logging
 import os
+import re
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -38,10 +39,18 @@ from app.metrics import QDRANT_SNAPSHOT_AGE_HOURS
 logger = logging.getLogger("snapshot_qdrant")
 
 
+_SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
 def _get_qdrant_client(
     qdrant_url: Optional[str] = None, api_key: Optional[str] = None
 ) -> tuple[QdrantClient, str]:
-    """Build QdrantClient with automatic container/host URL fallback."""
+    """Build QdrantClient with explicit container/host URL fallback.
+
+    Rewriting `qdrant` to `localhost` is opt-in: inside a container with broken
+    DNS it silently targets a *different instance* than the operator named, so
+    it requires `QDRANT_ALLOW_LOCALHOST_FALLBACK=true`.
+    """
     url = (
         qdrant_url
         or os.environ.get("QDRANT_URL")
@@ -53,6 +62,17 @@ def _get_qdrant_client(
         try:
             socket.gethostbyname("qdrant")
         except socket.gaierror:
+            if os.environ.get("QDRANT_ALLOW_LOCALHOST_FALLBACK", "").strip().lower() not in (
+                "1",
+                "true",
+                "yes",
+            ):
+                raise RuntimeError(
+                    f"cannot resolve host 'qdrant' from {url!r}; refusing to silently retarget "
+                    "the run at localhost. Fix networking, or set "
+                    "QDRANT_ALLOW_LOCALHOST_FALLBACK=true to opt in."
+                )
+            logger.warning("Host 'qdrant' unresolvable; falling back to localhost (opt-in)")
             url = url.replace("://qdrant:", "://localhost:")
 
     key = (
@@ -161,9 +181,61 @@ def restore_collection_snapshot(
     snapshot_name: str,
     into_collection: Optional[str] = None,
     dry_run: bool = False,
+    allow_overwrite: bool = False,
 ) -> dict[str, Any]:
-    """Restore a collection snapshot into target collection (or scratch)."""
-    target = into_collection or collection_name
+    """Restore a collection snapshot into an explicit, distinct target collection.
+
+    A restore is destructive: Qdrant's recover_snapshot overwrites the target
+    collection. Refusing the three defaults that used to make that dangerous:
+      * target defaults to the live source collection;
+      * `snapshot_name` may be an arbitrary URL (`http://…`) — a remote location
+        the operator never vetted;
+      * the target may already hold serving data.
+    """
+    if not into_collection:
+        raise ValueError(
+            "restore requires an explicit --into-collection; refusing to overwrite the "
+            "live collection by default"
+        )
+
+    target = into_collection
+    if target == collection_name:
+        raise ValueError(
+            f"refusing to restore snapshot {snapshot_name!r} into its own source collection "
+            f"{collection_name!r}; restore into a scratch collection, validate, then swap "
+            "the alias in a separate gated step"
+        )
+
+    for label, value in (("target collection", target), ("snapshot name", snapshot_name)):
+        if "://" in value:
+            raise ValueError(
+                f"{label} {value!r} looks like a URL; snapshot locations must be resolved "
+                "from the Qdrant server's own snapshot store"
+            )
+        if not _SAFE_NAME_RE.match(value):
+            raise ValueError(f"{label} {value!r} is not a safe collection/snapshot name")
+
+    target_points = 0
+    if allow_overwrite:
+        try:
+            target_points = int(getattr(client.get_collection(target), "points_count", 0) or 0)
+        except Exception:
+            target_points = 0
+        if target_points > 0:
+            raise ValueError(
+                f"target collection {target!r} already holds {target_points} points; "
+                "restore into an empty scratch collection instead"
+            )
+    else:
+        try:
+            client.get_collection(target)
+        except Exception:
+            target_points = 0
+        else:
+            raise ValueError(
+                f"target collection {target!r} already exists; pass --allow-overwrite only "
+                "if you intend to replace it"
+            )
 
     if dry_run:
         logger.info(
@@ -177,17 +249,15 @@ def restore_collection_snapshot(
             "source_collection": collection_name,
             "target_collection": target,
             "snapshot_name": snapshot_name,
+            "existing_target_points": target_points,
         }
 
     logger.info("Restoring snapshot %s from %s into %s", snapshot_name, collection_name, target)
 
     # Use Qdrant recover snapshot API
-    # Snapshot location is either an HTTP URL or local snapshot path
+    # Snapshot location is resolved against this server's own snapshot store.
     url_base = os.environ.get("QDRANT_URL", "http://localhost:6333").rstrip("/")
-    if "://" not in snapshot_name:
-        snapshot_url = f"{url_base}/collections/{collection_name}/snapshots/{snapshot_name}"
-    else:
-        snapshot_url = snapshot_name
+    snapshot_url = f"{url_base}/collections/{collection_name}/snapshots/{snapshot_name}"
 
     recovered = client.recover_snapshot(
         collection_name=target,
@@ -220,7 +290,13 @@ def main() -> int:
     group.add_argument("--restore", help="Restore specified snapshot name or location")
 
     parser.add_argument(
-        "--into-collection", help="Target collection for restore (default: same collection)"
+        "--into-collection",
+        help="Target collection for restore (required; must differ from --collection)",
+    )
+    parser.add_argument(
+        "--allow-overwrite",
+        action="store_true",
+        help="permit restoring into an existing collection (refused by default)",
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="Simulate action without mutating Qdrant"
@@ -229,6 +305,9 @@ def main() -> int:
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+    if args.restore and not args.into_collection:
+        parser.error("--restore requires --into-collection (never the live collection)")
 
     client, url = _get_qdrant_client()
 
@@ -260,13 +339,18 @@ def main() -> int:
         return 0
 
     elif args.restore:
-        res = restore_collection_snapshot(
-            client,
-            collection_name=args.collection,
-            snapshot_name=args.restore,
-            into_collection=args.into_collection,
-            dry_run=args.dry_run,
-        )
+        try:
+            res = restore_collection_snapshot(
+                client,
+                collection_name=args.collection,
+                snapshot_name=args.restore,
+                into_collection=args.into_collection,
+                dry_run=args.dry_run,
+                allow_overwrite=args.allow_overwrite,
+            )
+        except ValueError as exc:
+            print(json.dumps({"status": "refused", "reason": str(exc)}, indent=2))
+            return 2
         if args.json:
             print(json.dumps(res, indent=2))
         else:

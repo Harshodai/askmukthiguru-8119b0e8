@@ -146,6 +146,7 @@ class QuoteWeaverResult:
     gate_reason: Optional[str] = None
     citations: list[dict[str, Any]] = field(default_factory=list)
     atma_vichara_inquiry: Optional[str] = None
+    related_clips_heading: Optional[str] = None
     practice_recommendation: Optional[dict[str, Any]] = None
     audio_playback_clip: Optional[dict[str, Any]] = None
     audio_playback_clips: list[dict[str, Any]] = field(default_factory=list)
@@ -339,8 +340,20 @@ class QuoteWeaverAssertionGate:
         clips: list[dict[str, Any]],
         okf_entries: list[dict[str, Any]],
         is_practice: bool = False,
+        reflection_text: Optional[str] = None,
+        heading_text: Optional[str] = None,
     ) -> tuple[bool, Optional[str]]:
         """Validate generated or fallback text against strict quote-weaving invariants.
+
+        ``text`` is the answer **body** — verbatim quotes plus attribution. When
+        ``reflection_text`` is supplied (the metadata-bound reflection questions),
+        the divider and italic-question assertions are applied to it instead of
+        expecting them inside the body. ``reflection_text=None`` keeps the legacy
+        whole-chapter form used by the opt-in editorial rewrite mode.
+
+        ``heading_text`` is the metadata-bound pointer line. It is not part of the
+        body, but it is model-authored in hybrid mode, so the artifact / canned
+        phrase / unauthorised-attribution checks must still see it.
 
         Returns:
             (True, None) if all assertions pass.
@@ -349,8 +362,19 @@ class QuoteWeaverAssertionGate:
         if not text or len(text.strip()) < 40:
             return False, "Response text is empty or too short"
 
+        # Surface every model-authored component: the body plus the metadata-bound
+        # heading and reflection questions (hybrid mode). None of them escapes the
+        # artifact / canned-phrase / attribution checks just because it lives in
+        # metadata instead of the answer body.
+        scan_parts = [text]
+        if heading_text:
+            scan_parts.append(heading_text)
+        if reflection_text:
+            scan_parts.append(reflection_text)
+        scan_text = "\n\n".join(scan_parts)
+
         # 1. Quality gate: ensure no machine artifacts, CoT leaks, or degradation strings
-        artifact = find_artifact(text)
+        artifact = find_artifact(scan_text)
         if artifact is not None:
             return False, f"Detected machine artifact or CoT leak: {artifact}"
 
@@ -369,7 +393,7 @@ class QuoteWeaverAssertionGate:
                     )
 
         # 2. Check for banned artificial affirmations or pseudo-spiritual instructions
-        text_lower = text.lower()
+        text_lower = scan_text.lower()
         for banned in _BANNED_AFFIRMATIONS:
             if banned in text_lower:
                 return False, f"Detected artificial affirmation or instruction: '{banned}'"
@@ -427,13 +451,15 @@ class QuoteWeaverAssertionGate:
                     f"Video timestamp t={t_s}s exceeds any possible video length: {link}"
                 )
 
-        # 4. Divider check: must have a '---' divider
+        # 4. Divider check: the legacy chapter form must have a '---' divider.
+        #    In body+metadata form the divider lives in the questions block, so
+        #    the body is checked in full and the questions are checked below.
         divider_match = re.search(r"(?:^|\n)\s*---\s*(?:\n|$)", text)
-        if not divider_match:
+        if reflection_text is None and not divider_match:
             return False, "Missing '---' divider before reflection questions"
 
         # 4b. Ban markdown bullet points (*, -) and numbered lists (Rule 8)
-        pre_divider_text = text[: divider_match.start()]
+        pre_divider_text = text[: divider_match.start()] if divider_match else text
         for line in pre_divider_text.splitlines():
             sline = line.strip()
             if not sline:
@@ -446,11 +472,15 @@ class QuoteWeaverAssertionGate:
                     f"Banned numbered list detected in non-practice teaching: '{sline[:30]}...'",
                 )
 
-        # 5. Italic reflection questions check: require italic questions (*...*) after divider
-        reflection_text = text[divider_match.end() :]
+        # 5. Italic reflection questions check: require italic questions (*...*)
+        #    in the questions block (metadata) or, legacy, after the divider.
+        if reflection_text is not None:
+            reflection_block = reflection_text
+        else:
+            reflection_block = text[divider_match.end() :]
         italic_matches = [
             m.strip()
-            for m in re.findall(r"(?<!\*)\*([^*\n]+)\*(?!\*)", reflection_text)
+            for m in re.findall(r"(?<!\*)\*([^*\n]+)\*(?!\*)", reflection_block)
             if len(m.strip()) >= 5 and not m.strip().startswith("Sources of Wisdom")
         ]
         if not italic_matches:
@@ -500,10 +530,12 @@ class QuoteWeaverAssertionGate:
         # 6b. Unquoted attributed-claim check (GAP-C2): quoting is not the only
         # way a sentence can assert "the guru said X" — an LLM opening/connective
         # naming a teacher with a speech/teaching verb must ALSO be verbatim in a
-        # clip/OKF source. Scans only the pre-divider region (opening + connective
-        # + clip bodies); citation header lines are machine-built from clip
-        # metadata and are skipped.
-        pre_divider = text[: divider_match.start()]
+        # clip/OKF source. Scans the pre-divider body (clip bodies) plus the
+        # metadata-bound heading; citation header lines are machine-built from
+        # clip metadata and are skipped.
+        pre_divider = pre_divider_text
+        if heading_text:
+            pre_divider = f"{pre_divider}\n\n{heading_text}"
         for line in pre_divider.splitlines():
             line = line.strip()
             if not line or "](" in line or re.match(r"https?://\S+$", line):
@@ -906,11 +938,13 @@ def _format_assembled_answer(
     okf_entries: Optional[list[dict[str, Any]]] = None,
     intent: Optional[str] = None,
 ) -> str:
-    """Assemble the final response text by stitching together minimal scaffolding
-    around 100% UNTOUCHED verbatim clips from the database.
+    """Assemble the answer **body**: verbatim clip blocks plus source attribution.
 
-    Acoustic cadence structure:
-    short punchy statement -> double newline -> flowing discourse excerpt -> double newline -> inquiry.
+    Invariant 1 (AGENTS.md, first-person serving invariants): the served body is
+    evidence only. A pointer line ("<teacher> speaks to a related theme:"), a
+    section heading, or a generated reflection question is not evidence, so it
+    is never concatenated here — see `_format_pointer_and_questions`, whose
+    output travels in `route_metadata`.
     """
     if not clips:
         return (
@@ -920,9 +954,6 @@ def _format_assembled_answer(
 
     if getattr(settings, "first_person_continuous_layout_enabled", False):
         blocks: list[str] = []
-        framing_enabled = getattr(settings, "first_person_framing_enabled", False)
-        if framing_enabled and opening and not _CLAIMS_DIRECT_RE.search(opening):
-            blocks.append(f"[{opening}]")
         for clip in clips:
             facet = clip.get("facet")
             blocks.append(_format_continuous_quote_block(clip, facet=facet))
@@ -934,36 +965,50 @@ def _format_assembled_answer(
             blocks.append(footer)
         return "\n\n".join(blocks)
 
-    blocks: list[str] = []
+    blocks = []
+    for clip in clips:
+        blocks.append(_format_clip_block(clip))
 
-    # 1. Short punchy statement (minimal pointer <= 15 words)
-    blocks.append(_pointer_for(opening, clips[0], is_opening=True))
-
-    # 2. Hero: First Clip — 100% Verbatim DB Text
-    blocks.append(_format_clip_block(clips[0]))
-
-    # 3. Subsequent Clips (if present) with minimal connective bridge (<= 15 words)
-    if len(clips) > 1:
-        blocks.append(_pointer_for(connective, clips[1], is_opening=False))
-        for clip in clips[1:]:
-            blocks.append(_format_clip_block(clip))
-
-    # 4. Practice steps never enter the answer body. OKF is LLM-extracted
-    # summary text (invariant 12), so it can't sit next to verbatim clips where
-    # it reads as the teacher's words; it ships only as structured
+    # Practice steps never enter the answer body. OKF is LLM-extracted summary
+    # text (invariant 12), so it can't sit next to verbatim clips where it reads
+    # as the teacher's words; it ships only as structured
     # practice_recommendation metadata for the action bar.
 
-    # 5. Inquiry (1-2 sharp inward Atma Vichara questions)
-    if not questions or "---" not in questions:
-        questions = _generate_reflection_questions(query, clips, okf_entries or [])
-    blocks.append(questions)
-
-    # 6. Sources of Wisdom Footer
+    # Sources of Wisdom Footer — attribution for the quotes above.
     footer = _format_sources_footer(clips)
     if footer:
         blocks.append(footer)
 
     return "\n\n".join(blocks)
+
+
+def _format_pointer_and_questions(
+    clips: list[dict[str, Any]],
+    query: str,
+    opening: Optional[str] = None,
+    connective: Optional[str] = None,
+    questions: Optional[str] = None,
+    okf_entries: Optional[list[dict[str, Any]]] = None,
+) -> tuple[Optional[str], Optional[str]]:
+    """Return (related_clips_heading, reflection_questions) for route_metadata.
+
+    Neither is evidence, so neither may live in the answer body; both are
+    rendered from metadata by the client.
+    """
+    if not clips:
+        return None, None
+
+    heading_parts: list[str] = []
+    if not getattr(settings, "first_person_continuous_layout_enabled", False):
+        heading_parts.append(_pointer_for(opening, clips[0], is_opening=True))
+        if len(clips) > 1:
+            heading_parts.append(_pointer_for(connective, clips[1], is_opening=False))
+    heading = "\n\n".join([p for p in heading_parts if p]) or None
+
+    if not questions or "---" not in questions:
+        questions = _generate_reflection_questions(query, clips, okf_entries or [])
+    inquiry = _extract_inquiry_from_chapter(questions or "")
+    return heading, inquiry or (questions or None)
 
 
 def _deterministic_fallback(
@@ -972,26 +1017,24 @@ def _deterministic_fallback(
     okf_entries: list[dict[str, Any]],
     intent: Optional[str] = None,
 ) -> str:
-    """Deterministic direct teacher voice when LLM is unavailable or fails assertions."""
+    """Deterministic evidence body when the LLM is unavailable or fails assertions.
+
+    Returns only the verbatim clip blocks and their attribution — see
+    `_format_assembled_answer`. Pointers and reflection questions are produced
+    separately by `_format_pointer_and_questions` and travel in metadata.
+    """
     if not clips:
         return (
             "*No direct teaching found in the corpus for this question. "
             "Please explore the videos directly at [ekamworld.com](https://ekamworld.com).*"
         )
 
-    # Openings name only the verified speaker (``_pointer_for``) and claim
-    # nothing about the video's topic.
-    opening = None
-    connective = None
-
-    questions = _generate_reflection_questions(query, clips, okf_entries)
-
     return _format_assembled_answer(
         clips=clips,
         query=query,
-        opening=opening,
-        connective=connective,
-        questions=questions,
+        opening=None,
+        connective=None,
+        questions=None,
         okf_entries=okf_entries,
         intent=intent,
     )
@@ -1216,19 +1259,21 @@ def _assemble_from_llm(
     okf_entries: list[dict[str, Any]],
     intent: Optional[str],
     use_rewrite: bool,
-) -> Optional[str]:
-    """Turn LLM output into the final answer, or None when it must be rejected.
+) -> Optional[tuple[str, Optional[str], Optional[str]]]:
+    """Turn LLM output into (answer body, reflection questions, heading), or None.
 
     Default (scaffold) mode: the LLM never sees or returns teaching text. Only the
     OPENING / CONNECTIVE / QUESTIONS fields are used and CODE assembles the quotes
-    from stored clips, so the teacher's words cannot be altered. Free-form output
-    (a rewritten chapter) is accepted only when the owner opted into rewrite mode,
-    because a rewrite can substitute words ("him" -> "Ravana") that the quote
-    check never sees when the text carries no quotation marks.
+    from stored clips, so the teacher's words cannot be altered. The OPENING and
+    CONNECTIVE become `related_clips_heading` metadata and QUESTIONS become
+    `atma_vichara_inquiry` metadata — never body text (invariant 1).
+    Free-form output (a rewritten chapter) is accepted only when the owner opted
+    into rewrite mode, because a rewrite can substitute words ("him" -> "Ravana")
+    that the quote check never sees when the text carries no quotation marks.
     """
     if "OPENING:" in raw_str:
         opening, connective, questions = _parse_scaffolding(raw_str)
-        return _format_assembled_answer(
+        body = _format_assembled_answer(
             clips=clips,
             query=query,
             opening=opening,
@@ -1237,12 +1282,22 @@ def _assemble_from_llm(
             okf_entries=okf_entries,
             intent=intent,
         )
+        heading, inquiry = _format_pointer_and_questions(
+            clips=clips,
+            query=query,
+            opening=opening,
+            connective=connective,
+            questions=questions,
+            okf_entries=okf_entries,
+        )
+        return body, inquiry, heading
     if not use_rewrite:
         return None
     if "*Sources of Wisdom:*" not in raw_str:
         footer = _format_sources_footer(clips)
-        return (raw_str + "\n\n" + footer) if footer else raw_str
-    return raw_str
+        body = (raw_str + "\n\n" + footer) if footer else raw_str
+        return body, _extract_inquiry_from_chapter(raw_str), None
+    return raw_str, _extract_inquiry_from_chapter(raw_str), None
 
 
 async def _generate_llm(
@@ -1349,13 +1404,16 @@ class QuoteWeaverService:
 
         if not active_llm or mode != "hybrid" or not clips:
             text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-            inquiry = _extract_inquiry_from_chapter(text)
+            heading, inquiry = _format_pointer_and_questions(
+                clips=clips, query=query, okf_entries=okf_entries
+            )
             return QuoteWeaverResult(
                 text=text,
                 passed_gate=True,
                 fallback_used=True,
                 gate_reason="deterministic_clip_only_mode",
                 atma_vichara_inquiry=inquiry,
+                related_clips_heading=heading,
                 practice_recommendation=practice_rec,
                 audio_playback_clip=audio,
                 audio_playback_clips=all_audios,
@@ -1394,19 +1452,25 @@ class QuoteWeaverService:
                 )
                 if assembled is None:
                     raise ValueError("LLM output is not in scaffold format; rejected")
+                body, questions_text, heading = assembled
 
                 valid, reason = QuoteWeaverAssertionGate.validate(
-                    assembled, clips, okf_entries, is_practice=is_practice
+                    body,
+                    clips,
+                    okf_entries,
+                    is_practice=is_practice,
+                    reflection_text=questions_text,
+                    heading_text=heading,
                 )
                 if valid:
                     if not use_rewrite:
                         _scaffold_cache_put(cache_key, raw.strip())  # only gate-passing output
-                    inquiry = _extract_inquiry_from_chapter(assembled)
                     return QuoteWeaverResult(
-                        text=assembled,
+                        text=body,
                         passed_gate=True,
                         fallback_used=False,
-                        atma_vichara_inquiry=inquiry,
+                        atma_vichara_inquiry=questions_text,
+                        related_clips_heading=heading,
                         practice_recommendation=practice_rec,
                         audio_playback_clip=audio,
                         audio_playback_clips=all_audios,
@@ -1419,13 +1483,16 @@ class QuoteWeaverService:
             logger.warning("[QuoteWeaverService] Hybrid LLM weaving error: %s; using fallback", e)
 
         fallback_text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-        inquiry = _extract_inquiry_from_chapter(fallback_text)
+        heading, inquiry = _format_pointer_and_questions(
+            clips=clips, query=query, okf_entries=okf_entries
+        )
         return QuoteWeaverResult(
             text=fallback_text,
             passed_gate=True,
             fallback_used=True,
             gate_reason="assertion_gate_or_timeout_fallback",
             atma_vichara_inquiry=inquiry,
+            related_clips_heading=heading,
             practice_recommendation=practice_rec,
             audio_playback_clip=audio,
             audio_playback_clips=all_audios,
@@ -1462,13 +1529,16 @@ class QuoteWeaverService:
 
         if not active_llm or mode != "hybrid" or not clips:
             text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-            inquiry = _extract_inquiry_from_chapter(text)
+            heading, inquiry = _format_pointer_and_questions(
+                clips=clips, query=query, okf_entries=okf_entries
+            )
             return QuoteWeaverResult(
                 text=text,
                 passed_gate=True,
                 fallback_used=True,
                 gate_reason="deterministic_clip_only_mode",
                 atma_vichara_inquiry=inquiry,
+                related_clips_heading=heading,
                 practice_recommendation=practice_rec,
                 audio_playback_clip=audio,
                 audio_playback_clips=all_audios,
@@ -1506,19 +1576,25 @@ class QuoteWeaverService:
                 )
                 if assembled is None:
                     raise ValueError("LLM output is not in scaffold format; rejected")
+                body, questions_text, heading = assembled
 
                 valid, reason = QuoteWeaverAssertionGate.validate(
-                    assembled, clips, okf_entries, is_practice=is_practice
+                    body,
+                    clips,
+                    okf_entries,
+                    is_practice=is_practice,
+                    reflection_text=questions_text,
+                    heading_text=heading,
                 )
                 if valid:
                     if not use_rewrite:
                         _scaffold_cache_put(cache_key, raw.strip())  # only gate-passing output
-                    inquiry = _extract_inquiry_from_chapter(assembled)
                     return QuoteWeaverResult(
-                        text=assembled,
+                        text=body,
                         passed_gate=True,
                         fallback_used=False,
-                        atma_vichara_inquiry=inquiry,
+                        atma_vichara_inquiry=questions_text,
+                        related_clips_heading=heading,
                         practice_recommendation=practice_rec,
                         audio_playback_clip=audio,
                         audio_playback_clips=all_audios,
@@ -1531,13 +1607,16 @@ class QuoteWeaverService:
             logger.warning("[QuoteWeaverService] Hybrid LLM weaving error: %s; using fallback", e)
 
         fallback_text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-        inquiry = _extract_inquiry_from_chapter(fallback_text)
+        heading, inquiry = _format_pointer_and_questions(
+            clips=clips, query=query, okf_entries=okf_entries
+        )
         return QuoteWeaverResult(
             text=fallback_text,
             passed_gate=True,
             fallback_used=True,
             gate_reason="assertion_gate_or_timeout_fallback",
             atma_vichara_inquiry=inquiry,
+            related_clips_heading=heading,
             practice_recommendation=practice_rec,
             audio_playback_clip=audio,
             audio_playback_clips=all_audios,

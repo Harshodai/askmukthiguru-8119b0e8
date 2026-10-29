@@ -216,7 +216,9 @@ def test_audit_store_drift_detects_seeded_drift():
     mock_supabase = MagicMock()
     mock_res = MagicMock()
     mock_res.data = [{"point_id": "p1"}, {"point_id": "p2"}, {"point_id": "p4"}]
-    mock_supabase.table.return_value.select.return_value.execute.return_value = mock_res
+    mock_supabase.table.return_value.select.return_value.range.return_value.execute.return_value = (
+        mock_res
+    )
 
     res = audit_store_drift(mock_qdrant, supabase_client=mock_supabase, fix=False)
 
@@ -229,7 +231,7 @@ def test_audit_store_drift_detects_seeded_drift():
 
 
 def test_audit_store_drift_fix_mode_deletes_orphans():
-    """Test audit_store_drift with fix=True deletes orphan Qdrant points."""
+    """Test audit_store_drift with fix=True + confirm deletes orphan Qdrant points."""
     mock_qdrant = MagicMock()
     pt1 = MagicMock(id="p1")
     pt2 = MagicMock(id="p2")
@@ -237,15 +239,99 @@ def test_audit_store_drift_fix_mode_deletes_orphans():
 
     mock_supabase = MagicMock()
     mock_res = MagicMock(data=[{"point_id": "p1"}])
-    mock_supabase.table.return_value.select.return_value.execute.return_value = mock_res
+    mock_supabase.table.return_value.select.return_value.range.return_value.execute.return_value = (
+        mock_res
+    )
 
-    res = audit_store_drift(mock_qdrant, supabase_client=mock_supabase, fix=True)
+    res = audit_store_drift(
+        mock_qdrant,
+        supabase_client=mock_supabase,
+        fix=True,
+        confirm=True,
+        max_repair_fraction=0.75,
+    )
 
     assert res["fix_applied"] is True
     assert res["repaired_count"] == 1
     assert mock_qdrant.delete.called
     call_kwargs = mock_qdrant.delete.call_args[1]
     assert call_kwargs["points_selector"] == ["p2"]
+
+
+def test_audit_store_drift_repair_requires_confirmation():
+    """P0-3: --repair without --yes must not delete anything."""
+    mock_qdrant = MagicMock()
+    mock_qdrant.scroll.return_value = ([MagicMock(id="p1"), MagicMock(id="p2")], None)
+
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.select.return_value.range.return_value.execute.return_value = (
+        MagicMock(data=[{"point_id": "p1"}])
+    )
+
+    res = audit_store_drift(mock_qdrant, supabase_client=mock_supabase, fix=True)
+
+    assert res["repaired_count"] == 0
+    assert res["fix_applied"] is False
+    assert "confirmation" in res["repair_refused_reason"]
+    mock_qdrant.delete.assert_not_called()
+
+
+def test_audit_store_drift_refuses_mass_repair_from_truncated_read():
+    """P0-3: a truncated Supabase read must never become a corpus-wide delete."""
+    mock_qdrant = MagicMock()
+    # 100 stored points, Supabase returned only 1 id
+    mock_qdrant.scroll.return_value = ([MagicMock(id=f"p{i}") for i in range(100)], None)
+
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.select.return_value.range.return_value.execute.return_value = (
+        MagicMock(data=[{"point_id": "p0"}])
+    )
+
+    res = audit_store_drift(mock_qdrant, supabase_client=mock_supabase, fix=True, confirm=True)
+
+    assert res["repaired_count"] == 0
+    assert res["fix_applied"] is False
+    assert "would be deleted" in res["repair_refused_reason"]
+    mock_qdrant.delete.assert_not_called()
+
+
+def test_audit_store_drift_refuses_repair_without_supabase_ids():
+    """P0-3: no Supabase ids means the comparison base is unknown, not empty."""
+    mock_qdrant = MagicMock()
+    mock_qdrant.scroll.return_value = ([MagicMock(id="p1"), MagicMock(id="p2")], None)
+
+    mock_supabase = MagicMock()
+    mock_supabase.table.return_value.select.return_value.range.return_value.execute.return_value = (
+        MagicMock(data=[])
+    )
+
+    res = audit_store_drift(mock_qdrant, supabase_client=mock_supabase, fix=True, confirm=True)
+
+    assert res["repaired_count"] == 0
+    assert "no point ids found" in res["repair_refused_reason"]
+    mock_qdrant.delete.assert_not_called()
+
+
+def test_audit_store_drift_paginates_supabase_reads():
+    """P0-3: PostgREST caps unpaginated selects; every page must be read."""
+    mock_qdrant = MagicMock()
+    mock_qdrant.scroll.return_value = ([MagicMock(id=f"p{i}") for i in range(1001)], None)
+
+    full_page = MagicMock(data=[{"point_id": f"p{i}"} for i in range(1000)])
+    last_page = MagicMock(data=[{"point_id": "p1000"}])
+    mock_supabase = MagicMock()
+    chain = mock_supabase.table.return_value.select.return_value.range.return_value
+    chain.execute.side_effect = [full_page, last_page]
+
+    res = audit_store_drift(mock_qdrant, supabase_client=mock_supabase, fix=False)
+
+    assert res["supabase_records_count"] == 1001
+    assert res["orphan_qdrant_ids"] == []
+    assert res["supabase_read_complete"] is True
+    range_mock = mock_supabase.table.return_value.select.return_value.range
+    calls = [c.args for c in range_mock.mock_calls if c[0] == ""]
+    assert (0, 999) in calls
+    assert (1000, 1999) in calls
 
 
 # ==============================================================================

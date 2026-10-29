@@ -108,13 +108,62 @@ def build_collection(
     return new_col
 
 
+def _validate_vectors(collection_name: str, col_info: Any) -> tuple[bool, str]:
+    """Check the built collection really has the named vectors search will use."""
+    try:
+        params = col_info.config.params
+    except AttributeError as exc:
+        return False, f"collection config unreadable: {exc}"
+
+    vectors_config = getattr(params, "vectors", None)
+    if not isinstance(vectors_config, dict) or "dense" not in vectors_config:
+        return False, "missing named 'dense' vector (unnamed collections are unsupported)"
+
+    expected_dim = int(getattr(settings, "embedding_dimension", 0) or 0)
+    actual_dim = getattr(vectors_config["dense"], "size", None)
+    if expected_dim and actual_dim != expected_dim:
+        return (
+            False,
+            f"dense vector is {actual_dim}-dim, settings.embedding_dimension={expected_dim}",
+        )
+
+    require_sparse = bool(getattr(settings, "bm25_retrieval_enabled", False))
+    if require_sparse:
+        sparse_config = getattr(params, "sparse_vectors", None)
+        if not isinstance(sparse_config, dict) or "sparse" not in sparse_config:
+            return False, "hybrid search is enabled but the collection has no named 'sparse' vector"
+
+    return True, ""
+
+
+def _validate_payload_indexes(collection_name: str, col_info: Any) -> tuple[bool, list[str]]:
+    """Report required payload indexes missing from the built collection."""
+    required = [name for name, _ in QdrantClientManager._PAYLOAD_INDEXES]
+    payload_schema = getattr(col_info, "payload_schema", None) or {}
+    try:
+        present = set(payload_schema.keys())
+    except AttributeError:
+        present = set()
+    missing = [name for name in required if name not in present]
+    return (not missing), missing
+
+
 def validate_collection(
     collection_name: str,
     plan: dict[str, Any],
     client: Any = None,
     min_points: int = 0,
+    baseline_points: int = 0,
 ) -> dict[str, Any]:
-    """Validate point count, index fingerprint, and sample payloads."""
+    """Validate the built collection's *live* state before any alias swap.
+
+    The old implementation compared `build_index_fingerprint(settings, ...)`
+    against `plan["expected_fingerprint"]`, which is the same pure-function
+    digest of the same settings and the same collection name — a tautology that
+    can never fail. The gates below inspect the actual collection instead:
+    named-vector shape, payload indexes, point count, and a floor derived from
+    the collection currently serving traffic.
+    """
     if client is None:
         client = QdrantClientManager().client
 
@@ -126,13 +175,21 @@ def validate_collection(
             "valid": False,
             "error": f"Collection {collection_name} unreachable: {exc}",
             "points_count": 0,
-            "fingerprint_matched": False,
+            "count_valid": False,
+            "vectors_valid": False,
+            "indexes_valid": False,
             "sample_eval_passed": False,
         }
 
-    count_valid = points_count >= min_points
+    # A swap onto an empty (or smaller) collection silently degrades serving to
+    # "no results" for every query. Both floors must hold.
+    floor = max(int(min_points or 0), int(baseline_points or 0))
+    count_valid = points_count >= floor
 
-    # Fingerprint check
+    vectors_valid, vectors_error = _validate_vectors(collection_name, col_info)
+    indexes_valid, missing_indexes = _validate_payload_indexes(collection_name, col_info)
+
+    # Informational only: this digest is config-vs-config and cannot fail.
     current_fp = build_index_fingerprint(
         settings,
         collection=collection_name,
@@ -162,13 +219,19 @@ def validate_collection(
             sample_issues.append(f"Sample scroll failed: {exc}")
             sample_eval_passed = False
 
-    is_valid = count_valid and fp_valid and sample_eval_passed
+    is_valid = count_valid and vectors_valid and indexes_valid and sample_eval_passed
     return {
         "valid": is_valid,
         "collection": collection_name,
         "points_count": points_count,
-        "min_points_required": min_points,
+        "min_points_required": floor,
+        "baseline_points": int(baseline_points or 0),
         "count_valid": count_valid,
+        "vectors_valid": vectors_valid,
+        "vectors_error": vectors_error,
+        "indexes_valid": indexes_valid,
+        "missing_indexes": missing_indexes,
+        # Config-vs-config digest, kept for the audit record; never a gate.
         "fingerprint_matched": fp_valid,
         "sample_eval_passed": sample_eval_passed,
         "sample_issues": sample_issues,
@@ -194,6 +257,13 @@ def swap_alias_target(
     }
 
 
+def _collection_point_count(client: Any, collection_name: str) -> int:
+    try:
+        return int(getattr(client.get_collection(collection_name), "points_count", 0) or 0)
+    except Exception:
+        return 0
+
+
 def orchestrate_reindex(
     alias: str,
     target_collection: Optional[str] = None,
@@ -201,9 +271,19 @@ def orchestrate_reindex(
     min_points: int = 0,
     plan_only: bool = False,
     dry_run: bool = False,
+    confirm: bool = False,
     client: Any = None,
 ) -> dict[str, Any]:
-    """Execute the complete reindex orchestration lifecycle."""
+    """Execute the complete reindex orchestration lifecycle.
+
+    The alias swap is irreversible in effect (serving traffic moves instantly)
+    and this script does not populate the target collection — ingestion does.
+    Therefore the swap requires `confirm=True` and the target must hold at
+    least as many points as the collection currently serving behind the alias.
+    """
+    if client is None:
+        client = QdrantClientManager().client
+
     plan = plan_reindex(
         alias=alias,
         target_collection=target_collection,
@@ -219,6 +299,32 @@ def orchestrate_reindex(
             "plan": plan,
         }
 
+    new_col = plan["new_collection"]
+    current_target = plan["current_target"]
+
+    if new_col == current_target:
+        return {
+            "status": "refused",
+            "reason": (
+                f"target collection {new_col!r} is the collection currently serving "
+                f"alias {alias!r}; pass --target-collection to build a distinct one"
+            ),
+            "plan": plan,
+        }
+
+    baseline_points = _collection_point_count(client, current_target)
+
+    if baseline_points <= 0 and int(min_points or 0) <= 0:
+        return {
+            "status": "refused",
+            "reason": (
+                f"collection behind alias {alias!r} ('{current_target}') has no readable "
+                "point count, so the safety floor would be zero; pass an explicit "
+                "--min-points for a first-time bootstrap"
+            ),
+            "plan": plan,
+        }
+
     new_col = build_collection(plan, client=client)
 
     validation = validate_collection(
@@ -226,6 +332,7 @@ def orchestrate_reindex(
         plan=plan,
         client=client,
         min_points=min_points,
+        baseline_points=baseline_points,
     )
 
     if not validation["valid"]:
@@ -240,6 +347,18 @@ def orchestrate_reindex(
         return {
             "status": "dry_run_success",
             "dry_run": True,
+            "plan": plan,
+            "validation": validation,
+            "swapped": False,
+        }
+
+    if not confirm:
+        return {
+            "status": "confirmation_required",
+            "reason": (
+                "alias swap moves live serving traffic; re-run with --yes once "
+                "validation above has been reviewed"
+            ),
             "plan": plan,
             "validation": validation,
             "swapped": False,
@@ -263,9 +382,24 @@ def main() -> int:
     )
     parser.add_argument("--target-collection", default=None)
     parser.add_argument("--version", type=int, default=2)
-    parser.add_argument("--min-points", type=int, default=0)
+    parser.add_argument(
+        "--min-points",
+        type=int,
+        default=0,
+        help=(
+            "absolute floor for the built collection's point count; the effective "
+            "floor is always at least the point count of the collection currently "
+            "serving behind --alias"
+        ),
+    )
     parser.add_argument("--plan-only", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        dest="confirm",
+        help="required to perform the alias swap; without it the run stops after validation",
+    )
     args = parser.parse_args()
 
     result = orchestrate_reindex(
@@ -275,9 +409,15 @@ def main() -> int:
         min_points=args.min_points,
         plan_only=args.plan_only,
         dry_run=args.dry_run,
+        confirm=args.confirm,
     )
     print(json.dumps(result, indent=2))
-    return 0 if result.get("status") in ("planned", "dry_run_success", "success") else 1
+    return (
+        0
+        if result.get("status")
+        in ("planned", "dry_run_success", "success", "confirmation_required")
+        else 1
+    )
 
 
 if __name__ == "__main__":

@@ -21,6 +21,51 @@ from typing import Any, Optional
 MIN_ASR_AGREEMENT = 0.80
 
 
+#: Invocations repeated on purpose in guided practice ("peace, peace, peace, ..."). A
+#: short run of these is speech, not a decoder loop; a long one still is (a Whisper
+#: loop does not stop at five).
+CHANT_WORDS = frozenset({"peace", "namaste", "shanti", "om", "aum"})
+MAX_CHANT_REPEATS = 12
+
+#: Expected script by spoken language (ISO 639-1). Undeclared (None) means the English corpus.
+SCRIPT_BY_LANGUAGE = {
+    "en": "Latin",
+    "hi": "Devanagari",
+    "mr": "Devanagari",
+    "sa": "Devanagari",
+    "ne": "Devanagari",
+    "te": "Telugu",
+    "ta": "Tamil",
+    "kn": "Kannada",
+    "ml": "Malayalam",
+    "bn": "Bengali",
+    "gu": "Gujarati",
+    "pa": "Gurmukhi",
+    "or": "Oriya",
+    "ur": "Arabic",
+}
+
+
+def expected_script_for(language: Optional[str]) -> str:
+    """Script a span must be written in. Unknown or undeclared language -> Latin (fail closed)."""
+    if not language:
+        return CORPUS_EXPECTED_SCRIPT
+    return SCRIPT_BY_LANGUAGE.get(
+        language.strip().lower().replace("_", "-").split("-")[0], CORPUS_EXPECTED_SCRIPT
+    )
+
+
+#: Script every span of the current first-person corpus is expected to be written in.
+#: The ASR stage is English-only (parakeet-tdt-0.6b-v3 covers no Indic language; see
+#: the 2026-10-25 data audit D10), so any text in another script is decoder output, not
+#: transcription. Serve-time callers and builders pass this explicitly; revisit it when
+#: a language-aware corpus exists (per-span language), not before.
+CORPUS_EXPECTED_SCRIPT = "Latin"
+
+#: Share of letters outside the INFERRED script tolerated when ``expected_script=None``.
+INFERRED_SCRIPT_FOREIGN_RATIO = 0.02
+
+
 def _char_in_script(ch: str, expected_script: str) -> bool:
     base_chars = [
         c for c in unicodedata.normalize("NFKD", ch) if unicodedata.category(c).startswith("L")
@@ -57,9 +102,10 @@ def script_and_loop_problem(text: str, expected_script: Optional[str] = "Latin")
 
     ``expected_script=None`` means "infer the dominant script of this span": a wholly
     Devanagari, Telugu or Tamil span then passes, while a span that mixes scripts
-    (the D1 Urdu+Latin+Cyrillic garbage) is still refused. Serve-time callers use
-    ``None`` because the product is multilingual; builders for the English corpus
-    keep the explicit ``"Latin"``.
+    (the D1 Urdu+Latin+Cyrillic garbage) is still refused. Callers on the English
+    corpus (builders and ``_standalone_problem``) pass ``"Latin"``; the context harness
+    passes ``expected_script_for(span.language)``. ``None`` is for a language-aware
+    corpus that does not exist yet.
     """
     if not text or not text.strip():
         return None
@@ -79,13 +125,19 @@ def script_and_loop_problem(text: str, expected_script: Optional[str] = "Latin")
             wl = w.lower()
             if wl == prev:
                 run += 1
-                if run >= 5:
+                limit = MAX_CHANT_REPEATS if prev in CHANT_WORDS else 5
+                if run >= limit:
                     return f"asr_word_loop:{prev}"
             else:
                 run = 1
                 prev = wl
 
-    # 3. More than 2% characters outside the expected (or dominant) script
+    # 3. Characters outside the script. With an EXPLICIT expected script a single foreign
+    #    letter is garbage: 2026-10-25 review found a wholly Devanagari span and a Latin
+    #    span with two Arabic letters (2% of 162) passing a ratio test, and across the
+    #    whole 2,737-span live export every span with any non-Latin letter was garbage.
+    #    With ``expected_script=None`` the dominant script is inferred and the 2% ratio
+    #    stays, so a genuinely single-script non-Latin span is not refused.
     letter_chars = [ch for ch in text if unicodedata.category(ch).startswith(("L", "M"))]
     if letter_chars:
         target = expected_script
@@ -98,7 +150,8 @@ def script_and_loop_problem(text: str, expected_script: Optional[str] = "Latin")
             target = counts.most_common(1)[0][0]
         foreign = [ch for ch in letter_chars if not _char_in_script(ch, target)]
         foreign_ratio = len(foreign) / len(letter_chars)
-        if foreign_ratio > 0.02:
+        threshold = INFERRED_SCRIPT_FOREIGN_RATIO if expected_script is None else 0.0
+        if foreign_ratio > threshold:
             sample = "".join(foreign[:5])
             return f"asr_script_garbage:foreign_ratio={foreign_ratio:.3f}:{sample}"
 

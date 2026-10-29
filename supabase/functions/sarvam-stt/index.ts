@@ -5,6 +5,34 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 const SARVAM_STT_URL = "https://api.sarvam.ai/speech-to-text";
+const GATEWAY_STT_URL = "https://ai.gateway.lovable.dev/v1/audio/transcriptions";
+
+// Fallback when SARVAM_API_KEY is absent or Sarvam fails: Lovable AI Gateway
+// transcription (openai/gpt-transcribe). Same { transcript, language_code } shape.
+const transcribeViaGateway = async (
+  file: Blob,
+  langRaw: string,
+): Promise<{ transcript: string; language_code: string } | null> => {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableKey) return null;
+  const upstream = new FormData();
+  const type = file.type?.startsWith("audio/") ? file.type : "audio/webm";
+  upstream.append("file", new Blob([await file.arrayBuffer()], { type }), "audio.webm");
+  upstream.append("model", "openai/gpt-transcribe");
+  const iso = langRaw.split("-")[0];
+  if (iso && iso !== "unknown" && iso !== "auto") upstream.append("languages", iso);
+  const res = await fetch(GATEWAY_STT_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${lovableKey}` },
+    body: upstream,
+  });
+  if (!res.ok) {
+    console.error("Gateway STT error", res.status, await res.text());
+    return null;
+  }
+  const data = await res.json();
+  return { transcript: data?.text ?? "", language_code: langRaw };
+};
 
 const toSarvamLang = (code: string): string => {
   if (!code || code === "unknown" || code === "auto") return "unknown";
@@ -66,6 +94,13 @@ Deno.serve(async (req) => {
 
     const apiKey = Deno.env.get("SARVAM_API_KEY");
     if (!apiKey) {
+      // No Sarvam key configured — try the Lovable AI Gateway transcription.
+      const gw = await transcribeViaGateway(file as Blob, langRaw);
+      if (gw) {
+        return new Response(JSON.stringify(gw), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ error: "STT not configured" }), {
         status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -87,6 +122,13 @@ Deno.serve(async (req) => {
     if (!sarvamRes.ok) {
       const errText = await sarvamRes.text();
       console.error("Sarvam STT error", sarvamRes.status, errText);
+      // Sarvam upstream failed — try the gateway before giving up.
+      const gw = await transcribeViaGateway(file as Blob, langRaw);
+      if (gw) {
+        return new Response(JSON.stringify(gw), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(
         JSON.stringify({ error: "An internal error occurred. Please try again." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },

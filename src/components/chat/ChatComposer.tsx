@@ -301,7 +301,7 @@ function ChatComposerInner({
           </div>
         )}
 
-        <PromptInputFooter className="flex items-center gap-1.5 px-3 pb-3 pt-2">
+        <PromptInputFooter className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2">
           <PromptInputTools>
             <LanguageSelector
               value={currentLanguage}
@@ -314,7 +314,9 @@ function ChatComposerInner({
               isSpeaking={isSpeaking}
               compact
             />
-            <AssistantSwitcher variant="chip" />
+            <div className="hidden sm:block">
+              <AssistantSwitcher variant="chip" />
+            </div>
 
             {hasMoreActions && (
               <DropdownMenu>
@@ -405,7 +407,7 @@ function ChatComposerInner({
                   <PromptInputSubmit
                     type="submit"
                     size="icon-sm"
-                    className="min-h-[44px] sm:h-9 px-3 rounded-xl bg-ojas text-zinc-950 hover:bg-ojas-light font-semibold text-xs shadow-md transition-all flex items-center gap-1.5"
+                    className="min-h-[44px] sm:h-9 px-3 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-light font-semibold text-xs shadow-md transition-all flex items-center gap-1.5"
                     aria-label={t('chat.queueMessage', 'Queue message')}
                     title={t('chat.queueMessage', 'Queue follow-up message')}
                   >
@@ -419,7 +421,7 @@ function ChatComposerInner({
                 type="submit"
                 size="icon-sm"
                 disabled={!inputValue.trim() || isAwaitingSereneMind || isQuotaExceeded || isUploading}
-                className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-white hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center"
+                className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center"
                 aria-label={t('chat.send') === 'chat.send' ? 'Send message' : t('chat.send')}
               >
                 <Send className="w-4 h-4" />

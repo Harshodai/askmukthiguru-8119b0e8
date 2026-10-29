@@ -206,6 +206,11 @@ class SourceSpan(BaseModel):
     voice_verification_method: str | None = None
     asr_engine: str | None = None
     asr_model_version: str | None = None
+    # ISO 639-1 code of the language SPOKEN in this span, from a language-ID step (audit
+    # D10). None on every span built so far: undeclared means the English corpus, and the
+    # serve-time text gate then expects Latin script. A span in another language must
+    # declare it to be served; the gate then expects that language's script.
+    language: str | None = None
     retrieval_text_version: str = "fp-retrieval-v1"
     contextual_header_version: str | None = None
     source_url: str = Field(min_length=1)

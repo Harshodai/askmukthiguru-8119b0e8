@@ -254,7 +254,7 @@ def test_store_point_id_for_clip_matches_written_id_when_cleaner_changes_text():
     from ingest.verbatim.asr_cleaner import clean_verbatim_text
 
     raw = (
-        "Earth communicates to the trees, the trees communicate to the fellow "
+        "Earth communicates to the the trees, the trees communicate to the fellow "
         "trees and they also communicate to the mushrooms on the forest floor"
     )
     assert clean_verbatim_text(raw) != raw  # fixture must exercise the skew path

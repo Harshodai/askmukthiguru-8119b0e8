@@ -544,11 +544,11 @@ def _standalone_problem(text: str) -> Optional[str]:
     ended mid-thought or pointed at a one-off event. Casing is NOT used (Whisper's casing is
     unreliable and good clips start lowercase). Returns a short reason or None.
     """
-    from ingest.verbatim.gates import script_and_loop_problem
+    from ingest.verbatim.gates import CORPUS_EXPECTED_SCRIPT, script_and_loop_problem
 
-    # Serve time is script-agnostic (a Hindi or Telugu span is legitimate); the
-    # check catches a span that mixes scripts or carries a decoder loop.
-    garbage = script_and_loop_problem(text, expected_script=None)
+    # The corpus is English-only (ASR covers no Indic language), so any non-Latin letter
+    # is decoder garbage; the check also catches a decoder loop.
+    garbage = script_and_loop_problem(text, expected_script=CORPUS_EXPECTED_SCRIPT)
     if garbage:
         return "asr_script_garbage"
     stripped = text.rstrip()
