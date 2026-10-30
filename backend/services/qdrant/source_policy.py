@@ -220,9 +220,7 @@ def filter_by_release(
                 )
                 active_version_cache[source_identity] = _coerce_release_version(resolved)
             except Exception as e:  # noqa: BLE001 - classified below
-                logger.error(
-                    "Active release version lookup failed for %s: %s", source_identity, e
-                )
+                logger.error("Active release version lookup failed for %s: %s", source_identity, e)
                 unresolvable[source_identity] = str(e)
 
         if source_identity in unresolvable:

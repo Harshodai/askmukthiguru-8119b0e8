@@ -101,7 +101,9 @@ def _run(clips, llm, monkeypatch, tmp_path=None, block_ids=None):
     )
     # Hermetic: a local .env that enables the speculative cascade scores only
     # candidate #1 first, which changes how many scores the stub LLM must return.
-    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False, raising=False)
+    monkeypatch.setattr(
+        settings, "first_person_speculative_parallelism_enabled", False, raising=False
+    )
     if block_ids is not None:
         bf = tmp_path / "block.json"
         bf.write_text(json.dumps(sorted(block_ids)), encoding="utf-8")

@@ -217,7 +217,7 @@ def test_database_file_is_owner_only():
 
 def test_safety_notices_are_appended_to_the_whatsapp_reply():
     """Platform copy (support line, boundaries) left the answer body; WhatsApp must add it back."""
-    text = wa_bot.with_safety_notices("\"A clip.\"", ["Boundary line.", " ", "Support line."])
+    text = wa_bot.with_safety_notices('"A clip."', ["Boundary line.", " ", "Support line."])
     assert text.endswith("Boundary line.\n\nSupport line.")
     assert wa_bot.with_safety_notices("only quote", None) == "only quote"
     assert wa_bot.with_safety_notices("only quote", []) == "only quote"

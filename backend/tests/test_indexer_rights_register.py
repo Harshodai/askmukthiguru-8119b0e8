@@ -14,7 +14,9 @@ def _reset_cache(monkeypatch):
 
 
 def _point_loader_at(monkeypatch, tmp_path, text):
-    manifest = tmp_path / "audits" / "evidence" / "public_release_phase4_rights_manifest_2026-10-22.json"
+    manifest = (
+        tmp_path / "audits" / "evidence" / "public_release_phase4_rights_manifest_2026-10-22.json"
+    )
     manifest.parent.mkdir(parents=True)
     manifest.write_text(text, encoding="utf-8")
     monkeypatch.chdir(tmp_path)

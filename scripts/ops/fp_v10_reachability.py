@@ -22,16 +22,22 @@ from urllib.request import Request, urlopen
 def reachability(rows: list[dict]) -> dict:
     videos = {r["video_id"] for r in rows if r.get("video_id")}
     children = [r for r in rows if r.get("record_type") == "retrieval_child"]
-    reachable = {r["video_id"] for r in children if r.get("rights_cleared") is True and r.get("video_id")}
+    reachable = {
+        r["video_id"] for r in children if r.get("rights_cleared") is True and r.get("video_id")
+    }
     return {
         "videos": len(videos),
         "children": len(children),
         "reachable_videos": len(reachable),
         "unreachable_videos": sorted(videos - reachable),
         "speaker_verified_without_method": sum(
-            1 for r in children if r.get("speaker_verified") and not r.get("voice_verification_method")
+            1
+            for r in children
+            if r.get("speaker_verified") and not r.get("voice_verification_method")
         ),
-        "children_per_video": dict(Counter(r["video_id"] for r in children if r.get("video_id")).most_common(3)),
+        "children_per_video": dict(
+            Counter(r["video_id"] for r in children if r.get("video_id")).most_common(3)
+        ),
     }
 
 

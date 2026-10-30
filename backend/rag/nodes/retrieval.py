@@ -2145,8 +2145,7 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
                 return True
             payload = d.get("metadata") if isinstance(d.get("metadata"), dict) else d
             return any(
-                k in payload
-                for k in ("chunk_id", "domain_rights_status", "source_release_version")
+                k in payload for k in ("chunk_id", "domain_rights_status", "source_release_version")
             )
 
         try:

@@ -16,8 +16,12 @@ def test_reachability_flags_a_video_with_no_rights_cleared_child():
         {"video_id": "a", "record_type": "retrieval_child", "rights_cleared": True},
         {"video_id": "b", "record_type": "retrieval_child", "rights_cleared": False},
         {"video_id": "c", "record_type": "parent_unit"},
-        {"video_id": "a", "record_type": "retrieval_child", "rights_cleared": True,
-         "speaker_verified": True},
+        {
+            "video_id": "a",
+            "record_type": "retrieval_child",
+            "rights_cleared": True,
+            "speaker_verified": True,
+        },
     ]
     rep = reachability(rows)
     assert rep["videos"] == 3 and rep["reachable_videos"] == 1

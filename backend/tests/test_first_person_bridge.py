@@ -1205,8 +1205,7 @@ async def test_flag_on_moderate_weak_match_keeps_related_label_and_honest_direct
     monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
     fp_pipeline.execute.return_value = _fp_result(
         answer=(
-            f"**Sri Preethaji**\n\n{_CLIP_TEXT}\n\n"
-            "https://www.youtube.com/watch?v=abc123&t=99s"
+            f"**Sri Preethaji**\n\n{_CLIP_TEXT}\n\nhttps://www.youtube.com/watch?v=abc123&t=99s"
         ),
         status="weak_match",
         is_direct=False,
@@ -1413,7 +1412,9 @@ async def test_flag_on_moderate_indic_keeps_quotes_verbatim(fp_pipeline, monkeyp
         assert _CLIP_TEXT not in fragment
     # The framing is glue: delivered translated, and only as a notice.
     assert _COMPASSION_MARKER not in result.final_answer
-    assert any(f"HI({_COMPASSION_MARKER[:20]}" in n for n in result.route_metadata["safety_notices"])
+    assert any(
+        f"HI({_COMPASSION_MARKER[:20]}" in n for n in result.route_metadata["safety_notices"]
+    )
 
 
 # ---------------------------------------------------------------------------

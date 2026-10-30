@@ -25,6 +25,7 @@ from services.tenant_context import TenantContext, get_tenant_collection
 
 logger = logging.getLogger(__name__)
 
+
 class RightsRegisterUnavailable(RuntimeError):
     """The rights manifest exists but could not be read or parsed.
 
@@ -471,8 +472,8 @@ class QdrantIndexer:
     ) -> None:
         """DE-0.5: Persist quality gate rejections at chokepoint to ledger and Prometheus metrics."""
         from app.metrics import (
-            CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL,
             CORPUS_GATE_REJECTIONS_PERSIST_FAILED_TOTAL,
+            CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL,
             INGEST_QUALITY_GATE_REJECTIONS_TOTAL,
         )
 

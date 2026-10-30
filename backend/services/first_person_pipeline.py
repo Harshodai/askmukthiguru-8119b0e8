@@ -3085,9 +3085,7 @@ class FirstPersonPipeline:
         # FIRST_PERSON_CONTEXT_HARNESS_ENABLED said false — exactly the posture
         # the public-release NO-GO forbids. Store presence is configuration, not
         # permission.
-        harness_enabled = bool(
-            getattr(settings, "first_person_context_harness_enabled", False)
-        )
+        harness_enabled = bool(getattr(settings, "first_person_context_harness_enabled", False))
         ctx_store = self._get_context_store() if harness_enabled else None
         if ctx_store is not None and query_dense_vector:
             t_ctx_start = time.monotonic()

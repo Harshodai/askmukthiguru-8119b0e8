@@ -716,7 +716,9 @@ def _stream_done_metadata(result) -> dict:
         "answer_evidence": None if answer_evidence is None else asdict(answer_evidence),
         # Invariant 1: platform copy (compassion framing, safety boundaries,
         # support line) rides beside the answer, never inside it.
-        "safety_notices": list((getattr(result, "route_metadata", None) or {}).get("safety_notices") or []),
+        "safety_notices": list(
+            (getattr(result, "route_metadata", None) or {}).get("safety_notices") or []
+        ),
         "guidance_plan": None if guidance_plan is None else asdict(guidance_plan),
         "grounding_state": grounding_state_for(result),
         "verification": getattr(result, "verification", None),

@@ -41,7 +41,9 @@ def test_only_videos_restricts_additions_before_the_limit_and_never_widens():
     assert '"--only-videos"' in src
     filt = src.index("p.stem in only")
     limit = src.index("if args.limit > 0:")
-    built_from = src.index("missing_candidates = [\n        p for p in all_transcripts if p.stem not in existing_videos")
+    built_from = src.index(
+        "missing_candidates = [\n        p for p in all_transcripts if p.stem not in existing_videos"
+    )
     # the filter works on the list that already excludes indexed videos
     assert built_from < filt < limit
 

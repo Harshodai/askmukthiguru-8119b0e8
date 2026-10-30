@@ -321,9 +321,7 @@ def test_one_failing_update_does_not_abort_the_sweep():
     now = datetime.now(UTC)
     stale = (now - timedelta(minutes=40)).isoformat()
     ids = [str(uuid.uuid4()) for _ in range(2)]
-    table = FakeSupabaseTable(
-        [{"id": i, "status": "running", "heartbeat_at": stale} for i in ids]
-    )
+    table = FakeSupabaseTable([{"id": i, "status": "running", "heartbeat_at": stale} for i in ids])
     real_execute = table.execute
     calls = {"n": 0}
 

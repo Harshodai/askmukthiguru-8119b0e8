@@ -593,7 +593,6 @@ def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> li
     Returns list of swept job IDs.
     """
     cutoff = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
-    cutoff_iso = cutoff.isoformat()
 
     if client is None:
         try:
@@ -622,10 +621,7 @@ def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> li
             client.table("ingest_jobs")
             .select("id, status, heartbeat_at, started_at, created_at")
             .in_("status", ["running", "processing"])
-            .or_(
-                f"heartbeat_at.lt.{cutoff_z},"
-                f"and(heartbeat_at.is.null,created_at.lt.{cutoff_z})"
-            )
+            .or_(f"heartbeat_at.lt.{cutoff_z},and(heartbeat_at.is.null,created_at.lt.{cutoff_z})")
             .execute()
         )
         stale_jobs = resp.data or []

@@ -247,9 +247,7 @@ def test_undeclared_or_mismatched_tier_fails_closed(sample_valid_row):
     assert reason == "cleared"
 
     # A wildcard tier is not a bypass: it fails closed like any other mismatch
-    ok, reason = manifest.is_entry_eligible(
-        "vid_valid_01", "v1", content_hash="h" * 64, tier="*"
-    )
+    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1", content_hash="h" * 64, tier="*")
     assert ok is False
     assert reason == "tier_mismatch_general"
 
