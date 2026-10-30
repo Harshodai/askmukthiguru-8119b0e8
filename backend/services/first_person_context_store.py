@@ -35,6 +35,7 @@ from domain.first_person_context import (
     ParentUnit,
     SourceSpan,
 )
+from services.first_person_video_decisions import blocked_video_ids_or_none, video_is_blocked
 
 logger = logging.getLogger(__name__)
 
@@ -218,17 +219,28 @@ class FirstPersonContextStore:
             conditions.append(
                 FieldCondition(key="guru_id", match=MatchValue(value=guru_id.lower()))
             )
+        # Videos the owner rejected on the admin page are excluded here so they cannot crowd
+        # real candidates out of the top-k. An invalid decisions file fails closed: no results.
+        blocked_videos = blocked_video_ids_or_none()
+        if blocked_videos is None:
+            return []
+        must_not = (
+            [FieldCondition(key="video_id", match=MatchAny(any=sorted(blocked_videos)))]
+            if blocked_videos
+            else None
+        )
         concepts = _clean_concept_ids(concept_ids)
         if concepts:
             query_filter = Filter(
                 must=conditions,
+                must_not=must_not,
                 should=[
                     FieldCondition(key="topic_ids", match=MatchAny(any=concepts)),
                     FieldCondition(key="entity_ids", match=MatchAny(any=concepts)),
                 ],
             )
         else:
-            query_filter = Filter(must=conditions)
+            query_filter = Filter(must=conditions, must_not=must_not)
 
         groups = self._query_groups(
             query_dense,
@@ -521,7 +533,7 @@ class FirstPersonContextStore:
         records = self._client.retrieve(
             collection_name=self._collection,
             ids=unique,
-            with_payload=["record_type", "rights_cleared", "speaker_verified"],
+            with_payload=["record_type", "rights_cleared", "speaker_verified", "video_id"],
             with_vectors=False,
         )
         if len(records) != len(unique):
@@ -532,6 +544,8 @@ class FirstPersonContextStore:
             if payload.get("record_type") != "retrieval_child":
                 return False
             if payload.get("speaker_verified") is not True:
+                return False
+            if video_is_blocked(payload.get("video_id")):
                 return False
             if need_rights and payload.get("rights_cleared") is not True:
                 return False

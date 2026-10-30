@@ -89,6 +89,7 @@ coalescer = _build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl
 
 # Existing routers
 from app.api.admin import admin_router
+from app.api.admin_video_review import router as admin_video_review_router
 from app.api.assistants import router as assistants_router
 from app.api.cache_metrics import router as cache_metrics_router
 from app.api.cancel_flow import router as cancel_flow_router
@@ -1439,6 +1440,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(admin_router, prefix="/api/admin")
+app.include_router(admin_video_review_router, prefix="/api/admin/fp-videos")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(health_router, prefix="")
 app.include_router(capabilities_router, prefix="/api")

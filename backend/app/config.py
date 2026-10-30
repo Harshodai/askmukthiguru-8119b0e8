@@ -278,6 +278,15 @@ class Settings(BaseSettings):
     first_person_context_shadow_enabled: bool = False
     # Explicit fp-context-v1 candidate collection; empty disables shadow reads.
     first_person_context_collection: str = ""
+    # Admin video-approval page (services/first_person_video_decisions.py).
+    # Directory for the human per-video decisions + audit log; empty uses
+    # <backend>/data/fp_video_decisions (/app/data is the persisted Docker volume).
+    # Env: FIRST_PERSON_VIDEO_DECISIONS_DIR.
+    first_person_video_decisions_dir: str = ""
+    # Optional CSV of every known video (channel, title, v10 counts) so the page can list
+    # videos that are not in v10. Empty uses config/first_person_video_inventory.csv.
+    # Env: FIRST_PERSON_VIDEO_INVENTORY_PATH.
+    first_person_video_inventory_path: str = ""
     # Maximum child spans concatenated for one parent-context answer
     # (harness policy max_context_spans). Bounded so a long parent unit can
     # never turn into a wall of text on the chat surface.
