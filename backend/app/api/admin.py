@@ -2537,53 +2537,71 @@ async def get_corpus_provenance(
     if qdrant_client is None:
         raise HTTPException(status_code=503, detail="Vector store unavailable")
 
-    collection = getattr(settings, "qdrant_collection", "spiritual_wisdom_contextual")
-
-    points = None
-    if hasattr(qdrant_client, "retrieve"):
-        try:
-            res = await asyncio.to_thread(
-                qdrant_client.retrieve,
-                collection_name=collection,
-                ids=[point_id],
-                with_payload=True,
-            )
-            if res:
-                points = res
-        except Exception as e:
-            logger.debug("qdrant_client.retrieve(str) failed: %s", e)
-
-        if not points and point_id.isdigit():
+    async def _lookup(collection: str) -> Any:
+        points = None
+        if hasattr(qdrant_client, "retrieve"):
             try:
                 res = await asyncio.to_thread(
                     qdrant_client.retrieve,
                     collection_name=collection,
-                    ids=[int(point_id)],
+                    ids=[point_id],
                     with_payload=True,
                 )
                 if res:
                     points = res
             except Exception as e:
-                logger.debug("qdrant_client.retrieve(int) failed: %s", e)
+                logger.debug("qdrant_client.retrieve(str) failed: %s", e)
 
-    if not points and hasattr(qdrant_client, "scroll"):
-        from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+            if not points and point_id.isdigit():
+                try:
+                    res = await asyncio.to_thread(
+                        qdrant_client.retrieve,
+                        collection_name=collection,
+                        ids=[int(point_id)],
+                        with_payload=True,
+                    )
+                    if res:
+                        points = res
+                except Exception as e:
+                    logger.debug("qdrant_client.retrieve(int) failed: %s", e)
 
-        try:
-            scroll_res = await asyncio.to_thread(
-                qdrant_client.scroll,
-                collection_name=collection,
-                scroll_filter=Filter(
-                    must=[FieldCondition(key="point_id", match=MatchValue(value=point_id))]
-                ),
-                limit=1,
-                with_payload=True,
-            )
-            scroll_pts = scroll_res[0] if isinstance(scroll_res, tuple) else scroll_res
-            if scroll_pts:
-                points = scroll_pts
-        except Exception as e:
-            logger.debug("qdrant_client.scroll failed: %s", e)
+        if not points and hasattr(qdrant_client, "scroll"):
+            from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+
+            try:
+                scroll_res = await asyncio.to_thread(
+                    qdrant_client.scroll,
+                    collection_name=collection,
+                    scroll_filter=Filter(
+                        must=[FieldCondition(key="point_id", match=MatchValue(value=point_id))]
+                    ),
+                    limit=1,
+                    with_payload=True,
+                )
+                scroll_pts = scroll_res[0] if isinstance(scroll_res, tuple) else scroll_res
+                if scroll_pts:
+                    points = scroll_pts
+            except Exception as e:
+                logger.debug("qdrant_client.scroll failed: %s", e)
+        return points
+
+    # A point lives in the chat corpus OR in a first-person store. Reading only
+    # `qdrant_collection` made every first-person point (the ones served to
+    # seekers) a 404 and hid its provenance.
+    collections: list[str] = []
+    for name in (
+        getattr(settings, "qdrant_collection", "spiritual_wisdom_contextual"),
+        getattr(settings, "first_person_context_collection", ""),
+        getattr(settings, "first_person_collection", ""),
+    ):
+        if name and name not in collections:
+            collections.append(name)
+
+    points = None
+    for collection in collections:
+        points = await _lookup(collection)
+        if points:
+            break
 
     if not points:
         raise HTTPException(status_code=404, detail=f"Corpus point '{point_id}' not found")

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import threading
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -189,3 +190,21 @@ class RetrievalFeedbackService:
                 query[:40],
             )
         return kept
+
+
+_SHARED_SERVICE: RetrievalFeedbackService | None = None
+_SHARED_LOCK = threading.Lock()
+
+
+def get_retrieval_feedback_service() -> RetrievalFeedbackService:
+    """Process-wide service: one Supabase client lookup, one in-memory fallback store.
+
+    A per-request instance re-resolved the client every call and, on the
+    in-memory fallback, forgot every signal as soon as the request ended.
+    """
+    global _SHARED_SERVICE
+    if _SHARED_SERVICE is None:
+        with _SHARED_LOCK:
+            if _SHARED_SERVICE is None:
+                _SHARED_SERVICE = RetrievalFeedbackService()
+    return _SHARED_SERVICE

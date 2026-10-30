@@ -1398,6 +1398,22 @@ def _quarantine_web_docs_from_doctrine(
     return doctrine_docs
 
 
+def _needs_release_filter(d: Any) -> bool:
+    """True for a Qdrant-point document that has NOT yet been release-screened.
+
+    Only Qdrant points carry a release stamp. OKF / GraphRAG / web documents have
+    no release concept, so "missing version" must not drop them. Docs built by
+    ``QdrantSearcher`` are already screened (``release_screened``) and must not
+    be filtered a second time.
+    """
+    if not isinstance(d, dict):
+        return True
+    if d.get("release_screened") is True:
+        return False
+    payload = d.get("metadata") if isinstance(d.get("metadata"), dict) else d
+    return any(k in payload for k in ("chunk_id", "domain_rights_status", "source_release_version"))
+
+
 @trace_rag_node("retrieve_documents")
 @log_metrics
 async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
@@ -2137,22 +2153,11 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
             filter_by_release,
         )
 
-        def _is_qdrant_point(d: Any) -> bool:
-            # Only Qdrant points carry a release stamp. OKF / GraphRAG / web
-            # documents have no release concept, so "missing version" must not
-            # drop them (the searcher already filtered the vector channel).
-            if not isinstance(d, dict):
-                return True
-            payload = d.get("metadata") if isinstance(d.get("metadata"), dict) else d
-            return any(
-                k in payload for k in ("chunk_id", "domain_rights_status", "source_release_version")
-            )
-
         try:
-            _point_docs = [d for d in all_docs if _is_qdrant_point(d)]
+            _point_docs = [d for d in all_docs if _needs_release_filter(d)]
             _kept_points, _rel_dropped = filter_by_release(_point_docs, filter_mode=_filter_mode)
             _kept_ids = {id(d) for d in _kept_points}
-            all_docs = [d for d in all_docs if not _is_qdrant_point(d) or id(d) in _kept_ids]
+            all_docs = [d for d in all_docs if not _needs_release_filter(d) or id(d) in _kept_ids]
         except ReleasePolicyUnavailable as exc:
             # Fail closed: an unresolvable release registry cannot be replaced
             # by a guessed version (that either drops the corpus or serves
@@ -2527,9 +2532,9 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
 
     if getattr(settings, "retrieval_feedback_enabled", False):
         try:
-            from services.retrieval_feedback import RetrievalFeedbackService
+            from services.retrieval_feedback import get_retrieval_feedback_service
 
-            all_docs = RetrievalFeedbackService().filter_suppressed(
+            all_docs = get_retrieval_feedback_service().filter_suppressed(
                 state.get("question", ""), all_docs
             )
         except Exception as _fb_err:

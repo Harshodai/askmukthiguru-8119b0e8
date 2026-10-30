@@ -555,6 +555,12 @@ class QdrantSearcher:
                 "ontology_version": hit.payload.get("ontology_version"),
                 "entity_resolution_confidence": hit.payload.get("entity_resolution_confidence"),
                 "chunk_id": hit.payload.get("chunk_id") or hit.id,
+                "source_release_version": hit.payload.get("source_release_version"),
+                # filter_by_release already ran on these hits above; the
+                # retrieval node must not re-run it on the flattened dict
+                # (it would apply a different corpus_id and, in enforce, drop
+                # any doc whose stamp the dict shape lost).
+                "release_screened": True,
             }
             for hit in hits
         ]
@@ -588,9 +594,9 @@ class QdrantSearcher:
         if getattr(settings, "retrieval_feedback_enabled", False):
             raw_query = kwargs.get("query") or kwargs.get("raw_query")
             if raw_query:
-                from services.retrieval_feedback import RetrievalFeedbackService
+                from services.retrieval_feedback import get_retrieval_feedback_service
 
-                docs = RetrievalFeedbackService().filter_suppressed(raw_query, docs)
+                docs = get_retrieval_feedback_service().filter_suppressed(raw_query, docs)
 
         return docs
 

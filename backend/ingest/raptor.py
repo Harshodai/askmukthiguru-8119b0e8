@@ -23,6 +23,7 @@ The retrieval pipeline searches BOTH levels simultaneously.
 """
 
 import asyncio
+import hashlib
 import logging
 import uuid
 
@@ -37,6 +38,24 @@ from services.provenance import ChunkProvenance
 from services.qdrant_service import QdrantService
 
 logger = logging.getLogger(__name__)
+
+
+def _raptor_summary_point_id(
+    primary_source_url: str, cluster_id: int, source_urls: list[str]
+) -> str:
+    """Deterministic id for a level-1 summary.
+
+    A cluster spanning several videos used to be keyed by its first URL plus the
+    cluster number alone, so two clusters from different runs that shared that
+    first URL and number overwrote each other's summary point. Multi-source
+    clusters now also hash the full source set; single-source ids are unchanged
+    so re-ingest stays idempotent.
+    """
+    key = f"{primary_source_url}:raptor_1:{cluster_id}"
+    if len(source_urls) > 1:
+        digest = hashlib.sha256("\n".join(source_urls).encode("utf-8")).hexdigest()[:16]
+        key = f"{key}:{digest}"
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, key))
 
 
 class RaptorIndexer:
@@ -333,8 +352,8 @@ class RaptorIndexer:
                 if source_urls
                 else (chunks[0].get("source_url", "") if chunks else "")
             )
-            summary_point_id = str(
-                uuid.uuid5(uuid.NAMESPACE_URL, f"{primary_source_url}:raptor_1:{cluster_id}")
+            summary_point_id = _raptor_summary_point_id(
+                primary_source_url, cluster_id, source_urls
             )
 
             for c in cluster_chunks:
