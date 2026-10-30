@@ -1,5 +1,15 @@
 # Active UI and backend reliability roadmap
 
+## Current request — 2026-10-30
+
+- [ ] Improve query submission, response progress, interruption/retry and return behavior across phone, tablet and desktop.
+- [ ] Migrate to hosted TanStack stack for WhatsApp receiving — blocked: migration approval declined this turn; no migration started.
+- [ ] Connect WhatsApp Business and verify real incoming message, reply and delivery status after approved migration and receiver availability.
+- [ ] Complete MoodCheckIn → one teaching clip → one practice → saved reflection → resume; prevent duplicate saves and separate mood check-ins from completed practice statistics.
+- [ ] Expose explicit Personalize on eligible answers using consented memory and the existing general evidence pipeline; keep default verbatim lane unchanged.
+- [ ] Improve Profile/KG provenance, source navigation and consent/edit/delete controls.
+- [ ] Run focused regression tests and live-service checks; distinguish blocked services/accounts from verified behavior.
+
 ## Status from PR #76 audit (2026-10-21)
 
 - [x] Inspect PR #76 head, changed-file list, reviews/comments and latest workflow status.
