@@ -276,8 +276,10 @@ class Settings(BaseSettings):
     # Read-only shadow evaluation is independent of active harness serving.
     # It runs only when explicitly enabled and never changes response/cache/safety.
     first_person_context_shadow_enabled: bool = False
-    # Explicit fp-context-v1 candidate collection; empty disables shadow reads.
-    first_person_context_collection: str = ""
+    # The fp-context-v1 collection (single source of truth for the v10 context path).
+    # Naming it does not enable anything: serving needs the owner flag
+    # first_person_context_harness_enabled, shadow reads need their own flag.
+    first_person_context_collection: str = "first_person_v10"
     # v10-only serving: when True (and the context harness is on) a question the
     # harness cannot answer abstains instead of falling through to the legacy store.
     first_person_context_terminal_enabled: bool = False
