@@ -777,6 +777,18 @@ def format_whatsapp_response(raw_text: str, citations: list[str] | None = None) 
     return with_citations(formatted, citations or [])
 
 
+def with_safety_notices(text: str, notices: Any) -> str:
+    """Append the platform notices (support line, safety boundaries, framing) to a reply.
+
+    They no longer ride in the answer body (`safety_notices` on the chat response), so a
+    channel that renders only `response` would otherwise drop them.
+    """
+    clean = [str(n).strip() for n in (notices or []) if str(n or "").strip()]
+    if not clean:
+        return text
+    return (text + "\n\n" if text else "") + "\n\n".join(clean)
+
+
 def _chunk_text(text: str, max_length: int = MAX_MSG_LENGTH) -> list[str]:
     """Smart text chunker that splits at paragraph or sentence breaks without truncating."""
     if not text:
@@ -1170,6 +1182,7 @@ def poll_job_until_complete(phone: str, job_id: str, session_token: str | None =
                 raw_text = result.get("response", "") or ""
                 citations = result.get("citations") or []
                 answer_text = format_whatsapp_response(raw_text, citations)
+                answer_text = with_safety_notices(answer_text, result.get("safety_notices"))
                 if not answer_text:
                     answer_text = FALLBACK_GENERIC
 
@@ -1388,6 +1401,7 @@ def process_chat_turn(
             raw_text = resp.get("response", "") or ""
             citations = resp.get("citations") or []
             answer_text = format_whatsapp_response(raw_text, citations)
+            answer_text = with_safety_notices(answer_text, resp.get("safety_notices"))
             meditation_step = int(resp.get("meditation_step") or 0)
             update_state(
                 clean_phone,

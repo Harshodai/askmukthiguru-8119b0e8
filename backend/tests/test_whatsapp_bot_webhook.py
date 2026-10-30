@@ -213,3 +213,11 @@ def test_phone_is_never_linked_to_a_user_account():
 def test_database_file_is_owner_only():
     mode = stat.S_IMODE(Path(wa_bot.WA_DB_PATH).stat().st_mode)
     assert mode == 0o600
+
+
+def test_safety_notices_are_appended_to_the_whatsapp_reply():
+    """Platform copy (support line, boundaries) left the answer body; WhatsApp must add it back."""
+    text = wa_bot.with_safety_notices("\"A clip.\"", ["Boundary line.", " ", "Support line."])
+    assert text.endswith("Boundary line.\n\nSupport line.")
+    assert wa_bot.with_safety_notices("only quote", None) == "only quote"
+    assert wa_bot.with_safety_notices("only quote", []) == "only quote"
