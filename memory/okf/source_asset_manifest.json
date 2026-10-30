@@ -1,0 +1,2086 @@
+{
+  "manifest_digest": "0918fe80aea646d7e3ce0de651e701e1017c202efca7a5d0b611134364fa7bba",
+  "manifest_version": "v1",
+  "rows": [
+    {
+      "content_hash": "9387929cd65100341bd978467e86916224110f99c112cc75ef05531df5553eef",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "-YQLpNmH0MQ",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "62c2b7c41d94af132f8dfecc865ef1086e573c149c6be0c0a969f0114607c61d",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "-u6ZDfHdB54",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a9338b4f18443193ae82c23241b6c84454d1003e7ebc5869af45c15d76ddf4f5",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "-yGLiryVQoQ",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "4c5073e8b901457443d080ed03762a71baee68dae68622c21769164db13758a1",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "0k5f8G9uXqY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "63566f5269cb6e27f8d9a6735df11a7fc44f580d5d247922334539355484df3a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "1kS_mQaBLdg",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "2ff7aa594f1edef83b98ae702cbf5eca002ed7d8c17bcd415b115f3717f9c935",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "207izZBbqVg",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "dcc152bd1f3ca03d6a7047733c8c524695a1a7478f3575e82f147c64060fa90a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "2DLb6hDIhmg",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9e385f1dca9d371a6883b054b29ca4b53b796a4fceba73cb7d63791d419d2a31",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "46g5U6v3SGc",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "cee2bc7ed905bb7c19cb1742efab3378c95e1a53c4918183c047aed9caba4181",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "77dJnbTCwsA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "c3745aab1845d4cea9f4e059af27b77e2a25c31c03735bcdc09961ab7a4e2d6c",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "7NVPsHdyw_Y",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f8d9e14a99c418954a106b751ccbfd3a4c70d38bcd4d277aea24b2381a93a7ae",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "7UuDjBiHrMA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "29a9a2e8882021b14d775cea27f0200e20bf014e6dd88e452f0d73f1555c219c",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "88NOQTz5_yI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f722498cb454b3d194997c97b46e8b08a0e07124f0b78f602eb9f9559683e897",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "8Lp2qPXYix4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "192fb9db816cc55b2f50bcae02716c546f055f4672f3985fddfba920c480575e",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "AB-t5CoxMHM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "0208ee8660fc29c4e44488b1411fae89579798d8cb7e95a8c4287c973e0e79b5",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "B8wapoLAu84",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "bec3cc16a088e0016e3f9ea2c0cbf42836c4f68c5f72ec48d82bfdefd122741a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "DBUJH5f6rjU",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f590fec7afcac2026b0a8fe22bcd73e139e37734e74b7278c65822cc3e2a50b3",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "DqUafRyXy_0",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "e48a1068a5693e975cef8ae6832f6f1b90953d675c25dfc77f9654ce666b26f4",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "E-LCT0YEpWQ",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "5451837585ba2e119815ae023be6891085f1601e1b90d9aa704d2ca7af9ac20d",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "E5FJYDruwjs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "eb0eaa8851a4fd7482ebd5ac97f998fea13237a68f3d581ffb50e54a9cb07a6e",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "E9BYLwkGel8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a4bb51609e03113b2bb21a44f1c28324d768d5afd30c8525bd4b222e5ad6a434",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "EBBd2MOeOIU",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f0c19d47543161325c83e444d4cb5309cb82f6d3d9cd1bda4afb6e9fa164267f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "ECFRWVY8SGY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "67e66018228260a7bd85b67ef0c7bb9f48d1f73d9f131da55385b4ebc5b345ac",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "EFJZ2l5Rc10",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "779ec15bf005b30e4129f1fcf764d58effa0b0f49e7e91e05722c72c0bdc90de",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "ELiB_UwCVTY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "97c1ccc6a99e3a65076c28bd96428795a34c6131d3c582ccf51d007940ebe30f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "EThkIHrfXWo",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "6dff8c7b3ab61c5dd5c10b204466ada79475965f631f178848a0e99c0c2383ed",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Ejcq9mNGJk0",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "ef8006b3484c7e0e44dc6d73d85efc76751bffe3418424ab719dc09aaffe58a6",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "EpReLy7g6WM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "ecf38a8565526861491133029fad248e665b628444a32500c313a13959a5de94",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "F-hNATzOz2I",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "4772cb3c53a487d5982d4440f17adf38d39df4ca3f9a033a6b43746b8989caa0",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "F0kz4L2wB2A",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "193bb0e6703c3d0de7c39d3aad1b5f6be19f47ae64cf6cdc6d24d2f732a6ad27",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "F9Vo4fezmcE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "3a90a04ec04acef752ed302acbe9298746e8eecbb20a9d7f1f24b57c66d8fe5c",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "FP5O9F9JiOk",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "7a8cfc292afd948a3d0c067b320f80f3f9a19f6f69aa435fc264d7cb2e2b2e26",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "FSwSt1omSD8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "aa352428f05bb76412e357eb5e30a30e14ea34fe4b7992c630a5d87ca418de28",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "FSxiSEV1iPY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f7b907bfa5a3df65d37bed939b25028ad4951aa279994779a44eb81d534ff52d",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "F_yRNKupugs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "1804141a8da2228f9fd5e01d75796bfe1fdab547419527e6619a5f222fc2ae36",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Fn62UQTIMEk",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "58ecd6994004ed1da31f453f744b33ec4d47d251fa5327362e0185704a43a6c5",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "FoTH9BWP2gg",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "35b764c944a47d4839abdcd638d525a1874781c9125b48cb8bfb31cc60eab94b",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "G1fWNIazj5U",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "b4d516c66763e4655307f9f51fc78c2999d320df3f94b70f3ce5924a970bb2c9",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "GICjcQQ0aM0",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "47ed1177145921801af290c80b6b4d9971acafc3006340bcb3268672ceb5ee2f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "GQZ7A4fvts4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "1fd01d46287a5d4649d0b2ae4694faf93716458c82e2e208f6ef12c5dace46b1",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "GTLqZPVojgI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "adcdd2fa057598cb6d10564172f0a2f345be0651caeba8ed28293fd5f9613b50",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "G_soqEsZRU8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a8251a6ba7c4d325d2b1822fa6bf6750d23fab3efc50a1b3cce9db285992aaa9",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Gae2J6ExMsY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "0afe7c12ff80338c902d15419249ee892f36fed3338c6ee8035d5cccc4da1859",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Gdd-5uWUW5w",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a97c0ce4bfb8f9573c275fcefbfdefb54f78d2eb51560d18389512ac61e073fd",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "GfAMCHC6_ek",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "aa35938de0234acceb88c19e390a6045e038451a8a8a3bee8a81d82a8faf6f82",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Gt3o8lcbcII",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "e7c1bac6da3e5eba01d581c73da6ef4c5a72aa2842798d0bed443f2277972625",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Gv3w2uNCo2o",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "0b5d8d4dd348e324d694e18a60ba5c28c37b2a5768c31cafdc9036b25b346981",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Gw4Ng9FKJyY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "176dc71060030e214148a53963d4f5dda8a6d0161354b06e96aea388eefb46a2",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "HCs6I_BNtxo",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9a3feeccdd8c18b9c01cf25a7dcbabd7e5b30799feab8486af8927d5d0a3c407",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "HKjzpPlfvc8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "ca82cce4e188945cfba2985381d1cb23667ddb0db5c038da896e9e1293bfe42d",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "IGryscyFmV8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "b0740e38ad54ed90770546953733068784a3c17b4b8fcfbedd1081b78f5373e2",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "IbOoMlXlzjY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "5af4c4d1af107632e98a11787f17eba45c7e5b50f8c59849b9015703ec80a885",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Ip7C7KJBxBk",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "779b7ef5fdd970fff22dbe73be0d14454a5ab78716764e592521fbb7927c106f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "JRlaAip4kmk",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9eedf8902fac8ca348480db9839da95049075313f8670ddd78c21d267a6bcbde",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "JYqlxlBZHc4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "e7905ac2b44e07c3f31cc415d22f7317999c1821bdae1130143ac79e8025b18a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Ji-hdW1t30g",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a9fab9a826b4b50a19e30648667618f5a23f460401f3597d480cb0f19857cece",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Js7ongWaW64",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "bd5ff75428d46359158eb5332a08c09943069078c5e852fcf56a9a4ed17a5f0c",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "JwMlR98BgrI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "fdb18a8b248ae9999832e6c01cfd765ae19e1da30fcd0877a46573edb18d4d79",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "KB_rdqB-sVw",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "d54ce8ab371ae317fd4d69ae29a734cc86367795256b185212fe1f39318397e1",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "KTe11DlB4QI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9dbe7ee0502c069dcc73481a660006f14378817da240d56c74435fd04cf208c9",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "LapJqYf9hzI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "92170215d0546ab4fc48ca43442ca39f2723f199cead872a43dc3bce612bfb7f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "M7ItOHTrvz8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "dfcadfc5392e31b98b2fe5edd92f6ef733ce2a91a7cd814c76cbee9a8d581daf",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "M8XASiz30oE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "60fa87139dac326a8ddbb3f06cb0861dc51ce0afd6d3d9b8dd374e854145e7ea",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "MJYpyUlwxg0",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "34a8d0e77ce906de31346529d38bb7bb2bb7818480a87e1d31908271a9184715",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "MKOAMUmZ-RA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "1855620a5e827d6414cc3e5bd8e172eb87f7a832ddb35adba4d070ccaef4f578",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Mr1cjAz2y9I",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "aa7d407f1fca80a8177c33406eb38f5c7b2d1dc45745c82fc90961427e5fa55a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "NJQ573JDmAg",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "51d343c32600e012a734c5338b54789961704bd7f85f463ca10e3d9cd11c2f09",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "NMjYsvaOOQM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "c4e7a647e144b8721195ff360b241c9758087dfec487d7bb47bbecd57803ee8e",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "NWrTrDIQ9XE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "93ec92dad21972b7755b56c5750f8db0da97e38afded9aae78bed3a5299d97ef",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Nq2VYAIQyCs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "7e0c48c8abfc627e75db01fea84d401930b2619202c8ca0951a5723287fdfe6b",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Nq8BntIZb40",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a8d751c1c58a8a82cd2007ad590ac5c6ce341de11962e0e9f9f5fe46d5a96d44",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "O1VkNuEChD4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "586ca0df71196471468c29e8fe76d9e122410a8678171baf7966d252508efc58",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "O4c1bnnwSzU",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "d2b6cde84b2009f3fb620c37f72075381af7c7a9a70478093343c59add5a6bcd",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "OLPF727ETSg",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "5667c963220f9a82d2d1025d6469ee0a9ea102fe35c883874726c64c1fc2299b",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "OWMBvMlGWTA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "6c66990b486f3504ab98cd72c5b4240a97f0b7a0f697b93f336dbb4af998b5dd",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "OaTrIaFLG6M",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "b8c59a770e3a3867bf8d60b1310aafeac98d61637c84c4f3518fac6e0c6d26cb",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "OnAAtrwsfOc",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "4eed59e3352b8120ab4cb9b62662a59322a9debe32713e2f0bb499d6b2e22dd7",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "PFNP4c1cOSI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "07e5733713a992b959c479066305c44cfeef3d8f5fb491b0c5d7d9bc6cfaf5b1",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "PNH5hdUnXks",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f19708369ed56f9ec494ae1794911fe435f0e711a1b0e0faaf4f833061cd75bc",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "PnvNqgTyIFI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "43b7c28b9a0ed82c2a36fa71385cf36e3dee1110d641f149632838239a49dce2",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "PslFhdZaBFA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "98ac535769c58d6c2b49a9ba35a15ef92632de26dcc8c2bed791f69dead654e7",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Q4QyNologtw",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "d6f287a787d0ea64b5a8ec44500997f731cb40cb5ce0431f90e5108e56dc5304",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "QzJ_Ft1de1o",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "da5bb7c312baec432dc8a2657b47572f8347fcc470f68262a454c157f19e9380",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "R3ZRYoTxhUE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "e57d54ec81d311dae0b9ab63b69a922647d13107d1e8bcbca472620e3a7d4bfc",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "R7N_Bf14f0o",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "03b26159a566041e1cf10cf7873ed6b23a5c1d3a3343bacfc7b31786f2c08506",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "RAOQ3ZubQGM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "87c02568abd896499ebaa4f14e954ba59299db7838506c7fc866916243936c79",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "RBb_3sgOgFY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "6ee5ebf54a7a9e40f22c027bf391a1d106bad08d6e9d514d17d13ae871938330",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "RFx74Q6Oq2c",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a8e36702f32e176d0754ef8d79cd01b88e766dfaa3985d7eb9a6fda4123afb52",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "RgE2ryZsE3s",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "245bdfb4481249560d40e8f52663093c57dbd5bf36c05c8e952a05b3dc8b26d2",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "TQ0TGyaByhs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "6cbdfff55d5c9e3ddf54f634280173776446a15ee5152421d56363709727e041",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "TXAKaPwrBy0",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "45a33083b096708c89b2dbe4ae65a8ba11828c820a148f483c33ebe49ea6059f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Tc8f9ZasRRM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "166b5b556253365a1c0bcbfe497738cca5fd7eb23af06b156919008b6f1010e1",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "TqxxCYnAxo8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9058012fa6d24b0057c1672332e5d8473d008fbc6fefe609a9b90d9dac2e5b77",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "UJM00IqGKtc",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "cc1b6f66875a2366b2e49b4619aca112c99308fa5a88231aadb6a4c87e6833ec",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "UNdwPjyLGn0",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "8ea8d10f7200ccbf49663888e9e1a85f0cdf34705f6fae920a79b6801558a584",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "UbCEX5KBbPw",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "afc375e33c058d5c57a0bb3afdfe6039fdd6ccaf9668d5c800884341c8a51ce1",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "UrVvSqKYU8c",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "1689c78b0459299475dce6e49323e117d54b634ce7dc3018c71ea0a2ccbafafa",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "V2WQ20Ocw_o",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9e621b54d95c2d631a007902f86486a1fc01c4d672182a3e1ad73da1447b65b9",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "VO3fi1c9ids",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "da704e3d3c2672f1aa3040542241c34abf5f663ba26b11dfb5d8703e28c46454",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "VTx4G0KEuUE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f32104127f75d3b13b93cf532d74c2d804384c87c9868458ad4ddbbb41e733e2",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "VrPi2RUUXq4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "0e2cae4cac90ec3705cbad2a3238797be7f9d8b8c6d951a497a2be70c8bbc2b9",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "W2ZzApmqJmo",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "2ac54c81c825674ded5502674df2ee1741735688fa518493abe8e98ac8439022",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "WQWVnrG-wX4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f113794af2353b5ad7a0245eef87424634a3ba0816e9a8febb5c2eaf355bc243",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "WfkCDNu4SuE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "97c70ba3c0ea0a10e4f6944073694d34fccd0e94720f5ee2ab29e1b7c369c284",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Wua3xtO-oys",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "640e58165a0a687b25a913b2459de022b177ca0b28d4daa5d0d4a9b2ad44554d",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "WwgBOejW_pI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "e40351bb24571ffe2d680f2640a015257092eb882e71e66a700f0ea525c71564",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "X-m1fDzX5Rc",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "af5eadda4c2fc2f0d6d6ee70f06d487e7e4bb08a05c54cc079d93d6ec63fe2f3",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "X1mtpheWDhs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a2cf879f20047d40b6d77ea90df1b9730a04f9dafb5b0c58f64f7c58c110f712",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "X3LKG0Ycl3A",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "0f6c981cf165c9575ef9705e3abeec462b44e4b225bc6e6636cdb04770910c63",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "XFFgRTgP8Rs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "320a1e2133a91802c9ca8f3727ba5f762b3702d691e35eec27e013992ca9f166",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Xk1KsO3efP4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "89f9725fb6c5a5dc548b93049fb0c9bee2e386e5650f4a6703328cdc515d3518",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Y7bp-LlC3CM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "6436e2a7931f9e652dae003bb15287d81ae21fd1d82b3e02dbb02198df0a5b5b",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "YtkxNkrfJWg",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "55ccc6eee4c15e2f2c0bf85f1808245cf6437faeaed66e562bcf58c2ffc3e828",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "Z7w7soyXmHs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "d379d818382f4c7259f83956252368dadf337af90937776fb89b029f05c7da66",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "ZD1nQPtpojM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "228ed77fb61f9edffee0c8aca30dd91e200d1809c1427e002d616ae345d68e46",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "ZGvKY4mPfIc",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "01123cafbd8612d8cb7e61ec3fd3ab75de3fe0ea15cd38e12b19fcaa78f3b81a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "_-P-9fe5U_4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "b53832d52d4035f5f091edf0312e7eb679f38da848815b0bb79b3dcb93dc05e8",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "_KtWOkUsy1w",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "b6d0b9799381c5df9d1d8d4e602b2fdb83093ad20d087f82c8e5204e544a89d0",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "_X5jRvqxEEo",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "7ef81ea2fb532ac3ca7f5cd8935a32cbc3aa612d8f3a6e8d9711a9fd62c764aa",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "aDQhPZUnDqA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "864bcd82ff2cd4d875a937ed463c406aceea35d16e3472130653fa9ae088a0d5",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "aJIunwxx3NI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "11803756293e66299b17f5a97adeb08e322fbe077a8d8ee4ea7f8c29d61e88d4",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "aqSM9LwqWgA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "846195f6c7bd739f3fae4e3ccfb64b671c8d5057d52df928a0d68c2c4dad7cc8",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "avCLyAi9DeY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "011a87952f97228b998c4ecbf57ab7e3c2e5c40542feae495f1cc2608245a0ec",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "b-MkLkpTeVY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "eb740e38a2cdc3478ee91f7c00995d3070e147d284cb9224de911a381cbd4e13",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "bCzjP2UaKRI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "8a7caf804c03fc5c280b9ccebac5c8507365b48e16849df109d5340a31fd0a20",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "bMGaQ2nUE5Y",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "e541d41393f576d046408f2dfe1fc8a8ebf68e5715c9fceb3601341547ff546e",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "bSyewSnu2Ak",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "8d14c62df6b5e0944cb7a00d1ba866e25fd60aef1bf9d1442b2eac2a369bd55a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "bh_kjn-1CAY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "b8f83ba0be733073176417c4df510e326b0155972763962c971501742d70a893",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "c2oUDKf6ndo",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "52e0490d6aa6f5cc41c9ae36d3105e8f4a06ee59d55d2acf84aeb57fe9acbe6a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "cI7D2aO34yw",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "cfc1df2f14495a1c49f0523dc775edbcee49ea1e710d0b2a9cbeb3c608a2e73a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "co3N4y-RQKQ",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "12948f85a47bf4ab4149dae921dabde13eee943298f5cc3ccb79d0cce75b7596",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "cqvwOx5baxM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "c493da2ec2be1838cb67873d27712e4ed08cab4388207c87458e762cc774f469",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "ct7R4Em77NY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "423347a4267e63ed557df19096a3ebe5697d0042017f177f1f033de6008afd22",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "cu-Tx7ehQvM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "eca202afe70e203714ac93b33bea38f287fbc1c0a4f2ab70134072ebf599d1bb",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "cxgHFX04RtQ",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "b2306fff919382d0edf58088f26ae6dfe266e00f39a6ba38c7605c6edddfce88",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "d_IIBZd-xAQ",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "08633fb0d012d3f809212c3febaaba98769e22cf6cd0f4158abe173e380d18c2",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "dqUq_a0DyLs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a8174712dcb8ca5814bf09d39ecb16c63bf03c1f63ebc7bd434b7b376af06811",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "ehkqJ54DIC0",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "49f85e77ac16a5f459ef357ed687ca513751960554c7ecc51d5f498e2bbc2ee1",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "eumRL5DfFzM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "40e91a166c277859117679cfd9eb183e73f0e8eb96e33c910e48ce0d31e189c5",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "f-IpkGOOzYU",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "006c38b4f6fa2afb55f020b07553efcb504a46f25fa3d3f3db0241b8db5b3e00",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "fYhbxU61wuI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "e55192468e57ccc8aae9521c89ae4a857e4bcc6d9536a91ea733c88c498a7f11",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "fiABnex9O6Y",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "2787f5cc46f2e20585b9effc84cb6db3941b4b9f14aae10ef7f145bd84c5cd9c",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "gQiIwfA3mlk",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "71fa8c25693939b1442de6c6f2c8c175f3b83a1e754462e6a166c264f791787c",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "glXpHbwhQA4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "2dfc3152797950ed40bbd7acdcbd5a5bab23569c8901353b56fabbb307279bf6",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "h5Cvb_ZXnJc",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "3fe82d153583c6e32e71115ff61970f877c2209df08aaf93fdda26ec8377f04c",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "h8DQ0GlvD8I",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9e114aea8cdcc853101fb53cd94c4a439cfd63d65c8d92b65e222b0992b41a3a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "hcNDrMy6gCE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "2cdaee01708acdbbb9ddb26e08ed9fc0f60d060321df33f8fd7abd6a42ed9f50",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "hqre34QIMZg",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "5476ee7a359c9a8268be5ce78c0ac80fd69f13bfa4972e797866211de0465a0f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "hwNlLB1sze0",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "bac39b3a66c791513274d10811419eeb5574595249b9c6dab96907167aa5e8f8",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "i4DQFbs_RKU",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "10bbc2f98cb44912e27b1be124464ecaaaef94c8e140e32be351b4014dd8c6b7",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "idoWVpnJz-Y",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "73276133b8619df65d2c13bbeea122447939b56c0bcb78238e9c6fd54d82a62d",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "jEg3pQmKBIw",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "98a5108adb35f069b514c824d10da0055e9f1272c5735bc8c5a182a7611db931",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "jW3JDLY0cDA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "72ac95d5d452b9949f50eb418b33f233c90b44b31cc1a2b053ec63fa4cdae91f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "jy4hcpUSBms",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "04dfedd72a6bab1f61fdbc17b29c805f0c68769386e4428f23a6a2d48aceb1cd",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "k0GsZxWhjSE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "2fc2cb9f8456aea7d5ef0cdb666b1714cfcb745a3c551b90c1572958775395b9",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "k8iO5daXllM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "663e7a84e1f61d657edf744529b7cc546807f1f99e4f09018a96576ec24ee30f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "kYVY4_zxLVQ",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "40582469f077146ffbcb862b660c1e44811520912177cff56e16805b81d0f2d3",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "kyEL8OTZwBk",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9db36cf790ea83acbc629d7df28c30e9cb25949ffd0a20de99e135a8f206617a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "l6svaRx35TI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "956f051cabfccd593a728c20bf9148330bb40387959b2f275143a9070c7ed75a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "mAG-Q4DZ5Zs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "d93e2faad1e0e0ef50a3dd2cc60f0ada806c223d691feac413c703b27cec8fb1",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "mgfhxq9bn8Q",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f6f2158ab8ac5d03deed4cc4ba1add495bc5a9ebd2ddd06ec1278ded98715c56",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "mpLJPUifTNA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "e8d7f842ecd06496dee2f14345b454b274d07d78e0060799348875920d276e98",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "mz8Mb0MvBz4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "40ce2286f75b09f0117c87c6cad0e8dc74706220ca5d2ea8b504f41e60e9dbd0",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "nQpRoOOu5Yc",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "c7db19fb6da292afccaa195c2260ecfbc442c8518eab33a7cff0063459a5e234",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "oSqD_BvF7vA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "bb40d913a1fd75d9ff93fc9e88abc66fe0f83e64e64a7dc26ab703971f8b5690",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "oaKWpxmu0YI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "8031e072a1ae0397c43434e581b5201ccf46a55cf61ad916e0c58c38b9b4e49b",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "oalnb5-fHjY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "af48cc3b761333d22995dcb5ca4b98102dcc560e66d12f4e9c4140a909685824",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "obK5uqYXOJU",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "744a3b4a134dabe4212a1cb17ff6afde4b99894b5bafc3f3d6aa204abb19c6f9",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "odXq5g-Y7gM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "c2098322295396d3d1ac483795bc054fef3a6fa6aee511666f9738219900b760",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "owXqW04b08o",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f29f0a0c12c8a59878de16dbe07387435926e1235b5a52cf631a834f133aca92",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "p2HecXyM3tE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "085bcb0475efac556f7661a64d2164f03e1195e877cab2b51f8a26cc2d51de1d",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "pQ7yAREnJaw",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "5391349e4e1070346b11366d601f2323e24260b7495d7502d6c55d22ba0afd34",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "pTnZt0SqDFM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "088d318b7e4706d918a2f920720c1d4140ba0c06da5ebe9000445863e74fc993",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "pk4MA5aOSOY",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "b48300a4dee8e13fba73e9193276d331d9f7cc6096349ab6f8189b7cf6be0b80",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "q15gR1aGjVs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a10511466517c0ece61560949cd637925a61f0e6b7b2f37f19152354c3876074",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "qJxGtSDiayM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9060e545accf00d70d96311ae4f7b7d6103c04158018e7246464c0405e25ceaa",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "qj6ZFtvViic",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "3bd1296447593b44ac04c5984af015b7db49d2756796f963d85440adf9c43bc3",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "qtG8c2zhn7A",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "0fb65ac446ed9cbc9917e6da6a779e2aac1395df44891092f6e94da23afcc091",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "r3iE2gDwIEk",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "84d5ba60508e6bc136fb33908d515240d722b97c8dcac99604785f6fc7ddf90f",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "rux7GLCqLWQ",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "f18f0ae57aa78892eefac0ad631d091ea9e12dca744fbaa2031dddc2c974d498",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "s6B81c2uTGg",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "ed7bfc944a013285a91a861091682bdff3a27e1acc6feafe1d5bfd56629a19da",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "sZXuNv0L8YA",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "34783f5151f8bc8f5f95180a59157df12e709af148e7ad975bc3a91036bda7b4",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "sboLTO_FUY4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "8cafcc9ab9332adbda3e42e0c63f34d1530f323d4b90c20ad204c79bbadc4aa7",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "smrj15-QOAI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "ad069fac0edd288f73c7ab16784fc95a03a4e68edfb9ec59747a79ce5080fba0",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "susUKIwVD34",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "0af52819e84622e6698f83b7f20099c88e6e9cfcf9a65bc8bcacccd2e5fe1445",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "tAFtaCF5a30",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "61ad70a35be5c97d997bb0f65f2af2aebdd312db56e870c12e2cc87379d090eb",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "tGvaofifDzI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "72e5fefe08d980b015ea3a2128467d0801a2fd6149941fae764f484bca02da8c",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "tl31QISheOc",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "4be909ee66ba9899a35ee361eb585806b11f2df7b8bd628b496a6806bd340e08",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "uAPvGyjkrB8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9d9e3b6ebaf2890ebf420fed0d3d8f41a1edb5b00ee04b469502df5e0490cba6",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "uSAO5p0GIU8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "5d0c478cf9886bff6ac319dc1d86393036f1bad9a8655eb227a91193c076c411",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "uvhEf3ToMHI",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "1b656aa57410449a5a05dda2500bb35134eedd3fbd467dbcd282b76438edbdf2",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "v55cSB0foxM",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "1ee3e7635ac61fb1b2f5dc4886846d291b02ba837602987df20e8b895f1cd8dd",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "v58RteTeBlE",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "bc565cd3964b90d99bc58ad2846ec231db87aa09326f288185a5e1746fa16ec4",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "vARTudIEq30",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "e3fd2ea681ce7421b0b107f31e1f5aa2d2f8d40a8133e91d37a9c3f2e69a2c96",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "vIUY446FVPw",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "a77be2a8be7c59c65dbeee38ba7d9fc8c3a620f0e642f42c18e16d789df67263",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "vNj7OSHos1I",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "878c2bc477b5984beebfd568a99910e7df314e25e87848e69ba49ffcd1ad3a30",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "vZGe4g66rw4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "af05dea0da061891babfef0e801059a4cbdedec160803189ccea8d1e077214f1",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "vch9C_hNjGs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "28bcd9f64e47a2e687da4f86ca9b7f1a96df9f175faa5748e8693f393376af82",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "vjEsXpEtpH4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "c81eb5b341415ee5843958fe85f986b9396e8890927f6c6bc8965a8bd40eaad6",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "vrXmfCUvigs",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "9353caaa15f41f676b70e28c80727c14702d7bd6c45b6f574293c373c80c50f8",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "w1U9nHF3H5o",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "268178b6f4d5dde19eabfc8149d492f5e7ee6c20feb649a890a63cc9e382a00c",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "w1gF90_cBl4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "d2e8a15210d8c1c20450a9d572d5cfcc0c67d2cc52f087a7fe8bf1ae274f1199",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "xTVHvMHakow",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "99d7c094afc287e9b779a71e7988740d961876fd9f7149a9898c97f048a7c8fb",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "z3fSeC_oG-s",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "94c95d7d19880860a8a0ea7c104e8b25d12ff400f693c43e885a15261e677826",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "zCnqQBfyXa4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "0bc16e911c17f978dd7118a48af2548702cfaf7fd57a0ddf2453ad3e2537c9c4",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "zDOS3wCWea8",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "c4a0ad616914317350828600532cf06e201b42ef32d1177ab7f7405b639f4966",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "zGOKGrTNlk4",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "d4b65f577d36de98a9ac4c1accf086a6e7eacb23ad8bfc6ccfb286a6af12bb7b",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "zO8tQkjCpyc",
+      "status": "cleared"
+    },
+    {
+      "content_hash": "fc10115e23f55fd14176ff2807d410c20ac0a8e2b5ba7499b0d6da3a1923d66a",
+      "corpus_version": "v1",
+      "decision_date": "2026-10-30",
+      "evidence_reference": "Owner approval of OKF source list, project thread 2026-10-30",
+      "reviewer_id": "Harshodai (owner)",
+      "serving_tier": "general",
+      "source_id": "zyUzxY37YVA",
+      "status": "cleared"
+    }
+  ]
+}
