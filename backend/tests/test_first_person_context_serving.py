@@ -667,3 +667,36 @@ def test_injected_context_store_is_dormant_when_the_owner_flag_is_off(monkeypatc
 
     mock_context_store.retrieve.assert_not_called()
     mock_legacy_store.search_hybrid.assert_called_once()
+
+
+def test_terminal_flag_blocks_legacy_fallthrough(monkeypatch):
+    """v10-only serving: with the terminal flag on, a question the harness cannot
+    answer abstains and the legacy (v8) store is never searched."""
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", True)
+    mock_ctx_store = Mock()
+    mock_ctx_store.retrieve.return_value = []
+    mock_legacy_store = Mock()
+    mock_legacy_store.search_hybrid.return_value = []
+    mock_legacy_store.collection = "first_person_v8"
+
+    pipeline = FirstPersonPipeline(
+        store=mock_legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=mock_ctx_store,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="Tell me something",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    assert result.status == "abstained"
+    assert result.abstain_reason == "no_verified_clips"
+    assert result.citations == []
+    mock_legacy_store.search_hybrid.assert_not_called()
+
+
+def test_terminal_flag_is_off_by_default():
+    assert settings.model_fields["first_person_context_terminal_enabled"].default is False

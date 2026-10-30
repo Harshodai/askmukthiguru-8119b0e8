@@ -2492,6 +2492,9 @@ class FirstPersonPipeline:
                 # pre-harness answer from the 24 h exact cache: flipping any of
                 # these re-keys the cache instead of serving stale policy.
                 "context_harness": str(bool(settings.first_person_context_harness_enabled)),
+                "context_terminal": str(
+                    bool(getattr(settings, "first_person_context_terminal_enabled", False))
+                ),
                 # The collection the harness reads IS answer-shaping: pointing
                 # it at a different fp-context corpus changes which spans can
                 # be served. Without it in the digest, a repointed collection
@@ -3481,6 +3484,29 @@ class FirstPersonPipeline:
                     "[FirstPersonPipeline] Context harness evaluated %d contexts with no direct answer; falling back to legacy",
                     len(contexts),
                 )
+
+        # v10-only serving (owner decision 2026-10-30): with the context harness on
+        # and this flag set, the harness is terminal. A question it could not answer
+        # abstains instead of falling through to the legacy store, so no clip from a
+        # legacy collection (e.g. first_person_v8, speaker mostly unverified) is served.
+        # Default off: existing deployments keep the legacy fall-through.
+        if harness_enabled and bool(
+            getattr(settings, "first_person_context_terminal_enabled", False)
+        ):
+            latency = (time.monotonic() - start_time) * 1000.0
+            self._log_and_count(
+                "abstained", latency, 0.0, 0, 0, "no_verified_clips", sum(fp_llm_tokens)
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                answerability="no_verified_clips",
+                abstain_reason="no_verified_clips",
+                stage_timings={"total_ms": round(latency, 2)},
+            )
 
         # RC-D-2: start the question-only answerability gate in parallel with
         # retrieval. Crisis (Step 1), the topic rail, and the exact cache are

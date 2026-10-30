@@ -278,6 +278,9 @@ class Settings(BaseSettings):
     first_person_context_shadow_enabled: bool = False
     # Explicit fp-context-v1 candidate collection; empty disables shadow reads.
     first_person_context_collection: str = ""
+    # v10-only serving: when True (and the context harness is on) a question the
+    # harness cannot answer abstains instead of falling through to the legacy store.
+    first_person_context_terminal_enabled: bool = False
     # Maximum child spans concatenated for one parent-context answer
     # (harness policy max_context_spans). Bounded so a long parent unit can
     # never turn into a wall of text on the chat surface.
