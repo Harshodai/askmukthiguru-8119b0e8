@@ -2,12 +2,12 @@
 
 Status when written: **NO-GO** (faculty-only CONDITIONAL). Nothing below is proof of anything; it is a work order. Where evidence is missing it says UNPROVEN.
 
-Main on 2026-10-28 was `06dfeaea` and **red**: Backend ruff lint (6 errors) and one stale test (`test_case02_no_profile_never_direct`). Fix is PR #87. Open PR #86 (large, from the Mac thread) sits on an older base and overlaps those files; it needs main merged in and a real review before merge. Its text says `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false` is pinned, while project memory says v10 is served with the harness on: confirm which is intended before the graded run.
+Main state re-checked 2026-10-30 on `311a8cf3`: backend is green (ruff, format, pytest, safety harness; PR #89 carried the lint and stale-test fixes, so the earlier PR #87 is superseded). **Main is still red on the frontend**: Lovable commits since 2026-10-29 (`34c0ae46` "Added translation keys", `311a8cf3`) added keys to `src/locales/en.json` without syncing the other locales, so `Check i18n locale coverage (P1-FE-11)` and `src/test/i18n-sync.test.ts` fail (about 60 missing keys per locale, e.g. `landing.demo.*`, `mood.*`, `chat.*`, `settings.voiceHint_*`). Fix is `npm run i18n:sync`, which calls a translation API and writes machine translations into 14 user-facing locales; that needs the owner's go-ahead and a key. Open PR #86 (large, from the Mac thread) is on base `34c0ae46`, mergeable, not reviewed here; its text says `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false` is pinned while project memory says v10 is served with the harness on: confirm which is intended before the graded run.
 
 ## 1. Commands for Harsha (Mac terminal, repo root)
 
 ```bash
-# A. Only after PR #87 is merged and main CI is green
+# A. Only after main CI is green (frontend i18n sync outstanding, see above)
 git checkout main && git pull origin main
 
 # B. Graded clean-Docker run (one backend only; never two)
@@ -37,7 +37,7 @@ Remote branches: the three-branch list is now `main`, `lovable-sync`, `feature/a
 > **Ruthless research.** For every external claim you rely on (OpenRouter reasoning-token limits, Learn-then-Test / Clopper-Pearson bounds, ECAPA / pyannote accuracy, India DPDP Act and Rules obligations, YouTube terms for embeds and audio), fetch the primary source (vendor docs, the arXiv paper, the gazette or the SpeechBrain / pyannote model card), quote the line you rely on with its URL and the date you read it, and flag anything you could not open. Do not cite a page you only saw in a search result. Do not invent titles, numbers or quotes. Treat numbers that are not in a primary source as unverified.
 >
 > **Work, in order.**
-> 1. Get main green: merge #87 after approval, then bring #86 up to date with main and review it (tests, ruff, harness flag intent, migrations `20261028000000`-`03` applied only in a scratch DB first). Do not merge #86 until its CI is green on current main.
+> 1. Get main green: sync the i18n locales (`npm run i18n:sync`, owner approves the translation call), then bring #86 up to date with main and review it (tests, ruff, harness flag intent, migrations `20261028000000`-`03` applied only in a scratch DB first). Do not merge #86 until its CI is green on current main.
 > 2. Graded clean-Docker run (Section 1 B). Record: commit sha, cache-empty proof, stack-fresh proof, live-eval output (top-1 vs the B.R0 reference in the script docstring, p95, crisis probe, teacher filter, hash and speaker check per served clip), and whether `OPENROUTER_CALL_TIMING operation=verify` appears (that is the only proof the scorer-budget change works live). Run a Hindi probe too (the Indic fix in #55 is UNPROVEN until then).
 > 3. Speaker evidence: only voice-verified Ekam clips are served; hold the 20 `hold` clips; the 2 host-uncertain and the anger clip need a human listen. State FAR with its upper bound (0/262 is about 1.14% at 95%), and say the impostor set is a closed two-guru set.
 > 4. Amma Bhagavan: do not code. Put two questions to the owner: (a) third speaker with her own voice and clips, or same lineage (recommended default: third speaker); (b) id and spelling (recommended `amma_bhagavan`, whole-word matching only). Prerequisites that are not code: written rights message, source list, enrollment audio. Plan: `docs/plans/AMMA_BHAGAVAN_ONBOARDING_PLAN_2026-10-25.md`.
