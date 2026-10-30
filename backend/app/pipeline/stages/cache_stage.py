@@ -501,6 +501,14 @@ class CacheUpdateStage(Stage):
         if ctx.incognito:
             logger.debug("Cache write skipped for incognito request")
             return None
+        # Platform copy (support line, safety boundaries) travels beside the answer
+        # in route_metadata["safety_notices"], not in the cached text. A replay from
+        # hot/exact/semantic cache would return the bare quote without it, so an answer
+        # that carried notices is never written here. (The first-person pipeline keeps
+        # its own exact cache and re-derives the notices on every request.)
+        if (ctx.route_metadata or {}).get("safety_notices"):
+            logger.info("Cache write skipped: answer carries safety notices outside its text")
+            return None
         cache_key = ctx.cache_key
         semantic_query = (
             f"{ctx.preferred_lang or 'en'}:{ctx.query_for_embedding or ctx.user_msg}".strip()

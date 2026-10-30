@@ -214,6 +214,9 @@ def filter_by_release(
                     corpus_id=cid,
                     source_identity=source_identity,
                     fallback_version=fallback_version,
+                    # enforce must fail closed: an unreadable registry raises instead of
+                    # silently becoming the fallback version.
+                    **({"strict": True} if mode == "enforce" else {}),
                 )
                 active_version_cache[source_identity] = _coerce_release_version(resolved)
             except Exception as e:  # noqa: BLE001 - classified below

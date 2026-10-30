@@ -335,7 +335,7 @@ class _StubRegistry:
         self._error = error
         self.calls = 0
 
-    def get_active_version(self, corpus_id, source_identity, fallback_version):
+    def get_active_version(self, corpus_id, source_identity, fallback_version, strict=False):
         self.calls += 1
         if self._error is not None:
             raise self._error
@@ -415,3 +415,37 @@ def test_non_numeric_release_version_does_not_raise_and_fails_closed():
 
     assert [d["id"] for d in allowed] == ["ok"]
     assert dropped == 2
+
+
+def test_enforce_asks_the_registry_strictly_and_shadow_does_not():
+    """enforce passes strict=True so an unreadable registry raises (abstain); shadow stays lax."""
+    seen = []
+
+    class Recorder(_StubRegistry):
+        def get_active_version(self, corpus_id, source_identity, fallback_version, strict=False):
+            seen.append(strict)
+            return super().get_active_version(corpus_id, source_identity, fallback_version)
+
+    docs = [{"id": "d", "source_identity": "a", "source_release_version": 1}]
+    filter_by_release(docs, filter_mode="enforce", registry=Recorder({"a": 1}))
+    filter_by_release(docs, filter_mode="shadow", registry=Recorder({"a": 1}))
+    assert seen == [True, False]
+
+
+def test_strict_registry_read_failure_raises_instead_of_returning_none():
+    import pytest
+
+    from app.corpus_release_registry import CorpusReleaseRegistry, CorpusReleaseRegistryUnavailable
+
+    reg = CorpusReleaseRegistry.__new__(CorpusReleaseRegistry)
+    reg.enabled = True
+
+    class Boom:
+        def table(self, *_a, **_k):
+            raise RuntimeError("supabase down")
+
+    reg.client = Boom()
+    reg.fallback_version = 1
+    assert reg.get_active_release(corpus_id="c", source_identity="s") is None  # lax: old behaviour
+    with pytest.raises(CorpusReleaseRegistryUnavailable):
+        reg.get_active_release(corpus_id="c", source_identity="s", strict=True)

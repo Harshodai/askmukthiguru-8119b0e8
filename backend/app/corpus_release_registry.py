@@ -238,8 +238,19 @@ class CorpusReleaseRegistry:
             "reject_source_release", {"p_release_id": _normalise_uuid(release_id)}
         )
 
-    def get_active_release(self, *, corpus_id: str, source_identity: str) -> SourceRelease | None:
+    def get_active_release(
+        self, *, corpus_id: str, source_identity: str, strict: bool = False
+    ) -> SourceRelease | None:
+        """The active release, or None when the source has none.
+
+        ``strict=True`` (used by the enforce-mode serving filter) raises
+        ``CorpusReleaseRegistryUnavailable`` when the store cannot be read, instead of
+        returning None: "could not ask" must never read as "no active release", or the
+        caller falls back to a guessed version.
+        """
         if not self.enabled or self.client is None:
+            if strict:
+                raise CorpusReleaseRegistryUnavailable("release registry is not configured")
             return None
         try:
             response = (
@@ -262,6 +273,10 @@ class CorpusReleaseRegistry:
             return SourceRelease.from_row(rows[0]) if rows else None
         except Exception as exc:
             logger.warning("Source-release active-version lookup failed: %s", exc)
+            if strict:
+                raise CorpusReleaseRegistryUnavailable(
+                    f"release registry lookup failed: {exc}"
+                ) from exc
             return None
 
     def get_active_version(
@@ -270,6 +285,7 @@ class CorpusReleaseRegistry:
         corpus_id: str,
         source_identity: str,
         fallback_version: int | None = None,
+        strict: bool = False,
     ) -> int:
         fallback = self.fallback_version
         if isinstance(fallback_version, int) and fallback_version > 0:
@@ -277,6 +293,7 @@ class CorpusReleaseRegistry:
         active = self.get_active_release(
             corpus_id=corpus_id,
             source_identity=source_identity,
+            strict=strict,
         )
         return active.release_version if active is not None else fallback
 
