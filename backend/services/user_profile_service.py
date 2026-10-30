@@ -292,6 +292,8 @@ class UserProfileService:
                     .select("completed_at")
                     .eq("user_id", user_id)
                     .eq("completed", True)
+                    # Zero-duration rows are mood check-ins, not practices.
+                    .gt("duration_seconds", 0)
                     .order("completed_at", desc=True)
                     .limit(1)
                     .execute

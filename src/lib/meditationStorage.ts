@@ -114,7 +114,12 @@ export const completeMeditationSession = async (
   breathCycles: number,
   extras?: { mood?: string; reflection?: string; gratitude?: string },
   /** Whether the user fully completed (true) or exited early (false). Defaults to true. */
-  completed = true
+  completed = true,
+  /**
+   * Whether this counts as a practice for the Serene Mind cooldown stamp and the
+   * "meditation completed" reward event. A mood check-in is not a practice.
+   */
+  countsAsPractice = true,
 ): Promise<MeditationSession> => {
   const sessions = loadMeditationSessions();
   const existingIndex = sessions.findIndex(s => s.id === sessionId);
@@ -140,7 +145,9 @@ export const completeMeditationSession = async (
   // Also persist to DB if user is authenticated
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
+    // A check-in carries no duration or mood column here; storing it as a
+    // completed session only fakes a practice for server-side cooldown logic.
+    if (session?.user && countsAsPractice) {
       await supabase.from('meditation_sessions').insert({
         user_id: session.user.id,
         started_at: completedSession.startedAt.toISOString(),
@@ -155,13 +162,15 @@ export const completeMeditationSession = async (
   }
 
   // Record timestamp of fully completed session for cooldown guard
-  if (completed && typeof window !== 'undefined') {
+  if (completed && countsAsPractice && typeof window !== 'undefined') {
     try { localStorage.setItem(LAST_COMPLETED_KEY, String(Date.now())); } catch { /* storage may be unavailable (private browsing, quota, disabled) -- best-effort */ }
   }
 
   // Dispatch event so UI components (like DailyTeaching) can react and reward the user
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('askmukthiguru:meditation_completed'));
+    window.dispatchEvent(
+      new CustomEvent(countsAsPractice ? 'askmukthiguru:meditation_completed' : 'askmukthiguru:mood_checkin'),
+    );
   }
 
   return completedSession;
@@ -281,7 +290,9 @@ export const recordMoodCheckIn = async (
 ): Promise<MeditationSession> => {
   const session = startMeditationSession();
   // Zero-duration session flagged completed so it is captured in stats/history.
-  const completed = await completeMeditationSession(session.id, 0, 0, { mood, reflection }, true);
+  // countsAsPractice=false: a check-in must not stamp the Serene Mind cooldown
+  // (sent to the backend as `lastSereneMindAt`) or fire the practice reward event.
+  const completed = await completeMeditationSession(session.id, 0, 0, { mood, reflection }, true, false);
   try {
     localStorage.setItem(MOOD_CHECKIN_KEY, String(Date.now()));
   } catch (error) {

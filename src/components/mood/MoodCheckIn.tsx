@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mic, MicOff } from 'lucide-react';
 import { recordMoodCheckIn, getMeditationStats } from '@/lib/meditationStorage';
+import { startJourney } from '@/lib/dailyJourney';
 import { practices } from '@/lib/practicesContent';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,8 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
   const [mood, setMood] = useState<MoodId | null>(null);
   const [reflection, setReflection] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const voice = useVoiceInput();
   const mic = micHook ? micHook() : voice;
 
@@ -56,10 +59,36 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
     return practices.find((p) => p.slug === slug);
   }, [mood]);
 
+  // A reopened dialog starts clean; a previous "thanks" screen or mood must not linger.
+  // After a FAILED save the draft is kept so the seeker can retry without retyping.
+  useEffect(() => {
+    if (!isOpen) return;
+    setSubmitted(false);
+    setSaving(false);
+    if (saveError) {
+      setSaveError(false);
+      return;
+    }
+    setMood(null);
+    setReflection('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   const handleSubmit = async () => {
-    if (!mood) return;
-    await recordMoodCheckIn(mood, reflection.slice(0, 200) || undefined);
-    setSubmitted(true);
+    if (!mood || saving || submitted) return;
+    setSaving(true);
+    setSaveError(false);
+    try {
+      await recordMoodCheckIn(mood, reflection.slice(0, 200) || undefined);
+      // Only a confirmed save starts the journey.
+      startJourney(mood, suggestedPractice?.slug);
+      setSubmitted(true);
+    } catch {
+      // Keep the mood and the typed reflection so the retry loses nothing.
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const streakDays = useMemo(() => {
@@ -183,12 +212,23 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
                     </div>
                   )}
 
+                  {saveError && (
+                    <p role="alert" className="mt-3 text-xs text-destructive text-left">
+                      {t('mood.saveFailed', 'Your check-in could not be saved. Your words are kept — please try again.')}
+                    </p>
+                  )}
+
                   <button
                     onClick={handleSubmit}
-                    disabled={!mood}
+                    disabled={!mood || saving}
+                    aria-busy={saving}
                     className="mt-5 w-full py-2.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
                   >
-                    {t('mood.submit')}
+                    {saving
+                      ? t('mood.saving', 'Saving…')
+                      : saveError
+                        ? t('mood.retry', 'Try again')
+                        : t('mood.submit')}
                   </button>
 
                   {suggestedPractice && (

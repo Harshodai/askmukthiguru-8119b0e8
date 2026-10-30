@@ -91,7 +91,44 @@ TWILIO_FROM=whatsapp:+14155238886
 
 WA_ASYNC_ACK=true
 WA_DB_PATH=/data/wa_state.db
+
+# Optional: approved variable-free template, sent only when the 24-hour window is closed
+META_TEMPLATE_NAME=
+META_TEMPLATE_LANG=en
 ```
+
+### Step 6: Receiving, replying and proving delivery (added 2026-10-30)
+
+Facts below come from Meta's docs (read 2026-10-30; re-check, they change). The bot behaviour is in `whatsapp_bot/wa_bot.py` and pinned by `backend/tests/test_whatsapp_bot_webhook.py`.
+
+- **Callback URL:** public HTTPS with a valid certificate. Self-signed certificates are not supported.
+- **GET handshake:** Meta sends `hub.mode=subscribe`, `hub.verify_token`, `hub.challenge`. The bot returns the challenge with 200 only if the token matches `META_VERIFY_TOKEN`.
+- **POST signature:** `X-Hub-Signature-256: sha256=<hmac>`, HMAC-SHA256 of the body with the app secret (`META_APP_SECRET`). The bot returns 403 on a bad signature.
+- **Retries:** any non-200 is retried for up to 7 days, and one POST can batch several updates. The bot stores each message id once (`wa_inbound`) and handles every message in a batch.
+- **Status callbacks:** subscribe to the `messages` field. Outgoing `sent`, `delivered`, `read` and `failed` arrive as `statuses` and are stored in `wa_status_events`, then copied to `wa_outbound.status`. `accepted` in `wa_outbound` only means Meta took the send. It is not delivery proof.
+- **24-hour window:** a user message opens it, and each new user message resets it. Inside it any service message is allowed. Outside it only an approved template is allowed. The bot blocks free-form text outside the window (`blocked_window`), or sends `META_TEMPLATE_NAME` if set. Meta's page did not name the error code for a closed window; do not hard-code one.
+- **Opt-in:** you may only message users who opted in to hear from you.
+- **No account link:** a phone number gets an anonymous session. It never sees a signed-in user's memory.
+- **Where your data is:** the SQLite file at `WA_DB_PATH` (mode 0600). Meta keeps no history for you after 7 days, so keep this file on a volume.
+
+**Acceptance run (UNPROVEN until done):**
+1. Deploy the bot behind HTTPS and click **Verify and Save** in the dashboard.
+2. Send "hello" from a real phone. Expect a `wa_inbound` row and a reply on the phone.
+3. Expect `wa_outbound` to show `accepted`, then `delivered` or `read` from `wa_status_events`.
+4. Resend the same webhook body (replay). Expect no second reply.
+5. Wait 24 hours (or set `wa_window.last_inbound_at` back) and trigger a send. Expect `blocked_window`, or a template if `META_TEMPLATE_NAME` is set.
+
+**Official links**
+- [Get started with the Cloud API](https://developers.facebook.com/documentation/business-messaging/whatsapp/get-started)
+- [Webhooks overview](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/overview)
+- [Create a webhook endpoint](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/create-webhook-endpoint)
+- [Messages webhook reference (payload and statuses)](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/messages)
+- [Send messages and the service window](https://developers.facebook.com/documentation/business-messaging/whatsapp/messages/send-messages)
+- [Template fundamentals](https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/overview)
+- [System user access tokens](https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens#system-user-access-tokens)
+- [Pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing)
+- [Full docs index (llms.txt)](https://developers.facebook.com/documentation/business-messaging/whatsapp/llms.txt)
+- Twilio route: [WhatsApp quickstart](https://www.twilio.com/docs/whatsapp/quickstart), [key concepts](https://www.twilio.com/docs/whatsapp/key-concepts)
 
 ---
 

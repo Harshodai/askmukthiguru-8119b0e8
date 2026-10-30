@@ -38,6 +38,7 @@ import { ReflectionChips } from './ReflectionChips';
 import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
+import { completeStep } from '@/lib/dailyJourney';
 import { AbstainHelpCard } from './AbstainHelpCard';
 
 interface ChatMessageProps {
@@ -1165,15 +1166,28 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         guidanceAttribution={message.guidancePlan?.attribution}
                       />
                       {personalizeRef && !isAlreadyPersonalized && (
-                        <button
-                          type="button"
-                          data-testid="personalize-teaching"
-                          onClick={() => onPersonalizeTeaching?.(personalizeRef)}
-                          className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                          {t('chat.personalizeTeaching', 'Personalize this teaching')}
-                        </button>
+                        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <button
+                            type="button"
+                            data-testid="personalize-teaching"
+                            onClick={() => onPersonalizeTeaching?.(personalizeRef)}
+                            aria-describedby={`personalize-note-${message.id}`}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                            {t('chat.personalizeTeaching', 'Personalize this teaching')}
+                          </button>
+                          <p id={`personalize-note-${message.id}`} className="text-[11px] text-muted-foreground" data-testid="personalize-note">
+                            {t('chat.personalizeNote', 'Uses only memories you chose to save.')}{' '}
+                            <button
+                              type="button"
+                              onClick={() => navigate('/profile?tab=memory')}
+                              className="underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                            >
+                              {t('chat.personalizeManage', 'Review what is saved')}
+                            </button>
+                          </p>
+                        </div>
                       )}
                       {guruTeachingCitation && (
                         <div className="mb-3.5 w-full">
@@ -1183,6 +1197,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             related={message.verification?.direct === false}
                             index={citations.indexOf(guruTeachingCitation) + 1}
                             onPlay={(c) => {
+                              // Playing a real served clip is the proof for the journey's teaching step.
+                              completeStep('teaching');
                               setActiveVideoCitation(c);
                               onCitationClick?.(message.id, c.index - 1);
                             }}
