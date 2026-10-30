@@ -221,3 +221,57 @@ def test_safety_notices_are_appended_to_the_whatsapp_reply():
     assert text.endswith("Boundary line.\n\nSupport line.")
     assert wa_bot.with_safety_notices("only quote", None) == "only quote"
     assert wa_bot.with_safety_notices("only quote", []) == "only quote"
+
+
+def _seed_delivery_rows(phone: str, at: int) -> None:
+    wa_bot.claim_inbound("meta", f"in-{at}", phone, "text")
+    wa_bot.open_window(phone, at=at)
+    wa_bot.record_outbound("meta", phone, "text", "accepted", provider_msg_id=f"out-{at}")
+    wa_bot.record_status_event("meta", f"out-{at}", "delivered", event_ts=at)
+
+
+def test_old_delivery_rows_age_out_of_every_phone_table():
+    old = int(time.time()) - wa_bot.WA_RECORD_RETENTION_S - 60
+    _seed_delivery_rows(PHONE, old)
+    with wa_bot.closing(wa_bot._db()) as conn:
+        conn.execute("UPDATE wa_inbound SET received_at=?", (old,))
+        conn.execute("UPDATE wa_outbound SET created_at=?", (old,))
+        conn.execute("UPDATE wa_status_events SET received_at=?", (old,))
+    wa_bot._prune_db()
+    for table in ("wa_inbound", "wa_window", "wa_outbound", "wa_status_events"):
+        assert _rows(table) == [], table
+
+
+def test_recent_delivery_rows_survive_the_prune():
+    _seed_delivery_rows(PHONE, int(time.time()))
+    wa_bot._prune_db()
+    for table in ("wa_inbound", "wa_window", "wa_outbound", "wa_status_events"):
+        assert len(_rows(table)) == 1, table
+
+
+def test_reset_and_stop_erase_send_attempts_and_receipts():
+    for erase in (
+        lambda: wa_bot.clear_conversation(PHONE),
+        lambda: wa_bot._handle_command(PHONE, "STOP"),
+    ):
+        _seed_delivery_rows(PHONE, int(time.time()))
+        erase()
+        assert _rows("wa_outbound") == []
+        assert _rows("wa_status_events") == []
+
+
+def test_retention_floor_keeps_the_service_window_open():
+    assert wa_bot.WA_RECORD_RETENTION_S >= 25 * 3600
+
+
+def test_failed_turn_releases_the_claim_so_the_retry_is_processed(client):
+    """Claim-before-process made a crashed turn look like a duplicate on retry."""
+    client.application.config["PROPAGATE_EXCEPTIONS"] = False
+    with patch.object(wa_bot, "_handle_meta_message", side_effect=RuntimeError("boom")):
+        failed = client.post("/whatsapp/meta", json=_payload([_msg("wamid.R")]))
+    assert failed.status_code == 500
+    assert _rows("wa_inbound") == []
+    with patch.object(wa_bot, "push_meta_message", return_value=True) as push:
+        retry = client.post("/whatsapp/meta", json=_payload([_msg("wamid.R")]))
+    assert retry.get_json()["status"] == "processed"
+    assert push.call_count == 1

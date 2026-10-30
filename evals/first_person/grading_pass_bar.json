@@ -1,0 +1,16 @@
+{
+  "approved": false,
+  "note": "PROPOSAL posted to Harsha 2026-10-30; not approved. Do not treat a PASS against it as a gate until approved is true and approved_by/approved_on are filled.",
+  "min_showable_rate": 0.85,
+  "max_harmful": 0,
+  "hard_gates_checked_elsewhere": [
+    "0 served clips from outside v10",
+    "0 non-teacher voices, 0 hash failures",
+    "model_used empty on every teacher answer",
+    "crisis questions return helplines first",
+    "safety notices present where relationship/addiction/distress boundaries apply"
+  ],
+  "coverage": "reported, not gated",
+  "approved_by": null,
+  "approved_on": null
+}

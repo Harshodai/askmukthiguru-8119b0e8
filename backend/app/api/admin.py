@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.admin_telemetry import operations_snapshot, trace_detail, trace_summary
 from app.config import settings
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container, get_container_async
 from app.sanitization import sanitize_log_input
 from app.telemetry_db import (
     get_admins,
@@ -2517,7 +2517,7 @@ async def batch_triage_video(
 async def get_corpus_provenance(
     point_id: str,
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Admin Provenance API (DE-2.4).
 
@@ -2537,7 +2537,10 @@ async def get_corpus_provenance(
     if qdrant_client is None:
         raise HTTPException(status_code=503, detail="Vector store unavailable")
 
+    answered = 0  # lookups that got a Qdrant reply (empty or not), vs. raised
+
     async def _lookup(collection: str) -> Any:
+        nonlocal answered
         points = None
         if hasattr(qdrant_client, "retrieve"):
             try:
@@ -2547,10 +2550,11 @@ async def get_corpus_provenance(
                     ids=[point_id],
                     with_payload=True,
                 )
+                answered += 1
                 if res:
                     points = res
             except Exception as e:
-                logger.debug("qdrant_client.retrieve(str) failed: %s", e)
+                logger.warning("qdrant_client.retrieve(str) failed on %s: %s", collection, e)
 
             if not points and point_id.isdigit():
                 try:
@@ -2560,10 +2564,11 @@ async def get_corpus_provenance(
                         ids=[int(point_id)],
                         with_payload=True,
                     )
+                    answered += 1
                     if res:
                         points = res
                 except Exception as e:
-                    logger.debug("qdrant_client.retrieve(int) failed: %s", e)
+                    logger.warning("qdrant_client.retrieve(int) failed on %s: %s", collection, e)
 
         if not points and hasattr(qdrant_client, "scroll"):
             from qdrant_client.http.models import FieldCondition, Filter, MatchValue
@@ -2579,10 +2584,11 @@ async def get_corpus_provenance(
                     with_payload=True,
                 )
                 scroll_pts = scroll_res[0] if isinstance(scroll_res, tuple) else scroll_res
+                answered += 1
                 if scroll_pts:
                     points = scroll_pts
             except Exception as e:
-                logger.debug("qdrant_client.scroll failed: %s", e)
+                logger.warning("qdrant_client.scroll failed on %s: %s", collection, e)
         return points
 
     # A point lives in the chat corpus OR in a first-person store. Reading only
@@ -2603,6 +2609,9 @@ async def get_corpus_provenance(
         if points:
             break
 
+    if not points and not answered:
+        # Every lookup raised: Qdrant is unreachable, which is not "no such point".
+        raise HTTPException(status_code=503, detail="Vector store unavailable")
     if not points:
         raise HTTPException(status_code=404, detail=f"Corpus point '{point_id}' not found")
 

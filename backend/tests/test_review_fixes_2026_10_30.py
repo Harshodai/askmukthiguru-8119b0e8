@@ -151,3 +151,249 @@ def test_admin_provenance_still_404s_when_nowhere():
     with pytest.raises(HTTPException) as exc:
         asyncio.run(admin.get_corpus_provenance("zz", user={"id": "a"}, container=container))
     assert exc.value.status_code == 404
+
+
+class _ById:
+    """Registry written the way ingest writes it: keyed by YouTube video id."""
+
+    def __init__(self):
+        self.asked = []
+
+    def get_active_version(self, corpus_id, source_identity, fallback_version=1, strict=False):
+        self.asked.append(source_identity)
+        return {"abcdefghijk": 2}.get(source_identity, fallback_version)
+
+
+def test_release_lookup_uses_the_video_id_ingest_registered():
+    registry = _ById()
+    doc = {
+        "source_url": "https://www.youtube.com/watch?v=abcdefghijk",
+        "source_release_version": 2,
+    }
+    kept, dropped = filter_by_release([doc], filter_mode="enforce", registry=registry)
+    assert registry.asked == ["abcdefghijk"]
+    assert kept == [doc] and dropped == 0
+
+
+def test_release_lookup_falls_back_to_payload_video_id():
+    registry = _ById()
+    doc = {"video_id": "abcdefghijk", "source_release_version": 2}
+    kept, _ = filter_by_release([doc], filter_mode="enforce", registry=registry)
+    assert registry.asked == ["abcdefghijk"] and kept == [doc]
+
+
+def test_explicit_source_identity_still_wins():
+    registry = _ById()
+    doc = {
+        "source_identity": "custom",
+        "source_url": "https://youtu.be/abcdefghijk",
+        "source_release_version": 1,
+    }
+    filter_by_release([doc], filter_mode="enforce", registry=registry)
+    assert registry.asked == ["custom"]
+
+
+@pytest.mark.asyncio
+async def test_chat_v2_engine_result_carries_safety_notices():
+    """/api/chat/v2 reads ChatResult; the notices must survive PipelineResult -> ChatResult."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.chat_engine import ChatEngine
+    from app.pipeline.result import PipelineResult
+    from app.schemas import ChatRequest
+
+    class _Direct:
+        async def get_or_run(self, key, callback):
+            return await callback()
+
+    pipeline = PipelineResult(
+        final_answer="A clip.",
+        intent="QUERY",
+        trace_id="t",
+        latency_ms=1,
+        model_used="",
+        model_provider="",
+        route_decision="first_person_bridge",
+        query_tier="fast",
+        cache_hit=False,
+        faithfulness_score=None,
+        route_metadata={"safety_notices": ["You are not alone. Call the helpline."]},
+    )
+    engine = ChatEngine(MagicMock())
+    coordinator = MagicMock()
+    coordinator.execute = AsyncMock(return_value=pipeline)
+    engine._coordinator = coordinator
+    with patch("app.coalescer.build_coalescer", return_value=_Direct()):
+        result = await engine.chat_advanced(
+            ChatRequest(user_message="I feel hopeless", messages=[]),
+            user={"id": "u1", "tenant_id": "default"},
+        )
+    assert result.safety_notices == ["You are not alone. Call the helpline."]
+
+
+def test_chat_v2_response_reads_the_chat_result_field():
+    src = (_BACKEND / "app/api/chat.py").read_text()
+    assert 'getattr(result, "safety_notices", None)' in src
+    assert 'getattr(result, "route_metadata"' not in src
+
+
+def test_admin_provenance_reports_503_when_qdrant_is_down():
+    from fastapi import HTTPException
+
+    from app.api import admin
+
+    class _Down:
+        def retrieve(self, **_kw):
+            raise ConnectionError("qdrant unreachable")
+
+    container = types.SimpleNamespace(qdrant_client=_Down())
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(admin.get_corpus_provenance("zz", user={"id": "a"}, container=container))
+    assert exc.value.status_code == 503
+
+
+def test_admin_provenance_uses_the_async_container_dependency():
+    src = (_BACKEND / "app/api/admin.py").read_text()
+    head = src.split("async def get_corpus_provenance", 1)[1].split("-> dict", 1)[0]
+    assert "get_container_async" in head and "Depends(get_container)" not in head
+
+
+def test_raptor_summary_parent_id_differs_from_leaf_parent_with_same_index():
+    from tests.test_corpus_data_contract import _build_mock_indexer, _get_upserted_points
+
+    indexer, client = _build_mock_indexer()
+    base = {"source_url": "https://example.com/talk-1", "chunk_index": 0, "parent_index": 0}
+    indexer.upsert_chunks(
+        ["Leaf words.", "Machine summary."],
+        [[0.1] * 8, [0.2] * 8],
+        [dict(base), {**base, "raptor_level": 1}],
+    )
+    leaf, summary = (p.payload for p in _get_upserted_points(client))
+    assert leaf["parent_id"] != summary["parent_id"]
+    # Leaf ids keep the original scheme, so existing points are not re-keyed.
+    assert leaf["parent_id"] == str(uuid.uuid5(uuid.NAMESPACE_URL, "https://example.com/talk-1:0"))
+
+
+def test_graphrag_fused_doc_with_none_stamps_is_not_release_filtered():
+    fused = {"text": "graph", "chunk_id": None, "domain_rights_status": None}
+    assert _needs_release_filter(fused) is False
+
+
+def test_publication_manifest_dir_is_overridable_and_write_is_atomic(tmp_path, monkeypatch):
+    from app import corpus_publication as cp
+
+    monkeypatch.setattr(cp.settings, "corpus_publication_manifest_dir", str(tmp_path))
+    path = cp.write_corpus_publication_manifest(corpus_id="c1", source_url="u", chunks_count=2)
+    assert path.parent == tmp_path and path.is_file()
+    assert [p.name for p in tmp_path.iterdir()] == [path.name]  # no temp file left behind
+    assert cp.verify_publication_manifest_exists("c1") is True
+
+
+def test_explicit_manifest_dir_is_not_satisfied_by_the_repo_copy(tmp_path, monkeypatch):
+    from app import corpus_publication as cp
+
+    monkeypatch.setattr(cp.settings, "corpus_publication_manifest_dir", str(tmp_path))
+    with pytest.raises(RuntimeError):
+        cp.verify_publication_manifest_exists("never-written-corpus")
+
+
+def test_stale_job_sweeper_waits_longer_than_the_task_hard_limit():
+    import inspect
+
+    import celery_config
+    from tasks.ingest_tasks import sweep_stale_ingest_jobs
+
+    default = inspect.signature(sweep_stale_ingest_jobs).parameters["timeout_minutes"].default
+    assert default * 60 > celery_config.celery_app.conf.task_time_limit
+
+
+def test_casual_short_circuit_does_not_claim_verified_citations():
+    from rag.nodes.intent import _short_circuit_verification
+
+    out = _short_circuit_verification()
+    assert out["verification"]["citations_verified"] is False
+
+
+def test_feedback_log_never_carries_query_text():
+    src = (_BACKEND / "services/retrieval_feedback.py").read_text()
+    assert "query[:40]" not in src
+
+
+def test_video_ids_differing_only_by_case_do_not_share_licensed_status(tmp_path, monkeypatch):
+    import json
+
+    from services import first_person_serving_contract as contract
+    from services.qdrant import indexer
+
+    manifest = tmp_path / "rights.json"
+    manifest.write_text(
+        json.dumps(
+            {"assets": [{"video_id": "AbCdEfGhIjK", "owner_review_status": "owner_confirmed"}]}
+        )
+    )
+    monkeypatch.setattr(contract, "RIGHTS_MANIFEST_RELPATH", str(manifest))
+    monkeypatch.setattr(indexer, "_RIGHTS_REGISTER_CACHE", None)
+    assert indexer.resolve_source_rights_status("", "AbCdEfGhIjK") == "licensed"
+    assert indexer.resolve_source_rights_status("", "abcdefghijk") == "unverified"
+
+
+def test_url_host_case_is_folded_but_path_case_is_not():
+    from services.qdrant.indexer import _host_lowered
+
+    assert (
+        _host_lowered("HTTPS://WWW.YouTube.com/watch?v=AbC")
+        == "https://www.youtube.com/watch?v=AbC"
+    )
+
+
+def test_okf_manifest_is_parsed_once_until_the_file_changes(tmp_path, monkeypatch):
+    import json
+    import os
+
+    from services.memory import okf_store
+
+    path = tmp_path / "source_asset_manifest.json"
+    path.write_text(json.dumps({"rows": []}))
+    calls = []
+    real = okf_store.SourceAssetManifest.from_file
+
+    def counting(p):
+        calls.append(str(p))
+        return real(p)
+
+    monkeypatch.setattr(okf_store.SourceAssetManifest, "from_file", staticmethod(counting))
+    monkeypatch.setattr(okf_store, "_MANIFEST_CACHE", {})
+    okf_store._default_manifest(path)
+    okf_store._default_manifest(path)
+    assert len(calls) == 1
+    bumped = path.stat().st_mtime_ns + 5_000_000_000
+    os.utime(path, ns=(bumped, bumped))
+    okf_store._default_manifest(path)
+    assert len(calls) == 2
+
+
+def test_okf_manifest_missing_or_corrupt_means_nothing_cleared(tmp_path, monkeypatch):
+    from services.memory import okf_store
+
+    monkeypatch.setattr(okf_store, "_MANIFEST_CACHE", {})
+    assert okf_store._default_manifest(tmp_path / "absent.json") is not None
+    bad = tmp_path / "source_asset_manifest.json"
+    bad.write_text("{not json")
+    okf_store._default_manifest(bad)
+    assert str(bad) not in okf_store._MANIFEST_CACHE  # a repaired file is re-read
+
+
+def test_documents_without_url_or_title_get_distinct_parent_ids():
+    from unittest.mock import MagicMock
+
+    from ingest.pipeline import IngestionPipeline
+
+    pipeline = IngestionPipeline(MagicMock(), MagicMock(), MagicMock())
+    _, meta_a = pipeline._hierarchical_split("First document. It talks about stillness.")
+    _, meta_b = pipeline._hierarchical_split("Second document. It talks about breath.")
+    ids_a = {m["parent_id"] for m in meta_a}
+    ids_b = {m["parent_id"] for m in meta_b}
+    assert ids_a and ids_b and ids_a.isdisjoint(ids_b)
+    # Same text stays idempotent.
+    _, again = pipeline._hierarchical_split("First document. It talks about stillness.")
+    assert {m["parent_id"] for m in again} == ids_a

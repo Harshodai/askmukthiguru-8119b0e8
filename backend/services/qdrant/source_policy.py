@@ -138,6 +138,22 @@ def _coerce_release_version(value: Any) -> Optional[int]:
         return None
 
 
+def _registry_identity(source_url: Any, video_id: Any) -> Optional[str]:
+    """The key the release registry was written under at ingest.
+
+    ``IngestionPipeline._derive_source_identity`` registers a YouTube source by its
+    video id, so the read-time lookup must use the same key; looking up the raw
+    URL found no row and fell back to version 1.
+    """
+    if isinstance(source_url, str) and source_url.strip():
+        from ingest.youtube_loader import extract_video_id
+
+        return extract_video_id(source_url) or source_url.strip()
+    if isinstance(video_id, str) and video_id.strip():
+        return video_id.strip()
+    return None
+
+
 def filter_by_release(
     documents: Iterable[Any],
     filter_mode: Optional[str] = None,
@@ -202,9 +218,8 @@ def filter_by_release(
         point_version = _coerce_release_version(payload.get("source_release_version"))
         source_identity = (
             payload.get("source_identity")
-            or payload.get("source_url")
-            or payload.get("video_id")
-            or (doc.get("source_url") if isinstance(doc, dict) else None)
+            or _registry_identity(payload.get("source_url"), payload.get("video_id"))
+            or (_registry_identity(doc.get("source_url"), None) if isinstance(doc, dict) else None)
             or "unknown"
         )
 

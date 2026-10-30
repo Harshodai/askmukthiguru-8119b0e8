@@ -1,6 +1,34 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — review-fix round on 79b6ff4d (two independent reviews)
+
+### L-SECOND-FILTER-1. Re-running a fail-closed filter on a reshaped object drops everything.
+- **What:** the searcher already release-filtered hits; the retrieval node ran `filter_by_release` again on the flattened dicts, which carry `chunk_id` but not `source_release_version`. In `enforce` that is every vector doc dropped (all answers abstain); in `shadow` the exclusion counter read ~100% so the evidence for switching modes was useless.
+- **Fix:** searcher docs carry the stamp and `release_screened`; `_needs_release_filter` skips screened docs and tests values, not key presence (GraphRAG docs hold the keys as None).
+- **Pin:** `tests/test_review_fixes_2026_10_30.py` (release filter cases).
+
+### L-REGISTRY-KEY-1. Write side and read side of a registry must derive the key with the same function.
+- **What:** ingest registers a YouTube source under its video id; the read-time filter looked up the full URL, found no row, and used the fallback version. v2+ points dropped; revoked v1 points served.
+- **Fix (read side):** `_registry_identity` mirrors `_derive_source_identity`. **Still open (policy):** in `enforce`, "no active release" still returns the fallback version, so a pending or revoked source with v1 points keeps serving; fixing that needs a decision on legacy unregistered sources.
+
+### L-WIRE-ATTR-1. A response field read with `getattr(obj, "x", None)` hides that the object never had `x`.
+- **What:** `/api/chat/v2` read `result.route_metadata` off a `ChatResult` that has no such attribute, so safety notices (support line, boundaries) were always `[]` on that route. The AST guard only checked the keyword appeared.
+- **Fix:** `ChatResult.safety_notices`, copied in `_execute_batch`, read by the builder; a behavioural test goes through `ChatEngine`.
+- **Rule:** a wire guard must run the path, not grep for the name.
+
+### L-CLAIM-RELEASE-1. Claim-before-process dedupe needs a release on failure.
+- WhatsApp `claim_inbound` committed before processing; a crashed turn made the provider retry look like a duplicate. `release_inbound` runs when processing raises.
+
+### L-PHONE-RETENTION-1. Every table that stores a phone number needs an age prune and an erasure path.
+- Four new WhatsApp tables kept numbers forever. Now pruned by age (`WA_RECORD_RETENTION_S`, default 7 days, floor 25 h) and send history is erased on RESET/STOP. Phone numbers in logs are masked (`mask_phone`).
+
+### L-PROD-COMPOSE-1. A second service sharing the app image needs the app's required env, and state needs a volume.
+- `celery-beat` got four env vars and crash-looped on `anon_session_hmac_secret is required in production`; owner video decisions lived in `/app/data` with no volume. Beat now shares `*backend-env`; `backend_data:/app/data` is a named volume. Pinned in `tests/test_prod_compose_invariants.py`.
+
+### L-TEST-WRITES-REPO-1. A test that writes into the repo tree can satisfy a production gate on the developer's machine.
+- An ingest test left `audits/manifests/corpus_publication_manifest_askmukthiguru.json`, which alone satisfied the startup publication check. `CORPUS_PUBLICATION_MANIFEST_DIR` + an autouse conftest fixture isolate it; the write is atomic.
+
 ## Oct 31, 2026 — staging ingest of the remaining videos (`first_person_v10_stage2_20261031`)
 
 ### L-BUILDER-ZERO-DURATION-1. A span whose words share one timestamp crashed the whole builder run.

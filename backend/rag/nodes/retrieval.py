@@ -1411,7 +1411,11 @@ def _needs_release_filter(d: Any) -> bool:
     if d.get("release_screened") is True:
         return False
     payload = d.get("metadata") if isinstance(d.get("metadata"), dict) else d
-    return any(k in payload for k in ("chunk_id", "domain_rights_status", "source_release_version"))
+    # Value, not key presence: GraphRAG-fused docs carry these keys as None.
+    return any(
+        payload.get(k) is not None
+        for k in ("chunk_id", "domain_rights_status", "source_release_version")
+    )
 
 
 @trace_rag_node("retrieve_documents")

@@ -1190,7 +1190,9 @@ def _short_circuit_verification(method: str = "casual_short_circuit") -> dict[st
         "verification": {
             "passed": True,
             "method": method,
-            "citations_verified": True,
+            # No citations on a short-circuit; True would contradict that and
+            # trip the F-VERIFY-1 coercion (an ERROR log) on every greeting.
+            "citations_verified": False,
         },
         "faithfulness_score": 1.0,
         "confidence_score": 1.0,

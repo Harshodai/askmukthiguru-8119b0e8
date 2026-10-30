@@ -352,9 +352,7 @@ class RaptorIndexer:
                 if source_urls
                 else (chunks[0].get("source_url", "") if chunks else "")
             )
-            summary_point_id = _raptor_summary_point_id(
-                primary_source_url, cluster_id, source_urls
-            )
+            summary_point_id = _raptor_summary_point_id(primary_source_url, cluster_id, source_urls)
 
             for c in cluster_chunks:
                 c["parent_summary_id"] = summary_point_id

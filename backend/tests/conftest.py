@@ -440,6 +440,20 @@ def _clear_dependency_overrides():
 
 
 @pytest.fixture(autouse=True)
+def _isolate_publication_manifest_dir(tmp_path, monkeypatch):
+    """Ingest tests write a publication manifest; keep it out of the repo tree.
+
+    A stray audits/manifests/corpus_publication_manifest_*.json left by a test run
+    used to satisfy the startup publication gate on a developer machine.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(
+        settings, "corpus_publication_manifest_dir", str(tmp_path / "publication_manifests")
+    )
+
+
+@pytest.fixture(autouse=True)
 def _flush_test_redis():
     """Clear the suite's Redis database between tests.
 

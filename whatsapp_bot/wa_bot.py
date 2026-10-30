@@ -100,6 +100,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 log = logging.getLogger("wa_bot")
 
 
+def mask_phone(phone: object) -> str:
+    """Log form of a phone number: country/area prefix only, never the full number."""
+    digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
+    return f"{digits[:6]}***" if digits else "unknown"
+
+
 def sanitize_log_input(val: Any) -> str:
     """Sanitize user input to prevent log injection (CWE-117)."""
     return str(val).replace("\r", "").replace("\n", " ")[:200]
@@ -213,10 +219,38 @@ def _init_db() -> None:
                 pass  # column already present
 
 
+# Delivery bookkeeping (dedupe ids, window start, send attempts, receipts) keeps a
+# phone number, so it ages out. It must outlive the 24 h service window and the
+# provider retry horizon; 7 days is the default, WA_RECORD_RETENTION_S overrides.
+WA_RECORD_RETENTION_S = max(int(os.getenv("WA_RECORD_RETENTION_S", str(7 * 24 * 3600))), 25 * 3600)
+
+
 def _prune_db() -> None:
-    cutoff = int(time.time()) - CACHE_TTL_SECONDS
+    now = int(time.time())
+    cutoff = now - CACHE_TTL_SECONDS
+    record_cutoff = now - WA_RECORD_RETENTION_S
     with closing(_db()) as conn:
         conn.execute("DELETE FROM wa_messages WHERE created_at < ?", (cutoff,))
+        conn.execute("DELETE FROM wa_inbound WHERE received_at < ?", (record_cutoff,))
+        conn.execute("DELETE FROM wa_window WHERE last_inbound_at < ?", (record_cutoff,))
+        conn.execute("DELETE FROM wa_status_events WHERE received_at < ?", (record_cutoff,))
+        conn.execute("DELETE FROM wa_outbound WHERE created_at < ?", (record_cutoff,))
+
+
+def _purge_delivery_history(conn: sqlite3.Connection, phone: str) -> None:
+    """Drop a phone's send attempts and their receipts (RESET / STOP).
+
+    wa_inbound and wa_window stay until the age prune: the message that triggered
+    this call is still being answered inside its service window and its provider
+    id is what stops a retry from being processed twice.
+    """
+    conn.execute(
+        "DELETE FROM wa_status_events WHERE (provider, provider_msg_id) IN "
+        "(SELECT provider, provider_msg_id FROM wa_outbound "
+        "WHERE phone=? AND provider_msg_id IS NOT NULL)",
+        (phone,),
+    )
+    conn.execute("DELETE FROM wa_outbound WHERE phone=?", (phone,))
 
 
 def history_for(phone: str, limit: int = WA_HISTORY_LIMIT) -> list[dict]:
@@ -261,6 +295,19 @@ def claim_inbound(provider: str, msg_id: str, phone: str, kind: str) -> bool:
             (provider, msg_id, phone, kind, int(time.time())),
         )
         return cur.rowcount == 1
+
+
+def release_inbound(provider: str, msg_id: str) -> None:
+    """Forget a claim whose processing raised, so the provider's retry is handled.
+
+    The claim is taken before processing (at-least-once delivery); without this a
+    turn that failed would make the retry look like a duplicate and the message,
+    a crisis message included, would be silently lost.
+    """
+    with closing(_db()) as conn:
+        conn.execute(
+            "DELETE FROM wa_inbound WHERE provider=? AND provider_msg_id=?", (provider, msg_id)
+        )
 
 
 def open_window(phone: str, at: int | None = None) -> None:
@@ -413,6 +460,7 @@ def clear_conversation(phone: str) -> None:
     with closing(_db()) as conn:
         conn.execute("DELETE FROM wa_messages WHERE phone=?", (clean,))
         conn.execute("DELETE FROM wa_state WHERE phone=?", (clean,))
+        _purge_delivery_history(conn, clean)
     update_state(
         clean,
         meditation_step=0,
@@ -1195,7 +1243,7 @@ def poll_job_until_complete(phone: str, job_id: str, session_token: str | None =
                 log.info(
                     "Job %s completed for %s",
                     sanitize_log_input(job_id),
-                    sanitize_log_input(clean_phone),
+                    mask_phone(clean_phone),
                 )
                 return answer_text
 
@@ -1203,7 +1251,7 @@ def poll_job_until_complete(phone: str, job_id: str, session_token: str | None =
                 log.error(
                     "Job %s failed for %s: %s",
                     sanitize_log_input(job_id),
-                    sanitize_log_input(clean_phone),
+                    mask_phone(clean_phone),
                     sanitize_log_input(job.get("error")),
                 )
                 return FALLBACK_GENERIC
@@ -1215,9 +1263,7 @@ def poll_job_until_complete(phone: str, job_id: str, session_token: str | None =
 
         time.sleep(1.0)
 
-    log.warning(
-        "Job %s timed out for %s", sanitize_log_input(job_id), sanitize_log_input(clean_phone)
-    )
+    log.warning("Job %s timed out for %s", sanitize_log_input(job_id), mask_phone(clean_phone))
     return FALLBACK_DOWN
 
 
@@ -1238,7 +1284,7 @@ def _deliver_outbound(
             )
             lang = os.getenv("META_TEMPLATE_LANG", META_TEMPLATE_LANG)
             return push_meta_template(phone_number_id, phone, template, lang)
-        log.warning("24h window closed for %s — free-form reply blocked", sanitize_log_input(phone))
+        log.warning("24h window closed for %s — free-form reply blocked", mask_phone(phone))
         try:
             record_outbound(channel, phone, "blocked_window", "failed", error="window_closed")
         except Exception as exc:
@@ -1257,8 +1303,8 @@ def _deliver_outbound(
             return False
         if ok:
             return True
-        log.warning("outbound attempt %d failed for %s", attempt, sanitize_log_input(phone))
-    log.error("outbound delivery failed twice for %s — reply dropped", sanitize_log_input(phone))
+        log.warning("outbound attempt %d failed for %s", attempt, mask_phone(phone))
+    log.error("outbound delivery failed twice for %s — reply dropped", mask_phone(phone))
     return False
 
 
@@ -1294,6 +1340,8 @@ def _handle_command(clean_phone: str, user_message: str) -> str | None:
         return None
     st = state_for(clean_phone)
     if word in STOP_WORDS:
+        with closing(_db()) as conn:
+            _purge_delivery_history(conn, clean_phone)
         update_state(
             clean_phone,
             meditation_step=int(st.get("meditation_step", 0) or 0),
@@ -1389,7 +1437,7 @@ def process_chat_turn(
             # and maps it to honest failure copy below.
             log.warning(
                 "anon token issue failed for %s: %s",
-                sanitize_log_input(clean_phone),
+                mask_phone(clean_phone),
                 sanitize_log_input(exc),
             )
             session_token = get_stored_anon_token(clean_phone) or ""
@@ -1412,12 +1460,12 @@ def process_chat_turn(
         if not answer_text:
             answer_text = FALLBACK_GENERIC
     except requests.Timeout:
-        log.warning("chat timeout for %s", sanitize_log_input(clean_phone))
+        log.warning("chat timeout for %s", mask_phone(clean_phone))
         answer_text = with_helplines_if_crisis(
             "🙏 The Guru is taking longer than usual. Please try again.", user_message
         )
     except requests.ConnectionError:
-        log.error("chat connection error for %s", sanitize_log_input(clean_phone))
+        log.error("chat connection error for %s", mask_phone(clean_phone))
         answer_text = with_helplines_if_crisis(
             "🙏 Unable to reach the Guru right now. Please try again shortly.",
             user_message,
@@ -1427,7 +1475,7 @@ def process_chat_turn(
         log.error(
             "chat HTTP %d for %s: %s",
             int(sc),
-            sanitize_log_input(clean_phone),
+            mask_phone(clean_phone),
             sanitize_log_input(e),
         )
         try:
@@ -1436,9 +1484,7 @@ def process_chat_turn(
             err_body = ""
         answer_text = with_helplines_if_crisis(_failure_copy(int(sc), err_body), user_message)
     except Exception as e:
-        log.exception(
-            "chat call failed for %s: %s", sanitize_log_input(clean_phone), sanitize_log_input(e)
-        )
+        log.exception("chat call failed for %s: %s", mask_phone(clean_phone), sanitize_log_input(e))
         answer_text = with_helplines_if_crisis(FALLBACK_GENERIC, user_message)
 
     # Persist assistant response
@@ -1585,6 +1631,9 @@ def twilio_webhook():
             answer = process_chat_turn(
                 "twilio", clean_phone, body, metadata, deliver_outbound=False
             )
+        except Exception:
+            release_inbound("twilio", str(request.form.get("MessageSid") or ""))
+            raise
         finally:
             if is_crisis:
                 _crisis_capacity_release(clean_phone)
@@ -1756,7 +1805,12 @@ def meta_webhook():
         ):
             results.append((parsed, "duplicate"))
             continue
-        status, answer = _handle_meta_message(parsed)
+        try:
+            status, answer = _handle_meta_message(parsed)
+        except Exception:
+            if parsed["kind"] in ("text", "voice", "media"):
+                release_inbound("meta", msg_id)
+            raise
         results.append((parsed, status))
         last_answer = answer
 
@@ -1766,7 +1820,12 @@ def meta_webhook():
         # Nothing iterable: keep the legacy classification for odd payloads.
         kind = parse_meta_inbound(payload)["kind"]
         return jsonify(
-            {"status": {"incomplete": "incomplete_payload", "malformed": "ignored_non_message"}.get(kind, "no_message")}
+            {
+                "status": {
+                    "incomplete": "incomplete_payload",
+                    "malformed": "ignored_non_message",
+                }.get(kind, "no_message")
+            }
         ), 200
     body: dict[str, Any] = {"status": results[-1][1]}
     if results[-1][1] == "processed" and last_answer is not None:
@@ -1851,8 +1910,6 @@ def _handle_meta_message(parsed: dict[str, Any]) -> tuple[str, str | None]:
             if is_crisis_meta:
                 _crisis_capacity_release(clean_phone)
         return "processed", answer
-
-
 
 
 # ---------------------------------------------------------------------------

@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -255,6 +256,12 @@ def test_meta_button_reply_is_answered(client, monkeypatch):
     )
     with patch.object(wa_bot, "process_chat_turn", return_value="Peace.") as mock_turn:
         resp = client.post("/whatsapp/meta", json=payload)
+        # The turn runs on a worker thread; wait for it inside the patch, or it can
+        # start after the mock is gone and call the real function.
+        for _ in range(100):
+            if mock_turn.call_args is not None:
+                break
+            time.sleep(0.02)
     assert resp.get_json()["status"] == "received"
     assert mock_turn.call_args[0][2] == "Tell me more"
 

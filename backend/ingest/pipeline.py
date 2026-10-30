@@ -3688,7 +3688,13 @@ class IngestionPipeline:
         all_child_texts: list[str] = []
         all_child_metadatas: list[dict] = []
 
-        url_key = source_url or title or "hierarchical_source"
+        # No URL and no title: key on the text itself. A shared constant gave two
+        # unrelated documents the same parent_ids, and group_by=parent_id merged them.
+        url_key = (
+            source_url
+            or title
+            or f"content:{hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]}"
+        )
         for parent_index, parent_text in enumerate(parent_chunks):
             parent_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{url_key}:{parent_index}"))
             parent_id_scheme = "deterministic_v1"

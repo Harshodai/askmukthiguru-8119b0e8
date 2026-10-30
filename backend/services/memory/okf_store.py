@@ -631,18 +631,34 @@ def _load_compiled_matrix(
     if governance_active:
         active_manifest = manifest
         if active_manifest is None:
-            default_manifest_path = compiled_path.parent / "source_asset_manifest.json"
-            if default_manifest_path.exists():
-                try:
-                    active_manifest = SourceAssetManifest.from_file(default_manifest_path)
-                except Exception as exc:
-                    logger.warning("Failed to load default source asset manifest: %s", exc)
-                    active_manifest = SourceAssetManifest([])
-            else:
-                active_manifest = SourceAssetManifest([])
+            active_manifest = _default_manifest(compiled_path.parent / "source_asset_manifest.json")
         return _filter_entries_by_manifest(raw_entries, raw_matrix, active_manifest)
 
     return raw_entries, raw_matrix
+
+
+_MANIFEST_CACHE: dict[str, tuple[int, SourceAssetManifest]] = {}
+
+
+def _default_manifest(path: Path) -> SourceAssetManifest:
+    """Owner-signed manifest next to compiled.json, re-read only when the file changes.
+
+    A missing or unreadable file yields an empty manifest (nothing cleared), and an
+    unreadable one is not cached so a repaired file is picked up on the next call.
+    """
+    if not path.exists():
+        return SourceAssetManifest([])
+    stamp = path.stat().st_mtime_ns
+    hit = _MANIFEST_CACHE.get(str(path))
+    if hit is not None and hit[0] == stamp:
+        return hit[1]
+    try:
+        manifest = SourceAssetManifest.from_file(path)
+    except Exception as exc:
+        logger.warning("Failed to load default source asset manifest: %s", exc)
+        return SourceAssetManifest([])
+    _MANIFEST_CACHE[str(path)] = (stamp, manifest)
+    return manifest
 
 
 def match_okf_entries(
@@ -692,15 +708,7 @@ def match_okf_entries(
     governance_active = bool(settings.okf_governance_manifest_enabled or (manifest is not None))
     active_manifest: Optional[SourceAssetManifest] = manifest
     if governance_active and active_manifest is None:
-        default_manifest_path = c_path.parent / "source_asset_manifest.json"
-        if default_manifest_path.exists():
-            try:
-                active_manifest = SourceAssetManifest.from_file(default_manifest_path)
-            except Exception as exc:
-                logger.warning("Failed to load default source asset manifest: %s", exc)
-                active_manifest = SourceAssetManifest([])
-        else:
-            active_manifest = SourceAssetManifest([])
+        active_manifest = _default_manifest(c_path.parent / "source_asset_manifest.json")
 
     for i, base_sim in enumerate(similarities):
         e = entries[i]

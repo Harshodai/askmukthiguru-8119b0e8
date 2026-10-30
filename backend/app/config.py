@@ -288,6 +288,10 @@ class Settings(BaseSettings):
     # <backend>/data/fp_video_decisions (/app/data is the persisted Docker volume).
     # Env: FIRST_PERSON_VIDEO_DECISIONS_DIR.
     first_person_video_decisions_dir: str = ""
+    # Directory for corpus_publication_manifest_<corpus>.json. Empty means the repo's
+    # audits/manifests. Point it at a volume shared by the ingest worker and the
+    # backend, or at a temp dir in tests.
+    corpus_publication_manifest_dir: str = ""
     # Optional CSV of every known video (channel, title, v10 counts) so the page can list
     # videos that are not in v10. Empty uses config/first_person_video_inventory.csv.
     # Env: FIRST_PERSON_VIDEO_INVENTORY_PATH.

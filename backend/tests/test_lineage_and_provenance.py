@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import get_container
+from app.dependencies import get_container_async
 from app.main import app, get_current_user_from_supabase
 from ingest.raptor import RaptorIndexer
 from scripts.ops.cross_store_audit import audit_store_drift
@@ -378,7 +378,7 @@ def test_admin_provenance_endpoint_returns_exact_fields():
     retrieved_pt.payload = stored_payload
 
     mock_qclient.retrieve.return_value = [retrieved_pt]
-    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_container_async] = lambda: mock_container
 
     try:
         client = TestClient(app)
@@ -406,7 +406,7 @@ def test_admin_provenance_endpoint_returns_exact_fields():
 
     finally:
         app.dependency_overrides.pop(get_current_user_from_supabase, None)
-        app.dependency_overrides.pop(get_container, None)
+        app.dependency_overrides.pop(get_container_async, None)
 
 
 def test_admin_provenance_endpoint_404_not_found():
@@ -419,7 +419,7 @@ def test_admin_provenance_endpoint_404_not_found():
     mock_qclient.retrieve.return_value = []
     mock_qclient.scroll.return_value = ([], None)
 
-    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_container_async] = lambda: mock_container
 
     try:
         client = TestClient(app)
@@ -429,4 +429,4 @@ def test_admin_provenance_endpoint_404_not_found():
 
     finally:
         app.dependency_overrides.pop(get_current_user_from_supabase, None)
-        app.dependency_overrides.pop(get_container, None)
+        app.dependency_overrides.pop(get_container_async, None)

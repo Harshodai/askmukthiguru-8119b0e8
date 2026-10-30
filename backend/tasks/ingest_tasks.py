@@ -586,7 +586,7 @@ def ingest_first_person_video_task(
 
 
 @celery_app.task(name="tasks.ingest_tasks.sweep_stale_ingest_jobs")
-def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> list[str]:
+def sweep_stale_ingest_jobs(timeout_minutes: int = 45, client: Any = None) -> list[str]:
     """Sweep stuck running/processing ingest jobs whose heartbeat is older than timeout_minutes.
 
     Flips matching jobs to 'failed' with error message 'stale_worker_heartbeat_timeout'.

@@ -77,7 +77,8 @@ def _load_rights_register() -> dict[str, bool]:
                 val = asset.get(key_field)
                 if val and isinstance(val, str) and val.strip():
                     cleared_map[val.strip()] = is_cleared
-                    cleared_map[val.strip().lower()] = is_cleared
+                    if key_field == "canonical_source_url":
+                        cleared_map[_host_lowered(val.strip())] = is_cleared
     except (OSError, ValueError, AttributeError, TypeError) as exc:
         raise RightsRegisterUnavailable(
             f"rights manifest {manifest_path} unreadable: {exc}"
@@ -87,16 +88,27 @@ def _load_rights_register() -> dict[str, bool]:
     return cleared_map
 
 
+def _host_lowered(url: str) -> str:
+    """Lowercase scheme and host only. YouTube ids and URL paths are case-sensitive:
+    folding them let one video inherit another's "licensed" status."""
+    try:
+        parts = urlparse(url)
+    except ValueError:
+        return url
+    if not parts.netloc:
+        return url
+    return parts._replace(scheme=parts.scheme.lower(), netloc=parts.netloc.lower()).geturl()
+
+
 def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None) -> str:
     """DE-4.4: Look up source in rights register. Returns 'licensed' if registered and cleared, else 'unverified'."""
     cleared_map = _load_rights_register()
     candidates = []
     if source_url and source_url.strip():
         candidates.append(source_url.strip())
-        candidates.append(source_url.strip().lower())
+        candidates.append(_host_lowered(source_url.strip()))
     if video_id and video_id.strip():
         candidates.append(video_id.strip())
-        candidates.append(video_id.strip().lower())
     if source_url:
         try:
             parsed_netloc = (urlparse(source_url).netloc or "").lower()
@@ -110,7 +122,6 @@ def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None
                 extracted_vid = extract_video_id(source_url)
                 if extracted_vid:
                     candidates.append(extracted_vid)
-                    candidates.append(extracted_vid.lower())
         except Exception:
             pass
 
@@ -403,9 +414,17 @@ class QdrantIndexer:
             if not payload.get("parent_id"):
                 import uuid
 
-                payload["parent_id"] = str(
-                    uuid.uuid5(uuid.NAMESPACE_URL, f"{source_url}:{parent_index}")
+                # RAPTOR summaries reuse chunk_index as their cluster number, so
+                # without their level in the key summary k of a video shared a
+                # parent_id with verbatim leaf parent k and group_by=parent_id
+                # merged machine summary and teacher words into one group.
+                level = payload.get("raptor_level") or 0
+                parent_key = (
+                    f"{source_url}:raptor{level}:{parent_index}"
+                    if level
+                    else f"{source_url}:{parent_index}"
                 )
+                payload["parent_id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, parent_key))
                 payload["parent_id_scheme"] = "deterministic_v1"
             else:
                 payload.setdefault("parent_id_scheme", "deterministic_v1")

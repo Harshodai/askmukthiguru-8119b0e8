@@ -185,9 +185,9 @@ class RetrievalFeedbackService:
         if suppressed_count > 0:
             RETRIEVAL_FEEDBACK_SUPPRESSIONS_TOTAL.inc(suppressed_count)
             logger.info(
-                "Suppressed %d document(s) for query %r via retrieval feedback signals",
+                "Suppressed %d document(s) for query hash %s via retrieval feedback signals",
                 suppressed_count,
-                query[:40],
+                hash_query(query)[:12],
             )
         return kept
 
