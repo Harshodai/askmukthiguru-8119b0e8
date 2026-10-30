@@ -18,6 +18,8 @@ export interface JourneyState {
 }
 
 export const JOURNEY_KEY = 'askmukthiguru_daily_journey';
+/** Fired on window when a step becomes done, so open banners can refresh. */
+export const JOURNEY_EVENT = 'askmukthiguru:journey_updated';
 
 const read = (): JourneyState | null => {
   try {
@@ -61,8 +63,14 @@ export const startJourney = (mood: string, practiceSlug?: string, now: Date = ne
 export const completeStep = (step: JourneyStep, now: Date = new Date()): JourneyState | null => {
   const state = getJourney(now);
   if (!state || state.skipped) return state;
-  const next = { ...state, done: { ...state.done, [step]: state.done[step] ?? now.getTime() } };
+  if (state.done[step]) return state;
+  const next = { ...state, done: { ...state.done, [step]: now.getTime() } };
   write(next);
+  try {
+    window.dispatchEvent(new CustomEvent(JOURNEY_EVENT, { detail: { step } }));
+  } catch {
+    // Non-browser environments have no window; the state is already saved.
+  }
   return next;
 };
 
@@ -71,8 +79,13 @@ export const skipJourney = (now: Date = new Date()): void => {
   if (state) write({ ...state, skipped: true });
 };
 
-/** First step not yet done, or null when finished or skipped. */
+/**
+ * First step not yet done, or null when finished or skipped. The practice step is
+ * left out when the check-in offered no practice, so the journey never points at nothing.
+ */
 export const nextPendingStep = (state: JourneyState | null): JourneyStep | null => {
   if (!state || state.skipped) return null;
-  return JOURNEY_STEPS.find((s) => !state.done[s]) ?? null;
+  return (
+    JOURNEY_STEPS.find((s) => !state.done[s] && !(s === 'practice' && !state.practiceSlug)) ?? null
+  );
 };

@@ -3,6 +3,10 @@
 
 ## Oct 30, 2026 — WhatsApp receiver, check-in vs practice, refused sends
 
+### L-JOURNEY-PROOF-1. A journey step is done only when its own action is confirmed, never when the page opens.
+- **What:** the daily journey now covers teaching and reflection. Teaching is marked done when the seeker plays a served clip (`GuruTeachingCard` `onPlay`); reflection when a NEW note saves (`NotesPanel`, edits do not count); practice stays tied to `meditation_completed`. The banner only navigates (`/chat?q=…`, `/profile?tab=memory`) and marks nothing. `nextPendingStep` skips the practice step when the check-in offered none.
+- **Rule:** pin each proof with a test (`src/test/MoodBanner.journey.test.tsx`, `src/test/dailyJourney.test.ts`). Not browser-verified.
+
 ### L-CHECKIN-NOT-PRACTICE-1. A mood check-in stored as a "completed session" leaks into every consumer that asks "did they practise?".
 - **What:** `recordMoodCheckIn` called `completeMeditationSession(..., completed=true)`. Stats already ignored zero-duration rows, but the call also stamped `askmukthiguru_last_serene_mind_at` (sent as `last_serene_mind_at`, read by `distress_stage.py` for the 15-minute proactive Serene Mind cooldown), inserted a completed row into `meditation_sessions` (read by `get_last_meditation_session`), and fired the practice reward event. A check-in could suppress the Serene Mind offer for a distressed seeker.
 - **Fix:** `completeMeditationSession(..., countsAsPractice=false)` for check-ins (no stamp, no DB row, separate `askmukthiguru:mood_checkin` event); `get_last_meditation_session` ignores `duration_seconds = 0`.

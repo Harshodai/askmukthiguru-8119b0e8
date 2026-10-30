@@ -49,4 +49,22 @@ describe('dailyJourney', () => {
     localStorage.setItem('askmukthiguru_daily_journey', '{not json');
     expect(getJourney(noon(30))).toBeNull();
   });
+
+  it('skips the practice step when the check-in offered no practice', () => {
+    const state = startJourney('calm', undefined, noon(30));
+    completeStep('teaching', noon(30));
+    expect(nextPendingStep(getJourney(noon(30)))).toBe('reflection');
+    expect(state.practiceSlug).toBeUndefined();
+  });
+
+  it('emits an event only when a step newly becomes done', () => {
+    startJourney('calm', 'beautiful-state', noon(30));
+    const seen: string[] = [];
+    const on = (e: Event) => seen.push((e as CustomEvent).detail.step);
+    window.addEventListener('askmukthiguru:journey_updated', on);
+    completeStep('teaching', noon(30));
+    completeStep('teaching', noon(30));
+    window.removeEventListener('askmukthiguru:journey_updated', on);
+    expect(seen).toEqual(['teaching']);
+  });
 });

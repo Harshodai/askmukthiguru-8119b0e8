@@ -615,6 +615,16 @@ describe('ChatMessage personalize this teaching (T-B14)', () => {
     expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
   });
 
+  it('says what personalization uses and links to the saved memory', () => {
+    render(
+      <ChatMessage message={makeGuruMessage({ citations: [clip] })} onPersonalizeTeaching={vi.fn()} />,
+      { wrapper },
+    );
+    expect(screen.getByTestId('personalize-note')).toHaveTextContent('Uses only memories you chose to save.');
+    expect(screen.getByRole('button', { name: 'Review what is saved' })).toBeInTheDocument();
+    expect(screen.getByTestId('personalize-teaching')).toHaveAttribute('aria-describedby');
+  });
+
   it('shows the button and sends the served clip id and start second', () => {
     const onPersonalizeTeaching = vi.fn();
     render(
