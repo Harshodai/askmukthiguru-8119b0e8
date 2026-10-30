@@ -1,6 +1,24 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — staging ingest of the remaining videos (`first_person_v10_stage2_20261031`)
+
+### L-BUILDER-ZERO-DURATION-1. A span whose words share one timestamp crashed the whole builder run.
+- **What:** `AK435vKMtlo` has many `disputed` words with `start == end`; a span made of them had `end_ms == start_ms` and `SourceSpan` raised, killing the batch after 4 videos.
+- **Fix:** `drop_zero_duration_specs` quarantines such spans as `zero_duration_span` (19 in this run), never synthesising a time. Pin: `tests/test_build_full_corpus_v10_guards.py::test_zero_duration_spans_are_quarantined_not_crashed_on`.
+
+### L-BUILDER-ASR-PROVENANCE-1. The builder never wrote `asr_engine` / `asr_model_version`, so every new span failed the strict audit's `asr_provenance` gate.
+- **What:** live v10 carries them on 2,737 of 2,758 children; the first staging build had them on 0 of 232 (audit: engine_mismatch=232).
+- **Fix:** `asr_provenance` reads engine/model from the archived `<root>/raw/<id>_parakeet.json` (None when absent or failed). Rebuild: `asr_provenance` VERIFIED. `language` stays None (no language-ID step exists). Pin: `test_asr_provenance_reads_the_archived_run_and_never_guesses`.
+
+### L-HOST-HF-HOME-1. Host-side builder runs need `HF_HOME` set, or the embedder tries to create `/app`.
+- **What:** `settings.hf_home` defaults to `/app/.cache/huggingface` (container path); on the Mac that raised `Read-only file system: '/app'` and the BGE-M3 load failed.
+- **Rule:** run with `HF_HOME=$HOME/.cache/huggingface HF_HUB_OFFLINE=1 QDRANT_URL=http://localhost:6333`.
+
+### L-BUILDER-ADDITIVE-ONLY-VIDEOS-1. A new empty staging collection makes the builder treat every transcript as missing.
+- **What:** the "already indexed" skip reads the TARGET collection, so a new collection plus no `--only-videos` would rebuild everything. Always pass `--only-videos` with the exact id list.
+- **Also:** the strict audit's `speaker_evidence_per_span` gate needs a Phase-3 candidate file, which does not exist for new spans; it stays BLOCKED on staging exactly as on live v10 (no independent per-span verdicts: UNPROVEN, not failed).
+
 ## Oct 30, 2026 — v10-only run: flags, caches, eval inputs, serializer
 
 ### L-EFFECTIVE-FLAGS-1. Numbers labelled "v10" were legacy v8 numbers, because compose pinned the harness flag off.

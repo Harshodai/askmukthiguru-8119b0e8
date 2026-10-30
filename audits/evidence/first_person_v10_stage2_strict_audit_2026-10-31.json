@@ -1,0 +1,75 @@
+{
+  "alias": "first_person",
+  "alias_target": "first_person_v10",
+  "asr_artifacts_available": true,
+  "asr_videos_indexed": 566,
+  "attr_root": "/Users/harshodaikolluru/mukthiguru_attribution_data",
+  "audio_window_drift_ms": {
+    "count": 231,
+    "max": 1227,
+    "p50": 0,
+    "p95": 480
+  },
+  "child_points": 232,
+  "citation_window_coverage": {
+    "below_floor": 0,
+    "count": 232,
+    "min": 0.9057,
+    "p05": 0.9778,
+    "p50": 1.0
+  },
+  "collection": "first_person_v10_stage2_20261031",
+  "collection_points": 250,
+  "contract_error_samples": {},
+  "contract_errors": {},
+  "examples": {},
+  "gates": {
+    "alignment_integrity": {
+      "detail": "alignment_sha256_mismatch=0 alignment_not_ok=0",
+      "status": "VERIFIED"
+    },
+    "asr_provenance": {
+      "detail": "missing=0 engine_mismatch=0 model_mismatch=0",
+      "status": "VERIFIED"
+    },
+    "citation_window_covers_clip": {
+      "detail": "checked=232 exact=232 mismatch=0 unverifiable=0 tolerance_ms=50 coverage_floor=0.9",
+      "status": "VERIFIED"
+    },
+    "contract_children": {
+      "detail": "0 child payloads violate fp-context-v1",
+      "status": "VERIFIED"
+    },
+    "contract_parents": {
+      "detail": "0 parent payloads violate fp-context-v1",
+      "status": "VERIFIED"
+    },
+    "speaker_evidence_per_span": {
+      "detail": "verified_without_per_span_verdict=104 verdict_covered=0 verdict_uncovered=232",
+      "status": "BLOCKED"
+    },
+    "topology": {
+      "detail": "orphan_children=0 wrong_guru=0 wrong_video=0 wrong_corpus=0 parents_without_children=0 children_not_in_parent_order=0",
+      "status": "VERIFIED"
+    },
+    "word_index_consistency": {
+      "detail": "consistent=232 inconsistent=0 out_of_range=0",
+      "status": "VERIFIED"
+    }
+  },
+  "generated_at_utc": "2026-10-30T20:35:54.266657+00:00",
+  "overall": "BLOCKED",
+  "parent_points": 18,
+  "qdrant_url": "http://localhost:6333",
+  "schema": "first-person-v10-strict-audit-v1",
+  "speaker_verdicts_count": 0,
+  "speaker_verdicts_file": null,
+  "validated_children": 232,
+  "validated_parents": 18,
+  "word_index_drift_ms": {
+    "count": 232,
+    "max": 0,
+    "p50": 0,
+    "p95": 0
+  }
+}

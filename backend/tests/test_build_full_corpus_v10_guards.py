@@ -60,3 +60,32 @@ def test_words_from_timed_file_requires_a_time_on_every_word(tmp_path):
     (tmp_path / "vidB.json").write_text(json.dumps([{"w": "no", "start": 0.0}]))
     assert builder.words_from_timed_file("vidB", [tmp_path]) is None
     assert builder.words_from_timed_file("missing", [tmp_path]) is None
+
+
+def test_zero_duration_spans_are_quarantined_not_crashed_on():
+    from collections import Counter
+
+    q: Counter[str] = Counter()
+    specs = [
+        {"start_ms": 191160, "end_ms": 191160, "text": "a"},
+        {"start_ms": 1000, "end_ms": 2000, "text": "b"},
+    ]
+    kept = builder.drop_zero_duration_specs(specs, q)
+    assert [s["text"] for s in kept] == ["b"]
+    assert q["zero_duration_span"] == 1
+
+
+def test_asr_provenance_reads_the_archived_run_and_never_guesses(tmp_path):
+    import json
+
+    root = tmp_path / "run"
+    (root / "raw").mkdir(parents=True)
+    (root / "transcripts_B").mkdir()
+    tb = [root / "transcripts_B"]
+    assert builder.asr_provenance("v1", tb) == (None, None)
+    (root / "raw" / "v1_parakeet.json").write_text(
+        json.dumps({"ok": True, "model": "parakeet-tdt-0.6b-v3"})
+    )
+    assert builder.asr_provenance("v1", tb) == ("parakeet_mlx", "parakeet-tdt-0.6b-v3")
+    (root / "raw" / "v2_parakeet.json").write_text(json.dumps({"ok": False, "model": "m"}))
+    assert builder.asr_provenance("v2", tb) == (None, None)

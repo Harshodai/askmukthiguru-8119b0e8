@@ -439,6 +439,25 @@ def _align_words_to_timings(
     return out
 
 
+def asr_provenance(video_id: str, tb_dirs: list[Path]) -> tuple[str | None, str | None]:
+    """(engine, model) of the archived Parakeet run that timed this video, else (None, None).
+
+    Read from ``<root>/raw/<id>_parakeet.json`` (the artifact the audit re-derives
+    provenance from); a missing or failed run records nothing rather than a guess.
+    """
+    for tb in tb_dirs:
+        raw = tb.parent / "raw" / f"{video_id}_parakeet.json"
+        if not raw.is_file():
+            continue
+        try:
+            data = json.loads(raw.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(data, dict) and data.get("ok") is not False and data.get("model"):
+            return "parakeet_mlx", str(data["model"])
+    return None, None
+
+
 def words_from_timed_file(
     video_id: str, tb_dirs: list[Path]
 ) -> tuple[list[str], list[tuple[float, float]], str] | None:
@@ -516,6 +535,23 @@ def _make_span(spec: dict[str, Any]) -> dict[str, Any]:
         "end_ms": spec["end_ms"],
         "text": spec["text"],
     }
+
+
+def drop_zero_duration_specs(
+    specs: list[dict[str, Any]], quarantined: Counter[str]
+) -> list[dict[str, Any]]:
+    """Quarantine spans whose timing collapsed to ``end_ms <= start_ms``.
+
+    Disputed ASR words can all share one timestamp; such a span has no audio window
+    to verify or play, and ``SourceSpan`` rejects it. Counted, never synthesised.
+    """
+    kept: list[dict[str, Any]] = []
+    for spec in specs:
+        if spec["end_ms"] <= spec["start_ms"]:
+            quarantined["zero_duration_span"] += 1
+            continue
+        kept.append(spec)
+    return kept
 
 
 def slice_into_sentence_spans(
@@ -949,7 +985,7 @@ def main() -> int:
                     quarantined[f"asr_cleaner_{flag}"] += 1
                 continue
             kept_specs.append(spec)
-        span_specs = kept_specs
+        span_specs = drop_zero_duration_specs(kept_specs, quarantined)
         if not span_specs:
             quarantined["no_valid_spans"] += 1
             logger.info("Video %s: no valid sentence spans after boundary check", video_id)
@@ -1016,6 +1052,7 @@ def main() -> int:
             for s in span_specs
         ]
 
+        asr_engine, asr_model_version = asr_provenance(video_id, tb_dirs)
         spans: list[SourceSpan] = []
         vectors: dict[str, Any] = {}
         source_url = f"https://www.youtube.com/watch?v={video_id}"
@@ -1051,6 +1088,8 @@ def main() -> int:
                 speaker_role=SpeakerRole.GURU,
                 speaker_verified=verified,
                 voice_verification_method=("ecapa_voxceleb_span_slice_v2" if verified else None),
+                asr_engine=asr_engine,
+                asr_model_version=asr_model_version,
                 source_transcript_text=spec["text"],
                 verbatim_text=spec["text"],
                 transcript_hash=transcript_hash,
