@@ -3509,8 +3509,10 @@ class FirstPersonPipeline:
         # abstains instead of falling through to the legacy store, so no clip from a
         # legacy collection (e.g. first_person_v8, speaker mostly unverified) is served.
         # Default off: existing deployments keep the legacy fall-through.
-        if harness_enabled and bool(
-            getattr(settings, "first_person_context_terminal_enabled", False)
+        # `is True`, not truthiness: a patched/mock settings object must not enable it.
+        if (
+            harness_enabled
+            and getattr(settings, "first_person_context_terminal_enabled", False) is True
         ):
             latency = (time.monotonic() - start_time) * 1000.0
             self._log_and_count(
