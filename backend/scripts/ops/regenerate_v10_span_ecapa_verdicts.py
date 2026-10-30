@@ -1071,6 +1071,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--generated-at-utc", default=None)
     parser.add_argument(
+        "--out-references",
+        default=None,
+        help="Optional .npz path: write the guru reference centroids used for this run, "
+        "so a later builder can verify new spans against the SAME references.",
+    )
+    parser.add_argument(
         "--write-to-qdrant",
         action="store_true",
         help="REJECTED. This script has no write mode; it only emits file artifacts.",
@@ -1228,6 +1234,8 @@ def main(argv: list[str] | None = None) -> int:
         }
 
     references, reference_stats = build_references(vectors, splits, anchor_vectors)
+    if args.out_references:
+        np.savez_compressed(Path(args.out_references), **references)
     calibration_trials = build_trials(vectors, splits, anchor_vectors, references, "calibration")
     calibration = calibrate_from_trials(calibration_trials)
     test_trials = build_trials(vectors, splits, anchor_vectors, references, "test")
