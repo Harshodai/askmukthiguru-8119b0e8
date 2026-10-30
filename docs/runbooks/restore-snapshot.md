@@ -71,16 +71,22 @@ python -m scripts.ops.snapshot_qdrant \
 
 ---
 
-## Step 5: Promotion (In Disaster Recovery)
-If restoring following total collection loss or corruption:
+## Step 5: Promotion (Disaster Recovery only, never in a drill)
+Promotion serves the restored data to users. Do it only when **all** hold:
+- Step 4 passed on the scratch collection: lineage audit clean, point count equals the snapshot manifest, sample retrieval returns expected points.
+- The release filter and rights stamps on the restored points were checked (`RELEASE_FILTER_MODE`, `domain_rights_status`), so a rolled-back or revoked source cannot reappear.
+- The owner (Harshodai) approved the promotion in writing.
+
+Record the alias target you are replacing so the swap can be reverted (`mgr.rollback_alias('spiritual_wisdom_contextual')`), then switch:
 ```bash
-python -c "
+cd backend && .venv/bin/python -c "
 from services.qdrant_aliases import QdrantAliasManager
 mgr = QdrantAliasManager()
-mgr.switch_alias('spiritual_wisdom_contextual', 'scratch_restore_test')
-print('Restored scratch collection promoted to active alias.')
+print('previous target:', mgr.get_alias_target('spiritual_wisdom_contextual'))
+print(mgr.atomic_alias_swap('spiritual_wisdom_contextual', 'scratch_restore_test'))
 "
 ```
+After promotion run `make flush-cache` and `make verify-cache-empty`.
 
 ---
 

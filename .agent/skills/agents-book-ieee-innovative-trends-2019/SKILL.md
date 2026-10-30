@@ -1,13 +1,13 @@
 ---
 name: ieee-innovative-trends-2019
-description: "Knowledge base from '[IEEE 2019 International Conference on Innovative Trends and Advances in Engineering and Technology (ICITAET) - SHEGAON, India… (Muddinagiri, Ruchika Ambavane etc.) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from '[IEEE 2019 International Conference on Innovative Trends and Advances in Engineering and Technology (ICITAET) - SHEGAON, India… (Muddinagiri, Ruchika Ambavane etc.).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# [IEEE 2019 International Conference on Innovative Trends and Advances in Engineering and Technology (ICITAET) - SHEGAON, India… (Muddinagiri, Ruchika Ambavane etc.) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# [IEEE 2019 International Conference on Innovative Trends and Advances in Engineering and Technology (ICITAET) - SHEGAON, India… (Muddinagiri, Ruchika Ambavane etc.).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

@@ -104,12 +104,9 @@ def check_point_lineage(payload: Optional[dict[str, Any]]) -> dict[str, bool]:
     gate = payload.get("gate_verdict") or payload.get("quality_gate_verdict")
     has_gate = bool(gate is not None and str(gate).strip())
 
-    # ASR method check
-    asr = (
-        payload.get("asr_method")
-        or payload.get("transcription_method")
-        or payload.get("audio_format")
-    )
+    # ASR method check. ``audio_format`` is a container/codec property, not
+    # evidence of how the transcript was produced, so it must not count.
+    asr = payload.get("asr_method") or payload.get("transcription_method")
     has_asr = bool(asr is not None and str(asr).strip())
 
     return {

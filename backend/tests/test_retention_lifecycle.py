@@ -214,9 +214,10 @@ def test_end_to_end_retention_task_orchestration():
     assert result["telemetry_purged"] == 100
     assert result["audit_files_purged"] == 12
     assert result["staging_purged"] == 30
-    assert result["rejections_purged"] == 50
+    # X40: the rejection ledger is never purged by automatic retention.
+    assert "rejections_purged" not in result
 
     mock_telemetry.assert_called_once_with(days_retention=90)
     mock_audit.assert_called_once_with(retention_days=90)
     mock_staging.assert_called_once_with(days_retention=90)
-    mock_rejections.assert_called_once_with(days_retention=90)
+    mock_rejections.assert_not_called()

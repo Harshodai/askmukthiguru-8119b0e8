@@ -121,7 +121,7 @@ def check_qdrant_health(
             col_list = client.get_collections().collections
             collections = [c.name for c in col_list]
         except Exception as e:
-            logger.error("Failed to list collections from %s: %e", url, e)
+            logger.error("Failed to list collections from %s: %s", url, e)
             return {"status": "error", "error": str(e), "collections": {}}
 
     report: dict[str, Any] = {

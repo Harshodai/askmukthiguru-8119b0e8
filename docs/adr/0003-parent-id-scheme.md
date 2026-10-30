@@ -17,7 +17,7 @@ In early iterations, `parent_id` was generated using non-deterministic random UU
 ## Decision
 1. **Deterministic Scheme (`deterministic_v1`):**
    - All parent IDs for newly ingested chunks are computed deterministically via namespace-based hashing:
-     - `parent_id = uuid5(NAMESPACE_URL, f"{source_url}:{parent_text_hash}")`
+     - `parent_id = uuid5(NAMESPACE_URL, f"{source_url}:{parent_index}")` where `parent_index` is the payload's `parent_index` (falling back to `chunk_index`), as implemented in `services/qdrant/indexer.py`
    - Payloads explicitly carry `parent_id_scheme="deterministic_v1"`.
 2. **Legacy Handling & No-Backfill Rationale (D4):**
    - Legacy points carry `parent_id_scheme="legacy"` or `None`.

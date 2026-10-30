@@ -231,6 +231,7 @@ def test_golden_eval_fallback_does_not_fabricate_ragas_metrics():
     assert report["context_recall_pass"] == "unmeasured"
     assert isinstance(report["concept_overlap_score"], float)
     assert isinstance(report["concept_overlap_pass"], bool)
+    assert report["judge_metrics_pass"] is None
 
     # Also verify via main() execution with output file emission
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -253,6 +254,19 @@ def test_golden_eval_fallback_does_not_fabricate_ragas_metrics():
                     str(out_file),
                     "--faithfulness-min",
                     "0.88",
+                ]
+            )
+            # Unmeasured judge metrics are never a pass without explicit opt-in.
+            assert exit_code == 1
+            exit_code = main(
+                [
+                    "--dataset",
+                    str(dataset_file),
+                    "--out",
+                    str(out_file),
+                    "--faithfulness-min",
+                    "0.88",
+                    "--allow-unmeasured-judge",
                 ]
             )
             assert exit_code == 0

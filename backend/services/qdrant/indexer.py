@@ -25,16 +25,24 @@ from services.tenant_context import TenantContext, get_tenant_collection
 
 logger = logging.getLogger(__name__)
 
-_RIGHTS_REGISTER_CACHE: Optional[dict[str, bool]] = None
+class RightsRegisterUnavailable(RuntimeError):
+    """The rights manifest exists but could not be read or parsed.
+
+    Stamping ``unverified`` here would write points that
+    ``require_licensed_domain_reads`` can never serve, with no ledger entry and
+    no re-stamp path. A *missing* manifest is a legitimate state (D2: default
+    ``unverified``); an *unreadable* one is an error and must stop the upsert.
+    """
+
+
+# (manifest path, mtime_ns) -> cleared map. Keyed on mtime so an edited register
+# is picked up without a restart.
+_RIGHTS_REGISTER_CACHE: Optional[tuple[tuple[str, int], dict[str, bool]]] = None
 
 
 def _load_rights_register() -> dict[str, bool]:
     """Load cleared assets from rights register / manifest. Returns map of canonical IDs/URLs to is_cleared."""
     global _RIGHTS_REGISTER_CACHE
-    if _RIGHTS_REGISTER_CACHE is not None:
-        return _RIGHTS_REGISTER_CACHE
-
-    cleared_map: dict[str, bool] = {}
     import json
     from pathlib import Path
 
@@ -46,26 +54,36 @@ def _load_rights_register() -> dict[str, bool]:
         / "public_release_phase4_rights_manifest_2026-10-22.json",
     ]
     manifest_path = next((p for p in possible_paths if p.is_file()), None)
-    if manifest_path:
-        try:
-            data = json.loads(manifest_path.read_text(encoding="utf-8"))
-            for asset in data.get("assets", []):
-                status = str(asset.get("rights_status") or "")
-                review_status = str(asset.get("owner_review_status") or "")
-                is_cleared = status in (
-                    "confirmed_channel_owner",
-                    "confirmed_video_owner",
-                    "cleared",
-                ) or review_status.startswith("owner_confirmed")
-                for key_field in ("canonical_source_url", "video_id", "source_asset_id"):
-                    val = asset.get(key_field)
-                    if val and isinstance(val, str) and val.strip():
-                        cleared_map[val.strip()] = is_cleared
-                        cleared_map[val.strip().lower()] = is_cleared
-        except Exception as exc:
-            logger.warning("Failed to load rights manifest in indexer: %s", exc)
+    if manifest_path is None:
+        # No register at all: nothing is cleared (D2 default). Not cached, so a
+        # manifest dropped in later is seen on the next call.
+        return {}
 
-    _RIGHTS_REGISTER_CACHE = cleared_map
+    try:
+        stamp = (str(manifest_path), manifest_path.stat().st_mtime_ns)
+        if _RIGHTS_REGISTER_CACHE is not None and _RIGHTS_REGISTER_CACHE[0] == stamp:
+            return _RIGHTS_REGISTER_CACHE[1]
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        cleared_map: dict[str, bool] = {}
+        for asset in data.get("assets", []):
+            status = str(asset.get("rights_status") or "")
+            review_status = str(asset.get("owner_review_status") or "")
+            is_cleared = status in (
+                "confirmed_channel_owner",
+                "confirmed_video_owner",
+                "cleared",
+            ) or review_status.startswith("owner_confirmed")
+            for key_field in ("canonical_source_url", "video_id", "source_asset_id"):
+                val = asset.get(key_field)
+                if val and isinstance(val, str) and val.strip():
+                    cleared_map[val.strip()] = is_cleared
+                    cleared_map[val.strip().lower()] = is_cleared
+    except (OSError, ValueError, AttributeError, TypeError) as exc:
+        raise RightsRegisterUnavailable(
+            f"rights manifest {manifest_path} unreadable: {exc}"
+        ) from exc
+
+    _RIGHTS_REGISTER_CACHE = (stamp, cleared_map)
     return cleared_map
 
 
@@ -455,6 +473,7 @@ class QdrantIndexer:
         """DE-0.5: Persist quality gate rejections at chokepoint to ledger and Prometheus metrics."""
         from app.metrics import (
             CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL,
+            CORPUS_GATE_REJECTIONS_PERSIST_FAILED_TOTAL,
             INGEST_QUALITY_GATE_REJECTIONS_TOTAL,
         )
 
@@ -522,8 +541,20 @@ class QdrantIndexer:
                             CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL.inc()
                         except Exception:
                             pass
+                else:
+                    raise RuntimeError("telemetry DB client unavailable")
             except Exception as db_err:
-                logger.debug("Failed to persist corpus_gate_rejections rows: %s", db_err)
+                # X40: rejections must be recorded. Persistence stays best-effort
+                # (a ledger outage must not block ingest) but is never silent.
+                logger.error(
+                    "Failed to persist %d corpus_gate_rejections row(s): %s",
+                    len(rows_to_insert),
+                    db_err,
+                )
+                try:
+                    CORPUS_GATE_REJECTIONS_PERSIST_FAILED_TOTAL.inc(len(rows_to_insert))
+                except Exception:
+                    pass
 
     def check_source_exists(self, source_url: str) -> bool:
         """Check if any points with this source_url already exist (dedup check)."""

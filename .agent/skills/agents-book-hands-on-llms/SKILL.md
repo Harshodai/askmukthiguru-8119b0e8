@@ -1,13 +1,13 @@
 ---
 name: hands-on-llms
-description: "Knowledge base from 'Hands-On Large Language Models Language Understanding and Generation (Jay Alammar, Maarten Grootendorst) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'Hands-On Large Language Models Language Understanding and Generation (Jay Alammar, Maarten Grootendorst).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# Hands-On Large Language Models Language Understanding and Generation (Jay Alammar, Maarten Grootendorst) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# Hands-On Large Language Models Language Understanding and Generation (Jay Alammar, Maarten Grootendorst).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

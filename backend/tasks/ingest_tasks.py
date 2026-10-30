@@ -611,12 +611,17 @@ def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> li
 
     swept_job_ids = []
     try:
-        # Query running/processing jobs whose heartbeat is older than cutoff
+        # Running/processing jobs with a stale heartbeat, OR a NULL heartbeat
+        # (worker died before its first beat; `NULL < cutoff` is NULL, so a plain
+        # .lt() never sees it) whose created_at is itself older than the cutoff.
         resp = (
             client.table("ingest_jobs")
             .select("id, status, heartbeat_at, started_at, created_at")
             .in_("status", ["running", "processing"])
-            .lt("heartbeat_at", cutoff_iso)
+            .or_(
+                f"heartbeat_at.lt.{cutoff_iso},"
+                f"and(heartbeat_at.is.null,created_at.lt.{cutoff_iso})"
+            )
             .execute()
         )
         stale_jobs = resp.data or []
@@ -626,15 +631,19 @@ def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> li
             job_id = job.get("id")
             if not job_id:
                 continue
-            client.table("ingest_jobs").update(
-                {
-                    "status": "failed",
-                    "error_message": "stale_worker_heartbeat_timeout",
-                    "completed_at": "now()",
-                    "updated_at": now_iso,
-                }
-            ).eq("id", job_id).execute()
-            swept_job_ids.append(str(job_id))
+            try:
+                client.table("ingest_jobs").update(
+                    {
+                        "status": "failed",
+                        "error_message": "stale_worker_heartbeat_timeout",
+                        "completed_at": now_iso,
+                        "updated_at": now_iso,
+                    }
+                ).eq("id", job_id).execute()
+                swept_job_ids.append(str(job_id))
+            except Exception as job_err:
+                # One bad row must not leave the remaining stale jobs unswept.
+                logger.warning(f"Failed to sweep ingest job {job_id}: {job_err}")
 
         if swept_job_ids:
             logger.info(f"Swept {len(swept_job_ids)} stale ingest jobs: {swept_job_ids}")

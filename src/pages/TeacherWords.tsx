@@ -255,7 +255,7 @@ function TeacherWordsResult({
       </h2>
       {!result.is_direct_answer && (
         <Badge variant="outline" className="border-amber-500/50 text-amber-600">
-          Related, not a direct answer
+          {result.related_clips_heading || 'Related, not a direct answer'}
         </Badge>
       )}
       {result.citations.map((citation, i) => (

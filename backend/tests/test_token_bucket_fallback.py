@@ -111,3 +111,66 @@ def test_invalid_peer_ip_falls_back_to_unknown_safely():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+def _request_with_auth(token: str) -> Request:
+    return Request(
+        {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/chat",
+            "raw_path": b"/api/chat",
+            "query_string": b"",
+            "headers": [(b"authorization", f"Bearer {token}".encode())],
+            "client": ("10.0.0.9", 12345),
+            "server": ("testserver", 80),
+        }
+    )
+
+
+def test_unsigned_token_cannot_partition_the_rate_limit_bucket(monkeypatch):
+    """P1-5: an unsigned JWT's tenant_id claim must never scope the bucket.
+
+    Before the fix the header was decoded with verify_signature=False, so an
+    attacker could rotate tenant_id per request and never hit the per-IP limit.
+    """
+    import jwt as pyjwt
+
+    from app.config import settings
+    from app.middleware.rate_limit import _try_set_tenant_from_auth_header
+
+    monkeypatch.setattr(settings, "jwt_secret", "test-secret", raising=False)
+    # `reset()` returns to the process legacy tenant (`_LEGACY_TENANT`, captured
+    # at import); `clear()` sets "". Both are non-attacker states — the point is
+    # that the forged claim leaves the context untouched.
+    TenantContext.reset()
+    before = TenantContext.get()
+    before_key = _chat_bucket_key(_request_with_auth("x"))
+
+    forged = pyjwt.encode({"tenant_id": "attacker-chosen"}, "not-the-secret", algorithm="HS256")
+    _try_set_tenant_from_auth_header(_request_with_auth(forged))
+
+    assert TenantContext.get() == before
+    assert _chat_bucket_key(_request_with_auth(forged)) == before_key
+    assert "attacker-chosen" not in _chat_bucket_key(_request_with_auth(forged))
+
+
+def test_signed_token_tenant_scopes_the_bucket(monkeypatch):
+    """The genuine HS256 tenant claim still scopes the bucket."""
+    import jwt as pyjwt
+
+    from app.config import settings
+    from app.middleware.rate_limit import _try_set_tenant_from_auth_header
+
+    monkeypatch.setattr(settings, "jwt_secret", "test-secret", raising=False)
+    TenantContext.reset()
+
+    genuine = pyjwt.encode({"tenant_id": "tenant-a"}, "test-secret", algorithm="HS256")
+    _try_set_tenant_from_auth_header(_request_with_auth(genuine))
+
+    assert TenantContext.get() == "tenant-a"
+    assert _chat_bucket_key(_request_with_auth(genuine)) == "rl:chat:tenant-a:10.0.0.9"
+    TenantContext.clear()

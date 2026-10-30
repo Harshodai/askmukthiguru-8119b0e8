@@ -67,6 +67,9 @@ class FirstPersonQueryResponse(BaseModel):
     audio_playback_clips: list[dict[str, Any]] = Field(default_factory=list)
     detected_concepts: list[str] = Field(default_factory=list)
     atma_vichara_inquiry: Optional[str] = None
+    # Invariant 1: the "related clips" pointer is a UI affordance carried beside
+    # the answer, never prepended to the verbatim quote.
+    related_clips_heading: Optional[str] = None
     practice_recommendation: Optional[dict[str, Any]] = None
     stage_timings: dict[str, float] = Field(default_factory=dict)
 

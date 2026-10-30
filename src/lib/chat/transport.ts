@@ -265,6 +265,11 @@ export const sendMessage = async (
                     (result.route_decision === 'first_person_abstain' || result.routeDecision === 'first_person_abstain') ??
                     false,
                   routeDecision: result.route_decision ?? result.routeDecision ?? null,
+                  safetyNotices: Array.isArray(result.safety_notices)
+                    ? (result.safety_notices as unknown[]).filter(
+                        (n): n is string => typeof n === 'string' && n.trim().length > 0,
+                      )
+                    : [],
                 };
               }
               if (job.status === 'failed') {
@@ -382,6 +387,11 @@ export const sendMessage = async (
           (data.route_decision === 'first_person_abstain' || data.routeDecision === 'first_person_abstain') ??
           false,
         routeDecision: data.route_decision ?? data.routeDecision ?? null,
+        safetyNotices: Array.isArray(data.safety_notices)
+          ? (data.safety_notices as unknown[]).filter(
+              (n): n is string => typeof n === 'string' && n.trim().length > 0,
+            )
+          : [],
       };
     } catch (err: unknown) {
       const error = err as Error;

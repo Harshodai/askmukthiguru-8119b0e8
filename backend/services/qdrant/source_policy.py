@@ -31,6 +31,16 @@ _BLOCKED_TITLE_PREFIXES: tuple[str, ...] = ()
 _SOURCE_SEPARATORS = re.compile(r"[\\/]+")
 
 
+class ReleasePolicyUnavailable(RuntimeError):
+    """The active source-release version could not be resolved.
+
+    Raised only in ``enforce`` mode. There is no safe default: guessing the
+    configured fallback version either drops most of the corpus or serves
+    revoked content, and neither is an abstain. Callers must fail closed
+    (serve no document from this retrieval) rather than decide for the registry.
+    """
+
+
 def _source_candidates(doc: Any) -> Iterable[str]:
     if not isinstance(doc, dict):
         return ()
@@ -113,6 +123,21 @@ def filter_blocked_sources(documents: Iterable[dict]) -> tuple[list[dict], int]:
     return allowed, dropped
 
 
+def _coerce_release_version(value: Any) -> Optional[int]:
+    """The payload's release version as an int, or None when absent/non-numeric.
+
+    A malformed payload must not raise inside the retrieval hot loop (one bad
+    point would 500 the whole answer): it is treated exactly like a missing
+    version, which ``enforce`` drops and ``shadow`` only reports.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def filter_by_release(
     documents: Iterable[Any],
     filter_mode: Optional[str] = None,
@@ -125,7 +150,16 @@ def filter_by_release(
       - 'off': pass all documents through untouched.
       - 'shadow': evaluate which points would be excluded, log would_filter_inactive_release,
         increment RETRIEVAL_RELEASE_SHADOW_EXCLUSIONS_TOTAL, but retain the hits.
-      - 'enforce': exclude hits where source_release_version does not match active version.
+      - 'enforce': exclude hits whose ``source_release_version`` is missing,
+        non-numeric, or does not match the active version.
+
+    ``enforce`` fails CLOSED on missing evidence (ADR 0001 /
+    SPEC-corpus-governance): an unstamped legacy point is not proof that it is
+    current, so revocation really does cut it instantly. A registry read failure
+    raises :class:`ReleasePolicyUnavailable` in ``enforce`` — a guessed fallback
+    version would either drop most of the corpus or serve revoked content.
+    ``shadow`` never changes what is served, so there a read failure keeps the
+    hit and is only logged.
     """
     from app.config import settings
 
@@ -151,7 +185,8 @@ def filter_by_release(
 
     allowed: list[Any] = []
     dropped = 0
-    active_version_cache: dict[str, int] = {}
+    active_version_cache: dict[str, Optional[int]] = {}
+    unresolvable: dict[str, str] = {}
 
     for doc in documents:
         if hasattr(doc, "payload") and isinstance(doc.payload, dict):
@@ -164,7 +199,7 @@ def filter_by_release(
             payload = {}
             doc_id = None
 
-        point_version = payload.get("source_release_version")
+        point_version = _coerce_release_version(payload.get("source_release_version"))
         source_identity = (
             payload.get("source_identity")
             or payload.get("source_url")
@@ -173,22 +208,33 @@ def filter_by_release(
             or "unknown"
         )
 
-        if source_identity not in active_version_cache:
+        if source_identity not in active_version_cache and source_identity not in unresolvable:
             try:
-                active_version_cache[source_identity] = registry.get_active_version(
+                resolved = registry.get_active_version(
                     corpus_id=cid,
                     source_identity=source_identity,
                     fallback_version=fallback_version,
                 )
-            except Exception as e:
-                logger.warning(
+                active_version_cache[source_identity] = _coerce_release_version(resolved)
+            except Exception as e:  # noqa: BLE001 - classified below
+                logger.error(
                     "Active release version lookup failed for %s: %s", source_identity, e
                 )
-                active_version_cache[source_identity] = fallback_version
+                unresolvable[source_identity] = str(e)
 
-        active_ver = active_version_cache[source_identity]
+        if source_identity in unresolvable:
+            if mode == "enforce":
+                # Deferred: one raise for the whole call, with the real cause.
+                raise ReleasePolicyUnavailable(
+                    f"release registry unavailable for source {source_identity!r}: "
+                    f"{unresolvable[source_identity]}"
+                )
+            # shadow: report only, never change what is served.
+            active_version_cache[source_identity] = None
 
-        is_mismatch = point_version is not None and int(point_version) != int(active_ver)
+        active_ver = active_version_cache.get(source_identity)
+
+        is_mismatch = point_version is None or active_ver is None or point_version != active_ver
 
         if is_mismatch:
             if mode == "shadow":
@@ -196,7 +242,7 @@ def filter_by_release(
                     "would_filter_inactive_release: point=%s source=%s version=%s active_version=%s",
                     doc_id,
                     source_identity,
-                    point_version,
+                    payload.get("source_release_version"),
                     active_ver,
                 )
                 try:
@@ -216,6 +262,7 @@ def filter_by_release(
 
 
 __all__ = [
+    "ReleasePolicyUnavailable",
     "filter_blocked_sources",
     "filter_unregistered_sources",
     "filter_by_release",

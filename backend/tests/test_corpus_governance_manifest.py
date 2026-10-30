@@ -111,7 +111,7 @@ def test_manifest_digest_computation_deterministic(sample_valid_row):
 # ---------------------------------------------------------------------------
 def test_status_fixtures_fail_closed(sample_manifest):
     # Cleared status succeeds
-    ok, reason = sample_manifest.is_entry_eligible("vid_valid_01", "v1")
+    ok, reason = sample_manifest.is_entry_eligible("vid_valid_01", "v1", content_hash="h" * 64)
     assert ok is True
     assert reason == "cleared"
 
@@ -226,7 +226,7 @@ def test_missing_provenance_fails_closed(sample_valid_row, field_to_clear):
     bad_row = SourceAssetManifestRow.from_dict(bad_dict)
     manifest = SourceAssetManifest([bad_row])
 
-    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1")
+    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1", content_hash="h" * 64)
     assert ok is False
     assert reason == "incomplete_provenance"
     with pytest.raises(CorpusGovernanceError, match="incomplete provenance"):
@@ -240,21 +240,34 @@ def test_undeclared_or_mismatched_tier_fails_closed(sample_valid_row):
     manifest = SourceAssetManifest([sample_valid_row])  # serving_tier="general"
 
     # Requesting general tier succeeds
-    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1", tier="general")
+    ok, reason = manifest.is_entry_eligible(
+        "vid_valid_01", "v1", content_hash="h" * 64, tier="general"
+    )
     assert ok is True
     assert reason == "cleared"
 
-    # Requesting wildcard tier succeeds
-    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1", tier="*")
-    assert ok is True
-    assert reason == "cleared"
-
-    # Requesting mismatched tier fails closed
-    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1", tier="first_person")
+    # A wildcard tier is not a bypass: it fails closed like any other mismatch
+    ok, reason = manifest.is_entry_eligible(
+        "vid_valid_01", "v1", content_hash="h" * 64, tier="*"
+    )
     assert ok is False
     assert reason == "tier_mismatch_general"
 
-    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1", tier="practice")
+    # P2-26: a caller that presents no content hash cannot prove what it serves
+    ok, reason = manifest.is_entry_eligible("vid_valid_01", "v1")
+    assert ok is False
+    assert reason == "content_hash_missing"
+
+    # Requesting mismatched tier fails closed
+    ok, reason = manifest.is_entry_eligible(
+        "vid_valid_01", "v1", content_hash="h" * 64, tier="first_person"
+    )
+    assert ok is False
+    assert reason == "tier_mismatch_general"
+
+    ok, reason = manifest.is_entry_eligible(
+        "vid_valid_01", "v1", content_hash="h" * 64, tier="practice"
+    )
     assert ok is False
     assert reason == "tier_mismatch_general"
 
@@ -321,6 +334,7 @@ def mock_compiled_bundle(tmp_path) -> Path:
             "source": "https://www.youtube.com/watch?v=vid_cleared_01",
             "source_id": "vid_cleared_01",
             "corpus_version": "v1",
+            "content_hash": "c" * 64,
             "teacher": "sri-krishnaji",
             "type": "teaching",
             "status": "stable",

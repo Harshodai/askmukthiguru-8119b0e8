@@ -1,13 +1,13 @@
 ---
 name: build-llm-app-scratch
-description: "Knowledge base from 'Build an LLM Application (from Scratch) (MEAP Version 3) (Hamza Farooq) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'Build an LLM Application (from Scratch) (MEAP Version 3) (Hamza Farooq).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# Build an LLM Application (from Scratch) (MEAP Version 3) (Hamza Farooq) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# Build an LLM Application (from Scratch) (MEAP Version 3) (Hamza Farooq).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

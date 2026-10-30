@@ -1,13 +1,13 @@
 ---
 name: database-internals
-description: "Knowledge base from 'Database Internals A Deep-Dive into How Distributed Data Systems Work (Alex Petrov) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'Database Internals A Deep-Dive into How Distributed Data Systems Work (Alex Petrov).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# Database Internals A Deep-Dive into How Distributed Data Systems Work (Alex Petrov) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# Database Internals A Deep-Dive into How Distributed Data Systems Work (Alex Petrov).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

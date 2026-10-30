@@ -1,13 +1,13 @@
 ---
 name: prompt-engineering-llms
-description: "Knowledge base from 'Prompt Engineering for LLMs The Art and Science of Building Large Language Model-Based Applications (John Berryman, Albert Ziegler) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'Prompt Engineering for LLMs The Art and Science of Building Large Language Model-Based Applications (John Berryman, Albert Ziegler).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# Prompt Engineering for LLMs The Art and Science of Building Large Language Model-Based Applications (John Berryman, Albert Ziegler) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# Prompt Engineering for LLMs The Art and Science of Building Large Language Model-Based Applications (John Berryman, Albert Ziegler).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

@@ -5,7 +5,7 @@
 ### Standing rules extracted from dated handoffs (2026-10-22)
 Verbatim from the entries archived in `docs/agent/claude-md-archive/AGENTS-handoffs-2026-10-22.md`. Source heading and line are noted per item; counts and states inside them were true on their stated date, not necessarily now. For a conflict, code and scoped CLAUDE.md files prevail.
 
-**X40** (from "Corpus Data Platform Invariants — Oct 28, 2026", Phase 7)
+**X40** (added directly on 2026-10-28; NOT extracted from the archive above, which predates it. Authority: `docs/adr/0002..0005` and `.claude/tasks/2026-10-25-rag-data-platform-master-plan.md`, Phase 7)
 - **Register -> stamp -> filter -> enforce:** Rights status originates solely from the curated rights register (`docs/rights/CONTENT-RIGHTS.md` / `source_releases`). Ingestion stamps the status onto Qdrant payloads, retrieval filters on `domain_rights_status == "licensed"`, and the gate enforces complete exclusion of unverified or revoked materials. Never default missing rights to "licensed".
 - **`chunker_version` must name the real chunker:** The payload attribute `chunker_version` must declare the actual chunking class per grammar (`boundary_v1:...`, `recursive_v1:...`, `adaptive_v1`, `semantic_v1`). Proposition chunking is permanently retired (D3).
 - **Rejections must be persisted:** Every item rejected by ingest quality gates must be recorded in `public.corpus_gate_rejections` with reason, tier, and source coordinates.

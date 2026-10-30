@@ -281,8 +281,11 @@ def test_unverified_clip_is_never_upgraded_to_a_teacher_name(flag_on):
 
 def test_verified_clip_keeps_the_teacher_name(flag_on):
     """Breaks the opposite way: a voice-verified clip must keep its real speaker,
-    matching the served path's ``route_gated=True`` attribution."""
-    entry = _build_related_clip(_clip(speaker_verified=True), 0.7)
+    matching the served path's ``route_gated=True`` attribution. Verified means
+    the recorded method, not just the flag (P1-5)."""
+    entry = _build_related_clip(
+        _clip(speaker_verified=True, voice_verification_method="ecapa_anchor_v1"), 0.7
+    )
 
     assert entry is not None
     assert entry["speaker"] == "Sri Preethaji"

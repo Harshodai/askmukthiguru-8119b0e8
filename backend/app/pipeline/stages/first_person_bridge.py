@@ -891,6 +891,10 @@ class FirstPersonBridgeStage(Stage):
             )
             return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
 
+        # Platform copy that accompanies the clip but is NOT the teacher's words.
+        safety_notices: list[str] = []
+        compassion_framing_text: str | None = None
+
         if distress_compassion:
             # Distress-lane parity (rag/nodes/intent.py::handle_distress): a clip that
             # talks about dying, quitting life or rock bottom is omitted ENTIRELY for a
@@ -909,33 +913,45 @@ class FirstPersonBridgeStage(Stage):
             # Owner decision 2026-10-19: the seeker keeps the compassion framing
             # (the same graduated template the graph's distress lane serves) AND
             # the clip. Added after the output rail, exactly like the safety
-            # boundaries below: it is the distress lane's own reviewed copy, not
+            # boundaries above: it is the distress lane's own reviewed copy, not
             # generated text, so the English literal-phrase rail does not gate it.
             # Before glue translation, so an Indic seeker gets localized compassion
             # copy while the teacher's words stay verbatim.
             framing = _distress_compassion_framing(ctx)
             if framing.strip():
-                answer = f"{framing}\n\n{answer}"
+                compassion_framing_text = framing.strip()
 
-        if boundaries:
-            # Appended after the output rail so safety text can never be blocked,
-            # before glue translation so Indic seekers get it localized.
-            answer = answer + "\n\n" + "\n\n".join(boundaries)
+        # Invariant 1 (answer text is evidence): the served body is the verbatim
+        # quote plus its attribution — nothing else. Platform copy (compassion
+        # framing, relationship/addiction safety boundaries, the human support
+        # line) travels in `route_metadata["safety_notices"]` and is rendered by
+        # the client as its own block, so a seeker can always tell the teacher's
+        # words from the platform's words.
+        if compassion_framing_text:
+            safety_notices.append(compassion_framing_text)
+        for boundary in boundaries or []:
+            text = str(boundary or "").strip()
+            if text:
+                safety_notices.append(text)
 
         if distress_compassion:
             # Distress lane invariant: every distress answer ends with a human
             # support line, unless a helpline block is already present.
             from services.crisis_helplines import ensure_support_line
 
-            answer = ensure_support_line(answer)
+            support_line = ensure_support_line("")
+            if support_line and not any(support_line in n for n in safety_notices):
+                safety_notices.append(support_line)
             # Distress-lane parity, defense-in-depth: the graph's distress handler
             # returns straight to END, so it re-runs this persona/constitutional
             # check itself (rag/nodes/intent.py::handle_distress). The bridge
             # short-circuits even earlier, so the same check runs here — on a hit the
             # clip is dropped and the reviewed compassion copy is served instead.
+            # The check runs on the FULL user-visible text (quote + notices), which
+            # is what the seeker reads.
             from rag.nodes.verification import check_persona_adherence
 
-            violation = check_persona_adherence(answer)
+            violation = check_persona_adherence("\n\n".join([*safety_notices, answer]))
             if violation:
                 logger.warning(
                     "[FirstPersonBridge] Compassion+clip answer failed the persona guard "
@@ -952,6 +968,17 @@ class FirstPersonBridgeStage(Stage):
                 container,
                 str(getattr(ctx, "preferred_lang", "") or ""),
             )
+            if safety_notices:
+                # Notices carry no quotes: each block is pure glue.
+                safety_notices = [
+                    await _translate_glue_only(
+                        notice,
+                        [],
+                        container,
+                        str(getattr(ctx, "preferred_lang", "") or ""),
+                    )
+                    for notice in safety_notices
+                ]
 
         record_routing_decision(
             ctx,
@@ -1018,7 +1045,16 @@ class FirstPersonBridgeStage(Stage):
                 "audio_playback_clips": getattr(result, "audio_playback_clips", []) or [],
                 "detected_concepts": getattr(result, "detected_concepts", []),
                 "atma_vichara_inquiry": getattr(result, "atma_vichara_inquiry", None),
+                "related_clips_heading": getattr(result, "related_clips_heading", None),
+                # Structure note for a two-recording answer ("Recording 2 is a
+                # different video; it does not continue the first"). Metadata,
+                # never body text (invariant 1).
+                "second_quote_note": getattr(result, "second_quote_note", None),
                 "practice_recommendation": getattr(result, "practice_recommendation", None),
+                # Invariant 1: platform copy that accompanies a served clip but is
+                # not the teacher's words. Rendered as its own block by the client
+                # (chat `safety_notices`), never concatenated into the evidence body.
+                "safety_notices": safety_notices,
                 # Owner decision 2026-10-19: this clip was served under the MODERATE
                 # distress compassion framing (additive, opt-in flag).
                 "distress_compassion_framing": distress_compassion,

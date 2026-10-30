@@ -61,7 +61,7 @@ services:
   backend:
     image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
     container_name: mukthiguru-backend-prod
-    environment:
+    environment: &backend-env
       - ENV=production
       - LLM_PROVIDER=${LLM_PROVIDER:-sarvam_cloud}
       - SARVAM_API_KEY=${SARVAM_API_KEY}
@@ -226,6 +226,34 @@ services:
           memory: 256M
         reservations:
           memory: 64M
+
+  # --- Celery worker (consumes what celery-beat publishes) ---
+  # Beat publishes retention/cache/win-back/sweeper tasks to the default
+  # `celery` queue; without a worker on it they were never executed.
+  celery-worker:
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
+    container_name: mukthiguru-celery-worker-prod
+    command: >
+      celery -A celery_config worker
+      --loglevel=info
+      --queues=transcription,embedding,indexing,ingestion,okf,memory,celery
+      --concurrency=${CELERY_CONCURRENCY:-1}
+    environment: *backend-env
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mukthiguru
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+        reservations:
+          memory: 512M
 
   # --- Celery Beat (scheduled periodic tasks) ---
   celery-beat:

@@ -478,12 +478,24 @@ class QdrantSearcher:
             screened_hits.append(hit)
 
         # DE-0.3: Read-time release filter & shadow mode
-        from services.qdrant.source_policy import filter_by_release
-
-        screened_hits, _ = filter_by_release(
-            screened_hits,
-            corpus_id=scope.corpus_id if scope else None,
+        from services.qdrant.source_policy import (
+            ReleasePolicyUnavailable,
+            filter_by_release,
         )
+
+        try:
+            screened_hits, _ = filter_by_release(
+                screened_hits,
+                corpus_id=scope.corpus_id if scope else None,
+            )
+        except ReleasePolicyUnavailable as exc:
+            # Fail closed: no document beats a document served under a guessed
+            # release version (enforce mode only; shadow never raises).
+            logger.error(
+                "Release filter unavailable; returning no document: %s",
+                exc,
+            )
+            screened_hits = []
         hits = screened_hits[:limit]
 
         docs = [

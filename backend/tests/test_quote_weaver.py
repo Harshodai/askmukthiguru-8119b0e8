@@ -316,7 +316,8 @@ def test_weaver_deterministic_fallback_when_no_llm(sample_clip, sample_okf_entry
     assert result.atma_vichara_inquiry
     assert "*" in result.atma_vichara_inquiry
     assert result.atma_vichara_inquiry not in result.text
-    assert (result.related_clips_heading or "") not in result.text
+    if result.related_clips_heading:
+        assert result.related_clips_heading not in result.text
 
 
 def test_weaver_deterministic_clip_only_mode(sample_clip, sample_okf_entry, monkeypatch):

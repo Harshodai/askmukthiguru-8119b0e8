@@ -306,6 +306,11 @@ class Settings(BaseSettings):
     # truncated retrieval window. Costs one extra scroll per parent per request;
     # OFF by default until measured (master plan RAG-2).
     first_person_enrichment_window_enabled: bool = False
+    # Hard timeout (seconds) for one enrichment-window re-hydration. Fail-open:
+    # a slow parent read keeps the retrieved span instead of delaying the answer
+    # (the window is an addition, never a reason to wait — same policy as the
+    # graph-expansion timeout below).
+    first_person_enrichment_window_timeout_s: float = 1.5
     # T3 graph-guided candidate expansion. When True, ontology-neighbor concepts
     # for the query are used to run one additional payload-filtered context
     # retrieval over spans already tagged with those concepts. The extra pool is
@@ -1267,6 +1272,9 @@ class Settings(BaseSettings):
 
     # P0 (2026-10-27): OKF manifest governance gate. When True, enforces strict
     # manifest clearance on all OKF entries before injection into retrieval.
+    # DORMANT: default False, and memory/okf/source_asset_manifest.json does not exist.
+    # Enabling without that manifest fails closed to zero OKF entries (every entry is
+    # 'unmanifested_source'); create and owner-sign the manifest first.
     okf_governance_manifest_enabled: bool = False
 
     # P0 (2026-09-25): OKF load-time verbatim quote gate. Default OFF — built
@@ -1418,7 +1426,6 @@ class Settings(BaseSettings):
         default=False,
         description="Deprecated per Decision D3: proposition chunking is retired.",
     )
-    proposition_char_limit: int = 15000
 
     # --- RAG Phase 6 Feature Closures ---
     # RAG-1: Retrieval Feedback Loop (suppression-only, TTL'd, off by default)

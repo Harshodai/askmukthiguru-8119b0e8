@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.config import settings
 from services.text_quality_filter import find_artifact
 
 logger = logging.getLogger(__name__)
@@ -33,21 +32,12 @@ class PropositionService:
 
     def should_apply_propositions(self, doc_text: str) -> bool:
         """
-        Determine if proposition chunking should be applied to this document.
-        Defaults to False as proposition chunking is retired.
-        """
-        prop_setting = getattr(settings, "use_proposition_chunking", False)
-        if isinstance(prop_setting, bool):
-            return prop_setting
-        strategy = str(prop_setting).lower()
-        if strategy in ("never", "false", ""):
-            return False
-        if strategy in ("always", "true"):
-            return True
+        Proposition chunking is retired (Decision D3): always False.
 
-        doc_len = len(doc_text)
-        is_above_threshold = doc_len >= getattr(settings, "proposition_char_limit", 15000)
-        return is_above_threshold
+        ``use_proposition_chunking`` can no longer re-enable it. ``extract_propositions``
+        has no production caller and stays only for legacy harnesses.
+        """
+        return False
 
     async def extract_propositions(self, text: str) -> list[str]:
         """

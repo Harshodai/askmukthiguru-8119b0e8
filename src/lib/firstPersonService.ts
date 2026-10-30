@@ -51,6 +51,11 @@ export const firstPersonResponseSchema = z.object({
   latency_ms: z.number(),
   cached: z.boolean().default(false),
   error: z.string().nullable().optional(),
+  /** "Related, not a direct answer" pointer for a weak match. The backend keeps
+   *  this out of `answer_text` so the served body stays verbatim evidence. */
+  related_clips_heading: z.string().nullable().optional(),
+  /** Contemplative inquiry shown beside (never inside) the verbatim quote. */
+  atma_vichara_inquiry: z.string().nullable().optional(),
 });
 
 export type FirstPersonCitation = z.infer<typeof firstPersonCitationSchema>;

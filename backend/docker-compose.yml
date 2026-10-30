@@ -536,7 +536,7 @@ services:
     command: >
       celery -A celery_config worker
       --loglevel=info
-      --queues=transcription,embedding,indexing,ingestion,okf,memory
+      --queues=transcription,embedding,indexing,ingestion,okf,memory,celery
       --concurrency=${CELERY_CONCURRENCY:-1}
     depends_on:
       redis:

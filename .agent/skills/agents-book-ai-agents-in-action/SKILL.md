@@ -1,13 +1,13 @@
 ---
 name: ai-agents-in-action
-description: "Knowledge base from 'AI Agents in Action (Micheal Lanham) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'AI Agents in Action (Micheal Lanham).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# AI Agents in Action (Micheal Lanham) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# AI Agents in Action (Micheal Lanham).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

@@ -1,13 +1,13 @@
 ---
 name: agentic-design-patterns
-description: "Knowledge base from 'Agentic Design Patterns A Hands-On Guide to Building Intelligent Systems (Antonio Gullí) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'Agentic Design Patterns A Hands-On Guide to Building Intelligent Systems (Antonio Gullí).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# Agentic Design Patterns A Hands-On Guide to Building Intelligent Systems (Antonio Gullí) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# Agentic Design Patterns A Hands-On Guide to Building Intelligent Systems (Antonio Gullí).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

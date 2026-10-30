@@ -1,13 +1,13 @@
 ---
 name: designing-distributed-systems
-description: "Knowledge base from 'Designing Distributed Systems, 2nd Edition Patterns and Paradigms for Scalable, Reliable Systems Using Kubernetes (Brendan Burns) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'Designing Distributed Systems, 2nd Edition Patterns and Paradigms for Scalable, Reliable Systems Using Kubernetes (Brendan Burns).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# Designing Distributed Systems, 2nd Edition Patterns and Paradigms for Scalable, Reliable Systems Using Kubernetes (Brendan Burns) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# Designing Distributed Systems, 2nd Edition Patterns and Paradigms for Scalable, Reliable Systems Using Kubernetes (Brendan Burns).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

@@ -48,6 +48,13 @@ class FakeSupabaseTable:
         self._filter_lt = (col, val)
         return self
 
+    def or_(self, expr: str):
+        # Mirrors the PostgREST filter the sweeper sends:
+        #   heartbeat_at.lt.<c>,and(heartbeat_at.is.null,created_at.lt.<c>)
+        cutoff = expr.split(",")[0].split("heartbeat_at.lt.", 1)[1]
+        self._filter_or_stale = cutoff
+        return self
+
     def update(self, data: dict):
         self._pending_update = dict(data)
         return self
@@ -80,6 +87,14 @@ class FakeSupabaseTable:
             if self._filter_in:
                 col, vals = self._filter_in
                 if r.get(col) not in vals:
+                    continue
+            cutoff_or = getattr(self, "_filter_or_stale", None)
+            if cutoff_or is not None:
+                hb = r.get("heartbeat_at")
+                if hb is not None:
+                    if hb >= cutoff_or:
+                        continue
+                elif not r.get("created_at") or r["created_at"] >= cutoff_or:
                     continue
             if self._filter_lt:
                 col, cutoff = self._filter_lt
@@ -269,3 +284,59 @@ def test_in_memory_tracker_heartbeat_lifecycle():
     tracker.update_heartbeat(url, heartbeat_at=1730000100.0)
     data2 = tracker.get_all()
     assert "T" in data2[url]["heartbeat_at"]
+
+
+def test_job_with_null_heartbeat_is_swept_and_completed_at_is_a_timestamp():
+    """P1-17: a worker that died before its first heartbeat must still be swept,
+    and completed_at must be an ISO timestamp, not the literal "now()"."""
+    now = datetime.now(UTC)
+    never_beat = str(uuid.uuid4())
+    fresh_never_beat = str(uuid.uuid4())
+    table = FakeSupabaseTable(
+        [
+            {
+                "id": never_beat,
+                "status": "running",
+                "heartbeat_at": None,
+                "created_at": (now - timedelta(minutes=40)).isoformat(),
+            },
+            {
+                "id": fresh_never_beat,
+                "status": "running",
+                "heartbeat_at": None,
+                "created_at": (now - timedelta(minutes=1)).isoformat(),
+            },
+        ]
+    )
+
+    swept = sweep_stale_ingest_jobs(timeout_minutes=15, client=FakeSupabaseClient(table))
+
+    assert swept == [never_beat]
+    completed_at = table.updates_executed[0]["updates"]["completed_at"]
+    assert completed_at != "now()"
+    datetime.fromisoformat(completed_at)
+
+
+def test_one_failing_update_does_not_abort_the_sweep():
+    now = datetime.now(UTC)
+    stale = (now - timedelta(minutes=40)).isoformat()
+    ids = [str(uuid.uuid4()) for _ in range(2)]
+    table = FakeSupabaseTable(
+        [{"id": i, "status": "running", "heartbeat_at": stale} for i in ids]
+    )
+    real_execute = table.execute
+    calls = {"n": 0}
+
+    def flaky_execute():
+        if table._pending_update is not None:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                table._pending_update = None
+                raise RuntimeError("postgrest rejected row")
+        return real_execute()
+
+    table.execute = flaky_execute
+
+    swept = sweep_stale_ingest_jobs(timeout_minutes=15, client=FakeSupabaseClient(table))
+
+    assert swept == [ids[1]]

@@ -56,39 +56,28 @@ def split_queries(
 def run_experiment(
     variant: str, val_queries: list[dict[str, Any]], dry_run: bool = False
 ) -> dict[str, Any]:
-    """Execute evaluation for the specified variant."""
-    timestamp = datetime.datetime.now(datetime.UTC).isoformat()
-    if dry_run or not val_queries:
-        logger.info("Executing dry-run benchmark for variant: %s", variant)
-        return {
-            "timestamp": timestamp,
-            "variant": variant,
-            "dry_run": True,
-            "queries_evaluated": len(val_queries),
-            "configs": {
-                "baseline": {
-                    "mrr_10": 0.82,
-                    "ndcg_10": 0.85,
-                    "per_class": {"faq": 0.88, "comparative": 0.76},
-                },
-                "candidate": {
-                    "mrr_10": 0.84,
-                    "ndcg_10": 0.87,
-                    "per_class": {"faq": 0.89, "comparative": 0.79},
-                },
-            },
-            "recommendation": "keep_default_unless_verified",
-        }
+    """Execute evaluation for the specified variant.
 
-    # Dynamic benchmarking
-    results = {
+    Retrieval measurement is not wired to a held-out query set yet, so this never
+    emits MRR/NDCG numbers: a dry run reports every metric as ``None``
+    (unmeasured), and a live run refuses rather than writing an empty "result".
+    """
+    timestamp = datetime.datetime.now(datetime.UTC).isoformat()
+    if not dry_run:
+        raise SystemExit(
+            "measure_rag_variants: live measurement is not implemented (no held-out query "
+            "set is wired). Refusing to write a report; use --dry-run for the plan only."
+        )
+    logger.info("Dry run for variant %s: plan only, no metrics measured", variant)
+    return {
         "timestamp": timestamp,
         "variant": variant,
-        "dry_run": False,
+        "dry_run": True,
         "queries_evaluated": len(val_queries),
-        "configs": {},
+        "metrics": {"mrr_10": None, "ndcg_10": None, "per_class": None},
+        "status": "unmeasured",
+        "recommendation": "keep_default_unless_verified",
     }
-    return results
 
 
 def main() -> None:
@@ -97,7 +86,7 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     date_str = datetime.date.today().isoformat()
-    report = run_experiment(args.variant, val_queries=[], dry_run=args.dry_run or True)
+    report = run_experiment(args.variant, val_queries=[], dry_run=args.dry_run)
 
     out_file = out_dir / f"{date_str}-{args.variant}.json"
     with open(out_file, "w", encoding="utf-8") as f:

@@ -1,13 +1,13 @@
 ---
 name: ai-agents-langchain-mcp
-description: "Knowledge base from 'AI Agents and Applications With LangChain, LangGraph, and MCP (Roberto Infante) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'AI Agents and Applications With LangChain, LangGraph, and MCP (Roberto Infante).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# AI Agents and Applications With LangChain, LangGraph, and MCP (Roberto Infante) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# AI Agents and Applications With LangChain, LangGraph, and MCP (Roberto Infante).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

@@ -1,13 +1,13 @@
 ---
 name: llms-in-production
-description: "Knowledge base from 'LLMs in Production From language models to successful products (Christopher Brousseau, Matthew Sharp) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'LLMs in Production From language models to successful products (Christopher Brousseau, Matthew Sharp).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# LLMs in Production From language models to successful products (Christopher Brousseau, Matthew Sharp) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# LLMs in Production From language models to successful products (Christopher Brousseau, Matthew Sharp).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

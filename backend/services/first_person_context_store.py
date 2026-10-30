@@ -406,6 +406,23 @@ class FirstPersonContextStore:
         if isinstance(context_or_parent_id, str):
             parent_unit_id = context_or_parent_id
             target_span_id = span_id or ""
+            # "No such span" is answered from the parent record WITHOUT a
+            # hydration attempt: passing an unknown id into fetch_parent_context
+            # raises the contract validator ("hit_span_ids must all be present in
+            # spans"), which made an ordinary not-found indistinguishable from a
+            # real index defect.
+            parent_record = self._get_record(parent_point_id(parent_unit_id))
+            if parent_record is None:
+                raise FirstPersonContextStoreError("parent record missing")
+            try:
+                parent_unit = ParentUnit.model_validate(
+                    _strip_record_type(parent_record.payload or {})
+                )
+            except Exception as exc:
+                raise FirstPersonContextStoreError(f"invalid parent payload: {exc}") from exc
+            if target_span_id not in parent_unit.ordered_source_span_ids:
+                ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="not_found").inc()
+                return []
             try:
                 parent_context = self.fetch_parent_context(parent_unit_id, [target_span_id])
                 ordered_spans = list(parent_context.spans)
@@ -428,11 +445,19 @@ class FirstPersonContextStore:
                 ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
                 raise
             except Exception as exc:
-                logger.debug(
-                    "[ContextStore] enrich_to_parent_window error for %s: %s", parent_unit_id, exc
+                # A transient read error is NOT "this parent has no such span".
+                # Returning [] made the two states indistinguishable; the caller
+                # (and any future one) must be able to tell a real empty window
+                # from a failed read, so the failure is raised with its cause.
+                logger.warning(
+                    "[ContextStore] enrich_to_parent_window read failed for %s: %s",
+                    parent_unit_id,
+                    exc,
                 )
                 ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
-                return []
+                raise FirstPersonContextStoreError(
+                    f"enrichment window read failed for parent {parent_unit_id!r}: {exc}"
+                ) from exc
 
         # Case B: (context: ParentContext)
         context = context_or_parent_id

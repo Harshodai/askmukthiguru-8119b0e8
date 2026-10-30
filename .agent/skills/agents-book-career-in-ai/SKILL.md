@@ -1,13 +1,13 @@
 ---
 name: career-in-ai
-description: "Knowledge base from 'How to Build Your Career in AI (Andrew Ng) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'How to Build Your Career in AI (Andrew Ng).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# How to Build Your Career in AI (Andrew Ng) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# How to Build Your Career in AI (Andrew Ng).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

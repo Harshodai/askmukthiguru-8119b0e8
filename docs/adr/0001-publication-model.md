@@ -24,8 +24,9 @@ We adopt a **hybrid two-tier publication model**:
    - Vector points carry immutable `source_release_version` and `source_url` attributes.
    - Retrieval queries join or filter against approved source releases.
 3. **Shadow-Mode Rollout (DE-0.4):**
-   - The serving gate (`corpus_publication_enforcement_enabled`) begins in shadow mode (`False`).
-   - In shadow mode, points that would have been excluded by the release filter are logged and metered via Prometheus (`retrieval_release_shadow_exclusions_total`), proving no unexpected retrieval dropouts before flipping the enforcement switch to `True`.
+   - The release filter is the tri-state setting `release_filter_mode` (`off` | `shadow` | `enforce`, default `off`; `RELEASE_FILTER_MODE`). `corpus_publication_enforcement_enabled` is a different gate (manifest presence at startup/ingest) and is **not** the shadow/enforce switch.
+   - In `shadow`, points that would have been excluded are logged and metered via Prometheus (`retrieval_release_shadow_exclusions_total`), proving no unexpected retrieval dropouts before moving to `enforce`.
+   - In `enforce`, a point is served only if its `source_release_version` equals the source's active release. Missing or non-numeric versions are dropped (fail closed), and an unreadable release registry makes retrieval abstain rather than guess a version.
 
 ## Consequences
 - **Positive:** Granular instant rollback of defective talks without touching Qdrant; zero downtime index migrations; comprehensive auditability of what was published when.

@@ -333,4 +333,9 @@ class PipelineResult:
             "guidance_plan": (None if self.guidance_plan is None else asdict(self.guidance_plan)),
             "release_manifest": self.release_manifest,
             "provenance_context": self.provenance_context,
+            # Invariant 1: platform copy that accompanies a served clip (distress
+            # compassion framing, relationship/addiction safety boundaries, the
+            # human support line). It is rendered as its own block by the client so
+            # the answer body stays pure evidence. Empty list = nothing extra.
+            "safety_notices": list((self.route_metadata or {}).get("safety_notices") or []),
         }

@@ -1305,6 +1305,7 @@ export const ChatInterface = () => {
         let streamedQueryTier: string | null = null;
         let streamedIsFirstPersonAbstain: boolean | null = null;
         let streamedRouteDecision: string | null = null;
+        let streamedSafetyNotices: string[] = [];
         for await (const chunk of stream) {
           if (chunk.type === 'stage') {
             setShowInstantPill(false);
@@ -1426,6 +1427,7 @@ export const ChatInterface = () => {
             streamedQueryTier = chunk.queryTier ?? null;
             streamedIsFirstPersonAbstain = chunk.isFirstPersonAbstain ?? null;
             streamedRouteDecision = chunk.routeDecision ?? null;
+            streamedSafetyNotices = chunk.safetyNotices ?? [];
             continue;
           }
 
@@ -1528,6 +1530,7 @@ export const ChatInterface = () => {
                     queryTier: streamedQueryTier,
                     isFirstPersonAbstain: streamedIsFirstPersonAbstain,
                     routeDecision: streamedRouteDecision,
+                    safetyNotices: streamedSafetyNotices.length > 0 ? streamedSafetyNotices : undefined,
                   }
                 : m
             )
@@ -1863,6 +1866,10 @@ openSereneMind('audio');
           queryTier: response.queryTier ?? null,
           isFirstPersonAbstain: response.isFirstPersonAbstain ?? null,
           routeDecision: response.routeDecision ?? null,
+          safetyNotices:
+            response.safetyNotices && response.safetyNotices.length > 0
+              ? response.safetyNotices
+              : undefined,
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {

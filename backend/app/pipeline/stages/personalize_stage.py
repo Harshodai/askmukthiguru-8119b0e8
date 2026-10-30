@@ -166,7 +166,7 @@ def build_personalize_citation(clip: dict[str, Any]) -> dict[str, Any]:
     integrity gate, so ``start_ms``/``end_ms`` are required ints: a malformed
     clip raises here instead of becoming a zero-length citation.
     """
-    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S
+    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S, _speaker_verification
     from services.quote_fidelity import UNTITLED_LINK_LABEL
 
     start_ms = int(clip["start_ms"])
@@ -184,8 +184,11 @@ def build_personalize_citation(clip: dict[str, Any]) -> dict[str, Any]:
         "end_ms": end_ms,
         "timestamp_seconds": start_sec,
         "speaker": clip.get("speaker"),
-        # Provenance claim copied from the stored clip, never inferred.
-        "speaker_verified": clip.get("speaker_verified") is True,
+        # Provenance claim copied from the stored clip, never inferred. A bare
+        # True with no recorded voice_verification_method is a claim without
+        # evidence and reads as unverified (corpus quality-scorecard rule).
+        "speaker_verified": _speaker_verification(clip)[0],
+        "voice_verification_method": _speaker_verification(clip)[1],
         "channel": clip.get("channel"),
         "title": clip.get("title") or clip.get("video_title") or UNTITLED_LINK_LABEL,
         "url": clip_url,
@@ -431,6 +434,8 @@ class PersonalizeStage(Stage):
             state = ctx.state
         # Stash only the looked-up clip's bounded identity fields — never
         # client text. The graph router and GraphStage read this marker.
+        from services.first_person_pipeline import _speaker_verification
+
         state["personalize_clip"] = {
             "point_id": clip.get("point_id"),
             "video_id": clip.get("video_id"),
@@ -438,7 +443,8 @@ class PersonalizeStage(Stage):
             "end_ms": clip.get("end_ms"),
             "speaker": clip.get("speaker"),
             "teacher_id": clip.get("teacher_id"),
-            "speaker_verified": clip.get("speaker_verified"),
+            "speaker_verified": _speaker_verification(clip)[0],
+            "voice_verification_method": _speaker_verification(clip)[1],
             "channel": clip.get("channel"),
             "title": clip.get("title") or clip.get("video_title"),
             "verbatim_text": str(clip.get("verbatim_text") or ""),

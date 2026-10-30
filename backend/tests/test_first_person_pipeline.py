@@ -502,8 +502,21 @@ def test_citation_speaker_verified_is_copied_never_inferred(mock_store, mock_red
     assert (
         _first_citation(mock_store, mock_redis, speaker_verified=False)["speaker_verified"] is False
     )
+    # P1-5: a bare True is a claim, not evidence. Verified requires the recorded
+    # method the corpus audit demands (fp_data_quality_scorecard.py).
     cit = _first_citation(mock_store, mock_redis, speaker_verified=True, channel="Ekam")
-    assert cit["speaker_verified"] is True and cit["channel"] == "Ekam"
+    assert cit["speaker_verified"] is False
+    assert cit["voice_verification_method"] is None
+    cit = _first_citation(
+        mock_store,
+        mock_redis,
+        speaker_verified=True,
+        voice_verification_method="ecapa_anchor_v1",
+        channel="Ekam",
+    )
+    assert cit["speaker_verified"] is True
+    assert cit["voice_verification_method"] == "ecapa_anchor_v1"
+    assert cit["channel"] == "Ekam"
 
 
 def test_playback_start_floors_at_zero(mock_store, mock_redis):

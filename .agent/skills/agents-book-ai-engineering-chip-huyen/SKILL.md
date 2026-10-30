@@ -1,13 +1,13 @@
 ---
 name: ai-engineering-chip-huyen
-description: "Knowledge base from 'AI Engineering Building Applications with Foundation Models (Chip Huyen) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'AI Engineering Building Applications with Foundation Models (Chip Huyen).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# AI Engineering Building Applications with Foundation Models (Chip Huyen) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# AI Engineering Building Applications with Foundation Models (Chip Huyen).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

@@ -638,6 +638,11 @@ CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL = Counter(
     "Total count of corpus quality gate rejections persisted to ledger",
 )
 
+CORPUS_GATE_REJECTIONS_PERSIST_FAILED_TOTAL = Counter(
+    "corpus_gate_rejections_persist_failed_total",
+    "Total count of corpus quality gate rejections that could not be persisted to the ledger (X40 gap)",
+)
+
 CORPUS_ORPHAN_POINTS_TOTAL = Counter(
     "corpus_orphan_points_total",
     "Total count of orphan Qdrant points detected and deleted during reconciliation",

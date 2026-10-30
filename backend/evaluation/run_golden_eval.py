@@ -264,6 +264,7 @@ def score_golden_eval(
     questions: list[str] | None = None,
     args: argparse.Namespace | None = None,
     faithfulness_min: float = 0.88,
+    concept_overlap_min: float = 0.88,
     relevancy_min: float = 0.80,
     context_precision_min: float = 0.72,
     context_recall_min: float = 0.72,
@@ -276,6 +277,7 @@ def score_golden_eval(
 ) -> dict[str, Any]:
     if args is not None:
         faithfulness_min = getattr(args, "faithfulness_min", faithfulness_min)
+        concept_overlap_min = getattr(args, "concept_overlap_min", concept_overlap_min)
         relevancy_min = getattr(args, "relevancy_min", relevancy_min)
         context_precision_min = getattr(args, "context_precision_min", context_precision_min)
         context_recall_min = getattr(args, "context_recall_min", context_recall_min)
@@ -366,8 +368,12 @@ def score_golden_eval(
         relevancy_pass = "unmeasured"
         context_precision_pass = "unmeasured"
         context_recall_pass = "unmeasured"
-        concept_overlap_pass = concept_overlap_score >= faithfulness_min
-        judge_metrics_pass = concept_overlap_pass
+        # SPEC-quality-observability: a heuristic is never a proxy pass for the
+        # judge metrics. The overlap smoke check has its own threshold and its own
+        # field; judge_metrics_pass stays None (unmeasured) so callers cannot read
+        # a faithfulness pass out of it.
+        concept_overlap_pass = concept_overlap_score >= concept_overlap_min
+        judge_metrics_pass = None
 
     diversity_pass = diversity_violations == 0
 
@@ -536,6 +542,7 @@ def score_golden_eval(
         "abstention_stats": abstention_stats,
         "thresholds": {
             "faithfulness_min": faithfulness_min,
+            "concept_overlap_min": concept_overlap_min,
             "relevancy_min": relevancy_min,
             "context_precision_min": context_precision_min,
             "context_recall_min": context_recall_min,
@@ -555,6 +562,7 @@ def main(cli_args: list[str] | None = None) -> int:
     p.add_argument("--dataset", required=True, type=Path)
     p.add_argument("--out", required=True, type=Path)
     p.add_argument("--faithfulness-min", type=float, default=0.88)
+    p.add_argument("--concept-overlap-min", type=float, default=0.88)
     p.add_argument("--relevancy-min", type=float, default=0.80)
     p.add_argument("--context-precision-min", type=float, default=0.72)
     p.add_argument("--context-recall-min", type=float, default=0.72)
@@ -565,6 +573,12 @@ def main(cli_args: list[str] | None = None) -> int:
         const="default",
         default=None,
         help="Generate release eval artifact JSON (path or default evals/reports/<date>-corpus-release-eval.json)",
+    )
+    p.add_argument(
+        "--allow-unmeasured-judge",
+        action="store_true",
+        help="Exit 0 when RAGAS judge metrics are unmeasured but the concept-overlap smoke check "
+        "passes. Without it, an unmeasured judge fails the gate (never a proxy pass).",
     )
     args = p.parse_args(cli_args)
 
@@ -646,7 +660,18 @@ def main(cli_args: list[str] | None = None) -> int:
     judge_metrics_pass = report["judge_metrics_pass"]
     diversity_pass = report["diversity_pass"]
 
-    if not (judge_metrics_pass and diversity_pass and failed == 0):
+    if judge_metrics_pass is None:
+        # Unmeasured: only the explicit opt-in may pass, and only if the overlap
+        # smoke check (its own threshold) also passes.
+        print(
+            "[WARN] RAGAS judge metrics unmeasured; faithfulness/relevancy/context gates NOT evaluated",
+            file=sys.stderr,
+        )
+        judge_ok = bool(args.allow_unmeasured_judge and report["concept_overlap_pass"])
+    else:
+        judge_ok = bool(judge_metrics_pass)
+
+    if not (judge_ok and diversity_pass and failed == 0):
         return 1
     return 0
 

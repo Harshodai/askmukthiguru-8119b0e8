@@ -1206,6 +1206,23 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             </ReactMarkdown>
                           </div>
 
+                          {/* Invariant 1: platform copy that accompanies a served clip
+                              (compassion framing, relationship/addiction safety
+                              boundaries, the human support line) is its own block — it
+                              is never concatenated into the teacher's verbatim words. */}
+                          {isGuru && !isStreaming && (message.safetyNotices?.length ?? 0) > 0 && (
+                            <div
+                              data-testid="safety-notices"
+                              className="mt-3 space-y-2 rounded-lg border border-border/50 bg-muted/30 p-3 text-[13px] leading-relaxed text-muted-foreground"
+                            >
+                              {message.safetyNotices?.map((notice, noticeIndex) => (
+                                <p key={noticeIndex} className="whitespace-pre-wrap">
+                                  {notice}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+
                           {/* Supportive Seeker UX for first-person abstain */}
                           {/* Not under a crisis/compassion reply or an outage: suggested questions there are noise. */}
                           {isGuru && !isStreaming && !message.error && isFirstPersonAbstainMessage(message) &&

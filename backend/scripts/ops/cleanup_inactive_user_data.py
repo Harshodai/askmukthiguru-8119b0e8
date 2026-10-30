@@ -8,7 +8,10 @@ Performs automated hygiene for inactive users and stale transient data:
 4. Preserves Core Milestones: User profile settings and Second Brain Vault notes remain protected.
 
 Usage (run from the repository root):
-  backend/.venv/bin/python scripts/ops/cleanup_inactive_user_data.py [--dry-run] [--days-telemetry 90] [--days-inactivity 365]
+  backend/.venv/bin/python scripts/ops/cleanup_inactive_user_data.py [--apply] [--days-telemetry 90] [--days-inactivity 365]
+
+Destructive only with --apply; the default is a dry run (--dry-run is accepted
+and is the default, so an unflagged invocation cannot purge).
 
 Exit status: 0 only when every cleanup step succeeded (a step with zero
 deletions is a success); 1 when any step raised — exceptions propagate out of
@@ -84,7 +87,9 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
         qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
         client = QdrantClient(url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=30)
         supabase = create_client(settings.supabase_url, settings.supabase_key)
-        collections = [c.name for c in client.get_collections().collections if "memory" in c.name]
+        # "memor" matches both "memory" and "memories" (canonical_memories,
+        # user_memories); the plain "memory" substring matched neither.
+        collections = [c.name for c in client.get_collections().collections if "memor" in c.name]
 
         purged = 0
         cutoff = (datetime.utcnow() - timedelta(days=days_inactivity)).isoformat()
@@ -310,7 +315,11 @@ def cleanup_corpus_gate_rejections(
     dry_run: bool = False,
     client: Any = None,
 ) -> int:
-    """Purge corpus_gate_rejections rows older than days_retention days."""
+    """Purge corpus_gate_rejections rows older than days_retention days.
+
+    NOT part of automatic retention (X40: rejections must stay recorded). Call only
+    for an explicit, archived expiry.
+    """
     try:
         supabase = (
             client
@@ -345,7 +354,17 @@ def cleanup_corpus_gate_rejections(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Clean up inactive user data & stale memories")
-    parser.add_argument("--dry-run", action="store_true", help="Print changes without purging")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print changes without purging (the default)",
+    )
+    mode.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually purge. Without it nothing is deleted.",
+    )
     parser.add_argument(
         "--days-telemetry", type=int, default=90, help="Days retention for telemetry logs"
     )
@@ -353,6 +372,7 @@ def main() -> int:
         "--days-inactivity", type=int, default=365, help="Days retention for inactive memories"
     )
     args = parser.parse_args()
+    args.dry_run = not args.apply
 
     print("=== Starting Inactive User Data & Retention Cleanup ===")
     print(f"Mode: {'DRY RUN' if args.dry_run else 'LIVE PURGE'}")
@@ -385,12 +405,9 @@ def main() -> int:
                 days_retention=args.days_telemetry, dry_run=args.dry_run
             ),
         ),
-        (
-            "CorpusGateRejections",
-            lambda: cleanup_corpus_gate_rejections(
-                days_retention=args.days_telemetry, dry_run=args.dry_run
-            ),
-        ),
+        # corpus_gate_rejections is not a default step: X40 requires rejections
+        # to stay recorded. cleanup_corpus_gate_rejections() remains callable for
+        # an explicit, archived expiry only.
     )
     counts: dict[str, int] = {}
     failed_steps: list[str] = []
@@ -407,8 +424,7 @@ def main() -> int:
         f"\nCleanup {'FAILED' if failed_steps else 'complete'} in {elapsed:.2f}s. Total purged: "
         f"Redis={counts['Redis']}, Qdrant={counts['QdrantMemory']}, "
         f"Telemetry={counts['Telemetry']}, AnonymousSummaries={counts['AnonymousSummaries']}, "
-        f"StagingQualityQueue={counts['StagingQualityQueue']}, "
-        f"CorpusGateRejections={counts['CorpusGateRejections']}"
+        f"StagingQualityQueue={counts['StagingQualityQueue']}"
     )
     if failed_steps:
         print(f"ERROR: {len(failed_steps)} cleanup step(s) failed: {', '.join(failed_steps)}")

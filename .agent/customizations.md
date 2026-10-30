@@ -63,6 +63,7 @@ Ensure you check and utilize the following skills located in `.agent/skills/`:
 - `code-review-excellence`
 - `critique`
 - `debugging-strategies`
+- `corpus-data-contract`
 - `deep-research-skills`
 - `dispatching-parallel-agents`
 - `distill`

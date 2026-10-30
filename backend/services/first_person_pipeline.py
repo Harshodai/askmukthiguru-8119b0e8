@@ -807,6 +807,14 @@ def transcript_label(verbatim_text: str, caption_status: Optional[str]) -> dict[
 # carries a hash of the prompt text, so an unbumped edit still re-keys.
 _RELEVANCE_PROMPT_VERSION = "v1"
 
+# Version of the served-answer body shape. `evidence_only_v2` is the body that
+# carries nothing but the verbatim quote(s) and their attribution: the
+# "related clips" pointer, the reflection questions and the second-quote
+# section headings moved to route metadata. It rides in the serving-policy
+# fingerprint so a 24 h exact-cache entry written under the old body shape
+# (pointer and questions concatenated into the answer) can never replay.
+_ANSWER_BODY_SCHEMA_VERSION = "evidence_only_v2"
+
 _RELEVANCE_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
@@ -1565,6 +1573,8 @@ class FirstPersonPipelineResult:
         audio_playback_clips: Optional[list[dict[str, Any]]] = None,
         detected_concepts: Optional[list[str]] = None,
         atma_vichara_inquiry: Optional[str] = None,
+        related_clips_heading: Optional[str] = None,
+        second_quote_note: Optional[str] = None,
         practice_recommendation: Optional[dict[str, Any]] = None,
         stage_timings: Optional[dict[str, float]] = None,
         related_clips: Optional[list[dict[str, Any]]] = None,
@@ -1588,6 +1598,8 @@ class FirstPersonPipelineResult:
             self.audio_playback_clips = []
         self.detected_concepts = detected_concepts if detected_concepts is not None else []
         self.atma_vichara_inquiry = atma_vichara_inquiry
+        self.related_clips_heading = related_clips_heading
+        self.second_quote_note = second_quote_note
         self.practice_recommendation = practice_recommendation
         self.stage_timings = stage_timings or {}
         # A25: related (never answer) clips offered on a below-min abstain; [] when
@@ -1613,12 +1625,61 @@ class FirstPersonPipelineResult:
             "audio_playback_clips": self.audio_playback_clips,
             "detected_concepts": self.detected_concepts,
             "atma_vichara_inquiry": self.atma_vichara_inquiry,
+            "related_clips_heading": self.related_clips_heading,
+            "second_quote_note": self.second_quote_note,
             "practice_recommendation": self.practice_recommendation,
             "stage_timings": self.stage_timings,
         }
         if self.related_clips:
             data["related_clips"] = self.related_clips
         return data
+
+
+def _call_with_deadline(fn: Callable[[], Any], *, timeout_s: float) -> Any:
+    """Run ``fn`` in a daemon thread and give up after ``timeout_s``.
+
+    The worker is a daemon so an abandoned call can never hold interpreter
+    shutdown (the graph-expansion lookup used the same posture). On timeout the
+    caller raises :class:`TimeoutError` and the abandoned thread is left to die
+    on its own socket timeout.
+    """
+    result: dict[str, Any] = {}
+
+    def _run() -> None:
+        try:
+            result["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 - re-raised in the caller
+            result["error"] = exc
+
+    worker = threading.Thread(target=_run, name="fp-enrich-window", daemon=True)
+    worker.start()
+    worker.join(max(0.0, float(timeout_s)))
+    if worker.is_alive():
+        raise TimeoutError(f"call exceeded {timeout_s:.2f}s")
+    if "error" in result:
+        raise result["error"]
+    return result.get("value")
+
+
+def _speaker_verification(source: Any) -> tuple[bool, Optional[str]]:
+    """(speaker_verified, voice_verification_method) for a stored clip or span.
+
+    A payload flag is a claim, not evidence. The corpus audit already treats
+    ``speaker_verified=true`` with no recorded ``voice_verification_method`` as
+    a BLOCKER (`scripts/ops/fp_data_quality_scorecard.py`:
+    ``speaker_verified_without_method``); this is the same rule at serve time.
+    Without a method the claim reads as unverified, so a citation can never
+    publish "verified" on the strength of a bare boolean.
+    """
+    data = source or {}
+    if isinstance(data, dict):
+        raw_verified = data.get("speaker_verified")
+        method = data.get("voice_verification_method")
+    else:
+        raw_verified = getattr(data, "speaker_verified", None)
+        method = getattr(data, "voice_verification_method", None)
+    method_text = str(method or "").strip()
+    return (raw_verified is True and bool(method_text)), (method_text or None)
 
 
 def _build_citation_dict(
@@ -1648,7 +1709,8 @@ def _build_citation_dict(
         "title": clip_title,
         "url": clip_url,
         "teacher_id": clip.get("teacher_id"),
-        "speaker_verified": clip.get("speaker_verified") is True,
+        "speaker_verified": _speaker_verification(clip)[0],
+        "voice_verification_method": _speaker_verification(clip)[1],
         "channel": clip.get("channel"),
         "transcript_hash": clip["transcript_hash"],
         "verbatim_text": clip["verbatim_text"],
@@ -2034,15 +2096,35 @@ class FirstPersonPipeline:
             return str(getattr(parent, "parent_unit_id", "") or "")
 
         def _widen(items: list[Any]) -> list[Any]:
-            """One bounded enrichment pass; order preserved, never raises."""
+            """One bounded enrichment pass; order preserved, never raises.
+
+            ``enrich_to_parent_window`` is a synchronous Qdrant scroll: without a
+            deadline a stale connection would hold the whole answer. The window is
+            an ADDITION, so on timeout the retrieved context is kept untouched
+            (fail-open, same policy as the graph-expansion timeout).
+            """
             from services.first_person_context_store import (  # noqa: PLC0415
                 FirstPersonContextStoreError,
             )
 
+            timeout_s = float(
+                getattr(settings, "first_person_enrichment_window_timeout_s", 1.5) or 1.5
+            )
             out: list[Any] = []
             for ctx in items:
                 try:
-                    widened = ctx_store.enrich_to_parent_window(ctx)
+                    widened = _call_with_deadline(
+                        lambda c=ctx: ctx_store.enrich_to_parent_window(c),
+                        timeout_s=timeout_s,
+                    )
+                except TimeoutError:
+                    logger.warning(
+                        "[FirstPersonPipeline] enrichment window timed out after %.2fs for "
+                        "parent %s; keeping retrieved spans",
+                        timeout_s,
+                        _parent_id(ctx) or "unknown",
+                    )
+                    widened = ctx
                 except FirstPersonContextStoreError:
                     # Contract defect on the stored parent (missing record, id
                     # mismatch). The retrieved context still carries its own
@@ -2176,7 +2258,8 @@ class FirstPersonPipeline:
             "title": title,
             "url": clip_url,
             "teacher_id": span.guru_id,
-            "speaker_verified": span.speaker_verified is True,
+            "speaker_verified": _speaker_verification(span)[0],
+            "voice_verification_method": _speaker_verification(span)[1],
             "channel": None,
             "transcript_hash": span.source_text_hash,
             "source_text_hash": span.source_text_hash,
@@ -2364,6 +2447,10 @@ class FirstPersonPipeline:
         contract = self._collection_contract_components()
         pairs = sorted(
             {
+                # The served body shape is answer-shaping: `evidence_only_v2`
+                # strips the pointer/questions/headings out of the answer, so an
+                # entry cached under the previous body can never replay.
+                "answer_body_schema": _ANSWER_BODY_SCHEMA_VERSION,
                 "answerability": str(bool(settings.first_person_answerability_check_enabled)),
                 "boundary_guard": str(bool(self._boundary_guard_enabled)),
                 "content_gate": str(bool(self._content_quality_gate_enabled)),
@@ -2426,6 +2513,16 @@ class FirstPersonPipeline:
                 ),
                 "context_graph_expansion_max_neighbors": str(
                     int(getattr(settings, "first_person_graph_expansion_max_neighbors", 8))
+                ),
+                # Both expansion deadlines are answer-shaping: a longer budget can
+                # add contexts a shorter one drops, so the served answer differs.
+                # Without them in the digest a timeout change would replay the
+                # previous policy's answer from the 24 h exact cache.
+                "context_graph_expansion_timeout": str(
+                    float(getattr(settings, "first_person_graph_expansion_timeout_s", 1.5))
+                ),
+                "context_enrichment_window_timeout": str(
+                    float(getattr(settings, "first_person_enrichment_window_timeout_s", 1.5))
                 ),
                 # B4: the legacy collection's own contract. A repointed
                 # collection, a schema change, a corpus-version change or an
@@ -2906,6 +3003,8 @@ class FirstPersonPipeline:
                 audio_playback_clips=cached_data.get("audio_playback_clips"),
                 detected_concepts=cached_data.get("detected_concepts") or [],
                 atma_vichara_inquiry=cached_data.get("atma_vichara_inquiry"),
+                related_clips_heading=cached_data.get("related_clips_heading"),
+                second_quote_note=cached_data.get("second_quote_note"),
                 practice_recommendation=cached_data.get("practice_recommendation"),
                 # A cached replay of a served clip is still first-person served;
                 # an abstain / error entry in the cache is not.
@@ -2948,9 +3047,15 @@ class FirstPersonPipeline:
         # serving (serve_single_span or serve_parent_context), construct the result
         # deterministically from stored spans.
         # Otherwise, fall back gracefully to the existing first-person logic.
+        # The owner flag is the ONLY enable. An injected context store used to
+        # enabling the harness on its own (`or self._context_store is not None`),
+        # which meant any caller that passed a store ran fp-context serving while
+        # FIRST_PERSON_CONTEXT_HARNESS_ENABLED said false — exactly the posture
+        # the public-release NO-GO forbids. Store presence is configuration, not
+        # permission.
         harness_enabled = bool(
             getattr(settings, "first_person_context_harness_enabled", False)
-        ) or (self._context_store is not None)
+        )
         ctx_store = self._get_context_store() if harness_enabled else None
         if ctx_store is not None and query_dense_vector:
             t_ctx_start = time.monotonic()
@@ -4202,7 +4307,10 @@ class FirstPersonPipeline:
                 # Provenance claim copied from the stored clip, never inferred: the builder
                 # writes True only after a real voice check and omits the key otherwise, so
                 # a missing key must reach the UI as False, not as "verified" (QA-1).
-                "speaker_verified": clip.get("speaker_verified") is True,
+                # A bare True with no recorded method is a claim without evidence and
+                # reads as unverified (same rule as the corpus quality scorecard).
+                "speaker_verified": _speaker_verification(clip)[0],
+                "voice_verification_method": _speaker_verification(clip)[1],
                 "channel": clip.get("channel"),
                 "transcript_hash": clip["transcript_hash"],
                 "verbatim_text": clip["verbatim_text"],
@@ -4309,6 +4417,8 @@ class FirstPersonPipeline:
                 audio_playback_clips[0] if audio_playback_clips else None
             )
             atma_vichara_inquiry = getattr(weave_res, "atma_vichara_inquiry", None)
+            related_clips_heading = getattr(weave_res, "related_clips_heading", None)
+            second_quote_note = None
             practice_recommendation = getattr(weave_res, "practice_recommendation", None)
             cit = citations[0] if citations else None
         else:
@@ -4338,6 +4448,8 @@ class FirstPersonPipeline:
                     f"— {hero['label']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)"
                 )
             atma_vichara_inquiry = None
+            related_clips_heading = None
+            second_quote_note = None
             practice_recommendation = None
             audio_playback_clip = audio_strip_for(top_clip, hero)
             audio_playback_clips = [audio_playback_clip] if audio_playback_clip else []
@@ -4383,20 +4495,27 @@ class FirstPersonPipeline:
 
                         c1_with_hero = {**top_clip, "_hero": hero}
                         c2_with_hero = {**second_clip, "_hero": second_hero}
-                        qb1 = _format_continuous_quote_block(c1_with_hero, facet="first recording")
-                        qb2 = _format_continuous_quote_block(c2_with_hero, facet="second recording")
+                        # Invariant 1: no facet headings inside the body. "first
+                        # recording" / "second recording" are structure, and
+                        # structure rides `second_quote_note` in metadata.
+                        qb1 = _format_continuous_quote_block(c1_with_hero)
+                        qb2 = _format_continuous_quote_block(c2_with_hero)
                         footer = _format_continuous_sources_footer([c1_with_hero, c2_with_hero])
-                        # Label via metadata (status=weak_match), not injected into text.
                         final_text = f"{qb1}\n\n{qb2}" + (f"\n{footer}" if footer else "")
                     else:
+                        # Same rule for the plain layout: two quote+attribution
+                        # blocks, nothing else. The "these are separate recordings"
+                        # framing is metadata, never body text.
                         final_text = (
-                            "Two separate recordings, each quoted exactly:\n\n"
-                            f'Recording 1 of 2:\n"{top_text}"\n'
+                            f'"{top_text}"\n'
                             f"— {hero['label']} ({top_vid}, {cit['timestamp_seconds']}s)\n\n"
-                            "Recording 2 of 2 (a different video; it does not continue the first):\n"
                             f'"{second_text}"\n'
                             f"— {second_hero['label']} ({second_vid}, {cit2['timestamp_seconds']}s)"
                         )
+                    second_quote_note = (
+                        "Two separate recordings, each quoted exactly. "
+                        "Recording 2 is a different video; it does not continue the first."
+                    )
                     strip2 = audio_strip_for(second_clip, second_hero)
                     if strip2:
                         audio_playback_clips.append(strip2)
@@ -4445,6 +4564,8 @@ class FirstPersonPipeline:
             audio_playback_clips=audio_playback_clips,
             detected_concepts=detected_concepts,
             atma_vichara_inquiry=atma_vichara_inquiry,
+            related_clips_heading=related_clips_heading,
+            second_quote_note=second_quote_note,
             practice_recommendation=practice_recommendation,
             stage_timings=stage_timings,
             fp_served=bool(citations),

@@ -320,3 +320,98 @@ def test_cache_fingerprint_carries_release_version():
         components = pipeline._serving_policy_components("allow", "block")
         assert "release_version" in components
         assert components["release_version"] == "5"
+
+
+# ---------------------------------------------------------------------------
+# P1-6 / P1-7 / P2-30: enforce fails CLOSED on missing or unresolvable evidence
+# ---------------------------------------------------------------------------
+
+
+class _StubRegistry:
+    """Minimal registry stand-in: either resolves or raises."""
+
+    def __init__(self, versions=None, *, error: Exception | None = None):
+        self._versions = versions or {}
+        self._error = error
+        self.calls = 0
+
+    def get_active_version(self, corpus_id, source_identity, fallback_version):
+        self.calls += 1
+        if self._error is not None:
+            raise self._error
+        return self._versions[source_identity]
+
+
+def test_enforce_drops_unstamped_legacy_points():
+    """P1-6: an unstamped point is not evidence that it is current.
+
+    ADR 0001 / docs/runbooks/rollback-release.md promise revocation "instantly
+    cuts points"; that was untrue for legacy points with no
+    source_release_version.
+    """
+    registry = _StubRegistry({"a": 1})
+    docs = [
+        {"id": "stamped", "source_identity": "a", "source_release_version": 1},
+        {"id": "legacy", "source_identity": "a"},
+    ]
+
+    allowed, dropped = filter_by_release(docs, filter_mode="enforce", registry=registry)
+
+    assert [d["id"] for d in allowed] == ["stamped"]
+    assert dropped == 1
+
+
+def test_shadow_keeps_unstamped_points_and_reports_them(caplog):
+    """shadow never changes what is served — it only reports."""
+    registry = _StubRegistry({"a": 1})
+    docs = [{"id": "legacy", "source_identity": "a"}]
+
+    with caplog.at_level(logging.INFO):
+        allowed, dropped = filter_by_release(docs, filter_mode="shadow", registry=registry)
+
+    assert [d["id"] for d in allowed] == ["legacy"]
+    assert dropped == 0
+    assert "would_filter_inactive_release" in caplog.text
+
+
+def test_registry_outage_abstains_in_enforce_instead_of_guessing():
+    """P1-7: a DB blip must not be replaced by the fallback version.
+
+    The fallback either drops most of the corpus (points above it) or serves
+    revoked content (points at it) — neither is an abstain.
+    """
+    import pytest
+
+    from services.qdrant.source_policy import ReleasePolicyUnavailable
+
+    registry = _StubRegistry(error=RuntimeError("db down"))
+    docs = [{"id": "d1", "source_identity": "a", "source_release_version": 1}]
+
+    with pytest.raises(ReleasePolicyUnavailable):
+        filter_by_release(docs, filter_mode="enforce", registry=registry)
+
+
+def test_registry_outage_keeps_hits_in_shadow():
+    """shadow is report-only, so an outage cannot change the served set."""
+    registry = _StubRegistry(error=RuntimeError("db down"))
+    docs = [{"id": "d1", "source_identity": "a", "source_release_version": 1}]
+
+    allowed, dropped = filter_by_release(docs, filter_mode="shadow", registry=registry)
+
+    assert [d["id"] for d in allowed] == ["d1"]
+    assert dropped == 0
+
+
+def test_non_numeric_release_version_does_not_raise_and_fails_closed():
+    """P2-30: one malformed payload used to 500 the whole retrieval call."""
+    registry = _StubRegistry({"a": 1})
+    docs = [
+        {"id": "ok", "source_identity": "a", "source_release_version": "1"},
+        {"id": "garbage", "source_identity": "a", "source_release_version": "not-a-number"},
+        {"id": "bool", "source_identity": "a", "source_release_version": True},
+    ]
+
+    allowed, dropped = filter_by_release(docs, filter_mode="enforce", registry=registry)
+
+    assert [d["id"] for d in allowed] == ["ok"]
+    assert dropped == 2

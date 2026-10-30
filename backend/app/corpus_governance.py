@@ -239,10 +239,15 @@ class SourceAssetManifest:
         if row.status != STATUS_CLEARED:
             return False, f"ineligible_status_{row.status}"
 
-        if content_hash is not None and str(content_hash).strip() != row.content_hash.strip():
+        # Fail closed on missing evidence: a caller that cannot present the content
+        # hash cannot prove the bytes it serves are the bytes that were cleared.
+        if content_hash is None or not str(content_hash).strip():
+            return False, "content_hash_missing"
+        if str(content_hash).strip() != row.content_hash.strip():
             return False, "content_hash_mismatch"
 
-        if row.serving_tier != tier and tier != "*":
+        # No wildcard tier: serving must name the tier the row was cleared for.
+        if row.serving_tier != tier:
             return False, f"tier_mismatch_{row.serving_tier}"
 
         if (

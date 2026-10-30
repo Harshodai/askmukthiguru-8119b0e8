@@ -1,13 +1,13 @@
 ---
 name: building-apps-ai-agents
-description: "Knowledge base from 'Building Applications with AI Agents Designing and Implementing Multiagent Systems (Michael Albada) (z-library.sk, 1lib.sk, z-lib.sk).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
+description: "Knowledge base from 'Building Applications with AI Agents Designing and Implementing Multiagent Systems (Michael Albada).pdf'. Use when referencing concepts, patterns, or frameworks from this book."
 allowed-tools:
   - Read
   - Grep
 argument-hint: [topic or chapter number]
 ---
 
-# Building Applications with AI Agents Designing and Implementing Multiagent Systems (Michael Albada) (z-library.sk, 1lib.sk, z-lib.sk).pdf
+# Building Applications with AI Agents Designing and Implementing Multiagent Systems (Michael Albada).pdf
 
 ## How to Use This Skill
 - **Without arguments** — load core frameworks for reference

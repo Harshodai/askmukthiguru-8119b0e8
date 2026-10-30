@@ -2132,9 +2132,25 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
     # DE-0.3: Read-time release filter & shadow mode
     _filter_mode = getattr(settings, "release_filter_mode", "off").lower()
     if _filter_mode in ("shadow", "enforce"):
-        from services.qdrant.source_policy import filter_by_release
+        from services.qdrant.source_policy import (
+            ReleasePolicyUnavailable,
+            filter_by_release,
+        )
 
-        all_docs, _rel_dropped = filter_by_release(all_docs, filter_mode=_filter_mode)
+        try:
+            all_docs, _rel_dropped = filter_by_release(all_docs, filter_mode=_filter_mode)
+        except ReleasePolicyUnavailable as exc:
+            # Fail closed: an unresolvable release registry cannot be replaced
+            # by a guessed version (that either drops the corpus or serves
+            # revoked content). Serving no document lets the existing
+            # no-coverage path return an honest abstain.
+            logger.error(
+                "Release filter unavailable in %s mode; serving no document: %s",
+                _filter_mode,
+                exc,
+            )
+            all_docs = []
+            _rel_dropped = 0
         if _rel_dropped:
             logger.info(
                 "Release filter removed %d document(s) in %s mode", _rel_dropped, _filter_mode
