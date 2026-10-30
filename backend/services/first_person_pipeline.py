@@ -1647,6 +1647,9 @@ class FirstPersonPipelineResult:
         return data
 
 
+_ENRICH_SLOTS = threading.BoundedSemaphore(8)
+
+
 def _call_with_deadline(fn: Callable[[], Any], *, timeout_s: float) -> Any:
     """Run ``fn`` in a daemon thread and give up after ``timeout_s``.
 
@@ -1655,6 +1658,11 @@ def _call_with_deadline(fn: Callable[[], Any], *, timeout_s: float) -> Any:
     caller raises :class:`TimeoutError` and the abandoned thread is left to die
     on its own socket timeout.
     """
+    # Bounded in-flight workers: a timed-out call keeps its thread until the socket gives
+    # up, so under a slow Qdrant they would pile up (one per context per request). Past
+    # the cap the call is refused at once, and the caller's fail-open path keeps the span.
+    if not _ENRICH_SLOTS.acquire(blocking=False):
+        raise TimeoutError("too many in-flight enrichment calls")
     result: dict[str, Any] = {}
 
     def _run() -> None:
@@ -1662,6 +1670,8 @@ def _call_with_deadline(fn: Callable[[], Any], *, timeout_s: float) -> Any:
             result["value"] = fn()
         except BaseException as exc:  # noqa: BLE001 - re-raised in the caller
             result["error"] = exc
+        finally:
+            _ENRICH_SLOTS.release()
 
     worker = threading.Thread(target=_run, name="fp-enrich-window", daemon=True)
     worker.start()

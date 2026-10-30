@@ -256,3 +256,25 @@ def test_fp_context_store_enrich_to_parent_window() -> None:
     # Non-existent span returns empty list
     not_found = store.enrich_to_parent_window("p1", "non_existent_id", window_size=1)
     assert not_found == []
+
+
+def test_call_with_deadline_refuses_when_too_many_workers_are_stuck():
+    """A slow Qdrant must not pile up abandoned threads: past the cap the call fails fast."""
+    import threading
+
+    import pytest
+
+    from services import first_person_pipeline as fp
+
+    gate = threading.Event()
+    held = []
+    try:
+        for _ in range(8):
+            assert fp._ENRICH_SLOTS.acquire(blocking=False)
+            held.append(1)
+        with pytest.raises(TimeoutError, match="too many"):
+            fp._call_with_deadline(lambda: gate.wait(5), timeout_s=0.05)
+    finally:
+        for _ in held:
+            fp._ENRICH_SLOTS.release()
+        gate.set()

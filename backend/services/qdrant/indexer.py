@@ -46,13 +46,12 @@ def _load_rights_register() -> dict[str, bool]:
     import json
     from pathlib import Path
 
-    possible_paths = [
-        Path("audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json"),
-        Path(__file__).resolve().parents[3]
-        / "audits"
-        / "evidence"
-        / "public_release_phase4_rights_manifest_2026-10-22.json",
-    ]
+    # One pinned path (first_person_serving_contract.RIGHTS_MANIFEST_RELPATH) shared with
+    # the v10 builder, so a re-dated register cannot split the two. Relative first: inside
+    # the image the working directory is /app, where audits/ is mounted.
+    from services.first_person_serving_contract import RIGHTS_MANIFEST_RELPATH, rights_manifest_path
+
+    possible_paths = [Path(RIGHTS_MANIFEST_RELPATH), rights_manifest_path()]
     manifest_path = next((p for p in possible_paths if p.is_file()), None)
     if manifest_path is None:
         # No register at all: nothing is cleared (D2 default). Not cached, so a
