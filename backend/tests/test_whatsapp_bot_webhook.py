@@ -117,7 +117,11 @@ def test_outbound_accept_is_recorded_but_not_delivery(client):
     with patch("requests.post", return_value=_ok_post()):
         assert wa_bot.push_meta_message("123456789", PHONE, "Peace") is True
     row = _rows("wa_outbound")[0]
-    assert (row["provider_msg_id"], row["status"], row["mode"]) == ("wamid.OUT1", "accepted", "text")
+    assert (row["provider_msg_id"], row["status"], row["mode"]) == (
+        "wamid.OUT1",
+        "accepted",
+        "text",
+    )
 
 
 def test_status_callbacks_advance_and_never_regress(client):
@@ -146,7 +150,11 @@ def test_closed_window_blocks_free_form(client):
         assert wa_bot._deliver_outbound("meta", PHONE, "late reply", {}) is False
     push.assert_not_called()
     row = _rows("wa_outbound")[0]
-    assert (row["mode"], row["status"], row["error"]) == ("blocked_window", "failed", "window_closed")
+    assert (row["mode"], row["status"], row["error"]) == (
+        "blocked_window",
+        "failed",
+        "window_closed",
+    )
 
 
 def test_closed_window_uses_approved_template_only(client, monkeypatch):
