@@ -2476,7 +2476,13 @@ async def triage_attribution_span(
         "decision": decision_value,
         "assigned_guru": payload.assigned_guru,
         "interlocutor_role": payload.interlocutor_role,
-        "message": f"Span {span_id[:8]} triaged as {payload.action} ({decision_value})",
+        # Honest status: this endpoint only logs the reviewer's decision. Nothing is
+        # written to the corpus or a decision store, so it must not read as "applied".
+        "persisted": False,
+        "message": (
+            f"Span {span_id[:8]} decision logged as {payload.action} ({decision_value}); "
+            "NOT applied to the corpus."
+        ),
     }
 
 
@@ -2499,7 +2505,11 @@ async def batch_triage_video(
         "video_id": video_id,
         "action": payload.action,
         "affected_spans_count": len(payload.span_ids),
-        "message": f"Batch action {payload.action} successfully applied to {len(payload.span_ids)} spans in video {video_id}",
+        "persisted": False,
+        "message": (
+            f"Batch action {payload.action} for {len(payload.span_ids)} spans in video "
+            f"{video_id} logged; NOT applied to the corpus."
+        ),
     }
 
 

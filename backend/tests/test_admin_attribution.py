@@ -70,6 +70,8 @@ def test_triage_attribution_span():
     assert res.status_code == 200
     data = res.json()
     assert data["ok"] is True
+    assert data["persisted"] is False  # logged only, never claimed as applied
+    assert "NOT applied" in data["message"]
     assert data["decision"] == "mark_unknown"
 
 
@@ -84,4 +86,6 @@ def test_batch_triage_video():
     assert res.status_code == 200
     data = res.json()
     assert data["ok"] is True
+    assert data["persisted"] is False  # logged only, never claimed as applied
+    assert "NOT applied" in data["message"]
     assert data["affected_spans_count"] == 1
