@@ -607,6 +607,12 @@ def main() -> int:
         "--limit", type=int, default=0, help="Limit number of videos to process (0 = all)"
     )
     parser.add_argument(
+        "--only-videos",
+        default="",
+        help="Comma-separated video ids: build only these (still skips videos already "
+        "in the target collection, so a run is purely additive).",
+    )
+    parser.add_argument(
         "--wav-dir",
         default=os.environ.get("WAV_DIR", ""),
         help="WAV archive directory (default: $WAV_DIR)",
@@ -780,6 +786,18 @@ def main() -> int:
         p for p in all_transcripts if p.stem not in existing_videos and p.stem in all_wavs
     ]
     logger.info("Found %d missing candidate videos with WAV audio.", len(missing_candidates))
+
+    only = {v.strip() for v in str(args.only_videos or "").split(",") if v.strip()}
+    if only:
+        unknown = only - {p.stem for p in missing_candidates}
+        if unknown:
+            logger.warning(
+                "--only-videos ids that are not buildable additions (already indexed, no "
+                "transcript, or no WAV): %s",
+                sorted(unknown),
+            )
+        missing_candidates = [p for p in missing_candidates if p.stem in only]
+        logger.info("Restricted to --only-videos: %d video(s).", len(missing_candidates))
 
     if args.limit > 0:
         missing_candidates = missing_candidates[: args.limit]

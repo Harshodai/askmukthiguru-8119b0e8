@@ -554,6 +554,7 @@ def _filter_entries_by_manifest(
             corpus_version=corpus_ver,
             content_hash=content_hash,
             tier=tier,
+            require_content_hash=False,
         )
         if not eligible and reason == "unmanifested_source":
             vid = _video_id_from_source(str(e.get("source", "")))
@@ -563,6 +564,7 @@ def _filter_entries_by_manifest(
                     corpus_version=corpus_ver,
                     content_hash=content_hash,
                     tier=tier,
+                    require_content_hash=False,
                 )
 
         if eligible:
@@ -726,6 +728,7 @@ def match_okf_entries(
                 corpus_version=corpus_ver,
                 content_hash=content_hash,
                 tier=tier,
+                require_content_hash=False,
             )
             if not eligible and reason == "unmanifested_source":
                 vid = _video_id_from_source(str(e.get("source", "")))
@@ -735,6 +738,7 @@ def match_okf_entries(
                         corpus_version=corpus_ver,
                         content_hash=content_hash,
                         tier=tier,
+                        require_content_hash=False,
                     )
             if not eligible:
                 continue

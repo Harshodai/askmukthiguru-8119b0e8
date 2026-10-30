@@ -1,6 +1,40 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 30, 2026 — v10-only run: flags, caches, eval inputs, serializer
+
+### L-EFFECTIVE-FLAGS-1. Numbers labelled "v10" were legacy v8 numbers, because compose pinned the harness flag off.
+- **What:** `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false` is set in `backend/docker-compose.yml`, so the rebuilt stack served only `first_person_v8`. Probes and the 8-of-8 live eval were first read as "v10 harness plus v8 fallback"; the first teaching answer cited a Curly Tales v8 clip, which exposed it.
+- **Fix:** read the effective settings from the running container before quoting any result; label every result with the flags that were active. `first_person_context_terminal_enabled` (default off) makes the harness terminal so v8 cannot serve when v10-only is wanted.
+- **Check:** `docker exec mukthiguru-backend python -c "from app.config import settings as s; print(s.first_person_context_harness_enabled, s.first_person_context_terminal_enabled, s.first_person_context_collection)"`.
+- **Pin:** `backend/tests/test_first_person_context_serving.py::test_terminal_flag_blocks_legacy_fallthrough`.
+
+### L-FLUSH-AFTER-RECREATE-1. A cache flush that runs before the container recreate proves nothing about the new container.
+- **What:** the flush ran, then the backend was recreated; startup warm-up can refill caches.
+- **Fix/Rule:** order is recreate, wait for health, then `make flush-cache`, then `make verify-cache-empty` (exit 0 only).
+
+### L-EVAL-INPUT-PATH-1. An eval that reads inputs from a path a later commit removed crashes late and looks like a product failure.
+- **What:** `first_person_live_eval.py` reads the bake-off `videos.json`, which pointed three videos at the removed `scripts/ingestion/corpus/` folder.
+- **Fix:** worked around with a scratch copy of the bake-off folder and a rebuilt transcript set; the script itself still fails on those paths (UNPROVEN fix in the script). A pinned eval must check every input exists before it sends the first request.
+- **Also:** the legacy route cannot answer the frozen bake-off set on this stack (v8 holds none of its 8 videos), so its 0.0 is structural, not a regression. Name which scoring rule each number uses.
+
+### L-SERIALIZER-PARITY-1. Moving platform copy out of the answer body is invisible until every serializer carries the new field.
+- **What:** `safety_notices` reached the SSE done metadata but the queued/sync serializer in `app/orchestrator.py` built its `ChatResponse` without it, so framing, boundaries and the support line vanished from `/api/chat` job results; stage-level tests stayed green.
+- **Fix:** field set in the live serializer and in `/api/chat/v2`; found only by a live probe.
+- **Pin:** `backend/tests/test_safety_notices_wire.py` (AST guard: every keyword-built `ChatResponse` sets `safety_notices`).
+
+### L-SESSION-REUSE-1. Reusing one anonymous session for several eval questions is only safe if sessions carry no memory.
+- **What:** to stay under the session endpoint's rate limit the runner reuses a session for 4 questions (quota is 5). Anonymous identities are excluded from memory read and write (`graph_stage.py`, `glue_stages.py`), and each request sends `messages: []`.
+- **Rule:** label the run "4 questions per session"; confirm with a fresh-vs-reused spot check before quoting a number.
+
+### L-RATE-LIMIT-NAMES-1. "The 20 per minute limit" was three different limits.
+- **What:** `chat_rate_limit` is 20/minute (app limiter), `openrouter_rpm_limit` is 120 in the local setup, `first_person_rate_limit` is 120/minute. What slowed the eval was creating a session per question.
+- **Rule:** read the limit from the running container before blaming the provider; do not raise a limit to speed a test.
+
+### L-NO-UNREQUESTED-DELETES-1. A plan step that deletes collections was proposed without being asked for.
+- **What:** a "remove the other collections" instruction was read as a delete plan. Nothing was deleted; two snapshots were taken (`first_person_v8`, `first_person_v10`, local Qdrant only).
+- **Rule:** snapshot-and-restore is the default; deletion needs a typed confirmation naming the collections.
+
 ## Oct 28, 2026 — Phase 7: Lifecycle, observability, runbooks, ADRs & contract
 
 ### L-RETENTION-LIFECYCLE-1. An unbounded quality gate rejection ledger or staging queue creates a silent storage leak; retention policies must be tested end-to-end from day one.

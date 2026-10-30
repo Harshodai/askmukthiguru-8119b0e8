@@ -30,3 +30,17 @@ def test_blocking_release_grade_codes_exclude_the_duration_band():
     assert "speaker_verified_without_method" in builder.RELEASE_GRADE_BLOCKING
     assert "boundary_status_verified_with_defects" in builder.RELEASE_GRADE_BLOCKING
     assert not any(code.startswith("duration") for code in builder.RELEASE_GRADE_BLOCKING)
+
+
+def test_only_videos_restricts_additions_before_the_limit_and_never_widens():
+    """--only-videos narrows the already-missing candidates; it cannot add a video
+    that is already indexed (the run stays purely additive)."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "scripts/ops/build_full_corpus_v10.py").read_text()
+    assert '"--only-videos"' in src
+    filt = src.index("p.stem in only")
+    limit = src.index("if args.limit > 0:")
+    built_from = src.index("missing_candidates = [\n        p for p in all_transcripts if p.stem not in existing_videos")
+    # the filter works on the list that already excludes indexed videos
+    assert built_from < filt < limit

@@ -217,6 +217,7 @@ class SourceAssetManifest:
         corpus_version: str,
         content_hash: Optional[str] = None,
         tier: str = "general",
+        require_content_hash: bool = True,
     ) -> tuple[bool, str]:
         """Check whether a source asset is eligible for serving in the specified tier.
 
@@ -241,9 +242,14 @@ class SourceAssetManifest:
 
         # Fail closed on missing evidence: a caller that cannot present the content
         # hash cannot prove the bytes it serves are the bytes that were cleared.
-        if content_hash is None or not str(content_hash).strip():
+        # ``require_content_hash=False`` is for callers that hold a *derived* artifact
+        # (an OKF summary) and so cannot present the source asset's bytes; clearance
+        # then rests on the asset's status and tier only. A hash that IS supplied is
+        # always compared.
+        have_hash = content_hash is not None and bool(str(content_hash).strip())
+        if not have_hash and require_content_hash:
             return False, "content_hash_missing"
-        if str(content_hash).strip() != row.content_hash.strip():
+        if have_hash and str(content_hash).strip() != row.content_hash.strip():
             return False, "content_hash_mismatch"
 
         # No wildcard tier: serving must name the tier the row was cleared for.
