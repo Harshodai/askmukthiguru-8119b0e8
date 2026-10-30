@@ -44,3 +44,17 @@ def test_only_videos_restricts_additions_before_the_limit_and_never_widens():
     built_from = src.index("missing_candidates = [\n        p for p in all_transcripts if p.stem not in existing_videos")
     # the filter works on the list that already excludes indexed videos
     assert built_from < filt < limit
+
+
+def test_words_from_timed_file_requires_a_time_on_every_word(tmp_path):
+    """--text-from-words never synthesises timings: a word without start/end -> None."""
+    import json
+
+    good = [{"w": "Hello", "start": 0.0, "end": 0.4}, {"w": "world.", "start": 0.5, "end": 1.0}]
+    (tmp_path / "vidA.json").write_text(json.dumps(good))
+    words, times, sha = builder.words_from_timed_file("vidA", [tmp_path])
+    assert words == ["Hello", "world."] and times == [(0.0, 0.4), (0.5, 1.0)] and len(sha) == 64
+
+    (tmp_path / "vidB.json").write_text(json.dumps([{"w": "no", "start": 0.0}]))
+    assert builder.words_from_timed_file("vidB", [tmp_path]) is None
+    assert builder.words_from_timed_file("missing", [tmp_path]) is None

@@ -168,8 +168,12 @@ def load_calibration(path: Path) -> tuple[float, float]:
             f"Speaker calibration {path} reports calibration_available=false "
             "(too few held-out impostor trials). Every span would stay unverified."
         )
-    cosine_floor = data.get("cosine_floor")
-    margin_threshold = data.get("threshold", data.get("margin_threshold"))
+    # The phase-2 certification artifact nests its measured floors under "thresholds".
+    floors = data.get("thresholds") if isinstance(data.get("thresholds"), dict) else {}
+    cosine_floor = data.get("cosine_floor", floors.get("cosine_floor"))
+    margin_threshold = data.get(
+        "threshold", data.get("margin_threshold", floors.get("margin_threshold"))
+    )
     for name, value in (("cosine_floor", cosine_floor), ("margin_threshold", margin_threshold)):
         if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
             raise RuntimeError(f"Speaker calibration {path} has no usable {name}: {value!r}")
@@ -435,6 +439,42 @@ def _align_words_to_timings(
     return out
 
 
+def words_from_timed_file(
+    video_id: str, tb_dirs: list[Path]
+) -> tuple[list[str], list[tuple[float, float]], str] | None:
+    """Words, their (start, end) seconds and the file sha256, straight from a timed
+    word file; None when absent or any word lacks a time.
+
+    Opt-in route (``--text-from-words``) for a video whose markdown transcript is
+    missing, garbled or unalignable. The text is the voted ASR word stream itself, so
+    text and times always come from the same file; nothing is synthesised.
+    """
+    for tb_dir in tb_dirs:
+        candidate = tb_dir / f"{video_id}.json"
+        if not candidate.is_file():
+            continue
+        raw = candidate.read_bytes()
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except Exception:
+            continue
+        if not isinstance(data, list) or not data:
+            continue
+        words: list[str] = []
+        times: list[tuple[float, float]] = []
+        for row in data:
+            if not isinstance(row, dict) or "start" not in row or "end" not in row:
+                return None
+            token = str(row.get("w", "")).strip()
+            if not token:
+                continue
+            words.append(token)
+            times.append((float(row["start"]), float(row["end"])))
+        if words:
+            return words, times, hashlib.sha256(raw).hexdigest()
+    return None
+
+
 def get_word_timings(
     video_id: str, words: list[str], tb_dirs: list[Path]
 ) -> list[tuple[float, float]] | None:
@@ -628,6 +668,19 @@ def main() -> int:
         default=os.environ.get("FP_CONTEXT_CACHE", str(_REPO_ROOT / ".work/fp_context/speaker")),
     )
     parser.add_argument(
+        "--text-from-words",
+        action="store_true",
+        help="Only for videos that would be quarantined as no_word_timings: take the span "
+        "text from the timed word file itself instead of the markdown transcript. "
+        "Off by default; certified behaviour is unchanged.",
+    )
+    parser.add_argument(
+        "--references-npz",
+        default="",
+        help="Guru reference centroids saved by regenerate_v10_span_ecapa_verdicts "
+        "--out-references (human-anchor based, non-circular). Preferred over label centroids.",
+    )
+    parser.add_argument(
         "--allow-label-centroids",
         action="store_true",
         help="Build voice centroids from payload speaker_verified labels. CIRCULAR; "
@@ -809,9 +862,13 @@ def main() -> int:
 
     # Load ECAPA centroids and embedder
     logger.info("Computing ECAPA teacher voice centroids...")
-    centroids = compute_centroids(
-        Path(args.centroid_points), cache_dir, allow_label_derived=args.allow_label_centroids
-    )
+    if args.references_npz:
+        with np.load(Path(args.references_npz)) as refs:
+            centroids = {str(k).lower(): np.asarray(refs[k], dtype=np.float32) for k in refs.files}
+    else:
+        centroids = compute_centroids(
+            Path(args.centroid_points), cache_dir, allow_label_derived=args.allow_label_centroids
+        )
     logger.info("Centroids ready for: %s", list(centroids.keys()))
 
     logger.info("Loading ECAPA speaker recognition model...")
@@ -859,6 +916,16 @@ def main() -> int:
 
         # 2. Word timings & sentence slicing
         timings = get_word_timings(video_id, words, tb_dirs)
+        if timings is None and args.text_from_words:
+            from_words = words_from_timed_file(video_id, tb_dirs)
+            if from_words is not None:
+                words, timings, artifact_sha256 = from_words
+                transcript_hash = hashlib.sha256(" ".join(words).encode("utf-8")).hexdigest()
+                logger.warning(
+                    "Video %s: markdown transcript unusable for alignment; text and times "
+                    "taken from the timed word file (--text-from-words)",
+                    video_id,
+                )
         if timings is None:
             quarantined["no_word_timings"] += 1
             logger.info("Video %s: no reliable word timings -> skipped", video_id)
