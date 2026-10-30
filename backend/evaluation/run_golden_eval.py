@@ -214,7 +214,9 @@ def generate_release_artifact(
     artifact = {
         "timestamp": timestamp,
         "release_verdict": (
-            "PASS"
+            "UNMEASURED"
+            if report.get("judge_metrics_pass") is None
+            else "PASS"
             if report.get("judge_metrics_pass")
             and report.get("diversity_pass")
             and report.get("questions_failed", 0) == 0

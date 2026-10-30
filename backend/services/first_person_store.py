@@ -506,6 +506,8 @@ class FirstPersonStore:
                 "layer_sha256",
                 "caption_status",
                 "speaker_verified",
+                # Spoken-voice proof; without it speaker_verified reads as unverified.
+                "voice_verification_method",
                 # I2 context & OKF concept tags (separate from pure passage_dense vector)
                 "discourse_context",
                 "tags",

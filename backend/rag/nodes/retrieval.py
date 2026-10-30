@@ -2137,8 +2137,23 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
             filter_by_release,
         )
 
+        def _is_qdrant_point(d: Any) -> bool:
+            # Only Qdrant points carry a release stamp. OKF / GraphRAG / web
+            # documents have no release concept, so "missing version" must not
+            # drop them (the searcher already filtered the vector channel).
+            if not isinstance(d, dict):
+                return True
+            payload = d.get("metadata") if isinstance(d.get("metadata"), dict) else d
+            return any(
+                k in payload
+                for k in ("chunk_id", "domain_rights_status", "source_release_version")
+            )
+
         try:
-            all_docs, _rel_dropped = filter_by_release(all_docs, filter_mode=_filter_mode)
+            _point_docs = [d for d in all_docs if _is_qdrant_point(d)]
+            _kept_points, _rel_dropped = filter_by_release(_point_docs, filter_mode=_filter_mode)
+            _kept_ids = {id(d) for d in _kept_points}
+            all_docs = [d for d in all_docs if not _is_qdrant_point(d) or id(d) in _kept_ids]
         except ReleasePolicyUnavailable as exc:
             # Fail closed: an unresolvable release registry cannot be replaced
             # by a guessed version (that either drops the corpus or serves

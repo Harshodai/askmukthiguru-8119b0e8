@@ -411,7 +411,10 @@ class FirstPersonContextStore:
             # raises the contract validator ("hit_span_ids must all be present in
             # spans"), which made an ordinary not-found indistinguishable from a
             # real index defect.
-            parent_record = self._get_record(parent_point_id(parent_unit_id))
+            try:
+                parent_record = self._get_record(parent_point_id(parent_unit_id))
+            except Exception as exc:
+                raise FirstPersonContextStoreError(f"parent read failed: {exc}") from exc
             if parent_record is None:
                 raise FirstPersonContextStoreError("parent record missing")
             try:

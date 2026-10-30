@@ -934,14 +934,29 @@ class FirstPersonBridgeStage(Stage):
             if text:
                 safety_notices.append(text)
 
+        # Structure copy the evidence body no longer carries: the weak-match
+        # "related, not a direct answer" label and the two-recording note. Rendered
+        # by the client in the same block as the other platform notices.
+        for _structure_copy in (
+            getattr(result, "related_clips_heading", None),
+            getattr(result, "second_quote_note", None),
+        ):
+            _text = str(_structure_copy or "").strip()
+            if _text and _text not in safety_notices:
+                safety_notices.append(_text)
+
         if distress_compassion:
             # Distress lane invariant: every distress answer ends with a human
             # support line, unless a helpline block is already present.
             from services.crisis_helplines import ensure_support_line
 
-            support_line = ensure_support_line("")
-            if support_line and not any(support_line in n for n in safety_notices):
-                safety_notices.append(support_line)
+            # ensure_support_line returns its input unchanged when a helpline
+            # block (Tele-MANAS / 14416 / the line itself) is already present, so
+            # run it over the notices already collected, not over "".
+            _joined = "\n\n".join(safety_notices)
+            _with_support = ensure_support_line(_joined)
+            if _with_support != _joined:
+                safety_notices.append(ensure_support_line(""))
             # Distress-lane parity, defense-in-depth: the graph's distress handler
             # returns straight to END, so it re-runs this persona/constitutional
             # check itself (rag/nodes/intent.py::handle_distress). The bridge
@@ -970,15 +985,20 @@ class FirstPersonBridgeStage(Stage):
             )
             if safety_notices:
                 # Notices carry no quotes: each block is pure glue.
-                safety_notices = [
-                    await _translate_glue_only(
-                        notice,
-                        [],
-                        container,
-                        str(getattr(ctx, "preferred_lang", "") or ""),
+                # One round trip, not one serial 5 s fail-open call per notice.
+                safety_notices = list(
+                    await asyncio.gather(
+                        *(
+                            _translate_glue_only(
+                                notice,
+                                [],
+                                container,
+                                str(getattr(ctx, "preferred_lang", "") or ""),
+                            )
+                            for notice in safety_notices
+                        )
                     )
-                    for notice in safety_notices
-                ]
+                )
 
         record_routing_decision(
             ctx,

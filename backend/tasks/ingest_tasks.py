@@ -611,6 +611,10 @@ def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> li
 
     swept_job_ids = []
     try:
+        # "Z" form, not isoformat()'s "+00:00": an unescaped "+" inside a PostgREST
+        # `or=` expression decodes as a space and the request is rejected (the
+        # outer except would then turn that into a silent no-op sweep).
+        cutoff_z = cutoff.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         # Running/processing jobs with a stale heartbeat, OR a NULL heartbeat
         # (worker died before its first beat; `NULL < cutoff` is NULL, so a plain
         # .lt() never sees it) whose created_at is itself older than the cutoff.
@@ -619,8 +623,8 @@ def sweep_stale_ingest_jobs(timeout_minutes: int = 15, client: Any = None) -> li
             .select("id, status, heartbeat_at, started_at, created_at")
             .in_("status", ["running", "processing"])
             .or_(
-                f"heartbeat_at.lt.{cutoff_iso},"
-                f"and(heartbeat_at.is.null,created_at.lt.{cutoff_iso})"
+                f"heartbeat_at.lt.{cutoff_z},"
+                f"and(heartbeat_at.is.null,created_at.lt.{cutoff_z})"
             )
             .execute()
         )
