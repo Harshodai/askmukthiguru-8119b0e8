@@ -35,6 +35,23 @@
 - **What:** a "remove the other collections" instruction was read as a delete plan. Nothing was deleted; two snapshots were taken (`first_person_v8`, `first_person_v10`, local Qdrant only).
 - **Rule:** snapshot-and-restore is the default; deletion needs a typed confirmation naming the collections.
 
+## Oct 30, 2026 — admin video approval
+
+### L-HUMAN-DECISION-SEPARATE-1. A human review decision must live apart from the machine-measured evidence it reviews, and may only tighten serving.
+- **What:** the owner needs to say which videos reach users. Writing that into `speaker_verified` would erase the difference between "the voice model measured this" and "a person said so", and an "approved" flag that could override a failed gate would loosen safety.
+- **Fix:** `services/first_person_video_decisions.py` keeps `admin_approved`, `human_speaker_check`, `grade`, `notes` in its own file with an audit log (who, when, why, before, after). A video is blocked when `admin_approved` is false or `human_speaker_check` is `rejected`. Approval and "confirmed" never unblock anything. No decision keeps today's behaviour. An unreadable decisions file blocks every video (fail closed).
+- **Rule:** one more serve-time check may be added; none may be relaxed by a human flag. Hook the single choke point (`_passes_integrity_gate`) plus every cache re-check (`points_servable`, `_points_servable_cached` keyed by `decisions_fingerprint()`), not just retrieval.
+- **Pin:** `backend/tests/test_fp_video_decisions.py`, `backend/tests/test_admin_video_review_api.py`, `backend/tests/test_fp_video_review_guards.py`.
+
+### L-ADMIN-TRIAGE-NOOP-1. UNVERIFIED in a live run: the "Speaker & Dialogue" triage endpoints do not save anything.
+- **What:** `POST /api/admin/attribution/span/{id}/triage` and `.../batch-triage` (`backend/app/api/admin.py`) only log and return `ok: true`; the decision read back by `_load_speaker_decisions` comes from a markdown file in `audits/evidence/`. A reviewer who clicks a triage button sees success and nothing changes. Found by code reading only.
+- **Rule:** an admin write endpoint must have a test that reads the change back. Not fixed in this PR.
+
+### L-ADMIN-RATE-LIMIT-1. UNVERIFIED on the local stack: `admin_rate_limit` defaults to `5/minute`, per client IP, across all of `/api/admin/`.
+- **What:** `Settings.admin_rate_limit = "5/minute"` (`backend/app/config.py`) feeds `admin_rate_limit_middleware`. One admin page load plus one save is already 3 to 4 requests. Whether the local `backend/.env` overrides it is not visible from the repo.
+- **Rule:** set `ADMIN_RATE_LIMIT` (for example `60/minute`) in the local `.env` before relying on any multi-call admin page.
+
+
 ## Oct 28, 2026 — Phase 7: Lifecycle, observability, runbooks, ADRs & contract
 
 ### L-RETENTION-LIFECYCLE-1. An unbounded quality gate rejection ledger or staging queue creates a silent storage leak; retention policies must be tested end-to-end from day one.

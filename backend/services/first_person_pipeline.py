@@ -62,6 +62,7 @@ from services.first_person_store import (
     BLOCKED_PROMISE_POINT_IDS,
     FirstPersonStore,
 )
+from services.first_person_video_decisions import decisions_fingerprint, video_is_blocked
 from services.memory.okf_store import match_okf_entries
 from services.openrouter_service import ProviderRefusalError
 from services.quote_fidelity import (
@@ -343,6 +344,17 @@ def _passes_integrity_gate(
         logger.warning(
             "[FirstPersonPipeline] Clip %s rejected by integrity gate: in BLOCKED_PROMISE_POINT_IDS (H4)",
             point_id_str or vid_str,
+        )
+        return False
+
+    # Owner decision (admin video-approval page): a video the owner rejected, or whose
+    # speaker the owner marked "rejected", is never served. Tighten-only; no decision
+    # means no change. Fails closed if the decisions file is invalid.
+    if video_is_blocked(vid_str):
+        logger.warning(
+            "[FirstPersonPipeline] Clip %s rejected by integrity gate: video %s blocked by an admin decision",
+            point_id_str or vid_str,
+            vid_str,
         )
         return False
 
@@ -1991,6 +2003,7 @@ class FirstPersonPipeline:
         self._weaver = weaver or QuoteWeaverService(llm_service=llm_service)
         self._llm_service = llm_service
         self._servable_cache: dict[str, tuple[bool, float]] = {}
+        self._servable_decisions_fp: str = decisions_fingerprint()
         # B4 serving contract: computed lazily, cached per pipeline instance.
         self._serving_contract_error_cache: Any = _CONTRACT_UNSET
         self._collection_contract_cache: Optional[dict[str, str]] = None
@@ -2631,6 +2644,12 @@ class FirstPersonPipeline:
         and the exact cache would never serve it.
         """
         now = time.time()
+        # An admin video decision must take effect on the next cache hit, not after the
+        # 5-minute TTL: drop every cached verdict when the decisions file changes.
+        fingerprint = decisions_fingerprint()
+        if fingerprint != getattr(self, "_servable_decisions_fp", None):
+            self._servable_cache = {}
+            self._servable_decisions_fp = fingerprint
         # Clean expired entries if cache grows
         if len(self._servable_cache) > 2000:
             self._servable_cache = {k: v for k, v in self._servable_cache.items() if v[1] > now}

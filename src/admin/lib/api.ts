@@ -27,6 +27,12 @@ import type {
   AttributionQueueItem,
   AttributionVideoDetail,
   AttributionTriagePayload,
+  VideoReviewList,
+  VideoReviewFilters,
+  VideoReviewRow,
+  VideoAuditEntry,
+  VideoDecisionPayload,
+  VideoHumanDecision,
 } from '@/admin/types';
 import * as db from './mockData';
 
@@ -914,4 +920,71 @@ export async function batchTriageVideo(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ video_id: videoId, action, span_ids: spanIds, notes }),
   });
+}
+
+// ── First-person video approval ────────────────────────────────────────────
+// Writes need a short-lived CSRF token (bound to the admin's user id) and surface the
+// server's validation message, which fetchWithAuth's generic error text would hide.
+const VIDEO_ADMIN = '/api/admin/fp-videos';
+let videoCsrf: { token: string; fetchedAt: number } | null = null;
+const VIDEO_CSRF_MAX_AGE_MS = 50 * 60 * 1000; // server TTL is 60 min
+
+async function getVideoCsrfToken(force = false): Promise<string> {
+  if (!force && videoCsrf && Date.now() - videoCsrf.fetchedAt < VIDEO_CSRF_MAX_AGE_MS) {
+    return videoCsrf.token;
+  }
+  const res = await fetchWithAuth(`${VIDEO_ADMIN}/csrf`);
+  videoCsrf = { token: String(res.token), fetchedAt: Date.now() };
+  return videoCsrf.token;
+}
+
+export async function listVideoReview(filters: VideoReviewFilters = {}): Promise<VideoReviewList> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value === undefined || value === '' || value === null) continue;
+    params.set(key, String(value));
+  }
+  const qs = params.toString();
+  return fetchWithAuth(`${VIDEO_ADMIN}${qs ? `?${qs}` : ''}`);
+}
+
+export async function getVideoReview(
+  videoId: string,
+): Promise<{ video: VideoReviewRow; audit: VideoAuditEntry[] }> {
+  return fetchWithAuth(`${VIDEO_ADMIN}/${encodeURIComponent(videoId)}`);
+}
+
+export async function saveVideoDecision(
+  videoId: string,
+  payload: VideoDecisionPayload,
+): Promise<{ ok: boolean; decision: VideoHumanDecision | null; blocks_serving: boolean }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const send = async (token: string) =>
+    fetch(`${BACKEND_URL}${VIDEO_ADMIN}/${encodeURIComponent(videoId)}`, {
+      method: 'PUT',
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': token,
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+  let response = await send(await getVideoCsrfToken());
+  if (response.status === 403) {
+    // The token may simply have expired; fetch a fresh one once before giving up.
+    response = await send(await getVideoCsrfToken(true));
+  }
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === 'string') detail = body.detail;
+      else if (Array.isArray(body?.detail)) detail = body.detail.map((d: { msg?: string }) => d.msg).join('; ');
+    } catch {
+      /* keep the status text */
+    }
+    throw new Error(response.status === 403 ? 'Admin access denied. Verify your role and MFA.' : detail);
+  }
+  return response.json();
 }

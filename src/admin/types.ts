@@ -497,3 +497,92 @@ export interface AttributionTriagePayload {
   interlocutor_role?: string;
   notes?: string;
 }
+
+// ── First-person video approval ──────────────────────────────────────────────
+export type VideoGrade = "A" | "B" | "C" | "D" | "F";
+export type HumanSpeakerCheck = "confirmed" | "rejected";
+export type MachineSpeakerStatus = "none" | "partial" | "full" | "n/a";
+export type VideoApprovalState = "approved" | "rejected" | "undecided";
+
+export interface VideoHumanDecision {
+  video_id: string;
+  admin_approved: boolean | null;
+  human_speaker_check: HumanSpeakerCheck | null;
+  grade: VideoGrade | null;
+  notes: string | null;
+  updated_by: string;
+  updated_at: string;
+  reason: string;
+}
+
+export interface VideoReviewRow {
+  video_id: string;
+  title: string;
+  channel: string;
+  youtube_url: string;
+  in_v10: boolean;
+  status_note: string;
+  /** Machine-measured evidence. Read-only: this page never writes it. */
+  machine: {
+    source: "live" | "inventory" | "decision_only";
+    child_spans: number;
+    speaker_verified_spans: number;
+    spans_with_voice_method: number;
+    min_window_cosine: number | null;
+    speaker_status: MachineSpeakerStatus;
+    guru_ids: string[];
+  };
+  decision: VideoHumanDecision | null;
+  approval_state: VideoApprovalState;
+  serving: "blocked_by_admin" | "gates_apply" | "not_in_v10";
+}
+
+export interface VideoReviewSummary {
+  videos: number;
+  in_v10: number;
+  missing_in_v10: number;
+  approved: number;
+  rejected: number;
+  undecided: number;
+  blocked_by_admin: number;
+  machine_speaker: Record<MachineSpeakerStatus, number>;
+}
+
+export interface VideoReviewList {
+  total: number;
+  limit: number;
+  offset: number;
+  rows: VideoReviewRow[];
+  summary: VideoReviewSummary;
+  channels: string[];
+  live: boolean;
+  collection: string;
+}
+
+export interface VideoReviewFilters {
+  q?: string;
+  channel?: string;
+  verified?: Exclude<MachineSpeakerStatus, "n/a">;
+  approved?: VideoApprovalState;
+  in_v10?: boolean;
+  limit?: number;
+  offset?: number;
+  refresh?: boolean;
+}
+
+export interface VideoAuditEntry {
+  ts: string;
+  actor: string;
+  video_id: string;
+  reason: string;
+  before: VideoHumanDecision | null;
+  after: VideoHumanDecision | null;
+}
+
+export interface VideoDecisionPayload {
+  admin_approved: boolean | null;
+  human_speaker_check: HumanSpeakerCheck | null;
+  grade: VideoGrade | null;
+  notes: string | null;
+  reason: string | null;
+}

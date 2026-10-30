@@ -101,6 +101,7 @@ let CachePage: ComponentType = NoopPage;
 let RoutingPage: ComponentType = NoopPage;
 let ClipReportsPage: ComponentType = NoopPage;
 let SpeakerAttributionPage: ComponentType = NoopPage;
+let VideoApprovalPage: ComponentType = NoopPage;
 let ObservabilityDashboard: ComponentType = NoopPage;
 
 
@@ -134,6 +135,7 @@ if (ADMIN_ENABLED) {
   RoutingPage = lazyWithRetry(() => import("./admin/pages/RoutingPage"));
   ClipReportsPage = lazyWithRetry(() => import("./admin/pages/ClipReportsPage"));
   SpeakerAttributionPage = lazyWithRetry(() => import("./admin/pages/SpeakerAttributionPage"));
+  VideoApprovalPage = lazyWithRetry(() => import("./admin/pages/VideoApprovalPage"));
   ObservabilityDashboard = lazyWithRetry(() => import("./admin/components/ObservabilityDashboard").then(m => ({ default: m.ObservabilityDashboard })));
 }
 
@@ -297,10 +299,12 @@ const App = () => {
                   <Route path="ingestion" element={<AdminRoute><GroupedPage tabs={[
                     { id: 'ingestion', label: 'Pipeline', Component: IngestionPage },
                     { id: 'attribution', label: 'Speaker & Dialogue', Component: SpeakerAttributionPage },
+                    { id: 'video-approval', label: 'Video Approval', Component: VideoApprovalPage },
                     { id: 'queue', label: 'Queue', Component: JobsPage },
                     { id: 'cache', label: 'Cache', Component: CachePage },
                   ]} /></AdminRoute>} />
                   <Route path="attribution" element={<Navigate to="/admin/ingestion?tab=attribution" replace />} />
+                  <Route path="video-approval" element={<Navigate to="/admin/ingestion?tab=video-approval" replace />} />
                   <Route path="queue" element={<Navigate to="/admin/ingestion?tab=queue" replace />} />
                   <Route path="cache" element={<Navigate to="/admin/ingestion?tab=cache" replace />} />
 
