@@ -845,6 +845,9 @@ async def lifespan(app: FastAPI):
                 getattr(settings, "first_person_context_harness_enabled", False)
             ),
             legacy_route_enabled=bool(getattr(settings, "first_person_route_enabled", True)),
+            context_terminal_enabled=(
+                getattr(settings, "first_person_context_terminal_enabled", False) is True
+            ),
         )
     except Exception as exc:  # noqa: BLE001 - a broken contract must fail closed
         logger.error("Lifespan: first-person serving contract unreadable: %s", exc)

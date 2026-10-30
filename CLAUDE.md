@@ -29,6 +29,7 @@ Truth anchors: this section and `docs/architecture/first-person-path-to-prod.md`
 22. Answerability gate covers every served clip; gate, rerank and quote weaver use `run_llm_coroutine`, never `asyncio.run()`. Uncached latency ~4-6 s. Gate budget 6 s.
 23. `speaker_verified` is copied from the stored clip, never inferred. Serving collection is `first_person_v8` (1,801 points); rollback = `FIRST_PERSON_COLLECTION=first_person_v7` in root `.env` plus recreate backend (`docker compose -p backend up -d --no-deps --force-recreate backend` from `backend/`). Older Curly Tales "PROD READY" claims are stale.
 24. Relevance + standalone gates (`_standalone_problem`, `_relevance_select`, min score 3, scorer `anthropic/claude-haiku-5.5`, `max_tokens=1024`, 12 s). Scorer failure abstains as `relevance_indeterminate`. Tests: `tests/test_relevance_standalone_gates.py`.
+25. v10-only serving (owner decision 2026-10-30): `FIRST_PERSON_COLLECTION` and `FIRST_PERSON_CONTEXT_COLLECTION` may both be `first_person_v10` only with `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` and `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=true` (`v10_only_mode_active`); otherwise the B4 contract still stops startup. Terminal also disables facet split. Tests: `tests/test_first_person_v10_only.py`. Clean-Docker proof UNPROVEN.
 
 ## Project constraints
 

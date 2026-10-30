@@ -264,6 +264,15 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
         _quality_allowlist,
         _quality_blocklist,
     )
+    from services.first_person_serving_contract import legacy_slot_aliases_context
+
+    # v10-only mode: the legacy slot names the fp-context collection, so there is
+    # no legacy clip store to look a clip up in. Decline without a Qdrant read
+    # rather than rely on the context records lacking `first_person_eligible`.
+    if legacy_slot_aliases_context(
+        settings.first_person_collection, settings.first_person_context_collection
+    ):
+        return None
 
     clip = _store_for_request().get_clip_by_video_and_start(
         ref["video_id"],
