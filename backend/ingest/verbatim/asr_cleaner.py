@@ -12,26 +12,42 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from ingest.verbatim.gates import CHANT_WORDS
+
 # Stutter/repetition: 'So, So' 'you know, you know' 'I mean, I mean'
+# A whole run collapses in one pass ('So, so, so' -> 'So'), otherwise a second clean()
+# would shorten it again and the store's re-clean-then-hash id check would drift.
 _STUTTER_RE = re.compile(
-    r"\b((?:So|Well|Now|Right|Yes|No|Okay|OK)),\s+\1\b"
-    r"|\b(you know),\s+you know\b"
-    r"|\b(I mean),\s+I mean\b",
+    r"\b((?:So|Well|Now|Right|Yes|No|Okay|OK))(?:,\s+\1\b)+"
+    r"|\b(you know)(?:,\s+you know\b)+"
+    r"|\b(I mean)(?:,\s+I mean\b)+",
     re.IGNORECASE,
 )
 
-# False start with repetition: 'It is, it is a' -> 'It is a'
+# Two-word restart across a comma: 'a gift, a gift of' / 'It is, it is a'.
+# NOT edited (2026-10-28 review): a comma-separated echo is as often a deliberate
+# repetition as an ASR restart, and deleting it changes the words while the audio
+# window still plays them. Reported by ``asr_cleaner_notes`` only.
 _FALSE_START_RE = re.compile(r"\b(\w+ \w+),\s+\1\b", re.IGNORECASE)
 
 # Multi-pass word repeat regex: 'carried carried' -> 'carried', 'her her' -> 'her', 'you You' -> 'you'.
-# Only a comma/semicolon separator is collapsed: a repeat across sentence-final
-# punctuation ('Peace. Peace is...') is the teacher's rhetoric, not a restart.
+# Only an IMMEDIATE repeat (whitespace only between the two words) is collapsed. A
+# comma/semicolon between them ('very, very') or sentence-final punctuation
+# ('Peace. Peace is...') is the teacher's emphasis or rhetoric, not a restart; those
+# are reported by ``asr_cleaner_notes``, never deleted.
 _LEGIT_DOUBLES = frozenset({"that", "had", "is", "do"})
 
+# Invocations and chants are repeated on purpose ("Peace, peace, peace",
+# "Namaste, namaste"). Collapsing them changes what was said, while the audio
+# window still plays the full chant.
+_CHANT_WORDS = CHANT_WORDS
+
 _WORD_REPEAT_RE = re.compile(
-    r"\b([A-Za-z]{2,})\b([,;]?)\s+\b\1\b([,;]?)",
+    r"\b([A-Za-z]{2,})\b()\s+\b\1\b([,;]?)",
     re.IGNORECASE,
 )
+# The comma/semicolon-separated shape that is no longer deleted (notes only).
+_COMMA_REPEAT_RE = re.compile(r"\b([A-Za-z]{2,})\b[,;]\s+\b\1\b", re.IGNORECASE)
 
 # Embedded audience acknowledgment mid-clip: 'Yes. Any time' -> remove the dangling 'Yes.'
 _EMBEDDED_ACK_RE = re.compile(r"(?:^|(?<=\. ))(?:Yes|Right|Okay|OK|Sure)\. (?=[A-Z])")
@@ -65,37 +81,46 @@ _SEVERED_TRAILING_CLAUSE_RE = re.compile(
 )
 
 
-# Whole-word ASR restart across comma/semicolon: 'relationships, relationships, are' -> 'relationships are'.
-# Repetitions across sentence-final punctuation ('.', '?', '!') are preserved as rhetorical.
-_PUNCT_REPEAT_RE = re.compile(r"\b(\w{5,})[,;]\s+\1\b[,;]?", re.IGNORECASE)
-
 # Case-flipped restart with no punctuation: 'seek Seek the truth' -> 'seek the truth'.
 # Only fires when the two words differ in case, so legitimate 'that that' / 'had had' survive.
 _CASE_FLIP_REPEAT_RE = re.compile(r"\b(\w{4,})\s+(\1)\b", re.IGNORECASE)
 
 
 def _drop_case_flip(m: re.Match[str]) -> str:
+    if m.group(1).lower() in _CHANT_WORDS:
+        return m.group(0)
     return m.group(1) if m.group(1) != m.group(2) else m.group(0)
 
 
 def clean_verbatim_text(text: str) -> str:
-    """Remove ASR noise from verbatim text. Preserves all meaning. Idempotent."""
+    """Remove ASR noise from verbatim text. Idempotent by construction (fixed point).
+
+    The store re-cleans text before hashing its point id, so ``clean(clean(x))`` must
+    equal ``clean(x)``; iterating to a fixed point guarantees it whatever the rules do.
+    """
+    for _ in range(8):
+        cleaned = _clean_once(text)
+        if cleaned == text:
+            return cleaned
+        text = cleaned
+    return text
+
+
+def _clean_once(text: str) -> str:
     if not text:
         return ""
     orig_text = text
     # Remove stutter repeats: 'So, So' -> 'So'
     text = _STUTTER_RE.sub(lambda m: m.group(1) or m.group(2) or m.group(3), text)
-    # Remove false starts with repetition
-    text = _FALSE_START_RE.sub(lambda m: m.group(1), text)
-    # Remove whole-word ASR restarts across a comma/semicolon ('relationships, relationships,').
-    # Sentence-final repeats are preserved as rhetoric; see _PUNCT_REPEAT_RE.
-    text = _PUNCT_REPEAT_RE.sub(lambda m: m.group(1), text)
+    # False starts and comma-separated repeats are NOT deleted: see asr_cleaner_notes().
     text = _CASE_FLIP_REPEAT_RE.sub(_drop_case_flip, text)
     # Multi-pass word repeat deduplication: 'carried carried' -> 'carried', 'her her' -> 'her'
     for _ in range(4):
 
         def _repl(m: re.Match) -> str:
             w1 = m.group(1)
+            if w1.lower() in _CHANT_WORDS:
+                return m.group(0)
             # 'that that' / 'had had' are grammatical; keep same-case pairs.
             if w1.lower() in _LEGIT_DOUBLES and m.group(0).split()[-1].rstrip(".,;:!?") == w1:
                 return m.group(0)
@@ -147,6 +172,24 @@ def asr_cleaner_flags(text: str) -> list[str]:
     if _EMBEDDED_ACK_RE.search(text):
         flags.append("embedded_audience_ack")
     return flags
+
+
+def asr_cleaner_notes(text: str) -> list[str]:
+    """Informational findings the cleaner deliberately does NOT edit.
+
+    Unlike ``asr_cleaner_flags`` these never quarantine a span: the repeated words may
+    well have been spoken, so removing them would break the quote/audio match, and
+    refusing the span would drop real teaching. Builders count them so a human can
+    listen to a sample.
+    """
+    if not text:
+        return []
+    notes: list[str] = []
+    if _FALSE_START_RE.search(text):
+        notes.append("false_start_repeat")
+    if _COMMA_REPEAT_RE.search(text):
+        notes.append("comma_repeat")
+    return notes
 
 
 def clean_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:

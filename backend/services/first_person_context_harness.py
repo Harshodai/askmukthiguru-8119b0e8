@@ -93,7 +93,7 @@ _ANTECEDENT_OPENERS = frozenset(
 )
 
 
-def _span_starts_with_antecedent(span: "SourceSpan") -> bool:
+def _span_starts_with_antecedent(span: SourceSpan) -> bool:
     """Return True when the span's first word is a demonstrative/pronoun opener.
 
     These openers indicate that the span references something established in
@@ -297,12 +297,19 @@ class FirstPersonContextHarness:
 
     @staticmethod
     def _text_sanity_gate(spans: tuple[SourceSpan, ...]) -> bool:
-        from ingest.verbatim.gates import script_and_loop_problem
+        from ingest.verbatim.gates import expected_script_for, script_and_loop_problem
 
-        # Script detection is per span and script-agnostic: a wholly Hindi or Telugu
-        # span is legitimate, a span that mixes scripts or looped is not.
+        # The expected script comes from the span's DECLARED language (language ID, audit
+        # D10). An undeclared span belongs to the English corpus and must be Latin: the
+        # ASR stage cannot transcribe Indic speech, so non-Latin text there is decoder
+        # garbage (all 9 such spans in the 2,737-span v10 export were). A span that
+        # declares another language is held to that language's script, and a loop or a
+        # foreign letter inside it is still refused.
         return all(
-            script_and_loop_problem(span.verbatim_text, expected_script=None) is None
+            script_and_loop_problem(
+                span.verbatim_text, expected_script=expected_script_for(span.language)
+            )
+            is None
             for span in spans
         )
 
@@ -340,9 +347,7 @@ class FirstPersonContextHarness:
         """
         # Always sort by start_ms so the answer reads chronologically,
         # regardless of the order in which retrieval returned the spans.
-        ordered = tuple(
-            sorted(context.spans, key=lambda s: getattr(s, "start_ms", 0) or 0)
-        )
+        ordered = tuple(sorted(context.spans, key=lambda s: getattr(s, "start_ms", 0) or 0))
         if not ordered:
             return ()
         limit = max(1, self._policy.max_context_spans)
@@ -359,11 +364,7 @@ class FirstPersonContextHarness:
         # treat the effective limit as 2 so offset logic pulls in that predecessor.
         # This is additive-only and never reduces context for larger limits.
         effective_limit = limit
-        if (
-            limit == 1
-            and hit_index > 0
-            and _span_starts_with_antecedent(ordered[hit_index])
-        ):
+        if limit == 1 and hit_index > 0 and _span_starts_with_antecedent(ordered[hit_index]):
             effective_limit = 2
 
         # Include one preceding span whenever the bound allows it, even for an
