@@ -1,6 +1,29 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 30, 2026 — memory source links and keyboard access
+
+### L-MEMORY-SOURCE-1. A memory had no stored origin, so the UI could not link to it without guessing.
+- **What:** `guru_memories` had no provenance column. The extraction queue already carried `conversation_id`, but both edge functions (`memory-extract`, `memory-extract-drain`) dropped it at insert. `canonical_memories` does store `source_conversation_id`, but Profile and the Wisdom Map read `guru_memories`.
+- **Fix:** migration `20261030140000_guru_memories_source_conversation.sql` adds a nullable `source_conversation_id`. Both functions store it (validated, 200 chars max). The API returns `source_ref: {kind, id}` or null, never a URL (`services/memory_source.py`); `src/lib/memorySource.ts` is the only place that maps a kind to a route. Old rows and explicit memories show "Source unavailable".
+- **Order:** apply the migration before deploying the two functions. If a function runs first, it retries the insert without the column, so no memory is lost, only the link.
+- **Check:** UNPROVEN against a real Supabase project. Tests use fakes and mocks only (`backend/tests/test_memory_source_refs.py`, `src/test/memorySource.test.tsx`, `tests/e2e/memory-source-links.spec.ts`).
+- **Limit:** the link opens `/chat?conversation=<id>`. If the user deleted that conversation, the chat page ignores the link silently. Notebook nodes link to `/notebooks` (no per-item deep link exists).
+
+### L-LIST-MEMORIES-METADATA-1. UNVERIFIED: `list_memories` selected a `metadata` column that no `guru_memories` migration adds.
+- **What:** the select in `services/memory_service.py` named `metadata`. Neither the migrations nor `src/integrations/supabase/types.ts` define it on `guru_memories`. A missing-column error was caught and turned into an empty list, so Profile, `/api/memory/list` and the personal graph would show no memories. Whether the live database has the column is not known from the repo.
+- **Fix:** `list_memories` now tries three column sets and falls back only on a missing-column error. Other errors still return an empty list.
+- **Rule:** a select that names an optional column needs a fallback and a test for the missing-column case.
+
+### L-KG-KEYBOARD-1. Wisdom Map nodes took focus but Enter and Space did nothing.
+- **What:** the graph passes controlled nodes to React Flow with no `onNodesChange`, so keyboard selection never reached `onNodeClick`. Keyboard users could not open node details, so they could not reach the new source link. Found in the browser sweep, not by unit tests (the unit test mocks React Flow).
+- **Fix:** `handleGraphKeyDown` in `KGConceptMap.tsx`: Enter or Space opens the details and moves focus into them; Escape closes them and returns focus to the node.
+- **Pin:** `tests/e2e/memory-source-links.spec.ts`.
+
+### L-PW-ROUTE-ORDER-1. Playwright runs the last registered matching route first.
+- **What:** a catch-all `/rest/v1/` route registered after `/rest/v1/guru_memories` answered every memory request with an empty list, so the spec failed while a hand-run sweep passed.
+- **Rule:** register catch-all mocks first and specific mocks last.
+
 ## Oct 30, 2026 — v10-only run: flags, caches, eval inputs, serializer
 
 ### L-EFFECTIVE-FLAGS-1. Numbers labelled "v10" were legacy v8 numbers, because compose pinned the harness flag off.

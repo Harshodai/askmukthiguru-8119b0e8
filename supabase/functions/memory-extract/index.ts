@@ -17,6 +17,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { embedText } from "../_shared/embed.ts";
 import { getActiveMemoryConsentReceipt } from "../_shared/memoryConsent.ts";
 import { parseExtractedFacts } from "../_shared/memoryFacts.ts";
+import { isMissingColumnError, sanitizeSourceConversationId } from "../_shared/memorySource.ts";
 import { resolveAllowOrigin } from "../_shared/cors.ts";
 
 const LOVABLE_API_KEY_ENV = "LOVABLE_API_KEY";
@@ -94,6 +95,7 @@ Deno.serve(async (req) => {
   const assistantMsg = (body.assistant_message ?? "").toString().trim().slice(0, 4000);
 
   if (!userMsg || !assistantMsg) return json({ inserted: 0 });
+  const sourceConversationId = sanitizeSourceConversationId(body.conversation_id);
 
   // ── Step 1: Extract facts via LLM ────────────────────────────────
   // Put policy in the system role and conversation text in a separate JSON
@@ -235,13 +237,21 @@ if nothing qualifies.`;
         break;
       }
 
-      const { error } = await admin.from("guru_memories").insert({
+      const memoryRow = {
         user_id: userId,
         tenant_id: tenantId,
         content: text,
         embedding: embedding as unknown as string,
         source: "extracted",
-      });
+      };
+      let { error } = await admin.from("guru_memories").insert(
+        sourceConversationId ? { ...memoryRow, source_conversation_id: sourceConversationId } : memoryRow,
+      );
+      // The source column ships in a migration that may land after this function:
+      // keep the memory and drop only the link rather than losing the fact.
+      if (error && sourceConversationId && isMissingColumnError(error)) {
+        ({ error } = await admin.from("guru_memories").insert(memoryRow));
+      }
 
       if (error) {
         console.error("[memory-extract] insert failed", error.code ?? "db_error");

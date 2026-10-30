@@ -18,6 +18,7 @@ from app.dependencies import ServiceContainer, get_container
 from app.memory_consent import require_active_memory_consent
 from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
+from services.memory_source import memory_source_ref
 from services.tenant_context import TenantContext, get_tenant_id_from_user, set_tenant_from_request
 from services.user_profile_service import SpiritualLevel
 
@@ -135,6 +136,13 @@ async def search_episodes_endpoint(
     return [_episode_from_row(r) for r in rows]
 
 
+class MemorySourceRef(BaseModel):
+    """Where a memory came from. Absent (None) means provenance is unavailable."""
+
+    kind: str
+    id: str
+
+
 class GuruMemoryResponse(BaseModel):
     id: str
     claim: str
@@ -144,6 +152,7 @@ class GuruMemoryResponse(BaseModel):
     decay_score: float
     source: str
     summary: Optional[str] = None
+    source_ref: Optional[MemorySourceRef] = None
 
 
 class MemoryListResponse(BaseModel):
@@ -223,6 +232,7 @@ async def list_memories_endpoint(
                 decay_score=1.0,
                 source=m.get("source", "extracted"),
                 summary=m.get("summary"),
+                source_ref=memory_source_ref(m),
             )
         )
     return MemoryListResponse(
@@ -762,6 +772,7 @@ class KGNode(BaseModel):
     content: str | None = None
     analytics: KGNodeAnalytics | None = None
     community: int = -1
+    source_ref: MemorySourceRef | None = None
 
 
 class KGEdge(BaseModel):

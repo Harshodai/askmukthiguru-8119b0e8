@@ -12,6 +12,7 @@
 import { supabase as supabaseTyped } from '@/integrations/supabase/client';
 import { BACKEND_URL } from './backendUrl';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizeSourceRef, type MemorySourceRef } from './memorySource';
 // Generated Supabase types do not yet include the guru_* memory tables.
 // Keep the dynamic table boundary contained while retaining the official client API.
 const supabase = supabaseTyped as unknown as SupabaseClient;
@@ -29,6 +30,8 @@ export interface GuruMemory {
   claim?: string;
   decay_score?: number;
   confidence?: number;
+  /** Where the memory came from; null/absent means provenance is unavailable. */
+  source_ref?: MemorySourceRef | null;
 }
 
 export interface CoreMemory {
@@ -96,6 +99,8 @@ export interface KGNode {
   content?: string | null;
   analytics?: KGNodeAnalytics | null;
   community?: number;
+  /** Provenance of a Memory/NotebookItem node; null/absent means unavailable. */
+  source_ref?: MemorySourceRef | null;
 }
 
 export interface KGEdge {
@@ -196,16 +201,32 @@ export const memoryApi = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const { data, error, count } = await supabase
-      .from('guru_memories')
-      .select('id, content, source, created_at', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to);
+    const query = (columns: string) =>
+      supabase
+        .from('guru_memories')
+        .select(columns, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+    // Ask for the source column first. A database that has not applied the
+    // source_conversation_id migration answers 42703 (undefined_column); retry
+    // without it so the list still loads, with every source marked unavailable.
+    let result = await query('id, content, source, created_at, source_conversation_id');
+    if (result.error && (result.error.code === '42703' || result.error.code === 'PGRST204')) {
+      result = await query('id, content, source, created_at');
+    }
+    const { data, error, count } = result;
 
     if (error) throw new MemoryApiError('server_error', error.message);
 
+    const rows = (data ?? []) as unknown as Array<GuruMemory & { source_conversation_id?: string | null }>;
     return {
-      memories: (data ?? []) as GuruMemory[],
+      memories: rows.map(({ source_conversation_id, ...memory }) => ({
+        ...memory,
+        source_ref: normalizeSourceRef(
+          source_conversation_id ? { kind: 'conversation', id: source_conversation_id } : null,
+        ),
+      })),
       total: count ?? 0,
       page,
       page_size: pageSize,
