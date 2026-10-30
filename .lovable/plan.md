@@ -64,6 +64,6 @@ Research: Meta documents incoming messages and delivery statuses as webhook even
 
 ## Delivery and release limits
 
-Implement Chat/daily journey/personalization/Profile changes after plan approval; Record measured passes and named blockers rather than marking all work complete.
+Implement Chat/daily journey/personalization/Profile changes after plan approval. Record measured passes and named blockers rather than marking all work complete.
 
 Faculty release needs actual teaching/playback, reflection readback, consent/isolation and relevant auth/admin checks. Keep calibration, clinician/native-speaker review, rights and backup/load evidence explicit under the existing release checklist; do not invent sign-offs or activate production infrastructure.
