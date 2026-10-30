@@ -53,6 +53,9 @@ def setup_test_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("WA_ASYNC_ACK", "false")
     wa_bot._init_db()
     wa_bot.reset_rate_limits()
+    # Replies only happen after an inbound message, so the 24h window is open.
+    for _p in ("+919876543210", "919876543210", "+911234567890"):
+        wa_bot.open_window(_p)
     yield
 
 

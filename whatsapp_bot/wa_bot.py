@@ -136,13 +136,69 @@ CREATE TABLE IF NOT EXISTS wa_auth (
   token               TEXT NOT NULL,
   updated_at          INTEGER NOT NULL
 );
+
+-- Webhook delivery is at-least-once: a provider message id is processed once.
+CREATE TABLE IF NOT EXISTS wa_inbound (
+  provider            TEXT NOT NULL,
+  provider_msg_id     TEXT NOT NULL,
+  phone               TEXT NOT NULL,
+  kind                TEXT NOT NULL,
+  received_at         INTEGER NOT NULL,
+  PRIMARY KEY (provider, provider_msg_id)
+);
+
+-- Start of the 24-hour customer-service window: last inbound per phone.
+CREATE TABLE IF NOT EXISTS wa_window (
+  phone               TEXT PRIMARY KEY,
+  last_inbound_at     INTEGER NOT NULL
+);
+
+-- One row per outbound send attempt. `status` is the latest provider callback
+-- (accepted -> sent -> delivered -> read, or failed); `accepted` alone is NOT
+-- delivery proof. mode: text | template | blocked_window | failed.
+CREATE TABLE IF NOT EXISTS wa_outbound (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  provider            TEXT NOT NULL,
+  provider_msg_id     TEXT,
+  phone               TEXT NOT NULL,
+  mode                TEXT NOT NULL,
+  status              TEXT NOT NULL,
+  error               TEXT,
+  created_at          INTEGER NOT NULL,
+  status_at           INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_wa_out_msg ON wa_outbound(provider, provider_msg_id);
+
+-- Delivery callbacks, deduplicated per (message, status).
+CREATE TABLE IF NOT EXISTS wa_status_events (
+  provider            TEXT NOT NULL,
+  provider_msg_id     TEXT NOT NULL,
+  status              TEXT NOT NULL,
+  event_ts            INTEGER NOT NULL,
+  error_code          TEXT,
+  received_at         INTEGER NOT NULL,
+  PRIMARY KEY (provider, provider_msg_id, status)
+);
 """
+
+# Delivery state only moves forward; `failed` can arrive at any point.
+_STATUS_RANK = {"accepted": 0, "queued": 0, "sending": 1, "sent": 1, "delivered": 2, "read": 3}
+WA_SERVICE_WINDOW_S = 24 * 3600
+# Optional pre-approved Meta template (no variables) used to reopen a closed
+# window. Without it a closed window blocks the send; nothing free-form is sent.
+META_TEMPLATE_NAME = os.getenv("META_TEMPLATE_NAME", "")
+META_TEMPLATE_LANG = os.getenv("META_TEMPLATE_LANG", "en")
 
 
 def _db() -> sqlite3.Connection:
     Path(WA_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(WA_DB_PATH, isolation_level=None)
     conn.row_factory = sqlite3.Row
+    try:
+        # Phone numbers and message bodies live here: owner read/write only.
+        os.chmod(WA_DB_PATH, 0o600)
+    except OSError:
+        pass
     return conn
 
 
@@ -176,11 +232,114 @@ def history_for(phone: str, limit: int = WA_HISTORY_LIMIT) -> list[dict]:
 
 
 def append_message(phone: str, role: str, content: str) -> None:
+    now = int(time.time())
     with closing(_db()) as conn:
         conn.execute(
             "INSERT INTO wa_messages (phone, role, content, created_at) VALUES (?, ?, ?, ?)",
-            (phone, role, content, int(time.time())),
+            (phone, role, content, now),
         )
+        if role == "user":
+            # An inbound message (re)opens the 24-hour service window.
+            conn.execute(
+                "INSERT INTO wa_window (phone, last_inbound_at) VALUES (?, ?) "
+                "ON CONFLICT(phone) DO UPDATE SET last_inbound_at=excluded.last_inbound_at",
+                (phone, now),
+            )
+
+
+def claim_inbound(provider: str, msg_id: str, phone: str, kind: str) -> bool:
+    """Record an inbound provider message id. False means it was already seen.
+
+    A missing id cannot be deduplicated, so it is always treated as new.
+    """
+    if not msg_id:
+        return True
+    with closing(_db()) as conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO wa_inbound "
+            "(provider, provider_msg_id, phone, kind, received_at) VALUES (?, ?, ?, ?, ?)",
+            (provider, msg_id, phone, kind, int(time.time())),
+        )
+        return cur.rowcount == 1
+
+
+def open_window(phone: str, at: int | None = None) -> None:
+    """Mark an inbound contact time for `phone` (the 24-hour window start)."""
+    with closing(_db()) as conn:
+        conn.execute(
+            "INSERT INTO wa_window (phone, last_inbound_at) VALUES (?, ?) "
+            "ON CONFLICT(phone) DO UPDATE SET last_inbound_at=excluded.last_inbound_at",
+            (phone, int(at if at is not None else time.time())),
+        )
+
+
+def window_open(phone: str) -> bool:
+    """True while the last inbound message from `phone` is under 24 hours old."""
+    with closing(_db()) as conn:
+        row = conn.execute(
+            "SELECT last_inbound_at FROM wa_window WHERE phone=?", (phone,)
+        ).fetchone()
+    return bool(row) and int(time.time()) - int(row["last_inbound_at"]) < WA_SERVICE_WINDOW_S
+
+
+def record_outbound(
+    provider: str,
+    phone: str,
+    mode: str,
+    status: str,
+    provider_msg_id: str | None = None,
+    error: str | None = None,
+) -> None:
+    with closing(_db()) as conn:
+        conn.execute(
+            "INSERT INTO wa_outbound "
+            "(provider, provider_msg_id, phone, mode, status, error, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (provider, provider_msg_id, phone, mode, status, error, int(time.time())),
+        )
+
+
+def record_status_event(
+    provider: str,
+    msg_id: str,
+    status: str,
+    event_ts: int | None = None,
+    error_code: str | None = None,
+) -> bool:
+    """Store one delivery callback and advance the matching outbound row.
+
+    Returns False for a duplicate callback or a missing id/status.
+    """
+    status = (status or "").strip().lower()
+    if not msg_id or not status:
+        return False
+    now = int(time.time())
+    with closing(_db()) as conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO wa_status_events "
+            "(provider, provider_msg_id, status, event_ts, error_code, received_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (provider, msg_id, status, int(event_ts or now), error_code, now),
+        )
+        if cur.rowcount != 1:
+            return False
+        row = conn.execute(
+            "SELECT status FROM wa_outbound WHERE provider=? AND provider_msg_id=? "
+            "ORDER BY id DESC LIMIT 1",
+            (provider, msg_id),
+        ).fetchone()
+        if row is not None:
+            old, new = row["status"], status
+            moves_forward = new in ("failed", "undelivered") or (
+                _STATUS_RANK.get(new, -1) > _STATUS_RANK.get(old, -1) and old != "failed"
+            )
+            if moves_forward:
+                conn.execute(
+                    "UPDATE wa_outbound SET status=?, error=COALESCE(?, error), status_at=? "
+                    "WHERE provider=? AND provider_msg_id=?",
+                    (new, error_code, int(event_ts or now), provider, msg_id),
+                )
+    return True
 
 
 def state_for(phone: str) -> dict:
@@ -726,6 +885,31 @@ _ALLOWED_META_HOST = "graph.facebook.com"
 _PHONE_NUMBER_ID_RE = re.compile(r"^\d{1,32}$")
 
 
+def _json_str(resp: Any, *path: str | int) -> str | None:
+    """Best-effort string field from a JSON response; None when absent."""
+    try:
+        node: Any = resp.json()
+        for key in path:
+            node = node[key]
+        return node if isinstance(node, str) and node else None
+    except Exception:
+        return None
+
+
+def _record_accepted(provider: str, phone: str, msg_id: str | None, mode: str = "text") -> None:
+    """Log a gateway-accepted send. `accepted` is not delivery proof."""
+    try:
+        record_outbound(
+            provider,
+            phone,
+            mode,
+            "accepted",
+            provider_msg_id=msg_id if isinstance(msg_id, str) and msg_id else None,
+        )
+    except Exception as exc:  # bookkeeping must never block a reply
+        log.warning("outbound bookkeeping failed: %s", sanitize_log_input(exc))
+
+
 def push_twilio_message(to_number: str, body_text: str, from_number: str | None = None) -> bool:
     """Send WhatsApp message using Twilio REST API."""
     account_sid = os.getenv("TWILIO_ACCOUNT_SID", TWILIO_ACCOUNT_SID)
@@ -751,7 +935,8 @@ def push_twilio_message(to_number: str, body_text: str, from_number: str | None 
         try:
             client = TwilioClient(account_sid, auth_token)
             for chunk in chunks:
-                client.messages.create(body=chunk, from_=source, to=target)
+                msg = client.messages.create(body=chunk, from_=source, to=target)
+                _record_accepted("twilio", clean_to, getattr(msg, "sid", None))
             log.info("Sent Twilio message to %s", sanitize_log_input(target))
             return True
         except Exception as e:
@@ -770,6 +955,7 @@ def push_twilio_message(to_number: str, body_text: str, from_number: str | None 
                 timeout=10,
             )
             resp.raise_for_status()
+            _record_accepted("twilio", clean_to, _json_str(resp, "sid"))
         log.info("Sent Twilio message via REST fallback to %s", sanitize_log_input(target))
         return True
     except Exception as e:
@@ -826,10 +1012,54 @@ def push_meta_message(
                 timeout=10,
             )
             resp.raise_for_status()
+            _record_accepted("meta", clean_to, _json_str(resp, "messages", 0, "id"))
         except Exception as e:
             log.error("Failed to send Meta message chunk: %s", sanitize_log_input(e))
+            _record_failed("meta", clean_to, "text", e)
             all_ok = False
     return all_ok
+
+
+def _record_failed(provider: str, phone: str, mode: str, exc: Any) -> None:
+    try:
+        record_outbound(provider, phone, mode, "failed", error=sanitize_log_input(exc)[:200])
+    except Exception as e2:
+        log.warning("outbound bookkeeping failed: %s", sanitize_log_input(e2))
+
+
+def push_meta_template(
+    phone_number_id: str, to_number: str, name: str, lang: str, access_token: str | None = None
+) -> bool:
+    """Send a pre-approved, variable-free template (the only message allowed
+    outside the 24-hour window)."""
+    token = access_token or os.getenv("META_ACCESS_TOKEN", META_ACCESS_TOKEN)
+    clean_id = str(
+        phone_number_id or os.getenv("META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID)
+    ).strip()
+    if not token or not clean_id.isdigit() or not _PHONE_NUMBER_ID_RE.match(clean_id):
+        log.error("Meta template send refused: missing token or invalid phone_number_id")
+        return False
+    clean_to = sanitize_phone(to_number)
+    url = f"https://graph.facebook.com/v18.0/{int(clean_id)}/messages"
+    try:
+        resp = requests.post(
+            url,
+            json={
+                "messaging_product": "whatsapp",
+                "to": clean_to,
+                "type": "template",
+                "template": {"name": name, "language": {"code": lang}},
+            },
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        _record_accepted("meta", clean_to, _json_str(resp, "messages", 0, "id"), mode="template")
+        return True
+    except Exception as e:
+        log.error("Failed to send Meta template: %s", sanitize_log_input(e))
+        _record_failed("meta", clean_to, "template", e)
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -981,7 +1211,26 @@ def poll_job_until_complete(phone: str, job_id: str, session_token: str | None =
 def _deliver_outbound(
     channel: str, phone: str, answer_text: str, metadata: dict[str, Any] | None = None
 ) -> bool:
-    """Send one outbound reply, retrying once. Returns True on success."""
+    """Send one outbound reply, retrying once. Returns True on success.
+
+    Free-form text is only allowed inside the 24-hour window after the user's
+    last message. Outside it, only the configured approved template is sent
+    (Meta); otherwise the send is blocked and recorded as `blocked_window`.
+    """
+    if not window_open(phone):
+        template = os.getenv("META_TEMPLATE_NAME", META_TEMPLATE_NAME)
+        if channel == "meta" and template:
+            phone_number_id = (metadata or {}).get("phone_number_id") or os.getenv(
+                "META_PHONE_NUMBER_ID", META_PHONE_NUMBER_ID
+            )
+            lang = os.getenv("META_TEMPLATE_LANG", META_TEMPLATE_LANG)
+            return push_meta_template(phone_number_id, phone, template, lang)
+        log.warning("24h window closed for %s — free-form reply blocked", sanitize_log_input(phone))
+        try:
+            record_outbound(channel, phone, "blocked_window", "failed", error="window_closed")
+        except Exception as exc:
+            log.warning("outbound bookkeeping failed: %s", sanitize_log_input(exc))
+        return False
     for attempt in (1, 2):
         if channel == "twilio":
             ok = push_twilio_message(phone, answer_text)
@@ -1233,6 +1482,16 @@ def twilio_webhook():
 
     raw_phone = request.form.get("From", "").strip()
     body = (request.form.get("Body") or "").strip()
+    # Delivery status callback for a message WE sent: store it, never answer it.
+    if request.form.get("MessageStatus") and not body:
+        record_status_event(
+            "twilio",
+            str(request.form.get("MessageSid") or ""),
+            str(request.form.get("MessageStatus") or ""),
+            None,
+            request.form.get("ErrorCode") or None,
+        )
+        return _twiml("")
     if not raw_phone:
         return _twiml("")
 
@@ -1242,6 +1501,12 @@ def twilio_webhook():
     # Delivery receipts / status callbacks carry no Body and no media:
     # acknowledge quietly instead of answering a question nobody asked.
     if not body and media_kind is None:
+        return _twiml("")
+
+    # Twilio retries on timeout: process each MessageSid once.
+    if not claim_inbound(
+        "twilio", str(request.form.get("MessageSid") or ""), clean_phone, media_kind or "text"
+    ):
         return _twiml("")
 
     if media_kind is not None:
@@ -1427,26 +1692,83 @@ def parse_meta_inbound(payload: dict[str, Any]) -> dict[str, Any]:
         return empty
 
 
+def _iter_meta_events(payload: dict[str, Any]):
+    """Yield ("message", msg_id, single_message_payload) and
+    ("status", None, status_dict) for EVERY entry/change in a Meta payload.
+
+    Meta batches several messages and statuses into one POST; handling only the
+    first would silently drop the rest.
+    """
+    for entry in payload.get("entry") or []:
+        for change in (entry or {}).get("changes") or []:
+            value = (change or {}).get("value") or {}
+            for message in value.get("messages") or []:
+                single = {"entry": [{"changes": [{"value": {**value, "messages": [message]}}]}]}
+                yield "message", str((message or {}).get("id") or ""), single
+            for st in value.get("statuses") or []:
+                yield "status", None, st or {}
+
+
+def _record_meta_status(st: dict[str, Any]) -> None:
+    errors = st.get("errors") or []
+    code = str((errors[0] or {}).get("code")) if errors else None
+    try:
+        ts = int(st.get("timestamp") or 0) or None
+    except (TypeError, ValueError):
+        ts = None
+    record_status_event("meta", str(st.get("id") or ""), str(st.get("status") or ""), ts, code)
+
+
 @app.route("/whatsapp/meta", methods=["POST"])
 @app.route("/meta/whatsapp", methods=["POST"])
 def meta_webhook():
-    """Incoming message handler for Meta WhatsApp Cloud API."""
+    """Incoming message + delivery-status handler for Meta WhatsApp Cloud API."""
     if not validate_meta_signature(request):
         log.warning("Meta signature invalid — rejecting request")
         abort(403)
 
     payload = request.get_json(silent=True) or {}
-    parsed = parse_meta_inbound(payload)
+    results: list[tuple[dict[str, Any], str]] = []
+    saw_status = False
+    last_answer: str | None = None
+    for event, msg_id, item in _iter_meta_events(payload):
+        if event == "status":
+            saw_status = True
+            _record_meta_status(item)
+            continue
+        parsed = parse_meta_inbound(item)
+        if parsed["kind"] in ("text", "voice", "media") and not claim_inbound(
+            "meta", msg_id, sanitize_phone(parsed["from_number"]), parsed["kind"]
+        ):
+            results.append((parsed, "duplicate"))
+            continue
+        status, answer = _handle_meta_message(parsed)
+        results.append((parsed, status))
+        last_answer = answer
+
+    if not results:
+        if saw_status:
+            return jsonify({"status": "no_message"}), 200
+        # Nothing iterable: keep the legacy classification for odd payloads.
+        kind = parse_meta_inbound(payload)["kind"]
+        return jsonify(
+            {"status": {"incomplete": "incomplete_payload", "malformed": "ignored_non_message"}.get(kind, "no_message")}
+        ), 200
+    body: dict[str, Any] = {"status": results[-1][1]}
+    if results[-1][1] == "processed" and last_answer is not None:
+        body["response"] = last_answer
+    return jsonify(body), 200
+
+
+def _handle_meta_message(parsed: dict[str, Any]) -> tuple[str, str | None]:
+    """Process one parsed inbound message; returns (status, sync_answer)."""
     kind = parsed["kind"]
-
-    # Delivery/read receipts and reactions are not inbound queries.
     if kind in ("status", "ignore"):
-        return jsonify({"status": "no_message"}), 200
+        return "no_message", None
     if kind == "incomplete":
-        return jsonify({"status": "incomplete_payload"}), 200
+        return "incomplete_payload", None
     if kind == "malformed":
-        return jsonify({"status": "ignored_non_message"}), 200
-
+        return "ignored_non_message", None
     clean_phone = sanitize_phone(parsed["from_number"])
     metadata = {
         "phone_number_id": parsed["phone_number_id"],
@@ -1459,7 +1781,7 @@ def meta_webhook():
         append_message(clean_phone, "assistant", decline)
         # Local, instant, needs no inference: push synchronously (<15s).
         _deliver_outbound("meta", clean_phone, decline, metadata)
-        return jsonify({"status": "declined_media"}), 200
+        return "declined_media", None
 
     msg_body = parsed["body"]
     append_message(clean_phone, "user", msg_body)
@@ -1475,14 +1797,14 @@ def meta_webhook():
     ):
         append_message(clean_phone, "assistant", FALLBACK_RATE_LIMIT)
         _deliver_outbound("meta", clean_phone, FALLBACK_RATE_LIMIT, metadata)
-        return jsonify({"status": "rate_limited"}), 200
+        return "rate_limited", None
 
     # RP-C1 companion: bound concurrent crisis processing per phone (mirrors Twilio branch).
     if is_crisis_meta and not _crisis_capacity_acquire(clean_phone):
         log.warning("Crisis capacity full for %s — returning local footer (meta)", clean_phone[:6])
         append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
         _deliver_outbound("meta", clean_phone, _HELPLINE_FOOTER, metadata)
-        return jsonify({"status": "crisis_capacity_full"}), 200
+        return "crisis_capacity_full", None
 
     async_ack = os.getenv("WA_ASYNC_ACK", "true").lower() == "true"
     if async_ack:
@@ -1504,9 +1826,9 @@ def meta_webhook():
                 _crisis_capacity_release(clean_phone)
             append_message(clean_phone, "assistant", _HELPLINE_FOOTER)
             _deliver_outbound("meta", clean_phone, _HELPLINE_FOOTER, metadata)
-            return jsonify({"status": "crisis_thread_failed"}), 200
+            return "crisis_thread_failed", None
         # Immediately acknowledge webhook within <15s
-        return jsonify({"status": "received"}), 200
+        return "received", None
     else:
         # Sync mode has no TwiML channel: the answer must still be pushed.
         try:
@@ -1514,7 +1836,9 @@ def meta_webhook():
         finally:
             if is_crisis_meta:
                 _crisis_capacity_release(clean_phone)
-        return jsonify({"status": "processed", "response": answer}), 200
+        return "processed", answer
+
+
 
 
 # ---------------------------------------------------------------------------

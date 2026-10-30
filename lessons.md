@@ -1,6 +1,22 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 30, 2026 — WhatsApp receiver, check-in vs practice, refused sends
+
+### L-CHECKIN-NOT-PRACTICE-1. A mood check-in stored as a "completed session" leaks into every consumer that asks "did they practise?".
+- **What:** `recordMoodCheckIn` called `completeMeditationSession(..., completed=true)`. Stats already ignored zero-duration rows, but the call also stamped `askmukthiguru_last_serene_mind_at` (sent as `last_serene_mind_at`, read by `distress_stage.py` for the 15-minute proactive Serene Mind cooldown), inserted a completed row into `meditation_sessions` (read by `get_last_meditation_session`), and fired the practice reward event. A check-in could suppress the Serene Mind offer for a distressed seeker.
+- **Fix:** `completeMeditationSession(..., countsAsPractice=false)` for check-ins (no stamp, no DB row, separate `askmukthiguru:mood_checkin` event); `get_last_meditation_session` ignores `duration_seconds = 0`.
+- **Rule:** one record type per meaning. Pin it: `src/test/meditationStorage.checkin.test.ts` fails without the fix (2 of 4 tests). Not live-verified; the backend change has no test in this environment (pydantic stack not installed).
+
+### L-REFUSE-BEFORE-ABORT-1. Validate a send before cancelling the thing it would replace.
+- **What:** in `ChatInterface.submitImpl` the context-full and quota refusals ran after the active answer was aborted, so a refused forced send (voice, "send now") killed the answer being read. Queued turns also fell back to the composer's current files when they had none (`options.attachmentOverride ?? attachedFiles`).
+- **Fix:** `decideSubmit` / `resolveTurnFiles` in `src/lib/chat/submitGuard.ts` decide first; an explicit empty override wins. Pinned in `src/test/chat/submitGuard.test.ts`. A duplicate-send guard (800 ms) was added defensively; a real double send was NOT reproduced (React flushes discrete events), so treat it as unproven.
+
+### L-WA-AT-LEAST-ONCE-1. Webhook receivers are at-least-once; "accepted by the gateway" is not "delivered".
+- **What:** `whatsapp_bot/wa_bot.py` handled only `messages[0]` of one Meta change, ignored status callbacks, did not deduplicate retries and had no 24-hour-window rule. README said duplicates were re-processed.
+- **Fix:** `wa_inbound` (unique provider id), `wa_outbound` + `wa_status_events` (status only moves forward), `wa_window`, optional `META_TEMPLATE_NAME`, DB mode 0600. A phone number stays anonymous (no user or memory column). Pinned in `backend/tests/test_whatsapp_bot_webhook.py` (80 bot tests pass). A real phone round trip is UNPROVEN.
+- **Also:** the "TanStack migration" for WhatsApp was a plan line only (`.lovable/plan.md`, `roadmap.md`); the app only uses `@tanstack/react-query`, which stays.
+
 ## Oct 27, 2026 — first-person answer body, harness gaps, and unverified "done" claims
 
 ### L-UI-LABEL-IN-BODY-1. A UI affordance rendered by the backend becomes answer text for every non-UI consumer.

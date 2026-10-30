@@ -6,19 +6,20 @@
 2. One optional daily journey: check-in → one real teaching clip → one existing practice → saved reflection → resume.
 3. A visible **Personalize** action that uses consented user memory and approved teacher evidence through the general teaching pipeline. Default answers remain recorded verbatim teachings.
 4. Clearer Profile and personal Knowledge Graph with source-linked context, honest empty/outage states, and accessible graph/list views.
-5. WhatsApp Business incoming messages and replies, after the hosted-stack upgrade is approved.
+5. WhatsApp Business incoming messages, replies and delivery callbacks through the existing webhook receiver.
 
-## 1. Hosted stack and WhatsApp — currently blocked
+## 1. WhatsApp webhook receiver (current stack kept)
 
-- Migration approval was declined on October 30; no framework files were changed. Keep the current stack until approval is given through the upgrade card.
-- When approved, follow the migrate-to-tanstack skill: preserve authentication wrappers, external Supabase, brand tokens, translations, metadata, custom scripts and test backups. Audit service-worker/push and Capacitor behavior separately rather than assuming native compatibility.
-- The web-stack upgrade does **not** host the Python teaching engine or transfer Qdrant/OKF/LightRAG data. A reachable approved HTTPS teaching service remains a separate dependency. Railway stays off.
-- Connect WhatsApp Business through its connection card, inspect access and account configuration, and deploy the supported signed webhook receiver before any history sync.
-- Persist deduplicated incoming messages, reply attempts and delivery callbacks with restricted access. Reply through the connection gateway, respecting the 24-hour service window and approved-template requirements.
-- Do not equate a WhatsApp phone number with a signed-in user's memory. Memory personalization requires an explicit verified account-linking and consent boundary; unlinked numbers receive no private user context.
-- Acceptance: send a real message from a phone → read the stored incoming message → reply from the app → confirm recipient receipt and callback status. Gateway acceptance alone is not delivery proof.
+- No framework migration. The web app stays on Vite + React Router; `@tanstack/react-query` remains as the data-fetching library only. The TanStack-stack migration plan was removed on 2026-10-30.
+- The receiver already exists: `whatsapp_bot/wa_bot.py` (Flask; Twilio and Meta Cloud API). Signatures are verified fail-closed (`X-Hub-Signature-256`, `X-Twilio-Signature`).
+- Incoming messages are deduplicated by provider message id (`wa_inbound`). Every message in a batched Meta payload is handled.
+- Outbound attempts (`wa_outbound`) and delivery callbacks (`wa_status_events`) are stored in the bot's SQLite file (mode 0600, no read endpoint). `accepted` is gateway acceptance only. Delivery needs a `delivered` or `read` callback.
+- Free-form replies are sent only inside the 24-hour window after the user's last message. Outside it, only the approved template in `META_TEMPLATE_NAME` is sent. With none configured the send is blocked and recorded as `blocked_window`.
+- A phone number is never linked to a signed-in user's memory. The bot uses an anonymous per-phone token. Linking needs a separate verified account-linking and consent flow, which does not exist yet.
+- Acceptance (UNPROVEN until run): real phone message → stored inbound row → reply → recipient receipt → `delivered`/`read` callback row. Needs a connected Business number, a reachable HTTPS receiver and a real recipient. Railway stays off.
+- Teaching engine hosting is a separate dependency. Qdrant/OKF/LightRAG data are not moved by any web change.
 
-Research: Meta documents incoming messages and outgoing delivery statuses as webhook events: https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/overview.
+Research: Meta documents incoming messages and delivery statuses as webhook events: https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/overview.
 
 ## 2. Chat query interaction
 
@@ -59,10 +60,10 @@ Research: Meta documents incoming messages and outgoing delivery statuses as web
 - First test pins: duplicate submission and queued context; mood duplicate prevention/reopen/failure; check-in exclusion from practice stats; one clip/one practice/reflection readback/resume; personalization opt-in/default-route preservation, invalid clip, revoked consent, incognito, cross-user isolation and cache scope; source navigation and draft/return preservation.
 - Run existing focused frontend suites and dependency-available backend tests. Static checks or isolated mocks are not live-service proof.
 - Browser checks across phone/tablet/desktop, reduced motion and keyboard interaction. External Supabase authenticated flows require authorized account testing; this environment cannot mint that project's sessions.
-- WhatsApp checks require an approved migration, connected Business number, reachable receiver and a real recipient. Live teacher personalization/daily clip playback requires a reachable teaching engine.
+- WhatsApp checks require a connected Business number, a reachable HTTPS receiver and a real recipient. Live teacher personalization/daily clip playback requires a reachable teaching engine.
 
 ## Delivery and release limits
 
-Implement Chat/daily journey/personalization/Profile changes after plan approval; keep blocked WhatsApp migration open without repeatedly requesting approval. Record measured passes and named blockers rather than marking all work complete.
+Implement Chat/daily journey/personalization/Profile changes after plan approval; Record measured passes and named blockers rather than marking all work complete.
 
 Faculty release needs actual teaching/playback, reflection readback, consent/isolation and relevant auth/admin checks. Keep calibration, clinician/native-speaker review, rights and backup/load evidence explicit under the existing release checklist; do not invent sign-offs or activate production infrastructure.

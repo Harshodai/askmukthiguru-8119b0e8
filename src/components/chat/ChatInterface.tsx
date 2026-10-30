@@ -67,6 +67,7 @@ import { DailyTeaching } from './DailyTeaching';
 import { ConversationSourcesPanel } from './ConversationSourcesPanel';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel, mapNodeToLabel } from './ThinkingPills';
 import { QueuedMessagesTray, type QueuedMessage } from './QueuedMessagesTray';
+import { decideSubmit, isDuplicateSubmit, resolveTurnFiles } from '@/lib/chat/submitGuard';
 import { useThinkingStatus } from '@/hooks/useThinkingStatus';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
@@ -319,6 +320,7 @@ export const ChatInterface = () => {
   // Message queueing state (Claude/Manus style): Allows seekers to queue follow-up prompts while streaming
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
   const queuedMessagesRef = useRef<QueuedMessage[]>([]);
+  const lastSubmitRef = useRef<{ text: string; at: number } | null>(null);
   useEffect(() => {
     queuedMessagesRef.current = queuedMessages;
   }, [queuedMessages]);
@@ -967,17 +969,49 @@ export const ChatInterface = () => {
     }
     const textToSend = overrideText ?? inputValue;
     const turnLanguage = options.languageOverride ?? currentLanguage;
-    if (!textToSend.trim()) {
+    const decision = decideSubmit({
+      text: textToSend,
+      active: isTyping || isStreaming,
+      forceImmediate: !!options.forceImmediate,
+      contextExhausted: conversationContextExhausted,
+      quotaExceeded,
+    });
+    if (decision === 'empty') {
       return;
     }
 
+    // Refuse a send that cannot start BEFORE touching the active answer: the
+    // context-full and quota gates used to run after the abort below, so a
+    // refused send still killed the answer the seeker was reading.
+    // A context-exhausted conversation is intentionally read-only until the seeker continues in a new chat.
+    if (decision === 'blocked_context') {
+      toast({ title: t('chat.contextFull', 'Conversation context is full'), description: t('chat.contextFullHint', 'Start a new conversation to continue.') });
+      return;
+    }
+
+    // Anonymous quota gate: once the backend has refused a message, don't keep
+    // sending (avoids wasting quota retries and gives a stable UI state).
+    if (decision === 'blocked_quota') {
+      toast({ title: t('chat.messageLimitReached', 'Message limit reached'), description: t('chat.messageLimitHint', 'Your free messages are used up for now. Please try again later.') });
+      return;
+    }
+
+    // Rapid repeated sends (double tap, key repeat, Enter + button) reach here
+    // before React re-renders the cleared composer; drop the identical repeat.
+    if (overrideText === undefined) {
+      if (isDuplicateSubmit(lastSubmitRef.current, textToSend, Date.now())) {
+        return;
+      }
+      lastSubmitRef.current = { text: textToSend, at: Date.now() };
+    }
+
     // Message queueing (Claude / Manus style): If currently generating and not forced immediate, enqueue!
-    if ((isTyping || isStreaming) && !options.forceImmediate) {
+    if (decision === 'queue') {
       const newQueued: QueuedMessage = {
         id: generateId(),
         text: textToSend.trim(),
         language: currentLanguage,
-        attachedFiles: attachedFiles.length > 0 ? attachedFiles.map((f) => ({ name: f.name, content: f.content })) : undefined,
+        attachedFiles: attachedFiles.map((f) => ({ name: f.name, content: f.content })),
         timestamp: Date.now(),
       };
       setQueuedMessages((prev) => [...prev, newQueued]);
@@ -990,7 +1024,7 @@ export const ChatInterface = () => {
     }
 
     // If forced immediate or new turn: if active, abort previous request before starting new one
-    if (isTyping || isStreaming) {
+    if (decision === 'interrupt') {
       streamControllerRef.current?.abort();
       if (currentJobIdRef.current) {
         fetch(`/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
@@ -1002,19 +1036,6 @@ export const ChatInterface = () => {
       setShowInstantPill(false);
       streamControllerRef.current = null;
       currentJobIdRef.current = null;
-    }
-
-    // A context-exhausted conversation is intentionally read-only until the seeker continues in a new chat.
-    if (conversationContextExhausted) {
-      toast({ title: t('chat.contextFull', 'Conversation context is full'), description: t('chat.contextFullHint', 'Start a new conversation to continue.') });
-      return;
-    }
-
-    // Anonymous quota gate: once the backend has refused a message, don't keep
-    // sending (avoids wasting quota retries and gives a stable UI state).
-    if (quotaExceeded) {
-      toast({ title: t('chat.messageLimitReached', 'Message limit reached'), description: t('chat.messageLimitHint', 'Your free messages are used up for now. Please try again later.') });
-      return;
     }
 
     // Show instant pill immediately on submit — appears before any backend status events
@@ -1082,7 +1103,9 @@ export const ChatInterface = () => {
 
     // Keep uploaded material separate from the user question. The backend treats
     // it as bounded, untrusted evidence instead of mixing it into personal memory.
-    const filesForTurn = options.attachmentOverride ?? attachedFiles;
+    // An explicit (even empty) override wins: a drained queued turn must never
+    // pick up files the seeker attached to a later draft.
+    const filesForTurn = resolveTurnFiles(options.attachmentOverride, attachedFiles);
     const attachmentContext = filesForTurn.length > 0
       ? filesForTurn
         .map(f => `[Attached File: ${f.name}]\n${f.content}`)
