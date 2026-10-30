@@ -184,6 +184,12 @@ class ChatRequestOrchestrator:
             grounding_state=response_grounding_state,
             release_manifest=to_public_manifest_dict(result.release_manifest),
             provenance_manifest=_strict_provenance_manifest(result),
+            # Platform copy (support line, safety boundaries, compassion framing)
+            # that no longer rides in `response`. This is the live job/sync
+            # serializer, so omitting it here drops the copy for every queued chat.
+            safety_notices=list(
+                (getattr(result, "route_metadata", None) or {}).get("safety_notices") or []
+            ),
         )
 
     async def _log_telemetry(
