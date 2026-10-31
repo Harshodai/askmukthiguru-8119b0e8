@@ -1,6 +1,19 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — v10 backfill and v11 build: what the run found
+
+### L-POSTCHECK-FOUND-WHAT-THE-SELECTOR-MISSED-1. A backfill selects by one symptom; the post-check counts the rule.
+- **What:** the backfill selected "verified, no method" (732). The `violators_zero` post-check then found 15 more breaking the same rule: 13 old `span_slice_v2` spans with no score/calibration (the D1 builder bug) and the 2 spans with no evidence. Both runs stopped on it; a second, owner-approved backfill closed it (live v10: 0 violators).
+- **Rule:** the post-check must count the rule, not the selector. Run the P4 gate (read-only) on the target before the first write, not after.
+
+### L-SHARED-COLLECTION-WRITER-1. A collection named in `backend/.env` is a collection anyone can write to.
+- **What:** `FIRST_PERSON_CONTEXT_COLLECTION=first_person_v11` was already set when v11 did not exist. After v11 was restored, an unknown host client re-tagged every point and re-set `speaker_verified=true` on 17 demoted spans; the P4 gate caught it. The builder's live-target guard also treated v11 as live and needed `--allow-live-target`.
+- **Rule:** diff the candidate against its source snapshot (hash) right before the build and again after; read the Qdrant log for non-own writers. Do not point `.env` at a collection that is not yet cleared.
+
+### L-RUNBOOK-FLAGS-1. The runbook command lines were not run once.
+- **What:** `regenerate_v10_span_ecapa_verdicts` needs `--out-verdicts` in candidate mode; `backfill --expect-count` guards the count of verified-without-method points, not the verdict rows; the builder reads the Qdrant URL from `QDRANT_URL`, and `HF_HOME` must be set on the host. Each cost a failed start.
+
 ## Oct 31, 2026 — chat UI/UX defect fixes: dead-space gap, citation duplications, and language selector overflow
 
 ### L-FRONTEND-ATMA-VICHARA-CITATION-PARSING-1. Naive regex splitting on horizontal rules misclassifies citation footnotes as Atma Vichara reflection prompts.
