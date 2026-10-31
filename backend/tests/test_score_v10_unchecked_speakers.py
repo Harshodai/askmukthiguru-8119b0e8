@@ -27,6 +27,19 @@ def test_matching_windows_pass():
     assert classify_child(_child(), _WINDOWS) == "window_pass"
 
 
+def test_bare_teacher_codes_map_like_the_display_labels():
+    assert classify_child(_child(speaker_id="preethaji"), _WINDOWS) == "window_pass"
+    assert classify_child(_child(speaker_id="krishnaji"), _WINDOWS) == "window_fail"
+
+
+def test_regenerate_and_scorer_share_one_label_map():
+    from scripts.ops.regenerate_v10_span_ecapa_verdicts import GURU_BY_SPEAKER
+    from scripts.ops.score_v10_unchecked_speakers import _TEACHER_CODES
+
+    assert GURU_BY_SPEAKER == _TEACHER_CODES
+    assert GURU_BY_SPEAKER["preethaji"] == "preethaji"
+
+
 def test_other_teacher_or_host_window_fails():
     assert classify_child(_child(speaker_id="Sri Krishnaji"), _WINDOWS) == "window_fail"
     host = {**_WINDOWS, "win_lab": ["P", "O", "P"]}

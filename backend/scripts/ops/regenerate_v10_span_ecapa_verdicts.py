@@ -155,7 +155,12 @@ GURU_IDS = frozenset(ANCHORS)
 #: same label -> registry map ``scripts/ops/score_v10_unchecked_speakers.py``
 #: uses (``_TEACHER_CODES``); an unmapped label is rejected at load time rather
 #: than guessed, because the expected guru is the claim under test.
-GURU_BY_SPEAKER = {"sri preethaji": "preethaji", "sri krishnaji": "krishnaji"}
+GURU_BY_SPEAKER = {
+    "sri preethaji": "preethaji",
+    "sri krishnaji": "krishnaji",
+    "preethaji": "preethaji",
+    "krishnaji": "krishnaji",
+}
 
 #: Fields a ``--spans-jsonl`` row must carry.
 SPAN_REQUIRED_FIELDS = (
