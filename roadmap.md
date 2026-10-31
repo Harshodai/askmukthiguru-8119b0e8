@@ -1,5 +1,12 @@
 # Active UI and backend reliability roadmap
 
+## Current request — 2026-10-31
+
+- [ ] Refine Chat send transitions and purposeful reduced-motion-safe animations; remove competing nonessential content during active conversation.
+- [ ] Improve long-message drafting, reading and scroll behavior across phone, tablet and desktop.
+- [ ] Apply research-grounded admin presentation improvements using existing controls, metrics and access guards.
+- [ ] Run focused regression suites and browser checks; report authenticated/service-dependent checks separately.
+
 ## Current request — 2026-10-30
 
 - [ ] Improve query submission, response progress, interruption/retry and return behavior across phone, tablet and desktop.
