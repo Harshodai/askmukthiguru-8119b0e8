@@ -1,4 +1,4 @@
-import { memo, useRef, useState, useEffect } from 'react';
+import { memo, useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CHAT_MAX_SINGLE_ATTACHMENT_BYTES,
@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Send, Square, Flame, Sparkles, Plus, Mic, X, FileText, CornerDownLeft, AudioLines,
+  Send, Square, Flame, Sparkles, Plus, Mic, X, FileText, CornerDownLeft, AudioLines, ArrowUp,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -114,6 +114,26 @@ function ChatComposerInner({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Scroll metrics for textarea slider & scroll-to-start affordance
+  const [scrollMetrics, setScrollMetrics] = useState({
+    canScroll: false,
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
+  });
+
+  const updateScrollMetrics = useCallback(() => {
+    const el = inputRef?.current;
+    if (!el) return;
+    const canScroll = el.scrollHeight > el.clientHeight + 4;
+    setScrollMetrics({
+      canScroll,
+      scrollTop: el.scrollTop,
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    });
+  }, [inputRef]);
+
   // Auto-resize textarea smoothly on input change (up to 240px)
   useEffect(() => {
     const el = inputRef?.current;
@@ -122,7 +142,78 @@ function ChatComposerInner({
     const nextHeight = Math.min(Math.max(el.scrollHeight, 48), 240);
     el.style.height = `${nextHeight}px`;
     el.style.overflowY = el.scrollHeight > 240 ? 'auto' : 'hidden';
-  }, [inputValue, inputRef]);
+    updateScrollMetrics();
+  }, [inputValue, inputRef, updateScrollMetrics]);
+
+  // Track scroll position changes on the textarea
+  useEffect(() => {
+    const el = inputRef?.current;
+    if (!el) return;
+    const handleScroll = () => {
+      updateScrollMetrics();
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [inputRef, updateScrollMetrics]);
+
+  // Slider drag & click logic
+  const sliderTrackRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartYRef = useRef(0);
+  const dragStartScrollTopRef = useRef(0);
+
+  const handleThumbMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    isDraggingRef.current = true;
+    dragStartYRef.current = e.clientY;
+    dragStartScrollTopRef.current = inputRef?.current?.scrollTop || 0;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingRef.current || !inputRef?.current || !sliderTrackRef.current) return;
+      const trackRect = sliderTrackRef.current.getBoundingClientRect();
+      const trackHeight = trackRect.height;
+      const el = inputRef.current;
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (maxScroll <= 0 || trackHeight <= 0) return;
+
+      const deltaY = moveEvent.clientY - dragStartYRef.current;
+      const scrollDelta = (deltaY / trackHeight) * el.scrollHeight;
+      el.scrollTop = Math.max(0, Math.min(maxScroll, dragStartScrollTopRef.current + scrollDelta));
+    };
+
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleTrackClick = (e: React.MouseEvent) => {
+    if (!sliderTrackRef.current || !inputRef?.current) return;
+    const trackRect = sliderTrackRef.current.getBoundingClientRect();
+    const clickY = e.clientY - trackRect.top;
+    const ratio = Math.max(0, Math.min(1, clickY / trackRect.height));
+    const el = inputRef.current;
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    el.scrollTop = ratio * maxScroll;
+  };
+
+  const scrollToStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    inputRef?.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Proportional thumb metrics for the custom slider
+  const scrollRatio = scrollMetrics.scrollHeight > 0 ? scrollMetrics.clientHeight / scrollMetrics.scrollHeight : 1;
+  const thumbHeightPercent = Math.max(16, Math.min(100, scrollRatio * 100));
+  const maxScroll = Math.max(1, scrollMetrics.scrollHeight - scrollMetrics.clientHeight);
+  const progress = Math.max(0, Math.min(1, scrollMetrics.scrollTop / maxScroll));
+  const thumbTopPercent = progress * (100 - thumbHeightPercent);
 
   const actionCapabilities = capabilities ?? {
     sereneMind: true,
@@ -269,31 +360,74 @@ function ChatComposerInner({
           </div>
         )}
 
-        <PromptInputTextarea
-          ref={inputRef as React.Ref<HTMLTextAreaElement>}
-          data-tour="chat-input"
-          value={inputValue}
-          onChange={onInputChange}
-          onPaste={onPaste}
-          onKeyDown={onKeyDown}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          placeholder={
-            isQuotaExceeded
-              ? t('chat.quotaExceededPlaceholder')
-              : isAwaitingSereneMind
-                ? t('chat.inputPlaceholderSereneMind')
-                : isListening
-                  ? t('chat.inputPlaceholderListening')
-                  : t('chat.inputPlaceholder')
-          }
-          rows={1}
-          dir={currentLanguage === 'ur' ? 'rtl' : 'auto'}
-          enterKeyHint="send"
-          aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
-          className="!flex-none min-h-12 max-h-[260px] w-full cursor-text bg-transparent border-none outline-none resize-none px-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isAwaitingSereneMind || isQuotaExceeded}
-        />
+        <div className="relative w-full">
+          <PromptInputTextarea
+            ref={inputRef as React.Ref<HTMLTextAreaElement>}
+            data-tour="chat-input"
+            value={inputValue}
+            onChange={onInputChange}
+            onPaste={onPaste}
+            onKeyDown={onKeyDown}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            placeholder={
+              isQuotaExceeded
+                ? t('chat.quotaExceededPlaceholder')
+                : isAwaitingSereneMind
+                  ? t('chat.inputPlaceholderSereneMind')
+                  : isListening
+                    ? t('chat.inputPlaceholderListening')
+                    : t('chat.inputPlaceholder')
+            }
+            rows={1}
+            dir={currentLanguage === 'ur' ? 'rtl' : 'auto'}
+            enterKeyHint="send"
+            aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
+            className={`!flex-none min-h-12 max-h-[260px] w-full cursor-text bg-transparent border-none outline-none resize-none pl-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed ${
+              scrollMetrics.canScroll ? 'pr-8' : 'pr-4'
+            }`}
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'hsl(var(--ojas-gold) / 0.5) transparent',
+            }}
+            disabled={isAwaitingSereneMind || isQuotaExceeded}
+          />
+
+          {/* Persistent scroll slider & "Go to start" jump button when prompt overflows */}
+          {scrollMetrics.canScroll && (
+            <div className="absolute right-2 top-2.5 bottom-2.5 w-4 flex flex-col items-center select-none z-10 pointer-events-none">
+              {/* Go to start button when scrolled down */}
+              {scrollMetrics.scrollTop > 20 && (
+                <button
+                  type="button"
+                  onClick={scrollToStart}
+                  className="pointer-events-auto p-1 mb-1 rounded-full bg-card/95 hover:bg-ojas text-ojas hover:text-white border border-ojas/40 shadow-sm transition-all hover:scale-110 active:scale-95 cursor-pointer"
+                  title={t('chat.scrollToStart', 'Go to start')}
+                  aria-label={t('chat.scrollToStart', 'Go to start')}
+                >
+                  <ArrowUp className="w-3 h-3 stroke-[2.5]" />
+                </button>
+              )}
+
+              {/* Scroll Track & Thumb Slider */}
+              <div
+                ref={sliderTrackRef}
+                onClick={handleTrackClick}
+                className="pointer-events-auto relative flex-1 w-1.5 rounded-full bg-muted/50 hover:bg-muted/80 transition-colors cursor-pointer group"
+                title={t('chat.scrollPosition', 'Drag slider to scroll')}
+              >
+                <div
+                  onMouseDown={handleThumbMouseDown}
+                  className="absolute left-0 w-1.5 rounded-full bg-ojas/70 hover:bg-ojas group-hover:bg-ojas transition-colors cursor-grab active:cursor-grabbing shadow-sm"
+                  style={{
+                    top: `${thumbTopPercent}%`,
+                    height: `${thumbHeightPercent}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         {isHandsFreeVoice && (
           <div className="mx-3 mb-1.5 flex items-center justify-between gap-3 rounded-xl border border-ojas/25 bg-ojas/5 px-3 py-2 text-xs">

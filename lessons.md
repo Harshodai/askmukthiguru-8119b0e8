@@ -1,6 +1,20 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — composer persistent scroll slider and compact language selector
+
+### L-COMPOSER-TEXTAREA-PERSISTENT-SCROLL-SLIDER-1. OS overlay scrollbars hide text overflow; custom proportional slider and jump-to-start affordance ensure multi-paragraph text navigation.
+- **What:** In `ChatComposer.tsx`, when users entered multi-paragraph prompts (1,000+ characters), the textarea expanded to its max-height (240px) and auto-scrolled to the bottom line (`scrollTop = 276px`), scrolling line 1 out of view. Because macOS and modern browsers hide overlay scrollbars when stationary, no scrollbar slider or track was visible. Users could neither see where they were in the message nor easily drag or jump back to the starting line.
+- **Fix:** Added scroll metrics tracking (`scrollHeight`, `clientHeight`, `scrollTop`) and rendered a persistent golden scroll track + thumb (`bg-ojas/70`) on the right margin whenever `scrollHeight > clientHeight + 4`. Added an instant "Go to start" button (`ArrowUp`) when `scrollTop > 20` that smoothly scrolls `scrollTop` to 0. Thumb dragging and track clicking directly navigate the textarea scroll position.
+- **Pin:** `src/test/components/ChatComposer-keyboard.test.tsx` (all 13 tests passing).
+- **Rule:** for multi-line inputs with clamped max-height, do not rely on OS overlay scrollbars; provide a visible, proportional scroll slider and scroll-to-top affordance.
+
+### L-LANGUAGE-SELECTOR-COMPACT-PROPORTIONS-1. Unbounded popover heights dominate viewports; clamp picker menus to compact dimensions.
+- **What:** In `LanguageSelector.tsx`, the language selection popover grew up to `480px` in height and `288px` in width (`w-72`), with bulky item rows (`min-h-[48px]`, `w-8 h-8` icon containers). On typical desktop and laptop viewports, the popover covered half of the screen, appearing disproportionately large next to the composer.
+- **Fix:** Clamped popover max-height to `Math.min(290, spaceAbove - 8)` and width to `w-64` (256px). Reduced item row height to `min-h-[38px] py-1.5 px-2.5`, icon container to `w-6 h-6`, and typography to `text-xs` (native) and `text-[10px]` (English name), displaying ~4-5 options cleanly with smooth internal scrolling.
+- **Rule:** dropdown and popover selection menus should fit comfortably within ~280-300px max height; avoid expanding pickers to full-height sheets on desktop.
+
+
 ## Oct 31, 2026 — v10 backfill and v11 build: what the run found
 
 ### L-POSTCHECK-FOUND-WHAT-THE-SELECTOR-MISSED-1. A backfill selects by one symptom; the post-check counts the rule.
