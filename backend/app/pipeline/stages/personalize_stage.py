@@ -279,6 +279,42 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
         ref["timestamp_seconds"],
         tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
     )
+    if not isinstance(clip, dict) and getattr(settings, "first_person_context_collection", None):
+        try:
+            from qdrant_client.http import models
+
+            col = settings.first_person_context_collection
+            target_ms = int(round(float(ref["timestamp_seconds"]) * 1000.0))
+            tolerance_ms = int(round(PERSONALIZE_CLIP_TOLERANCE_S * 1000.0))
+            store = _store_for_request()
+            pts, _ = store._client.scroll(
+                collection_name=col,
+                scroll_filter=models.Filter(
+                    must=[
+                        models.FieldCondition(key="video_id", match=models.MatchValue(value=ref["video_id"])),
+                    ]
+                ),
+                limit=50,
+                with_payload=True,
+            )
+            candidates = []
+            for p in pts or []:
+                pl = dict(p.payload or {})
+                if not pl.get("verbatim_text"):
+                    continue
+                sms = pl.get("start_ms")
+                if sms is not None and abs(sms - target_ms) <= tolerance_ms:
+                    pl["point_id"] = str(p.id)
+                    if not pl.get("speaker"):
+                        pl["speaker"] = "Sri Preethaji" if pl.get("guru_id") == "preethaji" else "Sri Krishnaji"
+                    pl["transcript_hash"] = hashlib.sha256(pl["verbatim_text"].encode("utf-8")).hexdigest()
+                    candidates.append((abs(sms - target_ms), pl))
+            if candidates:
+                candidates.sort(key=lambda x: x[0])
+                clip = candidates[0][1]
+        except Exception as exc:
+            logger.warning("[PersonalizeStage] Context collection clip lookup failed: %s", exc)
+
     if not isinstance(clip, dict):
         return None
     clip_id = str(clip.get("point_id"))

@@ -44,9 +44,6 @@ async function authedFetch<T>(
   options: RequestInit = {},
   unlockPassphrase?: string,
 ): Promise<T> {
-  if (!BACKEND_URL) {
-    throw new SecondBrainApiError(i18n.t('brain.errors.notConfigured'));
-  }
   const token = await getAccessToken();
   if (!token) {
     throw new SecondBrainApiError(i18n.t('brain.errors.signInRequired'), 401);

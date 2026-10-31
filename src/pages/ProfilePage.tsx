@@ -280,7 +280,9 @@ const ProfilePage = () => {
               <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-ojas/20">
                 {(profile.avatarDataUrl || profile.avatarUrl) ? (
                   <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
-                ) : null}
+                ) : (
+                  <AvatarImage src="/images/ekam-golden-orb-lotus-square.png" alt="Ekam Golden Orb" />
+                )}
                 <AvatarFallback className="bg-ojas/10 text-ojas text-xl font-semibold">
                   {getInitials(profile.displayName)}
                 </AvatarFallback>

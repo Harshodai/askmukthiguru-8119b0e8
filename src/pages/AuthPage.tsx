@@ -983,8 +983,12 @@ const AuthPage = () => {
       />
       <div className="relative w-full max-w-[400px] mx-4 sm:mx-auto space-y-6 rounded-2xl backdrop-blur-2xl bg-card/60 ring-1 ring-border/40 shadow-2xl shadow-foreground/10 p-6 sm:p-8">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto shadow-[0_0_24px_hsl(var(--ojas-gold)/0.35)]">
-            <Sparkles className="w-6 h-6 text-ojas" />
+          <div className="w-14 h-14 rounded-full p-0.5 border border-ojas/30 bg-gradient-to-br from-amber-400/20 via-background to-amber-600/20 flex items-center justify-center mx-auto shadow-[0_0_24px_hsl(var(--ojas-gold)/0.35)] overflow-hidden">
+            <img
+              src="/images/ekam-golden-orb-lotus-square.png"
+              alt="Ekam Golden Orb"
+              className="w-full h-full object-cover rounded-full"
+            />
           </div>
           <h1 className="text-xl font-sacred font-semibold text-foreground">{t('auth.signInTitle')}</h1>
           <p className="text-sm text-muted-foreground italic">
