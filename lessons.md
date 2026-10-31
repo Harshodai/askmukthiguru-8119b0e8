@@ -3,6 +3,12 @@
 
 ## Oct 31, 2026 — cross-parent antecedent stitching, Memgraph doctrine grounding & distress calibration
 
+### L-CONSECUTIVE-CITATION-CLUBBING-1. Adjacent spans from the same video and speaker in parent contexts must be clubbed into a unified continuous citation.
+- **What:** In `FirstPersonPipeline._eval_ctx_worker`, multi-span parent contexts (`SERVE_PARENT_CONTEXT`) appended each individual child span as a separate citation dict. When 3 consecutive speech turns from the same talk (e.g. `VOOf2kQpeMw`: 00:04–00:22, 00:24–00:37, 00:37–01:06) were served, `QuoteWeaver` rendered 3 repetitive header blocks for the same teacher and 3 separate footnote lines in *Sources of Wisdom:*, while the API returned 3 redundant citations pointing to the same video.
+- **Fix:** Added `_club_consecutive_citations` and `_club_consecutive_audio_clips` to `FirstPersonPipeline`, merging adjacent spans that share `video_id`, speaker, and timing continuity into a single continuous citation spanning the combined time range (`00:04 – 01:06`).
+- **Pin:** `tests/test_first_person_pipeline.py::TestCitationClubbing::test_club_consecutive_citations_merges_same_video` and `test_club_consecutive_audio_clips_merges_durations`.
+- **Rule:** always club contiguous or adjacent spans from the same video and speaker into a unified citation and playback clip; separate citations are reserved for genuinely distinct video sources.
+
 ### L-SPEAKER-LABEL-PRECEDENCE-1. Inherited `guru_id` must not override granular span-level `speaker` attribution in QuoteWeaver.
 - **What:** In `quote_weaver.py::_stored_label`, the attribution resolver prioritized `guru_id` ahead of `speaker`. In videos where channels or video series were tagged with a default teacher id (e.g. `guru_id="preethaji"`), clips spoken by Sri Krishnaji (`speaker="Sri Krishnaji"`) resolved to `"Sri Preethaji"`. The output assertion gate (`QuoteWeaverAssertionGate`) detected a speaker mismatch between the generated citation text and the resolved stored label, rejecting perfectly valid hybrid responses.
 - **Fix:** Restored precedence in `_stored_label` so the explicit `speaker` string is inspected first; `guru_id` serves only as a fallback when `speaker` is unknown, other, or shared.

@@ -1455,3 +1455,88 @@ class TestServeTimeClipRules20261015:
             == "event_marker"
         )
         assert _standalone_problem("Peace is the awareness of oneness today and always.") is None
+
+
+class TestCitationClubbing:
+    """Test clubbing of contiguous citations and audio playback clips from the same video."""
+
+    def test_club_consecutive_citations_merges_same_video(self):
+        from services.first_person_pipeline import FirstPersonPipeline
+
+        c1 = {
+            "video_id": "vid_A",
+            "speaker": "Sri Preethaji",
+            "start_ms": 4000,
+            "end_ms": 22000,
+            "start_sec": 4,
+            "end_sec": 22,
+            "verbatim_text": "What is enlightenment?",
+            "url": "https://www.youtube.com/watch?v=vid_A&t=4s",
+        }
+        c2 = {
+            "video_id": "vid_A",
+            "speaker": "Sri Preethaji",
+            "start_ms": 24000,
+            "end_ms": 37000,
+            "start_sec": 24,
+            "end_sec": 37,
+            "verbatim_text": "In its simplest definition, it is calm.",
+            "url": "https://www.youtube.com/watch?v=vid_A&t=24s",
+        }
+        c3 = {
+            "video_id": "vid_B",
+            "speaker": "Sri Krishnaji",
+            "start_ms": 50000,
+            "end_ms": 70000,
+            "start_sec": 50,
+            "end_sec": 70,
+            "verbatim_text": "Living in a beautiful state changes your world.",
+            "url": "https://www.youtube.com/watch?v=vid_B&t=50s",
+        }
+
+        clubbed = FirstPersonPipeline._club_consecutive_citations([c1, c2, c3])
+        assert len(clubbed) == 2
+
+        # First clubbed citation spans both c1 and c2
+        assert clubbed[0]["video_id"] == "vid_A"
+        assert clubbed[0]["speaker"] == "Sri Preethaji"
+        assert clubbed[0]["start_ms"] == 4000
+        assert clubbed[0]["end_ms"] == 37000
+        assert clubbed[0]["start_sec"] == 4
+        assert clubbed[0]["end_sec"] == 37
+        assert "What is enlightenment?" in clubbed[0]["verbatim_text"]
+        assert "In its simplest definition, it is calm." in clubbed[0]["verbatim_text"]
+
+        # Second citation remains separate (vid_B)
+        assert clubbed[1]["video_id"] == "vid_B"
+        assert clubbed[1]["speaker"] == "Sri Krishnaji"
+        assert clubbed[1]["start_ms"] == 50000
+        assert clubbed[1]["end_ms"] == 70000
+
+    def test_club_consecutive_audio_clips_merges_durations(self):
+        from services.first_person_pipeline import FirstPersonPipeline
+
+        a1 = {
+            "video_id": "vid_A",
+            "speaker": "Sri Preethaji",
+            "start_sec": 4,
+            "end_sec": 22,
+            "duration_sec": 18,
+            "title": "Discourse",
+        }
+        a2 = {
+            "video_id": "vid_A",
+            "speaker": "Sri Preethaji",
+            "start_sec": 24,
+            "end_sec": 60,
+            "duration_sec": 36,
+            "title": "Discourse",
+        }
+
+        clubbed = FirstPersonPipeline._club_consecutive_audio_clips([a1, a2])
+        assert len(clubbed) == 1
+        assert clubbed[0]["video_id"] == "vid_A"
+        assert clubbed[0]["start_sec"] == 4
+        assert clubbed[0]["end_sec"] == 60
+        assert clubbed[0]["duration_sec"] == 56
+

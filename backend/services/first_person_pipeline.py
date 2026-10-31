@@ -2393,6 +2393,77 @@ class FirstPersonPipeline:
         }
 
     @staticmethod
+    def _club_consecutive_citations(citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Club consecutive spans from the same video and speaker into a single continuous citation."""
+        if not citations or len(citations) <= 1:
+            return citations
+        import hashlib
+        clubbed: list[dict[str, Any]] = []
+        curr = None
+        for c in citations:
+            if curr is None:
+                curr = dict(c)
+                continue
+            same_vid = bool(curr.get("video_id") and curr.get("video_id") == c.get("video_id"))
+            same_spk = (
+                curr.get("speaker") == c.get("speaker")
+                or curr.get("guru_id") == c.get("guru_id")
+                or curr.get("teacher_id") == c.get("teacher_id")
+            )
+            curr_end_ms = curr.get("end_ms") or 0
+            next_start_ms = c.get("start_ms") or 0
+            is_adjacent = next_start_ms >= (curr.get("start_ms") or 0) and (next_start_ms - curr_end_ms) <= 45000
+
+            if same_vid and same_spk and is_adjacent:
+                curr["end_ms"] = max(curr_end_ms, c.get("end_ms") or 0)
+                curr["end_sec"] = -(-int(curr["end_ms"]) // 1000)
+                if "playback_end_seconds" in curr and "playback_end_seconds" in c:
+                    curr["playback_end_seconds"] = max(curr["playback_end_seconds"], c["playback_end_seconds"])
+                curr["verbatim_text"] = (
+                    str(curr.get("verbatim_text") or "").strip()
+                    + " "
+                    + str(c.get("verbatim_text") or "").strip()
+                )
+                curr["text_snippet"] = curr["verbatim_text"]
+                curr["transcript_hash"] = hashlib.sha256(
+                    curr["verbatim_text"].encode("utf-8")
+                ).hexdigest()
+                curr["source_text_hash"] = curr["transcript_hash"]
+            else:
+                clubbed.append(curr)
+                curr = dict(c)
+        if curr is not None:
+            clubbed.append(curr)
+        return clubbed
+
+    @staticmethod
+    def _club_consecutive_audio_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Club consecutive audio clips from the same video and speaker into a single playback clip."""
+        if not clips or len(clips) <= 1:
+            return clips
+        clubbed: list[dict[str, Any]] = []
+        curr = None
+        for c in clips:
+            if curr is None:
+                curr = dict(c)
+                continue
+            same_vid = bool(curr.get("video_id") and curr.get("video_id") == c.get("video_id"))
+            same_spk = curr.get("speaker") == c.get("speaker")
+            curr_end_sec = curr.get("end_sec") or 0
+            next_start_sec = c.get("start_sec") or 0
+            is_adjacent = next_start_sec >= (curr.get("start_sec") or 0) and (next_start_sec - curr_end_sec) <= 45
+
+            if same_vid and same_spk and is_adjacent:
+                curr["end_sec"] = max(curr_end_sec, c.get("end_sec") or 0)
+                curr["duration_sec"] = curr["end_sec"] - (curr.get("start_sec") or 0)
+            else:
+                clubbed.append(curr)
+                curr = dict(c)
+        if curr is not None:
+            clubbed.append(curr)
+        return clubbed
+
+    @staticmethod
     def _allowlist_state() -> str:
         """The quality-allowlist component of the serving-policy fingerprint.
 
@@ -3447,6 +3518,10 @@ class FirstPersonPipeline:
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                         )
                         return None, _local_tokens
+
+                    # Club contiguous spans from the same video and speaker into continuous citations
+                    citations = self._club_consecutive_citations(citations)
+                    audio_playback_clips = self._club_consecutive_audio_clips(audio_playback_clips)
 
                     # Relevance gate: score (question, assembled answer) with the
                     # same scorer/min score as the legacy path.
