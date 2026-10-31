@@ -1,6 +1,15 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — composer queue button geometry and character counter removal
+
+### L-COMPOSER-QUEUE-BUTTON-GEOMETRY-1. Text labels in multi-button composer footers clip at container boundaries; use icon actions with equal box geometry.
+- **What:** In `ChatComposer.tsx`, when generation was active (`isStreaming || isTyping`) and the user typed a follow-up, the action button switched to a wide rectangular pill rendering `↵ Queue` with `px-3 font-semibold text-xs`. In combination with the circular Stop button, the group overflowed the right margin of the composer container, causing the button edge to clip against the parent border (`Queu...`). Concurrently, long inputs displayed an unwanted `1,212 chars` pill.
+- **Fix:** Removed the `{inputValue.length >= 300 && (...)}` character counter. Replaced the wide `Queue` pill with an elegant `h-9 w-9 rounded-xl bg-ojas` Send icon button (`<Send className="w-4 h-4" />`) with tooltip explaining that it queues the message to auto-send after the current answer. Harmonized the Stop button to a matching `h-9 w-9 rounded-xl bg-destructive/10 text-destructive border border-destructive/20` box. Verified right-boundary containment (`sendRect.right = 1231px`, `formRight = 1244px`, 13px internal padding, zero clipping).
+- **Pin:** `src/test/components/ChatComposer-keyboard.test.tsx` (all 13 tests passing).
+- **Rule:** avoid dynamic text pills in fixed-space toolbars when multiple action buttons appear; use consistent square or circular icon buttons with explicit tooltips.
+
+
 ## Oct 31, 2026 — composer persistent scroll slider and compact language selector
 
 ### L-COMPOSER-TEXTAREA-PERSISTENT-SCROLL-SLIDER-1. OS overlay scrollbars hide text overflow; custom proportional slider and jump-to-start affordance ensure multi-paragraph text navigation.
