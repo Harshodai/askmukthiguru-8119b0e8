@@ -6,7 +6,6 @@ import {
   MessageCircle,
   User,
   Flame,
-  Sparkles,
   Search,
   Compass,
   ArrowLeft,
@@ -38,6 +37,7 @@ import { Button } from '@/components/ui/button';
 import { useProfile } from '@/hooks/useProfile';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
+import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
 import { checkConnection } from '@/lib/aiService';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 
@@ -58,10 +58,20 @@ const SidebarBrand = () => {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { profile } = useProfile();
+  const location = useLocation();
+  const isProfile = location.pathname === '/profile';
+
   return (
     <div className="flex items-center gap-3 px-2 py-3">
-      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-ojas to-ojas-light flex items-center justify-center shadow-md shrink-0">
-        <Sparkles className="w-5 h-5 text-primary-foreground" />
+      <div
+        className={cn(
+          "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300",
+          isProfile
+            ? "bg-gradient-to-br from-amber-50 via-white to-amber-100/90 border border-ojas/30 ring-1 ring-amber-200/50 shadow-xs text-amber-800"
+            : "bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground shadow-md"
+        )}
+      >
+        <EkamGoldenOrb className="w-5 h-5" />
       </div>
       {!collapsed && (
         <div className="flex-1 min-w-0">

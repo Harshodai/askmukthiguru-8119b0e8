@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CitationPanel, type Citation } from './CitationPanel';
 import { LiveLogisticsCards } from './LiveLogisticsCards';
 import { EuAiBadge } from '@/components/compliance/EuAiBadge';
+import type { OriginType } from '@/types/provenance';
 import { ProvenanceDrawer } from '@/components/compliance/ProvenanceDrawer';
 import { CitationBadge, DiscourseVideoModal, type DiscourseCitation } from './CitationCard';
 import { LinkSearchModal } from './LinkSearchModal';
@@ -37,6 +38,7 @@ import { SacredPracticeWidget } from './SacredPracticeWidget';
 import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
+import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
 import { completeStep } from '@/lib/dailyJourney';
 import { AbstainHelpCard } from './AbstainHelpCard';
 
@@ -1224,23 +1226,28 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         guidanceAttribution={message.guidancePlan?.attribution}
                       />
                       {personalizeRef && !isAlreadyPersonalized && (
-                        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-                          <button
-                            type="button"
-                            data-testid="personalize-teaching"
-                            onClick={() => onPersonalizeTeaching?.(personalizeRef)}
-                            aria-describedby={`personalize-note-${message.id}`}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                            {t('chat.personalizeTeaching', 'Personalize this teaching')}
-                          </button>
-                          <p id={`personalize-note-${message.id}`} className="text-[11px] text-muted-foreground" data-testid="personalize-note">
+                        <div className="mb-3.5 flex flex-col gap-1.5 rounded-xl border border-ojas/25 bg-gradient-to-r from-ojas/10 via-background/90 to-ojas/5 p-2.5 sm:p-3 shadow-xs">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                              <EkamGoldenOrb className="w-3.5 h-3.5 text-ojas" />
+                              <span>{t('chat.personalizeTourTitle', 'Tune this wisdom to your life')}</span>
+                            </div>
+                            <button
+                              type="button"
+                              data-testid="personalize-teaching"
+                              onClick={() => onPersonalizeTeaching?.(personalizeRef)}
+                              aria-describedby={`personalize-note-${message.id}`}
+                              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold px-3.5 py-1.5 text-xs shadow-xs transition-transform active:scale-95 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <span>{t('chat.personalizeTeaching', 'Personalize this teaching')}</span>
+                            </button>
+                          </div>
+                          <p id={`personalize-note-${message.id}`} className="text-[11px] text-muted-foreground m-0" data-testid="personalize-note">
                             {t('chat.personalizeNote', 'Uses only memories you chose to save.')}{' '}
                             <button
                               type="button"
                               onClick={() => navigate('/profile?tab=memory')}
-                              className="underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                              className="text-ojas underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm font-medium"
                             >
                               {t('chat.personalizeManage', 'Review what is saved')}
                             </button>
@@ -1563,7 +1570,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               {/* Guru hover actions and timestamp — zero-height when inactive on desktop to prevent dead-space gaps */}
               {isGuru && message.content && !message.error && !isStreaming && !message.content.includes('_Stopped by you._') && (
                 <div className="flex items-center justify-between gap-2 mt-1 md:mt-0 md:max-h-0 md:overflow-hidden md:opacity-0 md:group-hover:mt-1.5 md:group-hover:max-h-10 md:group-hover:overflow-visible md:group-hover:opacity-100 md:group-focus-within:mt-1.5 md:group-focus-within:max-h-10 md:group-focus-within:overflow-visible md:group-focus-within:opacity-100 max-md:opacity-100 max-md:mt-1.5 transition-all duration-200">
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex items-center gap-0.5 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100">
                     <button
                       onClick={handleCopy}
                       className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
@@ -1636,10 +1643,12 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               <div className="mt-1.5 select-none flex flex-wrap items-center gap-2">
                 <EuAiBadge
                   originType={
-                    message.aiProvenance?.originType ??
-                    (message.verification?.method === 'first_person_verbatim_clip_gate' && message.verification?.passed !== false
-                      ? 'human_generated'
-                      : 'ai_generated')
+                    (typeof message.aiProvenance?.originType === 'string' &&
+                     ['ai_generated', 'human_generated', 'ai_assisted', 'unverified'].includes(message.aiProvenance.originType)
+                      ? (message.aiProvenance.originType as OriginType)
+                      : (message.verification?.method === 'first_person_verbatim_clip_gate' && message.verification?.passed !== false
+                        ? 'human_generated'
+                        : 'ai_generated'))
                   }
                   onClick={() => setProvenanceOpen(true)}
                   size="sm"

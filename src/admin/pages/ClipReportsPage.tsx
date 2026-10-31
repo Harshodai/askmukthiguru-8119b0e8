@@ -131,7 +131,7 @@ export default function ClipReportsPage() {
                   </thead>
                   <tbody className="divide-y">
                     {rows.map((r, index) => {
-                      const videoId = (r as any)?.video_id || r?.served_point_id || "";
+                      const videoId = (r as unknown as Record<string, unknown>)?.video_id as string || r?.served_point_id || "";
                       return (
                         <tr
                           key={`${r?.served_point_id ?? "report"}-${r?.ts ?? index}`}

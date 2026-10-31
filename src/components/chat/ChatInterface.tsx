@@ -36,6 +36,7 @@ import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
 import { buildMessageError } from '@/lib/chat/errors';
 import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBanner';
+import { MoodBanner } from '@/components/mood/MoodBanner';
 import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 
@@ -2489,6 +2490,9 @@ return (
 
       {/* EU AI Act Article 50(1) Transparency Banner */}
       <AiTransparencyBanner />
+
+      {/* Daily Mood Check-In & Journey Banner (Landing Mode only) */}
+      <MoodBanner isLandingMode={isLandingMode} />
 
 
       {/* Messages Area — this is the scroll container */}

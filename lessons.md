@@ -1,6 +1,48 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — Ekam Golden Orb brand emblem and profile tab dock height & alignment
+
+### L-EKAM-GOLDEN-ORB-BRAND-EMBLEM-1. Replace generic AI sparkle glyphs with authentic spiritual emblems honoring the sacred teachings.
+- **What:** In `AppShell.tsx`, `SidebarBrand` rendered the app mark as a yellow rounded square with a generic AI star/sparkle icon (`<Sparkles className="w-5 h-5 text-primary-foreground" />`). This evoked generic AI chatbots (Siri / Bard / Copilot) rather than a sacred sanctuary grounded in the wisdom of Sri Preethaji & Sri Krishnaji and the World Centre for Enlightenment at Ekam.
+- **Fix:** Created `src/components/common/EkamGoldenOrb.tsx`, a bespoke SVG emblem representing the sacred **Ekam Golden Orb** (*Hiranyagarbha / Svarna Golakam*): an inner luminous orb and bindu of pure consciousness, concentric rings of universal oneness, and 8 cardinal and ordinal rays of divine grace. Replaced `<Sparkles />` in `SidebarBrand` with `<EkamGoldenOrb />`. Concurrently, replaced `<Sparkles />` on the Profile Personalise tab with `<SlidersHorizontal />` for authentic, purposeful personalization.
+- **Pin:** `src/components/common/EkamGoldenOrb.tsx`, `src/components/layout/AppShell.tsx`, `src/pages/ProfilePage.tsx`.
+- **Rule:** spiritual platforms must avoid generic generative AI sparkles; anchor brand identity in authentic sacred emblems (the Ekam Golden Orb, Jyoti, or Padma) reflecting oneness and inner awakening.
+
+### L-RADIX-TABSLIST-HEIGHT-OVERFLOW-1. Radix/shadcn TabsList hardcodes h-10; floating tab docks must explicitly override container height to prevent button protrusion.
+- **What:** In `src/pages/ProfilePage.tsx`, the floating tab dock rendered child `TabsTrigger` buttons with `min-h-[44px]` inside `TabsList` with `p-1.5`. Because `TabsList` in `src/components/ui/tabs.tsx` carries a default `h-10` (`40px`), `twMerge` retained `h-10` in the absence of an explicit container height class. With container padding taking up 12px, only 28px remained inside `TabsList`, forcing the active white button (`Personalise`) to overflow and protrude 16px past the bottom border of the dock pill. Inactive buttons were simultaneously cramped against the bottom edge with 0px margin.
+- **Fix:** Overrode `TabsList` with `h-auto min-h-[52px] sm:min-h-[56px] items-center p-1.5 sm:p-2`. Standardized all `TabsTrigger` buttons to `h-10 sm:h-11 min-h-0` with centered flex alignment. Added `border border-transparent` to inactive tabs transitioning to `data-[state=active]:border-ojas/30` on active tabs, eliminating all subpixel layout shifts.
+- **Pin:** `src/test/ProfileJourney.test.tsx` (all 5 tests passing).
+- **Rule:** when building custom tab docks using shadcn/Radix `TabsList`, always supply `h-auto min-h-[...]` so `twMerge` clears the default `h-10`; ensure inactive items share identical border dimensions with active items to avoid geometry shifts.
+
+## Oct 31, 2026 — profile page spiritual sadhana rhythm, floating tab dock, and language deduplication
+
+### L-PROFILE-SPIRITUAL-SADHANA-RHYTHM-1. Replace gamified fitness streak metrics and flatline wireframes with sacred continuity and illuminated presence matrices.
+- **What:** In `ProfileStatTiles.tsx`, when practice sessions were 0 (or start of week), the weekly activity widget rendered a flat horizontal dashed SVG line (`strokeDasharray="3 4"`) over disconnected `S M T W T F S` characters, resembling an empty hospital flatline monitor or broken wireframe. Concurrently, generic gamified language (*"Practice today to ignite your streak"*) felt transactional and disconnected from the sacred sanctuary teachings of Sri Preethaji & Sri Krishnaji.
+- **Fix:** Redesigned the streak experience into a **Sacred Sadhana Rhythm** hero card featuring an *Akhanda Jyoti* (golden flame of awareness) and wisdom-grounded spiritual copy (*"Continuity in sadhana transforms awareness into the Beautiful State"* when active, *"Every breath is an invitation to stillness. Step into sadhana today to awaken your inner rhythm"* when zero). Replaced the empty dashed SVG flatline with the **Circle of Presence** 7-day illuminated mandala matrix: completed days render warm golden light nodes with sparkles (`bg-gradient-to-br from-amber-400 to-amber-600`), today renders an open radiating golden aura ring (`ring-2 ring-ojas/80 bg-ojas/10 text-ojas`), and rest/integration days render serene petal circles honoring natural spiritual pauses. Preserved exact stat counts (`totalSessions`, `totalMinutes`, `streakDays`) so `ProfileJourney.test.tsx` passes 100%.
+- **Pin:** `src/test/ProfileJourney.test.tsx` (all 5 tests passing).
+- **Rule:** spiritual applications must avoid cold fitness-tracker metaphors or broken dashed-line empty states; frame continuity as sacred sadhana rhythm and present daily presence through warm, illuminated visual nodes.
+
+### L-PROFILE-FLOATING-TAB-DOCK-1. Segmented navigation in sacred sanctuaries must feel elevated and intentional with bespoke icons and golden accents.
+- **What:** In `ProfilePage.tsx`, `TabsList` rendered as an unstyled, drab gray block (`bg-muted/50 p-1 rounded-lg`) with plain text rectangles. It lacked tactile feedback, spiritual warmth, icons, and visual distinction between tabs.
+- **Fix:** Replaced the plain rectangle with a floating glassmorphic tab dock (`bg-card/85 backdrop-blur-xl border border-hairline/80 rounded-2xl shadow-xs max-w-2xl mx-auto`). Added bespoke Lucide icons to each tab: Journey (`<Compass />`), Personalise (`<Sparkles />`), Memory (`<BookOpen />`), and Settings (`<Settings />`). Active tabs receive subtle golden borders (`border-ojas/30`), radiant golden icon transitions (`group-data-[state=active]:text-ojas`), and micro-tactile press scaling (`active:scale-[0.98]`).
+- **Rule:** major segmented navigation controls require explicit icon anchors and warm active indicators rather than unstyled generic browser pills.
+
+### L-PROFILE-LANGUAGE-DEDUPLICATION-1. Bilingual language selector options must guard against redundant native/English substring duplication.
+- **What:** In `ProfilePage.tsx`, the Preferred Language dropdown rendered `{l.native} ({l.name})`. Because English defined `native: "English"` and `name: "English (India)"`, the option rendered redundantly as `"English (English (India))"`.
+- **Fix:** Implemented `formatLanguageOption(l)` helper that checks if `l.native.toLowerCase() === 'english'` or `l.name.startsWith(l.native)` and cleanly returns `l.name` (`"English (India)"`), while keeping Indian languages formatted natively with English subtitles (e.g., `"हिन्दी (Hindi)"`, `"తెలుగు (Telugu)"`).
+- **Rule:** always sanitize compound display strings (`native (English)`) to ensure native labels do not redundantly echo parenthetical English subtitles.
+
+
+## Oct 31, 2026 — mood check-in layout hierarchy and landing-only contextual display
+
+### L-MOOD-BANNER-LAYOUT-HIERARCHY-1. Secondary check-in prompts must not render above global navigation headers or distract active conversations.
+- **What:** In `ChatPage.tsx`, `<MoodBanner />` was rendered as an outer sibling above `<ChatInterface />`. Because `ChatInterface` contains both the sidebar and the global top navigation header (`ChatHeader`), `MoodBanner` was rendered at the absolute top of the viewport above the app header and sidebar, clipping against the browser ceiling (`y = 0`) and persisting inappropriately during active spiritual conversations.
+- **Fix:** Removed `<MoodBanner />` from `ChatPage.tsx` and mounted it inside `ChatInterface.tsx` below `ChatHeader` and `AiTransparencyBanner`. Added `isLandingMode` prop so it only displays during landing mode (`isLandingMode === true`) when a seeker arrives, completely hiding when an active conversation is underway (`!isLandingMode`). Redesigned the visual from a clipped capsule pill into an elegant full-width sanctuary strip with `border-b border-ojas/20 bg-gradient-to-r from-ojas/10 via-background/90 to-ojas/5`, golden sparkles icon, and refined action buttons.
+- **Pin:** `src/test/MoodBanner.journey.test.tsx` (all 4 tests passing).
+- **Rule:** global navigation headers must remain the topmost visual anchor; contextual check-ins belong inside the main content column and must hide during active inquiry.
+
+
 ## Oct 31, 2026 — composer queue button geometry and character counter removal
 
 ### L-COMPOSER-QUEUE-BUTTON-GEOMETRY-1. Text labels in multi-button composer footers clip at container boundaries; use icon actions with equal box geometry.

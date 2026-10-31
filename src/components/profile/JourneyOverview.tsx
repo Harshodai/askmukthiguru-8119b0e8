@@ -57,8 +57,28 @@ export const JourneyOverview = ({
       {/* ── Practice Overview: Stat tiles & 7-day sparkline ── */}
       <ProfileStatTiles stats={stats} sessions={sessions} />
 
-      {/* ── Sadhana Activity Heatmap ── */}
-
+      {/* ── Ekam Sanctuary Emblem & Teaching ── */}
+      <div className="relative overflow-hidden rounded-2xl border border-ojas/25 bg-gradient-to-r from-amber-950/20 via-background to-amber-950/20 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-center gap-4">
+        <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden shrink-0 border border-ojas/30 shadow-md">
+          <img
+            src="/images/ekam-golden-orb-lotus.png"
+            alt="Ekam Golden Orb of Awakening"
+            className="w-full h-full object-cover object-center"
+            loading="lazy"
+          />
+        </div>
+        <div className="flex-1 min-w-0 text-center sm:text-left space-y-1">
+          <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-ojas">
+            Ekam · World Centre for Enlightenment
+          </p>
+          <h3 className="text-sm sm:text-base font-semibold text-foreground">
+            The Golden Orb of Pure Awareness
+          </h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            In the sacred presence of the Golden Orb, inner division dissolves and the seeker awakens into the Beautiful State.
+          </p>
+        </div>
+      </div>
 
       {/* Next step: exactly one card, one action. */}
       <Card className="rounded-none border-0 border-t border-hairline bg-transparent shadow-none">
