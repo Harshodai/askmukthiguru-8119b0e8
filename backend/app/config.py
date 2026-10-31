@@ -292,6 +292,11 @@ class Settings(BaseSettings):
     # audits/manifests. Point it at a volume shared by the ingest worker and the
     # backend, or at a temp dir in tests.
     corpus_publication_manifest_dir: str = ""
+    # Served-answer length window (words). Below the floor a clip is a fragment (graded
+    # fragments had 21-22 words, the shortest showable clip 23); above the cap it is several
+    # topics run together (318 words, not showable). Measured 2026-10-31, one small sample.
+    first_person_min_answer_words: int = 23
+    first_person_max_answer_words: int = 300
     # Optional CSV of every known video (channel, title, v10 counts) so the page can list
     # videos that are not in v10. Empty uses config/first_person_video_inventory.csv.
     # Env: FIRST_PERSON_VIDEO_INVENTORY_PATH.

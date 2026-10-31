@@ -454,6 +454,20 @@ def _isolate_publication_manifest_dir(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _neutral_clip_length_window(monkeypatch):
+    """Most first-person fixtures use one-line clips to test OTHER gates.
+
+    The production length window (23 to 300 words, app/config.py) is pinned explicitly in
+    tests/test_showability_gates_2026_10_31.py; elsewhere it is widened so a toy clip
+    exercises the gate under test and not the length floor.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "first_person_min_answer_words", 0)
+    monkeypatch.setattr(settings, "first_person_max_answer_words", 10**6)
+
+
+@pytest.fixture(autouse=True)
 def _flush_test_redis():
     """Clear the suite's Redis database between tests.
 

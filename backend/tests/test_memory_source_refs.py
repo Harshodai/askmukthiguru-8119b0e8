@@ -156,8 +156,47 @@ async def test_list_memories_falls_back_when_the_source_column_is_not_migrated_y
 
     assert result["memories"] == [{"id": "m1", "content": "I walk daily", "source": "extracted"}]
     page_selects = [cols for cols, _ in supabase.log if "content" in cols]
-    assert page_selects == [_LIST_MEMORY_COLUMN_TIERS[0], _LIST_MEMORY_COLUMN_TIERS[1]]
+    # Without the source column the only tiers that can work are the ones without it.
+    assert page_selects == list(_LIST_MEMORY_COLUMN_TIERS[:3])
     assert memory_source_ref(result["memories"][0]) is None
+
+
+@pytest.mark.asyncio
+async def test_missing_metadata_column_still_returns_the_source_link():
+    """Local Supabase: guru_memories has source_conversation_id but no metadata column."""
+
+    class _NoMetadata(_Query):
+        def execute(self):
+            if "metadata" in self.columns.split(", "):
+                self.log.append((self.columns, dict(self.filters)))
+                raise Exception("column guru_memories.metadata does not exist 42703")
+            if "source_conversation_id" in self.columns and "content" in self.columns:
+                self.log.append((self.columns, dict(self.filters)))
+                return SimpleNamespace(
+                    data=[
+                        {
+                            "id": "m1",
+                            "content": "I walk daily",
+                            "source": "extracted",
+                            "source_conversation_id": "11111111-1111-1111-1111-111111111111",
+                        }
+                    ],
+                    count=None,
+                )
+            return super().execute()
+
+    class _SupabaseNoMetadata(_Supabase):
+        def table(self, name):
+            return _NoMetadata(name, self.log, self.fail_with)
+
+    supabase = _SupabaseNoMetadata()
+    service = MemoryService(supabase_client=supabase)
+    with TenantContext.scope("tenant-a", user_id=USER_ID):
+        result = await service.list_memories(USER_ID)
+
+    page_selects = [cols for cols, _ in supabase.log if "content" in cols]
+    assert page_selects == list(_LIST_MEMORY_COLUMN_TIERS[:2])
+    assert memory_source_ref(result["memories"][0]) is not None
 
 
 @pytest.mark.asyncio

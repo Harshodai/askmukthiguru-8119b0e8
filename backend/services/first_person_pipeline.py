@@ -492,6 +492,42 @@ _ORPHAN_OPENER_RE = re.compile(
     r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
     re.IGNORECASE,
 )
+# Continuation openers that are NOT rescued by core-wisdom keywords. A clip that starts "So," or
+# "Okay," answers something said just before it, and "The third pillar ..." is item three of a
+# list the seeker never sees. Found by the 2026-10-31 Haiku/Opus grading of 40 served answers
+# (q001, q054, q058, q060). "So both Preethaji and I ..." (no comma) stays a fine opener.
+_DISCOURSE_OPENER_RE = re.compile(
+    r"^[\"'“‘\s]*(?:so|okay|ok|well|right|alright|now|anyway)\s*[,.]\s",
+    re.IGNORECASE,
+)
+_LATE_ORDINAL_OPENER_RE = re.compile(
+    r"^[\"'“‘\s]*the\s+(?:second|third|fourth|fifth|sixth|next|last)\s+\w+",
+    re.IGNORECASE,
+)
+
+
+def _clip_length_problem(text: str) -> Optional[str]:
+    """A served clip must be long enough to hold a thought and short enough to be a clip.
+
+    Graded 2026-10-31: 21-22 word fragments and a 318 word run of three topics were rated not
+    showable; the shortest showable clip had 23 words, so the floor sits there (ingest
+    minimum is 15) and the cap just above the longest showable clip (236).
+    """
+
+    def _bound(name: str, default: int) -> int:
+        # Only a real int counts: a mocked or mistyped setting must not become a
+        # 1-word cap (int(MagicMock()) == 1).
+        value = getattr(settings, name, default)
+        return value if isinstance(value, int) and not isinstance(value, bool) else default
+
+    words = len(text.split())
+    if words < _bound("first_person_min_answer_words", 23):
+        return "too_short"
+    if words > _bound("first_person_max_answer_words", 300):
+        return "too_long"
+    return None
+
+
 # Medical/causal health claims: a fragment out of context reads as a healing claim or medical
 # advice (live 2026-10-11 judge: infant colic, "bedridden ... come alive", sugar physiology).
 _HEALTH_CLAIM_RE = re.compile(
@@ -569,13 +605,15 @@ def _standalone_problem(text: str) -> Optional[str]:
     # only an explicit mid-sentence ending counts: a clip cut on "," ";" ":" or a dash.
     if stripped and stripped[-1] in ",;:-\u2014\u2013":
         return "ends_mid_sentence"
+    if _DISCOURSE_OPENER_RE.match(text) or _LATE_ORDINAL_OPENER_RE.match(text):
+        return "discourse_opener"
     if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
         return "orphan_opener"
     if _EVENT_MARKER_RE.search(text):
         return "event_marker"
     if _HEALTH_CLAIM_RE.search(text):
         return "health_claim"
-    return None
+    return _clip_length_problem(text)
 
 
 def _is_transient_connection_error(exc: BaseException) -> bool:

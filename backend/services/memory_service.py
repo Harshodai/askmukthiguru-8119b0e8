@@ -18,8 +18,12 @@ _LIST_MEMORY_BASE_COLUMNS = (
     "decay_score, fact_key, valid_from, valid_to"
 )
 # Newest schema first; list_memories falls back one tier on a missing-column error.
+# `metadata` is optional and independent of `source_conversation_id`: the local Supabase
+# has the source column and no `metadata`, so dropping `metadata` alone must keep the
+# source link (the previous order skipped straight past it).
 _LIST_MEMORY_COLUMN_TIERS: tuple[str, ...] = (
     _LIST_MEMORY_BASE_COLUMNS + ", metadata, source_conversation_id",
+    _LIST_MEMORY_BASE_COLUMNS + ", source_conversation_id",
     _LIST_MEMORY_BASE_COLUMNS + ", metadata",
     _LIST_MEMORY_BASE_COLUMNS,
 )

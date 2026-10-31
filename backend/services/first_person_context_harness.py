@@ -271,14 +271,22 @@ def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
     from app.config import settings
     from services.first_person_pipeline import (
         _CORE_WISDOM_KEYWORDS_RE,
+        _DISCOURSE_OPENER_RE,
         _EVENT_MARKER_RE,
+        _LATE_ORDINAL_OPENER_RE,
         _ORPHAN_OPENER_RE,
+        _clip_length_problem,
     )
 
     if not getattr(settings, "first_person_standalone_gate_enabled", True) or not spans:
         return False
     first = spans[0].verbatim_text
+    if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
+        return True
     if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
+        return True
+    # Length is judged on the whole served answer, not span by span.
+    if _clip_length_problem(" ".join(s.verbatim_text.strip() for s in spans)):
         return True
     return any(_EVENT_MARKER_RE.search(s.verbatim_text) for s in spans)
 
