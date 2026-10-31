@@ -21,7 +21,7 @@ export interface WisdomTip {
 const STORAGE_KEY = 'mukthi_wisdom_tips_v1';
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ROTATE_INTERVAL_MS = 8000;
-const SHOW_DELAY_MS = 2000;
+const SHOW_DELAY_MS = 0;
 const FETCH_TIMEOUT_MS = 4000;
 
 /**
@@ -108,8 +108,15 @@ export const useWisdomTips = (active: boolean): WisdomTip | null => {
     let cancelled = false;
     let rotateTimer: number | undefined;
 
-    const showTimer = window.setTimeout(async () => {
-      if (tipsRef.current.length === 0) tipsRef.current = await fetchWisdomTips();
+    const displayTip = async () => {
+      if (tipsRef.current.length === 0) {
+        const cached = loadCachedTips();
+        if (cached && cached.length > 0) {
+          tipsRef.current = cached;
+        } else {
+          tipsRef.current = await fetchWisdomTips();
+        }
+      }
       if (cancelled || tipsRef.current.length === 0) return;
       indexRef.current = Math.floor(Math.random() * tipsRef.current.length);
       setTip(tipsRef.current[indexRef.current]);
@@ -117,11 +124,12 @@ export const useWisdomTips = (active: boolean): WisdomTip | null => {
         indexRef.current = (indexRef.current + 1) % tipsRef.current.length;
         setTip(tipsRef.current[indexRef.current]);
       }, ROTATE_INTERVAL_MS);
-    }, SHOW_DELAY_MS);
+    };
+
+    displayTip();
 
     return () => {
       cancelled = true;
-      window.clearTimeout(showTimer);
       if (rotateTimer !== undefined) window.clearInterval(rotateTimer);
     };
   }, [active]);

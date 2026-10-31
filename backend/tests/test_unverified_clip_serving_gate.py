@@ -3,10 +3,8 @@
 2. UT-04 / UT-05: Spans with guru_id/teacher_id map strictly to single-teacher display labels.
 """
 
-import pytest
 from app.config import settings
 from app.pipeline.stages.first_person_bridge import _eligible_citations
-from services.first_person_pipeline import _speaker_verification
 from services.quote_fidelity import canonical_speaker
 from services.quote_weaver import _stored_label
 

@@ -1,6 +1,26 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — YouTube Error 153 resolution, ThinkingPills sacred teachings contemplation, and CI security gates
+
+### L-YOUTUBE-EMBED-ERROR-153-1. YouTube iframe embeds fail with Error 153 when Nginx Referrer-Policy is same-origin; enforce strict-origin-when-cross-origin.
+- **What:** In `DiscourseAudioStrip.tsx` and `CitationCard.tsx`, clicking "Play source clip" or the video toggle embedded YouTube iframes using standard URLs (`https://www.youtube.com/embed/...`). In browser environments where `nginx.conf` set `add_header Referrer-Policy "same-origin" always;`, the browser stripped the `Referer` header on all cross-origin requests to YouTube servers. YouTube's embedded player requires a valid cross-origin referrer and matching origin to authorize playback; stripping the referrer triggered a fatal YouTube player configuration error (`Video player configuration error / Error 153`).
+- **Fix:** In `nginx.conf` and `frontend/nginx.conf`, updated `Referrer-Policy` to `"strict-origin-when-cross-origin"`. In `index.html`, added `<meta name="referrer" content="strict-origin-when-cross-origin" />`. In `DiscourseAudioStrip.tsx` and `CitationCard.tsx`, switched player URLs to privacy-preserving `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(origin)}` and explicitly set `referrerPolicy="strict-origin-when-cross-origin"` on all player iframes.
+- **Pin:** `src/components/chat/DiscourseAudioStrip.tsx`, `src/components/chat/CitationCard.tsx`, `nginx.conf`, `frontend/nginx.conf`, `index.html`.
+- **Rule:** media embeds (YouTube, Vimeo) in privacy-hardened web applications require `Referrer-Policy: strict-origin-when-cross-origin` and explicit `origin` query parameters so the host can authenticate embed playback without leaking full paths.
+
+### L-THINKING-PILLS-SACRED-TEACHING-1. Display authentic sacred teachings from the admin portal during contemplation without arbitrary client artificial delays.
+- **What:** While generating spiritual answers, `ThinkingPills` displayed technical pipeline stage labels (*"Safety check"*, *"Refining relevance"*, *"Contemplating"*). Meanwhile, authentic sacred teachings curated by the admin portal (`/api/teachings/tips`) were fetched by `useWisdomTips.ts` but were not displayed due to an artificial 2000ms delay (`SHOW_DELAY_MS = 2000`) and missing integration into `ThinkingPills.tsx`. Because fast streaming responses return the first token in ~2s, the contemplation tip never rendered before the pipeline indicator faded.
+- **Fix:** Wired `useWisdomTips(visible)` directly into `ThinkingPills.tsx` to render a dedicated `data-testid="thinking-pills-wisdom-tip"` card during generation. Displayed the teaching text with authentic attribution (`· Sri Preethaji & Sri Krishnaji`). In `src/hooks/useWisdomTips.ts`, removed the artificial 2000ms delay (`SHOW_DELAY_MS = 0`) and enabled synchronous initialization from cached localStorage tips (`loadCachedTips()`), allowing seekers to contemplate authentic wisdom immediately upon submitting their inquiry.
+- **Pin:** `src/components/chat/ThinkingPills.tsx`, `src/hooks/useWisdomTips.ts`.
+- **Rule:** contemplation/thinking states in spiritual applications should elevate seekers with authentic wisdom from the teachers rather than displaying empty loaders or technical infrastructure labels.
+
+### L-CI-CSP-SECURITY-GATE-1. Production Nginx configuration must never contain private loopback IPs in Content-Security-Policy headers.
+- **What:** In `nginx.conf`, `connect-src` contained development fallback origins (`http://127.0.0.1:54321`, `http://localhost:54321`). This triggered a hard failure in the GitHub Actions `Security Audit` workflow (`.github/workflows/security-audit.yml`), which strictly tests: `if grep "add_header Content-Security-Policy" nginx.conf | grep -qE "localhost|127\.0\.0\.1|cdn\.jsdelivr|gs-extension"; then exit 1; fi`.
+- **Fix:** Cleaned `connect-src` in `nginx.conf` by removing all loopback addresses while preserving production Supabase and Google Auth origins. Verified the automated security audit gate passes with exit code 0.
+- **Rule:** never check localhost or private IP addresses into production Nginx CSP configurations; keep local dev proxies isolated to dev compose overrides.
+
+
 ## Oct 31, 2026 — Ekam Golden Orb brand emblem and profile tab dock height & alignment
 
 ### L-EKAM-GOLDEN-ORB-BRAND-EMBLEM-1. Replace generic AI sparkle glyphs with authentic spiritual emblems honoring the sacred teachings.

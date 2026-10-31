@@ -3400,7 +3400,9 @@ class FirstPersonPipeline:
                     # antecedent referent, check if the preceding span from the same video exists.
                     if ctx_store is not None and served_spans:
                         first_s = served_spans[0]
-                        from services.first_person_context_harness import _span_starts_with_antecedent
+                        from services.first_person_context_harness import (
+                            _span_starts_with_antecedent,
+                        )
 
                         is_antecedent_opener = (
                             _span_starts_with_antecedent(first_s)
@@ -3589,7 +3591,10 @@ class FirstPersonPipeline:
                     mode = str(getattr(settings, "first_person_mode", "retrieval_only") or "").strip().lower()
                     if mode == "hybrid" and self._weaver is not None and citations:
                         try:
-                            from rag.kg_expansion import resolve_concepts_in_query, fetch_doctrine_subgraph
+                            from rag.kg_expansion import (
+                                fetch_doctrine_subgraph,
+                                resolve_concepts_in_query,
+                            )
                             concepts = resolve_concepts_in_query(retrieval_query or query)
                             doctrine_ctx = ""
                             if concepts:

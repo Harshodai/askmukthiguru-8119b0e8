@@ -194,7 +194,10 @@ export const DiscourseVideoModal: React.FC<{
             <iframe
               ref={iframeRef}
               className="h-full w-full"
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}${endParam}&enablejsapi=1`}
+              src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&start=${start}${endParam}&enablejsapi=1&origin=${encodeURIComponent(
+                typeof window !== 'undefined' ? window.location.origin : ''
+              )}`}
+              referrerPolicy="strict-origin-when-cross-origin"
               title={citation.title || 'Discourse Video'}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { TeachingPreview } from '@/lib/chat/types';
+import { useWisdomTips, type WisdomTip } from '@/hooks/useWisdomTips';
 import { Check, ChevronDown, Circle, Loader2 } from 'lucide-react';
 
 export interface PipelineStep {
@@ -23,6 +24,7 @@ interface ThinkingPillsProps {
   currentStep?: number;
   totalSteps?: number;
   teachingPreview?: TeachingPreview[];
+  wisdomTip?: WisdomTip | null;
 }
 
 export const mapNodeToLabel = (node: string): string => {
@@ -87,9 +89,12 @@ export const ThinkingPills = ({
   currentStep,
   totalSteps,
   teachingPreview = [],
+  wisdomTip,
 }: ThinkingPillsProps) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
+  const fetchedWisdomTip = useWisdomTips(visible);
+  const activeWisdomTip = wisdomTip ?? fetchedWisdomTip;
 
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -263,6 +268,30 @@ export const ThinkingPills = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Wisdom Teaching Contemplation — shown while thinking/generating */}
+      {activeWisdomTip && (
+        <motion.div
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="w-full max-w-xl rounded-xl border border-ojas/20 bg-gradient-to-r from-ojas/[0.06] via-background to-ojas/[0.03] px-3.5 py-3 shadow-xs"
+          data-testid="thinking-pills-wisdom-tip"
+        >
+          <div className="flex items-center gap-2 text-[13px] font-medium text-ojas">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-ojas/15 text-[10px]">✨</span>
+            <span>{t('chat.sacredTeaching', 'Sacred Teaching')}</span>
+            {activeWisdomTip.teacher && (
+              <span className="text-xs font-normal text-muted-foreground/80">
+                · {activeWisdomTip.teacher}
+              </span>
+            )}
+          </div>
+          <p className="mt-1.5 font-serif text-[14px] leading-relaxed italic text-foreground/90">
+            "{activeWisdomTip.text}"
+          </p>
+        </motion.div>
+      )}
 
       {teachingPreview.length > 0 && (
         <div className="w-full max-w-xl rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2.5">

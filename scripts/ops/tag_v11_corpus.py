@@ -23,13 +23,13 @@ Invariants & Schema:
 from __future__ import annotations
 
 import argparse
-from collections import Counter, defaultdict
 import csv
 import json
 import os
-from pathlib import Path
 import re
 import sys
+from collections import Counter, defaultdict
+from pathlib import Path
 from typing import Any
 
 from qdrant_client import QdrantClient
@@ -279,7 +279,6 @@ def main(argv: list[str] | None = None) -> int:
     offset = None
     total_scanned = 0
     total_children = 0
-    child_records: list[tuple[str, dict[str, Any], tuple[list[str], list[str], str, list[str], list[str]]]] = []
     parent_map_topics: dict[str, set[str]] = defaultdict(set)
     parent_map_tags: dict[str, set[str]] = defaultdict(set)
     parent_map_categories: dict[str, set[str]] = defaultdict(set)

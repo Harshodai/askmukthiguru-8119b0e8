@@ -26,13 +26,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import json
 import logging
 import math
 import os
-from pathlib import Path
 import sys
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -371,7 +371,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     results = []
-    for index, pt in enumerate(points, 1):
+    for _index, pt in enumerate(points, 1):
         res = evaluate_span(
             point=pt,
             wav_dir=args.wav_dir,
@@ -388,7 +388,7 @@ def main(argv: list[str] | None = None) -> int:
     failed_count = sum(1 for r in results if not r.get("passed"))
     logger.info(f"Evaluation complete: Total={len(results)}, PASS={passed_count}, FAIL={failed_count}")
 
-    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now_iso = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     if args.apply:
         logger.info(f"Applying payload mutations for {len(results)} points in '{args.collection}'...")
