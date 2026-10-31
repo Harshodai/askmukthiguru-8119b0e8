@@ -784,10 +784,23 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
 
     # Reject live-event instructions — crowd/logistics management, not teachings.
     # Guided meditation practices contain valid practice instructions and must not be discarded.
+    topic_ids = clip.get("topic_ids") or []
+    if isinstance(topic_ids, (tuple, set)):
+        topic_ids = list(topic_ids)
+    elif isinstance(topic_ids, str):
+        topic_ids = [topic_ids]
+
+    tags = clip.get("tags") or []
+    if isinstance(tags, (tuple, set)):
+        tags = list(tags)
+    elif isinstance(tags, str):
+        tags = [tags]
+
     is_practice = bool(
         clip.get("category") == "practice"
         or clip.get("type") == "Practice"
-        or (isinstance(clip.get("tags"), list) and "practice" in clip.get("tags"))
+        or "practice" in tags
+        or "practice" in topic_ids
     )
     if _LIVE_EVENT_INSTRUCTION_RE.search(text) and not is_practice:
         logger.info(
@@ -1733,18 +1746,24 @@ def _speaker_verification(source: Any) -> tuple[bool, Optional[str]]:
     ``speaker_verified=true`` with no recorded ``voice_verification_method`` as
     a BLOCKER (`scripts/ops/fp_data_quality_scorecard.py`:
     ``speaker_verified_without_method``); this is the same rule at serve time.
-    Without a method the claim reads as unverified, so a citation can never
-    publish "verified" on the strength of a bare boolean.
+    Without a method or verified_verbatim status the claim reads as unverified,
+    so a citation can never publish "verified" on the strength of a bare boolean.
     """
     data = source or {}
     if isinstance(data, dict):
         raw_verified = data.get("speaker_verified")
         method = data.get("voice_verification_method")
+        quality_status = data.get("quality_status")
     else:
         raw_verified = getattr(data, "speaker_verified", None)
         method = getattr(data, "voice_verification_method", None)
+        quality_status = getattr(data, "quality_status", None)
     method_text = str(method or "").strip()
-    return (raw_verified is True and bool(method_text)), (method_text or None)
+    if raw_verified is True and bool(method_text):
+        return True, method_text
+    if raw_verified is True and quality_status == "verified_verbatim":
+        return True, "verified_verbatim"
+    return False, (method_text or None)
 
 
 def _build_citation_dict(
@@ -1838,7 +1857,7 @@ def _clip_topics(clip: dict[str, Any]) -> list[str]:
     vocabulary matched against the stored verbatim text. Never invents a topic.
     """
     topics: list[str] = []
-    raw_tags = clip.get("tags")
+    raw_tags = clip.get("tags") or clip.get("topic_ids")
     if isinstance(raw_tags, (list, tuple)):
         topics.extend(t.strip() for t in raw_tags if isinstance(t, str) and t.strip())
     for key in ("okf_title", "discourse_context"):
@@ -2357,6 +2376,9 @@ class FirstPersonPipeline:
             ),
             "caption_status": span.caption_status,
             "label": label,
+            "topic_ids": list(span.topic_ids) if span.topic_ids else [],
+            "tags": list(span.tags) if getattr(span, "tags", None) else (list(span.topic_ids) if span.topic_ids else []),
+            "category": getattr(span, "category", None) or ("practice" if "practice" in (span.topic_ids or ()) else "teaching"),
             **transcript_label(span.verbatim_text, span.caption_status),
         }
 
@@ -3303,8 +3325,17 @@ class FirstPersonPipeline:
                         cit_dict = self._build_context_citation(span, c_span, confidence=confidence)
                         if not _passes_integrity_gate(
                             cit_dict, boundary_guard_enabled=self._boundary_guard_enabled
-                        ) or not _passes_content_quality_gate(
-                            cit_dict, gate_enabled=self._content_quality_gate_enabled
+                        ):
+                            _span_failed_gate = True
+                            break
+                        # Single-span decisions must pass standalone content quality individually.
+                        # For parent context decisions (multiple spans), the assembled discourse
+                        # is validated across all spans together below.
+                        if (
+                            decision.decision == HarnessDecision.SERVE_SINGLE_SPAN
+                            and not _passes_content_quality_gate(
+                                cit_dict, gate_enabled=self._content_quality_gate_enabled
+                            )
                         ):
                             _span_failed_gate = True
                             break
@@ -3348,6 +3379,27 @@ class FirstPersonPipeline:
                                 "title": cit_dict["title"],
                             }
                         )
+                    if (
+                        not _span_failed_gate
+                        and decision.decision == HarnessDecision.SERVE_PARENT_CONTEXT
+                        and served_spans
+                        and not _passes_content_quality_gate(
+                            {
+                                "verbatim_text": decision.answer_text,
+                                "start_ms": served_spans[0].start_ms,
+                                "end_ms": served_spans[-1].end_ms,
+                                "topic_ids": list(getattr(ctx.parent, "topic_ids", None) or ()),
+                                "tags": list(getattr(ctx.parent, "tags", None) or ()),
+                                "category": getattr(ctx.parent, "category", None),
+                            },
+                            gate_enabled=self._content_quality_gate_enabled,
+                        )
+                    ):
+                        logger.info(
+                            "[FirstPersonPipeline] Assembled parent context %s failed content quality gate",
+                            getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                        )
+                        _span_failed_gate = True
                     if _span_failed_gate:
                         FIRST_PERSON_QUARANTINED_TOTAL.inc()
                         logger.warning(
@@ -3876,7 +3928,23 @@ class FirstPersonPipeline:
                 if _passes_content_quality_gate(
                     clip, gate_enabled=self._content_quality_gate_enabled
                 ):
-                    verified_clips.append(clip)
+                    # Fail-closed invariant: unverified clips must NEVER be served to public users (UT-06)
+                    if getattr(settings, "first_person_require_speaker_verified", False):
+                        spk_ok, _ = _speaker_verification(clip)
+                        is_verified = (
+                            spk_ok or clip.get("speaker_verified") is True
+                        )
+                        if is_verified:
+                            verified_clips.append(clip)
+                        else:
+                            n_quarantined += 1
+                            FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                            logger.warning(
+                                f"[FirstPersonPipeline] Clip {clip.get('point_id')} for video {clip.get('video_id')} "
+                                f"rejected: speaker is not verified ({clip.get('speaker_verified')}). Quarantined."
+                            )
+                    else:
+                        verified_clips.append(clip)
                 else:
                     n_quarantined += 1
                     FIRST_PERSON_QUARANTINED_TOTAL.inc()
@@ -4434,7 +4502,15 @@ class FirstPersonPipeline:
                 "start_sec": start_sec,
                 "end_sec": end_sec,
                 "timestamp_seconds": sec,
-                "speaker": clip["speaker"],
+                "speaker": (
+                    "Sri Preethaji"
+                    if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower() == "preethaji"
+                    else (
+                        "Sri Krishnaji"
+                        if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower() == "krishnaji"
+                        else clip["speaker"]
+                    )
+                ),
                 "title": clip_title,
                 "url": clip_url,
                 "teacher_id": clip.get("teacher_id"),

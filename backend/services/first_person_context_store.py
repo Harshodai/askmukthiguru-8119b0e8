@@ -68,6 +68,9 @@ SPAN_INDEXES: tuple[tuple[str, str], ...] = (
     # children on these, so an unindexed field becomes a full scan.
     ("topic_ids", "keyword"),
     ("entity_ids", "keyword"),
+    ("tags", "keyword"),
+    ("category", "keyword"),
+    ("facet_ids", "keyword"),
 )
 
 
@@ -311,6 +314,7 @@ class FirstPersonContextStore:
         conditions = [
             FieldCondition(key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)),
             FieldCondition(key="rights_cleared", match=MatchValue(value=True)),
+            FieldCondition(key="speaker_verified", match=MatchValue(value=True)),
         ]
         if guru_id and guru_id.lower() not in ("both", "all", ""):
             conditions.append(
@@ -334,6 +338,7 @@ class FirstPersonContextStore:
                 should=[
                     FieldCondition(key="topic_ids", match=MatchAny(any=concepts)),
                     FieldCondition(key="entity_ids", match=MatchAny(any=concepts)),
+                    FieldCondition(key="tags", match=MatchAny(any=concepts)),
                 ],
             )
         else:

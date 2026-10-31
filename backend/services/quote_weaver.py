@@ -745,9 +745,14 @@ def _verified_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _stored_label(c: dict[str, Any]) -> Optional[str]:
     """Display label from payload metadata only: per-clip speaker, else teacher_id."""
+    specific_guru = canonical_speaker(str(c.get("guru_id") or c.get("teacher_id") or ""))
+    if specific_guru in ("preethaji", "krishnaji"):
+        return TEACHER_LABELS[specific_guru]
     canon = canonical_speaker(str(c.get("speaker") or ""))
-    if canon == "unknown":
-        canon = canonical_speaker(str(c.get("teacher_id") or ""))
+    if canon in ("unknown", "other", "both") and specific_guru in ("preethaji", "krishnaji"):
+        return TEACHER_LABELS[specific_guru]
+    if canon in ("unknown", "other"):
+        canon = specific_guru
     return TEACHER_LABELS.get(canon)
 
 

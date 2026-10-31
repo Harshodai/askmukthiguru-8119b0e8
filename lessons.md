@@ -1,6 +1,25 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — multi-span parent context gating, tag filtering parity & speaker verification audit
+
+### L-PARENT-CONTEXT-QUALITY-GATE-1. Gating internal spans of a multi-turn discourse as standalone clips breaks parent contexts.
+- **What:** `FirstPersonPipeline._eval_ctx_worker` applied `_passes_content_quality_gate` to every individual span inside a multi-span `SERVE_PARENT_CONTEXT` candidate. In authentic guru discourse, internal speech turns often begin with reflective questions ("What happens when you react?") or brief connective thoughts (<25 words). Enforcing standalone clip rules on internal parent units caused complete, high-quality parent discourses to fail closed and fall back to legacy v8 clips.
+- **Fix:** `_eval_ctx_worker` now checks single-span decisions (`SERVE_SINGLE_SPAN`) individually, while parent context decisions (`SERVE_PARENT_CONTEXT`) evaluate the assembled discourse across all spans together.
+- **Pin:** `tests/test_first_person_pipeline.py::TestContentQualityGate::test_topic_ids_practice_exemption_passes`.
+- **Rule:** evaluate standalone candidate clips individually; evaluate multi-span parent units on their unified assembled discourse.
+
+### L-TAG-FILTER-PARITY-1. A store filter that omits a payload tagging key silently drops indexed concepts.
+- **What:** Video corpus tagging enriched points with `tags`, but `FirstPersonContextStore._query_groups` only queried `topic_ids` and `entity_ids`. Concept-based retrieval queries (e.g. `Beautiful State`, `Stillness`) failed to match parent units that had been indexed under `tags`.
+- **Fix:** Added `FieldCondition(key="tags", match=MatchAny(any=concepts))` in `FirstPersonContextStore.retrieve` and registered `tags`, `category`, and `facet_ids` in `SPAN_INDEXES`.
+- **Rule:** whenever a payload gains an indexing attribute for classification or retrieval, the query filter must include that attribute in its union match.
+
+### L-SPEAKER-AUDIT-VERIFICATION-1. Verification status must record proof method, not a bare boolean.
+- **What:** In `first_person_v11`, 732 spans had bare boolean `speaker_verified=True` without a recorded `voice_verification_method`. Under strict serve-time gates (`first_person_require_speaker_verified=True`), unverified clips are quarantined to prevent unauthenticated speech turns.
+- **Fix:** Added `scripts/ops/verify_and_update_v11_speakers.py` and `scripts/ops/tag_v11_corpus.py` to audit audio waveforms, run ECAPA voice verification against anchor moments, and stamp explicit methods (`verified_verbatim`, `ecapa_voxceleb_span_slice_v2`).
+- **Pin:** `tests/test_unverified_clip_serving_gate.py` (3 passed).
+- **Rule:** a citation can never publish "verified" on the strength of a bare boolean without an audited verification method.
+
 ## Oct 31, 2026 — speaker attribution: the rule and the builders had holes the Opus review found
 
 ### L-RULE-ACCEPTS-WRONG-ANSWER-1. A rule that checks a field is present does not check the field is right.

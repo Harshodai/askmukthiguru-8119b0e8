@@ -439,12 +439,31 @@ def _eligible_citations(citations: object) -> list[dict]:
         # is_verbatim is not speaker verification (L-PROVENANCE-ISVERBATIM-1).
         # Keep provenance only for speakers currently registered in
         # gurus.yaml. Adding a teacher must not require a code edit here.
+        # Fail-closed invariant: unverified clips must NEVER be served to public users (UT-06)
+        if getattr(settings, "first_person_require_speaker_verified", False):
+            is_verified = (
+                citation.get("speaker_verified") is True
+                or citation.get("quality_status") == "verified_verbatim"
+                or bool(citation.get("voice_verification_method"))
+            )
+            if not is_verified:
+                logger.info(
+                    "[FirstPersonBridge] Dropping citation without verified voice: %s",
+                    citation.get("clip_id") or citation.get("point_id"),
+                )
+                continue
         from services.guru_registry import allowed_speaker_labels
+
+        if citation.get("speaker") not in allowed_speaker_labels():
+            logger.info(
+                "[FirstPersonBridge] Dropping citation with unallowlisted speaker: %s",
+                citation.get("speaker"),
+            )
+            continue
 
         eligible.append(
             {**citation, "speaker_verified": True}
             if citation.get("speaker_verified") is True
-            and citation.get("speaker") in allowed_speaker_labels()
             else citation
         )
     return eligible

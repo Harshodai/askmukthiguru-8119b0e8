@@ -251,6 +251,7 @@ class Settings(BaseSettings):
     # clip moves toward abstention, never toward unverified text.
     # Tests: tests/test_fp_serve_quality_2026_10_07.py.
     first_person_content_quality_gate_enabled: bool = True
+    first_person_require_speaker_verified: bool = False
     # Conditionally prefetch question_dense vector lane in hybrid search.
     # Off by default until question embeddings are completely distinct from passages.
     first_person_question_dense_enabled: bool = False

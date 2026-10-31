@@ -466,6 +466,7 @@ def _neutral_clip_length_window(monkeypatch):
 
     monkeypatch.setattr(settings, "first_person_min_answer_words", 0)
     monkeypatch.setattr(settings, "first_person_max_answer_words", 10**6)
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", False)
 
 
 @pytest.fixture(autouse=True)

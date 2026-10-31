@@ -932,6 +932,18 @@ class TestContentQualityGate:
         )
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is False
 
+    def test_topic_ids_practice_exemption_passes(self):
+        text = (
+            "Gently close your eyes, join your palms in front of your heart region in the Namaste pose "
+            "and simply breathe in and out. Allow yourself to move into an awareness of the peace within."
+        )
+        # Without practice tag/topic_ids, it is rejected by live event instruction pattern
+        assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is False
+        # With topic_ids=["practice"], it is exempted and passes as genuine meditation practice
+        clip_with_practice = _cq_clip(text)
+        clip_with_practice["topic_ids"] = ["practice", "meditation"]
+        assert _passes_content_quality_gate(clip_with_practice, gate_enabled=True) is True
+
 
 def test_teacher_diversity_preserves_top_rank():
     """When teacher diversity balancing runs, the #1 top-ranked match is never demoted,

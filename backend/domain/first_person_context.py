@@ -201,6 +201,8 @@ class SourceSpan(BaseModel):
     coreference_chain_ids: tuple[str, ...] = ()
     topic_ids: tuple[str, ...] = ()
     facet_ids: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    category: str | None = None
     speech_act: str | None = None
     answer_role: AnswerRole = AnswerRole.DIRECT
     voice_verification_method: str | None = None
@@ -348,6 +350,9 @@ class ParentUnit(BaseModel):
     completeness_status: CompletenessStatus
     host_question_span_id: str | None = None
     parent_version: str = PARENT_VERSION
+    topic_ids: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    category: str | None = None
 
     @model_validator(mode="after")
     def _ordered_spans_unique(self) -> ParentUnit:
