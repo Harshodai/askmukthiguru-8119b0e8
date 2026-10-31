@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { CSSProperties, FormEvent, MouseEvent } from 'react';
+import type { CSSProperties, FormEvent, KeyboardEvent, MouseEvent } from 'react';
 import {
   Background,
   Controls,
@@ -30,6 +30,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { getAIConfig } from '@/lib/chat/config';
 import { getAccessToken } from '@/lib/chat/auth';
+import { MemorySourceLink } from '@/components/common/MemorySourceLink';
+import type { MemorySourceRef } from '@/lib/memorySource';
 
 export interface KGNode {
   id: string;
@@ -38,6 +40,8 @@ export interface KGNode {
   teacher?: string | null;
   state_category?: string | null;
   content_preview?: string | null;
+  /** Provenance of a Memory/NotebookItem node; null/absent means unavailable. */
+  source_ref?: MemorySourceRef | null;
 }
 
 export interface KGEdge {
@@ -342,6 +346,7 @@ type WisdomNodeData = {
   teacher?: string | null;
   stateCategory?: string | null;
   contentPreview?: string | null;
+  sourceRef?: MemorySourceRef | null;
   degree: number;
 };
 
@@ -525,11 +530,17 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
         teacher: node.teacher,
         stateCategory: node.state_category,
         contentPreview: node.content_preview,
+        sourceRef: node.source_ref ?? null,
         degree: degree.get(node.id) ?? 0,
       },
       style: { width: NODE_WIDTH } satisfies CSSProperties,
     };
   });
+}
+
+/** Personal nodes that carry a user-owned source (others are public ontology). */
+function hasSourceSlot(nodeType: string): boolean {
+  return nodeType === 'Memory' || nodeType === 'NotebookItem';
 }
 
 function directionalHandles(source: { x: number; y: number }, target: { x: number; y: number }) {
@@ -729,6 +740,38 @@ export const KGConceptMap = ({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setSubmitted(query.trim());
+  };
+
+  // Keyboard parity with a click. React Flow focuses each node (Tab) but, with
+  // controlled nodes and no onNodesChange, Enter/Space never reached onNodeClick,
+  // so keyboard users could not open a node's details (or its source link).
+  // Escape closes the details. After a keyboard selection, focus moves to the
+  // details so the next Tab lands on its controls instead of the next node.
+  const closeDetails = () => {
+    const previousId = selectedNodeId;
+    setSelectedNodeId(null);
+    // Give focus back to the node the details belonged to.
+    window.requestAnimationFrame(() => {
+      if (!previousId) return;
+      const nodes = Array.from(document.querySelectorAll<HTMLElement>('.react-flow__node'));
+      nodes.find((node) => node.getAttribute('data-id') === previousId)?.focus();
+    });
+  };
+
+  const handleGraphKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      closeDetails();
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const nodeId = (event.target as HTMLElement).closest('.react-flow__node')?.getAttribute('data-id');
+    if (!nodeId) return;
+    event.preventDefault();
+    setSelectedNodeId(nodeId);
+    window.requestAnimationFrame(() => {
+      const panels = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-detail]'));
+      panels.find((panel) => panel.offsetParent !== null)?.focus();
+    });
   };
 
   const handleStartInquiryInChat = (promptText: string) => {
@@ -1002,6 +1045,7 @@ export const KGConceptMap = ({
                 zoomOnScroll
                 onNodeClick={(_event: MouseEvent, node) => setSelectedNodeId(node.id)}
                 onPaneClick={() => setSelectedNodeId(null)}
+                onKeyDown={handleGraphKeyDown}
                 className="bg-graph"
               >
                 <Background gap={28} size={1} color="hsl(var(--border))" />
@@ -1025,6 +1069,9 @@ export const KGConceptMap = ({
               {selectedNode && (
                 <div
                   className="absolute inset-x-3 bottom-3 z-20 max-h-[80%] overflow-y-auto rounded-3xl border border-white/15 bg-black/90 p-5 text-white shadow-2xl backdrop-blur-xl xl:hidden"
+                  data-kg-detail
+                  tabIndex={-1}
+                  onKeyDown={(event) => { if (event.key === 'Escape') closeDetails(); }}
                   role="region"
                   aria-live="polite"
                   aria-label={t('kg.nodeDetails', '{{label}} details', {
@@ -1069,6 +1116,15 @@ export const KGConceptMap = ({
                   {selectedNode.data.contentPreview && (
                     <div className="mt-3.5 rounded-2xl border border-white/10 bg-white/5 p-3 text-xs leading-relaxed text-white/85">
                       {selectedNode.data.contentPreview}
+                    </div>
+                  )}
+
+                  {hasSourceSlot(selectedNode.data.nodeType) && (
+                    <div className="mt-2">
+                      <MemorySourceLink
+                        source={selectedNode.data.sourceRef}
+                        className="text-white/80 hover:text-white"
+                      />
                     </div>
                   )}
 
@@ -1176,7 +1232,12 @@ export const KGConceptMap = ({
           }
         >
           {selectedNode ? (
-            <div className="flex h-full flex-col">
+            <div
+              className="flex h-full flex-col outline-none"
+              data-kg-detail
+              tabIndex={-1}
+              onKeyDown={(event) => { if (event.key === 'Escape') closeDetails(); }}
+            >
               {/* Header */}
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1232,6 +1293,13 @@ export const KGConceptMap = ({
                   </p>
                 </div>
               ) : null}
+
+              {/* Provenance: only personal Memory / NotebookItem nodes have a source */}
+              {hasSourceSlot(selectedNode.data.nodeType) && (
+                <div className="mt-3">
+                  <MemorySourceLink source={selectedNode.data.sourceRef} />
+                </div>
+              )}
 
               {/* Associated Practice Callout */}
               {nodeExplanation?.practice && (
