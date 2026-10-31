@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from 'react';
+import { memo, useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   CHAT_MAX_SINGLE_ATTACHMENT_BYTES,
@@ -113,6 +113,16 @@ function ChatComposerInner({
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Auto-resize textarea smoothly on input change (up to 240px)
+  useEffect(() => {
+    const el = inputRef?.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const nextHeight = Math.min(Math.max(el.scrollHeight, 48), 240);
+    el.style.height = `${nextHeight}px`;
+    el.style.overflowY = el.scrollHeight > 240 ? 'auto' : 'hidden';
+  }, [inputValue, inputRef]);
 
   const actionCapabilities = capabilities ?? {
     sereneMind: true,
@@ -281,7 +291,7 @@ function ChatComposerInner({
           dir={currentLanguage === 'ur' ? 'rtl' : 'auto'}
           enterKeyHint="send"
           aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
-          className="min-h-12 max-h-[260px] w-full cursor-text bg-transparent border-none outline-none resize-none px-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="!flex-none min-h-12 max-h-[260px] w-full cursor-text bg-transparent border-none outline-none resize-none px-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isAwaitingSereneMind || isQuotaExceeded}
         />
 

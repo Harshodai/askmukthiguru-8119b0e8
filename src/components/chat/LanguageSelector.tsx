@@ -124,15 +124,34 @@ export const LanguageSelector = ({
   // document.body and positioning with `fixed` + measured coordinates
   // sidesteps that ancestor entirely.
   const POPOVER_WIDTH = 288; // w-72
-  const [menuPos, setMenuPos] = useState<{ left: number; bottom: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{
+    left: number;
+    bottom?: number;
+    top?: number;
+    maxHeight: number;
+  } | null>(null);
   const updateMenuPos = useCallback(() => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const margin = 8;
     const maxLeft = window.innerWidth - POPOVER_WIDTH - margin;
     const left = Math.max(margin, Math.min(rect.left, maxLeft));
-    const bottom = window.innerHeight - rect.top + 8; // 8px gap, mirrors old mb-2
-    setMenuPos({ left, bottom });
+
+    // Calculate vertical space above and below with safe margins
+    const spaceAbove = rect.top - 16;
+    const spaceBelow = window.innerHeight - rect.bottom - 16;
+
+    // Prefer opening upward if spaceAbove >= 280, or if spaceAbove > spaceBelow
+    if (spaceAbove >= 280 || spaceAbove >= spaceBelow) {
+      const maxHeight = Math.min(480, Math.max(220, spaceAbove - 8));
+      const bottom = window.innerHeight - rect.top + 8;
+      setMenuPos({ left, bottom, maxHeight });
+    } else {
+      // Open downward
+      const maxHeight = Math.min(480, Math.max(220, spaceBelow - 8));
+      const top = rect.bottom + 8;
+      setMenuPos({ left, top, maxHeight });
+    }
   }, []);
 
   const filteredLanguages = useMemo(() => {
@@ -366,8 +385,13 @@ export const LanguageSelector = ({
                 exit={{ opacity: 0, y: 8, scale: 0.95 }}
                 transition={{ duration: 0.15, ease: 'easeOut' }}
                 ref={popoverRef}
-                style={{ left: menuPos.left, bottom: menuPos.bottom }}
-                className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-1rem)] max-h-[70dvh]"
+                style={{
+                  left: menuPos.left,
+                  bottom: menuPos.bottom,
+                  top: menuPos.top,
+                  maxHeight: menuPos.maxHeight,
+                }}
+                className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-hairline bg-popover shadow-lg w-72 max-w-[calc(100vw-1rem)]"
                 role="dialog"
                 aria-label={t('chat.selectLanguageAria', 'Select language')}
               >

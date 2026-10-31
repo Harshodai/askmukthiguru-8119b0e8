@@ -1,6 +1,26 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — chat UI/UX defect fixes: dead-space gap, citation duplications, and language selector overflow
+
+### L-FRONTEND-ATMA-VICHARA-CITATION-PARSING-1. Naive regex splitting on horizontal rules misclassifies citation footnotes as Atma Vichara reflection prompts.
+- **What:** In `ChatMessage.tsx`, the response body parser split incoming markdown on `displayContent.match(/(?:^|\n)\s*---\s*(?:\n|$)/)` to extract `teachingBody` and `inquiryBody`. Because the first-person quote weaver terminates verbatim quotes with `--- \n *Sources of Wisdom:* ...`, citation footnotes were treated as `inquiryBody` and wrapped inside the gold `Atma Vichara · Contemplative Inquiry` card (*"Optional reflection prompt inspired by the cited teaching. It is not the teacher's own words."*). This created false attribution, visual duplication, and confusing UI.
+- **Fix:** Added a check in `ChatMessage.tsx` verifying whether text following `---` begins with citations/sources markdown (`/^(?:\*+Sources of Wisdom|\[\d+\]|#+\s*Sources|Sources of Wisdom)/i`). If so, `inquiryBody` is returned as `null`, preventing citations from being rendered inside reflection cards.
+- **Pin:** `src/test/components/ChatMessage.test.tsx` (all 39 tests passing).
+- **Rule:** never infer reflective inquiry or interactive exercises from generic horizontal rule (`---`) markdown delimiters; verify explicit reflective inquiry headers or block schemas.
+
+### L-COMPOSER-TEXTAREA-FLEX-EXPANSION-1. Flexbox `flex-1` (`flex: 1 1 0%`) on input textareas prevents JavaScript `element.style.height` auto-expansion.
+- **What:** In `ChatComposer.tsx`, multi-line or multi-paragraph prompts (1,000+ characters) were stuck at 48px height. Although inline JavaScript auto-resize assigned `textarea.style.height = `${scrollHeight}px``, the parent `InputGroup` rendered the textarea with Tailwind's `flex-1` (`flex: 1 1 0%`), causing the browser flex layout engine to clamp the box height to the container minimum.
+- **Fix:** Added `!flex-none` to `PromptInputTextarea` in `ChatComposer.tsx` and wired a controlled `useEffect` on `inputValue` calculating `Math.min(Math.max(el.scrollHeight, 48), 240) + 'px'` with conditional `overflowY = 'auto'`.
+- **Pin:** `src/test/components/ChatComposer-keyboard.test.tsx` (all 13 tests passing).
+- **Rule:** when dynamically sizing a textarea via `style.height` inside a flex container, apply `!flex-none` so flexbox respects the explicit height computation.
+
+### L-LANGUAGE-SELECTOR-VIEWPORT-BOUNDS-1. Static upward popover offsets push menu headers and search inputs above the viewport.
+- **What:** In `LanguageSelector.tsx`, the menu was positioned using a fixed bottom offset with `max-h-[70dvh]`. When opened from composers positioned in the lower-middle viewport, the popover's top coordinate calculated to negative values (`y = -61.6px`), cutting off the "Select Language" header and language search input box above the browser screen.
+- **Fix:** Rewrote `updateMenuPos` to measure available space above (`rect.top - 16`) and below (`innerHeight - rect.bottom - 16`), dynamically clamping `maxHeight = Math.min(480, Math.max(220, spaceAbove - 8))` and flipping direction when space above is constrained.
+- **Rule:** always calculate available viewport space before fixing popover coordinates; bound popover max-height dynamically to guarantee header and input visibility.
+
+
 ## Oct 31, 2026 — cross-parent antecedent stitching, Memgraph doctrine grounding & distress calibration
 
 ### L-CONSECUTIVE-CITATION-CLUBBING-1. Adjacent spans from the same video and speaker in parent contexts must be clubbed into a unified continuous citation.
