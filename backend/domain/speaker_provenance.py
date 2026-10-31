@@ -34,8 +34,9 @@ from typing import Any
 #: ECAPA scored the exact served window (``start_ms-250`` to ``end_ms+250``)
 #: against the pinned calibration. Needs the full provenance set below.
 METHOD_ECAPA_SPAN_SLICE_V2 = "ecapa_voxceleb_span_slice_v2"
-#: Legacy centroid verdict. Kept so spans written before the provenance fields
-#: existed stay writable; it is **not** accepted as a new full-provenance method.
+#: Legacy centroid verdict. It has no per-span score, so it is **refused on new writes**
+#: (review D3). Spans already stored with it stay readable; the promotion gate counts them
+#: (time-boxed exemption, re-score after the graded run).
 METHOD_ECAPA_CENTROID_V1 = "ecapa_voxceleb_centroid_v1"
 #: A person listened to the served window. Never merged into an automated method.
 METHOD_HUMAN_LISTEN_V1 = "human_listen_v1"
@@ -87,6 +88,28 @@ HUMAN_REVIEW_KEYS = (
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
+#: A human listen shorter than this cannot carry a speaker judgement (review D2).
+HUMAN_LISTEN_MIN_MS = 2000
+
+#: Which blind choice confirms which teacher. Anything else is not a confirmation.
+CONFIRMING_CHOICE = {"krishnaji": "sri_krishnaji", "preethaji": "sri_preethaji"}
+
+
+def teacher_code(*names: Any) -> str | None:
+    """Map ``"Sri Krishnaji"`` / ``"krishnaji"`` / ``"sri_krishnaji"`` to ``"krishnaji"``.
+
+    Returns the first name that resolves, or None. Used by the human-listen rule so the
+    choice is compared with the span's own teacher, not just present.
+    """
+    for name in names:
+        text = re.sub(r"[\s_]+", " ", str(name or "")).strip().casefold()
+        if text.startswith("sri "):
+            text = text[4:].strip()
+        if text in CONFIRMING_CHOICE:
+            return text
+    return None
+
+
 #: Code returned when a verified span has no method. Kept as the pre-existing code so the
 #: store's earlier error text and tests still match.
 CODE_NO_METHOD = "speaker_verified_without_method"
@@ -111,11 +134,17 @@ def _threshold(payload: Mapping[str, Any], key: str) -> float | None:
     return None
 
 
-def speaker_write_violations(payload: Mapping[str, Any]) -> list[str]:
+def speaker_write_violations(
+    payload: Mapping[str, Any], *, allow_legacy_centroid: bool = False
+) -> list[str]:
     """Reasons a payload may not be written with ``speaker_verified=true``.
 
     Empty list means the write is allowed. A payload that does not claim a verified
     speaker is always allowed: writing ``speaker_verified=false`` is the safe direction.
+
+    ``allow_legacy_centroid`` is for **reading** stored data (the promotion gate, the backfill
+    post-check), never for a new write: a fresh payload claiming the centroid method has no
+    per-span evidence behind it and is refused.
     """
     if payload.get("speaker_verified") is not True:
         return []
@@ -125,6 +154,9 @@ def speaker_write_violations(payload: Mapping[str, Any]) -> list[str]:
         return [CODE_NO_METHOD]
     if method not in KNOWN_METHODS:
         return [f"voice_method_unknown:{method}"]
+
+    if method == METHOD_ECAPA_CENTROID_V1 and not allow_legacy_centroid:
+        return [f"legacy_method_refused:{method}"]
 
     out: list[str] = []
 
@@ -145,8 +177,13 @@ def speaker_write_violations(payload: Mapping[str, Any]) -> list[str]:
             out.append("ecapa_missing:voice_threshold_applied")
         elif _finite(score) and float(score) < floor:
             out.append("ecapa_score_below_floor")
+        # A missing margin must not pass: the margin is what separates the two teachers.
         margin = payload.get("voice_margin")
         margin_floor = _threshold(payload, "margin_threshold")
+        if not _finite(margin):
+            out.append("ecapa_missing:voice_margin")
+        if margin_floor is None:
+            out.append("ecapa_missing:margin_threshold")
         if _finite(margin) and margin_floor is not None and float(margin) < margin_floor:
             out.append("ecapa_margin_below_threshold")
         if payload.get("voice_window_check") == WINDOW_CHECK_FAIL:
@@ -159,6 +196,22 @@ def speaker_write_violations(payload: Mapping[str, Any]) -> list[str]:
         sha = payload.get("reviewed_audio_sha256")
         if _blank(sha) or not _SHA256.match(str(sha)):
             out.append("human_missing:reviewed_audio_sha256")
+        # D2: the recorded choice must confirm THIS span's teacher, and the clip must be long
+        # enough to judge. `unclear`, `host_or_interviewer`, `other` or the other teacher's
+        # choice are answers that mean "do not verify".
+        teacher = teacher_code(payload.get("speaker_id"), payload.get("guru_id"))
+        choice = payload.get("review_choice")
+        if _blank(choice):
+            out.append("human_missing:review_choice")
+        elif teacher is None:
+            out.append("human_teacher_unknown")
+        elif choice != CONFIRMING_CHOICE[teacher]:
+            out.append(f"human_choice_not_teacher:{choice}")
+        start, end = payload.get("start_ms"), payload.get("end_ms")
+        if not (_finite(start) and _finite(end)):
+            out.append("human_missing:clip_bounds")
+        elif float(end) - float(start) < HUMAN_LISTEN_MIN_MS:
+            out.append("human_clip_too_short")
 
     return out
 
@@ -299,29 +352,6 @@ def span_slice_voice_fields(
             else (WINDOW_CHECK_FAIL if foreign_window_count > 0 else None)
         ),
     )
-
-
-def legacy_centroid_fields(
-    row: Mapping[str, Any], *, verified_at: str | None = None
-) -> dict[str, Any]:
-    """Span fields for a verdict row from the legacy whole-clip centroid check.
-
-    Only the v9 carry-over builder uses this: it has no span audio to re-score, so it cannot
-    produce method v2. The legacy exemption in the write rule lets such a span be written;
-    the promotion gate counts them (non-blocking). Whatever evidence the row carries is kept.
-    """
-    fields: dict[str, Any] = {
-        "speaker_verified": True,
-        "voice_verification_method": METHOD_ECAPA_CENTROID_V1,
-        "speaker_verification_status": STATUS_VERIFIED,
-    }
-    if _finite(row.get("cosine")):
-        fields["voice_score"] = float(row["cosine"])
-    if _finite(row.get("margin")):
-        fields["voice_margin"] = float(row["margin"])
-    if not _blank(verified_at):
-        fields["voice_verified_at"] = str(verified_at)
-    return fields
 
 
 def calibration_id_from(data: Mapping[str, Any], raw: bytes) -> str:

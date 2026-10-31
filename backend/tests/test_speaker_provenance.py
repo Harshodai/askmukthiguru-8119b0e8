@@ -46,6 +46,11 @@ def _human(**over):
         "reviewer_id": "reviewer-1",
         "reviewed_at": "2026-10-31T10:00:00+00:00",
         "reviewed_audio_sha256": SHA,
+        # D2: the choice must confirm this span's own teacher, and the clip must be >= 2 s.
+        "speaker_id": "krishnaji",
+        "review_choice": "sri_krishnaji",
+        "start_ms": 10_000,
+        "end_ms": 14_000,
     }
     base.update(over)
     return base
@@ -60,9 +65,64 @@ def test_a_complete_human_record_is_allowed():
     assert sp.speaker_write_violations(_human()) == []
 
 
-def test_legacy_centroid_method_is_still_writable_without_the_new_fields():
+def test_legacy_centroid_method_is_refused_on_a_new_write_but_readable_when_stored():
+    # D3: the centroid verdict has no per-span score, so a new write may not claim it.
     payload = {"speaker_verified": True, "voice_verification_method": sp.METHOD_ECAPA_CENTROID_V1}
+    assert sp.speaker_write_violations(payload) == [
+        f"legacy_method_refused:{sp.METHOD_ECAPA_CENTROID_V1}"
+    ]
+    assert sp.speaker_write_violations(payload, allow_legacy_centroid=True) == []
+
+
+@pytest.mark.parametrize("choice", ["host_or_interviewer", "other", "unclear", "sri_preethaji"])
+def test_human_listen_choice_must_confirm_the_spans_own_teacher(choice):
+    out = sp.speaker_write_violations(_human(review_choice=choice))
+    assert out == [f"human_choice_not_teacher:{choice}"]
+
+
+def test_human_listen_without_a_choice_is_refused():
+    assert sp.speaker_write_violations(_human(review_choice=None)) == [
+        "human_missing:review_choice"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("speaker_id", "choice"),
+    [
+        ("Sri Krishnaji", "sri_krishnaji"),
+        ("sri_preethaji", "sri_preethaji"),
+        ("PREETHAJI", "sri_preethaji"),
+    ],
+)
+def test_human_listen_teacher_names_are_matched_in_every_spelling(speaker_id, choice):
+    assert sp.speaker_write_violations(_human(speaker_id=speaker_id, review_choice=choice)) == []
+
+
+def test_human_listen_for_an_unknown_speaker_is_refused():
+    out = sp.speaker_write_violations(_human(speaker_id="host", review_choice="sri_krishnaji"))
+    assert out == ["human_teacher_unknown"]
+
+
+def test_human_listen_teacher_falls_back_to_guru_id():
+    payload = _human(review_choice="sri_preethaji", guru_id="preethaji")
+    payload.pop("speaker_id")
     assert sp.speaker_write_violations(payload) == []
+
+
+@pytest.mark.parametrize(("start", "end"), [(0, 1900), (5000, 6999), (3000, 2000)])
+def test_human_listen_clip_under_two_seconds_is_refused(start, end):
+    out = sp.speaker_write_violations(_human(start_ms=start, end_ms=end))
+    assert out == ["human_clip_too_short"]
+
+
+def test_human_listen_at_exactly_two_seconds_is_allowed():
+    assert sp.speaker_write_violations(_human(start_ms=1000, end_ms=3000)) == []
+
+
+def test_human_listen_without_clip_bounds_is_refused():
+    payload = _human()
+    payload.pop("end_ms")
+    assert sp.speaker_write_violations(payload) == ["human_missing:clip_bounds"]
 
 
 @pytest.mark.parametrize(
@@ -97,7 +157,22 @@ def test_refuses_an_unknown_method():
 def test_refuses_ecapa_span_slice_missing_any_required_field(key):
     payload = _v2()
     payload.pop(key)
-    assert sp.speaker_write_violations(payload) == [f"ecapa_missing:{key}"]
+    out = sp.speaker_write_violations(payload)
+    assert out[0] == f"ecapa_missing:{key}"
+    # Without the thresholds in force the margin cannot be judged either (D7).
+    assert set(out) <= {f"ecapa_missing:{key}", "ecapa_missing:margin_threshold"}
+
+
+@pytest.mark.parametrize("key", ["voice_margin"])
+def test_refuses_ecapa_span_slice_missing_the_margin(key):
+    payload = _v2()
+    payload.pop(key)
+    assert sp.speaker_write_violations(payload) == ["ecapa_missing:voice_margin"]
+
+
+def test_refuses_ecapa_span_slice_with_no_margin_threshold():
+    payload = _v2(voice_threshold_applied={"cosine_floor": 0.2828})
+    assert sp.speaker_write_violations(payload) == ["ecapa_missing:margin_threshold"]
 
 
 @pytest.mark.parametrize("bad", [None, "", float("nan"), float("inf"), True, "0.7"])

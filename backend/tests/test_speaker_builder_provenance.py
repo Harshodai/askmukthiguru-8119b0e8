@@ -19,7 +19,6 @@ from domain.speaker_provenance import (
     STATUS_VERIFIED,
     automated_voice_fields,
     calibration_id_from,
-    legacy_centroid_fields,
     pending_voice_fields,
     span_slice_voice_fields,
     speaker_write_violations,
@@ -138,12 +137,15 @@ def test_span_slice_below_floor_without_foreign_window_has_no_window_claim():
     assert fields["voice_window_check"] is None
 
 
-def test_legacy_centroid_fields_keep_the_exemption_and_the_evidence():
-    fields = legacy_centroid_fields({"cosine": 0.5, "margin": 0.2}, verified_at="t")
-    assert fields["voice_verification_method"] == METHOD_ECAPA_CENTROID_V1
-    assert fields["speaker_verification_status"] == STATUS_VERIFIED
-    assert fields["voice_score"] == pytest.approx(0.5)
-    assert speaker_write_violations(fields) == []
+def test_a_new_write_claiming_the_legacy_centroid_method_is_refused():
+    claim = {
+        "speaker_verified": True,
+        "voice_verification_method": METHOD_ECAPA_CENTROID_V1,
+        "voice_score": 0.9,
+    }
+    assert speaker_write_violations(claim) == [f"legacy_method_refused:{METHOD_ECAPA_CENTROID_V1}"]
+    # Reading stored data may tolerate it, so the promotion gate can count it.
+    assert speaker_write_violations(claim, allow_legacy_centroid=True) == []
 
 
 def test_calibration_id_prefers_the_pinned_revision():
@@ -167,12 +169,11 @@ def _payload(**fields):
     return base
 
 
-def test_assert_speaker_provenance_accepts_complete_and_unverified_and_legacy():
+def test_assert_speaker_provenance_accepts_complete_and_unverified():
     assert_speaker_provenance(
         [
             _payload(source_span_id="a", **_auto()),
             _payload(source_span_id="b", **pending_voice_fields()),
-            _payload(source_span_id="c", **legacy_centroid_fields({})),
         ],
         where="test",
     )
@@ -187,3 +188,55 @@ def test_assert_speaker_provenance_refuses_a_method_with_no_score_or_calibration
     with pytest.raises(FirstPersonContextStoreError, match="1 span"):
         assert_speaker_provenance([_payload(source_span_id="ok", **_auto()), bad], where="test")
     assert set(speaker_provenance_violations([bad])) == {"bad"}
+
+
+def test_assert_speaker_provenance_refuses_a_legacy_centroid_claim_on_a_new_write():
+    legacy = _payload(
+        source_span_id="old",
+        speaker_verified=True,
+        voice_verification_method=METHOD_ECAPA_CENTROID_V1,
+    )
+    with pytest.raises(FirstPersonContextStoreError, match="legacy_method_refused"):
+        assert_speaker_provenance([legacy], where="test")
+
+
+def test_a_verified_v2_claim_without_margin_or_margin_threshold_is_refused():
+    # D7: a missing margin used to pass because the margin check only ran when present.
+    no_margin = _auto()
+    no_margin.pop("voice_margin")
+    assert "ecapa_missing:voice_margin" in speaker_write_violations(no_margin)
+    no_threshold = _auto()
+    no_threshold["voice_threshold_applied"] = {"cosine_floor": 0.2828}
+    assert "ecapa_missing:margin_threshold" in speaker_write_violations(no_threshold)
+    # The builder helper demotes it instead of claiming it.
+    demoted = _auto(evidence={**EVIDENCE, "margin": None})
+    assert demoted == pending_voice_fields()
+
+
+def test_promotion_gate_and_store_collection_check_agree_on_who_violates():
+    # D5: one rule. The gate's violator set equals the store's speaker_provenance_violations.
+    from domain.speaker_audit import promotion_speaker_gate
+
+    payloads = [
+        _payload(source_span_id="ok", **_auto()),
+        _payload(
+            source_span_id="no_calibration",
+            **_auto(calibration_id=None)
+            | {
+                "speaker_verified": True,
+                "voice_verification_method": METHOD_ECAPA_SPAN_SLICE_V2,
+                "voice_calibration_id": None,
+                "voice_score": 0.7,
+                "voice_margin": 0.4,
+                "voice_model_revision": "rev-1",
+                "voice_threshold_applied": {"cosine_floor": 0.28, "margin_threshold": 0.05},
+            },
+        ),
+        _payload(source_span_id="bare", speaker_verified=True),
+        _payload(source_span_id="unverified", **pending_voice_fields()),
+    ]
+    gate = promotion_speaker_gate(payloads)
+    store_view = speaker_provenance_violations(payloads)
+    assert set(store_view) == {"no_calibration", "bare"}
+    assert gate["violators"]["count"] == len(store_view)
+    assert gate["violators"]["span_ids_first_20"] == sorted(store_view)

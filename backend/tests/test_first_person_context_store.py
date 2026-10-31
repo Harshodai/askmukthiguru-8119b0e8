@@ -466,8 +466,50 @@ def test_upsert_accepts_a_complete_human_listen_record():
         reviewed_at="2026-10-31T10:00:00+00:00",
         reviewed_audio_sha256="a" * 64,
         review_choice="sri_krishnaji",
+        start_ms=0,
+        end_ms=3000,
     )
     assert store(FakeClient()).upsert(parent([ok]), [ok]) == 2
+
+
+@pytest.mark.parametrize(
+    ("overrides", "reason"),
+    [
+        ({"review_choice": "host_or_interviewer"}, "human_choice_not_teacher"),
+        ({"review_choice": "sri_preethaji"}, "human_choice_not_teacher"),
+        ({"review_choice": "unclear"}, "human_choice_not_teacher"),
+        ({"end_ms": 1900}, "human_clip_too_short"),
+    ],
+)
+def test_upsert_refuses_a_human_listen_that_does_not_confirm_the_teacher(overrides, reason):
+    fields = {
+        "voice_verification_method": "human_listen_v1",
+        "voice_score": None,
+        "voice_calibration_id": None,
+        "voice_model_revision": None,
+        "voice_threshold_applied": None,
+        "voice_window_check": None,
+        "speaker_verification_status": "verified",
+        "reviewer_id": "reviewer-1",
+        "reviewed_at": "2026-10-31T10:00:00+00:00",
+        "reviewed_audio_sha256": "a" * 64,
+        "review_choice": "sri_krishnaji",
+        "start_ms": 0,
+        "end_ms": 3000,
+    }
+    bad = span(0, **{**fields, **overrides})
+    client = FakeClient()
+    with pytest.raises(FirstPersonContextStoreError, match=reason):
+        store(client).upsert(parent([bad]), [bad])
+    assert client.points == {}
+
+
+def test_upsert_refuses_a_new_write_claiming_the_legacy_centroid_method():
+    bad = span(0, voice_verification_method="ecapa_voxceleb_centroid_v1")
+    client = FakeClient()
+    with pytest.raises(FirstPersonContextStoreError, match="legacy_method_refused"):
+        store(client).upsert(parent([bad]), [bad])
+    assert client.points == {}
 
 
 def test_the_collection_level_check_reports_violators_by_span_without_loading_the_model():

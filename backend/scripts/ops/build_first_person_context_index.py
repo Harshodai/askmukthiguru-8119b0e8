@@ -277,6 +277,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="block promotion when no --audit-gate result is supplied (use for public release)",
     )
+    parser.add_argument(
+        "--block-legacy-centroid",
+        action="store_true",
+        help="end the time-boxed exemption: a legacy centroid_v1 span blocks promotion",
+    )
     parser.add_argument("--all-teacher-min-spans", type=int, default=ALL_TEACHER_MIN_SPANS)
     args = parser.parse_args(argv)
 
@@ -289,6 +294,7 @@ def main(argv: list[str] | None = None) -> int:
             _load_points(args.qdrant_url, args.collection),
             audit_gate=audit,
             require_audit_gate=args.require_audit_gate,
+            block_legacy_centroid=args.block_legacy_centroid,
             all_teacher_min_spans=args.all_teacher_min_spans,
         )
         report["collection"] = args.collection

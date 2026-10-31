@@ -17,6 +17,7 @@ No Qdrant and no network: the scroll and the payload patch are injected fakes.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import sys
 from pathlib import Path
@@ -339,6 +340,20 @@ class FakeQdrant:
         monkeypatch.setattr(backfill, "_scroll", self.scroll)
         monkeypatch.setattr(backfill, "_set_payload", self.set_payload)
         monkeypatch.setattr(backfill, "_fetch_vectors", self.fetch_vectors)
+        monkeypatch.setattr(backfill, "_list_snapshots", self.list_snapshots)
+
+    snapshots: list[dict] | None = None
+
+    def list_snapshots(self, _url, _coll):
+        if self.snapshots is not None:
+            return self.snapshots
+        # Default: the snapshot the test args name, taken just now.
+        return [
+            {
+                "name": "first_person_v10-snap-1.snapshot",
+                "creation_time": dt.datetime.now(dt.UTC).replace(tzinfo=None).isoformat(),
+            }
+        ]
 
 
 def _bare(span_id="span-1", **over):
@@ -762,3 +777,62 @@ def test_the_backfilled_payload_still_loads_into_the_span_model():
         assert outcome in ("pass", "fail")
         merged = {**payload, **updates}
         SourceSpan.model_validate(merged)
+
+
+# ----------------------------------------------------------------- D4: snapshot check
+
+
+def _listing(name, age_s):
+    created = dt.datetime.now(dt.UTC) - dt.timedelta(seconds=age_s)
+    return [{"name": name, "creation_time": created.replace(tzinfo=None).isoformat()}]
+
+
+def test_snapshot_problem_accepts_a_listed_fresh_snapshot():
+    now = dt.datetime.now(dt.UTC)
+    assert backfill.snapshot_problem("s1", _listing("s1", 60), now=now) is None
+
+
+def test_snapshot_problem_refuses_unknown_stale_and_unreadable_snapshots():
+    now = dt.datetime.now(dt.UTC)
+    assert "not in the collection" in backfill.snapshot_problem("nope", _listing("s1", 60), now=now)
+    assert "min old" in backfill.snapshot_problem("s1", _listing("s1", 3 * 3600), now=now)
+    assert "creation_time" in backfill.snapshot_problem(
+        "s1", [{"name": "s1", "creation_time": "not a date"}], now=now
+    )
+    assert "creation_time" in backfill.snapshot_problem("s1", [{"name": "s1"}], now=now)
+    future = _listing("s1", -3600)
+    assert "future" in backfill.snapshot_problem("s1", future, now=now)
+
+
+def test_apply_with_an_unknown_snapshot_name_exits_two_and_writes_nothing(tmp_path, monkeypatch):
+    fake = FakeQdrant([("p1", _payload())])
+    fake.install(monkeypatch)
+    fake.snapshots = []  # the server lists no such snapshot
+    verdicts = _write_jsonl(tmp_path / "v.jsonl", [_verdict()])
+    windows = _write_jsonl(tmp_path / "w.jsonl", [_window()])
+    assert backfill.main(_apply_args(tmp_path, verdicts, windows)) == 2
+    assert fake.writes == []
+
+
+def test_apply_with_a_stale_snapshot_exits_two_and_writes_nothing(tmp_path, monkeypatch):
+    fake = FakeQdrant([("p1", _payload())])
+    fake.install(monkeypatch)
+    fake.snapshots = _listing("first_person_v10-snap-1.snapshot", 3 * 3600)
+    verdicts = _write_jsonl(tmp_path / "v.jsonl", [_verdict()])
+    windows = _write_jsonl(tmp_path / "w.jsonl", [_window()])
+    assert backfill.main(_apply_args(tmp_path, verdicts, windows)) == 2
+    assert fake.writes == []
+
+
+def test_apply_fails_closed_when_the_snapshot_list_cannot_be_read(tmp_path, monkeypatch):
+    fake = FakeQdrant([("p1", _payload())])
+    fake.install(monkeypatch)
+
+    def boom(*_a, **_k):
+        raise ConnectionError("qdrant down")
+
+    monkeypatch.setattr(backfill, "_list_snapshots", boom)
+    verdicts = _write_jsonl(tmp_path / "v.jsonl", [_verdict()])
+    windows = _write_jsonl(tmp_path / "w.jsonl", [_window()])
+    assert backfill.main(_apply_args(tmp_path, verdicts, windows)) == 2
+    assert fake.writes == []

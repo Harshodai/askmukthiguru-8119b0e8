@@ -10,10 +10,9 @@ place where that evidence becomes a payload change, and it is deliberately
 narrow:
 
 * **Dry run by default.** Nothing is written unless ``--apply`` is passed.
-* ``--apply`` refuses to run without ``--snapshot`` (a snapshot of the same
-  collection taken in the same session). The owner's explicit OK is a human
-  gate outside this script; the script only makes skipping the snapshot
-  impossible.
+* ``--apply`` refuses to run without ``--snapshot`` NAME, and the name must appear in
+  ``GET /collections/<c>/snapshots`` with a ``creation_time`` under 2 h old (a typed name
+  proves nothing). The owner's explicit OK is a human gate outside this script.
 * It writes ``set_payload`` only, restricted to the flat provenance keys in
   ``domain.speaker_provenance.AUTOMATED_PROVENANCE_KEYS`` plus
   ``speaker_verified``. Every other key is refused by
@@ -303,7 +302,7 @@ def decide(
 
 def _guard_reasons(payload: dict[str, Any], updates: dict[str, Any]) -> list[str]:
     """Write-rule violations of the payload as it would look after ``updates``."""
-    return speaker_write_violations({**payload, **updates})
+    return speaker_write_violations({**payload, **updates}, allow_legacy_centroid=True)
 
 
 def _load_rows(path: Path) -> dict[str, dict[str, Any]]:
@@ -354,6 +353,55 @@ def _scroll(qdrant_url: str, collection: str, page: int = 512):
         offset = result.get("next_page_offset")
         if not offset:
             return
+
+
+#: A snapshot older than this is not "taken in this session" (review D4).
+SNAPSHOT_MAX_AGE_S = 2 * 60 * 60
+
+
+def _list_snapshots(qdrant_url: str, collection: str) -> list[dict[str, Any]]:
+    """Snapshots Qdrant says exist for the collection (read-only)."""
+    import requests
+
+    resp = requests.get(f"{qdrant_url}/collections/{collection}/snapshots", timeout=60)
+    resp.raise_for_status()
+    return list(resp.json().get("result") or [])
+
+
+def _parse_utc(value: Any) -> dt.datetime | None:
+    try:
+        parsed = dt.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=dt.UTC)
+
+
+def snapshot_problem(
+    name: str,
+    listing: list[dict[str, Any]],
+    *,
+    now: dt.datetime,
+    max_age_s: int = SNAPSHOT_MAX_AGE_S,
+) -> str | None:
+    """Why ``--snapshot NAME`` cannot be trusted, or None when Qdrant lists it and it is fresh.
+
+    A name typed on the command line proves nothing; the listing from the server does.
+    """
+    entry = next((s for s in listing if s.get("name") == name), None)
+    if entry is None:
+        return f"snapshot {name!r} is not in the collection's snapshot list; take one first"
+    created = _parse_utc(entry.get("creation_time"))
+    if created is None:
+        return f"snapshot {name!r} has no readable creation_time; cannot show it is fresh"
+    age = (now - created).total_seconds()
+    if age < -300:
+        return f"snapshot {name!r} creation_time is in the future ({created.isoformat()})"
+    if age > max_age_s:
+        return (
+            f"snapshot {name!r} is {int(age // 60)} min old; the limit is {max_age_s // 60} min. "
+            "Take a new snapshot in this session"
+        )
+    return None
 
 
 def _set_payload(qdrant_url: str, collection: str, point_id: str, updates: dict[str, Any]) -> None:
@@ -443,7 +491,8 @@ def post_checks(
     for point_id, payload in after:
         if payload.get("record_type") not in (None, "retrieval_child"):
             continue
-        reasons = speaker_write_violations(payload)
+        # Stored data is READ: legacy centroid spans are not this script's to judge or demote.
+        reasons = speaker_write_violations(payload, allow_legacy_centroid=True)
         if reasons:
             violator_ids.append(str(payload.get("source_span_id") or point_id))
             by_code[reasons[0].split(":")[0]] += 1
@@ -539,7 +588,7 @@ def plan(
     def _demotion(point_id: str, payload: dict[str, Any], span_id: str, reason: str):
         if not demote_no_evidence or payload.get("speaker_verified") is not True:
             return None
-        if not speaker_write_violations(payload):
+        if not speaker_write_violations(payload, allow_legacy_centroid=True):
             return None
         return _row(
             point_id=point_id,
@@ -785,7 +834,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.apply and not str(args.snapshot).strip():
         return _refuse(
             "--apply requires --snapshot <name>: take a snapshot of the collection in "
-            "the same session first, and get the owner's explicit OK. Nothing was written."
+            "the same session first (Qdrant must list it, under 2 h old), and get the owner's explicit OK. Nothing was written."
         )
 
     try:
@@ -860,6 +909,17 @@ def main(argv: list[str] | None = None) -> int:
             "old value for every touched key and a full export of the collection before it. "
             "Nothing was written."
         )
+
+    try:
+        problem = snapshot_problem(
+            str(args.snapshot),
+            _list_snapshots(args.qdrant_url, args.collection),
+            now=dt.datetime.now(dt.UTC),
+        )
+    except Exception as exc:  # network or server error: fail closed
+        problem = f"cannot list snapshots to verify {args.snapshot!r} ({exc})"
+    if problem:
+        return _refuse(f"{problem}. Nothing was written.")
 
     report["before_export"] = export_before(args.before_out, points)
     rollback = _rollback_payload(points, rows, args.collection, str(args.snapshot))

@@ -83,7 +83,6 @@ from domain.speaker_provenance import (
     METHOD_ECAPA_CENTROID_V1,
     METHOD_ECAPA_SPAN_SLICE_V2,
     automated_voice_fields,
-    legacy_centroid_fields,
     pending_voice_fields,
 )
 from ingest.verbatim.asr_cleaner import (
@@ -324,16 +323,16 @@ def _voice_fields(
     """``SourceSpan`` voice keyword arguments for one verdict row (P3).
 
     This builder has no span audio, so it cannot produce method v2 itself. It carries a v2 row
-    (written by ``regenerate_v10_span_ecapa_verdicts``) only when the row has complete evidence,
-    and it passes a legacy centroid row through under the write rule's legacy exemption (the
-    promotion gate counts those). Anything else, including a v2 row with missing evidence, is
+    (written by ``regenerate_v10_span_ecapa_verdicts``) only when the row has complete evidence.
+    A legacy centroid row is refused (review D3: it has no per-span score, so a new write may
+    not claim it). Anything else, including a v2 row with missing evidence, is
     ``speaker_verified=False`` / ``pending_voice_check``: stored, never promoted.
     """
     if verdict.get("verified") is not True:
         return pending_voice_fields()
     method = str(verdict.get("method") or VOICE_METHOD_DEFAULT)
     if method == METHOD_ECAPA_CENTROID_V1:
-        return legacy_centroid_fields(verdict, verified_at=built_at)
+        return pending_voice_fields()
     if method == METHOD_ECAPA_SPAN_SLICE_V2:
         return automated_voice_fields(
             verified=True,
@@ -413,6 +412,11 @@ def build(
         verdict = verdict_items.get(str(point.get("id"))) or {}
         voice_fields = _voice_fields(verdict, speaker_verdicts or {}, built_at)
         voice_verified = voice_fields["speaker_verified"] is True
+        if (
+            verdict.get("verified") is True
+            and str(verdict.get("method") or VOICE_METHOD_DEFAULT) == METHOD_ECAPA_CENTROID_V1
+        ):
+            quality["speaker_legacy_centroid_refused"] += 1
         cleaner_flags = asr_cleaner_flags(clip_text)
         # Informational only (never quarantines): repeats the cleaner no longer edits.
         for note in asr_cleaner_notes(clip_text):
@@ -475,8 +479,6 @@ def build(
             quality["speaker_label_only"] += 1
         if verdict.get("verified") is True and not voice_verified:
             quality["speaker_provenance_incomplete"] += 1
-        if voice_fields.get("voice_verification_method") == METHOD_ECAPA_CENTROID_V1:
-            quality["speaker_legacy_centroid"] += 1
         if _norm_words(window_text) != clip_words:
             # Stored clip words differ from the transcript they were located in. The
             # text is kept as stored (never edited here), but no per-span record says

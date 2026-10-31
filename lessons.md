@@ -1,6 +1,26 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — speaker attribution: the rule had four holes the builders walked through
+
+### L-RULE-ACCEPTS-WRONG-ANSWER-1. A rule that checks a field is present does not check the field is right.
+- **What:** the write rule accepted `human_listen_v1` with any `review_choice` (`host_or_interviewer`, `unclear`, the other teacher) and any clip length, accepted `ecapa_voxceleb_centroid_v1` on any new write with no evidence, and passed a `span_slice_v2` claim with no `voice_margin` because the margin check ran only when a margin existed. Found by the Opus review of 9a3187a (D2, D3, D7).
+- **Fix:** `speaker_write_violations` now requires the human choice to equal the span's own teacher (`teacher_code`, `CONFIRMING_CHOICE`) and the clip to be at least 2000 ms; refuses the centroid method unless `allow_legacy_centroid=True` (read paths only: the promotion gate and the backfill post-check); requires `voice_margin` and `margin_threshold` for v2.
+- **Pin:** `tests/test_speaker_provenance.py` (one test per wrong choice, the 1.9 s clip, the missing margin), `tests/test_first_person_context_store.py` (same through `upsert`).
+- **Rule:** for each evidence field, write the test "present but wrong" before the test "absent". A check that only runs when the value exists is a default-pass.
+
+### L-BUILDER-STAMPS-ARE-CLAIMS-1. A builder that sets a flag must set the evidence in the same expression.
+- **What:** `build_full_corpus_v10` stamped `speaker_verified=True` and the v2 method from one boolean while it already held the cosine, margin, floors, model revision and calibration. The evidence was thrown away one line before it was needed. The v9 builder passed a centroid verdict through as a verified claim.
+- **Fix:** both builders call shared helpers in `domain/speaker_provenance.py` (`span_slice_voice_fields`, `automated_voice_fields`) that return the flag and its evidence together, and demote to `pending_voice_check` when the evidence is incomplete. The batch is refused by `assert_speaker_provenance`. The v9 builder cannot produce v2 (no span audio) and refuses centroid rows.
+- **Pin:** `tests/test_speaker_builder_provenance.py`, `tests/test_fp_context_builder_from_v9.py` (P3 section).
+- **Rule:** derive the flag from the evidence object, never beside it. If the flag cannot be derived, it is false.
+
+### L-SNAPSHOT-NAME-IS-NOT-A-SNAPSHOT-1. A string argument proves nothing about a rollback.
+- **What:** `backfill_v10_voice_method.py --apply --snapshot X` accepted any text, so "skipping the snapshot is impossible" was false (D4).
+- **Fix:** before any write the script lists `GET /collections/<c>/snapshots`; the name must appear with a `creation_time` under 2 h old, else exit 2. An unreadable listing fails closed.
+- **Pin:** `test_apply_with_an_unknown_snapshot_name_exits_two_and_writes_nothing` and the stale and unreadable variants.
+- **Rule:** a safety precondition passed as a flag must be verified against the system it protects.
+
 ## Oct 31, 2026 — an approved pass bar with no code path that reads it is decoration
 
 ### L-BAR-NOT-IMPLEMENTED-1. Budget settlement, preflight, capture — all real; the bar itself was not.

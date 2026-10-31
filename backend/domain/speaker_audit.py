@@ -27,6 +27,7 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from domain.speaker_provenance import (
+    CONFIRMING_CHOICE,
     KNOWN_METHODS,
     METHOD_ECAPA_CENTROID_V1,
     METHOD_HUMAN_LISTEN_V1,
@@ -45,7 +46,7 @@ DECISION_BLOCKED_NOT_TEACHER = "blocked_not_teacher"
 DECISION_BLOCKED_INCOMPLETE = "blocked_incomplete"
 
 #: The review choice that confirms each labelled teacher.
-_CONFIRMING_CHOICE = {"krishnaji": "sri_krishnaji", "preethaji": "sri_preethaji"}
+_CONFIRMING_CHOICE = CONFIRMING_CHOICE
 _NOT_TEACHER_CHOICES = frozenset(REVIEW_CHOICES) - {"unclear"}
 
 
@@ -202,6 +203,7 @@ def promotion_speaker_gate(
     *,
     audit_gate: Mapping[str, Any] | None = None,
     require_audit_gate: bool = False,
+    block_legacy_centroid: bool = False,
     all_teacher_min_spans: int = ALL_TEACHER_MIN_SPANS,
 ) -> dict[str, Any]:
     """Decide whether a candidate collection may be promoted, on speaker evidence alone.
@@ -215,8 +217,10 @@ def promotion_speaker_gate(
     * a P6 audit result is supplied and is not ``pass``, or none is supplied while
       ``require_audit_gate`` is set.
 
-    Never blocks on: legacy centroid spans (counted, plan decision 2026-10-31: they stay
-    readable and are replaced by the v2 re-score), or the all-teacher video flag.
+    Never blocks on: legacy centroid spans (counted; a time-boxed exemption until the v2
+    re-score, review 2026-10-31; set ``block_legacy_centroid`` to end it), or the all-teacher
+    video flag. Same rule function as ``speaker_provenance_violations`` in the store (a test
+    pins that the two agree).
 
     It evaluates the rule per payload in the caller, which is stricter than a Qdrant filter
     on ``is_empty(voice_verification_method)``: it also catches a method with missing
@@ -238,7 +242,11 @@ def promotion_speaker_gate(
             continue
         method = str(payload.get("voice_verification_method") or "") or "none"
         by_method[method] = by_method.get(method, 0) + 1
-        violations = speaker_write_violations(payload)
+        # Stored data is READ here: a legacy centroid span is counted below, not refused,
+        # unless the time box has ended (`block_legacy_centroid`).
+        violations = speaker_write_violations(
+            payload, allow_legacy_centroid=not block_legacy_centroid
+        )
         if violations:
             violators.append(str(payload.get("source_span_id") or payload.get("id") or "?"))
             for code in {v.split(":", 1)[0] for v in violations}:

@@ -234,21 +234,16 @@ def transcript_words_text(text: str) -> list[str]:
 
 
 def test_speaker_verdict_upgrades_an_unverified_clip_and_records_the_method(tmp_path):
-    text = (
-        "When you observe the mind, the division between the observer and the observed dissolves."
-    )
-    verdicts = {
-        "items": {"point-1": {"verified": True, "method": "ecapa_voxceleb_centroid_v1"}},
-    }
+    verdicts = {"items": {"point-1": _V2_ROW}}
     manifest, report, _ = build(
-        [_point(text, speaker_verified=None)],
+        [_point(_TEXT, speaker_verified=None)],
         transcripts_dir=_transcripts_dir(tmp_path),
         speaker_verdicts=verdicts,
     )
     children = [row for row in manifest if row["record_type"] == "retrieval_child"]
     assert len(children) == 1
     assert children[0]["speaker_verified"] is True
-    assert children[0]["voice_verification_method"] == "ecapa_voxceleb_centroid_v1"
+    assert children[0]["voice_verification_method"] == "ecapa_voxceleb_span_slice_v2"
     assert report["speaker_verified_by_voice"] == 1
 
 
@@ -269,10 +264,10 @@ def test_speaker_verdict_that_did_not_verify_keeps_the_clip_out(tmp_path):
 _TEXT = "When you observe the mind, the division between the observer and the observed dissolves."
 
 
-def test_legacy_label_with_a_verdict_records_the_method_not_none(tmp_path):
+def test_legacy_label_with_a_v2_verdict_records_the_method_not_none(tmp_path):
     # Regression: the method used to be set only for spans WITHOUT the legacy label,
     # so a labelled+verified span was written with speaker_verified=True and no method.
-    verdicts = {"items": {"point-1": {"verified": True, "method": "ecapa_voxceleb_centroid_v1"}}}
+    verdicts = {"items": {"point-1": _V2_ROW}}
     manifest, report, _ = build(
         [_point(_TEXT, speaker_verified=True)],
         transcripts_dir=_transcripts_dir(tmp_path),
@@ -280,7 +275,7 @@ def test_legacy_label_with_a_verdict_records_the_method_not_none(tmp_path):
     )
     (child,) = [r for r in manifest if r["record_type"] == "retrieval_child"]
     assert child["speaker_verified"] is True
-    assert child["voice_verification_method"] == "ecapa_voxceleb_centroid_v1"
+    assert child["voice_verification_method"] == "ecapa_voxceleb_span_slice_v2"
     assert report["speaker_verified_by_voice"] == 1
     assert "speaker_label_only" not in report["quality_counters"]
 
@@ -451,17 +446,28 @@ def test_label_only_span_is_pending_voice_check(tmp_path):
     assert child["speaker_verification_status"] == "pending_voice_check"
 
 
-def test_legacy_centroid_rows_are_counted_and_keep_their_exemption(tmp_path):
+def test_legacy_centroid_rows_are_refused_and_counted(tmp_path):
+    # D3: a centroid verdict has no per-span score, so a new write may not claim it.
     verdicts = {"items": {"point-1": {"verified": True, "cosine": 0.5, "margin": 0.2}}}
+    # Unlabelled clip: nothing else vouches for the speaker, so it is quarantined.
     manifest, report, _ = build(
         [_point(_TEXT, speaker_verified=None)],
         transcripts_dir=_transcripts_dir(tmp_path),
         speaker_verdicts=verdicts,
     )
+    assert manifest == []
+    assert report["quarantined"] == {"speaker_unverified": 1}
+    assert report["quality_counters"]["speaker_legacy_centroid_refused"] == 1
+    # Labelled clip: stored, but unverified and pending a real check.
+    manifest, report, _ = build(
+        [_point(_TEXT, speaker_verified=True)],
+        transcripts_dir=_transcripts_dir(tmp_path),
+        speaker_verdicts=verdicts,
+    )
     (child,) = _children(manifest)
-    assert child["voice_verification_method"] == "ecapa_voxceleb_centroid_v1"
-    assert child["voice_score"] == 0.5
-    assert report["quality_counters"]["speaker_legacy_centroid"] == 1
+    assert child["speaker_verified"] is False
+    assert child["voice_verification_method"] is None
+    assert child["speaker_verification_status"] == "pending_voice_check"
 
 
 def test_unknown_verdict_method_is_not_promoted(tmp_path):
