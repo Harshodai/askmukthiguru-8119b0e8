@@ -1,6 +1,24 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — graded run: spend cap, grader input, showability
+
+### L-BUDGET-CAP-EVAL-1. The local spend guard fails closed to "abstain", which reads exactly like a strict gate.
+- **What:** `openrouter_budget.py` ($10/day, $40/month, $0.03 reserved per call) ran out mid-run. Every later answerability and relevance check came back "indeterminate… spend limit" and the pipeline abstained, so a run showed "6 of 116 served, 69/69 abstains, 4/4 safety routes" that were all artifacts. The coordinator's log analysis caught it; I had already explained the drop as a `not_standalone` effect.
+- **Rule:** before trusting any eval number, check (1) `grep -c "spend limit" backend log` is 0, (2) per-question latency does not fall to ~1.2 s partway, (3) `askmukthiguru:openrouter-spend:day:<date>` leaves headroom for the run (about $10 per 200 questions). A perfect abstain rate with 1.2 s latency is a blocked LLM, not a good gate.
+- **Also:** `make flush-cache` does not reset that key; the cap is per UTC day.
+
+### L-GRADER-INPUT-1. A judge shown the wrong evidence grades the evidence, not the product.
+- **What:** the first Haiku/Opus run (6 of 40 showable) saw only truncated citation previews next to the full served text and penalised the labelled "unverified" state. Re-captured with the full served text and the rubric told that the shown answer is complete: 15 of 40.
+- **Rule:** give the grader exactly what the seeker sees; state in the rubric what is a labelled, by-design state; re-run before quoting the number.
+
+### L-REFUSAL-NOT-GENERATED-1. A refusal scorer must also check that no text was generated.
+- **What:** "no teacher clip" passed `ua66` (a calories question) although the general model wrote an ungrounded answer. The scorer now also fails a non-empty `model_used`.
+- **Related:** in first-person-only mode a question that mixes an off-topic ask with one of our practices now takes the teaching lane, never the general lane.
+
+### L-SAFETY-NOTICE-VS-CLASSIFIER-1. When the classifier misses a risk cue, add the support line, do not retune the classifier.
+- **What:** "a bottle of sleeping pills ... I keep staring at it" and a parent describing a teen cutting were rated NONE and got the plain abstain. The bridge now adds the human support line whenever the question carries a self-harm cue (notice only). The classifier itself still needs a clinician-reviewed set.
+
 ## Oct 31, 2026 — review-fix round on 79b6ff4d (two independent reviews)
 
 ### L-SECOND-FILTER-1. Re-running a fail-closed filter on a reshaped object drops everything.
