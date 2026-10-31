@@ -618,6 +618,44 @@ class FirstPersonContextStore:
         ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="expanded").inc()
         return widened
 
+    def fetch_preceding_span(
+        self, video_id: str, before_start_ms: int
+    ) -> Optional[SourceSpan]:
+        """Fetch the immediate chronological predecessor span from the same video.
+
+        Used to resolve cross-parent antecedent coreferences when a retrieved parent unit
+        begins with an unresolved pronoun/demonstrative referent.
+        """
+        if not video_id or not isinstance(before_start_ms, int):
+            return None
+        scroll_filter = Filter(
+            must=[
+                FieldCondition(key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)),
+                FieldCondition(key="video_id", match=MatchValue(value=video_id)),
+            ]
+        )
+        try:
+            records, _ = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=scroll_filter,
+                limit=128,
+                with_payload=True,
+                with_vectors=False,
+            )
+            candidates = []
+            for r in records:
+                payload = _strip_record_type(r.payload or {})
+                start_ms = payload.get("start_ms")
+                if isinstance(start_ms, int) and start_ms < before_start_ms:
+                    candidates.append(payload)
+            if not candidates:
+                return None
+            best_payload = max(candidates, key=lambda p: p.get("start_ms", 0))
+            return SourceSpan.model_validate(best_payload)
+        except Exception as exc:
+            logger.debug("[ContextStore] fetch_preceding_span failed for %s: %s", video_id, exc)
+            return None
+
     # --------------------------------------------------------------- internal
     def points_servable(self, point_ids: list[str]) -> bool:
         """True only if every fp-context point still exists and may be served.

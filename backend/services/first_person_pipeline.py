@@ -108,6 +108,16 @@ CITATION_PLAYBACK_PAD_S = 0.25
 
 _BOTH_RE = re.compile(r"\b(?:both|either|each|all\s+(?:the\s+)?(?:gurus|teachers))\b", re.I)
 
+_ANTECEDENT_CONNECTIVE_RE = re.compile(
+    r"^(?:(?:imagine|see|know|remember)\s+)?(?:what\s+(?:will|would)\s+be\s+)?the\s+outcome\b|"
+    r"\boutcome\s+of\s+(?:it|this|that)\b|"
+    r"\bwithout\s+that\s+state\b|"
+    r"\bbecause\s+of\s+(?:this|that|it)\b|"
+    r"\bin\s+that\s+state\b|"
+    r"\bwhen\s+(?:a\s+parent|that|this)\s+does\s+that\b",
+    re.IGNORECASE,
+)
+
 
 def requested_teacher(query: str) -> Optional[str]:
     """The one guru the seeker named (registry id), else None.
@@ -3315,6 +3325,35 @@ class FirstPersonPipeline:
                         )
                         return None, _local_tokens
 
+                    # Cross-parent antecedent resolution: if the first span begins with an
+                    # antecedent referent, check if the preceding span from the same video exists.
+                    if ctx_store is not None and served_spans:
+                        first_s = served_spans[0]
+                        from services.first_person_context_harness import _span_starts_with_antecedent
+
+                        is_antecedent_opener = (
+                            _span_starts_with_antecedent(first_s)
+                            or bool(_ANTECEDENT_CONNECTIVE_RE.search(first_s.verbatim_text))
+                        )
+                        if is_antecedent_opener:
+                            try:
+                                preceding = ctx_store.fetch_preceding_span(first_s.video_id, first_s.start_ms)
+                                if (
+                                    preceding is not None
+                                    and preceding.source_span_id not in {s.source_span_id for s in served_spans}
+                                    and preceding.video_id == first_s.video_id
+                                    and preceding.guru_id == first_s.guru_id
+                                ):
+                                    served_spans.insert(0, preceding)
+                                    logger.info(
+                                        "[FirstPersonPipeline] Stitched preceding antecedent span %s before %s in video %s",
+                                        preceding.source_span_id[:8],
+                                        first_s.source_span_id[:8],
+                                        first_s.video_id,
+                                    )
+                            except Exception as ant_exc:
+                                logger.debug("[FirstPersonPipeline] Antecedent stitching failed: %s", ant_exc)
+
                     citations = []
                     audio_playback_clips = []
                     cite_by_id = {c.source_span_id: c for c in decision.citations}
@@ -3379,13 +3418,14 @@ class FirstPersonPipeline:
                                 "title": cit_dict["title"],
                             }
                         )
+                    assembled_answer_text = " ".join(s.verbatim_text.strip() for s in served_spans)
                     if (
                         not _span_failed_gate
                         and decision.decision == HarnessDecision.SERVE_PARENT_CONTEXT
                         and served_spans
                         and not _passes_content_quality_gate(
                             {
-                                "verbatim_text": decision.answer_text,
+                                "verbatim_text": assembled_answer_text,
                                 "start_ms": served_spans[0].start_ms,
                                 "end_ms": served_spans[-1].end_ms,
                                 "topic_ids": list(getattr(ctx.parent, "topic_ids", None) or ()),
@@ -3422,7 +3462,7 @@ class FirstPersonPipeline:
                             retrieval_query or query,
                             [
                                 {
-                                    "verbatim_text": decision.answer_text or "",
+                                    "verbatim_text": assembled_answer_text or "",
                                     "start_ms": getattr(_first_span, "start_ms", None),
                                 }
                             ],
@@ -3470,8 +3510,61 @@ class FirstPersonPipeline:
                     if _h_rel_score is not None:
                         stage_timings["relevance_score"] = float(_h_rel_score)
 
+                    answer_to_serve = assembled_answer_text
+                    mode = str(getattr(settings, "first_person_mode", "retrieval_only") or "").strip().lower()
+                    if mode == "hybrid" and self._weaver is not None and citations:
+                        try:
+                            from rag.kg_expansion import resolve_concepts_in_query, fetch_doctrine_subgraph
+                            concepts = resolve_concepts_in_query(retrieval_query or query)
+                            doctrine_ctx = ""
+                            if concepts:
+                                try:
+                                    from app.container import container
+                                    driver = getattr(self, "_neo4j_driver", None) or (container.neo4j_driver if container else None)
+                                    if driver is not None:
+                                        doctrine_ctx = fetch_doctrine_subgraph(concepts, driver)
+                                except Exception as d_exc:
+                                    logger.debug("[FirstPersonPipeline] Doctrine fetch error: %s", d_exc)
+
+                            weaver_clips = []
+                            for c in citations:
+                                weaver_clips.append({
+                                    "point_id": c.get("point_id"),
+                                    "video_id": c.get("video_id"),
+                                    "start_ms": c.get("start_ms"),
+                                    "end_ms": c.get("end_ms"),
+                                    "start_sec": c.get("start_sec"),
+                                    "end_sec": c.get("end_sec"),
+                                    "timestamp_seconds": c.get("start_sec"),
+                                    "verbatim_text": c.get("verbatim_text"),
+                                    "speaker": c.get("speaker"),
+                                    "speaker_verified": c.get("speaker_verified", True),
+                                    "voice_verification_method": c.get("voice_verification_method"),
+                                    "source_url": c.get("url"),
+                                    "guru_id": c.get("guru_id"),
+                                    "teacher_id": c.get("teacher_id"),
+                                    "title": c.get("title"),
+                                    "transcript_hash": c.get("transcript_hash"),
+                                })
+
+                            weaver_sources = sources_from_payloads(weaver_clips)
+                            weave_res = self._weaver.weave(
+                                query=query,
+                                clips=weaver_clips,
+                                okf_entries=[],
+                                intent="QUERY",
+                                sources=weaver_sources,
+                                token_sink=_local_tokens,
+                                doctrine_context=doctrine_ctx,
+                            )
+                            if weave_res.passed_gate and weave_res.text:
+                                answer_to_serve = weave_res.text
+                                logger.info("[FirstPersonPipeline] Successfully woven hybrid answer passing QuoteWeaverAssertionGate")
+                        except Exception as w_exc:
+                            logger.warning("[FirstPersonPipeline] Hybrid weaving error in harness worker: %s", w_exc)
+
                     return FirstPersonPipelineResult(
-                        answer_text=decision.answer_text or "",
+                        answer_text=answer_to_serve,
                         citations=citations,
                         status="success" if is_direct else "weak_match",
                         is_direct_answer=is_direct,

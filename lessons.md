@@ -1,6 +1,18 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — cross-parent antecedent stitching, Memgraph doctrine grounding & distress calibration
+
+### L-CROSS-PARENT-ANTECEDENT-STITCHING-1. Long speech turns splitting across parent units leave dangling demonstrative pronouns.
+- **What:** In `x-mTRlE0TC4`, parent unit `231ae31c...` opened with *"Imagine what will be the outcome of it, when a parent does that..."*. Because intra-parent window enrichment only operates within a single `parent_unit_id`, the predecessor discourse (*"These are suffering states... but more important is, what is the state from which what I am doing"*) was stranded in parent `21834cb2...`.
+- **Fix:** `FirstPersonPipeline._eval_ctx_worker` detects opening antecedent connectors (`_span_starts_with_antecedent` or `_ANTECEDENT_CONNECTIVE_RE`) and queries `FirstPersonContextStore.fetch_preceding_span` to retrieve and prepend the immediate chronological predecessor from the same video and guru.
+- **Rule:** when a candidate's opening span references an antecedent, stitch the predecessor span across parent units within the same video before gating and serving.
+
+### L-DISTRESS-HELPLINE-CALIBRATION-1. Attaching suicide hotlines to benign philosophical inquiries on anxiety degrades user trust.
+- **What:** `SereneMindEngine` classified any query mentioning "anxiety", "fear", or "restlessness" as `MODERATE` distress (level 2). In `first_person_bridge.py`, every turn under `distress_compassion` appended emergency suicide hotlines (Tele-MANAS `14416`), presenting alarmist crisis numbers to seekers asking calm spiritual questions.
+- **Fix:** Emergency crisis helplines are now strictly attached when explicit self-harm/suicide risk cues (`_QUESTION_SELF_HARM_CUE_RE`, `_CLIP_MENTIONS_SELF_HARM`, or severe distress >= 3) are present. Benign emotional inquiries receive the compassionate framing and gentle breathing practice without alarming suicide hotline numbers.
+- **Rule:** differentiate acute crisis intervention from benign pedagogical guidance; crisis numbers must attach to actual risk, not to philosophical questions about mental states.
+
 ## Oct 31, 2026 — multi-span parent context gating, tag filtering parity & speaker verification audit
 
 ### L-PARENT-CONTEXT-QUALITY-GATE-1. Gating internal spans of a multi-turn discourse as standalone clips breaks parent contexts.

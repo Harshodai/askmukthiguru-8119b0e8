@@ -1002,6 +1002,15 @@ class FirstPersonBridgeStage(Stage):
             if _text and _text not in safety_notices:
                 safety_notices.append(_text)
 
+        user_msg = str(getattr(ctx, "user_message", "") or "")
+        level = getattr(getattr(ctx, "assessment", None), "level", None)
+        level_val = int(getattr(level, "value", 0) or 0)
+        has_self_harm_risk = bool(
+            _QUESTION_SELF_HARM_CUE_RE.search(user_msg)
+            or _CLIP_MENTIONS_SELF_HARM.search(answer)
+            or level_val >= 3
+        )
+
         if not distress_compassion and _CLIP_MENTIONS_SELF_HARM.search(answer):
             # The seeker did not signal distress, but the teacher's own words raise
             # self-harm (e.g. a talk quoting suicide statistics). The clip stays
@@ -1012,9 +1021,9 @@ class FirstPersonBridgeStage(Stage):
             if ensure_support_line(_joined_notices) != _joined_notices:
                 safety_notices.append(ensure_support_line(""))
 
-        if distress_compassion:
-            # Distress lane invariant: every distress answer ends with a human
-            # support line, unless a helpline block is already present.
+        if distress_compassion and has_self_harm_risk:
+            # Emergency helpline is appended when acute distress / self-harm risk is detected.
+            # Benign pedagogical/spiritual inquiries receive compassion framing & practice without helpline numbers.
             from services.crisis_helplines import ensure_support_line
 
             # ensure_support_line returns its input unchanged when a helpline
@@ -1024,6 +1033,7 @@ class FirstPersonBridgeStage(Stage):
             _with_support = ensure_support_line(_joined)
             if _with_support != _joined:
                 safety_notices.append(ensure_support_line(""))
+        if distress_compassion:
             # Distress-lane parity, defense-in-depth: the graph's distress handler
             # returns straight to END, so it re-runs this persona/constitutional
             # check itself (rag/nodes/intent.py::handle_distress). The bridge

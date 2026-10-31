@@ -745,14 +745,9 @@ def _verified_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _stored_label(c: dict[str, Any]) -> Optional[str]:
     """Display label from payload metadata only: per-clip speaker, else teacher_id."""
-    specific_guru = canonical_speaker(str(c.get("guru_id") or c.get("teacher_id") or ""))
-    if specific_guru in ("preethaji", "krishnaji"):
-        return TEACHER_LABELS[specific_guru]
     canon = canonical_speaker(str(c.get("speaker") or ""))
-    if canon in ("unknown", "other", "both") and specific_guru in ("preethaji", "krishnaji"):
-        return TEACHER_LABELS[specific_guru]
-    if canon in ("unknown", "other"):
-        canon = specific_guru
+    if canon in ("unknown", "other", "both"):
+        canon = canonical_speaker(str(c.get("guru_id") or c.get("teacher_id") or ""))
     return TEACHER_LABELS.get(canon)
 
 
@@ -1051,6 +1046,7 @@ def _deterministic_fallback(
 def _build_scaffolding_prompts(
     query: str,
     clips: list[dict[str, Any]],
+    doctrine_context: Optional[str] = None,
 ) -> tuple[str, str]:
     """Construct strict system and user prompts requesting ONLY minimal framing scaffolding.
     The LLM is NOT provided the teaching text to prevent summarization, rewriting, or distortion.
@@ -1088,8 +1084,10 @@ def _build_scaffolding_prompts(
         f"Seeker's Query: {query}\n\n"
         f"Retrieved Discourses:\n"
         + "\n".join(clip_info)
-        + "\n\nProvide the OPENING, CONNECTIVE, and QUESTIONS. Do not write anything else."
     )
+    if doctrine_context:
+        user_prompt += f"\n\nDoctrine Knowledge Context (Memgraph):\n{doctrine_context}"
+    user_prompt += "\n\nProvide the OPENING, CONNECTIVE, and QUESTIONS. Do not write anything else."
     return system_prompt, user_prompt
 
 
@@ -1097,6 +1095,7 @@ def _build_editorial_review_prompt(
     query: str,
     clips: list[dict[str, Any]],
     metadata: Optional[dict[str, Any]] = None,
+    doctrine_context: Optional[str] = None,
 ) -> tuple[str, str]:
     """Construct prompt for the Elite Spiritual Manuscript Editor persona.
     Enforces the Sacred Arc of Awakening, ASR proofreading, antecedent grounding,
@@ -1147,6 +1146,10 @@ def _build_editorial_review_prompt(
     user_prompt = (
         f"Seeker Inquiry: {query}\n\n"
         f"Retrieved Spoken Discourses:\n" + "\n\n".join(clip_blocks) + "\n\n"
+    )
+    if doctrine_context:
+        user_prompt += f"Doctrine Knowledge Context (Memgraph):\n{doctrine_context}\n\n"
+    user_prompt += (
         "Instructions:\n"
         "Proofread, anchor antecedents, and weave the authentic spoken words above into ONE continuous book chapter "
         "with footnote markers [1], [2], followed by '---' and 2–3 italic reflection questions (*...*). "
@@ -1376,6 +1379,7 @@ class QuoteWeaverService:
         intent: Optional[str] = None,
         sources: Optional[dict[str, SourceRecord]] = None,
         token_sink: Optional[list[int]] = None,
+        doctrine_context: Optional[str] = None,
     ) -> QuoteWeaverResult:
         """Weave verified clips into an authentic first-person teaching voice.
 
@@ -1433,9 +1437,13 @@ class QuoteWeaverService:
             raw = _scaffold_cache_get(cache_key)
             if raw is None:
                 if use_rewrite:
-                    system_prompt, user_prompt = _build_editorial_review_prompt(query, clips)
+                    system_prompt, user_prompt = _build_editorial_review_prompt(
+                        query, clips, doctrine_context=doctrine_context
+                    )
                 else:
-                    system_prompt, user_prompt = _build_scaffolding_prompts(query, clips)
+                    system_prompt, user_prompt = _build_scaffolding_prompts(
+                        query, clips, doctrine_context=doctrine_context
+                    )
                 gen_kwargs = _llm_kwargs(use_rewrite)
                 raw = _run_sync(
                     lambda: _generate_llm(active_llm, system_prompt, user_prompt, **gen_kwargs),
@@ -1515,6 +1523,7 @@ class QuoteWeaverService:
         intent: Optional[str] = None,
         sources: Optional[dict[str, SourceRecord]] = None,
         token_sink: Optional[list[int]] = None,
+        doctrine_context: Optional[str] = None,
     ) -> QuoteWeaverResult:
         """Async counterpart of weave()."""
         clips, no_hero = _hero_clips(query, clips, sources)
@@ -1558,9 +1567,13 @@ class QuoteWeaverService:
             raw = _scaffold_cache_get(cache_key)
             if raw is None:
                 if use_rewrite:
-                    system_prompt, user_prompt = _build_editorial_review_prompt(query, clips)
+                    system_prompt, user_prompt = _build_editorial_review_prompt(
+                        query, clips, doctrine_context=doctrine_context
+                    )
                 else:
-                    system_prompt, user_prompt = _build_scaffolding_prompts(query, clips)
+                    system_prompt, user_prompt = _build_scaffolding_prompts(
+                        query, clips, doctrine_context=doctrine_context
+                    )
                 raw = await asyncio.wait_for(
                     _generate_llm(
                         active_llm, system_prompt, user_prompt, **_llm_kwargs(use_rewrite)
