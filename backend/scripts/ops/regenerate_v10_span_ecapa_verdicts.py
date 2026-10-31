@@ -689,8 +689,13 @@ def load_spans(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def load_pinned_calibration(path: Path) -> dict[str, Any]:
+def load_pinned_calibration(path: Path, max_far: float | None = None) -> dict[str, Any]:
     """Read the already-pinned calibration artifact. Never recalibrates.
+
+    ``max_far`` (optional, off by default) refuses an artifact whose Clopper-Pearson
+    false-accept bound on the held-out test impostors exceeds it. The default is off
+    because the calibration pinned on 2026-10-30 has 262 trials and a bound near 1.1%; the
+    owner decides when a tighter target applies.
 
     Fail closed: an unmeasurable or malformed artifact means no span can be
     verified, so the caller stops instead of applying an invented floor. The
@@ -719,7 +724,19 @@ def load_pinned_calibration(path: Path) -> dict[str, Any]:
     revision = str(data.get("calibration_revision") or "")
     if not revision:
         raise InputError(f"calibration {path} carries no calibration_revision")
+    # Always recorded, so every served-window run states how well the false-accept rate it
+    # relies on is bounded; it only refuses when the owner sets ``max_far``.
+    ok, far_record = far_gate(data, max_far if max_far is not None else DEFAULT_TARGET_FAR)
+    if max_far is not None:
+        if not ok:
+            raise InputError(
+                f"calibration {path} does not meet the false-accept target {max_far}: "
+                f"bound {far_record['upper_bound']} from {far_record['false_accepts']} false "
+                f"accepts in {far_record['impostor_trials']} trials; about "
+                f"{far_record['clean_trials_needed_for_target']} clean trials are needed"
+            )
     return {
+        "far_bound": far_record,
         "calibration_available": True,
         "calibration_revision": revision,
         "cosine_floor": float(cosine_floor),
@@ -1197,6 +1214,162 @@ def evaluate_on_split(
 
 
 # ---------------------------------------------------------------------------
+# Impostor evidence and the false-accept bound (P7)
+# ---------------------------------------------------------------------------
+#: The error rate the false-accept bound is judged against. 0.5% needs about 600 clean
+#: impostor trials; 0.1% needs about 3,000. The value is the merged plan's proposal
+#: (2026-10-31), not a measured requirement.
+DEFAULT_TARGET_FAR = 0.005
+#: One-sided confidence for the Clopper-Pearson bound.
+FAR_ALPHA = 0.05
+#: Label values a foreign (non-teacher) slice may carry.
+FOREIGN_LABELS = frozenset({"host", "interviewer", "other"})
+FOREIGN_SLICE_REQUIRED = ("slice_id", "video_id", "start_ms", "end_ms", "label")
+
+
+def far_upper_bound(false_accepts: int, trials: int, alpha: float = FAR_ALPHA) -> float | None:
+    """Exact one-sided Clopper-Pearson upper bound on the false-accept rate, or ``None``."""
+    if trials <= 0 or false_accepts < 0 or false_accepts > trials:
+        return None
+    from evaluation.gold.metrics import clopper_pearson_upper
+
+    return float(clopper_pearson_upper(false_accepts, trials, alpha))
+
+
+def trials_needed_for_far(target: float, alpha: float = FAR_ALPHA) -> int:
+    """Clean (zero false accept) impostor trials needed for the bound to reach ``target``."""
+    if not 0.0 < target < 1.0:
+        raise ValueError("target must be between 0 and 1")
+    return math.ceil(math.log(alpha) / math.log(1.0 - target))
+
+
+def far_bound_record(
+    false_accepts: int | None,
+    trials: int | None,
+    *,
+    target: float = DEFAULT_TARGET_FAR,
+    alpha: float = FAR_ALPHA,
+) -> dict[str, Any]:
+    """The calibration record's false-accept evidence: counts, bound, target, verdict."""
+    needed = trials_needed_for_far(target, alpha)
+    bound = (
+        far_upper_bound(int(false_accepts), int(trials), alpha)
+        if isinstance(false_accepts, int) and isinstance(trials, int)
+        else None
+    )
+    return {
+        "impostor_trials": trials,
+        "false_accepts": false_accepts,
+        "alpha": alpha,
+        "upper_bound": _round(bound, 8) if bound is not None else None,
+        "target": target,
+        "meets_target": bool(bound is not None and bound <= target),
+        "clean_trials_needed_for_target": needed,
+        "method": "clopper_pearson_one_sided_exact",
+        # The bound treats every trial as independent. Slices of one speaker in one video are
+        # not, so the effective evidence is smaller than the count (a limit of this method).
+        "independence_caveat": (
+            "assumes independent trials; trials sharing a speaker or a video are correlated, "
+            "so the true uncertainty is wider than this bound"
+        ),
+    }
+
+
+def far_gate(calibration: dict[str, Any], target: float) -> tuple[bool, dict[str, Any]]:
+    """Refuse a calibration whose false-accept bound exceeds ``target``.
+
+    Reads the counts the calibration artifact already records for the held-out **test**
+    split (``trial_counts.test_impostor_trials`` and ``false_accept.test.count``); the
+    calibration split is excluded because its floors sit above every observed impostor by
+    construction. An artifact that does not carry both counts cannot be judged, so it is
+    refused rather than waved through.
+    """
+    counts = calibration.get("trial_counts")
+    trials = counts.get("test_impostor_trials") if isinstance(counts, dict) else None
+    false_accept = calibration.get("false_accept")
+    test = false_accept.get("test") if isinstance(false_accept, dict) else None
+    accepts = test.get("count") if isinstance(test, dict) else None
+    record = far_bound_record(accepts, trials, target=target)
+    record["source"] = "trial_counts.test_impostor_trials, false_accept.test.count"
+    return bool(record["meets_target"]), record
+
+
+def load_foreign_slices(path: Path) -> list[dict[str, Any]]:
+    """Host / interviewer / other-speaker slices to use as extra impostor trials.
+
+    One JSON object per line with ``slice_id``, ``video_id``, ``start_ms``, ``end_ms`` and a
+    ``label`` in :data:`FOREIGN_LABELS`. These are voices that are NOT Sri Krishnaji or Sri
+    Preethaji (for example diarization windows named ``O``); a slice that is really a
+    teacher would only add false accepts, which fails safe.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise InputError(f"foreign slices {path} are unreadable: {exc}") from exc
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for number, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise InputError(f"{path}: line {number} is not valid JSON: {exc}") from exc
+        if not isinstance(row, dict):
+            raise InputError(f"{path}: line {number} is not a JSON object")
+        for field in FOREIGN_SLICE_REQUIRED:
+            if row.get(field) in (None, ""):
+                raise InputError(f"{path}: line {number} is missing {field}")
+        if str(row["label"]) not in FOREIGN_LABELS:
+            raise InputError(f"{path}: line {number} has label {row['label']!r}")
+        if not (_is_int(row["start_ms"]) and _is_int(row["end_ms"])) or int(row["end_ms"]) <= int(
+            row["start_ms"]
+        ):
+            raise InputError(f"{path}: line {number} has an invalid window")
+        if str(row["slice_id"]) in seen:
+            raise InputError(f"{path}: duplicate slice_id {row['slice_id']!r} at line {number}")
+        seen.add(str(row["slice_id"]))
+        rows.append(row)
+    return rows
+
+
+def build_foreign_trials(
+    vectors: dict[str, np.ndarray],
+    splits: dict[str, str],
+    references: dict[str, np.ndarray],
+    split: str,
+    labels: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Impostor trials from non-teacher voices: each slice claims each teacher in turn.
+
+    Same trial shape as :func:`build_trials` impostors, so the floors and the false-accept
+    count treat both kinds alike. ``margin`` is the claimed teacher's score minus the best
+    other reference.
+    """
+    trials: list[dict[str, Any]] = []
+    for slice_id in sorted(vectors):
+        if splits.get(slice_id) != split:
+            continue
+        scored = score_against_references(vectors[slice_id], references)
+        for claimed in sorted(references):
+            best_other = max(
+                (value for name, value in scored["scores"].items() if name != claimed),
+                default=0.0,
+            )
+            trials.append(
+                {
+                    "source_span_id": slice_id,
+                    "claimed": claimed,
+                    "true_label": (labels or {}).get(slice_id, "foreign"),
+                    "kind": "foreign_voice",
+                    "cosine": scored["scores"][claimed],
+                    "margin": scored["scores"][claimed] - best_other,
+                }
+            )
+    return trials
+
+
+# ---------------------------------------------------------------------------
 # Verdict rows
 # ---------------------------------------------------------------------------
 def build_verdict_row(
@@ -1402,6 +1575,21 @@ def build_parser() -> argparse.ArgumentParser:
         "so a later builder can verify new spans against the SAME references.",
     )
     parser.add_argument(
+        "--foreign-slices-jsonl",
+        default=None,
+        help="Candidate mode: host / interviewer / other-speaker slices (slice_id, video_id, "
+        "start_ms, end_ms, label). Added to the held-out impostor trials of their video's "
+        "split. Build them with scripts/ops/build_impostor_slices.py.",
+    )
+    parser.add_argument(
+        "--max-far",
+        type=float,
+        default=None,
+        help="Served-window mode: refuse the pinned calibration unless its one-sided 95%% "
+        "Clopper-Pearson false-accept bound on the test impostors is at most this (e.g. 0.005). "
+        "Off by default.",
+    )
+    parser.add_argument(
         "--write-to-qdrant",
         action="store_true",
         help="REJECTED. This script has no write mode; it only emits file artifacts.",
@@ -1453,7 +1641,7 @@ def run_spans_mode(args: argparse.Namespace) -> int:
     audio_dir = Path(args.audio_dir).expanduser()
     try:
         spans = load_spans(spans_path)
-        calibration = load_pinned_calibration(calibration_path)
+        calibration = load_pinned_calibration(calibration_path, args.max_far)
         references = load_references(references_path)
     except InputError as exc:
         print(
@@ -1544,6 +1732,7 @@ def run_spans_mode(args: argparse.Namespace) -> int:
             "margin_threshold": calibration["margin_threshold"],
             "calibration_revision": calibration["calibration_revision"],
             "recalibrated": False,
+            "false_accept_bound": calibration["far_bound"],
         },
         "spans_scored": len(spans),
         "rows_emitted": len(rows),
@@ -1688,6 +1877,27 @@ def main(argv: list[str] | None = None) -> int:
         )
         return EXIT_INVALID_INPUT
 
+    foreign_slices: list[dict[str, Any]] = []
+    foreign_sha256 = ""
+    if args.foreign_slices_jsonl:
+        foreign_path = Path(args.foreign_slices_jsonl)
+        try:
+            foreign_slices = load_foreign_slices(foreign_path)
+        except InputError as exc:
+            print(
+                json.dumps(
+                    {
+                        "status": "invalid_input",
+                        "error": str(exc),
+                        "script_version": SCRIPT_VERSION,
+                    },
+                    sort_keys=True,
+                ),
+                file=sys.stderr,
+            )
+            return EXIT_INVALID_INPUT
+        foreign_sha256 = _sha256_file(foreign_path)
+
     cache_dir = Path(args.cache).expanduser()
     cache_dir.mkdir(parents=True, exist_ok=True)
     embedding_cache_path = cache_dir / "embeddings.npz"
@@ -1763,6 +1973,24 @@ def main(argv: list[str] | None = None) -> int:
         merged.update(new_vectors)
         np.savez_compressed(embedding_cache_path, **merged)
 
+    # ---- foreign (host / interviewer / other) slices: extra impostor evidence (P7) ------
+    foreign_vectors: dict[str, np.ndarray] = {}
+    foreign_splits: dict[str, str] = {}
+    foreign_labels: dict[str, str] = {}
+    foreign_failures: Counter[str] = Counter()
+    for row in foreign_slices:
+        slice_id = f"foreign:{row['slice_id']}"
+        video_id = str(row["video_id"])
+        wav_path = audio_dir / f"{video_id}.wav"
+        audio, reason = read_slice(wav_path, int(row["start_ms"]), int(row["end_ms"]))
+        vector = embed_slice(audio, embedder) if audio is not None else None
+        if vector is None:
+            foreign_failures[reason or VERDICT_INVALID_AUDIO] += 1
+            continue
+        foreign_vectors[slice_id] = vector
+        foreign_splits[slice_id] = assign_split(video_id)
+        foreign_labels[slice_id] = str(row["label"])
+
     # ---- anchors, references, calibration ----------------------------------
     anchor_vectors: dict[str, np.ndarray] = {}
     anchor_details: dict[str, Any] = {}
@@ -1788,8 +2016,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.out_references:
         np.savez_compressed(Path(args.out_references), **references)
     calibration_trials = build_trials(vectors, splits, anchor_vectors, references, "calibration")
-    calibration = calibrate_from_trials(calibration_trials)
     test_trials = build_trials(vectors, splits, anchor_vectors, references, "test")
+    foreign_calibration_trials = build_foreign_trials(
+        foreign_vectors, foreign_splits, references, "calibration", foreign_labels
+    )
+    foreign_test_trials = build_foreign_trials(
+        foreign_vectors, foreign_splits, references, "test", foreign_labels
+    )
+    # Foreign voices join the same impostor pool, so the floors rise above them too.
+    calibration_trials["impostor_trials"].extend(foreign_calibration_trials)
+    test_trials["impostor_trials"].extend(foreign_test_trials)
+    calibration = calibrate_from_trials(calibration_trials)
     cosine_floor = calibration.get("cosine_floor")
     margin_threshold = calibration.get("margin_threshold")
     calibration_available = bool(calibration.get("calibration_available"))
@@ -1844,6 +2081,9 @@ def main(argv: list[str] | None = None) -> int:
                 "model_revision": model_revision,
                 "recipe": run_manifest["recipe"],
                 "reference_stats": reference_stats,
+                # Only when foreign slices were used, so a run without them keeps the
+                # revision it always had.
+                **({"foreign_slices_sha256": foreign_sha256} if foreign_sha256 else {}),
             }
         ).encode("utf-8")
     )
@@ -1980,6 +2220,11 @@ def main(argv: list[str] | None = None) -> int:
             "test_impostor_trials": len(test_trials["impostor_trials"]),
             "test_unlabeled_slices": test_trials["unlabeled_slices"],
             "min_impostor_trials_required": MIN_IMPOSTOR_TRIALS,
+            "foreign_voice_slices_used": len(foreign_vectors),
+            "foreign_voice_slices_failed": dict(foreign_failures),
+            "foreign_voice_calibration_trials": len(foreign_calibration_trials),
+            "foreign_voice_test_trials": len(foreign_test_trials),
+            "foreign_slices_sha256": foreign_sha256 or None,
         },
         "score_distributions": {
             "calibration_impostor_cosine": calibration.get("impostor_cosine_distribution"),
@@ -2038,6 +2283,11 @@ def main(argv: list[str] | None = None) -> int:
                 "note": "held-out measurement; this is the honest number",
             },
         },
+        "false_accept_bound": far_bound_record(
+            test_evaluation.get("false_accepts"),
+            test_evaluation.get("impostor_trials"),
+            target=DEFAULT_TARGET_FAR,
+        ),
         "false_reject": {
             "calibration": {
                 "count": calibration.get("calibration_false_rejects"),
