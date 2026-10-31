@@ -1078,6 +1078,29 @@ async def get_quality_data(
         disagreements = []
         low_confidence = []
 
+        # Aggregate abstentions taxonomy
+        abstentions = {
+            "crisis_redirect": 0,
+            "serving_contract_violation": 0,
+            "unverified_speaker": 0,
+            "empty_retrieval": 0,
+            "total": 0,
+        }
+        for r in responses:
+            reason = str(r.get("abstain_reason") or "")
+            if not reason and isinstance(r.get("metadata_json"), dict):
+                reason = str(r.get("metadata_json", {}).get("abstain_reason") or "")
+            if reason:
+                abstentions["total"] += 1
+                if any(k in reason for k in ("crisis", "distress", "self_harm", "safety")):
+                    abstentions["crisis_redirect"] += 1
+                elif any(k in reason for k in ("contract", "violation", "serving")):
+                    abstentions["serving_contract_violation"] += 1
+                elif any(k in reason for k in ("speaker", "voice", "unverified")):
+                    abstentions["unverified_speaker"] += 1
+                elif any(k in reason for k in ("empty", "relevance", "withheld")):
+                    abstentions["empty_retrieval"] += 1
+
         return {
             "faithfulness": avg_faithfulness,
             "relevancy": avg_relevancy,
@@ -1085,6 +1108,7 @@ async def get_quality_data(
             "manual_review_score": manual_review_score,
             "disagreements": disagreements,
             "low_confidence": low_confidence,
+            "abstentions": abstentions,
         }
     except Exception as e:
         logger.error(f"Failed to get quality data: {e}")

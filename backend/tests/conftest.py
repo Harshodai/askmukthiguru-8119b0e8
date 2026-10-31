@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import warnings
+from pathlib import Path
 
 # Suppress all warnings ruthlessly during testing — must be set BEFORE any
 # third-party imports to catch import-time warnings.
@@ -496,6 +497,34 @@ def _flush_test_redis():
             client.close()
     except Exception:
         pass
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _audits_manifests_stay_clean():
+    """A test must never write into the tracked repo tree (plan Tier 3 item 8).
+
+    ``audits/manifests/`` is mounted read-only into the backend container. A manifest written
+    there by a test run used to satisfy the startup publication gate on a developer machine,
+    and the stray file then travelled with the tree. ``_isolate_publication_manifest_dir``
+    redirects the setting; this fixture proves no other writer exists.
+    """
+    root = Path(__file__).resolve().parents[2] / "audits" / "manifests"
+
+    def snapshot() -> dict[str, float]:
+        if not root.is_dir():
+            return {}
+        return {p.name: p.stat().st_mtime for p in root.iterdir() if p.is_file()}
+
+    before = snapshot()
+    yield
+    after = snapshot()
+    if before != after:
+        added = sorted(set(after) - set(before))
+        changed = sorted(k for k in set(before) & set(after) if before[k] != after[k])
+        raise AssertionError(
+            "a test wrote into audits/manifests/ (added="
+            f"{added}, changed={changed}); point the writer at tmp_path instead"
+        )
 
 
 def pytest_configure(config):

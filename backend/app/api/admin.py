@@ -2638,4 +2638,7 @@ async def get_corpus_provenance(
         "parent_id_scheme": payload.get("parent_id_scheme"),
         "created_at": payload.get("created_at") or payload.get("ingested_at"),
         "ingested_at": payload.get("ingested_at") or payload.get("created_at"),
+        "audio_start_ms": payload.get("audio_start_ms") or payload.get("start_ms"),
+        "audio_end_ms": payload.get("audio_end_ms") or payload.get("end_ms"),
+        "speaker": payload.get("speaker") or payload.get("guru_id"),
     }
