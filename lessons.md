@@ -1,6 +1,24 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — speaker attribution: provenance, write rule, backfill checks
+
+### L-WRITER-KEYS-DECLARED-1. A payload writer may only set keys the reading model declares.
+- **What:** the first backfill writer set a nested `voice_verdict` and a `speaker_verification_status` key. `SourceSpan` is `extra="forbid"` and `fetch_parent_context` validates every child, so after an apply each touched parent would have raised "invalid span payload" at serve time. It was never run on a live collection; reading the writer against the model found it.
+- **Fix:** flat keys, all declared on `SourceSpan` (`domain/first_person_context.py`); `decide()` never writes `voice_verdict`.
+- **Pin:** `test_every_key_the_backfill_writes_is_a_declared_span_field` and `test_the_backfilled_payload_still_loads_into_the_span_model` (`tests/test_backfill_v10_voice_method.py`).
+- **Rule:** any script that patches payloads must have a test that round-trips its output through the model that reads it.
+
+### L-METHOD-NOT-EVIDENCE-1. A recorded method name alone is not provenance.
+- **What:** the earlier write rule only checked that `voice_verification_method` was non-empty. The builders already stamp `ecapa_voxceleb_span_slice_v2` with no score, calibration id or model revision, so a method string proves nothing about what was measured.
+- **Fix:** one rule in `domain/speaker_provenance.py`, used by `FirstPersonContextStore.upsert` and by the backfill writer at plan time and again before each `set_payload`. Write time only: the model validator stays tolerant so legacy payloads still load.
+- **Open:** the builders (`build_full_corpus_v10.py`, `build_fp_context_from_v9.py`) still write the v2 method without the new fields. UNPROVEN how many live v10 spans that is; the backfill post-check `violators_zero` counts them.
+
+### L-FAR-BOUND-1. A zero false-accept count is not a rate; state the bound.
+- **What:** "0 false accepts in 262" bounds the rate at about 1.14% (one-sided 95% Clopper-Pearson, computed with `evaluation/gold/metrics.py`). 0.5% needs 598 clean trials, 0.1% needs 2,995. Trials from one speaker or video are correlated, so the real uncertainty is wider.
+- **Fix:** the calibration artifact now records trial counts, the bound and the trials still needed; `--max-far` refuses a weaker calibration (off by default). More impostors come from `build_impostor_slices.py` (host and other voices in saved diarization windows).
+- **Status:** the code is tested on synthetic vectors only. No real impostor slices were embedded and no calibration was re-run: UNPROVEN until a host run.
+
 ## Oct 31, 2026 — graded run: spend cap, grader input, showability
 
 ### L-BUDGET-CAP-EVAL-1. The local spend guard fails closed to "abstain", which reads exactly like a strict gate.

@@ -60,6 +60,15 @@ def span(n=0, **overrides):
         "speaker_role": SpeakerRole.GURU,
         "speaker_verified": True,
         "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
+        # A verified span records what produced the claim (write rule, P2).
+        "voice_model_revision": "rev-test",
+        "voice_score": 0.71,
+        "voice_margin": 0.40,
+        "voice_threshold_applied": {"cosine_floor": 0.2828, "margin_threshold": 0.05},
+        "voice_calibration_id": "cal-test",
+        "voice_window_check": "pass",
+        "voice_verified_at": "2026-10-31T00:00:00+00:00",
+        "speaker_verification_status": "verified",
         "source_transcript_text": text,
         "verbatim_text": text,
         "transcript_hash": HASH,
@@ -419,3 +428,56 @@ def test_the_v9_builder_refuses_before_creating_the_target_collection(monkeypatc
     ]
     with pytest.raises(FirstPersonContextStoreError, match="speaker_verified=true"):
         build._apply(manifest, [], qdrant_url="http://127.0.0.1:1", target="never_created")
+
+
+@pytest.mark.parametrize(
+    "overrides,reason",
+    [
+        ({"voice_score": None}, "ecapa_missing:voice_score"),
+        ({"voice_calibration_id": None}, "ecapa_missing:voice_calibration_id"),
+        ({"voice_model_revision": None}, "ecapa_missing:voice_model_revision"),
+        ({"voice_threshold_applied": None}, "ecapa_missing:voice_threshold_applied"),
+        ({"voice_score": 0.1}, "ecapa_score_below_floor"),
+        ({"voice_window_check": "fail"}, "window_check_failed"),
+        ({"voice_verification_method": "human_listen_v1"}, "human_missing:reviewer_id"),
+        ({"voice_verification_method": "trust_me"}, "voice_method_unknown:trust_me"),
+    ],
+)
+def test_upsert_refuses_each_incomplete_speaker_record_and_issues_no_write(overrides, reason):
+    """P2: a method alone is not evidence. One refusal per rule; the client sees nothing."""
+    bad = span(0, **overrides)
+    client = FakeClient()
+    with pytest.raises(FirstPersonContextStoreError, match=reason):
+        store(client).upsert(parent([bad]), [bad])
+    assert client.points == {}
+
+
+def test_upsert_accepts_a_complete_human_listen_record():
+    ok = span(
+        0,
+        voice_verification_method="human_listen_v1",
+        voice_score=None,
+        voice_calibration_id=None,
+        voice_model_revision=None,
+        voice_threshold_applied=None,
+        voice_window_check=None,
+        speaker_verification_status="verified",
+        reviewer_id="reviewer-1",
+        reviewed_at="2026-10-31T10:00:00+00:00",
+        reviewed_audio_sha256="a" * 64,
+        review_choice="sri_krishnaji",
+    )
+    assert store(FakeClient()).upsert(parent([ok]), [ok]) == 2
+
+
+def test_the_collection_level_check_reports_violators_by_span_without_loading_the_model():
+    from services.first_person_context_store import speaker_provenance_violations
+
+    payloads = [
+        span(0).to_payload(),
+        span(1, voice_score=None).to_payload(),
+        span(2, speaker_verified=False, voice_verification_method=None).to_payload(),
+        {"record_type": "parent_unit", "speaker_verified": True},
+    ]
+    found = speaker_provenance_violations(payloads)
+    assert list(found.values()) == [["ecapa_missing:voice_score"]]

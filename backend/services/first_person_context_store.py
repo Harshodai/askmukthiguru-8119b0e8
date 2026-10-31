@@ -35,6 +35,7 @@ from domain.first_person_context import (
     ParentUnit,
     SourceSpan,
 )
+from domain.speaker_provenance import speaker_write_violations
 from services.first_person_video_decisions import blocked_video_ids_or_none, video_is_blocked
 
 logger = logging.getLogger(__name__)
@@ -110,6 +111,26 @@ def assert_no_bare_flag_speakers(payloads: Iterable[Mapping[str, Any]], *, where
             "written speaker_verified=false, or backfill a real method first "
             "(scripts.ops.backfill_v10_voice_method)."
         )
+
+
+def speaker_provenance_violations(
+    payloads: Iterable[Mapping[str, Any]],
+) -> dict[str, list[str]]:
+    """Child payloads the write rule would refuse, keyed by span id (empty means clean).
+
+    The strict twin of :func:`bare_flag_speaker_ids`: it also catches a method with no
+    score, calibration or reviewer behind it. For a promotion gate over a candidate
+    collection; it reads raw payloads so a collection that still holds the 732 legacy spans
+    can be *measured* without being loaded into ``SourceSpan``.
+    """
+    out: dict[str, list[str]] = {}
+    for payload in payloads:
+        if payload.get("record_type") not in (None, RECORD_TYPE_CHILD):
+            continue
+        violations = speaker_write_violations(payload)
+        if violations:
+            out[str(payload.get("source_span_id") or payload.get("id") or "?")] = violations
+    return out
 
 
 # Qdrant point IDs must be UUIDs or unsigned ints; the contract IDs are sha256
@@ -224,10 +245,16 @@ class FirstPersonContextStore:
         rule existed only as a soft report in validate_release_grade(). Enforced at WRITE time
         and not in the SourceSpan validator, because the harness reads live payloads into
         SourceSpan and a model-level raise would crash on those 732 spans.
+
+        The rule is shared with the backfill writer (``domain.speaker_provenance``): a method
+        alone is not enough. An ECAPA span must carry its score, calibration id, model revision
+        and the threshold in force, and a human listen must carry its reviewer, time and audio
+        hash.
         """
-        if span.speaker_verified and not (span.voice_verification_method or "").strip():
+        violations = speaker_write_violations(span.to_payload())
+        if violations:
             raise FirstPersonContextStoreError(
-                f"speaker_verified_without_method: {span.source_span_id}"
+                f"{violations[0]}: {span.source_span_id} (all: {', '.join(violations)})"
             )
 
     @staticmethod
