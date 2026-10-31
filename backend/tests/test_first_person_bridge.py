@@ -1471,3 +1471,57 @@ async def test_primary_mode_off_restores_the_weak_match_fall_through(fp_pipeline
     assert result.route_decision == "first_person_abstain"
     assert result.route_metadata["decline_status"] == "weak_match"
     assert result.route_metadata.get("fp_served") is not True
+
+
+@pytest.mark.asyncio
+async def test_clip_that_raises_self_harm_carries_the_support_line_even_without_distress(
+    fp_pipeline, monkeypatch
+):
+    """Grading 2026-10-31 (q019): a clip opening with self-harm statistics shipped no notice."""
+    from services.crisis_helplines import ensure_support_line
+
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    clip = (
+        "Did you know self-harm is the leading cause of death in a certain age group? "
+        "Do you know why? Because we live as strangers under the same roof."
+    )
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=f"**Sri Preethaji**\n\n{clip}",
+        citations=[_clip_citation(verbatim_text=clip, text_snippet=clip)],
+        status="weak_match",
+        is_direct=False,
+    )
+
+    result = await FirstPersonBridgeStage().run(
+        _ctx(_container(), msg="Why do people living under the same roof feel like strangers?")
+    )
+
+    assert result is not None
+    assert clip in result.final_answer  # the teacher's words are untouched
+    support = ensure_support_line("")
+    assert support in result.route_metadata["safety_notices"]
+    assert support not in result.final_answer
+
+
+@pytest.mark.asyncio
+async def test_ordinary_clip_gets_no_extra_support_line(fp_pipeline, monkeypatch):
+    from services.crisis_helplines import ensure_support_line
+
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="What is stillness?"))
+
+    assert result is not None
+    assert ensure_support_line("") not in result.route_metadata["safety_notices"]
+
+
+def test_self_harm_pattern_is_whole_word_and_narrow():
+    from app.pipeline.stages.first_person_bridge import _CLIP_MENTIONS_SELF_HARM as pat
+
+    for text in ("self-harm is common", "thoughts of suicide", "ending his own life"):
+        assert pat.search(text), text
+    for text in ("the harmless joy of stillness", "kill the ego", "end the suffering of life"):
+        assert not pat.search(text), text

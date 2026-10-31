@@ -214,6 +214,16 @@ _PROTECTED_PATTERNS: tuple[str, ...] = (
 # punctuation-only runs are passed through untouched.
 _HAS_WORDS_RE = re.compile(r"[A-Za-z]{3,}")
 
+# A served clip that itself raises self-harm gets the support line beside it, even
+# when the seeker's question showed no distress (2026-10-31 grading: q019 opened
+# with self-harm statistics and carried no notice). Whole words only; the clip is
+# never edited.
+_CLIP_MENTIONS_SELF_HARM = re.compile(
+    r"\b(?:self[\s-]?harm|suicid\w*|kill(?:ing)?\s+(?:my|your|him|her|them)self"
+    r"|end(?:ing)?\s+(?:my|your|his|her|their)\s+(?:own\s+)?life|take\s+(?:my|your)\s+own\s+life)\b",
+    re.IGNORECASE,
+)
+
 
 def _split_glue_and_quotes(text: str, verbatim_quotes: list[str]) -> list[tuple[bool, str]]:
     """Split an assembled answer into (protected, segment) runs.
@@ -944,6 +954,16 @@ class FirstPersonBridgeStage(Stage):
             _text = str(_structure_copy or "").strip()
             if _text and _text not in safety_notices:
                 safety_notices.append(_text)
+
+        if not distress_compassion and _CLIP_MENTIONS_SELF_HARM.search(answer):
+            # The seeker did not signal distress, but the teacher's own words raise
+            # self-harm (e.g. a talk quoting suicide statistics). The clip stays
+            # verbatim; the human support line rides beside it as platform copy.
+            from services.crisis_helplines import ensure_support_line
+
+            _joined_notices = "\n\n".join(safety_notices)
+            if ensure_support_line(_joined_notices) != _joined_notices:
+                safety_notices.append(ensure_support_line(""))
 
         if distress_compassion:
             # Distress lane invariant: every distress answer ends with a human
