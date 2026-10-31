@@ -1525,3 +1525,52 @@ def test_self_harm_pattern_is_whole_word_and_narrow():
         assert pat.search(text), text
     for text in ("the harmless joy of stillness", "kill the ego", "end the suffering of life"):
         assert not pat.search(text), text
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "I have a bottle of sleeping pills next to me and I keep staring at it.",
+        "My fifteen year old daughter has been cutting her arm and says it is nothing.",
+        "I am thinking about self-harm again",
+        "What if I overdose on my anxiety tablets?",
+    ],
+)
+def test_question_self_harm_cue_matches(question):
+    from app.pipeline.stages.first_person_bridge import _QUESTION_SELF_HARM_CUE_RE as cue
+
+    assert cue.search(question)
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "How do I stop cutting down on sleep and feel rested?",
+        "My daughter is cutting vegetables for the first time",
+        "Is it healthy to take sleeping tablets every night?",
+        "What is the Beautiful State?",
+    ],
+)
+def test_question_self_harm_cue_ignores_everyday_wording(question):
+    from app.pipeline.stages.first_person_bridge import _QUESTION_SELF_HARM_CUE_RE as cue
+
+    assert not cue.search(question)
+
+
+@pytest.mark.asyncio
+async def test_abstain_for_a_self_harm_cue_question_carries_the_support_line(
+    fp_pipeline, monkeypatch
+):
+    from services.crisis_helplines import ensure_support_line
+
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer="", citations=[], status="no_match", is_direct=False
+    )
+    msg = "I have a bottle of sleeping pills next to me and I keep staring at it."
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg))
+
+    assert result is not None
+    assert result.citations == []
+    assert ensure_support_line("") in result.final_answer

@@ -218,6 +218,18 @@ _HAS_WORDS_RE = re.compile(r"[A-Za-z]{3,}")
 # when the seeker's question showed no distress (2026-10-31 grading: q019 opened
 # with self-harm statistics and carried no notice). Whole words only; the clip is
 # never edited.
+# Question-side cue for the same notice. Deliberately wide in WHAT it matches (means near a
+# person, cutting, overdose) because it only ever adds the support line: it never blocks,
+# never reroutes, never edits a clip. Not a risk classifier; the distress engine owns that.
+_QUESTION_SELF_HARM_CUE_RE = re.compile(
+    r"\b(?:self[\s-]?harm\w*|self[\s-]?injur\w*|overdos\w+"
+    r"|cut(?:ting|s)?\s+(?:myself|herself|himself|themselves|(?:my|her|his|their|your)\s+"
+    r"(?:arms?|wrists?|legs?|thighs?|skin))"
+    r"|(?:bottle|packet|strip|box)\s+of\s+(?:sleeping\s+)?(?:pills|tablets)"
+    r"|(?:pills|tablets|rope|blade|razor|gun)\b[^.?!]{0,60}\b(?:staring|looking\s+at)"
+    r"|(?:swallow|took|take)\w*\s+(?:all\s+)?(?:the\s+)?(?:pills|tablets))\b",
+    re.IGNORECASE,
+)
 _CLIP_MENTIONS_SELF_HARM = re.compile(
     r"\b(?:self[\s-]?harm|suicid\w*|kill(?:ing)?\s+(?:my|your|him|her|them)self"
     r"|end(?:ing)?\s+(?:my|your|his|her|their)\s+(?:own\s+)?life|take\s+(?:my|your)\s+own\s+life)\b",
@@ -681,6 +693,16 @@ class FirstPersonBridgeStage(Stage):
                 boundaries.append(RELATIONSHIP_SAFETY_BOUNDARY)
             if needs_add:
                 boundaries.append(addiction_support_boundary())
+        if _QUESTION_SELF_HARM_CUE_RE.search(query):
+            # Notice only: the pattern distress engine rates these questions NONE
+            # ("a bottle of sleeping pills ... I keep staring at it", a parent describing a
+            # teen cutting), so no lane changes, but the human support line must still travel
+            # with whatever is answered, an abstain included (2026-10-31 unanswerable set).
+            from services.crisis_helplines import ensure_support_line
+
+            _cue_line = ensure_support_line("")
+            if _cue_line not in boundaries:
+                boundaries.append(_cue_line)
         state = getattr(ctx, "state", None) or {}
         # RequestStateStage already produced the English query (its own
         # bounded translation); never pay for a second one here.
