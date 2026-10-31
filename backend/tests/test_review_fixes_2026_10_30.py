@@ -397,3 +397,35 @@ def test_documents_without_url_or_title_get_distinct_parent_ids():
     # Same text stays idempotent.
     _, again = pipeline._hierarchical_split("First document. It talks about stillness.")
     assert {m["parent_id"] for m in again} == ids_a
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Can group meditation at Manifest cure a diagnosed mental illness?",
+        "Will this retreat heal my mental disorder?",
+        "I have a diagnosed condition, can stillness treat it?",
+        "My psychiatric illness: can meditation cure it?",
+    ],
+)
+def test_generic_mental_illness_cure_requests_route_to_professional_care(question):
+    from guardrails.lightweight_handler import match_blocked_topic
+
+    hit = match_blocked_topic(question)
+    assert hit is not None and hit[0] == "medical_advice_broad"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "How do I heal from self-judgment in my relationships?",
+        "What does the mind do when we are caught in a mental loop?",
+        "How do I heal my heart after a breakup?",
+        "Can meditation help me feel calm before a hard conversation?",
+    ],
+)
+def test_ordinary_healing_questions_are_not_blocked_as_medical(question):
+    from guardrails.lightweight_handler import match_blocked_topic
+
+    hit = match_blocked_topic(question)
+    assert hit is None or hit[0] != "medical_advice_broad"

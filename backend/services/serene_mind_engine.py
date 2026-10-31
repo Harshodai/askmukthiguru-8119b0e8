@@ -43,6 +43,10 @@ class DistressLevel(IntEnum):
     CRISIS = 4
 
 
+# Appended to DistressAssessment.detected_signals when the LLM stage-2 check could not run.
+LLM_STAGE2_UNAVAILABLE_SIGNAL = "[LLM Stage 2] unavailable"
+
+
 @dataclass
 class DistressAssessment:
     """Result of a Serene Mind distress evaluation."""
@@ -1909,6 +1913,10 @@ class SereneMindEngine:
                         assessment.confidence = structured_assessment.get("confidence", 0.55)
                         reason = structured_assessment.get("reason", "Semantic distress")
                         assessment.detected_signals.append(f"[LLM Stage 2] {reason}")
+                    elif structured_assessment.get("indeterminate") is True:
+                        # Could not check (outage, spend cap): the level stays at the regex
+                        # floor, but the turn is marked so the answer carries the support line.
+                        assessment.detected_signals.append(LLM_STAGE2_UNAVAILABLE_SIGNAL)
             except Exception as e:
                 logger.warning(f"Stage 2 LLM distress detection failed: {e}")
 

@@ -305,6 +305,11 @@ class Settings(BaseSettings):
     # (harness policy max_context_spans). Bounded so a long parent unit can
     # never turn into a wall of text on the chat surface.
     first_person_context_max_spans: int = 3
+    # Serve only spans that carry a recorded voice_verification_method. OFF (default): a bare
+    # speaker_verified flag still serves and the citation shows "unverified". ON: those spans
+    # are not served at all. Graded 2026-10-31: 13 of 33 served clips had a bare flag, and the
+    # proposed hard gate H2 allows none. Turning it on costs coverage; the owner decides.
+    first_person_require_voice_method: bool = False
     # Phase D8: optional structured span selector. OFF: the only thing it may
     # return is span IDs drawn from retrieved clips; every other field in the
     # reply (prose, answer, explanation) is ignored. An unknown ID or malformed

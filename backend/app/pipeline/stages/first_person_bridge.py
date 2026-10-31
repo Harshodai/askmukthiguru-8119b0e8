@@ -693,7 +693,13 @@ class FirstPersonBridgeStage(Stage):
                 boundaries.append(RELATIONSHIP_SAFETY_BOUNDARY)
             if needs_add:
                 boundaries.append(addiction_support_boundary())
-        if _QUESTION_SELF_HARM_CUE_RE.search(query):
+        from services.serene_mind_engine import LLM_STAGE2_UNAVAILABLE_SIGNAL
+
+        _signals = getattr(getattr(ctx, "assessment", None), "detected_signals", None) or []
+        _llm_check_unavailable = LLM_STAGE2_UNAVAILABLE_SIGNAL in [
+            sig for sig in _signals if isinstance(sig, str)
+        ]
+        if _QUESTION_SELF_HARM_CUE_RE.search(query) or _llm_check_unavailable:
             # Notice only: the pattern distress engine rates these questions NONE
             # ("a bottle of sleeping pills ... I keep staring at it", a parent describing a
             # teen cutting), so no lane changes, but the human support line must still travel
@@ -1173,7 +1179,16 @@ class FirstPersonBridgeStage(Stage):
             # A relationship/addiction question must carry its safety line even when
             # no clip is served (live 2026-10-11: a drinking-habit question got a bare
             # "no verified teaching" with no support pointer).
-            answer = answer + "\n\n" + "\n\n".join(boundaries)
+            from services.crisis_helplines import ensure_support_line
+
+            _support = ensure_support_line("")
+            _after = [b for b in boundaries if b != _support]
+            if _support in boundaries and _support not in answer:
+                # The human support line leads: someone staring at a bottle of pills should
+                # not read "try rephrasing" first (2026-10-31 review of ua70 / ua71).
+                answer = _support + "\n\n" + answer
+            if _after:
+                answer = answer + "\n\n" + "\n\n".join(_after)
 
         # The abstain is static, but an Indic seeker still deserves localized
         # glue: an empty quote list makes the whole message glue, translated

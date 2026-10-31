@@ -103,3 +103,29 @@ def test_mocked_settings_never_become_a_one_word_cap(monkeypatch):
 
     monkeypatch.setattr(pipeline, "settings", MagicMock())
     assert pipeline._clip_length_problem("word " * 40) is None  # defaults 25..300 apply
+
+
+_Q071 = (
+    "Every problem at the personal level has one root. Here, individuals would be healed "
+    "physically, emotionally and spiritually, and the family relaxes into connection with "
+    "each other and with the world around them."
+)
+
+
+def test_healing_claims_are_rejected_on_the_legacy_and_harness_paths():
+    assert _standalone_problem(_Q071) == "health_claim"
+    assert _not_standalone((_span(_Q071),)) is True
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Only connection can heal, and that connection begins with the way you speak to yourself "
+        "and to the people you love every single day of your life.",
+        "Time and forgiveness heal a broken heart when you stop replaying the story and "
+        "return to the present moment with an open and gentle awareness.",
+    ],
+)
+def test_ordinary_use_of_heal_is_still_servable(text):
+    assert _standalone_problem(text) is None
+    assert _not_standalone((_span(text),)) is False

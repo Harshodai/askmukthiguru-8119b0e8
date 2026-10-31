@@ -603,3 +603,31 @@ def test_legacy_payload_without_a_language_still_parses():
     payload = span().model_dump(mode="json")
     payload.pop("language", None)
     assert SourceSpan.model_validate(payload).language is None
+
+
+def test_bare_speaker_flag_is_served_by_default():
+    s = span(0, voice_verification_method=None)
+    decision = FirstPersonContextHarness().decide(context([s]), answerability="yes")
+    assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
+
+
+def test_voice_method_requirement_withholds_a_bare_flag_and_serves_a_verified_one():
+    policy = HarnessPolicy(require_voice_method=True)
+    bare = span(0, voice_verification_method=None)
+    abstained = FirstPersonContextHarness(policy).decide(context([bare]), answerability="yes")
+    assert abstained.decision is HarnessDecision.ABSTAIN
+    assert abstained.abstain_reason == "speaker_unverified_or_not_guru"
+
+    verified = span(0, voice_verification_method="ecapa_voxceleb_span_slice_v2")
+    served = FirstPersonContextHarness(policy).decide(context([verified]), answerability="yes")
+    assert served.decision is HarnessDecision.SERVE_SINGLE_SPAN
+
+
+def test_policy_from_settings_reads_the_voice_method_flag(monkeypatch):
+    from app.config import settings
+    from services.first_person_context_harness import policy_from_settings
+
+    monkeypatch.setattr(settings, "first_person_require_voice_method", True)
+    assert policy_from_settings().require_voice_method is True
+    monkeypatch.setattr(settings, "first_person_require_voice_method", False)
+    assert policy_from_settings().require_voice_method is False

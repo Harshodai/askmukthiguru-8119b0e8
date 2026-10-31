@@ -1585,6 +1585,9 @@ class OpenRouterService:
                 "is_distress": False,
                 "confidence": 0.0,
                 "reason": "Distress provider unavailable; deterministic safety checks remain authoritative",
+                # Honest signal: this is "could not check", not "checked and fine". The engine
+                # tags the turn and the bridge adds the support line (2026-10-31 review).
+                "indeterminate": True,
             }
 
     async def batch_grade_relevance(self, query: str, documents: list[str], **kwargs) -> list[dict]:

@@ -312,6 +312,13 @@ _BLOCKED_TOPICS = {
         # A treatment / cure request for anxiety or depression by name ("Will
         # Serene Mind treat my anxiety?"); "heal from anxiety" stays spiritual.
         r"\b(?:treat\w*|cure\w*)\b[^.?!]*\b(?:anxiety|depression|panic\s+attacks?)\b",
+        # A cure/heal/treat request for a mental illness or disorder NAMED only generically
+        # ("Can group meditation at Manifest cure a diagnosed mental illness?", 2026-10-31: it
+        # reached the general model, which answered with no health boundary at all).
+        r"\b(?:cure\w*|heal\w*|treat\w*|fix\w*|get\s+rid\s+of)\b[^.?!]{0,100}?"
+        r"\b(?:mental\s+(?:illness\w*|disorder\w*|health\s+(?:condition|disorder)s?)|psychiatric\s+(?:illness\w*|disorder\w*|condition\w*)|diagnosed\s+(?:illness\w*|disorder\w*|condition\w*))\b",
+        r"\b(?:mental\s+(?:illness\w*|disorder\w*)|psychiatric\s+(?:illness\w*|disorder\w*|condition\w*)|diagnosed\s+(?:illness\w*|disorder\w*|condition\w*))\b[^.?!]{0,100}?"
+        r"\b(?:cure\w*|heal\w*|treat\w*|fix\w*|get\s+rid)\b",
         r"\b(?:cure\w*|heal\w*|fix\w*|reverse|treat\w*)\b[^.?!]*\bheart\s+(?:disease|condition|problem|failure|blockage)\b",
         r"\bheart\s+(?:disease|condition|problem|failure|blockage)\b[^.?!]*\b(?:cure\w*|heal\w*|fix\w*|reverse|treat\w*)\b",
         # First-person dissociation / derealisation: a clinical symptom, not an ego-dissolution cue.

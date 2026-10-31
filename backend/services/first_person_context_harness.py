@@ -242,6 +242,8 @@ class HarnessPolicy:
     # alternative exists (see _apply_word_budget).
     max_context_words: int = 600
     require_speaker_verified: bool = True
+    # Also require a recorded voice_verification_method (see settings).
+    require_voice_method: bool = False
     require_same_parent: bool = True
     allow_fragment_with_antecedent: bool = True
     min_context_sufficiency: str = "sufficient"
@@ -264,7 +266,10 @@ def policy_from_settings() -> HarnessPolicy:
     """Policy a wired serving path must use (settings are the single source)."""
     from app.config import settings
 
-    return HarnessPolicy(max_context_spans=max(1, int(settings.first_person_context_max_spans)))
+    return HarnessPolicy(
+        max_context_spans=max(1, int(settings.first_person_context_max_spans)),
+        require_voice_method=getattr(settings, "first_person_require_voice_method", False) is True,
+    )
 
 
 def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
@@ -273,6 +278,7 @@ def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
         _CORE_WISDOM_KEYWORDS_RE,
         _DISCOURSE_OPENER_RE,
         _EVENT_MARKER_RE,
+        _HEALTH_CLAIM_RE,
         _LATE_ORDINAL_OPENER_RE,
         _ORPHAN_OPENER_RE,
         _clip_length_problem,
@@ -286,7 +292,13 @@ def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
     if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
         return True
     # Length is judged on the whole served answer, not span by span.
-    if _clip_length_problem(" ".join(s.verbatim_text.strip() for s in spans)):
+    whole = " ".join(s.verbatim_text.strip() for s in spans)
+    if _clip_length_problem(whole):
+        return True
+    # Parity with the legacy path (_standalone_problem): a fragment that reads as a healing
+    # claim or medical advice is rejected whole. The harness path lacked this, so
+    # "individuals would be healed physically, emotionally and spiritually" was served.
+    if _HEALTH_CLAIM_RE.search(whole):
         return True
     return any(_EVENT_MARKER_RE.search(s.verbatim_text) for s in spans)
 
@@ -302,6 +314,8 @@ class FirstPersonContextHarness:
             if span.speaker_role is not SpeakerRole.GURU:
                 return False
             if policy.require_speaker_verified and not span.speaker_verified:
+                return False
+            if policy.require_voice_method and not (span.voice_verification_method or "").strip():
                 return False
         return True
 

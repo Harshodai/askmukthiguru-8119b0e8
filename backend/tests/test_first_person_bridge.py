@@ -1574,3 +1574,30 @@ async def test_abstain_for_a_self_harm_cue_question_carries_the_support_line(
     assert result is not None
     assert result.citations == []
     assert ensure_support_line("") in result.final_answer
+    # The human support line leads; "try rephrasing" comes after it.
+    assert result.final_answer.index(ensure_support_line("")) < result.final_answer.index(
+        "Try rephrasing"
+    )
+
+
+@pytest.mark.asyncio
+async def test_turn_the_distress_llm_could_not_check_carries_the_support_line(
+    fp_pipeline, monkeypatch
+):
+    from types import SimpleNamespace
+
+    from services.crisis_helplines import ensure_support_line
+    from services.serene_mind_engine import LLM_STAGE2_UNAVAILABLE_SIGNAL, DistressLevel
+
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
+    ctx = _ctx(_container(), msg="What is stillness?")
+    ctx.assessment = SimpleNamespace(
+        level=DistressLevel.MILD, detected_signals=[LLM_STAGE2_UNAVAILABLE_SIGNAL]
+    )
+
+    result = await FirstPersonBridgeStage().run(ctx)
+
+    assert result is not None
+    assert ensure_support_line("") in result.route_metadata["safety_notices"]

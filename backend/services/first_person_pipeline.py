@@ -514,16 +514,15 @@ def _clip_length_problem(text: str) -> Optional[str]:
     minimum is 15) and the cap just above the longest showable clip (236).
     """
 
-    def _bound(name: str, default: int) -> int:
+    def _real_int(value: object, default: int) -> int:
         # Only a real int counts: a mocked or mistyped setting must not become a
         # 1-word cap (int(MagicMock()) == 1).
-        value = getattr(settings, name, default)
         return value if isinstance(value, int) and not isinstance(value, bool) else default
 
     words = len(text.split())
-    if words < _bound("first_person_min_answer_words", 23):
+    if words < _real_int(getattr(settings, "first_person_min_answer_words", 23), 23):
         return "too_short"
-    if words > _bound("first_person_max_answer_words", 300):
+    if words > _real_int(getattr(settings, "first_person_max_answer_words", 300), 300):
         return "too_long"
     return None
 
@@ -532,7 +531,12 @@ def _clip_length_problem(text: str) -> Optional[str]:
 # advice (live 2026-10-11 judge: infant colic, "bedridden ... come alive", sugar physiology).
 _HEALTH_CLAIM_RE = re.compile(
     r"\bcur(?:e|es|ed|ing)\b|\bcolic\w*|\bbedridden\b|\bcancer\b|\bdiabet\w+|\btumou?rs?\b"
-    r"|\bchemotherap\w+|\bantidepressants?\b|\bmedications?\b|\bwrong signal to the universe\b|\byou will (?:have a )?fall\b|\bflooded by huge loads of sugar\b|\bscientifically proven\b|\boxytocin\b|\bprevent(?:ing)?\s+depression\b",
+    r"|\bchemotherap\w+|\bantidepressants?\b|\bmedications?\b|\bwrong signal to the universe\b|\byou will (?:have a )?fall\b|\bflooded by huge loads of sugar\b|\bscientifically proven\b|\boxytocin\b|\bprevent(?:ing)?\s+depression\b"
+    # "individuals would be healed physically, emotionally and spiritually" (q071, graded
+    # 2026-10-31, got through). Narrow on purpose: "only connection can heal" stays servable.
+    r"|\bheal(?:ed|s|ing)?\s+(?:physically|(?:your|the|his|her|their)\s+(?:body|bodies|illness|disease)s?)\b"
+    r"|\bhealed\s+(?:and\s+)?(?:physically|emotionally|spiritually)\b"
+    r"|\b(?:will|would|can|could)\s+be\s+healed\b",
     re.IGNORECASE,
 )
 # One-off event/audience markers: a clip that only makes sense in that room or on that day.
