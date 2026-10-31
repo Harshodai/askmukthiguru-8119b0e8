@@ -1539,4 +1539,3 @@ class TestCitationClubbing:
         assert clubbed[0]["start_sec"] == 4
         assert clubbed[0]["end_sec"] == 60
         assert clubbed[0]["duration_sec"] == 56
-

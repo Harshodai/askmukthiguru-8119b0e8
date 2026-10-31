@@ -2387,8 +2387,11 @@ class FirstPersonPipeline:
             "caption_status": span.caption_status,
             "label": label,
             "topic_ids": list(span.topic_ids) if span.topic_ids else [],
-            "tags": list(span.tags) if getattr(span, "tags", None) else (list(span.topic_ids) if span.topic_ids else []),
-            "category": getattr(span, "category", None) or ("practice" if "practice" in (span.topic_ids or ()) else "teaching"),
+            "tags": list(span.tags)
+            if getattr(span, "tags", None)
+            else (list(span.topic_ids) if span.topic_ids else []),
+            "category": getattr(span, "category", None)
+            or ("practice" if "practice" in (span.topic_ids or ()) else "teaching"),
             **transcript_label(span.verbatim_text, span.caption_status),
         }
 
@@ -2398,6 +2401,7 @@ class FirstPersonPipeline:
         if not citations or len(citations) <= 1:
             return citations
         import hashlib
+
         clubbed: list[dict[str, Any]] = []
         curr = None
         for c in citations:
@@ -2412,13 +2416,18 @@ class FirstPersonPipeline:
             )
             curr_end_ms = curr.get("end_ms") or 0
             next_start_ms = c.get("start_ms") or 0
-            is_adjacent = next_start_ms >= (curr.get("start_ms") or 0) and (next_start_ms - curr_end_ms) <= 45000
+            is_adjacent = (
+                next_start_ms >= (curr.get("start_ms") or 0)
+                and (next_start_ms - curr_end_ms) <= 45000
+            )
 
             if same_vid and same_spk and is_adjacent:
                 curr["end_ms"] = max(curr_end_ms, c.get("end_ms") or 0)
                 curr["end_sec"] = -(-int(curr["end_ms"]) // 1000)
                 if "playback_end_seconds" in curr and "playback_end_seconds" in c:
-                    curr["playback_end_seconds"] = max(curr["playback_end_seconds"], c["playback_end_seconds"])
+                    curr["playback_end_seconds"] = max(
+                        curr["playback_end_seconds"], c["playback_end_seconds"]
+                    )
                 curr["verbatim_text"] = (
                     str(curr.get("verbatim_text") or "").strip()
                     + " "
@@ -2451,7 +2460,10 @@ class FirstPersonPipeline:
             same_spk = curr.get("speaker") == c.get("speaker")
             curr_end_sec = curr.get("end_sec") or 0
             next_start_sec = c.get("start_sec") or 0
-            is_adjacent = next_start_sec >= (curr.get("start_sec") or 0) and (next_start_sec - curr_end_sec) <= 45
+            is_adjacent = (
+                next_start_sec >= (curr.get("start_sec") or 0)
+                and (next_start_sec - curr_end_sec) <= 45
+            )
 
             if same_vid and same_spk and is_adjacent:
                 curr["end_sec"] = max(curr_end_sec, c.get("end_sec") or 0)
@@ -3404,16 +3416,18 @@ class FirstPersonPipeline:
                             _span_starts_with_antecedent,
                         )
 
-                        is_antecedent_opener = (
-                            _span_starts_with_antecedent(first_s)
-                            or bool(_ANTECEDENT_CONNECTIVE_RE.search(first_s.verbatim_text))
+                        is_antecedent_opener = _span_starts_with_antecedent(first_s) or bool(
+                            _ANTECEDENT_CONNECTIVE_RE.search(first_s.verbatim_text)
                         )
                         if is_antecedent_opener:
                             try:
-                                preceding = ctx_store.fetch_preceding_span(first_s.video_id, first_s.start_ms)
+                                preceding = ctx_store.fetch_preceding_span(
+                                    first_s.video_id, first_s.start_ms
+                                )
                                 if (
                                     preceding is not None
-                                    and preceding.source_span_id not in {s.source_span_id for s in served_spans}
+                                    and preceding.source_span_id
+                                    not in {s.source_span_id for s in served_spans}
                                     and preceding.video_id == first_s.video_id
                                     and preceding.guru_id == first_s.guru_id
                                 ):
@@ -3425,7 +3439,9 @@ class FirstPersonPipeline:
                                         first_s.video_id,
                                     )
                             except Exception as ant_exc:
-                                logger.debug("[FirstPersonPipeline] Antecedent stitching failed: %s", ant_exc)
+                                logger.debug(
+                                    "[FirstPersonPipeline] Antecedent stitching failed: %s", ant_exc
+                                )
 
                     citations = []
                     audio_playback_clips = []
@@ -3588,44 +3604,58 @@ class FirstPersonPipeline:
                         stage_timings["relevance_score"] = float(_h_rel_score)
 
                     answer_to_serve = assembled_answer_text
-                    mode = str(getattr(settings, "first_person_mode", "retrieval_only") or "").strip().lower()
+                    mode = (
+                        str(getattr(settings, "first_person_mode", "retrieval_only") or "")
+                        .strip()
+                        .lower()
+                    )
                     if mode == "hybrid" and self._weaver is not None and citations:
                         try:
                             from rag.kg_expansion import (
                                 fetch_doctrine_subgraph,
                                 resolve_concepts_in_query,
                             )
+
                             concepts = resolve_concepts_in_query(retrieval_query or query)
                             doctrine_ctx = ""
                             if concepts:
                                 try:
                                     from app.container import container
-                                    driver = getattr(self, "_neo4j_driver", None) or (container.neo4j_driver if container else None)
+
+                                    driver = getattr(self, "_neo4j_driver", None) or (
+                                        container.neo4j_driver if container else None
+                                    )
                                     if driver is not None:
                                         doctrine_ctx = fetch_doctrine_subgraph(concepts, driver)
                                 except Exception as d_exc:
-                                    logger.debug("[FirstPersonPipeline] Doctrine fetch error: %s", d_exc)
+                                    logger.debug(
+                                        "[FirstPersonPipeline] Doctrine fetch error: %s", d_exc
+                                    )
 
                             weaver_clips = []
                             for c in citations:
-                                weaver_clips.append({
-                                    "point_id": c.get("point_id"),
-                                    "video_id": c.get("video_id"),
-                                    "start_ms": c.get("start_ms"),
-                                    "end_ms": c.get("end_ms"),
-                                    "start_sec": c.get("start_sec"),
-                                    "end_sec": c.get("end_sec"),
-                                    "timestamp_seconds": c.get("start_sec"),
-                                    "verbatim_text": c.get("verbatim_text"),
-                                    "speaker": c.get("speaker"),
-                                    "speaker_verified": c.get("speaker_verified", True),
-                                    "voice_verification_method": c.get("voice_verification_method"),
-                                    "source_url": c.get("url"),
-                                    "guru_id": c.get("guru_id"),
-                                    "teacher_id": c.get("teacher_id"),
-                                    "title": c.get("title"),
-                                    "transcript_hash": c.get("transcript_hash"),
-                                })
+                                weaver_clips.append(
+                                    {
+                                        "point_id": c.get("point_id"),
+                                        "video_id": c.get("video_id"),
+                                        "start_ms": c.get("start_ms"),
+                                        "end_ms": c.get("end_ms"),
+                                        "start_sec": c.get("start_sec"),
+                                        "end_sec": c.get("end_sec"),
+                                        "timestamp_seconds": c.get("start_sec"),
+                                        "verbatim_text": c.get("verbatim_text"),
+                                        "speaker": c.get("speaker"),
+                                        "speaker_verified": c.get("speaker_verified", True),
+                                        "voice_verification_method": c.get(
+                                            "voice_verification_method"
+                                        ),
+                                        "source_url": c.get("url"),
+                                        "guru_id": c.get("guru_id"),
+                                        "teacher_id": c.get("teacher_id"),
+                                        "title": c.get("title"),
+                                        "transcript_hash": c.get("transcript_hash"),
+                                    }
+                                )
 
                             weaver_sources = sources_from_payloads(weaver_clips)
                             weave_res = self._weaver.weave(
@@ -3639,9 +3669,14 @@ class FirstPersonPipeline:
                             )
                             if weave_res.passed_gate and weave_res.text:
                                 answer_to_serve = weave_res.text
-                                logger.info("[FirstPersonPipeline] Successfully woven hybrid answer passing QuoteWeaverAssertionGate")
+                                logger.info(
+                                    "[FirstPersonPipeline] Successfully woven hybrid answer passing QuoteWeaverAssertionGate"
+                                )
                         except Exception as w_exc:
-                            logger.warning("[FirstPersonPipeline] Hybrid weaving error in harness worker: %s", w_exc)
+                            logger.warning(
+                                "[FirstPersonPipeline] Hybrid weaving error in harness worker: %s",
+                                w_exc,
+                            )
 
                     return FirstPersonPipelineResult(
                         answer_text=answer_to_serve,
@@ -4104,9 +4139,7 @@ class FirstPersonPipeline:
                     # Fail-closed invariant: unverified clips must NEVER be served to public users (UT-06)
                     if getattr(settings, "first_person_require_speaker_verified", False):
                         spk_ok, _ = _speaker_verification(clip)
-                        is_verified = (
-                            spk_ok or clip.get("speaker_verified") is True
-                        )
+                        is_verified = spk_ok or clip.get("speaker_verified") is True
                         if is_verified:
                             verified_clips.append(clip)
                         else:
@@ -4677,10 +4710,12 @@ class FirstPersonPipeline:
                 "timestamp_seconds": sec,
                 "speaker": (
                     "Sri Preethaji"
-                    if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower() == "preethaji"
+                    if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower()
+                    == "preethaji"
                     else (
                         "Sri Krishnaji"
-                        if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower() == "krishnaji"
+                        if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower()
+                        == "krishnaji"
                         else clip["speaker"]
                     )
                 ),

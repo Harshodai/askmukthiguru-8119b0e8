@@ -1080,11 +1080,7 @@ def _build_scaffolding_prompts(
         title = hero.get("title")
         clip_info.append(f"Teacher {i}: {spk}" + (f" (Discourse: '{title}')" if title else ""))
 
-    user_prompt = (
-        f"Seeker's Query: {query}\n\n"
-        f"Retrieved Discourses:\n"
-        + "\n".join(clip_info)
-    )
+    user_prompt = f"Seeker's Query: {query}\n\nRetrieved Discourses:\n" + "\n".join(clip_info)
     if doctrine_context:
         user_prompt += f"\n\nDoctrine Knowledge Context (Memgraph):\n{doctrine_context}"
     user_prompt += "\n\nProvide the OPENING, CONNECTIVE, and QUESTIONS. Do not write anything else."

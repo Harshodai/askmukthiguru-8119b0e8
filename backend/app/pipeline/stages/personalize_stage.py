@@ -291,7 +291,9 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
                 collection_name=col,
                 scroll_filter=models.Filter(
                     must=[
-                        models.FieldCondition(key="video_id", match=models.MatchValue(value=ref["video_id"])),
+                        models.FieldCondition(
+                            key="video_id", match=models.MatchValue(value=ref["video_id"])
+                        ),
                     ]
                 ),
                 limit=50,
@@ -306,8 +308,12 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
                 if sms is not None and abs(sms - target_ms) <= tolerance_ms:
                     pl["point_id"] = str(p.id)
                     if not pl.get("speaker"):
-                        pl["speaker"] = "Sri Preethaji" if pl.get("guru_id") == "preethaji" else "Sri Krishnaji"
-                    pl["transcript_hash"] = hashlib.sha256(pl["verbatim_text"].encode("utf-8")).hexdigest()
+                        pl["speaker"] = (
+                            "Sri Preethaji" if pl.get("guru_id") == "preethaji" else "Sri Krishnaji"
+                        )
+                    pl["transcript_hash"] = hashlib.sha256(
+                        pl["verbatim_text"].encode("utf-8")
+                    ).hexdigest()
                     candidates.append((abs(sms - target_ms), pl))
             if candidates:
                 candidates.sort(key=lambda x: x[0])

@@ -45,7 +45,11 @@ logger = logging.getLogger(__name__)
 
 # Repository / Backend path setup
 _HERE = Path(__file__).resolve()
-if _HERE.parents[1].name == "ops" and _HERE.parents[2].name == "scripts" and _HERE.parents[3].name == "backend":
+if (
+    _HERE.parents[1].name == "ops"
+    and _HERE.parents[2].name == "scripts"
+    and _HERE.parents[3].name == "backend"
+):
     _REPO_ROOT = _HERE.parents[3].parent
     _BACKEND = _HERE.parents[3]
 elif _HERE.parents[1].name == "ops" and _HERE.parents[2].name == "scripts":
@@ -179,12 +183,16 @@ def resolve_claimed_guru(payload: dict[str, Any]) -> str | None:
     return None
 
 
-def fetch_unverified_points(client, collection: str, point_ids: list[str] | None = None) -> list[Any]:
+def fetch_unverified_points(
+    client, collection: str, point_ids: list[str] | None = None
+) -> list[Any]:
     """Fetch unverified child spans from Qdrant."""
     from qdrant_client.http import models
 
     if point_ids:
-        return client.retrieve(collection_name=collection, ids=point_ids, with_payload=True, with_vectors=False)
+        return client.retrieve(
+            collection_name=collection, ids=point_ids, with_payload=True, with_vectors=False
+        )
 
     points = []
     offset = None
@@ -193,8 +201,12 @@ def fetch_unverified_points(client, collection: str, point_ids: list[str] | None
             collection_name=collection,
             scroll_filter=models.Filter(
                 must=[
-                    models.FieldCondition(key="record_type", match=models.MatchValue(value="retrieval_child")),
-                    models.FieldCondition(key="speaker_verified", match=models.MatchValue(value=False)),
+                    models.FieldCondition(
+                        key="record_type", match=models.MatchValue(value="retrieval_child")
+                    ),
+                    models.FieldCondition(
+                        key="speaker_verified", match=models.MatchValue(value=False)
+                    ),
                 ]
             ),
             limit=500,
@@ -282,7 +294,11 @@ def evaluate_span(
     best_guru = "krishnaji" if score_k > score_p else "preethaji"
     best_score = max(score_k, score_p)
 
-    passed = (best_guru == claimed_guru) and (best_score >= cosine_floor) and (margin >= margin_threshold)
+    passed = (
+        (best_guru == claimed_guru)
+        and (best_score >= cosine_floor)
+        and (margin >= margin_threshold)
+    )
 
     return {
         "point_id": point_id,
@@ -334,16 +350,34 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--qdrant-url", default=DEFAULT_QDRANT_URL, help="Qdrant HTTP URL")
     parser.add_argument("--collection", default=DEFAULT_COLLECTION, help="Target collection")
-    parser.add_argument("--wav-dir", type=Path, default=Path(DEFAULT_WAV_DIR), help="Directory of WAV files")
-    parser.add_argument("--ref-npz", type=Path, default=Path(DEFAULT_REF_NPZ), help="Reference centroids .npz")
-    parser.add_argument("--cache-dir", type=Path, default=Path(DEFAULT_CACHE_DIR), help="Model cache directory")
-    parser.add_argument("--report", type=Path, default=Path(DEFAULT_REPORT_PATH), help="Audit report JSON path")
-    parser.add_argument("--cosine-floor", type=float, default=DEFAULT_COSINE_FLOOR, help="Cosine threshold")
-    parser.add_argument("--margin-threshold", type=float, default=DEFAULT_MARGIN_THRESHOLD, help="Margin threshold")
+    parser.add_argument(
+        "--wav-dir", type=Path, default=Path(DEFAULT_WAV_DIR), help="Directory of WAV files"
+    )
+    parser.add_argument(
+        "--ref-npz", type=Path, default=Path(DEFAULT_REF_NPZ), help="Reference centroids .npz"
+    )
+    parser.add_argument(
+        "--cache-dir", type=Path, default=Path(DEFAULT_CACHE_DIR), help="Model cache directory"
+    )
+    parser.add_argument(
+        "--report", type=Path, default=Path(DEFAULT_REPORT_PATH), help="Audit report JSON path"
+    )
+    parser.add_argument(
+        "--cosine-floor", type=float, default=DEFAULT_COSINE_FLOOR, help="Cosine threshold"
+    )
+    parser.add_argument(
+        "--margin-threshold", type=float, default=DEFAULT_MARGIN_THRESHOLD, help="Margin threshold"
+    )
     parser.add_argument("--device", default="cpu", help="Device for torch (cpu / mps)")
-    parser.add_argument("--point-ids", nargs="*", default=None, help="Explicit point IDs to process")
-    parser.add_argument("--dry-run", action="store_true", help="Perform evaluation without mutating Qdrant")
-    parser.add_argument("--apply", action="store_true", help="Apply updates to Qdrant collection payloads")
+    parser.add_argument(
+        "--point-ids", nargs="*", default=None, help="Explicit point IDs to process"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Perform evaluation without mutating Qdrant"
+    )
+    parser.add_argument(
+        "--apply", action="store_true", help="Apply updates to Qdrant collection payloads"
+    )
 
     args = parser.parse_args(argv)
 
@@ -386,12 +420,16 @@ def main(argv: list[str] | None = None) -> int:
 
     passed_count = sum(1 for r in results if r.get("passed"))
     failed_count = sum(1 for r in results if not r.get("passed"))
-    logger.info(f"Evaluation complete: Total={len(results)}, PASS={passed_count}, FAIL={failed_count}")
+    logger.info(
+        f"Evaluation complete: Total={len(results)}, PASS={passed_count}, FAIL={failed_count}"
+    )
 
     now_iso = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     if args.apply:
-        logger.info(f"Applying payload mutations for {len(results)} points in '{args.collection}'...")
+        logger.info(
+            f"Applying payload mutations for {len(results)} points in '{args.collection}'..."
+        )
         for r in results:
             pid = r["point_id"]
             # Clean up any legacy/extra keys that violate SourceSpan(extra='forbid')

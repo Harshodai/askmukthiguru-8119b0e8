@@ -50,7 +50,9 @@ TOPIC_PATTERNS: dict[str, re.Pattern[str]] = {
         r")\b",
         re.IGNORECASE,
     ),
-    "meditation": re.compile(r"\b(?:meditation|meditate|meditating|meditative|dhyana)\b", re.IGNORECASE),
+    "meditation": re.compile(
+        r"\b(?:meditation|meditate|meditating|meditative|dhyana)\b", re.IGNORECASE
+    ),
     "inner_peace": re.compile(
         r"\b(?:inner\s+peace|peace\s+of\s+mind|stillness|silence|calmness|peaceful\s+state|resting\s+the\s+mind|presence|serenity|serene)\b",
         re.IGNORECASE,
@@ -67,12 +69,18 @@ TOPIC_PATTERNS: dict[str, re.Pattern[str]] = {
         r"\b(?:parenting|parent|parents|child|children|son|daughter|mother|father|motherhood|fatherhood|raising\s+children|nurturing\s+a\s+child)\b",
         re.IGNORECASE,
     ),
-    "love": re.compile(r"\b(?:love|loving|beloved|compassion|heart\s+field|anahata|deepest\s+desire)\b", re.IGNORECASE),
+    "love": re.compile(
+        r"\b(?:love|loving|beloved|compassion|heart\s+field|anahata|deepest\s+desire)\b",
+        re.IGNORECASE,
+    ),
     "consciousness": re.compile(
         r"\b(?:consciousness|oneness|two\s+states|beautiful\s+state|suffering\s+state|state\s+of\s+being|observer|witness|awareness)\b",
         re.IGNORECASE,
     ),
-    "awakening": re.compile(r"\b(?:mukti|enlightenment|awakening|awakened|awakened\s+state|liberation|moksha)\b", re.IGNORECASE),
+    "awakening": re.compile(
+        r"\b(?:mukti|enlightenment|awakening|awakened|awakened\s+state|liberation|moksha)\b",
+        re.IGNORECASE,
+    ),
     "healing": re.compile(
         r"\b(?:healing|healed|emotional\s+wounds?|hurts?|hurtful|crisis|heartbreak|trauma|grief|sorrow)\b",
         re.IGNORECASE,
@@ -81,7 +89,9 @@ TOPIC_PATTERNS: dict[str, re.Pattern[str]] = {
         r"\b(?:anger|angry|irritation|fear|fearful|anxiety|anxious|depression|depressed|panic|stress|stressed|suffering|negativity|negative\s+emotions?|worry|worried)\b",
         re.IGNORECASE,
     ),
-    "forgiveness": re.compile(r"\b(?:forgiveness|forgive|forgiving|resentment|grudge|bitterness)\b", re.IGNORECASE),
+    "forgiveness": re.compile(
+        r"\b(?:forgiveness|forgive|forgiving|resentment|grudge|bitterness)\b", re.IGNORECASE
+    ),
     "success": re.compile(
         r"\b(?:success|successful|achievement|achieving|goal|goals|focus|career|decision|decisions|failure|failures)\b",
         re.IGNORECASE,
@@ -90,11 +100,24 @@ TOPIC_PATTERNS: dict[str, re.Pattern[str]] = {
         r"\b(?:wealth|wealthy|money|abundance|abundant|prosperity|prosperous|financial|wealth\s+creator)\b",
         re.IGNORECASE,
     ),
-    "leadership": re.compile(r"\b(?:leadership|leader|leaders|executive|executives|leading|visionary)\b", re.IGNORECASE),
-    "wisdom": re.compile(r"\b(?:wisdom|sacred\s+secrets|spiritual\s+laws?|insight|insights|spiritual\s+truth|clarity)\b", re.IGNORECASE),
-    "grace": re.compile(r"\b(?:grace|divine|prayer|prayers|blessing|blessings|surrender|higher\s+power|universal\s+intelligence)\b", re.IGNORECASE),
-    "karma": re.compile(r"\b(?:karma|karmic|conditioning|samskaras?|vasanas?|past\s+impressions?|destiny)\b", re.IGNORECASE),
-    "gratitude": re.compile(r"\b(?:gratitude|grateful|appreciation|appreciate|thankful|thankfulness)\b", re.IGNORECASE),
+    "leadership": re.compile(
+        r"\b(?:leadership|leader|leaders|executive|executives|leading|visionary)\b", re.IGNORECASE
+    ),
+    "wisdom": re.compile(
+        r"\b(?:wisdom|sacred\s+secrets|spiritual\s+laws?|insight|insights|spiritual\s+truth|clarity)\b",
+        re.IGNORECASE,
+    ),
+    "grace": re.compile(
+        r"\b(?:grace|divine|prayer|prayers|blessing|blessings|surrender|higher\s+power|universal\s+intelligence)\b",
+        re.IGNORECASE,
+    ),
+    "karma": re.compile(
+        r"\b(?:karma|karmic|conditioning|samskaras?|vasanas?|past\s+impressions?|destiny)\b",
+        re.IGNORECASE,
+    ),
+    "gratitude": re.compile(
+        r"\b(?:gratitude|grateful|appreciation|appreciate|thankful|thankfulness)\b", re.IGNORECASE
+    ),
 }
 
 ENTITY_PATTERNS: dict[str, re.Pattern[str]] = {
@@ -104,7 +127,9 @@ ENTITY_PATTERNS: dict[str, re.Pattern[str]] = {
     "anahata_chakra": re.compile(r"\b(?:anahata|heart\s+field|heart\s+center)\b", re.IGNORECASE),
     "alpha_state": re.compile(r"\b(?:alpha\s+state|alpha\s+brain\s+waves?)\b", re.IGNORECASE),
     "deeksha": re.compile(r"\b(?:deeksha)\b", re.IGNORECASE),
-    "four_sacred_secrets": re.compile(r"\b(?:four\s+sacred\s+secrets|4\s+sacred\s+secrets)\b", re.IGNORECASE),
+    "four_sacred_secrets": re.compile(
+        r"\b(?:four\s+sacred\s+secrets|4\s+sacred\s+secrets)\b", re.IGNORECASE
+    ),
 }
 
 
@@ -264,7 +289,9 @@ def main(argv: list[str] | None = None) -> int:
     inventory_titles, meta_cache = load_metadata_resources(repo_root)
 
     print("=" * 70)
-    print(f"{'APPLY MODE' if args.apply else 'DRY-RUN MODE'} — Comprehensive Corpus Tagging: {args.collection}")
+    print(
+        f"{'APPLY MODE' if args.apply else 'DRY-RUN MODE'} — Comprehensive Corpus Tagging: {args.collection}"
+    )
     print(f"  Qdrant URL:      {args.qdrant_url}")
     print(f"  Collection:      {args.collection}")
     print(f"  Repo Root:       {repo_root}")
@@ -352,13 +379,18 @@ def main(argv: list[str] | None = None) -> int:
             )
 
             if needs_update:
-                child_updates.append((str(point.id), {
-                    "topic_ids": topics,
-                    "tags": tags,
-                    "category": category,
-                    "facet_ids": facets,
-                    "entity_ids": entities,
-                }))
+                child_updates.append(
+                    (
+                        str(point.id),
+                        {
+                            "topic_ids": topics,
+                            "tags": tags,
+                            "category": category,
+                            "facet_ids": facets,
+                            "entity_ids": entities,
+                        },
+                    )
+                )
 
         offset = next_offset
         if offset is None:
@@ -403,11 +435,16 @@ def main(argv: list[str] | None = None) -> int:
             cur_cat = payload.get("category")
 
             if (list(cur_topics) != p_topics) or (list(cur_tags) != p_tags) or (cur_cat != p_cat):
-                parent_updates.append((str(point.id), {
-                    "topic_ids": p_topics,
-                    "tags": p_tags,
-                    "category": p_cat,
-                }))
+                parent_updates.append(
+                    (
+                        str(point.id),
+                        {
+                            "topic_ids": p_topics,
+                            "tags": p_tags,
+                            "category": p_cat,
+                        },
+                    )
+                )
 
         offset = next_offset
         if offset is None:
@@ -431,7 +468,9 @@ def main(argv: list[str] | None = None) -> int:
         pct = (count / max(total_children, 1)) * 100.0
         print(f"  {ent:<22}: {count:>5} ({pct:>5.1f}%)")
 
-    print(f"\nTotal points across collection requiring updates: {len(child_updates) + len(parent_updates)} / {total_scanned}")
+    print(
+        f"\nTotal points across collection requiring updates: {len(child_updates) + len(parent_updates)} / {total_scanned}"
+    )
 
     if not args.apply:
         print("\n" + "=" * 70)
@@ -440,7 +479,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     print("\n" + "=" * 70)
-    print(f"APPLYING UPDATES TO QDRANT ({len(child_updates)} children, {len(parent_updates)} parents)...")
+    print(
+        f"APPLYING UPDATES TO QDRANT ({len(child_updates)} children, {len(parent_updates)} parents)..."
+    )
 
     # Apply child updates
     applied_children = 0
@@ -475,7 +516,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  Applied {applied_parents} / {len(parent_updates)} parent points...")
 
     print("=" * 70)
-    print(f"SUCCESS: Updated {applied_children} child spans and {applied_parents} parent units in {args.collection}!")
+    print(
+        f"SUCCESS: Updated {applied_children} child spans and {applied_parents} parent units in {args.collection}!"
+    )
     print("=" * 70)
     return 0
 

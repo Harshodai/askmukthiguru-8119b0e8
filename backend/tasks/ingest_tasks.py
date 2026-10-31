@@ -103,6 +103,7 @@ class AsyncTask(Task):
 
         if running_loop and running_loop.is_running():
             import concurrent.futures
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 return pool.submit(asyncio.run, coro).result()
         return self.loop.run_until_complete(coro)

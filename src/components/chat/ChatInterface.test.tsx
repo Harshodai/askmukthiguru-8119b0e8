@@ -199,7 +199,7 @@ describe('ChatInterface', () => {
     await waitFor(() => {
       expect(setCurrentConversationId).toHaveBeenCalledWith('test-conv-id');
     });
-    const input = screen.getByLabelText('Your message');
+    const input = await screen.findByLabelText('Your message');
 
     fireEvent.change(input, { target: { value: 'How do I find peace?' } });
     await waitFor(() => {
@@ -261,12 +261,12 @@ describe('ChatInterface', () => {
       expect(setCurrentConversationId).toHaveBeenCalledWith('test-conv-id');
     });
 
-    const input = screen.getByLabelText('Your message');
+    const input = await screen.findByLabelText('Your message');
     fireEvent.change(input, { target: { value: 'test blocked query' } });
     await waitFor(() => {
       expect(input).toHaveValue('test blocked query');
     });
-    fireEvent.click(screen.getByLabelText('Send message'));
+    fireEvent.click(await screen.findByLabelText('Send message'));
 
     await waitFor(() => {
       const guruBubbles = screen.getAllByTestId('message-bubble-guru');
@@ -309,9 +309,9 @@ describe('ChatInterface', () => {
       expect(setCurrentConversationId).toHaveBeenCalledWith('test-conv-id');
     });
 
-    const input = screen.getByLabelText('Your message');
+    const input = await screen.findByLabelText('Your message');
     fireEvent.change(input, { target: { value: 'tell me about witnessing' } });
-    fireEvent.click(screen.getByLabelText('Send message'));
+    fireEvent.click(await screen.findByLabelText('Send message'));
 
     await waitFor(() => {
       const guruBubbles = screen.getAllByTestId('message-bubble-guru');

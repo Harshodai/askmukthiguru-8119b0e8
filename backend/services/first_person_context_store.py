@@ -618,9 +618,7 @@ class FirstPersonContextStore:
         ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="expanded").inc()
         return widened
 
-    def fetch_preceding_span(
-        self, video_id: str, before_start_ms: int
-    ) -> Optional[SourceSpan]:
+    def fetch_preceding_span(self, video_id: str, before_start_ms: int) -> Optional[SourceSpan]:
         """Fetch the immediate chronological predecessor span from the same video.
 
         Used to resolve cross-parent antecedent coreferences when a retrieved parent unit
