@@ -33,6 +33,9 @@ import type {
   VideoAuditEntry,
   VideoDecisionPayload,
   VideoHumanDecision,
+  CorpusProvenance,
+  QdrantIndexHealth,
+  QdrantOptimizeResult,
 } from '@/admin/types';
 import * as db from './mockData';
 
@@ -338,6 +341,13 @@ export async function getQualityData(filters: QueryFilters): Promise<QualityData
         manual_review_score: 0.85,
         disagreements: [],
         low_confidence: [],
+        abstentions: {
+          crisis_redirect: 14,
+          serving_contract_violation: 3,
+          unverified_speaker: 19,
+          empty_retrieval: 8,
+          total: 44,
+        },
         ...data,
       };
     },
@@ -988,3 +998,55 @@ export async function saveVideoDecision(
   }
   return response.json();
 }
+
+// ── Corpus Point Provenance ──────────────────────────────────────────────────
+export async function getCorpusProvenance(pointId: string): Promise<CorpusProvenance> {
+  return withDevFallback(
+    'getCorpusProvenance',
+    async () => fetchWithAuth(`/api/admin/corpus/provenance/${encodeURIComponent(pointId)}`),
+    () => ({
+      point_id: pointId,
+      source_url: 'https://www.youtube.com/watch?v=sample_teaching',
+      source_release_version: 2,
+      content_checksum: 'sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069',
+      embedding_model: 'text-embedding-3-large',
+      embedding_dimension: 1024,
+      chunker_version: 'boundary_v1:512:64',
+      gate_verdict: 'pass',
+      gate_reason: 'clean_verbatim_transcript',
+      asr_method: 'whisper_timestamped_v3',
+      align_method: 'gentle_forced_aligner',
+      rights_status: 'licensed',
+      parent_id: 'parent_unit_42',
+      parent_id_scheme: 'hierarchical_v2',
+      created_at: new Date().toISOString(),
+      ingested_at: new Date().toISOString(),
+      audio_start_ms: 32400,
+      audio_end_ms: 68100,
+    }),
+  );
+}
+
+// ── Qdrant Vector Health & Optimization ──────────────────────────────────────
+export async function getQdrantHealth(): Promise<QdrantIndexHealth> {
+  return withDevFallback(
+    'getQdrantHealth',
+    async () => fetchWithAuth('/api/admin/qdrant/health'),
+    () => ({
+      status: 'green',
+      collection: 'spiritual_wisdom_contextual',
+      points_count: 4197,
+      segments_count: 3,
+      fragmentation_pct: 0,
+      optimizer_status: 'ok',
+      dimension: 1024,
+    }),
+  );
+}
+
+export async function optimizeQdrant(): Promise<QdrantOptimizeResult> {
+  return fetchWithAuth('/api/admin/qdrant/optimize', {
+    method: 'POST',
+  });
+}
+

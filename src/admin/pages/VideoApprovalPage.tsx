@@ -254,14 +254,40 @@ function ReviewPanel({
   );
 }
 
+function getUrlVideoId(): string | null {
+  if (typeof window === "undefined" || !window.location?.search) return null;
+  try {
+    return new URLSearchParams(window.location.search).get("videoId");
+  } catch {
+    return null;
+  }
+}
+
 export default function VideoApprovalPage() {
+  const urlVideoId = getUrlVideoId();
+
   const [filters, setFilters] = useState<VideoReviewFilters>({});
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(urlVideoId || "");
   const [page, setPage] = useState(0);
   const [data, setData] = useState<VideoReviewList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ row: VideoReviewRow; audit: VideoAuditEntry[] } | null>(null);
+
+  useEffect(() => {
+    if (urlVideoId) {
+      setSearch(urlVideoId);
+      getVideoReview(urlVideoId)
+        .then((detail) => {
+          if (detail?.video) {
+            setSelected({ row: detail.video, audit: detail.audit || [] });
+          }
+        })
+        .catch(() => {
+          // Keep search filter active even if direct get fails
+        });
+    }
+  }, [urlVideoId]);
 
   const query = useMemo<VideoReviewFilters>(
     () => ({ ...filters, q: search.trim() || undefined, limit: PAGE_SIZE, offset: page * PAGE_SIZE }),

@@ -108,7 +108,7 @@ const STARTER_CARDS = [
 
 const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.promptKey);
 
-const PASTE_ATTACHMENT_THRESHOLD = 2000;
+const PASTE_ATTACHMENT_THRESHOLD = 8000;
 
 export const ChatInterface = () => {
   const { toast } = useToast();
@@ -452,7 +452,7 @@ export const ChatInterface = () => {
         setInputValue('');
         toast({
           title: t('chat.convertedToAttachment', 'Converted to Attachment'),
-          description: t('chat.pasteConverted', 'Text paste exceeded 2,000 characters and was converted to a text file.'),
+          description: t('chat.pasteConverted', 'Text paste exceeded 8,000 characters and was converted to a text file.'),
         });
       });
     }
@@ -1118,7 +1118,7 @@ export const ChatInterface = () => {
 
     // Reset textarea height and refocus
     if (inputRef.current) {
-      inputRef.current.style.height = '36px';
+      inputRef.current.style.height = '';
       inputRef.current.focus();
     }
 
@@ -2498,13 +2498,16 @@ return (
         className="flex-1 overflow-y-auto momentum-scroll scroll-stable anchor-stable tap-clean px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 scrollbar-spiritual safe-x"
       >
         <div ref={innerContentRef} className="max-w-3xl mx-auto min-h-full">
-          {isLandingMode ? (
-            /* ── Landing State (Claude-inspired, minimal, particles) ── */
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex min-h-[calc(100dvh-8.75rem)] flex-col items-center px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-5 sm:min-h-[calc(100dvh-10rem)] sm:justify-center sm:py-10"
-            >
+          <AnimatePresence mode="wait">
+            {isLandingMode ? (
+              /* ── Landing State (Claude-inspired, minimal, particles) ── */
+              <motion.div
+                key="landing-mode"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, y: -12, transition: { duration: 0.18 } }}
+                className="flex min-h-[calc(100dvh-8.75rem)] flex-col items-center px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-5 sm:min-h-[calc(100dvh-10rem)] sm:justify-center sm:py-10"
+              >
               <div className="text-center px-4 sm:mb-8">
                 <motion.h2
                   initial={{ opacity: 0, y: 8 }}
@@ -2596,9 +2599,13 @@ return (
               </motion.div>
             </motion.div>
           ) : (
-
-            <>
-                <div className="pb-4">
+            <motion.div
+              key="chat-mode"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.25 }}
+            >
+              <div className="pb-4">
                 <MessageList
                   messages={messages}
                   streamingId={streamingMessageId}
@@ -2673,14 +2680,19 @@ return (
                 {/* Scroll anchor */}
                 <div ref={messagesEndRef} className="h-1" />
               </div>
-
-            </>
+            </motion.div>
           )}
+        </AnimatePresence>
         </div>
       </div>
 
       {!isLandingMode && (
-        <div className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
+        >
           {quotaExceeded && <QuotaAuthPrompt remaining={quotaMeta.remaining} totalLimit={quotaMeta.totalLimit} />}
           <HealingPathCard
             lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
@@ -2738,7 +2750,7 @@ return (
               }
             }}
           />
-        </div>
+        </motion.div>
       )}
 
       {/* Scroll-to-bottom FAB — positioned relative to the chat column.

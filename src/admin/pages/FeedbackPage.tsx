@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
-import { ThumbsUp, ThumbsDown, Filter, ShieldAlert } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ThumbsUp, ThumbsDown, Filter, ShieldAlert, ExternalLink, Activity } from 'lucide-react';
 import { useFeedback } from '@/admin/hooks/useAdminData';
 import { AdminPageError } from '@/admin/components/AdminPageStates';
+import { TraceDrawer } from '@/admin/components/TraceDrawer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +17,7 @@ import { fmtDateTime } from '@/admin/lib/formatters';
 
 type FeedbackEntry = {
   messageId: string;
+  queryId: string;
   vote: 'up' | 'down';
   tags: string[];
   comment?: string;
@@ -26,6 +29,7 @@ const ITEMS_PER_PAGE = 10;
 const FeedbackPage = () => {
   const [voteFilter, setVoteFilter] = useState<'all' | 'up' | 'down'>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedQueryId, setSelectedQueryId] = useState<string | null>(null);
 
   const { data: feedbackRows, isLoading, isError, error, refetch } = useFeedback(200);
   const denied =
@@ -35,13 +39,17 @@ const FeedbackPage = () => {
 
   const entries = useMemo<FeedbackEntry[]>(() => {
     if (!Array.isArray(feedbackRows)) return [];
-    return feedbackRows.map((row) => ({
-      messageId: row.id,
-      vote: row.rating > 0 ? 'up' : 'down',
-      tags: [],
-      comment: row.feedback_text || row.comment || undefined,
-      timestamp: row.created_at ? new Date(row.created_at) : new Date(0),
-    }));
+    return feedbackRows.map((row) => {
+      const qId = (row.metadata_json?.query_id || row.metadata_json?.trace_id || row.metadata_json?.id || row.id) as string;
+      return {
+        messageId: row.id,
+        queryId: qId,
+        vote: row.rating > 0 ? 'up' : 'down',
+        tags: [],
+        comment: row.feedback_text || row.comment || undefined,
+        timestamp: row.created_at ? new Date(row.created_at) : new Date(0),
+      };
+    });
   }, [feedbackRows]);
 
   const filtered = useMemo(
@@ -143,11 +151,17 @@ const FeedbackPage = () => {
                   <th className="text-left px-4 py-3 font-medium">Comment</th>
                   <th className="text-left px-4 py-3 font-medium w-32">Message ID</th>
                   <th className="text-left px-4 py-3 font-medium w-48">Time</th>
+                  <th className="text-right px-4 py-3 font-medium w-40">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {paginatedEntries.map((entry, index) => (
-                  <tr key={entry?.messageId || `fb-${index}`} className="hover:bg-muted/30 transition-colors">
+                  <tr
+                    key={entry?.messageId || `fb-${index}`}
+                    className="hover:bg-muted/30 transition-colors cursor-pointer group"
+                    onClick={() => setSelectedQueryId(entry.queryId || entry.messageId)}
+                    title="Click to view query trace"
+                  >
                     <td className="px-4 py-3">
                       {entry?.vote === 'up' ? (
                         <ThumbsUp className="w-4 h-4 text-green-500" />
@@ -171,11 +185,36 @@ const FeedbackPage = () => {
                     <td className="px-4 py-3 max-w-[200px] truncate text-muted-foreground">
                       {entry?.comment || '—'}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground group-hover:text-primary transition-colors">
                       {typeof entry?.messageId === 'string' ? `${entry.messageId.slice(0, 10)}…` : '—'}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {entry?.timestamp ? fmtDateTime(entry.timestamp instanceof Date ? entry.timestamp.toISOString() : String(entry.timestamp)) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          onClick={() => setSelectedQueryId(entry.queryId || entry.messageId)}
+                        >
+                          View Trace
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                          className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
+                        >
+                          <Link
+                            to={`/admin/queries?traceId=${encodeURIComponent(entry.queryId || entry.messageId)}`}
+                            title="Inspect in Queries page"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -213,6 +252,14 @@ const FeedbackPage = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Deep-linked Query Trace Drawer */}
+      {selectedQueryId && (
+        <TraceDrawer
+          queryId={selectedQueryId}
+          onClose={() => setSelectedQueryId(null)}
+        />
       )}
     </div>
   );

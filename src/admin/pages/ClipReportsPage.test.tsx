@@ -135,4 +135,25 @@ describe("ClipReportsPage", () => {
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
   });
+
+  it("renders cross-linking action links to speaker attribution and video approval", () => {
+    mockedHook.mockReturnValue(okState([ROW]) as never);
+    renderPage();
+
+    const attributionLink = screen.getByTitle("Inspect in Speaker Attribution");
+    expect(attributionLink).toBeInTheDocument();
+    expect(attributionLink.getAttribute("href")).toContain("/admin/ingestion?tab=attribution&videoId=pt_abc123");
+
+    const approvalLink = screen.getByTitle("Inspect in Video Approval");
+    expect(approvalLink).toBeInTheDocument();
+    expect(approvalLink.getAttribute("href")).toContain("/admin/ingestion?tab=video-approval&videoId=pt_abc123");
+  });
+
+  it("renders point id as an interactive button to inspect provenance", () => {
+    mockedHook.mockReturnValue(okState([ROW]) as never);
+    renderPage();
+
+    const pointBtn = screen.getByTitle("Inspect provenance for pt_abc123");
+    expect(pointBtn).toBeInTheDocument();
+  });
 });

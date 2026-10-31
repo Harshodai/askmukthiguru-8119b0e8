@@ -281,7 +281,7 @@ function ChatComposerInner({
           dir={currentLanguage === 'ur' ? 'rtl' : 'auto'}
           enterKeyHint="send"
           aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
-          className="min-h-12 max-h-[120px] w-full cursor-text bg-transparent border-none outline-none resize-none px-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="min-h-12 max-h-[260px] w-full cursor-text bg-transparent border-none outline-none resize-none px-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-1 focus:ring-ojas/30 disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={isAwaitingSereneMind || isQuotaExceeded}
         />
 
@@ -361,7 +361,13 @@ function ChatComposerInner({
             )}
           </PromptInputTools>
 
-          <div className="flex-1" />
+          <div className="flex-1 flex items-center justify-end pr-1 sm:pr-2">
+            {inputValue.length >= 300 && (
+              <span className="text-[11px] tabular-nums font-mono text-muted-foreground/60 px-2 py-0.5 rounded-full bg-muted/40 select-none transition-all">
+                {inputValue.length.toLocaleString()} chars
+              </span>
+            )}
+          </div>
 
           <PromptInputTools>
             {actionCapabilities.voiceInput && (
@@ -392,40 +398,46 @@ function ChatComposerInner({
             )}
             {(isStreaming || isTyping) ? (
               <div className="flex items-center gap-1.5">
-                <PromptInputSubmit
-                  type="button"
-                  size="icon-sm"
-                  onClick={onStop}
-                  className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center justify-center"
-                  aria-label={t('chat.stop')}
-                  title={t('chat.stopGenerating', 'Stop generating')}
-                >
-                  <Square className="w-3.5 h-3.5 fill-current" />
-                </PromptInputSubmit>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className="inline-flex">
+                  <PromptInputSubmit
+                    type="button"
+                    size="icon-sm"
+                    onClick={onStop}
+                    className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 flex items-center justify-center transition-colors"
+                    aria-label={t('chat.stop')}
+                    title={t('chat.stopGenerating', 'Stop generating')}
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                  </PromptInputSubmit>
+                </motion.div>
 
                 {inputValue.trim() && (
-                  <PromptInputSubmit
-                    type="submit"
-                    size="icon-sm"
-                    className="min-h-[44px] sm:h-9 px-3 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-light font-semibold text-xs shadow-md transition-all flex items-center gap-1.5"
-                    aria-label={t('chat.queueMessage', 'Queue message')}
-                    title={t('chat.queueMessage', 'Queue follow-up message')}
-                  >
-                    <CornerDownLeft className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{t('chat.queueFollowUp', 'Queue')}</span>
-                  </PromptInputSubmit>
+                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.95 }} className="inline-flex">
+                    <PromptInputSubmit
+                      type="submit"
+                      size="icon-sm"
+                      className="min-h-[44px] sm:h-9 px-3 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-light font-semibold text-xs shadow-md transition-all flex items-center gap-1.5"
+                      aria-label={t('chat.queueMessage', 'Queue message')}
+                      title={t('chat.queueMessage', 'Queue follow-up message')}
+                    >
+                      <CornerDownLeft className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">{t('chat.queueFollowUp', 'Queue')}</span>
+                    </PromptInputSubmit>
+                  </motion.div>
                 )}
               </div>
             ) : (
-              <PromptInputSubmit
-                type="submit"
-                size="icon-sm"
-                disabled={!inputValue.trim() || isAwaitingSereneMind || isQuotaExceeded || isUploading}
-                className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center"
-                aria-label={t('chat.send') === 'chat.send' ? 'Send message' : t('chat.send')}
-              >
-                <Send className="w-4 h-4" />
-              </PromptInputSubmit>
+              <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.94 }} className="inline-flex">
+                <PromptInputSubmit
+                  type="submit"
+                  size="icon-sm"
+                  disabled={!inputValue.trim() || isAwaitingSereneMind || isQuotaExceeded || isUploading}
+                  className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all flex items-center justify-center"
+                  aria-label={t('chat.send') === 'chat.send' ? 'Send message' : t('chat.send')}
+                >
+                  <Send className="w-4 h-4" />
+                </PromptInputSubmit>
+              </motion.div>
             )}
           </PromptInputTools>
         </PromptInputFooter>

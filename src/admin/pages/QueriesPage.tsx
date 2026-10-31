@@ -47,9 +47,18 @@ export default function QueriesPage() {
   );
   const [model, setModel] = useState<string | undefined>(params.get("model") ?? undefined);
   const [minScore, setMinScore] = useState(Number(params.get("min") ?? 0));
-  const [openId, setOpenId] = useState<string | null>(params.get("trace"));
+  const [openId, setOpenId] = useState<string | null>(
+    params.get("trace") || params.get("traceId") || params.get("queryId")
+  );
   const [sortField, setSortField] = useState<string>(params.get("sort") ?? "created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">((params.get("dir") as "asc" | "desc") ?? "desc");
+
+  useEffect(() => {
+    const urlTrace = params.get("trace") || params.get("traceId") || params.get("queryId");
+    if (urlTrace && urlTrace !== openId) {
+      setOpenId(urlTrace);
+    }
+  }, [params]);
 
   useEffect(() => {
     const next = new URLSearchParams();

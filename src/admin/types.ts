@@ -356,6 +356,14 @@ export interface QualityData {
     response_text: string;
     created_at: ISODate;
   }>;
+  abstentions?: {
+    crisis_redirect: number;
+    serving_contract_violation: number;
+    unverified_speaker: number;
+    empty_retrieval: number;
+    total: number;
+    reasons?: Record<string, number>;
+  };
 }
 
 export interface QueueJob {
@@ -586,3 +594,44 @@ export interface VideoDecisionPayload {
   notes: string | null;
   reason: string | null;
 }
+
+export interface CorpusProvenance {
+  point_id: string;
+  source_url?: string;
+  source_release_version?: number | string;
+  content_checksum?: string;
+  embedding_model?: string;
+  embedding_dimension?: number;
+  chunker_version?: string;
+  gate_verdict?: string;
+  gate_reason?: string;
+  asr_method?: string;
+  align_method?: string;
+  rights_status?: string;
+  parent_id?: string;
+  parent_id_scheme?: string;
+  created_at?: string;
+  ingested_at?: string;
+  audio_start_ms?: number;
+  audio_end_ms?: number;
+  speaker?: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface QdrantIndexHealth {
+  status: "green" | "yellow" | "red" | "unknown";
+  collection: string;
+  points_count?: number;
+  segments_count?: number;
+  fragmentation_pct?: number;
+  optimizer_status?: string;
+  dimension?: number;
+  error?: string;
+}
+
+export interface QdrantOptimizeResult {
+  actions: string[];
+  before: QdrantIndexHealth;
+  after: QdrantIndexHealth;
+}
+

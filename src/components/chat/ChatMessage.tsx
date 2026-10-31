@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
@@ -34,7 +34,6 @@ import { ProvenanceDrawer } from '@/components/compliance/ProvenanceDrawer';
 import { CitationBadge, DiscourseVideoModal, type DiscourseCitation } from './CitationCard';
 import { LinkSearchModal } from './LinkSearchModal';
 import { SacredPracticeWidget } from './SacredPracticeWidget';
-import { ReflectionChips } from './ReflectionChips';
 import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
@@ -700,6 +699,60 @@ export const LazyWisdomCardGenerator = lazyWithRetry<
 export const PERSONALIZED_LABEL =
   '_This is a personalized reflection on the teaching above, in our own words — not a direct quote from the teachers._';
 
+interface UserMessageContentProps {
+  content: string;
+  showMoreLabel?: string;
+  showLessLabel?: string;
+}
+
+const UserMessageContent: React.FC<UserMessageContentProps> = ({
+  content,
+  showMoreLabel = 'Read more',
+  showLessLabel = 'Show less',
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isLong = content.length > 420 || (content.match(/\n/g) || []).length > 5;
+  const wordCount = useMemo(() => {
+    const trimmed = content.trim();
+    return trimmed ? trimmed.split(/\s+/).length : 0;
+  }, [content]);
+
+  if (!isLong) {
+    return (
+      <span className="font-medium whitespace-pre-wrap leading-relaxed break-words">
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-col w-full">
+      <div
+        className={cn(
+          'relative transition-all duration-300 font-medium whitespace-pre-wrap leading-relaxed break-words',
+          !isExpanded && 'max-h-[140px] overflow-hidden'
+        )}
+      >
+        <span>{content}</span>
+        {!isExpanded && (
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-chat-user via-chat-user/80 to-transparent" />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-ojas hover:text-ojas-light transition-colors self-start select-none py-0.5 rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
+        aria-expanded={isExpanded}
+      >
+        <span>{isExpanded ? showLessLabel : `${showMoreLabel} (${wordCount} words)`}</span>
+        <ChevronDown
+          className={cn('w-3.5 h-3.5 transition-transform duration-200', isExpanded && 'rotate-180')}
+        />
+      </button>
+    </div>
+  );
+};
+
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onStartNewChat, onEditUserMessage, onSubmitEdit, onAction, onCitationClick, onPersonalizeTeaching }, ref) => {
     const { t } = useTranslation();
@@ -1067,8 +1120,8 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           data-message-id={message.id}
         >
           {isGuru && (
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-ojas/15 to-ojas/5 border border-hairline flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Sparkles className="w-3.5 h-3.5 text-ojas" />
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-ojas/15 to-ojas/5 border border-ojas/25 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.12)]">
+              <Sparkles className="w-3.5 h-3.5 text-ojas animate-pulse-soft" />
             </div>
           )}
           {/* The guru answer is long-form prose — it gets the full reading column
@@ -1374,7 +1427,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     </div>
                   </div>
                 ) : (
-                  <span className="font-medium">{message.content}</span>
+                  <UserMessageContent
+                    content={message.content}
+                    showMoreLabel={t('common.readMore', 'Read more')}
+                    showLessLabel={t('common.showLess', 'Show less')}
+                  />
                 )}
                 {isGuru && isSpeaking && plainText && (
                   <span className="block mt-2 text-foreground/80" aria-live="polite">
@@ -1422,36 +1479,50 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               {/* Inline action buttons for the latest guru message only.
                   Suppressed on crisis/helpline answers and first-person abstain. */}
               {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
-                <InlineActions messageContent={message.content} onAction={onAction} />
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: 0.04 }}
+                  className="w-full"
+                >
+                  <InlineActions messageContent={message.content} onAction={onAction} />
+                </motion.div>
               )}
 
               {/* Engagement card: "Did this help?" — shown for the last guru answer.
                   Never shown on crisis/helpline answers — a feedback widget under a
                   helpline is unsafe (see isCrisisAnswer). */}
               {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
-                <EngagementCard
-                  messageId={message.id}
-                  messageContent={message.content}
-                  queryText={queryText}
-                  qualityMetadata={{
-                    message_id: message.id,
-                    trace_id: message.traceId,
-                    latency_ms: message.latencyMs,
-                    model_used: message.modelUsed,
-                    model_provider: message.modelProvider,
-                    query_tier: message.queryTier,
-                    faithfulness_score: message.faithfulnessScore,
-                    relevancy_score: message.relevancyScore,
-                    hallucination_flag: message.hallucinationFlag,
-                    verification: message.verification,
-                    citations_verified: message.citationsVerified,
-                    citation_count: message.citations?.length ?? 0,
-                    answer_length_chars: message.content.length,
-                    answer_length_words: message.content.trim() ? message.content.trim().split(/\s+/).length : 0,
-                    grounding_state: message.groundingState,
-                    route_decision: message.queryTier,
-                  }}
-                />
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: 0.08 }}
+                  className="w-full"
+                >
+                  <EngagementCard
+                    messageId={message.id}
+                    messageContent={message.content}
+                    queryText={queryText}
+                    qualityMetadata={{
+                      message_id: message.id,
+                      trace_id: message.traceId,
+                      latency_ms: message.latencyMs,
+                      model_used: message.modelUsed,
+                      model_provider: message.modelProvider,
+                      query_tier: message.queryTier,
+                      faithfulness_score: message.faithfulnessScore,
+                      relevancy_score: message.relevancyScore,
+                      hallucination_flag: message.hallucinationFlag,
+                      verification: message.verification,
+                      citations_verified: message.citationsVerified,
+                      citation_count: message.citations?.length ?? 0,
+                      answer_length_chars: message.content.length,
+                      answer_length_words: message.content.trim() ? message.content.trim().split(/\s+/).length : 0,
+                      grounding_state: message.groundingState,
+                      route_decision: message.queryTier,
+                    }}
+                  />
+                </motion.div>
               )}
 
 
