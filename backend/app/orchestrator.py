@@ -184,6 +184,12 @@ class ChatRequestOrchestrator:
             grounding_state=response_grounding_state,
             release_manifest=to_public_manifest_dict(result.release_manifest),
             provenance_manifest=_strict_provenance_manifest(result),
+            # Platform copy (support line, safety boundaries, compassion framing)
+            # that no longer rides in `response`. This is the live job/sync
+            # serializer, so omitting it here drops the copy for every queued chat.
+            safety_notices=list(
+                (getattr(result, "route_metadata", None) or {}).get("safety_notices") or []
+            ),
         )
 
     async def _log_telemetry(
@@ -708,6 +714,11 @@ def _stream_done_metadata(result) -> dict:
         "orphan_citations_stripped": result.orphan_citations_stripped,
         "live_logistics_events": getattr(result, "live_logistics_events", []),
         "answer_evidence": None if answer_evidence is None else asdict(answer_evidence),
+        # Invariant 1: platform copy (compassion framing, safety boundaries,
+        # support line) rides beside the answer, never inside it.
+        "safety_notices": list(
+            (getattr(result, "route_metadata", None) or {}).get("safety_notices") or []
+        ),
         "guidance_plan": None if guidance_plan is None else asdict(guidance_plan),
         "grounding_state": grounding_state_for(result),
         "verification": getattr(result, "verification", None),

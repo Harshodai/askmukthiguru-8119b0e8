@@ -43,6 +43,7 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
+from services.first_person_video_decisions import video_is_blocked
 from services.qdrant.client import QdrantClientManager
 
 logger = logging.getLogger(__name__)
@@ -506,6 +507,8 @@ class FirstPersonStore:
                 "layer_sha256",
                 "caption_status",
                 "speaker_verified",
+                # Spoken-voice proof; without it speaker_verified reads as unverified.
+                "voice_verification_method",
                 # I2 context & OKF concept tags (separate from pure passage_dense vector)
                 "discourse_context",
                 "tags",
@@ -589,7 +592,7 @@ class FirstPersonStore:
         points = self.client.retrieve(
             collection_name=self.collection,
             ids=list(point_ids),
-            with_payload=["first_person_eligible", "rights_cleared"],
+            with_payload=["first_person_eligible", "rights_cleared", "video_id"],
             with_vectors=False,
         )
         if len(points) != len(set(point_ids)):
@@ -597,6 +600,7 @@ class FirstPersonStore:
         need_rights = not getattr(settings, "first_person_serve_unregistered", False)
         return all(
             (p.payload or {}).get("first_person_eligible") is True
+            and not video_is_blocked((p.payload or {}).get("video_id"))
             and (not need_rights or (p.payload or {}).get("rights_cleared") is True)
             for p in points
         )

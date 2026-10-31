@@ -297,7 +297,7 @@ def test_policy_fingerprint_scopes_cache_key(monkeypatch, tmp_path):
         ("first_person_boundary_guard_enabled", True),
         ("first_person_content_quality_gate_enabled", False),
         ("first_person_standalone_gate_enabled", False),
-        ("first_person_llm_rerank_enabled", False),
+        ("first_person_llm_rerank_enabled", not settings.first_person_llm_rerank_enabled),
         ("first_person_serve_weak_match", False),
         ("first_person_editorial_rewrite_enabled", True),
         # 2026-10-20: the default is now retrieval_only, so toggle to a

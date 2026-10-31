@@ -36,6 +36,7 @@ import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
 import { buildMessageError } from '@/lib/chat/errors';
 import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBanner';
+import { MoodBanner } from '@/components/mood/MoodBanner';
 import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 
@@ -64,9 +65,11 @@ import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar, useSidebarCollapsed } from './DesktopSidebar';
 import { LanguageSelector, LANGUAGES } from './LanguageSelector';
 import { DailyTeaching } from './DailyTeaching';
+import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { ConversationSourcesPanel } from './ConversationSourcesPanel';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel, mapNodeToLabel } from './ThinkingPills';
 import { QueuedMessagesTray, type QueuedMessage } from './QueuedMessagesTray';
+import { decideSubmit, isDuplicateSubmit, resolveTurnFiles } from '@/lib/chat/submitGuard';
 import { useThinkingStatus } from '@/hooks/useThinkingStatus';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
@@ -107,7 +110,7 @@ const STARTER_CARDS = [
 
 const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.promptKey);
 
-const PASTE_ATTACHMENT_THRESHOLD = 2000;
+const PASTE_ATTACHMENT_THRESHOLD = 8000;
 
 export const ChatInterface = () => {
   const { toast } = useToast();
@@ -319,6 +322,7 @@ export const ChatInterface = () => {
   // Message queueing state (Claude/Manus style): Allows seekers to queue follow-up prompts while streaming
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
   const queuedMessagesRef = useRef<QueuedMessage[]>([]);
+  const lastSubmitRef = useRef<{ text: string; at: number } | null>(null);
   useEffect(() => {
     queuedMessagesRef.current = queuedMessages;
   }, [queuedMessages]);
@@ -450,7 +454,7 @@ export const ChatInterface = () => {
         setInputValue('');
         toast({
           title: t('chat.convertedToAttachment', 'Converted to Attachment'),
-          description: t('chat.pasteConverted', 'Text paste exceeded 2,000 characters and was converted to a text file.'),
+          description: t('chat.pasteConverted', 'Text paste exceeded 8,000 characters and was converted to a text file.'),
         });
       });
     }
@@ -967,17 +971,49 @@ export const ChatInterface = () => {
     }
     const textToSend = overrideText ?? inputValue;
     const turnLanguage = options.languageOverride ?? currentLanguage;
-    if (!textToSend.trim()) {
+    const decision = decideSubmit({
+      text: textToSend,
+      active: isTyping || isStreaming,
+      forceImmediate: !!options.forceImmediate,
+      contextExhausted: conversationContextExhausted,
+      quotaExceeded,
+    });
+    if (decision === 'empty') {
       return;
     }
 
+    // Refuse a send that cannot start BEFORE touching the active answer: the
+    // context-full and quota gates used to run after the abort below, so a
+    // refused send still killed the answer the seeker was reading.
+    // A context-exhausted conversation is intentionally read-only until the seeker continues in a new chat.
+    if (decision === 'blocked_context') {
+      toast({ title: t('chat.contextFull', 'Conversation context is full'), description: t('chat.contextFullHint', 'Start a new conversation to continue.') });
+      return;
+    }
+
+    // Anonymous quota gate: once the backend has refused a message, don't keep
+    // sending (avoids wasting quota retries and gives a stable UI state).
+    if (decision === 'blocked_quota') {
+      toast({ title: t('chat.messageLimitReached', 'Message limit reached'), description: t('chat.messageLimitHint', 'Your free messages are used up for now. Please try again later.') });
+      return;
+    }
+
+    // Rapid repeated sends (double tap, key repeat, Enter + button) reach here
+    // before React re-renders the cleared composer; drop the identical repeat.
+    if (overrideText === undefined) {
+      if (isDuplicateSubmit(lastSubmitRef.current, textToSend, Date.now())) {
+        return;
+      }
+      lastSubmitRef.current = { text: textToSend, at: Date.now() };
+    }
+
     // Message queueing (Claude / Manus style): If currently generating and not forced immediate, enqueue!
-    if ((isTyping || isStreaming) && !options.forceImmediate) {
+    if (decision === 'queue') {
       const newQueued: QueuedMessage = {
         id: generateId(),
         text: textToSend.trim(),
         language: currentLanguage,
-        attachedFiles: attachedFiles.length > 0 ? attachedFiles.map((f) => ({ name: f.name, content: f.content })) : undefined,
+        attachedFiles: attachedFiles.map((f) => ({ name: f.name, content: f.content })),
         timestamp: Date.now(),
       };
       setQueuedMessages((prev) => [...prev, newQueued]);
@@ -990,7 +1026,7 @@ export const ChatInterface = () => {
     }
 
     // If forced immediate or new turn: if active, abort previous request before starting new one
-    if (isTyping || isStreaming) {
+    if (decision === 'interrupt') {
       streamControllerRef.current?.abort();
       if (currentJobIdRef.current) {
         fetch(`/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
@@ -1002,19 +1038,6 @@ export const ChatInterface = () => {
       setShowInstantPill(false);
       streamControllerRef.current = null;
       currentJobIdRef.current = null;
-    }
-
-    // A context-exhausted conversation is intentionally read-only until the seeker continues in a new chat.
-    if (conversationContextExhausted) {
-      toast({ title: t('chat.contextFull', 'Conversation context is full'), description: t('chat.contextFullHint', 'Start a new conversation to continue.') });
-      return;
-    }
-
-    // Anonymous quota gate: once the backend has refused a message, don't keep
-    // sending (avoids wasting quota retries and gives a stable UI state).
-    if (quotaExceeded) {
-      toast({ title: t('chat.messageLimitReached', 'Message limit reached'), description: t('chat.messageLimitHint', 'Your free messages are used up for now. Please try again later.') });
-      return;
     }
 
     // Show instant pill immediately on submit — appears before any backend status events
@@ -1082,7 +1105,9 @@ export const ChatInterface = () => {
 
     // Keep uploaded material separate from the user question. The backend treats
     // it as bounded, untrusted evidence instead of mixing it into personal memory.
-    const filesForTurn = options.attachmentOverride ?? attachedFiles;
+    // An explicit (even empty) override wins: a drained queued turn must never
+    // pick up files the seeker attached to a later draft.
+    const filesForTurn = resolveTurnFiles(options.attachmentOverride, attachedFiles);
     const attachmentContext = filesForTurn.length > 0
       ? filesForTurn
         .map(f => `[Attached File: ${f.name}]\n${f.content}`)
@@ -1095,7 +1120,7 @@ export const ChatInterface = () => {
 
     // Reset textarea height and refocus
     if (inputRef.current) {
-      inputRef.current.style.height = '36px';
+      inputRef.current.style.height = '';
       inputRef.current.focus();
     }
 
@@ -1305,6 +1330,7 @@ export const ChatInterface = () => {
         let streamedQueryTier: string | null = null;
         let streamedIsFirstPersonAbstain: boolean | null = null;
         let streamedRouteDecision: string | null = null;
+        let streamedSafetyNotices: string[] = [];
         for await (const chunk of stream) {
           if (chunk.type === 'stage') {
             setShowInstantPill(false);
@@ -1426,6 +1452,7 @@ export const ChatInterface = () => {
             streamedQueryTier = chunk.queryTier ?? null;
             streamedIsFirstPersonAbstain = chunk.isFirstPersonAbstain ?? null;
             streamedRouteDecision = chunk.routeDecision ?? null;
+            streamedSafetyNotices = chunk.safetyNotices ?? [];
             continue;
           }
 
@@ -1528,6 +1555,7 @@ export const ChatInterface = () => {
                     queryTier: streamedQueryTier,
                     isFirstPersonAbstain: streamedIsFirstPersonAbstain,
                     routeDecision: streamedRouteDecision,
+                    safetyNotices: streamedSafetyNotices.length > 0 ? streamedSafetyNotices : undefined,
                   }
                 : m
             )
@@ -1863,6 +1891,10 @@ openSereneMind('audio');
           queryTier: response.queryTier ?? null,
           isFirstPersonAbstain: response.isFirstPersonAbstain ?? null,
           routeDecision: response.routeDecision ?? null,
+          safetyNotices:
+            response.safetyNotices && response.safetyNotices.length > 0
+              ? response.safetyNotices
+              : undefined,
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {
@@ -2460,6 +2492,9 @@ return (
       {/* EU AI Act Article 50(1) Transparency Banner */}
       <AiTransparencyBanner />
 
+      {/* Daily Mood Check-In & Journey Banner (Landing Mode only) */}
+      <MoodBanner isLandingMode={isLandingMode} />
+
 
       {/* Messages Area — this is the scroll container */}
       <div
@@ -2468,13 +2503,16 @@ return (
         className="flex-1 overflow-y-auto momentum-scroll scroll-stable anchor-stable tap-clean px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2 scrollbar-spiritual safe-x"
       >
         <div ref={innerContentRef} className="max-w-3xl mx-auto min-h-full">
-          {isLandingMode ? (
-            /* ── Landing State (Claude-inspired, minimal, particles) ── */
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex min-h-[calc(100dvh-8.75rem)] flex-col items-center px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-5 sm:min-h-[calc(100dvh-10rem)] sm:justify-center sm:py-10"
-            >
+          <AnimatePresence mode="wait">
+            {isLandingMode ? (
+              /* ── Landing State (Claude-inspired, minimal, particles) ── */
+              <motion.div
+                key="landing-mode"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, y: -12, transition: { duration: 0.18 } }}
+                className="flex min-h-[calc(100dvh-8.75rem)] flex-col items-center px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-5 sm:min-h-[calc(100dvh-10rem)] sm:justify-center sm:py-10"
+              >
               <div className="text-center px-4 sm:mb-8">
                 <motion.h2
                   initial={{ opacity: 0, y: 8 }}
@@ -2566,9 +2604,13 @@ return (
               </motion.div>
             </motion.div>
           ) : (
-
-            <>
-                <div className="pb-4">
+            <motion.div
+              key="chat-mode"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.25 }}
+            >
+              <div className="pb-4">
                 <MessageList
                   messages={messages}
                   streamingId={streamingMessageId}
@@ -2611,6 +2653,15 @@ return (
 
                 {/* Single authoritative thinking indicator */}
                 <div className="flex items-start gap-2">
+                  {thinkingVisible && (
+                    <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.15)] ring-1 ring-ojas/20 bg-background">
+                      <img
+                        src={gurusPhoto}
+                        alt="Sri Preethaji & Sri Krishnaji"
+                        className="w-full h-full object-cover animate-pulse-soft"
+                      />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <ThinkingPills
                       steps={pipelineSteps}
@@ -2643,14 +2694,19 @@ return (
                 {/* Scroll anchor */}
                 <div ref={messagesEndRef} className="h-1" />
               </div>
-
-            </>
+            </motion.div>
           )}
+        </AnimatePresence>
         </div>
       </div>
 
       {!isLandingMode && (
-        <div className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
+        >
           {quotaExceeded && <QuotaAuthPrompt remaining={quotaMeta.remaining} totalLimit={quotaMeta.totalLimit} />}
           <HealingPathCard
             lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
@@ -2708,7 +2764,7 @@ return (
               }
             }}
           />
-        </div>
+        </motion.div>
       )}
 
       {/* Scroll-to-bottom FAB — positioned relative to the chat column.

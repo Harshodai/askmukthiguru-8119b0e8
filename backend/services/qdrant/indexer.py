@@ -6,6 +6,7 @@ import functools
 import logging
 import time
 from typing import Optional
+from urllib.parse import urlparse
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -23,6 +24,128 @@ from services.qdrant.utils import QdrantUtils
 from services.tenant_context import TenantContext, get_tenant_collection
 
 logger = logging.getLogger(__name__)
+
+
+class RightsRegisterUnavailable(RuntimeError):
+    """The rights manifest exists but could not be read or parsed.
+
+    Stamping ``unverified`` here would write points that
+    ``require_licensed_domain_reads`` can never serve, with no ledger entry and
+    no re-stamp path. A *missing* manifest is a legitimate state (D2: default
+    ``unverified``); an *unreadable* one is an error and must stop the upsert.
+    """
+
+
+# (manifest path, mtime_ns) -> cleared map. Keyed on mtime so an edited register
+# is picked up without a restart.
+_RIGHTS_REGISTER_CACHE: Optional[tuple[tuple[str, int], dict[str, bool]]] = None
+
+
+def _load_rights_register() -> dict[str, bool]:
+    """Load cleared assets from rights register / manifest. Returns map of canonical IDs/URLs to is_cleared."""
+    global _RIGHTS_REGISTER_CACHE
+    import json
+    from pathlib import Path
+
+    # One pinned path (first_person_serving_contract.RIGHTS_MANIFEST_RELPATH) shared with
+    # the v10 builder, so a re-dated register cannot split the two. Relative first: inside
+    # the image the working directory is /app, where audits/ is mounted.
+    from services.first_person_serving_contract import RIGHTS_MANIFEST_RELPATH, rights_manifest_path
+
+    possible_paths = [Path(RIGHTS_MANIFEST_RELPATH), rights_manifest_path()]
+    manifest_path = next((p for p in possible_paths if p.is_file()), None)
+    if manifest_path is None:
+        # No register at all: nothing is cleared (D2 default). Not cached, so a
+        # manifest dropped in later is seen on the next call.
+        return {}
+
+    try:
+        stamp = (str(manifest_path), manifest_path.stat().st_mtime_ns)
+        if _RIGHTS_REGISTER_CACHE is not None and _RIGHTS_REGISTER_CACHE[0] == stamp:
+            return _RIGHTS_REGISTER_CACHE[1]
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        cleared_map: dict[str, bool] = {}
+        for asset in data.get("assets", []):
+            status = str(asset.get("rights_status") or "")
+            review_status = str(asset.get("owner_review_status") or "")
+            is_cleared = status in (
+                "confirmed_channel_owner",
+                "confirmed_video_owner",
+                "cleared",
+            ) or review_status.startswith("owner_confirmed")
+            for key_field in ("canonical_source_url", "video_id", "source_asset_id"):
+                val = asset.get(key_field)
+                if val and isinstance(val, str) and val.strip():
+                    cleared_map[val.strip()] = is_cleared
+                    if key_field == "canonical_source_url":
+                        cleared_map[_host_lowered(val.strip())] = is_cleared
+    except (OSError, ValueError, AttributeError, TypeError) as exc:
+        raise RightsRegisterUnavailable(
+            f"rights manifest {manifest_path} unreadable: {exc}"
+        ) from exc
+
+    _RIGHTS_REGISTER_CACHE = (stamp, cleared_map)
+    return cleared_map
+
+
+def _host_lowered(url: str) -> str:
+    """Lowercase scheme and host only. YouTube ids and URL paths are case-sensitive:
+    folding them let one video inherit another's "licensed" status."""
+    try:
+        parts = urlparse(url)
+    except ValueError:
+        return url
+    if not parts.netloc:
+        return url
+    return parts._replace(scheme=parts.scheme.lower(), netloc=parts.netloc.lower()).geturl()
+
+
+def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None) -> str:
+    """DE-4.4: Look up source in rights register. Returns 'licensed' if registered and cleared, else 'unverified'."""
+    cleared_map = _load_rights_register()
+    candidates = []
+    if source_url and source_url.strip():
+        candidates.append(source_url.strip())
+        candidates.append(_host_lowered(source_url.strip()))
+    if video_id and video_id.strip():
+        candidates.append(video_id.strip())
+    if source_url:
+        try:
+            parsed_netloc = (urlparse(source_url).netloc or "").lower()
+            if (
+                parsed_netloc == "youtube.com"
+                or parsed_netloc.endswith(".youtube.com")
+                or parsed_netloc in ("youtu.be", "www.youtu.be")
+            ):
+                from ingest.youtube_loader import extract_video_id
+
+                extracted_vid = extract_video_id(source_url)
+                if extracted_vid:
+                    candidates.append(extracted_vid)
+        except Exception:
+            pass
+
+    for cand in candidates:
+        if cand in cleared_map:
+            return "licensed" if cleared_map[cand] else "unverified"
+
+    return "unverified"
+
+
+def get_chunker_version(payload: Optional[dict]) -> str:
+    """Read chunker_version from payload. Legacy points return 'unknown_legacy' — never guess."""
+    if not payload:
+        return "unknown_legacy"
+    val = payload.get("chunker_version")
+    return str(val) if val else "unknown_legacy"
+
+
+def get_parent_id_scheme(payload: Optional[dict]) -> str:
+    """Read parent_id_scheme from payload. Legacy points without parent_id_scheme return 'legacy'."""
+    if not payload:
+        return "legacy"
+    val = payload.get("parent_id_scheme")
+    return str(val) if val else "legacy"
 
 
 def retry_with_backoff(max_retries=3, initial_delay=1):
@@ -132,6 +255,7 @@ class QdrantIndexer:
                 rejected[0][1],
                 rejected[0][2],
             )
+            self._record_gate_rejections(rejected, metadatas)
             texts = [texts[i] for i in keep]
             vectors = [vectors[i] for i in keep]
             metadatas = [metadatas[i] for i in keep]
@@ -161,7 +285,7 @@ class QdrantIndexer:
         sources = [m.get("source_url") or "__missing_source__" for m in metadatas]
         point_ids = []
         for i, m in enumerate(metadatas):
-            pid = self._utils.make_point_id(
+            pid = m.get("point_id") or self._utils.make_point_id(
                 m.get("source_url", ""),
                 m.get("chunk_index", i),
                 m.get("raptor_level", 0),
@@ -243,13 +367,33 @@ class QdrantIndexer:
             payload.setdefault("tenant_id", TenantContext.get() or settings.default_tenant_id)
             payload.setdefault("corpus_id", settings.default_corpus_id)
             # Task #17 rights gate (services/qdrant/searcher.py) mandatorily filters on
-            # this field when settings.require_licensed_domain_reads is True. Only
-            # Sri Preethaji/Sri Krishnaji's own approved sources are ever ingested here
-            # (see CLAUDE.md's data-source constraint) -- this pipeline never handles
-            # other-teacher content, unlike ontology_writer.py's Neo4j BEING-node stamp,
-            # which does need the registered/unverified distinction. Without this write,
-            # every chunk indexed here was permanently unretrievable under the gate.
-            payload.setdefault("domain_rights_status", "licensed")
+            # this field when settings.require_licensed_domain_reads is True.
+            # DE-4.4: Look up source in rights register. Registered and cleared -> "licensed", else -> "unverified".
+            rights_stat = resolve_source_rights_status(
+                source_url=payload.get("source_url") or "",
+                video_id=payload.get("video_id"),
+            )
+            payload.setdefault("domain_rights_status", rights_stat)
+            payload.setdefault("rights_status", rights_stat)
+
+            # DE-0.2: Stamp source_release_version (int) and content_checksum (str)
+            rel_ver = payload.get("source_release_version")
+            if rel_ver is None:
+                rel_ver = payload.get("source_version") or getattr(
+                    settings, "corpus_release_fallback_version", 1
+                )
+            try:
+                payload["source_release_version"] = int(rel_ver)
+            except (TypeError, ValueError):
+                payload["source_release_version"] = 1
+
+            chk = payload.get("content_checksum")
+            if not chk or not isinstance(chk, str):
+                import hashlib
+
+                chk = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
+            payload["content_checksum"] = str(chk)
+
             # Teacher attribution gate (Gate 0.1). Prevents points from ever persisting
             # without teacher_id / teacher_ids, ensuring no scoped retrieval fails silently.
             if not payload.get("teacher_id") or not payload.get("teacher_ids"):
@@ -264,21 +408,45 @@ class QdrantIndexer:
                 )
                 payload.setdefault("teacher_id", resolved_tid)
                 payload.setdefault("teacher_ids", resolved_tids)
+            # DE-1.2: Deterministic parent_id and parent_id_scheme for new writes
+            source_url = payload.get("source_url") or ""
+            parent_index = payload.get("parent_index", payload.get("chunk_index", i))
+            if not payload.get("parent_id"):
+                import uuid
+
+                # RAPTOR summaries reuse chunk_index as their cluster number, so
+                # without their level in the key summary k of a video shared a
+                # parent_id with verbatim leaf parent k and group_by=parent_id
+                # merged machine summary and teacher words into one group.
+                level = payload.get("raptor_level") or 0
+                parent_key = (
+                    f"{source_url}:raptor{level}:{parent_index}"
+                    if level
+                    else f"{source_url}:{parent_index}"
+                )
+                payload["parent_id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, parent_key))
+                payload["parent_id_scheme"] = "deterministic_v1"
+            else:
+                payload.setdefault("parent_id_scheme", "deterministic_v1")
+
             # Build provenance. Without these, a chunk embedded by one model is
             # indistinguishable from a chunk embedded by another, and there is no
             # way to ask which chunks are stale relative to the current encoder.
             # The startup dimension check only catches a whole-collection size
             # mismatch — it cannot see two same-dimension models, or a chunker
             # change applied to part of the corpus. Absent on pre-existing points,
-            # so readers must treat a missing value as "unknown/legacy", never as
+            # so readers must treat a missing value as "unknown_legacy", never as
             # "matches current".
+            # DE-2.2: Per-candidate gate_verdict and gate_reason on accepted points
+            payload.setdefault("gate_verdict", "accepted")
+            payload.setdefault("gate_reason", "clean")
             payload.setdefault("embedding_model", settings.embedding_model)
             payload.setdefault("embedding_dimension", settings.embedding_dimension)
             payload.setdefault(
                 "chunker_version",
-                "boundary_v1"
+                "boundary_v1:1200/1"
                 if getattr(settings, "use_boundary_chunker", True)
-                else "recursive_v1",
+                else "recursive_v1:1200/200",
             )
             point = PointStruct(
                 id=point_id,
@@ -315,6 +483,97 @@ class QdrantIndexer:
 
         logger.info(f"Upserted {len(points)} chunks to {self._collection}")
         return len(points)
+
+    def _record_gate_rejections(
+        self,
+        rejected: list[tuple[int, str, str]],
+        metadatas: list[dict],
+    ) -> None:
+        """DE-0.5: Persist quality gate rejections at chokepoint to ledger and Prometheus metrics."""
+        from app.metrics import (
+            CORPUS_GATE_REJECTIONS_PERSIST_FAILED_TOTAL,
+            CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL,
+            INGEST_QUALITY_GATE_REJECTIONS_TOTAL,
+        )
+
+        rows_to_insert = []
+        for idx, artifact, _preview in rejected:
+            reason = str(artifact).strip() if artifact else "unknown"
+            if "graceful" in reason.lower():
+                reason = "graceful_degradation"
+            elif "loop" in reason.lower() or "repetition" in reason.lower():
+                reason = "repetition_loop"
+            elif reason not in (
+                "too_short",
+                "high_html_ratio",
+                "low_spiritual_score",
+                "prompt_injection",
+            ):
+                reason = "artifact_detected"
+
+            try:
+                INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(
+                    reason=reason,
+                    tier="chokepoint",
+                    layer="chokepoint",
+                ).inc()
+            except Exception as m_err:
+                logger.debug("Failed to record quality gate rejection metric: %s", m_err)
+
+            meta = metadatas[idx] if idx < len(metadatas) else {}
+            source_url = str(meta.get("source_url") or "unknown")
+            chunk_idx = meta.get("chunk_index", idx)
+            point_id = self._utils.make_point_id(
+                source_url,
+                chunk_idx,
+                meta.get("raptor_level", 0),
+            )
+            # DE-2.2: ensure logged and persisted rejection carries gate_verdict: "rejected" with its reason
+            logger.warning(
+                "upsert_chunks: rejected chunk failing quality gate: point_id=%s source_url=%s gate_verdict=rejected reason=%s",
+                point_id,
+                source_url,
+                reason,
+            )
+            rows_to_insert.append(
+                {
+                    "source_url": source_url,
+                    "chunk_index": chunk_idx,
+                    "gate_layer": "chokepoint",
+                    "gate_verdict": "rejected",
+                    "reason": reason,
+                    "gate_reason": reason,
+                    "matched_span": str(artifact)[:500],
+                    "point_id": str(point_id),
+                }
+            )
+
+        if rows_to_insert:
+            try:
+                from app.telemetry_db import _get_client
+
+                client = _get_client()
+                if client is not None:
+                    client.table("corpus_gate_rejections").insert(rows_to_insert).execute()
+                    for _ in rows_to_insert:
+                        try:
+                            CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL.inc()
+                        except Exception:
+                            pass
+                else:
+                    raise RuntimeError("telemetry DB client unavailable")
+            except Exception as db_err:
+                # X40: rejections must be recorded. Persistence stays best-effort
+                # (a ledger outage must not block ingest) but is never silent.
+                logger.error(
+                    "Failed to persist %d corpus_gate_rejections row(s): %s",
+                    len(rows_to_insert),
+                    db_err,
+                )
+                try:
+                    CORPUS_GATE_REJECTIONS_PERSIST_FAILED_TOTAL.inc(len(rows_to_insert))
+                except Exception:
+                    pass
 
     def check_source_exists(self, source_url: str) -> bool:
         """Check if any points with this source_url already exist (dedup check)."""
@@ -515,6 +774,8 @@ class QdrantIndexer:
                 "chunk_index": r.payload.get("chunk_index", 0),
                 "content_type": r.payload.get("content_type", ""),
                 "raptor_level": r.payload.get("raptor_level", 0),
+                "chunker_version": get_chunker_version(r.payload),
+                "parent_id_scheme": get_parent_id_scheme(r.payload),
             }
             for r in all_records
         ]

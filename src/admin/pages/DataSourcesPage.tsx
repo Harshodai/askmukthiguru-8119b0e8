@@ -1,11 +1,14 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDataStores } from "@/admin/hooks/useAdminData";
-import { Database, Share2, BrainCircuit, HardDrive, AlertCircle } from "lucide-react";
+import { useDataStores, useQdrantHealth } from "@/admin/hooks/useAdminData";
+import { optimizeQdrant } from "@/admin/lib/api";
+import { Database, Share2, BrainCircuit, HardDrive, AlertCircle, RefreshCw } from "lucide-react";
 import { KpiCard } from "@/admin/components/KpiCard";
 import { fmtInt } from "@/admin/lib/formatters";
+import { toast } from "sonner";
 import type { DataStoreError, QdrantCollectionInfo, Neo4jStats, LightRAGStats } from "@/admin/types";
 
 function isError(v: unknown): v is DataStoreError {
@@ -37,6 +40,23 @@ function CollectionCard({ name, info }: { name: string; info?: QdrantCollectionI
 
 export default function DataSourcesPage() {
   const { data, isLoading, error, refetch } = useDataStores();
+  const { data: qdrantHealth, refetch: refetchHealth } = useQdrantHealth();
+  const [optimizing, setOptimizing] = useState(false);
+
+  const handleOptimize = async () => {
+    setOptimizing(true);
+    try {
+      const res = await optimizeQdrant();
+      toast.success(
+        `Optimization completed: ${res?.actions?.join(", ") || "Segments compacted"}`
+      );
+      await Promise.all([refetch(), refetchHealth()]);
+    } catch (err) {
+      toast.error(`Optimization failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setOptimizing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -114,16 +134,63 @@ export default function DataSourcesPage() {
       {/* Qdrant */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Database className="h-4 w-4" /> Qdrant Collections
-          </CardTitle>
-          <CardDescription>
-            {qdrantError
-              ? <span className="text-destructive">{qdrantError}</span>
-              : `${qdrantEntries.length} collections, ${fmtInt(totalQdrantPoints)} total points`}
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Database className="h-4 w-4" /> Qdrant Vector Index & Segments
+              </CardTitle>
+              <CardDescription>
+                {qdrantError
+                  ? <span className="text-destructive">{qdrantError}</span>
+                  : `${qdrantEntries.length} collections, ${fmtInt(totalQdrantPoints)} total points`}
+              </CardDescription>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={optimizing}
+              onClick={handleOptimize}
+              className="gap-1.5 self-start sm:self-auto shrink-0"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${optimizing ? "animate-spin" : ""}`} />
+              {optimizing ? "Optimizing…" : "Optimize Vector Index"}
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Health & Segments Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-lg border bg-muted/20 text-xs">
+            <div>
+              <span className="text-muted-foreground block mb-0.5">Health Status</span>
+              <div className="flex items-center gap-1.5 font-medium">
+                <span className={`inline-block h-2 w-2 rounded-full ${
+                  qdrantHealth?.status === "green" ? "bg-emerald-500" :
+                  qdrantHealth?.status === "yellow" ? "bg-amber-500" :
+                  qdrantHealth?.status === "red" ? "bg-rose-500" : "bg-muted-foreground"
+                }`} />
+                <span className="capitalize">{qdrantHealth?.status ?? "unknown"}</span>
+              </div>
+            </div>
+            <div>
+              <span className="text-muted-foreground block mb-0.5">Segment Count</span>
+              <span className="font-mono font-medium text-foreground">
+                {qdrantHealth?.segments_count != null ? fmtInt(qdrantHealth.segments_count) : "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block mb-0.5">Fragmentation</span>
+              <span className="font-mono font-medium text-foreground">
+                {qdrantHealth?.fragmentation_pct != null ? `${qdrantHealth.fragmentation_pct}%` : "—"}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block mb-0.5">Optimizer Status</span>
+              <span className="font-mono font-medium text-foreground truncate block" title={qdrantHealth?.optimizer_status}>
+                {qdrantHealth?.optimizer_status ?? "idle"}
+              </span>
+            </div>
+          </div>
+
           {qdrantEntries.length === 0 && !qdrantError && (
             <p className="text-sm text-muted-foreground">No collections found.</p>
           )}

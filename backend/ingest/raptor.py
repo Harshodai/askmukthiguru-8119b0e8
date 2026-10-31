@@ -23,7 +23,9 @@ The retrieval pipeline searches BOTH levels simultaneously.
 """
 
 import asyncio
+import hashlib
 import logging
+import uuid
 
 import numpy as np
 from sklearn.cluster import KMeans
@@ -36,6 +38,24 @@ from services.provenance import ChunkProvenance
 from services.qdrant_service import QdrantService
 
 logger = logging.getLogger(__name__)
+
+
+def _raptor_summary_point_id(
+    primary_source_url: str, cluster_id: int, source_urls: list[str]
+) -> str:
+    """Deterministic id for a level-1 summary.
+
+    A cluster spanning several videos used to be keyed by its first URL plus the
+    cluster number alone, so two clusters from different runs that shared that
+    first URL and number overwrote each other's summary point. Multi-source
+    clusters now also hash the full source set; single-source ids are unchanged
+    so re-ingest stays idempotent.
+    """
+    key = f"{primary_source_url}:raptor_1:{cluster_id}"
+    if len(source_urls) > 1:
+        digest = hashlib.sha256("\n".join(source_urls).encode("utf-8")).hexdigest()[:16]
+        key = f"{key}:{digest}"
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, key))
 
 
 class RaptorIndexer:
@@ -105,6 +125,14 @@ class RaptorIndexer:
                 dropped,
                 len(summaries),
             )
+            # Unset parent_summary_id on source chunks for gated out summaries
+            for s in summaries:
+                if not s.get("faithful", True):
+                    for idx in clusters.get(s.get("cluster_id"), []):
+                        if idx < len(chunks) and chunks[idx].get("parent_summary_id") == s.get(
+                            "point_id"
+                        ):
+                            chunks[idx].pop("parent_summary_id", None)
         summaries = kept
         if not summaries:
             logger.info("RAPTOR: no summaries survived the faithfulness gate")
@@ -154,7 +182,9 @@ class RaptorIndexer:
                 "provenance": ChunkProvenance.MACHINE_SUMMARY.value,
                 "provenance_rationale": "raptor_level_1_or_content_type_summary",
                 "cluster_id": s["cluster_id"],
+                "point_id": s.get("point_id"),
                 "source_chunks": s["source_count"],
+                "source_point_ids": s.get("source_point_ids", []),
                 "source_urls": s.get("source_urls", []),
                 "titles": s.get("titles", []),
                 "topic": s.get("topic_label", "General"),
@@ -311,6 +341,22 @@ class RaptorIndexer:
             )
             titles = sorted(set(c.get("title", "") for c in cluster_chunks if c.get("title")))
 
+            # DE-2.1: collect source_point_ids, bounded to max 100 entries
+            source_point_ids: list[str] = [
+                str(c.get("point_id") or c.get("id") or idx)
+                for idx, c in zip(indices, cluster_chunks)
+            ][:100]
+
+            primary_source_url = (
+                source_urls[0]
+                if source_urls
+                else (chunks[0].get("source_url", "") if chunks else "")
+            )
+            summary_point_id = _raptor_summary_point_id(primary_source_url, cluster_id, source_urls)
+
+            for c in cluster_chunks:
+                c["parent_summary_id"] = summary_point_id
+
             async with semaphore:
                 try:
                     summary_text = await self._llm.summarize(cluster_texts)
@@ -349,14 +395,17 @@ class RaptorIndexer:
                     if not faithful:
                         logger.warning(
                             "RAPTOR: cluster %d summary failed faithfulness "
-                            "(score=%.2f) — will be gated out",
+                            "(score=%.2f, source_point_ids=%s) — will be gated out",
                             cluster_id,
                             fscore,
+                            source_point_ids,
                         )
                     return {
                         "text": summary_text,
                         "cluster_id": cluster_id,
+                        "point_id": summary_point_id,
                         "source_count": len(cluster_texts),
+                        "source_point_ids": source_point_ids,
                         "source_urls": source_urls,
                         "titles": titles,
                         "topic_label": topic_label,
@@ -370,7 +419,9 @@ class RaptorIndexer:
                     return {
                         "text": fallback,
                         "cluster_id": cluster_id,
+                        "point_id": summary_point_id,
                         "source_count": len(cluster_texts),
+                        "source_point_ids": source_point_ids,
                         "source_urls": source_urls,
                         "titles": titles,
                         "topic_label": "",

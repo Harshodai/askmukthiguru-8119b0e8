@@ -134,7 +134,10 @@ def make_test_context(spans: list[SourceSpan], **overrides) -> ParentContext:
 @pytest.fixture(autouse=True)
 def _reset_env(monkeypatch):
     reset_harness_metrics()
-    monkeypatch.setattr(settings, "first_person_context_harness_enabled", False)
+    # The owner flag is the only enable (a store alone never turns the harness
+    # on), so the wiring tests arm it explicitly. Tests that need the off state
+    # pin False themselves.
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
     monkeypatch.setattr(settings, "first_person_context_collection", "")
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
     monkeypatch.setattr(settings, "first_person_context_selector_enabled", False)
@@ -396,7 +399,8 @@ def test_fallback_when_context_store_raises_exception():
 
 
 def test_flag_off_never_invokes_context_store(monkeypatch):
-    """When first_person_context_harness_enabled is False and no context store injected, it is never invoked."""
+    """The owner flag is the only enable: even an injected context store stays
+    dormant while first_person_context_harness_enabled is False."""
     monkeypatch.setattr(settings, "first_person_context_harness_enabled", False)
     monkeypatch.setattr(settings, "first_person_context_collection", "")
 
@@ -629,3 +633,70 @@ def test_harness_scorer_error_abstains(monkeypatch):
     result = _run_with_scorer(monkeypatch, lambda *a, **k: _RELEVANCE_INDETERMINATE)
     assert result.status == "abstained"
     assert result.abstain_reason == "relevance_indeterminate"
+
+
+def test_injected_context_store_is_dormant_when_the_owner_flag_is_off(monkeypatch):
+    """P1-4 regression: store presence is configuration, not permission.
+
+    Before this guard, `FirstPersonPipeline(context_store=...)` ran fp-context
+    serving even though FIRST_PERSON_CONTEXT_HARNESS_ENABLED was false — the
+    public-release NO-GO posture says the harness must not serve unless the
+    owner flag says so.
+    """
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", False)
+    monkeypatch.setattr(settings, "first_person_context_collection", "")
+
+    mock_context_store = Mock()
+    mock_context_store.retrieve.return_value = [make_test_context([make_test_span(n=0)])]
+    mock_legacy_store = Mock()
+    mock_legacy_store.search_hybrid.return_value = []
+    mock_legacy_store.collection = "first_person_v9"
+
+    pipeline = FirstPersonPipeline(
+        store=mock_legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=mock_context_store,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    pipeline.execute(
+        query="Tell me something",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    mock_context_store.retrieve.assert_not_called()
+    mock_legacy_store.search_hybrid.assert_called_once()
+
+
+def test_terminal_flag_blocks_legacy_fallthrough(monkeypatch):
+    """v10-only serving: with the terminal flag on, a question the harness cannot
+    answer abstains and the legacy (v8) store is never searched."""
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", True)
+    mock_ctx_store = Mock()
+    mock_ctx_store.retrieve.return_value = []
+    mock_legacy_store = Mock()
+    mock_legacy_store.search_hybrid.return_value = []
+    mock_legacy_store.collection = "first_person_v8"
+
+    pipeline = FirstPersonPipeline(
+        store=mock_legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=mock_ctx_store,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="Tell me something",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    assert result.status == "abstained"
+    assert result.abstain_reason == "no_verified_clips"
+    assert result.citations == []
+    mock_legacy_store.search_hybrid.assert_not_called()
+
+
+def test_terminal_flag_is_off_by_default():
+    assert settings.model_fields["first_person_context_terminal_enabled"].default is False

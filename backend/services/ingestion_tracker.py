@@ -1,23 +1,65 @@
+from __future__ import annotations
+
 import json
 import logging
-import time
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _format_timestamp(ts: Any) -> str:
+    """Convert ISO timestamp string, epoch float/int, or datetime to ISO 8601 string.
+
+    If ts is None, returns current UTC time in ISO 8601 format.
+    """
+    if ts is None:
+        return datetime.now(UTC).isoformat()
+    if isinstance(ts, (int, float)):
+        return datetime.fromtimestamp(ts, tz=UTC).isoformat()
+    if isinstance(ts, datetime):
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=UTC)
+        return ts.isoformat()
+    if isinstance(ts, str):
+        return ts
+    return str(ts)
 
 
 class IngestionTracker:
     """Base interface for ingestion tracking."""
 
     def update(
-        self, url: str, message: str, percent: float, tags: Optional[list[str]] = None
+        self,
+        url: str,
+        message: str,
+        percent: float,
+        tags: Optional[list[str]] = None,
+        heartbeat_at: Optional[Any] = None,
+        updated_at: Optional[Any] = None,
+        attempt: Optional[int] = None,
+        source_identity: Optional[str] = None,
+    ) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def update_heartbeat(
+        self,
+        url: str,
+        heartbeat_at: Optional[Any] = None,
+        updated_at: Optional[Any] = None,
     ) -> None:
         raise NotImplementedError  # pragma: no cover
 
     def get_all(self) -> dict[str, Any]:
         raise NotImplementedError  # pragma: no cover
 
-    def mark_error(self, url: str, error_message: str) -> None:
+    def mark_error(
+        self,
+        url: str,
+        error_message: str,
+        tags: Optional[list[str]] = None,
+        updated_at: Optional[Any] = None,
+    ) -> None:
         raise NotImplementedError  # pragma: no cover
 
 
@@ -28,26 +70,73 @@ class _InMemoryIngestionTracker(IngestionTracker):
         self._data: dict[str, Any] = {}
 
     def update(
-        self, url: str, message: str, percent: float, tags: Optional[list[str]] = None
+        self,
+        url: str,
+        message: str,
+        percent: float,
+        tags: Optional[list[str]] = None,
+        heartbeat_at: Optional[Any] = None,
+        updated_at: Optional[Any] = None,
+        attempt: Optional[int] = None,
+        source_identity: Optional[str] = None,
     ) -> None:
-        self._data[url] = {
+        now_iso = _format_timestamp(None)
+        hb = _format_timestamp(heartbeat_at) if heartbeat_at is not None else now_iso
+        up = _format_timestamp(updated_at) if updated_at is not None else now_iso
+        entry: dict[str, Any] = {
             "url": url,
             "message": message,
             "progress": percent,
-            "updated_at": time.time(),
+            "updated_at": up,
+            "heartbeat_at": hb,
             "status": "processing" if percent < 1.0 else "success",
             "tags": tags or [],
         }
+        if attempt is not None:
+            entry["attempt"] = attempt
+        if source_identity is not None:
+            entry["source_identity"] = source_identity
+        self._data[url] = entry
+
+    def update_heartbeat(
+        self,
+        url: str,
+        heartbeat_at: Optional[Any] = None,
+        updated_at: Optional[Any] = None,
+    ) -> None:
+        now_iso = _format_timestamp(None)
+        hb = _format_timestamp(heartbeat_at) if heartbeat_at is not None else now_iso
+        up = _format_timestamp(updated_at) if updated_at is not None else now_iso
+        if url in self._data:
+            self._data[url]["heartbeat_at"] = hb
+            self._data[url]["updated_at"] = up
+        else:
+            self._data[url] = {
+                "url": url,
+                "message": "",
+                "progress": 0.0,
+                "status": "processing",
+                "heartbeat_at": hb,
+                "updated_at": up,
+                "tags": [],
+            }
 
     def get_all(self) -> dict[str, Any]:
         return self._data.copy()
 
-    def mark_error(self, url: str, error_message: str, tags: Optional[list[str]] = None) -> None:
+    def mark_error(
+        self,
+        url: str,
+        error_message: str,
+        tags: Optional[list[str]] = None,
+        updated_at: Optional[Any] = None,
+    ) -> None:
+        up = _format_timestamp(updated_at) if updated_at is not None else _format_timestamp(None)
         self._data[url] = {
             "url": url,
             "message": error_message,
             "progress": 0.0,
-            "updated_at": time.time(),
+            "updated_at": up,
             "status": "error",
             "tags": tags or [],
         }
@@ -73,23 +162,58 @@ class SupabaseIngestionTracker(IngestionTracker):
         return None
 
     def update(
-        self, url: str, message: str, percent: float, tags: Optional[list[str]] = None
+        self,
+        url: str,
+        message: str,
+        percent: float,
+        tags: Optional[list[str]] = None,
+        heartbeat_at: Optional[Any] = None,
+        updated_at: Optional[Any] = None,
+        attempt: Optional[int] = None,
+        source_identity: Optional[str] = None,
     ) -> None:
         try:
-            now = time.time()
+            now_iso = _format_timestamp(None)
+            hb = _format_timestamp(heartbeat_at) if heartbeat_at is not None else now_iso
+            up = _format_timestamp(updated_at) if updated_at is not None else now_iso
+            payload: dict[str, Any] = {
+                "source_url": url,
+                "message": message,
+                "progress_pct": int(percent * 100),
+                "status": "running" if percent < 1.0 else "completed",
+                "tags": json.dumps(tags or []),
+                "updated_at": up,
+                "heartbeat_at": hb,
+            }
+            if attempt is not None:
+                payload["attempt"] = attempt
+            if source_identity is not None:
+                payload["source_identity"] = source_identity
             self._client.table("ingest_jobs").upsert(
-                {
-                    "source_url": url,
-                    "message": message,
-                    "progress_pct": int(percent * 100),
-                    "status": "running" if percent < 1.0 else "completed",
-                    "tags": json.dumps(tags or []),
-                    "updated_at": now,
-                },
+                payload,
                 on_conflict="source_url",
             ).execute()
         except Exception as e:
             logger.warning(f"SupabaseIngestionTracker.update failed for {url}: {e}")
+
+    def update_heartbeat(
+        self,
+        url: str,
+        heartbeat_at: Optional[Any] = None,
+        updated_at: Optional[Any] = None,
+    ) -> None:
+        try:
+            now_iso = _format_timestamp(None)
+            hb = _format_timestamp(heartbeat_at) if heartbeat_at is not None else now_iso
+            up = _format_timestamp(updated_at) if updated_at is not None else now_iso
+            self._client.table("ingest_jobs").update(
+                {
+                    "heartbeat_at": hb,
+                    "updated_at": up,
+                }
+            ).eq("source_url", url).execute()
+        except Exception as e:
+            logger.warning(f"SupabaseIngestionTracker.update_heartbeat failed for {url}: {e}")
 
     def get_all(self) -> dict[str, Any]:
         try:
@@ -119,6 +243,9 @@ class SupabaseIngestionTracker(IngestionTracker):
                     "progress": (row.get("progress_pct", 0) or 0) / 100.0,
                     "status": row.get("status", "unknown"),
                     "updated_at": row.get("updated_at", ""),
+                    "heartbeat_at": row.get("heartbeat_at", ""),
+                    "attempt": row.get("attempt", 0),
+                    "source_identity": row.get("source_identity", ""),
                     "tags": tags,
                 }
             return result
@@ -126,9 +253,17 @@ class SupabaseIngestionTracker(IngestionTracker):
             logger.warning(f"SupabaseIngestionTracker.get_all failed: {e}")
             return {}
 
-    def mark_error(self, url: str, error_message: str, tags: Optional[list[str]] = None) -> None:
+    def mark_error(
+        self,
+        url: str,
+        error_message: str,
+        tags: Optional[list[str]] = None,
+        updated_at: Optional[Any] = None,
+    ) -> None:
         try:
-            now = time.time()
+            up = (
+                _format_timestamp(updated_at) if updated_at is not None else _format_timestamp(None)
+            )
             self._client.table("ingest_jobs").upsert(
                 {
                     "source_url": url,
@@ -136,7 +271,7 @@ class SupabaseIngestionTracker(IngestionTracker):
                     "progress_pct": 0,
                     "status": "failed",
                     "tags": json.dumps(tags or []),
-                    "updated_at": now,
+                    "updated_at": up,
                 },
                 on_conflict="source_url",
             ).execute()

@@ -30,6 +30,7 @@ from app.config import settings
 from app.metrics import MEMORY_LRU_EVICTIONS
 from services import kg_analytics
 from services.memory_service import MemoryService, _derive_fact_key
+from services.memory_source import memory_source_ref, notebook_source_ref
 from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
@@ -1343,6 +1344,7 @@ class MemoryServiceV2(MemoryService):
             teacher: str | None = None,
             state_category: str | None = None,
             content: str | None = None,
+            source_ref: dict | None = None,
         ) -> None:
             if uid not in nodes:
                 nodes[uid] = {
@@ -1352,6 +1354,7 @@ class MemoryServiceV2(MemoryService):
                     "teacher": teacher,
                     "state_category": state_category,
                     "content": content,
+                    "source_ref": source_ref,
                 }
 
         def _add_edge(src: str, dst: str, label: str | None = None) -> None:
@@ -1513,6 +1516,7 @@ class MemoryServiceV2(MemoryService):
                 "Memory",
                 state_category=state_cat,
                 content=content,
+                source_ref=memory_source_ref(m),
             )
             _add_edge(f"user:{user_id}", f"memory:{mid}", "HAS_MEMORY")
             if state_cat:
@@ -1642,6 +1646,7 @@ class MemoryServiceV2(MemoryService):
                 content=f"Inquiry: {query}\n\nTeacher's Guidance: {answer}"
                 if answer
                 else f"Inquiry: {query}",
+                source_ref=notebook_source_ref(nid),
             )
             _add_edge(f"user:{user_id}", f"notebook:{nid}", "SAVED_NOTE")
 

@@ -9,11 +9,14 @@ store has passed validation; startup can then expose only that manifest.
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional
 
+from app.config import settings
 from app.index_fingerprint import IndexFingerprint, IndexFingerprintError
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -138,3 +141,72 @@ def validate_publication_record(record: Mapping[str, Any], contract: IndexFinger
     fingerprint = record.get("publication_fingerprint")
     if fingerprint != publication.digest:
         raise CorpusPublicationError("published corpus manifest fingerprint is corrupt")
+
+
+def get_publication_manifest_path(corpus_id: str) -> Path:
+    """Return path to corpus publication manifest for corpus_id."""
+    clean_id = str(corpus_id or "default").strip()
+    filename = f"corpus_publication_manifest_{clean_id}.json"
+    # A shared volume (ingest worker and backend are different containers) or a
+    # test sandbox is pointed at explicitly; the repo paths below are the default.
+    override = (settings.corpus_publication_manifest_dir or "").strip()
+    if override:
+        return Path(override) / filename
+    possible_dirs = [
+        Path("audits/manifests"),
+        Path(__file__).resolve().parents[2] / "audits" / "manifests",
+    ]
+    for d in possible_dirs:
+        if d.is_dir():
+            return d / filename
+    return Path(__file__).resolve().parents[2] / "audits" / "manifests" / filename
+
+
+def write_corpus_publication_manifest(
+    *,
+    corpus_id: str,
+    source_url: str = "",
+    release_version: Optional[int] = None,
+    content_checksum: str = "",
+    chunks_count: int = 0,
+    extra_data: Optional[dict[str, Any]] = None,
+) -> Path:
+    """DE-0.4: Write audits/manifests/corpus_publication_manifest_<corpus_id>.json on ingest completion."""
+    clean_id = str(corpus_id or "default").strip()
+    target_path = get_publication_manifest_path(clean_id)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    import json
+    from datetime import UTC, datetime
+
+    manifest_payload: dict[str, Any] = {
+        "manifest_version": "v1",
+        "corpus_id": clean_id,
+        "last_published_at": datetime.now(UTC).isoformat(),
+        "last_source_url": source_url,
+        "last_release_version": int(release_version or 1),
+        "last_checksum": content_checksum,
+        "chunks_indexed": chunks_count,
+    }
+    if extra_data:
+        manifest_payload.update(extra_data)
+
+    # Atomic replace: concurrent ingests must never leave a truncated manifest.
+    tmp_path = target_path.with_name(f".{target_path.name}.tmp.{os.getpid()}")
+    tmp_path.write_text(json.dumps(manifest_payload, indent=2), encoding="utf-8")
+    os.replace(tmp_path, target_path)
+    return target_path
+
+
+def verify_publication_manifest_exists(corpus_id: str) -> bool:
+    """DE-0.4: Check that the corpus publication manifest exists. Raises RuntimeError if missing."""
+    clean_id = str(corpus_id or "default").strip()
+    manifest_path = get_publication_manifest_path(clean_id)
+    cwd_manifest = Path("audits/manifests") / f"corpus_publication_manifest_{clean_id}.json"
+    explicit_dir = bool((settings.corpus_publication_manifest_dir or "").strip())
+    if not manifest_path.is_file() and (explicit_dir or not cwd_manifest.is_file()):
+        raise RuntimeError(
+            f"Corpus publication manifest for corpus '{clean_id}' is missing; cannot serve. "
+            f"Expected at: {manifest_path}"
+        )
+    return True

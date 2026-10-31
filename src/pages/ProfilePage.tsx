@@ -7,6 +7,11 @@ import {
   Save,
   Loader2,
   Globe,
+  Compass,
+  SlidersHorizontal,
+  BookOpen,
+  Brain,
+  Settings,
 } from 'lucide-react';
 import { profileTabParams } from '@/lib/workspaceNavigation';
 import { usePageMeta } from '@/hooks/usePageMeta';
@@ -60,6 +65,16 @@ import { LANGUAGES } from '@/components/chat/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { changeUiLanguage } from '@/i18n';
 
+const formatLanguageOption = (l: { code: string; native: string; name: string }) => {
+  if (l.native.toLowerCase() === 'english') {
+    return l.name;
+  }
+  if (l.name.toLowerCase().startsWith(l.native.toLowerCase())) {
+    return l.name;
+  }
+  return `${l.native} (${l.name})`;
+};
+
 const tones: { value: GuruTone; label: string; hint: string }[] = [
   { value: 'gentle', label: 'Gentle', hint: 'Soft, nurturing replies' },
   { value: 'direct', label: 'Direct', hint: 'Clear, concise teachings' },
@@ -102,6 +117,7 @@ const ProfilePage = () => {
   // Local form state — only persists on Save
   const [form, setForm] = useState(profile);
   const [dirty, setDirty] = useState(false);
+  const [memorySubTab, setMemorySubTab] = useState<'notes' | 'guru'>('notes');
 
   useEffect(() => {
     if (!dirty) setForm(profile);
@@ -169,7 +185,7 @@ const ProfilePage = () => {
     setDirty(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     update({
       displayName: form.displayName.trim().slice(0, 40) || 'Seeker',
       bio: form.bio.slice(0, 280),
@@ -185,6 +201,14 @@ const ProfilePage = () => {
       reminderTimeMinutes: form.reminderTimeMinutes,
     });
     setDirty(false);
+    if (form.bio && form.bio.trim()) {
+      try {
+        await memoryApi.setCore(form.bio.trim());
+      } catch (err) {
+        // Fallback gracefully if backend memory API is offline
+        console.warn('Could not sync core memory to backend:', err);
+      }
+    }
     toast({ title: t('profile.personalDetails.saved', 'Profile saved'), description: t('profile.personalDetails.savedOnDevice', 'Saved on this device.') });
     if (isOnboarding) navigate('/chat', { replace: true });
   };
@@ -256,7 +280,9 @@ const ProfilePage = () => {
               <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-ojas/20">
                 {(profile.avatarDataUrl || profile.avatarUrl) ? (
                   <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
-                ) : null}
+                ) : (
+                  <AvatarImage src="/images/ekam-golden-orb-lotus-square.png" alt="Ekam Golden Orb" />
+                )}
                 <AvatarFallback className="bg-ojas/10 text-ojas text-xl font-semibold">
                   {getInitials(profile.displayName)}
                 </AvatarFallback>
@@ -302,16 +328,40 @@ const ProfilePage = () => {
               }}
               className="w-full"
             >
-            {/* Single segmented nav for all sizes: scrolls safely on 375px, grids on wider. */}
-            <div className="sticky top-14 z-20 py-2 bg-background/95 backdrop-blur-xl">
+            {/* Sacred floating tab dock */}
+            <div className="sticky top-14 z-20 py-2 sm:py-3 bg-background/90 backdrop-blur-xl">
               <TabsList
                 aria-label={t('layout.navigate', 'Navigate')}
-                className="w-full grid grid-cols-4 gap-1 mb-2 bg-muted/50 p-1 rounded-lg"
+                className="w-full max-w-2xl mx-auto grid grid-cols-4 gap-1 sm:gap-2 p-1.5 sm:p-2 h-auto min-h-[52px] sm:min-h-[56px] items-center bg-card/85 backdrop-blur-xl border border-hairline/80 rounded-2xl shadow-xs"
               >
-                <TabsTrigger value="journey" className="rounded-md min-h-[44px] text-xs sm:text-sm px-1 sm:px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-normal break-words leading-snug text-center">{t('profile.tabs.journey', 'Journey')}</TabsTrigger>
-                <TabsTrigger value="profile" className="rounded-md min-h-[44px] text-xs sm:text-sm px-1 sm:px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-normal break-words leading-snug text-center">{t('profile.tabs.personalise', 'Personalise')}</TabsTrigger>
-                <TabsTrigger value="memory" className="rounded-md min-h-[44px] text-xs sm:text-sm px-1 sm:px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-normal break-words leading-snug text-center">{t('profile.tabs.memory', 'Memory')}</TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-md min-h-[44px] text-xs sm:text-sm px-1 sm:px-3 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm text-muted-foreground hover:text-foreground transition-colors whitespace-normal break-words leading-snug text-center">{t('profile.tabs.settings', 'Settings')}</TabsTrigger>
+                <TabsTrigger
+                  value="journey"
+                  className="group relative flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl h-10 sm:h-11 px-2 sm:px-3 text-xs sm:text-sm font-medium text-muted-foreground/80 transition-all duration-200 hover:text-foreground hover:bg-muted/40 active:scale-[0.98] border border-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:border-ojas/30 data-[state=active]:shadow-xs"
+                >
+                  <Compass className="w-4 h-4 shrink-0 transition-colors group-data-[state=active]:text-ojas text-muted-foreground/60 group-hover:text-foreground" aria-hidden="true" />
+                  <span className="truncate">{t('profile.tabs.journey', 'Journey')}</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="profile"
+                  className="group relative flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl h-10 sm:h-11 px-2 sm:px-3 text-xs sm:text-sm font-medium text-muted-foreground/80 transition-all duration-200 hover:text-foreground hover:bg-muted/40 active:scale-[0.98] border border-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:border-ojas/30 data-[state=active]:shadow-xs"
+                >
+                  <SlidersHorizontal className="w-4 h-4 shrink-0 transition-colors group-data-[state=active]:text-ojas text-muted-foreground/60 group-hover:text-foreground" aria-hidden="true" />
+                  <span className="truncate">{t('profile.tabs.personalise', 'Personalise')}</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="memory"
+                  className="group relative flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl h-10 sm:h-11 px-2 sm:px-3 text-xs sm:text-sm font-medium text-muted-foreground/80 transition-all duration-200 hover:text-foreground hover:bg-muted/40 active:scale-[0.98] border border-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:border-ojas/30 data-[state=active]:shadow-xs"
+                >
+                  <BookOpen className="w-4 h-4 shrink-0 transition-colors group-data-[state=active]:text-ojas text-muted-foreground/60 group-hover:text-foreground" aria-hidden="true" />
+                  <span className="truncate">{t('profile.tabs.memory', 'Memory')}</span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="settings"
+                  className="group relative flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl h-10 sm:h-11 px-2 sm:px-3 text-xs sm:text-sm font-medium text-muted-foreground/80 transition-all duration-200 hover:text-foreground hover:bg-muted/40 active:scale-[0.98] border border-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:border-ojas/30 data-[state=active]:shadow-xs"
+                >
+                  <Settings className="w-4 h-4 shrink-0 transition-colors group-data-[state=active]:text-ojas text-muted-foreground/60 group-hover:text-foreground" aria-hidden="true" />
+                  <span className="truncate">{t('profile.tabs.settings', 'Settings')}</span>
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -411,7 +461,7 @@ const ProfilePage = () => {
                         <SelectContent className="max-h-80">
                           {LANGUAGES.map(l => (
                             <SelectItem key={l.code} value={l.code}>
-                              {l.native} ({l.name})
+                              {formatLanguageOption(l)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -491,8 +541,41 @@ const ProfilePage = () => {
             </TabsContent>
 
             <TabsContent value="memory" className="space-y-6 mt-0">
-              <NotesPanel />
-              <MemoryManager />
+              {/* Segmented Sub-Navigation: Private Reflections vs Guru's Living Memory & Graph */}
+              <div className="flex items-center justify-center pt-1 pb-2">
+                <div className="inline-flex items-center gap-1.5 p-1 rounded-xl bg-card/85 backdrop-blur-md border border-hairline/80 shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setMemorySubTab('notes')}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                      memorySubTab === 'notes'
+                        ? 'bg-background text-foreground font-semibold shadow-xs border border-ojas/30'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-ojas" />
+                    <span>{t('profile.memory.personalNotes', 'Personal Reflections & Notes')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMemorySubTab('guru')}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                      memorySubTab === 'guru'
+                        ? 'bg-background text-foreground font-semibold shadow-xs border border-ojas/30'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Brain className="w-3.5 h-3.5 text-ojas" />
+                    <span>{t('profile.memory.guruMemory', "Guru's Living Memory & Graph")}</span>
+                  </button>
+                </div>
+              </div>
+
+              {memorySubTab === 'notes' ? (
+                <NotesPanel />
+              ) : (
+                <MemoryManager />
+              )}
             </TabsContent>
 
 

@@ -214,6 +214,28 @@ _PROTECTED_PATTERNS: tuple[str, ...] = (
 # punctuation-only runs are passed through untouched.
 _HAS_WORDS_RE = re.compile(r"[A-Za-z]{3,}")
 
+# A served clip that itself raises self-harm gets the support line beside it, even
+# when the seeker's question showed no distress (2026-10-31 grading: q019 opened
+# with self-harm statistics and carried no notice). Whole words only; the clip is
+# never edited.
+# Question-side cue for the same notice. Deliberately wide in WHAT it matches (means near a
+# person, cutting, overdose) because it only ever adds the support line: it never blocks,
+# never reroutes, never edits a clip. Not a risk classifier; the distress engine owns that.
+_QUESTION_SELF_HARM_CUE_RE = re.compile(
+    r"\b(?:self[\s-]?harm\w*|self[\s-]?injur\w*|overdos\w+"
+    r"|cut(?:ting|s)?\s+(?:myself|herself|himself|themselves|(?:my|her|his|their|your)\s+"
+    r"(?:arms?|wrists?|legs?|thighs?|skin))"
+    r"|(?:bottle|packet|strip|box)\s+of\s+(?:sleeping\s+)?(?:pills|tablets)"
+    r"|(?:pills|tablets|rope|blade|razor|gun)\b[^.?!]{0,60}\b(?:staring|looking\s+at)"
+    r"|(?:swallow|took|take)\w*\s+(?:all\s+)?(?:the\s+)?(?:pills|tablets))\b",
+    re.IGNORECASE,
+)
+_CLIP_MENTIONS_SELF_HARM = re.compile(
+    r"\b(?:self[\s-]?harm|suicid\w*|kill(?:ing)?\s+(?:my|your|him|her|them)self"
+    r"|end(?:ing)?\s+(?:my|your|his|her|their)\s+(?:own\s+)?life|take\s+(?:my|your)\s+own\s+life)\b",
+    re.IGNORECASE,
+)
+
 
 def _split_glue_and_quotes(text: str, verbatim_quotes: list[str]) -> list[tuple[bool, str]]:
     """Split an assembled answer into (protected, segment) runs.
@@ -417,12 +439,31 @@ def _eligible_citations(citations: object) -> list[dict]:
         # is_verbatim is not speaker verification (L-PROVENANCE-ISVERBATIM-1).
         # Keep provenance only for speakers currently registered in
         # gurus.yaml. Adding a teacher must not require a code edit here.
+        # Fail-closed invariant: unverified clips must NEVER be served to public users (UT-06)
+        if getattr(settings, "first_person_require_speaker_verified", False):
+            is_verified = (
+                citation.get("speaker_verified") is True
+                or citation.get("quality_status") == "verified_verbatim"
+                or bool(citation.get("voice_verification_method"))
+            )
+            if not is_verified:
+                logger.info(
+                    "[FirstPersonBridge] Dropping citation without verified voice: %s",
+                    citation.get("clip_id") or citation.get("point_id"),
+                )
+                continue
         from services.guru_registry import allowed_speaker_labels
+
+        if citation.get("speaker") not in allowed_speaker_labels():
+            logger.info(
+                "[FirstPersonBridge] Dropping citation with unallowlisted speaker: %s",
+                citation.get("speaker"),
+            )
+            continue
 
         eligible.append(
             {**citation, "speaker_verified": True}
             if citation.get("speaker_verified") is True
-            and citation.get("speaker") in allowed_speaker_labels()
             else citation
         )
     return eligible
@@ -671,6 +712,22 @@ class FirstPersonBridgeStage(Stage):
                 boundaries.append(RELATIONSHIP_SAFETY_BOUNDARY)
             if needs_add:
                 boundaries.append(addiction_support_boundary())
+        from services.serene_mind_engine import LLM_STAGE2_UNAVAILABLE_SIGNAL
+
+        _signals = getattr(getattr(ctx, "assessment", None), "detected_signals", None) or []
+        _llm_check_unavailable = LLM_STAGE2_UNAVAILABLE_SIGNAL in [
+            sig for sig in _signals if isinstance(sig, str)
+        ]
+        if _QUESTION_SELF_HARM_CUE_RE.search(query) or _llm_check_unavailable:
+            # Notice only: the pattern distress engine rates these questions NONE
+            # ("a bottle of sleeping pills ... I keep staring at it", a parent describing a
+            # teen cutting), so no lane changes, but the human support line must still travel
+            # with whatever is answered, an abstain included (2026-10-31 unanswerable set).
+            from services.crisis_helplines import ensure_support_line
+
+            _cue_line = ensure_support_line("")
+            if _cue_line not in boundaries:
+                boundaries.append(_cue_line)
         state = getattr(ctx, "state", None) or {}
         # RequestStateStage already produced the English query (its own
         # bounded translation); never pay for a second one here.
@@ -891,6 +948,10 @@ class FirstPersonBridgeStage(Stage):
             )
             return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
 
+        # Platform copy that accompanies the clip but is NOT the teacher's words.
+        safety_notices: list[str] = []
+        compassion_framing_text: str | None = None
+
         if distress_compassion:
             # Distress-lane parity (rag/nodes/intent.py::handle_distress): a clip that
             # talks about dying, quitting life or rock bottom is omitted ENTIRELY for a
@@ -909,33 +970,80 @@ class FirstPersonBridgeStage(Stage):
             # Owner decision 2026-10-19: the seeker keeps the compassion framing
             # (the same graduated template the graph's distress lane serves) AND
             # the clip. Added after the output rail, exactly like the safety
-            # boundaries below: it is the distress lane's own reviewed copy, not
+            # boundaries above: it is the distress lane's own reviewed copy, not
             # generated text, so the English literal-phrase rail does not gate it.
             # Before glue translation, so an Indic seeker gets localized compassion
             # copy while the teacher's words stay verbatim.
             framing = _distress_compassion_framing(ctx)
             if framing.strip():
-                answer = f"{framing}\n\n{answer}"
+                compassion_framing_text = framing.strip()
 
-        if boundaries:
-            # Appended after the output rail so safety text can never be blocked,
-            # before glue translation so Indic seekers get it localized.
-            answer = answer + "\n\n" + "\n\n".join(boundaries)
+        # Invariant 1 (answer text is evidence): the served body is the verbatim
+        # quote plus its attribution — nothing else. Platform copy (compassion
+        # framing, relationship/addiction safety boundaries, the human support
+        # line) travels in `route_metadata["safety_notices"]` and is rendered by
+        # the client as its own block, so a seeker can always tell the teacher's
+        # words from the platform's words.
+        if compassion_framing_text:
+            safety_notices.append(compassion_framing_text)
+        for boundary in boundaries or []:
+            text = str(boundary or "").strip()
+            if text:
+                safety_notices.append(text)
 
-        if distress_compassion:
-            # Distress lane invariant: every distress answer ends with a human
-            # support line, unless a helpline block is already present.
+        # Structure copy the evidence body no longer carries: the weak-match
+        # "related, not a direct answer" label and the two-recording note. Rendered
+        # by the client in the same block as the other platform notices.
+        for _structure_copy in (
+            getattr(result, "related_clips_heading", None),
+            getattr(result, "second_quote_note", None),
+        ):
+            _text = str(_structure_copy or "").strip()
+            if _text and _text not in safety_notices:
+                safety_notices.append(_text)
+
+        user_msg = str(getattr(ctx, "user_message", "") or "")
+        level = getattr(getattr(ctx, "assessment", None), "level", None)
+        level_val = int(getattr(level, "value", 0) or 0)
+        has_self_harm_risk = bool(
+            _QUESTION_SELF_HARM_CUE_RE.search(user_msg)
+            or _CLIP_MENTIONS_SELF_HARM.search(answer)
+            or level_val >= 3
+        )
+
+        if not distress_compassion and _CLIP_MENTIONS_SELF_HARM.search(answer):
+            # The seeker did not signal distress, but the teacher's own words raise
+            # self-harm (e.g. a talk quoting suicide statistics). The clip stays
+            # verbatim; the human support line rides beside it as platform copy.
             from services.crisis_helplines import ensure_support_line
 
-            answer = ensure_support_line(answer)
+            _joined_notices = "\n\n".join(safety_notices)
+            if ensure_support_line(_joined_notices) != _joined_notices:
+                safety_notices.append(ensure_support_line(""))
+
+        if distress_compassion and has_self_harm_risk:
+            # Emergency helpline is appended when acute distress / self-harm risk is detected.
+            # Benign pedagogical/spiritual inquiries receive compassion framing & practice without helpline numbers.
+            from services.crisis_helplines import ensure_support_line
+
+            # ensure_support_line returns its input unchanged when a helpline
+            # block (Tele-MANAS / 14416 / the line itself) is already present, so
+            # run it over the notices already collected, not over "".
+            _joined = "\n\n".join(safety_notices)
+            _with_support = ensure_support_line(_joined)
+            if _with_support != _joined:
+                safety_notices.append(ensure_support_line(""))
+        if distress_compassion:
             # Distress-lane parity, defense-in-depth: the graph's distress handler
             # returns straight to END, so it re-runs this persona/constitutional
             # check itself (rag/nodes/intent.py::handle_distress). The bridge
             # short-circuits even earlier, so the same check runs here — on a hit the
             # clip is dropped and the reviewed compassion copy is served instead.
+            # The check runs on the FULL user-visible text (quote + notices), which
+            # is what the seeker reads.
             from rag.nodes.verification import check_persona_adherence
 
-            violation = check_persona_adherence(answer)
+            violation = check_persona_adherence("\n\n".join([*safety_notices, answer]))
             if violation:
                 logger.warning(
                     "[FirstPersonBridge] Compassion+clip answer failed the persona guard "
@@ -952,6 +1060,22 @@ class FirstPersonBridgeStage(Stage):
                 container,
                 str(getattr(ctx, "preferred_lang", "") or ""),
             )
+            if safety_notices:
+                # Notices carry no quotes: each block is pure glue.
+                # One round trip, not one serial 5 s fail-open call per notice.
+                safety_notices = list(
+                    await asyncio.gather(
+                        *(
+                            _translate_glue_only(
+                                notice,
+                                [],
+                                container,
+                                str(getattr(ctx, "preferred_lang", "") or ""),
+                            )
+                            for notice in safety_notices
+                        )
+                    )
+                )
 
         record_routing_decision(
             ctx,
@@ -1018,7 +1142,16 @@ class FirstPersonBridgeStage(Stage):
                 "audio_playback_clips": getattr(result, "audio_playback_clips", []) or [],
                 "detected_concepts": getattr(result, "detected_concepts", []),
                 "atma_vichara_inquiry": getattr(result, "atma_vichara_inquiry", None),
+                "related_clips_heading": getattr(result, "related_clips_heading", None),
+                # Structure note for a two-recording answer ("Recording 2 is a
+                # different video; it does not continue the first"). Metadata,
+                # never body text (invariant 1).
+                "second_quote_note": getattr(result, "second_quote_note", None),
                 "practice_recommendation": getattr(result, "practice_recommendation", None),
+                # Invariant 1: platform copy that accompanies a served clip but is
+                # not the teacher's words. Rendered as its own block by the client
+                # (chat `safety_notices`), never concatenated into the evidence body.
+                "safety_notices": safety_notices,
                 # Owner decision 2026-10-19: this clip was served under the MODERATE
                 # distress compassion framing (additive, opt-in flag).
                 "distress_compassion_framing": distress_compassion,
@@ -1075,7 +1208,16 @@ class FirstPersonBridgeStage(Stage):
             # A relationship/addiction question must carry its safety line even when
             # no clip is served (live 2026-10-11: a drinking-habit question got a bare
             # "no verified teaching" with no support pointer).
-            answer = answer + "\n\n" + "\n\n".join(boundaries)
+            from services.crisis_helplines import ensure_support_line
+
+            _support = ensure_support_line("")
+            _after = [b for b in boundaries if b != _support]
+            if _support in boundaries and _support not in answer:
+                # The human support line leads: someone staring at a bottle of pills should
+                # not read "try rephrasing" first (2026-10-31 review of ua70 / ua71).
+                answer = _support + "\n\n" + answer
+            if _after:
+                answer = answer + "\n\n" + "\n\n".join(_after)
 
         # The abstain is static, but an Indic seeker still deserves localized
         # glue: an empty quote list makes the whole message glue, translated
@@ -1134,11 +1276,11 @@ class FirstPersonBridgeStage(Stage):
             # Not computed — never a fabricated number (see tests/test_grounding).
             faithfulness_score=None,
             hallucination_flag=False,
-            citations_verified=True,
+            citations_verified=False,
             verification={
                 "passed": True,
                 "method": method,
-                "citations_verified": True,
+                "citations_verified": False,
             },
             release_manifest=get_release_manifest().to_dict(),
             route_metadata={

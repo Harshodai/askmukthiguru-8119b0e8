@@ -124,6 +124,32 @@ def test_railway_grace_window_strictly_under_healthcheck_timeout():
     )
 
 
+def _prod_services() -> dict:
+    return yaml.safe_load(_PROD_COMPOSE.read_text())["services"]
+
+
+def test_celery_beat_gets_the_same_environment_as_the_backend():
+    """Beat imports app.config; four env vars made it crash-loop in production."""
+    services = _prod_services()
+    assert services["celery-beat"]["environment"] == services["backend"]["environment"]
+
+
+def test_backend_env_carries_every_production_required_secret():
+    env = "\n".join(_prod_services()["backend"]["environment"])
+    for name in ("ANON_SESSION_HMAC_SECRET", "BRAIN_KEK", "FACULTY_ACCESS_CODE", "ENVIRONMENT"):
+        assert f"{name}=" in env, name
+    # The two secrets with no safe default must refuse to start when unset.
+    assert "ANON_SESSION_HMAC_SECRET=${ANON_SESSION_HMAC_SECRET:?" in env
+    assert "BRAIN_KEK=${BRAIN_KEK:?" in env
+
+
+def test_backend_data_dir_is_a_named_volume():
+    """Owner video decisions live in /app/data; a redeploy must not forget them."""
+    compose = yaml.safe_load(_PROD_COMPOSE.read_text())
+    assert "backend_data:/app/data" in compose["services"]["backend"]["volumes"]
+    assert "backend_data" in compose["volumes"]
+
+
 if __name__ == "__main__":
     # ponytail: no test runner needed for a handful of assertion functions.
     failures = []

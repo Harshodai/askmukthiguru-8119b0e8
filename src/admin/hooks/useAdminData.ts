@@ -271,3 +271,21 @@ export function useObservabilitySummary() {
     refetchInterval: 30_000,
   });
 }
+
+export function useCorpusProvenance(pointId: string | null) {
+  return useQuery({
+    queryKey: ["admin", "corpus", "provenance", pointId],
+    queryFn: () => (pointId ? api.getCorpusProvenance(pointId) : Promise.reject(new Error("No point ID"))),
+    enabled: Boolean(pointId),
+    staleTime: 60_000,
+  });
+}
+
+export function useQdrantHealth() {
+  return useQuery({
+    queryKey: ["admin", "qdrant", "health"],
+    queryFn: api.getQdrantHealth,
+    refetchInterval: 30_000,
+  });
+}
+

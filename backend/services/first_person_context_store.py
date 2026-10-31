@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any, Optional
+from typing import Any, Optional, overload
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -35,6 +35,8 @@ from domain.first_person_context import (
     ParentUnit,
     SourceSpan,
 )
+from domain.speaker_provenance import speaker_write_violations
+from services.first_person_video_decisions import blocked_video_ids_or_none, video_is_blocked
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +68,89 @@ SPAN_INDEXES: tuple[tuple[str, str], ...] = (
     # children on these, so an unindexed field becomes a full scan.
     ("topic_ids", "keyword"),
     ("entity_ids", "keyword"),
+    ("tags", "keyword"),
+    ("category", "keyword"),
+    ("facet_ids", "keyword"),
 )
 
 
 class FirstPersonContextStoreError(RuntimeError):
     """Raised when stored data violates the fp-context-v1 contract."""
+
+
+def bare_flag_speaker_ids(payloads: Iterable[Mapping[str, Any]]) -> list[str]:
+    """Child payloads that claim a verified speaker with no method that produced the claim.
+
+    Works on raw payload dicts (the shape both builders write), not on ``SourceSpan``: a build
+    must be refusable before any model validation, and the live collection already contains
+    732 such points that must stay readable.
+    """
+    out: list[str] = []
+    for payload in payloads:
+        if payload.get("record_type") not in (None, RECORD_TYPE_CHILD):
+            continue
+        if (
+            payload.get("speaker_verified") is True
+            and not str(payload.get("voice_verification_method") or "").strip()
+        ):
+            out.append(str(payload.get("source_span_id") or payload.get("id") or "?"))
+    return out
+
+
+def assert_no_bare_flag_speakers(payloads: Iterable[Mapping[str, Any]], *, where: str) -> None:
+    """Refuse a collection-level write that would promote label-only speaker claims (I3).
+
+    ``FirstPersonContextStore.upsert`` refuses one span at a time; the builders write
+    ``PointStruct`` batches directly and bypass it, so the collection needs its own gate. A
+    non-zero count means the input was produced by an older builder that admitted a span on a
+    v9 clip label alone (root cause of the 732 live points), and promoting it would ship the
+    same defect into a new collection.
+    """
+    bad = bare_flag_speaker_ids(payloads)
+    if bad:
+        raise FirstPersonContextStoreError(
+            f"{len(bad)} span(s) in {where} say speaker_verified=true with no "
+            f"voice_verification_method (e.g. {bad[:3]}). Rebuild so a label-only span is "
+            "written speaker_verified=false, or backfill a real method first "
+            "(scripts.ops.backfill_v10_voice_method)."
+        )
+
+
+def speaker_provenance_violations(
+    payloads: Iterable[Mapping[str, Any]],
+) -> dict[str, list[str]]:
+    """Child payloads the write rule would refuse, keyed by span id (empty means clean).
+
+    The strict twin of :func:`bare_flag_speaker_ids`: it also catches a method with no
+    score, calibration or reviewer behind it. For a promotion gate over a candidate
+    collection; it reads raw payloads so a collection that still holds the 732 legacy spans
+    can be *measured* without being loaded into ``SourceSpan``.
+    """
+    out: dict[str, list[str]] = {}
+    for payload in payloads:
+        if payload.get("record_type") not in (None, RECORD_TYPE_CHILD):
+            continue
+        violations = speaker_write_violations(payload)
+        if violations:
+            out[str(payload.get("source_span_id") or payload.get("id") or "?")] = violations
+    return out
+
+
+def assert_speaker_provenance(payloads: Iterable[Mapping[str, Any]], *, where: str) -> None:
+    """Refuse a collection-level write holding any span the write rule would refuse (P3/P4).
+
+    Stricter than :func:`assert_no_bare_flag_speakers`: a method with no score, calibration id
+    or reviewer behind it is refused too. Builders call it on the exact payloads about to be
+    sent; a non-zero count means a builder wrote a verified claim it cannot back.
+    """
+    bad = speaker_provenance_violations(payloads)
+    if bad:
+        sample = {k: v for k, v in list(bad.items())[:3]}
+        raise FirstPersonContextStoreError(
+            f"{len(bad)} span(s) in {where} claim speaker_verified=true without complete "
+            f"provenance (e.g. {sample}). Rebuild so the span is written "
+            "speaker_verified=false (pending_voice_check), or backfill real evidence first."
+        )
 
 
 # Qdrant point IDs must be UUIDs or unsigned ints; the contract IDs are sha256
@@ -157,6 +237,7 @@ class FirstPersonContextStore:
             raise FirstPersonContextStoreError("spans must be the parent's ordered_source_span_ids")
         for span in span_list:
             self._assert_belongs(parent, span)
+            self._assert_verified_has_method(span)
 
         points = [
             PointStruct(
@@ -175,6 +256,26 @@ class FirstPersonContextStore:
         )
         self._client.upsert(collection_name=self._collection, points=points, wait=True)
         return len(points)
+
+    @staticmethod
+    def _assert_verified_has_method(span: SourceSpan) -> None:
+        """A speaker claim is evidence only if the method that produced it is recorded.
+
+        732 live v10 spans were written verified with no method (builder at a65f26b4); the
+        rule existed only as a soft report in validate_release_grade(). Enforced at WRITE time
+        and not in the SourceSpan validator, because the harness reads live payloads into
+        SourceSpan and a model-level raise would crash on those 732 spans.
+
+        The rule is shared with the backfill writer (``domain.speaker_provenance``): a method
+        alone is not enough. An ECAPA span must carry its score, calibration id, model revision
+        and the threshold in force, and a human listen must carry its reviewer, time and audio
+        hash.
+        """
+        violations = speaker_write_violations(span.to_payload())
+        if violations:
+            raise FirstPersonContextStoreError(
+                f"{violations[0]}: {span.source_span_id} (all: {', '.join(violations)})"
+            )
 
     @staticmethod
     def _assert_belongs(parent: ParentUnit, span: SourceSpan) -> None:
@@ -213,22 +314,35 @@ class FirstPersonContextStore:
         conditions = [
             FieldCondition(key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)),
             FieldCondition(key="rights_cleared", match=MatchValue(value=True)),
+            FieldCondition(key="speaker_verified", match=MatchValue(value=True)),
         ]
         if guru_id and guru_id.lower() not in ("both", "all", ""):
             conditions.append(
                 FieldCondition(key="guru_id", match=MatchValue(value=guru_id.lower()))
             )
+        # Videos the owner rejected on the admin page are excluded here so they cannot crowd
+        # real candidates out of the top-k. An invalid decisions file fails closed: no results.
+        blocked_videos = blocked_video_ids_or_none()
+        if blocked_videos is None:
+            return []
+        must_not = (
+            [FieldCondition(key="video_id", match=MatchAny(any=sorted(blocked_videos)))]
+            if blocked_videos
+            else None
+        )
         concepts = _clean_concept_ids(concept_ids)
         if concepts:
             query_filter = Filter(
                 must=conditions,
+                must_not=must_not,
                 should=[
                     FieldCondition(key="topic_ids", match=MatchAny(any=concepts)),
                     FieldCondition(key="entity_ids", match=MatchAny(any=concepts)),
+                    FieldCondition(key="tags", match=MatchAny(any=concepts)),
                 ],
             )
         else:
-            query_filter = Filter(must=conditions)
+            query_filter = Filter(must=conditions, must_not=must_not)
 
         groups = self._query_groups(
             query_dense,
@@ -376,18 +490,94 @@ class FirstPersonContextStore:
             score=score,
         )
 
-    def enrich_to_parent_window(self, context: ParentContext) -> ParentContext:
-        """Re-hydrate a context to every span of its parent unit.
+    @overload
+    def enrich_to_parent_window(self, context_or_parent_id: ParentContext) -> ParentContext: ...
 
-        Retrieval truncates a parent to `spans_per_parent` spans, so a single-span
-        window can be missing the predecessor span that carries an antecedent
-        ("this truth", "it"). This returns the same ParentContext widened to the
-        parent's full ordered span list, preserving `hit_span_ids` and `score`.
-        Downstream bounding is the harness's `max_context_spans`, not this method.
+    @overload
+    def enrich_to_parent_window(
+        self, context_or_parent_id: str, span_id: str, window_size: int = 1
+    ) -> list[SourceSpan]: ...
+
+    def enrich_to_parent_window(
+        self,
+        context_or_parent_id: ParentContext | str,
+        span_id: str | None = None,
+        window_size: int = 1,
+    ) -> ParentContext | list[SourceSpan]:
+        """Re-hydrate a context or fetch surrounding spans of its parent unit (RAG-2).
+
+        When called with (context: ParentContext), re-hydrates the ParentContext to
+        all spans of its parent unit.
+        When called with (parent_unit_id: str, span_id: str, window_size: int), returns
+        a list[SourceSpan] centered on span_id with +- window_size adjacent spans.
 
         Raises FirstPersonContextStoreError when the stored parent/child records
         violate the fp-context-v1 contract.
         """
+        from app.metrics import ENRICHMENT_WINDOW_EXPANSIONS_TOTAL
+
+        # Case A: (parent_unit_id: str, span_id: str, window_size: int = 1)
+        if isinstance(context_or_parent_id, str):
+            parent_unit_id = context_or_parent_id
+            target_span_id = span_id or ""
+            # "No such span" is answered from the parent record WITHOUT a
+            # hydration attempt: passing an unknown id into fetch_parent_context
+            # raises the contract validator ("hit_span_ids must all be present in
+            # spans"), which made an ordinary not-found indistinguishable from a
+            # real index defect.
+            try:
+                parent_record = self._get_record(parent_point_id(parent_unit_id))
+            except Exception as exc:
+                raise FirstPersonContextStoreError(f"parent read failed: {exc}") from exc
+            if parent_record is None:
+                raise FirstPersonContextStoreError("parent record missing")
+            try:
+                parent_unit = ParentUnit.model_validate(
+                    _strip_record_type(parent_record.payload or {})
+                )
+            except Exception as exc:
+                raise FirstPersonContextStoreError(f"invalid parent payload: {exc}") from exc
+            if target_span_id not in parent_unit.ordered_source_span_ids:
+                ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="not_found").inc()
+                return []
+            try:
+                parent_context = self.fetch_parent_context(parent_unit_id, [target_span_id])
+                ordered_spans = list(parent_context.spans)
+                hit_idx = next(
+                    (i for i, s in enumerate(ordered_spans) if s.source_span_id == target_span_id),
+                    None,
+                )
+                if hit_idx is None:
+                    ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="not_found").inc()
+                    return []
+                start = max(0, hit_idx - window_size)
+                end = min(len(ordered_spans), hit_idx + window_size + 1)
+                result_spans = ordered_spans[start:end]
+                if len(result_spans) > 1:
+                    ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="expanded").inc()
+                else:
+                    ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="noop").inc()
+                return result_spans
+            except FirstPersonContextStoreError:
+                ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
+                raise
+            except Exception as exc:
+                # A transient read error is NOT "this parent has no such span".
+                # Returning [] made the two states indistinguishable; the caller
+                # (and any future one) must be able to tell a real empty window
+                # from a failed read, so the failure is raised with its cause.
+                logger.warning(
+                    "[ContextStore] enrich_to_parent_window read failed for %s: %s",
+                    parent_unit_id,
+                    exc,
+                )
+                ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
+                raise FirstPersonContextStoreError(
+                    f"enrichment window read failed for parent {parent_unit_id!r}: {exc}"
+                ) from exc
+
+        # Case B: (context: ParentContext)
+        context = context_or_parent_id
         # Reuses the single hydration path (fetch_parent_context) so there is no
         # second place that can diverge from the contract checks.
         try:
@@ -397,6 +587,7 @@ class FirstPersonContextStore:
                 context.score,
             )
         except FirstPersonContextStoreError:
+            ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
             raise
         except Exception as exc:  # a transient read error must not lose the hit
             logger.debug(
@@ -404,6 +595,7 @@ class FirstPersonContextStore:
                 context.parent.parent_unit_id,
                 exc,
             )
+            ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
             return context
 
         original_ids = {s.source_span_id for s in context.spans}
@@ -415,6 +607,7 @@ class FirstPersonContextStore:
                 len(original_ids),
                 len(widened_ids),
             )
+            ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="noop").inc()
             return context
         logger.debug(
             "[ContextStore] enrichment window widened %s: %d -> %d span(s)",
@@ -422,7 +615,46 @@ class FirstPersonContextStore:
             len(original_ids),
             len(widened_ids),
         )
+        ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="expanded").inc()
         return widened
+
+    def fetch_preceding_span(
+        self, video_id: str, before_start_ms: int
+    ) -> Optional[SourceSpan]:
+        """Fetch the immediate chronological predecessor span from the same video.
+
+        Used to resolve cross-parent antecedent coreferences when a retrieved parent unit
+        begins with an unresolved pronoun/demonstrative referent.
+        """
+        if not video_id or not isinstance(before_start_ms, int):
+            return None
+        scroll_filter = Filter(
+            must=[
+                FieldCondition(key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)),
+                FieldCondition(key="video_id", match=MatchValue(value=video_id)),
+            ]
+        )
+        try:
+            records, _ = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=scroll_filter,
+                limit=128,
+                with_payload=True,
+                with_vectors=False,
+            )
+            candidates = []
+            for r in records:
+                payload = _strip_record_type(r.payload or {})
+                start_ms = payload.get("start_ms")
+                if isinstance(start_ms, int) and start_ms < before_start_ms:
+                    candidates.append(payload)
+            if not candidates:
+                return None
+            best_payload = max(candidates, key=lambda p: p.get("start_ms", 0))
+            return SourceSpan.model_validate(best_payload)
+        except Exception as exc:
+            logger.debug("[ContextStore] fetch_preceding_span failed for %s: %s", video_id, exc)
+            return None
 
     # --------------------------------------------------------------- internal
     def points_servable(self, point_ids: list[str]) -> bool:
@@ -441,7 +673,7 @@ class FirstPersonContextStore:
         records = self._client.retrieve(
             collection_name=self._collection,
             ids=unique,
-            with_payload=["record_type", "rights_cleared", "speaker_verified"],
+            with_payload=["record_type", "rights_cleared", "speaker_verified", "video_id"],
             with_vectors=False,
         )
         if len(records) != len(unique):
@@ -452,6 +684,8 @@ class FirstPersonContextStore:
             if payload.get("record_type") != "retrieval_child":
                 return False
             if payload.get("speaker_verified") is not True:
+                return False
+            if video_is_blocked(payload.get("video_id")):
                 return False
             if need_rights and payload.get("rights_cleared") is not True:
                 return False

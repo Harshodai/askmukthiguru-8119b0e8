@@ -8,7 +8,10 @@ Performs automated hygiene for inactive users and stale transient data:
 4. Preserves Core Milestones: User profile settings and Second Brain Vault notes remain protected.
 
 Usage (run from the repository root):
-  backend/.venv/bin/python scripts/ops/cleanup_inactive_user_data.py [--dry-run] [--days-telemetry 90] [--days-inactivity 365]
+  backend/.venv/bin/python scripts/ops/cleanup_inactive_user_data.py [--apply] [--days-telemetry 90] [--days-inactivity 365]
+
+Destructive only with --apply; the default is a dry run (--dry-run is accepted
+and is the default, so an unflagged invocation cannot purge).
 
 Exit status: 0 only when every cleanup step succeeded (a step with zero
 deletions is a success); 1 when any step raised — exceptions propagate out of
@@ -22,6 +25,7 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
+from typing import Any
 
 # Ensure backend/ is on path (this copy lives at <repo>/scripts/ops/)
 sys.path.insert(0, os.path.abspath(os.path.join(__file__, "..", "..", "..", "backend")))
@@ -83,7 +87,9 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
         qdrant_api_key = os.environ.get("QDRANT_API_KEY", "")
         client = QdrantClient(url=settings.qdrant_url, api_key=qdrant_api_key or None, timeout=30)
         supabase = create_client(settings.supabase_url, settings.supabase_key)
-        collections = [c.name for c in client.get_collections().collections if "memory" in c.name]
+        # "memor" matches both "memory" and "memories" (canonical_memories,
+        # user_memories); the plain "memory" substring matched neither.
+        collections = [c.name for c in client.get_collections().collections if "memor" in c.name]
 
         purged = 0
         cutoff = (datetime.utcnow() - timedelta(days=days_inactivity)).isoformat()
@@ -176,11 +182,17 @@ def cleanup_stale_qdrant_memories(days_inactivity: int = 365, dry_run: bool = Fa
 
 
 def cleanup_telemetry_logs(
-    days_retention: int = TELEMETRY_RETENTION_DAYS, dry_run: bool = False
+    days_retention: int = TELEMETRY_RETENTION_DAYS,
+    dry_run: bool = False,
+    client: Any = None,
 ) -> int:
     """Purge telemetry logs older than days_retention from Supabase."""
     try:
-        supabase = create_client(settings.supabase_url, settings.supabase_key)
+        supabase = (
+            client
+            if client is not None
+            else create_client(settings.supabase_url, settings.supabase_key)
+        )
         cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
         total = 0
         failed_tables: list[str] = []
@@ -260,9 +272,99 @@ def cleanup_anonymous_session_summaries(days_retention: int = 30, dry_run: bool 
         raise
 
 
+def cleanup_staging_quality_queue(
+    days_retention: int = 90,
+    dry_run: bool = False,
+    client: Any = None,
+) -> int:
+    """Purge staging_quality_queue rows older than days_retention days."""
+    try:
+        supabase = (
+            client
+            if client is not None
+            else create_client(settings.supabase_url, settings.supabase_key)
+        )
+        cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
+        if dry_run:
+            count_result = (
+                supabase.table("staging_quality_queue")
+                .select("id", count="exact")
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = getattr(count_result, "count", 0) or (
+                len(count_result.data) if count_result.data else 0
+            )
+        else:
+            result = (
+                supabase.table("staging_quality_queue")
+                .delete(count="exact", returning=ReturnMethod.minimal)
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = result.count if hasattr(result, "count") else 0
+        print(f"✓ Staging quality queue: purged {purged} rows older than {days_retention} days.")
+        return purged
+    except Exception as e:
+        print(f"ERROR: Staging quality queue cleanup failed ({e})")
+        raise
+
+
+def cleanup_corpus_gate_rejections(
+    days_retention: int = 90,
+    dry_run: bool = False,
+    client: Any = None,
+) -> int:
+    """Purge corpus_gate_rejections rows older than days_retention days.
+
+    NOT part of automatic retention (X40: rejections must stay recorded). Call only
+    for an explicit, archived expiry.
+    """
+    try:
+        supabase = (
+            client
+            if client is not None
+            else create_client(settings.supabase_url, settings.supabase_key)
+        )
+        cutoff = (datetime.utcnow() - timedelta(days=days_retention)).isoformat()
+        if dry_run:
+            count_result = (
+                supabase.table("corpus_gate_rejections")
+                .select("id", count="exact")
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = getattr(count_result, "count", 0) or (
+                len(count_result.data) if count_result.data else 0
+            )
+        else:
+            result = (
+                supabase.table("corpus_gate_rejections")
+                .delete(count="exact", returning=ReturnMethod.minimal)
+                .lt("created_at", cutoff)
+                .execute()
+            )
+            purged = result.count if hasattr(result, "count") else 0
+        print(f"✓ Corpus gate rejections: purged {purged} rows older than {days_retention} days.")
+        return purged
+    except Exception as e:
+        print(f"ERROR: Corpus gate rejections cleanup failed ({e})")
+        raise
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Clean up inactive user data & stale memories")
-    parser.add_argument("--dry-run", action="store_true", help="Print changes without purging")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print changes without purging (the default)",
+    )
+    mode.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually purge. Without it nothing is deleted.",
+    )
     parser.add_argument(
         "--days-telemetry", type=int, default=90, help="Days retention for telemetry logs"
     )
@@ -270,6 +372,7 @@ def main() -> int:
         "--days-inactivity", type=int, default=365, help="Days retention for inactive memories"
     )
     args = parser.parse_args()
+    args.dry_run = not args.apply
 
     print("=== Starting Inactive User Data & Retention Cleanup ===")
     print(f"Mode: {'DRY RUN' if args.dry_run else 'LIVE PURGE'}")
@@ -296,6 +399,15 @@ def main() -> int:
             ),
         ),
         ("AnonymousSummaries", lambda: cleanup_anonymous_session_summaries(dry_run=args.dry_run)),
+        (
+            "StagingQualityQueue",
+            lambda: cleanup_staging_quality_queue(
+                days_retention=args.days_telemetry, dry_run=args.dry_run
+            ),
+        ),
+        # corpus_gate_rejections is not a default step: X40 requires rejections
+        # to stay recorded. cleanup_corpus_gate_rejections() remains callable for
+        # an explicit, archived expiry only.
     )
     counts: dict[str, int] = {}
     failed_steps: list[str] = []
@@ -311,7 +423,8 @@ def main() -> int:
     print(
         f"\nCleanup {'FAILED' if failed_steps else 'complete'} in {elapsed:.2f}s. Total purged: "
         f"Redis={counts['Redis']}, Qdrant={counts['QdrantMemory']}, "
-        f"Telemetry={counts['Telemetry']}, AnonymousSummaries={counts['AnonymousSummaries']}"
+        f"Telemetry={counts['Telemetry']}, AnonymousSummaries={counts['AnonymousSummaries']}, "
+        f"StagingQualityQueue={counts['StagingQualityQueue']}"
     )
     if failed_steps:
         print(f"ERROR: {len(failed_steps)} cleanup step(s) failed: {', '.join(failed_steps)}")

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
 from celery import Task
@@ -95,6 +96,15 @@ class AsyncTask(Task):
         return self._loop
 
     def run_async(self, coro):
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if running_loop and running_loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(asyncio.run, coro).result()
         return self.loop.run_until_complete(coro)
 
 
@@ -582,3 +592,71 @@ def ingest_first_person_video_task(
             video_url=video_url,
         )
         raise
+
+
+@celery_app.task(name="tasks.ingest_tasks.sweep_stale_ingest_jobs")
+def sweep_stale_ingest_jobs(timeout_minutes: int = 45, client: Any = None) -> list[str]:
+    """Sweep stuck running/processing ingest jobs whose heartbeat is older than timeout_minutes.
+
+    Flips matching jobs to 'failed' with error message 'stale_worker_heartbeat_timeout'.
+    Returns list of swept job IDs.
+    """
+    cutoff = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
+
+    if client is None:
+        try:
+            from app.config import settings
+
+            if not settings.supabase_url or not settings.supabase_key:
+                logger.warning("Supabase credentials not configured; skipping sweep")
+                return []
+            from supabase import create_client
+
+            client = create_client(settings.supabase_url, settings.supabase_key)
+        except Exception as e:
+            logger.warning(f"Failed to initialize Supabase client for sweep: {e}")
+            return []
+
+    swept_job_ids = []
+    try:
+        # "Z" form, not isoformat()'s "+00:00": an unescaped "+" inside a PostgREST
+        # `or=` expression decodes as a space and the request is rejected (the
+        # outer except would then turn that into a silent no-op sweep).
+        cutoff_z = cutoff.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        # Running/processing jobs with a stale heartbeat, OR a NULL heartbeat
+        # (worker died before its first beat; `NULL < cutoff` is NULL, so a plain
+        # .lt() never sees it) whose created_at is itself older than the cutoff.
+        resp = (
+            client.table("ingest_jobs")
+            .select("id, status, heartbeat_at, started_at, created_at")
+            .in_("status", ["running", "processing"])
+            .or_(f"heartbeat_at.lt.{cutoff_z},and(heartbeat_at.is.null,created_at.lt.{cutoff_z})")
+            .execute()
+        )
+        stale_jobs = resp.data or []
+
+        now_iso = datetime.now(UTC).isoformat()
+        for job in stale_jobs:
+            job_id = job.get("id")
+            if not job_id:
+                continue
+            try:
+                client.table("ingest_jobs").update(
+                    {
+                        "status": "failed",
+                        "error_message": "stale_worker_heartbeat_timeout",
+                        "completed_at": now_iso,
+                        "updated_at": now_iso,
+                    }
+                ).eq("id", job_id).execute()
+                swept_job_ids.append(str(job_id))
+            except Exception as job_err:
+                # One bad row must not leave the remaining stale jobs unswept.
+                logger.warning(f"Failed to sweep ingest job {job_id}: {job_err}")
+
+        if swept_job_ids:
+            logger.info(f"Swept {len(swept_job_ids)} stale ingest jobs: {swept_job_ids}")
+    except Exception as e:
+        logger.warning(f"Error sweeping stale ingest jobs: {e}")
+
+    return swept_job_ids

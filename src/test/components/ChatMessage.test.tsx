@@ -100,9 +100,10 @@ describe('ChatMessage (regression)', () => {
     vi.clearAllMocks();
   });
 
-  it('renders guru message content and sparkle avatar', () => {
+  it('renders guru message content and portrait avatar of Sri Preethaji & Sri Krishnaji', () => {
     render(<ChatMessage message={makeGuruMessage()} />, { wrapper });
     expect(screen.getByText(/Welcome to the beautiful state/)).toBeInTheDocument();
+    expect(screen.getByAltText(/Sri Preethaji & Sri Krishnaji/i)).toBeInTheDocument();
   });
 
   it('renders user message content with bubble styling', () => {
@@ -198,6 +199,41 @@ describe('ChatMessage (regression)', () => {
     expect(screen.getByText('Awareness and the Beautiful State')).toBeInTheDocument();
     expect(screen.getByText('Sri Preethaji')).toBeInTheDocument();
     expect(screen.getByText(/A source-backed teaching excerpt/)).toBeInTheDocument();
+  });
+
+  it('suppresses duplicate TeachingGroundingCard and duplicate prose quote when GuruTeachingCard is present', () => {
+    const verbatimQuote = 'To us every human experience is sacred, we see that there is one human experience.';
+    render(
+      <ChatMessage
+        message={makeGuruMessage({
+          content: `Related, not a direct answer:\n\n"${verbatimQuote}"`,
+          citations: [
+            {
+              url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+              title: 'Sacred Oneness Discourse',
+              quote: verbatimQuote,
+              speaker: 'Sri Preethaji',
+              speakerVerified: true,
+              timestampSeconds: 3,
+            },
+          ],
+          citationsVerified: true,
+          verification: { direct: false, passed: true },
+        })}
+      />,
+      { wrapper },
+    );
+
+    // GuruTeachingCard renders as the hero card
+    expect(screen.getByTestId('guru-teaching-card')).toBeInTheDocument();
+    expect(screen.getByTestId('guru-teaching-quote')).toHaveTextContent(verbatimQuote);
+
+    // Duplicate TeachingGroundingCard is suppressed
+    expect(screen.queryByTestId('teaching-grounding')).not.toBeInTheDocument();
+
+    // Verbatim quote is not repeated a second time in markdown prose
+    const quotes = screen.getAllByText((content) => content.includes(verbatimQuote));
+    expect(quotes).toHaveLength(1);
   });
 
   it('renders citations section with source count', () => {
@@ -613,6 +649,16 @@ describe('ChatMessage personalize this teaching (T-B14)', () => {
   it('shows no button unless the parent allows personalization', () => {
     render(<ChatMessage message={makeGuruMessage({ citations: [clip] })} />, { wrapper });
     expect(screen.queryByTestId('personalize-teaching')).not.toBeInTheDocument();
+  });
+
+  it('says what personalization uses and links to the saved memory', () => {
+    render(
+      <ChatMessage message={makeGuruMessage({ citations: [clip] })} onPersonalizeTeaching={vi.fn()} />,
+      { wrapper },
+    );
+    expect(screen.getByTestId('personalize-note')).toHaveTextContent('Uses only memories you chose to save.');
+    expect(screen.getByRole('button', { name: 'Review what is saved' })).toBeInTheDocument();
+    expect(screen.getByTestId('personalize-teaching')).toHaveAttribute('aria-describedby');
   });
 
   it('shows the button and sends the served clip id and start second', () => {

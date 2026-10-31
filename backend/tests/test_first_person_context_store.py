@@ -59,6 +59,16 @@ def span(n=0, **overrides):
         "speaker_id": "krishnaji",
         "speaker_role": SpeakerRole.GURU,
         "speaker_verified": True,
+        "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
+        # A verified span records what produced the claim (write rule, P2).
+        "voice_model_revision": "rev-test",
+        "voice_score": 0.71,
+        "voice_margin": 0.40,
+        "voice_threshold_applied": {"cosine_floor": 0.2828, "margin_threshold": 0.05},
+        "voice_calibration_id": "cal-test",
+        "voice_window_check": "pass",
+        "voice_verified_at": "2026-10-31T00:00:00+00:00",
+        "speaker_verification_status": "verified",
         "source_transcript_text": text,
         "verbatim_text": text,
         "transcript_hash": HASH,
@@ -349,3 +359,167 @@ def test_every_harness_filter_field_has_a_declared_payload_index():
         "entity_ids",
     ):
         assert field in declared, f"{field} is filtered but has no declared payload index"
+
+
+def test_upsert_refuses_verified_without_method():
+    bad = span(0, speaker_verified=True, voice_verification_method=None)
+    client = FakeClient()
+    with pytest.raises(FirstPersonContextStoreError, match="speaker_verified_without_method"):
+        store(client).upsert(parent([bad]), [bad])
+    assert client.points == {}  # nothing was written
+
+
+def test_upsert_accepts_verified_with_method_and_unverified_without():
+    ok = span(0, speaker_verified=True, voice_verification_method="ecapa_voxceleb_span_slice_v2")
+    pending = span(1, speaker_verified=False, voice_verification_method=None)
+    client = FakeClient()
+    assert store(client).upsert(parent([ok, pending]), [ok, pending]) == 3
+
+
+def test_a_live_payload_with_the_defect_can_still_be_read_back():
+    """The check is write-time only: the 732 live spans must keep loading for serving."""
+    from domain.first_person_context import SourceSpan
+
+    legacy = span(0, speaker_verified=True, voice_verification_method=None)
+    from services.first_person_context_store import _strip_record_type
+
+    restored = SourceSpan.model_validate(_strip_record_type(legacy.to_payload()))
+    assert restored.speaker_verified is True and restored.voice_verification_method is None
+
+
+# ── I3: a promotion is refused as a whole, before any write ──────────────────
+
+
+def test_a_manifest_with_one_bare_flag_span_refuses_the_whole_promotion():
+    from services.first_person_context_store import (
+        FirstPersonContextStoreError,
+        assert_no_bare_flag_speakers,
+    )
+
+    good = span(0, speaker_verified=True, voice_verification_method="ecapa_voxceleb_span_slice_v2")
+    bad = span(1, speaker_verified=True, voice_verification_method=None)
+    payloads = [good.to_payload(), bad.to_payload()]
+    assert [p.get("record_type") for p in payloads] == ["retrieval_child", "retrieval_child"]
+    with pytest.raises(FirstPersonContextStoreError, match="1 span"):
+        assert_no_bare_flag_speakers(payloads, where="test")
+    assert_no_bare_flag_speakers([good.to_payload()], where="test")  # no raise
+
+
+def test_unverified_spans_and_parents_are_not_bare_flag_violations():
+    from services.first_person_context_store import assert_no_bare_flag_speakers
+
+    pending = span(0, speaker_verified=False, voice_verification_method=None)
+    parent_payload = {"record_type": "parent_unit", "parent_unit_id": "p1"}
+    assert_no_bare_flag_speakers([pending.to_payload(), parent_payload], where="test")
+
+
+def test_the_v9_builder_refuses_before_creating_the_target_collection(monkeypatch):
+    """A guard that runs after create_collection would still have mutated the cluster."""
+    import scripts.ops.build_fp_context_from_v9 as build
+    from services.first_person_context_store import FirstPersonContextStoreError
+
+    manifest = [
+        {
+            "record_type": "retrieval_child",
+            "source_span_id": "a" * 64,
+            "speaker_verified": True,
+            "voice_verification_method": None,
+        }
+    ]
+    with pytest.raises(FirstPersonContextStoreError, match="speaker_verified=true"):
+        build._apply(manifest, [], qdrant_url="http://127.0.0.1:1", target="never_created")
+
+
+@pytest.mark.parametrize(
+    "overrides,reason",
+    [
+        ({"voice_score": None}, "ecapa_missing:voice_score"),
+        ({"voice_calibration_id": None}, "ecapa_missing:voice_calibration_id"),
+        ({"voice_model_revision": None}, "ecapa_missing:voice_model_revision"),
+        ({"voice_threshold_applied": None}, "ecapa_missing:voice_threshold_applied"),
+        ({"voice_score": 0.1}, "ecapa_score_below_floor"),
+        ({"voice_window_check": "fail"}, "window_check_failed"),
+        ({"voice_verification_method": "human_listen_v1"}, "human_missing:reviewer_id"),
+        ({"voice_verification_method": "trust_me"}, "voice_method_unknown:trust_me"),
+    ],
+)
+def test_upsert_refuses_each_incomplete_speaker_record_and_issues_no_write(overrides, reason):
+    """P2: a method alone is not evidence. One refusal per rule; the client sees nothing."""
+    bad = span(0, **overrides)
+    client = FakeClient()
+    with pytest.raises(FirstPersonContextStoreError, match=reason):
+        store(client).upsert(parent([bad]), [bad])
+    assert client.points == {}
+
+
+def test_upsert_accepts_a_complete_human_listen_record():
+    ok = span(
+        0,
+        voice_verification_method="human_listen_v1",
+        voice_score=None,
+        voice_calibration_id=None,
+        voice_model_revision=None,
+        voice_threshold_applied=None,
+        voice_window_check=None,
+        speaker_verification_status="verified",
+        reviewer_id="reviewer-1",
+        reviewed_at="2026-10-31T10:00:00+00:00",
+        reviewed_audio_sha256="a" * 64,
+        review_choice="sri_krishnaji",
+        start_ms=0,
+        end_ms=3000,
+    )
+    assert store(FakeClient()).upsert(parent([ok]), [ok]) == 2
+
+
+@pytest.mark.parametrize(
+    ("overrides", "reason"),
+    [
+        ({"review_choice": "host_or_interviewer"}, "human_choice_not_teacher"),
+        ({"review_choice": "sri_preethaji"}, "human_choice_not_teacher"),
+        ({"review_choice": "unclear"}, "human_choice_not_teacher"),
+        ({"end_ms": 1900}, "human_clip_too_short"),
+    ],
+)
+def test_upsert_refuses_a_human_listen_that_does_not_confirm_the_teacher(overrides, reason):
+    fields = {
+        "voice_verification_method": "human_listen_v1",
+        "voice_score": None,
+        "voice_calibration_id": None,
+        "voice_model_revision": None,
+        "voice_threshold_applied": None,
+        "voice_window_check": None,
+        "speaker_verification_status": "verified",
+        "reviewer_id": "reviewer-1",
+        "reviewed_at": "2026-10-31T10:00:00+00:00",
+        "reviewed_audio_sha256": "a" * 64,
+        "review_choice": "sri_krishnaji",
+        "start_ms": 0,
+        "end_ms": 3000,
+    }
+    bad = span(0, **{**fields, **overrides})
+    client = FakeClient()
+    with pytest.raises(FirstPersonContextStoreError, match=reason):
+        store(client).upsert(parent([bad]), [bad])
+    assert client.points == {}
+
+
+def test_upsert_refuses_a_new_write_claiming_the_legacy_centroid_method():
+    bad = span(0, voice_verification_method="ecapa_voxceleb_centroid_v1")
+    client = FakeClient()
+    with pytest.raises(FirstPersonContextStoreError, match="legacy_method_refused"):
+        store(client).upsert(parent([bad]), [bad])
+    assert client.points == {}
+
+
+def test_the_collection_level_check_reports_violators_by_span_without_loading_the_model():
+    from services.first_person_context_store import speaker_provenance_violations
+
+    payloads = [
+        span(0).to_payload(),
+        span(1, voice_score=None).to_payload(),
+        span(2, speaker_verified=False, voice_verification_method=None).to_payload(),
+        {"record_type": "parent_unit", "speaker_verified": True},
+    ]
+    found = speaker_provenance_violations(payloads)
+    assert list(found.values()) == [["ecapa_missing:voice_score"]]

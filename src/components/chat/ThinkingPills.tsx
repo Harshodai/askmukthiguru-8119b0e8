@@ -174,8 +174,8 @@ export const ThinkingPills = ({
         type="button"
         onClick={() => hasSteps && setExpanded((v) => !v)}
         disabled={!hasSteps}
-        className={`group inline-flex items-center gap-2 min-h-[32px] text-[15px] leading-5 font-sans font-normal text-muted-foreground ${
-          hasSteps ? 'cursor-pointer' : 'cursor-default'
+        className={`group inline-flex items-center gap-2 min-h-[32px] px-2.5 py-1 rounded-full bg-ojas/[0.04] border border-ojas/15 shadow-[0_0_10px_hsl(var(--ojas)/0.08)] text-[14px] leading-5 font-sans font-normal text-muted-foreground/90 transition-all ${
+          hasSteps ? 'cursor-pointer hover:bg-ojas/[0.08] hover:border-ojas/25 hover:text-foreground' : 'cursor-default'
         }`}
         aria-expanded={expanded}
         aria-label={t('chat.toggleThinking', 'Toggle thinking details')}

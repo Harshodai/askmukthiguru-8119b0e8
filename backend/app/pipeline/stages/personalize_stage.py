@@ -166,7 +166,7 @@ def build_personalize_citation(clip: dict[str, Any]) -> dict[str, Any]:
     integrity gate, so ``start_ms``/``end_ms`` are required ints: a malformed
     clip raises here instead of becoming a zero-length citation.
     """
-    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S
+    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S, _speaker_verification
     from services.quote_fidelity import UNTITLED_LINK_LABEL
 
     start_ms = int(clip["start_ms"])
@@ -184,8 +184,11 @@ def build_personalize_citation(clip: dict[str, Any]) -> dict[str, Any]:
         "end_ms": end_ms,
         "timestamp_seconds": start_sec,
         "speaker": clip.get("speaker"),
-        # Provenance claim copied from the stored clip, never inferred.
-        "speaker_verified": clip.get("speaker_verified") is True,
+        # Provenance claim copied from the stored clip, never inferred. A bare
+        # True with no recorded voice_verification_method is a claim without
+        # evidence and reads as unverified (corpus quality-scorecard rule).
+        "speaker_verified": _speaker_verification(clip)[0],
+        "voice_verification_method": _speaker_verification(clip)[1],
         "channel": clip.get("channel"),
         "title": clip.get("title") or clip.get("video_title") or UNTITLED_LINK_LABEL,
         "url": clip_url,
@@ -261,12 +264,57 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
         _quality_allowlist,
         _quality_blocklist,
     )
+    from services.first_person_serving_contract import legacy_slot_aliases_context
+
+    # v10-only mode: the legacy slot names the fp-context collection, so there is
+    # no legacy clip store to look a clip up in. Decline without a Qdrant read
+    # rather than rely on the context records lacking `first_person_eligible`.
+    if legacy_slot_aliases_context(
+        settings.first_person_collection, settings.first_person_context_collection
+    ):
+        return None
 
     clip = _store_for_request().get_clip_by_video_and_start(
         ref["video_id"],
         ref["timestamp_seconds"],
         tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
     )
+    if not isinstance(clip, dict) and getattr(settings, "first_person_context_collection", None):
+        try:
+            from qdrant_client.http import models
+
+            col = settings.first_person_context_collection
+            target_ms = int(round(float(ref["timestamp_seconds"]) * 1000.0))
+            tolerance_ms = int(round(PERSONALIZE_CLIP_TOLERANCE_S * 1000.0))
+            store = _store_for_request()
+            pts, _ = store._client.scroll(
+                collection_name=col,
+                scroll_filter=models.Filter(
+                    must=[
+                        models.FieldCondition(key="video_id", match=models.MatchValue(value=ref["video_id"])),
+                    ]
+                ),
+                limit=50,
+                with_payload=True,
+            )
+            candidates = []
+            for p in pts or []:
+                pl = dict(p.payload or {})
+                if not pl.get("verbatim_text"):
+                    continue
+                sms = pl.get("start_ms")
+                if sms is not None and abs(sms - target_ms) <= tolerance_ms:
+                    pl["point_id"] = str(p.id)
+                    if not pl.get("speaker"):
+                        pl["speaker"] = "Sri Preethaji" if pl.get("guru_id") == "preethaji" else "Sri Krishnaji"
+                    pl["transcript_hash"] = hashlib.sha256(pl["verbatim_text"].encode("utf-8")).hexdigest()
+                    candidates.append((abs(sms - target_ms), pl))
+            if candidates:
+                candidates.sort(key=lambda x: x[0])
+                clip = candidates[0][1]
+        except Exception as exc:
+            logger.warning("[PersonalizeStage] Context collection clip lookup failed: %s", exc)
+
     if not isinstance(clip, dict):
         return None
     clip_id = str(clip.get("point_id"))
@@ -431,6 +479,8 @@ class PersonalizeStage(Stage):
             state = ctx.state
         # Stash only the looked-up clip's bounded identity fields — never
         # client text. The graph router and GraphStage read this marker.
+        from services.first_person_pipeline import _speaker_verification
+
         state["personalize_clip"] = {
             "point_id": clip.get("point_id"),
             "video_id": clip.get("video_id"),
@@ -438,7 +488,8 @@ class PersonalizeStage(Stage):
             "end_ms": clip.get("end_ms"),
             "speaker": clip.get("speaker"),
             "teacher_id": clip.get("teacher_id"),
-            "speaker_verified": clip.get("speaker_verified"),
+            "speaker_verified": _speaker_verification(clip)[0],
+            "voice_verification_method": _speaker_verification(clip)[1],
             "channel": clip.get("channel"),
             "title": clip.get("title") or clip.get("video_title"),
             "verbatim_text": str(clip.get("verbatim_text") or ""),

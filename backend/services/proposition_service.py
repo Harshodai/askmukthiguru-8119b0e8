@@ -1,9 +1,10 @@
 """
-Mukthi Guru — Proposition Service
+Mukthi Guru — Proposition Service (DEPRECATED / RETIRED).
 
-Implements Proposition Chunking.
-Decomposes larger text chunks into atomic, standalone facts (propositions) using the LLM.
-Adds intelligence to dynamically check document size thresholds before applying LLM-based parsing.
+Notice: Proposition chunking is retired per Decision D3 and Phase 3 Reindexability
+specifications. Unified Chunker Protocol (ingest/chunker_protocol.py) is the standard.
+This service is maintained as a minimal backward-compatibility stub for legacy
+harnesses and existing tests.
 """
 
 from __future__ import annotations
@@ -11,7 +12,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.config import settings
 from services.text_quality_filter import find_artifact
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,8 @@ logger = logging.getLogger(__name__)
 
 class PropositionService:
     """
-    Service for splitting text into independent, atomic propositions using LLM inference.
+    Deprecated service for splitting text into atomic propositions using LLM inference.
+    Retired per Decision D3.
     """
 
     def __init__(self, ollama_service: Any) -> None:
@@ -27,29 +28,16 @@ class PropositionService:
         Initialize with the injected LLM service (Ollama or Sarvam).
         """
         self._llm = ollama_service
-        logger.info("Proposition Service initialized")
+        logger.info("Proposition Service initialized (deprecated)")
 
     def should_apply_propositions(self, doc_text: str) -> bool:
         """
-        Determine if proposition chunking should be applied to this document.
+        Proposition chunking is retired (Decision D3): always False.
 
-        Rules:
-          - If use_proposition_chunking is "always", return True.
-          - If use_proposition_chunking is "never", return False.
-          - If "auto", return True only if length >= settings.proposition_char_limit.
+        ``use_proposition_chunking`` can no longer re-enable it. ``extract_propositions``
+        has no production caller and stays only for legacy harnesses.
         """
-        strategy = settings.use_proposition_chunking.lower()
-        if strategy == "never":
-            return False
-        if strategy == "always":
-            return True
-
-        doc_len = len(doc_text)
-        is_above_threshold = doc_len >= settings.proposition_char_limit
-        logger.info(
-            f"Proposition strategy auto-check: len={doc_len}, limit={settings.proposition_char_limit}. apply={is_above_threshold}"
-        )
-        return is_above_threshold
+        return False
 
     async def extract_propositions(self, text: str) -> list[str]:
         """

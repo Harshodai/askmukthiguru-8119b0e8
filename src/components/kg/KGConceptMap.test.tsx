@@ -83,6 +83,44 @@ describe('KGConceptMap', () => {
     expect(screen.queryByText(/example map/i)).not.toBeInTheDocument();
   });
 
+  it('links a memory node to its original conversation and says "Source unavailable" when unproven', async () => {
+    const convId = '3f2b8c1e-9a4d-4e6f-8a1b-2c3d4e5f6a7b';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              nodes: [
+                { id: 'memory:m1', label: 'Linked memory', type: 'Memory', source_ref: { kind: 'conversation', id: convId } },
+                { id: 'memory:m2', label: 'Legacy memory', type: 'Memory', source_ref: null },
+                { id: 'concept:c1', label: 'Stillness', type: 'Concept' },
+              ],
+              edges: [],
+            }),
+        }),
+      ),
+    );
+
+    renderWithI18n(<KGConceptMap />);
+    await waitFor(() => expect(screen.getByLabelText('Linked memory')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText('Linked memory'));
+    const links = await screen.findAllByTestId('memory-source-link');
+    expect(links[0].getAttribute('href')).toContain(`/chat?conversation=${convId}`);
+    expect(screen.queryByTestId('memory-source-unavailable')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Legacy memory'));
+    expect((await screen.findAllByTestId('memory-source-unavailable')).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('memory-source-link')).not.toBeInTheDocument();
+
+    // Public ontology concepts have no user-owned source, so no source row at all.
+    fireEvent.click(screen.getByLabelText('Stillness'));
+    expect(screen.queryByTestId('memory-source-link')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('memory-source-unavailable')).not.toBeInTheDocument();
+  });
+
   it('passes the focused search query to the personal endpoint', async () => {
     const fetchMock = vi.fn((..._args: any[]) =>
       Promise.resolve({

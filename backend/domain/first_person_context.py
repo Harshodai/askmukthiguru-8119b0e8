@@ -201,9 +201,34 @@ class SourceSpan(BaseModel):
     coreference_chain_ids: tuple[str, ...] = ()
     topic_ids: tuple[str, ...] = ()
     facet_ids: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    category: str | None = None
     speech_act: str | None = None
     answer_role: AnswerRole = AnswerRole.DIRECT
     voice_verification_method: str | None = None
+    # Speaker-verification provenance (P1). Flat keys so Qdrant can filter on each. All
+    # optional: payloads written before these existed must still load, and the rule that a
+    # verified span carries them is enforced at WRITE time (domain.speaker_provenance), not
+    # here, so the live spans that predate it stay readable until the backfill.
+    voice_model_revision: str | None = None
+    voice_score: float | None = None
+    voice_margin: float | None = None
+    # {"cosine_floor": float, "margin_threshold": float} in force when the verdict was made.
+    voice_threshold_applied: dict[str, float] | None = None
+    voice_calibration_id: str | None = None
+    voice_window_check: Literal["pass", "fail", "no_diarization"] | None = None
+    voice_verified_at: str | None = None
+    speaker_verification_status: (
+        Literal["verified", "ecapa_failed", "pending_voice_check", "pending_listen"] | None
+    ) = None
+    # Human listen (method ``human_listen_v1``) only.
+    reviewer_id: str | None = None
+    reviewed_at: str | None = None
+    review_guidelines_version: str | None = None
+    reviewed_audio_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    review_choice: (
+        Literal["sri_krishnaji", "sri_preethaji", "host_or_interviewer", "other", "unclear"] | None
+    ) = None
     asr_engine: str | None = None
     asr_model_version: str | None = None
     # ISO 639-1 code of the language SPOKEN in this span, from a language-ID step (audit
@@ -325,6 +350,9 @@ class ParentUnit(BaseModel):
     completeness_status: CompletenessStatus
     host_question_span_id: str | None = None
     parent_version: str = PARENT_VERSION
+    topic_ids: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    category: str | None = None
 
     @model_validator(mode="after")
     def _ordered_spans_unique(self) -> ParentUnit:

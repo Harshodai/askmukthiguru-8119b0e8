@@ -74,10 +74,23 @@ def test_citations_verified_true_without_hallucination_is_allowed():
         final_answer="answer",
         hallucination_flag=False,
         faithfulness_score=0.9,
+        citations=[{"source_url": "https://example.com"}],
         citations_verified=True,
         verification={"passed": True, "method": "x", "citations_verified": True},
     )
     assert result.citations_verified is True
+
+
+def test_empty_citations_with_citations_verified_true_is_coerced():
+    result = PipelineResult(
+        final_answer="answer",
+        hallucination_flag=False,
+        citations=[],
+        citations_verified=True,
+        verification={"passed": True, "method": "x", "citations_verified": True},
+    )
+    assert result.citations_verified is False
+    assert result.verification["citations_verified"] is False
 
 
 def test_bounded_comparison_short_circuit_no_longer_claims_verified_citations():

@@ -38,13 +38,20 @@ logger = logging.getLogger(__name__)
 
 
 def _try_set_tenant_from_auth_header(request: Request) -> None:
-    """Best-effort: peek at the Authorization bearer token to extract the
-    tenant_id claim and populate TenantContext before _chat_bucket_key runs.
+    """Best-effort: read a VERIFIED bearer token's tenant_id claim and populate
+    TenantContext before _chat_bucket_key runs.
 
-    This is NOT an access-control check — the claim is read without signature
-    verification solely to scope the rate-limit bucket to the authenticated
-    tenant.  On any failure the context is left unchanged and _chat_bucket_key
-    falls back to the existing default-tenant behaviour.
+    This is NOT an access-control check, but it must not partition the rate-limit
+    bucket on attacker-chosen data either. It used to decode the token with
+    ``verify_signature=False``, so anyone could send ``Authorization: Bearer
+    <unsigned JWT with tenant_id=X>`` and rotate X to get a fresh bucket per
+    request — the per-IP limit enforced nothing. Only an HS256 token signed with
+    the configured ``jwt_secret`` is trusted here.
+
+    Asymmetric (Supabase ES256/RS256) tokens carry no ``tenant_id`` claim, so
+    ignoring them changes no effective bucket: those requests already resolved to
+    the configured default tenant. On any failure the context is left unchanged
+    and _chat_bucket_key falls back to the default-tenant behaviour.
     """
     try:
         auth_header = request.headers.get("Authorization", "")
@@ -53,14 +60,23 @@ def _try_set_tenant_from_auth_header(request: Request) -> None:
         token = auth_header[len("bearer ") :].strip()
         if not token:
             return
+        from app.config import settings
+
+        secret = str(getattr(settings, "jwt_secret", "") or "")
+        if not secret:
+            return
         import jwt as pyjwt  # PyJWT
 
-        # Decode without verification — we only need the tenant_id claim.
-        payload = pyjwt.decode(token, options={"verify_signature": False})
-        from app.config import get_settings
+        # Signature + expiry verified; audience/issuer are not part of this
+        # bucket's contract (the route's own auth dependency checks them).
+        payload = pyjwt.decode(
+            token,
+            secret,
+            algorithms=["HS256"],
+            options={"verify_aud": False, "verify_iss": False},
+        )
         from services.tenant_context import TenantContext
 
-        settings = get_settings()
         tenant_id = payload.get("tenant_id") or getattr(settings, "default_tenant_id", "default")
         if isinstance(tenant_id, str) and tenant_id.strip():
             TenantContext.set(tenant_id.strip())

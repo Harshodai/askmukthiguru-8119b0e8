@@ -55,12 +55,15 @@ from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match
 from ingest.verbatim.boundaries import boundary_defects
 from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
+from services.first_person_context_selector import select_span_ids
 from services.first_person_graph_expansion import expand_query_concepts
+from services.first_person_serving_contract import legacy_slot_aliases_context
 from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
     BLOCKED_PROMISE_POINT_IDS,
     FirstPersonStore,
 )
+from services.first_person_video_decisions import decisions_fingerprint, video_is_blocked
 from services.memory.okf_store import match_okf_entries
 from services.openrouter_service import ProviderRefusalError
 from services.quote_fidelity import (
@@ -104,6 +107,16 @@ CITATION_PLAYBACK_PAD_S = 0.25
 # Only a serve-time verified single-teacher recording may be quoted.
 
 _BOTH_RE = re.compile(r"\b(?:both|either|each|all\s+(?:the\s+)?(?:gurus|teachers))\b", re.I)
+
+_ANTECEDENT_CONNECTIVE_RE = re.compile(
+    r"^(?:(?:imagine|see|know|remember)\s+)?(?:what\s+(?:will|would)\s+be\s+)?the\s+outcome\b|"
+    r"\boutcome\s+of\s+(?:it|this|that)\b|"
+    r"\bwithout\s+that\s+state\b|"
+    r"\bbecause\s+of\s+(?:this|that|it)\b|"
+    r"\bin\s+that\s+state\b|"
+    r"\bwhen\s+(?:a\s+parent|that|this)\s+does\s+that\b",
+    re.IGNORECASE,
+)
 
 
 def requested_teacher(query: str) -> Optional[str]:
@@ -345,6 +358,17 @@ def _passes_integrity_gate(
         )
         return False
 
+    # Owner decision (admin video-approval page): a video the owner rejected, or whose
+    # speaker the owner marked "rejected", is never served. Tighten-only; no decision
+    # means no change. Fails closed if the decisions file is invalid.
+    if video_is_blocked(vid_str):
+        logger.warning(
+            "[FirstPersonPipeline] Clip %s rejected by integrity gate: video %s blocked by an admin decision",
+            point_id_str or vid_str,
+            vid_str,
+        )
+        return False
+
     # Hard Stop H4: Spiritual / Miracle outcome promises
     if _OUTCOME_PROMISE_CLIP_RE.search(verbatim_text):
         logger.warning(
@@ -478,11 +502,51 @@ _ORPHAN_OPENER_RE = re.compile(
     r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
     re.IGNORECASE,
 )
+# Continuation openers that are NOT rescued by core-wisdom keywords. A clip that starts "So," or
+# "Okay," answers something said just before it, and "The third pillar ..." is item three of a
+# list the seeker never sees. Found by the 2026-10-31 Haiku/Opus grading of 40 served answers
+# (q001, q054, q058, q060). "So both Preethaji and I ..." (no comma) stays a fine opener.
+_DISCOURSE_OPENER_RE = re.compile(
+    r"^[\"'“‘\s]*(?:so|okay|ok|well|right|alright|now|anyway)\s*[,.]\s",
+    re.IGNORECASE,
+)
+_LATE_ORDINAL_OPENER_RE = re.compile(
+    r"^[\"'“‘\s]*the\s+(?:second|third|fourth|fifth|sixth|next|last)\s+\w+",
+    re.IGNORECASE,
+)
+
+
+def _clip_length_problem(text: str) -> Optional[str]:
+    """A served clip must be long enough to hold a thought and short enough to be a clip.
+
+    Graded 2026-10-31: 21-22 word fragments and a 318 word run of three topics were rated not
+    showable; the shortest showable clip had 23 words, so the floor sits there (ingest
+    minimum is 15) and the cap just above the longest showable clip (236).
+    """
+
+    def _real_int(value: object, default: int) -> int:
+        # Only a real int counts: a mocked or mistyped setting must not become a
+        # 1-word cap (int(MagicMock()) == 1).
+        return value if isinstance(value, int) and not isinstance(value, bool) else default
+
+    words = len(text.split())
+    if words < _real_int(getattr(settings, "first_person_min_answer_words", 23), 23):
+        return "too_short"
+    if words > _real_int(getattr(settings, "first_person_max_answer_words", 300), 300):
+        return "too_long"
+    return None
+
+
 # Medical/causal health claims: a fragment out of context reads as a healing claim or medical
 # advice (live 2026-10-11 judge: infant colic, "bedridden ... come alive", sugar physiology).
 _HEALTH_CLAIM_RE = re.compile(
     r"\bcur(?:e|es|ed|ing)\b|\bcolic\w*|\bbedridden\b|\bcancer\b|\bdiabet\w+|\btumou?rs?\b"
-    r"|\bchemotherap\w+|\bantidepressants?\b|\bmedications?\b|\bwrong signal to the universe\b|\byou will (?:have a )?fall\b|\bflooded by huge loads of sugar\b|\bscientifically proven\b|\boxytocin\b|\bprevent(?:ing)?\s+depression\b",
+    r"|\bchemotherap\w+|\bantidepressants?\b|\bmedications?\b|\bwrong signal to the universe\b|\byou will (?:have a )?fall\b|\bflooded by huge loads of sugar\b|\bscientifically proven\b|\boxytocin\b|\bprevent(?:ing)?\s+depression\b"
+    # "individuals would be healed physically, emotionally and spiritually" (q071, graded
+    # 2026-10-31, got through). Narrow on purpose: "only connection can heal" stays servable.
+    r"|\bheal(?:ed|s|ing)?\s+(?:physically|(?:your|the|his|her|their)\s+(?:body|bodies|illness|disease)s?)\b"
+    r"|\bhealed\s+(?:and\s+)?(?:physically|emotionally|spiritually)\b"
+    r"|\b(?:will|would|can|could)\s+be\s+healed\b",
     re.IGNORECASE,
 )
 # One-off event/audience markers: a clip that only makes sense in that room or on that day.
@@ -555,13 +619,15 @@ def _standalone_problem(text: str) -> Optional[str]:
     # only an explicit mid-sentence ending counts: a clip cut on "," ";" ":" or a dash.
     if stripped and stripped[-1] in ",;:-\u2014\u2013":
         return "ends_mid_sentence"
+    if _DISCOURSE_OPENER_RE.match(text) or _LATE_ORDINAL_OPENER_RE.match(text):
+        return "discourse_opener"
     if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
         return "orphan_opener"
     if _EVENT_MARKER_RE.search(text):
         return "event_marker"
     if _HEALTH_CLAIM_RE.search(text):
         return "health_claim"
-    return None
+    return _clip_length_problem(text)
 
 
 def _is_transient_connection_error(exc: BaseException) -> bool:
@@ -728,10 +794,23 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
 
     # Reject live-event instructions — crowd/logistics management, not teachings.
     # Guided meditation practices contain valid practice instructions and must not be discarded.
+    topic_ids = clip.get("topic_ids") or []
+    if isinstance(topic_ids, (tuple, set)):
+        topic_ids = list(topic_ids)
+    elif isinstance(topic_ids, str):
+        topic_ids = [topic_ids]
+
+    tags = clip.get("tags") or []
+    if isinstance(tags, (tuple, set)):
+        tags = list(tags)
+    elif isinstance(tags, str):
+        tags = [tags]
+
     is_practice = bool(
         clip.get("category") == "practice"
         or clip.get("type") == "Practice"
-        or (isinstance(clip.get("tags"), list) and "practice" in clip.get("tags"))
+        or "practice" in tags
+        or "practice" in topic_ids
     )
     if _LIVE_EVENT_INSTRUCTION_RE.search(text) and not is_practice:
         logger.info(
@@ -805,6 +884,14 @@ def transcript_label(verbatim_text: str, caption_status: Optional[str]) -> dict[
 # _RELEVANCE_SYSTEM_PROMPT's rubric changes; the policy fingerprint below also
 # carries a hash of the prompt text, so an unbumped edit still re-keys.
 _RELEVANCE_PROMPT_VERSION = "v1"
+
+# Version of the served-answer body shape. `evidence_only_v2` is the body that
+# carries nothing but the verbatim quote(s) and their attribution: the
+# "related clips" pointer, the reflection questions and the second-quote
+# section headings moved to route metadata. It rides in the serving-policy
+# fingerprint so a 24 h exact-cache entry written under the old body shape
+# (pointer and questions concatenated into the answer) can never replay.
+_ANSWER_BODY_SCHEMA_VERSION = "evidence_only_v2"
 
 _RELEVANCE_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
@@ -1564,6 +1651,8 @@ class FirstPersonPipelineResult:
         audio_playback_clips: Optional[list[dict[str, Any]]] = None,
         detected_concepts: Optional[list[str]] = None,
         atma_vichara_inquiry: Optional[str] = None,
+        related_clips_heading: Optional[str] = None,
+        second_quote_note: Optional[str] = None,
         practice_recommendation: Optional[dict[str, Any]] = None,
         stage_timings: Optional[dict[str, float]] = None,
         related_clips: Optional[list[dict[str, Any]]] = None,
@@ -1587,6 +1676,8 @@ class FirstPersonPipelineResult:
             self.audio_playback_clips = []
         self.detected_concepts = detected_concepts if detected_concepts is not None else []
         self.atma_vichara_inquiry = atma_vichara_inquiry
+        self.related_clips_heading = related_clips_heading
+        self.second_quote_note = second_quote_note
         self.practice_recommendation = practice_recommendation
         self.stage_timings = stage_timings or {}
         # A25: related (never answer) clips offered on a below-min abstain; [] when
@@ -1612,12 +1703,77 @@ class FirstPersonPipelineResult:
             "audio_playback_clips": self.audio_playback_clips,
             "detected_concepts": self.detected_concepts,
             "atma_vichara_inquiry": self.atma_vichara_inquiry,
+            "related_clips_heading": self.related_clips_heading,
+            "second_quote_note": self.second_quote_note,
             "practice_recommendation": self.practice_recommendation,
             "stage_timings": self.stage_timings,
         }
         if self.related_clips:
             data["related_clips"] = self.related_clips
         return data
+
+
+_ENRICH_SLOTS = threading.BoundedSemaphore(8)
+
+
+def _call_with_deadline(fn: Callable[[], Any], *, timeout_s: float) -> Any:
+    """Run ``fn`` in a daemon thread and give up after ``timeout_s``.
+
+    The worker is a daemon so an abandoned call can never hold interpreter
+    shutdown (the graph-expansion lookup used the same posture). On timeout the
+    caller raises :class:`TimeoutError` and the abandoned thread is left to die
+    on its own socket timeout.
+    """
+    # Bounded in-flight workers: a timed-out call keeps its thread until the socket gives
+    # up, so under a slow Qdrant they would pile up (one per context per request). Past
+    # the cap the call is refused at once, and the caller's fail-open path keeps the span.
+    if not _ENRICH_SLOTS.acquire(blocking=False):
+        raise TimeoutError("too many in-flight enrichment calls")
+    result: dict[str, Any] = {}
+
+    def _run() -> None:
+        try:
+            result["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 - re-raised in the caller
+            result["error"] = exc
+        finally:
+            _ENRICH_SLOTS.release()
+
+    worker = threading.Thread(target=_run, name="fp-enrich-window", daemon=True)
+    worker.start()
+    worker.join(max(0.0, float(timeout_s)))
+    if worker.is_alive():
+        raise TimeoutError(f"call exceeded {timeout_s:.2f}s")
+    if "error" in result:
+        raise result["error"]
+    return result.get("value")
+
+
+def _speaker_verification(source: Any) -> tuple[bool, Optional[str]]:
+    """(speaker_verified, voice_verification_method) for a stored clip or span.
+
+    A payload flag is a claim, not evidence. The corpus audit already treats
+    ``speaker_verified=true`` with no recorded ``voice_verification_method`` as
+    a BLOCKER (`scripts/ops/fp_data_quality_scorecard.py`:
+    ``speaker_verified_without_method``); this is the same rule at serve time.
+    Without a method or verified_verbatim status the claim reads as unverified,
+    so a citation can never publish "verified" on the strength of a bare boolean.
+    """
+    data = source or {}
+    if isinstance(data, dict):
+        raw_verified = data.get("speaker_verified")
+        method = data.get("voice_verification_method")
+        quality_status = data.get("quality_status")
+    else:
+        raw_verified = getattr(data, "speaker_verified", None)
+        method = getattr(data, "voice_verification_method", None)
+        quality_status = getattr(data, "quality_status", None)
+    method_text = str(method or "").strip()
+    if raw_verified is True and bool(method_text):
+        return True, method_text
+    if raw_verified is True and quality_status == "verified_verbatim":
+        return True, "verified_verbatim"
+    return False, (method_text or None)
 
 
 def _build_citation_dict(
@@ -1647,7 +1803,8 @@ def _build_citation_dict(
         "title": clip_title,
         "url": clip_url,
         "teacher_id": clip.get("teacher_id"),
-        "speaker_verified": clip.get("speaker_verified") is True,
+        "speaker_verified": _speaker_verification(clip)[0],
+        "voice_verification_method": _speaker_verification(clip)[1],
         "channel": clip.get("channel"),
         "transcript_hash": clip["transcript_hash"],
         "verbatim_text": clip["verbatim_text"],
@@ -1710,7 +1867,7 @@ def _clip_topics(clip: dict[str, Any]) -> list[str]:
     vocabulary matched against the stored verbatim text. Never invents a topic.
     """
     topics: list[str] = []
-    raw_tags = clip.get("tags")
+    raw_tags = clip.get("tags") or clip.get("topic_ids")
     if isinstance(raw_tags, (list, tuple)):
         topics.extend(t.strip() for t in raw_tags if isinstance(t, str) and t.strip())
     for key in ("okf_title", "discourse_context"):
@@ -1910,24 +2067,36 @@ class FirstPersonPipeline:
         # RP-A4 P1 (2026-10-13): the serving default is v8, so the auto-enable
         # must name it — otherwise the default flip silently turns this guard
         # off (QBUG-3's explicit-flag replacement still needs QA-5/QO-6).
-        self._boundary_guard_enabled = getattr(
-            settings, "first_person_boundary_guard_enabled", False
-        ) or (
-            bool(self._store)
-            and getattr(self._store, "collection", "")
-            in ("first_person_v6", "first_person_v7", "first_person_v8")
+        # v10-only mode (legacy slot aliases the context collection): the guard is
+        # keyed on the legacy collection NAME, so without this the harness spans
+        # would silently lose the boundary check the v8-named config applies.
+        _aliased_to_context = legacy_slot_aliases_context(
+            getattr(self._store, "collection", ""),
+            getattr(settings, "first_person_context_collection", ""),
+        )
+        self._boundary_guard_enabled = (
+            getattr(settings, "first_person_boundary_guard_enabled", False)
+            or _aliased_to_context
+            or (
+                bool(self._store)
+                and getattr(self._store, "collection", "")
+                in ("first_person_v6", "first_person_v7", "first_person_v8")
+            )
         )
         # ponytail: content quality gate auto-enabled for v7+ (same collection gating as boundary_guard)
-        self._content_quality_gate_enabled = getattr(
-            settings, "first_person_content_quality_gate_enabled", True
-        ) or (
-            bool(self._store)
-            and getattr(self._store, "collection", "")
-            in ("first_person_v6", "first_person_v7", "first_person_v8")
+        self._content_quality_gate_enabled = (
+            getattr(settings, "first_person_content_quality_gate_enabled", True)
+            or _aliased_to_context
+            or (
+                bool(self._store)
+                and getattr(self._store, "collection", "")
+                in ("first_person_v6", "first_person_v7", "first_person_v8")
+            )
         )
         self._weaver = weaver or QuoteWeaverService(llm_service=llm_service)
         self._llm_service = llm_service
         self._servable_cache: dict[str, tuple[bool, float]] = {}
+        self._servable_decisions_fp: str = decisions_fingerprint()
         # B4 serving contract: computed lazily, cached per pipeline instance.
         self._serving_contract_error_cache: Any = _CONTRACT_UNSET
         self._collection_contract_cache: Optional[dict[str, str]] = None
@@ -2033,15 +2202,35 @@ class FirstPersonPipeline:
             return str(getattr(parent, "parent_unit_id", "") or "")
 
         def _widen(items: list[Any]) -> list[Any]:
-            """One bounded enrichment pass; order preserved, never raises."""
+            """One bounded enrichment pass; order preserved, never raises.
+
+            ``enrich_to_parent_window`` is a synchronous Qdrant scroll: without a
+            deadline a stale connection would hold the whole answer. The window is
+            an ADDITION, so on timeout the retrieved context is kept untouched
+            (fail-open, same policy as the graph-expansion timeout).
+            """
             from services.first_person_context_store import (  # noqa: PLC0415
                 FirstPersonContextStoreError,
             )
 
+            timeout_s = float(
+                getattr(settings, "first_person_enrichment_window_timeout_s", 1.5) or 1.5
+            )
             out: list[Any] = []
             for ctx in items:
                 try:
-                    widened = ctx_store.enrich_to_parent_window(ctx)
+                    widened = _call_with_deadline(
+                        lambda c=ctx: ctx_store.enrich_to_parent_window(c),
+                        timeout_s=timeout_s,
+                    )
+                except TimeoutError:
+                    logger.warning(
+                        "[FirstPersonPipeline] enrichment window timed out after %.2fs for "
+                        "parent %s; keeping retrieved spans",
+                        timeout_s,
+                        _parent_id(ctx) or "unknown",
+                    )
+                    widened = ctx
                 except FirstPersonContextStoreError:
                     # Contract defect on the stored parent (missing record, id
                     # mismatch). The retrieved context still carries its own
@@ -2175,7 +2364,8 @@ class FirstPersonPipeline:
             "title": title,
             "url": clip_url,
             "teacher_id": span.guru_id,
-            "speaker_verified": span.speaker_verified is True,
+            "speaker_verified": _speaker_verification(span)[0],
+            "voice_verification_method": _speaker_verification(span)[1],
             "channel": None,
             "transcript_hash": span.source_text_hash,
             "source_text_hash": span.source_text_hash,
@@ -2196,8 +2386,82 @@ class FirstPersonPipeline:
             ),
             "caption_status": span.caption_status,
             "label": label,
+            "topic_ids": list(span.topic_ids) if span.topic_ids else [],
+            "tags": list(span.tags) if getattr(span, "tags", None) else (list(span.topic_ids) if span.topic_ids else []),
+            "category": getattr(span, "category", None) or ("practice" if "practice" in (span.topic_ids or ()) else "teaching"),
             **transcript_label(span.verbatim_text, span.caption_status),
         }
+
+    @staticmethod
+    def _club_consecutive_citations(citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Club consecutive spans from the same video and speaker into a single continuous citation."""
+        if not citations or len(citations) <= 1:
+            return citations
+        import hashlib
+        clubbed: list[dict[str, Any]] = []
+        curr = None
+        for c in citations:
+            if curr is None:
+                curr = dict(c)
+                continue
+            same_vid = bool(curr.get("video_id") and curr.get("video_id") == c.get("video_id"))
+            same_spk = (
+                curr.get("speaker") == c.get("speaker")
+                or curr.get("guru_id") == c.get("guru_id")
+                or curr.get("teacher_id") == c.get("teacher_id")
+            )
+            curr_end_ms = curr.get("end_ms") or 0
+            next_start_ms = c.get("start_ms") or 0
+            is_adjacent = next_start_ms >= (curr.get("start_ms") or 0) and (next_start_ms - curr_end_ms) <= 45000
+
+            if same_vid and same_spk and is_adjacent:
+                curr["end_ms"] = max(curr_end_ms, c.get("end_ms") or 0)
+                curr["end_sec"] = -(-int(curr["end_ms"]) // 1000)
+                if "playback_end_seconds" in curr and "playback_end_seconds" in c:
+                    curr["playback_end_seconds"] = max(curr["playback_end_seconds"], c["playback_end_seconds"])
+                curr["verbatim_text"] = (
+                    str(curr.get("verbatim_text") or "").strip()
+                    + " "
+                    + str(c.get("verbatim_text") or "").strip()
+                )
+                curr["text_snippet"] = curr["verbatim_text"]
+                curr["transcript_hash"] = hashlib.sha256(
+                    curr["verbatim_text"].encode("utf-8")
+                ).hexdigest()
+                curr["source_text_hash"] = curr["transcript_hash"]
+            else:
+                clubbed.append(curr)
+                curr = dict(c)
+        if curr is not None:
+            clubbed.append(curr)
+        return clubbed
+
+    @staticmethod
+    def _club_consecutive_audio_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Club consecutive audio clips from the same video and speaker into a single playback clip."""
+        if not clips or len(clips) <= 1:
+            return clips
+        clubbed: list[dict[str, Any]] = []
+        curr = None
+        for c in clips:
+            if curr is None:
+                curr = dict(c)
+                continue
+            same_vid = bool(curr.get("video_id") and curr.get("video_id") == c.get("video_id"))
+            same_spk = curr.get("speaker") == c.get("speaker")
+            curr_end_sec = curr.get("end_sec") or 0
+            next_start_sec = c.get("start_sec") or 0
+            is_adjacent = next_start_sec >= (curr.get("start_sec") or 0) and (next_start_sec - curr_end_sec) <= 45
+
+            if same_vid and same_spk and is_adjacent:
+                curr["end_sec"] = max(curr_end_sec, c.get("end_sec") or 0)
+                curr["duration_sec"] = curr["end_sec"] - (curr.get("start_sec") or 0)
+            else:
+                clubbed.append(curr)
+                curr = dict(c)
+        if curr is not None:
+            clubbed.append(curr)
+        return clubbed
 
     @staticmethod
     def _allowlist_state() -> str:
@@ -2265,11 +2529,29 @@ class FirstPersonPipeline:
                 load_contract_cached,
             )
 
+            context_collection = str(
+                getattr(settings, "first_person_context_collection", "") or ""
+            ).strip()
+            # The context arguments reach the check only when the legacy slot
+            # aliases the context collection (v10-only mode); otherwise this is
+            # the legacy-only check it always was.
+            aliased = legacy_slot_aliases_context(collection, context_collection)
             report = legacy_store_preflight(
                 contract=load_contract_cached(
                     str(getattr(settings, "first_person_serving_contract_path", "") or "") or None
                 ),
                 legacy_collection=collection,
+                context_collection=context_collection if aliased else "",
+                context_harness_enabled=(
+                    bool(getattr(settings, "first_person_context_harness_enabled", False))
+                    if aliased
+                    else False
+                ),
+                context_terminal_enabled=(
+                    getattr(settings, "first_person_context_terminal_enabled", False) is True
+                    if aliased
+                    else False
+                ),
             )
             if report.errors:
                 error = "; ".join(report.errors)
@@ -2363,6 +2645,10 @@ class FirstPersonPipeline:
         contract = self._collection_contract_components()
         pairs = sorted(
             {
+                # The served body shape is answer-shaping: `evidence_only_v2`
+                # strips the pointer/questions/headings out of the answer, so an
+                # entry cached under the previous body can never replay.
+                "answer_body_schema": _ANSWER_BODY_SCHEMA_VERSION,
                 "answerability": str(bool(settings.first_person_answerability_check_enabled)),
                 "boundary_guard": str(bool(self._boundary_guard_enabled)),
                 "content_gate": str(bool(self._content_quality_gate_enabled)),
@@ -2404,6 +2690,9 @@ class FirstPersonPipeline:
                 # pre-harness answer from the 24 h exact cache: flipping any of
                 # these re-keys the cache instead of serving stale policy.
                 "context_harness": str(bool(settings.first_person_context_harness_enabled)),
+                "context_terminal": str(
+                    bool(getattr(settings, "first_person_context_terminal_enabled", False))
+                ),
                 # The collection the harness reads IS answer-shaping: pointing
                 # it at a different fp-context corpus changes which spans can
                 # be served. Without it in the digest, a repointed collection
@@ -2426,6 +2715,16 @@ class FirstPersonPipeline:
                 "context_graph_expansion_max_neighbors": str(
                     int(getattr(settings, "first_person_graph_expansion_max_neighbors", 8))
                 ),
+                # Both expansion deadlines are answer-shaping: a longer budget can
+                # add contexts a shorter one drops, so the served answer differs.
+                # Without them in the digest a timeout change would replay the
+                # previous policy's answer from the 24 h exact cache.
+                "context_graph_expansion_timeout": str(
+                    float(getattr(settings, "first_person_graph_expansion_timeout_s", 1.5))
+                ),
+                "context_enrichment_window_timeout": str(
+                    float(getattr(settings, "first_person_enrichment_window_timeout_s", 1.5))
+                ),
                 # B4: the legacy collection's own contract. A repointed
                 # collection, a schema change, a corpus-version change or an
                 # evidence-policy change all change what may be served, so all
@@ -2434,6 +2733,10 @@ class FirstPersonPipeline:
                 "legacy_schema": contract.get("schema", ""),
                 "legacy_corpus_version": contract.get("corpus_version", ""),
                 "evidence_policy": contract.get("evidence_policy", ""),
+                "release_version": str(
+                    contract.get("release_version")
+                    or getattr(settings, "corpus_release_fallback_version", 1)
+                ),
                 "violence_safety_policy": "v2",
                 "standalone_policy": "v1",
                 "corpus_manifest_digest": self._corpus_manifest_digest(),
@@ -2526,6 +2829,12 @@ class FirstPersonPipeline:
         and the exact cache would never serve it.
         """
         now = time.time()
+        # An admin video decision must take effect on the next cache hit, not after the
+        # 5-minute TTL: drop every cached verdict when the decisions file changes.
+        fingerprint = decisions_fingerprint()
+        if fingerprint != getattr(self, "_servable_decisions_fp", None):
+            self._servable_cache = {}
+            self._servable_decisions_fp = fingerprint
         # Clean expired entries if cache grows
         if len(self._servable_cache) > 2000:
             self._servable_cache = {k: v for k, v in self._servable_cache.items() if v[1] > now}
@@ -2901,6 +3210,8 @@ class FirstPersonPipeline:
                 audio_playback_clips=cached_data.get("audio_playback_clips"),
                 detected_concepts=cached_data.get("detected_concepts") or [],
                 atma_vichara_inquiry=cached_data.get("atma_vichara_inquiry"),
+                related_clips_heading=cached_data.get("related_clips_heading"),
+                second_quote_note=cached_data.get("second_quote_note"),
                 practice_recommendation=cached_data.get("practice_recommendation"),
                 # A cached replay of a served clip is still first-person served;
                 # an abstain / error entry in the cache is not.
@@ -2909,7 +3220,14 @@ class FirstPersonPipeline:
             )
 
         # Step 2b: Compound question decomposition (Tasks F1 & F2)
-        if getattr(settings, "first_person_facet_split_enabled", False):
+        # Compound decomposition searches only the legacy store, so it is off while
+        # the context harness is terminal (v10-only): otherwise a compound question
+        # would be served from the legacy collection past the terminal flag.
+        _terminal_active = (
+            bool(getattr(settings, "first_person_context_harness_enabled", False))
+            and getattr(settings, "first_person_context_terminal_enabled", False) is True
+        )
+        if getattr(settings, "first_person_facet_split_enabled", False) and not _terminal_active:
             facets = _decompose_query_facets(query, self._llm_service, token_sink=fp_llm_tokens)
             if len(facets) > 1:
                 return self._execute_compound(
@@ -2943,9 +3261,13 @@ class FirstPersonPipeline:
         # serving (serve_single_span or serve_parent_context), construct the result
         # deterministically from stored spans.
         # Otherwise, fall back gracefully to the existing first-person logic.
-        harness_enabled = bool(
-            getattr(settings, "first_person_context_harness_enabled", False)
-        ) or (self._context_store is not None)
+        # The owner flag is the ONLY enable. An injected context store used to
+        # enabling the harness on its own (`or self._context_store is not None`),
+        # which meant any caller that passed a store ran fp-context serving while
+        # FIRST_PERSON_CONTEXT_HARNESS_ENABLED said false — exactly the posture
+        # the public-release NO-GO forbids. Store presence is configuration, not
+        # permission.
+        harness_enabled = bool(getattr(settings, "first_person_context_harness_enabled", False))
         ctx_store = self._get_context_store() if harness_enabled else None
         if ctx_store is not None and query_dense_vector:
             t_ctx_start = time.monotonic()
@@ -3038,10 +3360,6 @@ class FirstPersonPipeline:
                     _local_tokens: list[int] = []
                     selected_span_ids = None
                     if bool(getattr(settings, "first_person_context_selector_enabled", False)):
-                        from services.first_person_context_selector import (
-                            select_span_ids,  # noqa: PLC0415
-                        )
-
                         selected_span_ids = select_span_ids(
                             query, ctx.spans, llm_service=self._llm_service
                         )
@@ -3078,6 +3396,35 @@ class FirstPersonPipeline:
                         )
                         return None, _local_tokens
 
+                    # Cross-parent antecedent resolution: if the first span begins with an
+                    # antecedent referent, check if the preceding span from the same video exists.
+                    if ctx_store is not None and served_spans:
+                        first_s = served_spans[0]
+                        from services.first_person_context_harness import _span_starts_with_antecedent
+
+                        is_antecedent_opener = (
+                            _span_starts_with_antecedent(first_s)
+                            or bool(_ANTECEDENT_CONNECTIVE_RE.search(first_s.verbatim_text))
+                        )
+                        if is_antecedent_opener:
+                            try:
+                                preceding = ctx_store.fetch_preceding_span(first_s.video_id, first_s.start_ms)
+                                if (
+                                    preceding is not None
+                                    and preceding.source_span_id not in {s.source_span_id for s in served_spans}
+                                    and preceding.video_id == first_s.video_id
+                                    and preceding.guru_id == first_s.guru_id
+                                ):
+                                    served_spans.insert(0, preceding)
+                                    logger.info(
+                                        "[FirstPersonPipeline] Stitched preceding antecedent span %s before %s in video %s",
+                                        preceding.source_span_id[:8],
+                                        first_s.source_span_id[:8],
+                                        first_s.video_id,
+                                    )
+                            except Exception as ant_exc:
+                                logger.debug("[FirstPersonPipeline] Antecedent stitching failed: %s", ant_exc)
+
                     citations = []
                     audio_playback_clips = []
                     cite_by_id = {c.source_span_id: c for c in decision.citations}
@@ -3088,8 +3435,17 @@ class FirstPersonPipeline:
                         cit_dict = self._build_context_citation(span, c_span, confidence=confidence)
                         if not _passes_integrity_gate(
                             cit_dict, boundary_guard_enabled=self._boundary_guard_enabled
-                        ) or not _passes_content_quality_gate(
-                            cit_dict, gate_enabled=self._content_quality_gate_enabled
+                        ):
+                            _span_failed_gate = True
+                            break
+                        # Single-span decisions must pass standalone content quality individually.
+                        # For parent context decisions (multiple spans), the assembled discourse
+                        # is validated across all spans together below.
+                        if (
+                            decision.decision == HarnessDecision.SERVE_SINGLE_SPAN
+                            and not _passes_content_quality_gate(
+                                cit_dict, gate_enabled=self._content_quality_gate_enabled
+                            )
                         ):
                             _span_failed_gate = True
                             break
@@ -3133,6 +3489,28 @@ class FirstPersonPipeline:
                                 "title": cit_dict["title"],
                             }
                         )
+                    assembled_answer_text = " ".join(s.verbatim_text.strip() for s in served_spans)
+                    if (
+                        not _span_failed_gate
+                        and decision.decision == HarnessDecision.SERVE_PARENT_CONTEXT
+                        and served_spans
+                        and not _passes_content_quality_gate(
+                            {
+                                "verbatim_text": assembled_answer_text,
+                                "start_ms": served_spans[0].start_ms,
+                                "end_ms": served_spans[-1].end_ms,
+                                "topic_ids": list(getattr(ctx.parent, "topic_ids", None) or ()),
+                                "tags": list(getattr(ctx.parent, "tags", None) or ()),
+                                "category": getattr(ctx.parent, "category", None),
+                            },
+                            gate_enabled=self._content_quality_gate_enabled,
+                        )
+                    ):
+                        logger.info(
+                            "[FirstPersonPipeline] Assembled parent context %s failed content quality gate",
+                            getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                        )
+                        _span_failed_gate = True
                     if _span_failed_gate:
                         FIRST_PERSON_QUARANTINED_TOTAL.inc()
                         logger.warning(
@@ -3140,6 +3518,10 @@ class FirstPersonPipeline:
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                         )
                         return None, _local_tokens
+
+                    # Club contiguous spans from the same video and speaker into continuous citations
+                    citations = self._club_consecutive_citations(citations)
+                    audio_playback_clips = self._club_consecutive_audio_clips(audio_playback_clips)
 
                     # Relevance gate: score (question, assembled answer) with the
                     # same scorer/min score as the legacy path.
@@ -3155,7 +3537,7 @@ class FirstPersonPipeline:
                             retrieval_query or query,
                             [
                                 {
-                                    "verbatim_text": decision.answer_text or "",
+                                    "verbatim_text": assembled_answer_text or "",
                                     "start_ms": getattr(_first_span, "start_ms", None),
                                 }
                             ],
@@ -3203,8 +3585,61 @@ class FirstPersonPipeline:
                     if _h_rel_score is not None:
                         stage_timings["relevance_score"] = float(_h_rel_score)
 
+                    answer_to_serve = assembled_answer_text
+                    mode = str(getattr(settings, "first_person_mode", "retrieval_only") or "").strip().lower()
+                    if mode == "hybrid" and self._weaver is not None and citations:
+                        try:
+                            from rag.kg_expansion import resolve_concepts_in_query, fetch_doctrine_subgraph
+                            concepts = resolve_concepts_in_query(retrieval_query or query)
+                            doctrine_ctx = ""
+                            if concepts:
+                                try:
+                                    from app.container import container
+                                    driver = getattr(self, "_neo4j_driver", None) or (container.neo4j_driver if container else None)
+                                    if driver is not None:
+                                        doctrine_ctx = fetch_doctrine_subgraph(concepts, driver)
+                                except Exception as d_exc:
+                                    logger.debug("[FirstPersonPipeline] Doctrine fetch error: %s", d_exc)
+
+                            weaver_clips = []
+                            for c in citations:
+                                weaver_clips.append({
+                                    "point_id": c.get("point_id"),
+                                    "video_id": c.get("video_id"),
+                                    "start_ms": c.get("start_ms"),
+                                    "end_ms": c.get("end_ms"),
+                                    "start_sec": c.get("start_sec"),
+                                    "end_sec": c.get("end_sec"),
+                                    "timestamp_seconds": c.get("start_sec"),
+                                    "verbatim_text": c.get("verbatim_text"),
+                                    "speaker": c.get("speaker"),
+                                    "speaker_verified": c.get("speaker_verified", True),
+                                    "voice_verification_method": c.get("voice_verification_method"),
+                                    "source_url": c.get("url"),
+                                    "guru_id": c.get("guru_id"),
+                                    "teacher_id": c.get("teacher_id"),
+                                    "title": c.get("title"),
+                                    "transcript_hash": c.get("transcript_hash"),
+                                })
+
+                            weaver_sources = sources_from_payloads(weaver_clips)
+                            weave_res = self._weaver.weave(
+                                query=query,
+                                clips=weaver_clips,
+                                okf_entries=[],
+                                intent="QUERY",
+                                sources=weaver_sources,
+                                token_sink=_local_tokens,
+                                doctrine_context=doctrine_ctx,
+                            )
+                            if weave_res.passed_gate and weave_res.text:
+                                answer_to_serve = weave_res.text
+                                logger.info("[FirstPersonPipeline] Successfully woven hybrid answer passing QuoteWeaverAssertionGate")
+                        except Exception as w_exc:
+                            logger.warning("[FirstPersonPipeline] Hybrid weaving error in harness worker: %s", w_exc)
+
                     return FirstPersonPipelineResult(
-                        answer_text=decision.answer_text or "",
+                        answer_text=answer_to_serve,
                         citations=citations,
                         status="success" if is_direct else "weak_match",
                         is_direct_answer=is_direct,
@@ -3375,6 +3810,31 @@ class FirstPersonPipeline:
                     "[FirstPersonPipeline] Context harness evaluated %d contexts with no direct answer; falling back to legacy",
                     len(contexts),
                 )
+
+        # v10-only serving (owner decision 2026-10-30): with the context harness on
+        # and this flag set, the harness is terminal. A question it could not answer
+        # abstains instead of falling through to the legacy store, so no clip from a
+        # legacy collection (e.g. first_person_v8, speaker mostly unverified) is served.
+        # Default off: existing deployments keep the legacy fall-through.
+        # `is True`, not truthiness: a patched/mock settings object must not enable it.
+        if (
+            harness_enabled
+            and getattr(settings, "first_person_context_terminal_enabled", False) is True
+        ):
+            latency = (time.monotonic() - start_time) * 1000.0
+            self._log_and_count(
+                "abstained", latency, 0.0, 0, 0, "no_verified_clips", sum(fp_llm_tokens)
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                answerability="no_verified_clips",
+                abstain_reason="no_verified_clips",
+                stage_timings={"total_ms": round(latency, 2)},
+            )
 
         # RC-D-2: start the question-only answerability gate in parallel with
         # retrieval. Crisis (Step 1), the topic rail, and the exact cache are
@@ -3636,7 +4096,23 @@ class FirstPersonPipeline:
                 if _passes_content_quality_gate(
                     clip, gate_enabled=self._content_quality_gate_enabled
                 ):
-                    verified_clips.append(clip)
+                    # Fail-closed invariant: unverified clips must NEVER be served to public users (UT-06)
+                    if getattr(settings, "first_person_require_speaker_verified", False):
+                        spk_ok, _ = _speaker_verification(clip)
+                        is_verified = (
+                            spk_ok or clip.get("speaker_verified") is True
+                        )
+                        if is_verified:
+                            verified_clips.append(clip)
+                        else:
+                            n_quarantined += 1
+                            FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                            logger.warning(
+                                f"[FirstPersonPipeline] Clip {clip.get('point_id')} for video {clip.get('video_id')} "
+                                f"rejected: speaker is not verified ({clip.get('speaker_verified')}). Quarantined."
+                            )
+                    else:
+                        verified_clips.append(clip)
                 else:
                     n_quarantined += 1
                     FIRST_PERSON_QUARANTINED_TOTAL.inc()
@@ -4194,14 +4670,25 @@ class FirstPersonPipeline:
                 "start_sec": start_sec,
                 "end_sec": end_sec,
                 "timestamp_seconds": sec,
-                "speaker": clip["speaker"],
+                "speaker": (
+                    "Sri Preethaji"
+                    if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower() == "preethaji"
+                    else (
+                        "Sri Krishnaji"
+                        if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower() == "krishnaji"
+                        else clip["speaker"]
+                    )
+                ),
                 "title": clip_title,
                 "url": clip_url,
                 "teacher_id": clip.get("teacher_id"),
                 # Provenance claim copied from the stored clip, never inferred: the builder
                 # writes True only after a real voice check and omits the key otherwise, so
                 # a missing key must reach the UI as False, not as "verified" (QA-1).
-                "speaker_verified": clip.get("speaker_verified") is True,
+                # A bare True with no recorded method is a claim without evidence and
+                # reads as unverified (same rule as the corpus quality scorecard).
+                "speaker_verified": _speaker_verification(clip)[0],
+                "voice_verification_method": _speaker_verification(clip)[1],
                 "channel": clip.get("channel"),
                 "transcript_hash": clip["transcript_hash"],
                 "verbatim_text": clip["verbatim_text"],
@@ -4308,6 +4795,8 @@ class FirstPersonPipeline:
                 audio_playback_clips[0] if audio_playback_clips else None
             )
             atma_vichara_inquiry = getattr(weave_res, "atma_vichara_inquiry", None)
+            related_clips_heading = getattr(weave_res, "related_clips_heading", None)
+            second_quote_note = None
             practice_recommendation = getattr(weave_res, "practice_recommendation", None)
             cit = citations[0] if citations else None
         else:
@@ -4337,6 +4826,8 @@ class FirstPersonPipeline:
                     f"— {hero['label']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)"
                 )
             atma_vichara_inquiry = None
+            related_clips_heading = None
+            second_quote_note = None
             practice_recommendation = None
             audio_playback_clip = audio_strip_for(top_clip, hero)
             audio_playback_clips = [audio_playback_clip] if audio_playback_clip else []
@@ -4382,20 +4873,27 @@ class FirstPersonPipeline:
 
                         c1_with_hero = {**top_clip, "_hero": hero}
                         c2_with_hero = {**second_clip, "_hero": second_hero}
-                        qb1 = _format_continuous_quote_block(c1_with_hero, facet="first recording")
-                        qb2 = _format_continuous_quote_block(c2_with_hero, facet="second recording")
+                        # Invariant 1: no facet headings inside the body. "first
+                        # recording" / "second recording" are structure, and
+                        # structure rides `second_quote_note` in metadata.
+                        qb1 = _format_continuous_quote_block(c1_with_hero)
+                        qb2 = _format_continuous_quote_block(c2_with_hero)
                         footer = _format_continuous_sources_footer([c1_with_hero, c2_with_hero])
-                        # Label via metadata (status=weak_match), not injected into text.
                         final_text = f"{qb1}\n\n{qb2}" + (f"\n{footer}" if footer else "")
                     else:
+                        # Same rule for the plain layout: two quote+attribution
+                        # blocks, nothing else. The "these are separate recordings"
+                        # framing is metadata, never body text.
                         final_text = (
-                            "Two separate recordings, each quoted exactly:\n\n"
-                            f'Recording 1 of 2:\n"{top_text}"\n'
+                            f'"{top_text}"\n'
                             f"— {hero['label']} ({top_vid}, {cit['timestamp_seconds']}s)\n\n"
-                            "Recording 2 of 2 (a different video; it does not continue the first):\n"
                             f'"{second_text}"\n'
                             f"— {second_hero['label']} ({second_vid}, {cit2['timestamp_seconds']}s)"
                         )
+                    second_quote_note = (
+                        "Two separate recordings, each quoted exactly. "
+                        "Recording 2 is a different video; it does not continue the first."
+                    )
                     strip2 = audio_strip_for(second_clip, second_hero)
                     if strip2:
                         audio_playback_clips.append(strip2)
@@ -4444,6 +4942,8 @@ class FirstPersonPipeline:
             audio_playback_clips=audio_playback_clips,
             detected_concepts=detected_concepts,
             atma_vichara_inquiry=atma_vichara_inquiry,
+            related_clips_heading=related_clips_heading,
+            second_quote_note=second_quote_note,
             practice_recommendation=practice_recommendation,
             stage_timings=stage_timings,
             fp_served=bool(citations),

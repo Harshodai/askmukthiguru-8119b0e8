@@ -98,6 +98,9 @@ class ChatResult:
         # raised AttributeError on every real request. Defaults match
         # PipelineResult's own (app/pipeline/result.py).
         self.verification: Optional[dict] = None
+        # Platform copy (support line, safety boundaries) that no longer rides in
+        # the answer body; the response model must carry it to the client.
+        self.safety_notices: list[str] = []
         self.live_logistics_events: list[dict] = []
         self.answer_evidence: Optional[AnswerEvidence] = None
         self.guidance_plan: Optional[GuidancePlan] = None
@@ -328,6 +331,9 @@ class ChatEngine:
         )
         result.provenance_context = getattr(pipeline_result, "provenance_context", None)
         result.verification = getattr(pipeline_result, "verification", None)
+        result.safety_notices = list(
+            (getattr(pipeline_result, "route_metadata", None) or {}).get("safety_notices") or []
+        )
         result.live_logistics_events = list(
             getattr(pipeline_result, "live_logistics_events", None) or []
         )

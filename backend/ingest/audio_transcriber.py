@@ -167,6 +167,10 @@ def download_audio_stream(url: str, out_dir: Path, timeout: int = 1800) -> Path:
 
 def compress_audio_to_mono(src: Path, out_dir: Path, timeout: int = 1200) -> Path:
     """Re-encode audio to mono / 16kHz / 32kbps m4a (downsamples size by >85%)."""
+    from ingest.audio_guard import validate_audio_pcm
+
+    validate_audio_pcm(src)
+
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg binary not found in PATH")
 
@@ -292,12 +296,17 @@ async def transcribe_and_preprocess_audio(
         work_dir = output_dir or Path(tmp_str)
         work_dir.mkdir(parents=True, exist_ok=True)
 
+        from ingest.audio_guard import validate_audio_pcm
+
         if is_file:
             audio_source = Path(source_url_or_path)
+            validate_audio_pcm(audio_source)
         else:
             audio_source = download_audio_stream(source_url_or_path, work_dir, timeout=1800)
+            validate_audio_pcm(audio_source)
 
         compressed = compress_audio_to_mono(audio_source, work_dir, timeout=1200)
+        validate_audio_pcm(compressed)
 
         if compressed.stat().st_size <= SIZE_LIMIT_BYTES:
             chunks = [compressed]

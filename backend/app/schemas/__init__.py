@@ -413,6 +413,15 @@ class ChatResponse(BaseModel):
         None,
         description="Typed evidence provenance for a response",
     )
+    safety_notices: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Platform copy that accompanies a served verbatim clip but is not the "
+            "teacher's words (distress compassion framing, relationship/addiction "
+            "safety boundaries, the human support line). Rendered as its own block; "
+            "never concatenated into the answer body."
+        ),
+    )
     personalization_provenance: Optional[dict[str, Any]] = Field(
         default=None,
         description="Public-safe explanation of personal context classes provided to this answer; never includes raw private memory text.",

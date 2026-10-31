@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import warnings
+from pathlib import Path
 
 # Suppress all warnings ruthlessly during testing — must be set BEFORE any
 # third-party imports to catch import-time warnings.
@@ -440,6 +441,35 @@ def _clear_dependency_overrides():
 
 
 @pytest.fixture(autouse=True)
+def _isolate_publication_manifest_dir(tmp_path, monkeypatch):
+    """Ingest tests write a publication manifest; keep it out of the repo tree.
+
+    A stray audits/manifests/corpus_publication_manifest_*.json left by a test run
+    used to satisfy the startup publication gate on a developer machine.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(
+        settings, "corpus_publication_manifest_dir", str(tmp_path / "publication_manifests")
+    )
+
+
+@pytest.fixture(autouse=True)
+def _neutral_clip_length_window(monkeypatch):
+    """Most first-person fixtures use one-line clips to test OTHER gates.
+
+    The production length window (23 to 300 words, app/config.py) is pinned explicitly in
+    tests/test_showability_gates_2026_10_31.py; elsewhere it is widened so a toy clip
+    exercises the gate under test and not the length floor.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "first_person_min_answer_words", 0)
+    monkeypatch.setattr(settings, "first_person_max_answer_words", 10**6)
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", False)
+
+
+@pytest.fixture(autouse=True)
 def _flush_test_redis():
     """Clear the suite's Redis database between tests.
 
@@ -468,6 +498,34 @@ def _flush_test_redis():
             client.close()
     except Exception:
         pass
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _audits_manifests_stay_clean():
+    """A test must never write into the tracked repo tree (plan Tier 3 item 8).
+
+    ``audits/manifests/`` is mounted read-only into the backend container. A manifest written
+    there by a test run used to satisfy the startup publication gate on a developer machine,
+    and the stray file then travelled with the tree. ``_isolate_publication_manifest_dir``
+    redirects the setting; this fixture proves no other writer exists.
+    """
+    root = Path(__file__).resolve().parents[2] / "audits" / "manifests"
+
+    def snapshot() -> dict[str, float]:
+        if not root.is_dir():
+            return {}
+        return {p.name: p.stat().st_mtime for p in root.iterdir() if p.is_file()}
+
+    before = snapshot()
+    yield
+    after = snapshot()
+    if before != after:
+        added = sorted(set(after) - set(before))
+        changed = sorted(k for k in set(before) & set(after) if before[k] != after[k])
+        raise AssertionError(
+            "a test wrote into audits/manifests/ (added="
+            f"{added}, changed={changed}); point the writer at tmp_path instead"
+        )
 
 
 def pytest_configure(config):

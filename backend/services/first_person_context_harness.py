@@ -94,14 +94,24 @@ _ANTECEDENT_OPENERS = frozenset(
 
 
 def _span_starts_with_antecedent(span: SourceSpan) -> bool:
-    """Return True when the span's first word is a demonstrative/pronoun opener.
+    """Return True when the span's first word is a demonstrative/pronoun opener
+    or does not start with a capitalized word (indicating a mid-thought fragment).
 
     These openers indicate that the span references something established in
-    the immediately preceding turn.  Including the predecessor in the served
-    window resolves the antecedent without generating any new text.
+    the immediately preceding turn or opens mid-sentence. Including the predecessor
+    in the served window resolves the antecedent without generating any new text.
     """
     words = span.verbatim_text.strip().split()
-    return bool(words) and words[0].lower().rstrip(".,;:") in _ANTECEDENT_OPENERS
+    if not words:
+        return False
+    raw_word = words[0].lstrip("\"'“`({[")
+    if not raw_word:
+        return False
+    first_char = raw_word[0]
+    if first_char.isalpha() and not first_char.isupper():
+        return True
+    clean_word = raw_word.rstrip(".,;:!?\"'”)`}]").lower()
+    return clean_word in _ANTECEDENT_OPENERS
 
 
 def _is_question_only(text: str) -> bool:
@@ -232,6 +242,8 @@ class HarnessPolicy:
     # alternative exists (see _apply_word_budget).
     max_context_words: int = 600
     require_speaker_verified: bool = True
+    # Also require a recorded voice_verification_method (see settings).
+    require_voice_method: bool = False
     require_same_parent: bool = True
     allow_fragment_with_antecedent: bool = True
     min_context_sufficiency: str = "sufficient"
@@ -254,21 +266,39 @@ def policy_from_settings() -> HarnessPolicy:
     """Policy a wired serving path must use (settings are the single source)."""
     from app.config import settings
 
-    return HarnessPolicy(max_context_spans=max(1, int(settings.first_person_context_max_spans)))
+    return HarnessPolicy(
+        max_context_spans=max(1, int(settings.first_person_context_max_spans)),
+        require_voice_method=getattr(settings, "first_person_require_voice_method", False) is True,
+    )
 
 
 def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
     from app.config import settings
     from services.first_person_pipeline import (
         _CORE_WISDOM_KEYWORDS_RE,
+        _DISCOURSE_OPENER_RE,
         _EVENT_MARKER_RE,
+        _HEALTH_CLAIM_RE,
+        _LATE_ORDINAL_OPENER_RE,
         _ORPHAN_OPENER_RE,
+        _clip_length_problem,
     )
 
     if not getattr(settings, "first_person_standalone_gate_enabled", True) or not spans:
         return False
     first = spans[0].verbatim_text
+    if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
+        return True
     if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
+        return True
+    # Length is judged on the whole served answer, not span by span.
+    whole = " ".join(s.verbatim_text.strip() for s in spans)
+    if _clip_length_problem(whole):
+        return True
+    # Parity with the legacy path (_standalone_problem): a fragment that reads as a healing
+    # claim or medical advice is rejected whole. The harness path lacked this, so
+    # "individuals would be healed physically, emotionally and spiritually" was served.
+    if _HEALTH_CLAIM_RE.search(whole):
         return True
     return any(_EVENT_MARKER_RE.search(s.verbatim_text) for s in spans)
 
@@ -284,6 +314,8 @@ class FirstPersonContextHarness:
             if span.speaker_role is not SpeakerRole.GURU:
                 return False
             if policy.require_speaker_verified and not span.speaker_verified:
+                return False
+            if policy.require_voice_method and not (span.voice_verification_method or "").strip():
                 return False
         return True
 
@@ -656,6 +688,8 @@ class FirstPersonContextHarness:
                 state_path=tuple(states),
             )
 
+        # Ensure spans are sorted chronologically by start_ms ascending before joining
+        spans = tuple(sorted(spans, key=lambda s: getattr(s, "start_ms", 0) or 0))
         cites = self._citations(spans)
         gates["citations_verified"] = self._citations_verified(spans, cites)
         state = enter(HarnessState.CITATION_AND_AUDIO_GATE)
@@ -760,6 +794,8 @@ class FirstPersonContextHarness:
     ) -> RetrievalDecision:
         if spans is None:
             spans = self._window(context)
+        # Ensure spans are sorted chronologically by start_ms ascending before joining
+        spans = tuple(sorted(spans, key=lambda s: getattr(s, "start_ms", 0) or 0))
         cites = self._citations(spans)
         gates["citations_verified"] = self._citations_verified(spans, cites)
         if not gates["citations_verified"]:

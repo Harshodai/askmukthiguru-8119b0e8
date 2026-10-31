@@ -627,13 +627,31 @@ class OpenRouterService:
 
         attempt_count = 0
         call_started = time.perf_counter()
+        # What actually happened to the request, for budget settlement in `finally` below.
+        request_sent = False
+        response_arrived = False
+        response_cost_usd: float | None = None
 
         async def _execute():
-            nonlocal attempt_count
+            nonlocal attempt_count, request_sent, response_arrived, response_cost_usd
             attempt_count += 1
             attempt_started = time.perf_counter()
             client = await self._get_http_client()
-            resp = await client.post("/chat/completions", json=payload, headers=headers or None)
+            request_sent = True
+            try:
+                resp = await client.post("/chat/completions", json=payload, headers=headers or None)
+            except httpx.ConnectError:
+                # Never reached the provider: nothing can be billed, so refund in full.
+                request_sent = False
+                raise
+            response_arrived = True
+            try:
+                _body = resp.json()
+                _usage = _body.get("usage") if isinstance(_body, dict) else None
+                if isinstance(_usage, dict):
+                    response_cost_usd = self._usage_cost(_usage)
+            except Exception:  # a non-JSON error body simply carries no cost
+                response_cost_usd = None
             logger.info(
                 "OPENROUTER_HTTP_TIMING operation=%s model=%s status_class=%s response_ms=%.1f",
                 operation,
@@ -959,6 +977,17 @@ class OpenRouterService:
                 self._circuit.release_reservation()
             logger.error(f"OpenRouter call failed during {operation} (model={model}): {exc}")
             raise
+        finally:
+            # Success settled above; every other exit (cancel, timeout, HTTP error, refusal)
+            # lands here. A settlement failure must never replace the exception in flight.
+            try:
+                await reservation.finalize(
+                    request_sent=request_sent,
+                    response_arrived=response_arrived,
+                    response_cost_usd=response_cost_usd,
+                )
+            except Exception as _settle_exc:
+                logger.warning("Budget finalize failed; reservation kept: %s", _settle_exc)
 
     # -----------------------------------------------------------------------
     # Public Generation Methods
@@ -1125,229 +1154,249 @@ class OpenRouterService:
         # (gen_ai.system/request.model/usage.*) but opened manually since the
         # decorator can't wrap an async generator across many yields. See
         # docs/architecture/llm-observability-design.md.
-        with llm_span("openrouter") as _span:
-            set_llm_request(_span, model=model, operation=operation)
-            for attempt in range(self._max_retries):
-                attempt_started = time.perf_counter()
-                try:
-                    client = await self._get_http_client()
-                    buffer = ""
-                    yielded_any = False
-                    headers_ready_ms = None
-                    first_event_ms = None
-                    first_token_ms = None
-                    finish_reason = "unknown"
+        stream_request_sent = False
+        try:
+            with llm_span("openrouter") as _span:
+                set_llm_request(_span, model=model, operation=operation)
+                for attempt in range(self._max_retries):
+                    attempt_started = time.perf_counter()
+                    try:
+                        client = await self._get_http_client()
+                        buffer = ""
+                        yielded_any = False
+                        headers_ready_ms = None
+                        first_event_ms = None
+                        first_token_ms = None
+                        finish_reason = "unknown"
 
-                    headers = {}
-                    if is_anthropic:
-                        headers["anthropic-beta"] = "prompt-caching-2024-07-31"
+                        headers = {}
+                        if is_anthropic:
+                            headers["anthropic-beta"] = "prompt-caching-2024-07-31"
 
-                    async with client.stream(
-                        "POST",
-                        "/chat/completions",
-                        json=payload,
-                        headers=headers or None,
-                    ) as resp:
-                        headers_ready_ms = (time.perf_counter() - attempt_started) * 1000
-                        resp.raise_for_status()
+                        stream_request_sent = True
+                        async with client.stream(
+                            "POST",
+                            "/chat/completions",
+                            json=payload,
+                            headers=headers or None,
+                        ) as resp:
+                            headers_ready_ms = (time.perf_counter() - attempt_started) * 1000
+                            resp.raise_for_status()
 
-                        async for line in resp.aiter_lines():
-                            if first_event_ms is None:
-                                first_event_ms = (time.perf_counter() - attempt_started) * 1000
-                            if not line.startswith("data: "):
-                                continue
-                            data_str = line[6:]
-                            if data_str.strip() == "[DONE]":
-                                break
+                            async for line in resp.aiter_lines():
+                                if first_event_ms is None:
+                                    first_event_ms = (time.perf_counter() - attempt_started) * 1000
+                                if not line.startswith("data: "):
+                                    continue
+                                data_str = line[6:]
+                                if data_str.strip() == "[DONE]":
+                                    break
+                                try:
+                                    data = json.loads(data_str)
+                                except json.JSONDecodeError:
+                                    continue
+                                usage = data.get("usage")
+                                if isinstance(usage, dict):
+                                    stream_usage = usage
+                                choice = data.get("choices", [{}])[0] or {}
+                                finish_reason = str(choice.get("finish_reason") or finish_reason)[
+                                    :32
+                                ]
+                                delta_msg = choice.get("delta", {})
+                                delta = delta_msg.get("content") or ""
+                                if delta:
+                                    if first_token_ms is None:
+                                        first_token_ms = (
+                                            time.perf_counter() - attempt_started
+                                        ) * 1000
+                                    # Incremental yield (Slice A1): restores SSE TTFB.
+                                    # Buffer-all broke streaming (TTFB = full latency).
+                                    # Double-emit guard below: once any chunk is
+                                    # yielded, retry is disabled — a retry after
+                                    # partial yield would duplicate tokens.
+                                    # Refusal with zero prior deltas (tested CA-4
+                                    # case) still raises with nothing emitted.
+                                    # A mid-stream refusal after partial deltas
+                                    # raises ProviderRefusalError after partial
+                                    # emit; callers treat refusal as terminal.
+                                    buffer += delta
+                                    yielded_any = True
+                                    yield delta
+
+                        # Stream refusal: same semantics as the non-stream path.
+                        # Check before record_success so the circuit is not marked
+                        # healthy on a refusal. Settlement errors are swallowed
+                        # (logged) and the reservation releases in finally, so a
+                        # budget failure can never replace the refusal or leak
+                        # the slot (review 2026-10-14).
+                        if finish_reason in ("refusal", "content_filter"):
                             try:
-                                data = json.loads(data_str)
-                            except json.JSONDecodeError:
-                                continue
-                            usage = data.get("usage")
-                            if isinstance(usage, dict):
-                                stream_usage = usage
-                            choice = data.get("choices", [{}])[0] or {}
-                            finish_reason = str(choice.get("finish_reason") or finish_reason)[:32]
-                            delta_msg = choice.get("delta", {})
-                            delta = delta_msg.get("content") or ""
-                            if delta:
-                                if first_token_ms is None:
-                                    first_token_ms = (time.perf_counter() - attempt_started) * 1000
-                                # Incremental yield (Slice A1): restores SSE TTFB.
-                                # Buffer-all broke streaming (TTFB = full latency).
-                                # Double-emit guard below: once any chunk is
-                                # yielded, retry is disabled — a retry after
-                                # partial yield would duplicate tokens.
-                                # Refusal with zero prior deltas (tested CA-4
-                                # case) still raises with nothing emitted.
-                                # A mid-stream refusal after partial deltas
-                                # raises ProviderRefusalError after partial
-                                # emit; callers treat refusal as terminal.
-                                buffer += delta
-                                yielded_any = True
-                                yield delta
-
-                    # Stream refusal: same semantics as the non-stream path.
-                    # Check before record_success so the circuit is not marked
-                    # healthy on a refusal. Settlement errors are swallowed
-                    # (logged) and the reservation releases in finally, so a
-                    # budget failure can never replace the refusal or leak
-                    # the slot (review 2026-10-14).
-                    if finish_reason in ("refusal", "content_filter"):
-                        try:
-                            await reservation.settle(self._usage_cost(stream_usage or {}))
-                        except Exception as settle_exc:
-                            logger.warning(
-                                "Stream refusal budget settlement failed; "
-                                "releasing reservation anyway: %s",
-                                settle_exc,
+                                await reservation.settle(self._usage_cost(stream_usage or {}))
+                            except Exception as settle_exc:
+                                logger.warning(
+                                    "Stream refusal budget settlement failed; "
+                                    "releasing reservation anyway: %s",
+                                    settle_exc,
+                                )
+                            finally:
+                                self._circuit.release_reservation()
+                            raise ProviderRefusalError(
+                                f"Stream refused by provider: finish_reason={finish_reason!r}"
                             )
-                        finally:
-                            self._circuit.release_reservation()
-                        raise ProviderRefusalError(
-                            f"Stream refused by provider: finish_reason={finish_reason!r}"
+
+                        self._circuit.record_success()
+                        usage = stream_usage or {}
+                        prompt_tokens = usage.get("prompt_tokens") or self._estimate_tokens(
+                            str(messages)
                         )
+                        completion_tokens = usage.get("completion_tokens") or self._estimate_tokens(
+                            buffer
+                        )
+                        prompt_details = usage.get("prompt_tokens_details") or {}
+                        cached_tokens = (
+                            prompt_details.get("cached_tokens")
+                            or usage.get("cache_read_input_tokens")
+                            or 0
+                        )
+                        cache_write_tokens = (
+                            prompt_details.get("cache_write_tokens")
+                            or usage.get("cache_creation_input_tokens")
+                            or 0
+                        )
+                        cost_usd = self._usage_cost(usage) if stream_usage is not None else None
+                        cost_for_span = (
+                            cost_usd
+                            if cost_usd is not None
+                            else self._fallback_cost(prompt_tokens, completion_tokens, model)
+                        )
+                        self._track_token_usage(
+                            tokens_in=prompt_tokens,
+                            tokens_out=completion_tokens,
+                            model=model,
+                            operation=operation,
+                            cached_tokens=cached_tokens,
+                            cache_write_tokens=cache_write_tokens,
+                            cost_usd=cost_usd,
+                        )
+                        await reservation.settle(cost_usd)
+                        record_llm_result(
+                            _span,
+                            completion=buffer,
+                            prompt=messages,
+                            tokens_in=prompt_tokens,
+                            tokens_out=completion_tokens,
+                            cached_tokens=cached_tokens,
+                            cost_usd=cost_for_span,
+                            finish_reason=finish_reason,
+                            response_model=model,
+                        )
+                        logger.info(
+                            "OPENROUTER_STREAM_TIMING operation=%s model=%s attempt=%d status_class=%s "
+                            "headers_ms=%.1f first_event_ms=%s ttft_ms=%s total_ms=%.1f "
+                            "prompt_tokens=%s completion_tokens=%s cached_tokens=%s "
+                            "finish_reason=%s",
+                            operation,
+                            model,
+                            attempt + 1,
+                            f"{int(getattr(resp, 'status_code', 0)) // 100}xx",
+                            headers_ready_ms or 0.0,
+                            f"{first_event_ms:.1f}" if first_event_ms is not None else "none",
+                            f"{first_token_ms:.1f}" if first_token_ms is not None else "none",
+                            (time.perf_counter() - stream_started) * 1000,
+                            prompt_tokens,
+                            completion_tokens,
+                            cached_tokens,
+                            finish_reason,
+                        )
+                        # Streamed incrementally above; nothing left to emit.
+                        # (Buffer retained for usage/span accounting only.)
+                        return
 
-                    self._circuit.record_success()
-                    usage = stream_usage or {}
-                    prompt_tokens = usage.get("prompt_tokens") or self._estimate_tokens(
-                        str(messages)
-                    )
-                    completion_tokens = usage.get("completion_tokens") or self._estimate_tokens(
-                        buffer
-                    )
-                    prompt_details = usage.get("prompt_tokens_details") or {}
-                    cached_tokens = (
-                        prompt_details.get("cached_tokens")
-                        or usage.get("cache_read_input_tokens")
-                        or 0
-                    )
-                    cache_write_tokens = (
-                        prompt_details.get("cache_write_tokens")
-                        or usage.get("cache_creation_input_tokens")
-                        or 0
-                    )
-                    cost_usd = self._usage_cost(usage) if stream_usage is not None else None
-                    cost_for_span = (
-                        cost_usd
-                        if cost_usd is not None
-                        else self._fallback_cost(prompt_tokens, completion_tokens, model)
-                    )
-                    self._track_token_usage(
-                        tokens_in=prompt_tokens,
-                        tokens_out=completion_tokens,
-                        model=model,
-                        operation=operation,
-                        cached_tokens=cached_tokens,
-                        cache_write_tokens=cache_write_tokens,
-                        cost_usd=cost_usd,
-                    )
-                    await reservation.settle(cost_usd)
-                    record_llm_result(
-                        _span,
-                        completion=buffer,
-                        prompt=messages,
-                        tokens_in=prompt_tokens,
-                        tokens_out=completion_tokens,
-                        cached_tokens=cached_tokens,
-                        cost_usd=cost_for_span,
-                        finish_reason=finish_reason,
-                        response_model=model,
-                    )
-                    logger.info(
-                        "OPENROUTER_STREAM_TIMING operation=%s model=%s attempt=%d status_class=%s "
-                        "headers_ms=%.1f first_event_ms=%s ttft_ms=%s total_ms=%.1f "
-                        "prompt_tokens=%s completion_tokens=%s cached_tokens=%s "
-                        "finish_reason=%s",
-                        operation,
-                        model,
-                        attempt + 1,
-                        f"{int(getattr(resp, 'status_code', 0)) // 100}xx",
-                        headers_ready_ms or 0.0,
-                        f"{first_event_ms:.1f}" if first_event_ms is not None else "none",
-                        f"{first_token_ms:.1f}" if first_token_ms is not None else "none",
-                        (time.perf_counter() - stream_started) * 1000,
-                        prompt_tokens,
-                        completion_tokens,
-                        cached_tokens,
-                        finish_reason,
-                    )
-                    # Streamed incrementally above; nothing left to emit.
-                    # (Buffer retained for usage/span accounting only.)
-                    return
-
-                except asyncio.CancelledError:
-                    # See _call_api's identical clause: a caller-cancelled
-                    # (our own timeout) call must still release a reserved
-                    # half-open slot.
-                    self._circuit.release_reservation()
-                    raise
-                except ProviderRefusalError:
-                    # CA-4, stream leg: deterministic refusal, not provider
-                    # illness. The finish_reason branch above already settled
-                    # the budget and released the reservation, so re-raise
-                    # bare: never record a circuit failure, never retry.
-                    raise
-                except Exception as e:
-                    # No retry after partial yield: a retry would re-emit
-                    # from the start and duplicate tokens already sent.
-                    if yielded_any:
+                    except asyncio.CancelledError:
+                        # See _call_api's identical clause: a caller-cancelled
+                        # (our own timeout) call must still release a reserved
+                        # half-open slot.
+                        self._circuit.release_reservation()
                         raise
-                    logger.warning(
-                        "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "
-                        "error_type=%s",
-                        operation,
-                        model,
-                        attempt + 1,
-                        (time.perf_counter() - attempt_started) * 1000,
-                        type(e).__name__,
-                    )
-                    last_error = e
-                    is_rate_limit = (
-                        isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429
-                    )
-                    if is_rate_limit:
-                        await self._record_rate_limit_response(model)
-                        wait = min(2**attempt, 8)
+                    except ProviderRefusalError:
+                        # CA-4, stream leg: deterministic refusal, not provider
+                        # illness. The finish_reason branch above already settled
+                        # the budget and released the reservation, so re-raise
+                        # bare: never record a circuit failure, never retry.
+                        raise
+                    except Exception as e:
+                        # No retry after partial yield: a retry would re-emit
+                        # from the start and duplicate tokens already sent.
+                        if yielded_any:
+                            raise
                         logger.warning(
-                            f"OpenRouter streaming 429 — retry {attempt + 1}/{self._max_retries} after {wait}s"
+                            "OPENROUTER_STREAM_ERROR_TIMING operation=%s model=%s attempt=%d elapsed_ms=%.1f "
+                            "error_type=%s",
+                            operation,
+                            model,
+                            attempt + 1,
+                            (time.perf_counter() - attempt_started) * 1000,
+                            type(e).__name__,
                         )
-                        await asyncio.sleep(wait)
-                    else:
-                        # B4: same taxonomy as _call_api — only transport
-                        # errors and 5xx count as provider illness; other
-                        # 4xx (auth, de-listed model) are neutral.
-                        _stream_status = (
-                            e.response.status_code if isinstance(e, httpx.HTTPStatusError) else None
+                        last_error = e
+                        is_rate_limit = (
+                            isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429
                         )
-                        if isinstance(
-                            e,
-                            (
-                                httpx.RemoteProtocolError,
-                                httpx.ConnectError,
-                                httpx.TimeoutException,
-                                TimeoutError,
-                                asyncio.TimeoutError,
-                            ),
-                        ) or (_stream_status is not None and _stream_status >= 500):
-                            self._circuit.record_failure()
+                        if is_rate_limit:
+                            await self._record_rate_limit_response(model)
+                            wait = min(2**attempt, 8)
+                            logger.warning(
+                                f"OpenRouter streaming 429 — retry {attempt + 1}/{self._max_retries} after {wait}s"
+                            )
+                            await asyncio.sleep(wait)
                         else:
-                            self._circuit.release_reservation()
-                        logger.error(f"OpenRouter streaming failed: {e}")
-                        record_llm_error(_span, e)
-                        raise
+                            # B4: same taxonomy as _call_api — only transport
+                            # errors and 5xx count as provider illness; other
+                            # 4xx (auth, de-listed model) are neutral.
+                            _stream_status = (
+                                e.response.status_code
+                                if isinstance(e, httpx.HTTPStatusError)
+                                else None
+                            )
+                            if isinstance(
+                                e,
+                                (
+                                    httpx.RemoteProtocolError,
+                                    httpx.ConnectError,
+                                    httpx.TimeoutException,
+                                    TimeoutError,
+                                    asyncio.TimeoutError,
+                                ),
+                            ) or (_stream_status is not None and _stream_status >= 500):
+                                self._circuit.record_failure()
+                            else:
+                                self._circuit.release_reservation()
+                            logger.error(f"OpenRouter streaming failed: {e}")
+                            record_llm_error(_span, e)
+                            raise
 
-            if not self._circuit.can_execute():
-                raise CircuitOpenException(
-                    provider="openrouter",
-                    message="Circuit breaker OPEN in generate_stream",
+                if not self._circuit.can_execute():
+                    raise CircuitOpenException(
+                        provider="openrouter",
+                        message="Circuit breaker OPEN in generate_stream",
+                    )
+                logger.error(
+                    f"OpenRouter streaming exhausted {self._max_retries} retries: {last_error}"
                 )
-            logger.error(
-                f"OpenRouter streaming exhausted {self._max_retries} retries: {last_error}"
-            )
-            final_error = last_error or Exception("Streaming failed after all retries")
-            record_llm_error(_span, final_error)
-            raise final_error
+                final_error = last_error or Exception("Streaming failed after all retries")
+                record_llm_error(_span, final_error)
+                raise final_error
+        finally:
+            # Same rule as _call_api: success settled in the body; a consumer that stops
+            # reading, a cancel or an error lands here and must not keep a full reservation.
+            try:
+                await reservation.finalize(
+                    request_sent=stream_request_sent,
+                    response_arrived=bool(stream_usage),
+                    response_cost_usd=self._usage_cost(stream_usage) if stream_usage else None,
+                )
+            except Exception as _settle_exc:
+                logger.warning("Stream budget finalize failed; reservation kept: %s", _settle_exc)
 
     async def _stream_completion(
         self,
@@ -1585,6 +1634,9 @@ class OpenRouterService:
                 "is_distress": False,
                 "confidence": 0.0,
                 "reason": "Distress provider unavailable; deterministic safety checks remain authoritative",
+                # Honest signal: this is "could not check", not "checked and fine". The engine
+                # tags the turn and the bridge adds the support line (2026-10-31 review).
+                "indeterminate": True,
             }
 
     async def batch_grade_relevance(self, query: str, documents: list[str], **kwargs) -> list[dict]:

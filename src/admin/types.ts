@@ -356,6 +356,14 @@ export interface QualityData {
     response_text: string;
     created_at: ISODate;
   }>;
+  abstentions?: {
+    crisis_redirect: number;
+    serving_contract_violation: number;
+    unverified_speaker: number;
+    empty_retrieval: number;
+    total: number;
+    reasons?: Record<string, number>;
+  };
 }
 
 export interface QueueJob {
@@ -497,3 +505,133 @@ export interface AttributionTriagePayload {
   interlocutor_role?: string;
   notes?: string;
 }
+
+// ── First-person video approval ──────────────────────────────────────────────
+export type VideoGrade = "A" | "B" | "C" | "D" | "F";
+export type HumanSpeakerCheck = "confirmed" | "rejected";
+export type MachineSpeakerStatus = "none" | "partial" | "full" | "n/a";
+export type VideoApprovalState = "approved" | "rejected" | "undecided";
+
+export interface VideoHumanDecision {
+  video_id: string;
+  admin_approved: boolean | null;
+  human_speaker_check: HumanSpeakerCheck | null;
+  grade: VideoGrade | null;
+  notes: string | null;
+  updated_by: string;
+  updated_at: string;
+  reason: string;
+}
+
+export interface VideoReviewRow {
+  video_id: string;
+  title: string;
+  channel: string;
+  youtube_url: string;
+  in_v10: boolean;
+  status_note: string;
+  /** Machine-measured evidence. Read-only: this page never writes it. */
+  machine: {
+    source: "live" | "inventory" | "decision_only";
+    child_spans: number;
+    speaker_verified_spans: number;
+    spans_with_voice_method: number;
+    min_window_cosine: number | null;
+    speaker_status: MachineSpeakerStatus;
+    guru_ids: string[];
+  };
+  decision: VideoHumanDecision | null;
+  approval_state: VideoApprovalState;
+  serving: "blocked_by_admin" | "gates_apply" | "not_in_v10";
+}
+
+export interface VideoReviewSummary {
+  videos: number;
+  in_v10: number;
+  missing_in_v10: number;
+  approved: number;
+  rejected: number;
+  undecided: number;
+  blocked_by_admin: number;
+  machine_speaker: Record<MachineSpeakerStatus, number>;
+}
+
+export interface VideoReviewList {
+  total: number;
+  limit: number;
+  offset: number;
+  rows: VideoReviewRow[];
+  summary: VideoReviewSummary;
+  channels: string[];
+  live: boolean;
+  collection: string;
+}
+
+export interface VideoReviewFilters {
+  q?: string;
+  channel?: string;
+  verified?: Exclude<MachineSpeakerStatus, "n/a">;
+  approved?: VideoApprovalState;
+  in_v10?: boolean;
+  limit?: number;
+  offset?: number;
+  refresh?: boolean;
+}
+
+export interface VideoAuditEntry {
+  ts: string;
+  actor: string;
+  video_id: string;
+  reason: string;
+  before: VideoHumanDecision | null;
+  after: VideoHumanDecision | null;
+}
+
+export interface VideoDecisionPayload {
+  admin_approved: boolean | null;
+  human_speaker_check: HumanSpeakerCheck | null;
+  grade: VideoGrade | null;
+  notes: string | null;
+  reason: string | null;
+}
+
+export interface CorpusProvenance {
+  point_id: string;
+  source_url?: string;
+  source_release_version?: number | string;
+  content_checksum?: string;
+  embedding_model?: string;
+  embedding_dimension?: number;
+  chunker_version?: string;
+  gate_verdict?: string;
+  gate_reason?: string;
+  asr_method?: string;
+  align_method?: string;
+  rights_status?: string;
+  parent_id?: string;
+  parent_id_scheme?: string;
+  created_at?: string;
+  ingested_at?: string;
+  audio_start_ms?: number;
+  audio_end_ms?: number;
+  speaker?: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface QdrantIndexHealth {
+  status: "green" | "yellow" | "red" | "unknown";
+  collection: string;
+  points_count?: number;
+  segments_count?: number;
+  fragmentation_pct?: number;
+  optimizer_status?: string;
+  dimension?: number;
+  error?: string;
+}
+
+export interface QdrantOptimizeResult {
+  actions: string[];
+  before: QdrantIndexHealth;
+  after: QdrantIndexHealth;
+}
+

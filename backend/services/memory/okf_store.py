@@ -32,6 +32,7 @@ except ImportError:  # pragma: no cover
     frontmatter = None  # type: ignore
 
 from app.config import settings
+from app.corpus_governance import SourceAssetManifest
 from services.okf_quality_filter import OKFQualityFilter
 from services.transcript_verbatim import CORPUS_ROOT as _DEFAULT_CORPUS_ROOT
 from services.transcript_verbatim import strip_fabricated_quotes
@@ -183,12 +184,16 @@ class OKFStore:
     """Read and validate OKF markdown entries from disk."""
 
     def __init__(
-        self, directory: Optional[Path] = None, corpus_root: Optional[Path] = None
+        self,
+        directory: Optional[Path] = None,
+        corpus_root: Optional[Path] = None,
+        manifest: Optional[SourceAssetManifest] = None,
     ) -> None:
         self.dir = directory or _OKF_DIR
         # Only consulted when settings.okf_verbatim_quote_gate is on; tests pass
         # a tmp corpus here instead of the real scripts/ingestion/corpus tree.
         self.corpus_root = corpus_root or _DEFAULT_CORPUS_ROOT
+        self.manifest = manifest
 
     def list_entries(self) -> list[OKFEntry]:
         """Return all valid OKF entries in the directory."""
@@ -281,6 +286,7 @@ class OKFStore:
         min_similarity: float = 0.45,
         teacher: Optional[str] = None,
         preferred_type: Optional[str] = None,
+        manifest: Optional[SourceAssetManifest] = None,
     ) -> list[dict[str, Any]]:
         """In-memory vector matching against compiled.json using numpy dot product (<1ms)."""
         return match_okf_entries(
@@ -290,6 +296,7 @@ class OKFStore:
             teacher=teacher,
             preferred_type=preferred_type,
             compiled_path=self.dir / "compiled.json",
+            manifest=manifest if manifest is not None else self.manifest,
         )
 
     def match_verbatim_clusters(
@@ -519,7 +526,61 @@ def _matches_teacher(entry_teacher: str, requested_teacher: Optional[str]) -> bo
     return req == entry_t
 
 
-def _load_compiled_matrix(compiled_path: Path) -> tuple[list[dict[str, Any]], Optional[np.ndarray]]:
+def _filter_entries_by_manifest(
+    entries: list[dict[str, Any]],
+    matrix: Optional[np.ndarray],
+    manifest: SourceAssetManifest,
+) -> tuple[list[dict[str, Any]], Optional[np.ndarray]]:
+    """Filter compiled OKF entries and matrix using explicit manifest eligibility."""
+    if not entries or matrix is None:
+        return [], None
+    valid_entries: list[dict[str, Any]] = []
+    valid_indices: list[int] = []
+
+    for idx, e in enumerate(entries):
+        # Note: "stable" or "licensed" on the entry must never imply clearance
+        source_id = str(
+            e.get("source_id")
+            or e.get("source")
+            or _video_id_from_source(str(e.get("source", "")))
+            or ""
+        )
+        corpus_ver = str(e.get("corpus_version") or "v1")
+        content_hash = e.get("content_hash") or e.get("hash")
+        tier = str(e.get("serving_tier") or e.get("tier") or "general")
+
+        eligible, reason = manifest.is_entry_eligible(
+            source_id=source_id,
+            corpus_version=corpus_ver,
+            content_hash=content_hash,
+            tier=tier,
+            require_content_hash=False,
+        )
+        if not eligible and reason == "unmanifested_source":
+            vid = _video_id_from_source(str(e.get("source", "")))
+            if vid and vid != source_id:
+                eligible, _ = manifest.is_entry_eligible(
+                    source_id=vid,
+                    corpus_version=corpus_ver,
+                    content_hash=content_hash,
+                    tier=tier,
+                    require_content_hash=False,
+                )
+
+        if eligible:
+            valid_entries.append(e)
+            valid_indices.append(idx)
+
+    if not valid_indices:
+        return [], None
+
+    return valid_entries, matrix[valid_indices]
+
+
+def _load_compiled_matrix(
+    compiled_path: Path,
+    manifest: Optional[SourceAssetManifest] = None,
+) -> tuple[list[dict[str, Any]], Optional[np.ndarray]]:
     """Load pre-computed 1024-dim BGE-M3 embeddings and entries from compiled.json, cached by mtime."""
     global _COMPILED_INDEX_CACHE
     if not compiled_path.exists():
@@ -534,38 +595,70 @@ def _load_compiled_matrix(compiled_path: Path) -> tuple[list[dict[str, Any]], Op
         and _COMPILED_INDEX_CACHE["path"] == str(compiled_path)
         and _COMPILED_INDEX_CACHE["matrix"] is not None
     ):
-        return _COMPILED_INDEX_CACHE["entries"], _COMPILED_INDEX_CACHE["matrix"]
+        raw_entries, raw_matrix = _COMPILED_INDEX_CACHE["entries"], _COMPILED_INDEX_CACHE["matrix"]
+    else:
+        try:
+            with open(compiled_path, encoding="utf-8") as f:
+                data = json.load(f)
+            raw_entries = data.get("entries", [])
+        except Exception as e:
+            logger.warning("Failed to load compiled OKF index from %s: %s", compiled_path, e)
+            return [], None
 
+        valid_entries = []
+        emb_list = []
+        for e in raw_entries:
+            emb = e.get("embedding")
+            if emb and len(emb) == 1024:
+                valid_entries.append(e)
+                emb_list.append(emb)
+
+        if not emb_list:
+            return [], None
+
+        matrix = np.array(emb_list, dtype=np.float32)
+        norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+        norms[norms == 0.0] = 1.0
+        norm_matrix = matrix / norms
+
+        _COMPILED_INDEX_CACHE["mtime"] = mtime
+        _COMPILED_INDEX_CACHE["path"] = str(compiled_path)
+        _COMPILED_INDEX_CACHE["entries"] = valid_entries
+        _COMPILED_INDEX_CACHE["matrix"] = norm_matrix
+        raw_entries, raw_matrix = valid_entries, norm_matrix
+
+    governance_active = bool(settings.okf_governance_manifest_enabled or (manifest is not None))
+    if governance_active:
+        active_manifest = manifest
+        if active_manifest is None:
+            active_manifest = _default_manifest(compiled_path.parent / "source_asset_manifest.json")
+        return _filter_entries_by_manifest(raw_entries, raw_matrix, active_manifest)
+
+    return raw_entries, raw_matrix
+
+
+_MANIFEST_CACHE: dict[str, tuple[int, SourceAssetManifest]] = {}
+
+
+def _default_manifest(path: Path) -> SourceAssetManifest:
+    """Owner-signed manifest next to compiled.json, re-read only when the file changes.
+
+    A missing or unreadable file yields an empty manifest (nothing cleared), and an
+    unreadable one is not cached so a repaired file is picked up on the next call.
+    """
+    if not path.exists():
+        return SourceAssetManifest([])
+    stamp = path.stat().st_mtime_ns
+    hit = _MANIFEST_CACHE.get(str(path))
+    if hit is not None and hit[0] == stamp:
+        return hit[1]
     try:
-        with open(compiled_path, encoding="utf-8") as f:
-            data = json.load(f)
-        raw_entries = data.get("entries", [])
-    except Exception as e:
-        logger.warning("Failed to load compiled OKF index from %s: %s", compiled_path, e)
-        return [], None
-
-    valid_entries = []
-    emb_list = []
-    for e in raw_entries:
-        emb = e.get("embedding")
-        if emb and len(emb) == 1024:
-            valid_entries.append(e)
-            emb_list.append(emb)
-
-    if not emb_list:
-        return [], None
-
-    matrix = np.array(emb_list, dtype=np.float32)
-    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
-    norms[norms == 0.0] = 1.0
-    norm_matrix = matrix / norms
-
-    _COMPILED_INDEX_CACHE["mtime"] = mtime
-    _COMPILED_INDEX_CACHE["path"] = str(compiled_path)
-    _COMPILED_INDEX_CACHE["entries"] = valid_entries
-    _COMPILED_INDEX_CACHE["matrix"] = norm_matrix
-
-    return valid_entries, norm_matrix
+        manifest = SourceAssetManifest.from_file(path)
+    except Exception as exc:
+        logger.warning("Failed to load default source asset manifest: %s", exc)
+        return SourceAssetManifest([])
+    _MANIFEST_CACHE[str(path)] = (stamp, manifest)
+    return manifest
 
 
 def match_okf_entries(
@@ -575,6 +668,7 @@ def match_okf_entries(
     teacher: Optional[str] = None,
     preferred_type: Optional[str] = None,
     compiled_path: Optional[Path] = None,
+    manifest: Optional[SourceAssetManifest] = None,
 ) -> list[dict[str, Any]]:
     """In-memory vector matching against compiled.json using numpy dot product (<1ms).
 
@@ -585,6 +679,7 @@ def match_okf_entries(
         teacher: Optional filter ('sri-preethaji', 'sri-krishnaji', or 'both').
         preferred_type: Optional entry type to boost (e.g. 'practice').
         compiled_path: Optional override path to compiled.json.
+        manifest: Optional SourceAssetManifest to filter entries by governance clearance.
 
     Returns:
         List of matched entry dicts with:
@@ -594,7 +689,7 @@ def match_okf_entries(
         return []
 
     c_path = compiled_path or (OKF_DIR / "compiled.json")
-    entries, matrix = _load_compiled_matrix(c_path)
+    entries, matrix = _load_compiled_matrix(c_path, manifest=manifest)
     if matrix is None or not entries:
         return []
 
@@ -610,6 +705,11 @@ def match_okf_entries(
     candidates: list[tuple[float, float, dict[str, Any]]] = []
     pref_type_lower = preferred_type.strip().lower() if preferred_type else None
 
+    governance_active = bool(settings.okf_governance_manifest_enabled or (manifest is not None))
+    active_manifest: Optional[SourceAssetManifest] = manifest
+    if governance_active and active_manifest is None:
+        active_manifest = _default_manifest(c_path.parent / "source_asset_manifest.json")
+
     for i, base_sim in enumerate(similarities):
         e = entries[i]
         sim = float(base_sim)
@@ -618,6 +718,38 @@ def match_okf_entries(
         # Teacher filter
         if teacher and not _matches_teacher(e.get("teacher", ""), teacher):
             continue
+
+        # Manifest governance gate
+        if governance_active and active_manifest is not None:
+            source_id = str(
+                e.get("source_id")
+                or e.get("source")
+                or _video_id_from_source(str(e.get("source", "")))
+                or ""
+            )
+            corpus_ver = str(e.get("corpus_version") or "v1")
+            content_hash = e.get("content_hash") or e.get("hash")
+            tier = str(e.get("serving_tier") or e.get("tier") or "general")
+
+            eligible, reason = active_manifest.is_entry_eligible(
+                source_id=source_id,
+                corpus_version=corpus_ver,
+                content_hash=content_hash,
+                tier=tier,
+                require_content_hash=False,
+            )
+            if not eligible and reason == "unmanifested_source":
+                vid = _video_id_from_source(str(e.get("source", "")))
+                if vid and vid != source_id:
+                    eligible, _ = active_manifest.is_entry_eligible(
+                        source_id=vid,
+                        corpus_version=corpus_ver,
+                        content_hash=content_hash,
+                        tier=tier,
+                        require_content_hash=False,
+                    )
+            if not eligible:
+                continue
 
         # Type boost
         boosted_score = sim

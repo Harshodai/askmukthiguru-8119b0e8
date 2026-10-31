@@ -19,7 +19,7 @@ concurrency:
 jobs:
   prelaunch:
     name: build + unit + e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: Playwright 1.60 cannot install deps on ubuntu-26.04 (ubuntu-latest)
     timeout-minutes: 40
 
     steps:
@@ -110,7 +110,7 @@ jobs:
 
   ui-device-matrix:
     name: UI device matrix (${{ matrix.project }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: Playwright 1.60 cannot install deps on ubuntu-26.04 (ubuntu-latest)
     timeout-minutes: 25
     strategy:
       fail-fast: false

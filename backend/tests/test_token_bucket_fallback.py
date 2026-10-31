@@ -1,4 +1,4 @@
-"""TokenBucketMiddleware's in-process fallback bucket.
+"""TokenBucketMiddleware's in-process fallback bucket and key derivation tests.
 
 Regression for: any Redis exception on /api/chat's rate limiter used to fail
 fully open (unlimited traffic per replica). `_local_allowed` is the
@@ -7,7 +7,13 @@ Pure unit test — no Redis, no FastAPI app needed; `redis.from_url` only
 builds a client object, it does not connect.
 """
 
-from app.middleware.rate_limit import TokenBucketMiddleware
+from __future__ import annotations
+
+import pytest
+from fastapi import Request
+
+from app.middleware.rate_limit import TokenBucketMiddleware, _chat_bucket_key
+from services.tenant_context import TenantContext
 
 
 def _make_middleware(capacity=3, refill_per_sec=0.0) -> TokenBucketMiddleware:
@@ -20,6 +26,28 @@ def _make_middleware(capacity=3, refill_per_sec=0.0) -> TokenBucketMiddleware:
         redis_url="redis://localhost:6379/0",
         capacity=capacity,
         refill_per_sec=refill_per_sec,
+    )
+
+
+def _request_with_peer(peer: str, user_id: str = "") -> Request:
+    headers = []
+    if user_id:
+        headers.append((b"x-user-id", user_id.encode()))
+    client_tuple = (peer, 12345) if peer else None
+    return Request(
+        {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/chat",
+            "raw_path": b"/api/chat",
+            "query_string": b"",
+            "headers": headers,
+            "client": client_tuple,
+            "server": ("testserver", 80),
+        }
     )
 
 
@@ -56,6 +84,7 @@ def test_client_supplied_user_id_does_not_change_chat_bucket_key():
         second = _chat_bucket_key(_request_with_peer("192.0.2.10", "victim-b"))
 
     assert first == second
+    assert first == "rl:chat:tenant-a:192.0.2.10"
 
 
 def test_server_observed_peer_ip_scopes_chat_bucket_key():
@@ -66,18 +95,25 @@ def test_server_observed_peer_ip_scopes_chat_bucket_key():
     assert first != second
 
 
+def test_ipv6_peer_address_is_compressed_and_normalized():
+    with TenantContext.scope("tenant-a", user_id="server-user"):
+        key = _chat_bucket_key(_request_with_peer("2001:0db8:0000:0000:0000:ff00:0042:8329"))
+    assert key == "rl:chat:tenant-a:2001:db8::ff00:42:8329"
+
+
+def test_invalid_peer_ip_falls_back_to_unknown_safely():
+    with TenantContext.scope("tenant-a"):
+        key_invalid = _chat_bucket_key(_request_with_peer("invalid-ip-string"))
+        key_empty = _chat_bucket_key(_request_with_peer(""))
+    assert key_invalid == "rl:chat:tenant-a:unknown"
+    assert key_empty == "rl:chat:tenant-a:unknown"
+
+
 if __name__ == "__main__":
-    test_local_fallback_enforces_capacity()
-    test_local_fallback_is_per_key()
-    test_local_fallback_refills_over_time()
-    print("ok")
-from fastapi import Request
-
-from app.middleware.rate_limit import _chat_bucket_key
-from services.tenant_context import TenantContext
+    raise SystemExit(pytest.main([__file__, "-v"]))
 
 
-def _request_with_peer(peer: str, user_id: str) -> Request:
+def _request_with_auth(token: str) -> Request:
     return Request(
         {
             "type": "http",
@@ -88,8 +124,53 @@ def _request_with_peer(peer: str, user_id: str) -> Request:
             "path": "/api/chat",
             "raw_path": b"/api/chat",
             "query_string": b"",
-            "headers": [(b"x-user-id", user_id.encode())],
-            "client": (peer, 12345),
+            "headers": [(b"authorization", f"Bearer {token}".encode())],
+            "client": ("10.0.0.9", 12345),
             "server": ("testserver", 80),
         }
     )
+
+
+def test_unsigned_token_cannot_partition_the_rate_limit_bucket(monkeypatch):
+    """P1-5: an unsigned JWT's tenant_id claim must never scope the bucket.
+
+    Before the fix the header was decoded with verify_signature=False, so an
+    attacker could rotate tenant_id per request and never hit the per-IP limit.
+    """
+    import jwt as pyjwt
+
+    from app.config import settings
+    from app.middleware.rate_limit import _try_set_tenant_from_auth_header
+
+    monkeypatch.setattr(settings, "jwt_secret", "test-secret", raising=False)
+    # `reset()` returns to the process legacy tenant (`_LEGACY_TENANT`, captured
+    # at import); `clear()` sets "". Both are non-attacker states — the point is
+    # that the forged claim leaves the context untouched.
+    TenantContext.reset()
+    before = TenantContext.get()
+    before_key = _chat_bucket_key(_request_with_auth("x"))
+
+    forged = pyjwt.encode({"tenant_id": "attacker-chosen"}, "not-the-secret", algorithm="HS256")
+    _try_set_tenant_from_auth_header(_request_with_auth(forged))
+
+    assert TenantContext.get() == before
+    assert _chat_bucket_key(_request_with_auth(forged)) == before_key
+    assert "attacker-chosen" not in _chat_bucket_key(_request_with_auth(forged))
+
+
+def test_signed_token_tenant_scopes_the_bucket(monkeypatch):
+    """The genuine HS256 tenant claim still scopes the bucket."""
+    import jwt as pyjwt
+
+    from app.config import settings
+    from app.middleware.rate_limit import _try_set_tenant_from_auth_header
+
+    monkeypatch.setattr(settings, "jwt_secret", "test-secret", raising=False)
+    TenantContext.reset()
+
+    genuine = pyjwt.encode({"tenant_id": "tenant-a"}, "test-secret", algorithm="HS256")
+    _try_set_tenant_from_auth_header(_request_with_auth(genuine))
+
+    assert TenantContext.get() == "tenant-a"
+    assert _chat_bucket_key(_request_with_auth(genuine)) == "rl:chat:tenant-a:10.0.0.9"
+    TenantContext.clear()

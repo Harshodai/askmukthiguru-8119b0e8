@@ -476,6 +476,26 @@ class QdrantSearcher:
             if is_blocked_source(payload):
                 continue
             screened_hits.append(hit)
+
+        # DE-0.3: Read-time release filter & shadow mode
+        from services.qdrant.source_policy import (
+            ReleasePolicyUnavailable,
+            filter_by_release,
+        )
+
+        try:
+            screened_hits, _ = filter_by_release(
+                screened_hits,
+                corpus_id=scope.corpus_id if scope else None,
+            )
+        except ReleasePolicyUnavailable as exc:
+            # Fail closed: no document beats a document served under a guessed
+            # release version (enforce mode only; shadow never raises).
+            logger.error(
+                "Release filter unavailable; returning no document: %s",
+                exc,
+            )
+            screened_hits = []
         hits = screened_hits[:limit]
 
         docs = [
@@ -535,6 +555,12 @@ class QdrantSearcher:
                 "ontology_version": hit.payload.get("ontology_version"),
                 "entity_resolution_confidence": hit.payload.get("entity_resolution_confidence"),
                 "chunk_id": hit.payload.get("chunk_id") or hit.id,
+                "source_release_version": hit.payload.get("source_release_version"),
+                # filter_by_release already ran on these hits above; the
+                # retrieval node must not re-run it on the flattened dict
+                # (it would apply a different corpus_id and, in enforce, drop
+                # any doc whose stamp the dict shape lost).
+                "release_screened": True,
             }
             for hit in hits
         ]
@@ -544,6 +570,34 @@ class QdrantSearcher:
             dense = _extract_dense_vector(hit)
             if dense is not None:
                 doc["_dense_embedding"] = dense
+
+        # RAG-3: Channel Provenance for Explainability (admin/internal only)
+        if getattr(settings, "retrieval_channel_provenance_enabled", False):
+            from app.metrics import RETRIEVAL_CHANNEL_HITS_TOTAL
+
+            for doc in docs:
+                channels = ["dense"]
+                if sparse_vector is not None:
+                    channels.append("sparse")
+                if doc.get("raptor_level", 0) > 0 or raptor_level is not None:
+                    channels.append("raptor")
+                if graph_prefetch_enabled or doc.get("graph_node_ids") or doc.get("entity_ids"):
+                    channels.append("graph")
+                doc["retrieval_channels"] = channels
+                score_val = float(doc.get("score") or 0.0)
+                doc["pre_rerank_score"] = score_val
+                doc["post_rerank_score"] = score_val
+                for ch in channels:
+                    RETRIEVAL_CHANNEL_HITS_TOTAL.labels(channel=ch).inc()
+
+        # RAG-1: Suppression check if query provided and feedback enabled
+        if getattr(settings, "retrieval_feedback_enabled", False):
+            raw_query = kwargs.get("query") or kwargs.get("raw_query")
+            if raw_query:
+                from services.retrieval_feedback import get_retrieval_feedback_service
+
+                docs = get_retrieval_feedback_service().filter_suppressed(raw_query, docs)
+
         return docs
 
     @staticmethod

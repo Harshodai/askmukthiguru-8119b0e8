@@ -138,8 +138,12 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
             default=0.0,
         )
         bypass_threshold = float(getattr(settings, "rerank_bypass_threshold", 0.85))
+        bypass_enabled = getattr(settings, "rerank_bypass_high_confidence_enabled", True)
+        if getattr(settings, "is_production", False):
+            bypass_enabled = False
+
         if (
-            getattr(settings, "rerank_bypass_high_confidence_enabled", True)
+            bypass_enabled
             and query_tier in ("fast", "tier2_simple")
             and top_initial_score >= bypass_threshold
         ):
@@ -243,6 +247,10 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
         second_best = sorted_by_score[1]
         rest = [d for d in reranked if d is not best and d is not second_best]
         reranked = [best] + rest + [second_best]
+
+    if getattr(settings, "retrieval_channel_provenance_enabled", False):
+        for d in reranked:
+            d["post_rerank_score"] = float(d.get("rerank_score") or d.get("score") or 0.0)
 
     logger.info(
         f"Reranked total={len(documents)} (web={len(web_docs)}, db={len(db_docs)}) -> "
@@ -509,16 +517,27 @@ async def enrich_context(state: GraphState, config: Optional[RunnableConfig] = N
     relevant_docs = state.get("relevant_docs", [])
     qdrant = _services._qdrant
 
+    if not getattr(settings, "enrichment_window_enabled", False):
+        return {"relevant_docs": relevant_docs}
+
     if state.get("query_tier") in ("fast", "tier2_simple"):
         logger.info("Enrich context: bypassing for simple query tier")
         return {"relevant_docs": relevant_docs}
 
-    if not relevant_docs or settings.rag_context_window <= 0:
+    window_size = int(
+        getattr(settings, "enrichment_window_size", settings.rag_context_window)
+        or settings.rag_context_window
+    )
+    if not relevant_docs or window_size <= 0:
         return {"relevant_docs": relevant_docs}
 
     await emit_status(config, "Gathering surrounding context...")
     enriched_docs = []
     seen_hashes = set()
+    max_budget_chars = int(getattr(settings, "generation_compression_max_chars", 1500)) * 4
+    current_chars = 0
+
+    from app.metrics import ENRICHMENT_WINDOW_EXPANSIONS_TOTAL
 
     # LightRAG global-graph enrichment: explicitly disabled (2026-09-06).
     # Previously gated only by `_lightrag_svc.rag` being unset, which happened
@@ -549,7 +568,7 @@ async def enrich_context(state: GraphState, config: Optional[RunnableConfig] = N
                     qdrant.get_neighbor_chunks,
                     top_docs[i].get("source_url"),
                     top_docs[i].get("chunk_index"),
-                    window=settings.rag_context_window,
+                    window=window_size,
                 )
                 for i in _eligible_idx
             ],
@@ -566,29 +585,52 @@ async def enrich_context(state: GraphState, config: Optional[RunnableConfig] = N
                 # un-enriched doc rather than failing or dropping it.
                 if isinstance(neighbors, Exception):
                     logger.debug(f"Neighbor lookup skipped: {neighbors}")
+                    ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="error").inc()
+                else:
+                    ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="noop").inc()
                 h = hash(doc_text(doc)[:100])
                 if h not in seen_hashes:
                     seen_hashes.add(h)
                     enriched_docs.append(doc)
+                    current_chars += len(doc_text(doc))
                 continue
+
+            expanded_any = False
             for n in neighbors:
-                h = hash(n["text"][:100])
+                n_text = n.get("text", "")
+                if current_chars + len(n_text) > max_budget_chars and enriched_docs:
+                    ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="budget_trimmed").inc()
+                    break
+                h = hash(n_text[:100])
                 if h not in seen_hashes:
                     seen_hashes.add(h)
                     enriched_docs.append(n)
+                    current_chars += len(n_text)
+                    expanded_any = True
+
+            if expanded_any:
+                ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="expanded").inc()
+            else:
+                ENRICHMENT_WINDOW_EXPANSIONS_TOTAL.labels(outcome="noop").inc()
         else:
             h = hash(doc_text(doc)[:100])
             if h not in seen_hashes:
                 seen_hashes.add(h)
                 enriched_docs.append(doc)
+                current_chars += len(doc_text(doc))
 
     for doc in relevant_docs[3:]:
-        h = hash(doc_text(doc)[:100])
+        d_text = doc_text(doc)
+        if current_chars + len(d_text) > max_budget_chars and enriched_docs:
+            break
+        h = hash(d_text[:100])
         if h not in seen_hashes:
             seen_hashes.add(h)
             enriched_docs.append(doc)
+            current_chars += len(d_text)
 
     logger.info(
-        f"Enriched {len(relevant_docs)} -> {len(enriched_docs)} chunks using window={settings.rag_context_window}"
+        f"Enriched {len(relevant_docs)} -> {len(enriched_docs)} chunks using window={window_size}"
     )
+    return {"relevant_docs": enriched_docs}
     return {"relevant_docs": enriched_docs}

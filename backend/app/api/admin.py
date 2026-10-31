@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.admin_telemetry import operations_snapshot, trace_detail, trace_summary
 from app.config import settings
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container, get_container_async
 from app.sanitization import sanitize_log_input
 from app.telemetry_db import (
     get_admins,
@@ -2476,7 +2476,13 @@ async def triage_attribution_span(
         "decision": decision_value,
         "assigned_guru": payload.assigned_guru,
         "interlocutor_role": payload.interlocutor_role,
-        "message": f"Span {span_id[:8]} triaged as {payload.action} ({decision_value})",
+        # Honest status: this endpoint only logs the reviewer's decision. Nothing is
+        # written to the corpus or a decision store, so it must not read as "applied".
+        "persisted": False,
+        "message": (
+            f"Span {span_id[:8]} decision logged as {payload.action} ({decision_value}); "
+            "NOT applied to the corpus."
+        ),
     }
 
 
@@ -2499,5 +2505,140 @@ async def batch_triage_video(
         "video_id": video_id,
         "action": payload.action,
         "affected_spans_count": len(payload.span_ids),
-        "message": f"Batch action {payload.action} successfully applied to {len(payload.span_ids)} spans in video {video_id}",
+        "persisted": False,
+        "message": (
+            f"Batch action {payload.action} for {len(payload.span_ids)} spans in video "
+            f"{video_id} logged; NOT applied to the corpus."
+        ),
+    }
+
+
+@admin_router.get("/corpus/provenance/{point_id}")
+async def get_corpus_provenance(
+    point_id: str,
+    user: dict = Depends(_require_admin),
+    container: ServiceContainer = Depends(get_container_async),
+) -> dict[str, Any]:
+    """Admin Provenance API (DE-2.4).
+
+    Retrieves the point from Qdrant by point_id (via container.qdrant_client.retrieve or scroll).
+    Returns browser-safe JSON dictionary with:
+    point_id, source_url, source_release_version, content_checksum, embedding_model,
+    embedding_dimension, chunker_version, gate_verdict, gate_reason, asr_method,
+    align_method, rights_status, parent_id, parent_id_scheme, created_at / ingested_at.
+    Returns 404 if point is not found.
+    """
+    qdrant_client = getattr(container, "qdrant_client", None)
+    if qdrant_client is None and hasattr(container, "qdrant"):
+        qdrant_client = getattr(container.qdrant, "_client", None) or getattr(
+            container.qdrant, "client", None
+        )
+
+    if qdrant_client is None:
+        raise HTTPException(status_code=503, detail="Vector store unavailable")
+
+    answered = 0  # lookups that got a Qdrant reply (empty or not), vs. raised
+
+    async def _lookup(collection: str) -> Any:
+        nonlocal answered
+        points = None
+        if hasattr(qdrant_client, "retrieve"):
+            try:
+                res = await asyncio.to_thread(
+                    qdrant_client.retrieve,
+                    collection_name=collection,
+                    ids=[point_id],
+                    with_payload=True,
+                )
+                answered += 1
+                if res:
+                    points = res
+            except Exception as e:
+                logger.warning("qdrant_client.retrieve(str) failed on %s: %s", collection, e)
+
+            if not points and point_id.isdigit():
+                try:
+                    res = await asyncio.to_thread(
+                        qdrant_client.retrieve,
+                        collection_name=collection,
+                        ids=[int(point_id)],
+                        with_payload=True,
+                    )
+                    answered += 1
+                    if res:
+                        points = res
+                except Exception as e:
+                    logger.warning("qdrant_client.retrieve(int) failed on %s: %s", collection, e)
+
+        if not points and hasattr(qdrant_client, "scroll"):
+            from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+
+            try:
+                scroll_res = await asyncio.to_thread(
+                    qdrant_client.scroll,
+                    collection_name=collection,
+                    scroll_filter=Filter(
+                        must=[FieldCondition(key="point_id", match=MatchValue(value=point_id))]
+                    ),
+                    limit=1,
+                    with_payload=True,
+                )
+                scroll_pts = scroll_res[0] if isinstance(scroll_res, tuple) else scroll_res
+                answered += 1
+                if scroll_pts:
+                    points = scroll_pts
+            except Exception as e:
+                logger.warning("qdrant_client.scroll failed on %s: %s", collection, e)
+        return points
+
+    # A point lives in the chat corpus OR in a first-person store. Reading only
+    # `qdrant_collection` made every first-person point (the ones served to
+    # seekers) a 404 and hid its provenance.
+    collections: list[str] = []
+    for name in (
+        getattr(settings, "qdrant_collection", "spiritual_wisdom_contextual"),
+        getattr(settings, "first_person_context_collection", ""),
+        getattr(settings, "first_person_collection", ""),
+    ):
+        if name and name not in collections:
+            collections.append(name)
+
+    points = None
+    for collection in collections:
+        points = await _lookup(collection)
+        if points:
+            break
+
+    if not points and not answered:
+        # Every lookup raised: Qdrant is unreachable, which is not "no such point".
+        raise HTTPException(status_code=503, detail="Vector store unavailable")
+    if not points:
+        raise HTTPException(status_code=404, detail=f"Corpus point '{point_id}' not found")
+
+    point = points[0]
+    payload = getattr(point, "payload", {}) or (
+        point.get("payload", {}) if isinstance(point, dict) else {}
+    )
+    stored_id = str(getattr(point, "id", None) or payload.get("point_id") or point_id)
+
+    return {
+        "point_id": stored_id,
+        "source_url": payload.get("source_url"),
+        "source_release_version": payload.get("source_release_version"),
+        "content_checksum": payload.get("content_checksum"),
+        "embedding_model": payload.get("embedding_model"),
+        "embedding_dimension": payload.get("embedding_dimension"),
+        "chunker_version": payload.get("chunker_version"),
+        "gate_verdict": payload.get("gate_verdict"),
+        "gate_reason": payload.get("gate_reason"),
+        "asr_method": payload.get("asr_method"),
+        "align_method": payload.get("align_method"),
+        "rights_status": payload.get("rights_status") or payload.get("domain_rights_status"),
+        "parent_id": payload.get("parent_id"),
+        "parent_id_scheme": payload.get("parent_id_scheme"),
+        "created_at": payload.get("created_at") or payload.get("ingested_at"),
+        "ingested_at": payload.get("ingested_at") or payload.get("created_at"),
+        "audio_start_ms": payload.get("audio_start_ms") or payload.get("start_ms"),
+        "audio_end_ms": payload.get("audio_end_ms") or payload.get("end_ms"),
+        "speaker": payload.get("speaker") or payload.get("guru_id"),
     }

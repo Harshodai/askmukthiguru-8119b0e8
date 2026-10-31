@@ -435,8 +435,11 @@ def test_second_quote_serves_two_labelled_separate_recordings(monkeypatch):
     res, _ = _run("3,3")
     assert res.status == "weak_match"
     assert [c["video_id"] for c in res.citations] == ["vidA", "vidB"]
-    assert "Recording 1 of 2" in res.answer_text and "Recording 2 of 2" in res.answer_text
-    assert "does not continue the first" in res.answer_text
+    # Answer-body purity (invariant 1): the body is quotes + attribution only; the
+    # "separate recordings" explanation rides metadata, never the body.
+    assert "Recording 1 of 2" not in res.answer_text and "Recording 2" not in res.answer_text
+    assert "does not continue the first" not in res.answer_text
+    assert "does not continue the first" in res.second_quote_note
     # both quotes are the stored text, byte for byte
     assert _GOOD_A in res.answer_text and _GOOD_B in res.answer_text
 

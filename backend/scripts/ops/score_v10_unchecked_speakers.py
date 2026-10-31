@@ -40,7 +40,12 @@ if str(_BACKEND) not in sys.path:
 
 from ingest.verbatim.speaker_verify import verify_clip_speaker  # noqa: E402
 
-_TEACHER_CODES = {"sri preethaji": "preethaji", "sri krishnaji": "krishnaji"}
+_TEACHER_CODES = {
+    "sri preethaji": "preethaji",
+    "sri krishnaji": "krishnaji",
+    "preethaji": "preethaji",
+    "krishnaji": "krishnaji",
+}
 
 
 def classify_child(payload: dict[str, Any], speaker_result: dict[str, Any] | None) -> str:

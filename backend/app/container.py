@@ -32,7 +32,7 @@ import asyncio
 import atexit
 import logging
 import threading
-from typing import Optional
+from typing import Any, Optional
 
 from app.config import settings
 from guardrails import GuardrailsService
@@ -888,6 +888,13 @@ class ServiceContainer:
     def lightrag_degraded(self) -> bool:
         """Dynamic check of LightRAG initialization status."""
         return not self.lightrag._initialized
+
+    @property
+    def qdrant_client(self) -> Any:
+        """Direct access to underlying Qdrant client instance."""
+        if hasattr(self, "qdrant") and self.qdrant is not None:
+            return getattr(self.qdrant, "_client", None)
+        return None
 
     @property
     def neo4j_driver(self):

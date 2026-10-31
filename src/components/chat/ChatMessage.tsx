@@ -2,12 +2,13 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useNavigate } from 'react-router-dom';
+import gurusPhoto from '@/assets/gurus-photo.jpg';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
@@ -30,14 +31,16 @@ import { useToast } from '@/hooks/use-toast';
 import { CitationPanel, type Citation } from './CitationPanel';
 import { LiveLogisticsCards } from './LiveLogisticsCards';
 import { EuAiBadge } from '@/components/compliance/EuAiBadge';
+import type { OriginType } from '@/types/provenance';
 import { ProvenanceDrawer } from '@/components/compliance/ProvenanceDrawer';
 import { CitationBadge, DiscourseVideoModal, type DiscourseCitation } from './CitationCard';
 import { LinkSearchModal } from './LinkSearchModal';
 import { SacredPracticeWidget } from './SacredPracticeWidget';
-import { ReflectionChips } from './ReflectionChips';
 import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
+import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
+import { completeStep } from '@/lib/dailyJourney';
 import { AbstainHelpCard } from './AbstainHelpCard';
 
 interface ChatMessageProps {
@@ -699,6 +702,60 @@ export const LazyWisdomCardGenerator = lazyWithRetry<
 export const PERSONALIZED_LABEL =
   '_This is a personalized reflection on the teaching above, in our own words — not a direct quote from the teachers._';
 
+interface UserMessageContentProps {
+  content: string;
+  showMoreLabel?: string;
+  showLessLabel?: string;
+}
+
+const UserMessageContent: React.FC<UserMessageContentProps> = ({
+  content,
+  showMoreLabel = 'Read more',
+  showLessLabel = 'Show less',
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isLong = content.length > 420 || (content.match(/\n/g) || []).length > 5;
+  const wordCount = useMemo(() => {
+    const trimmed = content.trim();
+    return trimmed ? trimmed.split(/\s+/).length : 0;
+  }, [content]);
+
+  if (!isLong) {
+    return (
+      <span className="font-medium whitespace-pre-wrap leading-relaxed break-words">
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex flex-col w-full">
+      <div
+        className={cn(
+          'relative transition-all duration-300 font-medium whitespace-pre-wrap leading-relaxed break-words',
+          !isExpanded && 'max-h-[140px] overflow-hidden'
+        )}
+      >
+        <span>{content}</span>
+        {!isExpanded && (
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-chat-user via-chat-user/80 to-transparent" />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-ojas hover:text-ojas-light transition-colors self-start select-none py-0.5 rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
+        aria-expanded={isExpanded}
+      >
+        <span>{isExpanded ? showLessLabel : `${showMoreLabel} (${wordCount} words)`}</span>
+        <ChevronDown
+          className={cn('w-3.5 h-3.5 transition-transform duration-200', isExpanded && 'rotate-180')}
+        />
+      </button>
+    </div>
+  );
+};
+
 const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
   ({ message, queryText, index = 0, isStreaming = false, isLastGuru = false, onRegenerate, onStartNewChat, onEditUserMessage, onSubmitEdit, onAction, onCitationClick, onPersonalizeTeaching }, ref) => {
     const { t } = useTranslation();
@@ -810,8 +867,13 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       const dividerMatch = displayContent.match(/(?:^|\n)\s*---\s*(?:\n|$)/);
       if (dividerMatch && dividerMatch.index !== undefined) {
         const teaching = displayContent.slice(0, dividerMatch.index).trim();
-        const inquiry = displayContent.slice(dividerMatch.index + dividerMatch[0].length).trim();
-        return { teachingBody: teaching, inquiryBody: inquiry || null };
+        const afterDivider = displayContent.slice(dividerMatch.index + dividerMatch[0].length).trim();
+        // If afterDivider starts with sources/citations markdown, it is a citation block, not an Atma Vichara inquiry
+        const isSourcesBlock = /^(?:\*+Sources of Wisdom|\[\d+\]|#+\s*Sources|Sources of Wisdom)/i.test(afterDivider);
+        if (isSourcesBlock) {
+          return { teachingBody: teaching, inquiryBody: null };
+        }
+        return { teachingBody: teaching, inquiryBody: afterDivider || null };
       }
       // Also check for explicit inquiry heading if no '---'
       const inquiryHeaderMatch = displayContent.match(/(?:^|\n)\s*(?:\*+Atma Vichara[^*]*\*+|###?\s*Atma Vichara[^\n]*)\s*(?:\n|$)/i);
@@ -822,6 +884,25 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       }
       return { teachingBody: displayContent, inquiryBody: null };
     }, [isGuru, displayContent]);
+
+    // When GuruTeachingCard is rendered for a verbatim/first-person clip, suppress
+    // repeating the identical quote in the markdown body below it.
+    const isBodyDuplicateOfGuruCard = useMemo(() => {
+      if (!guruTeachingCitation) return false;
+      const quote = (guruTeachingCitation.quote ?? guruTeachingCitation.textSnippet ?? '').trim();
+      if (!quote || !teachingBody) return false;
+      const normalize = (text: string) =>
+        text
+          .replace(/^Related,\s*not a direct answer:?\s*/i, '')
+          .replace(/^["'“”‘’«»]+|["'“”‘’«»]+$/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+      const normBody = normalize(teachingBody);
+      const normQuote = normalize(quote);
+      if (!normBody || !normQuote) return false;
+      return normBody === normQuote || normQuote.startsWith(normBody) || normBody.startsWith(normQuote);
+    }, [guruTeachingCitation, teachingBody]);
 
     const markdownComponents = useMemo(() => ({
       p: ({ children }: { children?: ReactNode }) => {
@@ -1066,8 +1147,13 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           data-message-id={message.id}
         >
           {isGuru && (
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-ojas/15 to-ojas/5 border border-hairline flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Sparkles className="w-3.5 h-3.5 text-ojas" />
+            <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.15)] ring-1 ring-ojas/20 bg-background">
+              <img
+                src={gurusPhoto}
+                alt="Sri Preethaji & Sri Krishnaji"
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
             </div>
           )}
           {/* The guru answer is long-form prose — it gets the full reading column
@@ -1156,24 +1242,44 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     </div>
                   ) : (
                     <>
-                      <TeachingGroundingCard
-                        citations={citations}
-                        teachingPreview={message.teachingPreview}
-                        groundingState={message.groundingState}
-                        citationsVerified={message.citationsVerified}
-                        verification={message.verification}
-                        guidanceAttribution={message.guidancePlan?.attribution}
-                      />
+                      {!guruTeachingCitation && (
+                        <TeachingGroundingCard
+                          citations={citations}
+                          teachingPreview={message.teachingPreview}
+                          groundingState={message.groundingState}
+                          citationsVerified={message.citationsVerified}
+                          verification={message.verification}
+                          guidanceAttribution={message.guidancePlan?.attribution}
+                        />
+                      )}
                       {personalizeRef && !isAlreadyPersonalized && (
-                        <button
-                          type="button"
-                          data-testid="personalize-teaching"
-                          onClick={() => onPersonalizeTeaching?.(personalizeRef)}
-                          className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                          {t('chat.personalizeTeaching', 'Personalize this teaching')}
-                        </button>
+                        <div className="mb-3.5 flex flex-col gap-1.5 rounded-xl border border-ojas/25 bg-gradient-to-r from-ojas/10 via-background/90 to-ojas/5 p-2.5 sm:p-3 shadow-xs">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                              <EkamGoldenOrb className="w-3.5 h-3.5 text-ojas" />
+                              <span>{t('chat.personalizeTourTitle', 'Tune this wisdom to your life')}</span>
+                            </div>
+                            <button
+                              type="button"
+                              data-testid="personalize-teaching"
+                              onClick={() => onPersonalizeTeaching?.(personalizeRef)}
+                              aria-describedby={`personalize-note-${message.id}`}
+                              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold px-3.5 py-1.5 text-xs shadow-xs transition-transform active:scale-95 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                              <span>{t('chat.personalizeTeaching', 'Personalize this teaching')}</span>
+                            </button>
+                          </div>
+                          <p id={`personalize-note-${message.id}`} className="text-[11px] text-muted-foreground m-0" data-testid="personalize-note">
+                            {t('chat.personalizeNote', 'Uses only memories you chose to save.')}{' '}
+                            <button
+                              type="button"
+                              onClick={() => navigate('/profile?tab=memory')}
+                              className="text-ojas underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm font-medium"
+                            >
+                              {t('chat.personalizeManage', 'Review what is saved')}
+                            </button>
+                          </p>
+                        </div>
                       )}
                       {guruTeachingCitation && (
                         <div className="mb-3.5 w-full">
@@ -1183,6 +1289,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             related={message.verification?.direct === false}
                             index={citations.indexOf(guruTeachingCitation) + 1}
                             onPlay={(c) => {
+                              // Playing a real served clip is the proof for the journey's teaching step.
+                              completeStep('teaching');
                               setActiveVideoCitation(c);
                               onCitationClick?.(message.id, c.index - 1);
                             }}
@@ -1196,15 +1304,34 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       {isStreaming && !message.content ? null : (
                         <>
                           {/* 1. PRIMARY HERO: DIRECT GURU TEACHING WORDS FROM CORPUS */}
-                          <div className="prose prose-stone dark:prose-invert max-w-none text-[15px] leading-[1.75] text-foreground">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              urlTransform={safeUrlTransform}
-                              components={markdownComponents}
+                          {!isBodyDuplicateOfGuruCard && teachingBody && (
+                            <div className="prose prose-stone dark:prose-invert max-w-none text-[15px] leading-[1.75] text-foreground">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                urlTransform={safeUrlTransform}
+                                components={markdownComponents}
+                              >
+                                {injectCitationLinks(teachingBody, (message.citations ?? []).length)}
+                              </ReactMarkdown>
+                            </div>
+                          )}
+
+                          {/* Invariant 1: platform copy that accompanies a served clip
+                              (compassion framing, relationship/addiction safety
+                              boundaries, the human support line) is its own block — it
+                              is never concatenated into the teacher's verbatim words. */}
+                          {isGuru && !isStreaming && (message.safetyNotices?.length ?? 0) > 0 && (
+                            <div
+                              data-testid="safety-notices"
+                              className="mt-3 space-y-2 rounded-lg border border-border/50 bg-muted/30 p-3 text-[13px] leading-relaxed text-muted-foreground"
                             >
-                              {injectCitationLinks(teachingBody, (message.citations ?? []).length)}
-                            </ReactMarkdown>
-                          </div>
+                              {message.safetyNotices?.map((notice, noticeIndex) => (
+                                <p key={noticeIndex} className="whitespace-pre-wrap">
+                                  {notice}
+                                </p>
+                              ))}
+                            </div>
+                          )}
 
                           {/* Supportive Seeker UX for first-person abstain */}
                           {/* Not under a crisis/compassion reply or an outage: suggested questions there are noise. */}
@@ -1341,7 +1468,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     </div>
                   </div>
                 ) : (
-                  <span className="font-medium">{message.content}</span>
+                  <UserMessageContent
+                    content={message.content}
+                    showMoreLabel={t('common.readMore', 'Read more')}
+                    showLessLabel={t('common.showLess', 'Show less')}
+                  />
                 )}
                 {isGuru && isSpeaking && plainText && (
                   <span className="block mt-2 text-foreground/80" aria-live="polite">
@@ -1389,36 +1520,50 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               {/* Inline action buttons for the latest guru message only.
                   Suppressed on crisis/helpline answers and first-person abstain. */}
               {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
-                <InlineActions messageContent={message.content} onAction={onAction} />
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: 0.04 }}
+                  className="w-full"
+                >
+                  <InlineActions messageContent={message.content} onAction={onAction} />
+                </motion.div>
               )}
 
               {/* Engagement card: "Did this help?" — shown for the last guru answer.
                   Never shown on crisis/helpline answers — a feedback widget under a
                   helpline is unsafe (see isCrisisAnswer). */}
               {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
-                <EngagementCard
-                  messageId={message.id}
-                  messageContent={message.content}
-                  queryText={queryText}
-                  qualityMetadata={{
-                    message_id: message.id,
-                    trace_id: message.traceId,
-                    latency_ms: message.latencyMs,
-                    model_used: message.modelUsed,
-                    model_provider: message.modelProvider,
-                    query_tier: message.queryTier,
-                    faithfulness_score: message.faithfulnessScore,
-                    relevancy_score: message.relevancyScore,
-                    hallucination_flag: message.hallucinationFlag,
-                    verification: message.verification,
-                    citations_verified: message.citationsVerified,
-                    citation_count: message.citations?.length ?? 0,
-                    answer_length_chars: message.content.length,
-                    answer_length_words: message.content.trim() ? message.content.trim().split(/\s+/).length : 0,
-                    grounding_state: message.groundingState,
-                    route_decision: message.queryTier,
-                  }}
-                />
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: 0.08 }}
+                  className="w-full"
+                >
+                  <EngagementCard
+                    messageId={message.id}
+                    messageContent={message.content}
+                    queryText={queryText}
+                    qualityMetadata={{
+                      message_id: message.id,
+                      trace_id: message.traceId,
+                      latency_ms: message.latencyMs,
+                      model_used: message.modelUsed,
+                      model_provider: message.modelProvider,
+                      query_tier: message.queryTier,
+                      faithfulness_score: message.faithfulnessScore,
+                      relevancy_score: message.relevancyScore,
+                      hallucination_flag: message.hallucinationFlag,
+                      verification: message.verification,
+                      citations_verified: message.citationsVerified,
+                      citation_count: message.citations?.length ?? 0,
+                      answer_length_chars: message.content.length,
+                      answer_length_words: message.content.trim() ? message.content.trim().split(/\s+/).length : 0,
+                      grounding_state: message.groundingState,
+                      route_decision: message.queryTier,
+                    }}
+                  />
+                </motion.div>
               )}
 
 
@@ -1451,85 +1596,112 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 </div>
               )}
 
-              {/* Hover-only timestamp */}
-              <time className="opacity-0 group-hover:opacity-60 text-[11px] text-muted-foreground transition-opacity mt-1 block">
-                {formatTime(message.timestamp)}
-              </time>
-
-              {/* Guru hover actions — elevated Copy, Listen, and Share Wisdom as primary visible action buttons */}
+              {/* Guru hover actions and timestamp — zero-height when inactive on desktop to prevent dead-space gaps */}
               {isGuru && message.content && !message.error && !isStreaming && !message.content.includes('_Stopped by you._') && (
-                <div className="flex items-center gap-0.5 mt-2 opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200">
-                  <button
-                    onClick={handleCopy}
-                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                    title={copied ? t('common.copied') : t('chat.copyResponse')}
-                    aria-label={copied ? t('common.copied') : t('chat.copyResponse')}
-                  >
-                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                  {ttsSupported && (
+                <div className="flex items-center justify-between gap-2 mt-1 md:mt-0 md:max-h-0 md:overflow-hidden md:opacity-0 md:group-hover:mt-1.5 md:group-hover:max-h-10 md:group-hover:overflow-visible md:group-hover:opacity-100 md:group-focus-within:mt-1.5 md:group-focus-within:max-h-10 md:group-focus-within:overflow-visible md:group-focus-within:opacity-100 max-md:opacity-100 max-md:mt-1.5 transition-all duration-200">
+                  <div className="flex items-center gap-0.5 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100">
                     <button
-                      onClick={handleSpeak}
-                      aria-pressed={isSpeaking}
-                      className={`p-1 rounded-full transition-colors ${isSpeaking
-                          ? 'bg-ojas/15 text-ojas'
-                          : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
-                        }`}
-                      title={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
-                      aria-label={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
+                      onClick={handleCopy}
+                      className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                      title={copied ? t('common.copied') : t('chat.copyResponse')}
+                      aria-label={copied ? t('common.copied') : t('chat.copyResponse')}
                     >
-                      {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
-                  )}
-                  <button
-                    onClick={() => setShowWisdomCard(true)}
-                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                    title={t('chat.shareWisdomCard')}
-                    aria-label={t('chat.shareWisdomCard')}
-                  >
-                    <Share2 className="w-4 h-4" />
-                  </button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    {ttsSupported && (
                       <button
-                        className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
-                        title={t('common.more', 'More')}
-                        aria-label={t('common.more', 'More')}
+                        onClick={handleSpeak}
+                        aria-pressed={isSpeaking}
+                        className={`p-1 rounded-full transition-colors ${isSpeaking
+                            ? 'bg-ojas/15 text-ojas'
+                            : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
+                          }`}
+                        title={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
+                        aria-label={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
                       >
-                        <MoreHorizontal className="w-4 h-4" />
+                        {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                       </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      {isLastGuru && onRegenerate && (
-                        <DropdownMenuItem onClick={onRegenerate}>
-                          <RotateCcw className="w-4 h-4 mr-2" />
-                          {t('chat.regenerate')}
+                    )}
+                    <button
+                      onClick={() => setShowWisdomCard(true)}
+                      className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                      title={t('chat.shareWisdomCard')}
+                      aria-label={t('chat.shareWisdomCard')}
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                          title={t('common.more', 'More')}
+                          aria-label={t('common.more', 'More')}
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {isLastGuru && onRegenerate && (
+                          <DropdownMenuItem onClick={onRegenerate}>
+                            <RotateCcw className="w-4 h-4 mr-2" />
+                            {t('chat.regenerate')}
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={handleSaveToMemory} disabled={saved || savingMemory}>
+                          <Bookmark className={`w-4 h-4 mr-2 ${saved ? 'fill-current' : ''}`} />
+                          {saved ? t('chat.savedToMemory') : t('chat.saveToMemory')}
                         </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={handleSaveToMemory} disabled={saved || savingMemory}>
-                        <Bookmark className={`w-4 h-4 mr-2 ${saved ? 'fill-current' : ''}`} />
-                        {saved ? t('chat.savedToMemory') : t('chat.saveToMemory')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={handleSaveAsNote}>
-                        <StickyNote className={`w-4 h-4 mr-2 ${noteSaved ? 'fill-current' : ''}`} />
-                        {noteSaved ? t('chat.savedToNotes') : t('chat.saveAsNote')}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <LanguageTranslateButton message={message} />
+                        <DropdownMenuItem onClick={handleSaveAsNote}>
+                          <StickyNote className={`w-4 h-4 mr-2 ${noteSaved ? 'fill-current' : ''}`} />
+                          {noteSaved ? t('chat.savedToNotes') : t('chat.saveAsNote')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <LanguageTranslateButton message={message} />
+                  </div>
+                  <time className="text-[11px] text-muted-foreground/60 select-none pr-1">
+                    {formatTime(message.timestamp)}
+                  </time>
                 </div>
               )}
 
             </div>
 
-            {/* EU AI Act Article 50 Disclosure & Provenance Badge */}
+            {/* Unified Metadata & Provenance Row: EU AI Act Article 50 badge + Sources Cited */}
             {isGuru && !message.error && (message.content || !isStreaming) && (
-              <div className="mt-2 select-none flex items-center gap-2">
+              <div className="mt-1.5 select-none flex flex-wrap items-center gap-2">
                 <EuAiBadge
-                  originType="ai_generated"
+                  originType={
+                    (typeof message.aiProvenance?.originType === 'string' &&
+                     ['ai_generated', 'human_generated', 'ai_assisted', 'unverified'].includes(message.aiProvenance.originType)
+                      ? (message.aiProvenance.originType as OriginType)
+                      : (message.verification?.method === 'first_person_verbatim_clip_gate' && message.verification?.passed !== false
+                        ? 'human_generated'
+                        : 'ai_generated'))
+                  }
                   onClick={() => setProvenanceOpen(true)}
                   size="sm"
                 />
+                {citations.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSourcesOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-full border border-hairline bg-card/80 hover:bg-card hover:border-ojas/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-all shadow-sm"
+                    aria-label={t('chat.viewSources')}
+                    title={t('chat.references')}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden="true" />
+                    <span className="sr-only">{t('chat.references')}</span>
+                    <span className="font-medium text-foreground">
+                      {t('chat.sourcesCitedCount', { count: citations.length, defaultValue: `${citations.length} Sources` })}
+                    </span>
+                    <span className="text-muted-foreground/60">·</span>
+                    <span className="text-muted-foreground truncate max-w-[200px]">
+                      {getTeacherSummary(citations)}
+                    </span>
+                    <BookOpen className="w-3.5 h-3.5 text-muted-foreground/70 ml-0.5 shrink-0" aria-hidden="true" />
+                  </button>
+                )}
               </div>
             )}
 
@@ -1652,29 +1824,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             )}
             {isGuru && !isStreaming && message.sereneMindOffer?.triggered && !isCrisisAnswer(message.content) && (
               <SereneMindOfferCard offer={message.sereneMindOffer} />
-            )}
-
-            {isGuru && citations.length > 0 && (
-              <div className="mt-2.5 flex items-center">
-                <button
-                  type="button"
-                  onClick={() => setSourcesOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-full border border-hairline bg-card/80 hover:bg-card hover:border-ojas/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-all shadow-sm"
-                  aria-label={t('chat.viewSources')}
-                  title={t('chat.references')}
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden="true" />
-                  <span className="sr-only">{t('chat.references')}</span>
-                  <span className="font-medium text-foreground">
-                    {t('chat.sourcesCitedCount', { count: citations.length, defaultValue: `${citations.length} Sources` })}
-                  </span>
-                  <span className="text-muted-foreground/60">·</span>
-                  <span className="text-muted-foreground truncate max-w-[200px]">
-                    {getTeacherSummary(citations)}
-                  </span>
-                  <BookOpen className="w-3.5 h-3.5 text-muted-foreground/70 ml-0.5 shrink-0" aria-hidden="true" />
-                </button>
-              </div>
             )}
 
             {/* ponytail: CitationPanel = richer source view (YouTube embeds + quotes) triggered from References badge */}

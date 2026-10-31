@@ -35,6 +35,7 @@ import {
 } from '@/lib/memoryApi';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { KGConceptMap } from '@/components/kg/KGConceptMap';
+import { MemorySourceLink } from '@/components/common/MemorySourceLink';
 
 const formatDate = (iso: string): string => {
   try {
@@ -713,6 +714,7 @@ export const MemoryManager = () => {
                                 {t('memory.autoExtracted', 'Auto-extracted')}
                               </Badge>
                             )}
+                            <MemorySourceLink source={m.source_ref} />
                             {typeof m.decay_score === 'number' && (
                               <span
                                 className="text-xs text-muted-foreground"

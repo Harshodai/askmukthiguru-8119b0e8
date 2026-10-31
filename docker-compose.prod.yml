@@ -61,8 +61,16 @@ services:
   backend:
     image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
     container_name: mukthiguru-backend-prod
-    environment:
+    environment: &backend-env
       - ENV=production
+      # Settings refuse to load in production without these (app/config.py
+      # validators). celery-beat shares this block, so a missing one fails
+      # `compose config` here instead of crash-looping beat in the container.
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - ANON_SESSION_HMAC_SECRET=${ANON_SESSION_HMAC_SECRET:?set ANON_SESSION_HMAC_SECRET (required in production)}
+      - BRAIN_KEK=${BRAIN_KEK:?set BRAIN_KEK (required in production)}
+      # Empty is allowed only with FACULTY_GATE_DISABLED=true; otherwise settings fail closed.
+      - FACULTY_ACCESS_CODE=${FACULTY_ACCESS_CODE:-}
       - LLM_PROVIDER=${LLM_PROVIDER:-sarvam_cloud}
       - SARVAM_API_KEY=${SARVAM_API_KEY}
       - SUPABASE_URL=${SUPABASE_URL}
@@ -90,6 +98,11 @@ services:
       # Workers: 2 for production. Each loads the embedding model (~1.4GB each).
       # Ensure the host has ≥4GB RAM available.
       - WEB_CONCURRENCY=2
+    # Owner video decisions (services/first_person_video_decisions.py writes
+    # /app/data/fp_video_decisions). Without a volume a redeploy forgot every
+    # rejected video and the audit log, so the video was served again.
+    volumes:
+      - backend_data:/app/data
     depends_on:
       qdrant:
         condition: service_healthy
@@ -227,7 +240,59 @@ services:
         reservations:
           memory: 64M
 
+  # --- Celery worker (consumes what celery-beat publishes) ---
+  # Beat publishes retention/cache/win-back/sweeper tasks to the default
+  # `celery` queue; without a worker on it they were never executed.
+  celery-worker:
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
+    container_name: mukthiguru-celery-worker-prod
+    command: >
+      celery -A celery_config worker
+      --loglevel=info
+      --queues=transcription,embedding,indexing,ingestion,okf,memory,celery
+      --concurrency=${CELERY_CONCURRENCY:-1}
+    environment: *backend-env
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mukthiguru
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+        reservations:
+          memory: 512M
+
+  # --- Celery Beat (scheduled periodic tasks) ---
+  celery-beat:
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
+    container_name: mukthiguru-celery-beat-prod
+    command: celery -A celery_config beat --loglevel=info
+    # Beat imports the task modules, which load app.config; with only four env
+    # vars that raised "anon_session_hmac_secret is required in production" and
+    # beat crash-looped, so retention and the stale-job sweeper never ran.
+    environment: *backend-env
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mukthiguru
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          memory: 128M
+
 volumes:
   qdrant_data:
   redis_data:
   whatsapp_data:
+  backend_data:

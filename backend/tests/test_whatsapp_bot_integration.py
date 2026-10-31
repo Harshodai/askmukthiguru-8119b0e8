@@ -63,6 +63,8 @@ def setup_test_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("META_VERIFY_TOKEN", "test_verify_token_1234")
     monkeypatch.setattr(wa_bot, "META_VERIFY_TOKEN", "test_verify_token_1234")
     wa_bot._init_db()
+    # Replies only happen after an inbound message, so the 24h window is open.
+    wa_bot.open_window("+919876543210")
     yield
 
 

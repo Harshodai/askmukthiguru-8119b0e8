@@ -61,10 +61,12 @@ export const UserMenu = ({ onRestartTour }: UserMenuProps = {}) => {
           className="rounded-full ring-1 ring-border hover:ring-ojas/40 transition-all focus:outline-none focus:ring-2 focus:ring-ojas/60 min-w-[44px] min-h-[44px] flex items-center justify-center tap-clean"
           aria-label={t('common.openUserMenu')}
         >
-          <Avatar className="w-9 h-9">
+          <Avatar className="w-9 h-9 ring-1 ring-ojas/20">
             {(profile.avatarDataUrl || profile.avatarUrl) ? (
               <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} alt={profile.displayName} />
-            ) : null}
+            ) : (
+              <AvatarImage src="/images/ekam-golden-orb-lotus-square.png" alt="Ekam Golden Orb" />
+            )}
             <AvatarFallback className="bg-ojas text-primary-foreground text-sm font-semibold">
               {getInitials(profile.displayName)}
             </AvatarFallback>

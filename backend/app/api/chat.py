@@ -998,6 +998,8 @@ async def chat_v2_endpoint(
         citations_verified=result.citations_verified,
         orphan_citations_stripped=result.orphan_citations_stripped,
         node_timings=result.node_timings or None,
+        # Platform copy (support line, boundaries) no longer rides in `response`.
+        safety_notices=list(getattr(result, "safety_notices", None) or []),
         # Retrieval provenance reaches the caller. Both fields were already
         # populated on PipelineResult and forwarded to the telemetry sink, but
         # omitted here — so no consumer could tell which lane (Qdrant dense/

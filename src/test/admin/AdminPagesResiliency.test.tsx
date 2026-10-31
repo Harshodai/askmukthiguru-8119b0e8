@@ -20,6 +20,7 @@ const mockUseSimilarityTrend = vi.fn();
 const mockUseDataStores = vi.fn();
 const mockUseRagFlowGraph = vi.fn();
 const mockUseFeedback = vi.fn();
+const mockUseQdrantHealth = vi.fn();
 
 vi.mock('@/admin/hooks/useAdminData', () => ({
   useKpis: () => mockUseKpis(),
@@ -37,6 +38,8 @@ vi.mock('@/admin/hooks/useAdminData', () => ({
   useDeadDocs: () => mockUseDeadDocs(),
   useSimilarityTrend: () => mockUseSimilarityTrend(),
   useDataStores: () => mockUseDataStores(),
+  useQdrantHealth: () => mockUseQdrantHealth(),
+  useCorpusProvenance: () => ({ data: null, isLoading: false }),
   useRagFlowGraph: (s: string) => mockUseRagFlowGraph(s),
   useFeedback: (limit?: number) => mockUseFeedback(limit),
 }));
@@ -82,6 +85,7 @@ import FeedbackPage from '@/admin/pages/FeedbackPage';
 describe('Admin UX & Resiliency Hardening', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseQdrantHealth.mockReturnValue({ data: null, isLoading: false, refetch: vi.fn() });
   });
 
   describe('1. OverviewPage', () => {
