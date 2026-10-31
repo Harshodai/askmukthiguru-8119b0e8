@@ -70,6 +70,14 @@
 - **What:** a catch-all `/rest/v1/` route registered after `/rest/v1/guru_memories` answered every memory request with an empty list, so the spec failed while a hand-run sweep passed.
 - **Rule:** register catch-all mocks first and specific mocks last.
 
+## Oct 30, 2026 — v10-only serving config (no v8)
+
+### L-LEGACY-SLOT-NAME-1. A "legacy" collection setting was doing two jobs it did not say: it gated startup, and it switched a safety guard on by name.
+- **What:** the serving contract (B4) stops production startup when `FIRST_PERSON_COLLECTION` names a context collection (VERIFIED in code; the Railway runbook claim holds). So v10-only needed a phantom `first_person_v8` name. Pointing the slot at v10 instead would also have turned `_boundary_guard_enabled` off, because that guard is keyed on the legacy collection name (v6/v7/v8) and the harness reuses it for v10 spans. Also found: facet split searches only the legacy store, so it bypassed `first_person_context_terminal_enabled`.
+- **Fix:** `validate_serving_contract(context_terminal_enabled=...)` allows the alias only when the harness AND the terminal flag are on (`v10_only_mode_active`); all context-side checks still run. The pipeline keeps the boundary guard and content gate on when its store aliases the context collection, skips facet split while terminal, and the personalize stage declines without a Qdrant read when aliased.
+- **Rule:** before pointing a slot at a different collection, grep what else keys on that slot's NAME, not only what reads it.
+- **Pin:** `backend/tests/test_first_person_v10_only.py` (29 tests). UNPROVEN: a clean-Docker v10-only start and live answers; Mac run owns that.
+
 ## Oct 30, 2026 — v10-only run: flags, caches, eval inputs, serializer
 
 ### L-EFFECTIVE-FLAGS-1. Numbers labelled "v10" were legacy v8 numbers, because compose pinned the harness flag off.

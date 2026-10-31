@@ -246,6 +246,43 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
 
 
 # ---------------------------------------------------------------------------
+# v10-only mode
+# ---------------------------------------------------------------------------
+def legacy_slot_aliases_context(legacy_collection: object, context_collection: object) -> bool:
+    """True when the legacy slot and the context slot name the same collection.
+
+    Only a real ``str`` can alias: a test double or an unset value never does.
+    """
+    if not isinstance(legacy_collection, str) or not isinstance(context_collection, str):
+        return False
+    legacy_name = legacy_collection.strip()
+    return bool(legacy_name) and legacy_name == context_collection.strip()
+
+
+def v10_only_mode_active(
+    *,
+    legacy_collection: object,
+    context_collection: object,
+    context_harness_enabled: object,
+    context_terminal_enabled: object,
+) -> bool:
+    """True for the owner's v10-only serving posture (2026-10-30).
+
+    All three must hold: the legacy slot names the context collection, the
+    context harness is on, and the terminal flag is on. The terminal flag is
+    what makes the harness the only reader (``FirstPersonPipeline`` abstains
+    instead of falling through to the legacy store). ``is True`` on the
+    terminal flag matches the pipeline's own check, so a patched or mock
+    settings object cannot switch the mode on.
+    """
+    return (
+        legacy_slot_aliases_context(legacy_collection, context_collection)
+        and bool(context_harness_enabled)
+        and context_terminal_enabled is True
+    )
+
+
+# ---------------------------------------------------------------------------
 # validation
 # ---------------------------------------------------------------------------
 def validate_serving_contract(
@@ -255,17 +292,41 @@ def validate_serving_contract(
     context_collection: str = "",
     context_harness_enabled: bool = False,
     legacy_route_enabled: bool = True,
+    context_terminal_enabled: bool = False,
 ) -> ContractReport:
-    """Check a configuration against the declared contract. Never raises."""
+    """Check a configuration against the declared contract. Never raises.
+
+    ``context_terminal_enabled`` admits exactly one exception to the
+    "two slots, two collections" rule: v10-only mode (see
+    :func:`v10_only_mode_active`). There the legacy slot may name the context
+    collection, because the legacy path is never reached. Every context-side
+    check still runs, and without the harness AND the terminal flag the
+    aliasing stays an error.
+    """
     errors: list[str] = []
     warnings: list[str] = []
 
     legacy_name = str(legacy_collection or "").strip()
     context_name = str(context_collection or "").strip()
+    v10_only = v10_only_mode_active(
+        legacy_collection=legacy_name,
+        context_collection=context_name,
+        context_harness_enabled=context_harness_enabled,
+        context_terminal_enabled=context_terminal_enabled,
+    )
 
     if not legacy_name:
         errors.append("legacy first-person collection must be non-empty")
         legacy_entry: Optional[CollectionContract] = None
+    elif v10_only:
+        # The legacy slot is an alias of the context collection. Its entry is
+        # validated below as the context entry; here we only need it for the
+        # fingerprint, and we record that the legacy path is inert.
+        legacy_entry = contract.get(legacy_name)
+        warnings.append(
+            f"v10-only mode: legacy first-person slot aliases context collection "
+            f"{legacy_name!r}; the context harness is terminal and no legacy clip is served"
+        )
     else:
         legacy_entry = contract.get(legacy_name)
         if legacy_entry is None:
@@ -325,7 +386,7 @@ def validate_serving_contract(
             "the first-person context harness is enabled but no context collection is set"
         )
 
-    if legacy_name and context_name and legacy_name == context_name:
+    if legacy_name and context_name and legacy_name == context_name and not v10_only:
         errors.append(
             f"the legacy and context first-person stores both point at {legacy_name!r}; "
             "one collection cannot satisfy two payload schemas"
@@ -429,19 +490,28 @@ def legacy_store_preflight(
     *,
     contract: Mapping[str, CollectionContract],
     legacy_collection: str,
+    context_collection: str = "",
+    context_harness_enabled: bool = False,
+    context_terminal_enabled: bool = False,
 ) -> ContractReport:
     """Check the legacy store's own collection before it searches.
 
     The legacy route calls this per request (it is a dict lookup, not a network
     call). An incompatible collection means the route refuses to serve instead
     of reading context records through a legacy path.
+
+    The three ``context_*`` arguments matter only for v10-only mode, where the
+    legacy slot aliases the context collection. Callers pass them when (and only
+    when) the two slots name the same collection; otherwise the check is the
+    legacy-only check it always was.
     """
     return validate_serving_contract(
         contract=contract,
         legacy_collection=legacy_collection,
-        context_collection="",
-        context_harness_enabled=False,
+        context_collection=context_collection,
+        context_harness_enabled=context_harness_enabled,
         legacy_route_enabled=True,
+        context_terminal_enabled=context_terminal_enabled,
     )
 
 
@@ -498,8 +568,10 @@ __all__ = [
     "ROLE_LEGACY",
     "assert_startup_safe",
     "fingerprint_components",
+    "legacy_slot_aliases_context",
     "legacy_store_preflight",
     "load_contract",
     "probe_collection_payload_fields",
+    "v10_only_mode_active",
     "validate_serving_contract",
 ]

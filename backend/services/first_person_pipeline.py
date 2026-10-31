@@ -57,6 +57,7 @@ from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
 from services.first_person_context_selector import select_span_ids
 from services.first_person_graph_expansion import expand_query_concepts
+from services.first_person_serving_contract import legacy_slot_aliases_context
 from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
     BLOCKED_PROMISE_POINT_IDS,
@@ -1995,20 +1996,31 @@ class FirstPersonPipeline:
         # RP-A4 P1 (2026-10-13): the serving default is v8, so the auto-enable
         # must name it — otherwise the default flip silently turns this guard
         # off (QBUG-3's explicit-flag replacement still needs QA-5/QO-6).
-        self._boundary_guard_enabled = getattr(
-            settings, "first_person_boundary_guard_enabled", False
-        ) or (
-            bool(self._store)
-            and getattr(self._store, "collection", "")
-            in ("first_person_v6", "first_person_v7", "first_person_v8")
+        # v10-only mode (legacy slot aliases the context collection): the guard is
+        # keyed on the legacy collection NAME, so without this the harness spans
+        # would silently lose the boundary check the v8-named config applies.
+        _aliased_to_context = legacy_slot_aliases_context(
+            getattr(self._store, "collection", ""),
+            getattr(settings, "first_person_context_collection", ""),
+        )
+        self._boundary_guard_enabled = (
+            getattr(settings, "first_person_boundary_guard_enabled", False)
+            or _aliased_to_context
+            or (
+                bool(self._store)
+                and getattr(self._store, "collection", "")
+                in ("first_person_v6", "first_person_v7", "first_person_v8")
+            )
         )
         # ponytail: content quality gate auto-enabled for v7+ (same collection gating as boundary_guard)
-        self._content_quality_gate_enabled = getattr(
-            settings, "first_person_content_quality_gate_enabled", True
-        ) or (
-            bool(self._store)
-            and getattr(self._store, "collection", "")
-            in ("first_person_v6", "first_person_v7", "first_person_v8")
+        self._content_quality_gate_enabled = (
+            getattr(settings, "first_person_content_quality_gate_enabled", True)
+            or _aliased_to_context
+            or (
+                bool(self._store)
+                and getattr(self._store, "collection", "")
+                in ("first_person_v6", "first_person_v7", "first_person_v8")
+            )
         )
         self._weaver = weaver or QuoteWeaverService(llm_service=llm_service)
         self._llm_service = llm_service
@@ -2372,11 +2384,29 @@ class FirstPersonPipeline:
                 load_contract_cached,
             )
 
+            context_collection = str(
+                getattr(settings, "first_person_context_collection", "") or ""
+            ).strip()
+            # The context arguments reach the check only when the legacy slot
+            # aliases the context collection (v10-only mode); otherwise this is
+            # the legacy-only check it always was.
+            aliased = legacy_slot_aliases_context(collection, context_collection)
             report = legacy_store_preflight(
                 contract=load_contract_cached(
                     str(getattr(settings, "first_person_serving_contract_path", "") or "") or None
                 ),
                 legacy_collection=collection,
+                context_collection=context_collection if aliased else "",
+                context_harness_enabled=(
+                    bool(getattr(settings, "first_person_context_harness_enabled", False))
+                    if aliased
+                    else False
+                ),
+                context_terminal_enabled=(
+                    getattr(settings, "first_person_context_terminal_enabled", False) is True
+                    if aliased
+                    else False
+                ),
             )
             if report.errors:
                 error = "; ".join(report.errors)
@@ -3045,7 +3075,14 @@ class FirstPersonPipeline:
             )
 
         # Step 2b: Compound question decomposition (Tasks F1 & F2)
-        if getattr(settings, "first_person_facet_split_enabled", False):
+        # Compound decomposition searches only the legacy store, so it is off while
+        # the context harness is terminal (v10-only): otherwise a compound question
+        # would be served from the legacy collection past the terminal flag.
+        _terminal_active = (
+            bool(getattr(settings, "first_person_context_harness_enabled", False))
+            and getattr(settings, "first_person_context_terminal_enabled", False) is True
+        )
+        if getattr(settings, "first_person_facet_split_enabled", False) and not _terminal_active:
             facets = _decompose_query_facets(query, self._llm_service, token_sink=fp_llm_tokens)
             if len(facets) > 1:
                 return self._execute_compound(
