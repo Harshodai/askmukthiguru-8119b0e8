@@ -3,6 +3,11 @@
 
 ## Oct 31, 2026 — cross-parent antecedent stitching, Memgraph doctrine grounding & distress calibration
 
+### L-RELEVANCE-PARALLEL-TIMEOUT-1. A 5-second relevance gate timeout in parallel harness evaluation causes false-positive abstains on concurrent LLM calls.
+- **What:** In `FirstPersonPipeline._eval_ctx_worker`, when `first_person_harness_parallel_enabled` is active, multiple candidate contexts evaluate in parallel using `ThreadPoolExecutor`. Each worker calls `_relevance_select` via `OpenRouterService`. When `FIRST_PERSON_RELEVANCE_TIMEOUT_S` was set to `5.0s` (via repo-root `.env` overriding `backend/.env`), secondary concurrent calls to DeepSeek/OpenRouter timed out after 5.0 seconds. Because `_relevance_select` treats any timeout as `_RELEVANCE_INDETERMINATE`, raising `_HarnessRelevanceIndeterminate` at context index 0 blocked subsequent valid candidate contexts and forced the entire query to abstain (`relevance_indeterminate`).
+- **Fix:** Pinned `FIRST_PERSON_RELEVANCE_TIMEOUT_S=${FIRST_PERSON_RELEVANCE_TIMEOUT_S:-15.0}` explicitly in `backend/docker-compose.yml` and `.env` so concurrent relevance scoring calls have adequate latency margin.
+- **Rule:** When running fan-out LLM calls in parallel executors, configure gate timeouts to accommodate provider latency tails and queuing jitter; a short timeout transforms transient provider latency into permanent pipeline abstains.
+
 ### L-CROSS-PARENT-ANTECEDENT-STITCHING-1. Long speech turns splitting across parent units leave dangling demonstrative pronouns.
 - **What:** In `x-mTRlE0TC4`, parent unit `231ae31c...` opened with *"Imagine what will be the outcome of it, when a parent does that..."*. Because intra-parent window enrichment only operates within a single `parent_unit_id`, the predecessor discourse (*"These are suffering states... but more important is, what is the state from which what I am doing"*) was stranded in parent `21834cb2...`.
 - **Fix:** `FirstPersonPipeline._eval_ctx_worker` detects opening antecedent connectors (`_span_starts_with_antecedent` or `_ANTECEDENT_CONNECTIVE_RE`) and queries `FirstPersonContextStore.fetch_preceding_span` to retrieve and prepend the immediate chronological predecessor from the same video and guru.
