@@ -133,6 +133,23 @@ def speaker_provenance_violations(
     return out
 
 
+def assert_speaker_provenance(payloads: Iterable[Mapping[str, Any]], *, where: str) -> None:
+    """Refuse a collection-level write holding any span the write rule would refuse (P3/P4).
+
+    Stricter than :func:`assert_no_bare_flag_speakers`: a method with no score, calibration id
+    or reviewer behind it is refused too. Builders call it on the exact payloads about to be
+    sent; a non-zero count means a builder wrote a verified claim it cannot back.
+    """
+    bad = speaker_provenance_violations(payloads)
+    if bad:
+        sample = {k: v for k, v in list(bad.items())[:3]}
+        raise FirstPersonContextStoreError(
+            f"{len(bad)} span(s) in {where} claim speaker_verified=true without complete "
+            f"provenance (e.g. {sample}). Rebuild so the span is written "
+            "speaker_verified=false (pending_voice_check), or backfill real evidence first."
+        )
+
+
 # Qdrant point IDs must be UUIDs or unsigned ints; the contract IDs are sha256
 # hex, so the point ID is a deterministic UUIDv5 of the contract ID.
 _POINT_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "askmukthiguru/fp-context/v1")

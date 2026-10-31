@@ -28,8 +28,10 @@ from typing import Any
 
 from domain.speaker_provenance import (
     KNOWN_METHODS,
+    METHOD_ECAPA_CENTROID_V1,
     METHOD_HUMAN_LISTEN_V1,
     REVIEW_CHOICES,
+    speaker_write_violations,
 )
 
 AUDIT_MIN_SPANS = 30
@@ -176,4 +178,118 @@ def audit_gate(
             ),
             DECISION_BLOCKED_INCOMPLETE: ("do not promote; finish listening to every sampled span"),
         }[decision],
+    }
+
+
+# --------------------------------------------------------------------------
+# Promotion gate over a candidate collection (P4)
+# --------------------------------------------------------------------------
+
+PROMOTION_PASS = "pass"
+PROMOTION_BLOCKED_EMPTY = "blocked_empty"
+PROMOTION_BLOCKED_VIOLATORS = "blocked_violators"
+PROMOTION_BLOCKED_AUDIT = "blocked_audit"
+PROMOTION_BLOCKED_AUDIT_MISSING = "blocked_audit_missing"
+
+#: A video with at least this many spans, every one verified, is flagged for a human look.
+#: The payload cannot say whether a video is Q&A (host questions expected) or a lecture
+#: (100% teacher is normal), so this is a flag, never a block. The number is an opinion.
+ALL_TEACHER_MIN_SPANS = 10
+
+
+def promotion_speaker_gate(
+    payloads: Iterable[Mapping[str, Any]],
+    *,
+    audit_gate: Mapping[str, Any] | None = None,
+    require_audit_gate: bool = False,
+    all_teacher_min_spans: int = ALL_TEACHER_MIN_SPANS,
+) -> dict[str, Any]:
+    """Decide whether a candidate collection may be promoted, on speaker evidence alone.
+
+    Blocks when:
+
+    * the collection has no child spans (an empty build never passes);
+    * any child span claims ``speaker_verified=true`` and the write rule refuses it (no
+      method, an unknown method, or an automated method with no score, calibration id or
+      model revision behind it);
+    * a P6 audit result is supplied and is not ``pass``, or none is supplied while
+      ``require_audit_gate`` is set.
+
+    Never blocks on: legacy centroid spans (counted, plan decision 2026-10-31: they stay
+    readable and are replaced by the v2 re-score), or the all-teacher video flag.
+
+    It evaluates the rule per payload in the caller, which is stricter than a Qdrant filter
+    on ``is_empty(voice_verification_method)``: it also catches a method with missing
+    provenance. It does not check that audio really produced the score; the P6 audit does.
+    """
+    children = [p for p in payloads if p.get("record_type") in (None, "retrieval_child")]
+    by_method: dict[str, int] = {}
+    by_code: dict[str, int] = {}
+    violators: list[str] = []
+    verified = 0
+    per_video: dict[str, list[int]] = {}
+    for payload in children:
+        is_verified = payload.get("speaker_verified") is True
+        verified += is_verified
+        counts = per_video.setdefault(str(payload.get("video_id") or "?"), [0, 0])
+        counts[0] += 1
+        counts[1] += is_verified
+        if not is_verified:
+            continue
+        method = str(payload.get("voice_verification_method") or "") or "none"
+        by_method[method] = by_method.get(method, 0) + 1
+        violations = speaker_write_violations(payload)
+        if violations:
+            violators.append(str(payload.get("source_span_id") or payload.get("id") or "?"))
+            for code in {v.split(":", 1)[0] for v in violations}:
+                by_code[code] = by_code.get(code, 0) + 1
+
+    audit_ok = (
+        None
+        if audit_gate is None
+        else bool(audit_gate.get("ok") is True and audit_gate.get("decision") == DECISION_PASS)
+    )
+    if not children:
+        decision = PROMOTION_BLOCKED_EMPTY
+    elif violators:
+        decision = PROMOTION_BLOCKED_VIOLATORS
+    elif audit_ok is False:
+        decision = PROMOTION_BLOCKED_AUDIT
+    elif audit_ok is None and require_audit_gate:
+        decision = PROMOTION_BLOCKED_AUDIT_MISSING
+    else:
+        decision = PROMOTION_PASS
+
+    all_teacher = sorted(
+        (
+            {"video_id": video, "spans": total}
+            for video, (total, ok_count) in per_video.items()
+            if total >= all_teacher_min_spans and ok_count == total
+        ),
+        key=lambda row: (-row["spans"], row["video_id"]),
+    )
+    return {
+        "decision": decision,
+        "ok": decision == PROMOTION_PASS,
+        "children": len(children),
+        "verified": verified,
+        "unverified": len(children) - verified,
+        "verified_by_method": dict(sorted(by_method.items())),
+        "violators": {
+            "count": len(violators),
+            "by_code": dict(sorted(by_code.items())),
+            "span_ids_first_20": sorted(violators)[:20],
+        },
+        "legacy_centroid_verified": by_method.get(METHOD_ECAPA_CENTROID_V1, 0),
+        "audit_gate_checked": audit_ok is not None,
+        "audit_gate_decision": None if audit_gate is None else audit_gate.get("decision"),
+        "all_teacher_video_flags": {
+            "blocking": False,
+            "min_spans": all_teacher_min_spans,
+            "note": (
+                "Flag only. A lecture is 100% teacher by nature; a Q&A video should show "
+                "host spans. The payload cannot tell which this is, so a person decides."
+            ),
+            "videos": all_teacher,
+        },
     }

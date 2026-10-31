@@ -253,3 +253,121 @@ def test_cli_later_review_lines_win(tmp_path):
         + "\n"
     )
     assert cli.load_reviews(path)["x"]["review_choice"] == "sri_krishnaji"
+
+
+# ------------------------------------------------------------ P4: promotion gate
+
+
+def _v2(span_id, video="v1", **over):
+    row = {
+        "record_type": "retrieval_child",
+        "source_span_id": span_id,
+        "video_id": video,
+        "speaker_verified": True,
+        "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
+        "voice_model_revision": "rev-1",
+        "voice_score": 0.7,
+        "voice_margin": 0.4,
+        "voice_threshold_applied": {"cosine_floor": 0.28, "margin_threshold": 0.05},
+        "voice_calibration_id": "cal-1",
+        "speaker_verification_status": "verified",
+    }
+    row.update(over)
+    return row
+
+
+def _unverified(span_id, video="v1"):
+    return {
+        "record_type": "retrieval_child",
+        "source_span_id": span_id,
+        "video_id": video,
+        "speaker_verified": False,
+    }
+
+
+def test_promotion_gate_passes_a_clean_collection():
+    from domain.speaker_audit import promotion_speaker_gate
+
+    report = promotion_speaker_gate(
+        [_v2("a"), _v2("b"), _unverified("c"), {"record_type": "parent_unit"}]
+    )
+    assert report["ok"] is True and report["decision"] == "pass"
+    assert report["children"] == 3 and report["verified"] == 2
+    assert report["violators"]["count"] == 0
+
+
+def test_promotion_gate_one_bare_flag_span_blocks():
+    from domain.speaker_audit import promotion_speaker_gate
+
+    bare = _v2("bad", voice_verification_method=None)
+    report = promotion_speaker_gate([_v2("a"), bare])
+    assert report["ok"] is False
+    assert report["decision"] == "blocked_violators"
+    assert report["violators"]["count"] == 1
+    assert report["violators"]["span_ids_first_20"] == ["bad"]
+    assert report["violators"]["by_code"] == {"speaker_verified_without_method": 1}
+
+
+def test_promotion_gate_blocks_a_method_with_no_calibration_id():
+    from domain.speaker_audit import promotion_speaker_gate
+
+    report = promotion_speaker_gate([_v2("a", voice_calibration_id=None)])
+    assert report["decision"] == "blocked_violators"
+    assert report["violators"]["by_code"] == {"ecapa_missing": 1}
+
+
+def test_promotion_gate_counts_legacy_centroid_without_blocking():
+    from domain.speaker_audit import promotion_speaker_gate
+
+    legacy = {
+        "record_type": "retrieval_child",
+        "source_span_id": "old",
+        "video_id": "v1",
+        "speaker_verified": True,
+        "voice_verification_method": "ecapa_voxceleb_centroid_v1",
+    }
+    report = promotion_speaker_gate([_v2("a"), legacy])
+    assert report["ok"] is True
+    assert report["legacy_centroid_verified"] == 1
+
+
+def test_promotion_gate_empty_collection_never_passes():
+    from domain.speaker_audit import promotion_speaker_gate
+
+    assert promotion_speaker_gate([])["decision"] == "blocked_empty"
+    assert promotion_speaker_gate([{"record_type": "parent_unit"}])["ok"] is False
+
+
+def test_promotion_gate_reads_the_audit_result():
+    from domain.speaker_audit import promotion_speaker_gate
+
+    spans = [_v2("a")]
+    blocked = promotion_speaker_gate(
+        spans, audit_gate={"ok": False, "decision": "blocked_not_teacher"}
+    )
+    assert blocked["decision"] == "blocked_audit" and blocked["ok"] is False
+    # A result that says ok but names another decision is not trusted.
+    odd = promotion_speaker_gate(spans, audit_gate={"ok": True, "decision": "blocked_incomplete"})
+    assert odd["ok"] is False
+    passed = promotion_speaker_gate(spans, audit_gate={"ok": True, "decision": "pass"})
+    assert passed["ok"] is True and passed["audit_gate_checked"] is True
+
+
+def test_promotion_gate_require_audit_gate_blocks_when_missing():
+    from domain.speaker_audit import promotion_speaker_gate
+
+    report = promotion_speaker_gate([_v2("a")], require_audit_gate=True)
+    assert report["decision"] == "blocked_audit_missing"
+    assert promotion_speaker_gate([_v2("a")])["audit_gate_checked"] is False
+
+
+def test_all_teacher_video_is_flagged_but_never_blocks():
+    from domain.speaker_audit import promotion_speaker_gate
+
+    spans = [_v2(f"s{i}", video="qa") for i in range(10)]
+    spans += [_v2("x", video="short")] + [_v2(f"m{i}", video="mixed") for i in range(9)]
+    spans.append(_unverified("host", video="mixed"))
+    report = promotion_speaker_gate(spans)
+    flags = report["all_teacher_video_flags"]
+    assert report["ok"] is True and flags["blocking"] is False
+    assert flags["videos"] == [{"video_id": "qa", "spans": 10}]

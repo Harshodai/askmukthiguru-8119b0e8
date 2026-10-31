@@ -35,6 +35,7 @@ import os
 import re
 import sys
 from collections import Counter, defaultdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +80,10 @@ from domain.first_person_context import (  # noqa: E402
     make_parent_unit_id,
     make_source_span_id,
 )
+from domain.speaker_provenance import (  # noqa: E402
+    calibration_id_from,
+    span_slice_voice_fields,
+)
 from ingest.verbatim.asr_cleaner import asr_cleaner_flags  # noqa: E402
 from ingest.verbatim.boundaries import boundary_defects  # noqa: E402
 from ingest.verbatim.gates import script_and_loop_problem  # noqa: E402
@@ -112,7 +117,7 @@ except ImportError:  # repo-root copy: the sibling lives in the backend tree
     speaker_verify = _load_sibling("verify_speakers_ecapa")
 from services.embedding_service import EmbeddingService  # noqa: E402
 from services.first_person_context_store import (  # noqa: E402
-    assert_no_bare_flag_speakers,
+    assert_speaker_provenance,
     parent_point_id,
     point_id_for_record,
 )
@@ -179,6 +184,16 @@ def load_calibration(path: Path) -> tuple[float, float]:
         if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
             raise RuntimeError(f"Speaker calibration {path} has no usable {name}: {value!r}")
     return float(cosine_floor), float(margin_threshold)
+
+
+def load_calibration_id(path: Path) -> str:
+    """Name the calibration file that produced the floors (written onto every span).
+
+    Uses the file's own ``calibration_revision`` when it has one, else the sha256 of its bytes.
+    """
+    raw = path.read_bytes()
+    data = json.loads(raw.decode("utf-8"))
+    return calibration_id_from(data if isinstance(data, dict) else {}, raw)
 
 
 #: validate_release_grade() codes that block a video from being written. The duration
@@ -794,6 +809,9 @@ def main() -> int:
     logger.info(
         "Speaker floors: cosine_floor=%.4f margin_threshold=%.4f", cosine_floor, margin_threshold
     )
+    calibration_id = load_calibration_id(Path(args.calibration))
+    model_revision = getattr(speaker_verify, "ECAPA_REVISION", None)
+    verified_at = datetime.now(UTC).isoformat(timespec="seconds")
 
     # Load rights manifest (D18)
     rights_path = Path(args.rights_manifest)
@@ -1063,6 +1081,21 @@ def main() -> int:
             # Verified only when the span's own voice prediction matches the
             # video's guru AND both calibrated floors cleared.
             verified = bool(verdict["cleared"] and verdict["predicted"] == predicted_guru)
+            # P3: the span records what produced the claim. No audio / no embedding gives
+            # `pending_voice_check`; incomplete evidence is demoted to unverified, never
+            # dropped and never promoted (domain.speaker_provenance).
+            voice_fields = span_slice_voice_fields(
+                verified=verified,
+                scored=verdict["predicted"] is not None,
+                cosine=verdict["cosine"],
+                margin=verdict["margin"],
+                foreign_window_count=verdict["metrics"]["foreign_window_count"],
+                cosine_floor=cosine_floor,
+                margin_threshold=margin_threshold,
+                model_revision=model_revision,
+                calibration_id=calibration_id,
+                verified_at=verified_at,
+            )
             # The vector is produced from the instruction-prefixed passage text
             # embedded by encode_batch below, so this hash names exactly the
             # string actually embedded, bypassing query expansion.
@@ -1087,8 +1120,7 @@ def main() -> int:
                 word_end=spec["word_end"],
                 speaker_id=predicted_guru,
                 speaker_role=SpeakerRole.GURU,
-                speaker_verified=verified,
-                voice_verification_method=("ecapa_voxceleb_span_slice_v2" if verified else None),
+                **voice_fields,
                 asr_engine=asr_engine,
                 asr_model_version=asr_model_version,
                 source_transcript_text=spec["text"],
@@ -1183,9 +1215,7 @@ def main() -> int:
         # I3: a collection-level refusal before any write, on the exact payloads about to be
         # sent. This builder stamps the method with the verdict, so a non-zero count means the
         # input regressed (e.g. a verdict file was reused across a span hash change).
-        assert_no_bare_flag_speakers(
-            [p.payload for p in points_to_upsert], where=f"video {video_id}"
-        )
+        assert_speaker_provenance([p.payload for p in points_to_upsert], where=f"video {video_id}")
         points_to_upsert.append(
             PointStruct(
                 id=parent_point_id(parent.parent_unit_id),

@@ -15,6 +15,13 @@ Two modes:
     recomputed, so two runs over the same input produce byte-identical output.
     This also never writes to Qdrant.
 
+``--from-qdrant --promotion-gate``
+    Read-only speaker gate for a candidate collection (P4). Exits 1 when any verified span
+    lacks the provenance the write rule demands, when the collection is empty, or when a P6
+    audit result (``--audit-gate``) is not ``pass``. Run it on the candidate collection
+    BEFORE ``FIRST_PERSON_COLLECTION`` is switched to it. Legacy centroid spans are counted,
+    not blocked. It writes nothing.
+
 Writes to a live collection are intentionally NOT implemented here. Promoting a
 context collection is a release action with the plan's phase-E evidence and a
 rollback record; a builder script must not be able to become one by accident.
@@ -50,6 +57,7 @@ from domain.first_person_context import (  # noqa: E402
     make_parent_unit_id,
     make_source_span_id,
 )
+from domain.speaker_audit import ALL_TEACHER_MIN_SPANS, promotion_speaker_gate  # noqa: E402
 
 REQUIRED_FIELDS = tuple(
     name for name, field in SourceSpan.model_fields.items() if field.is_required()
@@ -254,7 +262,41 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report", type=Path)
     parser.add_argument("--from-jsonl", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--promotion-gate",
+        action="store_true",
+        help="with --from-qdrant: exit 1 if the candidate collection has speaker violators",
+    )
+    parser.add_argument(
+        "--audit-gate",
+        type=Path,
+        help="JSON from `speaker_audit.py gate`; a non-pass result blocks promotion",
+    )
+    parser.add_argument(
+        "--require-audit-gate",
+        action="store_true",
+        help="block promotion when no --audit-gate result is supplied (use for public release)",
+    )
+    parser.add_argument("--all-teacher-min-spans", type=int, default=ALL_TEACHER_MIN_SPANS)
     args = parser.parse_args(argv)
+
+    if args.promotion_gate and not args.from_qdrant:
+        parser.error("--promotion-gate requires --from-qdrant")
+
+    if args.from_qdrant and args.promotion_gate:
+        audit = json.loads(args.audit_gate.read_text(encoding="utf-8")) if args.audit_gate else None
+        report = promotion_speaker_gate(
+            _load_points(args.qdrant_url, args.collection),
+            audit_gate=audit,
+            require_audit_gate=args.require_audit_gate,
+            all_teacher_min_spans=args.all_teacher_min_spans,
+        )
+        report["collection"] = args.collection
+        text = json.dumps(report, indent=2, sort_keys=True)
+        if args.report:
+            args.report.write_text(text + "\n", encoding="utf-8")
+        print(text)
+        return 0 if report["ok"] else 1
 
     if args.from_qdrant:
         report = gap_report(_load_points(args.qdrant_url, args.collection))
