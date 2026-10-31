@@ -292,6 +292,16 @@ _BLOCKED_TOPICS = {
         r"\bdo\s+anything\s+now\b",
         r"\bSYSTEM\s*:\s*.+\b(override|guardrails?|safety|instructions?|rules?)\b",
         r"\boverride\s+(mode|system|safety|guardrails?|instructions?)\b",
+        # Non-English injection that must block without an LLM (2026-10-31: after the spend
+        # cap these five went from `blocked` to a plain abstain). No \b: Indic scripts have no
+        # reliable word boundary. "system prompt" in Devanagari / Telugu / Tamil script:
+        r"(?:सिस्टम|సిస్టమ్|சிஸ்டம்)\s*(?:प्रॉम्प्ट|प्रांप्ट|ప్రాంప్ట్|ப்ராம்ப்ட்)",
+        # "previous instructions" in Hindi, Marathi, Telugu, Tamil:
+        r"(?:पिछ(?:ली|ले)|पहले\s+के|मागील|మునుపటి|முந்தைய)\s*(?:सारे\s+|सभी\s+)?"
+        r"(?:निर्देश|सूचना\w*|సూచన\w*|அறிவுறுத்தல்\w*)",
+        # Romanised Hindi: "pichhle saare instructions ignore karo" / "ignore pehle ke instructions".
+        r"\bpichh?le\b.{0,25}\binstructions?\b.{0,25}\b(?:ignore|bhool|bhul)\w*",
+        r"\b(?:ignore|bhool|bhul)\w*\b.{0,30}\b(?:pichh?le|pehle|previous)\b.{0,25}\binstructions?\b",
     ],
     "medical_advice_broad": [
         r"\b(cure|remedy)\s+for\b.*\b(disease|illness|infection|cancer|diabetes|tumor|virus|bacteria|depression|bipolar|schizophrenia|ocd|ptsd)\b",

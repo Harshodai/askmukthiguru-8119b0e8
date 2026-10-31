@@ -112,6 +112,7 @@ except ImportError:  # repo-root copy: the sibling lives in the backend tree
     speaker_verify = _load_sibling("verify_speakers_ecapa")
 from services.embedding_service import EmbeddingService  # noqa: E402
 from services.first_person_context_store import (  # noqa: E402
+    assert_no_bare_flag_speakers,
     parent_point_id,
     point_id_for_record,
 )
@@ -1179,6 +1180,12 @@ def main() -> int:
             )
             for s in spans
         ]
+        # I3: a collection-level refusal before any write, on the exact payloads about to be
+        # sent. This builder stamps the method with the verdict, so a non-zero count means the
+        # input regressed (e.g. a verdict file was reused across a span hash change).
+        assert_no_bare_flag_speakers(
+            [p.payload for p in points_to_upsert], where=f"video {video_id}"
+        )
         points_to_upsert.append(
             PointStruct(
                 id=parent_point_id(parent.parent_unit_id),

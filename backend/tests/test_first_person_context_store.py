@@ -59,6 +59,7 @@ def span(n=0, **overrides):
         "speaker_id": "krishnaji",
         "speaker_role": SpeakerRole.GURU,
         "speaker_verified": True,
+        "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
         "source_transcript_text": text,
         "verbatim_text": text,
         "transcript_hash": HASH,
@@ -349,3 +350,72 @@ def test_every_harness_filter_field_has_a_declared_payload_index():
         "entity_ids",
     ):
         assert field in declared, f"{field} is filtered but has no declared payload index"
+
+
+def test_upsert_refuses_verified_without_method():
+    bad = span(0, speaker_verified=True, voice_verification_method=None)
+    client = FakeClient()
+    with pytest.raises(FirstPersonContextStoreError, match="speaker_verified_without_method"):
+        store(client).upsert(parent([bad]), [bad])
+    assert client.points == {}  # nothing was written
+
+
+def test_upsert_accepts_verified_with_method_and_unverified_without():
+    ok = span(0, speaker_verified=True, voice_verification_method="ecapa_voxceleb_span_slice_v2")
+    pending = span(1, speaker_verified=False, voice_verification_method=None)
+    client = FakeClient()
+    assert store(client).upsert(parent([ok, pending]), [ok, pending]) == 3
+
+
+def test_a_live_payload_with_the_defect_can_still_be_read_back():
+    """The check is write-time only: the 732 live spans must keep loading for serving."""
+    from domain.first_person_context import SourceSpan
+
+    legacy = span(0, speaker_verified=True, voice_verification_method=None)
+    from services.first_person_context_store import _strip_record_type
+
+    restored = SourceSpan.model_validate(_strip_record_type(legacy.to_payload()))
+    assert restored.speaker_verified is True and restored.voice_verification_method is None
+
+
+# ── I3: a promotion is refused as a whole, before any write ──────────────────
+
+
+def test_a_manifest_with_one_bare_flag_span_refuses_the_whole_promotion():
+    from services.first_person_context_store import (
+        FirstPersonContextStoreError,
+        assert_no_bare_flag_speakers,
+    )
+
+    good = span(0, speaker_verified=True, voice_verification_method="ecapa_voxceleb_span_slice_v2")
+    bad = span(1, speaker_verified=True, voice_verification_method=None)
+    payloads = [good.to_payload(), bad.to_payload()]
+    assert [p.get("record_type") for p in payloads] == ["retrieval_child", "retrieval_child"]
+    with pytest.raises(FirstPersonContextStoreError, match="1 span"):
+        assert_no_bare_flag_speakers(payloads, where="test")
+    assert_no_bare_flag_speakers([good.to_payload()], where="test")  # no raise
+
+
+def test_unverified_spans_and_parents_are_not_bare_flag_violations():
+    from services.first_person_context_store import assert_no_bare_flag_speakers
+
+    pending = span(0, speaker_verified=False, voice_verification_method=None)
+    parent_payload = {"record_type": "parent_unit", "parent_unit_id": "p1"}
+    assert_no_bare_flag_speakers([pending.to_payload(), parent_payload], where="test")
+
+
+def test_the_v9_builder_refuses_before_creating_the_target_collection(monkeypatch):
+    """A guard that runs after create_collection would still have mutated the cluster."""
+    import scripts.ops.build_fp_context_from_v9 as build
+    from services.first_person_context_store import FirstPersonContextStoreError
+
+    manifest = [
+        {
+            "record_type": "retrieval_child",
+            "source_span_id": "a" * 64,
+            "speaker_verified": True,
+            "voice_verification_method": None,
+        }
+    ]
+    with pytest.raises(FirstPersonContextStoreError, match="speaker_verified=true"):
+        build._apply(manifest, [], qdrant_url="http://127.0.0.1:1", target="never_created")

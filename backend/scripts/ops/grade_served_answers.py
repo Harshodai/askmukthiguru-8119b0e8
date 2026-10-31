@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import random
 import re
 import sys
@@ -72,11 +73,14 @@ def parse_grade(raw: str) -> dict[str, Any]:
         verdict = data.get("verdict")
         if verdict not in VERDICTS:
             raise ValueError(verdict)
-        return {
-            "verdict": verdict,
-            "harmful": bool(data.get("harmful")),
-            "reasons": [str(r) for r in (data.get("reasons") or [])][:5],
-        }
+        harmful = bool(data.get("harmful"))
+        reasons = [str(r) for r in (data.get("reasons") or [])][:5]
+        if harmful and verdict == "showable":
+            # q057 was graded showable AND harmful at once (2026-10-31): a clip that could
+            # hurt a reader is never showable, whatever else the judge liked about it.
+            verdict = "not_showable"
+            reasons.append("harmful forces not_showable")
+        return {"verdict": verdict, "harmful": harmful, "reasons": reasons}
     except (ValueError, json.JSONDecodeError):
         return {"verdict": "unsure", "harmful": False, "reasons": ["unparseable grader reply"]}
 
@@ -115,15 +119,127 @@ def final_grades(first: dict[str, dict], second: dict[str, dict]) -> dict[str, d
     }
 
 
-def evaluate_bar(final: dict[str, dict], bar: dict[str, Any]) -> dict[str, Any]:
+def _nearest_rank(values: list[int], q: float) -> int | None:
+    """Nearest-rank percentile (no interpolation): the value a run actually produced."""
+    if not values:
+        return None
+    idx = max(0, math.ceil((q / 100.0) * len(values)) - 1)
+    return values[min(idx, len(values) - 1)]
+
+
+def latency_stats(rows: list[dict[str, Any]], bar_ms: int | None = None) -> dict[str, Any]:
+    """Server-side latency percentiles (plan Tier 3 item 1).
+
+    ``latency_ms`` is the number the API reported for the turn, not the polled wall clock of
+    the capture script, so a 202/polling run does not inflate p95 with polling overhead. Rows
+    without it are counted and reported, never silently treated as fast.
+    """
+    values = sorted(int(r["latency_ms"]) for r in rows if r.get("latency_ms") is not None)
+    missing = [str(r.get("id")) for r in rows if r.get("latency_ms") is None]
+    p95 = _nearest_rank(values, 95)
+    return {
+        "n": len(values),
+        "missing": len(missing),
+        "missing_ids": missing[:10],
+        "p50_ms": _nearest_rank(values, 50),
+        "p95_ms": p95,
+        "max_ms": values[-1] if values else None,
+        "bar_ms": bar_ms,
+        "over_bar": (
+            [str(r.get("id")) for r in rows if (r.get("latency_ms") or 0) > bar_ms]
+            if bar_ms
+            else []
+        ),
+        "passes_bar": (p95 is not None and p95 <= bar_ms) if bar_ms else None,
+    }
+
+
+def _is_answerable(row: dict[str, Any]) -> bool:
+    value = row.get("answerable")
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("true", "1", "yes")
+
+
+def served_share(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Served share is measured on answerable questions only (the bar's definition)."""
+    answerable = [r for r in rows if _is_answerable(r)]
+    served = [r for r in answerable if r.get("citations")]
+    return {
+        "answerable": len(answerable),
+        "served": len(served),
+        "rate": round(len(served) / len(answerable), 4) if answerable else None,
+        "unserved_ids": [str(r.get("id")) for r in answerable if not r.get("citations")],
+    }
+
+
+def evaluate_bar(
+    final: dict[str, dict],
+    bar: dict[str, Any],
+    rows: list[dict[str, Any]] | None = None,
+    core_abstain_rate: float | None = None,
+) -> dict[str, Any]:
+    """Evaluate every gate the approved bar declares, and report the ones it does not get.
+
+    A gate the bar declares but the evidence cannot answer is ``not_measured`` and the status
+    is ``INCOMPLETE`` — never PASS. Stage A of 2026-10-31 is the reason: the p95 and served
+    share were quoted from a scratchpad while the bar had no code path that read them.
+    """
     total = len(final)
     showable = sum(1 for g in final.values() if g["verdict"] == "showable")
     harmful = sum(1 for g in final.values() if g.get("harmful"))
     rate = showable / total if total else 0.0
     min_rate = float(bar["min_showable_rate"])
     max_harm = int(bar.get("max_harmful", 0))
-    passed = bool(total) and rate >= min_rate and harmful <= max_harm
     approved = bar.get("approved") is True
+
+    gates: dict[str, dict[str, Any]] = {
+        "showable_rate": {
+            "value": round(rate, 4),
+            "bar": min_rate,
+            "pass": bool(total) and rate >= min_rate,
+        },
+        "harmful": {"value": harmful, "bar": max_harm, "pass": harmful <= max_harm},
+    }
+
+    latency: dict[str, Any] | None = None
+    served: dict[str, Any] | None = None
+    if bar.get("p95_latency_s") is not None:
+        bar_ms = int(float(bar["p95_latency_s"]) * 1000)
+        latency = latency_stats(rows or [], bar_ms)
+        gates["p95_latency"] = (
+            {"value": latency["p95_ms"], "bar": bar_ms, "pass": bool(latency["passes_bar"])}
+            if latency["p95_ms"] is not None
+            else {"value": None, "bar": bar_ms, "pass": False, "not_measured": True}
+        )
+    if bar.get("min_served_share") is not None:
+        min_share = float(bar["min_served_share"])
+        served = served_share(rows or [])
+        gates["served_share"] = (
+            {"value": served["rate"], "bar": min_share, "pass": served["rate"] >= min_share}
+            if served["rate"] is not None
+            else {"value": None, "bar": min_share, "pass": False, "not_measured": True}
+        )
+    if bar.get("min_core_abstain_rate") is not None:
+        min_abstain = float(bar["min_core_abstain_rate"])
+        gates["core_abstain_rate"] = (
+            {
+                "value": core_abstain_rate,
+                "bar": min_abstain,
+                "pass": core_abstain_rate >= min_abstain,
+            }
+            if core_abstain_rate is not None
+            else {"value": None, "bar": min_abstain, "pass": False, "not_measured": True}
+        )
+
+    unmeasured = sorted(k for k, g in gates.items() if g.get("not_measured"))
+    all_pass = bool(total) and not unmeasured and all(g["pass"] for g in gates.values())
+    if not approved:
+        status = "PROPOSED"
+    elif unmeasured:
+        status = "INCOMPLETE"
+    else:
+        status = "PASS" if all_pass else "FAIL"
     return {
         "total": total,
         "showable": showable,
@@ -132,8 +248,12 @@ def evaluate_bar(final: dict[str, dict], bar: dict[str, Any]) -> dict[str, Any]:
         "min_showable_rate": min_rate,
         "max_harmful": max_harm,
         "bar_approved": approved,
-        "result_if_bar_applied": "PASS" if passed else "FAIL",
-        "status": ("PASS" if passed else "FAIL") if approved else "PROPOSED",
+        "gates": gates,
+        "not_measured": unmeasured,
+        "latency": latency,
+        "served": served,
+        "result_if_bar_applied": "PASS" if (all_pass and not unmeasured) else "FAIL",
+        "status": status,
     }
 
 
@@ -229,6 +349,16 @@ def score_unanswerable(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def require_stamped(rows: list[dict[str, Any]]) -> None:
+    """Rows must say which commit and container produced them (graded-run plan F4)."""
+    missing = [str(r.get("id")) for r in rows if not r.get("sha")]
+    if missing:
+        raise SystemExit(
+            f"{len(missing)} row(s) carry no `sha` (e.g. {missing[:3]}); capture with "
+            "scripts.ops.graded_capture, or pass --allow-unstamped for legacy rows"
+        )
+
+
 def _openrouter_asker(model: str) -> Callable[[str, str], str]:
     import httpx
 
@@ -259,6 +389,17 @@ def _openrouter_asker(model: str) -> Callable[[str, str], str]:
     return ask
 
 
+def _core_abstain_rate(path: str | None) -> float | None:
+    """Read the core abstain rate from an unanswerable-set report, or None when absent."""
+    if not path:
+        return None
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    rate = data.get("core_abstain_rate")
+    if rate is None:
+        raise SystemExit(f"{path} carries no core_abstain_rate; re-run with --unanswerable")
+    return float(rate)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--rows", required=True)
@@ -268,7 +409,16 @@ def main() -> int:
         action="store_true",
         help="score rows of the unanswerable set (expected/scoring_group) instead of grading",
     )
+    ap.add_argument(
+        "--allow-unstamped",
+        action="store_true",
+        help="accept rows without a sha (legacy scratch captures only; not evidence)",
+    )
     ap.add_argument("--pass-bar")
+    ap.add_argument(
+        "--unanswerable-scores",
+        help="JSON from a prior --unanswerable run; supplies the bar's core abstain rate",
+    )
     ap.add_argument("--first-model", default="anthropic/claude-haiku-5.5")
     ap.add_argument("--second-model", help="strong model slug on OpenRouter")
     ap.add_argument("--sample-fraction", type=float, default=0.2)
@@ -276,6 +426,8 @@ def main() -> int:
     args = ap.parse_args()
 
     rows = [json.loads(line) for line in Path(args.rows).read_text().splitlines() if line.strip()]
+    if not args.allow_unstamped:
+        require_stamped(rows)
     if args.unanswerable:
         result = score_unanswerable(rows)
         Path(args.out).write_text(json.dumps(result, indent=1, ensure_ascii=False))
@@ -291,7 +443,12 @@ def main() -> int:
         args.sample_fraction,
         args.seed,
     )
-    result["bar"] = evaluate_bar(result["final"], bar)
+    result["bar"] = evaluate_bar(
+        result["final"],
+        bar,
+        rows=rows,
+        core_abstain_rate=_core_abstain_rate(args.unanswerable_scores),
+    )
     result["models"] = {"first": args.first_model, "second": args.second_model}
     Path(args.out).write_text(json.dumps(result, indent=1, ensure_ascii=False))
     summary = {k: v for k, v in result["agreement"].items() if k != "disagreements"}

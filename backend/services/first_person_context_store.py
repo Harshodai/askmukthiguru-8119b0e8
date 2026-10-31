@@ -74,6 +74,44 @@ class FirstPersonContextStoreError(RuntimeError):
     """Raised when stored data violates the fp-context-v1 contract."""
 
 
+def bare_flag_speaker_ids(payloads: Iterable[Mapping[str, Any]]) -> list[str]:
+    """Child payloads that claim a verified speaker with no method that produced the claim.
+
+    Works on raw payload dicts (the shape both builders write), not on ``SourceSpan``: a build
+    must be refusable before any model validation, and the live collection already contains
+    732 such points that must stay readable.
+    """
+    out: list[str] = []
+    for payload in payloads:
+        if payload.get("record_type") not in (None, RECORD_TYPE_CHILD):
+            continue
+        if (
+            payload.get("speaker_verified") is True
+            and not str(payload.get("voice_verification_method") or "").strip()
+        ):
+            out.append(str(payload.get("source_span_id") or payload.get("id") or "?"))
+    return out
+
+
+def assert_no_bare_flag_speakers(payloads: Iterable[Mapping[str, Any]], *, where: str) -> None:
+    """Refuse a collection-level write that would promote label-only speaker claims (I3).
+
+    ``FirstPersonContextStore.upsert`` refuses one span at a time; the builders write
+    ``PointStruct`` batches directly and bypass it, so the collection needs its own gate. A
+    non-zero count means the input was produced by an older builder that admitted a span on a
+    v9 clip label alone (root cause of the 732 live points), and promoting it would ship the
+    same defect into a new collection.
+    """
+    bad = bare_flag_speaker_ids(payloads)
+    if bad:
+        raise FirstPersonContextStoreError(
+            f"{len(bad)} span(s) in {where} say speaker_verified=true with no "
+            f"voice_verification_method (e.g. {bad[:3]}). Rebuild so a label-only span is "
+            "written speaker_verified=false, or backfill a real method first "
+            "(scripts.ops.backfill_v10_voice_method)."
+        )
+
+
 # Qdrant point IDs must be UUIDs or unsigned ints; the contract IDs are sha256
 # hex, so the point ID is a deterministic UUIDv5 of the contract ID.
 _POINT_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, "askmukthiguru/fp-context/v1")
@@ -158,6 +196,7 @@ class FirstPersonContextStore:
             raise FirstPersonContextStoreError("spans must be the parent's ordered_source_span_ids")
         for span in span_list:
             self._assert_belongs(parent, span)
+            self._assert_verified_has_method(span)
 
         points = [
             PointStruct(
@@ -176,6 +215,20 @@ class FirstPersonContextStore:
         )
         self._client.upsert(collection_name=self._collection, points=points, wait=True)
         return len(points)
+
+    @staticmethod
+    def _assert_verified_has_method(span: SourceSpan) -> None:
+        """A speaker claim is evidence only if the method that produced it is recorded.
+
+        732 live v10 spans were written verified with no method (builder at a65f26b4); the
+        rule existed only as a soft report in validate_release_grade(). Enforced at WRITE time
+        and not in the SourceSpan validator, because the harness reads live payloads into
+        SourceSpan and a model-level raise would crash on those 732 spans.
+        """
+        if span.speaker_verified and not (span.voice_verification_method or "").strip():
+            raise FirstPersonContextStoreError(
+                f"speaker_verified_without_method: {span.source_span_id}"
+            )
 
     @staticmethod
     def _assert_belongs(parent: ParentUnit, span: SourceSpan) -> None:

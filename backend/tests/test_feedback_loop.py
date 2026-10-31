@@ -21,6 +21,18 @@ from app.metrics import RETRIEVAL_FEEDBACK_SUPPRESSIONS_TOTAL
 from services.retrieval_feedback import RetrievalFeedbackService, hash_query
 
 
+@pytest.fixture(autouse=True)
+def _in_memory_feedback_store(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Never reach a real Supabase from these tests.
+
+    `RetrievalFeedbackService(supabase_client=None)` falls back to telemetry_db's client when
+    one is configured. Once the retrieval_feedback_signals migration exists on the developer's
+    local Supabase, every test run wrote rows there and the next run saw them as suppression
+    signals (2026-10-31). Forcing the in-memory store keeps these tests hermetic.
+    """
+    monkeypatch.setattr("app.telemetry_db._get_client", lambda: None)
+
+
 def test_hash_query_deterministic_and_normalized() -> None:
     q1 = "How do I overcome suffering?"
     q2 = "  how do   I OVERCOME suffering?  "

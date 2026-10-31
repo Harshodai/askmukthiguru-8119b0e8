@@ -68,6 +68,7 @@ def span(n: int = 0, **overrides) -> SourceSpan:
         "speaker_id": "krishnaji",
         "speaker_role": SpeakerRole.GURU,
         "speaker_verified": True,
+        "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
         "source_transcript_text": text,
         "verbatim_text": text,
         "transcript_hash": HASH,

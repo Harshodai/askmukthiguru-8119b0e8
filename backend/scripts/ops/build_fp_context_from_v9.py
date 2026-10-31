@@ -670,9 +670,15 @@ def _apply(
     )
 
     from services.first_person_context_store import (
+        assert_no_bare_flag_speakers,
         parent_point_id,
         point_id_for_record,
     )
+
+    # I3: refuse the whole promotion before any collection is created or deleted. A build made
+    # by an older builder can carry label-only speaker claims (the defect behind the 732 live
+    # points); writing it into a new collection would ship the same defect forward.
+    assert_no_bare_flag_speakers(manifest, where=f"the v9 builder manifest -> {target}")
 
     client = QdrantClient(url=qdrant_url)
     existing = {c.name for c in client.get_collections().collections}

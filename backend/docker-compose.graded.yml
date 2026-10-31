@@ -1,0 +1,54 @@
+# Graded clean-Docker run override (plan items F1 + F2, 2026-10-31).
+#
+#   cd backend && git status --porcelain            # must be empty
+#   docker compose -f docker-compose.yml -f docker-compose.graded.yml up -d --build --force-recreate --no-deps backend
+#   make flush-cache && make verify-cache-empty && make verify-stack-fresh
+#   .venv/bin/python -m scripts.ops.graded_run_preflight --check-logs
+#
+# One file pins every serving flag, so a stage never inherits the previous stage's scratch
+# YAML. Change ONE value per stage and record which one. The preflight diffs this
+# `environment` block against the running container, so a drifted env aborts the run.
+#
+# What this file does NOT do: it never touches prod settings. The OpenRouter caps below are
+# for the LOCAL eval container only (Harsha, 2026-10-31); prod keeps its cap, sized from
+# expected daily volume with a 3x margin and an alert at 70%.
+services:
+  backend:
+    environment:
+      # Serving path: v10 only, harness on and terminal (no legacy v8 fall-through).
+      FIRST_PERSON_MODE: retrieval_only
+      FIRST_PERSON_COLLECTION: first_person_v10
+      FIRST_PERSON_CONTEXT_COLLECTION: first_person_v10
+      FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "true"
+      FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true"
+      FIRST_PERSON_LLM_FALLBACK_ENABLED: "false"
+      # Relevance scorer: the single variable a stage may change.
+      FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5
+      FIRST_PERSON_RELEVANCE_MIN_SCORE: "3"
+      # 5 s turned slow provider replies into relevance_indeterminate abstains; Haiku verify
+      # ran at a median of 1.8 s, max 2.6 s. 12 s matches CLAUDE.md invariant 24.
+      FIRST_PERSON_RELEVANCE_TIMEOUT_S: "12"
+      # Owner decisions recorded as pins (Opus plan O3 / O5): change only on Harsha's word.
+      FIRST_PERSON_REQUIRE_VOICE_METHOD: "false" # O3: true withholds bare-flag speakers
+      FIRST_PERSON_SERVE_UNREGISTERED: "true" # O5: recorded pin; ingestion approvals are held by Harsha
+      # The local file-review API must not exist in a graded stack.
+      FIRST_PERSON_LOCAL_REVIEW_ENABLED: "false"
+      # Tasks run inline locally (no worker container); recorded so latency is read correctly.
+      CELERY_TASK_ALWAYS_EAGER: "true"
+      # LOCAL eval caps (guard stays on and fail-closed).
+      OPENROUTER_DAILY_BUDGET_USD: "100"
+      OPENROUTER_MONTHLY_BUDGET_USD: "300"
+      OPENROUTER_BUDGET_GUARD_ENABLED: "true"
+      OPENROUTER_BUDGET_FAIL_CLOSED: "true"
+    # `!override` REPLACES the base list. Application code is not mounted: the container runs
+    # the code that `--build` copied from a clean tree. Only caches and data stay mounted.
+    volumes: !override
+      - hf_model_cache:/app/.cache
+      - ./.model_cache:/app/model_cache
+      - telemetry_data:/app/data
+      - logs_data:/app/logs
+      - ../memory:/app/memory
+      - ../results:/app/results
+      - ../audits:/app/audits:ro
+      - ./config:/app/backend/config:ro
+      - ../config:/config:ro
