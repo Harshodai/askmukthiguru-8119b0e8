@@ -46,6 +46,7 @@
 ### L-BUILDER-ADDITIVE-ONLY-VIDEOS-1. A new empty staging collection makes the builder treat every transcript as missing.
 - **What:** the "already indexed" skip reads the TARGET collection, so a new collection plus no `--only-videos` would rebuild everything. Always pass `--only-videos` with the exact id list.
 - **Also:** the strict audit's `speaker_evidence_per_span` gate needs a Phase-3 candidate file, which does not exist for new spans; it stays BLOCKED on staging exactly as on live v10 (no independent per-span verdicts: UNPROVEN, not failed).
+
 ## Oct 30, 2026 — memory source links and keyboard access
 
 ### L-MEMORY-SOURCE-1. A memory had no stored origin, so the UI could not link to it without guessing.
