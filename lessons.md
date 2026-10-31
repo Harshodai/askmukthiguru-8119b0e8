@@ -1,7 +1,7 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
-## Oct 31, 2026 — speaker attribution: the rule had four holes the builders walked through
+## Oct 31, 2026 — speaker attribution: the rule and the builders had holes the Opus review found
 
 ### L-RULE-ACCEPTS-WRONG-ANSWER-1. A rule that checks a field is present does not check the field is right.
 - **What:** the write rule accepted `human_listen_v1` with any `review_choice` (`host_or_interviewer`, `unclear`, the other teacher) and any clip length, accepted `ecapa_voxceleb_centroid_v1` on any new write with no evidence, and passed a `span_slice_v2` claim with no `voice_margin` because the margin check ran only when a margin existed. Found by the Opus review of 9a3187a (D2, D3, D7).
@@ -20,6 +20,13 @@
 - **Fix:** before any write the script lists `GET /collections/<c>/snapshots`; the name must appear with a `creation_time` under 2 h old, else exit 2. An unreadable listing fails closed.
 - **Pin:** `test_apply_with_an_unknown_snapshot_name_exits_two_and_writes_nothing` and the stale and unreadable variants.
 - **Rule:** a safety precondition passed as a flag must be verified against the system it protects.
+
+## Oct 31, 2026 — a clean image must not depend on host file modes
+
+### L-DOCKER-COPY-MODE-1. Bind mounts hid 0600 source files; the graded override (no code mounts) crash-looped.
+- **What:** with `docker-compose.graded.yml` the backend died on `PermissionError: /app/services/qdrant/client.py`. Git tracks the file as 644, but the host working tree had `services/qdrant/client.py`, `rag/nodes/short_circuit.py` and two tests at 0600 (an atomic-write tool leaves 0600). `COPY backend/ .` copies working-tree modes, so the image held root-owned 0600 files, and the entrypoint drops to `appuser` with `gosu`. Every earlier run used bind mounts, where Docker Desktop's file sharing made the files readable, so the bug never showed.
+- **Fix:** `COPY --chmod=go+rX` for `backend/`, `memory/` and `config/helplines.yaml`, and `--chmod=755` for the entrypoint (backend/Dockerfile). Chosen over a trailing `RUN chmod -R` because that would duplicate the whole layer. Proof (graded override, caches flushed and verified empty): 0 non-world-readable files under the code dirs in the image, `gosu appuser python -c "import services.qdrant.client"` works, no code bind mounts, backend healthy with 0 restarts, `graded_run_preflight` PASS 7/7.
+- **Rule:** the first time a stack runs without bind mounts, test it as the runtime user (`gosu appuser`), not as root. Git's tracked mode is not what Docker copies; the build context is the working tree. Not covered by a unit test: the guard is the build itself (UNPROVEN on a machine whose host files are all 644, where it is a no-op).
 
 ## Oct 31, 2026 — an approved pass bar with no code path that reads it is decoration
 
