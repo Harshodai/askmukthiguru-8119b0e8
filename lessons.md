@@ -1,6 +1,13 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — a clean image must not depend on host file modes
+
+### L-DOCKER-COPY-MODE-1. Bind mounts hid 0600 source files; the graded override (no code mounts) crash-looped.
+- **What:** with `docker-compose.graded.yml` the backend died on `PermissionError: /app/services/qdrant/client.py`. Git tracks the file as 644, but the host working tree had `services/qdrant/client.py`, `rag/nodes/short_circuit.py` and two tests at 0600 (an atomic-write tool leaves 0600). `COPY backend/ .` copies working-tree modes, so the image held root-owned 0600 files, and the entrypoint drops to `appuser` with `gosu`. Every earlier run used bind mounts, where Docker Desktop's file sharing made the files readable, so the bug never showed.
+- **Fix:** `COPY --chmod=go+rX` for `backend/`, `memory/` and `config/helplines.yaml`, and `--chmod=755` for the entrypoint (backend/Dockerfile). Chosen over a trailing `RUN chmod -R` because that would duplicate the whole layer. Proof (graded override, caches flushed and verified empty): 0 non-world-readable files under the code dirs in the image, `gosu appuser python -c "import services.qdrant.client"` works, no code bind mounts, backend healthy with 0 restarts, `graded_run_preflight` PASS 7/7.
+- **Rule:** the first time a stack runs without bind mounts, test it as the runtime user (`gosu appuser`), not as root. Git's tracked mode is not what Docker copies; the build context is the working tree. Not covered by a unit test: the guard is the build itself (UNPROVEN on a machine whose host files are all 644, where it is a no-op).
+
 ## Oct 31, 2026 — an approved pass bar with no code path that reads it is decoration
 
 ### L-BAR-NOT-IMPLEMENTED-1. Budget settlement, preflight, capture — all real; the bar itself was not.
