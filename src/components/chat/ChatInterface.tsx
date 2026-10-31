@@ -65,6 +65,7 @@ import { MobileConversationSheet } from './MobileConversationSheet';
 import { DesktopSidebar, useSidebarCollapsed } from './DesktopSidebar';
 import { LanguageSelector, LANGUAGES } from './LanguageSelector';
 import { DailyTeaching } from './DailyTeaching';
+import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { ConversationSourcesPanel } from './ConversationSourcesPanel';
 import { ThinkingPills, type PipelineStep, mapStatusToLabel, mapNodeToLabel } from './ThinkingPills';
 import { QueuedMessagesTray, type QueuedMessage } from './QueuedMessagesTray';
@@ -2652,6 +2653,15 @@ return (
 
                 {/* Single authoritative thinking indicator */}
                 <div className="flex items-start gap-2">
+                  {thinkingVisible && (
+                    <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.15)] ring-1 ring-ojas/20 bg-background">
+                      <img
+                        src={gurusPhoto}
+                        alt="Sri Preethaji & Sri Krishnaji"
+                        className="w-full h-full object-cover animate-pulse-soft"
+                      />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <ThinkingPills
                       steps={pipelineSteps}

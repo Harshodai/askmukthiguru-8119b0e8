@@ -179,7 +179,12 @@ RIGHTS_MANIFEST_RELPATH = "audits/evidence/public_release_phase4_rights_manifest
 
 def rights_manifest_path() -> Path:
     """Absolute path to the pinned rights register (``RIGHTS_MANIFEST_RELPATH``)."""
-    return Path(__file__).resolve().parents[2] / RIGHTS_MANIFEST_RELPATH
+    p = Path(__file__).resolve().parents[2] / RIGHTS_MANIFEST_RELPATH
+    if not p.is_file():
+        p_container = Path(__file__).resolve().parents[1] / RIGHTS_MANIFEST_RELPATH
+        if p_container.is_file():
+            return p_container
+    return p
 
 
 def load_contract(path: str | Path) -> dict[str, CollectionContract]:

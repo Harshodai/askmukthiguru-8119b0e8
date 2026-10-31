@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { useNavigate } from 'react-router-dom';
+import gurusPhoto from '@/assets/gurus-photo.jpg';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
@@ -884,6 +885,25 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       return { teachingBody: displayContent, inquiryBody: null };
     }, [isGuru, displayContent]);
 
+    // When GuruTeachingCard is rendered for a verbatim/first-person clip, suppress
+    // repeating the identical quote in the markdown body below it.
+    const isBodyDuplicateOfGuruCard = useMemo(() => {
+      if (!guruTeachingCitation) return false;
+      const quote = (guruTeachingCitation.quote ?? guruTeachingCitation.textSnippet ?? '').trim();
+      if (!quote || !teachingBody) return false;
+      const normalize = (text: string) =>
+        text
+          .replace(/^Related,\s*not a direct answer:?\s*/i, '')
+          .replace(/^["'“”‘’«»]+|["'“”‘’«»]+$/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+      const normBody = normalize(teachingBody);
+      const normQuote = normalize(quote);
+      if (!normBody || !normQuote) return false;
+      return normBody === normQuote || normQuote.startsWith(normBody) || normBody.startsWith(normQuote);
+    }, [guruTeachingCitation, teachingBody]);
+
     const markdownComponents = useMemo(() => ({
       p: ({ children }: { children?: ReactNode }) => {
         const text = Children.toArray(children)
@@ -1127,8 +1147,13 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           data-message-id={message.id}
         >
           {isGuru && (
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-ojas/15 to-ojas/5 border border-ojas/25 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.12)]">
-              <Sparkles className="w-3.5 h-3.5 text-ojas animate-pulse-soft" />
+            <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.15)] ring-1 ring-ojas/20 bg-background">
+              <img
+                src={gurusPhoto}
+                alt="Sri Preethaji & Sri Krishnaji"
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
             </div>
           )}
           {/* The guru answer is long-form prose — it gets the full reading column
@@ -1217,14 +1242,16 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     </div>
                   ) : (
                     <>
-                      <TeachingGroundingCard
-                        citations={citations}
-                        teachingPreview={message.teachingPreview}
-                        groundingState={message.groundingState}
-                        citationsVerified={message.citationsVerified}
-                        verification={message.verification}
-                        guidanceAttribution={message.guidancePlan?.attribution}
-                      />
+                      {!guruTeachingCitation && (
+                        <TeachingGroundingCard
+                          citations={citations}
+                          teachingPreview={message.teachingPreview}
+                          groundingState={message.groundingState}
+                          citationsVerified={message.citationsVerified}
+                          verification={message.verification}
+                          guidanceAttribution={message.guidancePlan?.attribution}
+                        />
+                      )}
                       {personalizeRef && !isAlreadyPersonalized && (
                         <div className="mb-3.5 flex flex-col gap-1.5 rounded-xl border border-ojas/25 bg-gradient-to-r from-ojas/10 via-background/90 to-ojas/5 p-2.5 sm:p-3 shadow-xs">
                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1277,15 +1304,17 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       {isStreaming && !message.content ? null : (
                         <>
                           {/* 1. PRIMARY HERO: DIRECT GURU TEACHING WORDS FROM CORPUS */}
-                          <div className="prose prose-stone dark:prose-invert max-w-none text-[15px] leading-[1.75] text-foreground">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              urlTransform={safeUrlTransform}
-                              components={markdownComponents}
-                            >
-                              {injectCitationLinks(teachingBody, (message.citations ?? []).length)}
-                            </ReactMarkdown>
-                          </div>
+                          {!isBodyDuplicateOfGuruCard && teachingBody && (
+                            <div className="prose prose-stone dark:prose-invert max-w-none text-[15px] leading-[1.75] text-foreground">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                urlTransform={safeUrlTransform}
+                                components={markdownComponents}
+                              >
+                                {injectCitationLinks(teachingBody, (message.citations ?? []).length)}
+                              </ReactMarkdown>
+                            </div>
+                          )}
 
                           {/* Invariant 1: platform copy that accompanies a served clip
                               (compassion framing, relationship/addiction safety
