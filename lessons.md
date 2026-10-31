@@ -3,6 +3,22 @@
 
 ## Oct 31, 2026 — cross-parent antecedent stitching, Memgraph doctrine grounding & distress calibration
 
+### L-SPEAKER-LABEL-PRECEDENCE-1. Inherited `guru_id` must not override granular span-level `speaker` attribution in QuoteWeaver.
+- **What:** In `quote_weaver.py::_stored_label`, the attribution resolver prioritized `guru_id` ahead of `speaker`. In videos where channels or video series were tagged with a default teacher id (e.g. `guru_id="preethaji"`), clips spoken by Sri Krishnaji (`speaker="Sri Krishnaji"`) resolved to `"Sri Preethaji"`. The output assertion gate (`QuoteWeaverAssertionGate`) detected a speaker mismatch between the generated citation text and the resolved stored label, rejecting perfectly valid hybrid responses.
+- **Fix:** Restored precedence in `_stored_label` so the explicit `speaker` string is inspected first; `guru_id` serves only as a fallback when `speaker` is unknown, other, or shared.
+- **Pin:** `tests/test_quote_weaver.py::test_weaver_formats_multiple_clips_without_truncation`.
+- **Rule:** granular span-level speaker attribution always overrides video- or parent-level metadata defaults.
+
+### L-MEMGRAPH-DOCTRINE-GROUNDING-1. Doctrine subgraph injection into LLM context must gracefully degrade without blocking retrieval.
+- **What:** When spiritual concepts (e.g. `suffering_states`, `beautiful_states`) are detected, `FirstPersonPipeline._eval_ctx_worker` attempts to query Memgraph via `fetch_doctrine_subgraph` to enrich QuoteWeaver prompts with ontological definitions and transitions. If Memgraph is offline, unseeded, or raises a connection error, unhandled driver errors could disrupt quote assembly.
+- **Fix:** Wrapped doctrine subgraph resolution in non-blocking try/except falling back to empty doctrine context, allowing verbatim quote assembly to proceed smoothly.
+- **Rule:** auxiliary knowledge graph context is additive; failure to retrieve ontology relationships must never abort verbatim quote retrieval.
+
+### L-ANON-SESSION-HMAC-VALIDATION-1. Integration probes against `/api/chat` require server-signed HMAC session tokens.
+- **What:** Direct POST calls to `/api/chat` passing arbitrary client-generated session strings (e.g. `session_id="test-session-123"`) failed with `HTTP 400: Invalid anonymous session token`. The backend enforces cryptographic HMAC validation on `X-Session-Id` headers and session payloads to prevent quota bypass and history spoofing.
+- **Fix:** Test runners and integration scripts must call `POST /api/auth/anon-session` first to obtain `{'session_id': 'anon:...', 'token': '...'}` and supply the signed token in both the `X-Session-Id` header and `session_id` payload.
+- **Rule:** always authenticate anonymous chat tests against `/api/auth/anon-session`; arbitrary session IDs are rejected by design.
+
 ### L-RELEVANCE-PARALLEL-TIMEOUT-1. A 5-second relevance gate timeout in parallel harness evaluation causes false-positive abstains on concurrent LLM calls.
 - **What:** In `FirstPersonPipeline._eval_ctx_worker`, when `first_person_harness_parallel_enabled` is active, multiple candidate contexts evaluate in parallel using `ThreadPoolExecutor`. Each worker calls `_relevance_select` via `OpenRouterService`. When `FIRST_PERSON_RELEVANCE_TIMEOUT_S` was set to `5.0s` (via repo-root `.env` overriding `backend/.env`), secondary concurrent calls to DeepSeek/OpenRouter timed out after 5.0 seconds. Because `_relevance_select` treats any timeout as `_RELEVANCE_INDETERMINATE`, raising `_HarnessRelevanceIndeterminate` at context index 0 blocked subsequent valid candidate contexts and forced the entire query to abstain (`relevance_indeterminate`).
 - **Fix:** Pinned `FIRST_PERSON_RELEVANCE_TIMEOUT_S=${FIRST_PERSON_RELEVANCE_TIMEOUT_S:-15.0}` explicitly in `backend/docker-compose.yml` and `.env` so concurrent relevance scoring calls have adequate latency margin.
