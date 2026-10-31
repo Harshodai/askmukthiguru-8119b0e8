@@ -1,6 +1,23 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Oct 31, 2026 — an approved pass bar with no code path that reads it is decoration
+
+### L-BAR-NOT-IMPLEMENTED-1. Budget settlement, preflight, capture — all real; the bar itself was not.
+- **What:** `evals/first_person/grading_pass_bar.json` was approved with `p95_latency_s`, `min_served_share` and `min_core_abstain_rate`, but `grade_served_answers.evaluate_bar()` only read `min_showable_rate` and `max_harmful`. Stage A's "p95 12.5 s" and "33 of 116 served" were quoted from a scratchpad, and nothing in the pipeline would have failed if the run had missed them. Three of five approved gates had no evaluator.
+- **Fix:** `evaluate_bar` now evaluates every gate the bar *declares*; a declared gate with no evidence produces `INCOMPLETE`, never PASS. `latency_stats` reads server-side `latency_ms` (not the capture script's polled wall clock) by nearest rank, and reports rows with no latency rather than treating them as fast. `served_share` counts answerable questions only.
+- **Rule:** before approving a threshold, grep for the code that reads it. A gate is a function with a failing test, not a number in a JSON file. And when a bar gains a field, the same change must extend the evaluator and add the "declared but unmeasured ⇒ INCOMPLETE" test.
+
+### L-SPEAKER-STORE-GATE-1. A per-record guard does not protect a batch writer.
+- **What:** `FirstPersonContextStore.upsert()` refuses a span that is `speaker_verified=true` with no `voice_verification_method` (I1), but both corpus builders construct `PointStruct` batches and call the Qdrant client directly, so the guard never runs on the path that produced the 732 bare-flag live spans. The store's docstring promised a rule the writers bypassed.
+- **Fix:** `assert_no_bare_flag_speakers()` operates on raw payload dicts and is called before `create_collection`/`upsert` in `build_fp_context_from_v9._apply` and in `build_full_corpus_v10`, so the whole promotion is refused before any mutation. It reads payloads, never `SourceSpan`, because the 732 live points must stay readable for serving.
+- **Rule:** when the same invariant must hold for a unit write and a bulk write, enforce it at the narrowest *shared* level that both paths cross, and test the bulk path with a fake client that asserts zero writes.
+
+### L-PREFLIGHT-PROBE-1. An env pin is not a route probe.
+- **What:** `FIRST_PERSON_LOCAL_REVIEW_ENABLED=false` in the graded override was verified by diffing container env only. The owner-only file-review API is mounted unconditionally and fails closed inside itself, returning HTTP 200 with `available: false` — so the env diff could not tell a live preview API from a dead one.
+- **Fix:** the preflight now GETs `/api/first-person/local-review/status` and fails on `available: true`; 200-with-`available:false`, 401/403/404 pass.
+- **Rule:** for a route that is mounted but self-gated, probe the behaviour, not the flag. A mounted-but-disabled route is still an attack surface the env diff cannot see.
+
 ## Oct 31, 2026 — graded run: spend cap, grader input, showability
 
 ### L-BUDGET-CAP-EVAL-1. The local spend guard fails closed to "abstain", which reads exactly like a strict gate.
