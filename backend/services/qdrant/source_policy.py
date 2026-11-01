@@ -41,6 +41,14 @@ class ReleasePolicyUnavailable(RuntimeError):
     """
 
 
+#: One definition of "which video does this source string name", shared with the rights
+#: gate so the two serving lanes cannot drift. The trailing lookahead stops a longer token
+#: (`videos/<64 hex>`, `v=...` inside another parameter) from matching its first 11 chars.
+VIDEO_ID_IN_SOURCE = re.compile(
+    r"(?:\bv=|youtu\.be/|videos/|video:)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])"
+)
+
+
 def _source_candidates(doc: Any) -> Iterable[str]:
     if not isinstance(doc, dict):
         return ()
@@ -59,7 +67,24 @@ def _normalise_identity(value: str) -> str:
 
 
 def is_blocked_source(doc: Any) -> bool:
-    """Return True when a retrieved document belongs to a quarantined source."""
+    """Return True when a retrieved document belongs to a quarantined source or blocked video."""
+    # 1. Check admin human video decisions (video serving exclusion)
+    # No blanket except: `video_is_blocked` already fails closed on an invalid decisions
+    # file, so anything else raised here is a real bug that must not silently serve a
+    # video the owner excluded.
+    from services.first_person_video_decisions import video_is_blocked
+
+    video_id = doc.get("video_id") if isinstance(doc, dict) else None
+    if not video_id:
+        for candidate in _source_candidates(doc):
+            match = VIDEO_ID_IN_SOURCE.search(candidate)
+            if match:
+                video_id = match.group(1)
+                break
+    if video_id and video_is_blocked(video_id):
+        return True
+
+    # 2. Check static blocked source identities & substrings
     for candidate in _source_candidates(doc):
         identity = _normalise_identity(candidate)
         if identity in _BLOCKED_SOURCE_IDENTITIES:

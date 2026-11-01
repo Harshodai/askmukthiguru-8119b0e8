@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ExternalLink, RefreshCw, ShieldAlert } from "lucide-react";
+import { ExternalLink, RefreshCw, ShieldAlert, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { getVideoReview, listVideoReview, saveVideoDecision } from "@/admin/lib/api";
 import { fmtDateTime } from "@/admin/lib/formatters";
+import { IngestionWorkflowDAG } from "@/admin/components/IngestionWorkflowDAG";
+import { VideoServingToggle } from "@/admin/components/VideoReviewControls";
+import { rowToVideoContext } from "@/admin/lib/videoContext";
 import type {
   HumanSpeakerCheck,
   VideoApprovalState,
@@ -273,6 +277,8 @@ export default function VideoApprovalPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ row: VideoReviewRow; audit: VideoAuditEntry[] } | null>(null);
+  const [dagVideoId, setDagVideoId] = useState<string | null>(null);
+  const dagVideo = dagVideoId ? (data?.rows.find((r) => r.video_id === dagVideoId) ?? null) : null;
 
   useEffect(() => {
     if (urlVideoId) {
@@ -496,7 +502,12 @@ export default function VideoApprovalPage() {
                   <td className="p-3">
                     <StateBadge row={row} />
                   </td>
-                  <td className="p-3 text-right">
+                  <td className="p-3 text-right space-x-2 whitespace-nowrap">
+                    <VideoServingToggle videoId={row.video_id} decision={row.decision} onSaved={() => void load(true)} />
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDagVideoId(row.video_id)}>
+                      <Activity className="h-3.5 w-3.5 text-primary" />
+                      Pipeline DAG
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => void open(row)}>
                       Review
                     </Button>
@@ -526,6 +537,30 @@ export default function VideoApprovalPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={!!dagVideo} onOpenChange={(open) => !open && setDagVideoId(null)}>
+        <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] flex flex-col p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Activity className="h-5 w-5 text-primary" />
+              Ingestion Pipeline Lineage & DAG: {dagVideo?.title || dagVideo?.video_id}
+            </DialogTitle>
+            <DialogDescription>
+              End-to-end lineage visualization from intake to Qdrant/Memgraph persistence for video ID:{" "}
+              <code className="text-primary font-mono">{dagVideo?.video_id}</code> ({dagVideo?.channel})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-[550px] border rounded-lg overflow-y-auto bg-background">
+            {dagVideo && (
+              <IngestionWorkflowDAG
+                videoContext={rowToVideoContext(dagVideo)}
+                onRefresh={() => void load(true)}
+                onDecisionSaved={() => void load(true)}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

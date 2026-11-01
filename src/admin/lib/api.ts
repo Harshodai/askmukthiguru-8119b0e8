@@ -965,6 +965,23 @@ export async function batchTriageVideo(
   });
 }
 
+// ── Ingestion job status (drives the DAG's live highlight) ───────────────────
+export interface FirstPersonIngestJob {
+  job_id: string;
+  video_url?: string | null;
+  status: string;
+  stage?: string | null;
+  progress_pct: number;
+  clips_indexed: number;
+  error_message?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export async function getFirstPersonIngestJob(jobId: string): Promise<FirstPersonIngestJob> {
+  return fetchWithAuth(`/api/first-person/ingest/status/${encodeURIComponent(jobId)}`);
+}
+
 // ── First-person video approval ────────────────────────────────────────────
 // Writes need a short-lived CSRF token (bound to the admin's user id) and surface the
 // server's validation message, which fetchWithAuth's generic error text would hide.

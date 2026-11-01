@@ -1,6 +1,36 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 1, 2026 — Direct-video ingestion, live DAG, HITL and serving governance review
+
+### L-DAG-STATIC-MOCK-1. An admin DAG that hardcodes "completed", "Licensed & Verified", "8/8 Passed" and a sample speaker confidence is a status page that cannot fail.
+- **What:** `IngestionWorkflowDAG.tsx` shipped with every stage `status: "completed"`, a "Pipeline Healthy (8/8 Passed)" badge, `Sri Preethaji (0.84)` on the ECAPA node, a 10.8 s "Total Pipeline Latency", invented log lines labelled "Execution Audit Log", and `IngestionWorkflowPage.tsx` offered four hardcoded sample videos with made-up guru labels and confidences. Nodes were also built once through `useNodesState`, so even a real job could never move the highlight.
+- **Fix:** node state now comes only from a job (`src/admin/lib/ingestionStages.ts`: `deriveNodeStates`), derived from props on every render; with no job every node is `unknown` and no pass/fail is claimed. Unknown backend stages highlight nothing. The page lists real videos from `listVideoReview` and polls `GET /api/first-person/ingest/status/{job_id}`. Log lines are labelled "reference, not from this video"; the drawer says the backend stores no per-stage log lines. Measured evidence (voice-verified spans, min window cosine, teacher from the voice match) is read from the row; nothing is defaulted.
+- **Pin:** `src/admin/components/IngestionWorkflowDAG.test.tsx`, `src/admin/lib/ingestionStages.test.ts`, `src/admin/pages/IngestionWorkflowPage.test.tsx`.
+- **Rule:** a status view reports "no data" when it has none. A default of "passed" is a fabricated verification.
+
+### L-FP-FAILED-STAGE-1. The first-person service reports `stage: "failed"` on failure, which names no pipeline node.
+- **What:** `first_person_ingest_service.py` sets `stage=FPJobStage.FAILED`, so a stage-to-node map alone loses where the job broke and the DAG shows "Job failed" with no failed node.
+- **Fix:** the page remembers the last stage that mapped to a node and passes it through `stageForDisplay`. Re-tracking resets that memory on purpose: a job already failed when tracking starts has no known failing stage, and the DAG says so.
+- **Pin:** `ingestionStages.test.ts`, `IngestionWorkflowPage.test.tsx`.
+
+### L-VIDEO-GOVERNANCE-FAILOPEN-1. A governance check wrapped in `except Exception` is fail-open for everything except the one error it was written for.
+- **What:** `source_policy.is_blocked_source` and `ContentRightsGate.validate_rights` wrapped the blocked-video lookup in `try/except Exception` (debug-log or `pass`). `video_is_blocked` already fails closed on a corrupt decisions file, so the blanket catch only ever swallowed other errors, e.g. an import failure, and served the excluded video. The two lanes also carried separate copies of the video-id regex, one without a trailing boundary.
+- **Fix:** both calls are unguarded. One shared `VIDEO_ID_IN_SOURCE` (with a lookahead) lives in `services/qdrant/source_policy.py`. `GET /api/media/videos/{id}` now answers 404 for an excluded video (same as a missing file), and the world-writable `/tmp/videos` is no longer a serving directory.
+- **Pin:** `backend/tests/test_video_serving_governance.py` (exclude, restore, YouTube URL, `video:` URL, corrupt-file fail-closed, rights gate, media 404/200, 206/416 ranges).
+- **Rule:** one admin click must remove a video from every lane (first-person retrieval, general RAG, media stream) and one click must restore it. Test all lanes against the same decisions file.
+
+### L-DIRECT-VIDEO-FALLBACK-FABRICATION-1. A catch-all that "queues the upload anyway" with a made-up sentence puts non-teaching text in the corpus and hides the failure.
+- **What:** when `VideoPipeline.ingest_video` raised, `POST /api/ingest/upload-video` queued `"Direct video recording: <title> by <speaker>. Video ID: ..."` through `ingest_document_task` and answered `processing`. That sentence would be indexed as a corpus chunk attributed to the teachers, and the Supabase job was never marked failed.
+- **Fix:** the route marks the job `failed`, returns 502 with the exception class only (no internal message), and queues nothing. Disk write and ffmpeg run in `asyncio.to_thread` so one upload cannot stall the loop; a non-zero ffmpeg exit is logged. Tags are stamped on the points.
+- **Pin:** `test_upload_failure_is_reported_and_never_queues_a_placeholder_chunk`.
+- **Rule:** an ingest failure is a failure. Never substitute generated filler for the content that could not be processed.
+
+### L-HITL-SPEAKER-LABEL-1. A human speaker control must record a verdict, never rewrite the teacher.
+- **What:** the plan asked for a speaker selector (Preethaji / Krishnaji / Both / Host / Disciple). Teacher identity is the voice match's output (`speaker_verified`, `guru_id`); a human edit of it would let a label override the gate.
+- **Decision:** the Human Review tab offers only Confirmed / Rejected / Needs review plus notes, saved through the existing decision store (audit log, reason required). "Rejected" blocks serving; "Confirmed" never loosens a machine gate. The plan's speaker reassignment is intentionally not built.
+- **Also:** every save re-reads the stored decision first, because the PUT replaces the whole decision and a payload built from stale props would undo another admin's grade or note.
+
 ## Nov 1, 2026 — One active collection setting, health-gate wording, grader evidence, wiring audit
 
 ### L-ONE-NAME-SERVING-COLLECTION-1. Two env vars holding the same literal will drift; derive one from a single name and check it at boot.
