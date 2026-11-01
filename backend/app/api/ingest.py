@@ -971,8 +971,10 @@ def _validate_federated_source(source_type: str, source_ref: str) -> str:
                 status_code=400, detail="source_ref contains invalid path components"
             )
         base_path = Path(allowed).resolve()
-        clean_rel = os.path.normpath(source_ref).lstrip("/\\")
-        candidate_path = (base_path / clean_rel).resolve()
+        if os.path.isabs(source_ref):
+            candidate_path = Path(source_ref).resolve()
+        else:
+            candidate_path = (base_path / source_ref).resolve()
         try:
             candidate_path.relative_to(base_path)
         except ValueError:
