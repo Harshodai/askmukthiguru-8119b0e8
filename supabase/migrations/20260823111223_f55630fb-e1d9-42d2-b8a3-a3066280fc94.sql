@@ -15,3 +15,4 @@ REVOKE EXECUTE ON FUNCTION public.match_user_memories(vector, integer, double pr
 REVOKE EXECUTE ON FUNCTION public.whoami_diagnostics() FROM anon, PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.ensure_profile_and_role() FROM anon, PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO authenticated, service_role;

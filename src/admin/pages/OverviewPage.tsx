@@ -22,7 +22,6 @@ import {
 } from "@/admin/lib/formatters";
 import { AskDataPanel } from "@/admin/components/AskDataPanel";
 import { LiveFeed } from "@/admin/components/LiveFeed";
-import { SeedDemoButton } from "@/admin/components/SeedDemoButton";
 import { EmptyState } from "@/admin/components/EmptyState";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
@@ -63,7 +62,6 @@ export default function OverviewPage() {
             Health & usage of the AskMukthiGuru assistant.
           </p>
         </div>
-        <SeedDemoButton />
       </div>
 
 

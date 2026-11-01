@@ -34,19 +34,40 @@ import {
 } from "lucide-react";
 import { fmtMs } from "@/admin/lib/formatters";
 import type { RagFlowGraphNode } from "@/admin/lib/api";
-type RagStrategy = "standard" | "fast" | "deep";
+type RagStrategy = "standard" | "fast" | "deep" | "first_person";
 type FlowNodeData = { label: ReactNode; raw: RagFlowGraphNode };
 type FlowNode = Node<FlowNodeData>;
 const isRagStrategy = (value: string): value is RagStrategy => (
-  value === "standard" || value === "fast" || value === "deep"
+  value === "standard" || value === "fast" || value === "deep" || value === "first_person"
 );
 
 // Node description library for detailed admin inspect panel
 const NODE_DESCRIPTIONS: Record<string, { title: string; desc: string; category: string }> = {
+  // Intake & Common Nodes
+  __start__: {
+    title: "Pipeline Intake",
+    desc: "Entry point receiving user question and initiating safety & intent checks.",
+    category: "Intent"
+  },
+  __end__: {
+    title: "Response Output",
+    desc: "Final streaming terminal delivering verified response, citations, and metadata.",
+    category: "Generation"
+  },
   intent_router: {
     title: "Intent Router",
     desc: "Analyzes incoming query intent, routing it to distress, casual chat, meditation, or full RAG flows.",
     category: "Intent"
+  },
+  handle_distress_check: {
+    title: "Distress Pre-Filter",
+    desc: "Parallel evaluation verifying acute distress signals before standard dispatch.",
+    category: "Intent"
+  },
+  resolve_parallel: {
+    title: "Parallel Dispatch",
+    desc: "Coordinates concurrent execution branches across retrieval and specialized flows.",
+    category: "Augmentation"
   },
   resolve_followup: {
     title: "Resolve Follow-up",
@@ -76,6 +97,11 @@ const NODE_DESCRIPTIONS: Record<string, { title: string; desc: string; category:
   grade_documents: {
     title: "Grade Documents",
     desc: "Assesses document relevance against query keywords, flagging completely irrelevant passages.",
+    category: "Retrieval"
+  },
+  _map_docs_to_relevant: {
+    title: "Document Map & Threshold",
+    desc: "Extracts top candidate passages meeting minimum relevance threshold score.",
     category: "Retrieval"
   },
   enrich_context: {
@@ -113,6 +139,11 @@ const NODE_DESCRIPTIONS: Record<string, { title: string; desc: string; category:
     desc: "Performs Self-RAG verification, computing faithfulness, answer relevance, and safety scores.",
     category: "Generation"
   },
+  extract_citations: {
+    title: "Extract Citations",
+    desc: "Validates source coordinates, discourse timestamps, and verified YouTube links.",
+    category: "Generation"
+  },
   explain_retrieval: {
     title: "Explain Retrieval",
     desc: "Builds user-facing citations, source listings, and relevance explanations.",
@@ -127,6 +158,11 @@ const NODE_DESCRIPTIONS: Record<string, { title: string; desc: string; category:
     title: "Check Contradiction",
     desc: "Checks final answer against historical sessions to prevent conflicting advice.",
     category: "Generation"
+  },
+  first_person: {
+    title: "First Person Fast-Track",
+    desc: "Serves direct verbatim teacher quote and audio playback bypassing LLM generation.",
+    category: "First Person"
   },
   handle_casual: {
     title: "Handle Casual Chat",
@@ -152,6 +188,48 @@ const NODE_DESCRIPTIONS: Record<string, { title: string; desc: string; category:
     title: "Web Search Node",
     desc: "Performs external internet search to fetch recent context if internal knowledge base is lacking.",
     category: "Fallback/Special"
+  },
+
+  // First-Person Serving Architecture
+  fp_input: {
+    title: "Seeker Query Intake",
+    desc: "Entry point evaluating query semantics, teacher intent, and language preferences.",
+    category: "First Person"
+  },
+  fp_directness_gate: {
+    title: "Directness & Intent Gate",
+    desc: "Verifies whether question directly asks for authentic teacher guidance (threshold >= 0.70).",
+    category: "First Person"
+  },
+  fp_asr_resolver: {
+    title: "ASR Timestamp Resolver",
+    desc: "Maps transcript coordinates into exact audio file slice windows [audio_start_ms, audio_end_ms].",
+    category: "First Person"
+  },
+  fp_ecapa_verify: {
+    title: "ECAPA Acoustic Attribution",
+    desc: "Verifies speaker identity using ECAPA-TDNN neural embeddings against certified voice centroids.",
+    category: "First Person"
+  },
+  fp_rights_gate: {
+    title: "B5 Rights Clearing Gate",
+    desc: "Cross-checks content against audited rights register (docs/rights/CONTENT-RIGHTS.md); excludes unverified tiers.",
+    category: "First Person"
+  },
+  fp_context_harness: {
+    title: "Context Harness Assembler",
+    desc: "Assembles parent discourse window using purely stored verbatim spans with zero LLM fabrication.",
+    category: "First Person"
+  },
+  fp_schema_contract: {
+    title: "B4 Serving Contract Guard",
+    desc: "Enforces collection isolation, exact-cache fingerprinting, and fail-closed non-production safety.",
+    category: "First Person"
+  },
+  fp_audio_output: {
+    title: "Verbatim Audio & Citation",
+    desc: "Emits verified YouTube video timestamp, audio strip playback, and authentic aphorism.",
+    category: "First Person"
   }
 };
 
@@ -181,6 +259,12 @@ const CATEGORY_STYLES: Record<string, { bg: string; border: string; text: string
     text: "text-purple-600 dark:text-purple-400",
     glow: "shadow-[0_0_15px_rgba(168,85,247,0.1)]"
   },
+  "First Person": {
+    bg: "bg-amber-500/15 dark:bg-amber-500/10",
+    border: "border-amber-500/60 dark:border-amber-500/40",
+    text: "text-amber-600 dark:text-amber-400 font-semibold",
+    glow: "shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+  },
   "Fallback/Special": {
     bg: "bg-rose-500/10 dark:bg-rose-500/5",
     border: "border-rose-500/40 dark:border-rose-500/30",
@@ -192,42 +276,62 @@ const CATEGORY_STYLES: Record<string, { bg: string; border: string; text: string
 const STRATEGY_DESCRIPTIONS: Record<string, string> = {
   standard: "Balanced RAG pipeline. Utilizes query decomposition, cross-encoder reranking, parent enrichment, and Self-RAG verification.",
   fast: "High-performance RAG. Bypasses query decomposition, parent enrichment, and reflection, running basic vector search and generation directly.",
-  deep: "Deep analysis RAG. Employs HyDE, parent enrichment, recursive query rewriting, full safety contradiction checks, and deep self-reflection."
+  deep: "Deep analysis RAG. Employs HyDE, parent enrichment, recursive query rewriting, full safety contradiction checks, and deep self-reflection.",
+  first_person: "Acoustic verbatim serving pipeline. Direct quotes from Sri Preethaji and Sri Krishnaji with ECAPA-TDNN voice verification, B5 rights clearing, and exact audio timecode alignment."
 };
 
 // Node Layer mapping to define auto-layout columns (x-axis coordinates)
 const NODE_COLUMNS: Record<string, number> = {
-  // Intent (Col 1)
+  // Column 0: Intake & Gate
+  __start__: 0,
   intent_router: 0,
-  resolve_followup: 0,
-  decompose_query: 0,
+  handle_distress_check: 0,
+  fp_input: 0,
 
-  // Retrieval (Col 2)
-  navigate_and_hyde: 1,
-  retrieve_documents: 1,
-  rerank_documents: 1,
-  grade_documents: 1,
+  // Column 1: Dispatch & Decomposition
+  resolve_parallel: 1,
+  resolve_followup: 1,
+  decompose_query: 1,
+  fp_directness_gate: 1,
 
-  // Augmentation (Col 3)
-  enrich_context: 2,
-  check_context_sufficiency: 2,
-  rewrite_query: 2,
-  context_engineer: 2,
+  // Column 2: Handlers & Retrieval Initiation
+  handle_casual: 2,
+  handle_distress: 2,
+  handle_meditation: 2,
+  web_search: 2,
+  navigate_and_hyde: 2,
+  retrieve_documents: 2,
+  fp_asr_resolver: 2,
 
-  // Generation (Col 4)
-  generate_answer: 3,
-  reflect_on_answer: 3,
-  verify_answer: 3,
-  explain_retrieval: 3,
-  format_final_answer: 3,
-  check_contradiction: 3,
+  // Column 3: Reranking & Augmentation
+  rerank_documents: 3,
+  grade_documents: 3,
+  _map_docs_to_relevant: 3,
+  enrich_context: 3,
+  check_context_sufficiency: 3,
+  rewrite_query: 3,
+  context_engineer: 3,
+  first_person: 3,
+  fp_ecapa_verify: 3,
 
-  // Handlers (Col 5)
-  handle_casual: 4,
-  handle_distress: 4,
-  handle_meditation: 4,
-  handle_fallback: 4,
-  web_search: 4
+  // Column 4: Synthesis & Verification
+  generate_answer: 4,
+  reflect_on_answer: 4,
+  verify_answer: 4,
+  check_contradiction: 4,
+  fp_rights_gate: 4,
+
+  // Column 5: Formatting & Attribution
+  extract_citations: 5,
+  format_final_answer: 5,
+  explain_retrieval: 5,
+  handle_fallback: 5,
+  fp_context_harness: 5,
+
+  // Column 6: Schema Contract & Terminal Exit
+  fp_schema_contract: 6,
+  fp_audio_output: 6,
+  __end__: 6,
 };
 
 export default function RAGFlowPage() {
@@ -324,15 +428,16 @@ export default function RAGFlowPage() {
         source: edge?.source ?? "",
         target: edge?.target ?? "",
         animated: edge?.animated ?? false,
+        type: "smoothstep",
         style: {
-          stroke: isSlowPath ? "rgba(239, 68, 68, 0.45)" : "rgba(156, 163, 175, 0.3)",
-          strokeWidth: isSlowPath ? 2.5 : 1.5,
+          stroke: isSlowPath ? "rgba(239, 68, 68, 0.7)" : "hsl(var(--primary) / 0.45)",
+          strokeWidth: isSlowPath ? 2.5 : 2,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          width: 16,
-          height: 16,
-          color: isSlowPath ? "rgba(239, 68, 68, 0.6)" : "rgba(156, 163, 175, 0.4)",
+          width: 14,
+          height: 14,
+          color: isSlowPath ? "rgba(239, 68, 68, 0.8)" : "hsl(var(--primary) / 0.6)",
         },
       };
     });
@@ -390,6 +495,7 @@ export default function RAGFlowPage() {
               <TabsTrigger value="fast">Fast</TabsTrigger>
               <TabsTrigger value="standard">Standard</TabsTrigger>
               <TabsTrigger value="deep">Deep</TabsTrigger>
+              <TabsTrigger value="first_person">First Person</TabsTrigger>
             </TabsList>
           </Tabs>
 

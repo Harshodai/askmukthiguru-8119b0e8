@@ -647,23 +647,23 @@ async def get_timeseries_data(
         response = query.order("created_at", desc=True).execute()
         data = response.data or []
 
-        if not data:
-            return []
-
-        # Bucket the data
-        from datetime import datetime
-
-        start_time = datetime.fromisoformat(safe_from.replace("Z", "+00:00")).timestamp()
-        end_time = datetime.fromisoformat(safe_to.replace("Z", "+00:00")).timestamp()
+        # Ensure valid timestamps for window
+        parsed_from = datetime.fromisoformat(safe_from.replace("Z", "+00:00"))
+        parsed_to = datetime.fromisoformat(safe_to.replace("Z", "+00:00"))
+        start_time = parsed_from.timestamp()
+        end_time = parsed_to.timestamp()
         bucket_size = (end_time - start_time) / buckets if buckets > 0 else 0
 
         buckets_data = []
         for i in range(buckets):
             bucket_start = start_time + (i * bucket_size)
-            bucket_start + bucket_size
-            bucket_time = datetime.fromtimestamp(bucket_start + (bucket_size / 2)).isoformat()
-
+            bucket_time = datetime.fromtimestamp(
+                bucket_start + (bucket_size / 2), tz=UTC
+            ).isoformat()
             buckets_data.append({"bucket": bucket_time, "value": 0, "count": 0})
+
+        if not data:
+            return [{"bucket": b["bucket"], "value": 0} for b in buckets_data]
 
         # Process data points
         for item in data:

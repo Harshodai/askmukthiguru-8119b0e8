@@ -215,6 +215,70 @@ async def get_rag_flow_graph(
     """
 
     try:
+        if strategy == "first_person":
+            latencies = await get_node_latencies(limit=1000)
+            latency_map = {item["node"]: item for item in latencies}
+
+            fp_nodes_def = [
+                {"id": "fp_input", "label": "Seeker Query Intake", "fallback_ms": 12.0},
+                {
+                    "id": "fp_directness_gate",
+                    "label": "FP Directness & Relevance Gate",
+                    "fallback_ms": 48.0,
+                },
+                {"id": "fp_asr_resolver", "label": "ASR Timestamp Resolver", "fallback_ms": 32.0},
+                {
+                    "id": "fp_ecapa_verify",
+                    "label": "ECAPA Acoustic Attribution",
+                    "fallback_ms": 110.0,
+                },
+                {"id": "fp_rights_gate", "label": "B5 Rights Clearing Gate", "fallback_ms": 15.0},
+                {
+                    "id": "fp_context_harness",
+                    "label": "Context Harness Assembler",
+                    "fallback_ms": 65.0,
+                },
+                {
+                    "id": "fp_schema_contract",
+                    "label": "B4 Serving Contract Guard",
+                    "fallback_ms": 8.0,
+                },
+                {
+                    "id": "fp_audio_output",
+                    "label": "Verbatim Audio & Citation",
+                    "fallback_ms": 18.0,
+                },
+            ]
+            fp_edges_def = [
+                ("fp_input", "fp_directness_gate"),
+                ("fp_directness_gate", "fp_asr_resolver"),
+                ("fp_asr_resolver", "fp_ecapa_verify"),
+                ("fp_ecapa_verify", "fp_rights_gate"),
+                ("fp_rights_gate", "fp_context_harness"),
+                ("fp_context_harness", "fp_schema_contract"),
+                ("fp_schema_contract", "fp_audio_output"),
+            ]
+            nodes = [
+                {
+                    "id": item["id"],
+                    "label": item["label"],
+                    "avg_latency_ms": latency_map.get(item["id"], {}).get(
+                        "avg_latency_ms", item["fallback_ms"]
+                    ),
+                    "invocation_count": latency_map.get(item["id"], {}).get("count", 1),
+                }
+                for item in fp_nodes_def
+            ]
+            edges = [
+                {"id": f"e-{s}-{t}", "source": s, "target": t, "animated": True}
+                for s, t in fp_edges_def
+            ]
+            return {
+                "strategy": "first_person",
+                "nodes": nodes,
+                "edges": edges,
+            }
+
         container = get_container()
 
         # Choose the correct graph based on strategy param

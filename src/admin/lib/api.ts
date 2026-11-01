@@ -54,7 +54,17 @@ function guardMock(label: string): void {
 
 /* ── Auth helper ─────────────────────────────────────────────────────────── */
 async function fetchWithAuth(path: string, options: RequestInit = {}) {
-  const { data: { session } } = await supabase.auth.getSession();
+  let { data: { session } } = await supabase.auth.getSession();
+  if (session && session.expires_at && session.expires_at * 1000 < Date.now() + 60000) {
+    try {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed?.session) {
+        session = refreshed.session;
+      }
+    } catch {
+      // Continue with current session if refresh fails
+    }
+  }
   const token = session?.access_token;
 
   const response = await fetch(`${BACKEND_URL}${path}`, {
@@ -99,6 +109,28 @@ export async function getWisdomTips(): Promise<WisdomTipsPayload> {
 
 export async function regenerateWisdomTips(): Promise<WisdomTipsPayload> {
   return fetchWithAuth('/api/admin/teachings/regenerate', { method: 'POST' });
+}
+
+export async function getCuratedTeachings(): Promise<WisdomTipDto[]> {
+  return fetchWithAuth('/api/admin/teachings/curated');
+}
+
+export async function addCuratedTeaching(data: {
+  text: string;
+  teacher?: string;
+  source?: string;
+  category?: string;
+}): Promise<WisdomTipDto> {
+  return fetchWithAuth('/api/admin/teachings/curated', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCuratedTeaching(id: string): Promise<{ ok: boolean }> {
+  return fetchWithAuth(`/api/admin/teachings/curated/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
 
 /* ── Helper: backend-first with dev-only mock fallback ───────────────────── */
