@@ -129,7 +129,7 @@ def capture_all():
         page.screenshot(path=str(OUT_DIR / "admin_ingestion_pipeline.png"))
         print("Saved admin_ingestion_pipeline.png")
 
-        # 7. Admin RAG Flow
+        # 7. Admin RAG Flow - Standard & First Person
         print("7. Admin RAG Flow...")
         page.goto("http://localhost/admin/rag-flow")
         page.wait_for_load_state("domcontentloaded")
@@ -137,8 +137,34 @@ def capture_all():
         page.screenshot(path=str(OUT_DIR / "admin_rag_flow.png"))
         print("Saved admin_rag_flow.png")
 
-        # 8. Admin Evals
-        print("8. Admin Evals...")
+        fp_tab = page.locator(
+            "button:has-text('First Person'), [role='tab']:has-text('First Person')"
+        ).first
+        if fp_tab.is_visible():
+            fp_tab.click()
+            page.wait_for_timeout(2000)
+            page.screenshot(path=str(OUT_DIR / "admin_rag_flow_first_person.png"))
+            print("Saved admin_rag_flow_first_person.png")
+
+        # 8. Admin Teaching Tips
+        print("8. Admin Teaching Tips...")
+        page.goto("http://localhost/admin/teaching-tips")
+        page.wait_for_load_state("domcontentloaded")
+        page.wait_for_timeout(3000)
+        page.screenshot(path=str(OUT_DIR / "admin_teaching_tips_active.png"))
+        print("Saved admin_teaching_tips_active.png")
+
+        lib_tab = page.locator(
+            "button:has-text('Curated Guru Library'), [role='tab']:has-text('Curated Guru Library')"
+        ).first
+        if lib_tab.is_visible():
+            lib_tab.click()
+            page.wait_for_timeout(2000)
+            page.screenshot(path=str(OUT_DIR / "admin_teaching_tips_curated_library.png"))
+            print("Saved admin_teaching_tips_curated_library.png")
+
+        # 9. Admin Evals
+        print("9. Admin Evals...")
         page.goto("http://localhost/admin/evals")
         page.wait_for_load_state("domcontentloaded")
         page.wait_for_timeout(3000)

@@ -238,6 +238,35 @@ def deep_dive_test():
         page.screenshot(path=str(OUT_DIR / "admin_rag_flow_inside_node_inspect_drawer.png"))
         print("Saved admin_rag_flow_inside_node_inspect_drawer.png")
 
+        # First Person Tab in RAG Flow
+        fp_tab = page.locator(
+            "button:has-text('First Person'), [role='tab']:has-text('First Person')"
+        ).first
+        if fp_tab.is_visible():
+            print("Switching to First Person architecture tab...")
+            fp_tab.click()
+            page.wait_for_timeout(2500)
+            page.screenshot(path=str(OUT_DIR / "admin_rag_flow_first_person_arch.png"))
+            print("Saved admin_rag_flow_first_person_arch.png")
+
+        # Dedicated Teaching Tips Page
+        print("Deep-testing /admin/teaching-tips...")
+        page.goto("http://localhost/admin/teaching-tips")
+        page.wait_for_load_state("domcontentloaded")
+        page.wait_for_timeout(3000)
+        page.screenshot(path=str(OUT_DIR / "admin_teaching_tips_active.png"))
+        print("Saved admin_teaching_tips_active.png")
+
+        lib_tab = page.locator(
+            "button:has-text('Curated Guru Library'), [role='tab']:has-text('Curated Guru Library')"
+        ).first
+        if lib_tab.is_visible():
+            print("Switching to Curated Guru Library tab...")
+            lib_tab.click()
+            page.wait_for_timeout(2500)
+            page.screenshot(path=str(OUT_DIR / "admin_teaching_tips_curated_library.png"))
+            print("Saved admin_teaching_tips_curated_library.png")
+
         # -------------------------------------------------------------------
         # 5. /admin/evals — Golden Question Modal & Prompts Diff
         # -------------------------------------------------------------------
