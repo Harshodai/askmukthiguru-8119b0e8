@@ -970,24 +970,25 @@ def _validate_federated_source(source_type: str, source_ref: str) -> str:
             raise HTTPException(
                 status_code=400, detail="source_ref contains invalid path components"
             )
-        base_path = Path(allowed).resolve()
-        if os.path.isabs(source_ref):
-            candidate_path = Path(source_ref).resolve()
-        else:
-            candidate_path = (base_path / source_ref).resolve()
-        try:
-            candidate_path.relative_to(base_path)
-        except ValueError:
+        real_allowed = os.path.realpath(allowed)
+        base_dir = real_allowed if real_allowed.endswith(os.sep) else real_allowed + os.sep
+        raw_path = source_ref if os.path.isabs(source_ref) else os.path.join(base_dir, source_ref)
+        resolved_path = os.path.realpath(raw_path)
+
+        if (
+            not resolved_path.startswith(base_dir)
+            or os.path.commonpath([real_allowed, resolved_path]) != real_allowed
+        ):
             raise HTTPException(
                 status_code=400, detail="source_ref must be inside the allowed directory"
             )
 
-        if not candidate_path.is_file():
+        if not os.path.isfile(resolved_path):
             raise HTTPException(
                 status_code=400,
                 detail="source_ref must be a file inside the allowed directory",
             )
-        return str(candidate_path)
+        return resolved_path
     raise HTTPException(status_code=400, detail="Unsupported source_type for this route")
 
 
