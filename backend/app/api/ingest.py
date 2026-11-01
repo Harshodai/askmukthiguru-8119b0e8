@@ -9,7 +9,6 @@ import os
 import re
 import subprocess
 import unicodedata
-from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -501,28 +500,29 @@ def _write_bytes(path: str, data: bytes) -> None:
 
 def _resolve_video_file_path(video_id: str) -> Optional[str]:
     """Resolve physical path of a video file by ID across local and docker mount locations."""
-    token = video_id.split(".")[0].strip()
-    if not re.fullmatch(r"^[A-Za-z0-9_-]{1,64}$", token):
+    safe_name = os.path.basename(video_id).split(".")[0].strip()
+    if not re.fullmatch(r"^[A-Za-z0-9_-]{1,64}$", safe_name):
         return None
-    safe_id = token
 
     candidate_dirs = [
         "/app/data/videos",
         os.path.join(os.getcwd(), "backend", "data", "videos"),
         os.path.join(os.getcwd(), "data", "videos"),
     ]
-    extensions = [".mp4", ".webm", ".mov", ".mkv"]
+    extensions = {".mp4", ".webm", ".mov", ".mkv"}
 
     for d in candidate_dirs:
-        real_d = os.path.realpath(d)
-        for ext in extensions:
-            candidate = os.path.realpath(os.path.join(real_d, f"{safe_id}{ext}"))
-            if (
-                os.path.commonpath([real_d, candidate]) == real_d
-                and os.path.isfile(candidate)
-                and os.path.getsize(candidate) > 0
-            ):
-                return candidate
+        try:
+            real_d = os.path.realpath(d)
+            if not os.path.isdir(real_d):
+                continue
+            for entry in os.scandir(real_d):
+                if entry.is_file():
+                    name, ext = os.path.splitext(entry.name)
+                    if name == safe_name and ext in extensions and entry.stat().st_size > 0:
+                        return entry.path
+        except OSError:
+            continue
     return None
 
 
@@ -960,20 +960,31 @@ def _validate_federated_source(source_type: str, source_ref: str) -> str:
             raise HTTPException(
                 status_code=400, detail="source_ref contains invalid path components"
             )
-        root_path = Path(allowed).resolve()
-        raw_path = Path(source_ref)
-        if raw_path.is_absolute():
-            target_path = raw_path.resolve()
-        else:
-            target_path = (root_path / raw_path).resolve()
+        allowed_dir = os.path.realpath(allowed)
+        allowed_dir_prefix = allowed_dir if allowed_dir.endswith(os.sep) else allowed_dir + os.sep
 
-        root_str = str(root_path)
-        target_str = str(target_path)
-        if not target_path.is_relative_to(root_path) or os.path.commonpath([root_str, target_str]) != root_str or not target_path.is_file():
+        if os.path.isabs(source_ref):
+            candidate = os.path.abspath(source_ref)
+        else:
+            candidate = os.path.abspath(os.path.join(allowed_dir, source_ref))
+
+        if not (candidate == allowed_dir or candidate.startswith(allowed_dir_prefix)):
             raise HTTPException(
-                status_code=400, detail="source_ref must be a file inside the allowed directory"
+                status_code=400, detail="source_ref must be inside the allowed directory"
             )
-        return target_str
+
+        real_candidate = os.path.realpath(candidate)
+        if not (real_candidate == allowed_dir or real_candidate.startswith(allowed_dir_prefix)):
+            raise HTTPException(
+                status_code=400, detail="source_ref must be inside the allowed directory"
+            )
+
+        if not os.path.isfile(real_candidate):
+            raise HTTPException(
+                status_code=400,
+                detail="source_ref must be a file inside the allowed directory",
+            )
+        return real_candidate
     raise HTTPException(status_code=400, detail="Unsupported source_type for this route")
 
 

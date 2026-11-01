@@ -419,17 +419,26 @@ def _openrouter_asker(model: str) -> Callable[[str, str], str]:
             )
             if resp.status_code == 402 and "in_flight_budget_exhausted" in resp.text:
                 wait_s = int(resp.headers.get("Retry-After", 10))
-                print(f"OpenRouter in-flight budget saturated; waiting {wait_s}s (attempt {attempt + 1}/8)...", file=sys.stderr)
+                print(
+                    f"OpenRouter in-flight budget saturated; waiting {wait_s}s (attempt {attempt + 1}/8)...",
+                    file=sys.stderr,
+                )
                 time.sleep(wait_s)
                 continue
             if resp.status_code == 402 and "fewer max_tokens" in resp.text:
                 current_max_tokens = max(128, current_max_tokens // 2)
-                print(f"OpenRouter requested fewer max_tokens; reducing to {current_max_tokens} and retrying...", file=sys.stderr)
+                print(
+                    f"OpenRouter requested fewer max_tokens; reducing to {current_max_tokens} and retrying...",
+                    file=sys.stderr,
+                )
                 time.sleep(2)
                 continue
             if resp.status_code == 429:
                 wait_s = int(resp.headers.get("Retry-After", 5))
-                print(f"OpenRouter rate limit; waiting {wait_s}s (attempt {attempt + 1}/8)...", file=sys.stderr)
+                print(
+                    f"OpenRouter rate limit; waiting {wait_s}s (attempt {attempt + 1}/8)...",
+                    file=sys.stderr,
+                )
                 time.sleep(wait_s)
                 continue
             if resp.status_code != 200:
