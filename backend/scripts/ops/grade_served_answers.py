@@ -25,6 +25,7 @@ import math
 import random
 import re
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -400,22 +401,43 @@ def _openrouter_asker(model: str) -> Callable[[str, str], str]:
         raise SystemExit("OPENROUTER_API_KEY is not set; refusing to grade without it")
 
     def ask(system: str, user: str) -> str:
-        resp = httpx.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {key}"},
-            json={
-                "model": model,
-                "temperature": 0,
-                "max_tokens": 2048,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-            },
-            timeout=120,
-        )
-        resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"] or ""
+        current_max_tokens = 256
+        for attempt in range(8):
+            resp = httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}"},
+                json={
+                    "model": model,
+                    "temperature": 0,
+                    "max_tokens": current_max_tokens,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                },
+                timeout=120,
+            )
+            if resp.status_code == 402 and "in_flight_budget_exhausted" in resp.text:
+                wait_s = int(resp.headers.get("Retry-After", 10))
+                print(f"OpenRouter in-flight budget saturated; waiting {wait_s}s (attempt {attempt + 1}/8)...", file=sys.stderr)
+                time.sleep(wait_s)
+                continue
+            if resp.status_code == 402 and "fewer max_tokens" in resp.text:
+                current_max_tokens = max(128, current_max_tokens // 2)
+                print(f"OpenRouter requested fewer max_tokens; reducing to {current_max_tokens} and retrying...", file=sys.stderr)
+                time.sleep(2)
+                continue
+            if resp.status_code == 429:
+                wait_s = int(resp.headers.get("Retry-After", 5))
+                print(f"OpenRouter rate limit; waiting {wait_s}s (attempt {attempt + 1}/8)...", file=sys.stderr)
+                time.sleep(wait_s)
+                continue
+            if resp.status_code != 200:
+                print(f"OpenRouter error {resp.status_code}: {resp.text}", file=sys.stderr)
+            resp.raise_for_status()
+            time.sleep(1.0)
+            return resp.json()["choices"][0]["message"]["content"] or ""
+        raise SystemExit(f"OpenRouter call failed after retries for model {model}")
 
     return ask
 

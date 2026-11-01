@@ -904,9 +904,9 @@ _ANSWER_BODY_SCHEMA_VERSION = "evidence_only_v2"
 _RELEVANCE_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
-    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
-    "one event/audience, or a fragment that cannot stand alone. Reply ONLY with comma-separated "
-    "integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
+    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
+    "that cannot stand alone, opens mid-thought, or is event-bound (e.g. corona/lockdown). Reply "
+    "ONLY with comma-separated integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
 )
 
 
@@ -938,9 +938,9 @@ _SCORER_JSON_SCHEMA_MODELS = frozenset({"anthropic/claude-haiku-5.5"})
 _RELEVANCE_JSON_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
-    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
-    "one event/audience, or a fragment that cannot stand alone. Reply ONLY with a JSON object "
-    'of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
+    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
+    "that cannot stand alone, opens mid-thought, or is event-bound (e.g. corona/lockdown). Reply ONLY "
+    'with a JSON object of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
 )
 
 _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
