@@ -9,7 +9,7 @@
   "model_id": "speechbrain/spkrec-ecapa-voxceleb",
   "model_revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
   "qdrant_url": "http://localhost:6333",
-  "reference_centroids_path": "/Users/harshodaikolluru/mukthiguru_attribution_data/phase2_references_2026-10-30/references.npz",
+  "reference_centroids_path": "data/attribution/phase2_references_2026-10-30/references.npz",
   "results": [
     {
       "claimed_guru": "preethaji",

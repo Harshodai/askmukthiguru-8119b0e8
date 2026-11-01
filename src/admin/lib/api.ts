@@ -1049,4 +1049,3 @@ export async function optimizeQdrant(): Promise<QdrantOptimizeResult> {
     method: 'POST',
   });
 }
-

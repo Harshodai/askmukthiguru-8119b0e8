@@ -634,4 +634,3 @@ export interface QdrantOptimizeResult {
   before: QdrantIndexHealth;
   after: QdrantIndexHealth;
 }
-

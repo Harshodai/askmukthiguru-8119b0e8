@@ -3,7 +3,7 @@
   "alias_target": "first_person_v10",
   "asr_artifacts_available": true,
   "asr_videos_indexed": 566,
-  "attr_root": "/Users/harshodaikolluru/mukthiguru_attribution_data",
+  "attr_root": "data/attribution",
   "audio_window_drift_ms": {
     "count": 231,
     "max": 1227,

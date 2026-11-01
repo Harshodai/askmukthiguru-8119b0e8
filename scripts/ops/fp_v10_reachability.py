@@ -53,7 +53,7 @@ def _scroll(url: str, collection: str) -> list[dict]:
             data=json.dumps(body).encode(),
             headers={"Content-Type": "application/json"},
         )
-        result = json.load(urlopen(req, timeout=30))["result"]
+        result = json.load(urlopen(req, timeout=30))["result"]  # nosec B310
         rows += [p["payload"] for p in result["points"]]
         offset = result.get("next_page_offset")
         if not offset:

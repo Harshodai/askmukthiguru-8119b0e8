@@ -288,4 +288,3 @@ export function useQdrantHealth() {
     refetchInterval: 30_000,
   });
 }
-

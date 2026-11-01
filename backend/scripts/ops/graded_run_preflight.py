@@ -187,7 +187,7 @@ def probe_local_review(base_url: str, timeout: float = 5.0) -> tuple[int | None,
 
     url = base_url.rstrip("/") + "/api/first-person/local-review/status"
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310 (localhost)
+        with urllib.request.urlopen(url, timeout=timeout) as resp:  # nosec B310 # noqa: S310 (localhost)
             return resp.status, json.loads(resp.read().decode("utf-8") or "{}")
     except urllib.error.HTTPError as exc:
         return exc.code, None
@@ -211,7 +211,7 @@ def load_compose_yaml(path: Path) -> dict[str, Any]:
 
     for tag in ("!override", "!reset"):
         _ComposeLoader.add_constructor(tag, _passthrough)
-    return yaml.load(path.read_text(encoding="utf-8"), Loader=_ComposeLoader) or {}  # noqa: S506
+    return yaml.load(path.read_text(encoding="utf-8"), Loader=_ComposeLoader) or {}  # nosec B506 # noqa: S506
 
 
 def read_override_pins(path: Path) -> dict[str, str]:

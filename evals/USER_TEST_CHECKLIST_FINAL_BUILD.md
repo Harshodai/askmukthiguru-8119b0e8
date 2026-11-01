@@ -1,10 +1,10 @@
 # Final Build User Test Checklist (Manual Verification)
 
-**Staged SHA:** `dff0b39fcf0801b5aaba99101c89c00857040ba8`  
-**Target Collection:** `first_person_v11` (Contract declared; warning: tests on v10 before v11 decision can be void)  
-**Date Created:** 2026-10-31  
-**Status:** DRAFT / PENDING HUMAN EXECUTION  
-**Tester:** Harsha  
+**Staged SHA:** `dff0b39fcf0801b5aaba99101c89c00857040ba8`
+**Target Collection:** `first_person_v11` (Contract declared; warning: tests on v10 before v11 decision can be void)
+**Date Created:** 2026-10-31
+**Status:** DRAFT / PENDING HUMAN EXECUTION
+**Tester:** Harsha
 
 ---
 

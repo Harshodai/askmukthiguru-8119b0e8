@@ -110,7 +110,7 @@ def _scroll(url: str, collection: str) -> Iterable[dict[str, Any]]:
             json.dumps(body).encode(),
             {"Content-Type": "application/json"},
         )
-        result = json.load(urllib.request.urlopen(req, timeout=30))["result"]
+        result = json.load(urllib.request.urlopen(req, timeout=30))["result"]  # nosec B310
         for point in result["points"]:
             yield point["payload"]
         offset = result.get("next_page_offset")
