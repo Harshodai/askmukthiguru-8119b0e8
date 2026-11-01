@@ -32,8 +32,11 @@ async def test_def_01_video_pipeline_deterministic_uuid_and_contract_payload():
 
     with patch("services.qdrant.indexer.QdrantIndexer.upsert_chunks") as mock_upsert:
         mock_upsert.return_value = 1
-        written = await pipeline._upsert_chunks(chunks, source)
+        # Contract is (written, point_ids): the direct-video upload path stamps
+        # payload onto exactly the ids this write created.
+        written, point_ids = await pipeline._upsert_chunks(chunks, source)
         assert written == 1
+        assert point_ids == [str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source}_0_0"))]
         mock_upsert.assert_called_once()
         args, kwargs = mock_upsert.call_args
         texts = kwargs.get("texts") or args[0]

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import {
 import { fmtDateTime, fmtInt, fmtMs } from "@/admin/lib/formatters";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { RefreshCw, Upload, Loader2, CheckCircle2, AlertCircle, Link2, Info, Trash2 } from "lucide-react";
+import { RefreshCw, Upload, Loader2, CheckCircle2, AlertCircle, Link2, Info, Trash2, GitFork } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface IngestionJob {
@@ -42,6 +43,7 @@ export default function IngestionPage() {
     refetch: refetchHealth,
   } = useIngestionHealth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   // Ingestion form state
   const [url, setUrl] = useState("");
@@ -409,7 +411,15 @@ export default function IngestionPage() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1 text-xs"
+                          onClick={() => navigate("/admin/ingestion?tab=workflow")}
+                        >
+                          <GitFork className="h-3 w-3 text-primary" /> Workflow DAG
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
