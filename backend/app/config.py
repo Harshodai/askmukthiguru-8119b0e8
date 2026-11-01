@@ -556,6 +556,8 @@ class Settings(BaseSettings):
     # --- Guardrails ---
     # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "llama_guard" (Llama Guard 3 1B + Rejection Classifier), "rejection_classifier", "disabled"
     guardrails_provider: str = "nemo"  # Falls back to lightweight if provider unavailable
+    guardrails_llama_guard_openrouter_enabled: bool = True
+    guardrails_llama_guard_model: str = "meta-llama/llama-guard-3-8b"
     # CRIT-5: message-level language detection + translate-to-EN before EN
     # guardrail regexes, so an EN-preferred user typing in a non-EN script
     # gets the same injection/crisis protection. Gates three call sites:

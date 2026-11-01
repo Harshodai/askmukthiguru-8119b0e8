@@ -72,9 +72,28 @@ class LlamaGuardHandler(BaseGuardrailHandler):
         self._model = None
         self._tokenizer = None
         self._available = False
+        self._use_openrouter = False
+        self._openrouter_model = "meta-llama/llama-guard-3-8b"
         self._load_model()
 
     def _load_model(self) -> None:
+        from app.config import settings
+
+        # Prefer OpenRouter hosted Llama Guard 3 8B to eliminate 1.5GB local VM PyTorch RAM
+        if getattr(settings, "guardrails_llama_guard_openrouter_enabled", True) and getattr(
+            settings, "openrouter_api_key", ""
+        ):
+            self._use_openrouter = True
+            self._openrouter_model = getattr(
+                settings, "guardrails_llama_guard_model", "meta-llama/llama-guard-3-8b"
+            )
+            self._available = True
+            logger.info(
+                "Llama Guard initialized via OpenRouter hosted model (%s) — zero local RAM",
+                self._openrouter_model,
+            )
+            return
+
         try:
             import torch
             from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -122,23 +141,52 @@ class LlamaGuardHandler(BaseGuardrailHandler):
         if not self._available:
             return False, []
 
-        import torch
-
         prompt = _PROMPT_TEMPLATE.format(message=message)
-        inputs = self._tokenizer([prompt], return_tensors="pt").to(self._model.device)
 
-        with torch.no_grad():
-            outputs = self._model.generate(
-                **inputs,
-                max_new_tokens=64,
-                do_sample=False,
-                temperature=None,
-                top_p=None,
-            )
+        if self._use_openrouter:
+            import httpx
 
-        response = self._tokenizer.decode(
-            outputs[0][inputs.input_ids.shape[1] :], skip_special_tokens=True
-        ).strip()
+            from app.config import settings
+
+            headers = {
+                "Authorization": f"Bearer {settings.openrouter_api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": self._openrouter_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 64,
+                "temperature": 0.0,
+            }
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    res = await client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
+                    res.raise_for_status()
+                    data = res.json()
+                    response = (data["choices"][0]["message"]["content"] or "").strip()
+            except Exception as e:
+                logger.warning("OpenRouter Llama Guard call failed: %s; failing safe", e)
+                return False, []
+        else:
+            import torch
+
+            inputs = self._tokenizer([prompt], return_tensors="pt").to(self._model.device)
+            with torch.no_grad():
+                outputs = self._model.generate(
+                    **inputs,
+                    max_new_tokens=64,
+                    do_sample=False,
+                    temperature=None,
+                    top_p=None,
+                )
+            response = self._tokenizer.decode(
+                outputs[0][inputs.input_ids.shape[1] :], skip_special_tokens=True
+            ).strip()
+
         lines = [line.strip() for line in response.split("\n") if line.strip()]
 
         if not lines:

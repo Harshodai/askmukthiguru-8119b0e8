@@ -1598,4 +1598,3 @@ class TestQualityAndSafetyFilters20261101:
             "promotion and she is celebrating it."
         )
         assert _standalone_problem(clip_orphan) == "orphan_opener"
-
