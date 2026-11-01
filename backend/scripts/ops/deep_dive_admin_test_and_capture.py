@@ -10,8 +10,11 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 SECRET = os.environ.get("ADMIN_TOTP_SECRET", "V5FF7HLFI47FML25GLDSMHDJANDDVRMN")  # gitleaks:allow
-OUT_DIR = Path("/Users/harshodaikolluru/.gemini/antigravity/brain/e954e2dc-0fbc-4037-93b9-b734c3c699db")
+OUT_DIR = Path(
+    "/Users/harshodaikolluru/.gemini/antigravity/brain/e954e2dc-0fbc-4037-93b9-b734c3c699db"
+)
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
 
 def base32_decode(s: str) -> bytes:
     chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
@@ -29,6 +32,7 @@ def base32_decode(s: str) -> bytes:
             bits -= 8
     return bytes(out)
 
+
 def get_totp(secret: str) -> str:
     key = base32_decode(secret)
     epoch = int(time.time() // 30)
@@ -38,6 +42,7 @@ def get_totp(secret: str) -> str:
     code = (int.from_bytes(h[offset : offset + 4], "big") & 0x7FFFFFFF) % 1000000
     return f"{code:06d}"
 
+
 def deep_dive_test():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -46,7 +51,9 @@ def deep_dive_test():
             color_scheme="dark",
             bypass_csp=True,
         )
-        context.add_init_script("localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');")
+        context.add_init_script(
+            "localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');"
+        )
         page = context.new_page()
 
         # 0. Log in with admin credentials and MFA
@@ -57,7 +64,9 @@ def deep_dive_test():
 
         # Dismiss disclaimer if present
         try:
-            disclaimer_btn = page.locator("button:has-text('I Understand'), button:has-text('Begin My Journey')")
+            disclaimer_btn = page.locator(
+                "button:has-text('I Understand'), button:has-text('Begin My Journey')"
+            )
             if disclaimer_btn.count() > 0 and disclaimer_btn.first.is_visible():
                 disclaimer_btn.first.click()
                 page.wait_for_timeout(1000)
@@ -69,7 +78,11 @@ def deep_dive_test():
         page.click("button[type='submit']")
         page.wait_for_timeout(3000)
 
-        if "/auth/mfa" in page.url or page.locator("#mfa-code").count() > 0 or "mfa" in page.url.lower():
+        if (
+            "/auth/mfa" in page.url
+            or page.locator("#mfa-code").count() > 0
+            or "mfa" in page.url.lower()
+        ):
             print("Solving MFA TOTP challenge...")
             totp = get_totp(SECRET)
             if page.locator("#mfa-code").is_visible():
@@ -96,7 +109,9 @@ def deep_dive_test():
         page.wait_for_timeout(2500)
 
         # Look for time range dropdown/select button
-        dropdown = page.locator("button:has-text('24h'), button:has-text('7d'), button:has-text('Last'), [role='combobox']").first
+        dropdown = page.locator(
+            "button:has-text('24h'), button:has-text('7d'), button:has-text('Last'), [role='combobox']"
+        ).first
         if dropdown.is_visible():
             print("Opening time-range dropdown...")
             dropdown.click()
@@ -115,12 +130,16 @@ def deep_dive_test():
         # Tab 1: Daily Teaching
         caption_box = page.locator("textarea").first
         if caption_box.is_visible():
-            caption_box.fill("The sacred state of inner calm is accessible in every breath. Rest in awareness.")
+            caption_box.fill(
+                "The sacred state of inner calm is accessible in every breath. Rest in awareness."
+            )
         page.screenshot(path=str(OUT_DIR / "admin_content_inside_daily_teaching.png"))
         print("Saved admin_content_inside_daily_teaching.png")
 
         # Tab 2: Teaching Tips
-        tips_tab = page.locator("button:has-text('Teaching Tips'), [role='tab']:has-text('Teaching Tips')").first
+        tips_tab = page.locator(
+            "button:has-text('Teaching Tips'), [role='tab']:has-text('Teaching Tips')"
+        ).first
         if tips_tab.is_visible():
             print("Switching to Teaching Tips tab...")
             tips_tab.click()
@@ -129,7 +148,9 @@ def deep_dive_test():
             print("Saved admin_content_inside_teaching_tips.png")
 
         # Tab 3: Topics
-        topics_tab = page.locator("button:has-text('Topics'), [role='tab']:has-text('Topics')").first
+        topics_tab = page.locator(
+            "button:has-text('Topics'), [role='tab']:has-text('Topics')"
+        ).first
         if topics_tab.is_visible():
             print("Switching to Topics tab...")
             topics_tab.click()
@@ -159,7 +180,9 @@ def deep_dive_test():
         page.wait_for_timeout(2500)
 
         # Tab 1: Manual Ingest Form
-        url_input = page.locator("#ingest-url, input[placeholder*='URL'], input[placeholder*='http']").first
+        url_input = page.locator(
+            "#ingest-url, input[placeholder*='URL'], input[placeholder*='http']"
+        ).first
         if url_input.is_visible():
             print("Entering real discourse URL into Ingestion form...")
             url_input.fill("https://www.youtube.com/watch?v=kYv_3M2D4tA")
@@ -168,7 +191,9 @@ def deep_dive_test():
         print("Saved admin_ingestion_inside_manual_form.png")
 
         # Tab 2: Video Approval
-        video_tab = page.locator("button:has-text('Video Approval'), [role='tab']:has-text('Video Approval')").first
+        video_tab = page.locator(
+            "button:has-text('Video Approval'), [role='tab']:has-text('Video Approval')"
+        ).first
         if video_tab.is_visible():
             print("Switching to Video Approval tab...")
             video_tab.click()
@@ -177,7 +202,9 @@ def deep_dive_test():
             print("Saved admin_ingestion_inside_video_approval.png")
 
         # Tab 3: Speaker & Dialogue (Attribution)
-        attrib_tab = page.locator("button:has-text('Speaker'), [role='tab']:has-text('Speaker')").first
+        attrib_tab = page.locator(
+            "button:has-text('Speaker'), [role='tab']:has-text('Speaker')"
+        ).first
         if attrib_tab.is_visible():
             print("Switching to Speaker Attribution tab...")
             attrib_tab.click()
@@ -220,7 +247,9 @@ def deep_dive_test():
         page.wait_for_timeout(2500)
 
         # Open Add Golden Question Dialog
-        add_btn = page.locator("button:has-text('Add Golden Question'), button:has-text('Add question'), button:has-text('New Golden')").first
+        add_btn = page.locator(
+            "button:has-text('Add Golden Question'), button:has-text('Add question'), button:has-text('New Golden')"
+        ).first
         if add_btn.is_visible():
             print("Opening Add Golden Question Modal Dialog...")
             add_btn.click()
@@ -234,7 +263,9 @@ def deep_dive_test():
                 page.wait_for_timeout(500)
 
         # Switch to Prompts Tab
-        prompts_tab = page.locator("button:has-text('Prompts'), [role='tab']:has-text('Prompts')").first
+        prompts_tab = page.locator(
+            "button:has-text('Prompts'), [role='tab']:has-text('Prompts')"
+        ).first
         if prompts_tab.is_visible():
             print("Switching to Prompts Tab to view Prompt Diff...")
             prompts_tab.click()
@@ -244,6 +275,7 @@ def deep_dive_test():
 
         browser.close()
         print("All deep-dive interactive admin tests and screenshots successfully captured!")
+
 
 if __name__ == "__main__":
     deep_dive_test()
