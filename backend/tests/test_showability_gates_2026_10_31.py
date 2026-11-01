@@ -153,3 +153,18 @@ def test_addiction_named_without_a_cure_claim_is_still_servable():
         "and when you see the state itself you stop chasing the thing that numbs it every night."
     )
     assert _standalone_problem(text) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Many psychiatrists will tell you the mind settles when the body is rested, and in my "
+        "experience the same settling happens when you simply sit and breathe with full attention.",
+        "Your addiction to approval makes your joy disappear, because the moment you stop being "
+        "seen you feel nothing, and that dependence is what we are here to look at together today.",
+        "We spent the evening healing relationships that were broken by addiction in the family "
+        "and then we sat quietly together and let the whole room settle into stillness for a while.",
+    ],
+)
+def test_clinical_gate_does_not_block_ordinary_wording(text):
+    assert _standalone_problem(text) is None

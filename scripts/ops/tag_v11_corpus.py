@@ -255,7 +255,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--collection",
-        default=os.getenv("FIRST_PERSON_COLLECTION", "first_person_v11"),
+        default=os.getenv("FIRST_PERSON_COLLECTION")
+        or os.getenv("FIRST_PERSON_ACTIVE_COLLECTION")
+        or "first_person_v11",
         help="Collection name to process (default: first_person_v11)",
     )
     parser.add_argument(

@@ -242,7 +242,7 @@ def evaluate_bar(
         sorted(
             str(r.get("id"))
             for r in rows or []
-            if any(c.get("speaker_verified") is not True for c in r.get("citations") or [])
+            if any(c.get("speaker_verified") is False for c in r.get("citations") or [])
         )
         if rows is not None
         else None
@@ -489,9 +489,11 @@ def main() -> int:
     from app.config import settings
 
     scorer = str(getattr(settings, "first_person_relevance_model", "") or "")
-    if scorer and args.first_model == scorer:
+    shared = [m for m in (args.first_model, args.second_model) if scorer and m == scorer]
+    if shared:
         # The product's own relevance scorer grading its own output is not independent.
-        result["warnings"] = [f"first grader {scorer!r} is the product relevance scorer"]
+        result["warnings"] = [f"grader {m!r} is the product relevance scorer" for m in shared]
+        print("WARNING: " + "; ".join(result["warnings"]), file=sys.stderr)
     Path(args.out).write_text(json.dumps(result, indent=1, ensure_ascii=False))
     summary = {k: v for k, v in result["agreement"].items() if k != "disagreements"}
     print(json.dumps({"bar": result["bar"], "agreement": summary}, indent=1))

@@ -411,6 +411,12 @@ def validate_serving_contract(
                 f"context serving: active collection {active_name!r} is not declared "
                 "in the serving contract"
             )
+        elif contract[active_name].role != ROLE_CONTEXT:
+            errors.append(
+                f"context serving: active collection {active_name!r} is a legacy clip store; "
+                "FIRST_PERSON_ACTIVE_COLLECTION names the fp-context collection. Roll back with "
+                "FIRST_PERSON_COLLECTION=<legacy collection> and the harness flags off"
+            )
         if context_harness_enabled and context_terminal_enabled is True:
             for slot, name in (("legacy", legacy_name), ("context", context_name)):
                 if name != active_name:

@@ -550,10 +550,11 @@ _HEALTH_CLAIM_RE = re.compile(
     # q071 named "psychiatric breakdowns and addictions" right before the healing line (2026-10-31
     # Stage A/B review): clinical wording is a medical claim out of context. Addiction alone stays
     # servable (the bridge adds the support boundary); only a cure/recovery claim about it is gated.
-    r"|\bpsychiatr\w+|\bmental\s+(?:illness|disorder|breakdown)s?\b"
+    r"|\bpsychiatric\s+(?:breakdown|disorder|illness|condition|patient)s?\b"
+    r"|\bmental\s+(?:illness|disorder|breakdown)s?\b"
     r"|\b(?:cur(?:e|ed|ing)|heal(?:ed|ing)?|overcom(?:e|ing)|recover(?:y|ed|ing)?\s+from)\s+"
-    r"(?:\w+\s+){0,3}addictions?\b"
-    r"|\baddictions?\b[^.?!]{0,60}\b(?:cured|healed|disappear\w*|vanish\w*)\b",
+    r"(?:(?:an?|the|your|his|her|their|my)\s+)?addictions?\b"
+    r"|\baddictions?\b[^.?!,]{0,40}\b(?:cured|healed)\b",
     re.IGNORECASE,
 )
 # One-off event/audience markers: a clip that only makes sense in that room or on that day.

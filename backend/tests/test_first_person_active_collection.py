@@ -84,3 +84,14 @@ def test_two_slot_rollback_posture_is_not_flagged_by_active_check():
         legacy_collection=V8, context_harness_enabled=False, context_terminal_enabled=False
     )
     assert not any("active collection" in e for e in report.errors)
+
+
+def test_preflight_rejects_a_legacy_collection_as_the_active_name():
+    report = _report(
+        legacy_collection=V8,
+        context_collection=V8,
+        active_collection=V8,
+        context_harness_enabled=False,
+        context_terminal_enabled=False,
+    )
+    assert any("is a legacy clip store" in e for e in report.errors)

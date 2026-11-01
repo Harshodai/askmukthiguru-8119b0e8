@@ -5,7 +5,9 @@ from scripts.ops.fp_v10_reachability import reachability
 
 
 def test_context_collection_defaults_to_v10_without_enabling_anything():
-    assert settings.model_fields["first_person_context_collection"].default == "first_person_v10"
+    assert settings.model_fields["first_person_active_collection"].default == "first_person_v10"
+    # the context slot is an optional override; empty means "use the active collection"
+    assert settings.model_fields["first_person_context_collection"].default == ""
     # naming the collection is not permission: the owner flags stay off by default
     assert settings.model_fields["first_person_context_harness_enabled"].default is False
     assert settings.model_fields["first_person_context_shadow_enabled"].default is False

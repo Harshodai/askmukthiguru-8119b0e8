@@ -271,11 +271,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--qdrant-url", default=os.getenv("QDRANT_URL", "http://localhost:6333"))
     parser.add_argument(
-        "--collection", default=os.getenv("FIRST_PERSON_COLLECTION", "first_person_v9")
+        "--collection",
+        default=os.getenv("FIRST_PERSON_COLLECTION")
+        or os.getenv("FIRST_PERSON_ACTIVE_COLLECTION")
+        or "first_person_v9",
     )
     parser.add_argument("--alias", default=os.getenv("FIRST_PERSON_ALIAS", "first_person"))
     parser.add_argument(
-        "--context-collection", default=os.getenv("FIRST_PERSON_CONTEXT_COLLECTION", "")
+        "--context-collection",
+        default=os.getenv("FIRST_PERSON_CONTEXT_COLLECTION")
+        or os.getenv("FIRST_PERSON_ACTIVE_COLLECTION")
+        or "",
     )
     parser.add_argument("--output", help="write JSON to this path instead of stdout")
     args = parser.parse_args(argv)
