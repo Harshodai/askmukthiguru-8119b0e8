@@ -54,7 +54,8 @@ class PipelinedClaimVerifier:
         if not context_chunks:
             # Without context, any factual claim outside general knowledge might be unverified,
             # but let's check basic heuristics or fallback.
-            return {"is_faithful": True, "hallucination_score": 0.0, "reason": "no_context_provided"}
+            # Fail to abstain: a claim with nothing to be grounded in is not faithful.
+            return {"is_faithful": False, "hallucination_score": 1.0, "reason": "no_context_provided"}
 
         # Compute hallucination score via NLI entailment / overlap heuristic or loaded model
         score = self._compute_hallucination_score(sentence, context_chunks)

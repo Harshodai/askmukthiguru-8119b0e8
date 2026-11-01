@@ -77,3 +77,9 @@ async def test_speculative_stream_orchestrator() -> None:
     assert results[0]["is_faithful"] is True
     assert results[1]["is_faithful"] is False
     assert results[1]["sentence"] == "[Redacted due to verification threshold]"
+
+
+def test_claim_without_context_is_not_faithful() -> None:
+    verdict = PipelinedClaimVerifier().verify_sentence("Peace is found within.", [])
+    assert verdict["is_faithful"] is False
+    assert verdict["reason"] == "no_context_provided"

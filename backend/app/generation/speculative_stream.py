@@ -36,7 +36,11 @@ class SpeculativeStreamOrchestrator:
         """Processes an incoming token stream, buffers sentences, verifies them, and yields verified chunks."""
         buffer = SentenceBoundaryBuffer()
 
-        if is_first_person and source_spans:
+        if is_first_person and not source_spans:
+            # Zero text generation on the first-person route (invariant 15): no clip, no answer.
+            return
+
+        if is_first_person:
             # For first-person, bypass LLM stream and yield verbatim guarded text directly
             enforced = self.verbatim_guard.enforce_verbatim("", source_spans, is_first_person=True)
             yield {
