@@ -6,7 +6,7 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from app.schemas import ProfileUpdate
 from services.auth_service import get_current_user_from_supabase
 from services.user_profile_service import LanguagePreference, SpiritualLevel
@@ -17,7 +17,7 @@ router = APIRouter(tags=["Profile"])
 @router.get("/profile")
 async def get_profile_endpoint(
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """Fetch the authenticated user's spiritual profile."""
     if not container.user_profile:
@@ -33,7 +33,7 @@ async def get_profile_endpoint(
 async def update_profile_endpoint(
     profile_data: ProfileUpdate,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """Update user preferences and spiritual level."""
     if not container.user_profile:

@@ -9,7 +9,11 @@ Covers:
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from unittest.mock import patch
 
 import pytest

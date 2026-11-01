@@ -185,31 +185,35 @@ class QueuedLLMProvider:
 
     async def generate(self, *args, **kwargs):
         priority = kwargs.pop("priority", LLMPriority.GENERATE)
+        operation = kwargs.pop("operation", "generate")
         return await self._queue.execute(
-            priority, self._provider.generate, *args, operation="generate", **kwargs
+            priority, self._provider.generate, *args, operation=operation, **kwargs
         )
 
     async def generate_stream(self, *args, **kwargs):
         priority = kwargs.pop("priority", LLMPriority.GENERATE)
+        operation = kwargs.pop("operation", "generate_stream")
         async for chunk in self._queue.execute_stream(
             priority,
             self._provider.generate_stream,
             *args,
-            operation="generate_stream",
+            operation=operation,
             **kwargs,
         ):
             yield chunk
 
     async def classify(self, **kwargs):
+        operation = kwargs.pop("operation", "classify")
         return await self._queue.execute(
-            LLMPriority.CLASSIFY, self._provider.classify, operation="classify", **kwargs
+            LLMPriority.CLASSIFY, self._provider.classify, operation=operation, **kwargs
         )
 
     async def classify_intent_and_complexity(self, **kwargs):
+        operation = kwargs.pop("operation", "classify_intent_and_complexity")
         return await self._queue.execute(
             LLMPriority.CLASSIFY,
             self._provider.classify_intent_and_complexity,
-            operation="classify_intent_and_complexity",
+            operation=operation,
             **kwargs,
         )
 

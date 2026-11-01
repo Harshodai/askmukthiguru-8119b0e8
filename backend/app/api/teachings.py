@@ -16,12 +16,16 @@ import logging
 import random
 import re
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.config import settings
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase
 from services.okf_quality_filter import _LEAKAGE_RE
@@ -315,7 +319,7 @@ async def _generate_tips(container: ServiceContainer) -> dict:
 
 
 @router.get("/teachings/tips")
-async def get_wisdom_tips(container: ServiceContainer = Depends(get_container)) -> dict:
+async def get_wisdom_tips(container: ServiceContainer = Depends(get_container_async)) -> dict:
     """Public: current wisdom tips (cached for 7 days, regenerated on miss)."""
     redis_client = _get_redis()
     if redis_client is not None:
@@ -342,7 +346,7 @@ async def get_curated_teachings(
 async def add_curated_teaching(
     item: dict,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Admin: add an authentic guru teaching to the curated library."""
     if not user.get("is_superuser", False):
@@ -381,7 +385,7 @@ async def add_curated_teaching(
 async def delete_curated_teaching(
     item_id: str,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Admin: delete a teaching from the curated library."""
     if not user.get("is_superuser", False):
@@ -407,7 +411,7 @@ async def delete_curated_teaching(
 @router.post("/admin/teachings/regenerate")
 async def regenerate_wisdom_tips(
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Admin: drop the cached tips and rebuild them immediately."""
     if not user.get("is_superuser", False):

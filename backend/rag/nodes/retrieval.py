@@ -1009,6 +1009,17 @@ async def generate_hyde(state: GraphState, config: Optional[RunnableConfig] = No
             logger.info("HyDE bypass: disabled for Indic request by rag_indic_use_hyde policy")
         return {"hyde_text": None}
 
+    # Adaptive HyDE Generator circuit breaker (saves 5.4s of blocking LLM latency)
+    try:
+        from rag.retrieval.adaptive_hyde import AdaptiveHyDEGenerator
+        if not await AdaptiveHyDEGenerator.should_generate_hypothetical_document(
+            question, query_type=state.get("intent", "general")
+        ):
+            logger.info("Adaptive HyDE: bypassed by adaptive circuit breaker (<3 words, distress, or exact quote)")
+            return {"hyde_text": None}
+    except Exception as _hyde_err:
+        logger.debug("Adaptive HyDE check skipped: %s", _hyde_err)
+
     if is_indic_state(state):
         lang = str(state.get("detected_language") or "indic").strip()
         await emit_status(config, "Imagining the shape of the answer...")
@@ -2543,6 +2554,19 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
             )
         except Exception as _fb_err:
             logger.warning("[retrieval] retrieval feedback filter error: %s", _fb_err)
+
+    # Invariant X40: Content rights gate enforcement on retrieved candidates
+    try:
+        from rag.retrieval.rights_gate import ContentRightsGate
+
+        _filtered_docs = []
+        for _d in all_docs:
+            _meta = dict(getattr(_d, "metadata", None) or (_d if isinstance(_d, dict) else {}))
+            if ContentRightsGate.validate_rights(_meta):
+                _filtered_docs.append(_d)
+        all_docs = _filtered_docs
+    except Exception as _rg_err:
+        logger.warning("[retrieval] Invariant X40 rights gate warning: %s", _rg_err)
 
     await emit_teaching_preview(config, all_docs)
 

@@ -19,6 +19,8 @@ Entry points:
   - ``create_initial_state(...)`` → factory for GraphState
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Optional
 

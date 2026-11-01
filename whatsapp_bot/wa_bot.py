@@ -1570,10 +1570,30 @@ def twilio_webhook():
         return _twiml("")
 
     if media_kind is not None:
-        decline = VOICE_DECLINE if media_kind == "voice" else MEDIA_DECLINE
-        append_message(clean_phone, "user", f"[{media_kind} attachment]")
-        append_message(clean_phone, "assistant", decline)
-        return _twiml(decline)
+        if media_kind == "voice":
+            media_url = str(request.form.get("MediaUrl0") or "")
+            transcribed_text = None
+            if media_url:
+                try:
+                    from backend.ingest.federated_engine import WhatsAppReflectionAdapter
+
+                    adapter = WhatsAppReflectionAdapter()
+                    items = adapter.fetch(source_ref=media_url, audio_path=media_url)
+                    if items and items[0].get("content"):
+                        transcribed_text = items[0]["content"]
+                except Exception as _e:
+                    logger.warning("[WA] Voice transcription failed: %s", _e)
+            if transcribed_text and str(transcribed_text).strip():
+                body = str(transcribed_text).strip()
+                media_kind = None
+            else:
+                append_message(clean_phone, "user", "[voice attachment]")
+                append_message(clean_phone, "assistant", VOICE_DECLINE)
+                return _twiml(VOICE_DECLINE)
+        else:
+            append_message(clean_phone, "user", f"[{media_kind} attachment]")
+            append_message(clean_phone, "assistant", MEDIA_DECLINE)
+            return _twiml(MEDIA_DECLINE)
 
     append_message(clean_phone, "user", body)
     metadata = {"from_raw": raw_phone}
@@ -1848,12 +1868,31 @@ def _handle_meta_message(parsed: dict[str, Any]) -> tuple[str, str | None]:
         "from_raw": parsed["from_number"],
     }
 
-    if kind in ("voice", "media"):
-        decline = VOICE_DECLINE if kind == "voice" else MEDIA_DECLINE
+    if kind == "voice":
+        media_url = parsed.get("media_url")
+        transcribed_text = None
+        if media_url:
+            try:
+                from backend.ingest.federated_engine import WhatsAppReflectionAdapter
+
+                adapter = WhatsAppReflectionAdapter()
+                items = adapter.fetch(source_ref=str(media_url), audio_path=str(media_url))
+                if items and items[0].get("content"):
+                    transcribed_text = items[0]["content"]
+            except Exception as _e:
+                logger.warning("[WA Meta] Voice transcription failed: %s", _e)
+        if transcribed_text and str(transcribed_text).strip():
+            parsed["body"] = str(transcribed_text).strip()
+            kind = "text"
+        else:
+            append_message(clean_phone, "user", "[voice attachment]")
+            append_message(clean_phone, "assistant", VOICE_DECLINE)
+            _deliver_outbound("meta", clean_phone, VOICE_DECLINE, metadata)
+            return "declined_media", None
+    elif kind == "media":
         append_message(clean_phone, "user", f"[{kind} attachment]")
-        append_message(clean_phone, "assistant", decline)
-        # Local, instant, needs no inference: push synchronously (<15s).
-        _deliver_outbound("meta", clean_phone, decline, metadata)
+        append_message(clean_phone, "assistant", MEDIA_DECLINE)
+        _deliver_outbound("meta", clean_phone, MEDIA_DECLINE, metadata)
         return "declined_media", None
 
     msg_body = parsed["body"]

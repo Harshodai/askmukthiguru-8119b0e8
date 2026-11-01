@@ -59,7 +59,8 @@ class ObservabilitySummary:
     # Dependency health
     qdrant_healthy: bool = False
     redis_healthy: bool = False
-    neo4j_healthy: bool = False
+    memgraph_healthy: bool = False
+    neo4j_healthy: bool = False  # Backward-compatible alias
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -131,7 +132,9 @@ async def get_observability_summary(
         try:
             summary.qdrant_healthy = await _check_qdrant(container)
             summary.redis_healthy = await _check_redis(container)
-            summary.neo4j_healthy = await _check_neo4j(container)
+            graph_ok = await _check_memgraph(container)
+            summary.memgraph_healthy = graph_ok
+            summary.neo4j_healthy = graph_ok
         except Exception:
             logger.debug("Dependency health checks failed", exc_info=True)
 
@@ -165,12 +168,12 @@ async def _check_redis(container: Any) -> bool:
         return False
 
 
-async def _check_neo4j(container: Any) -> bool:
-    """Check Neo4j health."""
+async def _check_memgraph(container: Any) -> bool:
+    """Check Memgraph (C++ MAGE) health."""
     import asyncio
 
     def _run_check() -> bool:
-        driver = container.neo4j_driver
+        driver = getattr(container, "memgraph_driver", None) or getattr(container, "neo4j_driver", None)
         if driver is None:
             return False
         with driver.session() as session:
@@ -181,3 +184,8 @@ async def _check_neo4j(container: Any) -> bool:
         return await asyncio.wait_for(asyncio.to_thread(_run_check), timeout=3.0)
     except Exception:
         return False
+
+
+async def _check_neo4j(container: Any) -> bool:
+    """Backward-compatible alias checking graph database health."""
+    return await _check_memgraph(container)

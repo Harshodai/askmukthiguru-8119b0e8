@@ -258,7 +258,11 @@ def compile_okf() -> Path:
         )
 
     compiled: list[dict[str, Any]] = []
-    from datetime import UTC, datetime
+    from datetime import datetime, timezone
+    try:
+        from datetime import UTC
+    except ImportError:
+        UTC = timezone.utc
 
     build_date = datetime.now(UTC).date().isoformat()
     entries, n_updated_defaulted = apply_updated_defaults(entries, build_date)

@@ -10,7 +10,11 @@ Run: cd backend && .venv/bin/pytest tests/test_canonical_memory_consolidation.py
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 

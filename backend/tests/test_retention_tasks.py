@@ -1,6 +1,10 @@
 """Tests for AMK-C-003 and AMK-C-004: Celery Beat data retention cleanup tasks."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from pathlib import Path
 from unittest.mock import patch
 

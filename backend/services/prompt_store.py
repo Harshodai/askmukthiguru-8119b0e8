@@ -30,15 +30,17 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from typing import Optional
 
 from app.config import settings
 from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
-
-UTC = UTC
 
 
 # Default teacher personality fragments (Phase E5 stub).

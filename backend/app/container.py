@@ -897,15 +897,18 @@ class ServiceContainer:
         return None
 
     @property
-    def neo4j_driver(self):
-        """Shared Neo4j driver, lazily created once and reused by all callers."""
+    def memgraph_driver(self):
+        """Shared Memgraph (C++ MAGE) Bolt driver, lazily created once and reused."""
         if self._neo4j_driver is None:
             from neo4j import GraphDatabase
 
             try:
+                uri = settings.memgraph_uri or settings.neo4j_uri
+                user = settings.memgraph_username or settings.neo4j_user
+                password = settings.memgraph_password or settings.neo4j_password
                 self._neo4j_driver = GraphDatabase.driver(
-                    settings.neo4j_uri,
-                    auth=(settings.neo4j_user, settings.neo4j_password),
+                    uri,
+                    auth=(user, password),
                     max_connection_pool_size=settings.neo4j_max_connection_pool_size,
                     connection_timeout=settings.neo4j_connection_timeout_s,
                     connection_acquisition_timeout=settings.neo4j_connection_acquisition_timeout_s,
@@ -914,9 +917,14 @@ class ServiceContainer:
                     keep_alive=settings.neo4j_keep_alive,
                 )
             except Exception as e:
-                logger.warning(f"ServiceContainer: Failed to create shared Neo4j driver: {e}")
+                logger.warning(f"ServiceContainer: Failed to create shared Memgraph driver: {e}")
                 self._neo4j_driver = None
         return self._neo4j_driver
+
+    @property
+    def neo4j_driver(self):
+        """Backward-compatible alias pointing to Memgraph Bolt driver."""
+        return self.memgraph_driver
 
     async def health_status(self) -> dict:
         """Check health of all services (non-blocking). Thin delegator."""

@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.config import settings
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from services.auth_service import get_current_user_from_supabase, require_aal2
 from services.retention_service import STREAK_MILESTONES
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @router.get("/streak")
 async def get_streak(
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     uid = user.get("sub") or user.get("id")
     if not uid:
@@ -38,7 +38,7 @@ async def get_streak(
 @router.post("/practice")
 async def record_practice(
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     uid = user.get("sub") or user.get("id")
     if not uid:
@@ -61,7 +61,7 @@ async def record_practice(
 async def retention_curve(
     days: int = 30,
     user: dict = Depends(require_aal2),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     # Platform-wide cohort analytics — admin only. A regular seeker must never
     # be able to read aggregate D1/D7/D30 retention for the whole user base.

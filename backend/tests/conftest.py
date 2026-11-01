@@ -260,6 +260,18 @@ _app_for_overrides.dependency_overrides = _MirroringOverrides(
     _app_for_overrides.dependency_overrides
 )
 
+from fastapi import FastAPI as _FastAPI
+
+_orig_fastapi_init = _FastAPI.__init__
+
+
+def _fastapi_init_with_mirroring(self, *args, **kwargs):
+    _orig_fastapi_init(self, *args, **kwargs)
+    self.dependency_overrides = _MirroringOverrides(self.dependency_overrides)
+
+
+_FastAPI.__init__ = _fastapi_init_with_mirroring
+
 import asyncio
 
 import pytest
@@ -452,6 +464,27 @@ def _isolate_publication_manifest_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(
         settings, "corpus_publication_manifest_dir", str(tmp_path / "publication_manifests")
     )
+
+
+@pytest.fixture(autouse=True)
+def _legacy_two_slot_serving_baseline(monkeypatch):
+    """The suite baseline is the legacy two-slot posture, not whatever ``.env`` says.
+
+    On 2026-11-01 the owner moved local serving to v10-only
+    (``FIRST_PERSON_COLLECTION=first_person_v10`` with
+    ``FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=true``). Under that posture the legacy
+    store is unreachable by design, so 37 tests that exercise the legacy retrieval
+    path stopped seeing their mocked store and failed — a test/environment
+    coupling, not a code regression (the same trap as lessons.md L-env-driven).
+    v10-only mode and every other posture are pinned explicitly by
+    ``test_first_person_v10_only.py``; here the baseline is pinned so a developer's
+    ``.env`` cannot change what the suite measures.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "first_person_collection", "first_person_v8")
+    monkeypatch.setattr(settings, "first_person_context_collection", "first_person_v11")
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", False)
 
 
 @pytest.fixture(autouse=True)

@@ -212,14 +212,6 @@ memgraph-down: ## Stop Memgraph container
 memgraph-cli: ## Open interactive mgconsole shell in Memgraph
 	@docker exec -it mukthiguru-memgraph mgconsole --username neo4j --password $${NEO4J_PASSWORD:?set NEO4J_PASSWORD (backend/.env)}
 
-neo4j-fallback-up: ## Start legacy Neo4j container on port 7689 (fallback)
-	@echo "${GREEN}Starting legacy Neo4j fallback on port 7689...${NC}"
-	@cd backend && bash ../scripts/docker-safe.sh docker compose --profile legacy-neo4j up -d neo4j
-
-neo4j-fallback-down: ## Stop legacy Neo4j fallback container
-	@echo "${YELLOW}Stopping legacy Neo4j...${NC}"
-	@docker stop mukthiguru-neo4j 2>/dev/null || true
-
 # --- Advanced RAG Management (Qdrant, Memgraph, LightRAG) ---
 
 configure-qdrant: ## Configure Qdrant INT8 quantization, payload indexes, and run verification probes

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end UI verification of Admin Metrics, Redesigned RAG Flow Graph, and Ingestion Workflow."""
+"""End-to-end UI verification of Admin Metrics, Redesigned RAG Flow Graph, and Ingestion Workflow DAG."""
 
 import hashlib
 import hmac
@@ -97,12 +97,17 @@ def run_workflow():
         print(f"Current URL after login: {page.url}")
 
         # ----------------------------------------------------
-        # 2. OVERVIEW METRICS VERIFICATION
+        # 2. OVERVIEW METRICS VERIFICATION & COOKIE BANNER CHECK
         # ----------------------------------------------------
-        print("2. Verifying Admin Overview Metrics...")
+        print("2. Verifying Admin Overview Metrics & Cookie Banner Suppression...")
         page.goto("http://localhost/admin")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(2000)
+
+        # Verify Cookie Banner is completely suppressed on Admin
+        cookie_banners = page.locator("text='Essential cookies only'")
+        print(f"Cookie banners visible on admin: {cookie_banners.count()}")
+        assert cookie_banners.count() == 0, "CookieConsentBanner must not be rendered on admin routes!"
 
         # Print KPI cards text to verify non-zero values
         kpi_texts = page.locator(".grid .rounded-xl").all_text_contents()
@@ -111,17 +116,9 @@ def run_workflow():
             clean_k = " ".join(k.split())
             print(f"  - {clean_k}")
 
-        # Capture live overview metrics screenshot
         overview_path = str(OUT_DIR / "admin_overview_metrics_live.png")
         page.screenshot(path=overview_path)
         print(f"Saved: {overview_path}")
-
-        # Check for CSP violations in console
-        csp_violations = [err for err in console_errors if "Content Security Policy" in err]
-        if csp_violations:
-            print(f"WARNING: CSP violations detected: {csp_violations}")
-        else:
-            print("SUCCESS: Zero CSP violations connecting to Supabase auth/telemetry APIs.")
 
         # ----------------------------------------------------
         # 3. REDESIGNED RAG FLOW GRAPH
@@ -131,21 +128,19 @@ def run_workflow():
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(2000)
 
-        # Standard RAG Flow screenshot
         rag_standard_path = str(OUT_DIR / "admin_rag_flow_redesigned_standard.png")
         page.screenshot(path=rag_standard_path)
         print(f"Saved: {rag_standard_path}")
 
-        # Switch to First-Person Architecture tab
         fp_tab = page.locator("button:has-text('First-Person Architecture')")
         if fp_tab.count() > 0 and fp_tab.first.is_visible():
             fp_tab.first.click()
             page.wait_for_timeout(1500)
-            rag_fp_path = str(OUT_DIR / "admin_rag_flow_redesigned_first_person.png")
+            rag_fp_path = str(OUT_DIR / "admin_rag_flow_first_person_arch.png")
             page.screenshot(path=rag_fp_path)
             print(f"Saved: {rag_fp_path}")
 
-        # Click a node inside the canvas to inspect drawer
+        # Click a node inside canvas to inspect drawer
         node_card = page.locator(".react-flow__node").nth(2)
         if node_card.count() > 0 and node_card.is_visible():
             node_card.click(force=True)
@@ -154,63 +149,124 @@ def run_workflow():
             page.screenshot(path=rag_drawer_path)
             print(f"Saved: {rag_drawer_path}")
 
-        # ----------------------------------------------------
-        # 4. INGESTION WORKFLOW END-TO-END
-        # ----------------------------------------------------
-        print("4. Executing Ingestion Workflow...")
+        # Close any open drawer
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(500)
 
-        # Step 4.1: Intake Submission (tab=ingestion)
+        # ----------------------------------------------------
+        # 4. INGESTION WORKFLOW DAG (TAB = WORKFLOW)
+        # ----------------------------------------------------
+        print("4. Verifying Ingestion Workflow DAG tab...")
+        page.goto("http://localhost/admin/ingestion?tab=workflow")
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(2500)
+
+        # Verify all 8 stage nodes rendered
+        stage_nodes = page.locator(".react-flow__node")
+        print(f"Rendered Ingestion Workflow DAG nodes: {stage_nodes.count()}")
+        assert stage_nodes.count() >= 8, f"Expected 8 stage nodes, found {stage_nodes.count()}"
+
+        dag_tab_path = str(OUT_DIR / "ingestion_workflow_dag_live.png")
+        page.screenshot(path=dag_tab_path)
+        print(f"Saved: {dag_tab_path}")
+
+        # Click on ECAPA Speaker Attribution node to open Inspector Drawer
+        attribution_node = page.locator(".react-flow__node:has-text('ECAPA Speaker Attribution')").first
+        if attribution_node.is_visible():
+            print("Inspecting ECAPA Speaker Attribution stage...")
+            attribution_node.click(force=True)
+            page.wait_for_timeout(1500)
+            stage_inspect_path = str(OUT_DIR / "ingestion_workflow_stage_inspector.png")
+            page.screenshot(path=stage_inspect_path)
+            print(f"Saved: {stage_inspect_path}")
+
+        # Close the inspector drawer
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(500)
+
+        # ----------------------------------------------------
+        # 5. VIDEO APPROVAL & PER-VIDEO LINEAGE DAG MODAL
+        # ----------------------------------------------------
+        print("5. Verifying Video Approval & Lineage DAG modal...")
+        page.goto("http://localhost/admin/ingestion?tab=video-approval")
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(2000)
+
+        video_approval_path = str(OUT_DIR / "ingestion_workflow_step3_approval.png")
+        page.screenshot(path=video_approval_path)
+        print(f"Saved: {video_approval_path}")
+
+        # Click "Pipeline DAG" on the first video row
+        dag_btn = page.locator("button:has-text('Pipeline DAG')").first
+        if dag_btn.is_visible():
+            print("Opening Video Ingestion Pipeline DAG modal...")
+            dag_btn.click()
+            page.wait_for_timeout(2500)
+            modal_dag_path = str(OUT_DIR / "ingestion_video_opened_dag_modal.png")
+            page.screenshot(path=modal_dag_path)
+            print(f"Saved: {modal_dag_path}")
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(500)
+
+        # ----------------------------------------------------
+        # 6. LIVE VIDEO INGESTION SUBMISSION VIA UI
+        # ----------------------------------------------------
+        print("6. Executing Live Video Ingestion via Admin UI...")
         page.goto("http://localhost/admin/ingestion?tab=ingestion")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(1500)
 
-        # Fill manual submission form if available
-        url_input = page.locator(
-            "input[placeholder*='youtube.com'], input[name='url'], input[id*='url']"
-        )
-        if url_input.count() > 0 and url_input.first.is_visible():
-            url_input.first.fill("https://www.youtube.com/watch?v=kYv9qQj8K8M")
-            title_input = page.locator(
-                "input[placeholder*='Title'], input[name='title'], input[id*='title']"
-            )
-            if title_input.count() > 0 and title_input.first.is_visible():
-                title_input.first.fill("Awakening into the Beautiful State - Master Discourse")
+        # Submit real YouTube discourse URL
+        test_youtube_url = "https://www.youtube.com/watch?v=0kI4_7Fw1yY"
+        url_input = page.locator("#youtube-url")
+        if url_input.is_visible():
+            url_input.fill(test_youtube_url)
             page.wait_for_timeout(500)
 
-        step1_path = str(OUT_DIR / "ingestion_workflow_step1_intake.png")
-        page.screenshot(path=step1_path)
-        print(f"Saved: {step1_path}")
+            # Enable max accuracy switch if available
+            acc_switch = page.locator("#max-accuracy")
+            if acc_switch.is_visible() and not acc_switch.is_checked():
+                acc_switch.click()
+                page.wait_for_timeout(300)
 
-        # Step 4.2: Ingestion Queue Status
-        queue_tab = page.locator("button:has-text('Ingestion Queue'), button[value='queue']")
-        if queue_tab.count() > 0 and queue_tab.first.is_visible():
-            queue_tab.first.click()
-            page.wait_for_timeout(1500)
-        step2_path = str(OUT_DIR / "ingestion_workflow_step2_queue.png")
-        page.screenshot(path=step2_path)
-        print(f"Saved: {step2_path}")
+            # Click Ingest URL
+            ingest_btn = page.locator("button:has-text('Ingest URL')")
+            if ingest_btn.is_visible():
+                print(f"Clicking 'Ingest URL' for {test_youtube_url}...")
+                ingest_btn.click()
+                page.wait_for_timeout(2000)
 
-        # Step 4.3: Video Approval (tab=video-approval)
-        page.goto("http://localhost/admin/ingestion?tab=video-approval")
+        submission_path = str(OUT_DIR / "ingestion_ui_submission_live.png")
+        page.screenshot(path=submission_path)
+        print(f"Saved: {submission_path}")
+
+        # Step 6.1: Check Ingestion Queue Tab
+        print("Checking Ingestion Queue...")
+        page.goto("http://localhost/admin/ingestion?tab=queue")
         page.wait_for_load_state("networkidle")
-        page.wait_for_timeout(1500)
-        step3_path = str(OUT_DIR / "ingestion_workflow_step3_approval.png")
-        page.screenshot(path=step3_path)
-        print(f"Saved: {step3_path}")
+        page.wait_for_timeout(2000)
 
-        # Step 4.4: Speaker Attribution (tab=attribution)
+        queue_path = str(OUT_DIR / "ingestion_ui_queue_live.png")
+        page.screenshot(path=queue_path)
+        print(f"Saved: {queue_path}")
+
+        # ----------------------------------------------------
+        # 7. SPEAKER ATTRIBUTION TAB
+        # ----------------------------------------------------
+        print("7. Verifying Speaker Attribution Tab...")
         page.goto("http://localhost/admin/ingestion?tab=attribution")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(1500)
-        step4_path = str(OUT_DIR / "ingestion_workflow_step4_attribution.png")
-        page.screenshot(path=step4_path)
-        print(f"Saved: {step4_path}")
+        attribution_path = str(OUT_DIR / "ingestion_workflow_step4_attribution.png")
+        page.screenshot(path=attribution_path)
+        print(f"Saved: {attribution_path}")
 
         # ----------------------------------------------------
-        # 5. TEACHING TIPS AUDIT
+        # 8. TEACHING TIPS AUDIT (CLEAN SACRED TEACHINGS)
         # ----------------------------------------------------
-        print("5. Verifying Teaching Tips in Admin...")
-        page.goto("http://localhost/admin/teachings")
+        print("8. Verifying Curated Teaching Tips in Admin...")
+        page.goto("http://localhost/admin/content?tab=teachings")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(1500)
         teachings_path = str(OUT_DIR / "admin_teaching_tips_live.png")

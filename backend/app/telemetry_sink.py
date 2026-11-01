@@ -1,9 +1,4 @@
-"""
-Mukthi Guru — Supabase Telemetry Sink
-
-Responsible for logging structured observability and tracing data
-(queries, responses, retrievals, spans, and events) to Supabase.
-"""
+from __future__ import annotations
 
 import asyncio
 import json
@@ -47,7 +42,7 @@ class QueryTrace:
     # Callers pass PipelineResult/ChatResult.citations verbatim, which are
     # `{"url": str, "title": str | None}` dicts (see ChatEngine._coerce_citations)
     # or, on earlier code paths, plain URL strings — never bare list[str].
-    citations: Optional[list[dict[str, Any] | str]] = None
+    citations: Optional[list[Any]] = None
 
     # Quality scores
     # None = not measured. A 1.0 default wrote fabricated perfect scores into

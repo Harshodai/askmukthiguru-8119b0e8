@@ -12,6 +12,7 @@ import asyncio
 import json
 import logging
 import re
+import threading
 import time
 from collections.abc import AsyncIterator, Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, Optional
@@ -231,7 +232,8 @@ class OpenRouterService:
 
         # Connection pooling: AsyncClient
         self._http_client: Optional[httpx.AsyncClient] = None
-        self._http_client_lock = AsyncLock()
+        self._http_client_loop: Optional[asyncio.AbstractEventLoop] = None
+        self._http_client_lock = threading.Lock()
 
         logger.info(
             f"OpenRouter Service initialized: "
@@ -240,9 +242,10 @@ class OpenRouterService:
         )
 
     async def _get_http_client(self) -> httpx.AsyncClient:
-        """Get or create the singleton HTTP client with connection pooling."""
-        async with self._http_client_lock:
-            if self._http_client is None:
+        """Get or create the singleton HTTP client with connection pooling, loop-aware."""
+        loop = asyncio.get_running_loop()
+        with self._http_client_lock:
+            if self._http_client is None or getattr(self, "_http_client_loop", None) is not loop:
                 limits = httpx.Limits(
                     max_connections=getattr(settings, "http_max_connections", 100),
                     max_keepalive_connections=getattr(
@@ -265,14 +268,19 @@ class OpenRouterService:
                     timeout=self._timeout,
                     limits=limits,
                 )
+                self._http_client_loop = loop
             return self._http_client
 
     async def close(self) -> None:
         """Close the HTTP client and release resources."""
-        async with self._http_client_lock:
+        with self._http_client_lock:
             if self._http_client is not None:
-                await self._http_client.aclose()
+                try:
+                    await self._http_client.aclose()
+                except Exception:
+                    pass
                 self._http_client = None
+                self._http_client_loop = None
                 logger.info("OpenRouter HTTP client closed")
 
     @classmethod

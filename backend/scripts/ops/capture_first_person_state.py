@@ -18,7 +18,11 @@ import json
 import os
 import subprocess
 import urllib.request
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from pathlib import Path
 from typing import Any
 

@@ -57,22 +57,38 @@ def test_get_attribution_video_detail():
     assert "dialogue_role" in turn
 
 
-def test_triage_attribution_span():
+def test_triage_attribution_span(monkeypatch, tmp_path):
+    from app.api import admin
+
+    orig_conflicts, orig_decisions, orig_transcripts, orig_cert = admin._get_attribution_paths()
+    temp_decisions = tmp_path / "decisions.md"
+    temp_decisions.write_text(orig_decisions.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(
+        admin,
+        "_get_attribution_paths",
+        lambda: (orig_conflicts, temp_decisions, orig_transcripts, orig_cert),
+    )
+
     payload = {
         "action": "convert_to_context_header",
         "interlocutor_role": "guest_leader",
         "notes": "Tagging as context header",
     }
+    span_id = "13c161b02e65e7382642b26a5e145e21d77dc47bdfdaff630c74cda39972a507"
     res = client.post(
-        "/api/admin/attribution/span/13c161b02e65e7382642b26a5e145e21d77dc47bdfdaff630c74cda39972a507/triage",
+        f"/api/admin/attribution/span/{span_id}/triage",
         json=payload,
     )
     assert res.status_code == 200
     data = res.json()
     assert data["ok"] is True
-    assert data["persisted"] is False  # logged only, never claimed as applied
-    assert "NOT applied" in data["message"]
+    assert data["persisted"] is True
+    assert "persisted" in data["message"].lower()
     assert data["decision"] == "mark_unknown"
+
+    # Verify decision was persisted to file and is readable by _load_speaker_decisions
+    recorded = admin._load_speaker_decisions(temp_decisions)
+    assert recorded.get(span_id) == "mark_unknown"
 
 
 def test_batch_triage_video():

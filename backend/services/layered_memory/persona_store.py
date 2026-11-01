@@ -5,7 +5,11 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from typing import Optional
 
 from services.second_brain.crypto import _KEY_LEN, _NONCE_LEN, _PREAMBLE, AESGCM, _b64d, _b64e

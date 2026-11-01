@@ -21,7 +21,11 @@ import hashlib
 import json
 import logging
 import time
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional

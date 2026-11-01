@@ -9,12 +9,19 @@ store has passed validation; startup can then expose only that manifest.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 from app.config import settings
 from app.index_fingerprint import IndexFingerprint, IndexFingerprintError
@@ -175,9 +182,6 @@ def write_corpus_publication_manifest(
     clean_id = str(corpus_id or "default").strip()
     target_path = get_publication_manifest_path(clean_id)
     target_path.parent.mkdir(parents=True, exist_ok=True)
-
-    import json
-    from datetime import UTC, datetime
 
     manifest_payload: dict[str, Any] = {
         "manifest_version": "v1",

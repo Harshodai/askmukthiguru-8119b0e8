@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.core.limiter import limiter
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from app.language_utils import detect_message_lang
 from app.sanitization import sanitize_log_input
 from app.schemas.compliance_provenance import (
@@ -83,7 +83,7 @@ async def speech_to_text_endpoint(
     language_code: Optional[str] = Form(None),
     model: str = Form("saaras:v3"),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """
     Transcribe uploaded audio file using Sarvam Cloud STT or fallback to local Whisper.
@@ -202,7 +202,7 @@ async def text_to_speech_endpoint(
     request: Request,
     req: SpeechTTSRequest,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """
     Generate speech from text using Sarvam Cloud TTS.

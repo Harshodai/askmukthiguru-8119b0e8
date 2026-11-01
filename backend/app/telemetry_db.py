@@ -12,7 +12,11 @@ import json
 import logging
 import math
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from typing import Any, Optional
 
 from app.config import get_settings

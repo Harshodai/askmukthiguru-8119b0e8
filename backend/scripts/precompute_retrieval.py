@@ -14,7 +14,11 @@ import json
 import logging
 import os
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 # Add backend/ to the path so imports work when run as a script
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

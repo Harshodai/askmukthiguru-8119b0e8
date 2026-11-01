@@ -7,7 +7,11 @@ a scratch tmp bundle with stubbed embeddings and a redirected output path.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 import pytest
 

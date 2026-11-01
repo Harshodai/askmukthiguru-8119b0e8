@@ -47,7 +47,8 @@ from datetime import datetime
 try:
     from datetime import UTC
 except ImportError:
-    UTC = UTC
+    from datetime import timezone
+    UTC = timezone.utc
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from threading import Lock
 from typing import Optional
@@ -169,8 +170,6 @@ def _get_client():
 
     return _supa_client()
 
-
-UTC = UTC
 
 # ponytail: process-local, once-per-hour gate on the budget check so `record()`
 # doesn't run an extra Supabase query on every single call. Per-instance only —

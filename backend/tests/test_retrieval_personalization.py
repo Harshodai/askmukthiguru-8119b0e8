@@ -163,7 +163,11 @@ async def test_circuit_breaker_total_budget_respected():
 @pytest.mark.asyncio
 async def test_persona_stale_includes_flag():
     """When persona is stale and refresh fails, [STALE PERSONA] flag is injected."""
-    from datetime import UTC, datetime, timedelta
+    try:
+        from datetime import UTC, datetime, timedelta
+    except ImportError:
+        from datetime import datetime, timedelta, timezone
+        UTC = timezone.utc
 
     from app.orchestrator_utils import prepare_user_memory
 

@@ -12,7 +12,7 @@ from starlette import status as http_status
 
 import app.dependencies as app_dependencies
 from app.config import settings
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 
 router = APIRouter(tags=["Capabilities"])
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
 
 @router.get("/capabilities")
 async def capabilities_endpoint(
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> JSONResponse:
     """Expose current safe capability state for UI, operational checks, and release evidence."""
     if not app_dependencies.startup_complete:

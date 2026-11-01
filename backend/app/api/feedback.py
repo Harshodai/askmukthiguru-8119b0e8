@@ -5,7 +5,11 @@ import logging
 import os
 import re
 from collections import deque
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from typing import Optional
 from uuid import UUID
 

@@ -14,7 +14,11 @@ down; a shared fallback store is the upgrade if that ceiling matters.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from typing import Any
 
 LOCAL_FALLBACK_FRACTION = 0.1

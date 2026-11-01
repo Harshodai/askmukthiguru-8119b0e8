@@ -9,7 +9,11 @@ a persona older than settings.persona_max_age_days.
 from __future__ import annotations
 
 import os
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from unittest.mock import AsyncMock, MagicMock
 
 os.environ.setdefault("PERSONA_ENCRYPTION_SECRET", "a" * 32)

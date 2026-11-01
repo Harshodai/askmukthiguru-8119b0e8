@@ -11,7 +11,11 @@ Tests:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from unittest.mock import MagicMock
 
 import pytest

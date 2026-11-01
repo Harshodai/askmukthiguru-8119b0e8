@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from qdrant_client.http import models as qmodels
 
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from app.sanitization import sanitize_log_input
 from services.auth_service import get_optional_user, resolve_anon_identity
 from services.web_search_service import WebSearchService
@@ -62,7 +62,7 @@ async def inspect_source(
     query: Optional[str] = Query(
         None, max_length=200, description="Optional search term to highlight within source"
     ),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(get_optional_user),
 ) -> dict[str, Any]:
     """
@@ -241,7 +241,7 @@ async def inspect_source(
 async def web_discourse_search(
     request: Request,
     body: WebSearchRequest,
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(get_optional_user),
 ) -> dict[str, Any]:
     """

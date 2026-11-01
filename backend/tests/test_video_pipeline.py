@@ -69,7 +69,9 @@ class TestVideoPipeline(unittest.TestCase):
         async def record_upsert(chunks, source):
             embeddings = self.pipe._embedder.embed(chunks)
             upserted.append((len(chunks), source, len(embeddings)))
-            return len(chunks)
+            # The contract is (written, point_ids): the direct-video upload path
+            # stamps payload onto exactly these ids, so they must come from here.
+            return len(chunks), [f"point-{i}" for i in range(len(chunks))]
 
         self.pipe._upsert_chunks = record_upsert  # type: ignore
 
@@ -88,6 +90,8 @@ class TestVideoPipeline(unittest.TestCase):
         self.assertEqual(upserted[0][0], upserted[0][2])
         # chunks_ingested must equal the count the persistence layer actually returned
         self.assertEqual(result.chunks_ingested, upserted[0][0])
+        # the written point ids are handed back so a caller can stamp them
+        self.assertEqual(result.point_ids, [f"point-{i}" for i in range(upserted[0][0])])
 
     def test_transcript_too_short(self) -> None:
         async def fake_extract(video_path, audio_path):

@@ -60,7 +60,11 @@ def test_every_code_directory_the_base_compose_binds_is_covered():
 def test_container_older_than_head_fails():
     older = _inspect(started="2026-10-31T10:00:00.5Z")
     head = 1_793_000_000.0  # well after 2026-10-31T10:00Z? compute below
-    from datetime import UTC, datetime
+    from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
     head = datetime(2026, 10, 31, 11, 0, tzinfo=UTC).timestamp()
     assert not check_started_after_head(older, head).ok

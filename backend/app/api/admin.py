@@ -6,7 +6,11 @@ Unit 13 — moved from `routers/admin.py` into `app.api`.
 
 import asyncio
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from pathlib import Path
 from typing import Any, Optional
 
@@ -419,7 +423,7 @@ async def get_retrieval_health_endpoint(
 @admin_router.get("/data-stores")
 async def get_data_stores_endpoint(
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Get data quality stats for Qdrant, Neo4j, and LightRAG. Admin only."""
 
@@ -438,11 +442,11 @@ async def get_data_stores_endpoint(
 
     # ── Neo4j ───────────────────────────────────────────────────────────
     try:
-        driver = container.neo4j_driver
+        driver = getattr(container, "memgraph_driver", None) or container.neo4j_driver
         if driver:
 
-            def _query_neo4j():
-                with driver.session(database="neo4j", default_access_mode="READ") as session:
+            def _query_graph():
+                with driver.session(default_access_mode="READ") as session:
                     node_rows = session.run(
                         "MATCH (n) UNWIND labels(n) AS label RETURN label, count(*) AS cnt ORDER BY cnt DESC"
                     ).data()
@@ -452,21 +456,27 @@ async def get_data_stores_endpoint(
                     total = session.run("MATCH (n) RETURN count(n) AS cnt").single()
                     return node_rows, rel_rows, total["cnt"] if total else 0
 
-            node_rows, rel_rows, total_nodes = await asyncio.to_thread(_query_neo4j)
-            result["neo4j"]["nodes_by_label"] = {}
+            node_rows, rel_rows, total_nodes = await asyncio.to_thread(_query_graph)
+            graph_data = {
+                "nodes_by_label": {},
+                "total_nodes": total_nodes,
+                "relationships_by_type": {r["type"]: r["cnt"] for r in rel_rows},
+                "total_relationships": sum(r["cnt"] for r in rel_rows),
+            }
             for r in node_rows:
                 label = r["label"]
-                result["neo4j"]["nodes_by_label"][label] = (
-                    result["neo4j"]["nodes_by_label"].get(label, 0) + r["cnt"]
+                graph_data["nodes_by_label"][label] = (
+                    graph_data["nodes_by_label"].get(label, 0) + r["cnt"]
                 )
-            result["neo4j"]["total_nodes"] = total_nodes
-            result["neo4j"]["relationships_by_type"] = {r["type"]: r["cnt"] for r in rel_rows}
-            result["neo4j"]["total_relationships"] = sum(r["cnt"] for r in rel_rows)
+            result["memgraph"] = graph_data
+            result["neo4j"] = graph_data  # Backward-compatible alias
         else:
-            result["neo4j"]["error"] = "Neo4j driver not available"
+            result["memgraph"] = {"error": "Memgraph driver not available"}
+            result["neo4j"] = {"error": "Memgraph driver not available"}
     except Exception as e:
-        result["neo4j"]["error"] = "Failed to query Neo4j"
-        logger.exception("Failed to query Neo4j: %s", e)
+        result["memgraph"] = {"error": f"Failed to query Memgraph: {e}"}
+        result["neo4j"] = {"error": f"Failed to query Memgraph: {e}"}
+        logger.exception("Failed to query Memgraph: %s", e)
 
     # ── LightRAG ────────────────────────────────────────────────────────
     try:
@@ -1124,7 +1134,7 @@ async def preview_ab_assignment(
 async def list_queue_jobs(
     limit: int = Query(100, ge=1, le=500),
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """List all active/queued jobs for admin queue monitor."""
     if not container.job_queue:
@@ -1801,7 +1811,7 @@ async def admin_contextual_reingest_dry_run(
 async def admin_reingest(
     body: ReingestRequest,
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Admin-only generic re-ingestion endpoint.
 
@@ -1906,7 +1916,7 @@ async def _release_reingest_lock(container: ServiceContainer) -> None:
 async def admin_contextual_reingest(
     body: ContextualReingestRequest,
     user=Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """Admin-only: trigger contextual re-ingestion from spiritual_wisdom.
 
@@ -2152,7 +2162,7 @@ async def routing_confidence(
 @admin_router.get("/observability/summary")
 async def observability_summary(
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Unified observability dashboard — single source of truth for all
     operational metrics across Prometheus, Supabase telemetry, cost tracker,
@@ -2168,7 +2178,7 @@ async def observability_summary(
 @admin_router.get("/observability/health-check")
 async def observability_health_check(
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Quick health check — all deps as booleans."""
     from app.unified_observability import get_observability_summary
@@ -2186,7 +2196,8 @@ async def observability_health_check(
         ),
         "qdrant": summary.qdrant_healthy,
         "redis": summary.redis_healthy,
-        "neo4j": summary.neo4j_healthy,
+        "memgraph": summary.neo4j_healthy,
+        "neo4j": summary.neo4j_healthy,  # Backward-compatible alias
         "circuit_breaker": summary.circuit_breaker_state,
         "memory_mb": summary.process_rss_mb,
     }
@@ -2196,7 +2207,7 @@ async def observability_health_check(
 async def cost_breakdown(
     tenant_id: Optional[str] = None,
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Combined cost view from CostTracker.
 
@@ -2263,7 +2274,7 @@ async def triage_staging_entries(
 
 @admin_router.get("/qdrant/health")
 async def get_qdrant_index_health(
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Qdrant collection health: segment count, fragmentation, optimizer status.
@@ -2278,7 +2289,7 @@ async def get_qdrant_index_health(
 
 @admin_router.post("/qdrant/optimize")
 async def trigger_qdrant_optimization(
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Trigger Qdrant's built-in segment optimizer on-demand.
@@ -2356,6 +2367,79 @@ def _load_speaker_decisions(decisions_path: Path) -> dict[str, str]:
                 pass
         i += 1
     return decisions
+
+
+def _save_speaker_decision(decisions_path: Path, span_id: str, decision_value: str) -> bool:
+    """Persist a speaker attribution triage decision to the decisions file."""
+    import json
+
+    try:
+        if not decisions_path.is_file():
+            decisions_path.parent.mkdir(parents=True, exist_ok=True)
+            content = (
+                "# First-person owner decisions\n\n"
+                "```json owner-decision\n"
+                "{\n"
+                '  "decision_id": "b5_speaker_conflict_rows",\n'
+                '  "rows": {\n'
+                f'    "{span_id}": "{decision_value}"\n'
+                "  }\n"
+                "}\n"
+                "```\n"
+            )
+            decisions_path.write_text(content, encoding="utf-8")
+            return True
+
+        text = decisions_path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        i = 0
+        start_idx = None
+        end_idx = None
+        data = None
+
+        while i < len(lines):
+            if "```json owner-decision" in lines[i]:
+                block_start = i + 1
+                body: list[str] = []
+                j = block_start
+                while j < len(lines) and not lines[j].strip().startswith("```"):
+                    body.append(lines[j])
+                    j += 1
+                try:
+                    parsed = json.loads("\n".join(body))
+                    if parsed.get("decision_id") == "b5_speaker_conflict_rows":
+                        start_idx = block_start
+                        end_idx = j
+                        data = parsed
+                        break
+                except Exception:
+                    pass
+                i = j
+            i += 1
+
+        if data is not None and start_idx is not None and end_idx is not None:
+            rows = data.setdefault("rows", {})
+            rows[span_id] = decision_value
+            new_json_lines = json.dumps(data, indent=2).splitlines()
+            new_lines = lines[:start_idx] + new_json_lines + lines[end_idx:]
+            decisions_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            return True
+        else:
+            block = [
+                "",
+                "```json owner-decision",
+                json.dumps(
+                    {"decision_id": "b5_speaker_conflict_rows", "rows": {span_id: decision_value}},
+                    indent=2,
+                ),
+                "```",
+                "",
+            ]
+            decisions_path.write_text(text + "\n" + "\n".join(block), encoding="utf-8")
+            return True
+    except Exception as exc:
+        logger.error("Failed to persist speaker decision to %s: %s", decisions_path, exc)
+        return False
 
 
 @admin_router.get("/attribution/queue")
@@ -2544,6 +2628,9 @@ async def triage_attribution_span(
         sanitize_log_input(payload.interlocutor_role or ""),
     )
 
+    _, decisions_path, _, _ = _get_attribution_paths()
+    persisted = _save_speaker_decision(decisions_path, span_id, decision_value)
+
     return {
         "ok": True,
         "span_id": span_id,
@@ -2551,12 +2638,14 @@ async def triage_attribution_span(
         "decision": decision_value,
         "assigned_guru": payload.assigned_guru,
         "interlocutor_role": payload.interlocutor_role,
-        # Honest status: this endpoint only logs the reviewer's decision. Nothing is
-        # written to the corpus or a decision store, so it must not read as "applied".
-        "persisted": False,
+        "persisted": persisted,
         "message": (
-            f"Span {span_id[:8]} decision logged as {payload.action} ({decision_value}); "
-            "NOT applied to the corpus."
+            f"Span {span_id[:8]} decision persisted as {payload.action} ({decision_value})."
+            if persisted
+            else (
+                f"Span {span_id[:8]} decision logged as {payload.action} ({decision_value}); "
+                "NOT applied to the corpus."
+            )
         ),
     }
 

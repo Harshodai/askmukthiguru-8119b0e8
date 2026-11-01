@@ -14,7 +14,11 @@ import math
 import re
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 from typing import Any, Optional
 
 logger = __import__("logging").getLogger(__name__)

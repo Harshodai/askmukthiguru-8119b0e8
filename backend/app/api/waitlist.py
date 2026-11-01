@@ -10,7 +10,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.config import settings
 from app.core.limiter import limiter
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/waitlist", tags=["Waitlist"])
@@ -35,7 +35,7 @@ class WaitlistResponse(BaseModel):
 async def signup_waitlist(
     request: Request,
     payload: WaitlistSignup,
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> WaitlistResponse:
     """Store opt-in details without revealing whether the email already exists."""
     del request
