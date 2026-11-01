@@ -41,7 +41,11 @@ def _load(monkeypatch, **env):
 def test_defaults_cover_the_live_corpus_and_the_clip_index(monkeypatch):
     """D12: the first-person default comes from the serving contract's active roles."""
     mod = _load(monkeypatch)
-    assert mod.DEFAULT_COLLECTIONS == ["spiritual_wisdom_contextual", "first_person_v10"]
+    assert mod.DEFAULT_COLLECTIONS == [
+        "spiritual_wisdom_contextual",
+        "first_person_v10",
+        "first_person_v11",
+    ]
 
 
 def test_defaults_ignore_contract_collections_that_are_legacy(monkeypatch):

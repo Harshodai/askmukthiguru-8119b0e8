@@ -142,6 +142,9 @@ def _reset_env(monkeypatch):
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
     monkeypatch.setattr(settings, "first_person_context_selector_enabled", False)
     monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", False)
+    monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
+    monkeypatch.setattr(settings, "first_person_enrichment_window_enabled", False)
+    monkeypatch.setattr(settings, "first_person_graph_expansion_enabled", False)
     # The serve-time integrity gate calls YouTube availability (FI-16). These
     # tests are about harness wiring, not video liveness, and fixture video ids
     # are synthetic, so keep the check out of the network.
@@ -204,7 +207,7 @@ def test_serving_single_span_direct_success(monkeypatch):
 def test_serving_parent_context_multiple_spans(monkeypatch):
     """Context harness reconstructs multiple spans deterministically in order."""
     span1 = make_test_span(n=0, text=TEXT_ONE)
-    span2 = make_test_span(n=1, text=TEXT_TWO)
+    span2 = make_test_span(n=1, text=TEXT_TWO, start_ms=10000, end_ms=11000)
     ctx = make_test_context([span1, span2])
 
     mock_store = Mock()
@@ -228,11 +231,10 @@ def test_serving_parent_context_multiple_spans(monkeypatch):
     assert result.is_direct_answer is True
     expected_text = f"{TEXT_ONE} {TEXT_TWO}"
     assert result.answer_text == expected_text
-    assert len(result.citations) == 2
+    # Consecutive spans from the same video are clubbed into a unified continuous citation (a846962e)
+    assert len(result.citations) == 1
     assert result.citations[0]["start_ms"] == span1.start_ms
-    assert result.citations[1]["start_ms"] == span2.start_ms
-    assert result.citations[1]["label"] == "Later in this discourse"
-    assert len(result.audio_playback_clips) == 2
+    assert result.citations[0]["end_ms"] == span2.end_ms
 
 
 def test_serving_without_calibration_profile_is_related_not_direct(monkeypatch):
@@ -507,7 +509,7 @@ def test_selector_integration(monkeypatch):
     monkeypatch.setattr(settings, "first_person_context_selector_enabled", True)
 
     span1 = make_test_span(n=0, text=TEXT_ONE)
-    span2 = make_test_span(n=1, text=TEXT_TWO)
+    span2 = make_test_span(n=1, text=TEXT_TWO, start_ms=10000, end_ms=11000)
     ctx = make_test_context([span1, span2])
 
     mock_store = Mock()

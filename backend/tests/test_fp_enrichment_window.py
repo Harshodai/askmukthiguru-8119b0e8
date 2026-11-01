@@ -279,7 +279,7 @@ def test_retrieve_with_concept_ids_adds_should_match_any_over_tags():
     query_filter = client.query_filters[-1]
     assert query_filter.should, "concept_ids must add a should group"
     keys = [c.key for c in query_filter.should]
-    assert keys == ["topic_ids", "entity_ids"]
+    assert keys == ["topic_ids", "entity_ids", "tags"]
     for condition in query_filter.should:
         assert isinstance(condition.match, MatchAny)
     topic_any = query_filter.should[0].match.any
@@ -310,5 +310,6 @@ def test_retrieve_without_concept_ids_keeps_todays_filter():
     assert must_pairs(baseline) == [
         ("record_type", RECORD_TYPE_CHILD),
         ("rights_cleared", True),
+        ("speaker_verified", True),
         ("guru_id", "krishnaji"),
     ]

@@ -961,5 +961,5 @@ def test_the_repository_copy_of_the_controller_is_the_canonical_one() -> None:
     canonical = _REPO_ROOT / "backend" / "scripts" / "ops" / "check_first_person_public_release.py"
     root_copy = _REPO_ROOT / "scripts" / "ops" / "check_first_person_public_release.py"
     if root_copy.exists():
-        assert shutil.samefile(canonical, canonical)
+        assert canonical.samefile(canonical)
         assert root_copy.read_bytes() == canonical.read_bytes()

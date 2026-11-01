@@ -13846,3 +13846,17 @@ Started as a narrow ask: enable `rag_deep_research_enabled` (an adaptive suffici
 ### L-REPO-LOCAL-SECRET-COPY-1. Plaintext credential snapshots on disk are a security liability, and `.gitignore` does not protect them.
 - **What:** seven `.env.bak_pre_*` files sat at the repo root, each holding 13 secret-shaped values (Supabase service-role key, provider API keys). They were correctly gitignored — so they were never in git — but they were still seven live copies of production credentials on a laptop disk, and they differed from the live `.env` by only one key and one value, so they carried no information worth keeping.
 - **Rule:** ignore rules protect the *repository*, not the *machine*. A backup-of-a-backup is a credential-proliferation pattern: keep one config source of truth, and snapshot it in a secret store if history is needed. When a backup is genuinely required, verify the delta against the live file before deciding to keep it.
+
+## Nov 01, 2026 — GitHub Wiki Gollum compatibility, serving contract pin governance, and citation clubbing test seams
+
+### L-WIKI-UNICODE-DIAGRAMS-1. GitHub Wiki (Gollum) does not render raw Mermaid blocks — use Unicode box diagrams for universal zero-compilation-failure rendering.
+- **What:** GitHub Wiki's Gollum markdown parser displays raw code blocks or fails on inner characters (`->`, unescaped parentheses) when encountering ````mermaid` blocks. In contrast, standard Unicode/ASCII box architecture diagrams (`┌─┐`, `│`, `└─┘`, `──►`) and structured Markdown tables compile flawlessly without external JS dependencies, render uniformly on mobile and web, and preserve link integrity across all GitHub surfaces.
+- **Rule:** All GitHub Wiki documentation chapters must use pure Unicode/ASCII box architecture diagrams and standard wiki anchor links `[Page Title](Page-Name)` rather than fragile client-side diagram extensions.
+
+### L-FP-SERVING-CONTRACT-PIN-1. Any update to `first_person_serving_contract.json` must atomically reconcile dependent config sha256 pins.
+- **What:** Declaring `first_person_v11` in `backend/config/first_person_serving_contract.json` altered its sha256 checksum from `5cfbcf1a...` to `9898089b...`. Because the B4 serving gate strictly enforces evidence immutability, `backend/config/first_person_local_review.json` and `backend/config/first_person_public_release_gate.json` rejected the mismatch as an integrity violation, shifting the release gate verdict to `NO_GO` and failing `test_snapshot_manager_defaults.py`.
+- **Rule:** When updating a contract or schema that serves as an offline ground truth, update all dependent pin configuration hashes and active role test assertions in the exact same commit.
+
+### L-CITATION-CLUBBING-TEST-SEAM-1. Continuous discourse citations from the same video unify consecutive spans into a single playback clip.
+- **What:** Under commit `a846962e`, adjacent and contiguous first-person discourse spans from the same video and speaker are merged into a single continuous citation and audio clip (`_club_consecutive_citations`). Multi-span context tests asserting legacy fragmented citations failed because the unified result correctly surfaces as a single seamless citation spanning the entire continuous window.
+- **Rule:** When adding conversational or discourse unification to the serving pipeline, update harness integration tests to assert the unified citation boundaries rather than expecting fragmented multi-part citations.

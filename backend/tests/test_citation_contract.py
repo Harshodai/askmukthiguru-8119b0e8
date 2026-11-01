@@ -268,4 +268,4 @@ def test_bridge_copies_stored_speaker_verification_and_never_infers_it() -> None
     assert "speaker_verified" not in unverified
 
     host = {**unverified, "speaker": "Host"}
-    assert "speaker_verified" not in _eligible_citations([host])[0]
+    assert _eligible_citations([host]) == []
