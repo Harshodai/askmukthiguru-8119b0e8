@@ -12,6 +12,7 @@ import {
   BookOpen,
   Brain,
   Settings,
+  User,
 } from 'lucide-react';
 import { profileTabParams } from '@/lib/workspaceNavigation';
 import { usePageMeta } from '@/hooks/usePageMeta';

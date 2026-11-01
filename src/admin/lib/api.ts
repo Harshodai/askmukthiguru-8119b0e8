@@ -93,6 +93,7 @@ export interface WisdomTipDto {
   text: string;
   source: string;
   teacher: string;
+  category?: string;
 }
 
 export interface WisdomTipsPayload {
