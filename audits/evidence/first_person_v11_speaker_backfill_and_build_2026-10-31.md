@@ -28,7 +28,7 @@ Local stack (Docker), no OpenRouter. Work files: `.work/speaker_2026-10-31/` (gi
 | V4 integrity | PASS, `source_text_hash == sha256(verbatim_text)` on 2,885 children, 0 mismatches |
 | V5 defects | PASS on the 134 new points (scorecard exit 0, no BLOCKER/HIGH). MEDIUM: 17 spans not a fixed point of the ASR cleaner (not edited; quote text is never changed). Serve-time dry pass over 41 verified new spans: 4 fail the standalone gate (filtered at serve), 1 under 15 words |
 | V6 duplicates | PASS, 0 exact, 0 near (8-gram >= 60%) vs v10 |
-| V7 blind listen | NOT DONE. Seeded sample drawn: 30 of 41 new auto-verified spans (24 of the pool are one video, 1 Preethaji span). Key kept at `~/mukthiguru_attribution_data/speaker_audit/v11_2026-10-31_key/`, sample sha256 `d8b68a23…`. Waits for Harsha. |
+| V7 blind listen | PASS (2026-11-01): 30 of 30 clips match the key; audit gate "batch may be promoted", 0 not-teacher, 0 unresolved. Limits: key is 29 Krishnaji + 1 Preethaji, 17 of 30 clips from one video (mmpmX3-qfc4), 6 videos covered, so only clip 030 could catch a swapped teacher; 0 errors in 30 bounds the wrong-speaker rate below ~10% (95%). Sample sha256 `d8b68a23…`, tooling `scripts/ops/build_blind_audit_sheet.py`. |
 | V8 originals | PASS, all 4,224 ids present, 0 payload diffs vs post-backfill v10, 0 vector diffs on a seeded 50 |
 | V9 audio sanity | PASS after removing the two mismatch videos |
 | V10 serving contract | PARTIAL. v11 declared in `backend/config/first_person_serving_contract.json`; the backend's startup check reported ok=True for it; `make verify-stack-fresh` FRESH. v10-only mode and empty caches UNPROVEN (running backend still has `FIRST_PERSON_COLLECTION=first_person_v8`; graded override not applied) |
