@@ -25,6 +25,7 @@ from fastapi import (
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container_async
 from app.sanitization import sanitize_log_input
@@ -927,6 +928,28 @@ async def ingest_task_status_endpoint(
     return resp
 
 
+_FEDERATED_PATH_TYPES = ("pdf_doctrine", "audio_archive", "okf_staging")
+_YOUTUBE_REF_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+
+def _validate_federated_source(source_type: str, source_ref: str) -> str:
+    """Return a safe source_ref or raise 400. Path types must live under the allowlisted dir."""
+    if source_type == "youtube":
+        if not _YOUTUBE_REF_RE.match(source_ref):
+            raise HTTPException(status_code=400, detail="youtube source_ref must be an 11-character video id")
+        return source_ref
+    if source_type in _FEDERATED_PATH_TYPES:
+        allowed = (settings.federated_ingest_allowed_dir or "").strip()
+        if not allowed:
+            raise HTTPException(status_code=400, detail="No federated ingest directory is configured")
+        root = os.path.realpath(allowed)
+        target = os.path.realpath(source_ref)
+        if os.path.commonpath([root, target]) != root or not os.path.isfile(target):
+            raise HTTPException(status_code=400, detail="source_ref must be a file inside the allowed directory")
+        return target
+    raise HTTPException(status_code=400, detail="Unsupported source_type for this route")
+
+
 @router.post("/ingest/federated", response_model=FederatedIngestResponse)
 @limiter.limit("10/minute")
 async def ingest_federated_endpoint(
@@ -941,8 +964,13 @@ async def ingest_federated_endpoint(
     Routes to FederatedDataSourceIngestionEngine with pluggable adapters
     and atomic dual-write to Qdrant (vectors) and Memgraph C++ (knowledge graph).
     """
+    # Off by default: before this check the route answers as if it did not exist.
+    if not settings.federated_ingest_enabled:
+        raise HTTPException(status_code=404, detail="Not found")
     if not user.get("is_superuser", False):
         raise HTTPException(status_code=403, detail="Admin access required")
+
+    source_ref = _validate_federated_source(body.source_type, body.source_ref)
 
     from ingest.federated_engine import FederatedDataSourceIngestionEngine
 
@@ -955,22 +983,33 @@ async def ingest_federated_endpoint(
     )
 
     try:
-        result = engine.ingest_source(
+        # Blocking fetch/embed/write work stays off the event loop.
+        result = await asyncio.to_thread(
+            engine.ingest_source,
             source_type=body.source_type,
-            source_ref=body.source_ref,
+            source_ref=source_ref,
             chunker_version=body.chunker_version,
         )
-        return FederatedIngestResponse(
-            status=result.get("status", "success"),
-            source_type=body.source_type,
-            source_ref=body.source_ref,
-            chunks_ingested=result.get("chunks_ingested", 0),
-            written_qdrant=result.get("written_qdrant", 0),
-            written_memgraph=result.get("written_memgraph", 0),
-            message="Federated ingestion completed successfully",
-        )
-    except Exception as exc:
+    except Exception:
+        # Detail goes to the log only; the client gets a generic message.
         logger.exception(
-            "Federated ingestion failed for %s (%s)", body.source_type, body.source_ref
+            "Federated ingestion failed for %s (%s)",
+            sanitize_log_input(body.source_type),
+            sanitize_log_input(source_ref),
         )
-        raise HTTPException(status_code=500, detail=f"Federated ingestion failed: {exc}")
+        raise HTTPException(status_code=500, detail="Federated ingestion failed")
+
+    status = result.get("status", "success")
+    return FederatedIngestResponse(
+        status=status,
+        source_type=body.source_type,
+        source_ref=body.source_ref,
+        chunks_ingested=result.get("chunks_ingested", 0),
+        written_qdrant=result.get("written_qdrant", 0),
+        written_memgraph=result.get("written_memgraph", 0),
+        message=(
+            "Federated ingestion completed successfully"
+            if status == "success"
+            else f"Federated ingestion {status}: {result.get('reason', 'nothing ingested')}"
+        ),
+    )

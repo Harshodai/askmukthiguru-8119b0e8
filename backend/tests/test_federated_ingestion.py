@@ -133,5 +133,5 @@ def test_invariant_x40_rights_stamping():
         "metadata": {"domain_rights_status": "unlicensed", "chunker_version": "v2.4-adaptive"}
     }]):
         engine.adapters["okf_staging"] = adapter
-        with pytest.raises((AssertionError, RuntimeError)):
+        with pytest.raises((AssertionError, RuntimeError, ValueError)):
             engine.ingest_source("okf_staging", "test.md")

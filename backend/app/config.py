@@ -207,6 +207,11 @@ class Settings(BaseSettings):
     # the two slots held the same literal and drifted). FIRST_PERSON_COLLECTION and
     # FIRST_PERSON_CONTEXT_COLLECTION are optional overrides of it, kept for rollback.
     first_person_active_collection: str = "first_person_v10"
+    # /api/ingest/federated is an admin file/URL ingest door. OFF unless explicitly enabled,
+    # and path-based source types may only read files under FEDERATED_INGEST_ALLOWED_DIR
+    # (empty = no path source is accepted).
+    federated_ingest_enabled: bool = False
+    federated_ingest_allowed_dir: str = ""
     # Gate for the /api/first-person/query route itself (separate from
     # first_person_mode, which the route also still checks).
     # Updated 2026-10-04: enabled by default — route was silently off for all

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -199,19 +199,21 @@ class FederatedDataSourceIngestionEngine:
         chunker_version = kwargs.get("chunker_version", "v2.4-adaptive")
         chunks = adapter.parse_and_chunk(raw_items, chunker_version=chunker_version)
 
-        # 3. Atomic Dual-Write Coordinator
+        # Rights gate: a real check that raises (an assert is stripped under python -O).
+        # Runs before any write so a bad chunk cannot leave a partial dual-write.
+        for c in chunks:
+            if (c.get("metadata") or {}).get("domain_rights_status") != "licensed":
+                raise ValueError("Invariant X40 rights stamping violated")
+
+        # 3. Dual-write (NOT atomic: Qdrant is written first, then Memgraph; a Memgraph
+        # failure leaves the Qdrant points in place. Known limit, see lessons.md.)
         written_qdrant = 0
         written_memgraph = 0
 
         # Qdrant write
         if self.qdrant_service and hasattr(self.qdrant_service, "upsert_chunks"):
             try:
-                formatted_chunks = []
-                for c in chunks:
-                    meta = c["metadata"]
-                    assert meta.get("domain_rights_status") == "licensed", "Invariant X40 rights stamping violated!"
-                    formatted_chunks.append(c)
-                written_qdrant = self.qdrant_service.upsert_chunks(formatted_chunks)
+                written_qdrant = self.qdrant_service.upsert_chunks(chunks)
             except Exception as e:
                 logger.error("Qdrant dual-write failed: %s", e)
                 raise RuntimeError(f"Atomic dual-write Qdrant failed: {e}")

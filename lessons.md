@@ -1,6 +1,14 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 1, 2026 — /ingest/federated closed
+
+### L-FEDERATED-INGEST-OPEN-DOOR-1. An admin ingest route that takes a server path and stamps `licensed` is a file-read primitive unless it is off by default and path-bound.
+- **What:** `POST /api/ingest/federated` passed any `source_ref` to adapters that read server files (`okf_staging` read any path), ran blocking work inside `async def`, echoed `str(exc)` to the client, and used `assert` as the rights gate (stripped by `python -O`).
+- **Fix:** `FEDERATED_INGEST_ENABLED` defaults False (route answers 404). Path types must resolve (symlinks included) to a file under `FEDERATED_INGEST_ALLOWED_DIR` (empty = none accepted); youtube takes an 11-char id; other types are 400. Work runs in `asyncio.to_thread`; errors are logged and the client gets a generic 500. The rights check now raises `ValueError` before any write. Stamp semantics unchanged.
+- **Known limit, not built:** the Qdrant and Memgraph writes are not atomic; a Memgraph failure leaves Qdrant points in place.
+- **Pin:** `backend/tests/test_federated_ingest_route.py`.
+
 ## Nov 1, 2026 — Direct-video ingestion, live DAG, HITL and serving governance review
 
 ### L-DAG-STATIC-MOCK-1. An admin DAG that hardcodes "completed", "Licensed & Verified", "8/8 Passed" and a sample speaker confidence is a status page that cannot fail.
