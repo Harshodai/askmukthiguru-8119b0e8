@@ -339,3 +339,29 @@ def test_the_86_item_set_is_accepted_and_has_seven_crisis_and_eleven_native_item
     out = score_unanswerable(blank)
     assert out["core_abstain_rate"] == 1.0 and out["core_n"] == 69
     assert out["crisis_route"]["n"] == 7 and out["crisis_route"]["passed"] == 0
+
+
+def test_report_names_positives_only_the_cheap_model_saw():
+    final = {
+        "a": {**_g("showable"), "graded_by": "first"},
+        "b": {**_g("showable"), "graded_by": "second"},
+        "c": {**_g("not_showable"), "graded_by": "first"},
+    }
+    out = evaluate_bar(final, {"approved": True, "min_showable_rate": 0.5, "max_harmful": 0})
+    assert out["showable_checked_by_cheap_model_only"] == ["a"]
+
+
+def test_report_lists_served_answers_with_an_unverified_speaker():
+    rows = [
+        {"id": "v", "citations": [{"speaker_verified": True}]},
+        {"id": "u", "citations": [{"speaker_verified": False}]},
+        {"id": "n", "citations": []},
+    ]
+    out = evaluate_bar({"v": _g("showable")}, {"min_showable_rate": 0.5}, rows=rows)
+    assert out["served_with_unverified_speaker"] == ["u"]
+
+
+def test_default_second_pass_regrades_every_positive():
+    first = {f"s{i}": _g("showable") for i in range(10)}
+    ids = select_for_second_pass(first, 1.0, 1)
+    assert sorted(ids) == sorted(first)

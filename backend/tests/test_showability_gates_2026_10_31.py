@@ -129,3 +129,27 @@ def test_healing_claims_are_rejected_on_the_legacy_and_harness_paths():
 def test_ordinary_use_of_heal_is_still_servable(text):
     assert _standalone_problem(text) is None
     assert _not_standalone((_span(text),)) is False
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "People carry psychiatric breakdowns and addictions into the family and the state of the "
+        "family decides how the next generation grows up in this world together.",
+        "When you sit in silence every morning you can overcome addiction because the craving "
+        "loses its hold on a mind that is no longer restless and searching outside.",
+        "Mental illness is rising in every country and the root of it is a disconnected state "
+        "of consciousness that we have all inherited from the people who raised us.",
+    ],
+)
+def test_clinical_and_addiction_cure_wording_is_rejected(text):
+    assert _standalone_problem(text) == "health_claim"
+    assert _not_standalone((_span(text),)) is True
+
+
+def test_addiction_named_without_a_cure_claim_is_still_servable():
+    text = (
+        "Addiction is a pattern of the mind seeking relief from an inner state it cannot bear, "
+        "and when you see the state itself you stop chasing the thing that numbs it every night."
+    )
+    assert _standalone_problem(text) is None

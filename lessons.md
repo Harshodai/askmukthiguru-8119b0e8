@@ -1,6 +1,49 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 1, 2026 — One active collection setting, health-gate wording, grader evidence, wiring audit
+
+### L-ONE-NAME-SERVING-COLLECTION-1. Two env vars holding the same literal will drift; derive one from a single name and check it at boot.
+- **What:** `FIRST_PERSON_COLLECTION` and `FIRST_PERSON_CONTEXT_COLLECTION` both had to read `first_person_v10` for the v10 run. A stale override in either silently serves a different collection.
+- **Fix:** `first_person_active_collection` (default `first_person_v10`) is the one name. The two old settings are optional overrides; `Settings.resolve_first_person_active_collection` fills an unset slot (v10-only posture: both slots; otherwise the legacy slot keeps the v8 rollback clip store). `validate_serving_contract(active_collection=...)` fails startup when the name is not in the contract file, or when the harness is terminal and a slot differs from it.
+- **Pin:** `app/config.py`, `services/first_person_serving_contract.py`, `app/main.py` (lifespan), `tests/test_first_person_active_collection.py`. Compose files and `.env.example` now set only `FIRST_PERSON_ACTIVE_COLLECTION`.
+- **Rule:** a value that must be equal in two places is one setting plus a derivation, not two settings plus a doc line. UNPROVEN: a clean-Docker boot with the new variable.
+
+### L-HEALTH-GATE-CLINICAL-WORDING-1. A health-claim regex that lists diseases misses the clinical words next to the claim.
+- **What:** q071 (2026-10-31 review) said people "would be healed" right after "psychiatric breakdowns and addictions"; `_HEALTH_CLAIM_RE` had no `psychiatric`, mental-illness or addiction-cure terms.
+- **Fix:** added `psychiatr*`, `mental illness/disorder/breakdown`, and cure/heal/overcome/recover-from-addiction wording. Plain "addiction" stays servable (the bridge adds the support boundary). The clip-text support-line trigger (`_CLIP_MENTIONS_SELF_HARM`) was already in place from the earlier session.
+- **Pin:** `services/first_person_pipeline.py`, `tests/test_showability_gates_2026_10_31.py`.
+
+### L-GRADER-CHEAP-ONLY-POSITIVES-1. A second-pass grader that samples positives leaves half the "showable" count on one cheap model.
+- **What:** Stage A: 8 of 16 showable verdicts were never seen by the strong model; the cheap model is also the product scorer family.
+- **Fix:** `grade_served_answers` re-grades every positive by default, reports `showable_checked_by_cheap_model_only` and `served_with_unverified_speaker`, and warns when the first grader is the product relevance scorer. The approved bar is unchanged (an unverified-speaker gate is an owner decision, not added).
+- **Pin:** `scripts/ops/grade_served_answers.py`, `tests/test_grade_served_answers.py`.
+
+### L-TESTED-IS-NOT-WIRED-1. A module with 100% passing tests and zero importers is not a shipped feature.
+- **What:** the master plan marked Engines 3 and 4, the short-circuit cascade, the 4-lane retrieval engine and the frontend resilient transport "done and verified". Importer trace: none of them is reached from the request path.
+- **Fix:** plan §12 records the real status; Engine 3 (speculative LLM generation) is deliberately not wired because the product serves verbatim clips only.
+- **Rule:** before marking a module done, name the call site that reaches it from a route; a test import does not count.
+
+## Nov 1, 2026 — Master-plan elevation triage: rights-gate scope, autouse monkeypatch undo, direct-video payload no-op
+
+### L-RIGHTS-GATE-SCOPE-1. An X40 rights gate applied to *every* retrieved document silently deletes the non-corpus lanes.
+- **What:** `rag/nodes/retrieval.py` ran `ContentRightsGate.validate_rights()` over the final `all_docs`, which by that point also holds OKF entries, web-search results, graph nodes and LightRAG output. None of those carry `domain_rights_status`, so the gate rejected them all. Seven unrelated tests went red (`test_retrieve_documents_contract`, `test_ruthless_phase3_planner`, `test_task3`, `test_okf_entity_linking_r6`, `test_no_seeker_text_in_logs`, `test_fp_pipeline_context_expansion`) and, in production, every OKF/web/graph answer would have abstained as if the corpus were empty.
+- **Fix:** `ContentRightsGate.is_corpus_document()` — a document is gated only when it declares corpus provenance (`corpus_id`, `corpus_version`, `domain_rights_status`, `rights_status`, `provenance_kind`, `record_type`). Corpus points always carry at least one; OKF/web/graph docs carry none. The gate still fails closed for corpus material: measured on `spiritual_wisdom_contextual`, 23 of 14,080 points lack `licensed`, and those are still dropped by design.
+- **Pin:** `rag/retrieval/rights_gate.py`, `rag/nodes/retrieval.py` (the X40 block), `tests/test_federated_retrieval.py`.
+- **Rule:** a rights/provenance gate is scoped to the material that makes the claim. A gate that also judges documents with no provenance field is not fail-closed, it is a silent outage of every other lane.
+
+### L-AUTouse-MONKEYPATCH-UNDO-1. A fixture that patches through the `monkeypatch` fixture is undone by any test that calls `monkeypatch.undo()` mid-test.
+- **What:** `tests/conftest.py::_legacy_two_slot_serving_baseline` pinned the serving collections through the shared `monkeypatch` fixture. `test_policy_fingerprint_covers_the_json_scorer_prompt` calls `monkeypatch.undo()` to assert that the exact-cache key returns to its base value; that undo also reverted the fixture's three settings to `backend/.env` values (v10/v10/terminal on), so the "restored" key differed from the base key and the test failed on a second-order interaction, not on the fingerprint.
+- **Fix:** the fixture builds its own `pytest.MonkeyPatch()`, yields, then calls `mp.undo()`. A test body cannot undo a patch it does not own.
+- **Pin:** `tests/conftest.py`.
+- **Rule:** autouse fixtures that must survive a test body's `monkeypatch.undo()` must own a private `MonkeyPatch` instance.
+
+### L-DIRECT-VIDEO-PAYLOAD-ID-1. Stamping payload onto reconstructed point ids is a silent no-op when the writer uses uuid5 ids.
+- **What:** `POST /api/ingest/upload-video` wrote `source_type=direct_video`, `media_url` and (worse) `domain_rights_status: "licensed"` with `set_payload(points=[f"{video_id}_{i}" for i in range(chunks_indexed)])`. `VideoPipeline._upsert_chunks` writes `uuid5(NAMESPACE_URL, f"{source}_{i}_0")`, so no id matched, Qdrant accepted the call, and the exception handler logged at `debug`. Measured on the two seeded videos: `source_type`, `media_url` and `domain_rights_status` were all `null` in `first_person_v10`/`first_person_v11`, so the citation player could never take the direct-video branch.
+- **Fix:** `_upsert_chunks` returns `(written, point_ids)`; `VideoIngestResult.point_ids` carries them; the route stamps `res.point_ids` and logs failures at `warning`. The `licensed` stamp is gone — rights resolve once per file from the curated register via `resolve_source_rights_status()` and fail closed to `unverified` (X40).
+- **Pin:** `ingest/video_pipeline.py`, `app/api/ingest.py`, `tests/test_video_pipeline.py`, `tests/test_data_engineering_gates.py`.
+- **Rule:** a writer returns the ids it wrote; a caller never rebuilds them from a convention it did not define.
+
 ## Nov 1, 2026 — YouTube Error 153 player configuration fix, Playwright automation CSP bypass, and admin portal deep navigation
 
 ### L-YOUTUBE-ERROR-153-ORIGIN-AND-NOCMD-1. YouTube iframe embeds throw Error 153 when origin param is passed over non-HTTPS or postMessage targetOrigin mismatches domain.

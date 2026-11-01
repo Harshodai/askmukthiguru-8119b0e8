@@ -37,6 +37,10 @@ LLM_CALLS_PER_REQUEST = 3
 FIRST_PERSON_MODES: tuple[str, ...] = ("disabled", "retrieval_only", "hybrid")
 
 
+# Rollback clip store the legacy first-person slot uses outside v10-only posture.
+_LEGACY_FP_COLLECTION = "first_person_v8"
+
+
 class Settings(BaseSettings):
     """
     All application config, loaded from .env with sensible defaults.
@@ -195,7 +199,14 @@ class Settings(BaseSettings):
     # collection so a deployment without env lines serves first-person clips,
     # never the generating graph. v7 stays available as the rollback target
     # via FIRST_PERSON_COLLECTION=first_person_v7.
-    first_person_collection: str = "first_person_v8"
+    # Resolved by resolve_first_person_active_collection(): "" = not overridden. In
+    # v10-only posture (context harness + terminal both on) an unset slot is the
+    # active collection; otherwise the legacy slot keeps this rollback default.
+    first_person_collection: str = ""
+    # THE one name of the collection a deployment serves (owner request 2026-11-01:
+    # the two slots held the same literal and drifted). FIRST_PERSON_COLLECTION and
+    # FIRST_PERSON_CONTEXT_COLLECTION are optional overrides of it, kept for rollback.
+    first_person_active_collection: str = "first_person_v10"
     # Gate for the /api/first-person/query route itself (separate from
     # first_person_mode, which the route also still checks).
     # Updated 2026-10-04: enabled by default — route was silently off for all
@@ -280,7 +291,7 @@ class Settings(BaseSettings):
     # The fp-context-v1 collection (single source of truth for the v10 context path).
     # Naming it does not enable anything: serving needs the owner flag
     # first_person_context_harness_enabled, shadow reads need their own flag.
-    first_person_context_collection: str = "first_person_v10"
+    first_person_context_collection: str = ""
     # v10-only serving: when True (and the context harness is on) a question the
     # harness cannot answer abstains instead of falling through to the legacy store.
     first_person_context_terminal_enabled: bool = False
@@ -2242,6 +2253,27 @@ class Settings(BaseSettings):
         if self.raptor_summary_model:  # Explicit override
             return self.raptor_summary_model
         return self.model_for_generation  # Default to generation model
+
+    @model_validator(mode="after")
+    def resolve_first_person_active_collection(self):
+        """Fill the two first-person collection slots from the single active name.
+
+        An explicit FIRST_PERSON_COLLECTION / FIRST_PERSON_CONTEXT_COLLECTION still
+        wins (rollback). Outside v10-only posture the legacy slot falls back to the
+        v8 clip store, because the serving contract forbids it from naming an
+        fp-context collection. The startup check that the slots agree with the
+        active name is `validate_serving_contract(active_collection=...)`.
+        """
+        active = self.first_person_active_collection.strip()
+        v10_only = (
+            self.first_person_context_harness_enabled
+            and self.first_person_context_terminal_enabled is True
+        )
+        if not self.first_person_collection.strip():
+            self.first_person_collection = active if v10_only else _LEGACY_FP_COLLECTION
+        if not self.first_person_context_collection.strip():
+            self.first_person_context_collection = active
+        return self
 
     @model_validator(mode="after")
     def validate_semantic_distress_escalation(self):

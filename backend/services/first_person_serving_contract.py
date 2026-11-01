@@ -298,8 +298,15 @@ def validate_serving_contract(
     context_harness_enabled: bool = False,
     legacy_route_enabled: bool = True,
     context_terminal_enabled: bool = False,
+    active_collection: str = "",
 ) -> ContractReport:
     """Check a configuration against the declared contract. Never raises.
+
+    ``active_collection`` is the single name the deployment says it serves
+    (``FIRST_PERSON_ACTIVE_COLLECTION``). When given it must be declared in the
+    contract, and in v10-only posture (harness + terminal on) both slots must equal
+    it: a leftover FIRST_PERSON_COLLECTION override naming another collection stops
+    startup instead of silently serving it.
 
     ``context_terminal_enabled`` admits exactly one exception to the
     "two slots, two collections" rule: v10-only mode (see
@@ -396,6 +403,23 @@ def validate_serving_contract(
             f"the legacy and context first-person stores both point at {legacy_name!r}; "
             "one collection cannot satisfy two payload schemas"
         )
+
+    active_name = str(active_collection or "").strip()
+    if active_name:
+        if active_name not in contract:
+            errors.append(
+                f"context serving: active collection {active_name!r} is not declared "
+                "in the serving contract"
+            )
+        if context_harness_enabled and context_terminal_enabled is True:
+            for slot, name in (("legacy", legacy_name), ("context", context_name)):
+                if name != active_name:
+                    errors.append(
+                        f"context serving: the {slot} first-person slot is {name!r} but the "
+                        f"active collection is {active_name!r}; the context harness is "
+                        "terminal, so every slot must serve the active collection "
+                        "(unset the override or change FIRST_PERSON_ACTIVE_COLLECTION)"
+                    )
 
     if legacy_route_enabled and legacy_entry is None and legacy_name:
         warnings.append(

@@ -232,6 +232,22 @@ def evaluate_bar(
             else {"value": None, "bar": min_abstain, "pass": False, "not_measured": True}
         )
 
+    # Evidence-quality figures, reported beside the gates but not gating (the approved bar
+    # does not declare them): positives only the cheap model saw, and served clips whose
+    # speaker is not voice-verified (the rubric does not fail a clip for that alone).
+    cheap_only_positives = sorted(
+        i for i, g in final.items() if g["verdict"] == "showable" and g.get("graded_by") == "first"
+    )
+    unverified_served = (
+        sorted(
+            str(r.get("id"))
+            for r in rows or []
+            if any(c.get("speaker_verified") is not True for c in r.get("citations") or [])
+        )
+        if rows is not None
+        else None
+    )
+
     unmeasured = sorted(k for k, g in gates.items() if g.get("not_measured"))
     all_pass = bool(total) and not unmeasured and all(g["pass"] for g in gates.values())
     if not approved:
@@ -248,6 +264,8 @@ def evaluate_bar(
         "min_showable_rate": min_rate,
         "max_harmful": max_harm,
         "bar_approved": approved,
+        "showable_checked_by_cheap_model_only": cheap_only_positives,
+        "served_with_unverified_speaker": unverified_served,
         "gates": gates,
         "not_measured": unmeasured,
         "latency": latency,
@@ -261,7 +279,7 @@ def grade_rows(
     rows: list[dict[str, Any]],
     ask_first: Callable[[str, str], str],
     ask_second: Callable[[str, str], str],
-    sample_fraction: float = 0.2,
+    sample_fraction: float = 1.0,
     seed: int = 20261030,
 ) -> dict[str, Any]:
     by_id = {r["id"]: r for r in rows}
@@ -433,7 +451,13 @@ def main() -> int:
     )
     ap.add_argument("--first-model", default="anthropic/claude-haiku-5.5")
     ap.add_argument("--second-model", help="strong model slug on OpenRouter")
-    ap.add_argument("--sample-fraction", type=float, default=0.2)
+    ap.add_argument(
+        "--sample-fraction",
+        type=float,
+        default=1.0,
+        help="share of cheap-model positives the strong model re-grades (default: all; at 0.2, "
+        "8 of 16 Stage A positives were never checked by the strong model)",
+    )
     ap.add_argument("--seed", type=int, default=20261030)
     args = ap.parse_args()
 
@@ -462,6 +486,12 @@ def main() -> int:
         core_abstain_rate=_core_abstain_rate(args.unanswerable_scores),
     )
     result["models"] = {"first": args.first_model, "second": args.second_model}
+    from app.config import settings
+
+    scorer = str(getattr(settings, "first_person_relevance_model", "") or "")
+    if scorer and args.first_model == scorer:
+        # The product's own relevance scorer grading its own output is not independent.
+        result["warnings"] = [f"first grader {scorer!r} is the product relevance scorer"]
     Path(args.out).write_text(json.dumps(result, indent=1, ensure_ascii=False))
     summary = {k: v for k, v in result["agreement"].items() if k != "disagreements"}
     print(json.dumps({"bar": result["bar"], "agreement": summary}, indent=1))
