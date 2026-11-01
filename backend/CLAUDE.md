@@ -16,7 +16,7 @@ Folder-level guidance for the FastAPI backend. The root `CLAUDE.md` documents th
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload   # run API (needs infra below)
-docker compose up -d qdrant redis neo4j jaeger              # infra only; Ollama runs on the host
+docker compose up -d qdrant redis memgraph jaeger            # infra only (graph = Memgraph, no Neo4j service); Ollama runs on the host
 docker compose up -d --build                                # full stack incl. backend
 
 .venv/bin/pytest                          # all tests
