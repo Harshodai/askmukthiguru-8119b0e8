@@ -240,6 +240,8 @@ export interface TeachingPreview {
   teacher?: string | null;
   url?: string | null;
   excerpt?: string | null;
+  audio_slice_url?: string | null;
+  audio_start_ms?: number | null;
 }
 
 export interface AIResponse {

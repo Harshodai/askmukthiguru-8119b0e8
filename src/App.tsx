@@ -84,6 +84,7 @@ let TriggersPage: ComponentType = NoopPage;
 let TopicsPage: ComponentType = NoopPage;
 let PromptsPage: ComponentType = NoopPage;
 let EvalsPage: ComponentType = NoopPage;
+let IngestionWorkflowPage: ComponentType = NoopPage;
 let IngestionPage: ComponentType = NoopPage;
 let DataSourcesPage: ComponentType = NoopPage;
 let LogsPage: ComponentType = NoopPage;
@@ -118,6 +119,7 @@ if (ADMIN_ENABLED) {
   TopicsPage = lazyWithRetry(() => import("./admin/pages/TopicsPage"));
   PromptsPage = lazyWithRetry(() => import("./admin/pages/PromptsPage"));
   EvalsPage = lazyWithRetry(() => import("./admin/pages/EvalsPage"));
+  IngestionWorkflowPage = lazyWithRetry(() => import("./admin/pages/IngestionWorkflowPage"));
   IngestionPage = lazyWithRetry(() => import("./admin/pages/IngestionPage"));
   DataSourcesPage = lazyWithRetry(() => import("./admin/pages/DataSourcesPage"));
   LogsPage = lazyWithRetry(() => import("./admin/pages/LogsPage"));
@@ -295,14 +297,16 @@ const App = () => {
                   ]} /></AdminRoute>} />
                   <Route path="triggers" element={<Navigate to="/admin/alerts?tab=triggers" replace />} />
 
-                  {/* Ingestion ops: pipeline · attribution · queue · cache */}
+                  {/* Ingestion ops: workflow · pipeline · attribution · video approval · queue · cache */}
                   <Route path="ingestion" element={<AdminRoute><GroupedPage tabs={[
+                    { id: 'workflow', label: 'Workflow DAG', Component: IngestionWorkflowPage },
                     { id: 'ingestion', label: 'Pipeline', Component: IngestionPage },
                     { id: 'attribution', label: 'Speaker & Dialogue', Component: SpeakerAttributionPage },
                     { id: 'video-approval', label: 'Video Approval', Component: VideoApprovalPage },
                     { id: 'queue', label: 'Queue', Component: JobsPage },
                     { id: 'cache', label: 'Cache', Component: CachePage },
                   ]} /></AdminRoute>} />
+                  <Route path="workflow" element={<Navigate to="/admin/ingestion?tab=workflow" replace />} />
                   <Route path="attribution" element={<Navigate to="/admin/ingestion?tab=attribution" replace />} />
                   <Route path="video-approval" element={<Navigate to="/admin/ingestion?tab=video-approval" replace />} />
                   <Route path="queue" element={<Navigate to="/admin/ingestion?tab=queue" replace />} />

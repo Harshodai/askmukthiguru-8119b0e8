@@ -48,6 +48,7 @@ import {
   type PersonalizeTeachingRef,
 } from '@/lib/chat/personalize';
 import type { BackendMetadata, LiveLogisticsEvent, GuidancePlan, AnswerEvidence, GroundingState, TeachingPreview } from '@/lib/chat/types';
+import { FluidTokenPacer } from '@/lib/streaming/FluidTokenPacer';
 import { getCourse } from '@/lib/healingCourses';
 import { supabase } from '@/integrations/supabase/client';
 import { getLastCompletedMeditationTimestamp, loadMeditationSessions } from '@/lib/meditationStorage';
@@ -1331,6 +1332,28 @@ export const ChatInterface = () => {
         let streamedIsFirstPersonAbstain: boolean | null = null;
         let streamedRouteDecision: string | null = null;
         let streamedSafetyNotices: string[] = [];
+
+        let pacerContent = '';
+        const tokenPacer = new FluidTokenPacer({
+          targetCharsPerSec: 36,
+          onEmit: (char: string) => {
+            pacerContent += char;
+            tokenBufferRef.current = pacerContent;
+            if (!rafScheduledRef.current) {
+              rafScheduledRef.current = true;
+              requestAnimationFrame(() => {
+                rafScheduledRef.current = false;
+                if (isNearBottomRef.current && scrollContainerRef.current) {
+                  scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+                }
+                startTransition(() => {
+                  setStreamingContent(tokenBufferRef.current);
+                });
+              });
+            }
+          },
+        });
+
         for await (const chunk of stream) {
           if (chunk.type === 'stage') {
             setShowInstantPill(false);
@@ -1481,25 +1504,14 @@ export const ChatInterface = () => {
             setPipelineHeartbeat(false);
           }
 
-          // Update the streaming message state locally without mapping entire array
+          // Update the streaming message state locally with FluidTokenPacer
           fullContent += chunk.text;
-          tokenBufferRef.current = fullContent;
-          if (!rafScheduledRef.current) {
-            rafScheduledRef.current = true;
-            requestAnimationFrame(() => {
-              if (rafScheduledRef.current) {
-                // Keep scrolling during streaming if near bottom; happens before setStreamingContent
-                if (isNearBottomRef.current && scrollContainerRef.current) {
-                  scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-                }
-                // Schedule deferred update so urgent interactions remain responsive.
-                startTransition(() => {
-                  setStreamingContent(tokenBufferRef.current);
-                });
-              }
-            });
-          }
+          tokenPacer.push(chunk.text);
         }
+
+        tokenPacer.flush();
+        tokenBufferRef.current = fullContent;
+        setStreamingContent(fullContent);
 
         if (streamedFinalText !== null) {
           fullContent = streamedFinalText;

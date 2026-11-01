@@ -198,6 +198,19 @@ const TeachingGroundingCard = ({
   const isSupporting =
     !isExplicitlyVerified && !isUnverifiedAttribution && !isPartialEvidence && !isRelatedOnly;
 
+  // Pre-warm audio element for first-person citations with audio slice / timestamp
+  useEffect(() => {
+    items.forEach((item: { url?: string | null; audio_slice_url?: string | null; audio_start_ms?: number | null }) => {
+      const safeUrl = item.url && isUsableSourceUrl(item.url) ? safeUrlTransform(item.url) : null;
+      const audioUrl = item.audio_slice_url || (item.audio_start_ms != null && safeUrl ? safeUrl : null);
+      if (audioUrl) {
+        const audio = new Audio();
+        audio.preload = 'metadata';
+        audio.src = audioUrl;
+      }
+    });
+  }, [items]);
+
   // Title-less citations (live partial-evidence shape) produce no card items. They
   // are still sources, so never claim "no direct discourse citations" beside them.
   if (items.length === 0 && citations.length > 0) {
@@ -301,6 +314,7 @@ const TeachingGroundingCard = ({
       <div className="mt-2.5 space-y-2.5">
         {items.map((item, index) => {
           const safeUrl = item.url && isUsableSourceUrl(item.url) ? safeUrlTransform(item.url) : null;
+
           return (
             <div key={item.url || item.title + '-' + index} className="min-w-0">
               <div className="text-[15px] leading-5 font-medium text-foreground">
