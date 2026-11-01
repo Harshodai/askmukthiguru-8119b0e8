@@ -1012,10 +1012,13 @@ async def generate_hyde(state: GraphState, config: Optional[RunnableConfig] = No
     # Adaptive HyDE Generator circuit breaker (saves 5.4s of blocking LLM latency)
     try:
         from rag.retrieval.adaptive_hyde import AdaptiveHyDEGenerator
+
         if not await AdaptiveHyDEGenerator.should_generate_hypothetical_document(
             question, query_type=state.get("intent", "general")
         ):
-            logger.info("Adaptive HyDE: bypassed by adaptive circuit breaker (<3 words, distress, or exact quote)")
+            logger.info(
+                "Adaptive HyDE: bypassed by adaptive circuit breaker (<3 words, distress, or exact quote)"
+            )
             return {"hyde_text": None}
     except Exception as _hyde_err:
         logger.debug("Adaptive HyDE check skipped: %s", _hyde_err)
@@ -2555,14 +2558,19 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
         except Exception as _fb_err:
             logger.warning("[retrieval] retrieval feedback filter error: %s", _fb_err)
 
-    # Invariant X40: Content rights gate enforcement on retrieved candidates
+    # Invariant X40: Content rights gate enforcement on retrieved corpus candidates.
+    # Only documents that declare corpus provenance are judged here: an OKF entry,
+    # a web result or a graph node carries no rights claim to verify, and gating
+    # them silently deleted those lanes (7 retrieval tests went red on 2026-11-01).
     try:
         from rag.retrieval.rights_gate import ContentRightsGate
 
         _filtered_docs = []
         for _d in all_docs:
             _meta = dict(getattr(_d, "metadata", None) or (_d if isinstance(_d, dict) else {}))
-            if ContentRightsGate.validate_rights(_meta):
+            if not ContentRightsGate.is_corpus_document(_meta):
+                _filtered_docs.append(_d)
+            elif ContentRightsGate.validate_rights(_meta):
                 _filtered_docs.append(_d)
         all_docs = _filtered_docs
     except Exception as _rg_err:
