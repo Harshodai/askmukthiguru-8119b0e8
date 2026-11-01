@@ -479,12 +479,22 @@ def _legacy_two_slot_serving_baseline(monkeypatch):
     v10-only mode and every other posture are pinned explicitly by
     ``test_first_person_v10_only.py``; here the baseline is pinned so a developer's
     ``.env`` cannot change what the suite measures.
+
+    This uses its own ``pytest.MonkeyPatch`` rather than the ``monkeypatch``
+    fixture: a test that calls ``monkeypatch.undo()`` mid-test (the RP-A5
+    fingerprint restore tests do) also undoes every patch made through that
+    instance, fixture patches included, which silently reverted these three
+    values and re-keyed the exact cache. A separate instance cannot be undone
+    from a test body.
     """
     from app.config import settings
 
-    monkeypatch.setattr(settings, "first_person_collection", "first_person_v8")
-    monkeypatch.setattr(settings, "first_person_context_collection", "first_person_v11")
-    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", False)
+    mp = pytest.MonkeyPatch()
+    mp.setattr(settings, "first_person_collection", "first_person_v8")
+    mp.setattr(settings, "first_person_context_collection", "first_person_v11")
+    mp.setattr(settings, "first_person_context_terminal_enabled", False)
+    yield
+    mp.undo()
 
 
 @pytest.fixture(autouse=True)
