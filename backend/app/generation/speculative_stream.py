@@ -1,7 +1,10 @@
-# DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. Speculative LLM drafting contradicts the verbatim-only serving rule; do not wire.
+# FLAG-GATED, default OFF (settings.speculative_generation_enabled; 2026-11-01 wiring audit, plan §12):
+# no call site in the request path. LLM drafting contradicts the verbatim-only serving rule.
 """Speculative stream orchestrator integrating sentence buffering, claim verification, and verbatim guard."""
 
 import logging
+
+from app.config import settings
 from typing import List, AsyncGenerator, Dict, Any, Optional
 
 from app.generation.sentence_buffer import SentenceBoundaryBuffer
@@ -35,6 +38,10 @@ class SpeculativeStreamOrchestrator:
         source_spans: Optional[List[str]] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Processes an incoming token stream, buffers sentences, verifies them, and yields verified chunks."""
+        if not settings.speculative_generation_enabled:
+            logger.warning("speculative generation is disabled (SPECULATIVE_GENERATION_ENABLED)")
+            return
+
         buffer = SentenceBoundaryBuffer()
 
         if is_first_person and not source_spans:
@@ -65,7 +72,9 @@ class SpeculativeStreamOrchestrator:
                     }
                 else:
                     # Redact or replace unfaithful sentence
-                    logger.warning(f"Redacting unfaithful sentence: '{sentence}' (score: {verification['hallucination_score']})")
+                    logger.warning(
+                        f"Redacting unfaithful sentence: '{sentence}' (score: {verification['hallucination_score']})"
+                    )
                     yield {
                         "sentence": "[Redacted due to verification threshold]",
                         "is_faithful": False,

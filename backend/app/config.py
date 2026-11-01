@@ -412,6 +412,12 @@ class Settings(BaseSettings):
     # unchanged. Set FIRST_PERSON_LLM_FALLBACK_ENABLED=false to restore the
     # first-person-only abstention posture. Safety/crisis and guided-practice
     # carve-outs continue to use their dedicated stages.
+    # Speculative LLM drafting (app/generation/speculative_stream.py). OFF: the product serves
+    # the teachers' verbatim clip or a static abstain, never generated teaching (CLAUDE.md
+    # first-person invariants 1, 15, 21). Nothing on the request path calls it; the flag is
+    # read at the orchestrator's only entry point so enabling it later is an explicit act.
+    # Env: SPECULATIVE_GENERATION_ENABLED.
+    speculative_generation_enabled: bool = False
     first_person_llm_fallback_enabled: bool = False
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,

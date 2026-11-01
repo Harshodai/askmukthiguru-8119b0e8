@@ -233,6 +233,14 @@ Deferred by Harsha (2026-10-23). These are NOT blockers today: do not raise them
 
 After all three exist, set the matching owner decision blocks in `audits/evidence/FIRST_PERSON_OWNER_DECISIONS_2026-10-22.md` to `approved: "true"` (with reviewer, date, signature). The gold-label sheets, variant choice and the three public scopes remain separate decisions. Plan and evidence: `docs/plans/V10_PUBLIC_GO_PLAN_2026-10-23.md`.
 
+## Dormant modules (2026-11-01 wiring audit; not deleted)
+
+Built and unit-tested, but with NO call site in the request path, so they are not shipped and no latency, safety or quality claim may cite them. Plan: `.claude/tasks/2026-11-01-master-production-elevation-and-answer-flow-modularization.md` §12. Each file carries a `DORMANT` header.
+
+- `app/generation/*`, `app/verification/*` (speculative LLM draft, sentence buffer, claim verifier, verbatim guard): **flag-gated, `SPECULATIVE_GENERATION_ENABLED=false` by default**, checked at `SpeculativeStreamOrchestrator.process_stream` (test: `tests/test_generation_verification.py`). Why off: drafting prose contradicts invariants 1, 15 and 21 (verbatim clip or static abstain, no generated teaching). The verifier is a word-overlap heuristic, not LettuceDetect; the live verifier is `services/lettuce_detect_service.py`.
+- `app/streaming/*` (admission router, SSE generator), `src/lib/streaming/ResilientStreamTransport.ts`, `app/intake/short_circuit.py` (second greeting grammar), `rag/retrieval/federated_engine.py` (4-lane retrieval).
+- Rule: wire a dormant module only together with a new default-off `Settings` flag read at its call site, tests for both flag states, and a graded-run comparison. A flag with no reader is not allowed. Engine 3 (generation) must additionally stay off whenever `FIRST_PERSON_LLM_FALLBACK_ENABLED=false`. Deleting any of them is Harsha's separate decision after the graded run.
+
 ## Open work (read before answering "what's pending?")
 
 - Single open-work list (status source; edit it when an item closes or appears, never start another plan file): `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md`, start at "Ruthless order of work" and "Start here". The SessionStart hook `scripts/guards/open_work_reminder.sh` prints its age and warns at 3+ days stale.

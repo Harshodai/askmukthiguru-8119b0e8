@@ -94,9 +94,10 @@ def test_override_drops_every_code_bind_and_pins_the_serving_path():
     assert not (targets & CODE_DESTINATIONS), targets & CODE_DESTINATIONS
     pins = read_override_pins(_OVERRIDE)
     assert (
-        pins["FIRST_PERSON_COLLECTION"]
-        == pins["FIRST_PERSON_CONTEXT_COLLECTION"]
-        == "first_person_v10"
+        pins["FIRST_PERSON_ACTIVE_COLLECTION"] == "first_person_v10"
+        # the two old slot names are derived from the active name, never pinned separately
+        and "FIRST_PERSON_COLLECTION" not in pins
+        and "FIRST_PERSON_CONTEXT_COLLECTION" not in pins
     )
     assert pins["FIRST_PERSON_CONTEXT_HARNESS_ENABLED"] == "true"
     assert pins["FIRST_PERSON_CONTEXT_TERMINAL_ENABLED"] == "true"
