@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import unicodedata
+from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -513,14 +514,19 @@ def _resolve_video_file_path(video_id: str) -> Optional[str]:
 
     for d in candidate_dirs:
         try:
-            real_d = os.path.realpath(d)
-            if not os.path.isdir(real_d):
+            real_d = Path(d).resolve()
+            if not real_d.is_dir():
                 continue
             for entry in os.scandir(real_d):
                 if entry.is_file():
                     name, ext = os.path.splitext(entry.name)
                     if name == safe_name and ext in extensions and entry.stat().st_size > 0:
-                        return entry.path
+                        candidate = Path(entry.path).resolve()
+                        try:
+                            candidate.relative_to(real_d)
+                            return str(candidate)
+                        except ValueError:
+                            continue
         except OSError:
             continue
     return None
@@ -670,14 +676,17 @@ async def ingest_upload_video_endpoint(
 
     video_dir = _video_storage_dir()
 
-    file_ext = os.path.splitext(filename)[1].lower() or ".mp4"
-    video_save_path = os.path.join(video_dir, f"{video_id}{file_ext}")
+    file_ext = os.path.splitext(filename)[1].lower()
+    if file_ext not in {".mp4", ".mov", ".webm", ".mkv"}:
+        file_ext = ".mp4"
+    base_video_dir = Path(video_dir).resolve()
+    video_save_path = str((base_video_dir / f"{video_id}{file_ext}").resolve())
     # Blocking disk and ffmpeg work runs off the event loop so one upload cannot stall
     # /api/chat and the health checks (L-DOCKER-18).
     await asyncio.to_thread(_write_bytes, video_save_path, content)
 
     # Extract audio to 16kHz mono WAV for Whisper / ECAPA
-    wav_save_path = os.path.join(video_dir, f"{video_id}.wav")
+    wav_save_path = str((base_video_dir / f"{video_id}.wav").resolve())
     try:
         extraction = await asyncio.to_thread(
             subprocess.run,
@@ -704,11 +713,11 @@ async def ingest_upload_video_endpoint(
             # failed archive copy must be visible (it used to be dropped silently).
             logger.warning(
                 "Audio archive extraction failed for %s (ffmpeg exit %s)",
-                video_id,
+                sanitize_log_input(video_id),
                 extraction.returncode,
             )
     except Exception as exc:
-        logger.warning(f"Audio extraction warning for {video_id}: {exc}")
+        logger.warning("Audio extraction warning for %s: %s", sanitize_log_input(video_id), exc)
 
     source_url = f"video:{video_id}"
     media_url = f"/api/media/videos/{video_id}"
@@ -825,7 +834,8 @@ async def ingest_upload_video_endpoint(
             media_url=media_url,
         )
     except Exception as e:
-        logger.error(f"Direct video ingestion error for {filename}: {e}", exc_info=True)
+        safe_filename = sanitize_log_input(filename)
+        logger.error("Direct video ingestion error for %s: %s", safe_filename, e, exc_info=True)
         # No fallback ingest. The old path queued a made-up sentence ("Direct video
         # recording: <title> by <speaker>") as a corpus chunk attributed to the teachers and
         # answered "processing", which hid the failure and put non-teaching text in the
@@ -960,31 +970,22 @@ def _validate_federated_source(source_type: str, source_ref: str) -> str:
             raise HTTPException(
                 status_code=400, detail="source_ref contains invalid path components"
             )
-        allowed_dir = os.path.realpath(allowed)
-        allowed_dir_prefix = allowed_dir if allowed_dir.endswith(os.sep) else allowed_dir + os.sep
-
-        if os.path.isabs(source_ref):
-            candidate = os.path.abspath(source_ref)
-        else:
-            candidate = os.path.abspath(os.path.join(allowed_dir, source_ref))
-
-        if not (candidate == allowed_dir or candidate.startswith(allowed_dir_prefix)):
+        base_path = Path(allowed).resolve()
+        clean_rel = os.path.normpath(source_ref).lstrip("/\\")
+        candidate_path = (base_path / clean_rel).resolve()
+        try:
+            candidate_path.relative_to(base_path)
+        except ValueError:
             raise HTTPException(
                 status_code=400, detail="source_ref must be inside the allowed directory"
             )
 
-        real_candidate = os.path.realpath(candidate)
-        if not (real_candidate == allowed_dir or real_candidate.startswith(allowed_dir_prefix)):
-            raise HTTPException(
-                status_code=400, detail="source_ref must be inside the allowed directory"
-            )
-
-        if not os.path.isfile(real_candidate):
+        if not candidate_path.is_file():
             raise HTTPException(
                 status_code=400,
                 detail="source_ref must be a file inside the allowed directory",
             )
-        return real_candidate
+        return str(candidate_path)
     raise HTTPException(status_code=400, detail="Unsupported source_type for this route")
 
 

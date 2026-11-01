@@ -111,12 +111,14 @@ def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None
         candidates.append(video_id.strip())
     if source_url:
         try:
-            parsed_netloc = (urlparse(source_url).netloc or "").lower()
-            if (
-                parsed_netloc == "youtube.com"
-                or parsed_netloc.endswith(".youtube.com")
-                or parsed_netloc in ("youtu.be", "www.youtu.be")
-            ):
+            parsed_netloc = (urlparse(source_url).netloc or "").lower().split(":")[0]
+            if parsed_netloc in {
+                "youtube.com",
+                "www.youtube.com",
+                "m.youtube.com",
+                "youtu.be",
+                "www.youtu.be",
+            }:
                 from ingest.youtube_loader import extract_video_id
 
                 extracted_vid = extract_video_id(source_url)
