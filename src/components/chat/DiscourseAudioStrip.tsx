@@ -305,10 +305,12 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
                   <iframe
                     ref={iframeRef}
                     className="h-full w-full"
-                    src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&start=${iframeStart}${endParam}&enablejsapi=1&origin=${encodeURIComponent(
-                      typeof window !== 'undefined' ? window.location.origin : ''
-                    )}`}
-                    referrerPolicy="strict-origin-when-cross-origin"
+                    src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&start=${iframeStart}${endParam}&enablejsapi=1${
+                      typeof window !== 'undefined' && window.location.protocol === 'https:'
+                        ? `&origin=${encodeURIComponent(window.location.origin)}`
+                        : ''
+                    }`}
+                    referrerPolicy="no-referrer-when-downgrade"
                     title={effectiveTitle}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen

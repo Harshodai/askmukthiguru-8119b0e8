@@ -1,6 +1,19 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 1, 2026 — YouTube Error 153 player configuration fix, Playwright automation CSP bypass, and admin portal deep navigation
+
+### L-YOUTUBE-ERROR-153-ORIGIN-AND-NOCMD-1. YouTube iframe embeds throw Error 153 when origin param is passed over non-HTTPS or postMessage targetOrigin mismatches domain.
+- **What:** When embedding YouTube discourse clips in `DiscourseAudioStrip.tsx` and `CitationCard.tsx`, the iframe URL passed `enablejsapi=1&origin=${window.location.origin}`. On non-HTTPS host environments (such as Docker localhost), passing an unencrypted or unregistered origin caused YouTube's player initialization to fail with `Video player configuration error / Error 153`. Additionally, `useYouTubeEmbedError.ts` strictly expected `https://www.youtube.com` as both the postMessage listener origin and the `listening` postMessage target origin, dropping handshake messages coming from `https://www.youtube-nocookie.com`. Error code 153 was also absent from `UNPLAYABLE_EMBED_CODES`, causing the player to remain in a broken state instead of triggering the fallback.
+- **Fix:** (1) Sanitized `origin` query parameter generation so it is only appended when `window.location.protocol === 'https:'`. (2) Updated `referrerPolicy="no-referrer-when-downgrade"` on embed iframes to ensure referrer metadata is forwarded without protocol downgrade blocks. (3) Added error code 153 to `UNPLAYABLE_EMBED_CODES` in `useYouTubeEmbedError.ts`. (4) Accepted postMessages from both `youtube.com` and `youtube-nocookie.com` and posted handshake messages to the frame's actual origin. (5) Pinned behavior with unit test in `src/components/chat/__tests__/playbackFallback.a30.test.tsx`.
+- **Pin:** `src/hooks/useYouTubeEmbedError.ts`, `src/components/chat/DiscourseAudioStrip.tsx`, `src/components/chat/CitationCard.tsx`, `src/components/chat/__tests__/playbackFallback.a30.test.tsx`.
+
+### L-PLAYWRIGHT-CSP-BYPASS-LOCAL-ADMIN-1. Playwright automated end-to-end admin tests against containers with strict production CSP headers require bypass_csp=True.
+- **What:** When executing automated browser testing against the local Docker container running the production Nginx configuration, Supabase authentication calls to `http://127.0.0.1:54321` were blocked by the document's `Content-Security-Policy: connect-src 'self' ...` header. This prevented automated admin login scripts from completing the initial MFA elevation.
+- **Fix:** Configured Playwright browser context with `bypass_csp=True` in `deep_dive_admin_test_and_capture.py` so automation suites can authenticate against local Supabase test instances while preserving production CSP headers in `nginx.conf`.
+- **Pin:** `scripts/ops/deep_dive_admin_test_and_capture.py`, `backend/scripts/ops/deep_dive_admin_test_and_capture.py`.
+
+
 ## Oct 31, 2026 — YouTube Error 153 resolution, ThinkingPills sacred teachings contemplation, and CI security gates
 
 ### L-YOUTUBE-EMBED-ERROR-153-1. YouTube iframe embeds fail with Error 153 when Nginx Referrer-Policy is same-origin; enforce strict-origin-when-cross-origin.

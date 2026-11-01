@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Capture high-resolution screenshots across key surfaces of the AskMukthiGuru application."""
 
-import time
-import hmac
 import hashlib
+import hmac
+import os
+import time
 from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
 SECRET = os.environ.get("ADMIN_TOTP_SECRET", "V5FF7HLFI47FML25GLDSMHDJANDDVRMN")  # gitleaks:allow
