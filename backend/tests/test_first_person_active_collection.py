@@ -95,3 +95,51 @@ def test_preflight_rejects_a_legacy_collection_as_the_active_name():
         context_terminal_enabled=False,
     )
     assert any("is a legacy clip store" in e for e in report.errors)
+
+
+def _prod_report(**kw):
+    return _report(**kw)
+
+
+def test_production_mode_accepts_the_single_setting():
+    """Runbook railway-readiness 1.1 feared v10 in the legacy slot stops production startup.
+
+    With the single variable both slots resolve to v10, harness + terminal on: the contract is
+    clean and assert_startup_safe(is_production=True) does not raise.
+    """
+    from services.first_person_serving_contract import assert_startup_safe
+
+    s = _settings(
+        first_person_context_harness_enabled=True, first_person_context_terminal_enabled=True
+    )
+    report = validate_serving_contract(
+        contract=load_contract(default_contract_path()),
+        legacy_collection=s.first_person_collection,
+        context_collection=s.first_person_context_collection,
+        context_harness_enabled=True,
+        context_terminal_enabled=True,
+        active_collection=s.first_person_active_collection,
+    )
+    assert report.ok, report.errors
+    assert_startup_safe(
+        report, is_production=True, legacy_route_enabled=True, context_harness_enabled=True
+    )
+
+
+def test_production_mode_rejects_a_non_contract_name():
+    import pytest
+
+    from services.first_person_serving_contract import (
+        FirstPersonServingContractError,
+        assert_startup_safe,
+    )
+
+    report = _prod_report(
+        legacy_collection="first_person_v99",
+        context_collection="first_person_v99",
+        active_collection="first_person_v99",
+    )
+    with pytest.raises(FirstPersonServingContractError):
+        assert_startup_safe(
+            report, is_production=True, legacy_route_enabled=True, context_harness_enabled=True
+        )
