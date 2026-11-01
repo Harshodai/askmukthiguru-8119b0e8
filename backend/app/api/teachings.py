@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["teachings"])
 
 TIPS_CACHE_KEY = (
-    "teachings:tips:v2"  # v2: reject malformed topic labels + strip RAPTOR/Source headers
+    "teachings:tips:v3"  # v3: strip context and potential question prefixes
 )
 TIPS_TTL_SECONDS = int(getattr(settings, "teachings_tips_ttl_seconds", 604_800))  # 7 days
 TIP_MIN_CHARS = 80
@@ -107,7 +107,10 @@ def _get_redis():
 def _clean_tip_text(raw: str) -> str:
     from rag.nodes.generation import _clean_inline_citations
 
-    return re.sub(r"\s+", " ", _clean_inline_citations(raw or "")).strip()
+    text = _clean_inline_citations(raw or "")
+    text = re.sub(r"\[Context:[^\]]*\]\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\[Potential Questions:[^\]]*\]\s*", "", text, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _first_sentences(text: str, max_chars: int) -> str:
