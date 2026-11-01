@@ -31,6 +31,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Fix import paths — run from backend/ directory
 sys.path.insert(0, ".")
@@ -1349,6 +1350,16 @@ from app.middleware.idempotency import IdempotencyMiddleware
 
 if settings.redis_url and settings.redis_url.startswith(("redis://", "rediss://", "unix://")):
     app.add_middleware(IdempotencyMiddleware, redis_url=settings.redis_url)
+
+# ProxyHeadersMiddleware — resolve real client IP behind reverse proxies (Nginx/Railway)
+# Trust X-Forwarded-For only from the configured proxy ranges (FORWARDED_ALLOW_IPS, e.g.
+# 10.0.0.0/8 on Railway). A wildcard let any client spoof its IP and dodge per-IP limits;
+# production already refuses "*" (Settings validator). Unset = loopback only, uvicorn's default.
+app.add_middleware(
+    ProxyHeadersMiddleware,
+    trusted_hosts=[h.strip() for h in settings.forwarded_allow_ips.split(",") if h.strip()]
+    or ["127.0.0.1"],
+)
 
 
 # In-flight tracker middleware for graceful drain (R3)

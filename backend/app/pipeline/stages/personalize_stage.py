@@ -505,6 +505,21 @@ class PersonalizeStage(Stage):
             "video_url": clip.get("video_url"),
             "provenance_kind": clip.get("provenance_kind"),
         }
+
+        # Hydrate Unified Seeker Personalization Context across all 7 facets
+        try:
+            from services.personalization import UnifiedPersonalizationEngine
+
+            vault_key = getattr(getattr(ctx, "request", None), "vault_key", None)
+            seeker_ctx = await UnifiedPersonalizationEngine.hydrate_seeker_context(
+                user_id=getattr(ctx, "user_id", None),
+                client_vault_key=vault_key,
+            )
+            state["seeker_context"] = seeker_ctx
+            state["seeker_guidance"] = UnifiedPersonalizationEngine.format_prompt_guidance(seeker_ctx)
+        except Exception as _pers_exc:
+            logger.warning("[PersonalizeStage] Unified personalization hydration warning: %s", _pers_exc)
+
         record_routing_decision(
             ctx,
             RoutingProvenance(

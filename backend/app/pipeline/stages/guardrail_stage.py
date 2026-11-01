@@ -137,6 +137,49 @@ class InputGuardrailStage(Stage):
                     raw, container.translation, preferred_lang
                 )
 
+        # Fast Intake Safety Kernel (zero-I/O Aho-Corasick check <0.01ms, Invariant X38)
+        try:
+            from app.intake.safety_kernel import get_safety_kernel
+            raw_msg = str(getattr(ctx, "user_msg", "") or guardrail_text)
+            _fast_kernel = get_safety_kernel()
+            _verdict = _fast_kernel.evaluate(raw_msg)
+            if not _verdict.is_crisis and guardrail_text != raw_msg:
+                _verdict = _fast_kernel.evaluate(guardrail_text)
+            if _verdict.is_crisis:
+                record_routing_decision(
+                    ctx,
+                    RoutingProvenance(
+                        layer="INPUT_GUARDRAILS",
+                        decision="crisis_preemption",
+                        method="aho_corasick_automaton",
+                        confidence=1.0,
+                        reason=_verdict.reason or "acute_crisis",
+                    ),
+                )
+                blocked_resp = _verdict.helpline_response
+                if is_indic and blocked_resp:
+                    blocked_resp = await container.translation.translate_text(
+                        text=blocked_resp, source_lang="en", target_lang=preferred_lang
+                    )
+                return PipelineResult(
+                    final_answer=blocked_resp,
+                    intent="DISTRESS",
+                    trace_id=getattr(ctx, "trace_id", ""),
+                    latency_ms=int((time.time() - getattr(ctx, "start_time", time.time())) * 1000),
+                    route_decision="crisis_preemption",
+                    grounding_state="safety_redirect",
+                    verification={"passed": True, "method": "fast_safety_kernel"},
+                    route_metadata={
+                        "safety_tier": "fast_safety_kernel",
+                        "reason": _verdict.reason,
+                        "matched_pattern": _verdict.matched_pattern,
+                        "helplines_provided": True,
+                        "routing_chain": list(getattr(ctx, "routing_chain", [])),
+                    },
+                )
+        except Exception as _kernel_exc:
+            logger.warning("[InputGuardrailStage] Fast safety kernel pre-check failed: %s", _kernel_exc)
+
         # ponytail: body of _run_input_guardrails verbatim
         with REQUEST_LATENCY.labels(stage="guardrails").time():
             input_check = await container.guardrails.check_input(guardrail_text)
