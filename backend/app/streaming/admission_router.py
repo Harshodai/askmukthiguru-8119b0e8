@@ -1,3 +1,4 @@
+# DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. Process-local, not the Redis ring buffer it describes; chat uses the existing queue path.
 """
 Backend Admission Router and Sequence-numbered SSE Streaming.
 Handles Fast-path (HTTP 200 SSE <300ms TTFT) and Slow-path (HTTP 202 Accepted polling queue under >90% concurrency pool saturation).

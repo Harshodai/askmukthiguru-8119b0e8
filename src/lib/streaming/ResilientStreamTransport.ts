@@ -1,3 +1,4 @@
+// DORMANT (2026-11-01 wiring audit, plan §12): no component imports this; not shipped.
 /**
  * ResilientStreamTransport.ts
  * SSE client with automatic exponential-backoff reconnect, passing Last-Event-ID header.

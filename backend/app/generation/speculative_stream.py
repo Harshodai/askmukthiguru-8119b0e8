@@ -1,3 +1,4 @@
+# DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. Speculative LLM drafting contradicts the verbatim-only serving rule; do not wire.
 """Speculative stream orchestrator integrating sentence buffering, claim verification, and verbatim guard."""
 
 import logging

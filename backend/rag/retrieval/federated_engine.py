@@ -1,3 +1,4 @@
+# DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. Retrieval still runs through rag/nodes/retrieval.py.
 import logging
 from typing import List, Dict, Any, Optional
 try:

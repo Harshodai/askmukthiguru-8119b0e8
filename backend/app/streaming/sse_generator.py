@@ -1,3 +1,4 @@
+# DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. The live 38-char window is in app/stream_orchestrator.py.
 """
 Low-latency SSE generator for AskMukthiGuru.
 Features:

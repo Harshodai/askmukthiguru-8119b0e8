@@ -1,3 +1,4 @@
+# DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. Word-overlap heuristic, not LettuceDetect/ModernBERT; the live verifier is services/lettuce_detect_service.py.
 """Claim verifier using LettuceDetect / ModernBERT NLI with zero devotional boost."""
 
 import os

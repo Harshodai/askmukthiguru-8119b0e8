@@ -1,3 +1,4 @@
+# DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. Live short-circuit is rag/nodes/short_circuit.py plus is_deterministic_greeting; this is a second, unreconciled grammar.
 """5-Tier Fast Short-Circuit Cascade for AskMukthiGuru.
 
 Executes ultra-low latency (<5ms) pre-retrieval routing:

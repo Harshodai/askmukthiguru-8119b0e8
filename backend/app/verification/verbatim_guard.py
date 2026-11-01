@@ -1,3 +1,4 @@
+# DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. Only used by speculative_stream.py.
 """First-Person Verbatim Guard enforcing Invariants X11, X18, X24."""
 
 import logging
