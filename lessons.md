@@ -13888,3 +13888,13 @@ Started as a narrow ask: enable `rag_deep_research_enabled` (an adaptive suffici
 - **What:** On landing pages with a fixed top capsule navbar (`mt-5`), hero top padding of `pt-28 md:pt-24` placed the hero badge only ~10px below the navbar capsule, creating an awkward visual gap and border crowding.
 - **Fix:** Expanded the hero section content padding to `pt-36 sm:pt-40 md:pt-44 pb-16`, giving 60-80px of clear ambient breathing space beneath the floating capsule.
 - **Rule:** Fixed floating navbars must be accommodated by generous page top padding so hero pill badges do not crowd the navbar capsule.
+
+### L-DOCKER-NGINX-CSP-LOCAL-DEV-1. Separate local Docker Nginx CSP from production config to support local Supabase.
+- **What:** When running `mukthiguru-frontend` under Docker Compose, Nginx served production CSP `connect-src 'self' https://accounts.google.com https://*.supabase.co`, blocking the browser from connecting to local Supabase at `http://127.0.0.1:54321` or `http://localhost:54321`. This caused admin authentication and session token verification to fail silently with "Failed to fetch". However, modifying repo-root `nginx.conf` causes CI `security-audit.yml` to fail because it strictly asserts no `localhost` or `127.0.0.1` origins in production Nginx.
+- **Fix:** Created `backend/nginx.docker.conf` mirroring `nginx.conf` with local Supabase origins allowlisted, and mounted it into `frontend` in `backend/docker-compose.yml`.
+- **Rule:** Never put localhost/127.0.0.1 in production `nginx.conf`. Use Docker Compose bind-mounts for local environment CSP deviations.
+
+### L-REACTFLOW-CUSTOM-NODE-CONTAINER-1. Use dedicated custom node types in ReactFlow to prevent double borders.
+- **What:** Using ReactFlow default node types (`type: "default"`) wraps custom card JSX inside ReactFlow's `.react-flow__node-default` container, resulting in double borders, hardcoded default circular handles, and cramped vertical layout collisions.
+- **Fix:** Defined `CustomRAGNode` using `@xyflow/react`'s `<Handle>` directly inside the card component, registered `nodeTypes={{ ragNode: CustomRAGNode }}`, expanded vertical spacing to 145px, and centered each column along a shared vertical midline.
+- **Rule:** Complex architectural flow graphs must use explicit custom node components with embedded handles rather than standard default nodes.

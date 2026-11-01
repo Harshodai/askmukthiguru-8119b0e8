@@ -340,11 +340,14 @@ async def fetch_evaluations(
 async def fetch_kpis(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None, alias="to"),
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Fetch aggregated KPIs for Admin UI. Requires admin authentication."""
-
-    return await get_kpis(from_date, to_date)
+    effective_from = from_date or from_
+    effective_to = to_date or to
+    return await get_kpis(effective_from, effective_to)
 
 
 @admin_router.get("/models")
@@ -358,23 +361,31 @@ async def list_models(
 @admin_router.get("/timeseries")
 async def get_timeseries(
     metric: str,
-    from_date: str,
-    to_date: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None, alias="to"),
     buckets: int = 24,
     user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get timeseries data for a metric. Requires admin authentication."""
-    return await get_timeseries_data(metric, from_date, to_date, buckets)
+    effective_from = from_date or from_
+    effective_to = to_date or to
+    return await get_timeseries_data(metric, effective_from, effective_to, buckets)
 
 
 @admin_router.get("/triggers")
 async def list_triggers(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None, alias="to"),
     user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List trigger events. Requires admin authentication."""
-    return await get_trigger_events(from_date, to_date)
+    effective_from = from_date or from_
+    effective_to = to_date or to
+    return await get_trigger_events(effective_from, effective_to)
 
 
 @admin_router.get("/safety-events")

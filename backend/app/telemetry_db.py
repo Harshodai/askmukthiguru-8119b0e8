@@ -607,17 +607,32 @@ async def get_available_models() -> list[str]:
 
 
 async def get_timeseries_data(
-    metric: str, from_date: str, to_date: str, buckets: int = 24
+    metric: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    buckets: int = 24,
 ) -> list[dict[str, Any]]:
     """Get timeseries data for a specific metric."""
     client = _get_client()
     if not client:
         return []
 
+    # Provide safe fallback window (past 7 days to now) if missing or empty
+    if not to_date:
+        to_date = datetime.now(UTC).isoformat()
+    if not from_date:
+        try:
+            to_dt = datetime.fromisoformat(to_date.replace("Z", "+00:00"))
+            from_date = (to_dt - timedelta(days=7)).isoformat()
+        except Exception:
+            from_date = (datetime.now(UTC) - timedelta(days=7)).isoformat()
+
     try:
         # Validate date parameters
-        safe_from = validate_iso_date(from_date)
-        safe_to = validate_iso_date(to_date)
+        safe_from = (
+            validate_iso_date(from_date) or (datetime.now(UTC) - timedelta(days=7)).isoformat()
+        )
+        safe_to = validate_iso_date(to_date) or datetime.now(UTC).isoformat()
 
         # Build query based on metric type
         if metric == "queries":

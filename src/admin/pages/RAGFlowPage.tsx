@@ -8,6 +8,7 @@ import {
   useEdgesState,
   Position,
   MarkerType,
+  Handle,
   type Edge,
   type Node,
 } from "@xyflow/react";
@@ -35,8 +36,7 @@ import {
 import { fmtMs } from "@/admin/lib/formatters";
 import type { RagFlowGraphNode } from "@/admin/lib/api";
 type RagStrategy = "standard" | "fast" | "deep" | "first_person";
-type FlowNodeData = { label: ReactNode; raw: RagFlowGraphNode };
-type FlowNode = Node<FlowNodeData>;
+type FlowNode = Node<CustomRAGNodeData>;
 const isRagStrategy = (value: string): value is RagStrategy => (
   value === "standard" || value === "fast" || value === "deep" || value === "first_person"
 );
@@ -234,44 +234,118 @@ const NODE_DESCRIPTIONS: Record<string, { title: string; desc: string; category:
 };
 
 // Colors matching admin console aesthetic
-const CATEGORY_STYLES: Record<string, { bg: string; border: string; text: string; glow: string }> = {
+const CATEGORY_STYLES: Record<string, { bg: string; border: string; text: string; glow: string; badge: string }> = {
   "Intent": {
-    bg: "bg-blue-500/10 dark:bg-blue-500/5",
-    border: "border-blue-500/40 dark:border-blue-500/30",
+    bg: "bg-blue-500/10 dark:bg-blue-950/20",
+    border: "border-blue-500/30 dark:border-blue-800/40",
     text: "text-blue-600 dark:text-blue-400",
-    glow: "shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+    glow: "shadow-[0_0_15px_rgba(59,130,246,0.1)]",
+    badge: "bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30"
   },
   "Retrieval": {
-    bg: "bg-emerald-500/10 dark:bg-emerald-500/5",
-    border: "border-emerald-500/40 dark:border-emerald-500/30",
+    bg: "bg-emerald-500/10 dark:bg-emerald-950/20",
+    border: "border-emerald-500/30 dark:border-emerald-800/40",
     text: "text-emerald-600 dark:text-emerald-400",
-    glow: "shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+    glow: "shadow-[0_0_15px_rgba(16,185,129,0.1)]",
+    badge: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30"
   },
   "Augmentation": {
-    bg: "bg-amber-500/10 dark:bg-amber-500/5",
-    border: "border-amber-500/40 dark:border-amber-500/30",
+    bg: "bg-amber-500/10 dark:bg-amber-950/20",
+    border: "border-amber-500/30 dark:border-amber-800/40",
     text: "text-amber-600 dark:text-amber-400",
-    glow: "shadow-[0_0_15px_rgba(245,158,11,0.1)]"
+    glow: "shadow-[0_0_15px_rgba(245,158,11,0.1)]",
+    badge: "bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/30"
   },
   "Generation": {
-    bg: "bg-purple-500/10 dark:bg-purple-500/5",
-    border: "border-purple-500/40 dark:border-purple-500/30",
+    bg: "bg-purple-500/10 dark:bg-purple-950/20",
+    border: "border-purple-500/30 dark:border-purple-800/40",
     text: "text-purple-600 dark:text-purple-400",
-    glow: "shadow-[0_0_15px_rgba(168,85,247,0.1)]"
+    glow: "shadow-[0_0_15px_rgba(168,85,247,0.1)]",
+    badge: "bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30"
   },
   "First Person": {
-    bg: "bg-amber-500/15 dark:bg-amber-500/10",
-    border: "border-amber-500/60 dark:border-amber-500/40",
-    text: "text-amber-600 dark:text-amber-400 font-semibold",
-    glow: "shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+    bg: "bg-amber-500/15 dark:bg-amber-950/30",
+    border: "border-amber-500/50 dark:border-amber-600/50",
+    text: "text-amber-600 dark:text-amber-300 font-semibold",
+    glow: "shadow-[0_0_18px_rgba(245,158,11,0.2)]",
+    badge: "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40 font-semibold"
   },
   "Fallback/Special": {
-    bg: "bg-rose-500/10 dark:bg-rose-500/5",
-    border: "border-rose-500/40 dark:border-rose-500/30",
+    bg: "bg-rose-500/10 dark:bg-rose-950/20",
+    border: "border-rose-500/30 dark:border-rose-800/40",
     text: "text-rose-600 dark:text-rose-400",
-    glow: "shadow-[0_0_15px_rgba(244,63,94,0.1)]"
+    glow: "shadow-[0_0_15px_rgba(244,63,94,0.1)]",
+    badge: "bg-rose-500/15 text-rose-600 dark:text-rose-300 border-rose-500/30"
   }
 };
+
+interface CustomRAGNodeData {
+  [key: string]: unknown;
+  raw: RagFlowGraphNode;
+  title: string;
+  desc: string;
+  category: string;
+  isSlow: boolean;
+  styles: { bg: string; border: string; text: string; glow: string; badge: string };
+  invocationCount: number;
+  avgLatencyMs: number;
+}
+
+function CustomRAGNode({ data, selected }: { data: CustomRAGNodeData; selected?: boolean }) {
+  const { title, desc, category, isSlow, styles, invocationCount, avgLatencyMs } = data;
+  return (
+    <div
+      className={`relative w-64 rounded-xl border p-3.5 backdrop-blur-md transition-all duration-200 select-none cursor-pointer ${
+        styles.bg
+      } ${
+        selected
+          ? "border-primary shadow-[0_0_20px_rgba(217,119,6,0.25)] ring-2 ring-primary ring-offset-2 ring-offset-background scale-[1.02]"
+          : isSlow
+          ? "border-destructive/80 shadow-[0_0_12px_rgba(239,68,68,0.2)]"
+          : `${styles.border} hover:border-primary/60 hover:shadow-md`
+      }`}
+    >
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!w-2.5 !h-2.5 !bg-primary/90 !border-2 !border-background !-left-1.5 shadow-sm"
+      />
+      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${styles.badge}`}>
+          {category}
+        </span>
+        {avgLatencyMs > 0 && (
+          <Badge
+            variant={isSlow ? "destructive" : "secondary"}
+            className="h-4 px-1.5 text-[10px] font-mono tracking-tight"
+          >
+            {fmtMs(avgLatencyMs)}
+          </Badge>
+        )}
+      </div>
+
+      <h3 className="font-semibold text-xs text-foreground tracking-tight line-clamp-1">
+        {title}
+      </h3>
+
+      <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed mt-1">
+        {desc}
+      </p>
+
+      {invocationCount > 0 && (
+        <div className="text-[9px] text-muted-foreground/80 mt-2 pt-1.5 border-t border-border/40 flex items-center justify-between font-mono">
+          <span>Invocations</span>
+          <span className="font-semibold text-foreground/90">{invocationCount}</span>
+        </div>
+      )}
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!w-2.5 !h-2.5 !bg-primary/90 !border-2 !border-background !-right-1.5 shadow-sm"
+      />
+    </div>
+  );
+}
 
 const STRATEGY_DESCRIPTIONS: Record<string, string> = {
   standard: "Balanced RAG pipeline. Utilizes query decomposition, cross-encoder reranking, parent enrichment, and Self-RAG verification.",
@@ -339,6 +413,7 @@ export default function RAGFlowPage() {
   const { data: graphData, isLoading, error, refetch, isFetching } = useRagFlowGraph(strategy);
   const [selectedNode, setSelectedNode] = useState<RagFlowGraphNode | null>(null);
 
+  const nodeTypes = useMemo(() => ({ ragNode: CustomRAGNode }), []);
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
@@ -359,61 +434,43 @@ export default function RAGFlowPage() {
       colGroups[col].push(node.id);
     });
 
-    const xSpacing = 280;
-    const ySpacing = 110;
-    const xOffset = 50;
-    const yOffset = 60;
+    const xSpacing = 340;
+    const ySpacing = 145;
+    const xOffset = 60;
+    const midY = 380;
 
     // Generate react-flow nodes
-    const flowNodes = graphData.nodes.map((node) => {
+    const flowNodes: FlowNode[] = graphData.nodes.map((node) => {
       const col = node?.id && NODE_COLUMNS[node.id] !== undefined ? NODE_COLUMNS[node.id] : 2;
       const indexInCol = node?.id && colGroups[col] ? colGroups[col].indexOf(node.id) : 0;
       const colSize = colGroups[col]?.length || 1;
       
-      // Center column vertically
-      const totalColHeight = (colSize - 1) * ySpacing;
-      const startY = yOffset + (400 - totalColHeight) / 2;
-      
+      // Center column vertically around midY
       const x = xOffset + col * xSpacing;
-      const y = startY + Math.max(0, indexInCol) * ySpacing;
+      const y = midY + (indexInCol - (colSize - 1) / 2) * ySpacing;
 
-      const descInfo = (node?.id && NODE_DESCRIPTIONS[node.id]) || { title: node?.label || node?.id || "Node", desc: "RAG pipeline execution node.", category: "Retrieval" };
+      const descInfo = (node?.id && NODE_DESCRIPTIONS[node.id]) || {
+        title: node?.label || node?.id || "Node",
+        desc: "RAG pipeline execution node.",
+        category: "Retrieval"
+      };
       const styles = CATEGORY_STYLES[descInfo.category] || CATEGORY_STYLES["Retrieval"];
-
-      // Dynamic warning borders for slow nodes
       const isSlow = (node?.avg_latency_ms ?? 0) > 1500;
-      const latencyBorder = isSlow ? "border-rose-500/80 shadow-[0_0_15px_rgba(239,68,68,0.2)]" : styles.border;
 
       return {
         id: node?.id ?? "unknown-node",
         position: { x, y },
-        type: "default",
+        type: "ragNode",
         data: {
-          label: (
-            <div className={`p-3 rounded-lg border bg-card/90 backdrop-blur-md transition-all duration-300 text-left w-56 ${styles.glow} ${latencyBorder}`}>
-              <div className="flex items-center justify-between gap-1 mb-1">
-                <span className={`text-xs font-semibold uppercase tracking-wider ${styles.text}`}>
-                  {descInfo.category}
-                </span>
-                {(node?.avg_latency_ms ?? 0) > 0 && (
-                  <Badge variant={isSlow ? "destructive" : "secondary"} className="h-4 px-1.5 text-[10px]">
-                    {fmtMs(node.avg_latency_ms)}
-                  </Badge>
-                )}
-              </div>
-              <h3 className="font-semibold text-sm truncate text-foreground">{descInfo.title}</h3>
-              {(node?.invocation_count ?? 0) > 0 && (
-                <div className="text-[10px] text-muted-foreground mt-1 flex items-center justify-between">
-                  <span>Invocations:</span>
-                  <span className="font-mono">{node.invocation_count}</span>
-                </div>
-              )}
-            </div>
-          ),
-          raw: node
+          raw: node,
+          title: descInfo.title,
+          desc: descInfo.desc,
+          category: descInfo.category,
+          isSlow,
+          styles,
+          invocationCount: node?.invocation_count ?? 0,
+          avgLatencyMs: node?.avg_latency_ms ?? 0,
         },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
       };
     });
 
@@ -430,14 +487,14 @@ export default function RAGFlowPage() {
         animated: edge?.animated ?? false,
         type: "smoothstep",
         style: {
-          stroke: isSlowPath ? "rgba(239, 68, 68, 0.7)" : "hsl(var(--primary) / 0.45)",
+          stroke: isSlowPath ? "rgba(239, 68, 68, 0.8)" : "hsl(var(--primary) / 0.55)",
           strokeWidth: isSlowPath ? 2.5 : 2,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           width: 14,
           height: 14,
-          color: isSlowPath ? "rgba(239, 68, 68, 0.8)" : "hsl(var(--primary) / 0.6)",
+          color: isSlowPath ? "rgba(239, 68, 68, 0.9)" : "hsl(var(--primary) / 0.7)",
         },
       };
     });
@@ -455,8 +512,9 @@ export default function RAGFlowPage() {
   }, [graphData, selectedNode, setEdges, setNodes]);
 
   const onNodeClick = (_: ReactMouseEvent, node: FlowNode) => {
-    if (node?.data?.raw) {
-      setSelectedNode(node.data.raw);
+    const raw = (node?.data as unknown as CustomRAGNodeData | undefined)?.raw;
+    if (raw) {
+      setSelectedNode(raw);
     }
   };
 
@@ -534,9 +592,10 @@ export default function RAGFlowPage() {
             </div>
           ) : (
             <div className="flex-1 h-full w-full relative">
-              <ReactFlow
+              <ReactFlow<FlowNode>
                 nodes={nodes}
                 edges={edges}
+                nodeTypes={nodeTypes}
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onNodeClick={onNodeClick}
