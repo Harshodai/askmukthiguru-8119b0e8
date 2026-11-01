@@ -35,8 +35,27 @@ export class SecondBrainApiError extends Error {
 
 export async function deriveBrainUnlock(passphrase?: string): Promise<string | undefined> {
   if (!passphrase) return undefined;
-  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(passphrase));
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+  const UNLOCK_SALT = new TextEncoder().encode("second_brain_vault_unlock_salt");
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(passphrase),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"]
+  );
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: UNLOCK_SALT,
+      iterations: 600000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256
+  );
+  return Array.from(new Uint8Array(derivedBits))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function authedFetch<T>(
