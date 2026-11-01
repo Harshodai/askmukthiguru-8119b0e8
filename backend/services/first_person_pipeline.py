@@ -499,6 +499,8 @@ _ORPHAN_OPENER_RE = re.compile(
     # pronoun/continuation openers with no antecedent in a lone clip (live 2026-10-24 grade)
     r"|(?:it\b(?!\s*(?:is|was|['\u2019]s)\b)|(?:they|them|he|him|she|her)\b)|we\s+need\s+them\b|definitely\b"
     r"|i\s+(?:led|told|asked|gave|showed|took)\s+(?:him|her|them)\b"  # not "so": "So both Preethaji and I…" is a fine opener
+    r"|i\s+(?:cannot|can't|couldn't)\s+help\s+(?:this|that|him|her|them)\b"
+    r"|he\s+or\s+she\s+will\b"
     r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
     re.IGNORECASE,
 )
@@ -564,7 +566,11 @@ _EVENT_MARKER_RE = re.compile(
     r"|\btoday,?\s+we\s+(?:will|shall|are\s+going\s+to)\b"
     r"|\btomorrow\s+(?:is|we)\b|\bthis\s+coming\b|\bin\s+this\s+coming\b"
     r"|\bwhen\s+i\s+bless\s+you\b|\bi\s+will\s+bless\s+you\b"
-    r"|\btoday,?\s+i\s+want\s+you\s+to\s+hold\s+the\s+intention\b|\bon\s+this\s+day\b",
+    r"|\btoday,?\s+i\s+want\s+you\s+to\s+hold\s+the\s+intention\b|\bon\s+this\s+day\b"
+    r"|\b(?:corona|covid(?:-19)?|lockdowns?|quarantine|pandemic)\b"
+    r"|\b(?:the\s+previous\s+(?:question|person|speaker|talk|session))\b"
+    r"|\b(?:in\s+the\s+last\s+(?:session|question|talk))\b"
+    r"|\b(?:like\s+i\s+said\s+(?:yesterday|earlier|in\s+the\s+last))\b",
     re.IGNORECASE,
 )
 
@@ -608,6 +614,20 @@ def _violent_for_context(query: str, text: str, retrieval_query: str = "") -> bo
     )
 
 
+_SELF_HARM_CLIP_RE = re.compile(r"\b(?:self\s*-\s*harm|suicid\w*)\b", re.IGNORECASE)
+
+
+def _self_harm_for_context(query: str, text: str) -> bool:
+    """True when a clip introduces self-harm/suicide terms on a query that didn't ask about it."""
+    return bool(_SELF_HARM_CLIP_RE.search(text)) and not bool(_SELF_HARM_CLIP_RE.search(query))
+
+
+_DANGLING_QUESTION_TAIL_RE = re.compile(
+    r"(?:what\s+(?:do|did|would|will|can)\s+you\s+do|why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you)\s*\?\s*$",
+    re.IGNORECASE,
+)
+
+
 def _standalone_problem(text: str) -> Optional[str]:
     """Deterministic 'does this clip stand on its own' backstop (zero LLM calls).
 
@@ -627,6 +647,8 @@ def _standalone_problem(text: str) -> Optional[str]:
     # only an explicit mid-sentence ending counts: a clip cut on "," ";" ":" or a dash.
     if stripped and stripped[-1] in ",;:-\u2014\u2013":
         return "ends_mid_sentence"
+    if _DANGLING_QUESTION_TAIL_RE.search(stripped):
+        return "dangling_question_tail"
     if _DISCOURSE_OPENER_RE.match(text) or _LATE_ORDINAL_OPENER_RE.match(text):
         return "discourse_opener"
     if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
@@ -891,7 +913,7 @@ def transcript_label(verbatim_text: str, caption_status: Optional[str]) -> dict[
 # RP-A5: version of the relevance-scoring prompt. Bumped by hand whenever
 # _RELEVANCE_SYSTEM_PROMPT's rubric changes; the policy fingerprint below also
 # carries a hash of the prompt text, so an unbumped edit still re-keys.
-_RELEVANCE_PROMPT_VERSION = "v1"
+_RELEVANCE_PROMPT_VERSION = "v2"
 
 # Version of the served-answer body shape. `evidence_only_v2` is the body that
 # carries nothing but the verbatim quote(s) and their attribution: the
@@ -905,8 +927,9 @@ _RELEVANCE_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
     "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
-    "that cannot stand alone, opens mid-thought, or is event-bound (e.g. corona/lockdown). Reply "
-    "ONLY with comma-separated integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
+    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, or is event-bound (e.g. corona/lockdown). "
+    "Be strict: if a clip only discusses the topic generally without answering the specific question, score 1. "
+    "Reply ONLY with comma-separated integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
 )
 
 
@@ -939,8 +962,9 @@ _RELEVANCE_JSON_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
     "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
-    "that cannot stand alone, opens mid-thought, or is event-bound (e.g. corona/lockdown). Reply ONLY "
-    'with a JSON object of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
+    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, or is event-bound (e.g. corona/lockdown). "
+    "Be strict: if a clip only discusses the topic generally without answering the specific question, score 1. "
+    'Reply ONLY with a JSON object of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
 )
 
 _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
@@ -4200,6 +4224,7 @@ class FirstPersonPipeline:
             if not _violent_for_context(
                 query, str(c.get("verbatim_text") or ""), retrieval_query=retrieval_query
             )
+            and not _self_harm_for_context(query, str(c.get("verbatim_text") or ""))
         ]
         t_integrity_ms = (time.monotonic() - t_int_start) * 1000.0
 
@@ -5118,6 +5143,7 @@ class FirstPersonPipeline:
             if not _violent_for_context(
                 query, str(c.get("verbatim_text") or ""), retrieval_query=retrieval_query
             )
+            and not _self_harm_for_context(query, str(c.get("verbatim_text") or ""))
         ]
         stage_timings["integrity_ms"] = round((time.monotonic() - t_int_start) * 1000.0, 2)
 

@@ -1539,3 +1539,63 @@ class TestCitationClubbing:
         assert clubbed[0]["start_sec"] == 4
         assert clubbed[0]["end_sec"] == 60
         assert clubbed[0]["duration_sec"] == 56
+
+
+class TestQualityAndSafetyFilters20261101:
+    """Regression tests for 2026-11-01 quality and safety filters preventing Graded Run 2 defects."""
+
+    def test_self_harm_for_context_rejects_unsolicited_self_harm(self):
+        from services.first_person_pipeline import _self_harm_for_context
+
+        query = "Why do people living under the same roof end up feeling like strangers?"
+        clip = (
+            "Did you know self -harm is the leading cause of death within the age group of 15 and 44? "
+            "Do you know why? Because we live as strangers, though we live under the same roof. "
+            "There is this experience of loneliness as we move across life. Though we meet people, "
+            "though we relate to people, there is this inner loneliness that kills us from within."
+        )
+        assert _self_harm_for_context(query, clip) is True
+
+        # When the query is explicitly about suicide/self-harm, it is not rejected as unsolicited
+        suicide_query = "How to stop thinking about suicide and self-harm?"
+        assert _self_harm_for_context(suicide_query, clip) is False
+
+    def test_event_marker_catches_pandemic_and_previous_question(self):
+        from services.first_person_pipeline import _standalone_problem
+
+        clip_corona = (
+            "I think many people in the world will be saying to themselves, you know what, let me "
+            "have corona rather than staying with my wife and my children and all these people around. "
+            "That's happening. So, you see people taking out marches saying that we want freedom, "
+            "we want to be out of our homes. So, I think freedom is a very funny concept."
+        )
+        assert _standalone_problem(clip_corona) == "event_marker"
+
+        clip_prev = (
+            "The previous question which basically said that the entire humanity is in fear, "
+            "that is the state from which we need to find freedom. We need to become free of our fear, "
+            "not free of our home or free of our husband or wife or children keep running out."
+        )
+        assert _standalone_problem(clip_prev) == "event_marker"
+
+    def test_dangling_question_tail_rejected(self):
+        from services.first_person_pipeline import _standalone_problem
+
+        clip_dangling = (
+            "Only connection can heal. Because love and connection is an energy that has this "
+            "tremendous power to heal. It is not just like hurt has this very bad power to separate. "
+            "When you are deeply hurt, what do you do?"
+        )
+        assert _standalone_problem(clip_dangling) == "dangling_question_tail"
+
+    def test_orphan_opener_help_person_rejected(self):
+        from services.first_person_pipeline import _standalone_problem
+
+        clip_orphan = (
+            "I cannot help this person beyond a point. He or she will come out of it automatically "
+            "after some time. Let me run away. So, you think about yourself and you run away. If "
+            "someone very close to you is becoming successful, let's say your best friend got a "
+            "promotion and she is celebrating it."
+        )
+        assert _standalone_problem(clip_orphan) == "orphan_opener"
+

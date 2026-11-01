@@ -157,29 +157,12 @@ class InputGuardrailStage(Stage):
                         reason=_verdict.reason or "acute_crisis",
                     ),
                 )
-                blocked_resp = _verdict.helpline_response
-                if is_indic and blocked_resp:
-                    blocked_resp = await container.translation.translate_text(
-                        text=blocked_resp, source_lang="en", target_lang=preferred_lang
-                    )
-                return PipelineResult(
-                    final_answer=blocked_resp,
-                    intent="DISTRESS",
-                    blocked=True,
-                    block_reason=_verdict.reason or "acute_crisis",
-                    trace_id=getattr(ctx, "trace_id", ""),
-                    latency_ms=int((time.time() - getattr(ctx, "start_time", time.time())) * 1000),
-                    route_decision="crisis_preemption",
-                    verification={"passed": True, "method": "fast_safety_kernel"},
-                    route_metadata={
-                        "grounding_state": "safety_redirect",
-                        "safety_tier": "fast_safety_kernel",
-                        "reason": _verdict.reason,
-                        "matched_pattern": _verdict.matched_pattern,
-                        "helplines_provided": True,
-                        "routing_chain": list(getattr(ctx, "routing_chain", [])),
-                    },
+                ctx.state["guardrail_self_harm_match"] = True
+                logger.info(
+                    "[InputGuardrailStage] Fast safety kernel crisis matched (%s); deferring to DistressStage",
+                    _verdict.reason,
                 )
+                return None
         except Exception as _kernel_exc:
             logger.warning(
                 "[InputGuardrailStage] Fast safety kernel pre-check failed: %s", _kernel_exc
