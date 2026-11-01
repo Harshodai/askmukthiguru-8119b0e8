@@ -173,7 +173,9 @@ async def _check_memgraph(container: Any) -> bool:
     import asyncio
 
     def _run_check() -> bool:
-        driver = getattr(container, "memgraph_driver", None) or getattr(container, "neo4j_driver", None)
+        driver = getattr(container, "memgraph_driver", None) or getattr(
+            container, "neo4j_driver", None
+        )
         if driver is None:
             return False
         with driver.session() as session:

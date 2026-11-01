@@ -23,10 +23,9 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 sys.path.insert(0, str(REPO_ROOT))
 
-from services.transcript_verbatim import compute_verbatim_hash  # noqa: E402
-
 from scripts.ingestion import parallel_corpus_extractor as mod  # noqa: E402
 from scripts.ingestion.corpus_engine import CorpusEngine  # noqa: E402
+from services.transcript_verbatim import compute_verbatim_hash  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # YouTubeRateLimiter — direct unit coverage of the token bucket + breaker.

@@ -98,7 +98,7 @@ def canonicalize_route_decision(decision: str | None) -> str:
     return ROUTE_DECISION_ALIASES.get(cleaned, cleaned)
 
 
-def record_routing_decision(ctx: object, provenance: "RoutingProvenance") -> None:
+def record_routing_decision(ctx: object, provenance: RoutingProvenance) -> None:
     """Append a routing provenance record to ctx.routing_chain.
 
     Uses duck-typing so this module never imports PipelineContext (which would

@@ -35,17 +35,12 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = UTC
-import re
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 

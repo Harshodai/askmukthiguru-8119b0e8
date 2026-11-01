@@ -3,10 +3,10 @@
 """Speculative stream orchestrator integrating sentence buffering, claim verification, and verbatim guard."""
 
 import logging
+from collections.abc import AsyncGenerator
+from typing import Any, Optional
 
 from app.config import settings
-from typing import List, AsyncGenerator, Dict, Any, Optional
-
 from app.generation.sentence_buffer import SentenceBoundaryBuffer
 from app.verification.claim_verifier import PipelinedClaimVerifier
 from app.verification.verbatim_guard import FirstPersonVerbatimGuard
@@ -33,10 +33,10 @@ class SpeculativeStreamOrchestrator:
     async def process_stream(
         self,
         token_stream: AsyncGenerator[str, None],
-        context_chunks: List[str],
+        context_chunks: list[str],
         is_first_person: bool = False,
-        source_spans: Optional[List[str]] = None,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+        source_spans: Optional[list[str]] = None,
+    ) -> AsyncGenerator[dict[str, Any], None]:
         """Processes an incoming token stream, buffers sentences, verifies them, and yields verified chunks."""
         if not settings.speculative_generation_enabled:
             logger.warning("speculative generation is disabled (SPECULATIVE_GENERATION_ENABLED)")

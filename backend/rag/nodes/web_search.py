@@ -3,11 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 from langchain_core.runnables import RunnableConfig

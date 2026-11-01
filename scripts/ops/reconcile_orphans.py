@@ -18,7 +18,7 @@ import logging
 import sys
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _HERE = Path(__file__).resolve()
 if (_HERE.parents[2] / "backend").is_dir():
@@ -57,7 +57,7 @@ def reconcile_source_orphans(
     source_url: str,
     expected_point_ids: Iterable[str | int],
     client: Any = None,
-    collection: Optional[str] = None,
+    collection: str | None = None,
     dry_run: bool = True,
     allow_full_purge: bool = False,
 ) -> dict[str, Any]:

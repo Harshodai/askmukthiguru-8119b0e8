@@ -10,7 +10,8 @@ Features:
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncGenerator, Dict, Optional
+from collections.abc import AsyncGenerator
+from typing import Any, Optional
 
 
 class LowLatencySSEGenerator:

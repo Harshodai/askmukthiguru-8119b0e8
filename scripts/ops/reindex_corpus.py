@@ -23,13 +23,9 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _HERE = Path(__file__).resolve()
 if (_HERE.parents[2] / "backend").is_dir():
@@ -50,7 +46,7 @@ logger = logging.getLogger(__name__)
 
 def plan_reindex(
     alias: str,
-    target_collection: Optional[str] = None,
+    target_collection: str | None = None,
     target_version: int = 1,
     client: Any = None,
 ) -> dict[str, Any]:
@@ -270,7 +266,7 @@ def _collection_point_count(client: Any, collection_name: str) -> int:
 
 def orchestrate_reindex(
     alias: str,
-    target_collection: Optional[str] = None,
+    target_collection: str | None = None,
     target_version: int = 1,
     min_points: int = 0,
     plan_only: bool = False,

@@ -5,19 +5,19 @@ Tests for Unified Personalization Engine, Mode-B Encryption, and DPDP Cascade Er
 from __future__ import annotations
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from services.personalization import (
+    DeletionAuditReceipt,
     UnifiedPersonalizationEngine,
     UnifiedSeekerContext,
-    hard_cascade_account_erasure,
+    decrypt_facet,
     derive_vault_key,
     encrypt_facet,
-    decrypt_facet,
-    DeletionAuditReceipt,
+    hard_cascade_account_erasure,
 )
-from services.personalization.crypto import VaultLockedError, PBKDF2_ITERATIONS
 
 
 @pytest.mark.asyncio
@@ -109,4 +109,3 @@ def test_prompt_guidance_generation():
     guidance = ctx.format_prompt_guidance()
     assert "Seeker Personalization & Spiritual Readiness" in guidance
     assert "Sadhana & Practice Journey" in guidance
-

@@ -14,14 +14,9 @@ import os
 import re
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
 
 from app.config import settings
 from app.index_fingerprint import IndexFingerprint, IndexFingerprintError

@@ -16,11 +16,7 @@ import json
 import os
 import sqlite3
 import sys
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 
 DEFAULT_DB_PATH = os.getenv("LIGHTRAG_DB", "./lightrag_data/doc_status.db")
 BACKUP_DIR = "./data/lightrag_backups"

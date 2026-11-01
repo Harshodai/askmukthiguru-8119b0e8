@@ -17,7 +17,7 @@ import hashlib
 import json
 import os
 from dataclasses import asdict, dataclass
-from typing import Any, Optional, Union
+from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -53,7 +53,7 @@ def _b64d(data: str) -> bytes:
     return base64.b64decode(normalized.encode("ascii"), altchars=b"-_", validate=True)
 
 
-def zeroize(buf: Union[bytearray, memoryview]) -> None:
+def zeroize(buf: bytearray | memoryview) -> None:
     """In-place scrub of mutable key material to prevent key leakage in memory dumps."""
     for i in range(len(buf)):
         buf[i] = 0
@@ -91,9 +91,6 @@ def derive_mode_b_key(
         iterations,
         dklen=KEY_LEN_BYTES,
     )
-
-
-derive_vault_key = derive_mode_b_key
 
 
 @dataclass
@@ -196,7 +193,7 @@ def encrypt_facet_payload(
 
 def decrypt_facet_payload(
     key: bytes,
-    encrypted: Union[EncryptedFacet, dict[str, Any], str],
+    encrypted: EncryptedFacet | dict[str, Any] | str,
     facet_name: str = "unknown",
     aad: bytes = b"",
     expect_json: bool = True,
@@ -230,7 +227,9 @@ def decrypt_facet_payload(
     try:
         decrypted_bytes = aes.decrypt(iv_bytes, combined_ct, associated_data=PREAMBLE + aad)
     except Exception as exc:
-        raise VaultIntegrityError("Decryption failed — wrong Mode-B key or tampered ciphertext") from exc
+        raise VaultIntegrityError(
+            "Decryption failed — wrong Mode-B key or tampered ciphertext"
+        ) from exc
 
     if expect_json:
         try:
@@ -261,7 +260,7 @@ class UnlockedVaultSession:
 
     def decrypt(
         self,
-        encrypted: Union[EncryptedFacet, dict[str, Any], str],
+        encrypted: EncryptedFacet | dict[str, Any] | str,
         facet_name: str = "unknown",
         aad: bytes = b"",
         expect_json: bool = True,
@@ -297,14 +296,16 @@ def encrypt_facet(
 
 
 def decrypt_facet(
-    encrypted: Union[EncryptedFacet, dict[str, Any], str],
+    encrypted: EncryptedFacet | dict[str, Any] | str,
     key: bytes,
     facet_name: str = "unknown",
     aad: bytes = b"",
     expect_json: bool = True,
 ) -> Any:
     """Convenience alias for decrypt_facet_payload with parameter order adjusted for tests."""
-    return decrypt_facet_payload(key=key, encrypted=encrypted, facet_name=facet_name, aad=aad, expect_json=expect_json)
+    return decrypt_facet_payload(
+        key=key, encrypted=encrypted, facet_name=facet_name, aad=aad, expect_json=expect_json
+    )
 
 
 def derive_vault_key(

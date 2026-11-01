@@ -21,13 +21,9 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _HERE = Path(__file__).resolve()
 if (_HERE.parents[2] / "backend").is_dir():
@@ -66,7 +62,7 @@ def get_collection_snapshot_age_hours(client: QdrantClient, collection_name: str
             return -1.0
 
         now = datetime.now(tz=UTC)
-        newest_dt: Optional[datetime] = None
+        newest_dt: datetime | None = None
 
         for snap in snapshots:
             creation_time_str = getattr(snap, "creation_time", None)
@@ -89,9 +85,9 @@ def get_collection_snapshot_age_hours(client: QdrantClient, collection_name: str
 
 
 def check_qdrant_health(
-    qdrant_url: Optional[str] = None,
-    api_key: Optional[str] = None,
-    target_collection: Optional[str] = None,
+    qdrant_url: str | None = None,
+    api_key: str | None = None,
+    target_collection: str | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
     """Inspect Qdrant health telemetry, update Prometheus gauges, and return report."""

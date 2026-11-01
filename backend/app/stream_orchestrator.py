@@ -212,7 +212,9 @@ class ChatStreamRequestOrchestrator:
                                 except asyncio.CancelledError:
                                     pass
                                 if tokens_streamed == 0:
-                                    yield _sse_event("status", "The Guru is connecting with the teachings...")
+                                    yield _sse_event(
+                                        "status", "The Guru is connecting with the teachings..."
+                                    )
                                 continue
                             else:
                                 get_task.cancel()
@@ -312,7 +314,9 @@ class ChatStreamRequestOrchestrator:
                             # Flush the safe text that appeared before the match.
                             safe_prefix = _pending[: match.start()]
                             if safe_prefix:
-                                yield _sse_event("token", safe_prefix.replace(chr(10), chr(92) + 'n'))
+                                yield _sse_event(
+                                    "token", safe_prefix.replace(chr(10), chr(92) + "n")
+                                )
                             yield _sse_event("token", "[SAFETY_FILTER]")
                             # Keep anything after the match in the buffer so
                             # subsequent chunks can still be safety-checked.

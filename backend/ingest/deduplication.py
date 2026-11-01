@@ -59,10 +59,13 @@ def _minhash_signature(shingle_set: set[str], hash_count: int = _DEFAULT_HASH_CO
         return [0] * hash_count
 
     # Convert shingles to integer hashes using MD5 once (vectorized integer representation)
-    shingle_ints = np.array([
-        int(hashlib.md5(s.encode("utf-8"), usedforsecurity=False).hexdigest()[:15], 16)
-        for s in shingle_set
-    ], dtype=np.uint64)
+    shingle_ints = np.array(
+        [
+            int(hashlib.md5(s.encode("utf-8"), usedforsecurity=False).hexdigest()[:15], 16)
+            for s in shingle_set
+        ],
+        dtype=np.uint64,
+    )
 
     # Mersenne prime P = 2^61 - 1
     P = (1 << 61) - 1
@@ -77,7 +80,7 @@ def _minhash_signature(shingle_set: set[str], hash_count: int = _DEFAULT_HASH_CO
     # h = (a[:, None] * shingle_ints[None, :] + b[:, None]) % P
     # To avoid overflow, compute using int64 operations
     shingle_matrix = shingle_ints.astype(np.int64)
-    
+
     # Broadcast computation
     hashed = (a[:, None] * shingle_matrix[None, :]) % P
     hashed = (hashed + b[:, None]) % P

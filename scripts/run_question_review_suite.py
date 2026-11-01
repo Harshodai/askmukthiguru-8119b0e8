@@ -18,9 +18,7 @@ from pathlib import Path
 BASE_URL = "http://localhost:8000"
 BENCHMARK_SECRET = os.environ.get("BENCHMARK_SECRET", "").strip()
 if not BENCHMARK_SECRET:
-    sys.exit(
-        "BENCHMARK_SECRET is not set. Export a non-empty value before running this review."
-    )
+    sys.exit("BENCHMARK_SECRET is not set. Export a non-empty value before running this review.")
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_DIR = Path(
     os.environ.get("BENCHMARK_ARTIFACT_DIR", str(REPO_ROOT / "artifacts" / "benchmark_review"))
@@ -303,7 +301,7 @@ def main():
     results = []
 
     token = get_session()
-    print(f"Session initialized with test-key auth.")
+    print("Session initialized with test-key auth.")
 
     for idx, item in enumerate(QUESTIONS, 1):
         category = item["category"]
@@ -311,7 +309,7 @@ def main():
         expected = item["expected"]
         language = item.get("language", "en")
 
-        print(f"\n[{idx}/{len(QUESTIONS)}] ({category}) \"{query}\" [{language}]")
+        print(f'\n[{idx}/{len(QUESTIONS)}] ({category}) "{query}" [{language}]')
         res = send_chat(token, query, language=language)
         status_code = res["status_code"]
         latency = res["latency_s"]
@@ -319,17 +317,19 @@ def main():
 
         if status_code != 200:
             print(f"  ERROR: {res.get('error')}")
-            results.append({
-                "index": idx,
-                "category": category,
-                "query": query,
-                "language": language,
-                "expected": expected,
-                "status_code": status_code,
-                "latency_s": latency,
-                "error": res.get("error"),
-                "answer": "",
-            })
+            results.append(
+                {
+                    "index": idx,
+                    "category": category,
+                    "query": query,
+                    "language": language,
+                    "expected": expected,
+                    "status_code": status_code,
+                    "latency_s": latency,
+                    "error": res.get("error"),
+                    "answer": "",
+                }
+            )
             time.sleep(1.0)
             continue
 
@@ -338,10 +338,14 @@ def main():
         verification = data.get("verification") or {}
         grounding_state = data.get("grounding_state") or verification.get("grounding_state")
         citations = data.get("citations") or []
-        route_decision = data.get("route_decision") or (data.get("evaluation_trace") or {}).get("route_decision")
+        route_decision = data.get("route_decision") or (data.get("evaluation_trace") or {}).get(
+            "route_decision"
+        )
         intent = data.get("intent") or data.get("route")
 
-        print(f"  Route: {route_decision} | Grounding: {grounding_state} | Citations: {len(citations)}")
+        print(
+            f"  Route: {route_decision} | Grounding: {grounding_state} | Citations: {len(citations)}"
+        )
         snippet = answer[:120].replace("\n", " ") + ("..." if len(answer) > 120 else "")
         print(f"  Answer preview: {snippet}")
 
@@ -358,21 +362,23 @@ def main():
                 title = str(c)[:60]
             parsed_citations.append({"url": url, "title": title})
 
-        results.append({
-            "index": idx,
-            "category": category,
-            "query": query,
-            "language": language,
-            "expected": expected,
-            "status_code": status_code,
-            "latency_s": latency,
-            "grounding_state": grounding_state,
-            "route_decision": route_decision,
-            "verification_method": verification.get("method"),
-            "intent": intent,
-            "citations": parsed_citations,
-            "answer": answer,
-        })
+        results.append(
+            {
+                "index": idx,
+                "category": category,
+                "query": query,
+                "language": language,
+                "expected": expected,
+                "status_code": status_code,
+                "latency_s": latency,
+                "grounding_state": grounding_state,
+                "route_decision": route_decision,
+                "verification_method": verification.get("method"),
+                "intent": intent,
+                "citations": parsed_citations,
+                "answer": answer,
+            }
+        )
         time.sleep(1.0)
 
     # Save to JSON
@@ -398,7 +404,10 @@ def main():
     ]
 
     from collections import defaultdict
-    cat_stats = defaultdict(lambda: {"count": 0, "latencies": [], "grounded": 0, "abstained": 0, "safety": 0})
+
+    cat_stats = defaultdict(
+        lambda: {"count": 0, "latencies": [], "grounded": 0, "abstained": 0, "safety": 0}
+    )
     for r in results:
         c = r["category"]
         cat_stats[c]["count"] += 1
@@ -413,21 +422,27 @@ def main():
 
     for c, s in cat_stats.items():
         avg_lat = round(sum(s["latencies"]) / len(s["latencies"]), 2) if s["latencies"] else 0
-        lines.append(f"| {c} | {s['count']} | {avg_lat}s | {s['grounded']} | {s['abstained']} | {s['safety']} |")
+        lines.append(
+            f"| {c} | {s['count']} | {avg_lat}s | {s['grounded']} | {s['abstained']} | {s['safety']} |"
+        )
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## Detailed Query Responses",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## Detailed Query Responses",
+            "",
+        ]
+    )
 
     for r in results:
         lines.append(f"### #{r['index']} [{r['category']}] {r['query']}")
         lines.append(f"- **Expected Behavior**: {r['expected']}")
         lines.append(f"- **HTTP Status**: {r['status_code']} | **Latency**: {r['latency_s']}s")
-        lines.append(f"- **Route Decision**: `{r.get('route_decision')}` | **Grounding State**: `{r.get('grounding_state')}` | **Verification**: `{r.get('verification_method')}`")
+        lines.append(
+            f"- **Route Decision**: `{r.get('route_decision')}` | **Grounding State**: `{r.get('grounding_state')}` | **Verification**: `{r.get('verification_method')}`"
+        )
         cits = r.get("citations", [])
         if cits:
             lines.append(f"- **Citations ({len(cits)})**:")

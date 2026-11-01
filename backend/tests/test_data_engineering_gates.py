@@ -2,15 +2,20 @@
 Test Suite for Phase 6 Data Engineering & Quality Gate Remediations (DEF-01 to DEF-04, X40).
 """
 
-import pytest
 import uuid
-import numpy as np
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from ingest.video_pipeline import VideoPipeline
+import pytest
+
+from ingest.deduplication import (
+    _minhash_signature,
+    _normalize,
+    _shingles,
+    deduplicate_chunks,
+    near_duplicate_similarity,
+)
 from ingest.quality_gate import DataQualityGate
-from ingest.deduplication import _minhash_signature, _shingles, _normalize, near_duplicate_similarity, deduplicate_chunks
-from services.qdrant.utils import QdrantUtils
+from ingest.video_pipeline import VideoPipeline
 from services.qdrant.indexer import QdrantIndexer
 
 
@@ -39,16 +44,27 @@ async def test_def_01_video_pipeline_deterministic_uuid_and_contract_payload():
         assert point_ids == [str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source}_0_0"))]
         mock_upsert.assert_called_once()
         args, kwargs = mock_upsert.call_args
-        texts = kwargs.get("texts") or args[0]
-        vectors = kwargs.get("vectors") or args[1]
+        kwargs.get("texts") or args[0]
+        kwargs.get("vectors") or args[1]
         metadatas = kwargs.get("metadatas") or args[2]
         assert len(metadatas) == 1
         meta = metadatas[0]
         # Verify mandatory fields
         mandatory_fields = [
-            "text", "source_url", "title", "speaker", "topic",
-            "chunk_index", "content_type", "raptor_level", "chunker_version",
-            "parent_id_scheme", "modality", "rights_status", "content_hash", "point_id"
+            "text",
+            "source_url",
+            "title",
+            "speaker",
+            "topic",
+            "chunk_index",
+            "content_type",
+            "raptor_level",
+            "chunker_version",
+            "parent_id_scheme",
+            "modality",
+            "rights_status",
+            "content_hash",
+            "point_id",
         ]
         for field in mandatory_fields:
             assert field in meta, f"Mandatory field '{field}' missing from video chunk payload"
@@ -65,12 +81,13 @@ async def test_def_02_quality_gate_100_percent_inspection():
 
     chunks = [
         "Chunk 1: Pure spiritual teaching about oneness and surrender to the divine.",
-        "Chunk 2: As a text correction expert, I cannot fulfill this request because...", # Junk
+        "Chunk 2: As a text correction expert, I cannot fulfill this request because...",  # Junk
         "Chunk 3: Another deep meditative contemplation on inner stillness and silence.",
         "Chunk 4: Fourth chunk discussing karma, dharma, and supreme liberation.",
     ]
 
     with patch.object(gate, "run", new_callable=AsyncMock) as mock_run:
+
         async def side_effect(text, source_url="", speaker=""):
             res = MagicMock()
             if "text correction expert" in text:
@@ -82,11 +99,14 @@ async def test_def_02_quality_gate_100_percent_inspection():
                 res.score = 85
                 res.reasons = []
             return res
+
         mock_run.side_effect = side_effect
 
         clean_chunks, results = await gate.run_chunks(chunks, source_url="https://test.com")
         # 100% inspection means mock_run must be called for ALL 4 chunks
-        assert mock_run.call_count == len(chunks), f"Expected {len(chunks)} inspections, got {mock_run.call_count}"
+        assert mock_run.call_count == len(chunks), (
+            f"Expected {len(chunks)} inspections, got {mock_run.call_count}"
+        )
         # Junk chunk should be filtered out
         assert len(clean_chunks) == 3
         assert len(results) == 4
@@ -126,9 +146,9 @@ def test_def_04_minhash_vectorized_throughput_and_accuracy():
     text2 = "surrender to the divine consciousness and find inner peace and liberation!"
     text3 = "completely unrelated text about quantum computing and machine learning networks."
 
-    sig1 = _minhash_signature(_shingles(_normalize(text1)), 32)
-    sig2 = _minhash_signature(_shingles(_normalize(text2)), 32)
-    sig3 = _minhash_signature(_shingles(_normalize(text3)), 32)
+    _minhash_signature(_shingles(_normalize(text1)), 32)
+    _minhash_signature(_shingles(_normalize(text2)), 32)
+    _minhash_signature(_shingles(_normalize(text3)), 32)
 
     sim_12 = near_duplicate_similarity(text1, text2)
     sim_13 = near_duplicate_similarity(text1, text3)

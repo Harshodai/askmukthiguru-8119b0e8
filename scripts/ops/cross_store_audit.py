@@ -12,7 +12,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _HERE = Path(__file__).resolve()
 if (_HERE.parents[2] / "backend").is_dir():
@@ -120,7 +120,7 @@ def audit_store_drift(
     qdrant_client: Any,
     supabase_client: Any = None,
     fix: bool = False,
-    collection_name: Optional[str] = None,
+    collection_name: str | None = None,
     neo4j_driver: Any = None,
     confirm: bool = False,
     max_repair_fraction: float = 0.25,
@@ -153,7 +153,7 @@ def audit_store_drift(
     elif hasattr(qdrant_client, "get_all_point_ids"):
         qdrant_ids = {str(x) for x in qdrant_client.get_all_point_ids()}
 
-    supabase_ids: Optional[set[str]] = None
+    supabase_ids: set[str] | None = None
     supabase_table = ""
     supabase_complete = True
     if supabase_client is not None:
@@ -166,7 +166,7 @@ def audit_store_drift(
         else:
             supabase_ids = set()
 
-    graph_ids: Optional[set[str]] = None
+    graph_ids: set[str] | None = None
     if neo4j_driver is not None:
         graph_ids = set()
         if hasattr(neo4j_driver, "session"):
@@ -206,7 +206,7 @@ def audit_store_drift(
             logger.debug("Failed setting metric for qdrant_graph: %s", e)
 
     repaired_count = 0
-    repair_refusal: Optional[str] = None
+    repair_refusal: str | None = None
     if fix:
         if not qdrant_read_complete:
             repair_refusal = "qdrant id read was incomplete; a partial set would over-delete"

@@ -46,11 +46,7 @@ import statistics
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any

@@ -10,11 +10,7 @@ Machine-readable error codes allow frontend to i18n errors without string matchi
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field

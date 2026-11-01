@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.core.limiter import limiter
-from app.dependencies import ServiceContainer, get_container, get_container_async
+from app.dependencies import ServiceContainer, get_container_async
 from services.auth_service import get_current_user_from_supabase
 
 router = APIRouter(tags=["SRS"])

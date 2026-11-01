@@ -166,8 +166,9 @@ async def test_persona_stale_includes_flag():
     try:
         from datetime import UTC, datetime, timedelta
     except ImportError:
-        from datetime import datetime, timedelta, timezone
-        UTC = timezone.utc
+        from datetime import datetime, timedelta
+
+        UTC = UTC
 
     from app.orchestrator_utils import prepare_user_memory
 

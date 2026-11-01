@@ -754,9 +754,13 @@ async def chat_endpoint(
     # ── Fast Intake Safety Preemption (Invariant X38, M1/M2 Audit) ────────
     try:
         from app.intake.safety_kernel import get_safety_kernel
+
         _safety_verdict = get_safety_kernel().evaluate(chat_body.user_message)
         if _safety_verdict.is_crisis:
-            logger.warning("FastSafetyKernel preemption triggered at intake: %s", _safety_verdict.matched_pattern)
+            logger.warning(
+                "FastSafetyKernel preemption triggered at intake: %s",
+                _safety_verdict.matched_pattern,
+            )
             return JSONResponse(
                 status_code=200,
                 content={
@@ -770,8 +774,18 @@ async def chat_endpoint(
                     "crisis": True,
                     "matched_pattern": _safety_verdict.matched_pattern,
                     "helplines": [
-                        {"name": "Tele-MANAS", "number": "14416", "hours": "24/7", "country": "India"},
-                        {"name": "Vandrevala Foundation", "number": "+91 9999 666 555", "hours": "24/7", "country": "India"},
+                        {
+                            "name": "Tele-MANAS",
+                            "number": "14416",
+                            "hours": "24/7",
+                            "country": "India",
+                        },
+                        {
+                            "name": "Vandrevala Foundation",
+                            "number": "+91 9999 666 555",
+                            "hours": "24/7",
+                            "country": "India",
+                        },
                     ],
                 },
             )

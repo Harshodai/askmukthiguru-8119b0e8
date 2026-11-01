@@ -16,11 +16,7 @@ import logging
 import random
 import re
 import uuid
-from datetime import datetime, timedelta, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 

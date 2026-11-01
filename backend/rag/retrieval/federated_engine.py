@@ -1,14 +1,16 @@
 # DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. Retrieval still runs through rag/nodes/retrieval.py.
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 try:
-    from rag.retrieval.rights_gate import ContentRightsGate
     from rag.retrieval.adaptive_hyde import AdaptiveHyDEGenerator
+    from rag.retrieval.rights_gate import ContentRightsGate
 except ModuleNotFoundError:
-    from backend.rag.retrieval.rights_gate import ContentRightsGate
     from backend.rag.retrieval.adaptive_hyde import AdaptiveHyDEGenerator
+    from backend.rag.retrieval.rights_gate import ContentRightsGate
 
 logger = logging.getLogger(__name__)
+
 
 class FederatedRetrievalEngine:
     """
@@ -24,7 +26,7 @@ class FederatedRetrievalEngine:
         self.qdrant_client = qdrant_client
         self.memgraph_driver = memgraph_driver
 
-    async def query_memgraph_graph(self, query: str) -> List[Dict[str, Any]]:
+    async def query_memgraph_graph(self, query: str) -> list[dict[str, Any]]:
         """
         Lane 2: Memgraph Async openCypher query on Bolt port 7687 using C++ MAGE.
         ZERO Neo4j references!
@@ -32,7 +34,7 @@ class FederatedRetrievalEngine:
         if not self.memgraph_driver:
             # Mock or return empty if no driver connected in test env
             return []
-            
+
         cypher_query = (
             "MATCH (c:Concept)-[:RELATES_TO]->(t:Teaching) "
             "WHERE c.name CONTAINS $query OR t.content CONTAINS $query "
@@ -47,18 +49,22 @@ class FederatedRetrievalEngine:
             logger.error(f"Memgraph query error: {e}")
             return []
 
-    def calculate_cross_encoder_score(self, dense_score: float, sparse_score: float, graph_score: float) -> float:
+    def calculate_cross_encoder_score(
+        self, dense_score: float, sparse_score: float, graph_score: float
+    ) -> float:
         """
         Empirical Gate B formula: P_ce = 0.45 * Dense + 0.35 * Sparse + 0.20 * Graph
         """
         return 0.45 * dense_score + 0.35 * sparse_score + 0.20 * graph_score
 
-    def reciprocal_rank_fusion(self, lane_results: List[List[Dict[str, Any]]], k: int = 60) -> List[Dict[str, Any]]:
+    def reciprocal_rank_fusion(
+        self, lane_results: list[list[dict[str, Any]]], k: int = 60
+    ) -> list[dict[str, Any]]:
         """
         RRF k=60 to fuse multi-lane candidates.
         """
-        rrf_scores: Dict[str, float] = {}
-        candidate_map: Dict[str, Dict[str, Any]] = {}
+        rrf_scores: dict[str, float] = {}
+        candidate_map: dict[str, dict[str, Any]] = {}
 
         for lane in lane_results:
             for rank, candidate in enumerate(lane, start=1):
@@ -69,7 +75,7 @@ class FederatedRetrievalEngine:
         sorted_cids = sorted(rrf_scores.keys(), key=lambda x: rrf_scores[x], reverse=True)
         return [candidate_map[cid] for cid in sorted_cids]
 
-    async def retrieve(self, query: str, query_type: str = "general") -> List[Dict[str, Any]]:
+    async def retrieve(self, query: str, query_type: str = "general") -> list[dict[str, Any]]:
         """
         Executes 4-lane scatter-gather, applies HyDE circuit breaker, RRF,
         Rights Gate (Invariant X40), and Gate B thresholding (P_ce >= 0.15).
@@ -80,22 +86,49 @@ class FederatedRetrievalEngine:
 
         # 2. Gather candidates from lanes (Mocked / simulated for robust modular execution)
         lane1_candidates = [
-            {"id": "doc_1", "content": f"Dense & Sparse match for {effective_query}", "source": "Ekam", "domain_rights_status": "licensed", "dense_score": 0.85, "sparse_score": 0.80}
+            {
+                "id": "doc_1",
+                "content": f"Dense & Sparse match for {effective_query}",
+                "source": "Ekam",
+                "domain_rights_status": "licensed",
+                "dense_score": 0.85,
+                "sparse_score": 0.80,
+            }
         ]
         lane2_candidates = await self.query_memgraph_graph(effective_query)
         if not lane2_candidates:
             lane2_candidates = [
-                {"id": "doc_2", "content": f"Memgraph C++ MAGE graph match for {effective_query}", "source": "Sri Preethaji & Sri Krishnaji", "domain_rights_status": "licensed", "graph_score": 0.75}
+                {
+                    "id": "doc_2",
+                    "content": f"Memgraph C++ MAGE graph match for {effective_query}",
+                    "source": "Sri Preethaji & Sri Krishnaji",
+                    "domain_rights_status": "licensed",
+                    "graph_score": 0.75,
+                }
             ]
         lane3_candidates = [
-            {"id": "doc_3", "content": f"OKF Matrix BLAS dot-product match", "source": "The Four Sacred Secrets", "domain_rights_status": "licensed", "dense_score": 0.70}
+            {
+                "id": "doc_3",
+                "content": "OKF Matrix BLAS dot-product match",
+                "source": "The Four Sacred Secrets",
+                "domain_rights_status": "licensed",
+                "dense_score": 0.70,
+            }
         ]
         lane4_candidates = [
-            {"id": "doc_4", "content": f"Verbatim first-person teacher clip", "source": "TEDx", "domain_rights_status": "licensed", "dense_score": 0.90}
+            {
+                "id": "doc_4",
+                "content": "Verbatim first-person teacher clip",
+                "source": "TEDx",
+                "domain_rights_status": "licensed",
+                "dense_score": 0.90,
+            }
         ]
 
         # 3. RRF Fusion
-        fused = self.reciprocal_rank_fusion([lane1_candidates, lane2_candidates, lane3_candidates, lane4_candidates])
+        fused = self.reciprocal_rank_fusion(
+            [lane1_candidates, lane2_candidates, lane3_candidates, lane4_candidates]
+        )
 
         # 4. Rights Gate (Invariant X40)
         gated_candidates = ContentRightsGate.filter_candidates(fused)
@@ -108,7 +141,7 @@ class FederatedRetrievalEngine:
             g_score = c.get("graph_score", 0.4)
             p_ce = self.calculate_cross_encoder_score(d_score, s_score, g_score)
             c["p_ce"] = p_ce
-            
+
             if p_ce >= 0.15:
                 final_results.append(c)
             else:

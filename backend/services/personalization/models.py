@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import time
 from typing import Any, Optional
+
 from pydantic import BaseModel, Field
 
 from services.personalization.crypto import EncryptedFacet
@@ -123,7 +124,9 @@ class UnifiedSeekerContext(BaseModel):
     user_id: str
     is_authenticated: bool = True
     tenant_id: str = "default"
-    consent_flags: dict[str, bool] = Field(default_factory=lambda: {"personalization": True, "analytics": True, "storage": True})
+    consent_flags: dict[str, bool] = Field(
+        default_factory=lambda: {"personalization": True, "analytics": True, "storage": True}
+    )
     hydration_latency_ms: float = 0.0
     seeker_profile: SeekerProfileContext = Field(default_factory=SeekerProfileContext)
     second_brain: SecondBrainContext = Field(default_factory=SecondBrainContext)
@@ -131,7 +134,9 @@ class UnifiedSeekerContext(BaseModel):
     pre_practice: PrePracticeLogContext = Field(default_factory=PrePracticeLogContext)
     study_notebooks: StudyNotebookContext = Field(default_factory=StudyNotebookContext)
     mood_journal: MoodSpiritualJournalContext = Field(default_factory=MoodSpiritualJournalContext)
-    whatsapp_reflections: WhatsAppReflectionContext = Field(default_factory=WhatsAppReflectionContext)
+    whatsapp_reflections: WhatsAppReflectionContext = Field(
+        default_factory=WhatsAppReflectionContext
+    )
     mode_b_enabled: bool = False
     has_unlocked_vault: bool = False
     hydrated_at: float = Field(default_factory=time.time)
@@ -167,12 +172,16 @@ class UnifiedSeekerContext(BaseModel):
         if sad.is_encrypted and not self.has_unlocked_vault:
             sections.append("- [Mode-B Encrypted Sadhana: Client sealed]")
         else:
-            practices_str = ", ".join(sad.daily_practices) if sad.daily_practices else "None recorded"
+            practices_str = (
+                ", ".join(sad.daily_practices) if sad.daily_practices else "None recorded"
+            )
             sections.append(
                 f"- **Current Streak**: {sad.streak_count} days (Longest: {sad.longest_streak} days) | "
                 f"**Consistency**: {int(sad.consistency_score * 100)}%"
             )
-            sections.append(f"- **Total Meditated**: {sad.minutes_meditated} minutes | **Daily Practices**: {practices_str}")
+            sections.append(
+                f"- **Total Meditated**: {sad.minutes_meditated} minutes | **Daily Practices**: {practices_str}"
+            )
 
         # 3. Pre-Practice State & Intentions
         pp = self.pre_practice
@@ -195,7 +204,9 @@ class UnifiedSeekerContext(BaseModel):
             sections.append("- [Mode-B Encrypted Second Brain: Client sealed]")
         else:
             if sb.canonical_memories:
-                mems = [m.get("statement", "") for m in sb.canonical_memories[:3] if m.get("statement")]
+                mems = [
+                    m.get("statement", "") for m in sb.canonical_memories[:3] if m.get("statement")
+                ]
                 sections.append(f"- **Canonical Realizations**: {'; '.join(mems)}")
             if sb.observations:
                 sections.append(f"- **Key Observations**: {'; '.join(sb.observations[:3])}")
@@ -223,7 +234,9 @@ class UnifiedSeekerContext(BaseModel):
             sections.append("- [Mode-B Encrypted Mood & Journal: Client sealed]")
         else:
             if mj.spiritual_growth_reflections:
-                sections.append(f"- **Recent Reflections**: {'; '.join(mj.spiritual_growth_reflections[:2])}")
+                sections.append(
+                    f"- **Recent Reflections**: {'; '.join(mj.spiritual_growth_reflections[:2])}"
+                )
             if mj.mood_trajectory:
                 latest_mood = mj.mood_trajectory[-1].get("dominant_emotion", "balanced")
                 sections.append(f"- **Dominant Emotional State**: {latest_mood}")
@@ -237,9 +250,15 @@ class UnifiedSeekerContext(BaseModel):
             sections.append("- [Mode-B Encrypted WhatsApp Insights: Client sealed]")
         else:
             if wa.voice_note_insights:
-                sections.append(f"- **Voice Note Insights**: {'; '.join(wa.voice_note_insights[:2])}")
+                sections.append(
+                    f"- **Voice Note Insights**: {'; '.join(wa.voice_note_insights[:2])}"
+                )
             elif wa.reflections:
-                snippets = [r.get("sadhana_reflection", "") for r in wa.reflections[:2] if r.get("sadhana_reflection")]
+                snippets = [
+                    r.get("sadhana_reflection", "")
+                    for r in wa.reflections[:2]
+                    if r.get("sadhana_reflection")
+                ]
                 sections.append(f"- **Reflections**: {'; '.join(snippets)}")
             else:
                 sections.append("- No external messaging reflections.")

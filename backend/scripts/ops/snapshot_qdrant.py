@@ -19,13 +19,9 @@ import logging
 import os
 import re
 import sys
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _HERE = Path(__file__).resolve()
 if (_HERE.parents[2] / "backend").is_dir():
@@ -47,7 +43,7 @@ _SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 def _get_qdrant_client(
-    qdrant_url: Optional[str] = None, api_key: Optional[str] = None
+    qdrant_url: str | None = None, api_key: str | None = None
 ) -> tuple[QdrantClient, str]:
     """Build QdrantClient with explicit container/host URL fallback.
 
@@ -104,7 +100,7 @@ def list_collection_snapshots(
     snapshots = client.list_snapshots(collection_name)
     now = datetime.now(tz=UTC)
     results: list[dict[str, Any]] = []
-    newest_dt: Optional[datetime] = None
+    newest_dt: datetime | None = None
 
     for s in snapshots:
         name = getattr(s, "name", str(s))
@@ -183,7 +179,7 @@ def restore_collection_snapshot(
     client: QdrantClient,
     collection_name: str,
     snapshot_name: str,
-    into_collection: Optional[str] = None,
+    into_collection: str | None = None,
     dry_run: bool = False,
     allow_overwrite: bool = False,
 ) -> dict[str, Any]:

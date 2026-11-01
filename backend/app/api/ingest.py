@@ -936,16 +936,22 @@ def _validate_federated_source(source_type: str, source_ref: str) -> str:
     """Return a safe source_ref or raise 400. Path types must live under the allowlisted dir."""
     if source_type == "youtube":
         if not _YOUTUBE_REF_RE.match(source_ref):
-            raise HTTPException(status_code=400, detail="youtube source_ref must be an 11-character video id")
+            raise HTTPException(
+                status_code=400, detail="youtube source_ref must be an 11-character video id"
+            )
         return source_ref
     if source_type in _FEDERATED_PATH_TYPES:
         allowed = (settings.federated_ingest_allowed_dir or "").strip()
         if not allowed:
-            raise HTTPException(status_code=400, detail="No federated ingest directory is configured")
+            raise HTTPException(
+                status_code=400, detail="No federated ingest directory is configured"
+            )
         root = os.path.realpath(allowed)
         target = os.path.realpath(source_ref)
         if os.path.commonpath([root, target]) != root or not os.path.isfile(target):
-            raise HTTPException(status_code=400, detail="source_ref must be a file inside the allowed directory")
+            raise HTTPException(
+                status_code=400, detail="source_ref must be a file inside the allowed directory"
+            )
         return target
     raise HTTPException(status_code=400, detail="Unsupported source_type for this route")
 

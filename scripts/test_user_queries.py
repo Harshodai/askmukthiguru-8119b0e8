@@ -11,10 +11,10 @@
 """
 
 import json
+import sys
 import time
 import urllib.error
 import urllib.request
-import sys
 
 BASE_URL = "http://localhost:8000"
 
@@ -191,14 +191,14 @@ def run():
         except Exception as exc:
             print(f"\n>>> [{name}]")
             print(f"    Expected: {expected}")
-            print(f"    Query: \"{q}\"")
+            print(f'    Query: "{q}"')
             print(f"    ERROR: Failed to create session: {exc}")
             failures += 1
             continue
 
         print(f"\n>>> [{name}]")
         print(f"    Expected: {expected}")
-        print(f"    Query: \"{q}\"")
+        print(f'    Query: "{q}"')
 
         res = send_chat_query(token, q)
         if res["status_code"] == 429:
@@ -228,7 +228,9 @@ def run():
         citations = data.get("citations") or []
         helpline_block = data.get("helpline_block")
         crisis_info = data.get("crisis_info")
-        route_decision = data.get("route_decision") or (data.get("evaluation_trace") or {}).get("route_decision")
+        route_decision = data.get("route_decision") or (data.get("evaluation_trace") or {}).get(
+            "route_decision"
+        )
         intent = data.get("intent") or data.get("route")
 
         if "Teaching" in name or "Doctrine" in name:
@@ -242,17 +244,32 @@ def run():
             has_helplines = bool(
                 helpline_block
                 or crisis_info
-                or any(k in answer for k in ("Tele-MANAS", "14416", "988", "AASRA", "Vandrevala", "crisis", "helpline"))
+                or any(
+                    k in answer
+                    for k in (
+                        "Tele-MANAS",
+                        "14416",
+                        "988",
+                        "AASRA",
+                        "Vandrevala",
+                        "crisis",
+                        "helpline",
+                    )
+                )
             )
             if not has_helplines:
                 print("    ERROR: Distress response missing required crisis helplines")
                 failures += 1
         elif "Off-Topic General Question" in name or "Worldly Code Request" in name:
             if route_decision != "off_topic_domain_boundary":
-                print(f"    ERROR: Expected route_decision == 'off_topic_domain_boundary', got '{route_decision}'")
+                print(
+                    f"    ERROR: Expected route_decision == 'off_topic_domain_boundary', got '{route_decision}'"
+                )
                 failures += 1
             if len(citations) != 0:
-                print(f"    ERROR: Expected 0 citations for off-topic domain boundary, got {len(citations)}")
+                print(
+                    f"    ERROR: Expected 0 citations for off-topic domain boundary, got {len(citations)}"
+                )
                 failures += 1
 
         print(f"    Grounding State: {grounding_state}")
@@ -273,14 +290,14 @@ def run():
                 title = str(c)[:50]
                 url = ""
                 domain = ""
-            print(f"      [{i+1}] {title} -> {url} (domain: {domain})")
+            print(f"      [{i + 1}] {title} -> {url} (domain: {domain})")
 
         if helpline_block:
-            print(f"    Helpline Block Present: True")
+            print("    Helpline Block Present: True")
         if crisis_info:
             print(f"    Crisis Info: {crisis_info}")
 
-        print(f"\n--- Answer ---")
+        print("\n--- Answer ---")
         print(answer)
         print("-" * 50)
         time.sleep(3)

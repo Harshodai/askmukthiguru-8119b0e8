@@ -25,13 +25,9 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 _HERE = Path(__file__).resolve()
 if (_HERE.parents[2] / "backend").is_dir():
@@ -52,7 +48,7 @@ LINEAGE_FIELDS = ("release", "encoder", "chunker", "gate_verdict", "asr_method")
 
 
 def _get_qdrant_client(
-    qdrant_url: Optional[str] = None, api_key: Optional[str] = None
+    qdrant_url: str | None = None, api_key: str | None = None
 ) -> tuple[QdrantClient, str]:
     """Build QdrantClient with automatic container/host URL fallback."""
     url = (
@@ -77,7 +73,7 @@ def _get_qdrant_client(
     return QdrantClient(url=url, api_key=key, timeout=60), url
 
 
-def check_point_lineage(payload: Optional[dict[str, Any]]) -> dict[str, bool]:
+def check_point_lineage(payload: dict[str, Any] | None) -> dict[str, bool]:
     """Evaluate whether required lineage fields are present on a point payload."""
     if not payload:
         return {f: False for f in LINEAGE_FIELDS}
@@ -125,7 +121,7 @@ def check_point_lineage(payload: Optional[dict[str, Any]]) -> dict[str, bool]:
 def audit_collection_lineage(
     client: QdrantClient,
     collection_name: str,
-    limit: Optional[int] = None,
+    limit: int | None = None,
     batch_size: int = 500,
     dry_run: bool = False,
 ) -> dict[str, Any]:

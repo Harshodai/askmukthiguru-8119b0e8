@@ -19,18 +19,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.dependencies import ServiceContainer, get_container, get_container_async
+from app.dependencies import ServiceContainer, get_container, get_container_async  # noqa: F401 (tests import get_container from here)
 from app.memory_consent import require_active_memory_consent
 from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase

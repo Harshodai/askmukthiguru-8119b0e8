@@ -33,11 +33,7 @@ import json
 import re
 import sys
 import urllib.request
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 
 from services.voice.style import (
     MIN_WORDS_FOR_SCORE,

@@ -40,11 +40,7 @@ import re
 import sys
 from collections import Counter
 from collections.abc import Iterable
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 

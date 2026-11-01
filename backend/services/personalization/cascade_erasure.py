@@ -21,7 +21,7 @@ import hashlib
 import json
 import logging
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -186,7 +186,7 @@ async def hard_cascade_account_erasure(
     Performs post-erasure audit verification.
     """
     receipt_id = str(uuid.uuid4())
-    ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    ts = datetime.datetime.now(datetime.UTC).isoformat()
     tables_wiped: dict[str, int] = {}
     vectors_wiped: dict[str, int] = {}
     graph_nodes_wiped = 0
@@ -235,9 +235,7 @@ async def hard_cascade_account_erasure(
                     del_res = supabase_client.table("profiles").delete().eq("id", user_id).execute()
                     deleted_count = len(getattr(del_res, "data", []) or [])
                 else:
-                    del_res = (
-                        supabase_client.table(table).delete().eq("user_id", user_id).execute()
-                    )
+                    del_res = supabase_client.table(table).delete().eq("user_id", user_id).execute()
                     deleted_count = len(getattr(del_res, "data", []) or [])
 
                 tables_wiped[table] = deleted_count
@@ -372,10 +370,7 @@ async def hard_cascade_account_erasure(
             try:
                 col_name = "id" if table == "profiles" else "user_id"
                 verify_res = (
-                    supabase_client.table(table)
-                    .select(col_name)
-                    .eq(col_name, user_id)
-                    .execute()
+                    supabase_client.table(table).select(col_name).eq(col_name, user_id).execute()
                 )
                 remaining = len(getattr(verify_res, "data", []) or [])
                 if remaining > 0:

@@ -30,11 +30,7 @@ class SettingsProxy:
 
 settings = SettingsProxy()
 
-try:
-    from datetime import UTC
-except ImportError:
-    from datetime import timezone
-    UTC = timezone.utc
+from datetime import UTC
 
 from app.metrics import PIPELINE_STAGE_LATENCY
 from domain.spiritual_ontology import (  # noqa: F401

@@ -107,7 +107,9 @@ def run_workflow():
         # Verify Cookie Banner is completely suppressed on Admin
         cookie_banners = page.locator("text='Essential cookies only'")
         print(f"Cookie banners visible on admin: {cookie_banners.count()}")
-        assert cookie_banners.count() == 0, "CookieConsentBanner must not be rendered on admin routes!"
+        assert cookie_banners.count() == 0, (
+            "CookieConsentBanner must not be rendered on admin routes!"
+        )
 
         # Print KPI cards text to verify non-zero values
         kpi_texts = page.locator(".grid .rounded-xl").all_text_contents()
@@ -171,7 +173,9 @@ def run_workflow():
         print(f"Saved: {dag_tab_path}")
 
         # Click on ECAPA Speaker Attribution node to open Inspector Drawer
-        attribution_node = page.locator(".react-flow__node:has-text('ECAPA Speaker Attribution')").first
+        attribution_node = page.locator(
+            ".react-flow__node:has-text('ECAPA Speaker Attribution')"
+        ).first
         if attribution_node.is_visible():
             print("Inspecting ECAPA Speaker Attribution stage...")
             attribution_node.click(force=True)

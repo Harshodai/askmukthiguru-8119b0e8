@@ -33,11 +33,7 @@ import argparse
 import getpass
 import json
 import sys
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from pathlib import Path
 
 GOLD_TARGET = 299

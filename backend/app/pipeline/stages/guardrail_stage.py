@@ -140,6 +140,7 @@ class InputGuardrailStage(Stage):
         # Fast Intake Safety Kernel (zero-I/O Aho-Corasick check <0.01ms, Invariant X38)
         try:
             from app.intake.safety_kernel import get_safety_kernel
+
             raw_msg = str(getattr(ctx, "user_msg", "") or guardrail_text)
             _fast_kernel = get_safety_kernel()
             _verdict = _fast_kernel.evaluate(raw_msg)
@@ -178,7 +179,9 @@ class InputGuardrailStage(Stage):
                     },
                 )
         except Exception as _kernel_exc:
-            logger.warning("[InputGuardrailStage] Fast safety kernel pre-check failed: %s", _kernel_exc)
+            logger.warning(
+                "[InputGuardrailStage] Fast safety kernel pre-check failed: %s", _kernel_exc
+            )
 
         # ponytail: body of _run_input_guardrails verbatim
         with REQUEST_LATENCY.labels(stage="guardrails").time():

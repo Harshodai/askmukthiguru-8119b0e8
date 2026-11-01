@@ -169,7 +169,7 @@ class FastShortCircuitCascade:
     @staticmethod
     def _compute_cache_key(query: str, tenant_id: str) -> str:
         norm = " ".join(query.strip().lower().split())
-        return hashlib.sha256(f"{tenant_id}:{norm}".encode("utf-8")).hexdigest()
+        return hashlib.sha256(f"{tenant_id}:{norm}".encode()).hexdigest()
 
     def evaluate(
         self,

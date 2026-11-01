@@ -16,11 +16,7 @@ Uses pytest-asyncio with mocked Supabase client. No live DB required.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
 

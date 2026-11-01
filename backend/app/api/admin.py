@@ -6,11 +6,7 @@ Unit 13 — moved from `routers/admin.py` into `app.api`.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 

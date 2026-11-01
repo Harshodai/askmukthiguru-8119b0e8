@@ -16,7 +16,6 @@ import asyncio
 import os
 import sys
 import time
-from typing import Any
 
 # Add backend to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
@@ -118,7 +117,7 @@ async def run_benchmark():
     assert parsed["domain_route"] == "teaching"
     assert parsed["confidence"] == 0.92
     assert parsed["query_tier"] == "tier2_simple"
-    print(f"✓ Passed: Parser correctly parsed mock SPIRITUAL_TEACHING with confidence=0.92")
+    print("✓ Passed: Parser correctly parsed mock SPIRITUAL_TEACHING with confidence=0.92")
 
     # 3. Live Benchmark (only when the key exists AND Jev routing is enabled)
     if has_api_key and settings.jev_enabled:
@@ -134,7 +133,7 @@ async def run_benchmark():
             q = item["query"]
             cat = item["category"]
             expected_domain = item["expected_domain"]
-            print(f"\nQuery [{cat}]: \"{q}\"")
+            print(f'\nQuery [{cat}]: "{q}"')
             started = time.perf_counter()
             decision = await router.classify(q)
             elapsed_ms = round((time.perf_counter() - started) * 1000, 1)
@@ -142,7 +141,9 @@ async def run_benchmark():
             if decision:
                 domain_route = decision.get("domain_route")
                 print(f"  Result: domain_route={domain_route} | intent={decision.get('intent')}")
-                print(f"  Confidence: {decision.get('confidence')} | Tier: {decision.get('query_tier')}")
+                print(
+                    f"  Confidence: {decision.get('confidence')} | Tier: {decision.get('query_tier')}"
+                )
                 print(f"  Latency: {elapsed_ms}ms")
                 if domain_route != expected_domain:
                     failed_checks.append(

@@ -3086,7 +3086,9 @@ class IngestionPipeline:
                                     if str(ent_name).strip().lower() not in neo4j_entities:
                                         points_to_delete.append(p.id)
                             if points_to_delete:
-                                qdrant.delete(collection_name=col, points_selector=points_to_delete)  # fp-write-ok: lightrag_vdb_* only
+                                qdrant.delete(
+                                    collection_name=col, points_selector=points_to_delete
+                                )  # fp-write-ok: lightrag_vdb_* only
                                 total_deleted_points += len(points_to_delete)
                     for col in relationship_cols:
                         cnt = qdrant.count(col, exact=True).count
@@ -3110,7 +3112,9 @@ class IngestionPipeline:
                                 if src_missing or tgt_missing:
                                     points_to_delete.append(p.id)
                             if points_to_delete:
-                                qdrant.delete(collection_name=col, points_selector=points_to_delete)  # fp-write-ok: lightrag_vdb_* only
+                                qdrant.delete(
+                                    collection_name=col, points_selector=points_to_delete
+                                )  # fp-write-ok: lightrag_vdb_* only
                                 total_deleted_points += len(points_to_delete)
                     if total_deleted_points > 0:
                         logger.info(

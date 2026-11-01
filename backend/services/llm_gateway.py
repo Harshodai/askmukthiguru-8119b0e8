@@ -402,11 +402,7 @@ class LLMGateway:
             for name in ("openrouter", "sarvam", "nim"):
                 if name not in candidates:
                     candidates.append(name)
-            try:
-                from datetime import UTC
-            except ImportError:
-                from datetime import timezone
-                UTC = timezone.utc
+            from datetime import UTC, datetime
 
             import redis.asyncio as aioredis
 

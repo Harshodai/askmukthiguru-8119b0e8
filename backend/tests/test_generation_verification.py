@@ -1,14 +1,15 @@
 """Tests for sentence buffering, claim verifier, verbatim guard, and speculative stream orchestration."""
 
-import pytest
 import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+
+import pytest
 
 from app.config import settings
 from app.generation.sentence_buffer import SentenceBoundaryBuffer
+from app.generation.speculative_stream import SpeculativeStreamOrchestrator
 from app.verification.claim_verifier import PipelinedClaimVerifier
 from app.verification.verbatim_guard import FirstPersonVerbatimGuard
-from app.generation.speculative_stream import SpeculativeStreamOrchestrator
 
 
 def test_sentence_boundary_buffer() -> None:

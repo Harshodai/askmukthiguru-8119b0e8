@@ -203,6 +203,7 @@ def upload_client(tmp_path, monkeypatch, decisions_dir):
     app = FastAPI()
     app.include_router(ingest_api.router, prefix="/api")
     app.dependency_overrides[require_aal2] = lambda: {"id": "a", "is_superuser": True}
+    app.dependency_overrides[ingest_api.require_aal2] = lambda: {"id": "a", "is_superuser": True}
     app.dependency_overrides[get_container_async] = lambda: container
     app.dependency_overrides[set_tenant_from_request] = lambda: None
     return TestClient(app, raise_server_exceptions=False), jobs

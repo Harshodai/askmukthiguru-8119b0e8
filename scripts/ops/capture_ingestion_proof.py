@@ -6,13 +6,17 @@ import hmac
 import os
 import time
 from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
 SECRET = os.environ.get("ADMIN_TOTP_SECRET", "V5FF7HLFI47FML25GLDSMHDJANDDVRMN")  # gitleaks:allow
-OUT_DIR = Path("/Users/harshodaikolluru/.gemini/antigravity/brain/e954e2dc-0fbc-4037-93b9-b734c3c699db")
+OUT_DIR = Path(
+    "/Users/harshodaikolluru/.gemini/antigravity/brain/e954e2dc-0fbc-4037-93b9-b734c3c699db"
+)
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 TEST_VIDEO_ID = "STlEq16n8kI"
+
 
 def base32_decode(s: str) -> bytes:
     chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
@@ -30,6 +34,7 @@ def base32_decode(s: str) -> bytes:
             bits -= 8
     return bytes(out)
 
+
 def get_totp(secret: str) -> str:
     key = base32_decode(secret)
     epoch = int(time.time() // 30)
@@ -39,11 +44,14 @@ def get_totp(secret: str) -> str:
     code = (int.from_bytes(h[offset : offset + 4], "big") & 0x7FFFFFFF) % 1000000
     return f"{code:06d}"
 
+
 def capture_proof():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(viewport={"width": 1440, "height": 900}, color_scheme="dark")
-        context.add_init_script("localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');")
+        context.add_init_script(
+            "localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');"
+        )
         page = context.new_page()
 
         print("1. Logging in as Admin...")
@@ -59,7 +67,9 @@ def capture_proof():
         if "/auth/mfa" in page.url or page.locator("#mfa-code").count() > 0:
             totp = get_totp(SECRET)
             page.fill("#mfa-code", totp)
-            submit_btn = page.locator("button:has-text('Verify'), button:has-text('Submit'), button[type='submit']")
+            submit_btn = page.locator(
+                "button:has-text('Verify'), button:has-text('Submit'), button[type='submit']"
+            )
             if submit_btn.count() > 0:
                 submit_btn.first.click()
             page.wait_for_timeout(3000)
@@ -124,6 +134,7 @@ def capture_proof():
 
         browser.close()
         print("=== All proof screenshots captured successfully ===")
+
 
 if __name__ == "__main__":
     capture_proof()

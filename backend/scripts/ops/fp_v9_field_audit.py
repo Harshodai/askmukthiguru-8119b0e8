@@ -19,12 +19,7 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime
-
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 # ---------------------------------------------------------------------------

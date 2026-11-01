@@ -510,7 +510,7 @@ def _parse_subtitle_file(filepath: str) -> Optional[str]:
 
     def parse_time_to_ms(t_str: str) -> int:
         try:
-            parts = t_str.strip().replace(',', '.').split(':')
+            parts = t_str.strip().replace(",", ".").split(":")
             if len(parts) == 3:
                 h = float(parts[0])
                 m = float(parts[1])
@@ -553,7 +553,7 @@ def _parse_subtitle_file(filepath: str) -> Optional[str]:
 
         # Check rolling window: distance > 3 lines or duration > 10s (10000ms)
         is_duplicate = False
-        for idx, (prev_text, prev_start, prev_end) in enumerate(reversed(rolling_window)):
+        for idx, (prev_text, prev_start, _prev_end) in enumerate(reversed(rolling_window)):
             distance = idx + 1  # 1-based distance from most recent
             time_diff = abs(current_start_ms - prev_start)
             if clean.lower() == prev_text.lower():
@@ -666,11 +666,17 @@ def fetch_transcript_hybrid(
             "transcripts",
             "transcripts.json",
         ),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "transcripts", "transcripts.json"),
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "transcripts",
+            "transcripts.json",
+        ),
         os.path.join(os.getcwd(), "transcripts", "transcripts.json"),
         os.path.join(os.getcwd(), "..", "transcripts", "transcripts.json"),
     ]
-    transcripts_json_path = next((p for p in transcripts_candidates if os.path.exists(p)), transcripts_candidates[0])
+    transcripts_json_path = next(
+        (p for p in transcripts_candidates if os.path.exists(p)), transcripts_candidates[0]
+    )
     if os.path.exists(transcripts_json_path):
         try:
             warn, skip = _check_staleness(transcripts_json_path, "transcripts.json")

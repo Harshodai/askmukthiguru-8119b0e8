@@ -516,9 +516,13 @@ class PersonalizeStage(Stage):
                 client_vault_key=vault_key,
             )
             state["seeker_context"] = seeker_ctx
-            state["seeker_guidance"] = UnifiedPersonalizationEngine.format_prompt_guidance(seeker_ctx)
+            state["seeker_guidance"] = UnifiedPersonalizationEngine.format_prompt_guidance(
+                seeker_ctx
+            )
         except Exception as _pers_exc:
-            logger.warning("[PersonalizeStage] Unified personalization hydration warning: %s", _pers_exc)
+            logger.warning(
+                "[PersonalizeStage] Unified personalization hydration warning: %s", _pers_exc
+            )
 
         record_routing_decision(
             ctx,

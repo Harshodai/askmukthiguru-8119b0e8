@@ -72,11 +72,14 @@ def validate_meta_signature(req: Request) -> bool:
     if not header_sig.startswith("sha256="):
         return False
 
-    expected_sig = "sha256=" + hmac.new(
-        key=app_secret.encode("utf-8"),
-        msg=req.get_data(),
-        digestmod=hashlib.sha256,
-    ).hexdigest()
+    expected_sig = (
+        "sha256="
+        + hmac.new(
+            key=app_secret.encode("utf-8"),
+            msg=req.get_data(),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+    )
 
     return hmac.compare_digest(header_sig, expected_sig)
 ```

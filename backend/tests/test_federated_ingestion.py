@@ -14,12 +14,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from ingest.federated_engine import (
-    AudioArchiveAdapter,
     FederatedDataSourceIngestionEngine,
     OKFStagingAdapter,
-    PDFDoctrineAdapter,
-    WhatsAppReflectionAdapter,
-    YouTubeAdapter,
 )
 from ingest.youtube_loader import _parse_subtitle_file
 
@@ -51,7 +47,9 @@ Yet another line.
 00:00:25.000 --> 00:00:28.000
 Om Namo Bhagavate
 """
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".vtt", delete=False, encoding="utf-8") as tmp:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".vtt", delete=False, encoding="utf-8"
+    ) as tmp:
         tmp.write(vtt_content)
         tmp_path = tmp.name
 
@@ -61,7 +59,9 @@ Om Namo Bhagavate
         assert "[00:00:01.000]" in parsed_text
         assert "Welcome seekers" in parsed_text
         count_om = parsed_text.count("Om Namo Bhagavate")
-        assert count_om == 2, f"Expected 2 occurrences of chant due to rolling window, got: {parsed_text}"
+        assert count_om == 2, (
+            f"Expected 2 occurrences of chant due to rolling window, got: {parsed_text}"
+        )
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
@@ -111,7 +111,7 @@ def test_federated_ingestion_connector_routing():
 def test_invariant_x40_rights_stamping():
     """Verify that Invariant X40 rights stamping (domain_rights_status='licensed') is enforced on ingestion."""
     engine = FederatedDataSourceIngestionEngine()
-    
+
     adapter = OKFStagingAdapter()
     raw = [{"content": "Test content", "source_ref": "test.md"}]
     chunks = adapter.parse_and_chunk(raw, chunker_version="v2.4-adaptive")
@@ -128,10 +128,19 @@ def test_invariant_x40_rights_stamping():
     res = engine.ingest_source("okf_staging", "test.md")
     assert res["status"] == "success"
 
-    with patch.object(adapter, "parse_and_chunk", return_value=[{
-        "content": "bad",
-        "metadata": {"domain_rights_status": "unlicensed", "chunker_version": "v2.4-adaptive"}
-    }]):
+    with patch.object(
+        adapter,
+        "parse_and_chunk",
+        return_value=[
+            {
+                "content": "bad",
+                "metadata": {
+                    "domain_rights_status": "unlicensed",
+                    "chunker_version": "v2.4-adaptive",
+                },
+            }
+        ],
+    ):
         engine.adapters["okf_staging"] = adapter
         with pytest.raises((AssertionError, RuntimeError, ValueError)):
             engine.ingest_source("okf_staging", "test.md")

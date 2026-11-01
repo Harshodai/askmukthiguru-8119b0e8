@@ -1,3 +1,4 @@
+# ruff: noqa: I001  (import order differs between the root and backend ruff configs; copies must stay identical)
 """D2 end-to-end scratch ingestion check.
 
 Copies one small real video's corpus directory into a SCRATCH location
@@ -111,9 +112,8 @@ def run(video_id: str, qdrant_url: str, keep_collection: bool = False) -> int:
 
     os.environ["QDRANT_URL"] = qdrant_url
 
-    from scripts.ingestion.corpus_engine import CorpusEngine
-
     from ingest.pipeline import EmbedIndexConfig, IngestionPipeline
+    from scripts.ingestion.corpus_engine import CorpusEngine
     from services.embedding_service import EmbeddingService
     from services.openrouter_service import OpenRouterService
     from services.qdrant_service import QdrantService

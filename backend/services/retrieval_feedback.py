@@ -17,11 +17,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import threading
-from datetime import datetime, timedelta, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.config import settings

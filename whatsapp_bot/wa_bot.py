@@ -1582,7 +1582,7 @@ def twilio_webhook():
                     if items and items[0].get("content"):
                         transcribed_text = items[0]["content"]
                 except Exception as _e:
-                    logger.warning("[WA] Voice transcription failed: %s", _e)
+                    log.warning("[WA] Voice transcription failed: %s", _e)
             if transcribed_text and str(transcribed_text).strip():
                 body = str(transcribed_text).strip()
                 media_kind = None
@@ -1880,7 +1880,7 @@ def _handle_meta_message(parsed: dict[str, Any]) -> tuple[str, str | None]:
                 if items and items[0].get("content"):
                     transcribed_text = items[0]["content"]
             except Exception as _e:
-                logger.warning("[WA Meta] Voice transcription failed: %s", _e)
+                log.warning("[WA Meta] Voice transcription failed: %s", _e)
         if transcribed_text and str(transcribed_text).strip():
             parsed["body"] = str(transcribed_text).strip()
             kind = "text"

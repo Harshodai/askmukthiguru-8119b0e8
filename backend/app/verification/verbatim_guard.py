@@ -2,7 +2,7 @@
 """First-Person Verbatim Guard enforcing Invariants X11, X18, X24."""
 
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,16 +20,16 @@ class FirstPersonVerbatimGuard:
     def enforce_verbatim(
         self,
         generated_text: str,
-        source_spans: List[str],
+        source_spans: list[str],
         is_first_person: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Enforces verbatim quotes for first-person teaching clips.
-        
+
         Args:
             generated_text: The text produced or drafted.
             source_spans: The exact verbatim source spans retrieved from audio/transcripts.
             is_first_person: Whether this is a first-person teaching request.
-            
+
         Returns:
             Dict containing 'enforced_text', 'is_verbatim', and 'modifications_made'.
         """

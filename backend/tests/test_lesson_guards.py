@@ -203,8 +203,19 @@ def test_fp_write_guard_flags_new_writers_and_allows_ops_build_and_tests():
     assert g.fp_write_problems("backend/tests/test_x.py", code) == []
     # variable collection name in a file that names a first_person collection is still caught
     assert g.fp_write_problems(
-        "backend/ingest/x.py", 'for c in ["first_person_v11"]:\n    client.delete(collection_name=c)\n'
+        "backend/ingest/x.py",
+        'for c in ["first_person_v11"]:\n    client.delete(collection_name=c)\n',
     )
     # reviewed line, and files that never name a first_person collection
-    assert g.fp_write_problems("backend/ingest/x.py", code.replace("points=[])", "points=[])  # fp-write-ok")) == []
-    assert g.fp_write_problems("backend/ingest/x.py", "client.upsert(collection_name='lightrag', points=[])") == []
+    assert (
+        g.fp_write_problems(
+            "backend/ingest/x.py", code.replace("points=[])", "points=[])  # fp-write-ok")
+        )
+        == []
+    )
+    assert (
+        g.fp_write_problems(
+            "backend/ingest/x.py", "client.upsert(collection_name='lightrag', points=[])"
+        )
+        == []
+    )

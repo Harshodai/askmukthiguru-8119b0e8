@@ -23,7 +23,9 @@ class SourceAdapter(ABC):
         pass
 
     @abstractmethod
-    def parse_and_chunk(self, raw_items: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+    def parse_and_chunk(
+        self, raw_items: list[dict[str, Any]], **kwargs: Any
+    ) -> list[dict[str, Any]]:
         """Parse raw items into normalized chunks adhering to chunker grammar."""
         pass
 
@@ -38,22 +40,26 @@ class YouTubeAdapter(SourceAdapter):
         result = fetch_transcript_hybrid(video_id, **kwargs)
         return [result] if result else []
 
-    def parse_and_chunk(self, raw_items: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+    def parse_and_chunk(
+        self, raw_items: list[dict[str, Any]], **kwargs: Any
+    ) -> list[dict[str, Any]]:
         chunks = []
         for item in raw_items:
             text = item.get("text", "")
             title = item.get("title", "YouTube Discourse")
-            chunks.append({
-                "content": text,
-                "metadata": {
-                    "source_type": "youtube",
-                    "title": title,
-                    "source_url": item.get("source_url", ""),
-                    "domain_rights_status": "licensed",
-                    "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
-                    "modality": "video",
-                },
-            })
+            chunks.append(
+                {
+                    "content": text,
+                    "metadata": {
+                        "source_type": "youtube",
+                        "title": title,
+                        "source_url": item.get("source_url", ""),
+                        "domain_rights_status": "licensed",
+                        "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
+                        "modality": "video",
+                    },
+                }
+            )
         return chunks
 
 
@@ -66,20 +72,24 @@ class PDFDoctrineAdapter(SourceAdapter):
         text_content = parse_book_pdf(source_ref) if isinstance(source_ref, (str, bytes)) else ""
         return [{"content": text_content, "source_ref": source_ref}]
 
-    def parse_and_chunk(self, raw_items: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+    def parse_and_chunk(
+        self, raw_items: list[dict[str, Any]], **kwargs: Any
+    ) -> list[dict[str, Any]]:
         chunks = []
         for item in raw_items:
             content = item.get("content", "")
-            chunks.append({
-                "content": content,
-                "metadata": {
-                    "source_type": "pdf_doctrine",
-                    "source_ref": item.get("source_ref", ""),
-                    "domain_rights_status": "licensed",
-                    "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
-                    "modality": "text",
-                },
-            })
+            chunks.append(
+                {
+                    "content": content,
+                    "metadata": {
+                        "source_type": "pdf_doctrine",
+                        "source_ref": item.get("source_ref", ""),
+                        "domain_rights_status": "licensed",
+                        "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
+                        "modality": "text",
+                    },
+                }
+            )
         return chunks
 
 
@@ -89,25 +99,31 @@ class AudioArchiveAdapter(SourceAdapter):
     def fetch(self, source_ref: str, **kwargs: Any) -> list[dict[str, Any]]:
         from services.whisperx_pipeline import transcribe_with_alignment
 
-        transcript = transcribe_with_alignment("audio_archive", source_ref, hf_token=kwargs.get("hf_token"))
+        transcript = transcribe_with_alignment(
+            "audio_archive", source_ref, hf_token=kwargs.get("hf_token")
+        )
         return [{"transcript": transcript, "source_ref": source_ref}]
 
-    def parse_and_chunk(self, raw_items: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+    def parse_and_chunk(
+        self, raw_items: list[dict[str, Any]], **kwargs: Any
+    ) -> list[dict[str, Any]]:
         chunks = []
         for item in raw_items:
             t_data = item.get("transcript", {})
             text = t_data.get("text", str(t_data))
-            chunks.append({
-                "content": text,
-                "metadata": {
-                    "source_type": "audio_archive",
-                    "source_ref": item.get("source_ref", ""),
-                    "domain_rights_status": "licensed",
-                    "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
-                    "modality": "audio",
-                    "diarization": "ecapa",
-                },
-            })
+            chunks.append(
+                {
+                    "content": text,
+                    "metadata": {
+                        "source_type": "audio_archive",
+                        "source_ref": item.get("source_ref", ""),
+                        "domain_rights_status": "licensed",
+                        "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
+                        "modality": "audio",
+                        "diarization": "ecapa",
+                    },
+                }
+            )
         return chunks
 
 
@@ -123,21 +139,25 @@ class WhatsAppReflectionAdapter(SourceAdapter):
             text = transcribe_with_whisper("wa_reflection", audio_path)
         return [{"content": text, "source_ref": source_ref}]
 
-    def parse_and_chunk(self, raw_items: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+    def parse_and_chunk(
+        self, raw_items: list[dict[str, Any]], **kwargs: Any
+    ) -> list[dict[str, Any]]:
         chunks = []
         for item in raw_items:
             content = item.get("content", "")
-            chunks.append({
-                "content": content,
-                "metadata": {
-                    "source_type": "whatsapp_reflection",
-                    "source_ref": item.get("source_ref", ""),
-                    "domain_rights_status": "licensed",
-                    "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
-                    "modality": "voice_note",
-                    "sadhana_journal": True,
-                },
-            })
+            chunks.append(
+                {
+                    "content": content,
+                    "metadata": {
+                        "source_type": "whatsapp_reflection",
+                        "source_ref": item.get("source_ref", ""),
+                        "domain_rights_status": "licensed",
+                        "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
+                        "modality": "voice_note",
+                        "sadhana_journal": True,
+                    },
+                }
+            )
         return chunks
 
 
@@ -151,20 +171,24 @@ class OKFStagingAdapter(SourceAdapter):
         content = path.read_text(encoding="utf-8") if path.exists() else str(source_ref)
         return [{"content": content, "source_ref": source_ref}]
 
-    def parse_and_chunk(self, raw_items: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
+    def parse_and_chunk(
+        self, raw_items: list[dict[str, Any]], **kwargs: Any
+    ) -> list[dict[str, Any]]:
         chunks = []
         for item in raw_items:
             content = item.get("content", "")
-            chunks.append({
-                "content": content,
-                "metadata": {
-                    "source_type": "okf_staging",
-                    "source_ref": item.get("source_ref", ""),
-                    "domain_rights_status": "licensed",
-                    "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
-                    "modality": "markdown",
-                },
-            })
+            chunks.append(
+                {
+                    "content": content,
+                    "metadata": {
+                        "source_type": "okf_staging",
+                        "source_ref": item.get("source_ref", ""),
+                        "domain_rights_status": "licensed",
+                        "chunker_version": kwargs.get("chunker_version", "v2.4-adaptive"),
+                        "modality": "markdown",
+                    },
+                }
+            )
         return chunks
 
 

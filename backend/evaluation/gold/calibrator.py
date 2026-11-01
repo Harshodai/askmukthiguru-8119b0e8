@@ -9,11 +9,7 @@ on error is <= target_risk (e.g. 1% risk -> >= 99% precision).
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from evaluation.gold.metrics import clopper_pearson_upper

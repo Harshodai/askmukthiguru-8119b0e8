@@ -78,17 +78,15 @@ TEACHER_CANONICAL_MAP: dict[str, str] = {
     "bhagavan": "Sri Amma Bhagavan",
     "amma bhagavan": "Sri Amma Bhagavan",
     "sri amma bhagavan": "Sri Amma Bhagavan",
-
     # Sri Preethaji
     "preethaji": "Sri Preethaji",
     "preetha ji": "Sri Preethaji",
     "sri preethaji": "Sri Preethaji",
     "shri preethaji": "Sri Preethaji",
-
     # Sri Krishnaji
     "krishnaji": "Sri Krishnaji",
     "krishna ji": "Sri Krishnaji",
-    "sri krishnaji": "Sri Krishnaji"
+    "sri krishnaji": "Sri Krishnaji",
 }
 ```
 

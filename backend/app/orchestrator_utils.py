@@ -15,11 +15,7 @@ import logging
 import re
 import time
 from collections import OrderedDict
-from datetime import datetime, timedelta, timezone
-try:
-    from datetime import UTC
-except ImportError:
-    UTC = timezone.utc
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional
 
 from app.config import settings

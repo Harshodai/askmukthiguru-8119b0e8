@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import uuid
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Optional
@@ -862,6 +863,7 @@ class DataQualityGate:
         if rejected_payloads:
             try:
                 from app.telemetry_db import _get_client
+
                 client = _get_client()
                 if client is not None:
                     rows = [
@@ -873,7 +875,9 @@ class DataQualityGate:
                             "reason": r,
                             "gate_reason": r,
                             "matched_span": span[:500],
-                            "point_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source_url}_{idx}_0"))
+                            "point_id": str(
+                                uuid.uuid5(uuid.NAMESPACE_URL, f"{source_url}_{idx}_0")
+                            ),
                         }
                         for idx, r, span in rejected_payloads
                     ]

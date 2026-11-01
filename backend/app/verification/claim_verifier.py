@@ -1,9 +1,9 @@
 # DORMANT (2026-11-01 wiring audit, plan §12): no call site in the request path; not shipped. Word-overlap heuristic, not LettuceDetect/ModernBERT; the live verifier is services/lettuce_detect_service.py.
 """Claim verifier using LettuceDetect / ModernBERT NLI with zero devotional boost."""
 
-import os
 import logging
-from typing import Dict, Any, List, Optional
+import os
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +38,16 @@ class PipelinedClaimVerifier:
                 # we can attempt loading or set up graceful fallback if dependencies aren't fully installed.
                 # Let's check if transformers/onnxruntime is available.
                 import importlib.util
+
                 if importlib.util.find_spec("transformers") is not None:
                     # Optional actual load if desired, but graceful fallback ensures 100% test pass rate in sandboxed environments.
                     pass
         except Exception as e:
-            logger.warning(f"Could not load LettuceDetect model weights from disk: {e}. Using NLI fallback.")
+            logger.warning(
+                f"Could not load LettuceDetect model weights from disk: {e}. Using NLI fallback."
+            )
 
-    def verify_sentence(self, sentence: str, context_chunks: List[str]) -> Dict[str, Any]:
+    def verify_sentence(self, sentence: str, context_chunks: list[str]) -> dict[str, Any]:
         """Verifies whether `sentence` is faithful to `context_chunks`.
         Returns:
             dict with keys: 'is_faithful' (bool), 'hallucination_score' (float), 'reason' (str)
@@ -56,11 +59,15 @@ class PipelinedClaimVerifier:
             # Without context, any factual claim outside general knowledge might be unverified,
             # but let's check basic heuristics or fallback.
             # Fail to abstain: a claim with nothing to be grounded in is not faithful.
-            return {"is_faithful": False, "hallucination_score": 1.0, "reason": "no_context_provided"}
+            return {
+                "is_faithful": False,
+                "hallucination_score": 1.0,
+                "reason": "no_context_provided",
+            }
 
         # Compute hallucination score via NLI entailment / overlap heuristic or loaded model
         score = self._compute_hallucination_score(sentence, context_chunks)
-        
+
         is_faithful = score <= self.threshold
         return {
             "is_faithful": is_faithful,
@@ -68,7 +75,7 @@ class PipelinedClaimVerifier:
             "reason": "entails_context" if is_faithful else "high_hallucination_risk",
         }
 
-    def _compute_hallucination_score(self, sentence: str, context_chunks: List[str]) -> float:
+    def _compute_hallucination_score(self, sentence: str, context_chunks: list[str]) -> float:
         """Computes hallucination score (0.0 = fully faithful, 1.0 = pure hallucination).
         Invariants:
         - Permanent elimination of the devotional vocabulary boost table. No softening for spiritual terms.

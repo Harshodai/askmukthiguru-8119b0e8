@@ -11,11 +11,8 @@ import pytest
 from app.intake import (
     FastSafetyKernel,
     FastShortCircuitCascade,
-    ShortCircuitResult,
     UnifiedPersonalizationCoordinator,
-    UnifiedUserPersonalizationContext,
 )
-
 
 # ===========================================================================
 # 1. FastSafetyKernel Tests

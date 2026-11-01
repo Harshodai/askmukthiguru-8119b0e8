@@ -26,26 +26,25 @@ from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from services.personalization.cascade_erasure import (
+    DeletionAuditReceipt,
+    hard_cascade_account_erasure,
+)
 from services.personalization.crypto import (
+    VaultLockedError,
+    decrypt_facet,
     derive_mode_b_key,
     encrypt_facet,
-    decrypt_facet,
-    EncryptedFacet,
-    VaultLockedError,
 )
 from services.personalization.models import (
-    SeekerProfileContext,
-    SecondBrainContext,
-    SadhanaPracticeContext,
-    PrePracticeLogContext,
-    StudyNotebookContext,
     MoodSpiritualJournalContext,
-    WhatsAppReflectionContext,
+    PrePracticeLogContext,
+    SadhanaPracticeContext,
+    SecondBrainContext,
+    SeekerProfileContext,
+    StudyNotebookContext,
     UnifiedSeekerContext,
-)
-from services.personalization.cascade_erasure import (
-    hard_cascade_account_erasure,
-    DeletionAuditReceipt,
+    WhatsAppReflectionContext,
 )
 
 logger = logging.getLogger(__name__)
@@ -149,9 +148,13 @@ class UnifiedPersonalizationEngine:
                 logger.error(f"Failed to derive Mode-B vault key during hydration: {e}")
 
         def _maybe_decrypt(facet_obj: Any, facet_name: str) -> None:
-            if getattr(facet_obj, "is_encrypted", False) and getattr(facet_obj, "encrypted_blob", None):
+            if getattr(facet_obj, "is_encrypted", False) and getattr(
+                facet_obj, "encrypted_blob", None
+            ):
                 if not vault_key_bytes:
-                    raise VaultLockedError(f"Vault is locked for facet '{facet_name}'. Client unlock key required.")
+                    raise VaultLockedError(
+                        f"Vault is locked for facet '{facet_name}'. Client unlock key required."
+                    )
                 decrypted_dict = decrypt_facet(facet_obj.encrypted_blob, vault_key_bytes)
                 for k, v in decrypted_dict.items():
                     if hasattr(facet_obj, k):
@@ -201,15 +204,12 @@ class UnifiedPersonalizationEngine:
         Persists a facet update for a user. If encrypt_mode_b is True and client_vault_key
         is provided, encrypts the payload using Mode-B AES-256-GCM before storage.
         """
-        stored_payload = payload
-        encrypted_blob: Optional[EncryptedFacet] = None
 
         if encrypt_mode_b:
             if not client_vault_key:
                 raise VaultLockedError("Cannot encrypt facet without client_vault_key")
             vault_key_bytes = derive_mode_b_key(client_vault_key)
-            encrypted_blob = encrypt_facet(payload, vault_key_bytes)
-            stored_payload = {"is_encrypted": True, "ciphertext": encrypted_blob.ciphertext, "iv": encrypted_blob.iv, "tag": encrypted_blob.tag}
+            encrypt_facet(payload, vault_key_bytes)
 
         if session:
             pass
