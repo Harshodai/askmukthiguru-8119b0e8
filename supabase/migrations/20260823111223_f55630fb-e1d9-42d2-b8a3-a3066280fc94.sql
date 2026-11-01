@@ -1,3 +1,16 @@
+-- ============================================================================
+-- REVERT: Restore public execute on admin RPCs and app settings policy
+-- Manual undo for this migration. Review by a human before running in prod;
+-- never auto-revert. See docs/runbooks/MIGRATION_ROLLBACK.md.
+-- ============================================================================
+
+-- REVERT: <undo SQL> (comment block; do not execute without review)
+-- ----------------------------------------------------------------------------
+-- DROP POLICY IF EXISTS "Admins can read app settings" ON public.app_settings;
+-- CREATE POLICY "Authenticated users can read app settings" ON public.app_settings FOR SELECT TO authenticated USING (true);
+-- GRANT EXECUTE ON FUNCTION public.has_role(uuid, public.app_role) TO anon, PUBLIC;
+-- ============================================================================
+
 DROP POLICY IF EXISTS "Authenticated users can read app settings" ON public.app_settings;
 
 CREATE POLICY "Admins can read app settings"
