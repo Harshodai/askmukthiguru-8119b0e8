@@ -11,7 +11,6 @@ Diff base for `claims`: $GUARD_BASE, else staged changes, else HEAD~1.
 from __future__ import annotations
 
 import csv
-import functools
 import hashlib
 import json
 import os
@@ -67,7 +66,9 @@ def _read_path_list(path: Path) -> list[str]:
     if not path.exists():
         return []
     return [
-        line.strip() for line in path.read_text().splitlines() if line.strip() and not line.startswith("#")
+        line.strip()
+        for line in path.read_text().splitlines()
+        if line.strip() and not line.startswith("#")
     ]
 
 
@@ -223,7 +224,9 @@ def publication_problem(path: str) -> str | None:
             else:
                 hit = _unredacted_key(record)
             if hit:
-                return f"{path}: JSON/JSONL has unredacted teacher text key '{hit}' (L-PUBLIC-REPO-1)"
+                return (
+                    f"{path}: JSON/JSONL has unredacted teacher text key '{hit}' (L-PUBLIC-REPO-1)"
+                )
     return None
 
 
@@ -267,14 +270,62 @@ def added_lines(path: str) -> list[str]:
     return []
 
 
+# --- first_person_* write guard -------------------------------------------------
+# Only the build/tag ops scripts may write to a first_person_* collection. A writer
+# elsewhere (the ingest pipeline once dual-indexed into v10/v11 after every video) puts
+# unreviewed, self-labelled points in a live serving collection.
+FP_WRITE_CALL = re.compile(
+    r"\.(upsert|upload_points|upload_collection|set_payload|overwrite_payload|delete_payload|delete)\("
+)
+FP_COLLECTION = re.compile(
+    r"first_person_(v\d+|collection|active)|FIRST_PERSON_COLLECTION|first_person_context_collection",
+    re.I,
+)
+FP_WRITE_OK = re.compile(
+    r"(^|/)scripts/ops/(build_|tag_)[^/]*\.py$|(^|/)tests?/|(^|/)test_[^/]*\.py$"
+)
+FP_LITERAL = re.compile(r"[\"']first_person_v\d+[\"']")
+
+
+def fp_write_problems(path: str, text: str) -> list[str]:
+    """File-level: a write call plus a first_person_vN literal or the collection settings.
+
+    Coarse on purpose. A variable collection name (`for col in [...]: client.upsert(col)`)
+    defeats any per-line check, and a non-ops file that both names a first_person
+    collection and writes points is exactly the shape to review. Mark a reviewed line
+    with `fp-write-ok`.
+    """
+    if FP_WRITE_OK.search(path) or not path.endswith(".py"):
+        return []
+    allow = ROOT / "scripts/guards/fp_write_allowlist.txt"
+    if allow.exists() and path in {
+        ln.strip() for ln in allow.read_text().splitlines() if ln.strip() and not ln.startswith("#")
+    }:
+        return []
+    if not (FP_LITERAL.search(text) or FP_COLLECTION.search(text)):
+        return []
+    out = []
+    for i, line in enumerate(text.splitlines()):
+        if FP_WRITE_CALL.search(line) and "fp-write-ok" not in line:
+            out.append(
+                f"{path}:{i + 1}: write call in a file that names a first_person_* collection"
+            )
+    return out
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) < 2 or argv[1] not in {"publication", "claims"}:
+    if len(argv) < 2 or argv[1] not in {"publication", "claims", "fp-writes"}:
         print(__doc__)
         return 2
     mode, files = argv[1], argv[2:]
     problems: list[str] = []
     for f in files:
-        if mode == "publication":
+        if mode == "fp-writes":
+            try:
+                problems += fp_write_problems(f, (ROOT / f).read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
+        elif mode == "publication":
             msg = publication_problem(f)
             problems += [msg] if msg else []
         elif f.endswith(".md") and not f.startswith(("research/", "docs/audits/RELEASE_EVIDENCE")):

@@ -66,11 +66,7 @@ from services.whisper_local_service import (
 logger = logging.getLogger(__name__)
 
 from dataclasses import dataclass, field
-try:
-    from datetime import UTC
-except ImportError:
-    from datetime import timezone
-    UTC = timezone.utc
+from datetime import UTC
 
 from ingest.adaptive_chunking import AdaptiveChunker
 from ingest.corrector import TranscriptCorrector
@@ -3090,7 +3086,7 @@ class IngestionPipeline:
                                     if str(ent_name).strip().lower() not in neo4j_entities:
                                         points_to_delete.append(p.id)
                             if points_to_delete:
-                                qdrant.delete(collection_name=col, points_selector=points_to_delete)
+                                qdrant.delete(collection_name=col, points_selector=points_to_delete)  # fp-write-ok: lightrag_vdb_* only
                                 total_deleted_points += len(points_to_delete)
                     for col in relationship_cols:
                         cnt = qdrant.count(col, exact=True).count
@@ -3114,7 +3110,7 @@ class IngestionPipeline:
                                 if src_missing or tgt_missing:
                                     points_to_delete.append(p.id)
                             if points_to_delete:
-                                qdrant.delete(collection_name=col, points_selector=points_to_delete)
+                                qdrant.delete(collection_name=col, points_selector=points_to_delete)  # fp-write-ok: lightrag_vdb_* only
                                 total_deleted_points += len(points_to_delete)
                     if total_deleted_points > 0:
                         logger.info(
@@ -3643,8 +3639,19 @@ class IngestionPipeline:
         import hashlib
         import os
         import uuid
+
         from qdrant_client import QdrantClient
-        from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchValue
+        from qdrant_client.models import FieldCondition, Filter, MatchValue, PointStruct
+
+        # Explicit opt-in only. Default is empty: an ingest must never write to (or delete
+        # from) a live first_person_* serving collection on its own. This path also
+        # hardcodes the voice-verification method and defaults speaker_verified=True, which
+        # is why it must be named, never implied.
+        requested = [
+            c.strip() for c in str(settings.fp_dual_index_collections or "").split(",") if c.strip()
+        ]
+        if not requested:
+            return 0
 
         client = getattr(self._qdrant, "_client", None)
         if client is None:
@@ -3658,7 +3665,7 @@ class IngestionPipeline:
             logger.warning("Could not query Qdrant collections for FP dual-indexing: %s", e)
             return 0
 
-        target_collections = [c for c in ["first_person_v11", "first_person_v10"] if c in available_collections]
+        target_collections = [c for c in requested if c in available_collections]
         if not target_collections:
             logger.info("No first-person collections found in Qdrant; skipping FP dual-indexing")
             return 0
@@ -3712,12 +3719,17 @@ class IngestionPipeline:
             sp_dict = {}
             if sparse_v is not None:
                 if isinstance(sparse_v, dict):
-                    sp_dict = {"indices": list(sparse_v.get("indices", [])), "values": list(sparse_v.get("values", []))}
+                    sp_dict = {
+                        "indices": list(sparse_v.get("indices", [])),
+                        "values": list(sparse_v.get("values", [])),
+                    }
                 elif hasattr(sparse_v, "indices") and hasattr(sparse_v, "values"):
                     sp_dict = {"indices": list(sparse_v.indices), "values": list(sparse_v.values)}
 
             vector_payload = {
-                "passage_dense": [float(x) for x in dense_v] if hasattr(dense_v, "__iter__") else dense_v,
+                "passage_dense": [float(x) for x in dense_v]
+                if hasattr(dense_v, "__iter__")
+                else dense_v,
                 "passage_sparse": sp_dict,
             }
 
@@ -3801,14 +3813,14 @@ class IngestionPipeline:
         total_upserted = 0
         for target_col in target_collections:
             try:
-                client.delete(
+                client.delete(  # fp-write-ok: only collections named in FP_DUAL_INDEX_COLLECTIONS
                     collection_name=target_col,
                     points_selector=Filter(
                         must=[FieldCondition(key="video_id", match=MatchValue(value=video_id))]
                     ),
                     wait=True,
                 )
-                client.upsert(
+                client.upsert(  # fp-write-ok: only collections named in FP_DUAL_INDEX_COLLECTIONS
                     collection_name=target_col,
                     points=points_to_upsert,
                     wait=True,

@@ -212,6 +212,9 @@ class Settings(BaseSettings):
     # (empty = no path source is accepted).
     federated_ingest_enabled: bool = False
     federated_ingest_allowed_dir: str = ""
+    # Comma-separated first_person_* collections the ingest pipeline may dual-index into
+    # after a video ingest. EMPTY (default) = ingest writes to no first_person_* collection.
+    fp_dual_index_collections: str = ""
     # Gate for the /api/first-person/query route itself (separate from
     # first_person_mode, which the route also still checks).
     # Updated 2026-10-04: enabled by default — route was silently off for all

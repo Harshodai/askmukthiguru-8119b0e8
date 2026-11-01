@@ -1,6 +1,14 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 1, 2026 — ingest wrote to live first_person_* collections
+
+### L-INGEST-WRITES-SERVING-COLLECTION-1. An ingest side effect that writes to a live serving collection, by default, bypasses every review gate.
+- **What:** `IngestionPipeline._upsert_first_person_context` dual-indexed into `first_person_v11` and `first_person_v10` after every video ingest, deleted by `video_id` on the live collection, hardcoded `voice_verification_method=ecapa_voxceleb_centroid_v1` and defaulted `speaker_verified=True`. That is how unreviewed points reached v10.
+- **Fix:** `FP_DUAL_INDEX_COLLECTIONS` (default empty) names the only collections it may touch; empty means zero Qdrant calls. New guard `lesson_guards.py fp-writes` (pre-commit) fails a Python file outside `scripts/ops/build_*|tag_*` and tests that names a `first_person_*` collection and calls upsert/set_payload/delete. Existing writers are a ratchet baseline in `scripts/guards/fp_write_allowlist.txt`; reviewed lines carry `fp-write-ok`.
+- **Not fixed:** the hardcoded verification method and `speaker_verified` default remain inside the opt-in path.
+- **Pin:** `tests/test_fp_dual_index_default_off.py`, `tests/test_lesson_guards.py`.
+
 ## Nov 1, 2026 — /ingest/federated closed
 
 ### L-FEDERATED-INGEST-OPEN-DOOR-1. An admin ingest route that takes a server path and stamps `licensed` is a file-read primitive unless it is off by default and path-bound.

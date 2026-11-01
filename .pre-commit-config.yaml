@@ -56,3 +56,8 @@ repos:
         entry: python3 scripts/guards/lesson_guards.py claims
         language: system
         types: [markdown]
+      - id: guard-fp-writes
+        name: no writes to first_person_* collections outside scripts/ops/build_* and tag_*
+        entry: python3 scripts/guards/lesson_guards.py fp-writes
+        language: system
+        types: [python]
