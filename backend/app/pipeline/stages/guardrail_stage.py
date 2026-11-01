@@ -165,12 +165,14 @@ class InputGuardrailStage(Stage):
                 return PipelineResult(
                     final_answer=blocked_resp,
                     intent="DISTRESS",
+                    blocked=True,
+                    block_reason=_verdict.reason or "acute_crisis",
                     trace_id=getattr(ctx, "trace_id", ""),
                     latency_ms=int((time.time() - getattr(ctx, "start_time", time.time())) * 1000),
                     route_decision="crisis_preemption",
-                    grounding_state="safety_redirect",
                     verification={"passed": True, "method": "fast_safety_kernel"},
                     route_metadata={
+                        "grounding_state": "safety_redirect",
                         "safety_tier": "fast_safety_kernel",
                         "reason": _verdict.reason,
                         "matched_pattern": _verdict.matched_pattern,
