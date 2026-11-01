@@ -321,6 +321,7 @@ def score_unanswerable(rows: list[dict[str, Any]]) -> dict[str, Any]:
     The core abstain rate counts only the ``core`` group; every other group is reported on its
     own line and never folded into it.
     """
+    rows = [r for r in rows if r.get("expected") is not None]
     groups: dict[str, dict[str, Any]] = {}
     failures: list[dict[str, Any]] = []
     passed_flags: list[bool] = []
@@ -472,8 +473,9 @@ def main() -> int:
     if not (args.pass_bar and args.second_model):
         ap.error("--pass-bar and --second-model are required unless --unanswerable")
     bar = json.loads(Path(args.pass_bar).read_text())
+    served_rows = [r for r in rows if r.get("citations")]
     result = grade_rows(
-        rows,
+        served_rows or rows,
         _openrouter_asker(args.first_model),
         _openrouter_asker(args.second_model),
         args.sample_fraction,

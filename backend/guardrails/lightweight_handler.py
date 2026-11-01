@@ -516,7 +516,7 @@ RELATIONSHIP_SAFETY_BOUNDARY = (
 # (one clip cannot carry the line). Questions with a cure/cause framing are
 # blocked outright by medical_advice_broad above.
 _ADDICTION_RE = re.compile(
-    r"\b(?:addict\w*|de-?addiction|relaps\w*|alcoholi\w*|substance\s+(?:use|abuse|misuse)"
+    r"\b(?:addict\w*|de-?addiction|relaps\w*|alcohol\w*|substance\s+(?:use|abuse|misuse)"
     r"|(?:drinking|drug|gambling|porn\w*|smoking|gaming)\s+(?:problem|habit|addiction)"
     r"|withdrawal\s+symptoms?|(?:quit|stop)\s+(?:drinking|smoking|drugs|using))\b"
     # Hindi (2026-10-08, UNVERIFIED by a native speaker): the boundary normally reads the

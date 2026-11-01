@@ -222,7 +222,7 @@ _HAS_WORDS_RE = re.compile(r"[A-Za-z]{3,}")
 # person, cutting, overdose) because it only ever adds the support line: it never blocks,
 # never reroutes, never edits a clip. Not a risk classifier; the distress engine owns that.
 _QUESTION_SELF_HARM_CUE_RE = re.compile(
-    r"\b(?:self[\s-]?harm\w*|self[\s-]?injur\w*|overdos\w+"
+    r"\b(?:self[\s-]*harm\w*|self[\s-]*injur\w*|overdos\w+"
     r"|cut(?:ting|s)?\s+(?:myself|herself|himself|themselves|(?:my|her|his|their|your)\s+"
     r"(?:arms?|wrists?|legs?|thighs?|skin))"
     r"|(?:bottle|packet|strip|box)\s+of\s+(?:sleeping\s+)?(?:pills|tablets)"
@@ -231,7 +231,7 @@ _QUESTION_SELF_HARM_CUE_RE = re.compile(
     re.IGNORECASE,
 )
 _CLIP_MENTIONS_SELF_HARM = re.compile(
-    r"\b(?:self[\s-]?harm|suicid\w*|kill(?:ing)?\s+(?:my|your|him|her|them)self"
+    r"\b(?:self[\s-]*harm|suicid\w*|kill(?:ing)?\s+(?:my|your|him|her|them)self"
     r"|end(?:ing)?\s+(?:my|your|his|her|their)\s+(?:own\s+)?life|take\s+(?:my|your)\s+own\s+life)\b",
     re.IGNORECASE,
 )
@@ -1020,6 +1020,16 @@ class FirstPersonBridgeStage(Stage):
             _joined_notices = "\n\n".join(safety_notices)
             if ensure_support_line(_joined_notices) != _joined_notices:
                 safety_notices.append(ensure_support_line(""))
+
+        from guardrails.lightweight_handler import (
+            addiction_support_boundary,
+            needs_addiction_support_boundary,
+        )
+
+        if needs_addiction_support_boundary(answer):
+            _add_bound = addiction_support_boundary()
+            if _add_bound not in safety_notices:
+                safety_notices.append(_add_bound)
 
         if distress_compassion and has_self_harm_risk:
             # Emergency helpline is appended when acute distress / self-harm risk is detected.

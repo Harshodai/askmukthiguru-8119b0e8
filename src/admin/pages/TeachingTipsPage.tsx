@@ -349,4 +349,3 @@ export default function TeachingTipsPage() {
     </div>
   );
 }
-

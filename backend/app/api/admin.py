@@ -470,8 +470,8 @@ async def get_data_stores_endpoint(
             result["memgraph"] = {"error": "Memgraph driver not available"}
             result["neo4j"] = {"error": "Memgraph driver not available"}
     except Exception as e:
-        result["memgraph"] = {"error": f"Failed to query Memgraph: {e}"}
-        result["neo4j"] = {"error": f"Failed to query Memgraph: {e}"}
+        result["memgraph"] = {"error": "Failed to query Memgraph"}
+        result["neo4j"] = {"error": "Failed to query Memgraph"}
         logger.exception("Failed to query Memgraph: %s", e)
 
     # ── LightRAG ────────────────────────────────────────────────────────

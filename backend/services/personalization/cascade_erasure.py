@@ -20,6 +20,7 @@ import datetime
 import hashlib
 import json
 import logging
+import re
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -404,9 +405,10 @@ async def hard_cascade_account_erasure(
     )
     receipt.audit_hash = receipt.compute_hash()
 
+    safe_user_id = re.sub(r"[\r\n\t]", "", str(user_id))[:64]
     logger.info(
         "[CascadeErasure] Completed hard cascade erasure for user %s status=%s verified=%s tables_wiped=%d",
-        user_id,
+        safe_user_id,
         status,
         audit_verified,
         len(tables_wiped),

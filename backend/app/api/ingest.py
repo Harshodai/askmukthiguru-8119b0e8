@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import unicodedata
+from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -500,9 +501,10 @@ def _write_bytes(path: str, data: bytes) -> None:
 
 def _resolve_video_file_path(video_id: str) -> Optional[str]:
     """Resolve physical path of a video file by ID across local and docker mount locations."""
-    safe_id = re.sub(r"[^A-Za-z0-9_-]", "", video_id.split(".")[0])
-    if not safe_id:
+    token = video_id.split(".")[0].strip()
+    if not re.fullmatch(r"^[A-Za-z0-9_-]{1,64}$", token):
         return None
+    safe_id = token
 
     candidate_dirs = [
         "/app/data/videos",
@@ -512,9 +514,14 @@ def _resolve_video_file_path(video_id: str) -> Optional[str]:
     extensions = [".mp4", ".webm", ".mov", ".mkv"]
 
     for d in candidate_dirs:
+        real_d = os.path.realpath(d)
         for ext in extensions:
-            candidate = os.path.join(d, f"{safe_id}{ext}")
-            if os.path.exists(candidate) and os.path.getsize(candidate) > 0:
+            candidate = os.path.realpath(os.path.join(real_d, f"{safe_id}{ext}"))
+            if (
+                os.path.commonpath([real_d, candidate]) == real_d
+                and os.path.isfile(candidate)
+                and os.path.getsize(candidate) > 0
+            ):
                 return candidate
     return None
 
@@ -553,6 +560,9 @@ async def stream_video_endpoint(
     Stream a direct uploaded video with HTTP 206 Partial Content support for seeking (Public).
     Supports HTML5 <video controls> and range headers.
     """
+    if not re.fullmatch(r"^[A-Za-z0-9_.-]{1,64}$", video_id.strip()):
+        raise HTTPException(status_code=400, detail="Invalid video ID")
+
     file_path = _resolve_video_file_path(video_id)
     if not file_path:
         raise HTTPException(status_code=404, detail=f"Video '{video_id}' not found")
@@ -946,13 +956,24 @@ def _validate_federated_source(source_type: str, source_ref: str) -> str:
             raise HTTPException(
                 status_code=400, detail="No federated ingest directory is configured"
             )
-        root = os.path.realpath(allowed)
-        target = os.path.realpath(source_ref)
-        if os.path.commonpath([root, target]) != root or not os.path.isfile(target):
+        if "\0" in source_ref or ".." in source_ref:
+            raise HTTPException(
+                status_code=400, detail="source_ref contains invalid path components"
+            )
+        root_path = Path(allowed).resolve()
+        raw_path = Path(source_ref)
+        if raw_path.is_absolute():
+            target_path = raw_path.resolve()
+        else:
+            target_path = (root_path / raw_path).resolve()
+
+        root_str = str(root_path)
+        target_str = str(target_path)
+        if not target_path.is_relative_to(root_path) or os.path.commonpath([root_str, target_str]) != root_str or not target_path.is_file():
             raise HTTPException(
                 status_code=400, detail="source_ref must be a file inside the allowed directory"
             )
-        return target
+        return target_str
     raise HTTPException(status_code=400, detail="Unsupported source_type for this route")
 
 

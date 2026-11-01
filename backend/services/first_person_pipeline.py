@@ -1396,9 +1396,9 @@ def _llm_rerank_clips(
 # (>=2400ms, 0 fast-fails — the loop fix held), while real verdict latencies
 # ran p90=1943ms / max=2470ms against deepseek-chat. 4.0s = ~1.6x observed
 # max (Headroom), and a timeout still fails toward honest abstention.
-# 6.0 s (was 4.0): live 2026-10-11 ~7% of on-topic questions timed out at 4 s on a
-# slow provider response and were abstained (fail-closed). Only slow calls pay for it.
-_ANSWERABILITY_TIMEOUT_S = 6.0
+# 12.0 s (was 6.0): matches FIRST_PERSON_RELEVANCE_TIMEOUT_S=12 so slow provider
+# responses on adversarial injection queries do not time out and log indeterminate.
+_ANSWERABILITY_TIMEOUT_S = 12.0
 
 # Bounded executor for the per-query answerability gate worker (replaces one
 # threading.Thread per query). The gate overlaps retrieval, so at most a
@@ -1567,6 +1567,7 @@ async def _async_answerability_check(
             system_prompt=_ANSWERABILITY_SYSTEM_PROMPT,
             user_prompt=query,
             temperature=0.0,
+            max_tokens=16,
         )
         if inspect.isawaitable(res):
             res = await res

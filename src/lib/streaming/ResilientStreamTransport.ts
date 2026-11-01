@@ -151,7 +151,7 @@ export class ResilientStreamTransport {
 
     this.retryCount++;
     const backoffMs = Math.min(1000 * Math.pow(2, this.retryCount - 1), 30000);
-    
+
     if (this.onReconnect) {
       this.onReconnect(this.retryCount);
     }

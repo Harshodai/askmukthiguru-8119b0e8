@@ -18,13 +18,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRagFlowGraph } from "@/admin/hooks/useAdminData";
-import { 
-  Network, 
-  RefreshCw, 
-  Activity, 
-  HelpCircle, 
-  Flame, 
-  Clock, 
+import {
+  Network,
+  RefreshCw,
+  Activity,
+  HelpCircle,
+  Flame,
+  Clock,
   Database,
   ArrowRight,
   Sparkles,
@@ -444,7 +444,7 @@ export default function RAGFlowPage() {
       const col = node?.id && NODE_COLUMNS[node.id] !== undefined ? NODE_COLUMNS[node.id] : 2;
       const indexInCol = node?.id && colGroups[col] ? colGroups[col].indexOf(node.id) : 0;
       const colSize = colGroups[col]?.length || 1;
-      
+
       // Center column vertically around midY
       const x = xOffset + col * xSpacing;
       const y = midY + (indexInCol - (colSize - 1) / 2) * ySpacing;
@@ -479,7 +479,7 @@ export default function RAGFlowPage() {
       // Find latency if edge source matches any node's avg latency
       const srcNode = graphData.nodes?.find((n) => n?.id === edge?.source);
       const isSlowPath = srcNode && (srcNode.avg_latency_ms ?? 0) > 1500;
-      
+
       return {
         id: edge?.id ?? `${edge?.source}-${edge?.target}`,
         source: edge?.source ?? "",
@@ -607,7 +607,7 @@ export default function RAGFlowPage() {
               >
                 <Background color="rgba(156, 163, 175, 0.15)" gap={16} size={1} />
                 <Controls showInteractive={false} className="bg-background border border-border rounded shadow" />
-                <MiniMap 
+                <MiniMap
                   nodeStrokeColor={(n) => {
                     const desc = NODE_DESCRIPTIONS[n.id];
                     if (desc?.category === "Intent") return "#3b82f6";
@@ -706,7 +706,7 @@ export default function RAGFlowPage() {
                         </span>
                       </div>
                       <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className={`h-full rounded-full transition-all duration-500 ${
                             (selectedNode?.avg_latency_ms ?? 0) > 1500 ? "bg-rose-500" : "bg-emerald-500"
                           }`}
@@ -724,7 +724,7 @@ export default function RAGFlowPage() {
                     Intercepts <code>[RETRIEVE: url]</code> directives in LLM generation, restoring original text from <code>raw_documents</code> cache to verify citations.
                   </div>
                 )}
-                
+
                 {selectedNode.id === "verify_answer" && (
                   <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-lg text-[11px] text-muted-foreground leading-relaxed">
                     <span className="font-semibold text-primary block mb-0.5">ℹ️ Ralph Teacher-Student Loop</span>

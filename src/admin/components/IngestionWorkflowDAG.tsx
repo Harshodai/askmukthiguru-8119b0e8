@@ -205,7 +205,7 @@ export function IngestionCustomNode({ data, selected }: { data: IngestionStageDa
         position={Position.Left}
         className="!w-3 !h-3 !border-2 !border-background !bg-primary transition-transform hover:!scale-125"
       />
-      
+
       {/* Header with Stage Number & Category */}
       <div className="flex items-center justify-between gap-2 mb-2">
         <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground/90">
