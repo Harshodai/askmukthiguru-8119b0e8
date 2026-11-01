@@ -27,7 +27,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
  * box claiming to play. Callers must render that escape hatch.
  */
 
-const EMBED_LOAD_TIMEOUT_MS = 10_000;
+const EMBED_LOAD_TIMEOUT_MS = 4_500;
 
 /** YouTube emits 101/150 for "embedding disabled by request"; 153 for player
  *  configuration / origin restriction; 2/5/100 are bad-parameter / HTML5-player

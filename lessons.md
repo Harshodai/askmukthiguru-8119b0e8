@@ -13873,3 +13873,18 @@ Started as a narrow ask: enable `rag_deep_research_enabled` (an adaptive suffici
 ### L-CITATION-CLUBBING-TEST-SEAM-1. Continuous discourse citations from the same video unify consecutive spans into a single playback clip.
 - **What:** Under commit `a846962e`, adjacent and contiguous first-person discourse spans from the same video and speaker are merged into a single continuous citation and audio clip (`_club_consecutive_citations`). Multi-span context tests asserting legacy fragmented citations failed because the unified result correctly surfaces as a single seamless citation spanning the entire continuous window.
 - **Rule:** When adding conversational or discourse unification to the serving pipeline, update harness integration tests to assert the unified citation boundaries rather than expecting fragmented multi-part citations.
+
+### L-EMBED-YOUTUBE-ERROR-153. YouTube Embed Error 153 is caused by missing Origin/Referrer headers — use `strict-origin-when-cross-origin` and pass valid origin parameters.
+- **What:** YouTube embedded iframes displayed "Video player configuration error: Error 153" when playing audio/video discourse citations. The error code `153` (`embedder.identity.missing.referrer`) is triggered when YouTube cannot identify the host application because `referrerPolicy="no-referrer-when-downgrade"` completely strips the Referer header on HTTP-to-HTTPS navigation (such as `http://localhost:8080`), or when the `origin` query parameter is missing.
+- **Fix:** Switched `referrerPolicy` to `"strict-origin-when-cross-origin"` across `DiscourseAudioStrip.tsx` and `CitationCard.tsx`, supplied `&origin=${encodeURIComponent(window.location.origin)}`, targeted the canonical `https://www.youtube.com/embed/` endpoint, and lowered the unplayable embed watchdog timeout in `useYouTubeEmbedError.ts` to 4.5 seconds for prompt fallback.
+- **Rule:** All YouTube iframe embeds must explicitly declare `referrerPolicy="strict-origin-when-cross-origin"` and include the host `origin` parameter to prevent YouTube player initialization failure.
+
+### L-UI-USER-AVATAR-FALLBACK-1. User menus must never default to application branding logos as profile pictures.
+- **What:** `UserMenu.tsx` and `ProfilePage.tsx` fell back to `/images/ekam-golden-orb-lotus-square.png` when `profile.avatarUrl` or `avatarDataUrl` was empty, rendering the app logo in place of the user's avatar.
+- **Fix:** Swapped the hardcoded image fallback for Radix `<AvatarFallback>` rendering the seeker's initials (e.g. `SE`) or a `User` icon inside a subtle gradient ring, reserving the golden lotus strictly for application branding.
+- **Rule:** Never use application logos as avatar fallbacks for authenticated users; always display user initials or neutral silhouette icons.
+
+### L-UI-HERO-NAVBAR-SPACING-1. Floating capsule navbars require adequate hero top-padding to prevent cramped seams.
+- **What:** On landing pages with a fixed top capsule navbar (`mt-5`), hero top padding of `pt-28 md:pt-24` placed the hero badge only ~10px below the navbar capsule, creating an awkward visual gap and border crowding.
+- **Fix:** Expanded the hero section content padding to `pt-36 sm:pt-40 md:pt-44 pb-16`, giving 60-80px of clear ambient breathing space beneath the floating capsule.
+- **Rule:** Fixed floating navbars must be accommodated by generous page top padding so hero pill badges do not crowd the navbar capsule.

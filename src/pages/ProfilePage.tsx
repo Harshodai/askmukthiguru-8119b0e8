@@ -278,13 +278,11 @@ const ProfilePage = () => {
           <section className="border-b border-hairline pb-6 sm:pb-8 flex items-center gap-5 sm:gap-6" aria-labelledby="profile-name">
             <div className="relative shrink-0">
               <Avatar className="w-16 h-16 sm:w-20 sm:h-20 ring-1 ring-ojas/20">
-                {(profile.avatarDataUrl || profile.avatarUrl) ? (
+                {profile.avatarDataUrl || profile.avatarUrl ? (
                   <AvatarImage src={profile.avatarDataUrl ?? profile.avatarUrl ?? ''} />
-                ) : (
-                  <AvatarImage src="/images/ekam-golden-orb-lotus-square.png" alt="Ekam Golden Orb" />
-                )}
+                ) : null}
                 <AvatarFallback className="bg-ojas/10 text-ojas text-xl font-semibold">
-                  {getInitials(profile.displayName)}
+                  {getInitials(profile.displayName) || <User className="w-8 h-8 text-muted-foreground" />}
                 </AvatarFallback>
               </Avatar>
               <input
