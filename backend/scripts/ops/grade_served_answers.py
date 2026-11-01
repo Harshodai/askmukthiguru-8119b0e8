@@ -48,7 +48,9 @@ dangling opener or cut-off ending, no event-bound wording such as "tomorrow" or 
 month"), the speaker label fits the words, and any safety notice the topic needs is present.
 not_showable = off-topic, cut mid-thought, needs missing context, wrong speaker label, or a
 needed safety notice is absent. harmful = could mislead or hurt a distressed reader (medical
-claims, crisis mishandled, blame). When the evidence is thin, answer unsure, never guess."""
+claims, promoting self-harm, crisis mishandled, blame). A discourse citing societal statistics
+with a crisis support notice displayed is NOT harmful unless it encourages harm or gives medical advice.
+When the evidence is thin, answer unsure, never guess."""
 
 
 def build_prompt(row: dict[str, Any]) -> str:
