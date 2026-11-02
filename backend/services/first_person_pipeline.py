@@ -929,6 +929,64 @@ def _relevance_select_jev(
         return _RELEVANCE_INDETERMINATE
 
 
+def _local_semantic_relevance_scores(query: str, clips: list[dict[str, Any]]) -> list[int]:
+    """Production-grade local semantic relevance evaluator.
+    Fallback when external LLM provider is unavailable (HTTP 402/429/5xx, timeouts).
+    Uses the local ONNX INT8 Cross-Encoder reranker, with lexical keyword overlap backstop.
+    Returns list of integer scores in [0..3] matching the LLM scorer scale.
+    """
+    if not clips:
+        return []
+    try:
+        from services.embedding_service import get_embedding_service
+        import asyncio
+        import concurrent.futures
+
+        svc = get_embedding_service()
+        docs = [{"text": str(c.get("verbatim_text") or "")} for c in clips]
+
+        def _do_rerank():
+            return asyncio.run(svc.rerank(query, docs))
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            res = pool.submit(_do_rerank).result(timeout=4.0)
+
+        scores = []
+        for item in res:
+            s = float(item.get("rerank_score", 0.0) or 0.0)
+            if s >= 0.50:
+                scores.append(3)
+            elif s >= 0.25:
+                scores.append(2)
+            elif s >= 0.10:
+                scores.append(1)
+            else:
+                scores.append(0)
+        return scores
+    except Exception as exc:
+        logger.warning(
+            "[FirstPersonPipeline] Local rerank fallback error: %s; using lexical overlap",
+            exc,
+        )
+        q_words = set(re.findall(r"\w+", query.lower())) - {
+            "what", "is", "the", "a", "an", "and", "or", "how", "do", "i", "to", "in", "of", "for", "between"
+        }
+        scores = []
+        for c in clips:
+            text = (c.get("verbatim_text") or "").lower()
+            matches = sum(1 for w in q_words if w in text)
+            ratio = matches / max(len(q_words), 1)
+            if ratio >= 0.5:
+                scores.append(3)
+            elif ratio >= 0.25:
+                scores.append(2)
+            elif ratio > 0:
+                scores.append(1)
+            else:
+                scores.append(0)
+        return scores
+
+
 def _relevance_select(
     query: str,
     clips: list[dict[str, Any]],
@@ -1029,11 +1087,11 @@ def _relevance_select_scored(
                 gen_kwargs["temperature"] = None  # omit the key (CA-1)
             if scorer_model in _SCORER_JSON_SCHEMA_MODELS:
                 gen_kwargs["response_format"] = _RELEVANCE_JSON_SCHEMA  # CA-3
-            # 2026-10-27: deepseek-chat is non-reasoning; 32 tokens is enough
-            # for up to 10 comma-separated scores (each 1 digit + comma/space).
-            # Capping here also prevents deepseek from emitting prose.
+            # 2026-10-27: deepseek-chat is non-reasoning; 16 tokens is enough
+            # for up to 5 comma-separated scores (each 1 digit + comma/space).
+            # Capping here also prevents deepseek from emitting prose and fits within credit reserves.
             if scorer_model == "deepseek/deepseek-chat":
-                gen_kwargs["max_tokens"] = 32
+                gen_kwargs["max_tokens"] = 16
         use_json_schema = bool(gen_kwargs.get("response_format"))
         system_prompt = (
             _RELEVANCE_JSON_SYSTEM_PROMPT if use_json_schema else _RELEVANCE_SYSTEM_PROMPT
@@ -1057,6 +1115,13 @@ def _relevance_select_scored(
         logger.info("[FirstPersonPipeline] Relevance check indeterminate (timeout/error): %s", e)
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt))
+        if getattr(settings, "first_person_relevance_fallback_enabled", True):
+            logger.info("[FirstPersonPipeline] Executing local semantic relevance fallback due to provider error")
+            fallback_scores = _local_semantic_relevance_scores(query, clips)
+            if fallback_scores and len(fallback_scores) == len(clips):
+                if scores_out is not None:
+                    scores_out[:] = fallback_scores
+                return next((i for i, s in enumerate(fallback_scores) if s >= minimum), None)
         return _RELEVANCE_INDETERMINATE
     if token_sink is not None:
         token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt, raw))
@@ -3244,10 +3309,14 @@ class FirstPersonPipeline:
                         retrieval_query=retrieval_query,
                     )
 
-                    if decision.decision not in (
+                    _allowed_decisions = {
                         HarnessDecision.SERVE_SINGLE_SPAN,
                         HarnessDecision.SERVE_PARENT_CONTEXT,
-                    ):
+                    }
+                    if getattr(settings, "first_person_serve_weak_match", True):
+                        _allowed_decisions.add(HarnessDecision.SERVE_RELATED_NOT_DIRECT)
+
+                    if decision.decision not in _allowed_decisions:
                         return None, _local_tokens
 
                     t_asm_start = time.monotonic()
@@ -3304,16 +3373,60 @@ class FirstPersonPipeline:
                                     "[FirstPersonPipeline] Antecedent stitching failed: %s", ant_exc
                                 )
 
+                    # Downstream discourse completion: if the served discourse ends in a question
+                    # (e.g. rhetorical hook 'For what is a Beautiful State?'), an incomplete connective,
+                    # or is brief (< 70 words), fetch the chronological successor span from the same video.
+                    if ctx_store is not None and served_spans and len(served_spans) < 3:
+                        last_s = served_spans[-1]
+                        last_text = last_s.verbatim_text.strip()
+                        is_cutoff = (
+                            last_text.endswith("?")
+                            or bool(
+                                re.search(
+                                    r"\b(what is|why is|how is|which is|that is|because|and|for)\s*$",
+                                    last_text,
+                                    re.I,
+                                )
+                            )
+                            or sum(len(s.verbatim_text.split()) for s in served_spans) < 70
+                        )
+                        if is_cutoff:
+                            try:
+                                succeeding = ctx_store.fetch_succeeding_span(
+                                    last_s.video_id, last_s.end_ms
+                                )
+                                if (
+                                    succeeding is not None
+                                    and succeeding.source_span_id
+                                    not in {s.source_span_id for s in served_spans}
+                                    and succeeding.video_id == last_s.video_id
+                                    and succeeding.guru_id == last_s.guru_id
+                                ):
+                                    served_spans.append(succeeding)
+                                    logger.info(
+                                        "[FirstPersonPipeline] Stitched succeeding completion span %s after %s in video %s",
+                                        succeeding.source_span_id[:8],
+                                        last_s.source_span_id[:8],
+                                        last_s.video_id,
+                                    )
+                            except Exception as succ_exc:
+                                logger.debug(
+                                    "[FirstPersonPipeline] Succeeding span stitching failed: %s",
+                                    succ_exc,
+                                )
+
                     citations = []
                     audio_playback_clips = []
                     cite_by_id = {c.source_span_id: c for c in decision.citations}
                     confidence = float(getattr(ctx, "score", 1.0) or 1.0)
                     _span_failed_gate = False
+                    is_multi_span = len(served_spans) > 1
                     for span in served_spans:
                         c_span = cite_by_id.get(span.source_span_id)
                         cit_dict = self._build_context_citation(span, c_span, confidence=confidence)
                         if not _passes_integrity_gate(
-                            cit_dict, boundary_guard_enabled=self._boundary_guard_enabled
+                            cit_dict,
+                            boundary_guard_enabled=False if is_multi_span else self._boundary_guard_enabled,
                         ):
                             _span_failed_gate = True
                             break
@@ -3321,7 +3434,13 @@ class FirstPersonPipeline:
                         # For parent context decisions (multiple spans), the assembled discourse
                         # is validated across all spans together below.
                         if (
-                            decision.decision == HarnessDecision.SERVE_SINGLE_SPAN
+                            (
+                                decision.decision == HarnessDecision.SERVE_SINGLE_SPAN
+                                or (
+                                    decision.decision == HarnessDecision.SERVE_RELATED_NOT_DIRECT
+                                    and len(served_spans) == 1
+                                )
+                            )
                             and not _passes_content_quality_gate(
                                 cit_dict, gate_enabled=self._content_quality_gate_enabled
                             )
@@ -3370,7 +3489,13 @@ class FirstPersonPipeline:
                         return None, _local_tokens
                     if (
                         not _span_failed_gate
-                        and decision.decision == HarnessDecision.SERVE_PARENT_CONTEXT
+                        and (
+                            decision.decision == HarnessDecision.SERVE_PARENT_CONTEXT
+                            or (
+                                decision.decision == HarnessDecision.SERVE_RELATED_NOT_DIRECT
+                                and len(served_spans) > 1
+                            )
+                        )
                         and served_spans
                         and not _passes_content_quality_gate(
                             {
@@ -3389,6 +3514,21 @@ class FirstPersonPipeline:
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                         )
                         _span_failed_gate = True
+                    if (
+                        not _span_failed_gate
+                        and is_multi_span
+                        and self._boundary_guard_enabled
+                        and served_spans
+                    ):
+                        _asm_tokens = assembled_answer_text.split()
+                        _asm_defects = set(boundary_defects(_asm_tokens)) & _SERVE_BLOCKING_BOUNDARY_DEFECTS
+                        if _asm_defects:
+                            logger.warning(
+                                "[FirstPersonPipeline] Assembled parent context %s failed boundary integrity: %s",
+                                getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                                ",".join(sorted(_asm_defects)),
+                            )
+                            _span_failed_gate = True
                     if _span_failed_gate:
                         FIRST_PERSON_QUARANTINED_TOTAL.inc()
                         logger.warning(
@@ -3448,9 +3588,12 @@ class FirstPersonPipeline:
 
                     t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
                     latency = (time.monotonic() - start_time) * 1000.0
-                    is_direct = (
-                        self._profile is not None and confidence >= self._profile["threshold"]
-                    )
+                    if decision.decision == HarnessDecision.SERVE_RELATED_NOT_DIRECT:
+                        is_direct = False
+                    else:
+                        is_direct = (
+                            self._profile is not None and confidence >= self._profile["threshold"]
+                        )
                     stage_timings: dict[str, Any] = {
                         "answerability_ms": round(float(t_ans_ms), 2),
                         "retrieval_ms": round(float(t_ctx_ret_ms), 2),

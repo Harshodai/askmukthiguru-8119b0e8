@@ -719,3 +719,43 @@ def test_terminal_flag_blocks_legacy_fallthrough(monkeypatch):
 
 def test_terminal_flag_is_off_by_default():
     assert settings.model_fields["first_person_context_terminal_enabled"].default is False
+
+
+def test_harness_stitches_succeeding_span_on_cutoff_question(monkeypatch):
+    """When a served span ends in a question or cutoff, downstream stitching fetches
+    the chronological successor from the same video."""
+    mock_ctx_store = Mock()
+    s1 = make_test_span(
+        n=0,
+        text="Inner peace begins with deep understanding. For what is a beautiful state? What is this transformed consciousness we are talking about?",
+        video_id="vid_test_1",
+        guru_id="krishnaji",
+    )
+    s2 = make_test_span(
+        n=1,
+        text="A beautiful state is a state of calm, a state of connection, where you are not lost in the endless noise of self-centered thought.",
+        start_ms=s1.end_ms + 100,
+        end_ms=s1.end_ms + 15000,
+        video_id=s1.video_id,
+        guru_id=s1.guru_id,
+    )
+
+    mock_ctx_store.retrieve.return_value = [make_test_context([s1])]
+    mock_ctx_store.fetch_succeeding_span.return_value = s2
+
+    pipeline = FirstPersonPipeline(
+        store=Mock(), serene_mind_engine=Mock(), context_store=mock_ctx_store
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+    pipeline._store.search_hybrid.return_value = []
+
+    res = pipeline.execute(
+        query="What is a beautiful state?",
+        query_dense_vector=[0.1] * 1024,
+        teacher_id=s1.guru_id,
+        cache_bypass=True,
+    )
+
+    mock_ctx_store.fetch_succeeding_span.assert_called_once_with(s1.video_id, s1.end_ms)
+    assert s2.verbatim_text in res.answer_text
+    assert s1.verbatim_text in res.answer_text

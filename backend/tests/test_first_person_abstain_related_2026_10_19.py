@@ -519,6 +519,7 @@ def _toy_config(monkeypatch):
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
     monkeypatch.setattr(settings, "first_person_serve_weak_match", False)
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
 
 
 @pytest.fixture

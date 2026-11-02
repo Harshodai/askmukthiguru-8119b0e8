@@ -16,6 +16,7 @@ window.
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any, Optional, overload
@@ -192,6 +193,38 @@ def _clean_concept_ids(values: Optional[Sequence[str]]) -> list[str]:
     return out
 
 
+_PROMO_PATTERN = re.compile(
+    r"\b(congratulations|conquered|mystic secrets|available at|ekam online|course|challenge that you have conquered)\b",
+    re.I,
+)
+_MEDITATION_DIRECTIVE_PATTERN = re.compile(
+    r"\b(inhale|exhale|breath|breaths|breathe|breathing|palms|hands|eyes|thumbs|"
+    r"first stage|second stage|third stage|fourth stage|fifth stage|humming|sound of a bee|aham)\b",
+    re.I,
+)
+
+
+def _calculate_temporal_quality(hit: Any) -> float:
+    base = float(getattr(hit, "score", 0.0) or 0.0)
+    payload = getattr(hit, "payload", {}) or {}
+    text = str(payload.get("verbatim_text") or "")
+    start_ms = payload.get("start_ms")
+
+    # 1. Promotional Outro Downweighting: heavily penalize course sales & congratulations
+    if _PROMO_PATTERN.search(text):
+        base *= 0.40
+
+    # 2. Intro Banter Downweighting: discount conversational banter in the first 25s
+    if isinstance(start_ms, (int, float)) and start_ms < 25000:
+        base *= (0.65 + 0.35 * (max(0.0, float(start_ms)) / 25000.0))
+
+    # 3. Direct Meditation / Practice Directive Boost
+    if _MEDITATION_DIRECTIVE_PATTERN.search(text):
+        base *= 1.25
+
+    return base
+
+
 class FirstPersonContextStore:
     def __init__(self, client: QdrantClient, collection: str) -> None:
         self._client = client
@@ -311,6 +344,8 @@ class FirstPersonContextStore:
         """
         if limit_parents <= 0:
             return []
+        if isinstance(query_dense, (list, tuple)) and query_dense and isinstance(query_dense[0], (list, tuple)):
+            query_dense = list(query_dense[0])
         conditions = [
             FieldCondition(key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)),
             FieldCondition(key="rights_cleared", match=MatchValue(value=True)),
@@ -375,9 +410,9 @@ class FirstPersonContextStore:
                     using="passage_dense",
                     query_filter=query_filter,
                     group_by="parent_unit_id",
-                    limit=limit_parents,
+                    limit=limit_parents * 3,
                     group_size=spans_per_parent,
-                    with_payload=["source_span_id"],
+                    with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
                 )
                 out: list[tuple[str, tuple[str, ...], float]] = []
                 for group in getattr(response, "groups", []) or []:
@@ -387,10 +422,11 @@ class FirstPersonContextStore:
                     span_ids = tuple(
                         str((hit.payload or {}).get("source_span_id") or hit.id) for hit in hits
                     )
-                    score = max(float(getattr(h, "score", 0.0) or 0.0) for h in hits)
+                    score = max(_calculate_temporal_quality(h) for h in hits)
                     out.append((str(group.id), span_ids, score))
                 if out:
-                    return out
+                    out.sort(key=lambda item: item[2], reverse=True)
+                    return out[:limit_parents]
             except Exception as exc:  # pragma: no cover - API/version dependent
                 logger.debug("[ContextStore] grouped query unavailable: %s", exc)
 
@@ -415,7 +451,7 @@ class FirstPersonContextStore:
             using="passage_dense",
             query_filter=query_filter,
             limit=limit_parents * spans_per_parent * 3,
-            with_payload=["parent_unit_id", "source_span_id"],
+            with_payload=["parent_unit_id", "source_span_id", "start_ms", "end_ms", "verbatim_text"],
         )
         hits = list(getattr(response, "points", []) or [])
         grouped: dict[str, list[Any]] = {}
@@ -430,7 +466,7 @@ class FirstPersonContextStore:
             (
                 parent_id,
                 tuple(str((hit.payload or {}).get("source_span_id") or hit.id) for hit in bucket),
-                max(float(hit.score or 0.0) for hit in bucket),
+                max(_calculate_temporal_quality(hit) for hit in bucket),
             )
             for parent_id, bucket in grouped.items()
         ]
@@ -652,6 +688,43 @@ class FirstPersonContextStore:
             return SourceSpan.model_validate(best_payload)
         except Exception as exc:
             logger.debug("[ContextStore] fetch_preceding_span failed for %s: %s", video_id, exc)
+            return None
+
+    def fetch_succeeding_span(self, video_id: str, after_end_ms: int) -> Optional[SourceSpan]:
+        """Fetch the immediate chronological successor span from the same video.
+
+        Used to resolve truncated thoughts, rhetorical question cutoffs, and incomplete
+        teachings by continuing the chronological discourse.
+        """
+        if not video_id or not isinstance(after_end_ms, int):
+            return None
+        scroll_filter = Filter(
+            must=[
+                FieldCondition(key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)),
+                FieldCondition(key="video_id", match=MatchValue(value=video_id)),
+            ]
+        )
+        try:
+            records, _ = self._client.scroll(
+                collection_name=self._collection,
+                scroll_filter=scroll_filter,
+                limit=128,
+                with_payload=True,
+                with_vectors=False,
+            )
+            candidates = []
+            for r in records:
+                payload = _strip_record_type(r.payload or {})
+                start_ms = payload.get("start_ms")
+                # Look for span starting at or right after after_end_ms (with a 1.5s tolerance)
+                if isinstance(start_ms, int) and start_ms >= after_end_ms - 1500:
+                    candidates.append(payload)
+            if not candidates:
+                return None
+            best_payload = min(candidates, key=lambda p: p.get("start_ms", 0))
+            return SourceSpan.model_validate(best_payload)
+        except Exception as exc:
+            logger.debug("[ContextStore] fetch_succeeding_span failed for %s: %s", video_id, exc)
             return None
 
     # --------------------------------------------------------------- internal

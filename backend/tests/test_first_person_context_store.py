@@ -523,3 +523,54 @@ def test_the_collection_level_check_reports_violators_by_span_without_loading_th
     ]
     found = speaker_provenance_violations(payloads)
     assert list(found.values()) == [["ecapa_missing:voice_score"]]
+
+
+def test_calculate_temporal_quality_weighting():
+    from types import SimpleNamespace
+    from services.first_person_context_store import _calculate_temporal_quality
+
+    # Neutral base span
+    hit_base = SimpleNamespace(
+        score=0.8,
+        payload={"verbatim_text": "Inner peace is discovered when you observe the mind without judgment.", "start_ms": 60000},
+    )
+    assert _calculate_temporal_quality(hit_base) == pytest.approx(0.8)
+
+    # Promo outro downweighting
+    hit_promo = SimpleNamespace(
+        score=0.8,
+        payload={"verbatim_text": "Congratulations on completing this mystic secrets course available at ekam online.", "start_ms": 60000},
+    )
+    assert _calculate_temporal_quality(hit_promo) == pytest.approx(0.8 * 0.40)
+
+    # Intro banter downweighting at t=0s
+    hit_intro = SimpleNamespace(
+        score=0.8,
+        payload={"verbatim_text": "Good morning everyone, welcome to this beautiful talk today.", "start_ms": 0},
+    )
+    assert _calculate_temporal_quality(hit_intro) == pytest.approx(0.8 * 0.65)
+
+    # Meditation directive boost
+    hit_meditation = SimpleNamespace(
+        score=0.8,
+        payload={"verbatim_text": "Inhale deeply, observe the breath, and feel the sound of a bee humming.", "start_ms": 60000},
+    )
+    assert _calculate_temporal_quality(hit_meditation) == pytest.approx(0.8 * 1.25)
+
+
+def test_fetch_succeeding_span_returns_next_chronological_span():
+    from unittest.mock import MagicMock
+    from services.first_person_context_store import FirstPersonContextStore
+
+    mock_client = MagicMock()
+    s1_payload = span(0, start_ms=10000, end_ms=25000).to_payload()
+    s2_payload = span(1, start_ms=25500, end_ms=40000).to_payload()
+
+    rec1 = MagicMock(payload=s1_payload)
+    rec2 = MagicMock(payload=s2_payload)
+    mock_client.scroll.return_value = ([rec1, rec2], None)
+
+    s = FirstPersonContextStore(mock_client, "first_person_v10")
+    succ = s.fetch_succeeding_span("test_vid_123", after_end_ms=25000)
+    assert succ is not None
+    assert succ.start_ms == 25500
