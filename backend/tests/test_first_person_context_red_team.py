@@ -438,6 +438,7 @@ def test_state_paths_are_ordered_and_have_no_gaps():
         HarnessState.RIGHTS_GATE,
         HarnessState.HASH_GATE,
         HarnessState.COMPLETENESS_GATE,
+        HarnessState.CONTEXTUAL_SAFETY_GATE,
         HarnessState.ANSWERABILITY_GATE,
         HarnessState.COREFERENCE_GATE,
         HarnessState.CITATION_AND_AUDIO_GATE,

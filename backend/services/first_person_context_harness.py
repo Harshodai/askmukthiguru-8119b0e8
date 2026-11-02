@@ -28,6 +28,7 @@ from domain.first_person_context import (
     SpeakerRole,
     clip_text_hash,
 )
+from services.first_person_evidence_policy import first_person_evidence_policy
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,8 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "question_only_clip",
         "retrieved_hit_trimmed",
         "not_standalone",
+        "violent_relationship_context",
+        "unsolicited_self_harm_reference",
     }
 )
 _SHADOW_OUTCOMES = frozenset({"evaluated", "no_candidate", "not_configured", "timeout", "error"})
@@ -274,33 +277,14 @@ def policy_from_settings() -> HarnessPolicy:
 
 def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
     from app.config import settings
-    from services.first_person_pipeline import (
-        _CORE_WISDOM_KEYWORDS_RE,
-        _DISCOURSE_OPENER_RE,
-        _EVENT_MARKER_RE,
-        _HEALTH_CLAIM_RE,
-        _LATE_ORDINAL_OPENER_RE,
-        _ORPHAN_OPENER_RE,
-        _clip_length_problem,
-    )
+    from services.first_person_evidence_policy import first_person_evidence_policy
 
     if not getattr(settings, "first_person_standalone_gate_enabled", True) or not spans:
         return False
-    first = spans[0].verbatim_text
-    if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
-        return True
-    if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
-        return True
-    # Length is judged on the whole served answer, not span by span.
-    whole = " ".join(s.verbatim_text.strip() for s in spans)
-    if _clip_length_problem(whole):
-        return True
-    # Parity with the legacy path (_standalone_problem): a fragment that reads as a healing
-    # claim or medical advice is rejected whole. The harness path lacked this, so
-    # "individuals would be healed physically, emotionally and spiritually" was served.
-    if _HEALTH_CLAIM_RE.search(whole):
-        return True
-    return any(_EVENT_MARKER_RE.search(s.verbatim_text) for s in spans)
+    decision = first_person_evidence_policy.assess_context_standalone(
+        span.verbatim_text for span in spans
+    )
+    return not decision.may_serve
 
 
 class FirstPersonContextHarness:
@@ -461,9 +445,11 @@ class FirstPersonContextHarness:
         self,
         context: ParentContext,
         *,
+        query: str = "",
         requested_teacher: str | None = None,
         answerability: str = "indeterminate",
         selected_span_ids: tuple[str, ...] | None = None,
+        retrieval_query: str | None = None,
     ) -> RetrievalDecision:
         """Run the gate chain and record one metric + one structured trace line.
 
@@ -473,9 +459,11 @@ class FirstPersonContextHarness:
         """
         decision = self._decide(
             context,
+            query=query,
             requested_teacher=requested_teacher,
             answerability=answerability,
             selected_span_ids=selected_span_ids,
+            retrieval_query=retrieval_query,
         )
         _record_metrics(decision)
         return decision
@@ -484,9 +472,11 @@ class FirstPersonContextHarness:
         self,
         context: ParentContext,
         *,
+        query: str = "",
         requested_teacher: str | None = None,
         answerability: str = "indeterminate",
         selected_span_ids: tuple[str, ...] | None = None,
+        retrieval_query: str | None = None,
     ) -> RetrievalDecision:
         spans = _drop_redundant_spans(self._window(context))
         if not spans:
@@ -637,6 +627,23 @@ class FirstPersonContextHarness:
             return self._abstain(
                 context,
                 "not_standalone",
+                gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        safety_decision = first_person_evidence_policy.assess_contextual_safety(
+            query,
+            " ".join(span.verbatim_text.strip() for span in spans),
+            retrieval_query=retrieval_query or "",
+        )
+        state = enter(HarnessState.CONTEXTUAL_SAFETY_GATE)
+        gates["contextual_safety"] = safety_decision.may_serve
+        if not safety_decision.may_serve:
+            reason = safety_decision.reason_codes[0] if safety_decision.reason_codes else "other"
+            return self._abstain(
+                context,
+                reason,
                 gates=gates,
                 state=state,
                 state_path=tuple(states),

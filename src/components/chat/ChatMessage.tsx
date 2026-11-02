@@ -81,7 +81,7 @@ const injectCitationLinks = (content: string, citationsLen: number): string => {
  * unless urlTransform is set; model-generated content must never open
  * javascript:/data: links, so every scheme outside the allowlist is dropped.
  */
-export const safeUrlTransform = (url: string): string =>  /^(https?:|mailto:|#)/i.test(url) ? url : '';
+export const safeUrlTransform = (url: string): string =>  /^(https?:|mailto:|#|\/api\/)/i.test(url) ? url : '';
 
 /** Extract a valid 11-character YouTube video ID from a source URL. */
 const getYouTubeId = (url: string): string | null => {
@@ -102,8 +102,9 @@ const getYouTubeId = (url: string): string | null => {
   }
 };
 
-/** Check if a URL is a usable HTTP(S) source. */
+/** Check if a URL is a usable HTTP(S) or direct media source. */
 const isUsableSourceUrl = (url: string): boolean => {
+  if (url.startsWith('/api/media/videos/') || url.startsWith('video:')) return true;
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;

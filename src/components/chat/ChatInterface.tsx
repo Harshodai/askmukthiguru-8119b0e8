@@ -37,6 +37,9 @@ import { ChatErrorBanner } from './ChatErrorBanner';
 import { buildMessageError } from '@/lib/chat/errors';
 import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBanner';
 import { MoodBanner } from '@/components/mood/MoodBanner';
+import { MemoryConsentBanner } from './MemoryConsentBanner';
+import { MemorySettingsModal } from './MemorySettingsModal';
+import { memoryApi } from '@/lib/memoryApi';
 import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 
@@ -144,6 +147,28 @@ export const ChatInterface = () => {
       sub?.data?.subscription?.unsubscribe();
     };
   }, []);
+
+  const [memoryConsent, setMemoryConsent] = useState<boolean | null>(null);
+  const [memorySettingsOpen, setMemorySettingsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!hasAuthenticatedSession || isIncognito) {
+      setMemoryConsent(null);
+      return;
+    }
+    let disposed = false;
+    memoryApi
+      .hasConsent()
+      .then((granted) => {
+        if (!disposed) setMemoryConsent(granted);
+      })
+      .catch(() => {
+        // Non-fatal: offline or unconfigured
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [hasAuthenticatedSession, isIncognito]);
 
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [conversationContextExhausted, setConversationContextExhausted] = useState(false);
@@ -2474,6 +2499,8 @@ return (
         responsePreferences={responsePreferences}
         onResponsePreferencesChange={updateResponsePreferences}
         onResetResponsePreferences={resetResponsePreferences}
+        onOpenMemorySettings={() => setMemorySettingsOpen(true)}
+        memoryActive={memoryConsent === true}
       />
 
 
@@ -2506,6 +2533,14 @@ return (
 
       {/* Daily Mood Check-In & Journey Banner (Landing Mode only) */}
       <MoodBanner isLandingMode={isLandingMode} />
+
+      {/* Personalized Spiritual Memory Opt-In Banner */}
+      <MemoryConsentBanner
+        hasConsent={memoryConsent}
+        onConsentChange={(granted) => setMemoryConsent(granted)}
+        isIncognito={isIncognito}
+        isAuthenticated={hasAuthenticatedSession}
+      />
 
 
       {/* Messages Area — this is the scroll container */}
@@ -2950,6 +2985,17 @@ return (
       onJumpToMessage={jumpToMessage}
       filterMessageId={sourcesFilterMessageId}
       onClearFilter={() => setSourcesFilterMessageId(null)}
+    />
+
+    {/* In-Chat Personal Memory & Knowledge Graph Settings Modal */}
+    <MemorySettingsModal
+      open={memorySettingsOpen}
+      onOpenChange={setMemorySettingsOpen}
+      hasConsent={memoryConsent}
+      onConsentChange={(granted) => setMemoryConsent(granted)}
+      onMemoriesErased={() => {
+        setMemoryConsent(false);
+      }}
     />
 
   </div>

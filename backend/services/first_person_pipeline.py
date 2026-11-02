@@ -56,6 +56,7 @@ from ingest.verbatim.boundaries import boundary_defects
 from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
 from services.first_person_context_selector import select_span_ids
+from services.first_person_evidence_policy import first_person_evidence_policy
 from services.first_person_graph_expansion import expand_query_concepts
 from services.first_person_serving_contract import legacy_slot_aliases_context
 from services.first_person_store import (
@@ -446,218 +447,29 @@ from services.live_event_text import (
     LIVE_EVENT_INSTRUCTION_RE as _LIVE_EVENT_INSTRUCTION_RE,  # noqa: E402
 )
 
-# Discourse acknowledgment openers: the clip starts by referencing what
-# someone else just said — incomprehensible without that prior context.
-_DISCOURSE_ACKNOWLEDGMENT_RE = re.compile(
-    r"^(?:"
-    r"yes,?\s+as you mentioned|"
-    r"yes,?\s+as I mentioned|"
-    r"yes,?\s+as we mentioned|"
-    r"as I was saying|"
-    r"as we discussed|"
-    r"so,?\s+as I said|"
-    r"right,?\s+so|"
-    r"exactly,?\s+so|"
-    r"yeah,?\s+so"
-    r")",
-    re.IGNORECASE,
+# Compatibility imports preserve existing pipeline/ingest call sites while
+# keeping the deterministic first-person policy in one shared module.
+from services.first_person_evidence_policy import (
+    _CORE_WISDOM_KEYWORDS_RE,
+    _DISCOURSE_ACKNOWLEDGMENT_RE,
+    _RHETORICAL_OPENER_RE,
+    POLICY_VERSION as _FIRST_PERSON_EVIDENCE_POLICY_VERSION,
+    _clip_length_problem as _shared_clip_length_problem,
+    _self_harm_for_context,
+    _standalone_problem as _shared_standalone_problem,
+    _violent_for_context,
 )
-
-# ponytail: parable character filter — clips referencing Yasme/Nomi are meaningless without story context
 _PARABLE_CHARACTER_RE = re.compile(r"\b(?:Yasme|Yesme|Yasmi|Nomi)\b")
-
-# ponytail: core wisdom keywords exemption — if clip defines fundamental teachings, do not reject it
-_CORE_WISDOM_KEYWORDS_RE = re.compile(
-    r"(?i)\b(?:"
-    r"beautiful state|"
-    r"suffering state|"
-    r"two states|"
-    r"inner conflict|"
-    r"connection|"
-    r"inner peace|"
-    r"presence|"
-    r"preoccupation|"
-    r"stressful state|"
-    r"no\s*-?\s*stress state|"
-    r"oneness"
-    r")\b"
-)
-
-# ponytail: rhetorical opener filter — questions that hook audience without delivering wisdom
-_RHETORICAL_OPENER_RE = re.compile(
-    r"^(?:"
-    r"I am sure you too have tried to|"
-    r"have you ever wondered why"
-    r")",
-    re.IGNORECASE,
-)
-
-
-_ORPHAN_OPENER_RE = re.compile(
-    r"^[\"'\u201c\u2018\s]*(?:yes(?:,|[^\w\s])\s*|(?:this|these|those|that)\s+(?:is|are|was|were)\b|these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
-    r"|and\b|but\b|or\b|then\b|which\b|that\s+is\s+why\b"
-    # pronoun/continuation openers with no antecedent in a lone clip (live 2026-10-24 grade)
-    r"|(?:it\b(?!\s*(?:is|was|['\u2019]s)\b)|(?:they|them|he|him|she|her)\b)|we\s+need\s+them\b|definitely\b"
-    r"|i\s+(?:led|told|asked|gave|showed|took)\s+(?:him|her|them)\b"  # not "so": "So both Preethaji and I…" is a fine opener
-    r"|i\s+(?:cannot|can't|couldn't)\s+help\s+(?:this|that|him|her|them)\b"
-    r"|he\s+or\s+she\s+will\b"
-    r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
-    re.IGNORECASE,
-)
-# Continuation openers that are NOT rescued by core-wisdom keywords. A clip that starts "So," or
-# "Okay," answers something said just before it, and "The third pillar ..." is item three of a
-# list the seeker never sees. Found by the 2026-10-31 Haiku/Opus grading of 40 served answers
-# (q001, q054, q058, q060). "So both Preethaji and I ..." (no comma) stays a fine opener.
-_DISCOURSE_OPENER_RE = re.compile(
-    r"^[\"'“‘\s]*(?:so|okay|ok|well|right|alright|now|anyway)\s*[,.]\s",
-    re.IGNORECASE,
-)
-_LATE_ORDINAL_OPENER_RE = re.compile(
-    r"^[\"'“‘\s]*the\s+(?:second|third|fourth|fifth|sixth|next|last)\s+\w+",
-    re.IGNORECASE,
-)
 
 
 def _clip_length_problem(text: str) -> Optional[str]:
-    """A served clip must be long enough to hold a thought and short enough to be a clip.
-
-    Graded 2026-10-31: 21-22 word fragments and a 318 word run of three topics were rated not
-    showable; the shortest showable clip had 23 words, so the floor sits there (ingest
-    minimum is 15) and the cap just above the longest showable clip (236).
-    """
-
-    def _real_int(value: object, default: int) -> int:
-        # Only a real int counts: a mocked or mistyped setting must not become a
-        # 1-word cap (int(MagicMock()) == 1).
-        return value if isinstance(value, int) and not isinstance(value, bool) else default
-
-    words = len(text.split())
-    if words < _real_int(getattr(settings, "first_person_min_answer_words", 23), 23):
-        return "too_short"
-    if words > _real_int(getattr(settings, "first_person_max_answer_words", 300), 300):
-        return "too_long"
-    return None
-
-
-# Medical/causal health claims: a fragment out of context reads as a healing claim or medical
-# advice (live 2026-10-11 judge: infant colic, "bedridden ... come alive", sugar physiology).
-_HEALTH_CLAIM_RE = re.compile(
-    r"\bcur(?:e|es|ed|ing)\b|\bcolic\w*|\bbedridden\b|\bcancer\b|\bdiabet\w+|\btumou?rs?\b"
-    r"|\bchemotherap\w+|\bantidepressants?\b|\bmedications?\b|\bwrong signal to the universe\b|\byou will (?:have a )?fall\b|\bflooded by huge loads of sugar\b|\bscientifically proven\b|\boxytocin\b|\bprevent(?:ing)?\s+depression\b"
-    # "individuals would be healed physically, emotionally and spiritually" (q071, graded
-    # 2026-10-31, got through). Narrow on purpose: "only connection can heal" stays servable.
-    r"|\bheal(?:ed|s|ing)?\s+(?:physically|(?:your|the|his|her|their)\s+(?:body|bodies|illness|disease)s?)\b"
-    r"|\bhealed\s+(?:and\s+)?(?:physically|emotionally|spiritually)\b"
-    r"|\b(?:will|would|can|could)\s+be\s+healed\b"
-    # q071 named "psychiatric breakdowns and addictions" right before the healing line (2026-10-31
-    # Stage A/B review): clinical wording is a medical claim out of context. Addiction alone stays
-    # servable (the bridge adds the support boundary); only a cure/recovery claim about it is gated.
-    r"|\bpsychiatric\s+(?:breakdown|disorder|illness|condition|patient)s?\b"
-    r"|\bmental\s+(?:illness|disorder|breakdown)s?\b"
-    r"|\b(?:cur(?:e|ed|ing)|heal(?:ed|ing)?|overcom(?:e|ing)|recover(?:y|ed|ing)?\s+from)\s+"
-    r"(?:(?:an?|the|your|his|her|their|my)\s+)?addictions?\b"
-    r"|\baddictions?\b[^.?!,]{0,40}\b(?:cured|healed)\b",
-    re.IGNORECASE,
-)
-# One-off event/audience markers: a clip that only makes sense in that room or on that day.
-_EVENT_MARKER_RE = re.compile(
-    r"can\s+someone\s+tell\s+me|congratulations,?\s+you\s+have|first\s+day\s+of\s+your"
-    r"|that'?s\s+the\s+day\s+today|today\s+is\s+the\s+day\s+of"
-    r"|\btoday,?\s+we\s+(?:will|shall|are\s+going\s+to)\b"
-    r"|\btomorrow\s+(?:is|we)\b|\bthis\s+coming\b|\bin\s+this\s+coming\b"
-    r"|\bwhen\s+i\s+bless\s+you\b|\bi\s+will\s+bless\s+you\b"
-    r"|\btoday,?\s+i\s+want\s+you\s+to\s+hold\s+the\s+intention\b|\bon\s+this\s+day\b"
-    r"|\b(?:corona|covid(?:-19)?|lockdowns?|quarantine|pandemic)\b"
-    r"|\b(?:the\s+previous\s+(?:question|person|speaker|talk|session))\b"
-    r"|\b(?:in\s+the\s+last\s+(?:session|question|talk))\b"
-    r"|\b(?:like\s+i\s+said\s+(?:yesterday|earlier|in\s+the\s+last))\b",
-    re.IGNORECASE,
-)
-
-
-# Violence wording: a metaphor ("he doesn't mind being stabbed by his angry wife") read
-# literally by a seeker asking about anger in a marriage is unsafe. Applied only to
-# relationship/anger questions; the clip text is never edited, the clip is just not served.
-_TARGET_PERSON_PHRASE = (
-    r"(?:her|him|them|me|you|(?:(?:a|an|the|his|her|their|my|your|our)\s+)?"
-    r"(?:(?:\w+\s+)?(?:woman|women|man|men|wife|wives|husband|husbands|spouse|spouses|"
-    r"partner|partners|child|children|son|sons|daughter|daughters|mother|mothers|"
-    r"father|fathers|mom|moms|dad|dads|boyfriend|boyfriends|girlfriend|girlfriends|"
-    r"someone|anyone|anybody|person|people|girl|girls|boy|boys)))"
-)
-_PASSIVE_HIT_BY_PHRASE = (
-    r"(?:(?:was|were|being|got|gets|is|are)\s+)?hit\s+by\s+"
-    r"(?:(?:a|an|the|his|her|their|my|your|our)\s+)?"
-    r"(?:(?:\w+\s+)?(?:woman|women|man|men|wife|wives|husband|husbands|spouse|spouses|"
-    r"partner|partners|child|children|son|sons|daughter|daughters|mother|mothers|"
-    r"father|fathers|mom|moms|dad|dads|boyfriend|boyfriends|girlfriend|girlfriends|"
-    r"someone|anyone|anybody|person|people|girl|girls|boy|boys))"
-)
-_VIOLENCE_WORDING_RE = re.compile(
-    r"\bstab(?:s|bed|bing)?\b|\bkill(?:s|ed|ing)?\b|\bmurder\w*|\bbeat(?:s|ing|en)?\b|\bslap\w*|\bpunch\w*|\bkick(?:s|ed|ing)?\b|\bchok\w+|\bmanhandl\w+"
-    r"|\bstrangl\w+|\bhit(?:s|ting)?\s+"
-    + _TARGET_PERSON_PHRASE
-    + r"\b|\b"
-    + _PASSIVE_HIT_BY_PHRASE
-    + r"\b|\b(?:shoot(?:s|ing)?|shot)\b",
-    re.IGNORECASE,
-)
-
-
-def _violent_for_context(query: str, text: str, retrieval_query: str = "") -> bool:
-    """True when a relationship/anger question would be served a clip with violence wording."""
-    from guardrails.lightweight_handler import needs_relationship_safety_boundary
-
-    return bool(_VIOLENCE_WORDING_RE.search(text)) and (
-        needs_relationship_safety_boundary(query)
-        or (bool(retrieval_query) and needs_relationship_safety_boundary(retrieval_query))
-    )
-
-
-_SELF_HARM_CLIP_RE = re.compile(r"\b(?:self\s*-\s*harm|suicid\w*)\b", re.IGNORECASE)
-
-
-def _self_harm_for_context(query: str, text: str) -> bool:
-    """True when a clip introduces self-harm/suicide terms on a query that didn't ask about it."""
-    return bool(_SELF_HARM_CLIP_RE.search(text)) and not bool(_SELF_HARM_CLIP_RE.search(query))
-
-
-_DANGLING_QUESTION_TAIL_RE = re.compile(
-    r"(?:what\s+(?:do|did|would|will|can)\s+you\s+do|why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you)\s*\?\s*$",
-    re.IGNORECASE,
-)
+    """Compatibility wrapper so callers patching pipeline.settings keep working."""
+    return _shared_clip_length_problem(text, settings_override=settings)
 
 
 def _standalone_problem(text: str) -> Optional[str]:
-    """Deterministic 'does this clip stand on its own' backstop (zero LLM calls).
-
-    Live 2026-10-11 an independent judge rejected 10/24 served clips; about half started or
-    ended mid-thought or pointed at a one-off event. Casing is NOT used (Whisper's casing is
-    unreliable and good clips start lowercase). Returns a short reason or None.
-    """
-    from ingest.verbatim.gates import CORPUS_EXPECTED_SCRIPT, script_and_loop_problem
-
-    # The corpus is English-only (ASR covers no Indic language), so any non-Latin letter
-    # is decoder garbage; the check also catches a decoder loop.
-    garbage = script_and_loop_problem(text, expected_script=CORPUS_EXPECTED_SCRIPT)
-    if garbage:
-        return "asr_script_garbage"
-    stripped = text.rstrip()
-    # Whisper punctuation is unreliable (good guided-practice clips end with no full stop), so
-    # only an explicit mid-sentence ending counts: a clip cut on "," ";" ":" or a dash.
-    if stripped and stripped[-1] in ",;:-\u2014\u2013":
-        return "ends_mid_sentence"
-    if _DANGLING_QUESTION_TAIL_RE.search(stripped):
-        return "dangling_question_tail"
-    if _DISCOURSE_OPENER_RE.match(text) or _LATE_ORDINAL_OPENER_RE.match(text):
-        return "discourse_opener"
-    if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
-        return "orphan_opener"
-    if _EVENT_MARKER_RE.search(text):
-        return "event_marker"
-    if _HEALTH_CLAIM_RE.search(text):
-        return "health_claim"
-    return _clip_length_problem(text)
+    """Compatibility wrapper over the canonical shared standalone policy."""
+    return _shared_standalone_problem(text, settings_override=settings)
 
 
 def _is_transient_connection_error(exc: BaseException) -> bool:
@@ -2697,6 +2509,10 @@ class FirstPersonPipeline:
                 "answerability": str(bool(settings.first_person_answerability_check_enabled)),
                 "boundary_guard": str(bool(self._boundary_guard_enabled)),
                 "content_gate": str(bool(self._content_quality_gate_enabled)),
+                "first_person_evidence_policy": _FIRST_PERSON_EVIDENCE_POLICY_VERSION,
+                "require_speaker_verified": str(
+                    bool(getattr(settings, "first_person_require_speaker_verified", False))
+                ),
                 "editorial_rewrite": str(bool(settings.first_person_editorial_rewrite_enabled)),
                 "llm_rerank": str(bool(settings.first_person_llm_rerank_enabled)),
                 "second_quote": str(
@@ -2730,6 +2546,12 @@ class FirstPersonPipeline:
                 "scaffold_prompt": str(_SCAFFOLD_PROMPT_VERSION),
                 "serve_weak_match": str(bool(settings.first_person_serve_weak_match)),
                 "standalone_gate": str(bool(settings.first_person_standalone_gate_enabled)),
+                "standalone_min_words": str(
+                    int(getattr(settings, "first_person_min_answer_words", 23))
+                ),
+                "standalone_max_words": str(
+                    int(getattr(settings, "first_person_max_answer_words", 300))
+                ),
                 # Phase-D context harness. Present BEFORE the harness is wired
                 # (its flag is still false) so the future wiring cannot replay a
                 # pre-harness answer from the 24 h exact cache: flipping any of
@@ -2981,11 +2803,15 @@ class FirstPersonPipeline:
                             "[FirstPersonPipeline] Cached citation failed integrity re-check; skipping cache."
                         )
                         return None
-                    if _violent_for_context(
-                        query, str(cit.get("verbatim_text") or ""), retrieval_query=retrieval_query
-                    ):
+                    safety_decision = first_person_evidence_policy.assess_contextual_safety(
+                        query,
+                        str(cit.get("verbatim_text") or ""),
+                        retrieval_query=retrieval_query,
+                    )
+                    if not safety_decision.may_serve:
                         logger.warning(
-                            "[FirstPersonPipeline] Cached citation failed violence-for-context re-check; skipping cache."
+                            "[FirstPersonPipeline] Cached citation failed contextual safety re-check; reasons=%s",
+                            ",".join(safety_decision.reason_codes),
                         )
                         return None
                 # The index can change under a 24 h entry (clip deleted, rights
@@ -3411,9 +3237,11 @@ class FirstPersonPipeline:
 
                     decision = harness.decide(
                         ctx,
+                        query=query,
                         requested_teacher=teacher_id,
                         answerability=ans_str,
                         selected_span_ids=selected_span_ids,
+                        retrieval_query=retrieval_query,
                     )
 
                     if decision.decision not in (
@@ -3500,16 +3328,6 @@ class FirstPersonPipeline:
                         ):
                             _span_failed_gate = True
                             break
-                        if _violent_for_context(
-                            query,
-                            str(cit_dict.get("verbatim_text") or ""),
-                            retrieval_query=retrieval_query,
-                        ):
-                            logger.info(
-                                "[FirstPersonPipeline] Harness span rejected: violence wording for a relationship question"
-                            )
-                            _span_failed_gate = True
-                            break
                         point_id = str(cit_dict.get("point_id") or "")
                         if _harness_allow is not None and point_id not in _harness_allow:
                             _span_failed_gate = True
@@ -3541,6 +3359,15 @@ class FirstPersonPipeline:
                             }
                         )
                     assembled_answer_text = " ".join(s.verbatim_text.strip() for s in served_spans)
+                    assembled_safety = first_person_evidence_policy.assess_contextual_safety(
+                        query, assembled_answer_text, retrieval_query=retrieval_query
+                    )
+                    if not assembled_safety.may_serve:
+                        logger.info(
+                            "[FirstPersonPipeline] Harness context rejected by shared policy: reasons=%s",
+                            ",".join(assembled_safety.reason_codes),
+                        )
+                        return None, _local_tokens
                     if (
                         not _span_failed_gate
                         and decision.decision == HarnessDecision.SERVE_PARENT_CONTEXT
@@ -4221,10 +4048,11 @@ class FirstPersonPipeline:
         verified_clips = [
             c
             for c in verified_clips
-            if not _violent_for_context(
-                query, str(c.get("verbatim_text") or ""), retrieval_query=retrieval_query
-            )
-            and not _self_harm_for_context(query, str(c.get("verbatim_text") or ""))
+            if first_person_evidence_policy.assess_contextual_safety(
+                query,
+                str(c.get("verbatim_text") or ""),
+                retrieval_query=retrieval_query,
+            ).may_serve
         ]
         t_integrity_ms = (time.monotonic() - t_int_start) * 1000.0
 
@@ -5116,6 +4944,12 @@ class FirstPersonPipeline:
                 if _passes_content_quality_gate(
                     clip, gate_enabled=self._content_quality_gate_enabled
                 ):
+                    if getattr(settings, "first_person_require_speaker_verified", False):
+                        spk_ok, _ = _speaker_verification(clip)
+                        if not (spk_ok or clip.get("speaker_verified") is True):
+                            n_quarantined += 1
+                            FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                            continue
                     verified_clips.append(clip)
                 else:
                     n_quarantined += 1
@@ -5140,10 +4974,11 @@ class FirstPersonPipeline:
         verified_clips = [
             c
             for c in verified_clips
-            if not _violent_for_context(
-                query, str(c.get("verbatim_text") or ""), retrieval_query=retrieval_query
-            )
-            and not _self_harm_for_context(query, str(c.get("verbatim_text") or ""))
+            if first_person_evidence_policy.assess_contextual_safety(
+                query,
+                str(c.get("verbatim_text") or ""),
+                retrieval_query=retrieval_query,
+            ).may_serve
         ]
         stage_timings["integrity_ms"] = round((time.monotonic() - t_int_start) * 1000.0, 2)
 
@@ -5217,14 +5052,19 @@ class FirstPersonPipeline:
 
             candidates = avail_clips[:3]
             rel_scores: list[int] = []
-            pick = _relevance_select(
-                facet,
-                candidates,
-                self._llm_service,
-                self._llm_loop,
-                token_sink=fp_llm_tokens,
-                scores_out=rel_scores,
-            )
+            if getattr(settings, "first_person_relevance_gate_enabled", True):
+                pick = _relevance_select(
+                    facet,
+                    candidates,
+                    self._llm_service,
+                    self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                    scores_out=rel_scores,
+                )
+            else:
+                # Match the normal path's deterministic retrieval-order behavior
+                # when the relevance gate is disabled; do not spend scorer/JEV calls.
+                pick = 0 if candidates else None
             if pick is not None and pick != _RELEVANCE_INDETERMINATE:
                 selected_clip = candidates[pick]
                 used_video_ids.add(selected_clip.get("video_id"))

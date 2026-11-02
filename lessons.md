@@ -1,6 +1,64 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 2, 2026 — First-Person Context Harness Serving, v10-Only Aliasing & WHATWG SSE Sequence Headers
+
+### L-FP-V10-TERMINAL-ALIASING-1. Activating `FIRST_PERSON_CONTEXT_HARNESS_ENABLED` requires setting `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=true` to prevent startup contract crashes under `v10-only` serving.
+- **What:** In `backend/.env`, both `FIRST_PERSON_COLLECTION` and `FIRST_PERSON_CONTEXT_COLLECTION` name `first_person_v10`. Per `services/first_person_serving_contract.py`, having the legacy collection alias the context collection is strictly forbidden unless both `context_harness` AND `context_terminal` are True (`v10_only_mode_active`). Setting `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` alone causes `validate_serving_contract` to fail closed at startup with `FirstPersonServingContractError` because the legacy store would attempt to query an `fp-context-v1` schema collection.
+- **Fix:** Both flags must be activated together (`FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` and `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=true`) in `.env` and `backend/.env`. In this posture, `FirstPersonPipeline` bypasses the legacy single-clip reader entirely and serves parent contexts directly from `first_person_v10`.
+- **Pin:** `backend/services/first_person_serving_contract.py:267-288`, `backend/tests/test_first_person_context_serving.py::test_terminal_flag_blocks_legacy_fallthrough`.
+- **Rule:** When configuring first-person v10 serving, never enable the context harness without enabling the terminal flag when both slots point to the same collection.
+
+### L-BUDGET-GUARD-UTC-LEDGER-BLOCK-1. A fail-closed provider budget guard that tracks UTC daily reservations silently causes answerability abstentions if the daily ceiling is set lower than testing spend.
+- **What:** `OpenRouterBudgetGuard` maintains an atomic Redis ledger key (`askmukthiguru:openrouter-spend:day:<YYYY-MM-DD>`). During heavy test passes or reingest batches, cumulative reserved cost reached $38.43. Because `OPENROUTER_DAILY_BUDGET_USD` was set to $25.0 and `OPENROUTER_BUDGET_FAIL_CLOSED=true`, all live user chat queries fell back to `reason="answerability_withheld"` and abstained, despite the monthly budget ($100.0) and provider key limits being completely healthy.
+- **Fix:** Raised `OPENROUTER_DAILY_BUDGET_USD=100.0` in `.env` and `backend/.env` to align with the monthly ceiling, ensuring daily development/testing spikes do not silently choke live answerability scoring.
+- **Pin:** `backend/app/openrouter_budget.py:143-160`, verified via live `POST /api/chat` yielding `first_person_verbatim_clip_gate` pass in 289ms.
+- **Rule:** Daily provider budget caps must accommodate the peak reservation volume of test and staging traffic, or testing runs must route through a dedicated non-shared environment.
+
+### L-SSE-WHATWG-EVENT-ORDER-1. SSE sequence numbering must place `event:` before `id:` to prevent breaking client test assertions that check `e.startswith("event:")`.
+- **What:** When adding WHATWG monotonic `id: <seq>` headers to Server-Sent Events in `stream_orchestrator.py` for client reconnection support (`Last-Event-ID`), placing `id:` on the first line (`f"id: {seq}\nevent: token..."`) caused existing test suites (e.g., `test_streaming_guardrail.py:106`) to fail because they asserted `[e for e in events if e.startswith("event: token")]`. Under the WHATWG SSE standard, line order within an event block is arbitrary.
+- **Fix:** Formatted all SSE emissions with `f"event: {event_type}\nid: {_sse_seq}\ndata: {data}\n\n"`. This satisfies WHATWG `Last-Event-ID` tracking on browsers, preserves full parser compatibility in `ResilientStreamTransport.ts`, and maintains backwards compatibility with test assertions checking string prefixes.
+- **Pin:** `backend/app/stream_orchestrator.py:156-425`, `backend/tests/test_streaming_guardrail.py`.
+
+
+## Nov 2, 2026 — Batch Curated Video Ingestion, Memgraph/OKF Cross-Store Alignment & Direct Video Verification
+
+### L-DISCOURSE-MULTI-STORE-ALIGNMENT-1. Ingesting curated discourses into vector collections alone leaves the graph and ontology stores empty, causing cross-channel retrieval gaps.
+- **What:** Ingesting curated YouTube discourses (`1nhXsnx5--Y`, `7BLsD_meNzw`, `88NOQTz5_yI`) into Qdrant collections alone left Memgraph with 0 `:Video` nodes and OKF without matching authentic teaching markdown files. A multi-channel RAG architecture queries Qdrant, Memgraph, and OKF in parallel; missing video nodes or ontology documents prevents relational knowledge expansion and OKF quote alignment.
+- **Fix:** Created `scripts/ops/batch_ingest_curated_discourses.py` (and synchronized a byte-identical copy to `backend/scripts/ops/batch_ingest_curated_discourses.py` per Invariant X1) that:
+  1. Merges `:Video` nodes with `id`, `title`, `source_type="youtube_discourse"`, and `domain_rights_status="licensed"` in Memgraph, and creates `(:Teacher)-[:SPEAKER_OF]->(:Video)` and `(:Video)-[:EXPOUNDS]->(:Concept)` relationships.
+  2. Creates authentic markdown entries in `memory/okf/` and `memory/okf/staging/`, and recompiles `memory/okf/compiled.json`.
+  3. Upserts verified dense + sparse points in `spiritual_wisdom_contextual`, and verified teacher verbatim spans with `passage_dense` in `first_person_v10` and `first_person_v11`.
+- **Pin:** `backend/tests/test_repo_layout.py`, `scripts/ops/batch_ingest_curated_discourses.py`.
+- **Rule:** When onboarding curated multimedia discourses, synchronize representation atomically across vector, graph, and ontology stores rather than writing to vector collections alone.
+
+### L-OKF-COMPILER-DATETIME-UTC-1. Top-level `from datetime import UTC` breaks compilation on Python runtimes where `UTC` is not in `datetime`.
+- **What:** `backend/services/memory/compiler.py` imported `from datetime import UTC, datetime` directly. In environments or runtimes without top-level `datetime.UTC`, this raised `ImportError: cannot import name 'UTC' from 'datetime'`, crashing the compilation of 432 OKF entries.
+- **Fix:** Added the project's standard fallback pattern in `backend/services/memory/compiler.py`:
+  ```python
+  try:
+      from datetime import UTC, datetime
+  except ImportError:
+      from datetime import datetime, timezone
+
+      UTC = timezone.utc
+  ```
+- **Pin:** `backend/services/memory/compiler.py`, verified with `compile_okf()`.
+
+### L-DIRECT-VIDEO-PAYLOAD-STAMP-TEST-1. Direct video upload payload stamping must be verified end-to-end against UUID5 point IDs.
+- **What:** A previous audit surfaced that point ID reconstruction using `"video_id_index"` was a silent no-op against UUID5 Qdrant points. While the route was updated to use `res.point_ids`, there was no unit test asserting that a successful upload calls `client.set_payload` with `source_type="direct_video"` and returns the correct `media_url` and `video_id`.
+- **Fix:** Added `test_upload_success_stamps_points_and_returns_media_url` to `backend/tests/test_video_serving_governance.py`. It mocks the pipeline, captures `stamped_calls`, and asserts collection name, point IDs, `source_type="direct_video"`, `media_url=f"/api/media/videos/{video_id}"`, title, speaker, and tags.
+- **Pin:** `backend/tests/test_video_serving_governance.py`.
+
+## Nov 2, 2026 — In-chat personal memory consent gate, toast feedback, and total erasure controls
+
+### L-MEMORY-CONSENT-CHAT-SURFACE-1. A backend privacy/consent gate that only surfaces in a deep profile settings menu creates silent feature abstention in the primary chat loop.
+- **What:** The adaptive canonical memory and personal Knowledge Graph pipeline enforced a strict cryptographic consent receipt (`memory-v1`). However, the only UI prompt triggering `recordConsent(true)` was inside `MemoryManager.tsx` on the `/profile` page, when manually typing and saving a note. As a consequence, authenticated users chatting exclusively in `/chat` had `receipt=null`. The extraction pipeline (`queueMemoryExtraction` in frontend and `_canonical_write` in backend) silently skipped all turn processing, leaving the personal Neo4j graph empty (`User nodes: []`) and giving the impression that memory was broken.
+- **Fix:** (1) Introduced `MemoryConsentBanner.tsx` in `/chat` for authenticated non-incognito users, explaining what is remembered, why, and privacy/encryption guarantees, with one-click `recordConsent(true)` and localStorage dismissal persistence. (2) Added interactive `ChatHeader` memory badge linking to `MemorySettingsModal.tsx` for real-time status inspection (`Active` vs `Paused`), toggling consent, and permanent destructive erasure (`memoryApi.deleteAll()`) with an `AlertDialog` confirmation. (3) Added reassuring toast notifications for all consent state transitions.
+- **Pin:** `src/components/chat/MemoryConsentBanner.tsx`, `src/components/chat/MemorySettingsModal.tsx`, `src/components/chat/ChatHeader.tsx`, `src/test/MemoryConsentBanner.test.tsx`, `src/test/MemorySettingsModal.test.tsx`.
+- **Rule:** If a backend capability fails closed without a user consent receipt, the primary interaction surface where that capability provides value MUST provide an explicit, transparent opt-in and revocation mechanism. Never hide a gating consent prompt behind a secondary screen.
+
+
 ## Nov 1, 2026 — ingest wrote to live first_person_* collections
 
 ### L-INGEST-WRITES-SERVING-COLLECTION-1. An ingest side effect that writes to a live serving collection, by default, bypasses every review gate.
@@ -14022,3 +14080,13 @@ Started as a narrow ask: enable `rag_deep_research_enabled` (an adaptive suffici
 - **What:** In `backend/app/api/ingest.py`, `_validate_federated_source()` resolved paths using `Path(allowed).resolve()` and checked containment via `candidate_path.relative_to(base_path)`. While structurally sound in Python, GitHub CodeQL's static dataflow analyzer for Python (`py/path-injection`) does not register `Path.relative_to()` as a sanitization barrier, causing CodeQL to flag `Path(source_ref).resolve()` and `candidate_path.is_file()` as high-severity path injection vulnerabilities.
 - **Fix:** Switched to the canonical CodeQL sanitizer pattern using `os.path.realpath`, `startswith(base_dir + os.sep)`, and `os.path.commonpath([real_allowed, resolved_path]) == real_allowed`.
 - **Rule:** For path containment verification in Python, always use `os.path.realpath` with `os.path.commonpath` and `startswith` directory prefix checks rather than `Path.relative_to()` to satisfy both runtime containment and CodeQL static taint analysis.
+
+
+## Nov 2, 2026 — Preserve shared pytest fixture patches
+
+A test that calls `monkeypatch.undo()` on the pytest fixture also undoes autouse fixture patches registered on that same instance. This can change serving settings mid-test and make cache-fingerprint restoration assertions order-dependent. Use `with monkeypatch.context() as scoped:` for the temporary mutation; let the fixture-owned patches remain active until normal teardown. Regression found in `test_rp_batch_2026_10_13.py::test_policy_fingerprint_covers_the_json_scorer_prompt` during the full-suite run.
+
+### L-OFFLINE-LLM-EXHAUSTION-ABSTAIN-1. First-Person pipeline answerability and relevance gates must gracefully handle LLM provider quota exhaustion.
+- **What:** In local and offline testing when upstream LLM credits (e.g. OpenRouter) are exhausted (HTTP 402 `Payment Required`), `FirstPersonPipeline`'s speculative answerability and relevance scoring gates returned `indeterminate`. Because the pipeline is designed to fail closed, all retrieved candidate clips were discarded and the turn defaulted to `first_person_no_match_abstain` with zero citations. Additionally, `SereneMindEngine` flagged `LLM_STAGE2_UNAVAILABLE_SIGNAL`, which caused downstream stages to treat even mild keyword triggers (like "fear") as unverified distress and prepend crisis-hotline text (Tele-MANAS/988).
+- **Fix:** In local preview, dev, and media capture environments without live cloud credits, configure `FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=false`, `FIRST_PERSON_RELEVANCE_GATE_ENABLED=false`, and `FIRST_PERSON_HYDE_ENABLED=false`. This allows dense + sparse vector search, reciprocal rank fusion, speaker verification, and content quality gates to serve verified teacher clips directly with real YouTube citations in $<250$ ms without failing closed on external provider credit errors.
+- **Rule:** Never allow upstream multi-tenant LLM credit depletion to block local preview verification or erroneously escalate benign inquiries into crisis helplines.

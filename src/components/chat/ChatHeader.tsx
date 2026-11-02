@@ -8,7 +8,25 @@ import { ResponsePreferencesMenu } from './ResponsePreferencesMenu';
 import type { ResponsePreferences } from '@/lib/chat/types';
 import { Button } from '@/components/ui/button';
 
-interface ChatHeaderProps { onClearChat: () => void; onOpenMobileMenu?: () => void; sidebarCollapsed?: boolean; onToggleSidebar?: () => void; onExport?: () => void; onOpenSources?: () => void; sourcesCount?: number; hasMessages?: boolean; isIncognito?: boolean; onCloseIncognito?: () => void; isPersonalized?: boolean; isHandsFreeVoice?: boolean; responsePreferences?: ResponsePreferences; onResponsePreferencesChange?: (value: ResponsePreferences) => void; onResetResponsePreferences?: () => void; }
+interface ChatHeaderProps {
+  onClearChat: () => void;
+  onOpenMobileMenu?: () => void;
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+  onExport?: () => void;
+  onOpenSources?: () => void;
+  sourcesCount?: number;
+  hasMessages?: boolean;
+  isIncognito?: boolean;
+  onCloseIncognito?: () => void;
+  isPersonalized?: boolean;
+  isHandsFreeVoice?: boolean;
+  responsePreferences?: ResponsePreferences;
+  onResponsePreferencesChange?: (value: ResponsePreferences) => void;
+  onResetResponsePreferences?: () => void;
+  onOpenMemorySettings?: () => void;
+  memoryActive?: boolean;
+}
 
 const WhatsAppIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg
@@ -21,7 +39,24 @@ const WhatsAppIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   </svg>
 );
 
-export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar, onExport, onOpenSources, sourcesCount = 0, hasMessages = false, isIncognito = false, onCloseIncognito, isPersonalized = false, isHandsFreeVoice = false, responsePreferences, onResponsePreferencesChange, onResetResponsePreferences }: ChatHeaderProps) => {
+export const ChatHeader = ({
+  onOpenMobileMenu,
+  sidebarCollapsed,
+  onToggleSidebar,
+  onExport,
+  onOpenSources,
+  sourcesCount = 0,
+  hasMessages = false,
+  isIncognito = false,
+  onCloseIncognito,
+  isPersonalized = false,
+  isHandsFreeVoice = false,
+  responsePreferences,
+  onResponsePreferencesChange,
+  onResetResponsePreferences,
+  onOpenMemorySettings,
+  memoryActive = false,
+}: ChatHeaderProps) => {
   const { t } = useTranslation();
   const rawWhatsApp = (import.meta.env.VITE_WHATSAPP_NUMBER || '').trim();
   const whatsappNumber = rawWhatsApp.replace(/[^0-9]/g, '');
@@ -56,14 +91,32 @@ export const ChatHeader = ({ onOpenMobileMenu, sidebarCollapsed, onToggleSidebar
               <span className="truncate">{t('nav.appName')}</span>
             </span>
             {isPersonalized && (
-              <span
-                className="hidden sm:inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 px-2 py-0.5 text-[10px] font-medium text-ojas whitespace-nowrap"
-                title={t('chat.personalizedTitle')}
-                data-testid="personalization-badge"
-              >
-                <Sparkles className="w-3 h-3" />
-                {t('chat.personalized')}
-              </span>
+              onOpenMemorySettings ? (
+                <button
+                  type="button"
+                  onClick={onOpenMemorySettings}
+                  className={`hidden sm:inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap transition-colors cursor-pointer hover:border-ojas/40 ${
+                    memoryActive
+                      ? 'border-ojas/30 bg-ojas/10 text-ojas hover:bg-ojas/15'
+                      : 'border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/60'
+                  }`}
+                  title={t('chat.memorySettings.badgeTitle', 'Spiritual Memory Settings')}
+                  aria-label={t('chat.memorySettings.badgeTitle', 'Spiritual Memory Settings')}
+                  data-testid="personalization-badge"
+                >
+                  <Sparkles className={`w-3 h-3 ${memoryActive ? 'text-ojas' : 'text-muted-foreground'}`} />
+                  <span>{memoryActive ? t('chat.memoryActive', 'Memory Active') : t('chat.memoryPaused', 'Memory Paused')}</span>
+                </button>
+              ) : (
+                <span
+                  className="hidden sm:inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 px-2 py-0.5 text-[10px] font-medium text-ojas whitespace-nowrap"
+                  title={t('chat.personalizedTitle')}
+                  data-testid="personalization-badge"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  {t('chat.personalized')}
+                </span>
+              )
             )}
             {isHandsFreeVoice && (
               <span

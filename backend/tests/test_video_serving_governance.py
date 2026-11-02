@@ -248,3 +248,55 @@ def test_video_id_pattern_ignores_longer_tokens(decisions_dir):
     assert VIDEO_ID_IN_SOURCE.search(f"https://www.youtube.com/watch?v={VID}&x=1").group(1) == VID
     assert VIDEO_ID_IN_SOURCE.search("https://x.org/videos/" + "a" * 64) is None
     assert VIDEO_ID_IN_SOURCE.search(f"https://x.org/?nv={VID}") is None
+
+
+def test_upload_success_stamps_points_and_returns_media_url(upload_client, monkeypatch):
+    import ingest.video_pipeline as vp
+    from types import SimpleNamespace
+
+    stamped_calls = []
+
+    class _FakeQdrantClient:
+        def set_payload(self, collection_name, payload, points):
+            stamped_calls.append((collection_name, payload, points))
+
+    class _FakeQdrantManager:
+        @property
+        def client(self):
+            return _FakeQdrantClient()
+
+    class _SuccessPipeline:
+        def __init__(self, *a, **k):
+            pass
+
+        async def ingest_video(self, _path):
+            return SimpleNamespace(chunks_ingested=2, point_ids=["point-1", "point-2"])
+
+    monkeypatch.setattr(vp, "VideoPipeline", _SuccessPipeline)
+    import services.qdrant.client as qc
+    monkeypatch.setattr(qc, "QdrantClientManager", _FakeQdrantManager)
+
+    client, _ = upload_client
+    content = b"fake video bytes for deterministic hash"
+    resp = client.post(
+        "/api/ingest/upload-video",
+        files={"file": ("masterclass.mp4", content, "video/mp4")},
+        data={"title": "Masterclass on Suffering", "speaker": "Sri Krishnaji", "tags": "ego,peace"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert data["chunks_indexed"] == 2
+    assert "video_id" in data
+    assert data["media_url"] == f"/api/media/videos/{data['video_id']}"
+
+    assert len(stamped_calls) == 1
+    coll_name, payload, points = stamped_calls[0]
+    assert coll_name == "spiritual_wisdom_contextual"
+    assert points == ["point-1", "point-2"]
+    assert payload["source_type"] == "direct_video"
+    assert payload["media_url"] == f"/api/media/videos/{data['video_id']}"
+    assert payload["title"] == "Masterclass on Suffering"
+    assert payload["speaker"] == "Sri Krishnaji"
+    assert set(payload["tags"]) == {"ego", "peace"}
+

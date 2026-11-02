@@ -449,6 +449,33 @@ def test_orphan_first_span_abstains_but_later_pronoun_span_is_fine():
     assert ok.abstain_reason is None
 
 
+def test_context_harness_rejects_dangling_question_tail():
+    text = (
+        "Suffering is a call to awaken. It is a moment of quiet attention that lets us "
+        "observe the mind without choosing and notice its movement carefully. What do you do?"
+    )
+    decision = FirstPersonContextHarness().decide(
+        context([span(0, text=text)]), answerability="yes"
+    )
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "not_standalone"
+
+
+def test_context_harness_excludes_unsolicited_self_harm_context():
+    text = (
+        "When a person is experiencing suicidal thoughts, it is important to reach out to a "
+        "qualified professional and stay close to someone who can offer immediate care."
+    )
+    decision = FirstPersonContextHarness().decide(
+        context([span(0, text=text)]),
+        query="How can I find inner peace?",
+        answerability="yes",
+    )
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "unsolicited_self_harm_reference"
+    assert HarnessState.CONTEXTUAL_SAFETY_GATE in decision.state_path
+
+
 # ---------------------------------------------------------------------------
 # T2c / T4 pins (plan fp-primary-quality-harness-2026-10-27)
 # ---------------------------------------------------------------------------

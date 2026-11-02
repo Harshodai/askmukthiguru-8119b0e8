@@ -562,6 +562,89 @@ def test_compound_facet_split_and_assembly_contract(sample_verified_clip: dict[s
         assert res.stage_timings["total_ms"] > 0.0
 
 
+def test_compound_path_rejects_unverified_clip_when_setting_requires_verification(
+    sample_verified_clip: dict[str, Any],
+) -> None:
+    import time
+
+    clip = {**sample_verified_clip, "speaker_verified": False}
+    mock_store = MagicMock()
+    mock_store.search_hybrid.return_value = [clip]
+    mock_llm = MagicMock()
+
+    with (
+        patch("services.first_person_pipeline.settings") as mock_settings,
+        patch("services.first_person_pipeline.is_youtube_video_available", return_value=True),
+        patch("services.first_person_pipeline.video_is_blocked", return_value=False),
+    ):
+        mock_settings.first_person_require_speaker_verified = True
+        mock_settings.first_person_content_quality_gate_enabled = False
+        mock_settings.first_person_boundary_guard_enabled = False
+        mock_settings.first_person_quality_allowlist_path = ""
+        mock_settings.first_person_quality_blocklist_path = ""
+        mock_settings.first_person_answerability_check_enabled = False
+        mock_settings.first_person_relevance_gate_enabled = False
+        pipeline = FirstPersonPipeline(store=mock_store, llm_service=mock_llm)
+        result = pipeline._execute_compound(
+            query="What is suffering?",
+            facets=["What is suffering?"],
+            query_dense_vector=[0.1] * 1024,
+            query_sparse_vector=None,
+            teacher_id="both",
+            max_clips=3,
+            start_time=time.monotonic(),
+            cache_bypass=True,
+            request_allow_state="off",
+            request_block_state="off",
+            fp_llm_tokens=[],
+        )
+
+    assert result.status == "abstained"
+    assert result.citations == []
+
+
+def test_compound_path_skips_relevance_provider_when_gate_is_disabled(
+    sample_verified_clip: dict[str, Any],
+) -> None:
+    import time
+
+    mock_store = MagicMock()
+    mock_store.search_hybrid.return_value = [sample_verified_clip]
+    mock_llm = MagicMock()
+
+    with (
+        patch("services.first_person_pipeline.settings") as mock_settings,
+        patch("services.first_person_pipeline.is_youtube_video_available", return_value=True),
+        patch("services.first_person_pipeline.video_is_blocked", return_value=False),
+    ):
+        mock_settings.first_person_require_speaker_verified = False
+        mock_settings.first_person_content_quality_gate_enabled = False
+        mock_settings.first_person_boundary_guard_enabled = False
+        mock_settings.first_person_quality_allowlist_path = ""
+        mock_settings.first_person_quality_blocklist_path = ""
+        mock_settings.first_person_answerability_check_enabled = False
+        mock_settings.first_person_relevance_gate_enabled = False
+        mock_settings.first_person_relevance_min_score = 3
+        pipeline = FirstPersonPipeline(store=mock_store, llm_service=mock_llm)
+        result = pipeline._execute_compound(
+            query="What is suffering?",
+            facets=["What is suffering?"],
+            query_dense_vector=[0.1] * 1024,
+            query_sparse_vector=None,
+            teacher_id="both",
+            max_clips=3,
+            start_time=time.monotonic(),
+            cache_bypass=True,
+            request_allow_state="off",
+            request_block_state="off",
+            fp_llm_tokens=[],
+        )
+
+    assert result.status == "weak_match"
+    assert len(result.citations) == 1
+    mock_llm.generate.assert_not_called()
+
+
 def test_validate_release_grade_contract() -> None:
     """Test SourceSpan.validate_release_grade() for D9."""
     from domain.first_person_context import (

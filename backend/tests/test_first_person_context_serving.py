@@ -504,6 +504,23 @@ def test_policy_fingerprint_covers_the_context_collection(monkeypatch):
     assert pipeline._serving_policy_fingerprint() == first
 
 
+def test_policy_fingerprint_pins_evidence_policy_and_candidate_thresholds(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", False)
+    pipeline = FirstPersonPipeline(store=Mock(), redis_client=Mock(), serene_mind_engine=Mock())
+    base_components = pipeline._serving_policy_components()
+    base = pipeline._serving_policy_fingerprint()
+    assert base_components["first_person_evidence_policy"] == "first_person_evidence_v1"
+
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", True)
+    assert pipeline._serving_policy_components()["require_speaker_verified"] == "True"
+    assert pipeline._serving_policy_fingerprint() != base
+
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", False)
+    monkeypatch.setattr(settings, "first_person_min_answer_words", 24)
+    assert pipeline._serving_policy_components()["standalone_min_words"] == "24"
+    assert pipeline._serving_policy_fingerprint() != base
+
+
 def test_selector_integration(monkeypatch):
     """Phase D8 selector is consulted when enabled and its span order is honored."""
     monkeypatch.setattr(settings, "first_person_context_selector_enabled", True)

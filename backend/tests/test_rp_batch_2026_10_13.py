@@ -271,11 +271,11 @@ def test_policy_fingerprint_covers_the_json_scorer_prompt(monkeypatch):
     import services.first_person_pipeline as fpp
 
     base = _fresh_key()
-    monkeypatch.setattr(
-        fpp, "_RELEVANCE_JSON_SYSTEM_PROMPT", fpp._RELEVANCE_JSON_SYSTEM_PROMPT + " stricter"
-    )
-    assert _fresh_key() != base
-    monkeypatch.undo()
+    with monkeypatch.context() as prompt_patch:
+        prompt_patch.setattr(
+            fpp, "_RELEVANCE_JSON_SYSTEM_PROMPT", fpp._RELEVANCE_JSON_SYSTEM_PROMPT + " stricter"
+        )
+        assert _fresh_key() != base
     assert _fresh_key() == base
 
 
