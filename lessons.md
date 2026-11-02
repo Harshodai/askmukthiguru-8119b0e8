@@ -1,6 +1,15 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 2, 2026 — 13-Locale Synchronization & Punctuation-Fidelity Leaf Parity
+
+### L-I18N-PARITY-NEW-KEYS-1. Adding user-facing UI keys to `en.json` without updating the 13 supported Indic locales breaks `src/test/i18n-parity.test.ts` and `scripts/check_i18n_coverage.mjs`.
+- **What:** When 32 new personalization and spiritual memory consent/settings keys (`chat.memoryActive`, `chat.memoryPaused`, `chat.memoryBanner.*`, `chat.memorySettings.*`) were added to `src/locales/en.json`, the 13 non-English locale files (`hi`, `te`, `kn`, `ta`, `mr`, `bn`, `gu`, `ml`, `pa`, `or`, `as`, `ur`, `sa`) remained unsynchronized, failing `i18n-parity.test.ts` across 13 test suites (416 missing leaf keys).
+- **Fix:** Synchronized all 32 keys into all 13 locales with Sarvam Indic neural translations and curated spiritual terminology for Urdu, Assamese, and Sanskrit. Enforced strict sentence-count and punctuation fidelity via `clean_punctuation()` (ensuring strings without English ending periods or ellipses do not add trailing dandas/dots, preventing `fidelityProblem` rejections). Bootstrapped `scripts/i18n/source-hashes.json` so `node scripts/i18n_sync.mjs --check` and `vitest run src/test/i18n-sync.test.ts` pass cleanly (1,937 keys verified in sync).
+- **Pin:** `src/locales/*.json`, `scripts/i18n/source-hashes.json`, `scripts/merge_and_validate_i18n.py`, `src/test/i18n-parity.test.ts`, `src/test/i18n-sync.test.ts`.
+- **Rule:** Any commit that adds or edits keys in `src/locales/en.json` must be accompanied by synchronized translations in all 13 target locales and verified via `npm run i18n:check` and `npx vitest run src/test/i18n-sync.test.ts` before staging.
+
+
 ## Nov 2, 2026 — First-Person Context Harness Serving, v10-Only Aliasing & WHATWG SSE Sequence Headers
 
 ### L-FP-V10-TERMINAL-ALIASING-1. Activating `FIRST_PERSON_CONTEXT_HARNESS_ENABLED` requires setting `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=true` to prevent startup contract crashes under `v10-only` serving.
