@@ -454,7 +454,9 @@ def ingest_into_qdrant(discourses: list[dict[str, Any]]) -> dict[str, int]:
                 )
 
             if rag_points:
-                client.upsert(collection_name="spiritual_wisdom_contextual", points=rag_points)  # fp-write-ok
+                client.upsert(  # fp-write-ok
+                    collection_name="spiritual_wisdom_contextual", points=rag_points
+                )
                 stats["spiritual_wisdom_contextual"] += len(rag_points)
                 logger.info(
                     "  ✓ spiritual_wisdom_contextual: upserted %d points for %s",
