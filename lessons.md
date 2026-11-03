@@ -1,6 +1,26 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 3, 2026 — Docker Stack Stale Image Rebuild, Serene Mind Authentic Voice & Context Harness Multi-Span Serving
+
+### L-DOCKER-FRONTEND-STALE-REBUILD-1. Containerized SPAs served behind reverse proxies (Nginx) must be explicitly rebuilt and redeployed whenever client assets or API contracts change, or seekers will experience silent drift between the live backend and stale frontend images.
+- **What:** The backend container was rebuilt with updated memory governance and personal KG endpoints, but `mukthiguru-frontend` on port 80 had not been rebuilt for 36 hours. As a consequence, visiting `http://localhost:80` displayed a stale UI bundle (including old fallback mandalas and a false `Unavailable` connection badge caused by old health probe timeout settings), even though all recent frontend source changes passed local unit tests.
+- **Fix:** Rebuilt and recreated `mukthiguru-frontend` using `docker compose -f backend/docker-compose.yml build frontend && docker compose -f backend/docker-compose.yml up -d --no-deps frontend`. Verified live port 80 container rendering with Playwright E2E visual capture.
+- **Pin:** `backend/docker-compose.yml`, `tests/e2e/port80-docker-verification.spec.ts`.
+- **Rule:** Always verify that host-level container ports (e.g. port 80) run images built from current HEAD before declaring frontend features live in full-stack Docker environments.
+
+### L-SERENE-MIND-AUTHENTIC-AUDIO-SYNC-1. Pre-recorded guided meditation audio must be bundled locally with fallback and slaved deterministic timers to prevent playback failure or drift.
+- **What:** The Serene Mind guided meditation previously relied on an external Lovable CDN asset URL that returned HTTP 404 in local and Docker environments, forcing silent fallback to synthetic Web Speech TTS and leaving seekers without Sri Preethaji's authentic voice. Additionally, interval-based breath counters drifted independently of audio playback when users paused, resumed, or skipped steps.
+- **Fix:** Extracted and normalized Sri Preethaji's authentic voice from the canonical discourse (`igSp4H0OWLE`) to -16 LUFS into `public/audio/meditation/preethaji-serene-mind.mp3` (235.6s, matching `TOTAL_DURATION_SECONDS = 236s`). Slaved inhale/exhale breath cycles deterministically to the audio's `currentTime`/`elapsed` timestamp, eliminating timing drift across pause/resume/seek events. Added immediate `autoPlay={true}` when opening Serene Mind from Chat.
+- **Pin:** `public/audio/meditation/preethaji-serene-mind.mp3`, `src/components/meditation/meditationSteps.ts`, `src/components/meditation/GuidedMeditationFlow.tsx`, `src/context/SereneMindProvider.tsx`.
+- **Rule:** Never rely on external hosted CDN URLs for core sacred practice audio; bundle verified audio assets in `public/` and slave animation and breath timers directly to the media stream position.
+
+### L-CONTEXT-HARNESS-MULTI-SPAN-STITCHING-1. Activating `FIRST_PERSON_CONTEXT_HARNESS_ENABLED` eliminates broken single-span openers by enforcing multi-span antecedent resolution.
+- **What:** In single-span retrieval (`FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false`), verbatim teaching retrieval often returned isolated clips that started mid-sentence with connecting phrases (*"Imagine what will be the outcome of it..."* or *"Because of that..."*), leaving seekers with fragmented or confusing openers.
+- **Fix:** Enabled `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` in `backend/.env` and `.env` under `FIRST_PERSON_MODE=retrieval_only` (per repo invariant X24). The context harness uses `_ANTECEDENT_CONNECTIVE_RE` to detect dangling discourse openers and stitches preceding parent context spans into a cohesive, complete teaching unit.
+- **Pin:** `backend/.env`, `.env`, `backend/services/first_person_context_harness.py`.
+- **Rule:** For verbatim oral discourse retrieval, always pair vector search with antecedent connective detection and parent span window rehydration to prevent fragmented openers.
+
 ## Nov 3, 2026 — Zero Demo Data Enactment, Knowledge Graph Empty State Truthfulness & Health Badge Resilience
 
 ### L-DEMO-DATA-TRUTHFULNESS-1. Zero-data states must render authentic, inspiring empty states instead of fabricating synthetic demo nodes or seed graphs.
