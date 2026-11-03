@@ -1,6 +1,25 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 3, 2026 — 20-Subagent Forensic Reconciliation, Profile Sadhana Heatmap & Supabase Upsert Resilience
+
+### L-PROFILE-HEATMAP-DEFAULT-STREAK-1. Reactive async stats hydration requires a `userToggled` guard so explicit user preference is not overwritten.
+- **What:** In `ProfileStatTiles.tsx`, when meditation stats were loaded asynchronously from Supabase or cache, setting `showHeatmap` strictly on `stats.streakDays > 7` caused the view to snap back to the GitHub heatmap even if the seeker had explicitly clicked "Switch to 7-Day Circle".
+- **Fix:** Added a `userToggled` ref guard so that when the seeker explicitly toggles between the 20-week GitHub heatmap and the 7-day Circle of Presence, their choice persists across re-renders without being clobbered by async stats hydration. Wrapped view transitions in `<AnimatePresence mode="wait">` for a smooth visual cross-fade.
+- **Pin:** `src/components/profile/ProfileStatTiles.tsx`, `src/test/SadhanaHeatmap.test.tsx`.
+
+### L-SUPABASE-POSTGREST-UPSERT-SINGLE-1. Chaining `.single()` onto `table().upsert().select()` raises AttributeError on `SyncQueryRequestBuilder`.
+- **What:** In `backend/app/api/memory.py:317`, `client.table("guru_core_memory").upsert(payload).select("id, content, updated_at").single().execute()` raised `AttributeError: 'SyncQueryRequestBuilder' object has no attribute 'single'` on live PostgREST/supabase-py calls, breaking the `PUT /api/memory/core` endpoint while mocking hid the bug in tests.
+- **Fix:** Wrapped the builder chain to safely attempt `.single()` only when present on the builder instance, and extracted the single row from `result.data[0]` when `result.data` is returned as a list of dicts.
+- **Pin:** `backend/app/api/memory.py`, `backend/tests/test_memory_api.py`.
+
+### L-SUBAGENTS-ORIGIN-RECONCILIATION-1. Complex architecture refactoring involves both domain architects and engine implementers; omitting implementation subagents undercounts audit scopes.
+- **What:** In the architecture planning session (`fdba082a`), 20 distinct subagent roles were dispatched (14 domain/flow architects + 6 core engine implementers). When auditing subagents in the subsequent execution thread (`e954e2dc`), an audit pass counted only the 14 architects and reported 14 subagents, leading to a perceived discrepancy of 6 missing subagents.
+- **Fix:** Systematically enumerated all subagent invocations across both parent and child conversation logs, reconciling the 14 architects and the 6 core implementation engines (Engine 1 through 6) into a master audit matrix.
+- **Pin:** `full_status_audit_2026_11_03.md`, `comprehensive_audit_and_verification_final.md`.
+
+
+
 ## Nov 2, 2026 — 13-Locale Synchronization & Punctuation-Fidelity Leaf Parity
 
 ### L-I18N-PARITY-NEW-KEYS-1. Adding user-facing UI keys to `en.json` without updating the 13 supported Indic locales breaks `src/test/i18n-parity.test.ts` and `scripts/check_i18n_coverage.mjs`.
