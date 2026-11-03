@@ -27,4 +27,3 @@ Sri Krishnaji articulates the foundational vision of Ekam as a movement in consc
 
 > "The collective awakening of human consciousness is the enduring panacea to dissolve suffering and division."
 - Sri Preethaji & Sri Krishnaji
-

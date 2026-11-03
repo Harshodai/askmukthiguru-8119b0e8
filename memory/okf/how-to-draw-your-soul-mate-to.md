@@ -27,4 +27,3 @@ Sri Krishnaji teaches that in consciousness, one must create the effect first an
 
 > "When your heart explodes with causeless love and wholeness, your soul mate arrives."
 - Sri Krishnaji
-

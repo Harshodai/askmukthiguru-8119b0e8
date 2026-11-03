@@ -27,4 +27,3 @@ Sri Krishnaji reveals the inner contradiction of the people pleaser, who is caug
 
 > "When your responses come from a fearful space, you cannot cause harmony. Transcend the compulsive need to please."
 - Sri Krishnaji
-

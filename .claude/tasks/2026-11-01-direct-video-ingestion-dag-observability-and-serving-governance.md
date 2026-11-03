@@ -1,8 +1,8 @@
 # Implementation Plan: Direct Video Ingestion, Real-Time DAG Highlighting, HITL Verification & Serving Governance
 
-**Document ID:** `2026-11-01-direct-video-ingestion-dag-observability-and-serving-governance`  
-**Status:** IN PROGRESS (PHASES 1–6)  
-**Scope:** 
+**Document ID:** `2026-11-01-direct-video-ingestion-dag-observability-and-serving-governance`
+**Status:** IN PROGRESS (PHASES 1–6)
+**Scope:**
 1. Batch ingestion of verified new YouTube videos of Sri Preethaji & Sri Krishnaji into Qdrant, Memgraph, and OKF.
 2. Direct video file ingestion (`.mp4`, `.mov`, `.webm`, `.mkv`) with direct citation rendering and HTML5 timestamp player.
 3. Real-time active step tracking and visual highlighting in the Ingestion Workflow DAG (specifically highlighting ECAPA, Transcription, and other stages during processing).
