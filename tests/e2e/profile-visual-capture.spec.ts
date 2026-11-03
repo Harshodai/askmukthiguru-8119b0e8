@@ -72,6 +72,33 @@ async function mockSeekerEnvironment(page: Page) {
       : route.fulfill(json({})),
   );
 
+  let isConsentGranted = false;
+  await page.route(/\/api\/memory\/consent/, (route) => {
+    if (route.request().method() === 'POST') {
+      isConsentGranted = true;
+      return route.fulfill(json({ granted: true }));
+    }
+    return route.fulfill(json({ granted: isConsentGranted }));
+  });
+  await page.route(/\/api\/memory\/list/, (route) =>
+    route.fulfill(json({ memories: [], total: 0 })),
+  );
+  await page.route(/\/api\/memory\/core/, (route) =>
+    route.fulfill(json(null)),
+  );
+  await page.route(/\/api\/memory\/summaries/, (route) =>
+    route.fulfill(json([])),
+  );
+  await page.route(/\/api\/memory\/conversations/, (route) =>
+    route.fulfill(json([])),
+  );
+  await page.route(/\/api\/memory\/persona/, (route) =>
+    route.fulfill(json({ content: '' })),
+  );
+  await page.route(/\/api\/memory\/skills/, (route) =>
+    route.fulfill(json([])),
+  );
+
   await page.route(/\/api\/health/, (route) =>
     route.fulfill(json({ ready: true, status: 'healthy' })),
   );
@@ -184,11 +211,36 @@ test.describe('Profile Visual Capture', () => {
 
     // Step 3: Navigate to Memory Tab -> Guru's Living Memory & Knowledge Graph
     await page.goto('/profile?tab=memory&subtab=guru');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(2000);
 
     const memoryGraphScreenshot = path.join(outputDir, 'profile_memory_knowledge_graph.png');
     await page.screenshot({ path: memoryGraphScreenshot, fullPage: true });
     console.log(`[VISUAL CAPTURE] Saved: ${memoryGraphScreenshot}`);
+
+    // Step 4: Click "Approve & Enable Memory" banner button if present to show the active blooming graph
+    const approveBtn = page.getByRole('button', { name: /Approve & Enable Memory/i }).first();
+    if (await approveBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await approveBtn.click();
+      await page.waitForTimeout(1500);
+      const memoryApprovedScreenshot = path.join(outputDir, 'profile_memory_approved_blooming.png');
+      await page.screenshot({ path: memoryApprovedScreenshot, fullPage: true });
+      console.log(`[VISUAL CAPTURE] Saved: ${memoryApprovedScreenshot}`);
+    }
+
+    // Step 5: Test Serene Mind guided flow in Chat
+    await page.goto('/chat');
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(1500);
+
+    // Open Serene Mind via top header or shortcut
+    const sereneMindBtn = page.getByRole('button', { name: /Serene Mind/i }).first();
+    if (await sereneMindBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await sereneMindBtn.click();
+      await page.waitForTimeout(1500);
+      const sereneMindScreenshot = path.join(outputDir, 'serene_mind_preethaji_guided_flow.png');
+      await page.screenshot({ path: sereneMindScreenshot, fullPage: true });
+      console.log(`[VISUAL CAPTURE] Saved: ${sereneMindScreenshot}`);
+    }
   });
 });

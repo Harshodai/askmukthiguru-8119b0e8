@@ -92,6 +92,8 @@ qdrant_data/
 # Audio files
 *.mp3
 *.wav
+!public/media/*.mp3
+!public/audio/meditation/*.mp3
 
 # Model files
 *.gguf

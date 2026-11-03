@@ -563,13 +563,21 @@ function edgeStyle(label?: string | null, active = false) {
   };
 }
 
+export interface KGConceptMapProps {
+  initialQuery?: string;
+  embedded?: boolean;
+  scope?: 'personal' | 'general';
+  hasConsent?: boolean | null;
+  onApproveConsent?: () => void;
+}
+
 export const KGConceptMap = ({
   initialQuery = '',
   embedded = false,
-}: {
-  initialQuery?: string;
-  embedded?: boolean;
-}) => {
+  scope,
+  hasConsent,
+  onApproveConsent,
+}: KGConceptMapProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState(initialQuery);
@@ -593,7 +601,8 @@ export const KGConceptMap = ({
         const { endpoint } = getAIConfig();
         const baseUrl = (endpoint ?? '').replace(/\/api\/chat\/?$/, '');
         const token = await getAccessToken();
-        personal = Boolean(token);
+        const isPersonalScope = scope === 'personal' || embedded || (scope !== 'general' && Boolean(token));
+        personal = isPersonalScope;
         setIsPersonal(personal);
 
         const effectiveQuery = q.trim();
@@ -649,7 +658,7 @@ export const KGConceptMap = ({
         setLoading(false);
       }
     },
-    [t],
+    [t, scope, embedded],
   );
 
   useEffect(() => {
@@ -1140,6 +1149,35 @@ export const KGConceptMap = ({
                 ))}
               </div>
             </>
+          ) : scope === 'personal' && hasConsent !== true ? (
+            /* Personal Wisdom Map Paused State */
+            <div className="flex h-[620px] flex-col items-center justify-center px-6 py-8 text-center">
+              <div className="relative mb-5 flex h-20 w-20 items-center justify-center">
+                <div className="absolute inset-0 rounded-full border border-ojas/25 bg-ojas/10 animate-pulse" />
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-ojas/30 bg-card/80 backdrop-blur-md shadow-xl">
+                  <Sparkles className="h-7 w-7 text-ojas" />
+                </div>
+              </div>
+              <h3 className="font-sacred text-2xl font-medium text-foreground">
+                {t('kg.personalPausedTitle', 'Personal Wisdom Map Paused')}
+              </h3>
+              <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-muted-foreground">
+                {t(
+                  'kg.personalPausedDesc',
+                  'Allow Mukthi Guru to remember your reflections to weave your personal spiritual journey.',
+                )}
+              </p>
+              <div className="mt-6">
+                <Button
+                  type="button"
+                  onClick={() => onApproveConsent?.()}
+                  className="rounded-xl bg-ojas hover:bg-ojas-dark text-primary-foreground font-semibold shadow-lg shadow-ojas/20 px-6 py-2.5 text-sm"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {t('kg.approveAndEnableMap', 'Approve & Enable Personal Wisdom Map')}
+                </Button>
+              </div>
+            </div>
           ) : (
             /* Inspiring Empty State */
             <div className="flex h-[620px] flex-col items-center justify-center px-6 py-8 text-center">
@@ -1154,10 +1192,15 @@ export const KGConceptMap = ({
               </h3>
               <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-muted-foreground">
                 {isPersonal
-                  ? t(
-                      'kg.bloomingDesc',
-                      'Begin your dialogue with the Guru or record study reflections to watch your consciousness map unfold with sacred teachings.',
-                    )
+                  ? (scope === 'personal' || embedded)
+                    ? t(
+                        'kg.bloomingDescDetailed',
+                        '0 reflections recorded yet. Ask a question or share a reflection to begin.',
+                      )
+                    : t(
+                        'kg.bloomingDesc',
+                        'Begin your dialogue with the Guru or record study reflections to watch your consciousness map unfold with sacred teachings.',
+                      )
                   : t('kg.searchToVisualise')}
               </p>
 

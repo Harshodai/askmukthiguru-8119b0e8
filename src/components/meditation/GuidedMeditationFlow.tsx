@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Play, Pause, SkipForward, RotateCcw, ChevronLeft,
-  HandHeart, Leaf, Feather, Lightbulb, Droplet, Zap, Sparkles,
+  HandHeart, Leaf, Feather, Lightbulb, Droplet, Zap, Sparkles, Headphones,
 } from 'lucide-react';
 import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './meditationSteps';
 import { MeditationProgressIndicator } from './MeditationProgressIndicator';
@@ -78,7 +78,6 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
   const [elapsed, setElapsed] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [breathPhase, setBreathPhase] = useState<BreathPhase>('inhale');
-  const [breathTimer, setBreathTimer] = useState(0);
   // Reflection state
   const [reflectionStep, setReflectionStep] = useState<0 | 1 | 2 | 3>(0);
   const [selectedMood, setSelectedMood] = useState<string>('');
@@ -151,17 +150,16 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     // Fresh start
     setCurrentStepIndex(0);
     setElapsed(0);
-    setAudioSeek(null);
+    setAudioSeek(usesCanonicalAudio ? 0 : null);
     setIsPlaying(false);
     setBreathPhase('inhale');
-    setBreathTimer(0);
     setReflectionStep(0);
     setSelectedMood('');
     setJournalText('');
     setGratitudeText('');
     sessionIdRef.current = generateSessionId();
     startTimeRef.current = Date.now();
-  }, [isOpen, steps.length]);
+  }, [isOpen, steps.length, usesCanonicalAudio]);
 
   // Persist progress every tick while running so an unexpected close is recoverable.
   useEffect(() => {
@@ -194,10 +192,9 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     clearResume();
     setCurrentStepIndex(0);
     setElapsed(0);
-    setAudioSeek(null);
+    setAudioSeek(usesCanonicalAudio ? 0 : null);
     setIsPlaying(false);
     setBreathPhase('inhale');
-    setBreathTimer(0);
     setReflectionStep(0);
     setSelectedMood('');
     setJournalText('');
@@ -229,30 +226,24 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     return () => clearInterval(id);
   }, [isPlaying, isComplete, step, usesCanonicalAudio, audioFailed]);
 
-  // Breathing cycle within breathing step
+  // Breathing cycle within breathing step — synchronized with elapsed audio timeline
   useEffect(() => {
-    if (!isPlaying || !step?.breathPattern) return;
+    if (!step?.breathPattern) {
+      setBreathPhase('inhale');
+      return;
+    }
     const bp = step.breathPattern;
-    const id = setInterval(() => {
-      setBreathTimer((prev) => {
-        const next = prev + 1;
-        if (breathPhase === 'inhale' && next >= bp.inhale) {
-          setBreathPhase(bp.hold > 0 ? 'hold' : 'exhale');
-          return 0;
-        }
-        if (breathPhase === 'hold' && next >= bp.hold) {
-          setBreathPhase('exhale');
-          return 0;
-        }
-        if (breathPhase === 'exhale' && next >= bp.exhale) {
-          setBreathPhase('inhale');
-          return 0;
-        }
-        return next;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isPlaying, step, breathPhase]);
+    const cycleDuration = bp.inhale + bp.hold + bp.exhale;
+    if (cycleDuration <= 0) return;
+    const cycleSec = Math.floor(elapsed) % cycleDuration;
+    if (cycleSec < bp.inhale) {
+      setBreathPhase('inhale');
+    } else if (bp.hold > 0 && cycleSec < bp.inhale + bp.hold) {
+      setBreathPhase('hold');
+    } else {
+      setBreathPhase('exhale');
+    }
+  }, [elapsed, step]);
 
   // Save session on completion. Keep startTimeRef intact so the reflection
   // step can compute the final duration accurately when the user submits.
@@ -325,11 +316,29 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
   }, [onClose]);
 
   const skipStep = useCallback(() => {
-    setCurrentStepIndex((prev) => prev + 1);
+    const nextIndex = currentStepIndex + 1;
+    if (nextIndex >= steps.length) {
+      if (usesCanonicalAudio) {
+        const totalDuration = steps.reduce((sum, candidate) => sum + candidate.durationSeconds, 0);
+        setAudioSeek(totalDuration);
+      }
+      setCurrentStepIndex(steps.length);
+      setElapsed(0);
+      setIsPlaying(false);
+      return;
+    }
+
+    const nextStepStart = steps
+      .slice(0, nextIndex)
+      .reduce((sum, candidate) => sum + candidate.durationSeconds, 0);
+
+    setCurrentStepIndex(nextIndex);
     setElapsed(0);
     setBreathPhase('inhale');
-    setBreathTimer(0);
-  }, []);
+    if (usesCanonicalAudio) {
+      setAudioSeek(nextStepStart);
+    }
+  }, [currentStepIndex, steps, usesCanonicalAudio]);
 
   if (!isOpen) return null;
 
@@ -510,6 +519,18 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
             {t('meditation.guidedMeditation', 'Serene Mind meditation')}
           </h1>
 
+          {/* Authentic Sri Preethaji Voice Guidance Badge */}
+          {usesCanonicalAudio && (
+            <div
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ojas/10 border border-ojas/20 text-xs font-medium text-ojas shadow-xs"
+              role="status"
+            >
+              <Headphones className="w-3.5 h-3.5 text-ojas shrink-0" />
+              <span>Guided by Sri Preethaji's Voice</span>
+              <Sparkles className="w-3 h-3 text-ojas/80 shrink-0" />
+            </div>
+          )}
+
           {/* Progress indicator */}
             <MeditationProgressIndicator
               currentStep={currentStepIndex}
@@ -543,7 +564,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
             </AnimatePresence>
 
             {/* Breathing visualization */}
-            {step.breathPattern && isPlaying && (
+            {step.breathPattern && (
               <motion.div className="flex flex-col items-center gap-2">
                 <div className="relative flex items-center justify-center">
                   {/* Serene UI: warm-sand breathing halo (CSS keyframe animate-breathe).
@@ -557,17 +578,22 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
                       scale: breathPhase === 'inhale' ? 1.4 : breathPhase === 'hold' ? 1.4 : 1,
                       opacity: breathPhase === 'hold' ? 0.7 : 1,
                     }}
-                    transition={{ duration: breathPhase === 'inhale' ? step.breathPattern.inhale : step.breathPattern.exhale, ease: 'easeInOut' }}
+                    transition={{
+                      duration: breathPhase === 'inhale' ? step.breathPattern.inhale : step.breathPattern.exhale,
+                      ease: 'easeInOut',
+                    }}
                     className="relative w-16 h-16 rounded-full bg-gradient-to-br from-ojas/30 to-ojas-light/30 border border-ojas/40"
                   />
                 </div>
-                <p className="text-sm text-muted-foreground capitalize">{breathPhase}</p>
+                <p className="text-sm text-muted-foreground capitalize">
+                  {breathPhase} {!isPlaying && elapsed > 0 ? '(paused)' : ''}
+                </p>
               </motion.div>
             )}
 
             {/* Timer */}
             <p className="text-sm text-muted-foreground tabular-nums">
-              {t('meditation.secondsRemaining', { count: Math.max(0, step.durationSeconds - elapsed) })}
+              {t('meditation.secondsRemaining', { count: Math.max(0, Math.ceil(step.durationSeconds - elapsed)) })}
             </p>
 
             {/* Controls */}

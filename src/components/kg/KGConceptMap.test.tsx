@@ -344,4 +344,108 @@ describe('KGConceptMap', () => {
     // Associated practice
     expect(screen.getAllByRole('link', { name: /practice/i }).length).toBeGreaterThan(0);
   });
+
+  describe('Personal Knowledge Graph Scope Isolation & Consent Governance', () => {
+    it('only calls /api/kg/personal-subgraph when scope="personal"', async () => {
+      const fetchMock = vi.fn((..._args: any[]) =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ nodes: [], edges: [] }),
+        }),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+
+      renderWithI18n(<KGConceptMap scope="personal" hasConsent={true} />);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const calledUrl = String(fetchMock.mock.calls[0]?.[0] ?? '');
+      expect(calledUrl).toContain('/api/kg/personal-subgraph');
+      expect(calledUrl).not.toContain('/api/kg/subgraph?');
+    });
+
+    it('renders paused card when scope="personal" and hasConsent !== true, invoking onApproveConsent when clicked', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ nodes: [], edges: [] }),
+          }),
+        ),
+      );
+
+      const onApprove = vi.fn();
+      renderWithI18n(
+        <KGConceptMap scope="personal" hasConsent={false} onApproveConsent={onApprove} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/personal wisdom map paused/i)).toBeInTheDocument();
+      });
+      expect(
+        screen.getByText(
+          /allow mukthi guru to remember your reflections to weave your personal spiritual journey/i,
+        ),
+      ).toBeInTheDocument();
+
+      const approveBtn = screen.getByRole('button', {
+        name: /approve & enable personal wisdom map/i,
+      });
+      expect(approveBtn).toBeInTheDocument();
+      fireEvent.click(approveBtn);
+      expect(onApprove).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders blooming state with 0 reflections message and inquiry buttons when scope="personal" and hasConsent === true', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ nodes: [], edges: [] }),
+          }),
+        ),
+      );
+
+      renderWithI18n(<KGConceptMap scope="personal" hasConsent={true} />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/your personal wisdom map is blooming/i),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.getByText(/0 reflections recorded yet. ask a question or share a reflection to begin/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /how do i shift from a suffering state to a beautiful state/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /teach me the serene mind practice/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('calls general /api/kg/subgraph when scope="general"', async () => {
+      const fetchMock = vi.fn((..._args: any[]) =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              nodes: [{ id: 'c1', label: 'Ekam Concept', type: 'Concept' }],
+              edges: [],
+            }),
+        }),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+
+      renderWithI18n(<KGConceptMap scope="general" />);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const calledUrl = String(fetchMock.mock.calls[0]?.[0] ?? '');
+      expect(calledUrl).toContain('/api/kg/subgraph?');
+      expect(calledUrl).not.toContain('/api/kg/personal-subgraph');
+    });
+  });
 });
