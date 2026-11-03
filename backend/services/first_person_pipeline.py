@@ -59,7 +59,7 @@ from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
 from services.first_person_context_selector import select_span_ids
 from services.first_person_evidence_policy import first_person_evidence_policy
-from services.first_person_graph_expansion import expand_query_concepts
+from services.first_person_graph_expansion import expand_query_concepts, expand_teaching_units
 from services.first_person_serving_contract import legacy_slot_aliases_context
 from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
@@ -2177,6 +2177,74 @@ class FirstPersonPipeline:
         if appended:
             bounded_extras = appended[:bounded_limit]
             merged = merged + (_widen(bounded_extras) if enrich_enabled else bounded_extras)
+
+        # --- Phase-5 TeachingUnit graph expansion (flag-gated, default OFF) ---
+        tu_graph_enabled = bool(
+            getattr(settings, "first_person_teaching_unit_graph_enabled", False)
+        )
+        if tu_graph_enabled:
+            # Collect seed span_ids from primary merged contexts.
+            seed_span_ids: list[str] = []
+            for ctx in merged:
+                for span in getattr(ctx, "spans", None) or []:
+                    sid = getattr(span, "source_span_id", None) or getattr(span, "span_id", None)
+                    if isinstance(sid, str) and sid:
+                        seed_span_ids.append(sid)
+
+            if seed_span_ids:
+                try:
+                    tu_neighbors = expand_teaching_units(
+                        seed_span_ids,
+                        max_hops=1,
+                        max_nodes=int(
+                            getattr(settings, "first_person_graph_expansion_max_neighbors", 8)
+                        ),
+                        timeout_s=float(
+                            getattr(settings, "first_person_graph_expansion_timeout_s", 1.5)
+                        ),
+                    )
+                except Exception as exc:
+                    logger.debug(
+                        "[FirstPersonPipeline] expand_teaching_units failed: %s; no TU expansion",
+                        exc,
+                    )
+                    tu_neighbors = []
+
+                if tu_neighbors:
+                    try:
+                        tu_contexts: list[ParentContext] = ctx_store.retrieve(
+                            query_dense=query_dense_vector,
+                            query_sparse=query_sparse_vector,
+                            guru_id=teacher_id,
+                            limit_parents=max_clips,
+                            spans_per_parent=max_spans,
+                            concept_ids=tu_neighbors,
+                        )
+                    except Exception as exc:
+                        logger.debug(
+                            "[FirstPersonPipeline] TU graph retrieval failed: %s",
+                            exc,
+                        )
+                        tu_contexts = []
+
+                    seen_tu_ids = {_parent_id(ctx) for ctx in merged if _parent_id(ctx)}
+                    tu_appended: list[ParentContext] = []
+                    for ctx in tu_contexts or []:
+                        pid = _parent_id(ctx)
+                        if pid and pid in seen_tu_ids:
+                            continue
+                        if pid:
+                            seen_tu_ids.add(pid)
+                        tu_appended.append(ctx)
+                    logger.debug(
+                        "[FirstPersonPipeline] TU expansion: %d span neighbours -> %d extra context(s)",
+                        len(tu_neighbors),
+                        len(tu_appended),
+                    )
+                    if tu_appended:
+                        bounded_tu = tu_appended[:bounded_limit]
+                        merged = merged + (_widen(bounded_tu) if enrich_enabled else bounded_tu)
+
         return merged
 
     @staticmethod

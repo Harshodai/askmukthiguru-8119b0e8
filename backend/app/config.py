@@ -374,6 +374,11 @@ class Settings(BaseSettings):
     # Hard timeout (seconds) for the graph expansion lookup. Fail-open: a slow or
     # unavailable graph adds nothing rather than delaying the answer.
     first_person_graph_expansion_timeout_s: float = 1.5
+    # --- Phase-5 TeachingUnit graph expansion (2026-11-03) ---
+    # When True, span-level TU graph neighbours are appended AFTER the vector
+    # and concept-expansion results. The TU graph must be built offline first
+    # via scripts/ops/build_teaching_unit_graph.py. OFF by default everywhere.
+    first_person_teaching_unit_graph_enabled: bool = False
     # --- Owner-only local review candidate preview (2026-10-22) ---
     # A file-backed, LOCAL-ONLY preview of the Phase-4 `local_review_candidate`
     # tier. It reads the immutable candidate manifests directly: no Qdrant
