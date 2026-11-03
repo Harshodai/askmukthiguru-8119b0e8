@@ -7,7 +7,10 @@ let _healthEndpoint = '';
 export type ServiceHealth = 'ok' | 'degraded' | 'unreachable';
 
 /** HTTP 200 alone is not readiness: a proxy can serve HTML or ready=false. */
-export async function requestBackendHealth(endpoint: string, signal: AbortSignal): Promise<ServiceHealth> {
+export async function requestBackendHealth(
+  endpoint: string,
+  signal: AbortSignal = AbortSignal.timeout(8_000),
+): Promise<ServiceHealth> {
   try {
     const url = new URL(endpoint, window.location.origin);
     const response = await fetch(`${url.origin}/api/health`, { method: 'GET', signal });
@@ -32,17 +35,20 @@ export function resetHealthCache(): void {
   _healthEndpoint = '';
 }
 
-export async function checkBackendHealth(endpoint: string): Promise<'up' | 'down'> {
+export async function checkBackendHealth(endpoint: string, force = false): Promise<'up' | 'down'> {
   const now = Date.now();
-  if (_healthEndpoint === endpoint && _healthStatus !== 'unknown' && now - _healthLastChecked < 30_000) return _healthStatus;
-  const status = await requestBackendHealth(endpoint, AbortSignal.timeout(5_000));
+  if (!force && _healthEndpoint === endpoint && _healthStatus !== 'unknown' && now - _healthLastChecked < 30_000) return _healthStatus;
+  const status = await requestBackendHealth(endpoint, AbortSignal.timeout(8_000));
   _healthStatus = status === 'ok' ? 'up' : 'down';
   _healthEndpoint = endpoint;
   _healthLastChecked = Date.now();
   return _healthStatus;
 }
 
-export async function checkConnection(): Promise<{ connected: boolean; mode: string }> {
+export async function checkConnection(force = false): Promise<{ connected: boolean; mode: string }> {
+  if (force) {
+    resetHealthCache();
+  }
   const { provider, endpoint } = getCurrentConfig();
 
   if (provider === 'placeholder') {
@@ -54,7 +60,7 @@ export async function checkConnection(): Promise<{ connected: boolean; mode: str
     if (endpoint.includes('/functions/v1/')) {
       return { connected: true, mode: 'Connected' };
     }
-    const status = await requestBackendHealth(endpoint, AbortSignal.timeout(5_000));
+    const status = await requestBackendHealth(endpoint, AbortSignal.timeout(8_000));
     return { connected: status === 'ok', mode: status === 'ok' ? 'Connected' : 'Unavailable' };
   }
 

@@ -65,7 +65,6 @@ export const MemoryManager = () => {
   const [skillsLoading, setSkillsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState<string | null>(null);
-  const [isDemo, setIsDemo] = useState(false);
   const [newText, setNewText] = useState('');
   const [adding, setAdding] = useState(false);
   const [pinAsCore, setPinAsCore] = useState(false);
@@ -104,10 +103,8 @@ export const MemoryManager = () => {
     ]);
     if (listResult.status === 'fulfilled') {
       setMemories(listResult.value.memories);
-      setIsDemo(false);
     } else {
       setMemories([]);
-      setIsDemo(false);
       setUnavailable(t('memory.unavailable', 'Your saved memories are unavailable right now. Please try again.'));
     }
     if (coreResult.status === 'fulfilled') {
@@ -236,7 +233,7 @@ export const MemoryManager = () => {
   };
 
   const handleEdit = async (id: string) => {
-    if (isDemo || !editingText.trim() || editingSaving) return;
+    if (!editingText.trim() || editingSaving) return;
     setEditingSaving(true);
     try {
       await memoryApi.edit(id, editingText.trim());
@@ -253,7 +250,6 @@ export const MemoryManager = () => {
   };
 
   const handleForget = async (id: string) => {
-    if (isDemo) return;
     setForgettingId(id);
     try {
       await memoryApi.forget(id);
@@ -268,7 +264,7 @@ export const MemoryManager = () => {
   };
 
   const handleForgetAllReflections = async () => {
-    if (isDemo || clearingReflections) return;
+    if (clearingReflections) return;
     setClearingReflections(true);
     try {
       await memoryApi.forgetAllReflections();
@@ -532,32 +528,25 @@ export const MemoryManager = () => {
               <Badge variant="secondary" className="ml-2 font-display">
                 {visibleCount}
               </Badge>
-              {isDemo && (
-                <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[10px] tracking-wide">
-                  DEMO
-                </Badge>
-              )}
             </CardTitle>
-            {!isDemo && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-destructive" disabled={clearingReflections}>
-                    {clearingReflections ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                    <span className="sr-only">{t('memory.clearReflections', 'Clear reflections')}</span>
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t('memory.clearReflections', 'Clear reflections')}</AlertDialogTitle>
-                    <AlertDialogDescription>{t('memory.clearReflectionsWarning', 'This permanently removes episodic reflections while preserving your core memory.')}</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => void handleForgetAllReflections()}>{t('memory.clearReflectionsConfirm', 'Clear reflections')}</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-destructive" disabled={clearingReflections}>
+                  {clearingReflections ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  <span className="sr-only">{t('memory.clearReflections', 'Clear reflections')}</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t('memory.clearReflections', 'Clear reflections')}</AlertDialogTitle>
+                  <AlertDialogDescription>{t('memory.clearReflectionsWarning', 'This permanently removes episodic reflections while preserving your core memory.')}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => void handleForgetAllReflections()}>{t('memory.clearReflectionsConfirm', 'Clear reflections')}</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <div className="flex gap-1">
               <Button
                   variant={viewMode === 'list' ? 'default' : 'outline'}
@@ -581,11 +570,6 @@ export const MemoryManager = () => {
           </div>
           <CardDescription className="font-sans text-xs">
             {t('memory.graphDesc')}
-            {isDemo && (
-              <span className="block mt-1 text-amber-400/80">
-                {t('memory.demoMode', 'Service unavailable — showing sample memories')}
-              </span>
-            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -692,7 +676,7 @@ export const MemoryManager = () => {
                             )}
                           </div>
                         </div>
-                        {!isDemo && editingId !== m.id && (
+                        {editingId !== m.id && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -703,7 +687,6 @@ export const MemoryManager = () => {
                             <Pencil className="w-4 h-4" />
                           </Button>
                         )}
-                        {!isDemo && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -738,7 +721,6 @@ export const MemoryManager = () => {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                        )}
                       </motion.li>
                     ))}
                   </AnimatePresence>

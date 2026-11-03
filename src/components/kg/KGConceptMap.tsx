@@ -57,32 +57,6 @@ export interface Subgraph {
   count?: number;
 }
 
-export const DEMO_DATA: Subgraph = {
-  nodes: [
-    { id: '1', label: 'Beautiful State', type: 'State', teacher: 'Sri Preethaji' },
-    { id: '2', label: 'Witnessing Awareness', type: 'Practice', teacher: 'Sri Preethaji' },
-    { id: '3', label: 'Compassion', type: 'Practice', teacher: 'Sri Preethaji' },
-    { id: '4', label: 'Stillness', type: 'Practice', teacher: 'Sri Preethaji' },
-    { id: '5', label: 'Sri Krishnaji', type: 'Teacher', teacher: 'Sri Krishnaji' },
-    { id: '6', label: 'Observation', type: 'Practice', teacher: 'Sri Krishnaji' },
-    { id: '7', label: 'Suffering', type: 'State', state_category: 'Suffering State', teacher: 'Sri Krishnaji' },
-    { id: '8', label: 'Inner Conflict', type: 'State', state_category: 'Suffering State', teacher: 'Sri Krishnaji' },
-    { id: '9', label: 'Serene Mind', type: 'Practice', teacher: 'Sri Preethaji' },
-  ],
-  edges: [
-    { source: '1', target: '2', label: 'cultivates' },
-    { source: '2', target: '3', label: 'inspires' },
-    { source: '1', target: '4', label: 'leads to' },
-    { source: '5', target: '6', label: 'taught' },
-    { source: '6', target: '2', label: 'deepens' },
-    { source: '8', target: '7', label: 'leads to' },
-    { source: '2', target: '8', label: 'dissolves' },
-    { source: '2', target: '7', label: 'transcends' },
-    { source: '9', target: '2', label: 'awakens' },
-    { source: '9', target: '8', label: 'calms' },
-  ],
-};
-
 export interface TypeVisual {
   accent: string;
   soft: string;
@@ -603,7 +577,6 @@ export const KGConceptMap = ({
   const [data, setData] = useState<Subgraph | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDemo, setIsDemo] = useState(false);
   const [isPersonal, setIsPersonal] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -614,7 +587,6 @@ export const KGConceptMap = ({
       setLoading(true);
       setError(null);
       setNeedsAuth(false);
-      setIsDemo(false);
       let personal = false;
 
       try {
@@ -650,14 +622,11 @@ export const KGConceptMap = ({
         if (!json.nodes || json.nodes.length === 0) {
           setData(null);
           setSelectedNodeId(null);
-          setError(
-            personal
-              ? t(
-                  'kg.noPersonalConcepts',
-                  'Your personal wisdom map is empty for now. Save a reflection, memory, or study note to build it.',
-                )
-              : t('kg.noConceptsFor', 'No teachings found for this search.'),
-          );
+          if (personal) {
+            setError(null);
+          } else {
+            setError(t('kg.noConceptsFor', 'No teachings found for this search.'));
+          }
           return;
         }
 
@@ -674,9 +643,7 @@ export const KGConceptMap = ({
             t('kg.personalMapUnavailable', 'Your personal wisdom map is unavailable right now. Please try again.'),
           );
         } else {
-          setData(DEMO_DATA);
-          setIsDemo(true);
-          setError(null);
+          setError(t('kg.errorLoading', "Couldn't load teachings right now."));
         }
       } finally {
         setLoading(false);
@@ -821,7 +788,7 @@ export const KGConceptMap = ({
           <div className="mb-2 flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-ojas/20 bg-ojas/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ojas">
               <Sparkles className="h-3 w-3" />
-              {isPersonal ? t('kg.personalBadge', 'Student-Teacher Consciousness Map') : isDemo ? t('kg.showingDemo') : t('kg.title')}
+              {isPersonal ? t('kg.personalBadge', 'Student-Teacher Consciousness Map') : t('kg.title')}
             </span>
             {isPersonal && (
               <span className="text-[11px] text-muted-foreground">
@@ -904,7 +871,7 @@ export const KGConceptMap = ({
       </form>
 
       {/* Error & Auth Notices */}
-      {error && !isDemo && (
+      {error && (
         <div role="alert" className="rounded-2xl border border-border/50 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
           {error}{' '}
           {needsAuth && (
@@ -912,19 +879,6 @@ export const KGConceptMap = ({
               {t('common.signIn', 'Sign in')}
             </Link>
           )}
-        </div>
-      )}
-
-      {isDemo && data && (
-        <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-ojas/10 bg-ojas/5 px-4 py-3 text-center text-xs text-muted-foreground">
-          <span>{t('kg.showingDemo')}</span>
-          <button
-            type="button"
-            onClick={() => void fetchSubgraph(submitted)}
-            className="rounded-lg border border-border/50 bg-background/50 px-3 py-1.5 font-medium text-foreground hover:bg-background"
-          >
-            {t('common.retry')}
-          </button>
         </div>
       )}
 

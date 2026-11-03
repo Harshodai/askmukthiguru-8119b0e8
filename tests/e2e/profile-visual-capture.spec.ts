@@ -72,6 +72,10 @@ async function mockSeekerEnvironment(page: Page) {
       : route.fulfill(json({})),
   );
 
+  await page.route(/\/api\/health/, (route) =>
+    route.fulfill(json({ ready: true, status: 'healthy' })),
+  );
+
   await page.route(/\/api\/profile/, (route) =>
     route.fulfill(
       json({
@@ -84,37 +88,11 @@ async function mockSeekerEnvironment(page: Page) {
     ),
   );
 
-  const demoGraph = {
-    nodes: [
-      { id: '1', label: 'Beautiful State', type: 'State', teacher: 'Sri Preethaji' },
-      { id: '2', label: 'Witnessing Awareness', type: 'Practice', teacher: 'Sri Preethaji' },
-      { id: '3', label: 'Compassion', type: 'Practice', teacher: 'Sri Preethaji' },
-      { id: '4', label: 'Stillness', type: 'Practice', teacher: 'Sri Preethaji' },
-      { id: '5', label: 'Sri Krishnaji', type: 'Teacher', teacher: 'Sri Krishnaji' },
-      { id: '6', label: 'Observation', type: 'Practice', teacher: 'Sri Krishnaji' },
-      { id: '7', label: 'Suffering', type: 'State', state_category: 'Suffering State', teacher: 'Sri Krishnaji' },
-      { id: '8', label: 'Inner Conflict', type: 'State', state_category: 'Suffering State', teacher: 'Sri Krishnaji' },
-      { id: '9', label: 'Serene Mind', type: 'Practice', teacher: 'Sri Preethaji' },
-    ],
-    edges: [
-      { source: '1', target: '2', label: 'cultivates' },
-      { source: '2', target: '3', label: 'inspires' },
-      { source: '1', target: '4', label: 'leads to' },
-      { source: '5', target: '6', label: 'taught' },
-      { source: '6', target: '2', label: 'deepens' },
-      { source: '8', target: '7', label: 'leads to' },
-      { source: '2', target: '8', label: 'dissolves' },
-      { source: '2', target: '7', label: 'transcends' },
-      { source: '9', target: '2', label: 'awakens' },
-      { source: '9', target: '8', label: 'calms' },
-    ],
-  };
-
   await page.route(/\/api\/kg\/personal-subgraph/, (route) =>
-    route.fulfill(json(demoGraph)),
+    route.fulfill(json({ nodes: [], edges: [] })),
   );
   await page.route(/\/api\/kg\/subgraph/, (route) =>
-    route.fulfill(json(demoGraph)),
+    route.fulfill(json({ nodes: [], edges: [] })),
   );
 
   await page.addInitScript(

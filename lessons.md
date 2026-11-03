@@ -1,6 +1,19 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 3, 2026 — Zero Demo Data Enactment, Knowledge Graph Empty State Truthfulness & Health Badge Resilience
+
+### L-DEMO-DATA-TRUTHFULNESS-1. Zero-data states must render authentic, inspiring empty states instead of fabricating synthetic demo nodes or seed graphs.
+- **What:** In `KGConceptMap.tsx` and `MemoryManager.tsx`, when an authenticated seeker had 0 saved reflections or when a subgraph query returned an empty node list, the frontend fell back to `DEMO_DATA` (a static set of 9 hardcoded teaching nodes: Sri Krishnaji, Beautiful State, Witnessing Awareness, etc.) and displayed a "DEMO" badge. This confused seekers into believing the global doctrinal map was their personal memory graph.
+- **Fix:** Completely eliminated `DEMO_DATA` and `isDemo` flags. When a personal subgraph returns `nodes: []`, the UI renders an inspiring, authentic empty state ("Your Personal Wisdom Map is Blooming" with prompt starters to begin an inquiry in Chat). On fetch failure, an honest error is shown rather than fabricating mock data.
+- **Pin:** `src/components/kg/KGConceptMap.tsx`, `src/components/profile/MemoryManager.tsx`, `src/components/kg/KGConceptMap.test.tsx`.
+- **Rule:** Never inject synthetic demo data, mock concepts, or fake nodes when user data is empty or unavailable; always present an honest, authentic empty state.
+
+### L-HEALTH-MOCK-CATCHALL-1. Broad `/api/` test catch-alls must never shadow `/api/health` without returning `ready: true`, or UI health indicators will falsely report `Unavailable`.
+- **What:** In `tests/e2e/profile-visual-capture.spec.ts`, a generic catch-all `page.route(/\/api\//, ...)` fulfilled all unhandled `/api/` endpoints with `{}`. Because `requestBackendHealth` in `src/lib/chat/health.ts` checks `if (!('ready' in payload)) return 'unreachable'`, `/api/health` was deemed unreachable, turning the `ConnectionPill` in the app header to `🔴 Unavailable` in all automated visual capture artifacts despite the real backend being completely healthy.
+- **Fix:** Explicitly routed `/api/health` with `{ ready: true, status: 'healthy' }` registered after the generic `/api/` catch-all. Widened `requestBackendHealth` timeout to 8,000ms to eliminate false alarms during high-CPU test passes, and added click-to-retry capability to `ConnectionPill`.
+- **Pin:** `src/lib/chat/health.ts`, `src/components/layout/AppShell.tsx`, `tests/e2e/profile-visual-capture.spec.ts`.
+
 ## Nov 3, 2026 — 20-Subagent Forensic Reconciliation, Profile Sadhana Heatmap & Supabase Upsert Resilience
 
 ### L-PROFILE-HEATMAP-DEFAULT-STREAK-1. Reactive async stats hydration requires a `userToggled` guard so explicit user preference is not overwritten.

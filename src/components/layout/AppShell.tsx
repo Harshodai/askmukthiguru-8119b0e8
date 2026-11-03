@@ -38,7 +38,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
-import { checkConnection } from '@/lib/aiService';
+import { checkConnection, resetHealthCache } from '@/lib/aiService';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 
 interface AppShellProps {
@@ -179,22 +179,40 @@ const ConnectionPill = () => {
   const [mode, setMode] = useState<string>(t('layout.offlineMode'));
   const [connected, setConnected] = useState<boolean>(true);
 
+  const poll = async () => {
+    const result = await checkConnection();
+    setMode(result.mode);
+    setConnected(result.connected);
+  };
+
   useEffect(() => {
     let cancelled = false;
-    const poll = async () => {
+    const run = async () => {
       const result = await checkConnection();
       if (!cancelled) {
         setMode(result.mode);
         setConnected(result.connected);
       }
     };
-    poll();
-    const id = setInterval(poll, 30_000);
+    run();
+    const id = setInterval(run, 30_000);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
   }, [t]);
+
+  const handleRecheck = () => {
+    resetHealthCache();
+    void poll();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleRecheck();
+    }
+  };
 
   const dotColor = connected
     ? mode === t('layout.connectedMode')
@@ -204,8 +222,15 @@ const ConnectionPill = () => {
 
   return (
     <div
-      className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-card/60 text-[11px] text-muted-foreground"
-      title={t('layout.aiService', { mode })}
+      role="button"
+      tabIndex={0}
+      onClick={handleRecheck}
+      onKeyDown={handleKeyDown}
+      className={cn(
+        'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-card/60 text-[11px] text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring select-none',
+        !connected && 'cursor-pointer hover:border-destructive/60 transition-colors',
+      )}
+      title={connected ? t('layout.aiService', { mode }) : `${mode} — Click to re-check connection`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dotColor} ${!connected ? 'animate-pulse' : ''}`} />
       <span>{mode}</span>

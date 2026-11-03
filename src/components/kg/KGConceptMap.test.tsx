@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, act, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '@/i18n';
-import { KGConceptMap, DEMO_DATA } from '@/components/kg/KGConceptMap';
+import { KGConceptMap } from '@/components/kg/KGConceptMap';
+import { getAccessToken } from '@/lib/chat/auth';
 
 vi.mock('@/lib/chat/config', () => ({ getAIConfig: () => ({ endpoint: 'http://localhost:8000/api/chat' }) }));
 vi.mock('@/lib/chat/auth', () => ({ getAccessToken: vi.fn(() => Promise.resolve('token')) }));
@@ -143,7 +144,7 @@ describe('KGConceptMap', () => {
     expect(fetchMock.mock.calls[1][0]).toContain('query=meditation');
   });
 
-  it('shows a personal empty state instead of synthetic example data', async () => {
+  it('shows a personal empty state without error banner or demo nodes when personal subgraph is empty', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -157,9 +158,12 @@ describe('KGConceptMap', () => {
     renderWithI18n(<KGConceptMap />);
     await waitFor(() =>
       expect(
-        screen.getByText(/your personal wisdom map is empty/i),
+        screen.getByText(/your personal wisdom map is blooming/i),
       ).toBeInTheDocument(),
     );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('kg-node')).not.toBeInTheDocument();
+    expect(screen.queryByText('Beautiful State')).not.toBeInTheDocument();
     expect(screen.queryByText(/example map/i)).not.toBeInTheDocument();
   });
 
@@ -233,12 +237,23 @@ describe('KGConceptMap', () => {
   });
 
   it('shows node details immediately inside the graph after a node click', async () => {
+    const testData = {
+      nodes: [
+        { id: '1', label: 'Beautiful State', type: 'State', teacher: 'Sri Preethaji' },
+        { id: '2', label: 'Witnessing Awareness', type: 'Practice', teacher: 'Sri Preethaji' },
+        { id: '3', label: 'Compassion', type: 'Practice', teacher: 'Sri Preethaji' },
+      ],
+      edges: [
+        { source: '1', target: '2', label: 'cultivates' },
+        { source: '1', target: '3', label: 'leads to' },
+      ],
+    };
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
         Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(DEMO_DATA),
+          json: () => Promise.resolve(testData),
         }),
       ),
     );
@@ -247,32 +262,47 @@ describe('KGConceptMap', () => {
     const node = await screen.findByRole('button', { name: 'Beautiful State' });
     fireEvent.click(node);
 
-    expect(screen.getByRole('region', { name: /beautiful state details/i })).toBeInTheDocument();
-    expect(screen.getByText(/2 connections/i)).toBeInTheDocument();
+    const details = screen.getByRole('region', { name: /beautiful state details/i });
+    expect(details).toBeInTheDocument();
+    expect(within(details).getByText(/2 connections/i)).toBeInTheDocument();
   });
 
-  it('keeps the curated demo graph limited to on-brand teachers', () => {
-    const names = DEMO_DATA.nodes.map((n) => n.label.toLowerCase());
-    const teachers = DEMO_DATA.nodes.map((n) => (n.teacher || '').toLowerCase());
-    const hasOffBrand = [...names, ...teachers].some((s) => s.includes('krishnamurti'));
-    expect(hasOffBrand).toBe(false);
-    expect(DEMO_DATA.nodes.some((n) => n.label === 'Sri Krishnaji')).toBe(true);
+  it('shows error banner and injects no demo nodes when general subgraph fails', async () => {
+    vi.mocked(getAccessToken).mockResolvedValueOnce(undefined);
+
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 500 })));
+
+    renderWithI18n(<KGConceptMap />);
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent(/couldn't load/i);
+    expect(screen.queryByTestId('kg-node')).not.toBeInTheDocument();
+    expect(screen.queryByText('Beautiful State')).not.toBeInTheDocument();
+    expect(screen.queryByText(/example map/i)).not.toBeInTheDocument();
   });
 
-  it('models core Ekam concepts (Witnessing Awareness, Suffering, Inner Conflict, Beautiful State, Serene Mind) with relational edges', () => {
-    const labels = new Set(DEMO_DATA.nodes.map((n) => n.label));
-    expect(labels.has('Witnessing Awareness')).toBe(true);
-    expect(labels.has('Suffering')).toBe(true);
-    expect(labels.has('Inner Conflict')).toBe(true);
-    expect(labels.has('Beautiful State')).toBe(true);
-    expect(labels.has('Serene Mind')).toBe(true);
+  it('shows no teachings error and injects no demo nodes when general subgraph is empty', async () => {
+    vi.mocked(getAccessToken).mockResolvedValueOnce(undefined);
 
-    const edgeLabels = new Set(DEMO_DATA.edges.map((e) => e.label));
-    expect(edgeLabels.has('dissolves')).toBe(true);
-    expect(edgeLabels.has('transcends')).toBe(true);
-    expect(edgeLabels.has('awakens')).toBe(true);
-    expect(edgeLabels.has('calms')).toBe(true);
-    expect(edgeLabels.has('cultivates')).toBe(true);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ nodes: [], edges: [] }),
+        }),
+      ),
+    );
+
+    renderWithI18n(<KGConceptMap />);
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent(/(no teachings found|no concepts found)/i);
+    expect(screen.queryByTestId('kg-node')).not.toBeInTheDocument();
+    expect(screen.queryByText('Beautiful State')).not.toBeInTheDocument();
+    expect(screen.queryByText(/example map/i)).not.toBeInTheDocument();
   });
 
   it('categorizes spiritual nodes with distinct visual styles and badges', async () => {
