@@ -259,6 +259,22 @@ describe('KGConceptMap', () => {
     expect(DEMO_DATA.nodes.some((n) => n.label === 'Sri Krishnaji')).toBe(true);
   });
 
+  it('models core Ekam concepts (Witnessing Awareness, Suffering, Inner Conflict, Beautiful State, Serene Mind) with relational edges', () => {
+    const labels = new Set(DEMO_DATA.nodes.map((n) => n.label));
+    expect(labels.has('Witnessing Awareness')).toBe(true);
+    expect(labels.has('Suffering')).toBe(true);
+    expect(labels.has('Inner Conflict')).toBe(true);
+    expect(labels.has('Beautiful State')).toBe(true);
+    expect(labels.has('Serene Mind')).toBe(true);
+
+    const edgeLabels = new Set(DEMO_DATA.edges.map((e) => e.label));
+    expect(edgeLabels.has('dissolves')).toBe(true);
+    expect(edgeLabels.has('transcends')).toBe(true);
+    expect(edgeLabels.has('awakens')).toBe(true);
+    expect(edgeLabels.has('calms')).toBe(true);
+    expect(edgeLabels.has('cultivates')).toBe(true);
+  });
+
   it('categorizes spiritual nodes with distinct visual styles and badges', async () => {
     const { getNodeVisual } = await import('@/components/kg/KGConceptMap');
     expect(getNodeVisual('user').badge).toBe('Seeker (You)');

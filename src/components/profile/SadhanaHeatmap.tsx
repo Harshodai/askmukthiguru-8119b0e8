@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Calendar } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { NormalizedSession } from '@/lib/meditationMetrics';
-import { localDayKey } from '@/lib/meditationMetrics';
+import { localDayKey, computeStreak } from '@/lib/meditationMetrics';
 
 export type PracticeIntensity = 'rest' | 'short' | 'steady' | 'deep';
 
@@ -121,7 +121,7 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
         activeDays,
         totalHours: (totalMinutes / 60).toFixed(1),
         totalSessions,
-        currentStreak: calculateCurrentStreak(weeksList),
+        currentStreak: computeStreak(sessions),
       },
     };
   }, [sessions, weeksToShow]);
@@ -139,7 +139,7 @@ export const SadhanaHeatmap: React.FC<SadhanaHeatmapProps> = ({ sessions, weeksT
             </h3>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {t('sadhana.matrixSubtitle', 'Measured completed practice — no inferred consciousness state.')}
+            {t('sadhana.matrixSubtitle', { weeks: weeksToShow, defaultValue: 'Measured completed practice — no inferred consciousness state.' })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">

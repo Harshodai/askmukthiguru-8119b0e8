@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Clock, Sparkles, LayoutGrid, CircleDot } from 'lucide-react';
 import type { MeditationStats } from '@/lib/meditationStorage';
 import { dailySeries, localDayKey, type NormalizedSession } from '@/lib/meditationMetrics';
@@ -42,7 +43,14 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
 
   const last7 = useMemo(() => dailySeries(sessions), [sessions]);
   const todayKey = useMemo(() => localDayKey(new Date()), []);
+  const [userToggled, setUserToggled] = useState<boolean>(false);
   const [showHeatmap, setShowHeatmap] = useState<boolean>(() => stats.streakDays > 7);
+
+  useEffect(() => {
+    if (!userToggled) {
+      setShowHeatmap(stats.streakDays > 7);
+    }
+  }, [stats.streakDays, userToggled]);
 
   const weekMinutes = useMemo(
     () => Math.round(last7.reduce((sum, d) => sum + d.seconds, 0) / 60),
@@ -110,104 +118,126 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
       </div>
 
       {/* ── Sadhana Matrix: GitHub-style Heatmap for >7 days, or Circle of Presence ── */}
-      {showHeatmap ? (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[11px] font-medium text-muted-foreground">
-              {stats.streakDays > 7
-                ? t('profile.sadhana.deepRhythm', 'Deep practice rhythm — full GitHub matrix view')
-                : t('profile.sadhana.fullMatrix', 'Full sadhana activity matrix')}
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowHeatmap(false)}
-              className="h-7 text-xs text-ojas gap-1 hover:text-ojas-dark hover:bg-ojas/10 px-2"
-            >
-              <CircleDot className="w-3.5 h-3.5" />
-              <span>{t('profile.sadhana.viewCircle', 'Switch to 7-Day Circle')}</span>
-            </Button>
-          </div>
-          <SadhanaHeatmap sessions={sessions} weeksToShow={20} />
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-hairline/80 bg-card/70 backdrop-blur-md p-4 sm:p-5 space-y-3.5 shadow-xs">
-          <div className="flex items-baseline justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.14em] font-medium text-ojas">
-                {t('profile.sadhana.circleOfPresence', 'Circle of Presence')}
-              </p>
-              <p className="text-xs sm:text-sm text-foreground/90 mt-0.5">
-                {hasData
-                  ? t('profileStatTiles.weekSummary', { minutes: weekMinutes, defaultValue: `${weekMinutes} min mindful practice this week` })
-                  : t('profile.sadhana.noPracticeYet', 'Stillness awaits — arrive in meditation with Sri Preethaji & Sri Krishnaji.')}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {hasData && (
-                <span className="text-[11px] text-muted-foreground tabular-nums">
-                  {last7.filter(d => d.seconds > 0).length}/7 {t('profile.sadhana.daysPracticed', 'days')}
-                </span>
-              )}
+      <AnimatePresence mode="wait" initial={false}>
+        {showHeatmap ? (
+          <motion.div
+            key="heatmap-matrix"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="space-y-2"
+          >
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {stats.streakDays > 7
+                  ? t('profile.sadhana.deepRhythm', 'Deep practice rhythm — full GitHub matrix view')
+                  : t('profile.sadhana.fullMatrix', 'Full sadhana activity matrix')}
+              </span>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowHeatmap(true)}
-                className="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1 px-1.5"
-                title="View full GitHub-style sadhana heatmap"
+                onClick={() => {
+                  setUserToggled(true);
+                  setShowHeatmap(false);
+                }}
+                className="h-7 text-xs text-ojas gap-1 hover:text-ojas-dark hover:bg-ojas/10 px-2"
               >
-                <LayoutGrid className="w-3 h-3 text-ojas" />
-                <span className="hidden sm:inline">{t('profile.sadhana.viewHeatmap', 'GitHub Matrix')}</span>
+                <CircleDot className="w-3.5 h-3.5" />
+                <span>{t('profile.sadhana.viewCircle', 'Switch to 7-Day Circle')}</span>
               </Button>
             </div>
-          </div>
-
-          {/* 7-Day Illuminated Mandala Nodes */}
-          <div className="grid grid-cols-7 gap-1.5 sm:gap-3 py-1">
-            {last7.map((day) => {
-              const isPracticed = day.seconds > 0;
-              const isToday = day.key === todayKey;
-
-              return (
-                <div
-                  key={day.key}
-                  className="flex flex-col items-center gap-1.5 text-center group"
+            <SadhanaHeatmap sessions={sessions} weeksToShow={20} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="circle-presence"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="rounded-2xl border border-hairline/80 bg-card/70 backdrop-blur-md p-4 sm:p-5 space-y-3.5 shadow-xs"
+          >
+            <div className="flex items-baseline justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.14em] font-medium text-ojas">
+                  {t('profile.sadhana.circleOfPresence', 'Circle of Presence')}
+                </p>
+                <p className="text-xs sm:text-sm text-foreground/90 mt-0.5">
+                  {hasData
+                    ? t('profileStatTiles.weekSummary', { minutes: weekMinutes, defaultValue: `${weekMinutes} min mindful practice this week` })
+                    : t('profile.sadhana.noPracticeYet', 'Stillness awaits — arrive in meditation with Sri Preethaji & Sri Krishnaji.')}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {hasData && (
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    {last7.filter(d => d.seconds > 0).length}/7 {t('profile.sadhana.daysPracticed', 'days')}
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setUserToggled(true);
+                    setShowHeatmap(true);
+                  }}
+                  className="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1 px-1.5"
+                  title="View full GitHub-style sadhana heatmap"
                 >
-                  <span className={`text-[11px] font-medium uppercase tracking-wider ${isToday ? 'text-ojas font-semibold' : 'text-muted-foreground/70'}`}>
-                    {day.label}
-                  </span>
+                  <LayoutGrid className="w-3 h-3 text-ojas" />
+                  <span className="hidden sm:inline">{t('profile.sadhana.viewHeatmap', 'GitHub Matrix')}</span>
+                </Button>
+              </div>
+            </div>
 
+            {/* 7-Day Illuminated Mandala Nodes */}
+            <div className="grid grid-cols-7 gap-1.5 sm:gap-3 py-1">
+              {last7.map((day) => {
+                const isPracticed = day.seconds > 0;
+                const isToday = day.key === todayKey;
+
+                return (
                   <div
-                    className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all duration-300 ${
-                      isPracticed
-                        ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 text-white shadow-xs shadow-ojas/30 ring-2 ring-ojas/30 scale-100 group-hover:scale-105'
-                        : isToday
-                          ? 'border-2 border-dashed border-ojas/70 bg-ojas/10 text-ojas ring-2 ring-ojas/20'
-                          : 'border border-hairline/70 bg-muted/20 text-muted-foreground/40 group-hover:border-hairline'
-                    }`}
-                    title={isPracticed ? `${day.minutes} min practiced` : isToday ? 'Present Moment' : 'Rest day'}
-                    aria-label={`${day.label}: ${isPracticed ? `${day.minutes}m practiced` : isToday ? 'Today' : 'Rest'}`}
+                    key={day.key}
+                    className="flex flex-col items-center gap-1.5 text-center group"
                   >
-                    {isPracticed ? (
-                      <Sparkles className="w-4 h-4 text-white" aria-hidden="true" />
-                    ) : isToday ? (
-                      <span className="w-2 h-2 rounded-full bg-ojas animate-pulse" aria-hidden="true" />
-                    ) : (
-                      <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/25" aria-hidden="true" />
-                    )}
-                  </div>
+                    <span className={`text-[11px] font-medium uppercase tracking-wider ${isToday ? 'text-ojas font-semibold' : 'text-muted-foreground/70'}`}>
+                      {day.label}
+                    </span>
 
-                  <span className="text-[10px] tabular-nums font-medium text-muted-foreground/80 min-h-[14px]">
-                    {isPracticed ? `${day.minutes}m` : isToday ? t('common.today', 'Today') : '—'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                    <div
+                      className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        isPracticed
+                          ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 text-white shadow-xs shadow-ojas/30 ring-2 ring-ojas/30 scale-100 group-hover:scale-105'
+                          : isToday
+                            ? 'border-2 border-dashed border-ojas/70 bg-ojas/10 text-ojas ring-2 ring-ojas/20'
+                            : 'border border-hairline/70 bg-muted/20 text-muted-foreground/40 group-hover:border-hairline'
+                      }`}
+                      title={isPracticed ? `${day.minutes} min practiced` : isToday ? 'Present Moment' : 'Rest day'}
+                      aria-label={`${day.label}: ${isPracticed ? `${day.minutes}m practiced` : isToday ? 'Today' : 'Rest'}`}
+                    >
+                      {isPracticed ? (
+                        <Sparkles className="w-4 h-4 text-white" aria-hidden="true" />
+                      ) : isToday ? (
+                        <span className="w-2 h-2 rounded-full bg-ojas animate-pulse" aria-hidden="true" />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/25" aria-hidden="true" />
+                      )}
+                    </div>
+
+                    <span className="text-[10px] tabular-nums font-medium text-muted-foreground/80 min-h-[14px]">
+                      {isPracticed ? `${day.minutes}m` : isToday ? t('common.today', 'Today') : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

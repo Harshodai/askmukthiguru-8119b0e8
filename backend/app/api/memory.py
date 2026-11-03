@@ -309,16 +309,27 @@ async def upsert_core_memory_endpoint(
         "updated_at": _dt.datetime.now(_dt.UTC).isoformat(),
     }
     try:
-        result = await asyncio.to_thread(
-            lambda: (
-                client.table("guru_core_memory")
-                .upsert(payload, on_conflict="user_id,tenant_id")
-                .select("id, content, updated_at")
-                .single()
-                .execute()
+        def _do_upsert():
+            builder = client.table("guru_core_memory").upsert(
+                payload, on_conflict="user_id,tenant_id"
             )
+            if hasattr(builder, "select"):
+                sel = builder.select("id, content, updated_at")
+                if hasattr(sel, "single"):
+                    try:
+                        return sel.single().execute()
+                    except (AttributeError, TypeError):
+                        pass
+                return sel.execute()
+            return builder.execute()
+
+        result = await asyncio.to_thread(_do_upsert)
+        data = getattr(result, "data", None)
+        row = (
+            data[0]
+            if isinstance(data, list) and len(data) > 0
+            else (data if isinstance(data, dict) else None)
         )
-        row = getattr(result, "data", None)
         if not isinstance(row, dict) or not row.get("id"):
             raise RuntimeError("core memory write returned no row")
         updated_at = row.get("updated_at")

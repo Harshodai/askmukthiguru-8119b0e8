@@ -10,11 +10,11 @@ import type { NormalizedSession } from '@/lib/meditationMetrics';
 import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
 
 interface JourneyOverviewProps {
-  displayName: string;
-  email: string;
-  familiarityLevel: string;
-  languageLabel: string;
-  toneLabel: string;
+  displayName?: string;
+  email?: string;
+  familiarityLevel?: string;
+  languageLabel?: string;
+  toneLabel?: string;
   avatarDataUrl?: string | null;
   avatarUrl?: string | null;
   stats: MeditationStats;
@@ -33,7 +33,7 @@ interface JourneyOverviewProps {
   onNavigate: (tab: 'profile' | 'memory' | 'settings') => void;
   onContinueChat: (conversationId?: string) => void;
   onPractice: () => void;
-  onKnowledgeGraph: () => void;
+  onKnowledgeGraph?: () => void;
 }
 
 export const JourneyOverview = ({

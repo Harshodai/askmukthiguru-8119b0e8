@@ -87,7 +87,7 @@ export const MemoryManager = () => {
     },
   });
 
-  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>('graph');
 
   const [listSearchQuery, setListSearchQuery] = useState('');
 
@@ -330,7 +330,6 @@ export const MemoryManager = () => {
       m.content.toLowerCase().includes(listSearchQuery.toLowerCase())
   );
   const visibleCount = filteredMemories.length;
-  const hasStats = visibleCount > 0 || summaries.length > 0 || coreText.trim().length > 0;
   const showRemembers = persona.trim().length > 0 || skills.length > 0 || summaries.length > 0;
 
   const focusComposer = () => {
@@ -340,38 +339,6 @@ export const MemoryManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* ── Statistics (hidden until there is something to count) ───────── */}
-      {hasStats && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="rounded-2xl border-hairline bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-ojas/10 rounded-xl text-ojas"><Brain className="w-4 h-4" aria-hidden="true" /></div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statMemories', 'Memories')}</p>
-                <p className="text-lg font-bold text-foreground mt-0.5">{visibleCount}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-2xl border-hairline bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-prana/10 rounded-xl text-prana"><Sparkles className="w-4 h-4" aria-hidden="true" /></div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statCoreStatus', 'Core Status')}</p>
-                <p className="text-xs font-bold text-foreground mt-1">{coreText.trim() ? t('memory.active', 'Active') : t('memory.unset', 'Unset')}</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-2xl border-hairline bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400"><BookText className="w-4 h-4" aria-hidden="true" /></div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statReflections', 'Reflections')}</p>
-                <p className="text-lg font-bold text-foreground mt-0.5">{summaries.length}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       {/* ── What the guru remembers (persona + skills + reflections, merged) */}
       {showRemembers && (

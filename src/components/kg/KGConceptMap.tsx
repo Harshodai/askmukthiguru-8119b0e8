@@ -65,6 +65,9 @@ export const DEMO_DATA: Subgraph = {
     { id: '4', label: 'Stillness', type: 'Practice', teacher: 'Sri Preethaji' },
     { id: '5', label: 'Sri Krishnaji', type: 'Teacher', teacher: 'Sri Krishnaji' },
     { id: '6', label: 'Observation', type: 'Practice', teacher: 'Sri Krishnaji' },
+    { id: '7', label: 'Suffering', type: 'State', state_category: 'Suffering State', teacher: 'Sri Krishnaji' },
+    { id: '8', label: 'Inner Conflict', type: 'State', state_category: 'Suffering State', teacher: 'Sri Krishnaji' },
+    { id: '9', label: 'Serene Mind', type: 'Practice', teacher: 'Sri Preethaji' },
   ],
   edges: [
     { source: '1', target: '2', label: 'cultivates' },
@@ -72,6 +75,11 @@ export const DEMO_DATA: Subgraph = {
     { source: '1', target: '4', label: 'leads to' },
     { source: '5', target: '6', label: 'taught' },
     { source: '6', target: '2', label: 'deepens' },
+    { source: '8', target: '7', label: 'leads to' },
+    { source: '2', target: '8', label: 'dissolves' },
+    { source: '2', target: '7', label: 'transcends' },
+    { source: '9', target: '2', label: 'awakens' },
+    { source: '9', target: '8', label: 'calms' },
   ],
 };
 
@@ -175,6 +183,7 @@ const SUFFERING_MARKERS = [
   'stress',
   'hurt',
   'guilt',
+  'conflict',
 ];
 
 /**
@@ -228,6 +237,16 @@ const SPIRITUAL_EXPLANATIONS: Record<
     summary:
       'Any state of inner division, resistance, or self-obsession—such as anxiety, fear, hurt, or anger. In Ekam teachings, suffering is a temporary state dissolved by witnessing awareness.',
     practice: { name: 'Serene Mind Practice', slug: 'serene-mind', duration: '3 min' },
+  },
+  suffering: {
+    summary:
+      'Any state of inner division, resistance, or self-obsession—such as anxiety, fear, hurt, or anger. In Ekam teachings, suffering is a temporary state dissolved by witnessing awareness.',
+    practice: { name: 'Serene Mind Practice', slug: 'serene-mind', duration: '3 min' },
+  },
+  'inner conflict': {
+    summary:
+      'The divided mind struggling against what is. When you witness inner conflict without judgment or escape, the energy of conflict dissolves into quiet presence.',
+    practice: { name: 'Witnessing Awareness Reflection', slug: 'wisdom-reflection', duration: '5 min' },
   },
   'witnessing awareness': {
     summary:

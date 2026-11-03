@@ -61,7 +61,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useTheme } from '@/hooks/useTheme';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
-import { useMetrics } from '@/hooks/useMetrics';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 import { useTranslation } from 'react-i18next';
 import { changeUiLanguage } from '@/i18n';
@@ -93,6 +92,7 @@ const ProfilePage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const tabParam = searchParams.get('tab');
+  const subtabParam = searchParams.get('subtab');
   const isOnboarding = searchParams.get('onboarding') === 'true';
   const PROFILE_TABS = ['journey', 'profile', 'memory', 'settings'] as const;
   type ProfileTab = typeof PROFILE_TABS[number];
@@ -113,12 +113,21 @@ const ProfilePage = () => {
   const { setTheme: applyThemeNow } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { teaching: dailyTeaching } = useDailyTeaching();
-  const { metrics, loading: metricsLoading, error: metricsError } = useMetrics();
 
   // Local form state — only persists on Save
   const [form, setForm] = useState(profile);
   const [dirty, setDirty] = useState(false);
-  const [memorySubTab, setMemorySubTab] = useState<'notes' | 'guru'>('notes');
+  const [memorySubTab, setMemorySubTab] = useState<'notes' | 'guru'>(() =>
+    subtabParam === 'guru' || subtabParam === 'graph' ? 'guru' : 'notes'
+  );
+
+  useEffect(() => {
+    if (subtabParam === 'guru' || subtabParam === 'graph') {
+      setMemorySubTab('guru');
+    } else if (subtabParam === 'notes') {
+      setMemorySubTab('notes');
+    }
+  }, [subtabParam]);
 
   useEffect(() => {
     if (!dirty) setForm(profile);
@@ -364,32 +373,22 @@ const ProfilePage = () => {
               </TabsList>
             </div>
 
-            <TabsContent value="journey" className="space-y-6 mt-0" aria-busy={metricsLoading}>
-              {metricsError && (
-                <p className="text-xs text-muted-foreground rounded-2xl border border-hairline bg-card px-4 py-2.5" role="note">
-                  {t('profile.journey.metricsUnavailable', 'Live totals are unavailable right now — showing your on-device totals instead.')}
-                </p>
-              )}
+            <TabsContent value="journey" className="space-y-6 mt-0">
               <JourneyOverview
-                displayName={profile.displayName || 'Seeker'}
-                email={user?.email || ''}
-                familiarityLevel={form.familiarityLevel || 'Seeker'}
-                languageLabel={LANGUAGES.find((language) => language.code === form.preferredLanguage)?.name ?? form.preferredLanguage}
-                toneLabel={form.guruTone.charAt(0).toUpperCase() + form.guruTone.slice(1)}
-                avatarDataUrl={profile.avatarDataUrl}
-                avatarUrl={profile.avatarUrl}
                 stats={stats}
                 sessions={sessions}
                 conversations={conversations}
                 personalInsights={personalInsights}
-                metrics={metrics}
                 dailyWisdom={dailyTeaching}
                 onNavigate={setTab}
                 onContinueChat={(conversationId) => {
                   navigate(conversationId ? `/chat?conversation=${conversationId}` : '/chat');
                 }}
                 onPractice={() => navigate('/practices')}
-                onKnowledgeGraph={() => setTab('memory')}
+                onKnowledgeGraph={() => {
+                  setMemorySubTab('guru');
+                  setTab('memory');
+                }}
               />
             </TabsContent>
 
