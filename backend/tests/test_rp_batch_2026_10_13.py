@@ -293,7 +293,10 @@ def test_policy_fingerprint_scopes_cache_key(monkeypatch, tmp_path):
         ("first_person_relevance_min_score", settings.first_person_relevance_min_score + 1),
         ("first_person_relevance_model", "other/model"),
         ("first_person_relevance_gate_enabled", False),
-        ("first_person_answerability_check_enabled", False),
+        (
+            "first_person_answerability_check_enabled",
+            not settings.first_person_answerability_check_enabled,
+        ),
         ("first_person_boundary_guard_enabled", True),
         ("first_person_content_quality_gate_enabled", False),
         ("first_person_standalone_gate_enabled", False),

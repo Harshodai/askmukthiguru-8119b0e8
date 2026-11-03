@@ -54,7 +54,7 @@ from app.telemetry_db import (
 )
 from celery_config import celery_app
 from schemas.feedback import FeedbackResponse
-from services.auth_service import require_aal2
+from services.auth_service import require_aal2, require_admin
 from services.feedback_service import FeedbackService
 
 
@@ -63,15 +63,9 @@ class _AdminActionResult(BaseModel):
     message: Optional[str] = None
 
 
-def _require_admin(user: dict = Depends(require_aal2)) -> dict:
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    # P1-SEC-1 (T4): defense-in-depth admin allowlist. When ADMIN_USER_IDS is
-    # set, an AAL2 superuser MUST also be in the list. Empty = not enforced.
-    allowlist = settings.admin_user_ids_list
-    if allowlist and user.get("id") not in allowlist:
-        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
-    return user
+async def _require_admin(user: dict = Depends(require_aal2)) -> dict:
+    """Compatibility wrapper for the canonical auth-service admin dependency."""
+    return await require_admin(user)
 
 
 logger = logging.getLogger(__name__)

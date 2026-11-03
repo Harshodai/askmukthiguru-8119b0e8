@@ -254,9 +254,9 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
     Runs in a worker thread: the Qdrant client is synchronous and must not
     block the event loop. The store query already filters on eligibility and
     rights; the integrity gate adds what serving requires of every clip
-    (hash match, allowlisted speaker, no artifact, no blocked promise).
-    YouTube availability is not re-probed: the clip was served moments ago
-    and that check ran then. ``None`` means no servable clip — never a guess.
+    (hash match, allowlisted speaker, no artifact, no blocked promise, and
+    current YouTube availability). ``None`` means no servable clip — never a
+    guess.
     """
     from app.config import settings
     from services.first_person_pipeline import (
@@ -265,6 +265,16 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
         _quality_blocklist,
     )
     from services.first_person_serving_contract import legacy_slot_aliases_context
+    from services.first_person_store import canonical_video_id
+
+    raw_requested_video_id = ref.get("video_id")
+    if not isinstance(raw_requested_video_id, str) or not _YOUTUBE_VIDEO_ID_RE.fullmatch(
+        raw_requested_video_id
+    ):
+        return None
+    requested_video_id = canonical_video_id(raw_requested_video_id)
+    if not _YOUTUBE_VIDEO_ID_RE.fullmatch(requested_video_id):
+        return None
 
     # v10-only mode: the legacy slot names the fp-context collection, so there is
     # no legacy clip store to look a clip up in. Decline without a Qdrant read
@@ -274,55 +284,38 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
     ):
         return None
 
-    clip = _store_for_request().get_clip_by_video_and_start(
-        ref["video_id"],
+    store = _store_for_request()
+    clip = store.get_clip_by_video_and_start(
+        requested_video_id,
         ref["timestamp_seconds"],
         tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
     )
     if not isinstance(clip, dict) and getattr(settings, "first_person_context_collection", None):
         try:
-            from qdrant_client.http import models
-
             col = settings.first_person_context_collection
-            target_ms = int(round(float(ref["timestamp_seconds"]) * 1000.0))
-            tolerance_ms = int(round(PERSONALIZE_CLIP_TOLERANCE_S * 1000.0))
-            store = _store_for_request()
-            pts, _ = store._client.scroll(
-                collection_name=col,
-                scroll_filter=models.Filter(
-                    must=[
-                        models.FieldCondition(
-                            key="video_id", match=models.MatchValue(value=ref["video_id"])
-                        ),
-                    ]
-                ),
-                limit=50,
-                with_payload=True,
+            clip = store.get_clip_by_video_and_start_in_collection(
+                collection=col,
+                video_id=requested_video_id,
+                timestamp_seconds=ref["timestamp_seconds"],
+                tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
             )
-            candidates = []
-            for p in pts or []:
-                pl = dict(p.payload or {})
-                if not pl.get("verbatim_text"):
-                    continue
-                sms = pl.get("start_ms")
-                if sms is not None and abs(sms - target_ms) <= tolerance_ms:
-                    pl["point_id"] = str(p.id)
-                    if not pl.get("speaker"):
-                        pl["speaker"] = (
-                            "Sri Preethaji" if pl.get("guru_id") == "preethaji" else "Sri Krishnaji"
-                        )
-                    pl["transcript_hash"] = hashlib.sha256(
-                        pl["verbatim_text"].encode("utf-8")
-                    ).hexdigest()
-                    candidates.append((abs(sms - target_ms), pl))
-            if candidates:
-                candidates.sort(key=lambda x: x[0])
-                clip = candidates[0][1]
         except Exception as exc:
             logger.warning("[PersonalizeStage] Context collection clip lookup failed: %s", exc)
 
     if not isinstance(clip, dict):
         return None
+    returned_video_id = clip.get("video_id")
+    if (
+        not isinstance(returned_video_id, str)
+        or not _YOUTUBE_VIDEO_ID_RE.fullmatch(returned_video_id)
+        or canonical_video_id(returned_video_id) != requested_video_id
+    ):
+        logger.warning(
+            "[PersonalizeStage] Clip %s has missing or mismatched video identity; declining.",
+            clip.get("point_id"),
+        )
+        return None
+
     clip_id = str(clip.get("point_id"))
     allow = _quality_allowlist()
     if allow is not None and clip_id not in allow:
@@ -342,7 +335,6 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
         boundary_guard_enabled=bool(
             getattr(settings, "first_person_boundary_guard_enabled", False)
         ),
-        check_availability=False,
     ):
         logger.warning(
             "[PersonalizeStage] Clip %s failed the serve-time integrity gate; declining.",

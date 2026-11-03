@@ -93,9 +93,11 @@ def test_serve_time_hooks_are_present():
     assert "blocked_video_ids_or_none" in inspect.getsource(
         first_person_context_store.FirstPersonContextStore.retrieve
     )
-    assert "decisions_fingerprint" in inspect.getsource(
+    serve_revalidation = inspect.getsource(
         first_person_pipeline.FirstPersonPipeline._points_servable_cached
     )
+    assert "context_store.points_servable(" in serve_revalidation
+    assert "self._servable_cache" not in serve_revalidation
 
 
 def test_integrity_gate_checks_the_admin_block_before_the_slow_availability_probe():

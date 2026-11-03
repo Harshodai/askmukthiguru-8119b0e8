@@ -85,6 +85,10 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "stt_chunk_minutes": "STT family — no runtime read",
     "stt_max_audio_mb": "STT family — no runtime read",
     "transcript_max_retries": "Declared transcript retry cap; no runtime read",
+    "first_person_relevance_fallback_enabled": (
+        "Compatibility-only switch; deliberately ignored because the uncalibrated fallback is "
+        "retired and provider failure must remain relevance-indeterminate."
+    ),
     "use_contextual_chunking": "Declared chunking toggle; contextual chunking read via reingest_late_chunking",
     "verifier_pass_ratio": "Verifier pass ratio threshold config",
     "SERVICE_ORCID_MAP": "Declared ORCID mapping; no runtime read",

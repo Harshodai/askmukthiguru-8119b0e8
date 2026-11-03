@@ -11,9 +11,7 @@ def test_violence_policy_is_query_scoped_and_returns_reason_code():
     clip = "As a husband, he doesn't mind being stabbed by his angry wife to calm her down."
     relationship_question = "How do I deal with anger at my husband?"
 
-    blocked = first_person_evidence_policy.assess_contextual_safety(
-        relationship_question, clip
-    )
+    blocked = first_person_evidence_policy.assess_contextual_safety(relationship_question, clip)
     unrelated = first_person_evidence_policy.assess_contextual_safety(
         "What is the Beautiful State?", clip
     )

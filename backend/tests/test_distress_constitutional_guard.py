@@ -1,9 +1,7 @@
-"""R4/R5: handle_distress() short-circuits straight to END (graph_strategies.py),
-bypassing reflect_on_answer/verify_answer -- so check_persona_adherence's
-impersonation and "no diksha/absolution/blessing" checks (rag/nodes/verification.py)
-never ran on the single highest-stakes path in the product, even though the prompt
-built in handle_distress explicitly instructs the model to speak "as if the guru is
-speaking directly." See rag/nodes/intent.py::handle_distress.
+"""R4: distress short-circuits straight to END, so its persona guard must run
+over both the clinician-reviewed template and any teaching from the normal gated
+first-person pipeline. Raw clip state is not a trusted teaching result. See
+``rag/nodes/intent.py::handle_distress``.
 """
 
 from __future__ import annotations
@@ -28,9 +26,47 @@ _DOCS = [
 ]
 
 
-async def _run_distress(question: str, fabricated_answer: str, level: DistressLevel):
+def _gated_first_person_result(verbatim_text: str):
+    """Construct a synthetic success result with source-matched citation fields."""
+    import hashlib
+
+    from services.first_person_pipeline import FirstPersonPipelineResult
+
+    video_id = "dQw4w9WgXcQ"
+    source_url = f"https://www.youtube.com/watch?v={video_id}&t=99s"
+    return FirstPersonPipelineResult(
+        answer_text=f"**Sri Preethaji**\n\n{verbatim_text}\n\n{source_url}",
+        citations=[
+            {
+                "source_title": "Test source clip",
+                "source_url": source_url,
+                "video_id": video_id,
+                "start_ms": 99_000,
+                "end_ms": 100_000,
+                "timestamp_seconds": 99,
+                "speaker": "Sri Preethaji",
+                "speaker_verified": True,
+                "verbatim_text": verbatim_text,
+                "transcript_hash": hashlib.sha256(verbatim_text.encode()).hexdigest(),
+                "is_verbatim": True,
+            }
+        ],
+        status="success",
+        is_direct_answer=True,
+        latency_ms=10.0,
+        fp_served=True,
+    )
+
+
+async def _run_distress(
+    question: str,
+    candidate_text: str,
+    level: DistressLevel,
+    *,
+    include_gated_result: bool = True,
+):
     mock_ollama = AsyncMock()
-    mock_ollama.generate = AsyncMock(return_value=fabricated_answer)
+    mock_ollama.generate = AsyncMock(return_value=candidate_text)
 
     serene_mock = MagicMock()
     serene_mock.async_assess_distress = AsyncMock(
@@ -38,11 +74,15 @@ async def _run_distress(question: str, fabricated_answer: str, level: DistressLe
     )
     serene_mock.get_response = MagicMock(return_value=get_distress_response())
 
+    state_values = {
+        "question": question,
+        "chat_history": [],
+        "relevant_docs": _DOCS,
+    }
+    if include_gated_result:
+        state_values["first_person_result"] = _gated_first_person_result(candidate_text)
     state = GraphState(
-        question=question,
-        chat_history=[],
-        relevant_docs=_DOCS,
-        first_person_clip={"verbatim_text": fabricated_answer, "speaker": "Sri Preethaji"},
+        **state_values,
     )
 
     with (
@@ -58,9 +98,7 @@ async def _run_distress(question: str, fabricated_answer: str, level: DistressLe
 
 @pytest.mark.asyncio
 async def test_handle_distress_catches_blessing_claim_and_substitutes_safe_fallback():
-    """A blessing/diksha claim reaching a person in distress is the exact failure
-    mode R4 exists to close -- the model free-generates guru-voice prose here and
-    nothing downstream (format_final_answer, reflect_on_answer) ever re-checks it."""
+    """A blessing/diksha claim in a gated teaching still triggers the persona guard."""
     fabricated = (
         "I hear the weight you are carrying. Receive this deeksha through these "
         "words: you are absolved of this suffering, and I bless you on this path."
@@ -82,20 +120,20 @@ async def test_handle_distress_catches_blessing_claim_and_substitutes_safe_fallb
 
 
 @pytest.mark.asyncio
-async def test_handle_distress_severe_still_carries_helplines_after_substitution():
-    """SEVERE-tier crisis_info is prepended to the draft before the guard runs;
-    a caught violation discards that draft wholesale, so the fallback template
-    (which always embeds helplines) must be the thing that ships -- not a
-    response silently missing crisis contacts."""
+async def test_handle_distress_severe_template_still_carries_helplines_without_teaching():
+    """SEVERE distress remains template-only and carries the required helplines."""
     fabricated = "As Sri Preethaji, I now confer upon you initiation into peace."
     result = await _run_distress(
         "I don't want to be here anymore, I want to end my life",
         fabricated,
         DistressLevel.SEVERE,
+        include_gated_result=False,
     )
 
     final_answer = result.get("final_answer", "")
     assert "sri preethaji, i" not in final_answer.lower()
+    assert fabricated not in final_answer
+    assert result.get("citations") == []
     assert final_answer, "final_answer must not be empty"
     # get_distress_response() always renders a helpline block regardless of style.
     assert any(marker in final_answer for marker in ("iCall", "988", "helpline", "Helpline"))
@@ -105,12 +143,9 @@ async def test_handle_distress_severe_still_carries_helplines_after_substitution
 async def test_handle_distress_clean_answer_is_untouched():
     """Negative control: a clean, grounded, VERIFIABLE answer must not be discarded.
 
-    LV-1: the clip must pass the serve-time integrity gate (matching
-    transcript_hash + allowlisted speaker) — unverifiable text is template-only
-    even when benign, since the handler cannot distinguish it from generated prose.
+    The handler receives only a successful result from the normal first-person
+    pipeline; the matching source citation represents the gates already passed.
     """
-    import hashlib
-
     clean = (
         "The teachings remind us that suffering is a doorway to transformation. "
         "Sri Preethaji often speaks about observing thought without fighting it."
@@ -126,11 +161,7 @@ async def test_handle_distress_clean_answer_is_untouched():
         question="Why do I keep suffering the same way over and over?",
         chat_history=[],
         relevant_docs=_DOCS,
-        first_person_clip={
-            "verbatim_text": clean,
-            "transcript_hash": hashlib.sha256(clean.encode()).hexdigest(),
-            "speaker": "Sri Preethaji",
-        },
+        first_person_result=_gated_first_person_result(clean),
     )
     with (
         patch("rag.nodes.intent._services._serene_mind", serene_mock),

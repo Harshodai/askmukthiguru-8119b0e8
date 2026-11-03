@@ -325,7 +325,9 @@ def test_personalize_still_reads_the_legacy_store_for_the_two_slot_config(monkey
     monkeypatch.setattr(personalize_stage, "_store_for_request", Mock(return_value=store))
 
     assert (
-        personalize_stage._lookup_servable_clip({"video_id": "abc", "timestamp_seconds": 12})
+        personalize_stage._lookup_servable_clip(
+            {"video_id": "abcdefghijk", "timestamp_seconds": 12}
+        )
         is None
     )
     store.get_clip_by_video_and_start.assert_called_once()

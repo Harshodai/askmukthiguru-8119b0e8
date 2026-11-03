@@ -251,8 +251,9 @@ def test_video_id_pattern_ignores_longer_tokens(decisions_dir):
 
 
 def test_upload_success_stamps_points_and_returns_media_url(upload_client, monkeypatch):
-    import ingest.video_pipeline as vp
     from types import SimpleNamespace
+
+    import ingest.video_pipeline as vp
 
     stamped_calls = []
 
@@ -274,6 +275,7 @@ def test_upload_success_stamps_points_and_returns_media_url(upload_client, monke
 
     monkeypatch.setattr(vp, "VideoPipeline", _SuccessPipeline)
     import services.qdrant.client as qc
+
     monkeypatch.setattr(qc, "QdrantClientManager", _FakeQdrantManager)
 
     client, _ = upload_client
@@ -299,4 +301,3 @@ def test_upload_success_stamps_points_and_returns_media_url(upload_client, monke
     assert payload["title"] == "Masterclass on Suffering"
     assert payload["speaker"] == "Sri Krishnaji"
     assert set(payload["tags"]) == {"ego", "peace"}
-

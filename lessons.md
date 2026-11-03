@@ -14114,3 +14114,10 @@ A test that calls `monkeypatch.undo()` on the pytest fixture also undoes autouse
 - **What:** When `FirstPersonContextHarness.decide` evaluated a parent context where coreference or boundary was not 100% direct or answerability was indeterminate, it returned `decision=HarnessDecision.SERVE_RELATED_NOT_DIRECT`. However, `FirstPersonPipeline._eval_ctx_worker` strictly permitted only `SERVE_SINGLE_SPAN` and `SERVE_PARENT_CONTEXT`, unconditionally returning `None` for `SERVE_RELATED_NOT_DIRECT`. Because `first_person_context_terminal_enabled=true`, this caused the pipeline to drop the context and abstain.
 - **Fix:** In `_eval_ctx_worker`, allow `HarnessDecision.SERVE_RELATED_NOT_DIRECT` when `getattr(settings, "first_person_serve_weak_match", True)` is enabled, setting `is_direct = False` and `status = "weak_match"` per Invariants 1 & 2.
 - **Rule:** Respect the distinction between evidence and directness. When `first_person_serve_weak_match` is True, authentic related discourses must be served with `status="weak_match"` and `is_direct_answer=False` rather than discarded.
+
+
+## Nov 3, 2026 — First-person answerability and regression-fixture fidelity
+- When a retrieval rewrite is absent, pass the original user question to the first-person answerability gate (`retrieval_query or query`). An empty translated/retrieval query must never be interpreted as a positive answerability verdict.
+- Tests for answerability or relevance must opt into the real deterministic/mock-backed gate rather than inheriting a permissive autouse stub; scorer mocks must return exactly one score per candidate/facet.
+- Cache-fallback and route tests should provide the actual contracts (iterable store results, metadata-bearing local-review answers) so failures test product behavior instead of generic `Mock` artifacts.
+- For broad local test runs, use fake provider credentials, block outbound HTTP, isolate SQLite/cache artifacts under `.work/`, reserve only Redis DB 15, and disable Qdrant-baseline writes. Keep the live serving path explicitly deselected unless separately authorized.

@@ -20,6 +20,7 @@ because the existing corpus cannot satisfy the document as written:
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from enum import StrEnum
 from hashlib import sha256
 from typing import Any, Literal
@@ -449,6 +450,120 @@ class ParentContext(BaseModel):
                 "every span source_span_id must appear in parent.ordered_source_span_ids"
             )
         return self
+
+
+_VALIDATED_EDGE_ISSUE_TOKEN = object()
+
+
+def _validated_edge_fingerprint(
+    predecessor: SourceSpan,
+    opener: SourceSpan,
+    *,
+    predecessor_parent_end_ms: int,
+    opener_parent_start_ms: int,
+) -> tuple[object, ...]:
+    """All identity, pointer, and coordinate fields that define one boundary."""
+    return (
+        predecessor.source_span_id,
+        opener.source_span_id,
+        predecessor.parent_unit_id,
+        opener.parent_unit_id,
+        predecessor.next_span_id,
+        opener.previous_span_id,
+        predecessor.video_id,
+        opener.video_id,
+        predecessor.guru_id,
+        opener.guru_id,
+        predecessor.corpus_version,
+        opener.corpus_version,
+        predecessor.source_asset_id,
+        opener.source_asset_id,
+        predecessor.speaker_id,
+        opener.speaker_id,
+        predecessor.start_ms,
+        predecessor.end_ms,
+        opener.start_ms,
+        opener.end_ms,
+        predecessor.word_start,
+        predecessor.word_end,
+        opener.word_start,
+        opener.word_end,
+        predecessor.source_span_index,
+        opener.source_span_index,
+        predecessor_parent_end_ms,
+        opener_parent_start_ms,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedCrossParentEdge:
+    """Opaque proof of a complete, store-validated two-parent boundary.
+
+    Callers cannot construct this capability directly: only the context-store
+    issue method has the private token.  The duplicated opener/parent boundary
+    fingerprint lets the harness reject forged or stale capability objects
+    before the predecessor can enter an answer.
+    """
+
+    predecessor: SourceSpan
+    opener: SourceSpan
+    predecessor_parent_unit_id: str
+    opener_parent_unit_id: str
+    predecessor_parent_end_ms: int
+    opener_parent_start_ms: int
+    _fingerprint: tuple[object, ...] = field(repr=False, compare=False)
+    _issue_token: object = field(repr=False, compare=False)
+
+    @classmethod
+    def _issue(
+        cls,
+        predecessor: SourceSpan,
+        opener: SourceSpan,
+        *,
+        predecessor_parent_end_ms: int,
+        opener_parent_start_ms: int,
+        issue_token: object,
+    ) -> ValidatedCrossParentEdge:
+        if issue_token is not _VALIDATED_EDGE_ISSUE_TOKEN:
+            raise ValueError("validated cross-parent edges are store-issued")
+        return cls(
+            predecessor=predecessor,
+            opener=opener,
+            predecessor_parent_unit_id=predecessor.parent_unit_id,
+            opener_parent_unit_id=opener.parent_unit_id,
+            predecessor_parent_end_ms=predecessor_parent_end_ms,
+            opener_parent_start_ms=opener_parent_start_ms,
+            _fingerprint=_validated_edge_fingerprint(
+                predecessor,
+                opener,
+                predecessor_parent_end_ms=predecessor_parent_end_ms,
+                opener_parent_start_ms=opener_parent_start_ms,
+            ),
+            _issue_token=issue_token,
+        )
+
+    def matches(self, opener: SourceSpan, parent: ParentUnit) -> bool:
+        """Verify the capability still names this exact context opener."""
+        if self._issue_token is not _VALIDATED_EDGE_ISSUE_TOKEN:
+            return False
+        if self.opener != opener:
+            return False
+        if self.opener_parent_unit_id != parent.parent_unit_id:
+            return False
+        if self.opener_parent_unit_id != opener.parent_unit_id:
+            return False
+        if self.predecessor_parent_unit_id == self.opener_parent_unit_id:
+            return False
+        return (
+            self._fingerprint
+            == _validated_edge_fingerprint(
+                self.predecessor,
+                self.opener,
+                predecessor_parent_end_ms=self.predecessor_parent_end_ms,
+                opener_parent_start_ms=self.opener_parent_start_ms,
+            )
+            and self.opener_parent_start_ms == parent.start_ms
+        )
 
 
 class CitationSpan(BaseModel):

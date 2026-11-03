@@ -235,7 +235,17 @@ def test_context_store_points_servable_rechecks_admin_block(store, monkeypatch):
     payload = {
         "record_type": "retrieval_child",
         "rights_cleared": True,
+        "speaker_role": "guru",
         "speaker_verified": True,
+        "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
+        "voice_model_revision": "rev-test",
+        "voice_score": 0.71,
+        "voice_margin": 0.40,
+        "voice_threshold_applied": {"cosine_floor": 0.2828, "margin_threshold": 0.05},
+        "voice_calibration_id": "cal-test",
+        "voice_window_check": "pass",
+        "voice_verified_at": "2026-10-31T00:00:00+00:00",
+        "speaker_verification_status": "verified",
         "video_id": VID,
     }
     ctx = FirstPersonContextStore(client=_client({"pt1": payload}), collection="first_person_v10")
@@ -285,25 +295,24 @@ def test_context_store_retrieve_returns_nothing_on_corrupt_decisions(store, deci
     assert not called
 
 
-def test_pipeline_servable_cache_is_busted_by_a_new_decision(store):
+def test_pipeline_revalidates_admin_decision_on_every_serve(store):
     from services.first_person_pipeline import FirstPersonPipeline
 
     calls = []
 
     class Ctx:
-        def points_servable(self, ids):
-            calls.append(list(ids))
+        def points_servable(self, ids, *, expected_evidence=None):
+            calls.append((list(ids), expected_evidence))
             return not fvd.video_is_blocked(VID)
 
     pipe = object.__new__(FirstPersonPipeline)
-    pipe._servable_cache = {}
     pipe._get_context_store = lambda: Ctx()
     assert pipe._points_servable_cached(["pt1"], fp_context=True) is True
     assert pipe._points_servable_cached(["pt1"], fp_context=True) is True
-    assert len(calls) == 1  # second call served from the 5-minute cache
+    assert len(calls) == 2
     _reject(store)
     assert pipe._points_servable_cached(["pt1"], fp_context=True) is False
-    assert len(calls) == 2  # the decision invalidated the cache immediately
+    assert len(calls) == 3
 
 
 def test_inventory_loader_parses_pipe_separated_gurus_and_quoted_titles(tmp_path):

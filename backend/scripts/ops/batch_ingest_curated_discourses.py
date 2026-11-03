@@ -30,7 +30,11 @@ logger = logging.getLogger("batch_ingest_curated_discourses")
 
 # Path setup
 _HERE = Path(__file__).resolve()
-if _HERE.parents[1].name == "ops" and _HERE.parents[2].name == "scripts" and _HERE.parents[3].name == "backend":
+if (
+    _HERE.parents[1].name == "ops"
+    and _HERE.parents[2].name == "scripts"
+    and _HERE.parents[3].name == "backend"
+):
     _REPO_ROOT = _HERE.parents[3].parent
     _BACKEND = _HERE.parents[3]
 elif _HERE.parents[1].name == "ops" and _HERE.parents[2].name == "scripts":
@@ -267,14 +271,14 @@ def ingest_into_okf(discourses: list[dict[str, Any]]) -> int:
             f'title: "{d["title"]}"',
             f'source: "{d["url"]}"',
             f'video_id: "{d["video_id"]}"',
-            f'tags: {json.dumps([c.lower() for c in d["concepts"]])}',
+            f"tags: {json.dumps([c.lower() for c in d['concepts']])}",
             f'teacher: "{d["speaker_slug"]}"',
             "domain_rights_status: licensed",
             "---",
             "",
             f"# {d['title']}",
             "",
-            f"### Overview",
+            "### Overview",
             "",
             d["summary"],
             "",
@@ -288,7 +292,7 @@ def ingest_into_okf(discourses: list[dict[str, Any]]) -> int:
         yaml_lines.append("**Quotes:**")
         for q in d["quotes"]:
             yaml_lines.append(f'> "{q}"')
-            yaml_lines.append(f'- {d["speaker"]}')
+            yaml_lines.append(f"- {d['speaker']}")
             yaml_lines.append("")
 
         content = "\n".join(yaml_lines) + "\n"
@@ -303,6 +307,7 @@ def ingest_into_okf(discourses: list[dict[str, Any]]) -> int:
 
     # Recompile OKF
     from services.memory.compiler import compile_okf
+
     compiled_path = compile_okf()
     logger.info("  ✓ OKF recompiled at %s", compiled_path)
     return created
@@ -312,6 +317,7 @@ def ingest_into_qdrant(discourses: list[dict[str, Any]]) -> dict[str, int]:
     """Indexes vectors and payloads into Qdrant collections."""
     from qdrant_client import QdrantClient
     from qdrant_client.http import models
+
     from services.embedding_service import EmbeddingService
 
     client = QdrantClient(host="localhost", port=6333, check_compatibility=False)
@@ -386,7 +392,9 @@ def ingest_into_qdrant(discourses: list[dict[str, Any]]) -> dict[str, int]:
                 if points_to_upsert:
                     client.upsert(collection_name=coll, points=points_to_upsert)
                     stats[coll] += len(points_to_upsert)
-                    logger.info("  ✓ %s: upserted %d points for %s", coll, len(points_to_upsert), vid)
+                    logger.info(
+                        "  ✓ %s: upserted %d points for %s", coll, len(points_to_upsert), vid
+                    )
             else:
                 logger.info("  %s already has %d points for %s", coll, existing_count, vid)
 
@@ -404,7 +412,7 @@ def ingest_into_qdrant(discourses: list[dict[str, Any]]) -> dict[str, int]:
         if swc_count == 0:
             logger.info("  Adding RAG chunks for %s into spiritual_wisdom_contextual...", vid)
             rag_points = []
-            for span_idx, (text, start_ms, end_ms) in enumerate(d["spans"]):
+            for span_idx, (text, _start_ms, _end_ms) in enumerate(d["spans"]):
                 point_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"rag_{vid}_{span_idx}"))
                 enc = embedder.encode_single_full(text)
                 dense_vec = enc["dense"]
@@ -448,15 +456,23 @@ def ingest_into_qdrant(discourses: list[dict[str, Any]]) -> dict[str, int]:
             if rag_points:
                 client.upsert(collection_name="spiritual_wisdom_contextual", points=rag_points)
                 stats["spiritual_wisdom_contextual"] += len(rag_points)
-                logger.info("  ✓ spiritual_wisdom_contextual: upserted %d points for %s", len(rag_points), vid)
+                logger.info(
+                    "  ✓ spiritual_wisdom_contextual: upserted %d points for %s",
+                    len(rag_points),
+                    vid,
+                )
         else:
-            logger.info("  spiritual_wisdom_contextual already has %d points for %s", swc_count, vid)
+            logger.info(
+                "  spiritual_wisdom_contextual already has %d points for %s", swc_count, vid
+            )
 
     return stats
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Batch ingest curated discourses into Memgraph, OKF, and Qdrant")
+    parser = argparse.ArgumentParser(
+        description="Batch ingest curated discourses into Memgraph, OKF, and Qdrant"
+    )
     parser.parse_args()
 
     logger.info("==================================================================")

@@ -16,6 +16,18 @@ Guards (all must hold, or the route refuses):
    matches its pinned sha256. A missing or modified artifact refuses the
    request instead of serving stale evidence.
 
+The shipped contract's ``enabled=false`` field is public-release/artifact
+metadata, not the runtime switch for this route. The separate authenticated
+owner-preview route is enabled only when the environment-backed
+``FIRST_PERSON_LOCAL_REVIEW_ENABLED`` flag is true and the process is
+non-production; the contract and its hash are not changed here.
+
+The HTTP path currently documents and expects English input. Its translator
+helper is not wired into the route, and no external/provider translation or
+distress assessor is invoked. The deterministic blocked-topic rail is not
+general or multilingual crisis safety, and this route does not add provider
+calls.
+
 Every response carries the canonical two-line owner-only label::
 
     REVIEW CANDIDATE — NOT PUBLIC RELEASE
@@ -32,10 +44,11 @@ import logging
 import time
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field, field_validator
 
 from app.config import settings
+from services.auth_service import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -48,16 +61,29 @@ REVIEW_LABEL_LINES = (
     "AUTOMATED EVIDENCE — NOT HUMAN-CERTIFIED ATTRIBUTION",
 )
 REVIEW_LABEL = "\n".join(REVIEW_LABEL_LINES)
+LOCAL_REVIEW_UNAVAILABLE_MESSAGE = "First-person local review is temporarily unavailable."
 
 _SERVICE: Optional[Any] = None
 _SERVICE_ERROR: str = ""
 
 
 class LocalReviewQueryRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=2000)
+    query: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="English seeker question for the deterministic local-review topic rail",
+    )
     teacher_id: Optional[str] = Field("both", description="'preethaji', 'krishnaji', or 'both'")
     max_clips: int = Field(3, ge=1, le=5)
     cache_bypass: bool = False
+
+    @field_validator("query")
+    @classmethod
+    def _require_ascii_english_query(cls, value: str) -> str:
+        if not value.isascii():
+            raise ValueError("Query must contain ASCII English text only.")
+        return value
 
 
 def _local_review_allowed() -> tuple[bool, str]:
@@ -97,11 +123,13 @@ def _build_service() -> Any:
 
 
 def _translator() -> Any:
-    """Translate a non-English question to English for retrieval only.
+    """Retained translation helper; not wired into this HTTP route.
 
-    The ANSWER is never translated or rewritten: it stays the teacher's stored
-    span text. Only the query is translated, exactly as the production path
-    does.
+    The route currently accepts English input and uses the local service's
+    deterministic blocked-topic rail, which is not general or multilingual
+    crisis safety. If this helper is wired later, translation must remain
+    query-only: the ANSWER is never translated or rewritten and stays the
+    teacher's stored span text.
     """
 
     async def _translate(text: str) -> str:
@@ -117,8 +145,12 @@ def _translator() -> Any:
 
 
 @router.post("/first-person/local-review/query")
-async def local_review_query(req: LocalReviewQueryRequest, request: Request) -> dict[str, Any]:
-    """Serve the local review candidate tier. Owner-only; never public."""
+async def local_review_query(
+    req: LocalReviewQueryRequest,
+    request: Request,
+    _admin: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Serve the English-input local review tier. Owner-only; never public."""
     allowed, reason = _local_review_allowed()
     if not allowed:
         raise HTTPException(
@@ -133,18 +165,34 @@ async def local_review_query(req: LocalReviewQueryRequest, request: Request) -> 
     try:
         service = _build_service()
     except Exception as exc:  # noqa: BLE001
+        logger.exception("[LocalReviewRoute] query: service build failed")
         raise HTTPException(
             status_code=503,
-            detail=f"First-person local review is unavailable: {exc}",
+            detail={
+                "message": LOCAL_REVIEW_UNAVAILABLE_MESSAGE,
+                "review_label": REVIEW_LABEL,
+                "review_label_lines": list(REVIEW_LABEL_LINES),
+            },
         ) from exc
 
     start = time.monotonic()
-    answer = service.query(
-        req.query,
-        teacher_id=req.teacher_id or "both",
-        max_clips=req.max_clips,
-        use_cache=not req.cache_bypass,
-    )
+    try:
+        answer = service.query(
+            req.query,
+            teacher_id=req.teacher_id or "both",
+            max_clips=req.max_clips,
+            use_cache=not req.cache_bypass,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("[LocalReviewRoute] query: service query failed")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "message": LOCAL_REVIEW_UNAVAILABLE_MESSAGE,
+                "review_label": REVIEW_LABEL,
+                "review_label_lines": list(REVIEW_LABEL_LINES),
+            },
+        ) from exc
     latency_ms = round((time.monotonic() - start) * 1000.0, 2)
     payload = answer.to_dict()
     payload["latency_ms"] = latency_ms
@@ -170,8 +218,8 @@ async def local_review_query(req: LocalReviewQueryRequest, request: Request) -> 
 
 
 @router.get("/first-person/local-review/status")
-async def local_review_status() -> dict[str, Any]:
-    """Report whether the local review mode is available. Never serves content."""
+async def local_review_status(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
+    """Report local-review availability to an authenticated local admin only."""
     allowed, reason = _local_review_allowed()
     if not allowed:
         return {

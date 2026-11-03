@@ -1,11 +1,9 @@
-"""Reproduces the ground-truthed fabrication in docs/GURU_DEMO_READINESS.md §4E.1.
+"""Regressions for distress evidence and the no-generation boundary.
 
-handle_distress() free-generates its own answer and returns straight to END,
-bypassing format_final_answer — so `_unquote_unverifiable_spans` never ran on
-this path. A question routed through the distress handler shipped a quotation
-attributed to Sri Preethaji ("...waves passing through the ocean of
-consciousness") that appears in neither the corpus nor the OKF bundle. See
-`rag/nodes/intent.py::handle_distress`.
+Only a successful/weak-match first-person result or bridge result from the normal
+gated pipeline may add teaching text below SEVERE. Raw ``first_person_clip``
+state is ignored; the handler never probes a provider or availability service to
+upgrade it. See ``rag/nodes/intent.py::handle_distress``.
 """
 
 from __future__ import annotations
@@ -39,7 +37,8 @@ _DOCS = [
 
 
 @pytest.mark.asyncio
-async def test_handle_distress_strips_fabricated_quote_not_in_context():
+async def test_handle_distress_ignores_unbound_raw_first_person_clip():
+    """A raw clip-shaped field cannot inject unverifiable text into safety output."""
     mock_ollama = AsyncMock()
     mock_ollama.generate = AsyncMock(return_value=_FABRICATED_ANSWER)
 
@@ -67,50 +66,61 @@ async def test_handle_distress_strips_fabricated_quote_not_in_context():
     final_answer = result.get("final_answer", "")
     assert final_answer, "final_answer must not be empty"
     assert '"' not in final_answer, (
-        "quotation marks around an unverifiable span must be stripped, "
-        "same as the QUERY path's format_final_answer guard"
+        "the raw clip text must not be appended to the distress template"
     )
-    # The clip carries no stored transcript hash, so it fails the serve-time
-    # integrity gate (services.first_person_pipeline._passes_integrity_gate,
-    # added 9ab02892) and is omitted ENTIRELY — §4E.1's spans are absent from
-    # both stores, so they must not reach the seeker even quote-stripped.
-    # The verified-clip branch is pinned by the companion test below.
+    # Raw state has no pipeline-gated evidence contract and is omitted entirely.
     assert "waves passing through the ocean" not in final_answer, (
-        "an unverified clip must be dropped whole, not demoted"
+        "raw first_person_clip state must be dropped whole, not demoted"
     )
 
 
 @pytest.mark.asyncio
-async def test_handle_distress_serves_integrity_gated_clip_with_template():
-    """HANDOFF 2026-10-14 safety-lane direction: MODERATE distress answers with
-    the safety boundary PLUS a verified verbatim clip. A clip carrying a
-    matching transcript_hash + allowlisted speaker passes the real serve-time
-    gate (same fixture rule as test_distress_constitutional_guard.py's negative
-    control) and reaches the seeker byte-for-byte; the test above pins the
-    failing side of the same gate."""
+async def test_handle_distress_serves_gated_first_person_result_with_template():
+    """A successful pipeline-gated source quote is appended byte-for-byte."""
     import hashlib
 
+    from services.first_person_pipeline import FirstPersonPipelineResult
+
     mock_ollama = AsyncMock()
-    mock_ollama.generate = AsyncMock(return_value=_FABRICATED_ANSWER)
+    mock_ollama.generate = AsyncMock(return_value="must not be generated")
 
     serene_mock = MagicMock()
     serene_mock.async_assess_distress = AsyncMock(
         return_value=DistressAssessment(level=DistressLevel.MODERATE, confidence=0.7)
     )
     serene_mock.get_response = MagicMock(return_value=get_distress_response())
+    video_id = "dQw4w9WgXcQ"
+    gated_quote = "Observe what is."
+    quoted_verbatim_text = f'"{gated_quote}"'
+    source_url = f"https://www.youtube.com/watch?v={video_id}&t=99s"
+    gated_result = FirstPersonPipelineResult(
+        answer_text=f"**Sri Preethaji**\n\n{quoted_verbatim_text}\n\n{source_url}",
+        citations=[
+            {
+                "source_title": "Observation",
+                "source_url": source_url,
+                "video_id": video_id,
+                "start_ms": 99_000,
+                "end_ms": 100_000,
+                "timestamp_seconds": 99,
+                "speaker": "Sri Preethaji",
+                "speaker_verified": True,
+                "verbatim_text": quoted_verbatim_text,
+                "transcript_hash": hashlib.sha256(quoted_verbatim_text.encode()).hexdigest(),
+                "is_verbatim": True,
+            }
+        ],
+        status="success",
+        is_direct_answer=True,
+        latency_ms=10.0,
+        fp_served=True,
+    )
 
     state = GraphState(
         question="How does Inner Truth help dissolve chronic anxiety and hidden resentments?",
         chat_history=[],
         relevant_docs=_DOCS,
-        first_person_clip={
-            "verbatim_text": _FABRICATED_ANSWER,
-            "transcript_hash": hashlib.sha256(_FABRICATED_ANSWER.encode()).hexdigest(),
-            "speaker": "Sri Preethaji",
-            # A17: bare-name attribution requires a verified speaker; without
-            # this flag the clip downgrades to "unverified clip" by design.
-            "speaker_verified": True,
-        },
+        first_person_result=gated_result,
     )
 
     with (
@@ -123,10 +133,12 @@ async def test_handle_distress_serves_integrity_gated_clip_with_template():
         "LLM generate must never be called on distress path"
     )
     final_answer = result.get("final_answer", "")
-    assert "Here is a recorded teaching from Sri Preethaji:" in final_answer
-    assert "waves passing through the ocean" in final_answer, (
-        "a gate-passing clip must reach the seeker (demotion, not deletion)"
-    )
+    assert quoted_verbatim_text in final_answer
+    assert len(result.get("citations", [])) == 1
+    assert result["citations"][0]["verbatim_text"] == quoted_verbatim_text
+    assert result["citations"][0]["speaker_verified"] is True
+    assert result["citations"][0]["source_url"] == source_url
+    assert result["citations"][0]["video_id"] == video_id
 
 
 if __name__ == "__main__":

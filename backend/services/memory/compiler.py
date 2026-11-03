@@ -261,9 +261,9 @@ def compile_okf() -> Path:
     try:
         from datetime import UTC, datetime
     except ImportError:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        UTC = timezone.utc
+        UTC = UTC
 
     build_date = datetime.now(UTC).date().isoformat()
     entries, n_updated_defaulted = apply_updated_defaults(entries, build_date)

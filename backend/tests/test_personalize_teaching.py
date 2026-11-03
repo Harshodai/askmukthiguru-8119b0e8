@@ -80,6 +80,18 @@ def _ctx(request, *, user_id="11111111-1111-4111-8111-111111111111", **overrides
     return PipelineContext(**params)
 
 
+@pytest.fixture(autouse=True)
+def _mock_youtube_availability(monkeypatch):
+    """Keep personalization stage tests off HTTP and Redis availability paths."""
+    from services import first_person_pipeline
+
+    monkeypatch.setattr(
+        first_person_pipeline,
+        "is_youtube_video_available",
+        lambda _video_id: True,
+    )
+
+
 # ---------------------------------------------------------------------------
 # 1. Request schema
 # ---------------------------------------------------------------------------
@@ -339,6 +351,188 @@ async def test_clip_failing_integrity_gate_is_declined(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_unavailable_clip_is_declined_before_prompt_or_citation(monkeypatch):
+    """A re-fetched clip must pass the current availability gate before use."""
+    from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.personalize_stage import PersonalizeStage
+    from services import first_person_pipeline
+
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = _clip_payload()
+    availability = MagicMock(return_value=False)
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    monkeypatch.setattr(first_person_pipeline, "is_youtube_video_available", availability)
+    ctx = _ctx(_request(**_ref_kwargs()))
+
+    result = await PersonalizeStage().run(ctx)
+
+    assert result is not None
+    assert result.route_decision == "personalize_declined_unknown_clip"
+    assert "personalize_clip" not in ctx.state
+    assert getattr(ctx, "citations", []) == []
+    availability.assert_called_once_with(_VIDEO_ID)
+
+
+@pytest.mark.parametrize("returned_video_id", [None, "AAAAAAAAAAA"])
+@pytest.mark.asyncio
+async def test_clip_without_matching_video_identity_is_declined(monkeypatch, returned_video_id):
+    from app.config import settings
+    from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.personalize_stage import PersonalizeStage
+    from services import first_person_pipeline
+
+    monkeypatch.setattr(settings, "first_person_collection", "first_person_v8")
+    monkeypatch.setattr(settings, "first_person_context_collection", "")
+    clip = _clip_payload()
+    if returned_video_id is None:
+        clip.pop("video_id")
+    else:
+        clip["video_id"] = returned_video_id
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = clip
+    availability = MagicMock(return_value=True)
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    monkeypatch.setattr(first_person_pipeline, "is_youtube_video_available", availability)
+    ctx = _ctx(_request(**_ref_kwargs()))
+
+    result = await PersonalizeStage().run(ctx)
+
+    assert result is not None
+    assert result.route_decision == "personalize_declined_unknown_clip"
+    assert "personalize_clip" not in ctx.state
+    availability.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_context_fallback_rejects_mismatched_video_identity(monkeypatch):
+    from app.config import settings
+    from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.personalize_stage import PersonalizeStage
+    from services import first_person_pipeline
+
+    monkeypatch.setattr(settings, "first_person_collection", "first_person_v8")
+    monkeypatch.setattr(settings, "first_person_context_collection", "first_person_context_test")
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = None
+    store.get_clip_by_video_and_start_in_collection.return_value = _clip_payload(
+        video_id="AAAAAAAAAAA"
+    )
+    availability = MagicMock(return_value=True)
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    monkeypatch.setattr(first_person_pipeline, "is_youtube_video_available", availability)
+    ctx = _ctx(_request(**_ref_kwargs()))
+
+    result = await PersonalizeStage().run(ctx)
+
+    assert result is not None
+    assert result.route_decision == "personalize_declined_unknown_clip"
+    assert "personalize_clip" not in ctx.state
+    store.get_clip_by_video_and_start_in_collection.assert_called_once_with(
+        collection="first_person_context_test",
+        video_id=_VIDEO_ID,
+        timestamp_seconds=99,
+        tolerance_s=stage_module.PERSONALIZE_CLIP_TOLERANCE_S,
+    )
+    availability.assert_not_called()
+
+
+def test_context_fallback_canonicalizes_alias_in_video_filter(monkeypatch):
+    from app.config import settings
+    from app.pipeline.stages import personalize_stage as stage_module
+    from services import first_person_pipeline
+
+    requested_alias = "AQUZcU5L9xE"
+    canonical_id = "9id3ygnEhh8"
+    monkeypatch.setattr(settings, "first_person_collection", "first_person_v8")
+    monkeypatch.setattr(settings, "first_person_context_collection", "first_person_context_test")
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = None
+    store.get_clip_by_video_and_start_in_collection.return_value = _clip_payload(
+        video_id=canonical_id,
+        source_url=f"https://www.youtube.com/watch?v={canonical_id}",
+    )
+    availability = MagicMock(return_value=True)
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    monkeypatch.setattr(first_person_pipeline, "is_youtube_video_available", availability)
+
+    clip = stage_module._lookup_servable_clip(
+        {"video_id": requested_alias, "timestamp_seconds": 99}
+    )
+
+    assert clip is not None
+    assert clip["video_id"] == canonical_id
+    store.get_clip_by_video_and_start.assert_called_once_with(
+        canonical_id, 99, tolerance_s=stage_module.PERSONALIZE_CLIP_TOLERANCE_S
+    )
+    store.get_clip_by_video_and_start_in_collection.assert_called_once_with(
+        collection="first_person_context_test",
+        video_id=canonical_id,
+        timestamp_seconds=99,
+        tolerance_s=stage_module.PERSONALIZE_CLIP_TOLERANCE_S,
+    )
+    availability.assert_called_once_with(canonical_id)
+
+
+@pytest.mark.asyncio
+async def test_context_fallback_unavailable_service_declines(monkeypatch):
+    from app.config import settings
+    from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.personalize_stage import PersonalizeStage
+    from services import first_person_pipeline
+
+    monkeypatch.setattr(settings, "first_person_collection", "first_person_v8")
+    monkeypatch.setattr(settings, "first_person_context_collection", "first_person_context_test")
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = None
+    store.get_clip_by_video_and_start_in_collection.side_effect = RuntimeError("qdrant down")
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    monkeypatch.setattr(first_person_pipeline, "is_youtube_video_available", MagicMock())
+    ctx = _ctx(_request(**_ref_kwargs()))
+
+    result = await PersonalizeStage().run(ctx)
+
+    assert result is not None
+    assert result.route_decision == "personalize_declined_unknown_clip"
+    assert "personalize_clip" not in ctx.state
+    store.get_clip_by_video_and_start_in_collection.assert_called_once_with(
+        collection="first_person_context_test",
+        video_id=_VIDEO_ID,
+        timestamp_seconds=99,
+        tolerance_s=stage_module.PERSONALIZE_CLIP_TOLERANCE_S,
+    )
+
+
+def test_reuploaded_video_reference_uses_canonical_clip_identity(monkeypatch):
+    from app.config import settings
+    from app.pipeline.stages import personalize_stage as stage_module
+    from services import first_person_pipeline
+
+    requested_alias = "AQUZcU5L9xE"
+    canonical_id = "9id3ygnEhh8"
+    monkeypatch.setattr(settings, "first_person_collection", "first_person_v8")
+    monkeypatch.setattr(settings, "first_person_context_collection", "")
+    store = MagicMock()
+    store.get_clip_by_video_and_start.return_value = _clip_payload(
+        video_id=canonical_id,
+        source_url=f"https://www.youtube.com/watch?v={canonical_id}",
+    )
+    availability = MagicMock(return_value=True)
+    monkeypatch.setattr(stage_module, "_store_for_request", lambda: store)
+    monkeypatch.setattr(first_person_pipeline, "is_youtube_video_available", availability)
+
+    clip = stage_module._lookup_servable_clip(
+        {"video_id": requested_alias, "timestamp_seconds": 99}
+    )
+
+    assert clip is not None
+    assert clip["video_id"] == canonical_id
+    store.get_clip_by_video_and_start.assert_called_once_with(
+        canonical_id, 99, tolerance_s=stage_module.PERSONALIZE_CLIP_TOLERANCE_S
+    )
+    availability.assert_called_once_with(canonical_id)
+
+
+@pytest.mark.asyncio
 async def test_non_teacher_speaker_clip_is_declined(monkeypatch):
     from app.pipeline.stages import personalize_stage as stage_module
     from app.pipeline.stages.personalize_stage import PersonalizeStage
@@ -517,6 +711,69 @@ def test_store_lookup_picks_nearest_of_several_candidates():
     found = store.get_clip_by_video_and_start(_VIDEO_ID, 99)
     assert found is not None
     assert found["point_id"] == "near"
+
+
+def test_context_store_lookup_uses_collection_and_adapts_nearest_payload():
+    from services.first_person_store import FirstPersonStore
+
+    requested_alias = "AQUZcU5L9xE"
+    canonical_id = "9id3ygnEhh8"
+    near = _clip_payload(
+        point_id="near-context",
+        video_id=canonical_id,
+        start_ms=99_200,
+        speaker=None,
+        guru_id="preethaji",
+    )
+    far = _clip_payload(
+        point_id="far-context",
+        video_id=canonical_id,
+        start_ms=100_000,
+        speaker=None,
+        guru_id="preethaji",
+    )
+    store = FirstPersonStore.__new__(FirstPersonStore)
+    client = MagicMock()
+    client.scroll.return_value = _scroll_points(far, near)
+    store._client = client
+
+    found = store.get_clip_by_video_and_start_in_collection(
+        "first_person_context_test", requested_alias, 99, tolerance_s=1.5
+    )
+
+    assert found is not None
+    assert found["point_id"] == "near-context"
+    assert found["video_id"] == canonical_id
+    assert found["speaker"] == "Sri Preethaji"
+    assert (
+        found["transcript_hash"]
+        == hashlib.sha256(found["verbatim_text"].encode("utf-8")).hexdigest()
+    )
+    assert client.scroll.call_args.kwargs["collection_name"] == "first_person_context_test"
+    scroll_filter = client.scroll.call_args.kwargs["scroll_filter"]
+    video_condition = next(item for item in scroll_filter.must if item.key == "video_id")
+    start_condition = next(item for item in scroll_filter.must if item.key == "start_ms")
+    assert video_condition.match.value == canonical_id
+    assert start_condition.range.gte == 97_500
+    assert start_condition.range.lte == 100_500
+
+
+def test_context_store_lookup_preserves_qdrant_order_for_equal_distance_candidates():
+    from services.first_person_store import FirstPersonStore
+
+    store = FirstPersonStore.__new__(FirstPersonStore)
+    first = _clip_payload(point_id="first", start_ms=98_500)
+    second = _clip_payload(point_id="second", start_ms=99_500)
+    client = MagicMock()
+    client.scroll.return_value = _scroll_points(first, second)
+    store._client = client
+
+    found = store.get_clip_by_video_and_start_in_collection(
+        "first_person_context_test", _VIDEO_ID, 99, tolerance_s=1.5
+    )
+
+    assert found is not None
+    assert found["point_id"] == "first"
 
 
 # ---------------------------------------------------------------------------

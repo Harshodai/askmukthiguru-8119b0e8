@@ -150,9 +150,7 @@ def _clip_length_problem(text: str, *, settings_override: object | None = None) 
     return None
 
 
-def _standalone_problem(
-    text: str, *, settings_override: object | None = None
-) -> Optional[str]:
+def _standalone_problem(text: str, *, settings_override: object | None = None) -> Optional[str]:
     """Legacy full standalone check, retained byte-for-byte in decision order."""
     from ingest.verbatim.gates import CORPUS_EXPECTED_SCRIPT, script_and_loop_problem
 
@@ -254,10 +252,7 @@ if __name__ == "__main__":
     )
     assert _safe.may_serve
     assert _unsafe.reason_codes == ("unsolicited_self_harm_reference",)
-    assert (
-        first_person_evidence_policy.assess_context_standalone(
-            ("What about you?",)
-        ).reason_codes
-        == ("dangling_question_tail",)
-    )
+    assert first_person_evidence_policy.assess_context_standalone(
+        ("What about you?",)
+    ).reason_codes == ("dangling_question_tail",)
     print("first_person_evidence_policy self-check passed")

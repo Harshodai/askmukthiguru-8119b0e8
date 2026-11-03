@@ -36,6 +36,9 @@ def _make_span(
     parent_id: str = "p1",
     start_ms: int | None = None,
     answer_role: AnswerRole = AnswerRole.DIRECT,
+    previous_span_id: str | None = None,
+    coreference_chain_ids: tuple[str, ...] = (),
+    completeness_status: CompletenessStatus = CompletenessStatus.COMPLETE,
 ) -> SourceSpan:
     hash_val = "b" * 64
     start = 1000 * n if start_ms is None else start_ms
@@ -65,16 +68,27 @@ def _make_span(
         speaker_id="krishnaji",
         speaker_role=SpeakerRole.GURU,
         speaker_verified=True,
+        voice_verification_method="ecapa_voxceleb_span_slice_v2",
+        voice_model_revision="rev-test",
+        voice_score=0.71,
+        voice_margin=0.40,
+        voice_threshold_applied={"cosine_floor": 0.2828, "margin_threshold": 0.05},
+        voice_calibration_id="cal-test",
+        voice_window_check="pass",
+        voice_verified_at="2026-10-31T00:00:00+00:00",
+        speaker_verification_status="verified",
         source_transcript_text=text,
         verbatim_text=text,
         transcript_hash=hash_val,
         source_text_hash=clip_text_hash(text),
         boundary_status=BoundaryStatus.VERIFIED,
-        completeness_status=CompletenessStatus.COMPLETE,
+        completeness_status=completeness_status,
         rights_cleared=True,
         caption_status="auto",
         provenance_kind=ProvenanceKind.SPEECH_TURN_SPAN,
         answer_role=answer_role,
+        previous_span_id=previous_span_id,
+        coreference_chain_ids=coreference_chain_ids,
         source_url="https://youtube.com/watch?v=v1",
     )
 
@@ -84,26 +98,44 @@ def test_fp_primary_mode_default_is_true() -> None:
     assert getattr(settings, "first_person_primary_mode", True) is True
 
 
-def test_span_starts_with_antecedent_detection() -> None:
-    """Verifies detection of demonstratives, pronouns, and lowercase mid-thought openers."""
-    span_this = _make_span(0, "This truth can set us free.")
-    span_that = _make_span(1, "That is the fundamental error of the mind.")
-    span_it = _make_span(2, "It happens when you are unaware.")
-    span_clean = _make_span(3, "When you look deeply into the nature of sorrow.")
-    span_non_antecedent = _make_span(4, "Meditation is freedom from all psychological division.")
+def test_span_starts_with_antecedent_only_with_explicit_evidence() -> None:
+    """Generic demonstrative/pronoun openers need typed evidence, not a prefix heuristic."""
+    connective = _make_span(0, "Imagine what will be the outcome of it...")
+    coreferential = _make_span(
+        1,
+        "It happens when you are unaware.",
+        previous_span_id="prior-span",
+        coreference_chain_ids=("chain-1",),
+    )
+    fragment = _make_span(
+        2,
+        "...and that changes everything.",
+        previous_span_id="prior-span",
+        completeness_status=CompletenessStatus.FRAGMENT,
+    )
+    coreference_without_pointer = _make_span(
+        3, "It happens when you are unaware.", coreference_chain_ids=("chain-1",)
+    )
 
-    assert _span_starts_with_antecedent(span_this) is True
-    assert _span_starts_with_antecedent(span_that) is True
-    assert _span_starts_with_antecedent(span_it) is True
-    assert _span_starts_with_antecedent(span_clean) is True  # 'when' is an antecedent opener
-    assert _span_starts_with_antecedent(span_non_antecedent) is False
+    assert _span_starts_with_antecedent(connective) is True
+    assert _span_starts_with_antecedent(coreferential) is True
+    assert _span_starts_with_antecedent(fragment) is True
+    assert _span_starts_with_antecedent(coreference_without_pointer) is False
+    for n, text in enumerate(
+        (
+            "This truth can set us free.",
+            "That is the fundamental error of the mind.",
+            "It happens when you are unaware.",
+            "When you look deeply into the nature of sorrow.",
+            "Meditation is freedom from all psychological division.",
+        ),
+        start=4,
+    ):
+        assert _span_starts_with_antecedent(_make_span(n, text)) is False
 
 
-def test_antecedent_join_expands_single_span_window() -> None:
-    """When a hit span begins with an antecedent opener and max_context_spans=1,
-
-    the harness window includes the predecessor span to provide full context.
-    """
+def test_single_span_window_respects_configured_context_cap() -> None:
+    """Antecedent recovery cannot exceed max_context_spans; a one-span cap stays one."""
     span0 = _make_span(0, "Suffering is self-centered activity.")
     span1 = _make_span(1, "This truth can set us free.")
 
@@ -132,10 +164,8 @@ def test_antecedent_join_expands_single_span_window() -> None:
     harness = FirstPersonContextHarness(policy=policy)
     window = harness._window(ctx)
 
-    # Expanded to include predecessor span0
-    assert len(window) == 2
-    assert window[0].source_span_id == span0.source_span_id
-    assert window[1].source_span_id == span1.source_span_id
+    assert len(window) == 1
+    assert window[0].source_span_id == span1.source_span_id
 
 
 def test_temporal_span_ordering_in_answer() -> None:

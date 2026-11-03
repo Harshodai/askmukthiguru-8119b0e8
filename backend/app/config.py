@@ -325,6 +325,10 @@ class Settings(BaseSettings):
     # (harness policy max_context_spans). Bounded so a long parent unit can
     # never turn into a wall of text on the chat surface.
     first_person_context_max_spans: int = 3
+    # Optional temporal quality adjustment for fp-context retrieval ranking.
+    # Disabled until a reviewed calibration demonstrates that the adjustment
+    # improves held-out serving quality without changing evidence eligibility.
+    first_person_context_temporal_quality_enabled: bool = False
     # Serve only spans that carry a recorded voice_verification_method. OFF (default): a bare
     # speaker_verified flag still serves and the citation shows "unverified". ON: those spans
     # are not served at all. Graded 2026-10-31: 13 of 33 served clips had a bare flag, and the
@@ -465,9 +469,10 @@ class Settings(BaseSettings):
     first_person_relevance_model: str = ""
     # Timeout in seconds for the first-person LLM relevance scorer. 25s accommodates reasoning models and provider latency jitter.
     first_person_relevance_timeout_s: float = 25.0
-    # Resilient fallback: when external LLM relevance scorer errors (e.g. HTTP 402/429/5xx, timeouts),
-    # gracefully evaluate relevance using local semantic Cross-Encoder reranker rather than failing closed.
-    first_person_relevance_fallback_enabled: bool = True
+    # Retained as a compatibility setting only. Provider errors/refusals are
+    # relevance-indeterminate in serving; no uncalibrated local fallback may
+    # turn a budget denial or provider failure into an answer.
+    first_person_relevance_fallback_enabled: bool = False
     # Path to a JSON list of approved clip point_ids (ids only, no transcript text). When set, ONLY those
     # clips can be served; a missing/unreadable file serves nothing (fail closed). Empty = off.
     first_person_quality_allowlist_path: str = ""
