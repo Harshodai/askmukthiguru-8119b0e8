@@ -131,13 +131,13 @@ def test_default_is_scaffold_only_end_to_end_and_opt_in_flips(monkeypatch):
     editorial_calls: list = []
     scaffold_calls: list = []
 
-    def _spy_editorial(query, clips, metadata=None):
+    def _spy_editorial(query, clips, *args, **kwargs):
         editorial_calls.append(query)
-        return orig_editorial(query, clips, metadata=metadata)
+        return orig_editorial(query, clips, *args, **kwargs)
 
-    def _spy_scaffold(query, clips):
+    def _spy_scaffold(query, clips, *args, **kwargs):
         scaffold_calls.append(query)
-        return orig_scaffold(query, clips)
+        return orig_scaffold(query, clips, *args, **kwargs)
 
     monkeypatch.setattr(qw, "_build_editorial_review_prompt", _spy_editorial)
     monkeypatch.setattr(qw, "_build_scaffolding_prompts", _spy_scaffold)

@@ -40,7 +40,12 @@ if str(_BACKEND) not in sys.path:
 
 from ingest.verbatim.speaker_verify import verify_clip_speaker  # noqa: E402
 
-_TEACHER_CODES = {"sri preethaji": "preethaji", "sri krishnaji": "krishnaji"}
+_TEACHER_CODES = {
+    "sri preethaji": "preethaji",
+    "sri krishnaji": "krishnaji",
+    "preethaji": "preethaji",
+    "krishnaji": "krishnaji",
+}
 
 
 def classify_child(payload: dict[str, Any], speaker_result: dict[str, Any] | None) -> str:
@@ -105,7 +110,7 @@ def _scroll(url: str, collection: str) -> Iterable[dict[str, Any]]:
             json.dumps(body).encode(),
             {"Content-Type": "application/json"},
         )
-        result = json.load(urllib.request.urlopen(req, timeout=30))["result"]
+        result = json.load(urllib.request.urlopen(req, timeout=30))["result"]  # nosec B310
         for point in result["points"]:
             yield point["payload"]
         offset = result.get("next_page_offset")

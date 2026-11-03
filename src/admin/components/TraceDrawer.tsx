@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -14,9 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Copy, Download, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ChevronDown, Copy, Download, ThumbsUp, ThumbsDown, Info, Cpu } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryTrace } from "@/admin/hooks/useAdminData";
+import { upsertGoldenQuestion } from "@/admin/lib/api";
+import { CorpusProvenanceModal } from "./CorpusProvenanceModal";
 import { SpanWaterfall } from "./SpanWaterfall";
 import { JudgeScoreBar } from "./JudgeScoreBar";
 import { HallucinationBadge } from "./HallucinationBadge";
@@ -36,6 +39,31 @@ interface Props {
 
 export function TraceDrawer({ queryId, onClose }: Props) {
   const { data: trace, isLoading, error, refetch } = useQueryTrace(queryId);
+  const [provenancePointId, setProvenancePointId] = useState<string | null>(null);
+  const [promoting, setPromoting] = useState(false);
+
+  const handlePromoteToGolden = async () => {
+    if (!trace?.query?.query_text) {
+      toast.error("No query text available to promote");
+      return;
+    }
+    setPromoting(true);
+    try {
+      const sources = trace.retrieval?.source_docs || [];
+      await upsertGoldenQuestion({
+        question: trace.query.query_text,
+        expected_answer: trace.response?.response_text || "",
+        expected_sources: sources,
+        tags: ["promoted_from_trace", trace.query.model || "rag"].filter(Boolean),
+        active: true,
+      });
+      toast.success("Successfully promoted query to golden evaluation set");
+    } catch (err) {
+      toast.error(`Failed to promote: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setPromoting(false);
+    }
+  };
 
   return (
     <Sheet open={!!queryId} onOpenChange={(o) => !o && onClose()}>
@@ -192,25 +220,36 @@ export function TraceDrawer({ queryId, onClose }: Props) {
 
             {/* Retrieved chunks */}
             <section>
-              <h3 className="text-sm font-medium mb-2">Retrieved chunks</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium">Retrieved chunks</h3>
+                <span className="text-[11px] text-muted-foreground">Click chunk to inspect provenance</span>
+              </div>
               {trace.retrieval?.source_docs && trace.retrieval.source_docs.length > 0 ? (
                 <div className="space-y-1.5 text-xs">
-                  {(trace.retrieval.source_docs ?? []).map((src: string, i: number) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 border border-border rounded px-2 py-1"
-                    >
-                      <Badge variant="outline" className="text-[10px] h-5">
-                        #{i + 1}
-                      </Badge>
-                      <span className="font-mono truncate flex-1">{truncate(src ?? "", 60)}</span>
-                      <span className="tabular-nums text-muted-foreground">
-                        {typeof trace.retrieval?.scores?.[i] === "number" && !Number.isNaN(trace.retrieval.scores[i])
-                          ? trace.retrieval.scores[i].toFixed(3)
-                          : (trace.retrieval?.scores?.[i] ?? "0.000")}
-                      </span>
-                    </div>
-                  ))}
+                  {(trace.retrieval.source_docs ?? []).map((src: string, i: number) => {
+                    const chunkId = trace.retrieval?.chunk_ids?.[i] || src;
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 border border-border hover:border-primary/50 hover:bg-muted/40 transition-colors rounded px-2.5 py-1.5 cursor-pointer group"
+                        onClick={() => setProvenancePointId(chunkId)}
+                        title={`Click to inspect provenance for ${chunkId}`}
+                      >
+                        <Badge variant="outline" className="text-[10px] h-5">
+                          #{i + 1}
+                        </Badge>
+                        <span className="font-mono truncate flex-1 text-foreground/90 group-hover:text-primary">
+                          {truncate(src ?? "", 55)}
+                        </span>
+                        <span className="tabular-nums text-muted-foreground">
+                          {typeof trace.retrieval?.scores?.[i] === "number" && !Number.isNaN(trace.retrieval.scores[i])
+                            ? trace.retrieval.scores[i].toFixed(3)
+                            : (trace.retrieval?.scores?.[i] ?? "0.000")}
+                        </span>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground opacity-60 group-hover:opacity-100 group-hover:text-primary shrink-0 ml-1" />
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground">No retrieval recorded.</div>
@@ -296,9 +335,10 @@ export function TraceDrawer({ queryId, onClose }: Props) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => toast.info("UI preview — wire to evals API when Cloud is on")}
+                disabled={promoting}
+                onClick={handlePromoteToGolden}
               >
-                Promote to golden
+                {promoting ? "Promoting…" : "Promote to golden"}
               </Button>
               <Button
                 variant="outline"
@@ -311,6 +351,14 @@ export function TraceDrawer({ queryId, onClose }: Props) {
           </div>
         )}
       </SheetContent>
+
+      {/* Corpus Point Provenance Drawer */}
+      {provenancePointId && (
+        <CorpusProvenanceModal
+          pointId={provenancePointId}
+          onClose={() => setProvenancePointId(null)}
+        />
+      )}
     </Sheet>
   );
 }

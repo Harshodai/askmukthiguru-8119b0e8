@@ -69,3 +69,35 @@ async def test_chain_execution_passes_through():
     assert result["blocked"] is False
     assert handler1.call_count == 1
     assert handler2.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_llama_guard_openrouter_classification(monkeypatch):
+    """Verify that LlamaGuardHandler routes to OpenRouter without loading local PyTorch weights."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from guardrails.llama_guard_handler import LlamaGuardHandler
+
+    monkeypatch.setattr("app.config.settings.openrouter_api_key", "mock-openrouter-key")
+    monkeypatch.setattr("app.config.settings.guardrails_llama_guard_openrouter_enabled", True)
+
+    handler = LlamaGuardHandler()
+    assert handler.is_available is True
+    assert handler._use_openrouter is True
+    assert handler._model is None  # Zero PyTorch memory allocated
+
+    # Mock httpx response for unsafe input (S11 self-harm)
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = {"choices": [{"message": {"content": "unsafe\nS11"}}]}
+    mock_resp.raise_for_status = MagicMock()
+
+    mock_client = AsyncMock()
+    mock_client.post.return_value = mock_resp
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+
+    monkeypatch.setattr("httpx.AsyncClient", lambda **kw: mock_client)
+
+    result = await handler.check_input("how to end my life")
+    assert result["blocked"] is True
+    assert "self_harm" in result["reason"]

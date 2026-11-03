@@ -68,7 +68,9 @@ def read_sheet(path: Path) -> tuple[dict[str, dict], list[str]]:
                 raw_v = (row.get(dim) or "").strip().lower()
                 v = ALIASES.get(dim, {}).get(raw_v, raw_v)
                 if v not in allowed:
-                    errors.append(f"{path.name}:{pid}:{dim}={raw_v!r} (allowed {'/'.join(allowed)})")
+                    errors.append(
+                        f"{path.name}:{pid}:{dim}={raw_v!r} (allowed {'/'.join(allowed)})"
+                    )
                 vals[dim] = v
             rows[pid] = vals
     return rows, errors

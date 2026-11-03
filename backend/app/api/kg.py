@@ -62,6 +62,17 @@ router = APIRouter(tags=["kg"])
 _KG_QUERY_SEMAPHORE = asyncio.Semaphore(getattr(settings, "kg_max_concurrent_queries", 10))
 
 
+def _node_source_ref(node: dict) -> dict[str, str] | None:
+    """Pass through a well-formed {kind, id} source; anything else is unavailable."""
+    ref = node.get("source_ref")
+    if not isinstance(ref, dict):
+        return None
+    kind, ref_id = ref.get("kind"), ref.get("id")
+    if isinstance(kind, str) and isinstance(ref_id, str) and kind and ref_id:
+        return {"kind": kind, "id": ref_id}
+    return None
+
+
 _KG_SUBGRAPH_RATE_LIMITER = TTLRateLimiter(ttl=60.0, max_requests=30)
 
 # Node labels holding per-seeker data. Neo4j is a single database shared by the
@@ -335,6 +346,8 @@ class KGNode(BaseModel):
     teacher: str | None = None
     state_category: str | None = None
     content_preview: str | None = None
+    # Provenance of a Memory / NotebookItem node; None means "source unavailable".
+    source_ref: dict[str, str] | None = None
 
 
 class KGEdge(BaseModel):
@@ -456,6 +469,7 @@ async def kg_personal_subgraph(
                 teacher=n.get("teacher"),
                 state_category=n.get("state_category"),
                 content_preview=(str(n.get("content") or "")[:320] if n.get("content") else None),
+                source_ref=_node_source_ref(n),
             )
         )
 

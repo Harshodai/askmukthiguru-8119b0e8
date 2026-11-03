@@ -26,6 +26,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useNotes, type Note } from "@/hooks/useNotes";
+import { completeStep } from "@/lib/dailyJourney";
 import { toast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { Link, useLocation } from 'react-router-dom';
@@ -126,6 +127,8 @@ export function NotesPanel() {
         ? await updateNote(editing.id, { title: draftTitle || t('notes.untitled'), body: draftBody, tags })
         : await createNote({ title: draftTitle || undefined, body: draftBody, tags });
       if (!saved) throw new Error('Save failed');
+      // Only a newly saved note proves the journey's reflection step; an edit does not.
+      if (!editing) completeStep('reflection');
       toast({ title: editing ? t('notes.updated') : t('notes.saved') });
       setComposing(false);
     } catch {

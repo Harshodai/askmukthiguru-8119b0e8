@@ -23,6 +23,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from rectify_target_packages import rectify_package
+
 from services.doctrine_terms import reload as reload_doctrine_terms
 
 CORPUS_ROOT = REPO_ROOT / "scripts" / "ingestion" / "corpus"

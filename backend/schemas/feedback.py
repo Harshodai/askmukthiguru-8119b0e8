@@ -29,6 +29,7 @@ class FeedbackResponse(BaseModel):
 
     id: str
     user_id: Optional[str] = None
+    query_id: Optional[str] = None
     rating: int = 0
     query_text: str = ""
     answer_text: str = ""

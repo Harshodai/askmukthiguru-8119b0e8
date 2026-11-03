@@ -112,6 +112,9 @@ export interface Message {
   queryTier?: string | null;
   isFirstPersonAbstain?: boolean | null;
   routeDecision?: string | null;
+  /** Platform copy served beside a verbatim clip (compassion framing, safety
+   *  boundaries, the support line). Persisted so a reload keeps the notice. */
+  safetyNotices?: string[];
 }
 
 // ── Feedback helpers ──────────────────────────────────────────────
@@ -209,6 +212,8 @@ const MessageSchema = z.object({
   queryTier: z.string().nullable().optional(),
   isFirstPersonAbstain: z.boolean().nullable().optional(),
   routeDecision: z.string().nullable().optional(),
+  // Must be declared here or z.object's default strip removes it on reload.
+  safetyNotices: z.array(z.string()).optional(),
   sereneMindOffer: z.object({
     triggered: z.boolean(),
     level: z.string().optional(),

@@ -35,6 +35,7 @@ import os
 import re
 import sys
 from collections import Counter, defaultdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +80,10 @@ from domain.first_person_context import (  # noqa: E402
     make_parent_unit_id,
     make_source_span_id,
 )
+from domain.speaker_provenance import (  # noqa: E402
+    calibration_id_from,
+    span_slice_voice_fields,
+)
 from ingest.verbatim.asr_cleaner import asr_cleaner_flags  # noqa: E402
 from ingest.verbatim.boundaries import boundary_defects  # noqa: E402
 from ingest.verbatim.gates import script_and_loop_problem  # noqa: E402
@@ -112,6 +117,7 @@ except ImportError:  # repo-root copy: the sibling lives in the backend tree
     speaker_verify = _load_sibling("verify_speakers_ecapa")
 from services.embedding_service import EmbeddingService  # noqa: E402
 from services.first_person_context_store import (  # noqa: E402
+    assert_speaker_provenance,
     parent_point_id,
     point_id_for_record,
 )
@@ -168,12 +174,26 @@ def load_calibration(path: Path) -> tuple[float, float]:
             f"Speaker calibration {path} reports calibration_available=false "
             "(too few held-out impostor trials). Every span would stay unverified."
         )
-    cosine_floor = data.get("cosine_floor")
-    margin_threshold = data.get("threshold", data.get("margin_threshold"))
+    # The phase-2 certification artifact nests its measured floors under "thresholds".
+    floors = data.get("thresholds") if isinstance(data.get("thresholds"), dict) else {}
+    cosine_floor = data.get("cosine_floor", floors.get("cosine_floor"))
+    margin_threshold = data.get(
+        "threshold", data.get("margin_threshold", floors.get("margin_threshold"))
+    )
     for name, value in (("cosine_floor", cosine_floor), ("margin_threshold", margin_threshold)):
         if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
             raise RuntimeError(f"Speaker calibration {path} has no usable {name}: {value!r}")
     return float(cosine_floor), float(margin_threshold)
+
+
+def load_calibration_id(path: Path) -> str:
+    """Name the calibration file that produced the floors (written onto every span).
+
+    Uses the file's own ``calibration_revision`` when it has one, else the sha256 of its bytes.
+    """
+    raw = path.read_bytes()
+    data = json.loads(raw.decode("utf-8"))
+    return calibration_id_from(data if isinstance(data, dict) else {}, raw)
 
 
 #: validate_release_grade() codes that block a video from being written. The duration
@@ -435,6 +455,61 @@ def _align_words_to_timings(
     return out
 
 
+def asr_provenance(video_id: str, tb_dirs: list[Path]) -> tuple[str | None, str | None]:
+    """(engine, model) of the archived Parakeet run that timed this video, else (None, None).
+
+    Read from ``<root>/raw/<id>_parakeet.json`` (the artifact the audit re-derives
+    provenance from); a missing or failed run records nothing rather than a guess.
+    """
+    for tb in tb_dirs:
+        raw = tb.parent / "raw" / f"{video_id}_parakeet.json"
+        if not raw.is_file():
+            continue
+        try:
+            data = json.loads(raw.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(data, dict) and data.get("ok") is not False and data.get("model"):
+            return "parakeet_mlx", str(data["model"])
+    return None, None
+
+
+def words_from_timed_file(
+    video_id: str, tb_dirs: list[Path]
+) -> tuple[list[str], list[tuple[float, float]], str] | None:
+    """Words, their (start, end) seconds and the file sha256, straight from a timed
+    word file; None when absent or any word lacks a time.
+
+    Opt-in route (``--text-from-words``) for a video whose markdown transcript is
+    missing, garbled or unalignable. The text is the voted ASR word stream itself, so
+    text and times always come from the same file; nothing is synthesised.
+    """
+    for tb_dir in tb_dirs:
+        candidate = tb_dir / f"{video_id}.json"
+        if not candidate.is_file():
+            continue
+        raw = candidate.read_bytes()
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except Exception:
+            continue
+        if not isinstance(data, list) or not data:
+            continue
+        words: list[str] = []
+        times: list[tuple[float, float]] = []
+        for row in data:
+            if not isinstance(row, dict) or "start" not in row or "end" not in row:
+                return None
+            token = str(row.get("w", "")).strip()
+            if not token:
+                continue
+            words.append(token)
+            times.append((float(row["start"]), float(row["end"])))
+        if words:
+            return words, times, hashlib.sha256(raw).hexdigest()
+    return None
+
+
 def get_word_timings(
     video_id: str, words: list[str], tb_dirs: list[Path]
 ) -> list[tuple[float, float]] | None:
@@ -476,6 +551,23 @@ def _make_span(spec: dict[str, Any]) -> dict[str, Any]:
         "end_ms": spec["end_ms"],
         "text": spec["text"],
     }
+
+
+def drop_zero_duration_specs(
+    specs: list[dict[str, Any]], quarantined: Counter[str]
+) -> list[dict[str, Any]]:
+    """Quarantine spans whose timing collapsed to ``end_ms <= start_ms``.
+
+    Disputed ASR words can all share one timestamp; such a span has no audio window
+    to verify or play, and ``SourceSpan`` rejects it. Counted, never synthesised.
+    """
+    kept: list[dict[str, Any]] = []
+    for spec in specs:
+        if spec["end_ms"] <= spec["start_ms"]:
+            quarantined["zero_duration_span"] += 1
+            continue
+        kept.append(spec)
+    return kept
 
 
 def slice_into_sentence_spans(
@@ -607,6 +699,12 @@ def main() -> int:
         "--limit", type=int, default=0, help="Limit number of videos to process (0 = all)"
     )
     parser.add_argument(
+        "--only-videos",
+        default="",
+        help="Comma-separated video ids: build only these (still skips videos already "
+        "in the target collection, so a run is purely additive).",
+    )
+    parser.add_argument(
         "--wav-dir",
         default=os.environ.get("WAV_DIR", ""),
         help="WAV archive directory (default: $WAV_DIR)",
@@ -620,6 +718,19 @@ def main() -> int:
     parser.add_argument(
         "--cache-dir",
         default=os.environ.get("FP_CONTEXT_CACHE", str(_REPO_ROOT / ".work/fp_context/speaker")),
+    )
+    parser.add_argument(
+        "--text-from-words",
+        action="store_true",
+        help="Only for videos that would be quarantined as no_word_timings: take the span "
+        "text from the timed word file itself instead of the markdown transcript. "
+        "Off by default; certified behaviour is unchanged.",
+    )
+    parser.add_argument(
+        "--references-npz",
+        default="",
+        help="Guru reference centroids saved by regenerate_v10_span_ecapa_verdicts "
+        "--out-references (human-anchor based, non-circular). Preferred over label centroids.",
     )
     parser.add_argument(
         "--allow-label-centroids",
@@ -698,6 +809,9 @@ def main() -> int:
     logger.info(
         "Speaker floors: cosine_floor=%.4f margin_threshold=%.4f", cosine_floor, margin_threshold
     )
+    calibration_id = load_calibration_id(Path(args.calibration))
+    model_revision = getattr(speaker_verify, "ECAPA_REVISION", None)
+    verified_at = datetime.now(UTC).isoformat(timespec="seconds")
 
     # Load rights manifest (D18)
     rights_path = Path(args.rights_manifest)
@@ -781,6 +895,18 @@ def main() -> int:
     ]
     logger.info("Found %d missing candidate videos with WAV audio.", len(missing_candidates))
 
+    only = {v.strip() for v in str(args.only_videos or "").split(",") if v.strip()}
+    if only:
+        unknown = only - {p.stem for p in missing_candidates}
+        if unknown:
+            logger.warning(
+                "--only-videos ids that are not buildable additions (already indexed, no "
+                "transcript, or no WAV): %s",
+                sorted(unknown),
+            )
+        missing_candidates = [p for p in missing_candidates if p.stem in only]
+        logger.info("Restricted to --only-videos: %d video(s).", len(missing_candidates))
+
     if args.limit > 0:
         missing_candidates = missing_candidates[: args.limit]
         logger.info("Applying limit: processing %d videos.", len(missing_candidates))
@@ -791,9 +917,13 @@ def main() -> int:
 
     # Load ECAPA centroids and embedder
     logger.info("Computing ECAPA teacher voice centroids...")
-    centroids = compute_centroids(
-        Path(args.centroid_points), cache_dir, allow_label_derived=args.allow_label_centroids
-    )
+    if args.references_npz:
+        with np.load(Path(args.references_npz)) as refs:
+            centroids = {str(k).lower(): np.asarray(refs[k], dtype=np.float32) for k in refs.files}
+    else:
+        centroids = compute_centroids(
+            Path(args.centroid_points), cache_dir, allow_label_derived=args.allow_label_centroids
+        )
     logger.info("Centroids ready for: %s", list(centroids.keys()))
 
     logger.info("Loading ECAPA speaker recognition model...")
@@ -841,6 +971,16 @@ def main() -> int:
 
         # 2. Word timings & sentence slicing
         timings = get_word_timings(video_id, words, tb_dirs)
+        if timings is None and args.text_from_words:
+            from_words = words_from_timed_file(video_id, tb_dirs)
+            if from_words is not None:
+                words, timings, artifact_sha256 = from_words
+                transcript_hash = hashlib.sha256(" ".join(words).encode("utf-8")).hexdigest()
+                logger.warning(
+                    "Video %s: markdown transcript unusable for alignment; text and times "
+                    "taken from the timed word file (--text-from-words)",
+                    video_id,
+                )
         if timings is None:
             quarantined["no_word_timings"] += 1
             logger.info("Video %s: no reliable word timings -> skipped", video_id)
@@ -864,7 +1004,7 @@ def main() -> int:
                     quarantined[f"asr_cleaner_{flag}"] += 1
                 continue
             kept_specs.append(spec)
-        span_specs = kept_specs
+        span_specs = drop_zero_duration_specs(kept_specs, quarantined)
         if not span_specs:
             quarantined["no_valid_spans"] += 1
             logger.info("Video %s: no valid sentence spans after boundary check", video_id)
@@ -931,6 +1071,7 @@ def main() -> int:
             for s in span_specs
         ]
 
+        asr_engine, asr_model_version = asr_provenance(video_id, tb_dirs)
         spans: list[SourceSpan] = []
         vectors: dict[str, Any] = {}
         source_url = f"https://www.youtube.com/watch?v={video_id}"
@@ -940,6 +1081,21 @@ def main() -> int:
             # Verified only when the span's own voice prediction matches the
             # video's guru AND both calibrated floors cleared.
             verified = bool(verdict["cleared"] and verdict["predicted"] == predicted_guru)
+            # P3: the span records what produced the claim. No audio / no embedding gives
+            # `pending_voice_check`; incomplete evidence is demoted to unverified, never
+            # dropped and never promoted (domain.speaker_provenance).
+            voice_fields = span_slice_voice_fields(
+                verified=verified,
+                scored=verdict["predicted"] is not None,
+                cosine=verdict["cosine"],
+                margin=verdict["margin"],
+                foreign_window_count=verdict["metrics"]["foreign_window_count"],
+                cosine_floor=cosine_floor,
+                margin_threshold=margin_threshold,
+                model_revision=model_revision,
+                calibration_id=calibration_id,
+                verified_at=verified_at,
+            )
             # The vector is produced from the instruction-prefixed passage text
             # embedded by encode_batch below, so this hash names exactly the
             # string actually embedded, bypassing query expansion.
@@ -964,8 +1120,9 @@ def main() -> int:
                 word_end=spec["word_end"],
                 speaker_id=predicted_guru,
                 speaker_role=SpeakerRole.GURU,
-                speaker_verified=verified,
-                voice_verification_method=("ecapa_voxceleb_span_slice_v2" if verified else None),
+                **voice_fields,
+                asr_engine=asr_engine,
+                asr_model_version=asr_model_version,
                 source_transcript_text=spec["text"],
                 verbatim_text=spec["text"],
                 transcript_hash=transcript_hash,
@@ -1055,6 +1212,10 @@ def main() -> int:
             )
             for s in spans
         ]
+        # I3: a collection-level refusal before any write, on the exact payloads about to be
+        # sent. This builder stamps the method with the verdict, so a non-zero count means the
+        # input regressed (e.g. a verdict file was reused across a span hash change).
+        assert_speaker_provenance([p.payload for p in points_to_upsert], where=f"video {video_id}")
         points_to_upsert.append(
             PointStruct(
                 id=parent_point_id(parent.parent_unit_id),

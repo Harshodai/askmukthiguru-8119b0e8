@@ -35,6 +35,7 @@ import {
 } from '@/lib/memoryApi';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { KGConceptMap } from '@/components/kg/KGConceptMap';
+import { MemorySourceLink } from '@/components/common/MemorySourceLink';
 
 const formatDate = (iso: string): string => {
   try {
@@ -64,7 +65,6 @@ export const MemoryManager = () => {
   const [skillsLoading, setSkillsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState<string | null>(null);
-  const [isDemo, setIsDemo] = useState(false);
   const [newText, setNewText] = useState('');
   const [adding, setAdding] = useState(false);
   const [pinAsCore, setPinAsCore] = useState(false);
@@ -74,6 +74,8 @@ export const MemoryManager = () => {
   const [clearingReflections, setClearingReflections] = useState(false);
   const [editingText, setEditingText] = useState('');
   const [editingSaving, setEditingSaving] = useState(false);
+  const [hasConsent, setHasConsent] = useState<boolean | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
   // Voice-to-text for the single memory composer.
@@ -86,27 +88,26 @@ export const MemoryManager = () => {
     },
   });
 
-  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'graph'>('graph');
 
   const [listSearchQuery, setListSearchQuery] = useState('');
 
   const refresh = async () => {
     setLoading(true);
     setUnavailable(null);
-    const [listResult, coreResult, summariesResult, conversationsResult, personaResult, skillsResult] = await Promise.allSettled([
+    const [listResult, coreResult, summariesResult, conversationsResult, personaResult, skillsResult, consentResult] = await Promise.allSettled([
       memoryApi.list(1, 100),
       memoryApi.getCore(),
       memoryApi.getSummaries(10),
       memoryApi.getConversations(5),
       memoryApi.getPersona(),
       memoryApi.getSkills(),
+      memoryApi.getConsent(),
     ]);
     if (listResult.status === 'fulfilled') {
       setMemories(listResult.value.memories);
-      setIsDemo(false);
     } else {
       setMemories([]);
-      setIsDemo(false);
       setUnavailable(t('memory.unavailable', 'Your saved memories are unavailable right now. Please try again.'));
     }
     if (coreResult.status === 'fulfilled') {
@@ -124,6 +125,11 @@ export const MemoryManager = () => {
     }
     if (skillsResult.status === 'fulfilled') {
       setSkills(skillsResult.value ?? []);
+    }
+    if (consentResult.status === 'fulfilled') {
+      setHasConsent(consentResult.value);
+    } else {
+      setHasConsent(false);
     }
     setLoading(false);
   };
@@ -223,6 +229,7 @@ export const MemoryManager = () => {
       // Do not persist the memory unless the server confirms consent. The chat
       // extraction pipeline reads this same receipt and fails closed without it.
       await memoryApi.recordConsent(true);
+      setHasConsent(true);
     } catch (err) {
       const msg = err instanceof MemoryApiError
         ? err.message
@@ -231,11 +238,79 @@ export const MemoryManager = () => {
       return;
     }
     if (pinAsCore) await saveGuidingNote();
-    else await saveNewMemory();
+    else if (newText.trim()) await saveNewMemory();
+    else {
+      toast({
+        title: t('memory.consentApprovedTitle', 'Memory Enabled'),
+        description: t('memory.consentApprovedDesc', 'Personal spiritual memory and wisdom map are now active.'),
+      });
+      await refresh();
+    }
+  };
+
+  const handleApproveConsent = async () => {
+    try {
+      await memoryApi.recordConsent(true);
+      setHasConsent(true);
+      toast({
+        title: t('memory.consentApprovedTitle', 'Memory Enabled'),
+        description: t('memory.consentApprovedDesc', 'Personal spiritual memory and wisdom map are now active.'),
+      });
+      await refresh();
+    } catch (err) {
+      const msg = err instanceof MemoryApiError ? err.message : 'Could not enable memory.';
+      toast({ title: t('memory.couldNotSave', 'Could not save memory'), description: msg, variant: 'destructive' });
+    }
+  };
+
+  const handleToggleConsent = async () => {
+    const nextConsent = !hasConsent;
+    try {
+      await memoryApi.recordConsent(nextConsent);
+      setHasConsent(nextConsent);
+      toast({
+        title: nextConsent
+          ? t('memory.consentActiveTitle', 'Memory Active')
+          : t('memory.consentPausedTitle', 'Memory Paused'),
+        description: nextConsent
+          ? t('memory.consentActiveDesc', 'Personal spiritual memory and wisdom map are now active.')
+          : t('memory.consentPausedDesc', 'Personal spiritual memory and wisdom map collection are paused.'),
+      });
+      await refresh();
+    } catch (err) {
+      const msg = err instanceof MemoryApiError ? err.message : 'Could not update memory status.';
+      toast({ title: t('memory.couldNotUpdate', 'Could not update memory'), description: msg, variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (deletingAll) return;
+    setDeletingAll(true);
+    try {
+      await memoryApi.deleteAll();
+      await memoryApi.recordConsent(false);
+      setMemories([]);
+      setCore(null);
+      setCoreText('');
+      setHasConsent(false);
+      toast({
+        title: t('memory.erasedTitle', 'Memories Erased'),
+        description: t(
+          'memory.erasedDesc',
+          'All personal memories and wisdom map connections have been permanently erased.',
+        ),
+      });
+      await refresh();
+    } catch (err) {
+      const msg = err instanceof MemoryApiError ? err.message : 'Could not erase all memories.';
+      toast({ title: t('memory.couldNotErase', 'Could not erase memories'), description: msg, variant: 'destructive' });
+    } finally {
+      setDeletingAll(false);
+    }
   };
 
   const handleEdit = async (id: string) => {
-    if (isDemo || !editingText.trim() || editingSaving) return;
+    if (!editingText.trim() || editingSaving) return;
     setEditingSaving(true);
     try {
       await memoryApi.edit(id, editingText.trim());
@@ -252,7 +327,6 @@ export const MemoryManager = () => {
   };
 
   const handleForget = async (id: string) => {
-    if (isDemo) return;
     setForgettingId(id);
     try {
       await memoryApi.forget(id);
@@ -267,7 +341,7 @@ export const MemoryManager = () => {
   };
 
   const handleForgetAllReflections = async () => {
-    if (isDemo || clearingReflections) return;
+    if (clearingReflections) return;
     setClearingReflections(true);
     try {
       await memoryApi.forgetAllReflections();
@@ -283,7 +357,13 @@ export const MemoryManager = () => {
 
   const renderGraph = () => (
     <div className="overflow-hidden rounded-2xl border border-hairline bg-card">
-      <KGConceptMap initialQuery="" embedded />
+      <KGConceptMap
+        initialQuery=""
+        embedded
+        scope="personal"
+        hasConsent={hasConsent}
+        onApproveConsent={handleConsentConfirm}
+      />
     </div>
   );
 
@@ -329,7 +409,6 @@ export const MemoryManager = () => {
       m.content.toLowerCase().includes(listSearchQuery.toLowerCase())
   );
   const visibleCount = filteredMemories.length;
-  const hasStats = visibleCount > 0 || summaries.length > 0 || coreText.trim().length > 0;
   const showRemembers = persona.trim().length > 0 || skills.length > 0 || summaries.length > 0;
 
   const focusComposer = () => {
@@ -339,36 +418,40 @@ export const MemoryManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* ── Statistics (hidden until there is something to count) ───────── */}
-      {hasStats && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="rounded-2xl border-hairline bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-ojas/10 rounded-xl text-ojas"><Brain className="w-4 h-4" aria-hidden="true" /></div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statMemories', 'Memories')}</p>
-                <p className="text-lg font-bold text-foreground mt-0.5">{visibleCount}</p>
+
+      {/* ── Approval Notification Banner ─────────────────────────────────── */}
+      {hasConsent !== true && (
+        <div className="bg-gradient-to-r from-ojas/10 via-ojas/5 to-background border border-ojas/25 rounded-2xl p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-ojas/30 bg-ojas/10 text-ojas">
+                <Sparkles className="h-5 w-5" />
               </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-2xl border-hairline bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-prana/10 rounded-xl text-prana"><Sparkles className="w-4 h-4" aria-hidden="true" /></div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statCoreStatus', 'Core Status')}</p>
-                <p className="text-xs font-bold text-foreground mt-1">{coreText.trim() ? t('memory.active', 'Active') : t('memory.unset', 'Unset')}</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm font-semibold text-foreground font-display">
+                    {t('memory.pausedTitle', 'Personal Spiritual Memory is Paused / Not Approved')}
+                  </h3>
+                  <Badge variant="outline" className="border-ojas/30 bg-ojas/5 text-ojas text-[10px] font-medium">
+                    {t('memory.privateEncrypted', 'Private & Encrypted')}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl font-sans">
+                  {t(
+                    'memory.pausedDesc',
+                    'Allow Mukthi Guru to remember your reflections and inquiries across conversations to weave your Personal Wisdom Map. Your data is private, encrypted, and never used to train public AI models.',
+                  )}
+                </p>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="rounded-2xl border-hairline bg-card shadow-sm">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400"><BookText className="w-4 h-4" aria-hidden="true" /></div>
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">{t('memory.statReflections', 'Reflections')}</p>
-                <p className="text-lg font-bold text-foreground mt-0.5">{summaries.length}</p>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+            <Button
+              onClick={handleApproveConsent}
+              className="rounded-xl bg-ojas hover:bg-ojas-dark text-primary-foreground font-semibold shadow-md shrink-0 text-xs sm:self-center"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+              {t('memory.approveAndEnable', 'Approve & Enable Memory')}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -558,40 +641,82 @@ export const MemoryManager = () => {
       {/* ── Episodic Memories ──────────────────────────────────────────── */}
       <Card className="rounded-2xl border-hairline shadow-sm">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg flex items-center gap-2 font-display font-semibold tracking-tight text-foreground">
-              <Brain className="w-5 h-5 text-ojas" aria-hidden="true" /> {t('memory.memories', 'Memories')}
-              <Badge variant="secondary" className="ml-2 font-display">
-                {visibleCount}
-              </Badge>
-              {isDemo && (
-                <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[10px] tracking-wide">
-                  DEMO
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <CardTitle className="text-lg flex items-center gap-2 font-display font-semibold tracking-tight text-foreground">
+                <Brain className="w-5 h-5 text-ojas" aria-hidden="true" /> {t('memory.memories', 'Memories')}
+                <Badge variant="secondary" className="font-display">
+                  {visibleCount}
                 </Badge>
+              </CardTitle>
+
+              {/* Status Pill */}
+              {hasConsent === true ? (
+                <button
+                  type="button"
+                  onClick={handleToggleConsent}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                  title={t('memory.pauseConsentTooltip', 'Click to pause personal memory collection')}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{t('memory.statusActive', '🟢 Active')}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleToggleConsent}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+                  title={t('memory.enableConsentTooltip', 'Click to enable personal memory collection')}
+                >
+                  <span>{t('memory.statusPaused', '⏸️ Paused')}</span>
+                </button>
               )}
-            </CardTitle>
-            {!isDemo && (
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Delete Entirely AlertDialog */}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-destructive" disabled={clearingReflections}>
-                    {clearingReflections ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                    <span className="sr-only">{t('memory.clearReflections', 'Clear reflections')}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    disabled={deletingAll}
+                  >
+                    {deletingAll ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    <span>{t('memory.deleteEntirely', 'Delete Entirely')}</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>{t('memory.clearReflections', 'Clear reflections')}</AlertDialogTitle>
-                    <AlertDialogDescription>{t('memory.clearReflectionsWarning', 'This permanently removes episodic reflections while preserving your core memory.')}</AlertDialogDescription>
+                    <AlertDialogTitle>
+                      {t('memory.deleteAllTitle', 'Erase All Memories & Wisdom Map?')}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t(
+                        'memory.deleteAllDescription',
+                        'This permanently deletes all your personal reflections, guiding notes, and knowledge graph connections across Qdrant, Neo4j, and Supabase. This action cannot be undone.',
+                      )}
+                    </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => void handleForgetAllReflections()}>{t('memory.clearReflectionsConfirm', 'Clear reflections')}</AlertDialogAction>
+                    <AlertDialogAction
+                      onClick={() => void handleDeleteAll()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {t('common.delete', 'Delete')}
+                    </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            )}
-            <div className="flex gap-1">
-              <Button
+
+              <div className="flex gap-1">
+                <Button
                   variant={viewMode === 'list' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('list')}
@@ -600,24 +725,20 @@ export const MemoryManager = () => {
                 >
                   <List className="w-4 h-4" />
                 </Button>
-              <Button
-                variant={viewMode === 'graph' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('graph')}
-                className="h-8 px-2 font-display"
-                title={t('memory.graphView')}
-              >
-                <Network className="w-4 h-4" />
-              </Button>
+                <Button
+                  variant={viewMode === 'graph' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('graph')}
+                  className="h-8 px-2 font-display"
+                  title={t('memory.graphView')}
+                >
+                  <Network className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
-          <CardDescription className="font-sans text-xs">
+          <CardDescription className="font-sans text-xs mt-1">
             {t('memory.graphDesc')}
-            {isDemo && (
-              <span className="block mt-1 text-amber-400/80">
-                {t('memory.demoMode', 'Service unavailable — showing sample memories')}
-              </span>
-            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -713,6 +834,7 @@ export const MemoryManager = () => {
                                 {t('memory.autoExtracted', 'Auto-extracted')}
                               </Badge>
                             )}
+                            <MemorySourceLink source={m.source_ref} />
                             {typeof m.decay_score === 'number' && (
                               <span
                                 className="text-xs text-muted-foreground"
@@ -723,7 +845,7 @@ export const MemoryManager = () => {
                             )}
                           </div>
                         </div>
-                        {!isDemo && editingId !== m.id && (
+                        {editingId !== m.id && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -734,7 +856,6 @@ export const MemoryManager = () => {
                             <Pencil className="w-4 h-4" />
                           </Button>
                         )}
-                        {!isDemo && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -769,7 +890,6 @@ export const MemoryManager = () => {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                        )}
                       </motion.li>
                     ))}
                   </AnimatePresence>

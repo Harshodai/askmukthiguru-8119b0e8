@@ -21,7 +21,7 @@ from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container_async
 from app.language_utils import guardrail_text_for
 from app.orchestrator_utils import _translate_cached
-from services.auth_service import require_aal2
+from services.auth_service import require_aal2, require_admin
 from services.first_person_pipeline import FirstPersonPipeline
 from services.first_person_store import FirstPersonStore
 
@@ -67,6 +67,9 @@ class FirstPersonQueryResponse(BaseModel):
     audio_playback_clips: list[dict[str, Any]] = Field(default_factory=list)
     detected_concepts: list[str] = Field(default_factory=list)
     atma_vichara_inquiry: Optional[str] = None
+    # Invariant 1: the "related clips" pointer is a UI affordance carried beside
+    # the answer, never prepended to the verbatim quote.
+    related_clips_heading: Optional[str] = None
     practice_recommendation: Optional[dict[str, Any]] = None
     stage_timings: dict[str, float] = Field(default_factory=dict)
 
@@ -419,12 +422,7 @@ async def _output_rail_passes(container: Any, text: str) -> bool:
 async def _require_admin(user: dict = Depends(require_aal2)) -> dict:
     """Ingest enqueues work that writes to Qdrant and asserts rights clearance, so
     it is admin-only (same contract as app/api/admin.py), never anonymous."""
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    allowlist = settings.admin_user_ids_list
-    if allowlist and user.get("id") not in allowlist:
-        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
-    return user
+    return await require_admin(user)
 
 
 class FirstPersonIngestRequest(BaseModel):

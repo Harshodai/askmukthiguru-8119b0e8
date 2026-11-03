@@ -20,6 +20,7 @@ because the existing corpus cannot satisfy the document as written:
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from enum import StrEnum
 from hashlib import sha256
 from typing import Any, Literal
@@ -111,6 +112,7 @@ class HarnessState(StrEnum):
     RIGHTS_GATE = "RIGHTS_GATE"
     HASH_GATE = "HASH_GATE"
     COMPLETENESS_GATE = "COMPLETENESS_GATE"
+    CONTEXTUAL_SAFETY_GATE = "CONTEXTUAL_SAFETY_GATE"
     COREFERENCE_GATE = "COREFERENCE_GATE"
     ANSWERABILITY_GATE = "ANSWERABILITY_GATE"
     RECONSTRUCTED_FROM_SPANS = "RECONSTRUCTED_FROM_SPANS"
@@ -201,9 +203,34 @@ class SourceSpan(BaseModel):
     coreference_chain_ids: tuple[str, ...] = ()
     topic_ids: tuple[str, ...] = ()
     facet_ids: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    category: str | None = None
     speech_act: str | None = None
     answer_role: AnswerRole = AnswerRole.DIRECT
     voice_verification_method: str | None = None
+    # Speaker-verification provenance (P1). Flat keys so Qdrant can filter on each. All
+    # optional: payloads written before these existed must still load, and the rule that a
+    # verified span carries them is enforced at WRITE time (domain.speaker_provenance), not
+    # here, so the live spans that predate it stay readable until the backfill.
+    voice_model_revision: str | None = None
+    voice_score: float | None = None
+    voice_margin: float | None = None
+    # {"cosine_floor": float, "margin_threshold": float} in force when the verdict was made.
+    voice_threshold_applied: dict[str, float] | None = None
+    voice_calibration_id: str | None = None
+    voice_window_check: Literal["pass", "fail", "no_diarization"] | None = None
+    voice_verified_at: str | None = None
+    speaker_verification_status: (
+        Literal["verified", "ecapa_failed", "pending_voice_check", "pending_listen"] | None
+    ) = None
+    # Human listen (method ``human_listen_v1``) only.
+    reviewer_id: str | None = None
+    reviewed_at: str | None = None
+    review_guidelines_version: str | None = None
+    reviewed_audio_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    review_choice: (
+        Literal["sri_krishnaji", "sri_preethaji", "host_or_interviewer", "other", "unclear"] | None
+    ) = None
     asr_engine: str | None = None
     asr_model_version: str | None = None
     # ISO 639-1 code of the language SPOKEN in this span, from a language-ID step (audit
@@ -325,6 +352,9 @@ class ParentUnit(BaseModel):
     completeness_status: CompletenessStatus
     host_question_span_id: str | None = None
     parent_version: str = PARENT_VERSION
+    topic_ids: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    category: str | None = None
 
     @model_validator(mode="after")
     def _ordered_spans_unique(self) -> ParentUnit:
@@ -420,6 +450,120 @@ class ParentContext(BaseModel):
                 "every span source_span_id must appear in parent.ordered_source_span_ids"
             )
         return self
+
+
+_VALIDATED_EDGE_ISSUE_TOKEN = object()
+
+
+def _validated_edge_fingerprint(
+    predecessor: SourceSpan,
+    opener: SourceSpan,
+    *,
+    predecessor_parent_end_ms: int,
+    opener_parent_start_ms: int,
+) -> tuple[object, ...]:
+    """All identity, pointer, and coordinate fields that define one boundary."""
+    return (
+        predecessor.source_span_id,
+        opener.source_span_id,
+        predecessor.parent_unit_id,
+        opener.parent_unit_id,
+        predecessor.next_span_id,
+        opener.previous_span_id,
+        predecessor.video_id,
+        opener.video_id,
+        predecessor.guru_id,
+        opener.guru_id,
+        predecessor.corpus_version,
+        opener.corpus_version,
+        predecessor.source_asset_id,
+        opener.source_asset_id,
+        predecessor.speaker_id,
+        opener.speaker_id,
+        predecessor.start_ms,
+        predecessor.end_ms,
+        opener.start_ms,
+        opener.end_ms,
+        predecessor.word_start,
+        predecessor.word_end,
+        opener.word_start,
+        opener.word_end,
+        predecessor.source_span_index,
+        opener.source_span_index,
+        predecessor_parent_end_ms,
+        opener_parent_start_ms,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ValidatedCrossParentEdge:
+    """Opaque proof of a complete, store-validated two-parent boundary.
+
+    Callers cannot construct this capability directly: only the context-store
+    issue method has the private token.  The duplicated opener/parent boundary
+    fingerprint lets the harness reject forged or stale capability objects
+    before the predecessor can enter an answer.
+    """
+
+    predecessor: SourceSpan
+    opener: SourceSpan
+    predecessor_parent_unit_id: str
+    opener_parent_unit_id: str
+    predecessor_parent_end_ms: int
+    opener_parent_start_ms: int
+    _fingerprint: tuple[object, ...] = field(repr=False, compare=False)
+    _issue_token: object = field(repr=False, compare=False)
+
+    @classmethod
+    def _issue(
+        cls,
+        predecessor: SourceSpan,
+        opener: SourceSpan,
+        *,
+        predecessor_parent_end_ms: int,
+        opener_parent_start_ms: int,
+        issue_token: object,
+    ) -> ValidatedCrossParentEdge:
+        if issue_token is not _VALIDATED_EDGE_ISSUE_TOKEN:
+            raise ValueError("validated cross-parent edges are store-issued")
+        return cls(
+            predecessor=predecessor,
+            opener=opener,
+            predecessor_parent_unit_id=predecessor.parent_unit_id,
+            opener_parent_unit_id=opener.parent_unit_id,
+            predecessor_parent_end_ms=predecessor_parent_end_ms,
+            opener_parent_start_ms=opener_parent_start_ms,
+            _fingerprint=_validated_edge_fingerprint(
+                predecessor,
+                opener,
+                predecessor_parent_end_ms=predecessor_parent_end_ms,
+                opener_parent_start_ms=opener_parent_start_ms,
+            ),
+            _issue_token=issue_token,
+        )
+
+    def matches(self, opener: SourceSpan, parent: ParentUnit) -> bool:
+        """Verify the capability still names this exact context opener."""
+        if self._issue_token is not _VALIDATED_EDGE_ISSUE_TOKEN:
+            return False
+        if self.opener != opener:
+            return False
+        if self.opener_parent_unit_id != parent.parent_unit_id:
+            return False
+        if self.opener_parent_unit_id != opener.parent_unit_id:
+            return False
+        if self.predecessor_parent_unit_id == self.opener_parent_unit_id:
+            return False
+        return (
+            self._fingerprint
+            == _validated_edge_fingerprint(
+                self.predecessor,
+                self.opener,
+                predecessor_parent_end_ms=self.predecessor_parent_end_ms,
+                opener_parent_start_ms=self.opener_parent_start_ms,
+            )
+            and self.opener_parent_start_ms == parent.start_ms
+        )
 
 
 class CitationSpan(BaseModel):

@@ -26,7 +26,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import (  # noqa: F401 (tests import get_container from here)
+    ServiceContainer,
+    get_container,
+    get_container_async,
+)
 from app.memory_consent import require_active_memory_consent
 from app.sanitization import sanitize_log_input
 from services.auth_service import get_current_user_from_supabase
@@ -308,7 +312,7 @@ async def list_canonical_memories(
     memory_type: Optional[str] = Query(None),
     status: str = Query("active"),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> CanonicalMemoryListResponse:
     """List the authenticated user's canonical memories with pagination and filters.
 
@@ -383,7 +387,7 @@ async def create_canonical_memory(
     body: CanonicalMemoryCreate,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> CanonicalMemoryResponse:
     """Add a new explicit memory for the authenticated user.
 
@@ -494,7 +498,7 @@ async def update_canonical_memory(
     body: CanonicalMemoryUpdate,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> CanonicalMemoryResponse:
     """Edit an existing memory's statement.
 
@@ -620,7 +624,7 @@ async def delete_canonical_memory(
     memory_id: str,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Soft-delete a specific memory by setting status='deleted'.
 
@@ -736,7 +740,7 @@ async def delete_canonical_memory(
 async def delete_all_canonical_memories(
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Delete canonical memory rows and vectors for this user.
 
@@ -827,7 +831,7 @@ async def get_memory_reasons(
     limit: int = Query(20, ge=1, le=100),
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> list[CanonicalMemoryReasonResponse]:
     """Return provenance metadata for the user's memories.
 
@@ -910,7 +914,7 @@ async def get_memory_reasons(
 async def get_canonical_consent(
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Read the current user's server-side memory consent; never trust browser state."""
     outbox = getattr(container, "memory_outbox", None)
@@ -941,7 +945,7 @@ async def get_canonical_consent(
 async def export_canonical_memories(
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> GDPRExportResponse:
     """GDPR data export: all memories, consent receipts, and audit events.
 

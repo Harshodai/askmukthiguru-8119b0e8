@@ -1,0 +1,15 @@
+# Existing first_person_* writers as of 2026-11-01 (ratchet: new writers fail the fp-writes guard).
+# Do not add ingest/ files here; gate them behind FP_DUAL_INDEX_COLLECTIONS-style settings.
+backend/app/api/admin.py
+backend/scripts/ingestion/repair_v7_clips.py
+backend/scripts/ops/batch_speaker_recheck.py
+backend/scripts/ops/quarantine_promise_clips.py
+backend/scripts/ops/repair_first_person_head_fragments.py
+backend/scripts/ops/verify_and_update_v11_speakers.py
+backend/services/first_person_pipeline.py
+backend/services/first_person_store.py
+scripts/guards/lesson_guards.py
+scripts/ops/quarantine_promise_clips.py
+scripts/ops/reconcile_first_person_v7.py
+scripts/ops/repair_first_person_head_fragments.py
+scripts/ops/verify_and_update_v11_speakers.py

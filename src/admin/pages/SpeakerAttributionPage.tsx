@@ -39,16 +39,34 @@ import type {
   AttributionVideoDetail,
 } from "@/admin/types";
 
+function getUrlVideoId(): string | null {
+  if (typeof window === "undefined" || !window.location?.search) return null;
+  try {
+    return new URLSearchParams(window.location.search).get("videoId");
+  } catch {
+    return null;
+  }
+}
+
 export default function SpeakerAttributionPage() {
   const { t } = useTranslation();
+  const urlVideoId = getUrlVideoId();
+
   const [queue, setQueue] = useState<AttributionQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(urlVideoId);
   const [videoDetail, setVideoDetail] = useState<AttributionVideoDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(urlVideoId || "");
   const [filterTab, setFilterTab] = useState<"all" | "crossovers" | "devotees" | "ambient">("all");
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (urlVideoId) {
+      setSelectedVideoId(urlVideoId);
+      setSearchQuery(urlVideoId);
+    }
+  }, [urlVideoId]);
 
   // Load Queue
   const loadQueue = useCallback(async () => {

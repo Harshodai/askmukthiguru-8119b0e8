@@ -68,6 +68,16 @@ def span(n: int = 0, **overrides) -> SourceSpan:
         "speaker_id": "krishnaji",
         "speaker_role": SpeakerRole.GURU,
         "speaker_verified": True,
+        "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
+        # A verified span records what produced the claim (write rule, P2).
+        "voice_model_revision": "rev-test",
+        "voice_score": 0.71,
+        "voice_margin": 0.40,
+        "voice_threshold_applied": {"cosine_floor": 0.2828, "margin_threshold": 0.05},
+        "voice_calibration_id": "cal-test",
+        "voice_window_check": "pass",
+        "voice_verified_at": "2026-10-31T00:00:00+00:00",
+        "speaker_verification_status": "verified",
         "source_transcript_text": text,
         "verbatim_text": text,
         "transcript_hash": HASH,
@@ -269,7 +279,7 @@ def test_retrieve_with_concept_ids_adds_should_match_any_over_tags():
     query_filter = client.query_filters[-1]
     assert query_filter.should, "concept_ids must add a should group"
     keys = [c.key for c in query_filter.should]
-    assert keys == ["topic_ids", "entity_ids"]
+    assert keys == ["topic_ids", "entity_ids", "tags"]
     for condition in query_filter.should:
         assert isinstance(condition.match, MatchAny)
     topic_any = query_filter.should[0].match.any
@@ -300,5 +310,6 @@ def test_retrieve_without_concept_ids_keeps_todays_filter():
     assert must_pairs(baseline) == [
         ("record_type", RECORD_TYPE_CHILD),
         ("rights_cleared", True),
+        ("speaker_verified", True),
         ("guru_id", "krishnaji"),
     ]

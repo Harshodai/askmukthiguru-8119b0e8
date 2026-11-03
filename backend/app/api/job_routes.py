@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from services.auth_service import get_optional_user, require_scoped_identity, resolve_anon_identity
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ def _owns_job(job: dict, user: dict) -> bool:
 async def get_job(
     job_id: str,
     request: Request,
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(get_optional_user),
 ):
     """Poll job status and result. Only the job owner may read."""
@@ -50,7 +50,7 @@ async def get_job(
 async def cancel_job(
     job_id: str,
     request: Request,
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(get_optional_user),
 ):
     """Cancel a queued job. Only the job owner may cancel."""

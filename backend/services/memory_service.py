@@ -9,8 +9,24 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from services.memory_source import is_missing_column_error
 
 logger = logging.getLogger(__name__)
+
+_LIST_MEMORY_BASE_COLUMNS = (
+    "id, content, source, created_at, updated_at, summary, claim, confidence, "
+    "decay_score, fact_key, valid_from, valid_to"
+)
+# Newest schema first; list_memories falls back one tier on a missing-column error.
+# `metadata` is optional and independent of `source_conversation_id`: the local Supabase
+# has the source column and no `metadata`, so dropping `metadata` alone must keep the
+# source link (the previous order skipped straight past it).
+_LIST_MEMORY_COLUMN_TIERS: tuple[str, ...] = (
+    _LIST_MEMORY_BASE_COLUMNS + ", metadata, source_conversation_id",
+    _LIST_MEMORY_BASE_COLUMNS + ", source_conversation_id",
+    _LIST_MEMORY_BASE_COLUMNS + ", metadata",
+    _LIST_MEMORY_BASE_COLUMNS,
+)
 
 
 def _safe_confidence(val: Any, default: float = 0.75) -> float:
@@ -467,18 +483,28 @@ class MemoryService:
             # Fetch paginated slice
             start = (page - 1) * page_size
             end = start + page_size - 1
-            result = await asyncio.to_thread(
-                self._supabase.table("guru_memories")
-                .select(
-                    "id, content, source, created_at, updated_at, summary, claim, confidence, decay_score, metadata, fact_key, valid_from, valid_to"
-                )
-                .eq("user_id", user_id)
-                .eq("tenant_id", tenant_id)
-                .is_("valid_to", "null")
-                .order("created_at", desc=True)
-                .range(start, end)
-                .execute
-            )
+            result = None
+            # Newest schema first. A deployment that has not applied the
+            # source_conversation_id migration (or lacks `metadata`) must still
+            # list its memories, only without a source link.
+            for columns in _LIST_MEMORY_COLUMN_TIERS:
+                try:
+                    result = await asyncio.to_thread(
+                        self._supabase.table("guru_memories")
+                        .select(columns)
+                        .eq("user_id", user_id)
+                        .eq("tenant_id", tenant_id)
+                        .is_("valid_to", "null")
+                        .order("created_at", desc=True)
+                        .range(start, end)
+                        .execute
+                    )
+                    break
+                except Exception as tier_err:
+                    if columns is _LIST_MEMORY_COLUMN_TIERS[-1] or not is_missing_column_error(
+                        tier_err
+                    ):
+                        raise
             data = result.data if result and hasattr(result, "data") else []
             return {"memories": data, "total": total}
         except Exception as e:

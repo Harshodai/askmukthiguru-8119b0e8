@@ -166,7 +166,7 @@ def build_personalize_citation(clip: dict[str, Any]) -> dict[str, Any]:
     integrity gate, so ``start_ms``/``end_ms`` are required ints: a malformed
     clip raises here instead of becoming a zero-length citation.
     """
-    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S
+    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S, _speaker_verification
     from services.quote_fidelity import UNTITLED_LINK_LABEL
 
     start_ms = int(clip["start_ms"])
@@ -184,8 +184,11 @@ def build_personalize_citation(clip: dict[str, Any]) -> dict[str, Any]:
         "end_ms": end_ms,
         "timestamp_seconds": start_sec,
         "speaker": clip.get("speaker"),
-        # Provenance claim copied from the stored clip, never inferred.
-        "speaker_verified": clip.get("speaker_verified") is True,
+        # Provenance claim copied from the stored clip, never inferred. A bare
+        # True with no recorded voice_verification_method is a claim without
+        # evidence and reads as unverified (corpus quality-scorecard rule).
+        "speaker_verified": _speaker_verification(clip)[0],
+        "voice_verification_method": _speaker_verification(clip)[1],
         "channel": clip.get("channel"),
         "title": clip.get("title") or clip.get("video_title") or UNTITLED_LINK_LABEL,
         "url": clip_url,
@@ -251,9 +254,9 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
     Runs in a worker thread: the Qdrant client is synchronous and must not
     block the event loop. The store query already filters on eligibility and
     rights; the integrity gate adds what serving requires of every clip
-    (hash match, allowlisted speaker, no artifact, no blocked promise).
-    YouTube availability is not re-probed: the clip was served moments ago
-    and that check ran then. ``None`` means no servable clip — never a guess.
+    (hash match, allowlisted speaker, no artifact, no blocked promise, and
+    current YouTube availability). ``None`` means no servable clip — never a
+    guess.
     """
     from app.config import settings
     from services.first_person_pipeline import (
@@ -261,14 +264,58 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
         _quality_allowlist,
         _quality_blocklist,
     )
+    from services.first_person_serving_contract import legacy_slot_aliases_context
+    from services.first_person_store import canonical_video_id
 
-    clip = _store_for_request().get_clip_by_video_and_start(
-        ref["video_id"],
+    raw_requested_video_id = ref.get("video_id")
+    if not isinstance(raw_requested_video_id, str) or not _YOUTUBE_VIDEO_ID_RE.fullmatch(
+        raw_requested_video_id
+    ):
+        return None
+    requested_video_id = canonical_video_id(raw_requested_video_id)
+    if not _YOUTUBE_VIDEO_ID_RE.fullmatch(requested_video_id):
+        return None
+
+    # v10-only mode: the legacy slot names the fp-context collection, so there is
+    # no legacy clip store to look a clip up in. Decline without a Qdrant read
+    # rather than rely on the context records lacking `first_person_eligible`.
+    if legacy_slot_aliases_context(
+        settings.first_person_collection, settings.first_person_context_collection
+    ):
+        return None
+
+    store = _store_for_request()
+    clip = store.get_clip_by_video_and_start(
+        requested_video_id,
         ref["timestamp_seconds"],
         tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
     )
+    if not isinstance(clip, dict) and getattr(settings, "first_person_context_collection", None):
+        try:
+            col = settings.first_person_context_collection
+            clip = store.get_clip_by_video_and_start_in_collection(
+                collection=col,
+                video_id=requested_video_id,
+                timestamp_seconds=ref["timestamp_seconds"],
+                tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
+            )
+        except Exception as exc:
+            logger.warning("[PersonalizeStage] Context collection clip lookup failed: %s", exc)
+
     if not isinstance(clip, dict):
         return None
+    returned_video_id = clip.get("video_id")
+    if (
+        not isinstance(returned_video_id, str)
+        or not _YOUTUBE_VIDEO_ID_RE.fullmatch(returned_video_id)
+        or canonical_video_id(returned_video_id) != requested_video_id
+    ):
+        logger.warning(
+            "[PersonalizeStage] Clip %s has missing or mismatched video identity; declining.",
+            clip.get("point_id"),
+        )
+        return None
+
     clip_id = str(clip.get("point_id"))
     allow = _quality_allowlist()
     if allow is not None and clip_id not in allow:
@@ -288,7 +335,6 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
         boundary_guard_enabled=bool(
             getattr(settings, "first_person_boundary_guard_enabled", False)
         ),
-        check_availability=False,
     ):
         logger.warning(
             "[PersonalizeStage] Clip %s failed the serve-time integrity gate; declining.",
@@ -431,6 +477,8 @@ class PersonalizeStage(Stage):
             state = ctx.state
         # Stash only the looked-up clip's bounded identity fields — never
         # client text. The graph router and GraphStage read this marker.
+        from services.first_person_pipeline import _speaker_verification
+
         state["personalize_clip"] = {
             "point_id": clip.get("point_id"),
             "video_id": clip.get("video_id"),
@@ -438,7 +486,8 @@ class PersonalizeStage(Stage):
             "end_ms": clip.get("end_ms"),
             "speaker": clip.get("speaker"),
             "teacher_id": clip.get("teacher_id"),
-            "speaker_verified": clip.get("speaker_verified"),
+            "speaker_verified": _speaker_verification(clip)[0],
+            "voice_verification_method": _speaker_verification(clip)[1],
             "channel": clip.get("channel"),
             "title": clip.get("title") or clip.get("video_title"),
             "verbatim_text": str(clip.get("verbatim_text") or ""),
@@ -448,6 +497,25 @@ class PersonalizeStage(Stage):
             "video_url": clip.get("video_url"),
             "provenance_kind": clip.get("provenance_kind"),
         }
+
+        # Hydrate Unified Seeker Personalization Context across all 7 facets
+        try:
+            from services.personalization import UnifiedPersonalizationEngine
+
+            vault_key = getattr(getattr(ctx, "request", None), "vault_key", None)
+            seeker_ctx = await UnifiedPersonalizationEngine.hydrate_seeker_context(
+                user_id=getattr(ctx, "user_id", None),
+                client_vault_key=vault_key,
+            )
+            state["seeker_context"] = seeker_ctx
+            state["seeker_guidance"] = UnifiedPersonalizationEngine.format_prompt_guidance(
+                seeker_ctx
+            )
+        except Exception as _pers_exc:
+            logger.warning(
+                "[PersonalizeStage] Unified personalization hydration warning: %s", _pers_exc
+            )
+
         record_routing_decision(
             ctx,
             RoutingProvenance(

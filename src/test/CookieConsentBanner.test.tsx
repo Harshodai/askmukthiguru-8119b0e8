@@ -45,4 +45,15 @@ describe('CookieConsentBanner', () => {
     });
     expect(await screen.findByText('Accept', {}, { timeout: 2000 })).toBeInTheDocument();
   });
+
+  it('does not render on admin routes', async () => {
+    localStorage.setItem('askmukthiguru_disclaimer_accepted', 'true');
+    render(
+      <MemoryRouter initialEntries={['/admin/ingestion']}>
+        <CookieConsentBanner />
+      </MemoryRouter>,
+    );
+    await new Promise((r) => setTimeout(r, 1000));
+    expect(screen.queryByText('Accept')).toBeNull();
+  });
 });

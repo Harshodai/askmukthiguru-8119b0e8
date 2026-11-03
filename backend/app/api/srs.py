@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.config import settings
 from app.core.limiter import limiter
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from services.auth_service import get_current_user_from_supabase
 
 router = APIRouter(tags=["SRS"])
@@ -28,7 +28,7 @@ class GenerateRequest(BaseModel):
 async def get_due_cards(
     limit: int = 20,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """Retrieve due flashcards for the current user."""
     return await container.srs_service.list_due_cards(user["id"], limit=limit)
@@ -38,7 +38,7 @@ async def get_due_cards(
 async def review_card(
     req: ReviewRequest,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """Submit a card review rating (0-5) to update its SM-2 scheduling."""
     card = await container.srs_service.review_card(req.card_id, user["id"], req.rating)
@@ -53,7 +53,7 @@ async def generate_cards(
     request: Request,
     req: GenerateRequest,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """Generate 2 flashcards from a saved study notebook item."""
     cards = await container.srs_service.generate_cards_from_notebook_item(

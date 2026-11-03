@@ -751,9 +751,54 @@ async def chat_endpoint(
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
+    # ── Fast Intake Safety Preemption (Invariant X38, M1/M2 Audit) ────────
+    try:
+        from app.intake.safety_kernel import get_safety_kernel
+
+        _safety_verdict = get_safety_kernel().evaluate(chat_body.user_message)
+        if _safety_verdict.is_crisis:
+            logger.warning(
+                "FastSafetyKernel preemption triggered at intake: %s",
+                _safety_verdict.matched_pattern,
+            )
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "response": _safety_verdict.helpline_response,
+                    "answer": _safety_verdict.helpline_response,
+                    "sources": [],
+                    "status": "crisis_redirect",
+                    "grounding_state": "safety_redirect",
+                    "intent": "distress",
+                    "blocked": False,
+                    "crisis": True,
+                    "matched_pattern": _safety_verdict.matched_pattern,
+                    "helplines": [
+                        {
+                            "name": "Tele-MANAS",
+                            "number": "14416",
+                            "hours": "24/7",
+                            "country": "India",
+                        },
+                        {
+                            "name": "Vandrevala Foundation",
+                            "number": "+91 9999 666 555",
+                            "hours": "24/7",
+                            "country": "India",
+                        },
+                    ],
+                },
+            )
+    except Exception as _e:
+        logger.debug("FastSafetyKernel intake check skipped: %s", _e)
+
     is_benchmark = is_benchmark_request(request)
 
     user = resolve_anon_identity(user, chat_body.session_id)
+
+    # ponytail: the old "Unified Personalization Hydration" block wrote chat_body.seeker_context,
+    # a field ChatRequest forbids (extra="forbid"), so it raised and was swallowed on every
+    # request. Personalization reaches the answer through PersonalizeStage; do not re-add it here.
 
     # Per-user daily spend cap — prevent a single abusive user from draining
     # the entire tenant budget.
@@ -998,6 +1043,8 @@ async def chat_v2_endpoint(
         citations_verified=result.citations_verified,
         orphan_citations_stripped=result.orphan_citations_stripped,
         node_timings=result.node_timings or None,
+        # Platform copy (support line, boundaries) no longer rides in `response`.
+        safety_notices=list(getattr(result, "safety_notices", None) or []),
         # Retrieval provenance reaches the caller. Both fields were already
         # populated on PipelineResult and forwarded to the telemetry sink, but
         # omitted here — so no consumer could tell which lane (Qdrant dense/
@@ -1057,9 +1104,17 @@ async def chat_stream_endpoint(
     """
     chat_body.user_message = sanitize_user_input(chat_body.user_message, max_length=10000)
 
+    # Crisis text is answered by InputGuardrailStage (FastSafetyKernel runs there with the
+    # routing provenance and Indic translation); a bespoke JSON body here would break the
+    # stream/queue contract the client parses. Crisis requests also bypass the admission cap.
+
     is_benchmark = is_benchmark_request(request)
 
     user = resolve_anon_identity(user, chat_body.session_id)
+
+    # ponytail: the old "Unified Personalization Hydration" block wrote chat_body.seeker_context,
+    # a field ChatRequest forbids (extra="forbid"), so it raised and was swallowed on every
+    # request. Personalization reaches the answer through PersonalizeStage; do not re-add it here.
 
     # Per-user daily spend cap — prevent a single abusive user from draining
     # the entire tenant budget.

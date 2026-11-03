@@ -50,17 +50,23 @@ from domain.first_person_context import (
     HarnessDecision,
     ParentContext,
     SourceSpan,
+    ValidatedCrossParentEdge,
 )
+from domain.speaker_provenance import AUTOMATED_PROVENANCE_KEYS, HUMAN_REVIEW_KEYS
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
 from ingest.verbatim.boundaries import boundary_defects
 from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
-from services.first_person_graph_expansion import expand_query_concepts
+from services.first_person_context_selector import select_span_ids
+from services.first_person_evidence_policy import first_person_evidence_policy
+from services.first_person_graph_expansion import expand_query_concepts, expand_teaching_units
+from services.first_person_serving_contract import legacy_slot_aliases_context
 from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
     BLOCKED_PROMISE_POINT_IDS,
     FirstPersonStore,
 )
+from services.first_person_video_decisions import video_is_blocked
 from services.memory.okf_store import match_okf_entries
 from services.openrouter_service import ProviderRefusalError
 from services.quote_fidelity import (
@@ -345,6 +351,17 @@ def _passes_integrity_gate(
         )
         return False
 
+    # Owner decision (admin video-approval page): a video the owner rejected, or whose
+    # speaker the owner marked "rejected", is never served. Tighten-only; no decision
+    # means no change. Fails closed if the decisions file is invalid.
+    if video_is_blocked(vid_str):
+        logger.warning(
+            "[FirstPersonPipeline] Clip %s rejected by integrity gate: video %s blocked by an admin decision",
+            point_id_str or vid_str,
+            vid_str,
+        )
+        return False
+
     # Hard Stop H4: Spiritual / Miracle outcome promises
     if _OUTCOME_PROMISE_CLIP_RE.search(verbatim_text):
         logger.warning(
@@ -418,150 +435,39 @@ _MIN_TEACHING_WORDS = 15  # below this a clip cannot carry a coherent teaching
 
 # Live-event instructions: audience logistics, not teachings.
 # One shared pattern with the chat path's excerpt fallback (2026-10-05, live s4).
+# Compatibility imports preserve existing pipeline/ingest call sites while
+# keeping the deterministic first-person policy in one shared module.
+from services.first_person_evidence_policy import (
+    _CORE_WISDOM_KEYWORDS_RE,
+    _DISCOURSE_ACKNOWLEDGMENT_RE,
+    _RHETORICAL_OPENER_RE,
+    _self_harm_for_context,  # noqa: F401 - compatibility import used by existing test/client call sites
+    _violent_for_context,  # noqa: F401 - compatibility import used by existing test/client call sites
+)
+from services.first_person_evidence_policy import (
+    POLICY_VERSION as _FIRST_PERSON_EVIDENCE_POLICY_VERSION,
+)
+from services.first_person_evidence_policy import (
+    _clip_length_problem as _shared_clip_length_problem,
+)
+from services.first_person_evidence_policy import (
+    _standalone_problem as _shared_standalone_problem,
+)
 from services.live_event_text import (
     LIVE_EVENT_INSTRUCTION_RE as _LIVE_EVENT_INSTRUCTION_RE,  # noqa: E402
 )
 
-# Discourse acknowledgment openers: the clip starts by referencing what
-# someone else just said — incomprehensible without that prior context.
-_DISCOURSE_ACKNOWLEDGMENT_RE = re.compile(
-    r"^(?:"
-    r"yes,?\s+as you mentioned|"
-    r"yes,?\s+as I mentioned|"
-    r"yes,?\s+as we mentioned|"
-    r"as I was saying|"
-    r"as we discussed|"
-    r"so,?\s+as I said|"
-    r"right,?\s+so|"
-    r"exactly,?\s+so|"
-    r"yeah,?\s+so"
-    r")",
-    re.IGNORECASE,
-)
-
-# ponytail: parable character filter — clips referencing Yasme/Nomi are meaningless without story context
 _PARABLE_CHARACTER_RE = re.compile(r"\b(?:Yasme|Yesme|Yasmi|Nomi)\b")
 
-# ponytail: core wisdom keywords exemption — if clip defines fundamental teachings, do not reject it
-_CORE_WISDOM_KEYWORDS_RE = re.compile(
-    r"(?i)\b(?:"
-    r"beautiful state|"
-    r"suffering state|"
-    r"two states|"
-    r"inner conflict|"
-    r"connection|"
-    r"inner peace|"
-    r"presence|"
-    r"preoccupation|"
-    r"stressful state|"
-    r"no\s*-?\s*stress state|"
-    r"oneness"
-    r")\b"
-)
 
-# ponytail: rhetorical opener filter — questions that hook audience without delivering wisdom
-_RHETORICAL_OPENER_RE = re.compile(
-    r"^(?:"
-    r"I am sure you too have tried to|"
-    r"have you ever wondered why"
-    r")",
-    re.IGNORECASE,
-)
-
-
-_ORPHAN_OPENER_RE = re.compile(
-    r"^[\"'\u201c\u2018\s]*(?:yes(?:,|[^\w\s])\s*|(?:this|these|those|that)\s+(?:is|are|was|were)\b|these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
-    r"|and\b|but\b|or\b|then\b|which\b|that\s+is\s+why\b"
-    # pronoun/continuation openers with no antecedent in a lone clip (live 2026-10-24 grade)
-    r"|(?:it\b(?!\s*(?:is|was|['\u2019]s)\b)|(?:they|them|he|him|she|her)\b)|we\s+need\s+them\b|definitely\b"
-    r"|i\s+(?:led|told|asked|gave|showed|took)\s+(?:him|her|them)\b"  # not "so": "So both Preethaji and I…" is a fine opener
-    r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
-    re.IGNORECASE,
-)
-# Medical/causal health claims: a fragment out of context reads as a healing claim or medical
-# advice (live 2026-10-11 judge: infant colic, "bedridden ... come alive", sugar physiology).
-_HEALTH_CLAIM_RE = re.compile(
-    r"\bcur(?:e|es|ed|ing)\b|\bcolic\w*|\bbedridden\b|\bcancer\b|\bdiabet\w+|\btumou?rs?\b"
-    r"|\bchemotherap\w+|\bantidepressants?\b|\bmedications?\b|\bwrong signal to the universe\b|\byou will (?:have a )?fall\b|\bflooded by huge loads of sugar\b|\bscientifically proven\b|\boxytocin\b|\bprevent(?:ing)?\s+depression\b",
-    re.IGNORECASE,
-)
-# One-off event/audience markers: a clip that only makes sense in that room or on that day.
-_EVENT_MARKER_RE = re.compile(
-    r"can\s+someone\s+tell\s+me|congratulations,?\s+you\s+have|first\s+day\s+of\s+your"
-    r"|that'?s\s+the\s+day\s+today|today\s+is\s+the\s+day\s+of"
-    r"|\btoday,?\s+we\s+(?:will|shall|are\s+going\s+to)\b"
-    r"|\btomorrow\s+(?:is|we)\b|\bthis\s+coming\b|\bin\s+this\s+coming\b"
-    r"|\bwhen\s+i\s+bless\s+you\b|\bi\s+will\s+bless\s+you\b"
-    r"|\btoday,?\s+i\s+want\s+you\s+to\s+hold\s+the\s+intention\b|\bon\s+this\s+day\b",
-    re.IGNORECASE,
-)
-
-
-# Violence wording: a metaphor ("he doesn't mind being stabbed by his angry wife") read
-# literally by a seeker asking about anger in a marriage is unsafe. Applied only to
-# relationship/anger questions; the clip text is never edited, the clip is just not served.
-_TARGET_PERSON_PHRASE = (
-    r"(?:her|him|them|me|you|(?:(?:a|an|the|his|her|their|my|your|our)\s+)?"
-    r"(?:(?:\w+\s+)?(?:woman|women|man|men|wife|wives|husband|husbands|spouse|spouses|"
-    r"partner|partners|child|children|son|sons|daughter|daughters|mother|mothers|"
-    r"father|fathers|mom|moms|dad|dads|boyfriend|boyfriends|girlfriend|girlfriends|"
-    r"someone|anyone|anybody|person|people|girl|girls|boy|boys)))"
-)
-_PASSIVE_HIT_BY_PHRASE = (
-    r"(?:(?:was|were|being|got|gets|is|are)\s+)?hit\s+by\s+"
-    r"(?:(?:a|an|the|his|her|their|my|your|our)\s+)?"
-    r"(?:(?:\w+\s+)?(?:woman|women|man|men|wife|wives|husband|husbands|spouse|spouses|"
-    r"partner|partners|child|children|son|sons|daughter|daughters|mother|mothers|"
-    r"father|fathers|mom|moms|dad|dads|boyfriend|boyfriends|girlfriend|girlfriends|"
-    r"someone|anyone|anybody|person|people|girl|girls|boy|boys))"
-)
-_VIOLENCE_WORDING_RE = re.compile(
-    r"\bstab(?:s|bed|bing)?\b|\bkill(?:s|ed|ing)?\b|\bmurder\w*|\bbeat(?:s|ing|en)?\b|\bslap\w*|\bpunch\w*|\bkick(?:s|ed|ing)?\b|\bchok\w+|\bmanhandl\w+"
-    r"|\bstrangl\w+|\bhit(?:s|ting)?\s+"
-    + _TARGET_PERSON_PHRASE
-    + r"\b|\b"
-    + _PASSIVE_HIT_BY_PHRASE
-    + r"\b|\b(?:shoot(?:s|ing)?|shot)\b",
-    re.IGNORECASE,
-)
-
-
-def _violent_for_context(query: str, text: str, retrieval_query: str = "") -> bool:
-    """True when a relationship/anger question would be served a clip with violence wording."""
-    from guardrails.lightweight_handler import needs_relationship_safety_boundary
-
-    return bool(_VIOLENCE_WORDING_RE.search(text)) and (
-        needs_relationship_safety_boundary(query)
-        or (bool(retrieval_query) and needs_relationship_safety_boundary(retrieval_query))
-    )
+def _clip_length_problem(text: str) -> Optional[str]:
+    """Compatibility wrapper so callers patching pipeline.settings keep working."""
+    return _shared_clip_length_problem(text, settings_override=settings)
 
 
 def _standalone_problem(text: str) -> Optional[str]:
-    """Deterministic 'does this clip stand on its own' backstop (zero LLM calls).
-
-    Live 2026-10-11 an independent judge rejected 10/24 served clips; about half started or
-    ended mid-thought or pointed at a one-off event. Casing is NOT used (Whisper's casing is
-    unreliable and good clips start lowercase). Returns a short reason or None.
-    """
-    from ingest.verbatim.gates import CORPUS_EXPECTED_SCRIPT, script_and_loop_problem
-
-    # The corpus is English-only (ASR covers no Indic language), so any non-Latin letter
-    # is decoder garbage; the check also catches a decoder loop.
-    garbage = script_and_loop_problem(text, expected_script=CORPUS_EXPECTED_SCRIPT)
-    if garbage:
-        return "asr_script_garbage"
-    stripped = text.rstrip()
-    # Whisper punctuation is unreliable (good guided-practice clips end with no full stop), so
-    # only an explicit mid-sentence ending counts: a clip cut on "," ";" ":" or a dash.
-    if stripped and stripped[-1] in ",;:-\u2014\u2013":
-        return "ends_mid_sentence"
-    if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
-        return "orphan_opener"
-    if _EVENT_MARKER_RE.search(text):
-        return "event_marker"
-    if _HEALTH_CLAIM_RE.search(text):
-        return "health_claim"
-    return None
+    """Compatibility wrapper over the canonical shared standalone policy."""
+    return _shared_standalone_problem(text, settings_override=settings)
 
 
 def _is_transient_connection_error(exc: BaseException) -> bool:
@@ -728,10 +634,23 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
 
     # Reject live-event instructions — crowd/logistics management, not teachings.
     # Guided meditation practices contain valid practice instructions and must not be discarded.
+    topic_ids = clip.get("topic_ids") or []
+    if isinstance(topic_ids, (tuple, set)):
+        topic_ids = list(topic_ids)
+    elif isinstance(topic_ids, str):
+        topic_ids = [topic_ids]
+
+    tags = clip.get("tags") or []
+    if isinstance(tags, (tuple, set)):
+        tags = list(tags)
+    elif isinstance(tags, str):
+        tags = [tags]
+
     is_practice = bool(
         clip.get("category") == "practice"
         or clip.get("type") == "Practice"
-        or (isinstance(clip.get("tags"), list) and "practice" in clip.get("tags"))
+        or "practice" in tags
+        or "practice" in topic_ids
     )
     if _LIVE_EVENT_INSTRUCTION_RE.search(text) and not is_practice:
         logger.info(
@@ -804,14 +723,23 @@ def transcript_label(verbatim_text: str, caption_status: Optional[str]) -> dict[
 # RP-A5: version of the relevance-scoring prompt. Bumped by hand whenever
 # _RELEVANCE_SYSTEM_PROMPT's rubric changes; the policy fingerprint below also
 # carries a hash of the prompt text, so an unbumped edit still re-keys.
-_RELEVANCE_PROMPT_VERSION = "v1"
+_RELEVANCE_PROMPT_VERSION = "v2"
+
+# Version of the served-answer body shape. `evidence_only_v2` is the body that
+# carries nothing but the verbatim quote(s) and their attribution: the
+# "related clips" pointer, the reflection questions and the second-quote
+# section headings moved to route metadata. It rides in the serving-policy
+# fingerprint so a 24 h exact-cache entry written under the old body shape
+# (pointer and questions concatenated into the answer) can never replay.
+_ANSWER_BODY_SCHEMA_VERSION = "evidence_only_v2"
 
 _RELEVANCE_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
-    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
-    "one event/audience, or a fragment that cannot stand alone. Reply ONLY with comma-separated "
-    "integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
+    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
+    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, or is event-bound (e.g. corona/lockdown). "
+    "Be strict: if a clip only discusses the topic generally without answering the specific question, score 1. "
+    "Reply ONLY with comma-separated integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
 )
 
 
@@ -843,9 +771,10 @@ _SCORER_JSON_SCHEMA_MODELS = frozenset({"anthropic/claude-haiku-5.5"})
 _RELEVANCE_JSON_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
-    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement about "
-    "one event/audience, or a fragment that cannot stand alone. Reply ONLY with a JSON object "
-    'of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
+    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
+    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, or is event-bound (e.g. corona/lockdown). "
+    "Be strict: if a clip only discusses the topic generally without answering the specific question, score 1. "
+    'Reply ONLY with a JSON object of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
 )
 
 _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
@@ -1098,11 +1027,11 @@ def _relevance_select_scored(
                 gen_kwargs["temperature"] = None  # omit the key (CA-1)
             if scorer_model in _SCORER_JSON_SCHEMA_MODELS:
                 gen_kwargs["response_format"] = _RELEVANCE_JSON_SCHEMA  # CA-3
-            # 2026-10-27: deepseek-chat is non-reasoning; 32 tokens is enough
-            # for up to 10 comma-separated scores (each 1 digit + comma/space).
-            # Capping here also prevents deepseek from emitting prose.
+            # 2026-10-27: deepseek-chat is non-reasoning; 16 tokens is enough
+            # for up to 5 comma-separated scores (each 1 digit + comma/space).
+            # Capping here also prevents deepseek from emitting prose and fits within credit reserves.
             if scorer_model == "deepseek/deepseek-chat":
-                gen_kwargs["max_tokens"] = 32
+                gen_kwargs["max_tokens"] = 16
         use_json_schema = bool(gen_kwargs.get("response_format"))
         system_prompt = (
             _RELEVANCE_JSON_SYSTEM_PROMPT if use_json_schema else _RELEVANCE_SYSTEM_PROMPT
@@ -1126,6 +1055,10 @@ def _relevance_select_scored(
         logger.info("[FirstPersonPipeline] Relevance check indeterminate (timeout/error): %s", e)
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt))
+        # Provider errors, refusals, budget denials, and timeouts remain
+        # relevance-indeterminate. The old local ONNX/lexical fallback was an
+        # uncalibrated score-band policy and could turn a provider refusal into
+        # a served answer; the legacy setting is deliberately ignored.
         return _RELEVANCE_INDETERMINATE
     if token_sink is not None:
         token_sink.append(_estimate_fp_tokens(system_prompt, user_prompt, raw))
@@ -1301,9 +1234,14 @@ def _llm_rerank_clips(
 # (>=2400ms, 0 fast-fails — the loop fix held), while real verdict latencies
 # ran p90=1943ms / max=2470ms against deepseek-chat. 4.0s = ~1.6x observed
 # max (Headroom), and a timeout still fails toward honest abstention.
-# 6.0 s (was 4.0): live 2026-10-11 ~7% of on-topic questions timed out at 4 s on a
-# slow provider response and were abstained (fail-closed). Only slow calls pay for it.
-_ANSWERABILITY_TIMEOUT_S = 6.0
+# 12.0 s (was 6.0): matches FIRST_PERSON_RELEVANCE_TIMEOUT_S=12 so slow provider
+# responses on adversarial injection queries do not time out and log indeterminate.
+_ANSWERABILITY_TIMEOUT_S = 12.0
+
+# Distinguish a gate that has not run from the gate's indeterminate verdict.
+# Neither state may be treated as YES by a later retrieval, scoring, or assembly
+# path.  This is request-local state; it must never be shared across requests.
+_ANSWERABILITY_UNSET = object()
 
 # Bounded executor for the per-query answerability gate worker (replaces one
 # threading.Thread per query). The gate overlaps retrieval, so at most a
@@ -1472,6 +1410,7 @@ async def _async_answerability_check(
             system_prompt=_ANSWERABILITY_SYSTEM_PROMPT,
             user_prompt=query,
             temperature=0.0,
+            max_tokens=16,
         )
         if inspect.isawaitable(res):
             res = await res
@@ -1564,6 +1503,8 @@ class FirstPersonPipelineResult:
         audio_playback_clips: Optional[list[dict[str, Any]]] = None,
         detected_concepts: Optional[list[str]] = None,
         atma_vichara_inquiry: Optional[str] = None,
+        related_clips_heading: Optional[str] = None,
+        second_quote_note: Optional[str] = None,
         practice_recommendation: Optional[dict[str, Any]] = None,
         stage_timings: Optional[dict[str, float]] = None,
         related_clips: Optional[list[dict[str, Any]]] = None,
@@ -1587,6 +1528,8 @@ class FirstPersonPipelineResult:
             self.audio_playback_clips = []
         self.detected_concepts = detected_concepts if detected_concepts is not None else []
         self.atma_vichara_inquiry = atma_vichara_inquiry
+        self.related_clips_heading = related_clips_heading
+        self.second_quote_note = second_quote_note
         self.practice_recommendation = practice_recommendation
         self.stage_timings = stage_timings or {}
         # A25: related (never answer) clips offered on a below-min abstain; [] when
@@ -1612,12 +1555,77 @@ class FirstPersonPipelineResult:
             "audio_playback_clips": self.audio_playback_clips,
             "detected_concepts": self.detected_concepts,
             "atma_vichara_inquiry": self.atma_vichara_inquiry,
+            "related_clips_heading": self.related_clips_heading,
+            "second_quote_note": self.second_quote_note,
             "practice_recommendation": self.practice_recommendation,
             "stage_timings": self.stage_timings,
         }
         if self.related_clips:
             data["related_clips"] = self.related_clips
         return data
+
+
+_ENRICH_SLOTS = threading.BoundedSemaphore(8)
+
+
+def _call_with_deadline(fn: Callable[[], Any], *, timeout_s: float) -> Any:
+    """Run ``fn`` in a daemon thread and give up after ``timeout_s``.
+
+    The worker is a daemon so an abandoned call can never hold interpreter
+    shutdown (the graph-expansion lookup used the same posture). On timeout the
+    caller raises :class:`TimeoutError` and the abandoned thread is left to die
+    on its own socket timeout.
+    """
+    # Bounded in-flight workers: a timed-out call keeps its thread until the socket gives
+    # up, so under a slow Qdrant they would pile up (one per context per request). Past
+    # the cap the call is refused at once, and the caller's fail-open path keeps the span.
+    if not _ENRICH_SLOTS.acquire(blocking=False):
+        raise TimeoutError("too many in-flight enrichment calls")
+    result: dict[str, Any] = {}
+
+    def _run() -> None:
+        try:
+            result["value"] = fn()
+        except BaseException as exc:  # noqa: BLE001 - re-raised in the caller
+            result["error"] = exc
+        finally:
+            _ENRICH_SLOTS.release()
+
+    worker = threading.Thread(target=_run, name="fp-enrich-window", daemon=True)
+    worker.start()
+    worker.join(max(0.0, float(timeout_s)))
+    if worker.is_alive():
+        raise TimeoutError(f"call exceeded {timeout_s:.2f}s")
+    if "error" in result:
+        raise result["error"]
+    return result.get("value")
+
+
+def _speaker_verification(source: Any) -> tuple[bool, Optional[str]]:
+    """(speaker_verified, voice_verification_method) for a stored clip or span.
+
+    A payload flag is a claim, not evidence. The corpus audit already treats
+    ``speaker_verified=true`` with no recorded ``voice_verification_method`` as
+    a BLOCKER (`scripts/ops/fp_data_quality_scorecard.py`:
+    ``speaker_verified_without_method``); this is the same rule at serve time.
+    Without a method or verified_verbatim status the claim reads as unverified,
+    so a citation can never publish "verified" on the strength of a bare boolean.
+    """
+    data = source or {}
+    if isinstance(data, dict):
+        raw_verified = data.get("speaker_verified")
+        method = data.get("voice_verification_method")
+        quality_status = data.get("quality_status")
+    else:
+        raw_verified = getattr(data, "speaker_verified", None)
+        method = getattr(data, "voice_verification_method", None)
+        quality_status = getattr(data, "quality_status", None)
+    method_text = str(method or "").strip()
+    if raw_verified is True and bool(method_text):
+        return True, method_text
+    if raw_verified is True and quality_status == "verified_verbatim":
+        return True, "verified_verbatim"
+    return False, (method_text or None)
 
 
 def _build_citation_dict(
@@ -1647,7 +1655,8 @@ def _build_citation_dict(
         "title": clip_title,
         "url": clip_url,
         "teacher_id": clip.get("teacher_id"),
-        "speaker_verified": clip.get("speaker_verified") is True,
+        "speaker_verified": _speaker_verification(clip)[0],
+        "voice_verification_method": _speaker_verification(clip)[1],
         "channel": clip.get("channel"),
         "transcript_hash": clip["transcript_hash"],
         "verbatim_text": clip["verbatim_text"],
@@ -1710,7 +1719,7 @@ def _clip_topics(clip: dict[str, Any]) -> list[str]:
     vocabulary matched against the stored verbatim text. Never invents a topic.
     """
     topics: list[str] = []
-    raw_tags = clip.get("tags")
+    raw_tags = clip.get("tags") or clip.get("topic_ids")
     if isinstance(raw_tags, (list, tuple)):
         topics.extend(t.strip() for t in raw_tags if isinstance(t, str) and t.strip())
     for key in ("okf_title", "discourse_context"):
@@ -1910,24 +1919,34 @@ class FirstPersonPipeline:
         # RP-A4 P1 (2026-10-13): the serving default is v8, so the auto-enable
         # must name it — otherwise the default flip silently turns this guard
         # off (QBUG-3's explicit-flag replacement still needs QA-5/QO-6).
-        self._boundary_guard_enabled = getattr(
-            settings, "first_person_boundary_guard_enabled", False
-        ) or (
-            bool(self._store)
-            and getattr(self._store, "collection", "")
-            in ("first_person_v6", "first_person_v7", "first_person_v8")
+        # v10-only mode (legacy slot aliases the context collection): the guard is
+        # keyed on the legacy collection NAME, so without this the harness spans
+        # would silently lose the boundary check the v8-named config applies.
+        _aliased_to_context = legacy_slot_aliases_context(
+            getattr(self._store, "collection", ""),
+            getattr(settings, "first_person_context_collection", ""),
+        )
+        self._boundary_guard_enabled = (
+            getattr(settings, "first_person_boundary_guard_enabled", False)
+            or _aliased_to_context
+            or (
+                bool(self._store)
+                and getattr(self._store, "collection", "")
+                in ("first_person_v6", "first_person_v7", "first_person_v8")
+            )
         )
         # ponytail: content quality gate auto-enabled for v7+ (same collection gating as boundary_guard)
-        self._content_quality_gate_enabled = getattr(
-            settings, "first_person_content_quality_gate_enabled", True
-        ) or (
-            bool(self._store)
-            and getattr(self._store, "collection", "")
-            in ("first_person_v6", "first_person_v7", "first_person_v8")
+        self._content_quality_gate_enabled = (
+            getattr(settings, "first_person_content_quality_gate_enabled", True)
+            or _aliased_to_context
+            or (
+                bool(self._store)
+                and getattr(self._store, "collection", "")
+                in ("first_person_v6", "first_person_v7", "first_person_v8")
+            )
         )
         self._weaver = weaver or QuoteWeaverService(llm_service=llm_service)
         self._llm_service = llm_service
-        self._servable_cache: dict[str, tuple[bool, float]] = {}
         # B4 serving contract: computed lazily, cached per pipeline instance.
         self._serving_contract_error_cache: Any = _CONTRACT_UNSET
         self._collection_contract_cache: Optional[dict[str, str]] = None
@@ -2009,8 +2028,8 @@ class FirstPersonPipeline:
         and it never writes. Two independent stages, each behind its own flag:
 
         * enrichment window (T2b) re-hydrates each candidate to its parent's full
-          ordered span list, so a served span keeps the predecessor that carries
-          its antecedent ("this truth", "it");
+          ordered span list, so explicit connective/coreference evidence keeps
+          the predecessor that carries its antecedent;
         * graph expansion (T3) asks the ontology for adjacent concepts and runs ONE
           extra filtered retrieval, appending new parents AFTER the originals.
 
@@ -2033,15 +2052,35 @@ class FirstPersonPipeline:
             return str(getattr(parent, "parent_unit_id", "") or "")
 
         def _widen(items: list[Any]) -> list[Any]:
-            """One bounded enrichment pass; order preserved, never raises."""
+            """One bounded enrichment pass; order preserved, never raises.
+
+            ``enrich_to_parent_window`` is a synchronous Qdrant scroll: without a
+            deadline a stale connection would hold the whole answer. The window is
+            an ADDITION, so on timeout the retrieved context is kept untouched
+            (fail-open, same policy as the graph-expansion timeout).
+            """
             from services.first_person_context_store import (  # noqa: PLC0415
                 FirstPersonContextStoreError,
             )
 
+            timeout_s = float(
+                getattr(settings, "first_person_enrichment_window_timeout_s", 1.5) or 1.5
+            )
             out: list[Any] = []
             for ctx in items:
                 try:
-                    widened = ctx_store.enrich_to_parent_window(ctx)
+                    widened = _call_with_deadline(
+                        lambda c=ctx: ctx_store.enrich_to_parent_window(c),
+                        timeout_s=timeout_s,
+                    )
+                except TimeoutError:
+                    logger.warning(
+                        "[FirstPersonPipeline] enrichment window timed out after %.2fs for "
+                        "parent %s; keeping retrieved spans",
+                        timeout_s,
+                        _parent_id(ctx) or "unknown",
+                    )
+                    widened = ctx
                 except FirstPersonContextStoreError:
                     # Contract defect on the stored parent (missing record, id
                     # mismatch). The retrieved context still carries its own
@@ -2138,6 +2177,74 @@ class FirstPersonPipeline:
         if appended:
             bounded_extras = appended[:bounded_limit]
             merged = merged + (_widen(bounded_extras) if enrich_enabled else bounded_extras)
+
+        # --- Phase-5 TeachingUnit graph expansion (flag-gated, default OFF) ---
+        tu_graph_enabled = bool(
+            getattr(settings, "first_person_teaching_unit_graph_enabled", False)
+        )
+        if tu_graph_enabled:
+            # Collect seed span_ids from primary merged contexts.
+            seed_span_ids: list[str] = []
+            for ctx in merged:
+                for span in getattr(ctx, "spans", None) or []:
+                    sid = getattr(span, "source_span_id", None) or getattr(span, "span_id", None)
+                    if isinstance(sid, str) and sid:
+                        seed_span_ids.append(sid)
+
+            if seed_span_ids:
+                try:
+                    tu_neighbors = expand_teaching_units(
+                        seed_span_ids,
+                        max_hops=1,
+                        max_nodes=int(
+                            getattr(settings, "first_person_graph_expansion_max_neighbors", 8)
+                        ),
+                        timeout_s=float(
+                            getattr(settings, "first_person_graph_expansion_timeout_s", 1.5)
+                        ),
+                    )
+                except Exception as exc:
+                    logger.debug(
+                        "[FirstPersonPipeline] expand_teaching_units failed: %s; no TU expansion",
+                        exc,
+                    )
+                    tu_neighbors = []
+
+                if tu_neighbors:
+                    try:
+                        tu_contexts: list[ParentContext] = ctx_store.retrieve(
+                            query_dense=query_dense_vector,
+                            query_sparse=query_sparse_vector,
+                            guru_id=teacher_id,
+                            limit_parents=max_clips,
+                            spans_per_parent=max_spans,
+                            concept_ids=tu_neighbors,
+                        )
+                    except Exception as exc:
+                        logger.debug(
+                            "[FirstPersonPipeline] TU graph retrieval failed: %s",
+                            exc,
+                        )
+                        tu_contexts = []
+
+                    seen_tu_ids = {_parent_id(ctx) for ctx in merged if _parent_id(ctx)}
+                    tu_appended: list[ParentContext] = []
+                    for ctx in tu_contexts or []:
+                        pid = _parent_id(ctx)
+                        if pid and pid in seen_tu_ids:
+                            continue
+                        if pid:
+                            seen_tu_ids.add(pid)
+                        tu_appended.append(ctx)
+                    logger.debug(
+                        "[FirstPersonPipeline] TU expansion: %d span neighbours -> %d extra context(s)",
+                        len(tu_neighbors),
+                        len(tu_appended),
+                    )
+                    if tu_appended:
+                        bounded_tu = tu_appended[:bounded_limit]
+                        merged = merged + (_widen(bounded_tu) if enrich_enabled else bounded_tu)
+
         return merged
 
     @staticmethod
@@ -2165,9 +2272,15 @@ class FirstPersonPipeline:
             # id (the lookup would 400 and silently disable the exact cache).
             "point_id": point_id_for_record(span.source_span_id),
             "source_span_id": span.source_span_id,
+            "source_asset_id": span.source_asset_id,
+            "parent_unit_id": span.parent_unit_id,
+            "corpus_version": span.corpus_version,
             "video_id": video_id,
+            "guru_id": span.guru_id,
             "start_ms": span.start_ms,
             "end_ms": span.end_ms,
+            "word_start": span.word_start,
+            "word_end": span.word_end,
             "start_sec": start_sec,
             "end_sec": end_sec,
             "timestamp_seconds": sec,
@@ -2175,7 +2288,14 @@ class FirstPersonPipeline:
             "title": title,
             "url": clip_url,
             "teacher_id": span.guru_id,
-            "speaker_verified": span.speaker_verified is True,
+            "speaker_id": span.speaker_id,
+            "speaker_role": (
+                span.speaker_role.value
+                if hasattr(span.speaker_role, "value")
+                else str(span.speaker_role)
+            ),
+            "speaker_verified": _speaker_verification(span)[0],
+            "voice_verification_method": _speaker_verification(span)[1],
             "channel": None,
             "transcript_hash": span.source_text_hash,
             "source_text_hash": span.source_text_hash,
@@ -2189,6 +2309,19 @@ class FirstPersonPipeline:
             "playback_url": f"https://www.youtube.com/watch?v={video_id}&t={int(playback_start)}s",
             "confidence": confidence,
             "is_verbatim": True,
+            "boundary_status": (
+                span.boundary_status.value
+                if hasattr(span.boundary_status, "value")
+                else str(span.boundary_status)
+            ),
+            "completeness_status": (
+                span.completeness_status.value
+                if hasattr(span.completeness_status, "value")
+                else str(span.completeness_status)
+            ),
+            "rights_cleared": span.rights_cleared,
+            "quality_status": span.quality_status,
+            "quarantine_reason": span.quarantine_reason,
             "provenance_kind": (
                 span.provenance_kind.value
                 if hasattr(span.provenance_kind, "value")
@@ -2196,8 +2329,95 @@ class FirstPersonPipeline:
             ),
             "caption_status": span.caption_status,
             "label": label,
+            "topic_ids": list(span.topic_ids) if span.topic_ids else [],
+            "tags": list(span.tags)
+            if getattr(span, "tags", None)
+            else (list(span.topic_ids) if span.topic_ids else []),
+            "category": getattr(span, "category", None)
+            or ("practice" if "practice" in (span.topic_ids or ()) else "teaching"),
+            **{key: getattr(span, key) for key in (*AUTOMATED_PROVENANCE_KEYS, *HUMAN_REVIEW_KEYS)},
             **transcript_label(span.verbatim_text, span.caption_status),
         }
+
+    @staticmethod
+    def _club_consecutive_citations(citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Club consecutive spans from the same video and speaker into a single continuous citation."""
+        if not citations or len(citations) <= 1:
+            return citations
+        import hashlib
+
+        clubbed: list[dict[str, Any]] = []
+        curr = None
+        for c in citations:
+            if curr is None:
+                curr = dict(c)
+                continue
+            same_vid = bool(curr.get("video_id") and curr.get("video_id") == c.get("video_id"))
+            same_spk = (
+                curr.get("speaker") == c.get("speaker")
+                or curr.get("guru_id") == c.get("guru_id")
+                or curr.get("teacher_id") == c.get("teacher_id")
+            )
+            curr_end_ms = curr.get("end_ms") or 0
+            next_start_ms = c.get("start_ms") or 0
+            is_adjacent = (
+                next_start_ms >= (curr.get("start_ms") or 0)
+                and (next_start_ms - curr_end_ms) <= 45000
+            )
+
+            if same_vid and same_spk and is_adjacent:
+                curr["end_ms"] = max(curr_end_ms, c.get("end_ms") or 0)
+                curr["end_sec"] = -(-int(curr["end_ms"]) // 1000)
+                if "playback_end_seconds" in curr and "playback_end_seconds" in c:
+                    curr["playback_end_seconds"] = max(
+                        curr["playback_end_seconds"], c["playback_end_seconds"]
+                    )
+                curr["verbatim_text"] = (
+                    str(curr.get("verbatim_text") or "").strip()
+                    + " "
+                    + str(c.get("verbatim_text") or "").strip()
+                )
+                curr["text_snippet"] = curr["verbatim_text"]
+                curr["transcript_hash"] = hashlib.sha256(
+                    curr["verbatim_text"].encode("utf-8")
+                ).hexdigest()
+                curr["source_text_hash"] = curr["transcript_hash"]
+            else:
+                clubbed.append(curr)
+                curr = dict(c)
+        if curr is not None:
+            clubbed.append(curr)
+        return clubbed
+
+    @staticmethod
+    def _club_consecutive_audio_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Club consecutive audio clips from the same video and speaker into a single playback clip."""
+        if not clips or len(clips) <= 1:
+            return clips
+        clubbed: list[dict[str, Any]] = []
+        curr = None
+        for c in clips:
+            if curr is None:
+                curr = dict(c)
+                continue
+            same_vid = bool(curr.get("video_id") and curr.get("video_id") == c.get("video_id"))
+            same_spk = curr.get("speaker") == c.get("speaker")
+            curr_end_sec = curr.get("end_sec") or 0
+            next_start_sec = c.get("start_sec") or 0
+            is_adjacent = (
+                next_start_sec >= (curr.get("start_sec") or 0)
+                and (next_start_sec - curr_end_sec) <= 45
+            )
+
+            if same_vid and same_spk and is_adjacent:
+                curr["end_sec"] = max(curr_end_sec, c.get("end_sec") or 0)
+                curr["duration_sec"] = curr["end_sec"] - (curr.get("start_sec") or 0)
+            else:
+                clubbed.append(curr)
+                curr = dict(c)
+        if curr is not None:
+            clubbed.append(curr)
+        return clubbed
 
     @staticmethod
     def _allowlist_state() -> str:
@@ -2265,11 +2485,29 @@ class FirstPersonPipeline:
                 load_contract_cached,
             )
 
+            context_collection = str(
+                getattr(settings, "first_person_context_collection", "") or ""
+            ).strip()
+            # The context arguments reach the check only when the legacy slot
+            # aliases the context collection (v10-only mode); otherwise this is
+            # the legacy-only check it always was.
+            aliased = legacy_slot_aliases_context(collection, context_collection)
             report = legacy_store_preflight(
                 contract=load_contract_cached(
                     str(getattr(settings, "first_person_serving_contract_path", "") or "") or None
                 ),
                 legacy_collection=collection,
+                context_collection=context_collection if aliased else "",
+                context_harness_enabled=(
+                    bool(getattr(settings, "first_person_context_harness_enabled", False))
+                    if aliased
+                    else False
+                ),
+                context_terminal_enabled=(
+                    getattr(settings, "first_person_context_terminal_enabled", False) is True
+                    if aliased
+                    else False
+                ),
             )
             if report.errors:
                 error = "; ".join(report.errors)
@@ -2363,9 +2601,17 @@ class FirstPersonPipeline:
         contract = self._collection_contract_components()
         pairs = sorted(
             {
+                # The served body shape is answer-shaping: `evidence_only_v2`
+                # strips the pointer/questions/headings out of the answer, so an
+                # entry cached under the previous body can never replay.
+                "answer_body_schema": _ANSWER_BODY_SCHEMA_VERSION,
                 "answerability": str(bool(settings.first_person_answerability_check_enabled)),
                 "boundary_guard": str(bool(self._boundary_guard_enabled)),
                 "content_gate": str(bool(self._content_quality_gate_enabled)),
+                "first_person_evidence_policy": _FIRST_PERSON_EVIDENCE_POLICY_VERSION,
+                "require_speaker_verified": str(
+                    bool(getattr(settings, "first_person_require_speaker_verified", False))
+                ),
                 "editorial_rewrite": str(bool(settings.first_person_editorial_rewrite_enabled)),
                 "llm_rerank": str(bool(settings.first_person_llm_rerank_enabled)),
                 "second_quote": str(
@@ -2383,6 +2629,7 @@ class FirstPersonPipeline:
                 "relevance_gate": str(bool(settings.first_person_relevance_gate_enabled)),
                 "relevance_min": str(int(settings.first_person_relevance_min_score)),
                 "relevance_model": str(settings.first_person_relevance_model or ""),
+                "relevance_fallback_policy": "provider_indeterminate_v2",
                 # Both scorer prompts and the JSON schema: which one runs
                 # depends on the scorer model, and an edit to either must re-key.
                 "relevance_prompt": (
@@ -2399,11 +2646,20 @@ class FirstPersonPipeline:
                 "scaffold_prompt": str(_SCAFFOLD_PROMPT_VERSION),
                 "serve_weak_match": str(bool(settings.first_person_serve_weak_match)),
                 "standalone_gate": str(bool(settings.first_person_standalone_gate_enabled)),
+                "standalone_min_words": str(
+                    int(getattr(settings, "first_person_min_answer_words", 23))
+                ),
+                "standalone_max_words": str(
+                    int(getattr(settings, "first_person_max_answer_words", 300))
+                ),
                 # Phase-D context harness. Present BEFORE the harness is wired
                 # (its flag is still false) so the future wiring cannot replay a
                 # pre-harness answer from the 24 h exact cache: flipping any of
                 # these re-keys the cache instead of serving stale policy.
                 "context_harness": str(bool(settings.first_person_context_harness_enabled)),
+                "context_terminal": str(
+                    bool(getattr(settings, "first_person_context_terminal_enabled", False))
+                ),
                 # The collection the harness reads IS answer-shaping: pointing
                 # it at a different fp-context corpus changes which spans can
                 # be served. Without it in the digest, a repointed collection
@@ -2413,10 +2669,15 @@ class FirstPersonPipeline:
                     str(getattr(settings, "first_person_context_collection", "") or "").strip()
                 ),
                 "context_max_spans": str(int(settings.first_person_context_max_spans)),
+                "context_temporal_quality": str(
+                    bool(getattr(settings, "first_person_context_temporal_quality_enabled", False))
+                ),
                 "context_selector": str(bool(settings.first_person_context_selector_enabled)),
                 "context_schema": (
                     f"{_FP_CONTEXT_SCHEMA_VERSION}/{_FP_PARENT_VERSION}/{_FP_EDGE_VERSION}"
                 ),
+                "context_provenance_policy": "speaker_provenance_v2",
+                "context_window_policy": "ordered_parent_window_v2",
                 "context_enrichment_window": str(
                     bool(getattr(settings, "first_person_enrichment_window_enabled", False))
                 ),
@@ -2426,6 +2687,16 @@ class FirstPersonPipeline:
                 "context_graph_expansion_max_neighbors": str(
                     int(getattr(settings, "first_person_graph_expansion_max_neighbors", 8))
                 ),
+                # Both expansion deadlines are answer-shaping: a longer budget can
+                # add contexts a shorter one drops, so the served answer differs.
+                # Without them in the digest a timeout change would replay the
+                # previous policy's answer from the 24 h exact cache.
+                "context_graph_expansion_timeout": str(
+                    float(getattr(settings, "first_person_graph_expansion_timeout_s", 1.5))
+                ),
+                "context_enrichment_window_timeout": str(
+                    float(getattr(settings, "first_person_enrichment_window_timeout_s", 1.5))
+                ),
                 # B4: the legacy collection's own contract. A repointed
                 # collection, a schema change, a corpus-version change or an
                 # evidence-policy change all change what may be served, so all
@@ -2434,6 +2705,10 @@ class FirstPersonPipeline:
                 "legacy_schema": contract.get("schema", ""),
                 "legacy_corpus_version": contract.get("corpus_version", ""),
                 "evidence_policy": contract.get("evidence_policy", ""),
+                "release_version": str(
+                    contract.get("release_version")
+                    or getattr(settings, "corpus_release_fallback_version", 1)
+                ),
                 "violence_safety_policy": "v2",
                 "standalone_policy": "v1",
                 "corpus_manifest_digest": self._corpus_manifest_digest(),
@@ -2517,42 +2792,40 @@ class FirstPersonPipeline:
 
     _exact_cache_key = _get_exact_cache_key
 
-    def _points_servable_cached(self, point_ids: list[str], *, fp_context: bool = False) -> bool:
-        """Cache points_servable results for 300s to avoid synchronous Qdrant blasts on exact cache hits.
+    def _points_servable_cached(
+        self,
+        point_ids: list[str],
+        *,
+        fp_context: bool = False,
+        expected_evidence: Optional[list[dict[str, Any]]] = None,
+    ) -> bool:
+        """Revalidate cited points against the current backing payload on every cache hit.
 
         ``fp_context`` selects the fp-context-v1 check: the legacy clip store
         keys on ``first_person_eligible``, a field the context schema does not
         carry, so a harness citation would otherwise be treated as unservable
         and the exact cache would never serve it.
+
+        This method intentionally has no positive in-memory verdict cache. A
+        rights, quarantine, text, hash, or provenance change must take effect on
+        the next replay, not after an implementation-defined TTL.
         """
-        now = time.time()
-        # Clean expired entries if cache grows
-        if len(self._servable_cache) > 2000:
-            self._servable_cache = {k: v for k, v in self._servable_cache.items() if v[1] > now}
-
-        uncached: list[str] = []
-        for pid in point_ids:
-            cached = self._servable_cache.get(pid)
-            if cached is None or cached[1] <= now:
-                uncached.append(pid)
-            elif not cached[0]:
+        if not point_ids:
+            # The caller separately rejects a citation-bearing entry with no
+            # point IDs; an empty subset here means the other schema lane has
+            # no points to validate.
+            return True
+        if fp_context:
+            context_store = self._get_context_store()
+            if context_store is None:
                 return False
-
-        if uncached:
-            if fp_context:
-                context_store = self._get_context_store()
-                if context_store is None:
-                    return False
-                is_servable = bool(context_store.points_servable(uncached))
-            else:
-                is_servable = self._store.points_servable(uncached)
-            expiry = now + 300.0  # 5-minute TTL
-            for pid in uncached:
-                self._servable_cache[pid] = (is_servable, expiry)
-            if not is_servable:
-                return False
-
-        return True
+            return bool(
+                context_store.points_servable(
+                    point_ids,
+                    expected_evidence=expected_evidence,
+                )
+            )
+        return bool(self._store.points_servable(point_ids))
 
     def check_exact_cache(
         self,
@@ -2564,6 +2837,14 @@ class FirstPersonPipeline:
         retrieval_query: str = "",
     ) -> Optional[dict[str, Any]]:
         """Query Redis for an exact cached answer. Bypasses semantic cache."""
+        # Hybrid responses may contain LLM-authored framing and therefore have
+        # no exact-cache reconstruction contract. Keep the entire mode live,
+        # including legacy and compound responses.
+        if (
+            str(getattr(settings, "first_person_mode", "retrieval_only") or "").strip().lower()
+            == "hybrid"
+        ):
+            return None
         if not self._redis:
             return None
         key = self._get_exact_cache_key(
@@ -2600,65 +2881,219 @@ class FirstPersonPipeline:
                         "[FirstPersonPipeline] Citation-free cached teaching rejected; skipping cache."
                     )
                     return None
-                # Re-run the integrity gate on cached citations before serving.
-                for cit in data.get("citations", []):
-                    if (
-                        not isinstance(cit, dict)
-                        or cit.get("provenance_kind") == "curated_okf"
-                        or not cit.get("point_id")
-                        or not cit.get("video_id")
-                        or cit.get("is_verbatim") is False
-                    ):
-                        logger.warning(
-                            "[FirstPersonPipeline] Cached non-video/OKF citation rejected."
+                citations = data.get("citations", [])
+                context_citations = [
+                    cit for cit in citations if isinstance(cit, dict) and cit.get("source_span_id")
+                ]
+                legacy_citations = [
+                    cit
+                    for cit in citations
+                    if isinstance(cit, dict) and not cit.get("source_span_id")
+                ]
+                # A cache entry cannot safely mix schemas. In particular, do not
+                # let a context citation take the legacy body-replay path.
+                if context_citations and legacy_citations:
+                    logger.warning(
+                        "[FirstPersonPipeline] Mixed legacy/fp-context cache entry rejected."
+                    )
+                    return None
+                is_context_evidence = bool(citations) and len(context_citations) == len(citations)
+                if not is_context_evidence:
+                    # Preserve legacy deterministic quote-plus-attribution body
+                    # behavior. Legacy citations have no fp-context evidence
+                    # snapshot, so changing this to a raw quote join would alter
+                    # the established exact-cache contract.
+                    for cit in citations:
+                        if (
+                            not isinstance(cit, dict)
+                            or cit.get("provenance_kind") == "curated_okf"
+                            or not cit.get("point_id")
+                            or not cit.get("video_id")
+                            or cit.get("is_verbatim") is False
+                        ):
+                            logger.warning(
+                                "[FirstPersonPipeline] Cached non-video/OKF citation rejected."
+                            )
+                            return None
+                        if not _passes_integrity_gate(
+                            {
+                                "point_id": cit.get("point_id"),
+                                "video_id": cit.get("video_id"),
+                                "verbatim_text": cit.get("verbatim_text", ""),
+                                "transcript_hash": cit.get("transcript_hash", ""),
+                                "speaker": cit.get("speaker"),
+                            },
+                            boundary_guard_enabled=self._boundary_guard_enabled,
+                        ):
+                            logger.warning(
+                                "[FirstPersonPipeline] Cached citation failed integrity re-check; skipping cache."
+                            )
+                            return None
+                        safety_decision = first_person_evidence_policy.assess_contextual_safety(
+                            query,
+                            str(cit.get("verbatim_text") or ""),
+                            retrieval_query=retrieval_query,
                         )
-                        return None
-                    if not _passes_integrity_gate(
-                        {
-                            "point_id": cit.get("point_id"),
-                            "video_id": cit.get("video_id"),
-                            "verbatim_text": cit.get("verbatim_text", ""),
-                            "transcript_hash": cit.get("transcript_hash", ""),
-                            "speaker": cit.get("speaker"),
-                        },
-                        boundary_guard_enabled=self._boundary_guard_enabled,
-                    ):
-                        logger.warning(
-                            "[FirstPersonPipeline] Cached citation failed integrity re-check; skipping cache."
-                        )
-                        return None
-                    if _violent_for_context(
-                        query, str(cit.get("verbatim_text") or ""), retrieval_query=retrieval_query
-                    ):
-                        logger.warning(
-                            "[FirstPersonPipeline] Cached citation failed violence-for-context re-check; skipping cache."
-                        )
-                        return None
+                        if not safety_decision.may_serve:
+                            logger.warning(
+                                "[FirstPersonPipeline] Cached citation failed contextual safety re-check; reasons=%s",
+                                ",".join(safety_decision.reason_codes),
+                            )
+                            return None
+
                 # The index can change under a 24 h entry (clip deleted, rights
-                # revoked): serve only if every cited point is still servable.
+                # revoked, text edited): serve only if every cited point still
+                # matches the evidence captured in this exact cache entry.
                 point_ids = [
-                    cit.get("point_id") for cit in data.get("citations", []) if cit.get("point_id")
+                    cit.get("point_id")
+                    for cit in citations
+                    if isinstance(cit, dict) and cit.get("point_id")
                 ]
                 # A harness citation carries a source_span_id; a legacy clip
                 # citation does not. They live in different schemas and are
                 # re-checked with the matching store.
                 context_ids = [
                     cit.get("point_id")
-                    for cit in data.get("citations", [])
+                    for cit in citations
                     if cit.get("point_id") and cit.get("source_span_id")
                 ]
                 legacy_ids = [
                     cit.get("point_id")
-                    for cit in data.get("citations", [])
+                    for cit in citations
                     if cit.get("point_id") and not cit.get("source_span_id")
                 ]
-                if data.get("citations") and (
-                    not point_ids
-                    or not self._points_servable_cached(legacy_ids)
-                    or not self._points_servable_cached(context_ids, fp_context=True)
-                ):
+                if citations and not point_ids:
                     logger.warning(
-                        "[FirstPersonPipeline] Cached clip no longer servable; skipping cache."
+                        "[FirstPersonPipeline] Cached citation set has no point ids; skipping cache."
+                    )
+                    return None
+                if is_context_evidence:
+                    expected_evidence = [cit for cit in citations if isinstance(cit, dict)]
+                    context_store = self._get_context_store()
+                    if not context_ids or context_store is None:
+                        return None
+                    try:
+                        # This single call hydrates and validates the parent and
+                        # every child as one coherent ordered set.
+                        fresh_spans = context_store.fresh_spans_for_citations(
+                            context_ids,
+                            expected_evidence=expected_evidence,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "[FirstPersonPipeline] Fresh fp-context citation hydration failed: %s",
+                            exc,
+                        )
+                        return None
+                    if not isinstance(fresh_spans, list) or len(fresh_spans) != len(citations):
+                        return None
+                    rebuilt_citations: list[dict[str, Any]] = []
+                    fresh_is_multi_span = len(fresh_spans) > 1
+                    for span in fresh_spans:
+                        citation = self._build_context_citation(span)
+                        # Retrieval confidence and selector labels are not stored
+                        # in the fp-context payload. Do not trust their Redis
+                        # values on replay; omit them rather than fabricate them.
+                        citation.pop("confidence", None)
+                        citation.pop("label", None)
+                        if not _passes_integrity_gate(
+                            citation,
+                            boundary_guard_enabled=(
+                                False if fresh_is_multi_span else self._boundary_guard_enabled
+                            ),
+                        ):
+                            return None
+                        safety_decision = first_person_evidence_policy.assess_contextual_safety(
+                            query,
+                            citation["verbatim_text"],
+                            retrieval_query=retrieval_query,
+                        )
+                        if not safety_decision.may_serve:
+                            return None
+                        rebuilt_citations.append(citation)
+                    data["citations"] = rebuilt_citations
+                    data["answer_text"] = " ".join(
+                        citation["verbatim_text"].strip() for citation in rebuilt_citations
+                    ).strip()
+                    whole_body_safety = first_person_evidence_policy.assess_contextual_safety(
+                        query,
+                        data["answer_text"],
+                        retrieval_query=retrieval_query,
+                    )
+                    if not whole_body_safety.may_serve:
+                        logger.warning(
+                            "[FirstPersonPipeline] Reconstructed fp-context body failed "
+                            "contextual safety re-check; reasons=%s",
+                            ",".join(whole_body_safety.reason_codes),
+                        )
+                        return None
+                    if fresh_is_multi_span:
+                        assembled_quality_clip = {
+                            "verbatim_text": data["answer_text"],
+                            "start_ms": fresh_spans[0].start_ms,
+                            "end_ms": fresh_spans[-1].end_ms,
+                            "topic_ids": sorted(
+                                {topic for span in fresh_spans for topic in (span.topic_ids or ())}
+                            ),
+                            "tags": sorted(
+                                {tag for span in fresh_spans for tag in (span.tags or ())}
+                            ),
+                            "category": next(
+                                (span.category for span in fresh_spans if span.category),
+                                None,
+                            ),
+                        }
+                        if not _passes_content_quality_gate(
+                            assembled_quality_clip,
+                            gate_enabled=self._content_quality_gate_enabled,
+                        ):
+                            logger.warning(
+                                "[FirstPersonPipeline] Reconstructed fp-context body failed "
+                                "assembled content quality re-check; skipping cache."
+                            )
+                            return None
+                        if self._boundary_guard_enabled:
+                            replay_defects = (
+                                set(boundary_defects(data["answer_text"].split()))
+                                & _SERVE_BLOCKING_BOUNDARY_DEFECTS
+                            )
+                            if replay_defects:
+                                logger.warning(
+                                    "[FirstPersonPipeline] Reconstructed fp-context body failed "
+                                    "assembled boundary re-check: %s",
+                                    ",".join(sorted(replay_defects)),
+                                )
+                                return None
+                    elif not _passes_content_quality_gate(
+                        rebuilt_citations[0],
+                        gate_enabled=self._content_quality_gate_enabled,
+                    ):
+                        logger.warning(
+                            "[FirstPersonPipeline] Reconstructed fp-context span failed "
+                            "content quality re-check; skipping cache."
+                        )
+                        return None
+                    fresh_audio_clips = [
+                        {
+                            "video_id": citation["video_id"],
+                            "url": citation["source_url"],
+                            "speaker": citation["speaker"],
+                            "start_sec": citation["start_sec"],
+                            "end_sec": citation["end_sec"],
+                            "duration_sec": citation["end_sec"] - citation["start_sec"],
+                            "title": citation["title"],
+                        }
+                        for citation in rebuilt_citations
+                    ]
+                    data["audio_playback_clips"] = self._club_consecutive_audio_clips(
+                        fresh_audio_clips
+                    )
+                    data["audio_playback_clip"] = (
+                        data["audio_playback_clips"][0] if data["audio_playback_clips"] else None
+                    )
+                elif citations and (not self._points_servable_cached(legacy_ids)):
+                    logger.warning(
+                        "[FirstPersonPipeline] Cached legacy clip no longer servable; skipping cache."
                     )
                     return None
                 for cit in data.get("citations", []):
@@ -2693,6 +3128,14 @@ class FirstPersonPipeline:
         block_state: str | None = None,
     ) -> None:
         """Store validated answer into Redis exact cache."""
+        # Hybrid answers are not byte-for-byte reconstructible: this applies to
+        # both legacy quote-plus-attribution results and compound responses, not
+        # only fp-context bodies.
+        if (
+            str(getattr(settings, "first_person_mode", "retrieval_only") or "").strip().lower()
+            == "hybrid"
+        ):
+            return
         if not self._redis:
             return
         key = self._get_exact_cache_key(
@@ -2710,6 +3153,46 @@ class FirstPersonPipeline:
                     "[FirstPersonPipeline] Refusing to cache citation-free teaching result."
                 )
                 return
+            context_citations = [
+                cit
+                for cit in data["citations"]
+                if isinstance(cit, dict) and cit.get("source_span_id")
+            ]
+            if context_citations:
+                # Do not cache mixed-schema entries. Hybrid mode was rejected at
+                # the method boundary above, regardless of citation schema.
+                if len(context_citations) != len(data["citations"]):
+                    logger.warning(
+                        "[FirstPersonPipeline] Refusing to cache mixed legacy/fp-context result."
+                    )
+                    return
+                parent_ids = {
+                    str(citation.get("parent_unit_id") or "") for citation in context_citations
+                }
+                if len(parent_ids) != 1 or "" in parent_ids:
+                    logger.info(
+                        "[FirstPersonPipeline] Skipping exact cache for cross-parent or "
+                        "parent-unbound fp-context result."
+                    )
+                    return
+                mode = (
+                    str(getattr(settings, "first_person_mode", "retrieval_only") or "")
+                    .strip()
+                    .lower()
+                )
+                if mode == "hybrid":
+                    logger.info(
+                        "[FirstPersonPipeline] Skipping exact cache for hybrid fp-context result."
+                    )
+                    return
+                expected_answer = " ".join(
+                    str(cit.get("verbatim_text") or "").strip() for cit in data["citations"]
+                ).strip()
+                if not expected_answer or data.get("answer_text") != expected_answer:
+                    logger.warning(
+                        "[FirstPersonPipeline] Refusing to cache non-reconstructible fp-context result."
+                    )
+                    return
             self._redis.set(key, json.dumps(data), ex=EXACT_CACHE_TTL)
         except Exception as e:
             logger.warning(f"[FirstPersonPipeline] Redis exact cache set failed: {e}")
@@ -2901,6 +3384,8 @@ class FirstPersonPipeline:
                 audio_playback_clips=cached_data.get("audio_playback_clips"),
                 detected_concepts=cached_data.get("detected_concepts") or [],
                 atma_vichara_inquiry=cached_data.get("atma_vichara_inquiry"),
+                related_clips_heading=cached_data.get("related_clips_heading"),
+                second_quote_note=cached_data.get("second_quote_note"),
                 practice_recommendation=cached_data.get("practice_recommendation"),
                 # A cached replay of a served clip is still first-person served;
                 # an abstain / error entry in the cache is not.
@@ -2909,7 +3394,14 @@ class FirstPersonPipeline:
             )
 
         # Step 2b: Compound question decomposition (Tasks F1 & F2)
-        if getattr(settings, "first_person_facet_split_enabled", False):
+        # Compound decomposition searches only the legacy store, so it is off while
+        # the context harness is terminal (v10-only): otherwise a compound question
+        # would be served from the legacy collection past the terminal flag.
+        _terminal_active = (
+            bool(getattr(settings, "first_person_context_harness_enabled", False))
+            and getattr(settings, "first_person_context_terminal_enabled", False) is True
+        )
+        if getattr(settings, "first_person_facet_split_enabled", False) and not _terminal_active:
             facets = _decompose_query_facets(query, self._llm_service, token_sink=fp_llm_tokens)
             if len(facets) > 1:
                 return self._execute_compound(
@@ -2928,7 +3420,11 @@ class FirstPersonPipeline:
                     retrieval_query=retrieval_query,
                 )
 
-        _ans_box: dict[str, Any] = {}
+        # The answerability gate has one request-local tri-state decision.  An
+        # explicit sentinel is required because ``None`` is the real
+        # indeterminate verdict and an unset/future result must not be promoted
+        # to YES by a later path.
+        _ans_box: dict[str, Any] = {"verdict": _ANSWERABILITY_UNSET}
         _ans_tokens: list[int] = []
         _ans_future: Optional[Any] = None
         t_retrieval_ms = 0.0
@@ -2937,15 +3433,63 @@ class FirstPersonPipeline:
         t_scorer_ms = 0.0
         t_assembly_ms = 0.0
 
+        def _answerability_withheld_result(
+            verdict: Optional[bool],
+            *,
+            retrieval_ms: float = 0.0,
+            integrity_ms: float = 0.0,
+            confidence: float = 0.0,
+            n_quarantined: int = 0,
+        ) -> FirstPersonPipelineResult:
+            """Return the canonical zero-citation answerability abstention.
+
+            This is deliberately request-local: once a gate has resolved NO or
+            indeterminate, no later harness/scorer path may reinterpret it.
+            """
+            latency = (time.monotonic() - start_time) * 1000.0
+            answerability_label = "no" if verdict is False else "indeterminate"
+            stage_timings = {
+                "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                "retrieval_ms": round(retrieval_ms, 2),
+                "integrity_ms": round(integrity_ms, 2),
+                "rerank_ms": 0.0,
+                "scorer_ms": 0.0,
+                "assembly_ms": 0.0,
+                "total_ms": round(latency, 2),
+            }
+            self._log_and_count(
+                "abstained",
+                latency,
+                confidence,
+                n_quarantined,
+                0,
+                "answerability_withheld",
+                sum(fp_llm_tokens),
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                answerability=answerability_label,
+                abstain_reason="answerability_withheld",
+                stage_timings=stage_timings,
+            )
+
         # Step 2c: First-Person Context Harness (fp-context-v1)
         # When enabled and configured, retrieve parent contexts via FirstPersonContextStore
         # and evaluate through FirstPersonContextHarness. If a context qualifies for direct
         # serving (serve_single_span or serve_parent_context), construct the result
         # deterministically from stored spans.
         # Otherwise, fall back gracefully to the existing first-person logic.
-        harness_enabled = bool(
-            getattr(settings, "first_person_context_harness_enabled", False)
-        ) or (self._context_store is not None)
+        # The owner flag is the ONLY enable. An injected context store used to
+        # enabling the harness on its own (`or self._context_store is not None`),
+        # which meant any caller that passed a store ran fp-context serving while
+        # FIRST_PERSON_CONTEXT_HARNESS_ENABLED said false — exactly the posture
+        # the public-release NO-GO forbids. Store presence is configuration, not
+        # permission.
+        harness_enabled = bool(getattr(settings, "first_person_context_harness_enabled", False))
         ctx_store = self._get_context_store() if harness_enabled else None
         if ctx_store is not None and query_dense_vector:
             t_ctx_start = time.monotonic()
@@ -2984,20 +3528,38 @@ class FirstPersonPipeline:
 
             if contexts:
                 t_ans_start = time.monotonic()
-                if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
+                context_answerability_enabled = bool(
+                    getattr(settings, "first_person_answerability_check_enabled", False)
+                )
+                if context_answerability_enabled:
                     ans_verdict = _answerability_check(
-                        retrieval_query,
+                        retrieval_query or query,
                         self._llm_service,
                         request_loop=self._llm_loop,
                         token_sink=fp_llm_tokens,
                     )
                     ans_str = {True: "yes", False: "no"}.get(ans_verdict, "indeterminate")
                 else:
+                    # The harness needs a permissive internal posture when its
+                    # optional question gate is disabled, but that is not a
+                    # public YES verdict: the gate did not run.
                     ans_verdict = True
-                    ans_str = "yes"
+                    ans_str = "permissive"
                 t_ans_ms = (time.monotonic() - t_ans_start) * 1000.0
                 _ans_box["verdict"] = ans_verdict
                 _ans_box["duration_ms"] = t_ans_ms
+
+                # A firm NO or an indeterminate answerability result is final
+                # before any harness worker, relevance scorer, or reranker can
+                # spend work. Keep the verdict in _ans_box for the only path
+                # that may continue (a YES followed by a harness fallback).
+                if context_answerability_enabled and ans_verdict is not True:
+                    return _answerability_withheld_result(
+                        ans_verdict,
+                        retrieval_ms=t_ctx_ret_ms,
+                    )
+
+                public_context_answerability = ans_str if context_answerability_enabled else None
 
                 harness = self._get_context_harness()
                 # Serve-time quality files are read ONCE per request, exactly as
@@ -3036,31 +3598,74 @@ class FirstPersonPipeline:
                     unhandled exception is caught by the caller.
                     """
                     _local_tokens: list[int] = []
+                    validated_predecessor: Optional[ValidatedCrossParentEdge] = None
+                    from services.first_person_context_harness import _span_starts_with_antecedent
+
+                    ordered_ids = tuple(
+                        getattr(getattr(ctx, "parent", None), "ordered_source_span_ids", ()) or ()
+                    )
+                    by_context_id = {span.source_span_id: span for span in ctx.spans}
+                    opening_candidate = by_context_id.get(ordered_ids[0]) if ordered_ids else None
+                    opening_is_hit = bool(
+                        opening_candidate
+                        and opening_candidate.source_span_id in set(ctx.hit_span_ids or ())
+                    )
+                    if opening_is_hit and _span_starts_with_antecedent(opening_candidate):
+                        if max_spans < 2:
+                            logger.info(
+                                "[FirstPersonPipeline] Refusing antecedent opener because "
+                                "max_context_spans=%s cannot reserve its predecessor",
+                                max_spans,
+                            )
+                            return None, _local_tokens
+                        try:
+                            # Typed identity lookup is deliberately before decide:
+                            # the predecessor must enter every harness gate and
+                            # cannot be appended after a decision.
+                            candidate_edge = ctx_store.fetch_preceding_span(opening_candidate)
+                        except Exception as exc:
+                            logger.info(
+                                "[FirstPersonPipeline] Antecedent predecessor lookup refused: %s",
+                                exc,
+                            )
+                            return None, _local_tokens
+                        if not isinstance(candidate_edge, ValidatedCrossParentEdge):
+                            return None, _local_tokens
+                        validated_predecessor = candidate_edge
+
                     selected_span_ids = None
                     if bool(getattr(settings, "first_person_context_selector_enabled", False)):
-                        from services.first_person_context_selector import (
-                            select_span_ids,  # noqa: PLC0415
-                        )
-
                         selected_span_ids = select_span_ids(
                             query, ctx.spans, llm_service=self._llm_service
                         )
 
                     decision = harness.decide(
                         ctx,
+                        query=query,
                         requested_teacher=teacher_id,
                         answerability=ans_str,
                         selected_span_ids=selected_span_ids,
+                        retrieval_query=retrieval_query,
+                        validated_predecessor=validated_predecessor,
                     )
 
-                    if decision.decision not in (
+                    _allowed_decisions = {
                         HarnessDecision.SERVE_SINGLE_SPAN,
                         HarnessDecision.SERVE_PARENT_CONTEXT,
-                    ):
+                    }
+                    if getattr(settings, "first_person_serve_weak_match", True):
+                        _allowed_decisions.add(HarnessDecision.SERVE_RELATED_NOT_DIRECT)
+
+                    if decision.decision not in _allowed_decisions:
                         return None, _local_tokens
 
                     t_asm_start = time.monotonic()
-                    span_by_id = {s.source_span_id: s for s in ctx.spans}
+                    decision_spans = (
+                        (validated_predecessor.predecessor,)
+                        if validated_predecessor is not None
+                        else ()
+                    ) + tuple(ctx.spans)
+                    span_by_id = {s.source_span_id: s for s in decision_spans}
                     served_spans = [
                         span_by_id[sid] for sid in decision.source_span_ids if sid in span_by_id
                     ]
@@ -3078,29 +3683,41 @@ class FirstPersonPipeline:
                         )
                         return None, _local_tokens
 
+                    # The harness decision is final. Any antecedent or completion
+                    # recovery must have happened before decide via the validated
+                    # parent ordering or store-issued cross-parent edge; never
+                    # widen this set with a video-wide timestamp lookup after the
+                    # gates ran.
+
                     citations = []
                     audio_playback_clips = []
                     cite_by_id = {c.source_span_id: c for c in decision.citations}
                     confidence = float(getattr(ctx, "score", 1.0) or 1.0)
                     _span_failed_gate = False
+                    is_multi_span = len(served_spans) > 1
                     for span in served_spans:
                         c_span = cite_by_id.get(span.source_span_id)
                         cit_dict = self._build_context_citation(span, c_span, confidence=confidence)
                         if not _passes_integrity_gate(
-                            cit_dict, boundary_guard_enabled=self._boundary_guard_enabled
-                        ) or not _passes_content_quality_gate(
-                            cit_dict, gate_enabled=self._content_quality_gate_enabled
+                            cit_dict,
+                            boundary_guard_enabled=False
+                            if is_multi_span
+                            else self._boundary_guard_enabled,
                         ):
                             _span_failed_gate = True
                             break
-                        if _violent_for_context(
-                            query,
-                            str(cit_dict.get("verbatim_text") or ""),
-                            retrieval_query=retrieval_query,
-                        ):
-                            logger.info(
-                                "[FirstPersonPipeline] Harness span rejected: violence wording for a relationship question"
+                        # Single-span decisions must pass standalone content quality individually.
+                        # For parent context decisions (multiple spans), the assembled discourse
+                        # is validated across all spans together below.
+                        if (
+                            decision.decision == HarnessDecision.SERVE_SINGLE_SPAN
+                            or (
+                                decision.decision == HarnessDecision.SERVE_RELATED_NOT_DIRECT
+                                and len(served_spans) == 1
                             )
+                        ) and not _passes_content_quality_gate(
+                            cit_dict, gate_enabled=self._content_quality_gate_enabled
+                        ):
                             _span_failed_gate = True
                             break
                         point_id = str(cit_dict.get("point_id") or "")
@@ -3133,6 +3750,60 @@ class FirstPersonPipeline:
                                 "title": cit_dict["title"],
                             }
                         )
+                    assembled_answer_text = " ".join(s.verbatim_text.strip() for s in served_spans)
+                    assembled_safety = first_person_evidence_policy.assess_contextual_safety(
+                        query, assembled_answer_text, retrieval_query=retrieval_query
+                    )
+                    if not assembled_safety.may_serve:
+                        logger.info(
+                            "[FirstPersonPipeline] Harness context rejected by shared policy: reasons=%s",
+                            ",".join(assembled_safety.reason_codes),
+                        )
+                        return None, _local_tokens
+                    if (
+                        not _span_failed_gate
+                        and (
+                            decision.decision == HarnessDecision.SERVE_PARENT_CONTEXT
+                            or (
+                                decision.decision == HarnessDecision.SERVE_RELATED_NOT_DIRECT
+                                and len(served_spans) > 1
+                            )
+                        )
+                        and served_spans
+                        and not _passes_content_quality_gate(
+                            {
+                                "verbatim_text": assembled_answer_text,
+                                "start_ms": served_spans[0].start_ms,
+                                "end_ms": served_spans[-1].end_ms,
+                                "topic_ids": list(getattr(ctx.parent, "topic_ids", None) or ()),
+                                "tags": list(getattr(ctx.parent, "tags", None) or ()),
+                                "category": getattr(ctx.parent, "category", None),
+                            },
+                            gate_enabled=self._content_quality_gate_enabled,
+                        )
+                    ):
+                        logger.info(
+                            "[FirstPersonPipeline] Assembled parent context %s failed content quality gate",
+                            getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                        )
+                        _span_failed_gate = True
+                    if (
+                        not _span_failed_gate
+                        and is_multi_span
+                        and self._boundary_guard_enabled
+                        and served_spans
+                    ):
+                        _asm_tokens = assembled_answer_text.split()
+                        _asm_defects = (
+                            set(boundary_defects(_asm_tokens)) & _SERVE_BLOCKING_BOUNDARY_DEFECTS
+                        )
+                        if _asm_defects:
+                            logger.warning(
+                                "[FirstPersonPipeline] Assembled parent context %s failed boundary integrity: %s",
+                                getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                                ",".join(sorted(_asm_defects)),
+                            )
+                            _span_failed_gate = True
                     if _span_failed_gate:
                         FIRST_PERSON_QUARANTINED_TOTAL.inc()
                         logger.warning(
@@ -3140,6 +3811,11 @@ class FirstPersonPipeline:
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
                         )
                         return None, _local_tokens
+
+                    # Keep fp-context citations one-per-child. A merged citation
+                    # hides which child changed or was revoked between cache hits;
+                    # the answer remains the ordered join of these verbatim spans.
+                    audio_playback_clips = self._club_consecutive_audio_clips(audio_playback_clips)
 
                     # Relevance gate: score (question, assembled answer) with the
                     # same scorer/min score as the legacy path.
@@ -3155,7 +3831,7 @@ class FirstPersonPipeline:
                             retrieval_query or query,
                             [
                                 {
-                                    "verbatim_text": decision.answer_text or "",
+                                    "verbatim_text": assembled_answer_text or "",
                                     "start_ms": getattr(_first_span, "start_ms", None),
                                 }
                             ],
@@ -3188,9 +3864,12 @@ class FirstPersonPipeline:
 
                     t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
                     latency = (time.monotonic() - start_time) * 1000.0
-                    is_direct = (
-                        self._profile is not None and confidence >= self._profile["threshold"]
-                    )
+                    if decision.decision == HarnessDecision.SERVE_RELATED_NOT_DIRECT:
+                        is_direct = False
+                    else:
+                        is_direct = (
+                            self._profile is not None and confidence >= self._profile["threshold"]
+                        )
                     stage_timings: dict[str, Any] = {
                         "answerability_ms": round(float(t_ans_ms), 2),
                         "retrieval_ms": round(float(t_ctx_ret_ms), 2),
@@ -3203,13 +3882,19 @@ class FirstPersonPipeline:
                     if _h_rel_score is not None:
                         stage_timings["relevance_score"] = float(_h_rel_score)
 
+                    # The harness has already gated and reconstructed this body from
+                    # immutable fp-context spans. Hybrid framing remains separately
+                    # governed on the legacy path; QuoteWeaver must never replace a
+                    # gated context body with generated or connective prose.
+                    answer_to_serve = assembled_answer_text
+
                     return FirstPersonPipelineResult(
-                        answer_text=decision.answer_text or "",
+                        answer_text=answer_to_serve,
                         citations=citations,
                         status="success" if is_direct else "weak_match",
                         is_direct_answer=is_direct,
                         latency_ms=latency,
-                        answerability=ans_str,
+                        answerability=public_context_answerability,
                         abstain_reason="none",
                         audio_playback_clip=(
                             audio_playback_clips[0] if audio_playback_clips else None
@@ -3376,6 +4061,31 @@ class FirstPersonPipeline:
                     len(contexts),
                 )
 
+        # v10-only serving (owner decision 2026-10-30): with the context harness on
+        # and this flag set, the harness is terminal. A question it could not answer
+        # abstains instead of falling through to the legacy store, so no clip from a
+        # legacy collection (e.g. first_person_v8, speaker mostly unverified) is served.
+        # Default off: existing deployments keep the legacy fall-through.
+        # `is True`, not truthiness: a patched/mock settings object must not enable it.
+        if (
+            harness_enabled
+            and getattr(settings, "first_person_context_terminal_enabled", False) is True
+        ):
+            latency = (time.monotonic() - start_time) * 1000.0
+            self._log_and_count(
+                "abstained", latency, 0.0, 0, 0, "no_verified_clips", sum(fp_llm_tokens)
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                answerability="no_verified_clips",
+                abstain_reason="no_verified_clips",
+                stage_timings={"total_ms": round(latency, 2)},
+            )
+
         # RC-D-2: start the question-only answerability gate in parallel with
         # retrieval. Crisis (Step 1), the topic rail, and the exact cache are
         # already past, so a redirect / blocked topic / cache hit never spends
@@ -3427,8 +4137,12 @@ class FirstPersonPipeline:
         ans_enabled = (ans_val is True or str(ans_val).lower() in ("true", "1")) and not is_mock(
             ans_val
         )
+        # A context-harness gate may already have resolved this request. This
+        # snapshot is the request-local freeze: a late worker completion cannot
+        # mutate the response or cause a second provider call on fallback.
+        early_verdict = _ans_box.get("verdict", _ANSWERABILITY_UNSET)
 
-        if speculative_enabled and ans_enabled:
+        if speculative_enabled and ans_enabled and early_verdict is _ANSWERABILITY_UNSET:
             # Speculative Parallelism (Track 1):
             # Run Answerability Gate and Vector Retrieval (39ms) concurrently at t=0 using asyncio.gather.
             async def _speculative_gather():
@@ -3490,7 +4204,11 @@ class FirstPersonPipeline:
                 ret_res = exc
 
             t_retrieval_ms = float(_ans_box.get("retrieval_duration_ms", 0.0))
+            # Freeze immediately after the bounded rendezvous. The speculative
+            # task may be cancelled while its provider coroutine is still
+            # unwinding, so never reread _ans_box after this point.
             early_verdict = ans_res if isinstance(ans_res, (bool, type(None))) else None
+            _ans_box["verdict"] = early_verdict
 
             # If Answerability Gate returns 'no' or indeterminate:
             # immediately discard retrieval candidates and return honest abstention without calling reranker or scorer.
@@ -3558,7 +4276,7 @@ class FirstPersonPipeline:
         else:
             if (
                 bool(getattr(settings, "first_person_answerability_check_enabled", False))
-                and _ans_box.get("verdict") is None
+                and _ans_box.get("verdict", _ANSWERABILITY_UNSET) is _ANSWERABILITY_UNSET
             ):
 
                 def _run_answerability() -> None:
@@ -3636,7 +4354,21 @@ class FirstPersonPipeline:
                 if _passes_content_quality_gate(
                     clip, gate_enabled=self._content_quality_gate_enabled
                 ):
-                    verified_clips.append(clip)
+                    # Fail-closed invariant: unverified clips must NEVER be served to public users (UT-06)
+                    if getattr(settings, "first_person_require_speaker_verified", False):
+                        spk_ok, _ = _speaker_verification(clip)
+                        is_verified = spk_ok or clip.get("speaker_verified") is True
+                        if is_verified:
+                            verified_clips.append(clip)
+                        else:
+                            n_quarantined += 1
+                            FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                            logger.warning(
+                                f"[FirstPersonPipeline] Clip {clip.get('point_id')} for video {clip.get('video_id')} "
+                                f"rejected: speaker is not verified ({clip.get('speaker_verified')}). Quarantined."
+                            )
+                    else:
+                        verified_clips.append(clip)
                 else:
                     n_quarantined += 1
                     FIRST_PERSON_QUARANTINED_TOTAL.inc()
@@ -3674,9 +4406,11 @@ class FirstPersonPipeline:
         verified_clips = [
             c
             for c in verified_clips
-            if not _violent_for_context(
-                query, str(c.get("verbatim_text") or ""), retrieval_query=retrieval_query
-            )
+            if first_person_evidence_policy.assess_contextual_safety(
+                query,
+                str(c.get("verbatim_text") or ""),
+                retrieval_query=retrieval_query,
+            ).may_serve
         ]
         t_integrity_ms = (time.monotonic() - t_int_start) * 1000.0
 
@@ -3696,7 +4430,7 @@ class FirstPersonPipeline:
         # Zero verified clips still falls through to the Step 5 reason below,
         # preserving the no_verified_clips > answerability_withheld precedence.
         if not speculative_enabled:
-            early_verdict = _ans_box.get("verdict")
+            early_verdict = _ans_box.get("verdict", _ANSWERABILITY_UNSET)
             if _ans_future is not None:
                 # Bounded join: a hung gate worker must never stall serving. A
                 # timeout leaves early_verdict None = indeterminate, the same
@@ -3706,17 +4440,44 @@ class FirstPersonPipeline:
                 try:
                     _ans_future.result(timeout=_ANSWERABILITY_TIMEOUT_S)
                     fp_llm_tokens.extend(_ans_tokens)
-                    early_verdict = _ans_box.get("verdict")
+                    early_verdict = _ans_box.get("verdict", _ANSWERABILITY_UNSET)
                 except TimeoutError:
                     logger.info(
                         "[FirstPersonPipeline] Answerability join timed out; "
                         "continuing as indeterminate"
                     )
+                    # The worker may still complete later, but this request's
+                    # decision is already fixed to indeterminate.  Never start
+                    # a second gate call and never reread the late future result.
+                    early_verdict = None
+                except Exception as exc:
+                    logger.info(
+                        "[FirstPersonPipeline] Answerability join failed; continuing as indeterminate: %s",
+                        exc,
+                    )
+                    early_verdict = None
+            if (
+                bool(getattr(settings, "first_person_answerability_check_enabled", False))
+                and early_verdict is _ANSWERABILITY_UNSET
+                and _ans_future is None
+            ):
+                # Defensive single-call fallback: an enabled gate that was not
+                # scheduled for any reason must resolve here, before rerank or
+                # scorer spend.  Its result is stored as the same request-local
+                # decision used below; there is no final-stage default.
+                ans_start = time.monotonic()
+                early_verdict = _answerability_check(
+                    retrieval_query,
+                    self._llm_service,
+                    request_loop=self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                )
+                _ans_box["verdict"] = early_verdict
+                _ans_box["duration_ms"] = (time.monotonic() - ans_start) * 1000.0
             if (
                 bool(getattr(settings, "first_person_answerability_check_enabled", False))
                 and early_verdict is not True
                 and verified_clips
-                and (_ans_future is not None or _ans_box.get("verdict") is not None)
             ):
                 # Anything other than a firm YES skips rerank/scorer: a NO verdict
                 # and an indeterminate (timed-out/failed gate worker) both end in
@@ -4104,19 +4865,12 @@ class FirstPersonPipeline:
         # the weak_match ("Related, not a direct answer") path skipped the gate and
         # served 'capital of France' a leadership quote and 'bake a cake' an
         # 'addicted to chocolate' quote (live, 2026-10-11).
-        if settings.first_person_answerability_check_enabled:
+        if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
             # RC-D-2: the verdict was already joined before rerank above; reuse
-            # it so the gate costs exactly one LLM call. Fall back to a direct
-            # call only if the flag flipped on mid-request (no future started).
-            if _ans_future is not None or speculative_enabled or early_verdict is not None:
-                verdict = early_verdict
-            else:
-                verdict = _answerability_check(
-                    retrieval_query,
-                    self._llm_service,
-                    request_loop=self._llm_loop,
-                    token_sink=fp_llm_tokens,
-                )
+            # it so the gate costs exactly one LLM call. Any unset state should
+            # have been resolved before rerank/scorer above; keep a defensive
+            # indeterminate mapping here rather than ever defaulting to YES.
+            verdict = None if early_verdict is _ANSWERABILITY_UNSET else early_verdict
             answerability = {True: "yes", False: "no"}.get(verdict, "indeterminate")
             logger.info(
                 "[FirstPersonPipeline] Answerability verdict=%s direct_served=%s",
@@ -4194,14 +4948,27 @@ class FirstPersonPipeline:
                 "start_sec": start_sec,
                 "end_sec": end_sec,
                 "timestamp_seconds": sec,
-                "speaker": clip["speaker"],
+                "speaker": (
+                    "Sri Preethaji"
+                    if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower()
+                    == "preethaji"
+                    else (
+                        "Sri Krishnaji"
+                        if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower()
+                        == "krishnaji"
+                        else clip["speaker"]
+                    )
+                ),
                 "title": clip_title,
                 "url": clip_url,
                 "teacher_id": clip.get("teacher_id"),
                 # Provenance claim copied from the stored clip, never inferred: the builder
                 # writes True only after a real voice check and omits the key otherwise, so
                 # a missing key must reach the UI as False, not as "verified" (QA-1).
-                "speaker_verified": clip.get("speaker_verified") is True,
+                # A bare True with no recorded method is a claim without evidence and
+                # reads as unverified (same rule as the corpus quality scorecard).
+                "speaker_verified": _speaker_verification(clip)[0],
+                "voice_verification_method": _speaker_verification(clip)[1],
                 "channel": clip.get("channel"),
                 "transcript_hash": clip["transcript_hash"],
                 "verbatim_text": clip["verbatim_text"],
@@ -4308,6 +5075,8 @@ class FirstPersonPipeline:
                 audio_playback_clips[0] if audio_playback_clips else None
             )
             atma_vichara_inquiry = getattr(weave_res, "atma_vichara_inquiry", None)
+            related_clips_heading = getattr(weave_res, "related_clips_heading", None)
+            second_quote_note = None
             practice_recommendation = getattr(weave_res, "practice_recommendation", None)
             cit = citations[0] if citations else None
         else:
@@ -4337,6 +5106,8 @@ class FirstPersonPipeline:
                     f"— {hero['label']} ({top_clip['video_id']}, {cit['timestamp_seconds']}s)"
                 )
             atma_vichara_inquiry = None
+            related_clips_heading = None
+            second_quote_note = None
             practice_recommendation = None
             audio_playback_clip = audio_strip_for(top_clip, hero)
             audio_playback_clips = [audio_playback_clip] if audio_playback_clip else []
@@ -4382,20 +5153,27 @@ class FirstPersonPipeline:
 
                         c1_with_hero = {**top_clip, "_hero": hero}
                         c2_with_hero = {**second_clip, "_hero": second_hero}
-                        qb1 = _format_continuous_quote_block(c1_with_hero, facet="first recording")
-                        qb2 = _format_continuous_quote_block(c2_with_hero, facet="second recording")
+                        # Invariant 1: no facet headings inside the body. "first
+                        # recording" / "second recording" are structure, and
+                        # structure rides `second_quote_note` in metadata.
+                        qb1 = _format_continuous_quote_block(c1_with_hero)
+                        qb2 = _format_continuous_quote_block(c2_with_hero)
                         footer = _format_continuous_sources_footer([c1_with_hero, c2_with_hero])
-                        # Label via metadata (status=weak_match), not injected into text.
                         final_text = f"{qb1}\n\n{qb2}" + (f"\n{footer}" if footer else "")
                     else:
+                        # Same rule for the plain layout: two quote+attribution
+                        # blocks, nothing else. The "these are separate recordings"
+                        # framing is metadata, never body text.
                         final_text = (
-                            "Two separate recordings, each quoted exactly:\n\n"
-                            f'Recording 1 of 2:\n"{top_text}"\n'
+                            f'"{top_text}"\n'
                             f"— {hero['label']} ({top_vid}, {cit['timestamp_seconds']}s)\n\n"
-                            "Recording 2 of 2 (a different video; it does not continue the first):\n"
                             f'"{second_text}"\n'
                             f"— {second_hero['label']} ({second_vid}, {cit2['timestamp_seconds']}s)"
                         )
+                    second_quote_note = (
+                        "Two separate recordings, each quoted exactly. "
+                        "Recording 2 is a different video; it does not continue the first."
+                    )
                     strip2 = audio_strip_for(second_clip, second_hero)
                     if strip2:
                         audio_playback_clips.append(strip2)
@@ -4444,6 +5222,8 @@ class FirstPersonPipeline:
             audio_playback_clips=audio_playback_clips,
             detected_concepts=detected_concepts,
             atma_vichara_inquiry=atma_vichara_inquiry,
+            related_clips_heading=related_clips_heading,
+            second_quote_note=second_quote_note,
             practice_recommendation=practice_recommendation,
             stage_timings=stage_timings,
             fp_served=bool(citations),
@@ -4542,6 +5322,12 @@ class FirstPersonPipeline:
                 if _passes_content_quality_gate(
                     clip, gate_enabled=self._content_quality_gate_enabled
                 ):
+                    if getattr(settings, "first_person_require_speaker_verified", False):
+                        spk_ok, _ = _speaker_verification(clip)
+                        if not (spk_ok or clip.get("speaker_verified") is True):
+                            n_quarantined += 1
+                            FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                            continue
                     verified_clips.append(clip)
                 else:
                     n_quarantined += 1
@@ -4566,9 +5352,11 @@ class FirstPersonPipeline:
         verified_clips = [
             c
             for c in verified_clips
-            if not _violent_for_context(
-                query, str(c.get("verbatim_text") or ""), retrieval_query=retrieval_query
-            )
+            if first_person_evidence_policy.assess_contextual_safety(
+                query,
+                str(c.get("verbatim_text") or ""),
+                retrieval_query=retrieval_query,
+            ).may_serve
         ]
         stage_timings["integrity_ms"] = round((time.monotonic() - t_int_start) * 1000.0, 2)
 
@@ -4588,6 +5376,7 @@ class FirstPersonPipeline:
         # Answerability gate (invariant 22: it covers EVERY served clip). The compound
         # path used to skip it, so an out-of-scope compound question could be served
         # whatever clips the per-facet relevance scorer happened to accept.
+        compound_answerability: Optional[str] = None
         if getattr(settings, "first_person_answerability_check_enabled", False):
             t_ans_start = time.monotonic()
             verdict = _answerability_check(
@@ -4597,6 +5386,9 @@ class FirstPersonPipeline:
                 token_sink=fp_llm_tokens,
             )
             stage_timings["answerability_ms"] = round((time.monotonic() - t_ans_start) * 1000.0, 2)
+            compound_answerability = (
+                "yes" if verdict is True else ("no" if verdict is False else "indeterminate")
+            )
             if verdict is not True:
                 latency = (time.monotonic() - start_time) * 1000.0
                 stage_timings["total_ms"] = round(latency, 2)
@@ -4637,29 +5429,46 @@ class FirstPersonPipeline:
 
         for facet in facets:
             avail_clips = [c for c in verified_clips if c.get("video_id") not in used_video_ids]
-            if not avail_clips:
-                avail_clips = verified_clips
-
             candidates = avail_clips[:3]
             rel_scores: list[int] = []
-            pick = _relevance_select(
-                facet,
-                candidates,
-                self._llm_service,
-                self._llm_loop,
-                token_sink=fp_llm_tokens,
-                scores_out=rel_scores,
+            if getattr(settings, "first_person_relevance_gate_enabled", True):
+                pick = _relevance_select(
+                    facet,
+                    candidates,
+                    self._llm_service,
+                    self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                    scores_out=rel_scores,
+                )
+            else:
+                # Match the normal path's deterministic retrieval-order behavior
+                # when the relevance gate is disabled; do not spend scorer/JEV calls.
+                pick = 0 if candidates else None
+            selected_score = (
+                rel_scores[pick]
+                if pick is not None and pick != _RELEVANCE_INDETERMINATE and pick < len(rel_scores)
+                else None
             )
-            if pick is not None and pick != _RELEVANCE_INDETERMINATE:
+            # A facet earns a citation only from its own selected candidate and
+            # only when that candidate clears the configured minimum.  In
+            # particular, a below-min/zero facet is an honest gap; it may not
+            # reuse a clip selected for an earlier facet.
+            selected_is_eligible = (
+                pick is not None
+                and pick != _RELEVANCE_INDETERMINATE
+                and (
+                    not getattr(settings, "first_person_relevance_gate_enabled", True)
+                    or (selected_score is not None and selected_score >= minimum_score)
+                )
+            )
+            if selected_is_eligible:
                 selected_clip = candidates[pick]
                 used_video_ids.add(selected_clip.get("video_id"))
                 part_results.append(
                     {
                         "facet": facet,
                         "clip": selected_clip,
-                        "score": rel_scores[pick]
-                        if (rel_scores and pick < len(rel_scores))
-                        else minimum_score,
+                        "score": selected_score if selected_score is not None else minimum_score,
                     }
                 )
             else:
@@ -4770,7 +5579,7 @@ class FirstPersonPipeline:
             status="weak_match",
             is_direct_answer=False,
             latency_ms=stage_timings["total_ms"],
-            answerability="yes",
+            answerability=compound_answerability,
             abstain_reason="none",
             audio_playback_clip=audio_playback_clips[0] if audio_playback_clips else None,
             audio_playback_clips=audio_playback_clips,

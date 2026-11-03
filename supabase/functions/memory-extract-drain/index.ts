@@ -10,6 +10,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { embedText } from "../_shared/embed.ts";
 import { getActiveMemoryConsentReceipt } from "../_shared/memoryConsent.ts";
 import { parseExtractedFacts } from "../_shared/memoryFacts.ts";
+import { isMissingColumnError, sanitizeSourceConversationId } from "../_shared/memorySource.ts";
 
 const DEDUP_SIMILARITY = 0.92;
 const BATCH_SIZE = 5;
@@ -192,6 +193,7 @@ Deno.serve(async (req) => {
     const tenantId = typeof row.tenant_id === "string" ? row.tenant_id : "oneness";
     const userMsg = typeof payload?.user_message === "string" ? payload.user_message.slice(0, 2000) : "";
     const assistantMsg = typeof payload?.assistant_message === "string" ? payload.assistant_message.slice(0, 4000) : "";
+    const sourceConversationId = sanitizeSourceConversationId(payload?.conversation_id);
 
     try {
       if (!userMsg.trim() || !assistantMsg.trim()) {
@@ -310,13 +312,21 @@ Deno.serve(async (req) => {
             revokedDuringProcessing = true;
             break;
           }
-          const { error } = await sb.from("guru_memories").insert({
+          const memoryRow = {
             user_id,
             tenant_id: tenantId,
             content: text,
             embedding: embedding as unknown as string,
             source: "extracted",
-          });
+          };
+          let { error } = await sb.from("guru_memories").insert(
+            sourceConversationId ? { ...memoryRow, source_conversation_id: sourceConversationId } : memoryRow,
+          );
+          // The source column ships in a migration that may land after this
+          // worker: keep the memory and drop only the link.
+          if (error && sourceConversationId && isMissingColumnError(error)) {
+            ({ error } = await sb.from("guru_memories").insert(memoryRow));
+          }
           if (error) throw new Error("memory_insert_failed");
         } catch (e) {
           // Do not mark a partially failed extraction as done. The outer handler

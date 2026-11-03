@@ -344,6 +344,15 @@ _USER_FACING_PATHS = {
     "/api/metrics",  # metrics.py: user's own usage metrics (frontend useMetrics.ts)
 }
 
+# Deliberately public, no identity at all — not an admin gate and not a user gate.
+# A citation for a directly uploaded video must play for a signed-out reader
+# (same posture as a YouTube embed), so this route cannot require AAL2. It is
+# listed explicitly rather than pattern-matched so a new ingest route cannot
+# inherit the exemption by accident.
+_PUBLIC_PATHS = {
+    "/media/videos/{video_id}",  # ingest.py: HTTP 206 streaming for a citation player
+}
+
 
 def _admin_endpoints():
     """Yield (module_path, route_path) for every non-user-facing admin route."""
@@ -356,6 +365,8 @@ def _admin_endpoints():
             if not getattr(route, "methods", None):
                 continue
             if route.path in _USER_FACING_PATHS:
+                continue
+            if route.path in _PUBLIC_PATHS:
                 continue
             yield module_path, route.path
 

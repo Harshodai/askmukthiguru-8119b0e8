@@ -57,9 +57,36 @@ class BudgetReservation:
     guard: OpenRouterBudgetGuard | None
     amount_usd: float = 0.0
     local: bool = False
+    settled: bool = False
+
+    async def finalize(
+        self,
+        *,
+        request_sent: bool,
+        response_arrived: bool = False,
+        response_cost_usd: float | None = None,
+    ) -> None:
+        """Settle a reservation no success path settled, by what actually happened.
+
+        Never sent (cancelled before the POST, or a failure before it): refund in full.
+        A response arrived: settle at the cost it reported, if it reported one.
+        Sent but no response (timeout, cancel mid-flight): keep the reservation, because
+        the provider may still bill the call.
+        Cancelled and failed calls used to keep the full reservation (about $0.03 each), which
+        over-counted and exhausted the daily cap mid-run (2026-10-31).
+        """
+        if self.settled:
+            return
+        if not request_sent:
+            await self.settle(0.0)
+        elif response_arrived and response_cost_usd is not None:
+            await self.settle(response_cost_usd)
+        else:
+            self.settled = True
 
     async def settle(self, actual_cost_usd: float | None) -> None:
         """Refund unused known cost; unknown usage deliberately retains reserve."""
+        self.settled = True
         if self.guard is None or actual_cost_usd is None:
             return
         refund = self.amount_usd - max(0.0, actual_cost_usd)

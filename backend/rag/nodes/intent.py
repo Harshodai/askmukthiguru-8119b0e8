@@ -1190,7 +1190,9 @@ def _short_circuit_verification(method: str = "casual_short_circuit") -> dict[st
         "verification": {
             "passed": True,
             "method": method,
-            "citations_verified": True,
+            # No citations on a short-circuit; True would contradict that and
+            # trip the F-VERIFY-1 coercion (an ERROR log) on every greeting.
+            "citations_verified": False,
         },
         "faithfulness_score": 1.0,
         "confidence_score": 1.0,
@@ -1507,7 +1509,7 @@ def _drop_hazardous_distress_sentences(text: str) -> str:
 @trace_rag_node("handle_distress")
 @log_metrics
 async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
-    """Handle distress with COMPASSIONATE TEACHINGS + meditation offer."""
+    """Return the safety template with optional below-SEVERE gated teaching text."""
     from rag.nodes.utils import emit_status
 
     await emit_status(config, "Holding space for what you're feeling...")
@@ -1525,13 +1527,11 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
     response = ""
     citations = []
 
-    # Check if a verified verbatim clip from the first-person route is attached/available
+    # Only a result from the normal gated first-person pipeline may add teaching
+    # text here. Raw clip state is intentionally ignored on safety pre-emption:
+    # probing availability would violate the no-network constraint, while serving
+    # it directly would bypass the pipeline's serve-time gates.
     fp_result = state.get("first_person_result")
-    verified_clip = (
-        state.get("verified_clip")
-        or state.get("first_person_clip")
-        or state.get("personalize_clip")
-    )
 
     base_template = None
     if serene_mind:
@@ -1557,14 +1557,15 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
         abstain_reason = getattr(fp_result, "abstain_reason", None)
         if abstain_reason is None and isinstance(fp_result, dict):
             abstain_reason = fp_result.get("abstain_reason")
-        # Serve gate (review 2026-10-15): only integrity-gated serving outcomes
-        # (success / weak_match) may append text under the distress template,
-        # plus a first_person_bridge PipelineResult — which carries no status
-        # field. crisis_redirect is excluded: its helpline text would double up
-        # beneath the template's own helpline block. Abstention is read from
-        # the status/abstain_reason fields — never from matching the answer
-        # text's prefix, which breaks on translations and paraphrases.
-        if status in ("success", "weak_match") or route_decision == "first_person_bridge":
+        # Serve gate: only below-SEVERE assessments may append an integrity-gated
+        # result (success / weak_match) or the bridge PipelineResult (which has no
+        # status field). SEVERE/CRISIS stays template-only even if a stale or
+        # misrouted result is present in graph state. crisis_redirect is excluded:
+        # its helpline text would double up beneath the template's own helpline
+        # block. Abstention is read from status/reason, never answer-text prefixes.
+        if assessment.level < DistressLevel.SEVERE and (
+            status in ("success", "weak_match") or route_decision == "first_person_bridge"
+        ):
             cand = getattr(fp_result, "answer_text", None) or getattr(
                 fp_result, "final_answer", None
             )
@@ -1578,17 +1579,14 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
                     or []
                 )
 
-    # Hazardous-sentence filtering applies to the clinician-reviewed template
-    # prose ONLY. fp_text and a clip's verbatim_text are never edited
-    # sentence-by-sentence (that would break the verbatim promise); a clip
-    # carrying a hazardous sentence is omitted ENTIRELY below.
+    # The clinician-reviewed template is filtered independently. A teaching
+    # returned by the gated first-person pipeline is checked as a whole and
+    # omitted entirely if it carries a hazardous sentence; its source text is
+    # never edited sentence-by-sentence.
     safe_template = _drop_hazardous_distress_sentences(base_template) or base_template
 
-    # Teacher text actually served (fp_text / clip verbatim). Recorded so
-    # _unquote_unverifiable_spans below sees it as quotable context: the
-    # verbatim promise means quotes inside served teacher text must never be
-    # stripped as "unverifiable" just because the clip's text is not part of
-    # the retrieved relevant_docs.
+    # Teacher text from the gated pipeline is recorded so quote cleanup sees
+    # it as verified context, even when the text is not in relevant_docs.
     served_teacher_texts: list[str] = []
 
     if fp_text:
@@ -1603,83 +1601,11 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
             response = f"{safe_template}\n\n{fp_text}"
             citations = fp_citations
             served_teacher_texts.append(fp_text)
-    elif (
-        verified_clip
-        and isinstance(verified_clip, dict)
-        and verified_clip.get("verbatim_text")
-        and str(verified_clip.get("verbatim_text")).strip()
-    ):
-        # Teacher-voice safety: serve the clip ONLY when it passes the canonical
-        # serve-time integrity gate (SHA-256 transcript-hash match, allowlisted
-        # speaker, no artifact -- services/first_person_pipeline
-        # ._passes_integrity_gate, same call shape as the personalize stage).
-        # No default speaker attribution: a clip with no stored speaker, a
-        # non-allowlisted speaker, or a hash mismatch falls back to the
-        # template WITHOUT the clip. check_availability=False: no network
-        # probe on the safety-preemption path.
-        from app.config import settings as _fp_settings
-        from services.first_person_pipeline import _passes_integrity_gate
-
-        verbatim = str(verified_clip.get("verbatim_text")).strip()
-        clip_ok = _passes_integrity_gate(
-            verified_clip,
-            # Same effective policy as FirstPersonPipeline (see
-            # app/pipeline/stages/personalize_stage.py): the configured
-            # setting, default false.
-            boundary_guard_enabled=bool(
-                getattr(_fp_settings, "first_person_boundary_guard_enabled", False)
-            ),
-            check_availability=False,
-        )
-        if not clip_ok:
-            logger.warning(
-                "Distress handler: verified_clip failed the integrity gate "
-                "(hash/speaker) -- serving template only"
-            )
-            response = safe_template
-            citations = []
-        elif _contains_hazardous_distress_sentence(verbatim):
-            logger.warning(
-                "Distress handler: verified_clip carries a hazardous sentence -- "
-                "omitting the entire clip, serving template only"
-            )
-            response = safe_template
-            citations = []
-        else:
-            # Never invent speaker credit (L-NO-INVENTED-CREDIT-1): the display
-            # label goes through the shared attribution rule — a verified or
-            # non-teacher speaker keeps its name, an unverified teacher name
-            # downgrades to "shared in <channel>" / "unverified clip", and a
-            # missing speaker renders with no "from ..." claim at all.
-            from services.attribution import resolve_attribution_label
-
-            speaker = verified_clip.get("speaker")
-            label = resolve_attribution_label(
-                speaker,
-                speaker_verified=verified_clip.get("speaker_verified"),
-                channel=verified_clip.get("channel") or verified_clip.get("channel_name"),
-            )
-            if label:
-                response = (
-                    f"{safe_template}\n\nHere is a recorded teaching from {label}:\n\n{verbatim}"
-                )
-            else:
-                response = f"{safe_template}\n\nHere is a recorded teaching:\n\n{verbatim}"
-            served_teacher_texts.append(verbatim)
-            if verified_clip.get("citations"):
-                citations = verified_clip["citations"]
-            elif verified_clip.get("source_url") or verified_clip.get("url"):
-                citations = [
-                    {
-                        "source_title": verified_clip.get("title") or "Teaching Clip",
-                        "source_url": verified_clip.get("source_url") or verified_clip.get("url"),
-                        "speaker": label,
-                    }
-                ]
     else:
         # LV-1: Return the fixed, clinician-reviewed Serene Mind template.
         # Zero-synthesis invariant: never generate model prose in the founders' voices,
-        # and never produce speakerless citations from retrieved corpus chunks.
+        # never serve raw clip state, and never produce speakerless citations from
+        # retrieved corpus chunks.
         response = safe_template
         citations = []
 
@@ -1723,10 +1649,8 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
     if not response or not response.strip():
         response = get_distress_response()
 
-    # Served teacher text (fp_text / clip verbatim) joins the docs haystack:
-    # quotes inside a served clip are verified by the integrity gate above, so
-    # they must survive unquoting even when the clip text is not in
-    # relevant_docs. Other response text keeps the existing unquote behavior.
+    # Pipeline-gated teacher text joins the docs haystack so its exact quotes
+    # survive cleanup even when the source text is not in relevant_docs.
     unquote_docs = list(relevant_docs or [])
     unquote_docs.extend({"text": t} for t in served_teacher_texts if t)
     response, _unquoted = _unquote_unverifiable_spans(response, unquote_docs)

@@ -966,3 +966,33 @@ async def test_genuine_live_info_question_still_returns_canned_reply(monkeypatch
     result = await OffTopicStage().run(_build_ctx(question))
     assert result is not None
     assert result.final_answer == LIVE_INFO_UNAVAILABLE
+
+
+@pytest.mark.asyncio
+async def test_off_topic_ask_about_our_own_practice_never_reaches_the_general_lane(
+    monkeypatch,
+) -> None:
+    """2026-10-31 (ua66): 'calories in a Soul Sync session' got a model-written answer."""
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(mod, "off_topic_domain_boundary_enabled", lambda: True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    ctx = _build_ctx("How many calories does a 20-minute Soul Sync session burn?")
+    assert await OffTopicStage().run(ctx) is None
+    assert ctx.state["general_knowledge_mode"] is False
+    assert ctx.state["domain_route"] == "teaching"
+
+
+@pytest.mark.asyncio
+async def test_general_lane_still_open_when_the_llm_fallback_is_enabled(monkeypatch) -> None:
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(mod, "off_topic_domain_boundary_enabled", lambda: True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    ctx = _build_ctx("How many calories does a 20-minute Soul Sync session burn?")
+    assert await OffTopicStage().run(ctx) is None
+    assert ctx.state.get("general_knowledge_mode") is True

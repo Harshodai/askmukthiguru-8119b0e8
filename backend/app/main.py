@@ -31,6 +31,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Fix import paths — run from backend/ directory
 sys.path.insert(0, ".")
@@ -89,6 +90,7 @@ coalescer = _build_coalescer(redis_url=getattr(settings, "redis_url", None), ttl
 
 # Existing routers
 from app.api.admin import admin_router
+from app.api.admin_video_review import router as admin_video_review_router
 from app.api.assistants import router as assistants_router
 from app.api.cache_metrics import router as cache_metrics_router
 from app.api.cancel_flow import router as cancel_flow_router
@@ -430,6 +432,12 @@ async def _background_startup_body(container, fastapi_app) -> None:
                     _collection,
                     _contract.digest[:12],
                 )
+                if _enforce_publication:
+                    from app.corpus_publication import verify_publication_manifest_exists
+
+                    verify_publication_manifest_exists(
+                        getattr(settings, "default_corpus_id", "askmukthiguru")
+                    )
             except IndexFingerprintError as _contract_error:
                 _message = (
                     f"Retrieval index '{_collection}' is incompatible with the active "
@@ -838,6 +846,10 @@ async def lifespan(app: FastAPI):
                 getattr(settings, "first_person_context_harness_enabled", False)
             ),
             legacy_route_enabled=bool(getattr(settings, "first_person_route_enabled", True)),
+            context_terminal_enabled=(
+                getattr(settings, "first_person_context_terminal_enabled", False) is True
+            ),
+            active_collection=str(getattr(settings, "first_person_active_collection", "") or ""),
         )
     except Exception as exc:  # noqa: BLE001 - a broken contract must fail closed
         logger.error("Lifespan: first-person serving contract unreadable: %s", exc)
@@ -1339,6 +1351,16 @@ from app.middleware.idempotency import IdempotencyMiddleware
 if settings.redis_url and settings.redis_url.startswith(("redis://", "rediss://", "unix://")):
     app.add_middleware(IdempotencyMiddleware, redis_url=settings.redis_url)
 
+# ProxyHeadersMiddleware — resolve real client IP behind reverse proxies (Nginx/Railway)
+# Trust X-Forwarded-For only from the configured proxy ranges (FORWARDED_ALLOW_IPS, e.g.
+# 10.0.0.0/8 on Railway). A wildcard let any client spoof its IP and dodge per-IP limits;
+# production already refuses "*" (Settings validator). Unset = loopback only, uvicorn's default.
+app.add_middleware(
+    ProxyHeadersMiddleware,
+    trusted_hosts=[h.strip() for h in settings.forwarded_allow_ips.split(",") if h.strip()]
+    or ["127.0.0.1"],
+)
+
 
 # In-flight tracker middleware for graceful drain (R3)
 @app.middleware("http")
@@ -1433,6 +1455,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(admin_router, prefix="/api/admin")
+app.include_router(admin_video_review_router, prefix="/api/admin/fp-videos")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(health_router, prefix="")
 app.include_router(capabilities_router, prefix="/api")

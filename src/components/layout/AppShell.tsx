@@ -6,7 +6,6 @@ import {
   MessageCircle,
   User,
   Flame,
-  Sparkles,
   Search,
   Compass,
   ArrowLeft,
@@ -38,7 +37,8 @@ import { Button } from '@/components/ui/button';
 import { useProfile } from '@/hooks/useProfile';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
-import { checkConnection } from '@/lib/aiService';
+import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
+import { checkConnection, resetHealthCache } from '@/lib/aiService';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 
 interface AppShellProps {
@@ -58,10 +58,29 @@ const SidebarBrand = () => {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { profile } = useProfile();
+  const location = useLocation();
+  const isProfile = location.pathname === '/profile';
+
   return (
     <div className="flex items-center gap-3 px-2 py-3">
-      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-ojas to-ojas-light flex items-center justify-center shadow-md shrink-0">
-        <Sparkles className="w-5 h-5 text-primary-foreground" />
+      <div
+        className={cn(
+          "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 overflow-hidden",
+          isProfile
+            ? "bg-gradient-to-br from-amber-50 via-white to-amber-100/90 border border-ojas/30 ring-1 ring-amber-200/50 shadow-xs text-amber-800 p-0.5"
+            : "bg-gradient-to-br from-amber-400/20 via-background to-amber-600/20 border border-ojas/30 shadow-md p-0.5"
+        )}
+      >
+        <img
+          src="/images/ekam-golden-orb-lotus-square.png"
+          alt="Ekam Golden Orb"
+          className="w-full h-full object-cover rounded-lg"
+          onError={(e) => {
+            // Fallback to SVG if image fails to load
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+        <EkamGoldenOrb className="w-5 h-5 hidden only:block" />
       </div>
       {!collapsed && (
         <div className="flex-1 min-w-0">
@@ -160,22 +179,40 @@ const ConnectionPill = () => {
   const [mode, setMode] = useState<string>(t('layout.offlineMode'));
   const [connected, setConnected] = useState<boolean>(true);
 
+  const poll = async () => {
+    const result = await checkConnection();
+    setMode(result.mode);
+    setConnected(result.connected);
+  };
+
   useEffect(() => {
     let cancelled = false;
-    const poll = async () => {
+    const run = async () => {
       const result = await checkConnection();
       if (!cancelled) {
         setMode(result.mode);
         setConnected(result.connected);
       }
     };
-    poll();
-    const id = setInterval(poll, 30_000);
+    run();
+    const id = setInterval(run, 30_000);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
   }, [t]);
+
+  const handleRecheck = () => {
+    resetHealthCache();
+    void poll();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleRecheck();
+    }
+  };
 
   const dotColor = connected
     ? mode === t('layout.connectedMode')
@@ -185,8 +222,15 @@ const ConnectionPill = () => {
 
   return (
     <div
-      className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-card/60 text-[11px] text-muted-foreground"
-      title={t('layout.aiService', { mode })}
+      role="button"
+      tabIndex={0}
+      onClick={handleRecheck}
+      onKeyDown={handleKeyDown}
+      className={cn(
+        'hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-card/60 text-[11px] text-muted-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring select-none',
+        !connected && 'cursor-pointer hover:border-destructive/60 transition-colors',
+      )}
+      title={connected ? t('layout.aiService', { mode }) : `${mode} — Click to re-check connection`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dotColor} ${!connected ? 'animate-pulse' : ''}`} />
       <span>{mode}</span>

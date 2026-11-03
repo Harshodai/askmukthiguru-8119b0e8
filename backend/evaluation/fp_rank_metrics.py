@@ -53,6 +53,47 @@ def ndcg_at_k(hits: list[bool], k: int = NDCG_K) -> float:
     return round(dcg, 4)
 
 
+def average_precision_at_k(
+    hits: list[bool],
+    k: int = 10,
+    total_relevant: int | None = None,
+) -> float:
+    """Average Precision at rank k for a single query."""
+    if not hits or k <= 0:
+        return 0.0
+    hits_k = hits[:k]
+    rel_positions = [i + 1 for i, h in enumerate(hits_k) if h]
+    if not rel_positions:
+        return 0.0
+    precisions = [rank_idx / pos for rank_idx, pos in enumerate(rel_positions, start=1)]
+    if total_relevant is not None and total_relevant > 0:
+        denom = min(total_relevant, k)
+    else:
+        denom = len(rel_positions)
+    return round(sum(precisions) / denom, 4)
+
+
+def map_at_k(all_hits: list[list[bool]], k: int) -> float:
+    """Mean Average Precision at k across multiple queries."""
+    if not all_hits:
+        return 0.0
+    return round(sum(average_precision_at_k(h, k=k) for h in all_hits) / len(all_hits), 4)
+
+
+def mrr(all_hits: list[list[bool]]) -> float:
+    """Mean Reciprocal Rank across multiple queries."""
+    if not all_hits:
+        return 0.0
+    return round(sum(reciprocal_rank(h) for h in all_hits) / len(all_hits), 4)
+
+
+def mean_ndcg_at_k(all_hits: list[list[bool]], k: int = 10) -> float:
+    """Mean NDCG at k across multiple queries."""
+    if not all_hits:
+        return 0.0
+    return round(sum(ndcg_at_k(h, k=k) for h in all_hits) / len(all_hits), 4)
+
+
 def score_ranking(
     hit_list: list[bool],
     n_candidates: int = 0,

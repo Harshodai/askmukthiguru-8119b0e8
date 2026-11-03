@@ -531,6 +531,16 @@ def test_compound_facet_split_and_assembly_contract(sample_verified_clip: dict[s
         mock_settings.first_person_quality_blocklist_path = ""
         mock_settings.first_person_boundary_guard_enabled = False
         mock_settings.first_person_content_quality_gate_enabled = False
+        mock_settings.first_person_answerability_check_enabled = False
+        mock_settings.first_person_relevance_gate_enabled = True
+        mock_settings.first_person_speculative_parallelism_enabled = False
+        mock_settings.first_person_llm_rerank_enabled = False
+        mock_settings.first_person_rerank_none_abstain_enabled = False
+        mock_settings.first_person_context_harness_enabled = False
+        mock_settings.first_person_context_terminal_enabled = False
+        mock_settings.first_person_harness_parallel_enabled = False
+        mock_settings.first_person_second_quote_enabled = False
+        mock_settings.first_person_mode = "retrieval_only"
 
         pipeline = FirstPersonPipeline(store=mock_store, llm_service=mock_llm)
         compound_query = "What is meditation, and how does it heal suffering?"
@@ -541,6 +551,7 @@ def test_compound_facet_split_and_assembly_contract(sample_verified_clip: dict[s
 
         assert res.status == "weak_match"
         assert res.is_direct_answer is False
+        assert res.answerability is None
         assert len(res.citations) == 1
         assert res.citations[0]["point_id"] == "pt_med_1"
 
@@ -560,6 +571,185 @@ def test_compound_facet_split_and_assembly_contract(sample_verified_clip: dict[s
         assert "scorer_ms" in res.stage_timings
         assert "assembly_ms" in res.stage_timings
         assert res.stage_timings["total_ms"] > 0.0
+
+
+@pytest.mark.relevance_real
+def test_compound_below_min_facet_keeps_honest_gap_and_does_not_reuse_clip(
+    sample_verified_clip: dict[str, Any],
+) -> None:
+    """Each facet needs its own above-min candidate; failed facets stay gaps."""
+    import time
+
+    text2 = (
+        "Awareness meets suffering with patience and compassion, allowing the heart "
+        "to remain open while the mind becomes quiet and clear."
+    )
+    clip1 = {**sample_verified_clip, "point_id": "pt_med_1", "video_id": "video_1"}
+    clip2 = {
+        **sample_verified_clip,
+        "point_id": "pt_suffering_2",
+        "video_id": "video_2",
+        "verbatim_text": text2,
+        "text_snippet": text2,
+        "transcript_hash": hashlib.sha256(text2.encode()).hexdigest(),
+    }
+    mock_store = MagicMock()
+    mock_store.search_hybrid.return_value = [clip1, clip2]
+    mock_llm = MagicMock()
+    # Facet one clears the minimum; facet two has a distinct candidate but is
+    # below minimum and must therefore render the explicit honest gap.
+    mock_llm.generate.side_effect = ["3,1", "1"]
+
+    with (
+        patch("services.first_person_pipeline.settings") as mock_settings,
+        patch("services.first_person_pipeline.is_youtube_video_available", return_value=True),
+        patch("services.first_person_pipeline.video_is_blocked", return_value=False),
+    ):
+        mock_settings.first_person_require_speaker_verified = False
+        mock_settings.first_person_content_quality_gate_enabled = False
+        mock_settings.first_person_boundary_guard_enabled = False
+        mock_settings.first_person_quality_allowlist_path = ""
+        mock_settings.first_person_quality_blocklist_path = ""
+        mock_settings.first_person_answerability_check_enabled = False
+        mock_settings.first_person_relevance_gate_enabled = True
+        mock_settings.first_person_relevance_min_score = 3
+        mock_settings.first_person_relevance_model = ""
+        mock_settings.jev_enabled = False
+        mock_settings.first_person_relevance_jev_enabled = False
+        mock_settings.first_person_speculative_parallelism_enabled = False
+        mock_settings.first_person_llm_rerank_enabled = False
+        mock_settings.first_person_rerank_none_abstain_enabled = False
+        mock_settings.first_person_context_harness_enabled = False
+        mock_settings.first_person_context_terminal_enabled = False
+        mock_settings.first_person_harness_parallel_enabled = False
+        mock_settings.first_person_second_quote_enabled = False
+        mock_settings.first_person_mode = "retrieval_only"
+        mock_settings.first_person_continuous_layout_enabled = True
+
+        pipeline = FirstPersonPipeline(store=mock_store, llm_service=mock_llm)
+        result = pipeline._execute_compound(
+            query="What is meditation and how does it relate to suffering?",
+            facets=["What is meditation?", "How does it relate to suffering?"],
+            query_dense_vector=[0.1] * 1024,
+            query_sparse_vector=None,
+            teacher_id="both",
+            max_clips=3,
+            start_time=time.monotonic(),
+            cache_bypass=True,
+            request_allow_state="off",
+            request_block_state="off",
+            fp_llm_tokens=[],
+        )
+
+    assert result.status == "weak_match"
+    assert result.answerability is None
+    assert len(result.citations) == 1
+    assert result.citations[0]["point_id"] == "pt_med_1"
+    assert "I don't have a recording that answers this part yet." in result.answer_text
+    assert text2 not in result.answer_text
+    # The first clip may not be reused to fill the second facet.
+    assert result.answer_text.count(clip1["verbatim_text"]) == 1
+    assert mock_llm.generate.call_count == 2
+
+
+def test_compound_path_rejects_unverified_clip_when_setting_requires_verification(
+    sample_verified_clip: dict[str, Any],
+) -> None:
+    import time
+
+    clip = {**sample_verified_clip, "speaker_verified": False}
+    mock_store = MagicMock()
+    mock_store.search_hybrid.return_value = [clip]
+    mock_llm = MagicMock()
+
+    with (
+        patch("services.first_person_pipeline.settings") as mock_settings,
+        patch("services.first_person_pipeline.is_youtube_video_available", return_value=True),
+        patch("services.first_person_pipeline.video_is_blocked", return_value=False),
+    ):
+        mock_settings.first_person_require_speaker_verified = True
+        mock_settings.first_person_content_quality_gate_enabled = False
+        mock_settings.first_person_boundary_guard_enabled = False
+        mock_settings.first_person_quality_allowlist_path = ""
+        mock_settings.first_person_quality_blocklist_path = ""
+        mock_settings.first_person_answerability_check_enabled = False
+        mock_settings.first_person_relevance_gate_enabled = False
+        mock_settings.first_person_relevance_min_score = 3
+        mock_settings.first_person_speculative_parallelism_enabled = False
+        mock_settings.first_person_llm_rerank_enabled = False
+        mock_settings.first_person_rerank_none_abstain_enabled = False
+        mock_settings.first_person_context_harness_enabled = False
+        mock_settings.first_person_context_terminal_enabled = False
+        mock_settings.first_person_harness_parallel_enabled = False
+        mock_settings.first_person_second_quote_enabled = False
+        mock_settings.first_person_mode = "retrieval_only"
+        pipeline = FirstPersonPipeline(store=mock_store, llm_service=mock_llm)
+        result = pipeline._execute_compound(
+            query="What is suffering?",
+            facets=["What is suffering?"],
+            query_dense_vector=[0.1] * 1024,
+            query_sparse_vector=None,
+            teacher_id="both",
+            max_clips=3,
+            start_time=time.monotonic(),
+            cache_bypass=True,
+            request_allow_state="off",
+            request_block_state="off",
+            fp_llm_tokens=[],
+        )
+
+    assert result.status == "abstained"
+    assert result.citations == []
+
+
+def test_compound_path_skips_relevance_provider_when_gate_is_disabled(
+    sample_verified_clip: dict[str, Any],
+) -> None:
+    import time
+
+    mock_store = MagicMock()
+    mock_store.search_hybrid.return_value = [sample_verified_clip]
+    mock_llm = MagicMock()
+
+    with (
+        patch("services.first_person_pipeline.settings") as mock_settings,
+        patch("services.first_person_pipeline.is_youtube_video_available", return_value=True),
+        patch("services.first_person_pipeline.video_is_blocked", return_value=False),
+    ):
+        mock_settings.first_person_require_speaker_verified = False
+        mock_settings.first_person_content_quality_gate_enabled = False
+        mock_settings.first_person_boundary_guard_enabled = False
+        mock_settings.first_person_quality_allowlist_path = ""
+        mock_settings.first_person_quality_blocklist_path = ""
+        mock_settings.first_person_answerability_check_enabled = False
+        mock_settings.first_person_relevance_gate_enabled = False
+        mock_settings.first_person_relevance_min_score = 3
+        mock_settings.first_person_speculative_parallelism_enabled = False
+        mock_settings.first_person_llm_rerank_enabled = False
+        mock_settings.first_person_rerank_none_abstain_enabled = False
+        mock_settings.first_person_context_harness_enabled = False
+        mock_settings.first_person_context_terminal_enabled = False
+        mock_settings.first_person_harness_parallel_enabled = False
+        mock_settings.first_person_second_quote_enabled = False
+        mock_settings.first_person_mode = "retrieval_only"
+        pipeline = FirstPersonPipeline(store=mock_store, llm_service=mock_llm)
+        result = pipeline._execute_compound(
+            query="What is suffering?",
+            facets=["What is suffering?"],
+            query_dense_vector=[0.1] * 1024,
+            query_sparse_vector=None,
+            teacher_id="both",
+            max_clips=3,
+            start_time=time.monotonic(),
+            cache_bypass=True,
+            request_allow_state="off",
+            request_block_state="off",
+            fp_llm_tokens=[],
+        )
+
+    assert result.status == "weak_match"
+    assert len(result.citations) == 1
+    mock_llm.generate.assert_not_called()
 
 
 def test_validate_release_grade_contract() -> None:

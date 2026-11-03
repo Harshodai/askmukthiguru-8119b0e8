@@ -19,7 +19,7 @@
  */
 import preethajiAudio from '@/assets/meditation/preethaji-serene-mind.mp3.asset.json';
 
-const PREETHAJI_AUDIO_SRC = preethajiAudio.url;
+export const PREETHAJI_AUDIO_SRC = preethajiAudio.url || '/audio/meditation/preethaji-serene-mind.mp3';
 
 export interface MeditationStep {
   id: string;

@@ -27,8 +27,8 @@ pytestmark = pytest.mark.answerability_real
 
 
 @pytest.fixture(autouse=True)
-def _disable_speculative_parallelism(monkeypatch):
-    """Force non-speculative path so the conftest _relevance_gate_stub applies.
+def _configure_answerability_tests(monkeypatch):
+    """Pin the gate on and force the non-speculative path for deterministic tests.
 
     When speculative_parallelism_enabled=True, the pipeline uses asyncio.gather
     and does per-clip JSON scoring through the same llm_service stub. The stubs
@@ -36,7 +36,10 @@ def _disable_speculative_parallelism(monkeypatch):
     response_format scorer path, which drives the score to 0 → relevance_below_min
     → abstained — not what these tests measure. The non-speculative path uses the
     conftest-stubbed _relevance_select (always index 0) instead, which is correct.
+    The local dotenv deliberately disables answerability to avoid unbudgeted live
+    provider checks; these unit tests use stubs and must opt in explicitly.
     """
+    monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
 
 

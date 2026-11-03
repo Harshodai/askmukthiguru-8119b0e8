@@ -216,6 +216,21 @@ class PipelineResult:
                 self, "verification", {**self.verification, "citations_verified": False}
             )
 
+        if not self.citations:
+            if self.citations_verified is True:
+                contradiction += " citations_verified=True is incompatible with empty citations"
+                object.__setattr__(self, "citations_verified", False)
+            if (
+                isinstance(self.verification, dict)
+                and self.verification.get("citations_verified") is True
+            ):
+                contradiction += (
+                    " verification['citations_verified']=True is incompatible with empty citations"
+                )
+                object.__setattr__(
+                    self, "verification", {**self.verification, "citations_verified": False}
+                )
+
         if contradiction:
             logger.error(
                 "F-VERIFY-1: coerced citations_verified to False -- %s", contradiction.strip()
@@ -318,4 +333,9 @@ class PipelineResult:
             "guidance_plan": (None if self.guidance_plan is None else asdict(self.guidance_plan)),
             "release_manifest": self.release_manifest,
             "provenance_context": self.provenance_context,
+            # Invariant 1: platform copy that accompanies a served clip (distress
+            # compassion framing, relationship/addiction safety boundaries, the
+            # human support line). It is rendered as its own block by the client so
+            # the answer body stays pure evidence. Empty list = nothing extra.
+            "safety_notices": list((self.route_metadata or {}).get("safety_notices") or []),
         }

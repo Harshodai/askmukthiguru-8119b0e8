@@ -27,6 +27,15 @@ import type {
   AttributionQueueItem,
   AttributionVideoDetail,
   AttributionTriagePayload,
+  VideoReviewList,
+  VideoReviewFilters,
+  VideoReviewRow,
+  VideoAuditEntry,
+  VideoDecisionPayload,
+  VideoHumanDecision,
+  CorpusProvenance,
+  QdrantIndexHealth,
+  QdrantOptimizeResult,
 } from '@/admin/types';
 import * as db from './mockData';
 
@@ -45,7 +54,17 @@ function guardMock(label: string): void {
 
 /* ── Auth helper ─────────────────────────────────────────────────────────── */
 async function fetchWithAuth(path: string, options: RequestInit = {}) {
-  const { data: { session } } = await supabase.auth.getSession();
+  let { data: { session } } = await supabase.auth.getSession();
+  if (session && session.expires_at && session.expires_at * 1000 < Date.now() + 60000) {
+    try {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed?.session) {
+        session = refreshed.session;
+      }
+    } catch {
+      // Continue with current session if refresh fails
+    }
+  }
   const token = session?.access_token;
 
   const response = await fetch(`${BACKEND_URL}${path}`, {
@@ -74,6 +93,7 @@ export interface WisdomTipDto {
   text: string;
   source: string;
   teacher: string;
+  category?: string;
 }
 
 export interface WisdomTipsPayload {
@@ -90,6 +110,28 @@ export async function getWisdomTips(): Promise<WisdomTipsPayload> {
 
 export async function regenerateWisdomTips(): Promise<WisdomTipsPayload> {
   return fetchWithAuth('/api/admin/teachings/regenerate', { method: 'POST' });
+}
+
+export async function getCuratedTeachings(): Promise<WisdomTipDto[]> {
+  return fetchWithAuth('/api/admin/teachings/curated');
+}
+
+export async function addCuratedTeaching(data: {
+  text: string;
+  teacher?: string;
+  source?: string;
+  category?: string;
+}): Promise<WisdomTipDto> {
+  return fetchWithAuth('/api/admin/teachings/curated', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCuratedTeaching(id: string): Promise<{ ok: boolean }> {
+  return fetchWithAuth(`/api/admin/teachings/curated/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
 
 /* ── Helper: backend-first with dev-only mock fallback ───────────────────── */
@@ -332,6 +374,13 @@ export async function getQualityData(filters: QueryFilters): Promise<QualityData
         manual_review_score: 0.85,
         disagreements: [],
         low_confidence: [],
+        abstentions: {
+          crisis_redirect: 14,
+          serving_contract_violation: 3,
+          unverified_speaker: 19,
+          empty_retrieval: 8,
+          total: 44,
+        },
         ...data,
       };
     },
@@ -913,5 +962,140 @@ export async function batchTriageVideo(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ video_id: videoId, action, span_ids: spanIds, notes }),
+  });
+}
+
+// ── Ingestion job status (drives the DAG's live highlight) ───────────────────
+export interface FirstPersonIngestJob {
+  job_id: string;
+  video_url?: string | null;
+  status: string;
+  stage?: string | null;
+  progress_pct: number;
+  clips_indexed: number;
+  error_message?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export async function getFirstPersonIngestJob(jobId: string): Promise<FirstPersonIngestJob> {
+  return fetchWithAuth(`/api/first-person/ingest/status/${encodeURIComponent(jobId)}`);
+}
+
+// ── First-person video approval ────────────────────────────────────────────
+// Writes need a short-lived CSRF token (bound to the admin's user id) and surface the
+// server's validation message, which fetchWithAuth's generic error text would hide.
+const VIDEO_ADMIN = '/api/admin/fp-videos';
+let videoCsrf: { token: string; fetchedAt: number } | null = null;
+const VIDEO_CSRF_MAX_AGE_MS = 50 * 60 * 1000; // server TTL is 60 min
+
+async function getVideoCsrfToken(force = false): Promise<string> {
+  if (!force && videoCsrf && Date.now() - videoCsrf.fetchedAt < VIDEO_CSRF_MAX_AGE_MS) {
+    return videoCsrf.token;
+  }
+  const res = await fetchWithAuth(`${VIDEO_ADMIN}/csrf`);
+  videoCsrf = { token: String(res.token), fetchedAt: Date.now() };
+  return videoCsrf.token;
+}
+
+export async function listVideoReview(filters: VideoReviewFilters = {}): Promise<VideoReviewList> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value === undefined || value === '' || value === null) continue;
+    params.set(key, String(value));
+  }
+  const qs = params.toString();
+  return fetchWithAuth(`${VIDEO_ADMIN}${qs ? `?${qs}` : ''}`);
+}
+
+export async function getVideoReview(
+  videoId: string,
+): Promise<{ video: VideoReviewRow; audit: VideoAuditEntry[] }> {
+  return fetchWithAuth(`${VIDEO_ADMIN}/${encodeURIComponent(videoId)}`);
+}
+
+export async function saveVideoDecision(
+  videoId: string,
+  payload: VideoDecisionPayload,
+): Promise<{ ok: boolean; decision: VideoHumanDecision | null; blocks_serving: boolean }> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const send = async (token: string) =>
+    fetch(`${BACKEND_URL}${VIDEO_ADMIN}/${encodeURIComponent(videoId)}`, {
+      method: 'PUT',
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': token,
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+  let response = await send(await getVideoCsrfToken());
+  if (response.status === 403) {
+    // The token may simply have expired; fetch a fresh one once before giving up.
+    response = await send(await getVideoCsrfToken(true));
+  }
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const body = await response.json();
+      if (typeof body?.detail === 'string') detail = body.detail;
+      else if (Array.isArray(body?.detail)) detail = body.detail.map((d: { msg?: string }) => d.msg).join('; ');
+    } catch {
+      /* keep the status text */
+    }
+    throw new Error(response.status === 403 ? 'Admin access denied. Verify your role and MFA.' : detail);
+  }
+  return response.json();
+}
+
+// ── Corpus Point Provenance ──────────────────────────────────────────────────
+export async function getCorpusProvenance(pointId: string): Promise<CorpusProvenance> {
+  return withDevFallback(
+    'getCorpusProvenance',
+    async () => fetchWithAuth(`/api/admin/corpus/provenance/${encodeURIComponent(pointId)}`),
+    () => ({
+      point_id: pointId,
+      source_url: 'https://www.youtube.com/watch?v=sample_teaching',
+      source_release_version: 2,
+      content_checksum: 'sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069',
+      embedding_model: 'text-embedding-3-large',
+      embedding_dimension: 1024,
+      chunker_version: 'boundary_v1:512:64',
+      gate_verdict: 'pass',
+      gate_reason: 'clean_verbatim_transcript',
+      asr_method: 'whisper_timestamped_v3',
+      align_method: 'gentle_forced_aligner',
+      rights_status: 'licensed',
+      parent_id: 'parent_unit_42',
+      parent_id_scheme: 'hierarchical_v2',
+      created_at: new Date().toISOString(),
+      ingested_at: new Date().toISOString(),
+      audio_start_ms: 32400,
+      audio_end_ms: 68100,
+    }),
+  );
+}
+
+// ── Qdrant Vector Health & Optimization ──────────────────────────────────────
+export async function getQdrantHealth(): Promise<QdrantIndexHealth> {
+  return withDevFallback(
+    'getQdrantHealth',
+    async () => fetchWithAuth('/api/admin/qdrant/health'),
+    () => ({
+      status: 'green',
+      collection: 'spiritual_wisdom_contextual',
+      points_count: 4197,
+      segments_count: 3,
+      fragmentation_pct: 0,
+      optimizer_status: 'ok',
+      dimension: 1024,
+    }),
+  );
+}
+
+export async function optimizeQdrant(): Promise<QdrantOptimizeResult> {
+  return fetchWithAuth('/api/admin/qdrant/optimize', {
+    method: 'POST',
   });
 }

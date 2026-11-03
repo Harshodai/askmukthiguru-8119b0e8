@@ -30,5 +30,9 @@ export async function refreshAccessToken(): Promise<string | null> {
 
 export async function getAccessToken(): Promise<string | undefined> {
   const { data: { session } } = await supabase.auth.getSession();
+  if (session && session.expires_at && session.expires_at * 1000 < Date.now() + 60000) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return refreshed;
+  }
   return session?.access_token;
 }

@@ -39,6 +39,7 @@ from ingest.raptor import RaptorIndexer
 _INGESTION_NEO4J_DRIVER = None
 _INGESTION_NEO4J_DRIVER_LOCK = threading.Lock()
 
+from ingest.chunker_protocol import get_chunker
 from ingest.sources.youtube_service import YouTubeIngestionService
 from ingest.youtube_loader import (
     extract_video_id,
@@ -55,7 +56,6 @@ from services.metadata_extractor import extract_video_metadata
 from services.ocr_service import OCRService
 from services.ollama_service import OllamaService
 from services.pii_scanner import redact_pii
-from services.proposition_service import PropositionService
 from services.qdrant_service import QdrantService
 from services.text_quality_filter import select_clean
 from services.whisper_local_service import (
@@ -70,6 +70,10 @@ from datetime import UTC
 
 from ingest.adaptive_chunking import AdaptiveChunker
 from ingest.corrector import TranscriptCorrector
+
+
+class SafeIngestionAbort(Exception):
+    """Raised when ingestion cannot safely proceed (e.g. backup failed on existing source or probe failure)."""
 
 
 @dataclass
@@ -120,6 +124,8 @@ class EmbedIndexConfig:
     authority_tier: str = "primary"
     assistant_slug: Optional[str] = None
     qdrant_override: Optional[Any] = None
+    source_release_version: Optional[int] = None
+    content_checksum: Optional[str] = None
 
 
 def is_valid_text_deterministic(text: str) -> tuple[bool, str]:
@@ -510,13 +516,12 @@ class IngestionPipeline:
         self._semantic_cache = semantic_cache_service
         self._corpus_id = corpus_id or settings.default_corpus_id
         if release_registry is None:
-            from app.corpus_release_registry import CorpusReleaseRegistry
+            from app.corpus_release_registry import SourceReleaseRegistry
 
-            release_registry = CorpusReleaseRegistry.from_settings(settings)
+            release_registry = SourceReleaseRegistry.from_settings(settings)
         self._release_registry = release_registry
 
         self._adaptive_chunker = AdaptiveChunker(self._embedder)
-        self._proposition_service = PropositionService(self._llm)
         self._contextual_chunker = ContextualChunkingService(self._llm)
         self._neo4j_driver = neo4j_driver
         self._neo4j_driver_accessor = neo4j_driver_accessor
@@ -702,6 +707,65 @@ class IngestionPipeline:
                 exc,
             )
             return fallback_version
+
+    def _derive_source_identity(
+        self,
+        source_url: str = "",
+        video_id: Optional[str] = None,
+        title: Optional[str] = None,
+    ) -> str:
+        """Derive stable source identity from source_url, video_id, or title."""
+        if source_url and source_url.strip():
+            vid = extract_video_id(source_url)
+            if vid:
+                return vid
+            return source_url.strip()
+        if video_id and video_id.strip():
+            return video_id.strip()
+        if title and title.strip():
+            return title.strip()
+        return "unknown"
+
+    def _register_or_resolve_source_release(
+        self,
+        *,
+        source_url: str,
+        normalized_text: str,
+        video_id: Optional[str] = None,
+        title: Optional[str] = None,
+        fallback_version: int = 1,
+    ) -> tuple[int, str]:
+        """DE-0.1: Register source release if enabled, or resolve active version."""
+        content_checksum = hashlib.sha256(normalized_text.encode("utf-8")).hexdigest()
+        source_identity = self._derive_source_identity(
+            source_url=source_url, video_id=video_id, title=title
+        )
+
+        release_version = fallback_version
+        registry = getattr(self, "_release_registry", None)
+        if registry is not None and getattr(registry, "enabled", False):
+            try:
+                release = registry.register_source(
+                    corpus_id=self._corpus_id,
+                    source_url=source_url,
+                    source_identity=source_identity,
+                    content_checksum=content_checksum,
+                )
+                if release and getattr(release, "release_version", None):
+                    release_version = int(release.release_version)
+            except Exception as reg_err:
+                logger.warning("Source release registration failed for %s: %s", source_url, reg_err)
+                if getattr(settings, "corpus_publication_enforcement_enabled", False):
+                    raise SafeIngestionAbort(
+                        f"Corpus publication enforcement enabled: registration failed for {source_url}: {reg_err}"
+                    ) from reg_err
+                release_version = self._resolve_active_source_version(
+                    source_identity, fallback_version
+                )
+        else:
+            release_version = self._resolve_active_source_version(source_identity, fallback_version)
+
+        return release_version, content_checksum
 
     async def ingest_file(
         self,
@@ -1142,7 +1206,17 @@ class IngestionPipeline:
 
         # Chunk → embed → index (uses adaptive chunking via _split_text)
         self._notify(on_progress, "Chunking and indexing...", 0.55)
-        backup_collection = self._backup_before_reindex(url)
+        try:
+            backup_collection = self._backup_before_reindex(url)
+        except SafeIngestionAbort as e:
+            logger.error(f"Pre-reindex backup/probe failed for {url}: {e}")
+            return {
+                "status": "error",
+                "message": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
         chunks = await asyncio.to_thread(
             self._split_text,
             clean_text,
@@ -1267,7 +1341,6 @@ class IngestionPipeline:
         does not touch the shared container instance other requests use. For isolated
         testing against a non-default collection without affecting live traffic.
         """
-        import hashlib
 
         qdrant_override = None
         raptor_override = None
@@ -1276,14 +1349,17 @@ class IngestionPipeline:
             raptor_override = RaptorIndexer(self._embedder, self._llm, qdrant_override)
 
         tags = list({t.strip().lower() for t in (tags or ["general"]) if t and t.strip()})
-        source_version = self._resolve_active_source_version(
-            source_url,
-            source_version,
+        source_release_version, content_checksum = self._register_or_resolve_source_release(
+            source_url=source_url,
+            normalized_text=text.strip(),
+            title=title,
+            fallback_version=source_version,
         )
+        source_version = source_release_version
         doc_tags = extract_doctrine_tags(text)
         if doc_tags:
             tags = list(set(tags + doc_tags))
-        content_hash = hashlib.sha256(text.strip().encode("utf-8")).hexdigest()
+        content_hash = content_checksum
         checkpoint = IngestionCheckpoint()
         # Namespace by the collection actually being written: a scratch run
         # (qdrant_collection override) must neither skip on production's
@@ -1387,7 +1463,7 @@ class IngestionPipeline:
         # why this branch skips the separate LLM-based _augment_chunks step below.
         self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.4)
         final_chunks, extra_metadatas = self._hierarchical_split(
-            clean_text, title=title, speaker=speaker, topic=topic
+            clean_text, title=title, speaker=speaker, topic=topic, source_url=source_url
         )
         chunks = final_chunks  # For RAPTOR later
 
@@ -1401,7 +1477,19 @@ class IngestionPipeline:
         # method but already takes its own outer backup/rollback around it; this
         # inner safety net is harmless there (separate backup-collection prefix,
         # pruned independently) and adds real protection for the document path.
-        backup_collection = self._backup_before_reindex(source_url)
+        try:
+            backup_collection = self._backup_before_reindex(
+                source_url, qdrant_service=qdrant_override
+            )
+        except SafeIngestionAbort as e:
+            logger.error(f"Pre-reindex backup/probe failed for {source_url}: {e}")
+            return {
+                "status": "error",
+                "message": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                "source_url": source_url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         # Step 5: Embed and index
         from datetime import datetime
@@ -1424,6 +1512,8 @@ class IngestionPipeline:
                     extra_metadatas=extra_metadatas,
                     tags=tags,
                     source_version=source_version,
+                    source_release_version=source_release_version,
+                    content_checksum=content_checksum,
                     authority_tier=authority_tier,
                     assistant_slug=assistant_slug,
                     qdrant_override=qdrant_override,
@@ -1462,7 +1552,7 @@ class IngestionPipeline:
                     )
         except Exception as e:
             logger.error(f"Downstream ingestion step failed for {source_url}, rolling back: {e}")
-            self._rollback_reindex(source_url, backup_collection)
+            self._rollback_reindex(source_url, backup_collection, qdrant_service=qdrant_override)
             return {
                 "status": "error",
                 "message": f"Ingestion rolled back — downstream step failed: {e}",
@@ -1597,7 +1687,15 @@ class IngestionPipeline:
             if enriched.get("language"):
                 result["language"] = enriched["language"]
 
-        content_hash = hashlib.sha256(raw_text.strip().encode("utf-8")).hexdigest()
+        source_release_version, content_checksum = self._register_or_resolve_source_release(
+            source_url=url,
+            normalized_text=raw_text.strip(),
+            video_id=video_id,
+            title=result.get("title"),
+            fallback_version=source_version,
+        )
+        source_version = source_release_version
+        content_hash = content_checksum
         self._persist_raw_corpus(content_hash, url, raw_text, "youtube_video")
         checkpoint = IngestionCheckpoint()
         if checkpoint.is_processed(self._checkpoint_key(content_hash, source_version)):
@@ -1687,7 +1785,7 @@ class IngestionPipeline:
         # calls; only Sarvam STT diarization is gated behind max_accuracy).
         self._notify(on_progress, "Generating hierarchical parent-child chunks...", 0.6)
         final_chunks, extra_metadatas = self._hierarchical_split(
-            marked_text, title=video_title, speaker=video_speaker, topic=video_topic
+            marked_text, title=video_title, speaker=video_speaker, topic=video_topic, source_url=url
         )
         chunks = final_chunks
 
@@ -1702,7 +1800,17 @@ class IngestionPipeline:
 
         # Iceberg-style safety net: snapshot any existing points for this source
         # before overwriting, so a downstream RAPTOR/LightRAG failure can roll back.
-        backup_collection = self._backup_before_reindex(url)
+        try:
+            backup_collection = self._backup_before_reindex(url)
+        except SafeIngestionAbort as e:
+            logger.error(f"Pre-reindex backup/probe failed for {url}: {e}")
+            return {
+                "status": "error",
+                "message": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
         # P1-10: resolve per-chunk speaker labels. Try whisperx cache first (fast, exact);
         # if empty, fall back to LLM speaker-role classification (best-effort, closed-set roles
@@ -1754,6 +1862,8 @@ class IngestionPipeline:
                     thumbnail_url=result.get("thumbnail_url"),
                     chunk_speakers=chunk_speakers,
                     source_version=source_version,
+                    source_release_version=source_release_version,
+                    content_checksum=content_checksum,
                     authority_tier=authority_tier,
                     assistant_slug=assistant_slug,
                     transcript_hash=result.get("transcript_hash"),
@@ -2023,10 +2133,9 @@ class IngestionPipeline:
 
         speaker = result.get("speaker", "Unknown")
 
-        apply_props = self._proposition_service.should_apply_propositions(clean_text)
-
         # Process each topic partition
         topic_index = 0
+        parent_counter = 0
         for topic, text in sections.items():
             self._notify(on_progress, f"Processing topic: {topic}...", 0.7 + (topic_index * 0.05))
 
@@ -2034,16 +2143,21 @@ class IngestionPipeline:
             parent_chunks = parent_splitter.split_text(text)
 
             for parent_chunk in parent_chunks:
-                parent_id = str(uuid.uuid4())
+                parent_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{url}:{parent_counter}"))
+                parent_id_scheme = "deterministic_v1"
 
-                # Decompose the parent chunk into propositions (child chunks) or use adaptive chunking
-                if apply_props:
-                    propositions = await self._proposition_split(parent_chunk)
-                else:
-                    propositions = AdaptiveChunker(self._embedder).chunk_document(parent_chunk)
+                # DE-1.1: Unified Chunker Protocol for child chunks (replaces retired proposition chunking)
+                chunker = get_chunker("adaptive", embedding_service=self._embedder)
+                child_chunks_obj = chunker.chunk(parent_chunk, parent_index=parent_counter)
+                child_texts = (
+                    [c.text for c in child_chunks_obj] if child_chunks_obj else [parent_chunk]
+                )
+                chunker_ver = (
+                    child_chunks_obj[0].chunker_version if child_chunks_obj else "adaptive_v1"
+                )
 
-                # Pass the full clean_text so ContextualChunkingService situates each proposition
-                augmented = await self._augment_chunks(propositions, full_document=clean_text)
+                # Pass the full clean_text so ContextualChunkingService situates each child chunk
+                augmented = await self._augment_chunks(child_texts, full_document=clean_text)
 
                 # Prepend contextual header to each child chunk to guarantee UI clarity
                 header_parts = [f"Source: {video_title}"]
@@ -2058,21 +2172,35 @@ class IngestionPipeline:
                     all_extra_metadatas.append(
                         {
                             "parent_id": parent_id,
+                            "parent_index": parent_counter,
+                            "parent_id_scheme": parent_id_scheme,
+                            "chunker_version": chunker_ver,
                             "parent_text": parent_chunk,
                             "is_child": True,
                             "topic": topic,
                         }
                     )
+                parent_counter += 1
             topic_index += 1
 
         # Iceberg-style safety net: snapshot any existing points for this source
         # before overwriting, so a downstream RAPTOR/LightRAG failure can roll back.
-        backup_collection = self._backup_before_reindex(url)
+        try:
+            backup_collection = self._backup_before_reindex(url)
+        except SafeIngestionAbort as e:
+            logger.error(f"Pre-reindex backup/probe failed for {url}: {e}")
+            return {
+                "status": "error",
+                "message": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                "source_url": url,
+                "chunks_indexed": 0,
+                "summaries_created": 0,
+            }
 
-        # Fallback: if topic partitioning / propositioning yielded nothing, split the full text.
+        # Fallback: if topic partitioning yielded nothing, split the full text.
         if not all_chunks:
             all_chunks, all_extra_metadatas = self._hierarchical_split(
-                clean_text, title=video_title, speaker=speaker, topic="Spiritual"
+                clean_text, title=video_title, speaker=speaker, topic="Spiritual", source_url=url
             )
 
         from datetime import datetime
@@ -2458,20 +2586,22 @@ class IngestionPipeline:
                 if not chunks:
                     continue
 
-                # Phase 2: Proposition Chunking (only if not using boundary-aware chunking)
-                if max_accuracy and not settings.use_boundary_chunker:
-                    proposition_chunks = []
-                    for chunk in chunks:
-                        props = await self._proposition_split(chunk)
-                        proposition_chunks.extend(props)
-                    final_chunks = proposition_chunks
-                else:
-                    final_chunks = chunks
+                final_chunks = chunks
 
                 # Iceberg-style safety net: snapshot any existing points for this
                 # source before overwriting, so a downstream RAPTOR/LightRAG failure
                 # can roll back this one video without aborting the whole playlist.
-                backup_collection = self._backup_before_reindex(video["url"])
+                try:
+                    backup_collection = self._backup_before_reindex(video["url"])
+                except SafeIngestionAbort as e:
+                    logger.error(f"Pre-reindex backup/probe failed for {video['url']}: {e}")
+                    errors.append(
+                        {
+                            "url": video["url"],
+                            "error": f"Ingestion aborted — safety gate prevented overwrite: {e}",
+                        }
+                    )
+                    continue
 
                 # D2 span-provenance per playlist video (all-None unless
                 # this video hit local audio transcription).
@@ -2956,7 +3086,9 @@ class IngestionPipeline:
                                     if str(ent_name).strip().lower() not in neo4j_entities:
                                         points_to_delete.append(p.id)
                             if points_to_delete:
-                                qdrant.delete(collection_name=col, points_selector=points_to_delete)
+                                qdrant.delete(  # fp-write-ok: lightrag_vdb_* only
+                                    collection_name=col, points_selector=points_to_delete
+                                )  # fp-write-ok: lightrag_vdb_* only
                                 total_deleted_points += len(points_to_delete)
                     for col in relationship_cols:
                         cnt = qdrant.count(col, exact=True).count
@@ -2980,7 +3112,9 @@ class IngestionPipeline:
                                 if src_missing or tgt_missing:
                                     points_to_delete.append(p.id)
                             if points_to_delete:
-                                qdrant.delete(collection_name=col, points_selector=points_to_delete)
+                                qdrant.delete(  # fp-write-ok: lightrag_vdb_* only
+                                    collection_name=col, points_selector=points_to_delete
+                                )  # fp-write-ok: lightrag_vdb_* only
                                 total_deleted_points += len(points_to_delete)
                     if total_deleted_points > 0:
                         logger.info(
@@ -3014,36 +3148,63 @@ class IngestionPipeline:
     # _ingest_playlist, so a mid-pipeline failure rolls the source back instead
     # of leaving it half-indexed.
 
-    _BACKUP_COLLECTION_PREFIX = "spiritual_wisdom_ingest_backup"
+    _BACKUP_COLLECTION_PREFIX = "ingest_backup"
 
-    def _backup_before_reindex(self, source_url: str) -> Optional[str]:
+    def _backup_before_reindex(
+        self, source_url: str, qdrant_service: Optional[QdrantService] = None
+    ) -> Optional[str]:
         """Snapshot a source's existing points before it gets overwritten.
 
         Returns the backup collection name if a backup was taken (source already
         existed), or None for first-time ingestion (nothing to roll back to —
         on downstream failure the new source is simply deleted, not restored).
         """
-        if not self._qdrant.check_source_exists(source_url):
+        service = qdrant_service or self._qdrant
+        try:
+            exists = service.check_source_exists(source_url)
+        except Exception as e:
+            raise SafeIngestionAbort(f"Source existence probe failed for {source_url}: {e}") from e
+
+        if not exists:
             return None
+
+        coll_name = getattr(service, "_collection", "spiritual_wisdom")
+        prefix = f"{coll_name}_{self._BACKUP_COLLECTION_PREFIX}"
         from datetime import datetime
 
-        backup_collection = f"{self._BACKUP_COLLECTION_PREFIX}_{datetime.now(UTC):%Y%m%d}"
-        if self._qdrant.backup_source(source_url, backup_collection):
-            self._qdrant.prune_backups(self._BACKUP_COLLECTION_PREFIX, max_backups=5)
-            return backup_collection
-        logger.warning(
-            f"Pre-reindex backup failed for {source_url} — proceeding without rollback safety net"
-        )
-        return None
+        backup_collection = f"{prefix}_{datetime.now(UTC):%Y%m%d}"
+        try:
+            backup_ok = service.backup_source(source_url, backup_collection)
+        except Exception as e:
+            raise SafeIngestionAbort(
+                f"Pre-reindex backup failed for existing source {source_url} in {coll_name}: {e}"
+            ) from e
 
-    def _rollback_reindex(self, source_url: str, backup_collection: Optional[str]) -> None:
+        if backup_ok:
+            try:
+                service.prune_backups(prefix, max_backups=5)
+            except Exception as e:
+                logger.warning(f"Pruning backups failed for prefix {prefix}: {e}")
+            return backup_collection
+
+        raise SafeIngestionAbort(
+            f"Pre-reindex backup failed for existing source {source_url} in {coll_name}"
+        )
+
+    def _rollback_reindex(
+        self,
+        source_url: str,
+        backup_collection: Optional[str],
+        qdrant_service: Optional[QdrantService] = None,
+    ) -> None:
         """Iceberg-style rollback after a downstream ingestion step fails.
 
         Restores the pre-ingestion snapshot if one was taken, otherwise removes
         the partially-indexed new source so it isn't left half-processed.
         """
+        service = qdrant_service or self._qdrant
         if backup_collection:
-            if self._qdrant.restore_from_backup(source_url, backup_collection):
+            if service.restore_from_backup(source_url, backup_collection):
                 logger.warning(
                     f"Rolled back {source_url} to its pre-ingestion state after a downstream failure"
                 )
@@ -3052,7 +3213,7 @@ class IngestionPipeline:
                     f"Rollback FAILED for {source_url} — no backup data found in {backup_collection}"
                 )
         else:
-            self._qdrant.delete_by_source(source_url=source_url)
+            service.delete_by_source(source_url=source_url)
             logger.warning(
                 f"Removed partially-indexed new source {source_url} after a downstream failure"
             )
@@ -3283,6 +3444,17 @@ class IngestionPipeline:
         from datetime import datetime
 
         now_iso = datetime.now(UTC).isoformat()
+        rel_ver = (
+            config.source_release_version
+            if config.source_release_version is not None
+            else source_version
+        )
+        content_chk = config.content_checksum
+        if not content_chk:
+            import hashlib
+
+            content_chk = hashlib.sha256("\n".join(clean_chunks).encode("utf-8")).hexdigest()
+
         metadatas = []
         for i in range(len(clean_chunks)):
             base_meta = {
@@ -3300,6 +3472,8 @@ class IngestionPipeline:
                 "raptor_level": 0,  # Leaf node
                 # Re-ingestion metadata
                 "source_version": source_version,
+                "source_release_version": rel_ver,
+                "content_checksum": content_chk,
                 "corpus_id": self._corpus_id,
                 "ingested_at": now_iso,
                 "authority_tier": authority_tier,
@@ -3363,6 +3537,37 @@ class IngestionPipeline:
             replace_source_url=source_url,
         )
 
+        # Dual-index into first-person context collections (first_person_v11, first_person_v10)
+        if video_id:
+            try:
+                self._upsert_first_person_context(
+                    source_url=source_url,
+                    video_id=video_id,
+                    clean_chunks=clean_chunks,
+                    embeddings=embeddings,
+                    metadatas=metadatas,
+                )
+            except Exception as fp_err:
+                logger.warning(
+                    "First-person dual-indexing failed (non-fatal) for %s: %s", source_url, fp_err
+                )
+
+        # DE-0.4: Ingest writes publication manifest
+        try:
+            from app.corpus_publication import write_corpus_publication_manifest
+
+            write_corpus_publication_manifest(
+                corpus_id=self._corpus_id,
+                source_url=source_url,
+                release_version=rel_ver,
+                content_checksum=content_chk,
+                chunks_count=upserted,
+            )
+        except Exception as pub_err:
+            logger.warning(
+                "Failed to write corpus publication manifest for %s: %s", source_url, pub_err
+            )
+
         # Invalidate semantic cache entries similar to newly ingested content
         if self._semantic_cache and self._semantic_cache.is_available:
             try:
@@ -3422,6 +3627,225 @@ class IngestionPipeline:
                     e,
                 )
 
+    def _upsert_first_person_context(
+        self,
+        source_url: str,
+        video_id: str,
+        clean_chunks: list[str],
+        embeddings: dict[str, Any],
+        metadatas: list[dict[str, Any]],
+    ) -> int:
+        """Dual-index ingested chunks into the first-person context collections (e.g. first_person_v11, first_person_v10).
+
+        Constructs ParentUnit and RetrievalChild PointStructs with fp-context-v1 schema,
+        passage_dense (1024d) and passage_sparse vectors, and exact guru attribution.
+        """
+        import hashlib
+        import os
+        import uuid
+
+        from qdrant_client import QdrantClient
+        from qdrant_client.models import FieldCondition, Filter, MatchValue, PointStruct
+
+        # Explicit opt-in only. Default is empty: an ingest must never write to (or delete
+        # from) a live first_person_* serving collection on its own. This path also
+        # hardcodes the voice-verification method and defaults speaker_verified=True, which
+        # is why it must be named, never implied.
+        requested = [
+            c.strip() for c in str(settings.fp_dual_index_collections or "").split(",") if c.strip()
+        ]
+        if not requested:
+            return 0
+
+        client = getattr(self._qdrant, "_client", None)
+        if client is None:
+            qdrant_url = os.environ.get("QDRANT_URL", "http://qdrant:6333")
+            qdrant_api_key = getattr(settings, "qdrant_api_key", "")
+            client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+
+        try:
+            available_collections = {c.name for c in client.get_collections().collections}
+        except Exception as e:
+            logger.warning("Could not query Qdrant collections for FP dual-indexing: %s", e)
+            return 0
+
+        target_collections = [c for c in requested if c in available_collections]
+        if not target_collections:
+            logger.info("No first-person collections found in Qdrant; skipping FP dual-indexing")
+            return 0
+
+        teacher_hint = ""
+        for m in metadatas:
+            if m.get("speaker"):
+                teacher_hint = str(m["speaker"]).lower()
+                break
+            if m.get("teacher_id"):
+                teacher_hint = str(m["teacher_id"]).lower()
+                break
+
+        if "krishnaji" in teacher_hint and "preethaji" not in teacher_hint:
+            guru_id = "krishnaji"
+            speaker_name = "Sri Krishnaji"
+        elif "preethaji" in teacher_hint:
+            guru_id = "preethaji"
+            speaker_name = "Sri Preethaji"
+        else:
+            guru_id = "both"
+            speaker_name = "Sri Preethaji & Sri Krishnaji"
+
+        parent_unit_id = hashlib.sha256(f"parent:{video_id}".encode()).hexdigest()
+        ordered_span_ids = []
+        points_to_upsert = []
+
+        dense_vecs = embeddings.get("dense", [])
+        sparse_vecs = embeddings.get("sparse", [])
+
+        min_start_ms = 0
+        max_end_ms = 0
+
+        for i, text in enumerate(clean_chunks):
+            meta = metadatas[i] if i < len(metadatas) else {}
+            start_ms = meta.get("start_ms") or meta.get("start_time_ms")
+            end_ms = meta.get("end_ms") or meta.get("end_time_ms")
+            if start_ms is None:
+                start_ms = i * 30000
+                end_ms = (i + 1) * 30000
+            if i == 0:
+                min_start_ms = start_ms
+            max_end_ms = max(max_end_ms, end_ms)
+
+            span_id = hashlib.sha256(f"span:{video_id}:{i}:{text[:40]}".encode()).hexdigest()
+            ordered_span_ids.append(span_id)
+
+            dense_v = dense_vecs[i] if i < len(dense_vecs) else None
+            sparse_v = sparse_vecs[i] if i < len(sparse_vecs) else None
+
+            sp_dict = {}
+            if sparse_v is not None:
+                if isinstance(sparse_v, dict):
+                    sp_dict = {
+                        "indices": list(sparse_v.get("indices", [])),
+                        "values": list(sparse_v.get("values", [])),
+                    }
+                elif hasattr(sparse_v, "indices") and hasattr(sparse_v, "values"):
+                    sp_dict = {"indices": list(sparse_v.indices), "values": list(sparse_v.values)}
+
+            vector_payload = {
+                "passage_dense": [float(x) for x in dense_v]
+                if hasattr(dense_v, "__iter__")
+                else dense_v,
+                "passage_sparse": sp_dict,
+            }
+
+            text_hash = hashlib.sha256(text.encode()).hexdigest()
+            child_payload = {
+                "schema_version": "fp-context-v1",
+                "corpus_version": "fp-context-transcript-v1",
+                "guru_id": guru_id,
+                "video_id": video_id,
+                "source_asset_id": video_id,
+                "source_span_id": span_id,
+                "parent_unit_id": parent_unit_id,
+                "turn_id": f"{parent_unit_id[:12]}:t{i}",
+                "turn_index": i,
+                "source_span_index": i,
+                "start_ms": int(start_ms),
+                "end_ms": int(end_ms),
+                "speaker_id": speaker_name,
+                "speaker_role": "guru",
+                "speaker_verified": meta.get("speaker_verified", True),
+                "source_transcript_text": text,
+                "verbatim_text": text,
+                "transcript_hash": text_hash,
+                "source_text_hash": text_hash,
+                "is_verbatim": True,
+                "boundary_status": "verified",
+                "completeness_status": "complete",
+                "rights_cleared": True,
+                "domain_rights_status": meta.get("domain_rights_status", "licensed"),
+                "caption_status": "auto",
+                "provenance_kind": "speech_turn_span",
+                "voice_verification_method": "ecapa_voxceleb_centroid_v1",
+                "asr_engine": "parakeet_mlx",
+                "asr_model_version": "parakeet-tdt-0.6b-v3",
+                "retrieval_text_version": "fp-retrieval-v1",
+                "contextual_header_version": "fp-header-v1",
+                "source_url": source_url,
+                "quality_status": "verified_verbatim",
+                "record_type": "retrieval_child",
+            }
+
+            child_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{video_id}:child:{i}:{span_id}"))
+            points_to_upsert.append(
+                PointStruct(
+                    id=child_uuid,
+                    vector=vector_payload,
+                    payload=child_payload,
+                )
+            )
+
+        full_text = " ".join(clean_chunks)
+        parent_payload = {
+            "schema_version": "fp-context-v1",
+            "corpus_version": "fp-context-transcript-v1",
+            "guru_id": guru_id,
+            "video_id": video_id,
+            "parent_unit_id": parent_unit_id,
+            "ordered_source_span_ids": ordered_span_ids,
+            "start_ms": int(min_start_ms),
+            "end_ms": int(max_end_ms),
+            "parent_text_hash": hashlib.sha256(full_text.encode()).hexdigest(),
+            "speaker_ids": [speaker_name],
+            "speaker_continuity": True,
+            "boundary_status": "verified",
+            "completeness_status": "complete",
+            "host_question_span_id": None,
+            "parent_version": "parent-v1",
+            "record_type": "parent_unit",
+            "rights_cleared": True,
+            "domain_rights_status": "licensed",
+        }
+        parent_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{video_id}:parent:{parent_unit_id}"))
+        points_to_upsert.append(
+            PointStruct(
+                id=parent_uuid,
+                vector={},
+                payload=parent_payload,
+            )
+        )
+
+        total_upserted = 0
+        for target_col in target_collections:
+            try:
+                client.delete(  # fp-write-ok: only collections named in FP_DUAL_INDEX_COLLECTIONS
+                    collection_name=target_col,
+                    points_selector=Filter(
+                        must=[FieldCondition(key="video_id", match=MatchValue(value=video_id))]
+                    ),
+                    wait=True,
+                )
+                client.upsert(  # fp-write-ok: only collections named in FP_DUAL_INDEX_COLLECTIONS
+                    collection_name=target_col,
+                    points=points_to_upsert,
+                    wait=True,
+                )
+                logger.info(
+                    "Dual-indexed %d points (spans + parent) into first-person collection '%s' for video %s",
+                    len(points_to_upsert),
+                    target_col,
+                    video_id,
+                )
+                total_upserted += len(points_to_upsert)
+            except Exception as e:
+                logger.warning(
+                    "Failed to dual-index into first-person collection '%s' for video %s: %s",
+                    target_col,
+                    video_id,
+                    e,
+                )
+
+        return total_upserted
+
     def _record_kb_source(
         self,
         source_url: str,
@@ -3476,12 +3900,18 @@ class IngestionPipeline:
                 logger.warning(f"Failed to record kb_sources entry for {source_url}: {e}")
 
     def _hierarchical_split(
-        self, text: str, title: str = "", speaker: str = "", topic: str = ""
+        self,
+        text: str,
+        title: str = "",
+        speaker: str = "",
+        topic: str = "",
+        source_url: str = "",
     ) -> tuple[list[str], list[dict]]:
         """
         Phase 2 Improvement: Parent-Child Hierarchical Chunking.
         Splits text into large Parent Chunks (RecursiveCharacterTextSplitter), then into smaller Child Chunks.
         Each child chunk is approx 400 characters and is prepended with the parent context (up to 1500 characters).
+        Uses deterministic parent_id = uuid5(NAMESPACE_URL, f"{url_key}:{parent_index}").
         Returns (child_texts, child_metadatas) where metadatas contain parent mapping.
         """
         import re
@@ -3496,8 +3926,16 @@ class IngestionPipeline:
         all_child_texts: list[str] = []
         all_child_metadatas: list[dict] = []
 
-        for parent_text in parent_chunks:
-            parent_id = str(uuid.uuid4())
+        # No URL and no title: key on the text itself. A shared constant gave two
+        # unrelated documents the same parent_ids, and group_by=parent_id merged them.
+        url_key = (
+            source_url
+            or title
+            or f"content:{hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]}"
+        )
+        for parent_index, parent_text in enumerate(parent_chunks):
+            parent_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{url_key}:{parent_index}"))
+            parent_id_scheme = "deterministic_v1"
             # Truncate parent context to 1500 chars (parent_text is <=500, but keep logic)
             parent_context = parent_text[:1500]
 
@@ -3527,7 +3965,13 @@ class IngestionPipeline:
                 child_with_context = f"{source_prefix}{parent_context}\n{child}"
                 all_child_texts.append(child_with_context)
                 all_child_metadatas.append(
-                    {"parent_id": parent_id, "parent_text": parent_text, "is_child": True}
+                    {
+                        "parent_id": parent_id,
+                        "parent_index": parent_index,
+                        "parent_id_scheme": parent_id_scheme,
+                        "parent_text": parent_text,
+                        "is_child": True,
+                    }
                 )
 
         return all_child_texts, all_child_metadatas
@@ -3597,11 +4041,21 @@ class IngestionPipeline:
             return chunks
 
         if settings.use_adaptive_chunking:
-            chunks = self._adaptive_chunker.chunk_document(text)
+            strategy = "adaptive"
         elif semantic:
-            chunks = self._semantic_split(text)
+            strategy = "semantic"
         else:
-            chunks = self._splitter.split_text(text)
+            strategy = "recursive"
+
+        chunker = get_chunker(
+            strategy=strategy,
+            embedding_service=self._embedder,
+            target_size=settings.rag_chunk_size,
+            chunk_size=settings.rag_chunk_size,
+            chunk_overlap=settings.rag_chunk_overlap,
+        )
+        chunk_objs = chunker.chunk(text)
+        chunks = [c.text for c in chunk_objs]
 
         if title:
             header_parts = [f"Source: {title}"]
@@ -3693,10 +4147,11 @@ class IngestionPipeline:
 
     async def _proposition_split(self, text: str) -> list[str]:
         """
-        Phase 2 Improvement: Proposition Chunking.
-        Decomposes a chunk into independent, self-contained propositions using an LLM.
+        Deprecated per Decision D3: Proposition Chunking is retired.
+        Falls back to boundary chunking.
         """
-        return await self._proposition_service.extract_propositions(text)
+        chunker = get_chunker("boundary")
+        return [c.text for c in chunker.chunk(text)]
 
     def _semantic_split(self, text: str) -> list[str]:
         """

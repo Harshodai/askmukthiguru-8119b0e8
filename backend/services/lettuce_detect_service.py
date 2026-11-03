@@ -30,12 +30,14 @@ Contract (preserved across both paths, callers in
     }
 """
 
+from __future__ import annotations
+
 import logging
 import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Optional
 
 from app.config import settings
 from services.native_inference_gate import NativeInferenceBusy, native_inference
@@ -379,7 +381,7 @@ _NUM_IGNORED_ENTITIES = {
 }
 
 
-def _parse_num(tok: str) -> int | None:
+def _parse_num(tok: str) -> Optional[int]:
     tok_clean = tok.strip().lower()
     if tok_clean.isdigit():
         return int(tok_clean)

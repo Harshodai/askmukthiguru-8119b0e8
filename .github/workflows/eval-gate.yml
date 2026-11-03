@@ -14,6 +14,9 @@ on:
       - 'backend/app/pipeline/**'
       - 'backend/app/config.py'
       - 'backend/evaluation/golden_dataset.json'
+      - 'backend/ingest/**'
+      - 'scripts/ingestion/**'
+      - 'backend/services/qdrant/**'
   schedule:
     - cron: '0 2 * * *' # 02:00 UTC nightly
   workflow_dispatch:

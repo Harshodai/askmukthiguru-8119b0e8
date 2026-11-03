@@ -261,7 +261,7 @@ describe('ChatInterface (regression)', () => {
 
     await screen.findByRole('heading', { level: 2, name: /Test/i });
 
-    const input = screen.getByLabelText('Your message');
+    const input = await screen.findByLabelText('Your message');
     const sendButton = screen.getByLabelText('Send message');
 
     fireEvent.change(input, { target: { value: 'How do I find peace?' } });
@@ -308,7 +308,7 @@ describe('ChatInterface (regression)', () => {
 
     await screen.findByRole('heading', { level: 2, name: /Test/i });
 
-    const input = screen.getByLabelText('Your message');
+    const input = await screen.findByLabelText('Your message');
     const sendButton = screen.getByLabelText('Send message');
 
     fireEvent.change(input, { target: { value: 'Tell me about awareness' } });
@@ -358,7 +358,7 @@ describe('ChatInterface (regression)', () => {
 
     await screen.findByRole('heading', { level: 2, name: /Test/i });
 
-    const input = screen.getByLabelText('Your message');
+    const input = await screen.findByLabelText('Your message');
     const sendButton = screen.getByLabelText('Send message');
 
     fireEvent.change(input, { target: { value: 'What is stillness?' } });
@@ -406,7 +406,7 @@ describe('ChatInterface (regression)', () => {
 
     await screen.findByRole('heading', { level: 2, name: /Test/i });
 
-    const input = screen.getByLabelText('Your message');
+    const input = await screen.findByLabelText('Your message');
     const sendButton = screen.getByLabelText('Send message');
 
     fireEvent.change(input, { target: { value: 'Trigger error' } });

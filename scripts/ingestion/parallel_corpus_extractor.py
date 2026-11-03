@@ -47,13 +47,12 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 sys.path.insert(0, str(REPO_ROOT / "backend"))
 sys.path.insert(0, str(REPO_ROOT))
 
-from services.transcript_verbatim import has_hard_failure, per_video_checks
-
 from scripts.ingestion.corpus_engine import (
     CanonicalSegment,
     CorpusEngine,
     SpeakerEvidence,
 )
+from services.transcript_verbatim import has_hard_failure, per_video_checks
 
 try:
     from services.doctrine_terms import get_whisper_initial_prompt

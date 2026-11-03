@@ -16,7 +16,8 @@ These tests verify:
    "Sri Krishnaji teaches", "teach us that", etc.
 5. SEVERE and CRISIS queries continue to carry the full 24/7 crisis support block (14416 / 988).
 6. Every distress response ends with a human support line.
-7. Verified verbatim clips from first-person route (if attached) are supported safely.
+7. Only already-gated first-person pipeline results may add teaching below SEVERE; raw clip state is ignored.
+8. SEVERE and CRISIS stay template-only even if a stale internal success result is present.
 """
 
 from __future__ import annotations
@@ -218,10 +219,12 @@ async def test_crisis_distress_carries_24_7_crisis_support_block():
     _assert_no_generated_teachings(final_answer)
 
 
+@pytest.mark.parametrize(
+    "clip_state_key", ["verified_clip", "first_person_clip", "personalize_clip"]
+)
 @pytest.mark.asyncio
-async def test_attached_verified_first_person_clip_is_safely_rendered():
-    """When a verified verbatim clip from the first-person route is attached, it is
-    rendered alongside the safety boundary, with clip citations and no LLM synthesis."""
+async def test_raw_first_person_clip_state_is_not_served_without_gated_result(clip_state_key):
+    """Raw clip state must not bypass the gated first-person pipeline on distress."""
     mock_ollama = AsyncMock()
     engine = SereneMindEngine()
 
@@ -248,7 +251,7 @@ async def test_attached_verified_first_person_clip_is_safely_rendered():
         question="How do I find peace when I feel lonely?",
         chat_history=[],
         relevant_docs=[],
-        first_person_clip=clip,
+        **{clip_state_key: clip},
     )
 
     with (
@@ -259,10 +262,13 @@ async def test_attached_verified_first_person_clip_is_safely_rendered():
 
     assert mock_ollama.generate.call_count == 0
     final_answer = result.get("final_answer", "")
-    assert verbatim_teaching in final_answer
-    assert "Sri Krishnaji" in final_answer
-    assert len(result.get("citations", [])) == 1
-    assert result["citations"][0]["speaker"] == "Sri Krishnaji"
+    assert verbatim_teaching not in final_answer
+    assert "Sri Krishnaji" not in final_answer
+    assert result.get("citations") == []
+    assert (
+        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+    )
+    assert "14416" in final_answer or "988" in final_answer
     _assert_no_generated_teachings(final_answer)
 
 
@@ -278,17 +284,21 @@ async def test_hazardous_sentences_dropped_from_candidate_distress_text():
         "Sometimes you reach rock bottom and feel like quitting life. "
         "But observation brings stillness."
     )
-    hazardous_clip = {
-        "verbatim_text": hazardous_verbatim,
-        "transcript_hash": hashlib.sha256(hazardous_verbatim.encode("utf-8")).hexdigest(),
-        "speaker": "Sri Krishnaji",
-    }
+    from services.first_person_pipeline import FirstPersonPipelineResult
+
+    hazardous_result = FirstPersonPipelineResult(
+        answer_text=hazardous_verbatim,
+        citations=[{"source_url": "https://www.youtube.com/watch?v=hazardous1"}],
+        status="success",
+        is_direct_answer=True,
+        latency_ms=10.0,
+    )
 
     state = GraphState(
         question="I feel so low",
         chat_history=[],
         relevant_docs=[],
-        first_person_clip=hazardous_clip,
+        first_person_result=hazardous_result,
     )
 
     with (
@@ -346,25 +356,50 @@ async def test_abstained_first_person_result_does_not_pollute_distress_template(
 
 @pytest.mark.asyncio
 async def test_pipeline_result_object_first_person_is_supported():
-    """PipelineResult object with final_answer is supported when successful."""
+    """A verified, source-verbatim bridge PipelineResult remains supported."""
     from app.pipeline.result import PipelineResult
+    from rag.meditation import get_distress_response
 
     mock_ollama = AsyncMock()
-    engine = SereneMindEngine()
+    engine = MagicMock()
+    engine.async_assess_distress = AsyncMock(
+        return_value=DistressAssessment(level=DistressLevel.MODERATE, confidence=0.7)
+    )
+    engine.get_response = MagicMock(return_value=get_distress_response())
+    video_id = "dQw4w9WgXcQ"
+    quote = "Observe what is."
+    source_url = f"https://www.youtube.com/watch?v={video_id}&t=99s"
 
     fp_res = PipelineResult(
-        final_answer="Here is a teaching: Observe what is.",
+        final_answer=f"**Sri Krishnaji**\n\n{quote}\n\n{source_url}",
         citations=[
             {
                 "source_title": "Observation",
-                "source_url": "https://youtu.be/123",
+                "source_url": source_url,
+                "video_id": video_id,
+                "start_ms": 99_000,
+                "end_ms": 100_000,
+                "timestamp_seconds": 99,
                 "speaker": "Sri Krishnaji",
+                "speaker_verified": True,
+                "verbatim_text": quote,
+                "is_verbatim": True,
             }
         ],
         intent="QUERY",
         trace_id="t1",
         latency_ms=10,
+        model_used=None,
+        model_provider=None,
         route_decision="first_person_bridge",
+        citations_verified=True,
+        verification={
+            "passed": True,
+            "method": "first_person_verbatim_clip_gate",
+            "citations_verified": True,
+            "direct": True,
+        },
+        route_metadata={"fp_served": True, "selected_variant": "verbatim_clip_bridge"},
     )
 
     state = GraphState(
@@ -381,16 +416,156 @@ async def test_pipeline_result_object_first_person_is_supported():
         result = await handle_distress(state, config={})
 
     final_answer = result.get("final_answer", "")
-    assert "Observe what is" in final_answer
+    assert quote in final_answer
     assert len(result.get("citations", [])) == 1
     assert result["citations"][0]["speaker"] == "Sri Krishnaji"
+    assert result["citations"][0]["verbatim_text"] == quote
+
+
+@pytest.mark.parametrize("status", ["success", "weak_match"])
+@pytest.mark.asyncio
+async def test_gated_first_person_pipeline_result_is_supported(status):
+    """The normal gated FirstPersonPipelineResult path remains additive on distress."""
+    from rag.meditation import get_distress_response
+    from services.first_person_pipeline import FirstPersonPipelineResult
+
+    mock_ollama = AsyncMock()
+    engine = MagicMock()
+    engine.async_assess_distress = AsyncMock(
+        return_value=DistressAssessment(level=DistressLevel.MODERATE, confidence=0.7)
+    )
+    engine.get_response = MagicMock(return_value=get_distress_response())
+    gated_teaching = "Observe what is without turning away."
+    video_id = "dQw4w9WgXcQ"
+    source_url = f"https://www.youtube.com/watch?v={video_id}&t=99s"
+    fp_res = FirstPersonPipelineResult(
+        answer_text=gated_teaching,
+        citations=[
+            {
+                "source_title": "Observation",
+                "source_url": source_url,
+                "video_id": video_id,
+                "start_ms": 99_000,
+                "end_ms": 100_000,
+                "timestamp_seconds": 99,
+                "speaker": "Sri Krishnaji",
+                "speaker_verified": True,
+                "verbatim_text": gated_teaching,
+                "transcript_hash": hashlib.sha256(gated_teaching.encode()).hexdigest(),
+                "is_verbatim": True,
+            }
+        ],
+        status=status,
+        is_direct_answer=status == "success",
+        latency_ms=10.0,
+        fp_served=True,
+    )
+
+    state = GraphState(
+        question="How to be with sadness?",
+        chat_history=[],
+        relevant_docs=[],
+        first_person_result=fp_res,
+    )
+
+    with (
+        patch("rag.nodes.intent._services._serene_mind", engine),
+        patch("rag.nodes.intent._services._ollama", mock_ollama),
+    ):
+        result = await handle_distress(state, config={})
+
+    final_answer = result.get("final_answer", "")
+    assert gated_teaching in final_answer
+    assert len(result.get("citations", [])) == 1
+    assert result["citations"][0]["speaker"] == "Sri Krishnaji"
+    assert result["citations"][0]["verbatim_text"] == gated_teaching
+    assert result["citations"][0]["speaker_verified"] is True
+    assert result["citations"][0]["source_url"] == source_url
+    assert result["citations"][0]["video_id"] == video_id
+    assert mock_ollama.generate.call_count == 0
+
+
+@pytest.mark.parametrize("level", [DistressLevel.SEVERE, DistressLevel.CRISIS])
+@pytest.mark.parametrize("candidate_kind", ["success", "weak_match", "bridge"])
+@pytest.mark.asyncio
+async def test_severe_or_crisis_ignores_gated_first_person_result(level, candidate_kind):
+    """SEVERE/CRISIS stays template-only even if an internal success result leaks through."""
+    from app.pipeline.result import PipelineResult
+    from rag.meditation import get_distress_response
+    from services.first_person_pipeline import FirstPersonPipelineResult
+
+    mock_ollama = AsyncMock()
+    engine = MagicMock()
+    engine.async_assess_distress = AsyncMock(
+        return_value=DistressAssessment(level=level, confidence=1.0)
+    )
+    engine.get_response = MagicMock(return_value=get_distress_response())
+
+    video_id = "dQw4w9WgXcQ"
+    gated_quote = "The movement of thought can be observed without identification."
+    source_url = f"https://www.youtube.com/watch?v={video_id}&t=99s"
+    answer_text = f"**Sri Krishnaji**\n\n{gated_quote}\n\n{source_url}"
+    citation = {
+        "source_title": "Observation",
+        "source_url": source_url,
+        "video_id": video_id,
+        "start_ms": 99_000,
+        "end_ms": 100_000,
+        "timestamp_seconds": 99,
+        "speaker": "Sri Krishnaji",
+        "speaker_verified": True,
+        "verbatim_text": gated_quote,
+        "transcript_hash": hashlib.sha256(gated_quote.encode()).hexdigest(),
+        "is_verbatim": True,
+    }
+    if candidate_kind == "bridge":
+        fp_result = PipelineResult(
+            final_answer=answer_text,
+            citations=[citation],
+            intent="QUERY",
+            route_decision="first_person_bridge",
+            citations_verified=True,
+            verification={
+                "passed": True,
+                "method": "first_person_verbatim_clip_gate",
+                "citations_verified": True,
+                "direct": True,
+            },
+            route_metadata={"fp_served": True},
+        )
+    else:
+        fp_result = FirstPersonPipelineResult(
+            answer_text=answer_text,
+            citations=[citation],
+            status=candidate_kind,
+            is_direct_answer=candidate_kind == "success",
+            latency_ms=10.0,
+            fp_served=True,
+        )
+
+    state = GraphState(
+        question="I feel overwhelmed and unsafe.",
+        chat_history=[],
+        relevant_docs=[],
+        first_person_result=fp_result,
+    )
+    with (
+        patch("rag.nodes.intent._services._serene_mind", engine),
+        patch("rag.nodes.intent._services._ollama", mock_ollama),
+    ):
+        result = await handle_distress(state, config={})
+
+    final_answer = result.get("final_answer", "")
+    assert gated_quote not in final_answer
+    assert answer_text not in final_answer
+    assert result.get("citations") == []
+    assert "14416" in final_answer or "988" in final_answer
+    assert mock_ollama.generate.call_count == 0
 
 
 @pytest.mark.asyncio
 async def test_verified_clip_without_speaker_falls_back_to_template_only():
-    """Teacher-voice safety: a verified_clip with no stored speaker must NOT be
-    attributed to a default teacher. The response is template-only with zero
-    citations -- when in doubt, omit the clip."""
+    """Raw verified_clip state without a gated result is template-only."""
     mock_ollama = AsyncMock()
     engine = SereneMindEngine()
 

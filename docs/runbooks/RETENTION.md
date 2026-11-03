@@ -19,13 +19,14 @@ Overrides: `TELEMETRY_RETENTION_DAYS` (module constant), `--days-telemetry`, `--
 
 ## Scheduling
 
-Run nightly. Local: cron; Railway: job/service cron `0 3 * * *`. Always schedule `--dry-run` first and review output before LIVE PURGE.
+Run nightly. Local: cron; Railway: job/service cron `0 3 * * *`. The script is a dry run unless `--apply` is passed; review the dry-run output before scheduling `--apply`. `corpus_gate_rejections` is never purged automatically (X40: rejections must stay recorded).
 
 ## Dry run
 
 ```bash
 cd backend
-.env/bin/python scripts/ops/cleanup_inactive_user_data.py --dry-run
+.venv/bin/python scripts/ops/cleanup_inactive_user_data.py          # dry run (default)
+.venv/bin/python scripts/ops/cleanup_inactive_user_data.py --apply  # live purge
 ```
 
 ## Verification

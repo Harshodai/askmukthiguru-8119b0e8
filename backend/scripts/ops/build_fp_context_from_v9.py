@@ -40,6 +40,7 @@ import re
 import sys
 from collections import Counter
 from collections.abc import Iterable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +79,12 @@ from domain.first_person_context import (
     make_parent_unit_id,
     make_source_span_id,
 )
+from domain.speaker_provenance import (
+    METHOD_ECAPA_CENTROID_V1,
+    METHOD_ECAPA_SPAN_SLICE_V2,
+    automated_voice_fields,
+    pending_voice_fields,
+)
 from ingest.verbatim.asr_cleaner import (
     asr_cleaner_flags,
     asr_cleaner_notes,
@@ -88,8 +95,9 @@ from ingest.verbatim.gates import script_and_loop_problem
 
 DEFAULT_CORPUS_VERSION = "fp-context-transcript-v1"
 DEFAULT_MIN_ALIGNMENT = 0.85
-# Method recorded for a span whose speaker an ECAPA verdict confirmed.
-VOICE_METHOD_DEFAULT = "ecapa_voxceleb_centroid_v1"
+# Method recorded for a span whose speaker an ECAPA verdict confirmed. A verdict row that
+# names no method is the legacy whole-clip centroid check.
+VOICE_METHOD_DEFAULT = METHOD_ECAPA_CENTROID_V1
 # Reported only, never blocking: the data-quality scorecard
 # (scripts/ops/fp_data_quality_scorecard.py) treats a span outside 8-60 s as out of band.
 SPAN_MAX_SECONDS_REPORTED = 60.0
@@ -309,6 +317,42 @@ def _is_container(outer: int, inner: int, rows: list, row_words: list[list[str]]
     )
 
 
+def _voice_fields(
+    verdict: dict[str, Any], doc: dict[str, Any], built_at: str | None
+) -> dict[str, Any]:
+    """``SourceSpan`` voice keyword arguments for one verdict row (P3).
+
+    This builder has no span audio, so it cannot produce method v2 itself. It carries a v2 row
+    (written by ``regenerate_v10_span_ecapa_verdicts``) only when the row has complete evidence.
+    A legacy centroid row is refused (review D3: it has no per-span score, so a new write may
+    not claim it). Anything else, including a v2 row with missing evidence, is
+    ``speaker_verified=False`` / ``pending_voice_check``: stored, never promoted.
+    """
+    if verdict.get("verified") is not True:
+        return pending_voice_fields()
+    method = str(verdict.get("method") or VOICE_METHOD_DEFAULT)
+    if method == METHOD_ECAPA_CENTROID_V1:
+        return pending_voice_fields()
+    if method == METHOD_ECAPA_SPAN_SLICE_V2:
+        return automated_voice_fields(
+            verified=True,
+            evidence={
+                "cosine": verdict.get("cosine"),
+                "margin": verdict.get("margin"),
+                "cosine_floor": verdict.get("cosine_floor", doc.get("cosine_floor")),
+                "margin_threshold": verdict.get(
+                    "margin_threshold", doc.get("margin_threshold", doc.get("threshold"))
+                ),
+            },
+            model_revision=verdict.get("speaker_model_revision")
+            or doc.get("speaker_model_revision"),
+            calibration_id=verdict.get("calibration_revision") or doc.get("calibration_revision"),
+            verified_at=built_at,
+            window_check=verdict.get("window_check"),
+        )
+    return pending_voice_fields()
+
+
 def build(
     points: Iterable[dict[str, Any]],
     *,
@@ -318,6 +362,7 @@ def build(
     speaker_verdicts: dict[str, Any] | None = None,
     asr_dir: Path | None = None,
     asr_model: str = "large-v3",
+    built_at: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, dict[str, Any]]]:
     """Return (manifest payloads, report, source vectors keyed by old point id).
 
@@ -365,7 +410,13 @@ def build(
         clip_text = str(payload.get("verbatim_text") or "").strip()
         parent_key = str(payload.get("parent_id") or payload.get("group_id") or video_id)
         verdict = verdict_items.get(str(point.get("id"))) or {}
-        voice_verified = verdict.get("verified") is True
+        voice_fields = _voice_fields(verdict, speaker_verdicts or {}, built_at)
+        voice_verified = voice_fields["speaker_verified"] is True
+        if (
+            verdict.get("verified") is True
+            and str(verdict.get("method") or VOICE_METHOD_DEFAULT) == METHOD_ECAPA_CENTROID_V1
+        ):
+            quality["speaker_legacy_centroid_refused"] += 1
         cleaner_flags = asr_cleaner_flags(clip_text)
         # Informational only (never quarantines): repeats the cleaner no longer edits.
         for note in asr_cleaner_notes(clip_text):
@@ -423,10 +474,11 @@ def build(
         word_end = word_start + max(1, len(clip_words))
         window_text = " ".join(raw_words[word_start : word_start + len(clip_words)])
         # Carry the per-span voice evidence to the build step below.
-        payload["_voice_verified"] = voice_verified
-        payload["_voice_method"] = str(verdict.get("method") or VOICE_METHOD_DEFAULT)
+        payload["_voice_fields"] = voice_fields
         if payload.get("speaker_verified") is True and not voice_verified:
             quality["speaker_label_only"] += 1
+        if verdict.get("verified") is True and not voice_verified:
+            quality["speaker_provenance_incomplete"] += 1
         if _norm_words(window_text) != clip_words:
             # Stored clip words differ from the transcript they were located in. The
             # text is kept as stored (never edited here), but no per-span record says
@@ -528,12 +580,10 @@ def build(
                     word_end=word_end,
                     speaker_id=str(payload.get("speaker") or guru_id),
                     speaker_role=_speaker_role(payload),
-                    # Only a span-level verdict makes a span verified, and the method is
-                    # recorded with it. A legacy clip label alone stays False/None.
-                    speaker_verified=bool(payload["_voice_verified"]),
-                    voice_verification_method=(
-                        payload["_voice_method"] if payload["_voice_verified"] else None
-                    ),
+                    # Only a span-level verdict makes a span verified, and what produced
+                    # the claim is recorded with it. A legacy clip label alone stays
+                    # False/pending_voice_check.
+                    **payload["_voice_fields"],
                     asr_engine="faster_whisper" if source == "asr" else None,
                     asr_model_version=asr_model if source == "asr" else None,
                     source_transcript_text=window_text or verbatim,
@@ -670,9 +720,15 @@ def _apply(
     )
 
     from services.first_person_context_store import (
+        assert_speaker_provenance,
         parent_point_id,
         point_id_for_record,
     )
+
+    # I3: refuse the whole promotion before any collection is created or deleted. A build made
+    # by an older builder can carry label-only speaker claims (the defect behind the 732 live
+    # points); writing it into a new collection would ship the same defect forward.
+    assert_speaker_provenance(manifest, where=f"the v9 builder manifest -> {target}")
 
     client = QdrantClient(url=qdrant_url)
     existing = {c.name for c in client.get_collections().collections}
@@ -834,6 +890,7 @@ def main(argv: list[str] | None = None) -> int:
         speaker_verdicts=verdicts,
         asr_dir=Path(args.asr_dir) if args.asr_dir else None,
         asr_model=args.asr_model,
+        built_at=datetime.now(UTC).isoformat(timespec="seconds"),
     )
     report["source_collection"] = args.source_collection
     report["speaker_verdicts"] = args.speaker_verdicts

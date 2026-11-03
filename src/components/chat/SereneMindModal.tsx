@@ -668,6 +668,8 @@ const BreathingTab = ({
   );
 };
 
+const PREETHAJI_AUDIO_URL = '/audio/meditation/preethaji-serene-mind.mp3';
+
 interface MediaTabProps {
   mode: 'audio' | 'video';
   videoId: string;
@@ -684,11 +686,14 @@ interface MediaTabProps {
 const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, externalIsPlaying, onExternalReset }: MediaTabProps) => {
   const { t } = useTranslation();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [useYoutubeAudioFallback, setUseYoutubeAudioFallback] = useState(false);
+
   // In audio mode with externalIsPlaying, local state is overridden by breath controls
   const [localIsPlaying, setLocalIsPlaying] = useState(false);
   const isPlaying = mode === 'audio' && externalIsPlaying !== undefined ? externalIsPlaying : localIsPlaying;
   const [currentTime, setCurrentTime] = useState(0);
-  const totalDuration = 180; // 3 minutes
+  const totalDuration = mode === 'audio' ? 236 : 180;
 
   // Append origin for secure local iframe embeds and prevent Error 153
   const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&modestbranding=1&rel=0&controls=${mode === 'video' ? 1 : 0}&origin=${encodeURIComponent(window.location.origin)}`;
@@ -703,6 +708,21 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
   };
 
   const handlePlayPause = () => {
+    if (mode === 'audio' && !useYoutubeAudioFallback) {
+      if (isPlaying) {
+        audioRef.current?.pause();
+        setLocalIsPlaying(false);
+      } else {
+        audioRef.current?.play().catch((e) => {
+          if (e instanceof DOMException && e.name !== 'AbortError') {
+            console.warn('[MediaTab] audio play rejected:', e.message);
+          }
+        });
+        setLocalIsPlaying(true);
+      }
+      return;
+    }
+
     if (isPlaying) {
       sendPlayerCommand('pauseVideo');
       setLocalIsPlaying(false);
@@ -714,30 +734,64 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
 
   const handleSeek = (seconds: number) => {
     setCurrentTime(seconds);
+    if (mode === 'audio' && !useYoutubeAudioFallback) {
+      if (audioRef.current) {
+        audioRef.current.currentTime = seconds;
+      }
+      return;
+    }
     sendPlayerCommand('seekTo', [seconds, true]);
   };
 
   const handleReset = () => {
     setLocalIsPlaying(false);
     setCurrentTime(0);
-    sendPlayerCommand('pauseVideo');
-    sendPlayerCommand('seekTo', [0, true]);
+    if (mode === 'audio' && !useYoutubeAudioFallback) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    } else {
+      sendPlayerCommand('pauseVideo');
+      sendPlayerCommand('seekTo', [0, true]);
+    }
     onExternalReset?.();
   };
 
   // Slave audio to breath controls when externalIsPlaying is provided
   useEffect(() => {
     if (mode !== 'audio' || externalIsPlaying === undefined) return;
+    if (mode === 'audio' && !useYoutubeAudioFallback) {
+      if (externalIsPlaying) {
+        audioRef.current?.play().catch((e) => {
+          if (e instanceof DOMException && e.name !== 'AbortError') {
+            console.warn('[MediaTab] play rejected:', e.message);
+          }
+        });
+      } else {
+        audioRef.current?.pause();
+      }
+      return;
+    }
     if (externalIsPlaying) {
       sendPlayerCommand('playVideo');
     } else {
       sendPlayerCommand('pauseVideo');
     }
+  }, [externalIsPlaying, mode, useYoutubeAudioFallback]);
 
-  }, [externalIsPlaying, mode]);
-
-  // Simulating time tracking for custom seekbar
+  // Pause audio on unmount
   useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, []);
+
+  // Simulating time tracking for custom seekbar when on fallback or video mode
+  useEffect(() => {
+    if (mode === 'audio' && !useYoutubeAudioFallback) {
+      return;
+    }
     let interval: NodeJS.Timeout | null = null;
     if (isPlaying) {
       interval = setInterval(() => {
@@ -755,7 +809,7 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPlaying, onComplete, mode, onExternalReset]);
+  }, [isPlaying, onComplete, mode, useYoutubeAudioFallback, totalDuration]);
 
   // Listen for YouTube iframe state changes (playing, paused, ended)
   useEffect(() => {
@@ -794,13 +848,24 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const steps = [
+  const videoSteps = [
     { title: t('meditation.guideStepVideo1Title'), start: 0, end: 30, desc: t('meditation.guideStepVideo1Desc') },
     { title: t('meditation.guideStepVideo2Title'), start: 30, end: 60, desc: t('meditation.guideStepVideo2Desc') },
     { title: t('meditation.guideStepVideo3Title'), start: 60, end: 90, desc: t('meditation.guideStepVideo3Desc') },
     { title: t('meditation.guideStepVideo4Title'), start: 90, end: 150, desc: t('meditation.guideStepVideo4Desc') },
     { title: t('meditation.guideStepVideo5Title'), start: 150, end: 180, desc: t('meditation.guideStepVideo5Desc') },
   ];
+
+  const audioSteps = [
+    { title: 'Arrive', start: 0, end: 21, desc: 'Settle in comfortably and let your eyes close softly.' },
+    { title: 'Observe the Body', start: 21, end: 68, desc: 'Feel your body as it is, noticing weight and warmth without changing anything.' },
+    { title: 'Observe the Breath', start: 68, end: 131, desc: 'Follow the natural breath: inhale 4 counts, exhale 6 counts.' },
+    { title: 'Observe the Sound', start: 131, end: 178, desc: 'Open awareness to ambient sounds near and far without naming them.' },
+    { title: 'Be with Compassion', start: 178, end: 225, desc: 'Hold a silent wish: May all beings be free of suffering.' },
+    { title: 'Carry the Stillness', start: 225, end: 236, desc: 'Gently return awareness and carry this peace forward.' },
+  ];
+
+  const steps = mode === 'audio' ? audioSteps : videoSteps;
 
   const activeStepIndex = steps.findIndex(
     (s) => currentTime >= s.start && currentTime < s.end
@@ -844,16 +909,39 @@ const MediaTab = ({ mode, videoId, url, isGated, onComplete, isPrimary = false, 
         <div className="space-y-6">
           {/* Custom Premium Audio Player UI */}
           <div className="glass-card rounded-2xl p-6 border border-border/40 relative overflow-hidden flex flex-col items-center">
-            {/* Hidden Iframe to play YouTube Audio */}
-            <iframe
-              ref={iframeRef}
-              src={embedUrl}
-              title="Serene Mind audio player helper"
-              allow="autoplay; encrypted-media"
-              referrerPolicy="strict-origin-when-cross-origin"
-              className="absolute pointer-events-none"
-              style={{ left: '-9999px', top: '-9999px', width: '320px', height: '240px' }}
+            {/* Direct audio element for authentic Sri Preethaji voice playback */}
+            <audio
+              ref={audioRef}
+              src={PREETHAJI_AUDIO_URL}
+              preload="auto"
+              onTimeUpdate={() => {
+                if (audioRef.current) {
+                  setCurrentTime(Math.floor(audioRef.current.currentTime));
+                }
+              }}
+              onEnded={() => {
+                setLocalIsPlaying(false);
+                onComplete?.();
+                onExternalReset?.();
+              }}
+              onError={(e) => {
+                console.warn('[MediaTab] Direct audio playback failed, falling back to YouTube', e);
+                setUseYoutubeAudioFallback(true);
+              }}
             />
+
+            {/* Hidden Iframe fallback to play YouTube Audio if direct playback fails */}
+            {useYoutubeAudioFallback && (
+              <iframe
+                ref={iframeRef}
+                src={embedUrl}
+                title="Serene Mind audio player helper"
+                allow="autoplay; encrypted-media"
+                referrerPolicy="strict-origin-when-cross-origin"
+                className="absolute pointer-events-none"
+                style={{ left: '-9999px', top: '-9999px', width: '320px', height: '240px' }}
+              />
+            )}
 
             {/* Pulsing Mandala/Flame Graphic */}
             <div className="relative w-32 h-32 flex items-center justify-center mb-4">

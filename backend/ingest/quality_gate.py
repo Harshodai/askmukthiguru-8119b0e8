@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import uuid
 from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any, Optional
@@ -826,7 +827,9 @@ class DataQualityGate:
             else:
                 reason_label = "low_spiritual_score"
 
-            INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(reason=reason_label, tier=str(tier)).inc()
+            INGEST_QUALITY_GATE_REJECTIONS_TOTAL.labels(
+                reason=reason_label, tier=str(tier), layer="quality_gate"
+            ).inc()
         except Exception as e:
             logger.debug(f"Failed to record rejection metric (non-fatal): {e}")
 
@@ -835,38 +838,54 @@ class DataQualityGate:
     ) -> tuple[list[str], list[QualityResult]]:
         """
         Filter a list of chunks, returning only those that pass quality gate.
-        Uses sampling — full gate only on first 5 chunks + random sample of remaining.
+        Enforces 100% full-corpus inspection check (DEF-02) with zero bypass.
+        Every rejected item is recorded in public.corpus_gate_rejections (Invariant X40 / DEF-03).
         """
-        import random
-
         if not self._enabled or not chunks:
             return chunks, []
 
-        # Sample strategy: check first 3 chunks + random 20% of remainder
-        indices_to_check = set(range(min(3, len(chunks))))
-        if len(chunks) > 3:
-            remainder = list(range(3, len(chunks)))
-            sample_size = max(1, int(len(remainder) * 0.2))
-            indices_to_check.update(random.sample(remainder, min(sample_size, len(remainder))))
-
         results = []
-        failed_indices: set[int] = set()
+        passed_chunks = []
+        rejected_payloads = []
 
         for i, chunk in enumerate(chunks):
-            if i in indices_to_check:
-                qr = await self.run(chunk, source_url, speaker=speaker)
-                results.append(qr)
-                if not qr.passed:
-                    failed_indices.add(i)
+            qr = await self.run(chunk, source_url, speaker=speaker)
+            results.append(qr)
+            if qr.passed:
+                passed_chunks.append(chunk)
+            else:
+                reason = qr.reasons[0] if qr.reasons else "low_quality"
+                rejected_payloads.append((i, reason, chunk[:500]))
+                logger.warning(
+                    f"quality_gate chunk reject: source_url={source_url} index={i} reason={reason}"
+                )
 
-        # If > 30% of sampled chunks fail → reject entire batch
-        if len(failed_indices) / max(len(indices_to_check), 1) > 0.3:
-            logger.warning(
-                f"Batch quality fail: {len(failed_indices)}/{len(indices_to_check)} chunks failed → rejecting all"
-            )
-            return [], results
+        if rejected_payloads:
+            try:
+                from app.telemetry_db import _get_client
 
-        return chunks, results
+                client = _get_client()
+                if client is not None:
+                    rows = [
+                        {
+                            "source_url": source_url or "unknown",
+                            "chunk_index": idx,
+                            "gate_layer": f"quality_gate_tier_{results[idx].tier_reached}",
+                            "gate_verdict": "rejected",
+                            "reason": r,
+                            "gate_reason": r,
+                            "matched_span": span[:500],
+                            "point_id": str(
+                                uuid.uuid5(uuid.NAMESPACE_URL, f"{source_url}_{idx}_0")
+                            ),
+                        }
+                        for idx, r, span in rejected_payloads
+                    ]
+                    client.table("corpus_gate_rejections").insert(rows).execute()
+            except Exception as db_err:
+                logger.error(f"Failed to persist corpus_gate_rejections in quality_gate: {db_err}")
+
+        return passed_chunks, results
 
 
 if __name__ == "__main__":

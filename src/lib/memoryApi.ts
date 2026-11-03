@@ -12,9 +12,27 @@
 import { supabase as supabaseTyped } from '@/integrations/supabase/client';
 import { BACKEND_URL } from './backendUrl';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizeSourceRef, type MemorySourceRef } from './memorySource';
 // Generated Supabase types do not yet include the guru_* memory tables.
 // Keep the dynamic table boundary contained while retaining the official client API.
 const supabase = supabaseTyped as unknown as SupabaseClient;
+
+/**
+ * Resolves the full URL for a memory endpoint.
+ * On web (browser), if BACKEND_URL is empty (relative routing/proxy/dev),
+ * returns the relative path directly.
+ */
+const resolveMemoryEndpoint = (path: string): string => {
+  if (BACKEND_URL) return `${BACKEND_URL}${path}`;
+  if (typeof window !== 'undefined') {
+    const isNative = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+    if (isNative) {
+      throw new MemoryApiError('not_configured', 'Memory backend URL is not configured on native platform.');
+    }
+    return path;
+  }
+  throw new MemoryApiError('not_configured', 'Memory backend URL is not configured.');
+};
 
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -29,6 +47,8 @@ export interface GuruMemory {
   claim?: string;
   decay_score?: number;
   confidence?: number;
+  /** Where the memory came from; null/absent means provenance is unavailable. */
+  source_ref?: MemorySourceRef | null;
 }
 
 export interface CoreMemory {
@@ -96,6 +116,8 @@ export interface KGNode {
   content?: string | null;
   analytics?: KGNodeAnalytics | null;
   community?: number;
+  /** Provenance of a Memory/NotebookItem node; null/absent means unavailable. */
+  source_ref?: MemorySourceRef | null;
 }
 
 export interface KGEdge {
@@ -151,12 +173,8 @@ async function invokeEdgeFn<T>(
  * runtime, which makes `memory-embed` unreachable and broke every add.
  */
 async function addViaBackend(text: string, accessToken: string, cause: unknown): Promise<GuruMemory> {
-  if (!BACKEND_URL) {
-    throw cause instanceof MemoryApiError
-      ? cause
-      : new MemoryApiError('server_error', 'Memory service unavailable.');
-  }
-  const res = await fetch(`${BACKEND_URL}/api/memory/add`, {
+  const endpoint = resolveMemoryEndpoint('/api/memory/add');
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -196,16 +214,32 @@ export const memoryApi = {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const { data, error, count } = await supabase
-      .from('guru_memories')
-      .select('id, content, source, created_at', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(from, to);
+    const query = (columns: string) =>
+      supabase
+        .from('guru_memories')
+        .select(columns, { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+    // Ask for the source column first. A database that has not applied the
+    // source_conversation_id migration answers 42703 (undefined_column); retry
+    // without it so the list still loads, with every source marked unavailable.
+    let result = await query('id, content, source, created_at, source_conversation_id');
+    if (result.error && (result.error.code === '42703' || result.error.code === 'PGRST204')) {
+      result = await query('id, content, source, created_at');
+    }
+    const { data, error, count } = result;
 
     if (error) throw new MemoryApiError('server_error', error.message);
 
+    const rows = (data ?? []) as unknown as Array<GuruMemory & { source_conversation_id?: string | null }>;
     return {
-      memories: (data ?? []) as GuruMemory[],
+      memories: rows.map(({ source_conversation_id, ...memory }) => ({
+        ...memory,
+        source_ref: normalizeSourceRef(
+          source_conversation_id ? { kind: 'conversation', id: source_conversation_id } : null,
+        ),
+      })),
       total: count ?? 0,
       page,
       page_size: pageSize,
@@ -237,10 +271,8 @@ export const memoryApi = {
   /** Delete a memory through the backend so all derived caches are invalidated. */
   async forget(memoryId: string): Promise<void> {
     const session = await requireSession();
-    if (!BACKEND_URL) {
-      throw new MemoryApiError("not_configured", "Memory deletion is unavailable.");
-    }
-    const res = await fetch(`${BACKEND_URL}/api/memory/forget`, {
+    const endpoint = resolveMemoryEndpoint('/api/memory/forget');
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -260,8 +292,8 @@ export const memoryApi = {
   /** Correct a memory through the ownership-checked backend path. */
   async edit(memoryId: string, text: string): Promise<void> {
     const session = await requireSession();
-    if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Memory correction is unavailable.");
-    const res = await fetch(`${BACKEND_URL}/api/memory/edit`, {
+    const endpoint = resolveMemoryEndpoint('/api/memory/edit');
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ memory_id: memoryId, text: text.trim() }),
@@ -272,8 +304,8 @@ export const memoryApi = {
   /** Read the server-authoritative consent receipt for the signed-in user. */
   async hasConsent(): Promise<boolean> {
     const session = await requireSession();
-    if (!BACKEND_URL) throw new MemoryApiError('not_configured', 'Consent status is unavailable.');
-    const res = await fetch(`${BACKEND_URL}/api/memory/consent`, {
+    const endpoint = resolveMemoryEndpoint('/api/memory/consent');
+    const res = await fetch(endpoint, {
       method: 'GET',
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
@@ -288,11 +320,16 @@ export const memoryApi = {
     return result.granted === true;
   },
 
+  /** Alias for hasConsent() to support unified consent inspection. */
+  async getConsent(): Promise<boolean> {
+    return this.hasConsent();
+  },
+
   /** Record explicit consent before the first memory save (backend consent-receipt table). */
   async recordConsent(granted: boolean, consentVersion = 'memory-v1'): Promise<void> {
     const session = await requireSession();
-    if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Consent recording is unavailable.");
-    const res = await fetch(`${BACKEND_URL}/api/memory/consent`, {
+    const endpoint = resolveMemoryEndpoint('/api/memory/consent');
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ granted, consent_version: consentVersion }),
@@ -303,8 +340,8 @@ export const memoryApi = {
   /** Erase memory and saved notebook content from every known backend store. */
   async deleteAll(): Promise<void> {
     const session = await requireSession();
-    if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Memory erasure is unavailable.");
-    const res = await fetch(`${BACKEND_URL}/api/memory/all`, {
+    const endpoint = resolveMemoryEndpoint('/api/memory/all');
+    const res = await fetch(endpoint, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
@@ -331,8 +368,8 @@ export const memoryApi = {
   /** Erase all episodic reflections while preserving explicitly configured core facts. */
   async forgetAllReflections(): Promise<number> {
     const session = await requireSession();
-    if (!BACKEND_URL) throw new MemoryApiError("not_configured", "Reflection erasure is unavailable.");
-    const res = await fetch(`${BACKEND_URL}/api/memory/reflections`, {
+    const endpoint = resolveMemoryEndpoint('/api/memory/reflections');
+    const res = await fetch(endpoint, {
       method: "DELETE", headers: { Authorization: `Bearer ${session.access_token}` },
     });
     if (!res.ok) throw new MemoryApiError(res.status === 401 ? "unauthorized" : "server_error", `Reflection erasure failed (${res.status}).`, res.status);
@@ -364,11 +401,9 @@ export const memoryApi = {
     const session = await requireSession();
     const trimmed = text.trim().slice(0, 2048);
     if (!trimmed) throw new MemoryApiError('server_error', 'Core memory content cannot be empty.');
-    if (!BACKEND_URL) {
-      throw new MemoryApiError('not_configured', 'The consent-authoritative memory API is unavailable.');
-    }
+    const endpoint = resolveMemoryEndpoint('/api/memory/core');
 
-    const res = await fetch(`${BACKEND_URL}/api/memory/core`, {
+    const res = await fetch(endpoint, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

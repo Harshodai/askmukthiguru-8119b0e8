@@ -271,11 +271,11 @@ def test_policy_fingerprint_covers_the_json_scorer_prompt(monkeypatch):
     import services.first_person_pipeline as fpp
 
     base = _fresh_key()
-    monkeypatch.setattr(
-        fpp, "_RELEVANCE_JSON_SYSTEM_PROMPT", fpp._RELEVANCE_JSON_SYSTEM_PROMPT + " stricter"
-    )
-    assert _fresh_key() != base
-    monkeypatch.undo()
+    with monkeypatch.context() as prompt_patch:
+        prompt_patch.setattr(
+            fpp, "_RELEVANCE_JSON_SYSTEM_PROMPT", fpp._RELEVANCE_JSON_SYSTEM_PROMPT + " stricter"
+        )
+        assert _fresh_key() != base
     assert _fresh_key() == base
 
 
@@ -293,11 +293,14 @@ def test_policy_fingerprint_scopes_cache_key(monkeypatch, tmp_path):
         ("first_person_relevance_min_score", settings.first_person_relevance_min_score + 1),
         ("first_person_relevance_model", "other/model"),
         ("first_person_relevance_gate_enabled", False),
-        ("first_person_answerability_check_enabled", False),
+        (
+            "first_person_answerability_check_enabled",
+            not settings.first_person_answerability_check_enabled,
+        ),
         ("first_person_boundary_guard_enabled", True),
         ("first_person_content_quality_gate_enabled", False),
         ("first_person_standalone_gate_enabled", False),
-        ("first_person_llm_rerank_enabled", False),
+        ("first_person_llm_rerank_enabled", not settings.first_person_llm_rerank_enabled),
         ("first_person_serve_weak_match", False),
         ("first_person_editorial_rewrite_enabled", True),
         # 2026-10-20: the default is now retrieval_only, so toggle to a

@@ -20,6 +20,7 @@ Validates that:
 from __future__ import annotations
 
 import hashlib
+import json
 from unittest.mock import Mock, patch
 
 import pytest
@@ -27,6 +28,7 @@ from qdrant_client import QdrantClient
 
 from app.config import settings
 from domain.first_person_context import (
+    _VALIDATED_EDGE_ISSUE_TOKEN,
     AnswerRole,
     BoundaryStatus,
     CompletenessStatus,
@@ -35,13 +37,15 @@ from domain.first_person_context import (
     ProvenanceKind,
     SourceSpan,
     SpeakerRole,
+    ValidatedCrossParentEdge,
     clip_text_hash,
     make_source_span_id,
 )
 from services.first_person_context_harness import (
+    FirstPersonContextHarness,
     reset_harness_metrics,
 )
-from services.first_person_pipeline import FirstPersonPipeline
+from services.first_person_pipeline import FirstPersonPipeline, _relevance_select_scored
 
 TEXT_ONE = (
     "Suffering is not a punishment that existence hands to you; it is a call to awaken "
@@ -87,6 +91,15 @@ def make_test_span(n: int = 0, text: str | None = None, **overrides) -> SourceSp
         "speaker_id": guru_id,
         "speaker_role": SpeakerRole.GURU,
         "speaker_verified": True,
+        "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
+        "voice_model_revision": "synthetic-model-rev",
+        "voice_score": 0.91,
+        "voice_margin": 0.22,
+        "voice_threshold_applied": {"cosine_floor": 0.75, "margin_threshold": 0.15},
+        "voice_calibration_id": "synthetic-calibration-v1",
+        "voice_window_check": "pass",
+        "voice_verified_at": "2026-11-02T00:00:00Z",
+        "speaker_verification_status": "verified",
         "source_transcript_text": span_text,
         "verbatim_text": span_text,
         "transcript_hash": span_hash,
@@ -101,6 +114,16 @@ def make_test_span(n: int = 0, text: str | None = None, **overrides) -> SourceSp
     }
     data.update(overrides)
     return SourceSpan(**data)
+
+
+def make_cross_parent_edge(predecessor: SourceSpan, opener: SourceSpan):
+    return ValidatedCrossParentEdge._issue(
+        predecessor,
+        opener,
+        predecessor_parent_end_ms=predecessor.end_ms,
+        opener_parent_start_ms=opener.start_ms,
+        issue_token=_VALIDATED_EDGE_ISSUE_TOKEN,
+    )
 
 
 def make_test_context(spans: list[SourceSpan], **overrides) -> ParentContext:
@@ -134,11 +157,17 @@ def make_test_context(spans: list[SourceSpan], **overrides) -> ParentContext:
 @pytest.fixture(autouse=True)
 def _reset_env(monkeypatch):
     reset_harness_metrics()
-    monkeypatch.setattr(settings, "first_person_context_harness_enabled", False)
+    # The owner flag is the only enable (a store alone never turns the harness
+    # on), so the wiring tests arm it explicitly. Tests that need the off state
+    # pin False themselves.
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
     monkeypatch.setattr(settings, "first_person_context_collection", "")
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
     monkeypatch.setattr(settings, "first_person_context_selector_enabled", False)
     monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", False)
+    monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
+    monkeypatch.setattr(settings, "first_person_enrichment_window_enabled", False)
+    monkeypatch.setattr(settings, "first_person_graph_expansion_enabled", False)
     # The serve-time integrity gate calls YouTube availability (FI-16). These
     # tests are about harness wiring, not video liveness, and fixture video ids
     # are synthetic, so keep the check out of the network.
@@ -201,7 +230,7 @@ def test_serving_single_span_direct_success(monkeypatch):
 def test_serving_parent_context_multiple_spans(monkeypatch):
     """Context harness reconstructs multiple spans deterministically in order."""
     span1 = make_test_span(n=0, text=TEXT_ONE)
-    span2 = make_test_span(n=1, text=TEXT_TWO)
+    span2 = make_test_span(n=1, text=TEXT_TWO, start_ms=10000, end_ms=11000)
     ctx = make_test_context([span1, span2])
 
     mock_store = Mock()
@@ -225,11 +254,312 @@ def test_serving_parent_context_multiple_spans(monkeypatch):
     assert result.is_direct_answer is True
     expected_text = f"{TEXT_ONE} {TEXT_TWO}"
     assert result.answer_text == expected_text
+    # Context citations remain one-per-child so cache replay can revalidate every
+    # contributing source span independently.
     assert len(result.citations) == 2
-    assert result.citations[0]["start_ms"] == span1.start_ms
-    assert result.citations[1]["start_ms"] == span2.start_ms
-    assert result.citations[1]["label"] == "Later in this discourse"
-    assert len(result.audio_playback_clips) == 2
+    assert [citation["source_span_id"] for citation in result.citations] == [
+        span1.source_span_id,
+        span2.source_span_id,
+    ]
+    assert [citation["verbatim_text"] for citation in result.citations] == [TEXT_ONE, TEXT_TWO]
+    assert result.answer_text == " ".join(
+        citation["verbatim_text"] for citation in result.citations
+    )
+
+
+@pytest.mark.answerability_real
+@pytest.mark.parametrize("verdict", ["NO", "MAYBE"])
+def test_context_answerability_withheld_before_workers_or_scorer(monkeypatch, verdict):
+    """A context NO/indeterminate verdict is final before harness scoring."""
+    monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+    monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", True)
+    monkeypatch.setattr(settings, "first_person_llm_rerank_enabled", True)
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", False)
+    monkeypatch.setattr(settings, "first_person_harness_parallel_enabled", False)
+
+    span = make_test_span(n=0, text=TEXT_ONE)
+    context_store = Mock()
+    context_store.retrieve.return_value = [make_test_context([span])]
+    legacy_store = Mock()
+    legacy_store.search_hybrid.return_value = []
+    llm = Mock()
+    llm.generate.return_value = verdict
+    scorer = Mock(side_effect=AssertionError("context answerability must short-circuit scorer"))
+    monkeypatch.setattr("services.first_person_pipeline._relevance_select", scorer)
+
+    pipeline = FirstPersonPipeline(
+        store=legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+        llm_service=llm,
+        calibration_profile=DIRECT_PROFILE,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="What is the capital of France?",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    assert result.status == "abstained"
+    assert result.answerability == ("no" if verdict == "NO" else "indeterminate")
+    assert result.abstain_reason == "answerability_withheld"
+    assert result.citations == []
+    assert context_store.retrieve.call_count == 1
+    legacy_store.search_hybrid.assert_not_called()
+    scorer.assert_not_called()
+    # The only provider call is the question-only answerability gate.
+    assert llm.generate.call_count == 1
+    assert llm.generate.call_args.kwargs["user_prompt"] == "What is the capital of France?"
+
+
+def test_pipeline_fetches_validated_predecessor_before_harness_decision(monkeypatch):
+    """The exact typed predecessor enters the harness before any decision."""
+    selected = make_test_span(
+        n=1,
+        text="Imagine what will be the outcome of it, when attention remains clear.",
+        parent_unit_id="current-parent",
+        start_ms=10000,
+        end_ms=11000,
+        word_start=10,
+        word_end=16,
+    )
+    predecessor = make_test_span(
+        n=0,
+        text=TEXT_ONE,
+        parent_unit_id="previous-parent",
+        start_ms=9000,
+        end_ms=9900,
+        word_start=0,
+        word_end=6,
+    )
+    predecessor = predecessor.model_copy(update={"next_span_id": selected.source_span_id})
+    selected = selected.model_copy(update={"previous_span_id": predecessor.source_span_id})
+    ctx = make_test_context([selected])
+
+    mock_context_store = Mock()
+    mock_context_store.retrieve.return_value = [ctx]
+    edge = make_cross_parent_edge(predecessor, selected)
+    mock_context_store.fetch_preceding_span.return_value = edge
+    events: list[str] = []
+    mock_context_store.fetch_preceding_span.side_effect = lambda _span: (
+        events.append("fetch") or edge
+    )
+    real_decide = FirstPersonContextHarness.decide
+
+    def ordered_decide(self, *args, **kwargs):
+        events.append("decide")
+        return real_decide(self, *args, **kwargs)
+
+    monkeypatch.setattr(FirstPersonContextHarness, "decide", ordered_decide)
+
+    pipeline = FirstPersonPipeline(
+        store=Mock(),
+        serene_mind_engine=Mock(),
+        context_store=mock_context_store,
+        calibration_profile=DIRECT_PROFILE,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="What is suffering?",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    assert result.answer_text == f"{TEXT_ONE} {selected.verbatim_text}"
+    assert [citation["verbatim_text"] for citation in result.citations] == [
+        TEXT_ONE,
+        selected.verbatim_text,
+    ]
+    assert events == ["fetch", "decide"]
+    mock_context_store.fetch_preceding_span.assert_called_once_with(selected)
+    mock_context_store.fetch_succeeding_span.assert_not_called()
+
+
+def _cross_parent_serving_context():
+    opener = make_test_span(
+        n=1,
+        text="Imagine what will be the outcome of it, when attention remains clear.",
+        parent_unit_id="current-parent",
+        start_ms=10000,
+        end_ms=11000,
+        word_start=10,
+        word_end=16,
+    )
+    predecessor = make_test_span(
+        n=0,
+        text="The river of awareness moves without resistance.",
+        parent_unit_id="previous-parent",
+        start_ms=9000,
+        end_ms=9900,
+        word_start=0,
+        word_end=6,
+    )
+    predecessor = predecessor.model_copy(update={"next_span_id": opener.source_span_id})
+    opener = opener.model_copy(update={"previous_span_id": predecessor.source_span_id})
+    return predecessor, opener, make_test_context([opener])
+
+
+def test_two_parent_context_result_is_never_written_to_exact_cache():
+    predecessor, opener, ctx = _cross_parent_serving_context()
+    mock_context_store = Mock()
+    mock_context_store.retrieve.return_value = [ctx]
+    mock_context_store.fetch_preceding_span.return_value = make_cross_parent_edge(
+        predecessor, opener
+    )
+    mock_redis = Mock()
+    mock_redis.get.return_value = None
+
+    pipeline = FirstPersonPipeline(
+        store=Mock(),
+        redis_client=mock_redis,
+        serene_mind_engine=Mock(),
+        context_store=mock_context_store,
+        calibration_profile=DIRECT_PROFILE,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="What is awareness?",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=False,
+    )
+
+    assert result.answer_text == f"{predecessor.verbatim_text} {opener.verbatim_text}"
+    mock_redis.set.assert_not_called()
+
+
+def test_context_cache_replay_rechecks_the_reconstructed_joined_body(monkeypatch):
+    first = make_test_span(
+        n=0,
+        text=(
+            "Suffering is a call to awaken, inviting you to meet resistance with "
+            "awareness and compassion."
+        ),
+        video_id="UlOt31lBhLY",
+    )
+    second = make_test_span(
+        n=1,
+        text="This truth can set us free.",
+        video_id="UlOt31lBhLY",
+        start_ms=10000,
+        end_ms=11000,
+    )
+    ctx = make_test_context([first, second])
+    mock_context_store = Mock()
+    mock_context_store.retrieve.return_value = [ctx]
+    mock_context_store.fresh_spans_for_citations.return_value = [first, second]
+    legacy_store = Mock()
+    legacy_store.search_hybrid.return_value = []
+    cache_store: dict[str, str] = {}
+    mock_redis = Mock()
+    mock_redis.get.side_effect = lambda key: cache_store.get(key)
+    mock_redis.set.side_effect = lambda key, value, ex=None: cache_store.__setitem__(key, value)
+
+    pipeline = FirstPersonPipeline(
+        store=legacy_store,
+        redis_client=mock_redis,
+        serene_mind_engine=Mock(),
+        context_store=mock_context_store,
+        calibration_profile=DIRECT_PROFILE,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+    first_result = pipeline.execute(
+        query="What is suffering?",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=False,
+    )
+    assert first_result.cached is False
+
+    joined = f"{first.verbatim_text} {second.verbatim_text}"
+
+    class Safety:
+        reason_codes = ("violent_relationship_context",)
+
+        def __init__(self, may_serve):
+            self.may_serve = may_serve
+
+    safety_bodies: list[str] = []
+
+    def body_safety(_query, body, retrieval_query=""):
+        safety_bodies.append(body)
+        return Safety(body != joined)
+
+    monkeypatch.setattr(
+        "services.first_person_pipeline.first_person_evidence_policy.assess_contextual_safety",
+        body_safety,
+    )
+    cache_key = next(iter(cache_store))
+    tampered = json.loads(cache_store[cache_key])
+    tampered["answer_text"] = "Injected serialized answer text that must never be replayed."
+    cache_store[cache_key] = json.dumps(tampered)
+    safety_bodies.clear()
+    replay = pipeline.execute(
+        query="What is suffering?",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=False,
+    )
+
+    assert replay.cached is False
+    assert mock_context_store.retrieve.call_count == 2
+    # Replay safety must inspect the freshly reconstructed joined body, not the
+    # tampered serialized answer_text. Rejecting that body proves the replay
+    # fails closed before any stale cache payload can be returned.
+    assert safety_bodies[-1] == joined
+    assert "Injected serialized answer text" not in safety_bodies
+
+
+def test_pipeline_rejects_context_when_any_selected_child_fails_a_gate():
+    """A parent context is all-or-nothing; one bad child cannot be served."""
+    good = make_test_span(n=0, text=TEXT_ONE)
+    bad = make_test_span(n=1, text=TEXT_TWO, rights_cleared=False, start_ms=10000, end_ms=11000)
+    ctx = make_test_context([good, bad])
+
+    mock_context_store = Mock()
+    mock_context_store.retrieve.return_value = [ctx]
+    mock_legacy_store = Mock()
+    mock_legacy_store.search_hybrid.return_value = []
+    mock_legacy_store.collection = "first_person_v9"
+    pipeline = FirstPersonPipeline(
+        store=mock_legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=mock_context_store,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="What is suffering?",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    assert result.citations == []
+    assert result.answer_text == "No verified first-person discourse found for this question."
+    mock_legacy_store.search_hybrid.assert_called_once()
+
+
+def test_provider_relevance_failure_fails_closed_even_with_legacy_opt_in(monkeypatch):
+    """A provider refusal/error cannot fall through to local uncalibrated scoring."""
+    monkeypatch.setattr(settings, "first_person_relevance_fallback_enabled", True)
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 3)
+    monkeypatch.setattr(settings, "first_person_relevance_model", "")
+
+    failing_provider = Mock()
+    failing_provider.generate.side_effect = RuntimeError("budget denied")
+    scores: list[int] = []
+    result = _relevance_select_scored(
+        "What is suffering?",
+        [{"verbatim_text": TEXT_ONE}],
+        failing_provider,
+        scores_out=scores,
+    )
+
+    assert result == -1
+    assert scores == []
 
 
 def test_serving_without_calibration_profile_is_related_not_direct(monkeypatch):
@@ -292,6 +622,36 @@ def test_serving_never_accepts_llm_hallucinated_text(monkeypatch):
     assert result.status == "weak_match"
     assert result.answer_text == TEXT_ONE
     assert "I am an AI" not in result.answer_text
+
+
+def test_hybrid_fp_context_keeps_the_gated_verbatim_body(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_mode", "hybrid")
+    span1 = make_test_span(n=0, text=TEXT_ONE)
+    ctx = make_test_context([span1])
+    mock_store = Mock()
+    mock_store.retrieve.return_value = [ctx]
+    mock_weaver = Mock()
+    mock_weaver.weave.return_value = Mock(
+        passed_gate=True,
+        text="Generated connective prose that must not replace the quote.",
+    )
+
+    pipeline = FirstPersonPipeline(
+        store=Mock(),
+        serene_mind_engine=Mock(),
+        context_store=mock_store,
+        weaver=mock_weaver,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="Tell me about suffering",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    assert result.answer_text == TEXT_ONE
+    mock_weaver.weave.assert_not_called()
 
 
 def test_fallback_when_context_harness_abstains(monkeypatch):
@@ -396,7 +756,8 @@ def test_fallback_when_context_store_raises_exception():
 
 
 def test_flag_off_never_invokes_context_store(monkeypatch):
-    """When first_person_context_harness_enabled is False and no context store injected, it is never invoked."""
+    """The owner flag is the only enable: even an injected context store stays
+    dormant while first_person_context_harness_enabled is False."""
     monkeypatch.setattr(settings, "first_person_context_harness_enabled", False)
     monkeypatch.setattr(settings, "first_person_context_collection", "")
 
@@ -427,6 +788,9 @@ def test_exact_caching_for_context_harness_result(monkeypatch):
 
     mock_store = Mock()
     mock_store.retrieve.return_value = [ctx]
+    # Exact-cache replay must hydrate current validated spans, not trust the
+    # citation/display fields serialized into Redis.
+    mock_store.fresh_spans_for_citations.return_value = [span1]
 
     # In-memory mock redis client
     cache_store = {}
@@ -475,6 +839,246 @@ def test_exact_caching_for_context_harness_result(monkeypatch):
     assert res2.answer_text == res1.answer_text
     assert mock_store.retrieve.call_count == 1  # No second retrieval
 
+    # Positive servability decisions are not reused across cache hits.
+    res3 = pipeline.execute(
+        query="What is suffering?",
+        query_dense_vector=[0.1] * 1024,
+        teacher_id="krishnaji",
+        cache_bypass=False,
+    )
+    assert res3.cached is True
+    assert mock_store.fresh_spans_for_citations.call_count == 2
+    assert mock_store.points_servable.call_count == 0
+    assert mock_legacy_store.points_servable.call_count == 0
+
+    # Tamper cached body and representative derived citation fields. A cache
+    # hit remains safe because body/citations are rebuilt from current
+    # validated SourceSpan data, not trusted from Redis.
+    cache_key = next(iter(cache_store))
+    tampered = json.loads(cache_store[cache_key])
+    tampered["answer_text"] = "Injected prose not present in the citations."
+    tampered["citations"][0].update(
+        {
+            "speaker": "Injected speaker",
+            "title": "Injected title",
+            "url": "https://evil.example/not-the-source",
+            "teacher_id": "injected-teacher",
+            "start_ms": 999999,
+            "playback_url": "https://evil.example/play?t=999999",
+        }
+    )
+    cache_store[cache_key] = json.dumps(tampered)
+    res4 = pipeline.execute(
+        query="What is suffering?",
+        query_dense_vector=[0.1] * 1024,
+        teacher_id="krishnaji",
+        cache_bypass=False,
+    )
+    assert res4.cached is True
+    assert res4.answer_text == TEXT_ONE
+    assert res4.citations[0]["speaker"] == "Sri Krishnaji"
+    assert res4.citations[0]["title"] == "Discourse by Sri Krishnaji"
+    assert res4.citations[0]["url"] == span1.source_url
+    assert res4.citations[0]["teacher_id"] == span1.guru_id
+    assert res4.citations[0]["start_ms"] == span1.start_ms
+    assert res4.citations[0]["playback_url"].startswith(
+        f"https://www.youtube.com/watch?v={span1.video_id}"
+    )
+    assert mock_store.retrieve.call_count == 1
+
+    # A current-payload change is not independently verifiable against cached
+    # evidence, so context cache replay fails closed instead of returning stale
+    # text or attribution.
+    mock_store.fresh_spans_for_citations.return_value = None
+    res5 = pipeline.execute(
+        query="What is suffering?",
+        query_dense_vector=[0.1] * 1024,
+        teacher_id="krishnaji",
+        cache_bypass=False,
+    )
+    assert res5.cached is False
+    assert mock_store.retrieve.call_count == 2
+
+
+def test_exact_cache_preserves_legacy_quote_plus_attribution_body():
+    """Legacy exact-cache entries are not rewritten into raw quote joins."""
+    cache_store = {}
+    mock_redis = Mock()
+    mock_redis.get.side_effect = lambda key: cache_store.get(key)
+    legacy_store = Mock()
+    legacy_store.points_servable.return_value = True
+    pipeline = FirstPersonPipeline(
+        store=legacy_store,
+        redis_client=mock_redis,
+        serene_mind_engine=Mock(),
+    )
+    quote = TEXT_ONE
+    answer = f'"{quote}"\n— Sri Krishnaji (legacy-video, 12s)'
+    query = "What is suffering?"
+    data = {
+        "answer_text": answer,
+        "citations": [
+            {
+                "point_id": "legacy-point",
+                "video_id": "legacy-video",
+                "verbatim_text": quote,
+                "transcript_hash": hashlib.sha256(quote.encode("utf-8")).hexdigest(),
+                "speaker": "Sri Krishnaji",
+                "is_verbatim": True,
+            }
+        ],
+        "status": "weak_match",
+        "is_direct_answer": False,
+        "abstain_reason": "none",
+    }
+    cache_store[pipeline._get_exact_cache_key(query)] = json.dumps(data)
+
+    hit = pipeline.check_exact_cache(query, retrieval_query=query)
+
+    assert hit is not None
+    assert hit["answer_text"] == answer
+    assert legacy_store.points_servable.call_count == 1
+
+
+def test_hybrid_fp_context_result_is_not_written_to_exact_cache(monkeypatch):
+    """Optional hybrid framing stays live when its body is not reconstructible."""
+    monkeypatch.setattr(settings, "first_person_mode", "hybrid")
+    span1 = make_test_span(n=0, text=TEXT_ONE)
+    cache_store = {}
+    mock_redis = Mock()
+    mock_redis.set.side_effect = lambda key, value, ex=None: cache_store.__setitem__(key, value)
+    pipeline = FirstPersonPipeline(
+        store=Mock(),
+        redis_client=mock_redis,
+        serene_mind_engine=Mock(),
+        context_store=Mock(),
+    )
+    citation = pipeline._build_context_citation(span1)
+    data = {
+        "answer_text": f"Opening prose. {TEXT_ONE}",
+        "citations": [citation],
+        "status": "weak_match",
+        "is_direct_answer": False,
+    }
+
+    pipeline.set_exact_cache("What is suffering?", data)
+
+    assert cache_store == {}
+
+
+def test_hybrid_legacy_exact_cache_read_and_write_are_disabled(monkeypatch):
+    """Hybrid mode never replays or stores legacy quote-plus-attribution bodies."""
+    monkeypatch.setattr(settings, "first_person_mode", "hybrid")
+    cache_store = {}
+    mock_redis = Mock()
+    mock_redis.get.side_effect = lambda key: cache_store.get(key)
+    mock_redis.set.side_effect = lambda key, value, ex=None: cache_store.__setitem__(key, value)
+    legacy_store = Mock()
+    pipeline = FirstPersonPipeline(
+        store=legacy_store,
+        redis_client=mock_redis,
+        serene_mind_engine=Mock(),
+    )
+    data = {
+        "answer_text": f'"{TEXT_ONE}"\n— Sri Krishnaji (legacy-video, 12s)',
+        "citations": [
+            {
+                "point_id": "legacy-point",
+                "video_id": "legacy-video",
+                "verbatim_text": TEXT_ONE,
+                "transcript_hash": hashlib.sha256(TEXT_ONE.encode("utf-8")).hexdigest(),
+                "speaker": "Sri Krishnaji",
+                "is_verbatim": True,
+            }
+        ],
+        "status": "weak_match",
+        "is_direct_answer": False,
+    }
+
+    pipeline.set_exact_cache("What is suffering?", data)
+    assert cache_store == {}
+
+    cache_store[pipeline._get_exact_cache_key("What is suffering?")] = json.dumps(data)
+    assert (
+        pipeline.check_exact_cache("What is suffering?", retrieval_query="What is suffering?")
+        is None
+    )
+    mock_redis.get.assert_not_called()
+    legacy_store.points_servable.assert_not_called()
+
+
+def test_hybrid_compound_result_is_not_written_to_exact_cache(monkeypatch):
+    """Compound legacy results use the same hybrid no-cache boundary."""
+    monkeypatch.setattr(settings, "first_person_mode", "hybrid")
+    cache_store = {}
+    mock_redis = Mock()
+    mock_redis.set.side_effect = lambda key, value, ex=None: cache_store.__setitem__(key, value)
+    pipeline = FirstPersonPipeline(
+        store=Mock(),
+        redis_client=mock_redis,
+        serene_mind_engine=Mock(),
+    )
+    pipeline.set_exact_cache(
+        "What is suffering and meditation?",
+        {
+            "answer_text": "compound quote layout",
+            "citations": [
+                {
+                    "point_id": "compound-point",
+                    "video_id": "compound-video",
+                    "verbatim_text": TEXT_ONE,
+                    "transcript_hash": hashlib.sha256(TEXT_ONE.encode("utf-8")).hexdigest(),
+                    "speaker": "Sri Krishnaji",
+                    "is_verbatim": True,
+                    "provenance_kind": "compound_facet_clip",
+                }
+            ],
+            "status": "success",
+            "is_direct_answer": True,
+        },
+    )
+
+    assert cache_store == {}
+
+
+@pytest.mark.parametrize("malformation", ["mixed_parent", "reordered"])
+def test_context_cache_malformations_fail_closed_via_fresh_validation(malformation):
+    """Cache replay delegates the whole citation set to fresh parent validation."""
+    first = make_test_span(n=0, text=TEXT_ONE)
+    second = make_test_span(n=1, text=TEXT_TWO, start_ms=10000, end_ms=11000)
+    context_store = Mock()
+    context_store.fresh_spans_for_citations.return_value = None
+    legacy_store = Mock()
+    pipeline = FirstPersonPipeline(
+        store=legacy_store,
+        redis_client=Mock(),
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+    )
+    citations = [pipeline._build_context_citation(first), pipeline._build_context_citation(second)]
+    if malformation == "mixed_parent":
+        citations[1]["parent_unit_id"] = "different-parent"
+    else:
+        citations.reverse()
+    cache_store = {
+        pipeline._get_exact_cache_key("What is suffering?"): json.dumps(
+            {
+                "answer_text": " ".join(c["verbatim_text"] for c in citations),
+                "citations": citations,
+                "status": "weak_match",
+                "is_direct_answer": False,
+            }
+        )
+    }
+    pipeline._redis.get.side_effect = lambda key: cache_store.get(key)
+
+    assert (
+        pipeline.check_exact_cache("What is suffering?", retrieval_query="What is suffering?")
+        is None
+    )
+    context_store.fresh_spans_for_citations.assert_called_once()
+    legacy_store.points_servable.assert_not_called()
+
 
 def test_policy_fingerprint_covers_the_context_collection(monkeypatch):
     """Repointing the harness at a different fp-context corpus must re-key the
@@ -498,12 +1102,29 @@ def test_policy_fingerprint_covers_the_context_collection(monkeypatch):
     assert pipeline._serving_policy_fingerprint() == first
 
 
+def test_policy_fingerprint_pins_evidence_policy_and_candidate_thresholds(monkeypatch):
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", False)
+    pipeline = FirstPersonPipeline(store=Mock(), redis_client=Mock(), serene_mind_engine=Mock())
+    base_components = pipeline._serving_policy_components()
+    base = pipeline._serving_policy_fingerprint()
+    assert base_components["first_person_evidence_policy"] == "first_person_evidence_v1"
+
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", True)
+    assert pipeline._serving_policy_components()["require_speaker_verified"] == "True"
+    assert pipeline._serving_policy_fingerprint() != base
+
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", False)
+    monkeypatch.setattr(settings, "first_person_min_answer_words", 24)
+    assert pipeline._serving_policy_components()["standalone_min_words"] == "24"
+    assert pipeline._serving_policy_fingerprint() != base
+
+
 def test_selector_integration(monkeypatch):
     """Phase D8 selector is consulted when enabled and its span order is honored."""
     monkeypatch.setattr(settings, "first_person_context_selector_enabled", True)
 
     span1 = make_test_span(n=0, text=TEXT_ONE)
-    span2 = make_test_span(n=1, text=TEXT_TWO)
+    span2 = make_test_span(n=1, text=TEXT_TWO, start_ms=10000, end_ms=11000)
     ctx = make_test_context([span1, span2])
 
     mock_store = Mock()
@@ -531,6 +1152,69 @@ def test_selector_integration(monkeypatch):
     assert result.answer_text == TEXT_TWO
     assert len(result.citations) == 1
     assert result.citations[0]["video_id"] == span2.video_id
+
+
+def test_context_cache_replay_rejects_assembled_content_quality_failure(monkeypatch):
+    first = make_test_span(n=0, text=TEXT_ONE)
+    second = make_test_span(n=1, text=TEXT_TWO, start_ms=10000, end_ms=11000)
+    context_store = Mock()
+    context_store.fresh_spans_for_citations.return_value = [first, second]
+    redis = Mock()
+    pipeline = FirstPersonPipeline(
+        store=Mock(),
+        redis_client=redis,
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+    )
+    citations = [pipeline._build_context_citation(first), pipeline._build_context_citation(second)]
+    cached = {
+        "answer_text": f"{TEXT_ONE} {TEXT_TWO}",
+        "citations": citations,
+        "status": "weak_match",
+        "is_direct_answer": False,
+    }
+    redis.get.return_value = json.dumps(cached)
+    monkeypatch.setattr(
+        "services.first_person_pipeline._passes_content_quality_gate",
+        lambda clip, gate_enabled=None: clip.get("verbatim_text") != cached["answer_text"],
+    )
+
+    assert (
+        pipeline.check_exact_cache("What is suffering?", retrieval_query="What is suffering?")
+        is None
+    )
+
+
+def test_context_cache_replay_rejects_assembled_boundary_failure(monkeypatch):
+    first = make_test_span(n=0, text=TEXT_ONE)
+    second = make_test_span(n=1, text=TEXT_TWO, start_ms=10000, end_ms=11000)
+    context_store = Mock()
+    context_store.fresh_spans_for_citations.return_value = [first, second]
+    redis = Mock()
+    pipeline = FirstPersonPipeline(
+        store=Mock(),
+        redis_client=redis,
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+    )
+    citations = [pipeline._build_context_citation(first), pipeline._build_context_citation(second)]
+    cached = {
+        "answer_text": f"{TEXT_ONE} {TEXT_TWO}",
+        "citations": citations,
+        "status": "weak_match",
+        "is_direct_answer": False,
+    }
+    redis.get.return_value = json.dumps(cached)
+    pipeline._boundary_guard_enabled = True
+    monkeypatch.setattr(
+        "services.first_person_pipeline.boundary_defects",
+        lambda _tokens: ["head_fragment"],
+    )
+
+    assert (
+        pipeline.check_exact_cache("What is suffering?", retrieval_query="What is suffering?")
+        is None
+    )
 
 
 def test_live_qdrant_fp_context_serving(monkeypatch):
@@ -629,3 +1313,228 @@ def test_harness_scorer_error_abstains(monkeypatch):
     result = _run_with_scorer(monkeypatch, lambda *a, **k: _RELEVANCE_INDETERMINATE)
     assert result.status == "abstained"
     assert result.abstain_reason == "relevance_indeterminate"
+
+
+def test_injected_context_store_is_dormant_when_the_owner_flag_is_off(monkeypatch):
+    """P1-4 regression: store presence is configuration, not permission.
+
+    Before this guard, `FirstPersonPipeline(context_store=...)` ran fp-context
+    serving even though FIRST_PERSON_CONTEXT_HARNESS_ENABLED was false — the
+    public-release NO-GO posture says the harness must not serve unless the
+    owner flag says so.
+    """
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", False)
+    monkeypatch.setattr(settings, "first_person_context_collection", "")
+
+    mock_context_store = Mock()
+    mock_context_store.retrieve.return_value = [make_test_context([make_test_span(n=0)])]
+    mock_legacy_store = Mock()
+    mock_legacy_store.search_hybrid.return_value = []
+    mock_legacy_store.collection = "first_person_v9"
+
+    pipeline = FirstPersonPipeline(
+        store=mock_legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=mock_context_store,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    pipeline.execute(
+        query="Tell me something",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    mock_context_store.retrieve.assert_not_called()
+    mock_legacy_store.search_hybrid.assert_called_once()
+
+
+def test_terminal_flag_blocks_legacy_fallthrough(monkeypatch):
+    """v10-only serving: with the terminal flag on, a question the harness cannot
+    answer abstains and the legacy (v8) store is never searched."""
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", True)
+    mock_ctx_store = Mock()
+    mock_ctx_store.retrieve.return_value = []
+    mock_legacy_store = Mock()
+    mock_legacy_store.search_hybrid.return_value = []
+    mock_legacy_store.collection = "first_person_v8"
+
+    pipeline = FirstPersonPipeline(
+        store=mock_legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=mock_ctx_store,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="Tell me something",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    assert result.status == "abstained"
+    assert result.abstain_reason == "no_verified_clips"
+    assert result.citations == []
+    mock_legacy_store.search_hybrid.assert_not_called()
+
+
+def test_terminal_flag_is_off_by_default():
+    assert settings.model_fields["first_person_context_terminal_enabled"].default is False
+
+
+def test_harness_does_not_stitch_succeeding_span_after_decision(monkeypatch):
+    """A cutoff-looking span is not widened after the harness decision."""
+    mock_ctx_store = Mock()
+    s1 = make_test_span(
+        n=0,
+        text="Inner peace begins with deep understanding. For what is a beautiful state? What is this transformed consciousness we are talking about?",
+        video_id="vid_test_1",
+        guru_id="krishnaji",
+    )
+    s2 = make_test_span(
+        n=1,
+        text="A beautiful state is a state of calm, a state of connection, where you are not lost in the endless noise of self-centered thought.",
+        start_ms=s1.end_ms + 100,
+        end_ms=s1.end_ms + 15000,
+        video_id=s1.video_id,
+        guru_id=s1.guru_id,
+    )
+
+    mock_ctx_store.retrieve.return_value = [make_test_context([s1])]
+    mock_ctx_store.fetch_succeeding_span.return_value = s2
+
+    pipeline = FirstPersonPipeline(
+        store=Mock(), serene_mind_engine=Mock(), context_store=mock_ctx_store
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+    pipeline._store.search_hybrid.return_value = []
+
+    res = pipeline.execute(
+        query="What is a beautiful state?",
+        query_dense_vector=[0.1] * 1024,
+        teacher_id=s1.guru_id,
+        cache_bypass=True,
+    )
+
+    mock_ctx_store.fetch_succeeding_span.assert_not_called()
+    assert s1.verbatim_text in res.answer_text
+    assert s2.verbatim_text not in res.answer_text
+
+
+def _rejected_antecedent_fixture():
+    """Return a first-child opener whose typed predecessor lookup is refused."""
+    predecessor, opener, context = _cross_parent_serving_context()
+    context_store = Mock()
+    context_store.retrieve.return_value = [context]
+    # The opener is a genuine first child with an antecedent pointer, but the
+    # store refuses to issue the validated cross-parent edge.  The pipeline must
+    # not let the failed fp-context candidate leak into either final response.
+    context_store.fetch_preceding_span.return_value = None
+
+    legacy_text = "Legacy fallback evidence remains deterministic and source-verbatim."
+    legacy_clip = {
+        "point_id": "legacy-antecedent-fallback-1",
+        "video_id": "legacyAntecedent01",
+        "start_ms": 12000,
+        "end_ms": 18000,
+        "speaker": "Sri Krishnaji",
+        "guru_id": "krishnaji",
+        "teacher_id": "krishnaji",
+        "title": "Deterministic legacy fallback fixture",
+        "source_url": "https://www.youtube.com/watch?v=legacyAntecedent01",
+        "verbatim_text": legacy_text,
+        "transcript_hash": hashlib.sha256(legacy_text.encode("utf-8")).hexdigest(),
+        "rights_cleared": True,
+        "first_person_eligible": True,
+        "speaker_verified": True,
+        "voice_verification_method": "synthetic-test-fixture",
+        "passage_dense": [0.1] * 1024,
+        "caption_status": "auto_transcript",
+    }
+    legacy_store = Mock()
+    legacy_store.search_hybrid.return_value = [legacy_clip]
+    legacy_store.collection = "first_person_v8"
+    return predecessor, opener, context_store, legacy_store, legacy_clip
+
+
+def test_terminal_rejected_antecedent_abstains_without_legacy_or_fp_leak(monkeypatch):
+    """Terminal fp-context serving abstains when its first-child predecessor is refused."""
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", True)
+    predecessor, opener, context_store, legacy_store, _legacy_clip = _rejected_antecedent_fixture()
+    pipeline = FirstPersonPipeline(
+        store=legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="What is awareness?",
+        query_dense_vector=[0.1] * 1024,
+        cache_bypass=True,
+    )
+
+    context_store.fetch_preceding_span.assert_called_once_with(opener)
+    assert result.status == "abstained"
+    assert result.abstain_reason == "no_verified_clips"
+    assert result.citations == []
+    assert result.fp_served is False
+    assert opener.verbatim_text not in (result.answer_text or "")
+    assert predecessor.verbatim_text not in (result.answer_text or "")
+    legacy_store.search_hybrid.assert_not_called()
+
+
+def test_non_terminal_rejected_antecedent_intentionally_uses_legacy_fallback(monkeypatch):
+    """With terminal=False, the same fp-context refusal intentionally falls through to legacy."""
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", False)
+    predecessor, opener, context_store, legacy_store, legacy_clip = _rejected_antecedent_fixture()
+    pipeline = FirstPersonPipeline(
+        store=legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    # The legacy fixture is deterministic; every availability, integrity,
+    # content, safety, hero, and OKF check is mocked so this test cannot use a
+    # provider, network, Redis, Qdrant, or Docker service.
+    with (
+        patch("services.first_person_pipeline._passes_integrity_gate", return_value=True),
+        patch("services.first_person_pipeline._passes_content_quality_gate", return_value=True),
+        patch(
+            "services.first_person_pipeline.first_person_evidence_policy.assess_contextual_safety",
+            return_value=Mock(may_serve=True),
+        ),
+        patch(
+            "services.first_person_pipeline.verify_hero_clip",
+            return_value={
+                "label": "Sri Krishnaji",
+                "title": legacy_clip["title"],
+                "url": legacy_clip["source_url"] + "&t=12s",
+                "start_sec": 12,
+                "video_id": legacy_clip["video_id"],
+            },
+        ),
+        patch("services.first_person_pipeline.is_youtube_video_available", return_value=True),
+        patch("services.first_person_pipeline.match_okf_entries", return_value=[]),
+    ):
+        result = pipeline.execute(
+            query="What is awareness?",
+            query_dense_vector=[0.1] * 1024,
+            cache_bypass=True,
+        )
+
+    context_store.fetch_preceding_span.assert_called_once_with(opener)
+    legacy_store.search_hybrid.assert_called_once()
+    assert settings.first_person_context_terminal_enabled is False
+    assert result.status == "weak_match"
+    assert result.abstain_reason == "none"
+    assert result.is_direct_answer is False
+    assert result.answer_text == (
+        f'"{legacy_clip["verbatim_text"]}"\n— Sri Krishnaji ({legacy_clip["video_id"]}, 12s)'
+    )
+    assert len(result.citations) == 1
+    assert result.citations[0]["provenance_kind"] == "weak_match_fallback"
+    assert "source_span_id" not in result.citations[0]
+    assert opener.verbatim_text not in result.answer_text
+    assert predecessor.verbatim_text not in result.answer_text

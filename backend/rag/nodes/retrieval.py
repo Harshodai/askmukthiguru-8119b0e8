@@ -1009,6 +1009,20 @@ async def generate_hyde(state: GraphState, config: Optional[RunnableConfig] = No
             logger.info("HyDE bypass: disabled for Indic request by rag_indic_use_hyde policy")
         return {"hyde_text": None}
 
+    # Adaptive HyDE Generator circuit breaker (saves 5.4s of blocking LLM latency)
+    try:
+        from rag.retrieval.adaptive_hyde import AdaptiveHyDEGenerator
+
+        if not await AdaptiveHyDEGenerator.should_generate_hypothetical_document(
+            question, query_type=state.get("intent", "general")
+        ):
+            logger.info(
+                "Adaptive HyDE: bypassed by adaptive circuit breaker (<3 words, distress, or exact quote)"
+            )
+            return {"hyde_text": None}
+    except Exception as _hyde_err:
+        logger.debug("Adaptive HyDE check skipped: %s", _hyde_err)
+
     if is_indic_state(state):
         lang = str(state.get("detected_language") or "indic").strip()
         await emit_status(config, "Imagining the shape of the answer...")
@@ -1396,6 +1410,26 @@ def _quarantine_web_docs_from_doctrine(
     if intent in (IntentType.LIVE_LOGISTICS.value, "LIVE_LOGISTICS"):
         return web_docs + doctrine_docs
     return doctrine_docs
+
+
+def _needs_release_filter(d: Any) -> bool:
+    """True for a Qdrant-point document that has NOT yet been release-screened.
+
+    Only Qdrant points carry a release stamp. OKF / GraphRAG / web documents have
+    no release concept, so "missing version" must not drop them. Docs built by
+    ``QdrantSearcher`` are already screened (``release_screened``) and must not
+    be filtered a second time.
+    """
+    if not isinstance(d, dict):
+        return True
+    if d.get("release_screened") is True:
+        return False
+    payload = d.get("metadata") if isinstance(d.get("metadata"), dict) else d
+    # Value, not key presence: GraphRAG-fused docs carry these keys as None.
+    return any(
+        payload.get(k) is not None
+        for k in ("chunk_id", "domain_rights_status", "source_release_version")
+    )
 
 
 @trace_rag_node("retrieve_documents")
@@ -2129,6 +2163,36 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
                 unregistered_count,
             )
 
+    # DE-0.3: Read-time release filter & shadow mode
+    _filter_mode = getattr(settings, "release_filter_mode", "off").lower()
+    if _filter_mode in ("shadow", "enforce"):
+        from services.qdrant.source_policy import (
+            ReleasePolicyUnavailable,
+            filter_by_release,
+        )
+
+        try:
+            _point_docs = [d for d in all_docs if _needs_release_filter(d)]
+            _kept_points, _rel_dropped = filter_by_release(_point_docs, filter_mode=_filter_mode)
+            _kept_ids = {id(d) for d in _kept_points}
+            all_docs = [d for d in all_docs if not _needs_release_filter(d) or id(d) in _kept_ids]
+        except ReleasePolicyUnavailable as exc:
+            # Fail closed: an unresolvable release registry cannot be replaced
+            # by a guessed version (that either drops the corpus or serves
+            # revoked content). Serving no document lets the existing
+            # no-coverage path return an honest abstain.
+            logger.error(
+                "Release filter unavailable in %s mode; serving no document: %s",
+                _filter_mode,
+                exc,
+            )
+            all_docs = []
+            _rel_dropped = 0
+        if _rel_dropped:
+            logger.info(
+                "Release filter removed %d document(s) in %s mode", _rel_dropped, _filter_mode
+            )
+
     if len(all_docs) > getattr(
         settings, "rag_top_k_retrieval_after_cutoff", settings.rag_top_k_retrieval
     ):
@@ -2483,6 +2547,34 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
         )
     except Exception as _e:
         logger.debug("[retrieval] suppressed metric observation error: %s", _e)
+
+    if getattr(settings, "retrieval_feedback_enabled", False):
+        try:
+            from services.retrieval_feedback import get_retrieval_feedback_service
+
+            all_docs = get_retrieval_feedback_service().filter_suppressed(
+                state.get("question", ""), all_docs
+            )
+        except Exception as _fb_err:
+            logger.warning("[retrieval] retrieval feedback filter error: %s", _fb_err)
+
+    # Invariant X40: Content rights gate enforcement on retrieved corpus candidates.
+    # Only documents that declare corpus provenance are judged here: an OKF entry,
+    # a web result or a graph node carries no rights claim to verify, and gating
+    # them silently deleted those lanes (7 retrieval tests went red on 2026-11-01).
+    try:
+        from rag.retrieval.rights_gate import ContentRightsGate
+
+        _filtered_docs = []
+        for _d in all_docs:
+            _meta = dict(getattr(_d, "metadata", None) or (_d if isinstance(_d, dict) else {}))
+            if not ContentRightsGate.is_corpus_document(_meta):
+                _filtered_docs.append(_d)
+            elif ContentRightsGate.validate_rights(_meta):
+                _filtered_docs.append(_d)
+        all_docs = _filtered_docs
+    except Exception as _rg_err:
+        logger.warning("[retrieval] Invariant X40 rights gate warning: %s", _rg_err)
 
     await emit_teaching_preview(config, all_docs)
 

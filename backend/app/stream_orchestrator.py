@@ -39,7 +39,9 @@ logger = logging.getLogger(__name__)
 _HARMFUL_PATTERNS_COMPILED = [re.compile(p, re.IGNORECASE) for p in _HARMFUL_PATTERNS]
 
 # Keep this many chars of recent streamed text for the rolling filter window.
-_STREAM_FILTER_WINDOW_CHARS = 200
+# The longest pattern in _HARMFUL_PATTERNS is 28 chars; 38 is sufficient for
+# boundary-spanning matches while cutting initial token TTFT latency penalty.
+_STREAM_FILTER_WINDOW_CHARS = 38
 
 # Prevent intermediary/browser buffering and stale replay of live SSE responses.
 # Queued polling already uses the same contract in app.api.chat.
@@ -150,6 +152,13 @@ class ChatStreamRequestOrchestrator:
 
         # Stream result as SSE
         async def _sse():
+            _sse_seq = 0
+
+            def _sse_event(event_type: str, data: str) -> str:
+                nonlocal _sse_seq
+                _sse_seq += 1
+                return f"event: {event_type}\nid: {_sse_seq}\ndata: {data}\n\n"
+
             tokens_streamed = 0
             _pending: str = ""  # buffered text not yet emitted to client
             _in_think = False  # live <think> sanitizer: inside a think block
@@ -160,7 +169,7 @@ class ChatStreamRequestOrchestrator:
             _t0 = asyncio.get_event_loop().time()
             completed = False
             try:
-                yield "event: status\ndata: Query received, starting pipeline…\n\n"
+                yield _sse_event("status", "Query received, starting pipeline…")
                 initial_stage = json.dumps(
                     {
                         "node": "input_guardrail",
@@ -169,7 +178,7 @@ class ChatStreamRequestOrchestrator:
                         "strategy": "standard",
                     }
                 )
-                yield f"event: stage\ndata: {initial_stage}\n\n"
+                yield _sse_event("stage", initial_stage)
 
                 HEARTBEAT_INTERVAL = 5.0
                 while True:
@@ -203,7 +212,9 @@ class ChatStreamRequestOrchestrator:
                                 except asyncio.CancelledError:
                                     pass
                                 if tokens_streamed == 0:
-                                    yield "event: status\ndata: The Guru is connecting with the teachings...\n\n"
+                                    yield _sse_event(
+                                        "status", "The Guru is connecting with the teachings..."
+                                    )
                                 continue
                             else:
                                 get_task.cancel()
@@ -224,7 +235,7 @@ class ChatStreamRequestOrchestrator:
                         event_data = item.get("data", "")
                         if isinstance(event_data, (dict, list)):
                             event_data = json.dumps(event_data)
-                        yield f"event: {event_type}\ndata: {event_data}\n\n"
+                        yield _sse_event(event_type, event_data)
                     elif isinstance(item, str):
                         _stream_token_chunks += 1
                         if not _ttft_recorded:
@@ -303,8 +314,10 @@ class ChatStreamRequestOrchestrator:
                             # Flush the safe text that appeared before the match.
                             safe_prefix = _pending[: match.start()]
                             if safe_prefix:
-                                yield f"event: token\ndata: {safe_prefix.replace(chr(10), chr(92) + 'n')}\n\n"
-                            yield "event: token\ndata: [SAFETY_FILTER]\n\n"
+                                yield _sse_event(
+                                    "token", safe_prefix.replace(chr(10), chr(92) + "n")
+                                )
+                            yield _sse_event("token", "[SAFETY_FILTER]")
                             # Keep anything after the match in the buffer so
                             # subsequent chunks can still be safety-checked.
                             _pending = _pending[match.end() :]
@@ -314,7 +327,7 @@ class ChatStreamRequestOrchestrator:
                             safe_prefix = _pending[:-_STREAM_FILTER_WINDOW_CHARS]
                             _pending = _pending[-_STREAM_FILTER_WINDOW_CHARS:]
                             escaped = safe_prefix.replace("\n", "\\n")
-                            yield f"event: token\ndata: {escaped}\n\n"
+                            yield _sse_event("token", escaped)
 
                 # Pipeline task completed
                 result = await pipeline_task
@@ -324,11 +337,11 @@ class ChatStreamRequestOrchestrator:
                     f"Pipeline timeout for user {sanitize_log_input(str(user_id))}: "
                     f"message='{sanitize_log_input(user_msg[:60])}...'"
                 )
-                yield "event: error\ndata: The Guru took too long to respond. Please try again.\n\n"
+                yield _sse_event("error", "The Guru took too long to respond. Please try again.")
                 return
             except Exception as e:
                 logger.error(f"Pipeline execution failed: {e}")
-                yield "event: error\ndata: Internal server error\n\n"
+                yield _sse_event("error", "Internal server error")
                 return
             finally:
                 # RP-A1: the admission slot is released FIRST and
@@ -353,7 +366,7 @@ class ChatStreamRequestOrchestrator:
                 # Blocked responses do not consume a quota slot (preserves the
                 # historical no-charge behavior for guardrail-blocked streams).
                 await self._release_anon_quota(user, anon_quota)
-                yield f"event: token\ndata: {result.final_answer}\n\n"
+                yield _sse_event("token", result.final_answer)
                 meta = json.dumps(
                     {
                         "blocked": True,
@@ -363,7 +376,7 @@ class ChatStreamRequestOrchestrator:
                         or get_release_manifest().to_dict(),
                     }
                 )
-                yield f"event: done\ndata: {meta}\n\n"
+                yield _sse_event("done", meta)
                 return
 
             # Anonymous quota commit point: mark the reservation claimed so it
@@ -385,7 +398,7 @@ class ChatStreamRequestOrchestrator:
                 _in_think = False
             if _pending:
                 escaped = _pending.replace("\n", "\\n")
-                yield f"event: token\ndata: {escaped}\n\n"
+                yield _sse_event("token", escaped)
                 _pending = ""
 
             await self._claim_anon_quota(user, anon_quota)
@@ -396,7 +409,7 @@ class ChatStreamRequestOrchestrator:
                 for i in range(0, len(final), 20):
                     chunk = final[i : i + 20]
                     escaped = chunk.replace("\n", "\\n")
-                    yield f"event: token\ndata: {escaped}\n\n"
+                    yield _sse_event("token", escaped)
                     await asyncio.sleep(0.01)
 
             # The pipeline may have normalized the raw streamed model text after
@@ -404,7 +417,7 @@ class ChatStreamRequestOrchestrator:
             # non-doctrinal fallback). Emit the authoritative final answer
             # separately so clients do not persist an earlier raw refusal.
             final_payload = json.dumps(result.final_answer, ensure_ascii=False)
-            yield f"event: final\ndata: {final_payload}\n\n"
+            yield _sse_event("final", final_payload)
 
             # Observe TPOT (Time Per Output Token)
             if _ttft_recorded and _ttft_val is not None and _stream_token_chunks > 1:
@@ -419,7 +432,7 @@ class ChatStreamRequestOrchestrator:
 
             # Done event with metadata
             meta = json.dumps(_stream_done_metadata(result))
-            yield f"event: done\ndata: {meta}\n\n"
+            yield _sse_event("done", meta)
 
             if not chat_body.incognito:
                 # Content-bearing telemetry is disabled for ephemeral chats.

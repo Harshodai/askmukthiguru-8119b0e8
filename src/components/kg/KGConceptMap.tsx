@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { CSSProperties, FormEvent, MouseEvent } from 'react';
+import type { CSSProperties, FormEvent, KeyboardEvent, MouseEvent } from 'react';
 import {
   Background,
   Controls,
@@ -30,6 +30,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { getAIConfig } from '@/lib/chat/config';
 import { getAccessToken } from '@/lib/chat/auth';
+import { MemorySourceLink } from '@/components/common/MemorySourceLink';
+import type { MemorySourceRef } from '@/lib/memorySource';
 
 export interface KGNode {
   id: string;
@@ -38,6 +40,8 @@ export interface KGNode {
   teacher?: string | null;
   state_category?: string | null;
   content_preview?: string | null;
+  /** Provenance of a Memory/NotebookItem node; null/absent means unavailable. */
+  source_ref?: MemorySourceRef | null;
 }
 
 export interface KGEdge {
@@ -52,24 +56,6 @@ export interface Subgraph {
   query?: string;
   count?: number;
 }
-
-export const DEMO_DATA: Subgraph = {
-  nodes: [
-    { id: '1', label: 'Beautiful State', type: 'State', teacher: 'Sri Preethaji' },
-    { id: '2', label: 'Witnessing Awareness', type: 'Practice', teacher: 'Sri Preethaji' },
-    { id: '3', label: 'Compassion', type: 'Practice', teacher: 'Sri Preethaji' },
-    { id: '4', label: 'Stillness', type: 'Practice', teacher: 'Sri Preethaji' },
-    { id: '5', label: 'Sri Krishnaji', type: 'Teacher', teacher: 'Sri Krishnaji' },
-    { id: '6', label: 'Observation', type: 'Practice', teacher: 'Sri Krishnaji' },
-  ],
-  edges: [
-    { source: '1', target: '2', label: 'cultivates' },
-    { source: '2', target: '3', label: 'inspires' },
-    { source: '1', target: '4', label: 'leads to' },
-    { source: '5', target: '6', label: 'taught' },
-    { source: '6', target: '2', label: 'deepens' },
-  ],
-};
 
 export interface TypeVisual {
   accent: string;
@@ -171,6 +157,7 @@ const SUFFERING_MARKERS = [
   'stress',
   'hurt',
   'guilt',
+  'conflict',
 ];
 
 /**
@@ -224,6 +211,16 @@ const SPIRITUAL_EXPLANATIONS: Record<
     summary:
       'Any state of inner division, resistance, or self-obsession—such as anxiety, fear, hurt, or anger. In Ekam teachings, suffering is a temporary state dissolved by witnessing awareness.',
     practice: { name: 'Serene Mind Practice', slug: 'serene-mind', duration: '3 min' },
+  },
+  suffering: {
+    summary:
+      'Any state of inner division, resistance, or self-obsession—such as anxiety, fear, hurt, or anger. In Ekam teachings, suffering is a temporary state dissolved by witnessing awareness.',
+    practice: { name: 'Serene Mind Practice', slug: 'serene-mind', duration: '3 min' },
+  },
+  'inner conflict': {
+    summary:
+      'The divided mind struggling against what is. When you witness inner conflict without judgment or escape, the energy of conflict dissolves into quiet presence.',
+    practice: { name: 'Witnessing Awareness Reflection', slug: 'wisdom-reflection', duration: '5 min' },
   },
   'witnessing awareness': {
     summary:
@@ -342,6 +339,7 @@ type WisdomNodeData = {
   teacher?: string | null;
   stateCategory?: string | null;
   contentPreview?: string | null;
+  sourceRef?: MemorySourceRef | null;
   degree: number;
 };
 
@@ -525,11 +523,17 @@ function layoutGraph(data: Subgraph): WisdomFlowNode[] {
         teacher: node.teacher,
         stateCategory: node.state_category,
         contentPreview: node.content_preview,
+        sourceRef: node.source_ref ?? null,
         degree: degree.get(node.id) ?? 0,
       },
       style: { width: NODE_WIDTH } satisfies CSSProperties,
     };
   });
+}
+
+/** Personal nodes that carry a user-owned source (others are public ontology). */
+function hasSourceSlot(nodeType: string): boolean {
+  return nodeType === 'Memory' || nodeType === 'NotebookItem';
 }
 
 function directionalHandles(source: { x: number; y: number }, target: { x: number; y: number }) {
@@ -559,13 +563,21 @@ function edgeStyle(label?: string | null, active = false) {
   };
 }
 
+export interface KGConceptMapProps {
+  initialQuery?: string;
+  embedded?: boolean;
+  scope?: 'personal' | 'general';
+  hasConsent?: boolean | null;
+  onApproveConsent?: () => void;
+}
+
 export const KGConceptMap = ({
   initialQuery = '',
   embedded = false,
-}: {
-  initialQuery?: string;
-  embedded?: boolean;
-}) => {
+  scope,
+  hasConsent,
+  onApproveConsent,
+}: KGConceptMapProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [query, setQuery] = useState(initialQuery);
@@ -573,7 +585,6 @@ export const KGConceptMap = ({
   const [data, setData] = useState<Subgraph | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDemo, setIsDemo] = useState(false);
   const [isPersonal, setIsPersonal] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -584,14 +595,14 @@ export const KGConceptMap = ({
       setLoading(true);
       setError(null);
       setNeedsAuth(false);
-      setIsDemo(false);
       let personal = false;
 
       try {
         const { endpoint } = getAIConfig();
         const baseUrl = (endpoint ?? '').replace(/\/api\/chat\/?$/, '');
         const token = await getAccessToken();
-        personal = Boolean(token);
+        const isPersonalScope = scope === 'personal' || embedded || (scope !== 'general' && Boolean(token));
+        personal = isPersonalScope;
         setIsPersonal(personal);
 
         const effectiveQuery = q.trim();
@@ -620,14 +631,11 @@ export const KGConceptMap = ({
         if (!json.nodes || json.nodes.length === 0) {
           setData(null);
           setSelectedNodeId(null);
-          setError(
-            personal
-              ? t(
-                  'kg.noPersonalConcepts',
-                  'Your personal wisdom map is empty for now. Save a reflection, memory, or study note to build it.',
-                )
-              : t('kg.noConceptsFor', 'No teachings found for this search.'),
-          );
+          if (personal) {
+            setError(null);
+          } else {
+            setError(t('kg.noConceptsFor', 'No teachings found for this search.'));
+          }
           return;
         }
 
@@ -644,15 +652,13 @@ export const KGConceptMap = ({
             t('kg.personalMapUnavailable', 'Your personal wisdom map is unavailable right now. Please try again.'),
           );
         } else {
-          setData(DEMO_DATA);
-          setIsDemo(true);
-          setError(null);
+          setError(t('kg.errorLoading', "Couldn't load teachings right now."));
         }
       } finally {
         setLoading(false);
       }
     },
-    [t],
+    [t, scope, embedded],
   );
 
   useEffect(() => {
@@ -731,6 +737,38 @@ export const KGConceptMap = ({
     setSubmitted(query.trim());
   };
 
+  // Keyboard parity with a click. React Flow focuses each node (Tab) but, with
+  // controlled nodes and no onNodesChange, Enter/Space never reached onNodeClick,
+  // so keyboard users could not open a node's details (or its source link).
+  // Escape closes the details. After a keyboard selection, focus moves to the
+  // details so the next Tab lands on its controls instead of the next node.
+  const closeDetails = () => {
+    const previousId = selectedNodeId;
+    setSelectedNodeId(null);
+    // Give focus back to the node the details belonged to.
+    window.requestAnimationFrame(() => {
+      if (!previousId) return;
+      const nodes = Array.from(document.querySelectorAll<HTMLElement>('.react-flow__node'));
+      nodes.find((node) => node.getAttribute('data-id') === previousId)?.focus();
+    });
+  };
+
+  const handleGraphKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      closeDetails();
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const nodeId = (event.target as HTMLElement).closest('.react-flow__node')?.getAttribute('data-id');
+    if (!nodeId) return;
+    event.preventDefault();
+    setSelectedNodeId(nodeId);
+    window.requestAnimationFrame(() => {
+      const panels = Array.from(document.querySelectorAll<HTMLElement>('[data-kg-detail]'));
+      panels.find((panel) => panel.offsetParent !== null)?.focus();
+    });
+  };
+
   const handleStartInquiryInChat = (promptText: string) => {
     navigate(`/chat?q=${encodeURIComponent(promptText)}`);
   };
@@ -759,7 +797,7 @@ export const KGConceptMap = ({
           <div className="mb-2 flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-ojas/20 bg-ojas/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ojas">
               <Sparkles className="h-3 w-3" />
-              {isPersonal ? t('kg.personalBadge', 'Student-Teacher Consciousness Map') : isDemo ? t('kg.showingDemo') : t('kg.title')}
+              {isPersonal ? t('kg.personalBadge', 'Student-Teacher Consciousness Map') : t('kg.title')}
             </span>
             {isPersonal && (
               <span className="text-[11px] text-muted-foreground">
@@ -842,7 +880,7 @@ export const KGConceptMap = ({
       </form>
 
       {/* Error & Auth Notices */}
-      {error && !isDemo && (
+      {error && (
         <div role="alert" className="rounded-2xl border border-border/50 bg-card/50 px-4 py-3 text-sm text-muted-foreground">
           {error}{' '}
           {needsAuth && (
@@ -850,19 +888,6 @@ export const KGConceptMap = ({
               {t('common.signIn', 'Sign in')}
             </Link>
           )}
-        </div>
-      )}
-
-      {isDemo && data && (
-        <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-ojas/10 bg-ojas/5 px-4 py-3 text-center text-xs text-muted-foreground">
-          <span>{t('kg.showingDemo')}</span>
-          <button
-            type="button"
-            onClick={() => void fetchSubgraph(submitted)}
-            className="rounded-lg border border-border/50 bg-background/50 px-3 py-1.5 font-medium text-foreground hover:bg-background"
-          >
-            {t('common.retry')}
-          </button>
         </div>
       )}
 
@@ -1002,6 +1027,7 @@ export const KGConceptMap = ({
                 zoomOnScroll
                 onNodeClick={(_event: MouseEvent, node) => setSelectedNodeId(node.id)}
                 onPaneClick={() => setSelectedNodeId(null)}
+                onKeyDown={handleGraphKeyDown}
                 className="bg-graph"
               >
                 <Background gap={28} size={1} color="hsl(var(--border))" />
@@ -1025,6 +1051,9 @@ export const KGConceptMap = ({
               {selectedNode && (
                 <div
                   className="absolute inset-x-3 bottom-3 z-20 max-h-[80%] overflow-y-auto rounded-3xl border border-white/15 bg-black/90 p-5 text-white shadow-2xl backdrop-blur-xl xl:hidden"
+                  data-kg-detail
+                  tabIndex={-1}
+                  onKeyDown={(event) => { if (event.key === 'Escape') closeDetails(); }}
                   role="region"
                   aria-live="polite"
                   aria-label={t('kg.nodeDetails', '{{label}} details', {
@@ -1072,6 +1101,15 @@ export const KGConceptMap = ({
                     </div>
                   )}
 
+                  {hasSourceSlot(selectedNode.data.nodeType) && (
+                    <div className="mt-2">
+                      <MemorySourceLink
+                        source={selectedNode.data.sourceRef}
+                        className="text-white/80 hover:text-white"
+                      />
+                    </div>
+                  )}
+
                   <div className="mt-4 flex gap-2">
                     <Button
                       onClick={() => handleStartInquiryInChat(chatPrompt)}
@@ -1111,6 +1149,35 @@ export const KGConceptMap = ({
                 ))}
               </div>
             </>
+          ) : scope === 'personal' && hasConsent !== true ? (
+            /* Personal Wisdom Map Paused State */
+            <div className="flex h-[620px] flex-col items-center justify-center px-6 py-8 text-center">
+              <div className="relative mb-5 flex h-20 w-20 items-center justify-center">
+                <div className="absolute inset-0 rounded-full border border-ojas/25 bg-ojas/10 animate-pulse" />
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-ojas/30 bg-card/80 backdrop-blur-md shadow-xl">
+                  <Sparkles className="h-7 w-7 text-ojas" />
+                </div>
+              </div>
+              <h3 className="font-sacred text-2xl font-medium text-foreground">
+                {t('kg.personalPausedTitle', 'Personal Wisdom Map Paused')}
+              </h3>
+              <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-muted-foreground">
+                {t(
+                  'kg.personalPausedDesc',
+                  'Allow Mukthi Guru to remember your reflections to weave your personal spiritual journey.',
+                )}
+              </p>
+              <div className="mt-6">
+                <Button
+                  type="button"
+                  onClick={() => onApproveConsent?.()}
+                  className="rounded-xl bg-ojas hover:bg-ojas-dark text-primary-foreground font-semibold shadow-lg shadow-ojas/20 px-6 py-2.5 text-sm"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {t('kg.approveAndEnableMap', 'Approve & Enable Personal Wisdom Map')}
+                </Button>
+              </div>
+            </div>
           ) : (
             /* Inspiring Empty State */
             <div className="flex h-[620px] flex-col items-center justify-center px-6 py-8 text-center">
@@ -1125,10 +1192,15 @@ export const KGConceptMap = ({
               </h3>
               <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-muted-foreground">
                 {isPersonal
-                  ? t(
-                      'kg.bloomingDesc',
-                      'Begin your dialogue with the Guru or record study reflections to watch your consciousness map unfold with sacred teachings.',
-                    )
+                  ? (scope === 'personal' || embedded)
+                    ? t(
+                        'kg.bloomingDescDetailed',
+                        '0 reflections recorded yet. Ask a question or share a reflection to begin.',
+                      )
+                    : t(
+                        'kg.bloomingDesc',
+                        'Begin your dialogue with the Guru or record study reflections to watch your consciousness map unfold with sacred teachings.',
+                      )
                   : t('kg.searchToVisualise')}
               </p>
 
@@ -1176,7 +1248,12 @@ export const KGConceptMap = ({
           }
         >
           {selectedNode ? (
-            <div className="flex h-full flex-col">
+            <div
+              className="flex h-full flex-col outline-none"
+              data-kg-detail
+              tabIndex={-1}
+              onKeyDown={(event) => { if (event.key === 'Escape') closeDetails(); }}
+            >
               {/* Header */}
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -1232,6 +1309,13 @@ export const KGConceptMap = ({
                   </p>
                 </div>
               ) : null}
+
+              {/* Provenance: only personal Memory / NotebookItem nodes have a source */}
+              {hasSourceSlot(selectedNode.data.nodeType) && (
+                <div className="mt-3">
+                  <MemorySourceLink source={selectedNode.data.sourceRef} />
+                </div>
+              )}
 
               {/* Associated Practice Callout */}
               {nodeExplanation?.practice && (

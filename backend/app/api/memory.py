@@ -14,10 +14,11 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.config import settings
 from app.core.limiter import limiter
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from app.memory_consent import require_active_memory_consent
 from services import kg_analytics
 from services.auth_service import auth_bridge, get_current_user_from_supabase
+from services.memory_source import memory_source_ref
 from services.tenant_context import TenantContext, get_tenant_id_from_user, set_tenant_from_request
 from services.user_profile_service import SpiritualLevel
 
@@ -99,7 +100,7 @@ async def list_episodes_endpoint(
     page: int = 1,
     page_size: int = 20,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> EpisodeListResponse:
     """List the authenticated user's recent conversation episodes, paginated."""
     svc = getattr(container, "episodic_memory_service", None)
@@ -121,7 +122,7 @@ async def search_episodes_endpoint(
     q: str,
     limit: int = 20,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> list[EpisodeResponse]:
     """Substring search over the authenticated user's episodes (query + answer)."""
     svc = getattr(container, "episodic_memory_service", None)
@@ -135,6 +136,13 @@ async def search_episodes_endpoint(
     return [_episode_from_row(r) for r in rows]
 
 
+class MemorySourceRef(BaseModel):
+    """Where a memory came from. Absent (None) means provenance is unavailable."""
+
+    kind: str
+    id: str
+
+
 class GuruMemoryResponse(BaseModel):
     id: str
     claim: str
@@ -144,6 +152,7 @@ class GuruMemoryResponse(BaseModel):
     decay_score: float
     source: str
     summary: Optional[str] = None
+    source_ref: Optional[MemorySourceRef] = None
 
 
 class MemoryListResponse(BaseModel):
@@ -192,7 +201,7 @@ async def list_memories_endpoint(
     page: int = 1,
     page_size: int = 50,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> MemoryListResponse:
     """List episodic memories for the authenticated user, paginated."""
     if not getattr(container, "memory_service", None):
@@ -223,6 +232,7 @@ async def list_memories_endpoint(
                 decay_score=1.0,
                 source=m.get("source", "extracted"),
                 summary=m.get("summary"),
+                source_ref=memory_source_ref(m),
             )
         )
     return MemoryListResponse(
@@ -236,7 +246,7 @@ async def list_memories_endpoint(
 @router.get("/memory/core", response_model=CoreMemoryResponse)
 async def get_core_memory_endpoint(
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> CoreMemoryResponse:
     """Retrieve core profile preferences aggregated with core facts."""
     if not container.user_profile:
@@ -279,7 +289,7 @@ async def upsert_core_memory_endpoint(
     body: CoreMemoryWriteRequest,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Save the user's explicit guiding note through the consent-gated backend."""
     content = body.content.strip()
@@ -299,16 +309,28 @@ async def upsert_core_memory_endpoint(
         "updated_at": _dt.datetime.now(_dt.UTC).isoformat(),
     }
     try:
-        result = await asyncio.to_thread(
-            lambda: (
-                client.table("guru_core_memory")
-                .upsert(payload, on_conflict="user_id,tenant_id")
-                .select("id, content, updated_at")
-                .single()
-                .execute()
+
+        def _do_upsert():
+            builder = client.table("guru_core_memory").upsert(
+                payload, on_conflict="user_id,tenant_id"
             )
+            if hasattr(builder, "select"):
+                sel = builder.select("id, content, updated_at")
+                if hasattr(sel, "single"):
+                    try:
+                        return sel.single().execute()
+                    except (AttributeError, TypeError):
+                        pass
+                return sel.execute()
+            return builder.execute()
+
+        result = await asyncio.to_thread(_do_upsert)
+        data = getattr(result, "data", None)
+        row = (
+            data[0]
+            if isinstance(data, list) and len(data) > 0
+            else (data if isinstance(data, dict) else None)
         )
-        row = getattr(result, "data", None)
         if not isinstance(row, dict) or not row.get("id"):
             raise RuntimeError("core memory write returned no row")
         updated_at = row.get("updated_at")
@@ -330,7 +352,7 @@ async def add_memory_endpoint(
     body: AddMemoryRequest,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> GuruMemoryResponse:
     """Manually add an explicit memory."""
     if not getattr(container, "memory_service", None):
@@ -371,7 +393,7 @@ async def forget_memory_endpoint(
     body: ForgetMemoryRequest,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Forget/delete a specific memory by its ID."""
     if not getattr(container, "memory_service", None):
@@ -409,7 +431,7 @@ async def edit_memory_endpoint(
     body: EditMemoryRequest,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Edit/correct a specific memory's text by its ID."""
     if not getattr(container, "memory_service", None):
@@ -450,7 +472,7 @@ async def edit_memory_endpoint(
 async def delete_all_reflections_endpoint(
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Delete all of the user's episodic memories (reflections). Core facts are durable."""
     if not getattr(container, "memory_service", None):
@@ -466,7 +488,7 @@ async def delete_all_reflections_endpoint(
 async def purge_account_memory_endpoint(
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Erase every memory plane before account deletion may proceed.
 
@@ -491,7 +513,7 @@ async def purge_account_memory_endpoint(
 async def regenerate_summary_endpoint(
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Regenerate the `summary` column on episodic memories where it is null.
 
@@ -514,7 +536,7 @@ async def regenerate_summary_endpoint(
 async def list_summaries_endpoint(
     limit: int = 10,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> list[dict]:
     """List recent session summaries for the authenticated user."""
     if not getattr(container, "memory_service", None):
@@ -541,7 +563,7 @@ async def list_summaries_endpoint(
 @router.get("/memory/persona")
 async def get_persona_endpoint(
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Return the user's L3 generated persona Markdown."""
     from services.layered_memory.persona_store import get_persona
@@ -560,7 +582,7 @@ async def regenerate_persona_endpoint(
     request: Request,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Regenerate the user's L3 persona from recent L1 atoms."""
     from services.layered_memory.l1_extractor import get_recent_atoms
@@ -587,7 +609,7 @@ async def reflect_endpoint(
     request: Request,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """On-demand full reflection: L1 → L3 persona + skills + reset turn counter."""
     from services.layered_memory.l1_extractor import get_recent_atoms
@@ -643,7 +665,7 @@ def _reset_turn_counter(user_id: str) -> None:
 @router.get("/memory/skills")
 async def list_skills_endpoint(
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> list[dict]:
     """List auto-generated skills for the current user."""
     from services.layered_memory.skill_generator import get_skills
@@ -661,7 +683,7 @@ async def regenerate_skills_endpoint(
     request: Request,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Regenerate skills from recent L1 atoms."""
     from services.layered_memory.skill_generator import generate_skills, get_skills, save_skills
@@ -687,7 +709,7 @@ async def regenerate_skills_endpoint(
 async def relevant_memories_endpoint(
     body: RelevantMemoryRequest,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> list[dict]:
     """Return memories semantically relevant to a query via match_user_memories RPC."""
     if not getattr(container, "memory_service", None):
@@ -717,7 +739,7 @@ async def relevant_memories_endpoint(
 async def list_conversation_continuity_endpoint(
     limit: int = 5,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> list[dict]:
     """List recent conversation memories (for continuity display)."""
     if not container.user_profile:
@@ -762,6 +784,7 @@ class KGNode(BaseModel):
     content: str | None = None
     analytics: KGNodeAnalytics | None = None
     community: int = -1
+    source_ref: MemorySourceRef | None = None
 
 
 class KGEdge(BaseModel):
@@ -780,7 +803,7 @@ class PersonalKGResponse(BaseModel):
 async def personal_knowledge_graph_endpoint(
     request: Request,
     view: str = "personal",
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> PersonalKGResponse:
     """Return the user's personal knowledge graph.
 
@@ -877,7 +900,7 @@ class KGExportRequest(BaseModel):
 async def export_knowledge_graph_endpoint(
     request: Request,
     body: KGExportRequest,
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """Export the current knowledge graph as a standalone interactive HTML file."""
     if not settings.kg_export_enabled:
@@ -946,7 +969,7 @@ async def set_memory_consent_endpoint(
     body: MemoryConsentRequest,
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Record a revocable, versioned consent receipt for future memory writes."""
     from services.tenant_context import TenantContext, get_tenant_id_from_user
@@ -1073,7 +1096,7 @@ async def _delete_user_study_notebook_items(client: Any, user_id: str) -> int:
 async def delete_all_memory_endpoint(
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict:
     """Irreversibly erase every durable memory plane owned by this user.
 

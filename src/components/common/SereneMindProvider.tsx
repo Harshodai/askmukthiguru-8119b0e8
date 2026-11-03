@@ -72,6 +72,7 @@ export const SereneMindProvider = ({ children }: { children: ReactNode }) => {
           sourceTeaching={sourceTeaching}
           isGated={isGated}
           onComplete={handleComplete}
+          autoPlay={true}
         />
       ) : (
         <SereneMindModal

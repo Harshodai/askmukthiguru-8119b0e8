@@ -500,7 +500,7 @@ def _tier3_ytdlp_subtitles(video_id: str, languages: list[str]) -> Optional[str]
 
 
 def _parse_subtitle_file(filepath: str) -> Optional[str]:
-    """Parse VTT or SRT subtitle file into plain text. Removes timestamps and duplicates."""
+    """Parse VTT or SRT subtitle file into text with millisecond timestamps preserved and rolling-window deduplication."""
     try:
         with open(filepath, encoding="utf-8") as f:
             content = f.read()
@@ -508,29 +508,72 @@ def _parse_subtitle_file(filepath: str) -> Optional[str]:
         logger.error(f"Failed to read subtitle file: {e}")
         return None
 
-    lines = []
-    seen = set()
+    def parse_time_to_ms(t_str: str) -> int:
+        try:
+            parts = t_str.strip().replace(",", ".").split(":")
+            if len(parts) == 3:
+                h = float(parts[0])
+                m = float(parts[1])
+                s = float(parts[2])
+                return int((h * 3600 + m * 60 + s) * 1000)
+            elif len(parts) == 2:
+                m = float(parts[0])
+                s = float(parts[1])
+                return int((m * 60 + s) * 1000)
+        except Exception:
+            pass
+        return 0
+
+    lines_out = []
+    rolling_window: list[tuple[str, int, int]] = []  # (text, start_ms, end_ms)
+
+    current_start_ms = 0
+    current_end_ms = 0
 
     for line in content.split("\n"):
-        # Skip VTT header, timestamps, and empty lines
-        if line.startswith("WEBVTT") or line.startswith("NOTE"):
+        if line.startswith("WEBVTT") or line.startswith("NOTE") or line.startswith("STYLE"):
             continue
-        if re.match(r"^\d+$", line.strip()):  # SRT sequence number
+        if re.match(r"^\d+$", line.strip()):
             continue
-        if "-->" in line:  # Timestamp line
+        if "-->" in line:
+            parts = line.split("-->")
+            if len(parts) == 2:
+                current_start_ms = parse_time_to_ms(parts[0])
+                current_end_ms = parse_time_to_ms(parts[1].split()[0])
             continue
         if not line.strip():
             continue
 
-        clean = re.sub(r"<[^>]+>", "", line)  # Remove HTML tags
-        clean = re.sub(r"\{[^}]+\}", "", clean)  # Remove SRT formatting
+        clean = re.sub(r"<[^>]+>", "", line)
+        clean = re.sub(r"\{[^}]+\}", "", clean)
+        clean = re.sub(r"#.*$", "", clean)
         clean = clean.strip()
+        if not clean:
+            continue
 
-        if clean and clean not in seen:
-            seen.add(clean)
-            lines.append(clean)
+        # Check rolling window: distance > 3 lines or duration > 10s (10000ms)
+        is_duplicate = False
+        for idx, (prev_text, prev_start, _prev_end) in enumerate(reversed(rolling_window)):
+            distance = idx + 1  # 1-based distance from most recent
+            time_diff = abs(current_start_ms - prev_start)
+            if clean.lower() == prev_text.lower():
+                if distance <= 3 or time_diff < 10000:
+                    is_duplicate = True
+                    break
 
-    return " ".join(lines)
+        if not is_duplicate:
+            ts_sec = current_start_ms / 1000.0
+            hours = int(ts_sec // 3600)
+            minutes = int((ts_sec % 3600) // 60)
+            seconds = ts_sec % 60
+            ts_str = f"{hours:02d}:{minutes:02d}:{seconds:06.3f}"
+
+            lines_out.append(f"[{ts_str}] {clean}")
+            rolling_window.append((clean, current_start_ms, current_end_ms))
+            if len(rolling_window) > 20:
+                rolling_window.pop(0)
+
+    return "\n".join(lines_out) if lines_out else None
 
 
 # ============================================================
@@ -615,11 +658,24 @@ def fetch_transcript_hybrid(
     languages = settings.transcript_languages_list
 
     # ── Step 0: Check Pre-extracted Transcripts (Tier 0) ──
-    # Check transcripts/transcripts.json
-    transcripts_json_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-        "transcripts",
-        "transcripts.json",
+    # Check transcripts/transcripts.json across container and host layouts
+    transcripts_candidates = [
+        "/app/transcripts/transcripts.json",
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "transcripts",
+            "transcripts.json",
+        ),
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "transcripts",
+            "transcripts.json",
+        ),
+        os.path.join(os.getcwd(), "transcripts", "transcripts.json"),
+        os.path.join(os.getcwd(), "..", "transcripts", "transcripts.json"),
+    ]
+    transcripts_json_path = next(
+        (p for p in transcripts_candidates if os.path.exists(p)), transcripts_candidates[0]
     )
     if os.path.exists(transcripts_json_path):
         try:

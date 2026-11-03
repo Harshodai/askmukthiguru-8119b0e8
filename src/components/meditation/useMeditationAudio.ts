@@ -153,6 +153,9 @@ export function useMeditationAudio(
       el.play().catch((e) => {
         if (e instanceof DOMException && e.name !== 'AbortError') console.warn('[useMeditationAudio] play rejected:', e.message);
       });
+      if (el.volume < 1) {
+        fadeIn(el);
+      }
     } else {
       el.pause();
     }

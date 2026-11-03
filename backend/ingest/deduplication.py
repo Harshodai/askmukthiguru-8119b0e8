@@ -49,24 +49,44 @@ def _shingles(text: str, k: int = _DEFAULT_SHINGLE_SIZE) -> set[str]:
 
 def _minhash_signature(shingle_set: set[str], hash_count: int = _DEFAULT_HASH_COUNT) -> list[int]:
     """
-    Build a MinHash signature from a set of shingles.
-
-    Uses deterministic seeded MD5 hashes so the same text always yields the
-    same fingerprint without persisting a hash family across calls.
+    Build a MinHash signature from a set of shingles using vectorized linear universal hashing
+    over Mersenne prime 2^61 - 1 with NumPy (DEF-04).
+    h(x) = (a * x + b) % P
     """
-    signature: list[int] = []
-    for seed in range(hash_count):
-        seed_bytes = str(seed).encode("utf-8")
-        min_hash = None
-        for shingle in shingle_set:
-            digest = hashlib.md5(
-                seed_bytes + shingle.encode("utf-8"), usedforsecurity=False
-            ).hexdigest()
-            value = int(digest, 16)
-            if min_hash is None or value < min_hash:
-                min_hash = value
-        signature.append(min_hash if min_hash is not None else 0)
-    return signature
+    import numpy as np
+
+    if not shingle_set:
+        return [0] * hash_count
+
+    # Convert shingles to integer hashes using MD5 once (vectorized integer representation)
+    shingle_ints = np.array(
+        [
+            int(hashlib.md5(s.encode("utf-8"), usedforsecurity=False).hexdigest()[:15], 16)
+            for s in shingle_set
+        ],
+        dtype=np.uint64,
+    )
+
+    # Mersenne prime P = 2^61 - 1
+    P = (1 << 61) - 1
+
+    # Deterministic coefficients a and b for hash_count hash functions
+    np.random.seed(42)
+    a = np.random.randint(1, P, size=hash_count, dtype=np.int64)
+    b = np.random.randint(0, P, size=hash_count, dtype=np.int64)
+
+    # Vectorized hash computation: shape (hash_count, len(shingle_ints))
+    # Using int64 / uint64 arithmetic modulo P
+    # h = (a[:, None] * shingle_ints[None, :] + b[:, None]) % P
+    # To avoid overflow, compute using int64 operations
+    shingle_matrix = shingle_ints.astype(np.int64)
+
+    # Broadcast computation
+    hashed = (a[:, None] * shingle_matrix[None, :]) % P
+    hashed = (hashed + b[:, None]) % P
+
+    min_hashes = np.min(hashed, axis=1)
+    return min_hashes.tolist()
 
 
 def _signature_similarity(sig_a: list[int], sig_b: list[int]) -> float:

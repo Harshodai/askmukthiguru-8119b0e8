@@ -50,3 +50,13 @@ if __name__ == "__main__":
     test_contaminated_propositions_dropped_clean_kept()
     test_all_contaminated_falls_back_to_original_text()
     print("OK")
+
+
+def test_proposition_chunking_is_retired_regardless_of_setting(monkeypatch):
+    """D3: no setting value re-enables proposition chunking."""
+    from app.config import settings
+
+    svc = _service_with_response("- unused")
+    for value in (True, "always", "true", "auto"):
+        monkeypatch.setattr(settings, "use_proposition_chunking", value, raising=False)
+        assert svc.should_apply_propositions("x" * 100000) is False

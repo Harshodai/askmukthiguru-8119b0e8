@@ -630,7 +630,74 @@ ANON_QUOTA_DEGRADED_MODE = Counter(
 INGEST_QUALITY_GATE_REJECTIONS_TOTAL = Counter(
     "ingest_quality_gate_rejections_total",
     "Total count of ingestion items rejected by data quality gate",
-    ["reason", "tier"],
+    ["reason", "tier", "layer"],
+)
+
+CORPUS_GATE_REJECTIONS_PERSISTED_TOTAL = Counter(
+    "corpus_gate_rejections_persisted_total",
+    "Total count of corpus quality gate rejections persisted to ledger",
+)
+
+CORPUS_GATE_REJECTIONS_PERSIST_FAILED_TOTAL = Counter(
+    "corpus_gate_rejections_persist_failed_total",
+    "Total count of corpus quality gate rejections that could not be persisted to the ledger (X40 gap)",
+)
+
+CORPUS_ORPHAN_POINTS_TOTAL = Counter(
+    "corpus_orphan_points_total",
+    "Total count of orphan Qdrant points detected and deleted during reconciliation",
+)
+
+CORPUS_DRIFT_POINTS_TOTAL = Gauge(
+    "corpus_drift_points_total",
+    "Total count of drifted points across knowledge stores (Qdrant, Supabase, Neo4j)",
+    ["store_pair"],
+)
+
+RETRIEVAL_RELEASE_SHADOW_EXCLUSIONS_TOTAL = Counter(
+    "retrieval_release_shadow_exclusions_total",
+    "Total retrieved points that would be excluded by release filter in shadow mode",
+)
+
+RETRIEVAL_FEEDBACK_SUPPRESSIONS_TOTAL = Counter(
+    "retrieval_feedback_suppressions_total",
+    "Total retrieval results suppressed by the negative feedback loop",
+)
+
+ENRICHMENT_WINDOW_EXPANSIONS_TOTAL = Counter(
+    "enrichment_window_expansions_total",
+    "Context enrichment window expansion attempts by outcome",
+    ["outcome"],
+)
+
+RETRIEVAL_CHANNEL_HITS_TOTAL = Counter(
+    "retrieval_channel_hits_total",
+    "Retrieved hits by channel provenance",
+    ["channel"],
+)
+
+QDRANT_OPTIMIZER_STATUS = Gauge(
+    "qdrant_optimizer_status",
+    "Optimizer status 1=ok, 0=error",
+    ["collection"],
+)
+
+QDRANT_DELETED_POINTS_RATIO = Gauge(
+    "qdrant_deleted_points_ratio",
+    "Ratio of deleted to total points",
+    ["collection"],
+)
+
+QDRANT_SNAPSHOT_AGE_HOURS = Gauge(
+    "qdrant_snapshot_age_hours",
+    "Hours since last collection snapshot",
+    ["collection"],
+)
+
+CORPUS_LINEAGE_COMPLETENESS_RATIO = Gauge(
+    "corpus_lineage_completeness_ratio",
+    "Ratio of points with complete lineage by field",
+    ["field"],
 )
 
 

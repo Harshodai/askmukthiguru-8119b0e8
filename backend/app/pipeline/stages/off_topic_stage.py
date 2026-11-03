@@ -640,6 +640,23 @@ class OffTopicStage(Stage):
                 "Query is outside spiritual wisdom and teaching domain; returning clean domain boundary",
             )
 
+        from app.config import settings
+
+        if getattr(settings, "first_person_llm_fallback_enabled", False) is not True and (
+            is_spiritual_domain_query(question)
+            or is_spiritual_domain_query(eval_question)
+            or bool(_ON_TOPIC_RE.search(question))
+            or bool(_ON_TOPIC_RE.search(eval_question))
+        ):
+            # First-person-only mode (invariant 21): a question that mixes an off-topic ask with
+            # one of our own practices ("how many calories does a Soul Sync session burn")
+            # reached the general lane and got a model-written answer, 2026-10-31. The teaching
+            # lane serves a clip or the honest abstain instead; nothing is generated.
+            ctx.state["general_knowledge_mode"] = False
+            ctx.state["domain_route"] = "teaching"
+            ctx.route_metadata.setdefault("domain_route", "teaching")
+            return None
+
         ctx.state["general_knowledge_mode"] = True
         ctx.state.setdefault("domain_route", "general")
         ctx.route_metadata.update(

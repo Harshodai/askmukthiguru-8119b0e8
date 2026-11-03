@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor, act } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, act, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '@/i18n';
-import { KGConceptMap, DEMO_DATA } from '@/components/kg/KGConceptMap';
+import { KGConceptMap } from '@/components/kg/KGConceptMap';
+import { getAccessToken } from '@/lib/chat/auth';
 
 vi.mock('@/lib/chat/config', () => ({ getAIConfig: () => ({ endpoint: 'http://localhost:8000/api/chat' }) }));
 vi.mock('@/lib/chat/auth', () => ({ getAccessToken: vi.fn(() => Promise.resolve('token')) }));
@@ -83,6 +84,44 @@ describe('KGConceptMap', () => {
     expect(screen.queryByText(/example map/i)).not.toBeInTheDocument();
   });
 
+  it('links a memory node to its original conversation and says "Source unavailable" when unproven', async () => {
+    const convId = '3f2b8c1e-9a4d-4e6f-8a1b-2c3d4e5f6a7b';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              nodes: [
+                { id: 'memory:m1', label: 'Linked memory', type: 'Memory', source_ref: { kind: 'conversation', id: convId } },
+                { id: 'memory:m2', label: 'Legacy memory', type: 'Memory', source_ref: null },
+                { id: 'concept:c1', label: 'Stillness', type: 'Concept' },
+              ],
+              edges: [],
+            }),
+        }),
+      ),
+    );
+
+    renderWithI18n(<KGConceptMap />);
+    await waitFor(() => expect(screen.getByLabelText('Linked memory')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText('Linked memory'));
+    const links = await screen.findAllByTestId('memory-source-link');
+    expect(links[0].getAttribute('href')).toContain(`/chat?conversation=${convId}`);
+    expect(screen.queryByTestId('memory-source-unavailable')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Legacy memory'));
+    expect((await screen.findAllByTestId('memory-source-unavailable')).length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('memory-source-link')).not.toBeInTheDocument();
+
+    // Public ontology concepts have no user-owned source, so no source row at all.
+    fireEvent.click(screen.getByLabelText('Stillness'));
+    expect(screen.queryByTestId('memory-source-link')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('memory-source-unavailable')).not.toBeInTheDocument();
+  });
+
   it('passes the focused search query to the personal endpoint', async () => {
     const fetchMock = vi.fn((..._args: any[]) =>
       Promise.resolve({
@@ -105,7 +144,7 @@ describe('KGConceptMap', () => {
     expect(fetchMock.mock.calls[1][0]).toContain('query=meditation');
   });
 
-  it('shows a personal empty state instead of synthetic example data', async () => {
+  it('shows a personal empty state without error banner or demo nodes when personal subgraph is empty', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -119,9 +158,12 @@ describe('KGConceptMap', () => {
     renderWithI18n(<KGConceptMap />);
     await waitFor(() =>
       expect(
-        screen.getByText(/your personal wisdom map is empty/i),
+        screen.getByText(/your personal wisdom map is blooming/i),
       ).toBeInTheDocument(),
     );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('kg-node')).not.toBeInTheDocument();
+    expect(screen.queryByText('Beautiful State')).not.toBeInTheDocument();
     expect(screen.queryByText(/example map/i)).not.toBeInTheDocument();
   });
 
@@ -195,12 +237,23 @@ describe('KGConceptMap', () => {
   });
 
   it('shows node details immediately inside the graph after a node click', async () => {
+    const testData = {
+      nodes: [
+        { id: '1', label: 'Beautiful State', type: 'State', teacher: 'Sri Preethaji' },
+        { id: '2', label: 'Witnessing Awareness', type: 'Practice', teacher: 'Sri Preethaji' },
+        { id: '3', label: 'Compassion', type: 'Practice', teacher: 'Sri Preethaji' },
+      ],
+      edges: [
+        { source: '1', target: '2', label: 'cultivates' },
+        { source: '1', target: '3', label: 'leads to' },
+      ],
+    };
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
         Promise.resolve({
           ok: true,
-          json: () => Promise.resolve(DEMO_DATA),
+          json: () => Promise.resolve(testData),
         }),
       ),
     );
@@ -209,16 +262,47 @@ describe('KGConceptMap', () => {
     const node = await screen.findByRole('button', { name: 'Beautiful State' });
     fireEvent.click(node);
 
-    expect(screen.getByRole('region', { name: /beautiful state details/i })).toBeInTheDocument();
-    expect(screen.getByText(/2 connections/i)).toBeInTheDocument();
+    const details = screen.getByRole('region', { name: /beautiful state details/i });
+    expect(details).toBeInTheDocument();
+    expect(within(details).getByText(/2 connections/i)).toBeInTheDocument();
   });
 
-  it('keeps the curated demo graph limited to on-brand teachers', () => {
-    const names = DEMO_DATA.nodes.map((n) => n.label.toLowerCase());
-    const teachers = DEMO_DATA.nodes.map((n) => (n.teacher || '').toLowerCase());
-    const hasOffBrand = [...names, ...teachers].some((s) => s.includes('krishnamurti'));
-    expect(hasOffBrand).toBe(false);
-    expect(DEMO_DATA.nodes.some((n) => n.label === 'Sri Krishnaji')).toBe(true);
+  it('shows error banner and injects no demo nodes when general subgraph fails', async () => {
+    vi.mocked(getAccessToken).mockResolvedValueOnce(undefined);
+
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 500 })));
+
+    renderWithI18n(<KGConceptMap />);
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent(/couldn't load/i);
+    expect(screen.queryByTestId('kg-node')).not.toBeInTheDocument();
+    expect(screen.queryByText('Beautiful State')).not.toBeInTheDocument();
+    expect(screen.queryByText(/example map/i)).not.toBeInTheDocument();
+  });
+
+  it('shows no teachings error and injects no demo nodes when general subgraph is empty', async () => {
+    vi.mocked(getAccessToken).mockResolvedValueOnce(undefined);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ nodes: [], edges: [] }),
+        }),
+      ),
+    );
+
+    renderWithI18n(<KGConceptMap />);
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent(/(no teachings found|no concepts found)/i);
+    expect(screen.queryByTestId('kg-node')).not.toBeInTheDocument();
+    expect(screen.queryByText('Beautiful State')).not.toBeInTheDocument();
+    expect(screen.queryByText(/example map/i)).not.toBeInTheDocument();
   });
 
   it('categorizes spiritual nodes with distinct visual styles and badges', async () => {
@@ -259,5 +343,109 @@ describe('KGConceptMap', () => {
     expect(screen.getAllByRole('button', { name: /explore in chat/i }).length).toBeGreaterThan(0);
     // Associated practice
     expect(screen.getAllByRole('link', { name: /practice/i }).length).toBeGreaterThan(0);
+  });
+
+  describe('Personal Knowledge Graph Scope Isolation & Consent Governance', () => {
+    it('only calls /api/kg/personal-subgraph when scope="personal"', async () => {
+      const fetchMock = vi.fn((..._args: any[]) =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ nodes: [], edges: [] }),
+        }),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+
+      renderWithI18n(<KGConceptMap scope="personal" hasConsent={true} />);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const calledUrl = String(fetchMock.mock.calls[0]?.[0] ?? '');
+      expect(calledUrl).toContain('/api/kg/personal-subgraph');
+      expect(calledUrl).not.toContain('/api/kg/subgraph?');
+    });
+
+    it('renders paused card when scope="personal" and hasConsent !== true, invoking onApproveConsent when clicked', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ nodes: [], edges: [] }),
+          }),
+        ),
+      );
+
+      const onApprove = vi.fn();
+      renderWithI18n(
+        <KGConceptMap scope="personal" hasConsent={false} onApproveConsent={onApprove} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/personal wisdom map paused/i)).toBeInTheDocument();
+      });
+      expect(
+        screen.getByText(
+          /allow mukthi guru to remember your reflections to weave your personal spiritual journey/i,
+        ),
+      ).toBeInTheDocument();
+
+      const approveBtn = screen.getByRole('button', {
+        name: /approve & enable personal wisdom map/i,
+      });
+      expect(approveBtn).toBeInTheDocument();
+      fireEvent.click(approveBtn);
+      expect(onApprove).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders blooming state with 0 reflections message and inquiry buttons when scope="personal" and hasConsent === true', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ nodes: [], edges: [] }),
+          }),
+        ),
+      );
+
+      renderWithI18n(<KGConceptMap scope="personal" hasConsent={true} />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/your personal wisdom map is blooming/i),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.getByText(/0 reflections recorded yet. ask a question or share a reflection to begin/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /how do i shift from a suffering state to a beautiful state/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', {
+          name: /teach me the serene mind practice/i,
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it('calls general /api/kg/subgraph when scope="general"', async () => {
+      const fetchMock = vi.fn((..._args: any[]) =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              nodes: [{ id: 'c1', label: 'Ekam Concept', type: 'Concept' }],
+              edges: [],
+            }),
+        }),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+
+      renderWithI18n(<KGConceptMap scope="general" />);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const calledUrl = String(fetchMock.mock.calls[0]?.[0] ?? '');
+      expect(calledUrl).toContain('/api/kg/subgraph?');
+      expect(calledUrl).not.toContain('/api/kg/personal-subgraph');
+    });
   });
 });

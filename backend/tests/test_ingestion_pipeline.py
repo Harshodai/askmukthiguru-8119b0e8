@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.config import settings
 from ingest.pipeline import EmbedIndexConfig, IngestionPipeline
 
 
@@ -29,15 +30,18 @@ def mock_pipeline(monkeypatch):
     return IngestionPipeline(qdrant, embedder, ollama)
 
 
-def test_split_text_with_contextual_headers(mock_pipeline):
+def test_split_text_with_contextual_headers(mock_pipeline, monkeypatch):
     text = "This is a long spiritual teaching about mindfulness and presence in the current moment."
     title = "Mindfulness 101"
     speaker = "Sri Krishnaji"
     topic = "Meditation"
 
     # Mock settings.rag_chunk_size to be small for testing
-    mock_pipeline._splitter._chunk_size = 50
-    mock_pipeline._splitter._chunk_overlap = 0
+    monkeypatch.setattr(settings, "rag_chunk_size", 50)
+    monkeypatch.setattr(settings, "rag_chunk_overlap", 0)
+    if hasattr(mock_pipeline, "_splitter"):
+        mock_pipeline._splitter._chunk_size = 50
+        mock_pipeline._splitter._chunk_overlap = 0
 
     chunks = mock_pipeline._split_text(text, title=title, speaker=speaker, topic=topic)
 

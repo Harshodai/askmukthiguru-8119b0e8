@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.admin_telemetry import operations_snapshot, trace_detail, trace_summary
 from app.config import settings
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container, get_container_async
 from app.sanitization import sanitize_log_input
 from app.telemetry_db import (
     get_admins,
@@ -54,7 +54,7 @@ from app.telemetry_db import (
 )
 from celery_config import celery_app
 from schemas.feedback import FeedbackResponse
-from services.auth_service import require_aal2
+from services.auth_service import require_aal2, require_admin
 from services.feedback_service import FeedbackService
 
 
@@ -63,15 +63,9 @@ class _AdminActionResult(BaseModel):
     message: Optional[str] = None
 
 
-def _require_admin(user: dict = Depends(require_aal2)) -> dict:
-    if not user.get("is_superuser", False):
-        raise HTTPException(status_code=403, detail="Admin access required")
-    # P1-SEC-1 (T4): defense-in-depth admin allowlist. When ADMIN_USER_IDS is
-    # set, an AAL2 superuser MUST also be in the list. Empty = not enforced.
-    allowlist = settings.admin_user_ids_list
-    if allowlist and user.get("id") not in allowlist:
-        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
-    return user
+async def _require_admin(user: dict = Depends(require_aal2)) -> dict:
+    """Compatibility wrapper for the canonical auth-service admin dependency."""
+    return await require_admin(user)
 
 
 logger = logging.getLogger(__name__)
@@ -215,6 +209,70 @@ async def get_rag_flow_graph(
     """
 
     try:
+        if strategy == "first_person":
+            latencies = await get_node_latencies(limit=1000)
+            latency_map = {item["node"]: item for item in latencies}
+
+            fp_nodes_def = [
+                {"id": "fp_input", "label": "Seeker Query Intake", "fallback_ms": 12.0},
+                {
+                    "id": "fp_directness_gate",
+                    "label": "FP Directness & Relevance Gate",
+                    "fallback_ms": 48.0,
+                },
+                {"id": "fp_asr_resolver", "label": "ASR Timestamp Resolver", "fallback_ms": 32.0},
+                {
+                    "id": "fp_ecapa_verify",
+                    "label": "ECAPA Acoustic Attribution",
+                    "fallback_ms": 110.0,
+                },
+                {"id": "fp_rights_gate", "label": "B5 Rights Clearing Gate", "fallback_ms": 15.0},
+                {
+                    "id": "fp_context_harness",
+                    "label": "Context Harness Assembler",
+                    "fallback_ms": 65.0,
+                },
+                {
+                    "id": "fp_schema_contract",
+                    "label": "B4 Serving Contract Guard",
+                    "fallback_ms": 8.0,
+                },
+                {
+                    "id": "fp_audio_output",
+                    "label": "Verbatim Audio & Citation",
+                    "fallback_ms": 18.0,
+                },
+            ]
+            fp_edges_def = [
+                ("fp_input", "fp_directness_gate"),
+                ("fp_directness_gate", "fp_asr_resolver"),
+                ("fp_asr_resolver", "fp_ecapa_verify"),
+                ("fp_ecapa_verify", "fp_rights_gate"),
+                ("fp_rights_gate", "fp_context_harness"),
+                ("fp_context_harness", "fp_schema_contract"),
+                ("fp_schema_contract", "fp_audio_output"),
+            ]
+            nodes = [
+                {
+                    "id": item["id"],
+                    "label": item["label"],
+                    "avg_latency_ms": latency_map.get(item["id"], {}).get(
+                        "avg_latency_ms", item["fallback_ms"]
+                    ),
+                    "invocation_count": latency_map.get(item["id"], {}).get("count", 1),
+                }
+                for item in fp_nodes_def
+            ]
+            edges = [
+                {"id": f"e-{s}-{t}", "source": s, "target": t, "animated": True}
+                for s, t in fp_edges_def
+            ]
+            return {
+                "strategy": "first_person",
+                "nodes": nodes,
+                "edges": edges,
+            }
+
         container = get_container()
 
         # Choose the correct graph based on strategy param
@@ -276,11 +334,14 @@ async def fetch_evaluations(
 async def fetch_kpis(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None, alias="to"),
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Fetch aggregated KPIs for Admin UI. Requires admin authentication."""
-
-    return await get_kpis(from_date, to_date)
+    effective_from = from_date or from_
+    effective_to = to_date or to
+    return await get_kpis(effective_from, effective_to)
 
 
 @admin_router.get("/models")
@@ -294,23 +355,31 @@ async def list_models(
 @admin_router.get("/timeseries")
 async def get_timeseries(
     metric: str,
-    from_date: str,
-    to_date: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None, alias="to"),
     buckets: int = 24,
     user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """Get timeseries data for a metric. Requires admin authentication."""
-    return await get_timeseries_data(metric, from_date, to_date, buckets)
+    effective_from = from_date or from_
+    effective_to = to_date or to
+    return await get_timeseries_data(metric, effective_from, effective_to, buckets)
 
 
 @admin_router.get("/triggers")
 async def list_triggers(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
+    from_: Optional[str] = Query(None, alias="from"),
+    to: Optional[str] = Query(None, alias="to"),
     user: dict = Depends(_require_admin),
 ) -> list[dict[str, Any]]:
     """List trigger events. Requires admin authentication."""
-    return await get_trigger_events(from_date, to_date)
+    effective_from = from_date or from_
+    effective_to = to_date or to
+    return await get_trigger_events(effective_from, effective_to)
 
 
 @admin_router.get("/safety-events")
@@ -344,7 +413,7 @@ async def get_retrieval_health_endpoint(
 @admin_router.get("/data-stores")
 async def get_data_stores_endpoint(
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Get data quality stats for Qdrant, Neo4j, and LightRAG. Admin only."""
 
@@ -363,11 +432,11 @@ async def get_data_stores_endpoint(
 
     # ── Neo4j ───────────────────────────────────────────────────────────
     try:
-        driver = container.neo4j_driver
+        driver = getattr(container, "memgraph_driver", None) or container.neo4j_driver
         if driver:
 
-            def _query_neo4j():
-                with driver.session(database="neo4j", default_access_mode="READ") as session:
+            def _query_graph():
+                with driver.session(default_access_mode="READ") as session:
                     node_rows = session.run(
                         "MATCH (n) UNWIND labels(n) AS label RETURN label, count(*) AS cnt ORDER BY cnt DESC"
                     ).data()
@@ -377,21 +446,27 @@ async def get_data_stores_endpoint(
                     total = session.run("MATCH (n) RETURN count(n) AS cnt").single()
                     return node_rows, rel_rows, total["cnt"] if total else 0
 
-            node_rows, rel_rows, total_nodes = await asyncio.to_thread(_query_neo4j)
-            result["neo4j"]["nodes_by_label"] = {}
+            node_rows, rel_rows, total_nodes = await asyncio.to_thread(_query_graph)
+            graph_data = {
+                "nodes_by_label": {},
+                "total_nodes": total_nodes,
+                "relationships_by_type": {r["type"]: r["cnt"] for r in rel_rows},
+                "total_relationships": sum(r["cnt"] for r in rel_rows),
+            }
             for r in node_rows:
                 label = r["label"]
-                result["neo4j"]["nodes_by_label"][label] = (
-                    result["neo4j"]["nodes_by_label"].get(label, 0) + r["cnt"]
+                graph_data["nodes_by_label"][label] = (
+                    graph_data["nodes_by_label"].get(label, 0) + r["cnt"]
                 )
-            result["neo4j"]["total_nodes"] = total_nodes
-            result["neo4j"]["relationships_by_type"] = {r["type"]: r["cnt"] for r in rel_rows}
-            result["neo4j"]["total_relationships"] = sum(r["cnt"] for r in rel_rows)
+            result["memgraph"] = graph_data
+            result["neo4j"] = graph_data  # Backward-compatible alias
         else:
-            result["neo4j"]["error"] = "Neo4j driver not available"
+            result["memgraph"] = {"error": "Memgraph driver not available"}
+            result["neo4j"] = {"error": "Memgraph driver not available"}
     except Exception as e:
-        result["neo4j"]["error"] = "Failed to query Neo4j"
-        logger.exception("Failed to query Neo4j: %s", e)
+        result["memgraph"] = {"error": "Failed to query Memgraph"}
+        result["neo4j"] = {"error": "Failed to query Memgraph"}
+        logger.exception("Failed to query Memgraph: %s", e)
 
     # ── LightRAG ────────────────────────────────────────────────────────
     try:
@@ -1049,7 +1124,7 @@ async def preview_ab_assignment(
 async def list_queue_jobs(
     limit: int = Query(100, ge=1, le=500),
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """List all active/queued jobs for admin queue monitor."""
     if not container.job_queue:
@@ -1726,7 +1801,7 @@ async def admin_contextual_reingest_dry_run(
 async def admin_reingest(
     body: ReingestRequest,
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Admin-only generic re-ingestion endpoint.
 
@@ -1831,7 +1906,7 @@ async def _release_reingest_lock(container: ServiceContainer) -> None:
 async def admin_contextual_reingest(
     body: ContextualReingestRequest,
     user=Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     """Admin-only: trigger contextual re-ingestion from spiritual_wisdom.
 
@@ -2077,7 +2152,7 @@ async def routing_confidence(
 @admin_router.get("/observability/summary")
 async def observability_summary(
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Unified observability dashboard — single source of truth for all
     operational metrics across Prometheus, Supabase telemetry, cost tracker,
@@ -2093,7 +2168,7 @@ async def observability_summary(
 @admin_router.get("/observability/health-check")
 async def observability_health_check(
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Quick health check — all deps as booleans."""
     from app.unified_observability import get_observability_summary
@@ -2111,7 +2186,8 @@ async def observability_health_check(
         ),
         "qdrant": summary.qdrant_healthy,
         "redis": summary.redis_healthy,
-        "neo4j": summary.neo4j_healthy,
+        "memgraph": summary.neo4j_healthy,
+        "neo4j": summary.neo4j_healthy,  # Backward-compatible alias
         "circuit_breaker": summary.circuit_breaker_state,
         "memory_mb": summary.process_rss_mb,
     }
@@ -2121,7 +2197,7 @@ async def observability_health_check(
 async def cost_breakdown(
     tenant_id: Optional[str] = None,
     user: dict = Depends(_require_admin),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     """Combined cost view from CostTracker.
 
@@ -2188,7 +2264,7 @@ async def triage_staging_entries(
 
 @admin_router.get("/qdrant/health")
 async def get_qdrant_index_health(
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Qdrant collection health: segment count, fragmentation, optimizer status.
@@ -2203,7 +2279,7 @@ async def get_qdrant_index_health(
 
 @admin_router.post("/qdrant/optimize")
 async def trigger_qdrant_optimization(
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Trigger Qdrant's built-in segment optimizer on-demand.
@@ -2281,6 +2357,79 @@ def _load_speaker_decisions(decisions_path: Path) -> dict[str, str]:
                 pass
         i += 1
     return decisions
+
+
+def _save_speaker_decision(decisions_path: Path, span_id: str, decision_value: str) -> bool:
+    """Persist a speaker attribution triage decision to the decisions file."""
+    import json
+
+    try:
+        if not decisions_path.is_file():
+            decisions_path.parent.mkdir(parents=True, exist_ok=True)
+            content = (
+                "# First-person owner decisions\n\n"
+                "```json owner-decision\n"
+                "{\n"
+                '  "decision_id": "b5_speaker_conflict_rows",\n'
+                '  "rows": {\n'
+                f'    "{span_id}": "{decision_value}"\n'
+                "  }\n"
+                "}\n"
+                "```\n"
+            )
+            decisions_path.write_text(content, encoding="utf-8")
+            return True
+
+        text = decisions_path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        i = 0
+        start_idx = None
+        end_idx = None
+        data = None
+
+        while i < len(lines):
+            if "```json owner-decision" in lines[i]:
+                block_start = i + 1
+                body: list[str] = []
+                j = block_start
+                while j < len(lines) and not lines[j].strip().startswith("```"):
+                    body.append(lines[j])
+                    j += 1
+                try:
+                    parsed = json.loads("\n".join(body))
+                    if parsed.get("decision_id") == "b5_speaker_conflict_rows":
+                        start_idx = block_start
+                        end_idx = j
+                        data = parsed
+                        break
+                except Exception:
+                    pass
+                i = j
+            i += 1
+
+        if data is not None and start_idx is not None and end_idx is not None:
+            rows = data.setdefault("rows", {})
+            rows[span_id] = decision_value
+            new_json_lines = json.dumps(data, indent=2).splitlines()
+            new_lines = lines[:start_idx] + new_json_lines + lines[end_idx:]
+            decisions_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+            return True
+        else:
+            block = [
+                "",
+                "```json owner-decision",
+                json.dumps(
+                    {"decision_id": "b5_speaker_conflict_rows", "rows": {span_id: decision_value}},
+                    indent=2,
+                ),
+                "```",
+                "",
+            ]
+            decisions_path.write_text(text + "\n" + "\n".join(block), encoding="utf-8")
+            return True
+    except Exception as exc:
+        logger.error("Failed to persist speaker decision to %s: %s", decisions_path, exc)
+        return False
 
 
 @admin_router.get("/attribution/queue")
@@ -2469,6 +2618,9 @@ async def triage_attribution_span(
         sanitize_log_input(payload.interlocutor_role or ""),
     )
 
+    _, decisions_path, _, _ = _get_attribution_paths()
+    persisted = _save_speaker_decision(decisions_path, span_id, decision_value)
+
     return {
         "ok": True,
         "span_id": span_id,
@@ -2476,7 +2628,15 @@ async def triage_attribution_span(
         "decision": decision_value,
         "assigned_guru": payload.assigned_guru,
         "interlocutor_role": payload.interlocutor_role,
-        "message": f"Span {span_id[:8]} triaged as {payload.action} ({decision_value})",
+        "persisted": persisted,
+        "message": (
+            f"Span {span_id[:8]} decision persisted as {payload.action} ({decision_value})."
+            if persisted
+            else (
+                f"Span {span_id[:8]} decision logged as {payload.action} ({decision_value}); "
+                "NOT applied to the corpus."
+            )
+        ),
     }
 
 
@@ -2499,5 +2659,140 @@ async def batch_triage_video(
         "video_id": video_id,
         "action": payload.action,
         "affected_spans_count": len(payload.span_ids),
-        "message": f"Batch action {payload.action} successfully applied to {len(payload.span_ids)} spans in video {video_id}",
+        "persisted": False,
+        "message": (
+            f"Batch action {payload.action} for {len(payload.span_ids)} spans in video "
+            f"{video_id} logged; NOT applied to the corpus."
+        ),
+    }
+
+
+@admin_router.get("/corpus/provenance/{point_id}")
+async def get_corpus_provenance(
+    point_id: str,
+    user: dict = Depends(_require_admin),
+    container: ServiceContainer = Depends(get_container_async),
+) -> dict[str, Any]:
+    """Admin Provenance API (DE-2.4).
+
+    Retrieves the point from Qdrant by point_id (via container.qdrant_client.retrieve or scroll).
+    Returns browser-safe JSON dictionary with:
+    point_id, source_url, source_release_version, content_checksum, embedding_model,
+    embedding_dimension, chunker_version, gate_verdict, gate_reason, asr_method,
+    align_method, rights_status, parent_id, parent_id_scheme, created_at / ingested_at.
+    Returns 404 if point is not found.
+    """
+    qdrant_client = getattr(container, "qdrant_client", None)
+    if qdrant_client is None and hasattr(container, "qdrant"):
+        qdrant_client = getattr(container.qdrant, "_client", None) or getattr(
+            container.qdrant, "client", None
+        )
+
+    if qdrant_client is None:
+        raise HTTPException(status_code=503, detail="Vector store unavailable")
+
+    answered = 0  # lookups that got a Qdrant reply (empty or not), vs. raised
+
+    async def _lookup(collection: str) -> Any:
+        nonlocal answered
+        points = None
+        if hasattr(qdrant_client, "retrieve"):
+            try:
+                res = await asyncio.to_thread(
+                    qdrant_client.retrieve,
+                    collection_name=collection,
+                    ids=[point_id],
+                    with_payload=True,
+                )
+                answered += 1
+                if res:
+                    points = res
+            except Exception as e:
+                logger.warning("qdrant_client.retrieve(str) failed on %s: %s", collection, e)
+
+            if not points and point_id.isdigit():
+                try:
+                    res = await asyncio.to_thread(
+                        qdrant_client.retrieve,
+                        collection_name=collection,
+                        ids=[int(point_id)],
+                        with_payload=True,
+                    )
+                    answered += 1
+                    if res:
+                        points = res
+                except Exception as e:
+                    logger.warning("qdrant_client.retrieve(int) failed on %s: %s", collection, e)
+
+        if not points and hasattr(qdrant_client, "scroll"):
+            from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+
+            try:
+                scroll_res = await asyncio.to_thread(
+                    qdrant_client.scroll,
+                    collection_name=collection,
+                    scroll_filter=Filter(
+                        must=[FieldCondition(key="point_id", match=MatchValue(value=point_id))]
+                    ),
+                    limit=1,
+                    with_payload=True,
+                )
+                scroll_pts = scroll_res[0] if isinstance(scroll_res, tuple) else scroll_res
+                answered += 1
+                if scroll_pts:
+                    points = scroll_pts
+            except Exception as e:
+                logger.warning("qdrant_client.scroll failed on %s: %s", collection, e)
+        return points
+
+    # A point lives in the chat corpus OR in a first-person store. Reading only
+    # `qdrant_collection` made every first-person point (the ones served to
+    # seekers) a 404 and hid its provenance.
+    collections: list[str] = []
+    for name in (
+        getattr(settings, "qdrant_collection", "spiritual_wisdom_contextual"),
+        getattr(settings, "first_person_context_collection", ""),
+        getattr(settings, "first_person_collection", ""),
+    ):
+        if name and name not in collections:
+            collections.append(name)
+
+    points = None
+    for collection in collections:
+        points = await _lookup(collection)
+        if points:
+            break
+
+    if not points and not answered:
+        # Every lookup raised: Qdrant is unreachable, which is not "no such point".
+        raise HTTPException(status_code=503, detail="Vector store unavailable")
+    if not points:
+        raise HTTPException(status_code=404, detail=f"Corpus point '{point_id}' not found")
+
+    point = points[0]
+    payload = getattr(point, "payload", {}) or (
+        point.get("payload", {}) if isinstance(point, dict) else {}
+    )
+    stored_id = str(getattr(point, "id", None) or payload.get("point_id") or point_id)
+
+    return {
+        "point_id": stored_id,
+        "source_url": payload.get("source_url"),
+        "source_release_version": payload.get("source_release_version"),
+        "content_checksum": payload.get("content_checksum"),
+        "embedding_model": payload.get("embedding_model"),
+        "embedding_dimension": payload.get("embedding_dimension"),
+        "chunker_version": payload.get("chunker_version"),
+        "gate_verdict": payload.get("gate_verdict"),
+        "gate_reason": payload.get("gate_reason"),
+        "asr_method": payload.get("asr_method"),
+        "align_method": payload.get("align_method"),
+        "rights_status": payload.get("rights_status") or payload.get("domain_rights_status"),
+        "parent_id": payload.get("parent_id"),
+        "parent_id_scheme": payload.get("parent_id_scheme"),
+        "created_at": payload.get("created_at") or payload.get("ingested_at"),
+        "ingested_at": payload.get("ingested_at") or payload.get("created_at"),
+        "audio_start_ms": payload.get("audio_start_ms") or payload.get("start_ms"),
+        "audio_end_ms": payload.get("audio_end_ms") or payload.get("end_ms"),
+        "speaker": payload.get("speaker") or payload.get("guru_id"),
     }

@@ -1,13 +1,21 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Flag, ShieldAlert } from "lucide-react";
+import { Flag, ShieldAlert, Cpu, MoreHorizontal, ExternalLink } from "lucide-react";
 import { useClipReports } from "@/admin/hooks/useAdminData";
 import { AdminPageError } from "@/admin/components/AdminPageStates";
 import { EmptyState } from "@/admin/components/EmptyState";
+import { CorpusProvenanceModal } from "@/admin/components/CorpusProvenanceModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { fmtDateTime, truncate } from "@/admin/lib/formatters";
 
 const PAGE_SIZE = 20;
@@ -38,6 +46,7 @@ function isDenied(error: unknown): boolean {
 export default function ClipReportsPage() {
   const { t } = useTranslation();
   const [page, setPage] = useState(0);
+  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useClipReports(
     PAGE_SIZE,
@@ -117,43 +126,102 @@ export default function ClipReportsPage() {
                       <th className="text-left px-4 py-3 font-medium w-40">{t("admin.clipReportsClip")}</th>
                       <th className="text-left px-4 py-3 font-medium w-32">{t("admin.clipReportsReporter")}</th>
                       <th className="text-left px-4 py-3 font-medium w-44">{t("admin.clipReportsTime")}</th>
+                      <th className="text-right px-4 py-3 font-medium w-48">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {rows.map((r, index) => (
-                      <tr
-                        key={`${r?.served_point_id ?? "report"}-${r?.ts ?? index}`}
-                        className="hover:bg-muted/30 transition-colors align-top"
-                      >
-                        <td className="px-4 py-3">
-                          <Flag className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                        </td>
-                        {/* Free text renders via JSX interpolation only (React-escaped). */}
-                        <td className="px-4 py-3 max-w-[220px]">
-                          <span className="block truncate" title={decodeEntities(r?.question ?? "")}>
-                            {decodeEntities(r?.question ?? "") || "—"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 max-w-[220px]">
-                          <span className="block truncate" title={decodeEntities(r?.reason ?? "")}>
-                            {decodeEntities(r?.reason ?? "") || "—"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                          <span className="block truncate" title={r?.served_point_id ?? ""}>
-                            {r?.served_point_id ? truncate(r.served_point_id, 18) : "—"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          <span className="block truncate" title={decodeEntities(r?.reporter ?? "")}>
-                            {decodeEntities(r?.reporter ?? "") || "—"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                          {r?.ts ? fmtDateTime(r.ts) : "—"}
-                        </td>
-                      </tr>
-                    ))}
+                    {rows.map((r, index) => {
+                      const videoId = (r as unknown as Record<string, unknown>)?.video_id as string || r?.served_point_id || "";
+                      return (
+                        <tr
+                          key={`${r?.served_point_id ?? "report"}-${r?.ts ?? index}`}
+                          className="hover:bg-muted/30 transition-colors align-top"
+                        >
+                          <td className="px-4 py-3">
+                            <Flag className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                          </td>
+                          {/* Free text renders via JSX interpolation only (React-escaped). */}
+                          <td className="px-4 py-3 max-w-[220px]">
+                            <span className="block truncate" title={decodeEntities(r?.question ?? "")}>
+                              {decodeEntities(r?.question ?? "") || "—"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 max-w-[220px]">
+                            <span className="block truncate" title={decodeEntities(r?.reason ?? "")}>
+                              {decodeEntities(r?.reason ?? "") || "—"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                            {r?.served_point_id ? (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedPointId(r.served_point_id)}
+                                className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline hover:text-primary/80 transition-colors"
+                                title={`Inspect provenance for ${r.served_point_id}`}
+                              >
+                                <Cpu className="h-3 w-3 shrink-0" />
+                                <span className="truncate max-w-[140px]">{truncate(r.served_point_id, 18)}</span>
+                              </button>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
+                            <span className="block truncate" title={decodeEntities(r?.reporter ?? "")}>
+                              {decodeEntities(r?.reporter ?? "") || "—"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                            {r?.ts ? fmtDateTime(r.ts) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="sm" asChild className="h-7 text-xs px-2">
+                                <Link
+                                  to={`/admin/ingestion?tab=attribution&videoId=${encodeURIComponent(videoId)}`}
+                                  title="Inspect in Speaker Attribution"
+                                >
+                                  Attribution
+                                </Link>
+                              </Button>
+                              <Button variant="ghost" size="sm" asChild className="h-7 text-xs px-2">
+                                <Link
+                                  to={`/admin/ingestion?tab=video-approval&videoId=${encodeURIComponent(videoId)}`}
+                                  title="Inspect in Video Approval"
+                                >
+                                  Approval
+                                </Link>
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                    <span className="sr-only">Actions</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem asChild>
+                                    <Link to={`/admin/ingestion?tab=attribution&videoId=${encodeURIComponent(videoId)}`}>
+                                      Inspect in Speaker Attribution
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem asChild>
+                                    <Link to={`/admin/ingestion?tab=video-approval&videoId=${encodeURIComponent(videoId)}`}>
+                                      Inspect in Video Approval
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  {r?.served_point_id && (
+                                    <DropdownMenuItem onClick={() => setSelectedPointId(r.served_point_id)}>
+                                      Inspect Provenance
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -191,6 +259,14 @@ export default function ClipReportsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Corpus Point Provenance Drawer */}
+      {selectedPointId && (
+        <CorpusProvenanceModal
+          pointId={selectedPointId}
+          onClose={() => setSelectedPointId(null)}
+        />
+      )}
     </div>
   );
 }

@@ -242,10 +242,9 @@ def ingest_book_to_qdrant(json_path: str):
     """
     import uuid
 
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
     from services.embedding_service import EmbeddingService
     from services.qdrant_service import QdrantService
-
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
 
     logger.info("Initializing Qdrant and Embeddings (in-process)...")
     qdrant = QdrantService()

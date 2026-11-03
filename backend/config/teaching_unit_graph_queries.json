@@ -1,0 +1,36 @@
+{
+  "schema_version": "tu_graph_v1",
+  "description": "Cypher query templates for the TeachingUnit graph projection. All node labels carry the TU_ prefix to avoid namespace collision with the live doctrine graph (:base, :Concept, :Teacher, etc.).",
+  "queries": {
+    "create_constraints": [
+      "CREATE CONSTRAINT ON (n:TUTeachingUnit) ASSERT n.span_id IS UNIQUE",
+      "CREATE CONSTRAINT ON (n:TUVideoSource) ASSERT n.video_id IS UNIQUE",
+      "CREATE CONSTRAINT ON (n:TUGuru) ASSERT n.guru_id IS UNIQUE",
+      "CREATE CONSTRAINT ON (n:TUTopic) ASSERT n.name IS UNIQUE",
+      "CREATE CONSTRAINT ON (n:TUConcept) ASSERT n.name IS UNIQUE"
+    ],
+    "create_index": [
+      "CREATE INDEX ON :TUTeachingUnit(rights_status)",
+      "CREATE INDEX ON :TUTeachingUnit(corpus_version)",
+      "CREATE INDEX ON :TUTeachingUnit(video_id)",
+      "CREATE INDEX ON :TUTeachingUnit(guru_id)"
+    ],
+    "merge_teaching_unit": "MERGE (n:TUTeachingUnit {span_id: $span_id}) SET n.parent_id = $parent_id, n.video_id = $video_id, n.guru_id = $guru_id, n.corpus_version = $corpus_version, n.rights_status = $rights_status, n.schema_version = $schema_version",
+    "merge_video_source": "MERGE (v:TUVideoSource {video_id: $video_id}) SET v.schema_version = $schema_version",
+    "merge_guru": "MERGE (g:TUGuru {guru_id: $guru_id}) SET g.schema_version = $schema_version",
+    "merge_topic": "MERGE (t:TUTopic {name: $name}) SET t.schema_version = $schema_version",
+    "merge_concept": "MERGE (c:TUConcept {name: $name}) SET c.schema_version = $schema_version",
+    "merge_from_video_edge": "MATCH (n:TUTeachingUnit {span_id: $span_id}), (v:TUVideoSource {video_id: $video_id}) MERGE (n)-[:TU_FROM_VIDEO {epistemic_state: $epistemic_state}]->(v)",
+    "merge_spoken_by_edge": "MATCH (n:TUTeachingUnit {span_id: $span_id}), (g:TUGuru {guru_id: $guru_id}) MERGE (n)-[:TU_SPOKEN_BY {epistemic_state: $epistemic_state}]->(g)",
+    "merge_has_topic_edge": "MATCH (n:TUTeachingUnit {span_id: $span_id}), (t:TUTopic {name: $topic}) MERGE (n)-[:TU_HAS_TOPIC {epistemic_state: $epistemic_state}]->(t)",
+    "merge_has_concept_edge": "MATCH (n:TUTeachingUnit {span_id: $span_id}), (c:TUConcept {name: $concept}) MERGE (n)-[:TU_HAS_CONCEPT {epistemic_state: $epistemic_state}]->(c)",
+    "merge_continues_edge": "MATCH (a:TUTeachingUnit {span_id: $from_span_id}), (b:TUTeachingUnit {span_id: $to_span_id}) MERGE (a)-[:TU_CONTINUES {epistemic_state: $epistemic_state}]->(b)",
+    "merge_precedes_edge": "MATCH (a:TUTeachingUnit {span_id: $from_span_id}), (b:TUTeachingUnit {span_id: $to_span_id}) MERGE (a)-[:TU_PRECEDES {epistemic_state: $epistemic_state}]->(b)",
+    "one_hop_expansion": "MATCH (seed:TUTeachingUnit {span_id: $span_id})-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-(neighbor:TUTeachingUnit) WHERE neighbor.span_id <> $span_id AND neighbor.rights_status = 'licensed' AND NOT (seed)-[:TU_DUPLICATE_OF]-(neighbor) RETURN DISTINCT neighbor.span_id AS span_id LIMIT $limit",
+    "two_hop_expansion": "MATCH (seed:TUTeachingUnit {span_id: $span_id})-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..2]-(neighbor:TUTeachingUnit) WHERE neighbor.span_id <> $span_id AND neighbor.rights_status = 'licensed' AND NOT (seed)-[:TU_DUPLICATE_OF]-(neighbor) RETURN DISTINCT neighbor.span_id AS span_id LIMIT $limit",
+    "multi_seed_one_hop": "UNWIND $span_ids AS sid MATCH (seed:TUTeachingUnit {span_id: sid})-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-(neighbor:TUTeachingUnit) WHERE neighbor.rights_status = 'licensed' AND NOT neighbor.span_id IN $span_ids AND NOT (seed)-[:TU_DUPLICATE_OF]-(neighbor) RETURN DISTINCT neighbor.span_id AS span_id LIMIT $limit",
+    "count_nodes": "MATCH (n:TUTeachingUnit) RETURN count(n) AS node_count",
+    "count_edges": "MATCH ()-[r:TU_CONTINUES|TU_PRECEDES|TU_HAS_TOPIC|TU_HAS_CONCEPT|TU_FROM_VIDEO|TU_SPOKEN_BY|TU_DUPLICATE_OF]->() RETURN count(r) AS edge_count",
+    "drop_projection": "MATCH (n) WHERE any(label IN labels(n) WHERE label STARTS WITH 'TU') DETACH DELETE n"
+  }
+}

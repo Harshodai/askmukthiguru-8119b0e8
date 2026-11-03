@@ -38,8 +38,6 @@ from app.sanitization import sanitize_log_input
 
 logger = logging.getLogger(__name__)
 
-UTC = UTC
-
 
 # Default teacher personality fragments (Phase E5 stub).
 # Overridable via settings.teacher_personalities (JSON string).

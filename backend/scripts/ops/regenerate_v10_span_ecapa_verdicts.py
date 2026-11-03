@@ -42,6 +42,22 @@ The standard library ``wave`` module is used; ``soundfile`` is **not** required
 that need them, so the app import graph and the test suite never depend on the
 heavy audio stack.
 
+Served-span mode (``--spans-jsonl``)
+------------------------------------
+The candidate mode above scores the Phase 3 *reconstruction* window. A span that
+is already live is served at a different window: the citation player adds
+``CITATION_PLAYBACK_PAD_S`` (0.25 s) on both sides
+(``backend/services/first_person_pipeline.py``), so the seeker hears
+``[start_ms - 250, end_ms + 250]``. Verifying the reconstruction window says
+nothing about the audio behind the served window, and a verdict written against
+the wrong window is not evidence for what is played.
+
+``--spans-jsonl`` therefore scores exactly the served window, reusing the
+**already pinned** calibration artifact (``--calibration``) rather than fitting
+new floors on the spans under test. It emits one row per ``source_span_id`` and
+writes no collection: the write path is
+``scripts/ops/backfill_v10_voice_method.py``.
+
 Usage
 -----
     python -m scripts.ops.regenerate_v10_span_ecapa_verdicts \\
@@ -52,6 +68,14 @@ Usage
         --out-verdicts-jsonl audits/evidence/public_release_phase2_verdicts_2026-10-22.jsonl \\
         --out-calibration audits/evidence/public_release_phase2_calibration_2026-10-22.json \\
         --out-summary audits/evidence/public_release_phase2_summary_2026-10-22.json
+
+    # served-window mode: score live spans against the pinned calibration
+    python -m scripts.ops.regenerate_v10_span_ecapa_verdicts \\
+        --spans-jsonl spans.jsonl \\
+        --audio-dir ~/mukthiguru_attribution_data/audio_archive/wavs \\
+        --calibration <pinned calibration JSON> \\
+        --references <references.npz from a candidate-mode run> \\
+        --out-verdicts-jsonl served_verdicts.jsonl
 """
 
 from __future__ import annotations
@@ -75,6 +99,8 @@ VERDICT_SCHEMA = "first-person-v10-ecapa-span-verdict-v1"
 VERDICT_INDEX_SCHEMA = "first-person-v10-ecapa-verdict-index-v1"
 CALIBRATION_SCHEMA = "first-person-v10-ecapa-calibration-v1"
 SUMMARY_SCHEMA = "first-person-v10-ecapa-phase2-summary-v1"
+SPAN_VERDICT_SCHEMA = "first-person-v10-ecapa-served-span-verdict-v1"
+SPAN_SUMMARY_SCHEMA = "first-person-v10-ecapa-served-span-summary-v1"
 
 # ---------------------------------------------------------------------------
 # Model / recipe constants
@@ -95,6 +121,11 @@ HOP_SECONDS = 1.0
 
 #: Minimum usable slice. A slice shorter than this cannot carry a 2 s window.
 MIN_CLIP_SECONDS = 0.4
+
+#: The pad the citation player adds on both sides of a span, mirroring
+#: ``services/first_person_pipeline.CITATION_PLAYBACK_PAD_S`` (0.25 s). A served
+#: window is ``[start_ms - SERVED_PAD_MS, end_ms + SERVED_PAD_MS]``, clamped at 0.
+SERVED_PAD_MS = 250
 
 #: Clustering / assignment constants inherited unchanged from
 #: ``backend/scripts/ops/speaker_attribution.py``. They are cited, not fitted.
@@ -119,6 +150,27 @@ ANCHORS: dict[str, tuple[str, float]] = {
 #: The registry ids a span's expected guru may take. A display label
 #: ("Sri Krishnaji") is never accepted as an expected guru.
 GURU_IDS = frozenset(ANCHORS)
+
+#: A live span carries a display ``speaker_id``, not a registry id. This is the
+#: same label -> registry map ``scripts/ops/score_v10_unchecked_speakers.py``
+#: uses (``_TEACHER_CODES``); an unmapped label is rejected at load time rather
+#: than guessed, because the expected guru is the claim under test.
+GURU_BY_SPEAKER = {
+    "sri preethaji": "preethaji",
+    "sri krishnaji": "krishnaji",
+    "preethaji": "preethaji",
+    "krishnaji": "krishnaji",
+}
+
+#: Fields a ``--spans-jsonl`` row must carry.
+SPAN_REQUIRED_FIELDS = (
+    "point_id",
+    "source_span_id",
+    "video_id",
+    "start_ms",
+    "end_ms",
+    "speaker_id",
+)
 
 #: Below this many held-out impostor trials the false-accept rate is not
 #: measurable and the calibration must fail closed.
@@ -592,6 +644,281 @@ def load_quarantine(path: Path, expected_rows: int) -> tuple[list[dict[str, Any]
 
 
 # ---------------------------------------------------------------------------
+# Served-span inputs
+# ---------------------------------------------------------------------------
+def served_window(start_ms: int, end_ms: int, pad_ms: int = SERVED_PAD_MS) -> tuple[int, int]:
+    """The window a seeker actually hears for a span.
+
+    Pure: same inputs always give the same bounds, no audio needed. The start is
+    clamped at zero because a negative offset is not addressable; the end is not
+    clamped here (an end past the file is an ``out_of_bounds`` audio failure, not
+    a silently shortened window).
+    """
+    start = max(0, int(start_ms) - int(pad_ms))
+    end = int(end_ms) + int(pad_ms)
+    return start, end
+
+
+def _is_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def load_spans(path: Path) -> list[dict[str, Any]]:
+    """Load a ``--spans-jsonl`` file and assert every row is scorable.
+
+    A row is rejected rather than repaired: an unmapped speaker label would make
+    the expected guru a guess, and a duplicate ``source_span_id`` would make the
+    verdict rows ambiguous against the one-row-per-span contract.
+    """
+    rows = load_jsonl(path)
+    if not rows:
+        raise InputError(f"{path}: no spans")
+    seen: set[str] = set()
+    for index, row in enumerate(rows):
+        for field in SPAN_REQUIRED_FIELDS:
+            if row.get(field) in (None, ""):
+                raise InputError(f"{path}: row {index} has no {field}")
+        span_id = str(row["source_span_id"])
+        if span_id in seen:
+            raise InputError(f"{path}: duplicate source_span_id {span_id!r} at row {index}")
+        seen.add(span_id)
+        for field in ("start_ms", "end_ms"):
+            if not _is_int(row.get(field)):
+                raise InputError(f"{path}: row {index} has a non-integer {field}")
+        if int(row["end_ms"]) <= int(row["start_ms"]):
+            raise InputError(f"{path}: row {index} has end_ms <= start_ms")
+        if str(row["speaker_id"]).strip().casefold() not in GURU_BY_SPEAKER:
+            raise InputError(
+                f"{path}: row {index} has an unusable speaker_id {row['speaker_id']!r}"
+            )
+    return rows
+
+
+def load_pinned_calibration(path: Path, max_far: float | None = None) -> dict[str, Any]:
+    """Read the already-pinned calibration artifact. Never recalibrates.
+
+    ``max_far`` (optional, off by default) refuses an artifact whose Clopper-Pearson
+    false-accept bound on the held-out test impostors exceeds it. The default is off
+    because the calibration pinned on 2026-10-30 has 262 trials and a bound near 1.1%; the
+    owner decides when a tighter target applies.
+
+    Fail closed: an unmeasurable or malformed artifact means no span can be
+    verified, so the caller stops instead of applying an invented floor. The
+    revision travels into every row so a verdict can be traced to the exact
+    calibration that produced it.
+    """
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise InputError(f"calibration {path} is unreadable: {exc}") from exc
+    if not isinstance(data, dict):
+        raise InputError(f"calibration {path} is not a JSON object")
+    if data.get("calibration_available") is False:
+        raise InputError(
+            f"calibration {path} reports calibration_available=false; no span can be verified"
+        )
+    # The phase-2 certification artifact nests its measured floors under "thresholds".
+    floors = data.get("thresholds") if isinstance(data.get("thresholds"), dict) else {}
+    cosine_floor = data.get("cosine_floor", floors.get("cosine_floor"))
+    margin_threshold = data.get(
+        "margin_threshold", data.get("threshold", floors.get("margin_threshold"))
+    )
+    for name, value in (("cosine_floor", cosine_floor), ("margin_threshold", margin_threshold)):
+        if not _finite(value):
+            raise InputError(f"calibration {path} has no usable {name}: {value!r}")
+    revision = str(data.get("calibration_revision") or "")
+    if not revision:
+        raise InputError(f"calibration {path} carries no calibration_revision")
+    # Always recorded, so every served-window run states how well the false-accept rate it
+    # relies on is bounded; it only refuses when the owner sets ``max_far``.
+    ok, far_record = far_gate(data, max_far if max_far is not None else DEFAULT_TARGET_FAR)
+    if max_far is not None:
+        if not ok:
+            raise InputError(
+                f"calibration {path} does not meet the false-accept target {max_far}: "
+                f"bound {far_record['upper_bound']} from {far_record['false_accepts']} false "
+                f"accepts in {far_record['impostor_trials']} trials; about "
+                f"{far_record['clean_trials_needed_for_target']} clean trials are needed"
+            )
+    return {
+        "far_bound": far_record,
+        "calibration_available": True,
+        "calibration_revision": revision,
+        "cosine_floor": float(cosine_floor),
+        "margin_threshold": float(margin_threshold),
+        "path": str(path.resolve()),
+        "sha256": _sha256_file(path),
+    }
+
+
+def load_references(path: Path) -> dict[str, np.ndarray]:
+    """Load the guru reference centroids a candidate-mode run wrote."""
+    try:
+        with np.load(path) as data:
+            references = {name: data[name].astype(np.float32) for name in data.files}
+    except (OSError, ValueError) as exc:
+        raise InputError(f"references {path} are unreadable: {exc}") from exc
+    if not references:
+        raise InputError(f"references {path} hold no centroids")
+    missing = sorted(set(references) - GURU_IDS)
+    if missing:
+        raise InputError(f"references {path} carry unknown guru ids {missing}")
+    return references
+
+
+def build_span_verdict_row(
+    *,
+    span: dict[str, Any],
+    vector: np.ndarray | None,
+    audio_failure: str | None,
+    references: dict[str, np.ndarray],
+    calibration: dict[str, Any],
+    run_id: str,
+    model_revision: str,
+    device: str,
+    audio_dir: Path,
+    audio_hashes: dict[str, str],
+    audio_info: dict[str, dict[str, Any]],
+    slice_durations: dict[str, int],
+) -> dict[str, Any]:
+    """Build one served-window verdict row. Pure: same inputs always give the row."""
+    span_id = str(span["source_span_id"])
+    video_id = str(span["video_id"])
+    expected_guru = GURU_BY_SPEAKER[str(span["speaker_id"]).strip().casefold()]
+    span_start = int(span["start_ms"])
+    span_end = int(span["end_ms"])
+    window_start, window_end = served_window(span_start, span_end)
+    cosine_floor = calibration["cosine_floor"]
+    margin_threshold = calibration["margin_threshold"]
+
+    if vector is None:
+        verdict = audio_failure or VERDICT_NOT_RUN
+        reason = verdict
+        scored = {"predicted": "", "cosine": None, "runner_up_cosine": None, "margin": None}
+        predicted_guru = ""
+    else:
+        scored = score_against_references(vector, references)
+        predicted_guru = scored["predicted"]
+        verdict, reason = decide_verdict(
+            expected_guru=expected_guru,
+            predicted_guru=predicted_guru,
+            cosine=float(scored["cosine"]),
+            margin=float(scored["margin"]),
+            cosine_floor=cosine_floor,
+            margin_threshold=margin_threshold,
+            calibration_available=bool(calibration["calibration_available"]),
+        )
+
+    header = audio_info.get(video_id) or {}
+    return {
+        "schema": SPAN_VERDICT_SCHEMA,
+        "run_id": run_id,
+        "mode": "served_window",
+        "source_span_id": span_id,
+        "point_id": str(span["point_id"]),
+        "video_id": video_id,
+        "speaker_id": str(span["speaker_id"]),
+        "guru_id": expected_guru,
+        "expected_guru": expected_guru,
+        "expected_guru_source": (
+            "payload.speaker_id mapped through GURU_BY_SPEAKER (a claim under test, never evidence)"
+        ),
+        "predicted_guru": predicted_guru or None,
+        "span_start_ms": span_start,
+        "span_end_ms": span_end,
+        "window_start_ms": window_start,
+        "window_end_ms": window_end,
+        "window_pad_ms": SERVED_PAD_MS,
+        "audio_path": str((audio_dir / f"{video_id}.wav").resolve()),
+        "audio_sha256": audio_hashes.get(video_id, ""),
+        "audio_sample_rate": header.get("sample_rate"),
+        "audio_file_duration_ms": header.get("duration_ms"),
+        "audio_start_ms": window_start,
+        "audio_end_ms": window_end,
+        "audio_slice_duration_ms": slice_durations.get(span_id),
+        "audio_window_ordered": bool(window_end > window_start),
+        "speaker_model": ECAPA_MODEL_ID,
+        "speaker_model_revision": model_revision,
+        "speaker_device": device,
+        "calibration_revision": calibration["calibration_revision"],
+        "cosine": _round(scored["cosine"]) if scored["cosine"] is not None else None,
+        "runner_up_cosine": (
+            _round(scored["runner_up_cosine"]) if scored["runner_up_cosine"] is not None else None
+        ),
+        "margin": _round(scored["margin"]) if scored["margin"] is not None else None,
+        "cosine_floor": _round(cosine_floor),
+        "margin_threshold": _round(margin_threshold),
+        "verdict": verdict,
+        "verdict_group": verdict_group(verdict),
+        "reason_code": reason,
+    }
+
+
+def span_verdict_rows(
+    spans: list[dict[str, Any]],
+    *,
+    audio_dir: Path,
+    calibration: dict[str, Any],
+    references: dict[str, np.ndarray],
+    embed_slice_fn,
+    run_id: str,
+    model_revision: str,
+    device: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """One served-window verdict row per span, plus run counters.
+
+    ``embed_slice_fn(audio) -> vector | None`` is the only model-dependent step,
+    so a test can inject a fake embedder and never import torch/speechbrain.
+    """
+    audio_hashes: dict[str, str] = {}
+    audio_info: dict[str, dict[str, Any]] = {}
+    slice_durations: dict[str, int] = {}
+    audio_failures: dict[str, str] = {}
+    rows: list[dict[str, Any]] = []
+
+    for span in sorted(spans, key=lambda item: str(item["source_span_id"])):
+        span_id = str(span["source_span_id"])
+        video_id = str(span["video_id"])
+        wav_path = audio_dir / f"{video_id}.wav"
+        if video_id not in audio_hashes:
+            audio_hashes[video_id] = _sha256_file(wav_path) if wav_path.is_file() else ""
+            audio_info[video_id] = (wav_header(wav_path) or {}) if wav_path.is_file() else {}
+
+        window_start, window_end = served_window(int(span["start_ms"]), int(span["end_ms"]))
+        vector: np.ndarray | None = None
+        audio, reason = read_slice(wav_path, window_start, window_end)
+        if audio is None:
+            audio_failures[span_id] = reason or VERDICT_INVALID_AUDIO
+        else:
+            slice_durations[span_id] = int(round(audio.size * 1000.0 / TARGET_SAMPLE_RATE))
+            vector = embed_slice_fn(audio)
+            if vector is None:
+                audio_failures[span_id] = VERDICT_INVALID_AUDIO
+
+        rows.append(
+            build_span_verdict_row(
+                span=span,
+                vector=vector,
+                audio_failure=audio_failures.get(span_id),
+                references=references,
+                calibration=calibration,
+                run_id=run_id,
+                model_revision=model_revision,
+                device=device,
+                audio_dir=audio_dir,
+                audio_hashes=audio_hashes,
+                audio_info=audio_info,
+                slice_durations=slice_durations,
+            )
+        )
+    return rows, {
+        "rows": len(rows),
+        "audio_failures": dict(Counter(audio_failures.values())),
+        "slices_embedded": len(slice_durations),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Scoring helpers
 # ---------------------------------------------------------------------------
 def _cos(a: np.ndarray, b: np.ndarray) -> float:
@@ -892,6 +1219,162 @@ def evaluate_on_split(
 
 
 # ---------------------------------------------------------------------------
+# Impostor evidence and the false-accept bound (P7)
+# ---------------------------------------------------------------------------
+#: The error rate the false-accept bound is judged against. 0.5% needs about 600 clean
+#: impostor trials; 0.1% needs about 3,000. The value is the merged plan's proposal
+#: (2026-10-31), not a measured requirement.
+DEFAULT_TARGET_FAR = 0.005
+#: One-sided confidence for the Clopper-Pearson bound.
+FAR_ALPHA = 0.05
+#: Label values a foreign (non-teacher) slice may carry.
+FOREIGN_LABELS = frozenset({"host", "interviewer", "other"})
+FOREIGN_SLICE_REQUIRED = ("slice_id", "video_id", "start_ms", "end_ms", "label")
+
+
+def far_upper_bound(false_accepts: int, trials: int, alpha: float = FAR_ALPHA) -> float | None:
+    """Exact one-sided Clopper-Pearson upper bound on the false-accept rate, or ``None``."""
+    if trials <= 0 or false_accepts < 0 or false_accepts > trials:
+        return None
+    from evaluation.gold.metrics import clopper_pearson_upper
+
+    return float(clopper_pearson_upper(false_accepts, trials, alpha))
+
+
+def trials_needed_for_far(target: float, alpha: float = FAR_ALPHA) -> int:
+    """Clean (zero false accept) impostor trials needed for the bound to reach ``target``."""
+    if not 0.0 < target < 1.0:
+        raise ValueError("target must be between 0 and 1")
+    return math.ceil(math.log(alpha) / math.log(1.0 - target))
+
+
+def far_bound_record(
+    false_accepts: int | None,
+    trials: int | None,
+    *,
+    target: float = DEFAULT_TARGET_FAR,
+    alpha: float = FAR_ALPHA,
+) -> dict[str, Any]:
+    """The calibration record's false-accept evidence: counts, bound, target, verdict."""
+    needed = trials_needed_for_far(target, alpha)
+    bound = (
+        far_upper_bound(int(false_accepts), int(trials), alpha)
+        if isinstance(false_accepts, int) and isinstance(trials, int)
+        else None
+    )
+    return {
+        "impostor_trials": trials,
+        "false_accepts": false_accepts,
+        "alpha": alpha,
+        "upper_bound": _round(bound, 8) if bound is not None else None,
+        "target": target,
+        "meets_target": bool(bound is not None and bound <= target),
+        "clean_trials_needed_for_target": needed,
+        "method": "clopper_pearson_one_sided_exact",
+        # The bound treats every trial as independent. Slices of one speaker in one video are
+        # not, so the effective evidence is smaller than the count (a limit of this method).
+        "independence_caveat": (
+            "assumes independent trials; trials sharing a speaker or a video are correlated, "
+            "so the true uncertainty is wider than this bound"
+        ),
+    }
+
+
+def far_gate(calibration: dict[str, Any], target: float) -> tuple[bool, dict[str, Any]]:
+    """Refuse a calibration whose false-accept bound exceeds ``target``.
+
+    Reads the counts the calibration artifact already records for the held-out **test**
+    split (``trial_counts.test_impostor_trials`` and ``false_accept.test.count``); the
+    calibration split is excluded because its floors sit above every observed impostor by
+    construction. An artifact that does not carry both counts cannot be judged, so it is
+    refused rather than waved through.
+    """
+    counts = calibration.get("trial_counts")
+    trials = counts.get("test_impostor_trials") if isinstance(counts, dict) else None
+    false_accept = calibration.get("false_accept")
+    test = false_accept.get("test") if isinstance(false_accept, dict) else None
+    accepts = test.get("count") if isinstance(test, dict) else None
+    record = far_bound_record(accepts, trials, target=target)
+    record["source"] = "trial_counts.test_impostor_trials, false_accept.test.count"
+    return bool(record["meets_target"]), record
+
+
+def load_foreign_slices(path: Path) -> list[dict[str, Any]]:
+    """Host / interviewer / other-speaker slices to use as extra impostor trials.
+
+    One JSON object per line with ``slice_id``, ``video_id``, ``start_ms``, ``end_ms`` and a
+    ``label`` in :data:`FOREIGN_LABELS`. These are voices that are NOT Sri Krishnaji or Sri
+    Preethaji (for example diarization windows named ``O``); a slice that is really a
+    teacher would only add false accepts, which fails safe.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise InputError(f"foreign slices {path} are unreadable: {exc}") from exc
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for number, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise InputError(f"{path}: line {number} is not valid JSON: {exc}") from exc
+        if not isinstance(row, dict):
+            raise InputError(f"{path}: line {number} is not a JSON object")
+        for field in FOREIGN_SLICE_REQUIRED:
+            if row.get(field) in (None, ""):
+                raise InputError(f"{path}: line {number} is missing {field}")
+        if str(row["label"]) not in FOREIGN_LABELS:
+            raise InputError(f"{path}: line {number} has label {row['label']!r}")
+        if not (_is_int(row["start_ms"]) and _is_int(row["end_ms"])) or int(row["end_ms"]) <= int(
+            row["start_ms"]
+        ):
+            raise InputError(f"{path}: line {number} has an invalid window")
+        if str(row["slice_id"]) in seen:
+            raise InputError(f"{path}: duplicate slice_id {row['slice_id']!r} at line {number}")
+        seen.add(str(row["slice_id"]))
+        rows.append(row)
+    return rows
+
+
+def build_foreign_trials(
+    vectors: dict[str, np.ndarray],
+    splits: dict[str, str],
+    references: dict[str, np.ndarray],
+    split: str,
+    labels: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Impostor trials from non-teacher voices: each slice claims each teacher in turn.
+
+    Same trial shape as :func:`build_trials` impostors, so the floors and the false-accept
+    count treat both kinds alike. ``margin`` is the claimed teacher's score minus the best
+    other reference.
+    """
+    trials: list[dict[str, Any]] = []
+    for slice_id in sorted(vectors):
+        if splits.get(slice_id) != split:
+            continue
+        scored = score_against_references(vectors[slice_id], references)
+        for claimed in sorted(references):
+            best_other = max(
+                (value for name, value in scored["scores"].items() if name != claimed),
+                default=0.0,
+            )
+            trials.append(
+                {
+                    "source_span_id": slice_id,
+                    "claimed": claimed,
+                    "true_label": (labels or {}).get(slice_id, "foreign"),
+                    "kind": "foreign_voice",
+                    "cosine": scored["scores"][claimed],
+                    "margin": scored["scores"][claimed] - best_other,
+                }
+            )
+    return trials
+
+
+# ---------------------------------------------------------------------------
 # Verdict rows
 # ---------------------------------------------------------------------------
 def build_verdict_row(
@@ -1048,15 +1531,35 @@ def build_parser() -> argparse.ArgumentParser:
         description="Regenerate independently calibrated per-span ECAPA evidence.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--candidate", required=True, help="Phase 3 exact candidate JSONL.")
-    parser.add_argument("--quarantine", required=True, help="Phase 3 quarantine JSONL.")
+    parser.add_argument("--candidate", default=None, help="Phase 3 exact candidate JSONL.")
+    parser.add_argument("--quarantine", default=None, help="Phase 3 quarantine JSONL.")
     parser.add_argument("--audio-dir", required=True, help="audio_archive/wavs directory.")
     parser.add_argument(
-        "--out-verdicts", required=True, help="Verdict index JSON (keyed by source_span_id)."
+        "--out-verdicts", default=None, help="Verdict index JSON (keyed by source_span_id)."
     )
     parser.add_argument("--out-verdicts-jsonl", default=None, help="Verdict rows JSONL.")
-    parser.add_argument("--out-calibration", required=True, help="Calibration artifact JSON.")
-    parser.add_argument("--out-summary", required=True, help="Summary JSON.")
+    parser.add_argument(
+        "--out-calibration",
+        default=None,
+        help="Calibration artifact JSON (candidate mode only; spans mode never recalibrates).",
+    )
+    parser.add_argument("--out-summary", default=None, help="Summary JSON.")
+    parser.add_argument(
+        "--spans-jsonl",
+        default=None,
+        help="Served-window mode: spans JSONL (point_id, source_span_id, video_id, start_ms, "
+        "end_ms, speaker_id). Scores [start_ms-250, end_ms+250] against the pinned calibration.",
+    )
+    parser.add_argument(
+        "--calibration",
+        default=None,
+        help="Served-window mode: the already-pinned calibration artifact (read, never refitted).",
+    )
+    parser.add_argument(
+        "--references",
+        default=None,
+        help="Served-window mode: guru reference centroids (.npz written by --out-references).",
+    )
     parser.add_argument(
         "--cache",
         default=str(Path(__file__).resolve().parents[3] / ".work/public_release/phase2_cache"),
@@ -1071,11 +1574,231 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--generated-at-utc", default=None)
     parser.add_argument(
+        "--out-references",
+        default=None,
+        help="Optional .npz path: write the guru reference centroids used for this run, "
+        "so a later builder can verify new spans against the SAME references.",
+    )
+    parser.add_argument(
+        "--foreign-slices-jsonl",
+        default=None,
+        help="Candidate mode: host / interviewer / other-speaker slices (slice_id, video_id, "
+        "start_ms, end_ms, label). Added to the held-out impostor trials of their video's "
+        "split. Build them with scripts/ops/build_impostor_slices.py.",
+    )
+    parser.add_argument(
+        "--max-far",
+        type=float,
+        default=None,
+        help="Served-window mode: refuse the pinned calibration unless its one-sided 95%% "
+        "Clopper-Pearson false-accept bound on the test impostors is at most this (e.g. 0.005). "
+        "Off by default.",
+    )
+    parser.add_argument(
         "--write-to-qdrant",
         action="store_true",
         help="REJECTED. This script has no write mode; it only emits file artifacts.",
     )
     return parser
+
+
+def _write_json_file(path: str, payload: Any) -> str:
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return str(target)
+
+
+def run_spans_mode(args: argparse.Namespace) -> int:
+    """Score the served window for every span in ``--spans-jsonl``.
+
+    Never recalibrates and never writes to a collection: the floors come from the
+    pinned artifact, the rows are a file artifact, and
+    ``scripts/ops/backfill_v10_voice_method.py`` owns the (gated) write path.
+    """
+    required = (
+        ("--spans-jsonl", args.spans_jsonl),
+        ("--calibration", args.calibration),
+        ("--references", args.references),
+        ("--out-verdicts-jsonl", args.out_verdicts_jsonl),
+    )
+    missing = [name for name, value in required if not value]
+    if missing:
+        print(
+            json.dumps(
+                {
+                    "status": "invalid_input",
+                    "error": f"served-window mode requires {', '.join(missing)}",
+                    "script_version": SCRIPT_VERSION,
+                },
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
+        return EXIT_INVALID_INPUT
+
+    spans_path = Path(args.spans_jsonl)
+    calibration_path = Path(args.calibration)
+    references_path = Path(args.references)
+    audio_dir = Path(args.audio_dir).expanduser()
+    try:
+        spans = load_spans(spans_path)
+        calibration = load_pinned_calibration(calibration_path, args.max_far)
+        references = load_references(references_path)
+    except InputError as exc:
+        print(
+            json.dumps(
+                {"status": "invalid_input", "error": str(exc), "script_version": SCRIPT_VERSION},
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
+        return EXIT_INVALID_INPUT
+
+    cache_dir = Path(args.cache).expanduser()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    device = resolve_device(args.device)
+    model_revision = _ecapa_revision()
+
+    run_manifest = {
+        "script_version": SCRIPT_VERSION,
+        "mode": "served_window",
+        "model": {"id": ECAPA_MODEL_ID, "revision": model_revision, "device": device},
+        "recipe": {
+            "window_seconds": WINDOW_SECONDS,
+            "hop_seconds": HOP_SECONDS,
+            "sample_rate": TARGET_SAMPLE_RATE,
+            "silence_rms_floor": 0.01,
+            "served_pad_ms": SERVED_PAD_MS,
+            "window_rule": "max(0, start_ms - pad) .. end_ms + pad (CITATION_PLAYBACK_PAD_S)",
+        },
+        "calibration": {
+            "path": calibration["path"],
+            "sha256": calibration["sha256"],
+            "calibration_revision": calibration["calibration_revision"],
+        },
+        "spans": {"path": str(spans_path.resolve()), "sha256": _sha256_file(spans_path)},
+        "references": {
+            "path": str(references_path.resolve()),
+            "sha256": _sha256_file(references_path),
+        },
+        "audio_dir": str(audio_dir.resolve()),
+    }
+    run_id = _sha256_bytes(_canonical_json(run_manifest).encode("utf-8"))
+
+    embedder = load_embedder(cache_dir, device=device)
+    rows, counters = span_verdict_rows(
+        spans,
+        audio_dir=audio_dir,
+        calibration=calibration,
+        references=references,
+        embed_slice_fn=lambda audio: embed_slice(audio, embedder),
+        run_id=run_id,
+        model_revision=model_revision,
+        device=device,
+    )
+
+    validation_failures: list[dict[str, Any]] = []
+    per_check = Counter()
+    for row in rows:
+        failures = validate_row(row)
+        for failure in failures:
+            per_check[failure] += 1
+        if failures:
+            validation_failures.append(
+                {"source_span_id": row["source_span_id"], "failures": failures}
+            )
+    checks = {
+        "one_row_per_source_span_id": len(rows) == len(spans)
+        and len({row["source_span_id"] for row in rows}) == len(rows),
+        "every_row_echoes_calibration_revision": all(
+            row["calibration_revision"] == calibration["calibration_revision"] for row in rows
+        ),
+        "every_row_uses_the_served_window": all(
+            (row["window_start_ms"], row["window_end_ms"])
+            == served_window(row["span_start_ms"], row["span_end_ms"])
+            for row in rows
+        ),
+        "row_schema_failures": len(validation_failures),
+    }
+    verdict_counts = Counter(row["verdict"] for row in rows)
+    summary = {
+        "schema": SPAN_SUMMARY_SCHEMA,
+        "script_version": SCRIPT_VERSION,
+        "run_id": run_id,
+        "mode": "served_window",
+        "generated_at_utc": args.generated_at_utc or _dt.datetime.now(_dt.UTC).isoformat(),
+        "inputs": {name: value for name, value in run_manifest.items() if name != "script_version"},
+        "calibration": {
+            "cosine_floor": calibration["cosine_floor"],
+            "margin_threshold": calibration["margin_threshold"],
+            "calibration_revision": calibration["calibration_revision"],
+            "recalibrated": False,
+            "false_accept_bound": calibration["far_bound"],
+        },
+        "spans_scored": len(spans),
+        "rows_emitted": len(rows),
+        "by_verdict": {name: verdict_counts.get(name, 0) for name in VERDICT_CATEGORIES},
+        "audio_failures": counters["audio_failures"],
+        "slices_embedded": counters["slices_embedded"],
+        "validation": {
+            "checks": checks,
+            "row_failure_reasons": dict(per_check),
+            "failures": validation_failures[:50],
+        },
+        "mutations": {
+            "qdrant_reads": 0,
+            "qdrant_writes": 0,
+            "alias_changes": 0,
+            "redis_operations": 0,
+            "environment_changes": 0,
+        },
+    }
+
+    written = {"verdicts_jsonl": str(Path(args.out_verdicts_jsonl))}
+    target = Path(args.out_verdicts_jsonl)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
+    if args.out_verdicts:
+        written["verdicts"] = _write_json_file(
+            args.out_verdicts,
+            {
+                "schema": VERDICT_INDEX_SCHEMA,
+                "script_version": SCRIPT_VERSION,
+                "run_id": run_id,
+                "mode": "served_window",
+                "key_field": "source_span_id",
+                "verdict_count": len(rows),
+                "calibration_revision": calibration["calibration_revision"],
+                "verdicts": {row["source_span_id"]: row for row in rows},
+            },
+        )
+    if args.out_summary:
+        written["summary"] = _write_json_file(args.out_summary, summary)
+
+    print(
+        json.dumps(
+            {
+                "script_version": SCRIPT_VERSION,
+                "mode": "served_window",
+                "run_id": run_id,
+                "rows_emitted": len(rows),
+                "verdicts": dict(verdict_counts),
+                "calibration_revision": calibration["calibration_revision"],
+                "audio_failures": counters["audio_failures"],
+                "validation": checks,
+                "written": written,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return EXIT_INVALID_INPUT if validation_failures else EXIT_OK
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1088,6 +1811,34 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "status": "refused",
                     "reason": "this script has no write mode; verdicts are a file artifact only",
+                    "script_version": SCRIPT_VERSION,
+                },
+                sort_keys=True,
+            ),
+            file=sys.stderr,
+        )
+        return EXIT_INVALID_INPUT
+
+    if args.spans_jsonl:
+        return run_spans_mode(args)
+
+    missing = [
+        name
+        for name, value in (
+            ("--candidate", args.candidate),
+            ("--quarantine", args.quarantine),
+            ("--out-verdicts", args.out_verdicts),
+            ("--out-calibration", args.out_calibration),
+            ("--out-summary", args.out_summary),
+        )
+        if not value
+    ]
+    if missing:
+        print(
+            json.dumps(
+                {
+                    "status": "invalid_input",
+                    "error": f"candidate mode requires {', '.join(missing)}",
                     "script_version": SCRIPT_VERSION,
                 },
                 sort_keys=True,
@@ -1130,6 +1881,27 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return EXIT_INVALID_INPUT
+
+    foreign_slices: list[dict[str, Any]] = []
+    foreign_sha256 = ""
+    if args.foreign_slices_jsonl:
+        foreign_path = Path(args.foreign_slices_jsonl)
+        try:
+            foreign_slices = load_foreign_slices(foreign_path)
+        except InputError as exc:
+            print(
+                json.dumps(
+                    {
+                        "status": "invalid_input",
+                        "error": str(exc),
+                        "script_version": SCRIPT_VERSION,
+                    },
+                    sort_keys=True,
+                ),
+                file=sys.stderr,
+            )
+            return EXIT_INVALID_INPUT
+        foreign_sha256 = _sha256_file(foreign_path)
 
     cache_dir = Path(args.cache).expanduser()
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -1206,6 +1978,24 @@ def main(argv: list[str] | None = None) -> int:
         merged.update(new_vectors)
         np.savez_compressed(embedding_cache_path, **merged)
 
+    # ---- foreign (host / interviewer / other) slices: extra impostor evidence (P7) ------
+    foreign_vectors: dict[str, np.ndarray] = {}
+    foreign_splits: dict[str, str] = {}
+    foreign_labels: dict[str, str] = {}
+    foreign_failures: Counter[str] = Counter()
+    for row in foreign_slices:
+        slice_id = f"foreign:{row['slice_id']}"
+        video_id = str(row["video_id"])
+        wav_path = audio_dir / f"{video_id}.wav"
+        audio, reason = read_slice(wav_path, int(row["start_ms"]), int(row["end_ms"]))
+        vector = embed_slice(audio, embedder) if audio is not None else None
+        if vector is None:
+            foreign_failures[reason or VERDICT_INVALID_AUDIO] += 1
+            continue
+        foreign_vectors[slice_id] = vector
+        foreign_splits[slice_id] = assign_split(video_id)
+        foreign_labels[slice_id] = str(row["label"])
+
     # ---- anchors, references, calibration ----------------------------------
     anchor_vectors: dict[str, np.ndarray] = {}
     anchor_details: dict[str, Any] = {}
@@ -1228,9 +2018,20 @@ def main(argv: list[str] | None = None) -> int:
         }
 
     references, reference_stats = build_references(vectors, splits, anchor_vectors)
+    if args.out_references:
+        np.savez_compressed(Path(args.out_references), **references)
     calibration_trials = build_trials(vectors, splits, anchor_vectors, references, "calibration")
-    calibration = calibrate_from_trials(calibration_trials)
     test_trials = build_trials(vectors, splits, anchor_vectors, references, "test")
+    foreign_calibration_trials = build_foreign_trials(
+        foreign_vectors, foreign_splits, references, "calibration", foreign_labels
+    )
+    foreign_test_trials = build_foreign_trials(
+        foreign_vectors, foreign_splits, references, "test", foreign_labels
+    )
+    # Foreign voices join the same impostor pool, so the floors rise above them too.
+    calibration_trials["impostor_trials"].extend(foreign_calibration_trials)
+    test_trials["impostor_trials"].extend(foreign_test_trials)
+    calibration = calibrate_from_trials(calibration_trials)
     cosine_floor = calibration.get("cosine_floor")
     margin_threshold = calibration.get("margin_threshold")
     calibration_available = bool(calibration.get("calibration_available"))
@@ -1285,6 +2086,9 @@ def main(argv: list[str] | None = None) -> int:
                 "model_revision": model_revision,
                 "recipe": run_manifest["recipe"],
                 "reference_stats": reference_stats,
+                # Only when foreign slices were used, so a run without them keeps the
+                # revision it always had.
+                **({"foreign_slices_sha256": foreign_sha256} if foreign_sha256 else {}),
             }
         ).encode("utf-8")
     )
@@ -1421,6 +2225,11 @@ def main(argv: list[str] | None = None) -> int:
             "test_impostor_trials": len(test_trials["impostor_trials"]),
             "test_unlabeled_slices": test_trials["unlabeled_slices"],
             "min_impostor_trials_required": MIN_IMPOSTOR_TRIALS,
+            "foreign_voice_slices_used": len(foreign_vectors),
+            "foreign_voice_slices_failed": dict(foreign_failures),
+            "foreign_voice_calibration_trials": len(foreign_calibration_trials),
+            "foreign_voice_test_trials": len(foreign_test_trials),
+            "foreign_slices_sha256": foreign_sha256 or None,
         },
         "score_distributions": {
             "calibration_impostor_cosine": calibration.get("impostor_cosine_distribution"),
@@ -1479,6 +2288,11 @@ def main(argv: list[str] | None = None) -> int:
                 "note": "held-out measurement; this is the honest number",
             },
         },
+        "false_accept_bound": far_bound_record(
+            test_evaluation.get("false_accepts"),
+            test_evaluation.get("impostor_trials"),
+            target=DEFAULT_TARGET_FAR,
+        ),
         "false_reject": {
             "calibration": {
                 "count": calibration.get("calibration_false_rejects"),
@@ -1601,19 +2415,10 @@ def main(argv: list[str] | None = None) -> int:
         "verdicts": {row["source_span_id"]: row for row in rows},
     }
 
-    def _write_json(path: str, payload: Any) -> str:
-        target = Path(path)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(
-            json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
-        return str(target)
-
     written = {
-        "verdicts": _write_json(args.out_verdicts, verdict_index),
-        "calibration": _write_json(args.out_calibration, calibration_artifact),
-        "summary": _write_json(args.out_summary, summary),
+        "verdicts": _write_json_file(args.out_verdicts, verdict_index),
+        "calibration": _write_json_file(args.out_calibration, calibration_artifact),
+        "summary": _write_json_file(args.out_summary, summary),
     }
     if args.out_verdicts_jsonl:
         target = Path(args.out_verdicts_jsonl)
@@ -1631,7 +2436,7 @@ def main(argv: list[str] | None = None) -> int:
         and not validation_failures
     )
     summary["validation"]["trustworthy"] = bool(trustworthy)
-    _write_json(args.out_summary, summary)
+    _write_json_file(args.out_summary, summary)
 
     print(
         json.dumps(

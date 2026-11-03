@@ -8,6 +8,7 @@ and audio offsets. Every gate is tested for both sides — pass and abstain.
 from __future__ import annotations
 
 from domain.first_person_context import (
+    _VALIDATED_EDGE_ISSUE_TOKEN,
     AnswerRole,
     BoundaryStatus,
     CompletenessStatus,
@@ -18,6 +19,7 @@ from domain.first_person_context import (
     ProvenanceKind,
     SourceSpan,
     SpeakerRole,
+    ValidatedCrossParentEdge,
     clip_text_hash,
     make_source_span_id,
 )
@@ -62,6 +64,15 @@ def span(n=0, text=None, **overrides):
         "speaker_id": "krishnaji",
         "speaker_role": SpeakerRole.GURU,
         "speaker_verified": True,
+        "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
+        "voice_model_revision": "synthetic-model-rev",
+        "voice_score": 0.91,
+        "voice_margin": 0.22,
+        "voice_threshold_applied": {"cosine_floor": 0.75, "margin_threshold": 0.15},
+        "voice_calibration_id": "synthetic-calibration-v1",
+        "voice_window_check": "pass",
+        "voice_verified_at": "2026-11-02T00:00:00Z",
+        "speaker_verification_status": "verified",
         "source_transcript_text": text,
         "verbatim_text": text,
         "transcript_hash": HASH,
@@ -193,6 +204,30 @@ def test_fragment_with_adjacent_antecedent_is_servable():
     decision = harness.decide(context([first, second]), answerability="yes")
     assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
     assert decision.gates["completeness"] is True
+
+
+def test_uncertain_span_abstains_even_when_fragment_antecedent_relaxation_is_enabled():
+    harness = FirstPersonContextHarness(HarnessPolicy(allow_fragment_with_antecedent=True))
+    uncertain = span(completeness_status=CompletenessStatus.UNCERTAIN)
+
+    decision = harness.decide(context([uncertain]), answerability="yes")
+
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "fragment_without_antecedent"
+    assert decision.gates["completeness"] is False
+
+
+def test_uncertain_parent_unit_abstains_even_when_children_are_complete():
+    harness = FirstPersonContextHarness(HarnessPolicy(allow_fragment_with_antecedent=True))
+
+    decision = harness.decide(
+        context([span()], completeness_status=CompletenessStatus.UNCERTAIN),
+        answerability="yes",
+    )
+
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "fragment_without_antecedent"
+    assert decision.gates["completeness"] is False
 
 
 def test_cross_parent_contamination_abstains():
@@ -449,14 +484,40 @@ def test_orphan_first_span_abstains_but_later_pronoun_span_is_fine():
     assert ok.abstain_reason is None
 
 
+def test_context_harness_rejects_dangling_question_tail():
+    text = (
+        "Suffering is a call to awaken. It is a moment of quiet attention that lets us "
+        "observe the mind without choosing and notice its movement carefully. What do you do?"
+    )
+    decision = FirstPersonContextHarness().decide(
+        context([span(0, text=text)]), answerability="yes"
+    )
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "not_standalone"
+
+
+def test_context_harness_excludes_unsolicited_self_harm_context():
+    text = (
+        "When a person is experiencing suicidal thoughts, it is important to reach out to a "
+        "qualified professional and stay close to someone who can offer immediate care."
+    )
+    decision = FirstPersonContextHarness().decide(
+        context([span(0, text=text)]),
+        query="How can I find inner peace?",
+        answerability="yes",
+    )
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "unsolicited_self_harm_reference"
+    assert HarnessState.CONTEXTUAL_SAFETY_GATE in decision.state_path
+
+
 # ---------------------------------------------------------------------------
 # T2c / T4 pins (plan fp-primary-quality-harness-2026-10-27)
 # ---------------------------------------------------------------------------
 
 
-def test_antecedent_opener_widens_a_single_span_window():
-    """A single-span window whose hit opens with "This ..." pulls in its
-    predecessor, so the served text carries the antecedent. No generation."""
+def test_single_span_window_never_expands_past_the_strict_bound():
+    """A one-span policy cannot be widened by an antecedent heuristic."""
     setup = span(0, text="Suffering is a call to awaken.")
     opener = span(1, text="This truth can set us free.")
     ctx = context([setup, opener]).model_copy(update={"hit_span_ids": (opener.source_span_id,)})
@@ -465,9 +526,9 @@ def test_antecedent_opener_widens_a_single_span_window():
         ctx, answerability="yes"
     )
 
-    assert decision.source_span_ids == (setup.source_span_id, opener.source_span_id)
-    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
-    assert decision.answer_text == f"{setup.verbatim_text} {opener.verbatim_text}"
+    assert decision.source_span_ids == (opener.source_span_id,)
+    assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
+    assert decision.answer_text == opener.verbatim_text
     assert decision.answer_text_reconstructed
 
 
@@ -603,3 +664,302 @@ def test_legacy_payload_without_a_language_still_parses():
     payload = span().model_dump(mode="json")
     payload.pop("language", None)
     assert SourceSpan.model_validate(payload).language is None
+
+
+def test_missing_speaker_provenance_is_refused_even_when_verified_flag_is_true():
+    s = span(0, voice_verification_method=None)
+    decision = FirstPersonContextHarness().decide(context([s]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "speaker_unverified_or_not_guru"
+
+
+def test_unknown_speaker_provenance_method_is_refused():
+    s = span(0, voice_verification_method="unregistered_method")
+    decision = FirstPersonContextHarness().decide(context([s]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "speaker_unverified_or_not_guru"
+
+
+def test_voice_method_requirement_withholds_a_bare_flag_and_serves_a_verified_one():
+    policy = HarnessPolicy(require_voice_method=True)
+    bare = span(0, voice_verification_method=None)
+    abstained = FirstPersonContextHarness(policy).decide(context([bare]), answerability="yes")
+    assert abstained.decision is HarnessDecision.ABSTAIN
+    assert abstained.abstain_reason == "speaker_unverified_or_not_guru"
+
+    verified = span(0, voice_verification_method="ecapa_voxceleb_span_slice_v2")
+    served = FirstPersonContextHarness(policy).decide(context([verified]), answerability="yes")
+    assert served.decision is HarnessDecision.SERVE_SINGLE_SPAN
+
+
+def test_policy_from_settings_reads_the_voice_method_flag(monkeypatch):
+    from app.config import settings
+    from services.first_person_context_harness import policy_from_settings
+
+    monkeypatch.setattr(settings, "first_person_require_voice_method", True)
+    assert policy_from_settings().require_voice_method is True
+    monkeypatch.setattr(settings, "first_person_require_voice_method", False)
+    assert policy_from_settings().require_voice_method is False
+
+
+def _cross_parent_harness_pair(**opener_overrides):
+    predecessor = span(
+        0,
+        text="The river of awareness moves without resistance.",
+        parent_unit_id="previous-parent",
+        start_ms=1000,
+        end_ms=1900,
+        word_start=0,
+        word_end=6,
+    )
+    opener = span(
+        1,
+        text="Imagine what will be the outcome of it, when attention remains clear.",
+        parent_unit_id="current-parent",
+        start_ms=2000,
+        end_ms=2900,
+        word_start=10,
+        word_end=16,
+        previous_span_id=predecessor.source_span_id,
+        **opener_overrides,
+    )
+    predecessor = predecessor.model_copy(update={"next_span_id": opener.source_span_id})
+    return predecessor, opener
+
+
+def _cross_parent_edge(predecessor, opener):
+    return ValidatedCrossParentEdge._issue(
+        predecessor,
+        opener,
+        predecessor_parent_end_ms=predecessor.end_ms,
+        opener_parent_start_ms=opener.start_ms,
+        issue_token=_VALIDATED_EDGE_ISSUE_TOKEN,
+    )
+
+
+def test_validated_cross_parent_predecessor_is_gated_and_reconstructed_before_serve():
+    predecessor, opener = _cross_parent_harness_pair()
+    decision = FirstPersonContextHarness().decide(
+        context([opener]),
+        answerability="yes",
+        validated_predecessor=_cross_parent_edge(predecessor, opener),
+    )
+
+    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
+    assert decision.source_span_ids == (predecessor.source_span_id, opener.source_span_id)
+    assert decision.answer_text == f"{predecessor.verbatim_text} {opener.verbatim_text}"
+    assert decision.gates["speaker"] is True
+    assert decision.gates["rights"] is True
+    assert decision.gates["contextual_safety"] is True
+
+
+def test_validated_cross_parent_predecessor_allows_indices_reset_at_parent_boundary():
+    predecessor, opener = _cross_parent_harness_pair()
+    predecessor = predecessor.model_copy(update={"source_span_index": 0})
+    opener = opener.model_copy(update={"source_span_index": 0})
+    decision = FirstPersonContextHarness().decide(
+        context([opener]),
+        answerability="yes",
+        validated_predecessor=_cross_parent_edge(predecessor, opener),
+    )
+
+    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
+    assert decision.source_span_ids == (predecessor.source_span_id, opener.source_span_id)
+    assert decision.answer_text == f"{predecessor.verbatim_text} {opener.verbatim_text}"
+
+
+def test_cross_parent_predecessor_refuses_when_the_strict_cap_has_no_reserved_slot():
+    predecessor, opener = _cross_parent_harness_pair()
+    decision = FirstPersonContextHarness(HarnessPolicy(max_context_spans=1)).decide(
+        context([opener]),
+        answerability="yes",
+        validated_predecessor=_cross_parent_edge(predecessor, opener),
+    )
+
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "context_span_limit"
+
+
+def test_cross_parent_combined_body_runs_one_contextual_safety_gate(monkeypatch):
+    predecessor, opener = _cross_parent_harness_pair()
+    calls: list[str] = []
+
+    class Safety:
+        def __init__(self, may_serve):
+            self.may_serve = may_serve
+            self.reason_codes = ("violent_relationship_context",) if not may_serve else ()
+
+    def assess(_query, body, retrieval_query=""):
+        calls.append(body)
+        return Safety(body == predecessor.verbatim_text or body == opener.verbatim_text)
+
+    monkeypatch.setattr(
+        "services.first_person_context_harness.first_person_evidence_policy.assess_contextual_safety",
+        assess,
+    )
+    decision = FirstPersonContextHarness().decide(
+        context([opener]),
+        answerability="yes",
+        validated_predecessor=_cross_parent_edge(predecessor, opener),
+    )
+
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "violent_relationship_context"
+    assert calls[-1] == f"{predecessor.verbatim_text} {opener.verbatim_text}"
+
+
+def test_raw_predecessor_source_span_is_not_a_validated_edge():
+    predecessor, opener = _cross_parent_harness_pair()
+    decision = FirstPersonContextHarness().decide(
+        context([opener]), answerability="yes", validated_predecessor=predecessor
+    )
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "antecedent_missing"
+
+
+def test_selector_cannot_drop_or_move_the_opener_while_retaining_predecessor():
+    predecessor, opener = _cross_parent_harness_pair()
+    later = span(
+        2,
+        text="Awareness can remain open without effort.",
+        parent_unit_id="current-parent",
+        start_ms=3000,
+        end_ms=3900,
+        word_start=20,
+        word_end=26,
+    )
+    ctx = context([opener, later]).model_copy(update={"hit_span_ids": (opener.source_span_id,)})
+    decision = FirstPersonContextHarness().decide(
+        ctx,
+        answerability="yes",
+        selected_span_ids=(later.source_span_id,),
+        validated_predecessor=_cross_parent_edge(predecessor, opener),
+    )
+    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
+    assert decision.source_span_ids == (
+        predecessor.source_span_id,
+        opener.source_span_id,
+        later.source_span_id,
+    )
+
+
+def test_antecedent_opener_hit_need_not_be_first_ranked_hit():
+    predecessor, opener = _cross_parent_harness_pair()
+    later = span(
+        2,
+        text="Awareness can remain open without effort.",
+        parent_unit_id="current-parent",
+        start_ms=3000,
+        end_ms=3900,
+        word_start=20,
+        word_end=26,
+    )
+    ctx = context([opener, later]).model_copy(
+        update={"hit_span_ids": (later.source_span_id, opener.source_span_id)}
+    )
+    decision = FirstPersonContextHarness().decide(
+        ctx,
+        answerability="yes",
+        validated_predecessor=_cross_parent_edge(predecessor, opener),
+    )
+
+    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
+    assert decision.source_span_ids[:2] == (
+        predecessor.source_span_id,
+        opener.source_span_id,
+    )
+
+
+def test_same_parent_non_first_hit_keeps_its_bounded_predecessor():
+    predecessor = span(
+        0,
+        text="The river of awareness moves without resistance.",
+    )
+    opener = span(
+        1,
+        text="Imagine what will be the outcome of it, when attention remains clear.",
+        previous_span_id=predecessor.source_span_id,
+    )
+    predecessor = predecessor.model_copy(update={"next_span_id": opener.source_span_id})
+    later = span(2, text="Awareness can remain open without effort.")
+    ctx = context([predecessor, opener, later]).model_copy(
+        update={"hit_span_ids": (opener.source_span_id,)}
+    )
+
+    decision = FirstPersonContextHarness(HarnessPolicy(max_context_spans=2)).decide(
+        ctx, answerability="yes"
+    )
+
+    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
+    assert decision.source_span_ids == (predecessor.source_span_id, opener.source_span_id)
+    assert decision.answer_text == f"{predecessor.verbatim_text} {opener.verbatim_text}"
+
+
+def test_cross_parent_overlapping_span_cannot_deduplicate_the_validated_opener():
+    predecessor, opener = _cross_parent_harness_pair()
+    overlapping = span(
+        2,
+        text="The river of awareness moves without resistance, and attention remains clear.",
+        parent_unit_id="current-parent",
+        start_ms=1500,
+        end_ms=3500,
+        word_start=8,
+        word_end=20,
+    )
+    ctx = context([opener, overlapping]).model_copy(
+        update={"hit_span_ids": (opener.source_span_id,)}
+    )
+
+    decision = FirstPersonContextHarness().decide(
+        ctx,
+        answerability="yes",
+        validated_predecessor=_cross_parent_edge(predecessor, opener),
+    )
+
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "antecedent_missing"
+
+
+def test_cross_parent_opener_removed_by_question_trim_abstains():
+    predecessor = span(
+        0,
+        text="The river of awareness moves without resistance.",
+        parent_unit_id="previous-parent",
+        start_ms=1000,
+        end_ms=1900,
+        word_start=0,
+        word_end=6,
+    )
+    opener = span(
+        1,
+        text="Imagine what will be the outcome of it?",
+        parent_unit_id="current-parent",
+        start_ms=2000,
+        end_ms=2900,
+        word_start=10,
+        word_end=16,
+        previous_span_id=predecessor.source_span_id,
+    )
+    predecessor = predecessor.model_copy(update={"next_span_id": opener.source_span_id})
+
+    decision = FirstPersonContextHarness().decide(
+        context([opener]),
+        answerability="yes",
+        validated_predecessor=_cross_parent_edge(predecessor, opener),
+    )
+
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "antecedent_missing"
+
+
+def test_ordinary_when_that_it_they_openers_do_not_activate_cross_parent_recovery():
+    from services.first_person_context_harness import _span_starts_with_antecedent
+
+    for text in (
+        "When attention is steady, the mind becomes quiet.",
+        "That is a complete teaching about presence and suffering.",
+        "It is a complete teaching about presence and suffering.",
+        "They are the witnesses of their own attention and presence.",
+    ):
+        candidate = span(1, text=text, parent_unit_id="current-parent", previous_span_id="missing")
+        assert not _span_starts_with_antecedent(candidate)

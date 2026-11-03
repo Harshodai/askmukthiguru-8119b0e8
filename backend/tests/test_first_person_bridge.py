@@ -47,12 +47,16 @@ _CLIP_TEXT = (
     "it has ever met until you meet it with awareness."
 )
 
+# Invariant 1 (answer text is evidence): the served body is the verbatim quote
+# plus its attribution — the "related clips" pointer, the section heading and the
+# reflection questions ride route metadata, never the body.
 _ANSWER = (
-    "Sri Preethaji addresses this directly in her discourse on the nature of consciousness:\n\n"
     "**Sri Preethaji** · [The Nature of Consciousness]"
     "(https://www.youtube.com/watch?v=abc123&t=99s)\n\n"
-    f"{_CLIP_TEXT}\n\n"
-    "---\n\n"
+    f"{_CLIP_TEXT}"
+)
+_RELATED_HEADING = "Related, not a direct answer"
+_REFLECTION_QUESTIONS = (
     "*Where does resistance show up in the body right now?*\n\n"
     "*What remains when you stop fighting what is here?*"
 )
@@ -118,6 +122,8 @@ def _fp_result(
     citations: list | None = None,
     status: str = "success",
     is_direct: bool = True,
+    related_clips_heading: str | None = None,
+    atma_vichara_inquiry: str | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         answer_text=answer,
@@ -127,6 +133,8 @@ def _fp_result(
         latency_ms=42.0,
         cached=False,
         error=None,
+        related_clips_heading=related_clips_heading,
+        atma_vichara_inquiry=atma_vichara_inquiry,
     )
 
 
@@ -372,10 +380,9 @@ async def test_hindi_preferring_user_gets_verbatim_quotes_and_localized_glue(fp_
     # Quotes: verbatim, untranslated English teacher words.
     assert _CLIP_TEXT in result.final_answer
     assert f"HI({_CLIP_TEXT})" not in result.final_answer
-    # Glue: localized.
-    assert "HI(" in result.final_answer
-    # The translator never received the teacher's words (or a link/speaker).
-    assert seen, "glue must be translated for an Indic seeker"
+    # Invariant 1: the served body is evidence only, so there is no platform
+    # glue inside it to translate — the translator is never handed the teacher's
+    # words, their link or their attribution line.
     for fragment in seen:
         assert _CLIP_TEXT not in fragment
         assert "https://www.youtube.com" not in fragment
@@ -398,7 +405,7 @@ async def test_glue_translation_timeout_fails_open_with_quotes_intact(fp_pipelin
 
     assert result is not None
     assert _CLIP_TEXT in result.final_answer
-    assert "Sri Preethaji addresses this directly" in result.final_answer
+    assert "**Sri Preethaji**" in result.final_answer
 
 
 @pytest.mark.asyncio
@@ -978,15 +985,19 @@ async def test_weak_match_is_served_labelled_when_owner_opts_in(fp_pipeline, mon
     monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
     fp_pipeline.execute.return_value = _fp_result(
-        answer=f'Related, not a direct answer:\n\n"{_CLIP_TEXT}"\n— Sri Preethaji (abc123, 99s)',
+        answer=f"**Sri Preethaji**\n\n{_CLIP_TEXT}",
         status="weak_match",
         is_direct=False,
+        related_clips_heading=_RELATED_HEADING,
     )
 
     result = await FirstPersonBridgeStage().run(_ctx(_container()))
 
     assert result is not None
-    assert result.final_answer.startswith("Related, not a direct answer:")
+    # Invariant 1: the "Related, not a direct answer" heading is a UI affordance
+    # carried in metadata, never prepended to the verbatim quote.
+    assert "Related, not a direct answer" not in result.final_answer
+    assert result.route_metadata["related_clips_heading"] == _RELATED_HEADING
     assert _CLIP_TEXT in result.final_answer
     assert result.model_used is None
     assert result.verification["direct"] is False
@@ -1008,7 +1019,9 @@ async def test_first_person_only_relationship_question_gets_clip_plus_safety_bou
 
     assert result is not None  # not handed to the generating graph
     assert _CLIP_TEXT in result.final_answer
-    assert RELATIONSHIP_SAFETY_BOUNDARY in result.final_answer
+    # Invariant 1: the boundary is platform copy, delivered beside the clip.
+    assert RELATIONSHIP_SAFETY_BOUNDARY not in result.final_answer
+    assert RELATIONSHIP_SAFETY_BOUNDARY in result.route_metadata["safety_notices"]
 
 
 @pytest.mark.asyncio
@@ -1169,9 +1182,10 @@ async def test_flag_on_moderate_serves_compassion_framing_and_clip(fp_pipeline, 
 
     assert result is not None
     assert result.route_decision == "first_person_bridge"
-    # Compassion framing is still there...
-    assert _COMPASSION_MARKER in result.final_answer
-    # ...and the teacher's clip is served with it, verbatim, once.
+    # Compassion framing is still delivered, as its own block (never the body)...
+    assert _COMPASSION_MARKER not in result.final_answer
+    assert any(_COMPASSION_MARKER in n for n in result.route_metadata["safety_notices"])
+    # ...and the teacher's clip is served alone, verbatim, once.
     assert _CLIP_TEXT in result.final_answer
     assert result.final_answer.count(_CLIP_TEXT) == 1
     assert result.citations and result.citations[0]["video_id"] == "abc123"
@@ -1191,11 +1205,11 @@ async def test_flag_on_moderate_weak_match_keeps_related_label_and_honest_direct
     monkeypatch.setattr(settings, "first_person_distress_serve_clip_enabled", True)
     fp_pipeline.execute.return_value = _fp_result(
         answer=(
-            f"Related, not a direct answer:\n\n**Sri Preethaji**\n\n{_CLIP_TEXT}\n\n"
-            "https://www.youtube.com/watch?v=abc123&t=99s"
+            f"**Sri Preethaji**\n\n{_CLIP_TEXT}\n\nhttps://www.youtube.com/watch?v=abc123&t=99s"
         ),
         status="weak_match",
         is_direct=False,
+        related_clips_heading=_RELATED_HEADING,
     )
     container = _container()
     container.serene_mind = _serene_mind()
@@ -1203,8 +1217,8 @@ async def test_flag_on_moderate_weak_match_keeps_related_label_and_honest_direct
     result = await FirstPersonBridgeStage().run(_moderate_distress_ctx(container))
 
     assert result is not None
-    assert _COMPASSION_MARKER in result.final_answer
-    assert "Related, not a direct answer:" in result.final_answer
+    assert any(_COMPASSION_MARKER in n for n in result.route_metadata["safety_notices"])
+    assert "Related, not a direct answer" not in result.final_answer
     assert _CLIP_TEXT in result.final_answer
     assert result.verification["direct"] is False
 
@@ -1396,6 +1410,11 @@ async def test_flag_on_moderate_indic_keeps_quotes_verbatim(fp_pipeline, monkeyp
     assert any(_COMPASSION_MARKER in fragment for fragment in seen)
     for fragment in seen:
         assert _CLIP_TEXT not in fragment
+    # The framing is glue: delivered translated, and only as a notice.
+    assert _COMPASSION_MARKER not in result.final_answer
+    assert any(
+        f"HI({_COMPASSION_MARKER[:20]}" in n for n in result.route_metadata["safety_notices"]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1452,3 +1471,133 @@ async def test_primary_mode_off_restores_the_weak_match_fall_through(fp_pipeline
     assert result.route_decision == "first_person_abstain"
     assert result.route_metadata["decline_status"] == "weak_match"
     assert result.route_metadata.get("fp_served") is not True
+
+
+@pytest.mark.asyncio
+async def test_clip_that_raises_self_harm_carries_the_support_line_even_without_distress(
+    fp_pipeline, monkeypatch
+):
+    """Grading 2026-10-31 (q019): a clip opening with self-harm statistics shipped no notice."""
+    from services.crisis_helplines import ensure_support_line
+
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    clip = (
+        "Did you know self-harm is the leading cause of death in a certain age group? "
+        "Do you know why? Because we live as strangers under the same roof."
+    )
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=f"**Sri Preethaji**\n\n{clip}",
+        citations=[_clip_citation(verbatim_text=clip, text_snippet=clip)],
+        status="weak_match",
+        is_direct=False,
+    )
+
+    result = await FirstPersonBridgeStage().run(
+        _ctx(_container(), msg="Why do people living under the same roof feel like strangers?")
+    )
+
+    assert result is not None
+    assert clip in result.final_answer  # the teacher's words are untouched
+    support = ensure_support_line("")
+    assert support in result.route_metadata["safety_notices"]
+    assert support not in result.final_answer
+
+
+@pytest.mark.asyncio
+async def test_ordinary_clip_gets_no_extra_support_line(fp_pipeline, monkeypatch):
+    from services.crisis_helplines import ensure_support_line
+
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="What is stillness?"))
+
+    assert result is not None
+    assert ensure_support_line("") not in result.route_metadata["safety_notices"]
+
+
+def test_self_harm_pattern_is_whole_word_and_narrow():
+    from app.pipeline.stages.first_person_bridge import _CLIP_MENTIONS_SELF_HARM as pat
+
+    for text in ("self-harm is common", "thoughts of suicide", "ending his own life"):
+        assert pat.search(text), text
+    for text in ("the harmless joy of stillness", "kill the ego", "end the suffering of life"):
+        assert not pat.search(text), text
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "I have a bottle of sleeping pills next to me and I keep staring at it.",
+        "My fifteen year old daughter has been cutting her arm and says it is nothing.",
+        "I am thinking about self-harm again",
+        "What if I overdose on my anxiety tablets?",
+    ],
+)
+def test_question_self_harm_cue_matches(question):
+    from app.pipeline.stages.first_person_bridge import _QUESTION_SELF_HARM_CUE_RE as cue
+
+    assert cue.search(question)
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "How do I stop cutting down on sleep and feel rested?",
+        "My daughter is cutting vegetables for the first time",
+        "Is it healthy to take sleeping tablets every night?",
+        "What is the Beautiful State?",
+    ],
+)
+def test_question_self_harm_cue_ignores_everyday_wording(question):
+    from app.pipeline.stages.first_person_bridge import _QUESTION_SELF_HARM_CUE_RE as cue
+
+    assert not cue.search(question)
+
+
+@pytest.mark.asyncio
+async def test_abstain_for_a_self_harm_cue_question_carries_the_support_line(
+    fp_pipeline, monkeypatch
+):
+    from services.crisis_helplines import ensure_support_line
+
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer="", citations=[], status="no_match", is_direct=False
+    )
+    msg = "I have a bottle of sleeping pills next to me and I keep staring at it."
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg=msg))
+
+    assert result is not None
+    assert result.citations == []
+    assert ensure_support_line("") in result.final_answer
+    # The human support line leads; "try rephrasing" comes after it.
+    assert result.final_answer.index(ensure_support_line("")) < result.final_answer.index(
+        "Try rephrasing"
+    )
+
+
+@pytest.mark.asyncio
+async def test_turn_the_distress_llm_could_not_check_carries_the_support_line(
+    fp_pipeline, monkeypatch
+):
+    from types import SimpleNamespace
+
+    from services.crisis_helplines import ensure_support_line
+    from services.serene_mind_engine import LLM_STAGE2_UNAVAILABLE_SIGNAL, DistressLevel
+
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
+    ctx = _ctx(_container(), msg="What is stillness?")
+    ctx.assessment = SimpleNamespace(
+        level=DistressLevel.MILD, detected_signals=[LLM_STAGE2_UNAVAILABLE_SIGNAL]
+    )
+
+    result = await FirstPersonBridgeStage().run(ctx)
+
+    assert result is not None
+    assert ensure_support_line("") in result.route_metadata["safety_notices"]

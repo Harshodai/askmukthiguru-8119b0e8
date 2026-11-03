@@ -18,10 +18,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 import uuid
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
-
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):

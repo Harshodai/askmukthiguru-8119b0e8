@@ -26,7 +26,11 @@ from pathlib import Path
 # Config
 # ---------------------------------------------------------------------------
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
-COLLECTION = os.environ.get("FIRST_PERSON_COLLECTION", "first_person_v9")
+COLLECTION = (
+    os.getenv("FIRST_PERSON_COLLECTION")
+    or os.getenv("FIRST_PERSON_ACTIVE_COLLECTION")
+    or "first_person_v9"
+)
 BATCH_SIZE = 100
 
 # Required fp-context fields (17) that the auditor expects missing on all points

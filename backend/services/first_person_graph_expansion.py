@@ -138,6 +138,168 @@ def expand_query_concepts(
     return _normalise(neighbors, text, limit)
 
 
+def expand_teaching_units(
+    seed_span_ids: list[str],
+    *,
+    max_hops: int = 1,
+    max_nodes: int = 8,
+    timeout_s: float = _DEFAULT_TIMEOUT_S,
+    allow_duplicate_edges: bool = False,
+) -> list[str]:
+    """Return up to ``max_nodes`` neighbouring TeachingUnit span IDs.
+
+    Traverses the ``:TU_*`` graph projection built by
+    ``scripts/ops/build_teaching_unit_graph.py``.  Uses the Memgraph/Neo4j
+    driver obtained from the DI container (same driver as the live doctrine
+    graph, different label namespace).
+
+    Fail-open by contract: returns ``[]`` on empty input, when the graph is
+    disabled/unavailable, on timeout, or on any exception.  Never raises, never
+    writes, never calls an LLM.
+
+    Expansion only crosses ``rights_status = "licensed"`` nodes (X40 filter)
+    and never returns a node connected by a ``TU_DUPLICATE_OF`` edge to any
+    seed.
+    """
+    if not seed_span_ids or max_nodes <= 0:
+        return []
+
+    # Deduplicate seeds to avoid wasted Cypher parameter bytes.
+    unique_seeds: list[str] = list(
+        dict.fromkeys(s for s in seed_span_ids if isinstance(s, str) and s.strip())
+    )
+    if not unique_seeds:
+        return []
+
+    try:
+        from app.dependencies import get_container  # noqa: PLC0415
+
+        driver = getattr(get_container(), "neo4j_driver", None)
+    except Exception as exc:  # container unavailable / import-time failure
+        logger.debug("[FPGraphExpansion] container unavailable for TU expansion: %r", exc)
+        return []
+    if driver is None:
+        logger.debug("[FPGraphExpansion] no graph driver; skipping TU expansion")
+        return []
+
+    import json as _json  # noqa: PLC0415 — lazy to keep module-level imports minimal
+
+    try:
+        from config import teaching_unit_graph_queries_path as _qpath  # type: ignore[import]
+    except Exception:
+        _qpath = None
+
+    # Load query templates from the config JSON.  Fall back to a baked-in
+    # string if the config file is unavailable (test / offline environments).
+    _FALLBACK_ONE_HOP = (
+        "MATCH (seed:TUTeachingUnit {span_id: $span_id})"
+        "-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-"
+        "(neighbor:TUTeachingUnit) "
+        "WHERE neighbor.span_id <> $span_id "
+        "AND neighbor.rights_status = 'licensed' "
+        "AND NOT (seed)-[:TU_DUPLICATE_OF]-(neighbor) "
+        "RETURN DISTINCT neighbor.span_id AS span_id LIMIT $limit"
+    )
+    _FALLBACK_TWO_HOP = _FALLBACK_ONE_HOP.replace("*1..1", "*1..2")
+    _FALLBACK_MULTI_ONE_HOP = (
+        "UNWIND $span_ids AS sid "
+        "MATCH (seed:TUTeachingUnit {span_id: sid})"
+        "-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-"
+        "(neighbor:TUTeachingUnit) "
+        "WHERE neighbor.rights_status = 'licensed' "
+        "AND NOT neighbor.span_id IN $span_ids "
+        "AND NOT (seed)-[:TU_DUPLICATE_OF]-(neighbor) "
+        "RETURN DISTINCT neighbor.span_id AS span_id LIMIT $limit"
+    )
+
+    def _load_query_template(key: str, fallback: str) -> str:
+        try:
+            import pathlib as _pl  # noqa: PLC0415
+
+            cfg_path = (
+                _pl.Path(__file__).resolve().parents[1]
+                / "config"
+                / "teaching_unit_graph_queries.json"
+            )
+            if cfg_path.exists():
+                with cfg_path.open() as _fh:
+                    return _json.load(_fh)["queries"][key]
+        except Exception:
+            pass
+        return fallback
+
+    hop_key = "one_hop_expansion" if max_hops <= 1 else "two_hop_expansion"
+    hop_fallback = _FALLBACK_ONE_HOP if max_hops <= 1 else _FALLBACK_TWO_HOP
+    query_template = _load_query_template(hop_key, hop_fallback)
+
+    # For multiple seeds use the UNWIND multi-seed query when available.
+    if len(unique_seeds) > 1:
+        multi_template = _load_query_template("multi_seed_one_hop", _FALLBACK_MULTI_ONE_HOP)
+        if max_hops <= 1:
+            query_template = multi_template
+
+    timeout_val = max(0.01, float(timeout_s))
+    limit = int(max_nodes)
+    seed_set = set(unique_seeds)
+
+    async def _fetch() -> list[str]:
+        """Execute the Cypher query inside a bounded async session."""
+        results: list[str] = []
+        seen: set[str] = set()
+
+        async with driver.session() as session:  # type: ignore[attr-defined]
+            if len(unique_seeds) > 1 and max_hops <= 1:
+                records = await session.run(
+                    query_template,
+                    span_ids=unique_seeds,
+                    limit=limit,
+                )
+            else:
+                # Per-seed loop for multi-hop or single-seed paths.
+                for seed in unique_seeds:
+                    r = await session.run(query_template, span_id=seed, limit=limit)
+                    async for row in r:
+                        span_id_val = row.get("span_id")
+                        if (
+                            isinstance(span_id_val, str)
+                            and span_id_val
+                            and span_id_val not in seed_set
+                            and span_id_val not in seen
+                        ):
+                            seen.add(span_id_val)
+                            results.append(span_id_val)
+                            if len(results) >= limit:
+                                return results
+                return results
+
+            async for row in records:
+                span_id_val = row.get("span_id")
+                if (
+                    isinstance(span_id_val, str)
+                    and span_id_val
+                    and span_id_val not in seed_set
+                    and span_id_val not in seen
+                ):
+                    seen.add(span_id_val)
+                    results.append(span_id_val)
+                    if len(results) >= limit:
+                        break
+
+        return results
+
+    neighbors = _run_bounded(lambda: _fetch(), timeout_val)
+    # Final dedup + cap (defensive, _fetch already deduplicates)
+    out: list[str] = []
+    seen_final: set[str] = set()
+    for sid in neighbors:
+        if isinstance(sid, str) and sid and sid not in seen_final:
+            seen_final.add(sid)
+            out.append(sid)
+            if len(out) >= limit:
+                break
+    return out
+
+
 if __name__ == "__main__":
     from types import SimpleNamespace
 
@@ -149,10 +311,14 @@ if __name__ == "__main__":
     _deps.get_container = lambda: SimpleNamespace(neo4j_driver=None)  # type: ignore[assignment]
     try:
         _out = expand_query_concepts("how do I deal with anger")
+        _tu_out = expand_teaching_units(["span_abc", "span_def"])
     finally:
         _deps.get_container = _real_get_container
 
     assert isinstance(_out, list), f"expected list, got {type(_out)!r}"
+    assert isinstance(_tu_out, list), f"TU expansion: expected list, got {type(_tu_out)!r}"
     assert expand_query_concepts("") == []
     assert expand_query_concepts("   ") == []
-    print(f"first_person_graph_expansion self-check passed: {_out}")
+    assert expand_teaching_units([]) == []
+    assert expand_teaching_units(["  ", ""]) == []
+    print(f"first_person_graph_expansion self-check passed: concepts={_out} tu={_tu_out}")

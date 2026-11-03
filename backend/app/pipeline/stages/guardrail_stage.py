@@ -137,6 +137,37 @@ class InputGuardrailStage(Stage):
                     raw, container.translation, preferred_lang
                 )
 
+        # Fast Intake Safety Kernel (zero-I/O Aho-Corasick check <0.01ms, Invariant X38)
+        try:
+            from app.intake.safety_kernel import get_safety_kernel
+
+            raw_msg = str(getattr(ctx, "user_msg", "") or guardrail_text)
+            _fast_kernel = get_safety_kernel()
+            _verdict = _fast_kernel.evaluate(raw_msg)
+            if not _verdict.is_crisis and guardrail_text != raw_msg:
+                _verdict = _fast_kernel.evaluate(guardrail_text)
+            if _verdict.is_crisis:
+                record_routing_decision(
+                    ctx,
+                    RoutingProvenance(
+                        layer="INPUT_GUARDRAILS",
+                        decision="crisis_preemption",
+                        method="aho_corasick_automaton",
+                        confidence=1.0,
+                        reason=_verdict.reason or "acute_crisis",
+                    ),
+                )
+                ctx.state["guardrail_self_harm_match"] = True
+                logger.info(
+                    "[InputGuardrailStage] Fast safety kernel crisis matched (%s); deferring to DistressStage",
+                    _verdict.reason,
+                )
+                return None
+        except Exception as _kernel_exc:
+            logger.warning(
+                "[InputGuardrailStage] Fast safety kernel pre-check failed: %s", _kernel_exc
+            )
+
         # ponytail: body of _run_input_guardrails verbatim
         with REQUEST_LATENCY.labels(stage="guardrails").time():
             input_check = await container.guardrails.check_input(guardrail_text)

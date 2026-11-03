@@ -11,7 +11,22 @@ CLEAN_DIR="${WORKSPACE_DIR}/.docker_clean"
 CLEAN_BIN="${CLEAN_DIR}/bin"
 mkdir -p "$CLEAN_BIN"
 
-# Write mock credential helpers that bypass the keychain access
+link_host_dir() {
+    local source="$1"
+    local target="$2"
+    if [[ -L "$target" ]]; then
+        if [[ "$(readlink "$target")" == "$source" ]]; then
+            return 0
+        fi
+        rm -f "$target" # Remove only the stale symlink, never its referent.
+    elif [[ -e "$target" ]]; then
+        echo "Refusing to replace non-symlink Docker config path: $target" >&2
+        return 1
+    fi
+    ln -s "$source" "$target"
+}
+
+# Write mock credential helpers that bypass the locked macOS keychain
 for helper in docker-credential-osxkeychain docker-credential-desktop; do
     cat << 'EOF' > "${CLEAN_BIN}/${helper}"
 #!/usr/bin/env bash
@@ -32,10 +47,10 @@ echo '{"credsStore": ""}' > "${CLEAN_DIR}/config.json"
 # Symlink Host CLI plugins and contexts so compose command flags work
 HOST_DOCKER_DIR="${HOME}/.docker"
 if [[ -d "${HOST_DOCKER_DIR}/cli-plugins" ]]; then
-    ln -sf "${HOST_DOCKER_DIR}/cli-plugins" "${CLEAN_DIR}/cli-plugins"
+    link_host_dir "${HOST_DOCKER_DIR}/cli-plugins" "${CLEAN_DIR}/cli-plugins"
 fi
 if [[ -d "${HOST_DOCKER_DIR}/contexts" ]]; then
-    ln -sf "${HOST_DOCKER_DIR}/contexts" "${CLEAN_DIR}/contexts"
+    link_host_dir "${HOST_DOCKER_DIR}/contexts" "${CLEAN_DIR}/contexts"
 fi
 
 # Export clean config path

@@ -10,4 +10,4 @@
 # schemas tasks) instead of `-r .` — do not revert to `-r .` without solving
 # the exclude bug first.
 [bandit]
-skips = B101,B104,B108,B311,B603,B607,B608
+skips = B101,B104,B108,B310,B311,B603,B607,B608

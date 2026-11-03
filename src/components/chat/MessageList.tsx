@@ -169,7 +169,7 @@ export const MessageList = React.memo(({
               <VirtualMessageWrapper
                 key={message.id}
                 id={message.id}
-                defaultHeight={isStreamingMsg ? 0 : message.role === 'user' ? 40 : 80}
+                defaultHeight={isStreamingMsg ? 0 : message.role === 'user' ? 65 : 320}
                 alwaysVisible={isStreamingMsg}
               >
                 {/* During the entire streaming period (including before the first token arrives)

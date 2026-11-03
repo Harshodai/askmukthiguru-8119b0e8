@@ -607,17 +607,32 @@ async def get_available_models() -> list[str]:
 
 
 async def get_timeseries_data(
-    metric: str, from_date: str, to_date: str, buckets: int = 24
+    metric: str,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    buckets: int = 24,
 ) -> list[dict[str, Any]]:
     """Get timeseries data for a specific metric."""
     client = _get_client()
     if not client:
         return []
 
+    # Provide safe fallback window (past 7 days to now) if missing or empty
+    if not to_date:
+        to_date = datetime.now(UTC).isoformat()
+    if not from_date:
+        try:
+            to_dt = datetime.fromisoformat(to_date.replace("Z", "+00:00"))
+            from_date = (to_dt - timedelta(days=7)).isoformat()
+        except Exception:
+            from_date = (datetime.now(UTC) - timedelta(days=7)).isoformat()
+
     try:
         # Validate date parameters
-        safe_from = validate_iso_date(from_date)
-        safe_to = validate_iso_date(to_date)
+        safe_from = (
+            validate_iso_date(from_date) or (datetime.now(UTC) - timedelta(days=7)).isoformat()
+        )
+        safe_to = validate_iso_date(to_date) or datetime.now(UTC).isoformat()
 
         # Build query based on metric type
         if metric == "queries":
@@ -647,23 +662,23 @@ async def get_timeseries_data(
         response = query.order("created_at", desc=True).execute()
         data = response.data or []
 
-        if not data:
-            return []
-
-        # Bucket the data
-        from datetime import datetime
-
-        start_time = datetime.fromisoformat(safe_from.replace("Z", "+00:00")).timestamp()
-        end_time = datetime.fromisoformat(safe_to.replace("Z", "+00:00")).timestamp()
+        # Ensure valid timestamps for window
+        parsed_from = datetime.fromisoformat(safe_from.replace("Z", "+00:00"))
+        parsed_to = datetime.fromisoformat(safe_to.replace("Z", "+00:00"))
+        start_time = parsed_from.timestamp()
+        end_time = parsed_to.timestamp()
         bucket_size = (end_time - start_time) / buckets if buckets > 0 else 0
 
         buckets_data = []
         for i in range(buckets):
             bucket_start = start_time + (i * bucket_size)
-            bucket_start + bucket_size
-            bucket_time = datetime.fromtimestamp(bucket_start + (bucket_size / 2)).isoformat()
-
+            bucket_time = datetime.fromtimestamp(
+                bucket_start + (bucket_size / 2), tz=UTC
+            ).isoformat()
             buckets_data.append({"bucket": bucket_time, "value": 0, "count": 0})
+
+        if not data:
+            return [{"bucket": b["bucket"], "value": 0} for b in buckets_data]
 
         # Process data points
         for item in data:
@@ -1078,6 +1093,29 @@ async def get_quality_data(
         disagreements = []
         low_confidence = []
 
+        # Aggregate abstentions taxonomy
+        abstentions = {
+            "crisis_redirect": 0,
+            "serving_contract_violation": 0,
+            "unverified_speaker": 0,
+            "empty_retrieval": 0,
+            "total": 0,
+        }
+        for r in responses:
+            reason = str(r.get("abstain_reason") or "")
+            if not reason and isinstance(r.get("metadata_json"), dict):
+                reason = str(r.get("metadata_json", {}).get("abstain_reason") or "")
+            if reason:
+                abstentions["total"] += 1
+                if any(k in reason for k in ("crisis", "distress", "self_harm", "safety")):
+                    abstentions["crisis_redirect"] += 1
+                elif any(k in reason for k in ("contract", "violation", "serving")):
+                    abstentions["serving_contract_violation"] += 1
+                elif any(k in reason for k in ("speaker", "voice", "unverified")):
+                    abstentions["unverified_speaker"] += 1
+                elif any(k in reason for k in ("empty", "relevance", "withheld")):
+                    abstentions["empty_retrieval"] += 1
+
         return {
             "faithfulness": avg_faithfulness,
             "relevancy": avg_relevancy,
@@ -1085,6 +1123,7 @@ async def get_quality_data(
             "manual_review_score": manual_review_score,
             "disagreements": disagreements,
             "low_confidence": low_confidence,
+            "abstentions": abstentions,
         }
     except Exception as e:
         logger.error(f"Failed to get quality data: {e}")

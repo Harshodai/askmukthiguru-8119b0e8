@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search } from 'lucide-react';
+import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search, Video } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { resolveAttributionLabel } from '@/lib/chat/types';
 import { isUnreviewedTranscript } from '@/lib/transcriptStatus';
 import { useYouTubeEmbedError } from '@/hooks/useYouTubeEmbedError';
+import { BACKEND_URL } from '@/lib/backendUrl';
 
 /** Neutral fallback shown only when the citation carries no real speaker —
  *  never a stand-in for an actual teacher's name. */
@@ -147,6 +148,32 @@ export const DiscourseVideoModal: React.FC<{
   citation: DiscourseCitation | null;
 }> = ({ isOpen, onClose, citation }) => {
   const { t } = useTranslation();
+
+  const isDirectVideo = Boolean(
+    citation?.url?.includes('/api/media/videos/') ||
+    citation?.url?.startsWith('video:') ||
+    citation?.url?.endsWith('.mp4') ||
+    citation?.url?.endsWith('.webm') ||
+    citation?.url?.endsWith('.mov') ||
+    citation?.url?.endsWith('.mkv') ||
+    (citation as Record<string, unknown> | null)?.source_type === 'direct_video' ||
+    (citation as Record<string, unknown> | null)?.sourceType === 'direct_video'
+  );
+
+  // The media route lives on the API origin, which is not the page origin on hosted
+  // frontends, so relative `/api/...` and `video:<id>` citations are resolved against it.
+  let directStreamUrl = '';
+  if (isDirectVideo && citation?.url) {
+    if (citation.url.startsWith('video:')) {
+      const vid = citation.url.replace('video:', '');
+      directStreamUrl = `${BACKEND_URL}/api/media/videos/${encodeURIComponent(vid)}`;
+    } else if (citation.url.startsWith('/')) {
+      directStreamUrl = `${BACKEND_URL}${citation.url}`;
+    } else {
+      directStreamUrl = citation.url;
+    }
+  }
+
   // Video-id extraction and the embed-error hook must run before the null-guard:
   // hooks cannot be conditional or follow an early return.
   let videoId = '';
@@ -156,7 +183,10 @@ export const DiscourseVideoModal: React.FC<{
   } catch {
     videoId = citation?.url ?? '';
   }
-  const { embedError, iframeRef, onFrameLoad } = useYouTubeEmbedError(videoId || null, isOpen && !!citation);
+  const { embedError, iframeRef, onFrameLoad } = useYouTubeEmbedError(
+    !isDirectVideo ? videoId || null : null,
+    isOpen && !!citation && !isDirectVideo
+  );
 
   if (!citation) return null;
   // YouTube's embed `start` takes whole seconds. Round UP (ceil) to prevent
@@ -165,16 +195,32 @@ export const DiscourseVideoModal: React.FC<{
   const rawEnd = citation.playbackEndSeconds ?? citation.endTimestamp;
   // Round DOWN (floor) to prevent playing up to 1.0s past the teacher turn
   // into subsequent host speech.
-  // A clip under ~2s can round to floor(end) <= start; dropping `end` then would play
-  // on indefinitely, so fall back to ceil(end): at most 1s of tail instead of unbounded.
   const end =
     rawEnd == null ? undefined : Math.floor(rawEnd) > start ? Math.floor(rawEnd) : Math.ceil(rawEnd);
   const endParam = end != null && end > start ? `&end=${end}` : '';
+  // A media fragment takes fractional seconds, so the HTML5 player seeks to the exact clip
+  // start (already padded by the backend) instead of YouTube's whole-second rounding.
+  const exactStart = Math.max(0, citation.playbackStartSeconds ?? citation.startTimestamp ?? 0);
+  const exactEnd = citation.playbackEndSeconds ?? citation.endTimestamp;
+  const directFragment = `#t=${exactStart.toFixed(3)}${
+    exactEnd != null && exactEnd > exactStart ? `,${exactEnd.toFixed(3)}` : ''
+  }`;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl overflow-hidden rounded-3xl border-border/50 bg-card/95 p-0 shadow-2xl backdrop-blur-2xl">
-        {embedError ? (
+        {isDirectVideo ? (
+          <div className="relative aspect-video w-full bg-black flex items-center justify-center">
+            <video
+              controls
+              autoPlay
+              playsInline
+              className="h-full w-full object-contain"
+              data-testid="direct-video-player"
+              src={`${directStreamUrl}${directFragment}`}
+            />
+          </div>
+        ) : embedError ? (
           <div className="flex aspect-video w-full flex-col items-center justify-center gap-1.5 bg-black/95 px-4 text-center">
             <Youtube className="h-6 w-6 text-saffron-gold/70" />
             <p className="text-xs font-medium text-foreground">{t('chat.videoUnavailable')}</p>
@@ -194,7 +240,10 @@ export const DiscourseVideoModal: React.FC<{
             <iframe
               ref={iframeRef}
               className="h-full w-full"
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}${endParam}&enablejsapi=1`}
+              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}${endParam}&enablejsapi=1&origin=${encodeURIComponent(
+                typeof window !== 'undefined' ? window.location.origin : '',
+              )}`}
+              referrerPolicy="strict-origin-when-cross-origin"
               title={citation.title || 'Discourse Video'}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -210,14 +259,20 @@ export const DiscourseVideoModal: React.FC<{
               </h3>
               <p className="text-xs text-saffron-gold">{resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}</p>
             </div>
-            <a
-              href={citation.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              Open YouTube <ExternalLink className="h-3 w-3" />
-            </a>
+            {isDirectVideo ? (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-ojas bg-ojas/10 px-2.5 py-1 rounded-full border border-ojas/20">
+                <Video className="h-3.5 w-3.5" /> Direct Video Recording
+              </span>
+            ) : (
+              <a
+                href={citation.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Open YouTube <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
           {citation.quote && (
             <div className="mt-3 rounded-xl border border-saffron-gold/20 bg-saffron-gold/5 p-3 text-xs italic text-muted-foreground">

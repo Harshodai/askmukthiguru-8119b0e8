@@ -93,3 +93,13 @@ async def test_graceful_degradation_text_is_not_cached():
     assert hot_cache.get(CACHE_KEY) is None, (
         "a graceful-degradation fallback message was written to the shared cache"
     )
+
+
+@pytest.mark.asyncio
+async def test_answer_with_safety_notices_is_not_written_to_any_cache():
+    """The notices live in route_metadata, not in the cached text: a replay would drop them."""
+    ctx = _ctx(memory_context="")
+    ctx.route_metadata["safety_notices"] = ["Please also reach out to a human support line."]
+    await CacheUpdateStage().run(ctx)
+    assert hot_cache.get(CACHE_KEY) is None
+    ctx.container.exact_cache.set.assert_not_called()

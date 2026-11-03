@@ -18,10 +18,10 @@ export interface WisdomTip {
   teacher: string;
 }
 
-const STORAGE_KEY = 'mukthi_wisdom_tips_v1';
+const STORAGE_KEY = 'mukthi_wisdom_tips_v2';
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const ROTATE_INTERVAL_MS = 8000;
-const SHOW_DELAY_MS = 2000;
+const SHOW_DELAY_MS = 0;
 const FETCH_TIMEOUT_MS = 4000;
 
 /**
@@ -72,9 +72,20 @@ const backendBaseUrl = (): string => {
   return endpoint.replace(/\/api\/chat\/?$/, '');
 };
 
+const cleanTipText = (text: string): string =>
+  text
+    .replace(/\[Context:[^\]]*\]\s*/gi, '')
+    .replace(/\[Potential Questions:[^\]]*\]\s*/gi, '')
+    .trim();
+
+const isValidTipText = (text: string): boolean => {
+  const cleaned = cleanTipText(text);
+  return cleaned.length >= 30 && !/^[a-z]\.?$/i.test(cleaned);
+};
+
 export const fetchWisdomTips = async (): Promise<WisdomTip[]> => {
   const cached = loadCachedTips();
-  if (cached) return cached;
+  if (cached) return cached.filter((t) => isValidTipText(t.text)).map((t) => ({ ...t, text: cleanTipText(t.text) }));
 
   const base = backendBaseUrl();
   try {
@@ -83,7 +94,11 @@ export const fetchWisdomTips = async (): Promise<WisdomTip[]> => {
     });
     if (!res.ok) throw new Error(`tips endpoint ${res.status}`);
     const data = await res.json();
-    const tips: WisdomTip[] = Array.isArray(data?.tips) && data.tips.length ? data.tips : STATIC_FALLBACK_TIPS;
+    const rawTips: WisdomTip[] = Array.isArray(data?.tips) && data.tips.length ? data.tips : STATIC_FALLBACK_TIPS;
+    const cleanList = rawTips
+      .filter((t) => isValidTipText(t.text))
+      .map((t) => ({ ...t, text: cleanTipText(t.text) }));
+    const tips = cleanList.length > 0 ? cleanList : STATIC_FALLBACK_TIPS;
     saveCachedTips(tips);
     return tips;
   } catch {
@@ -93,23 +108,42 @@ export const fetchWisdomTips = async (): Promise<WisdomTip[]> => {
 
 /**
  * Returns the tip to display while `active` is true, rotating every 8s.
- * Waits 2s before showing anything so instant answers never flash a tip.
+ * Displays immediately upon becoming active when a user asks a question.
  */
 export const useWisdomTips = (active: boolean): WisdomTip | null => {
-  const [tip, setTip] = useState<WisdomTip | null>(null);
+  const [tip, setTip] = useState<WisdomTip | null>(() => {
+    const cached = loadCachedTips();
+    const pool = cached && cached.length > 0 ? cached : STATIC_FALLBACK_TIPS;
+    const item = pool[Math.floor(Math.random() * pool.length)];
+    return { ...item, text: cleanTipText(item.text) };
+  });
   const tipsRef = useRef<WisdomTip[]>([]);
   const indexRef = useRef(0);
 
   useEffect(() => {
     if (!active) {
-      setTip(null);
       return;
     }
+    // Select a fresh tip immediately upon becoming active
+    const pool = tipsRef.current.length > 0
+      ? tipsRef.current
+      : (loadCachedTips() ?? STATIC_FALLBACK_TIPS);
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    setTip({ ...pick, text: cleanTipText(pick.text) });
+
     let cancelled = false;
     let rotateTimer: number | undefined;
 
-    const showTimer = window.setTimeout(async () => {
-      if (tipsRef.current.length === 0) tipsRef.current = await fetchWisdomTips();
+    const displayTip = async () => {
+      if (tipsRef.current.length === 0) {
+        const cached = loadCachedTips();
+        if (cached && cached.length > 0) {
+          tipsRef.current = cached.map((t) => ({ ...t, text: cleanTipText(t.text) }));
+        } else {
+          const fresh = await fetchWisdomTips();
+          tipsRef.current = fresh.map((t) => ({ ...t, text: cleanTipText(t.text) }));
+        }
+      }
       if (cancelled || tipsRef.current.length === 0) return;
       indexRef.current = Math.floor(Math.random() * tipsRef.current.length);
       setTip(tipsRef.current[indexRef.current]);
@@ -117,14 +151,15 @@ export const useWisdomTips = (active: boolean): WisdomTip | null => {
         indexRef.current = (indexRef.current + 1) % tipsRef.current.length;
         setTip(tipsRef.current[indexRef.current]);
       }, ROTATE_INTERVAL_MS);
-    }, SHOW_DELAY_MS);
+    };
+
+    displayTip();
 
     return () => {
       cancelled = true;
-      window.clearTimeout(showTimer);
       if (rotateTimer !== undefined) window.clearInterval(rotateTimer);
     };
   }, [active]);
 
-  return tip;
+  return active ? tip : null;
 };

@@ -841,3 +841,27 @@ async def require_aal2(user: dict = Depends(get_current_user_from_supabase)) -> 
         raise HTTPException(status_code=403, detail="AAL2 step-up required")
 
     return user
+
+
+async def require_admin(user: dict = Depends(require_aal2)) -> dict:
+    """Require an AAL2-authenticated superuser in the configured admin set.
+
+    This is the canonical admin dependency for routes that need both the
+    existing MFA step-up and the existing superuser/``ADMIN_USER_IDS``
+    defense-in-depth checks. An empty configured allowlist preserves the
+    established behavior of enforcing the superuser bit without an ID filter.
+    """
+    # Keep this assertion local to the canonical admin boundary as defense in
+    # depth. Direct callers/tests must not be able to pass an AAL1 superuser
+    # by bypassing FastAPI's nested ``require_aal2`` dependency resolution.
+    if not user or user.get("aal") != "aal2":
+        raise HTTPException(status_code=403, detail="AAL2 step-up required")
+
+    if not user or not user.get("is_superuser", False):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    allowlist = getattr(settings, "admin_user_ids_list", None) or []
+    if allowlist and user.get("id") not in allowlist:
+        raise HTTPException(status_code=403, detail="Admin access required (not allowlisted)")
+
+    return user

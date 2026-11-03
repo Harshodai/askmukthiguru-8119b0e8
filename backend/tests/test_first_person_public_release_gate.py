@@ -24,7 +24,6 @@ alias, an environment variable or a deployment.
 from __future__ import annotations
 
 import json
-import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -794,8 +793,8 @@ def test_owner_only_mode_refuses_to_run_in_production() -> None:
         settings.is_production = original_production
 
 
-def test_owner_only_mode_cannot_run_in_production_even_with_the_flag_on() -> None:
-    """A production deployment must refuse the local-review route outright."""
+def test_owner_only_route_authenticates_before_production_refusal() -> None:
+    """Unauthenticated callers are rejected before the production-mode route guard."""
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
@@ -814,9 +813,10 @@ def test_owner_only_mode_cannot_run_in_production_even_with_the_flag_on() -> Non
             "/api/first-person/local-review/query",
             json={"query": "What is meditation?", "max_clips": 1},
         )
-        assert response.status_code == 404
-        body = response.json()
-        assert "review_label" in body.get("detail", {})
+        assert response.status_code == 401
+        allowed, reason = route._local_review_allowed()
+        assert allowed is False
+        assert reason == "local_review_mode_refuses_production"
     finally:
         settings.first_person_local_review_enabled = original_enabled
         settings.is_production = original_production
@@ -961,5 +961,5 @@ def test_the_repository_copy_of_the_controller_is_the_canonical_one() -> None:
     canonical = _REPO_ROOT / "backend" / "scripts" / "ops" / "check_first_person_public_release.py"
     root_copy = _REPO_ROOT / "scripts" / "ops" / "check_first_person_public_release.py"
     if root_copy.exists():
-        assert shutil.samefile(canonical, canonical)
+        assert canonical.samefile(canonical)
         assert root_copy.read_bytes() == canonical.read_bytes()

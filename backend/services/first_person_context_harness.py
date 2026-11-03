@@ -26,8 +26,11 @@ from domain.first_person_context import (
     RetrievalDecision,
     SourceSpan,
     SpeakerRole,
+    ValidatedCrossParentEdge,
     clip_text_hash,
 )
+from domain.speaker_provenance import speaker_write_violations
+from services.first_person_evidence_policy import first_person_evidence_policy
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +59,10 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "reconstruction_failed",
         "question_only_clip",
         "retrieved_hit_trimmed",
+        "context_span_limit",
         "not_standalone",
+        "violent_relationship_context",
+        "unsolicited_self_harm_reference",
     }
 )
 _SHADOW_OUTCOMES = frozenset({"evaluated", "no_candidate", "not_configured", "timeout", "error"})
@@ -84,24 +90,26 @@ except Exception:  # noqa: BLE001 - metrics are optional
 
 _SENTENCE_RE = re.compile(r"[^.!?]+[.!?]*")
 
-# Demonstratives and pronouns that signal a span opens with a reference to
-# something said in the preceding span.  Expanding to include the predecessor
-# resolves ``fragment_without_antecedent`` coreference failures without any
-# LLM involvement and without touching the gate chain.
-_ANTECEDENT_OPENERS = frozenset(
-    {"this", "that", "it", "these", "those", "they", "he", "she", "when", "so"}
+# This detector can only request the bounded immediate predecessor after the
+# store issues a validated edge capability; it never performs timestamp search.
+# The configured context-span cap remains strict after that one-span recovery.
+_ANTECEDENT_CONNECTIVE_RE = re.compile(
+    r"^(?:"
+    r"imagine\s+what\s+will\s+be\s+the\s+outcome\s+of\s+(?:it|this|that)\b|"
+    r"(?:because|as\s+a\s+result)\s+of\s+(?:it|this|that)\b|"
+    r"in\s+response\s+to\s+(?:it|this|that)\b"
+    r")",
+    re.IGNORECASE,
 )
 
 
 def _span_starts_with_antecedent(span: SourceSpan) -> bool:
-    """Return True when the span's first word is a demonstrative/pronoun opener.
-
-    These openers indicate that the span references something established in
-    the immediately preceding turn.  Including the predecessor in the served
-    window resolves the antecedent without generating any new text.
-    """
-    words = span.verbatim_text.strip().split()
-    return bool(words) and words[0].lower().rstrip(".,;:") in _ANTECEDENT_OPENERS
+    """Return true only for explicit connective/coreference or fragment evidence."""
+    if span.completeness_status is CompletenessStatus.FRAGMENT:
+        return bool(span.previous_span_id)
+    if span.coreference_chain_ids:
+        return bool(span.previous_span_id)
+    return bool(_ANTECEDENT_CONNECTIVE_RE.match(span.verbatim_text.strip()))
 
 
 def _is_question_only(text: str) -> bool:
@@ -232,6 +240,8 @@ class HarnessPolicy:
     # alternative exists (see _apply_word_budget).
     max_context_words: int = 600
     require_speaker_verified: bool = True
+    # Also require a recorded voice_verification_method (see settings).
+    require_voice_method: bool = False
     require_same_parent: bool = True
     allow_fragment_with_antecedent: bool = True
     min_context_sufficiency: str = "sufficient"
@@ -254,23 +264,22 @@ def policy_from_settings() -> HarnessPolicy:
     """Policy a wired serving path must use (settings are the single source)."""
     from app.config import settings
 
-    return HarnessPolicy(max_context_spans=max(1, int(settings.first_person_context_max_spans)))
+    return HarnessPolicy(
+        max_context_spans=max(1, int(settings.first_person_context_max_spans)),
+        require_voice_method=getattr(settings, "first_person_require_voice_method", False) is True,
+    )
 
 
 def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
     from app.config import settings
-    from services.first_person_pipeline import (
-        _CORE_WISDOM_KEYWORDS_RE,
-        _EVENT_MARKER_RE,
-        _ORPHAN_OPENER_RE,
-    )
+    from services.first_person_evidence_policy import first_person_evidence_policy
 
     if not getattr(settings, "first_person_standalone_gate_enabled", True) or not spans:
         return False
-    first = spans[0].verbatim_text
-    if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
-        return True
-    return any(_EVENT_MARKER_RE.search(s.verbatim_text) for s in spans)
+    decision = first_person_evidence_policy.assess_context_standalone(
+        span.verbatim_text for span in spans
+    )
+    return not decision.may_serve
 
 
 class FirstPersonContextHarness:
@@ -283,7 +292,13 @@ class FirstPersonContextHarness:
         for span in spans:
             if span.speaker_role is not SpeakerRole.GURU:
                 return False
-            if policy.require_speaker_verified and not span.speaker_verified:
+            # A label and a boolean are not speaker evidence.  The context
+            # harness is a release-quality serving gate, so unlike legacy
+            # retrieval it refuses missing, failed, or unknown provenance even
+            # when the compatibility setting is left at its old value.
+            if not span.speaker_verified:
+                return False
+            if speaker_write_violations(span.to_payload()):
                 return False
         return True
 
@@ -314,7 +329,18 @@ class FirstPersonContextHarness:
         )
 
     @staticmethod
-    def _completeness_gate(spans: tuple[SourceSpan, ...], policy: HarnessPolicy) -> bool:
+    def _completeness_gate(
+        spans: tuple[SourceSpan, ...],
+        policy: HarnessPolicy,
+        *,
+        parent_status: CompletenessStatus | None = None,
+    ) -> bool:
+        # UNCERTAIN is never made safe by an antecedent.  A fragment may be completed by
+        # an explicitly present predecessor; an uncertain child or parent cannot.
+        if parent_status is CompletenessStatus.UNCERTAIN or any(
+            s.completeness_status is CompletenessStatus.UNCERTAIN for s in spans
+        ):
+            return False
         if all(s.completeness_status is CompletenessStatus.COMPLETE for s in spans):
             return True
         if not policy.allow_fragment_with_antecedent:
@@ -331,7 +357,9 @@ class FirstPersonContextHarness:
         # "uncertain" boundaries may still be served as related, never as direct.
         return all(s.boundary_status is not BoundaryStatus.UNCERTAIN for s in spans)
 
-    def _window(self, context: ParentContext) -> tuple[SourceSpan, ...]:
+    def _window(
+        self, context: ParentContext, *, span_limit: int | None = None
+    ) -> tuple[SourceSpan, ...]:
         """Bounded chronological window around the first hit span.
 
         Spans are always returned in ``start_ms`` order so the concatenated
@@ -340,17 +368,27 @@ class FirstPersonContextHarness:
         allows it).  Only when the parent has no hit do we fall back to its
         head.  The ``max_context_spans`` bound always applies.
 
-        Single-span windows are opportunistically expanded by one predecessor
-        when the hit span opens with a demonstrative or pronoun (``_ANTECEDENT_OPENERS``).
-        This resolves ``fragment_without_antecedent`` coreference failures
-        without any LLM involvement.
+        The span bound is strict: no antecedent heuristic may return more spans
+        than the configured limit. Recovery, when enabled by the pipeline, must
+        happen before this decision using a store-issued validated edge.
         """
-        # Always sort by start_ms so the answer reads chronologically,
-        # regardless of the order in which retrieval returned the spans.
-        ordered = tuple(sorted(context.spans, key=lambda s: getattr(s, "start_ms", 0) or 0))
+        # The validated parent record, not timestamps or child pointers, is the
+        # adjacency authority.  Store hydration verifies that every ordered id
+        # exists and belongs to this parent before a context reaches serving.
+        by_id = {span.source_span_id: span for span in context.spans}
+        ordered_ids = tuple(context.parent.ordered_source_span_ids)
+        ordered = tuple(by_id[span_id] for span_id in ordered_ids if span_id in by_id)
+        # Preserve unexpected children so the explicit same-parent gate below
+        # rejects a corrupted/deserialised context rather than silently hiding
+        # a candidate behind the max-span bound.
+        extras = tuple(
+            span for span in context.spans if span.source_span_id not in set(ordered_ids)
+        )
+        if extras:
+            ordered += extras
         if not ordered:
             return ()
-        limit = max(1, self._policy.max_context_spans)
+        limit = max(1, span_limit if span_limit is not None else self._policy.max_context_spans)
         hit_ids = set(context.hit_span_ids or ())
         hit_index = next(
             (index for index, span in enumerate(ordered) if span.source_span_id in hit_ids),
@@ -359,20 +397,12 @@ class FirstPersonContextHarness:
         if hit_index is None:
             return self._apply_word_budget(ordered[:limit], hit_ids)
 
-        # Opportunistic antecedent expansion for single-span windows: if the
-        # hit span starts with a demonstrative/pronoun AND a predecessor exists,
-        # treat the effective limit as 2 so offset logic pulls in that predecessor.
-        # This is additive-only and never reduces context for larger limits.
-        effective_limit = limit
-        if limit == 1 and hit_index > 0 and _span_starts_with_antecedent(ordered[hit_index]):
-            effective_limit = 2
-
         # Include one preceding span whenever the bound allows it, even for an
         # even-sized window where exact centering would drop it.
-        offset = 0 if effective_limit == 1 else max(1, (effective_limit - 1) // 2)
+        offset = 0 if limit == 1 else max(1, (limit - 1) // 2)
         start = max(0, hit_index - offset)
-        end = min(len(ordered), start + effective_limit)
-        start = max(0, end - effective_limit)
+        end = min(len(ordered), start + limit)
+        start = max(0, end - limit)
         return self._apply_word_budget(ordered[start:end], hit_ids)
 
     def _apply_word_budget(
@@ -429,9 +459,12 @@ class FirstPersonContextHarness:
         self,
         context: ParentContext,
         *,
+        query: str = "",
         requested_teacher: str | None = None,
         answerability: str = "indeterminate",
         selected_span_ids: tuple[str, ...] | None = None,
+        retrieval_query: str | None = None,
+        validated_predecessor: ValidatedCrossParentEdge | None = None,
     ) -> RetrievalDecision:
         """Run the gate chain and record one metric + one structured trace line.
 
@@ -441,9 +474,12 @@ class FirstPersonContextHarness:
         """
         decision = self._decide(
             context,
+            query=query,
             requested_teacher=requested_teacher,
             answerability=answerability,
             selected_span_ids=selected_span_ids,
+            retrieval_query=retrieval_query,
+            validated_predecessor=validated_predecessor,
         )
         _record_metrics(decision)
         return decision
@@ -452,13 +488,106 @@ class FirstPersonContextHarness:
         self,
         context: ParentContext,
         *,
+        query: str = "",
         requested_teacher: str | None = None,
         answerability: str = "indeterminate",
         selected_span_ids: tuple[str, ...] | None = None,
+        retrieval_query: str | None = None,
+        validated_predecessor: ValidatedCrossParentEdge | None = None,
     ) -> RetrievalDecision:
-        spans = _drop_redundant_spans(self._window(context))
+        # Check the complete retrieved set before applying the bounded window.
+        # Otherwise a malformed extra child could be trimmed away and evade the
+        # cross-parent contract gate.
+        if self._policy.require_same_parent and any(
+            span.parent_unit_id != context.parent.parent_unit_id for span in context.spans
+        ):
+            return self._abstain(
+                context,
+                "cross_parent_contamination",
+                gates={},
+                state_path=(),
+            )
+        predecessor_edge = validated_predecessor
+        predecessor: SourceSpan | None = None
+        validated_opener_id: str | None = None
+        validated_hit_id: str | None = None
+        window_limit: int | None = None
+        if predecessor_edge is not None:
+            if self._policy.max_context_spans < 2:
+                return self._abstain(
+                    context,
+                    "context_span_limit",
+                    gates={"context_span_limit": False},
+                    state_path=(),
+                )
+            ordered_ids = tuple(context.parent.ordered_source_span_ids)
+            current_opener = (
+                next(
+                    (span for span in context.spans if span.source_span_id == ordered_ids[0]),
+                    None,
+                )
+                if ordered_ids
+                else None
+            )
+            if current_opener is None or current_opener.source_span_id not in set(
+                context.hit_span_ids or ()
+            ):
+                return self._abstain(
+                    context,
+                    "antecedent_missing",
+                    gates={"antecedent_edge": False},
+                    state_path=(),
+                )
+            # Preserve the exact hit identity before windowing, redundancy removal,
+            # selector output, and trailing-question trimming.
+            validated_opener_id = current_opener.source_span_id
+            validated_hit_id = current_opener.source_span_id
+            if not isinstance(
+                predecessor_edge, ValidatedCrossParentEdge
+            ) or not predecessor_edge.matches(current_opener, context.parent):
+                return self._abstain(
+                    context,
+                    "antecedent_missing",
+                    gates={"antecedent_edge": False},
+                    state_path=(),
+                )
+            predecessor = predecessor_edge.predecessor
+            if (
+                not _span_starts_with_antecedent(current_opener)
+                or predecessor.parent_unit_id == current_opener.parent_unit_id
+                or predecessor.next_span_id != current_opener.source_span_id
+                or current_opener.previous_span_id != predecessor.source_span_id
+                or predecessor.video_id != current_opener.video_id
+                or predecessor.guru_id != current_opener.guru_id
+                or predecessor.corpus_version != current_opener.corpus_version
+                or predecessor.speaker_id != current_opener.speaker_id
+                or predecessor.end_ms > current_opener.start_ms
+                or predecessor.word_end > current_opener.word_start
+            ):
+                return self._abstain(
+                    context,
+                    "antecedent_missing",
+                    gates={"antecedent_edge": False},
+                    state_path=(),
+                )
+            window_limit = self._policy.max_context_spans - 1
+
+        def _validated_opener_present(candidate_spans: tuple[SourceSpan, ...]) -> bool:
+            if validated_opener_id is None or validated_hit_id is None:
+                return True
+            present_ids = {span.source_span_id for span in candidate_spans}
+            return validated_opener_id in present_ids and validated_hit_id in present_ids
+
+        spans = _drop_redundant_spans(self._window(context, span_limit=window_limit))
         if not spans:
             return self._abstain(context, "no_spans", gates={}, state_path=())
+        if not _validated_opener_present(spans):
+            return self._abstain(
+                context,
+                "antecedent_missing",
+                gates={"antecedent_edge": False},
+                state_path=(),
+            )
 
         states: list[HarnessState] = []
 
@@ -479,6 +608,15 @@ class FirstPersonContextHarness:
             )
         state = enter(HarnessState.CONTEXT_EXPANDED)
 
+        if selected_span_ids and predecessor is not None:
+            opener_id = context.parent.ordered_source_span_ids[0]
+            # A predecessor is meaningful only with this exact opener. Ignore
+            # selector output that omits or moves it; never attach the edge to
+            # whichever span the selector happened to retain.
+            if selected_span_ids[0] != opener_id:
+                gates["selector_honored"] = False
+                selected_span_ids = None
+
         if selected_span_ids:
             by_id = {span.source_span_id: span for span in spans}
             if all(span_id in by_id for span_id in selected_span_ids):
@@ -494,6 +632,29 @@ class FirstPersonContextHarness:
             else:
                 # Fail open to the deterministic retrieval order, and say so.
                 gates["selector_honored"] = False
+
+        if not _validated_opener_present(spans):
+            return self._abstain(
+                context,
+                "antecedent_missing",
+                gates={**gates, "antecedent_edge": False},
+                state=state,
+                state_path=tuple(states),
+            )
+
+        if predecessor is not None:
+            # The store-issued capability has validated both complete parent/
+            # child sets. This is the sole authorized cross-parent composition
+            # and it happens before any gate or decision.
+            if len(spans) + 1 > self._policy.max_context_spans:
+                return self._abstain(
+                    context,
+                    "context_span_limit",
+                    gates={"context_span_limit": False},
+                    state=state,
+                    state_path=tuple(states),
+                )
+            spans = (predecessor,) + spans
 
         if len({span.guru_id for span in spans}) != 1:
             return self._abstain(
@@ -578,6 +739,15 @@ class FirstPersonContextHarness:
             trimmed.pop()
         spans = tuple(trimmed)
 
+        if not _validated_opener_present(spans):
+            return self._abstain(
+                context,
+                "antecedent_missing",
+                gates={**gates, "antecedent_edge": False},
+                state=state,
+                state_path=tuple(states),
+            )
+
         if hits_before and not any(s.source_span_id in hit_ids for s in spans):
             return self._abstain(
                 context,
@@ -587,7 +757,11 @@ class FirstPersonContextHarness:
                 state_path=tuple(states),
             )
 
-        gates["completeness"] = self._completeness_gate(spans, self._policy)
+        gates["completeness"] = self._completeness_gate(
+            spans,
+            self._policy,
+            parent_status=context.parent.completeness_status,
+        )
         state = enter(HarnessState.COMPLETENESS_GATE)
         if not gates["completeness"]:
             return self._abstain(
@@ -605,6 +779,23 @@ class FirstPersonContextHarness:
             return self._abstain(
                 context,
                 "not_standalone",
+                gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        safety_decision = first_person_evidence_policy.assess_contextual_safety(
+            query,
+            " ".join(span.verbatim_text.strip() for span in spans),
+            retrieval_query=retrieval_query or "",
+        )
+        state = enter(HarnessState.CONTEXTUAL_SAFETY_GATE)
+        gates["contextual_safety"] = safety_decision.may_serve
+        if not safety_decision.may_serve:
+            reason = safety_decision.reason_codes[0] if safety_decision.reason_codes else "other"
+            return self._abstain(
+                context,
+                reason,
                 gates=gates,
                 state=state,
                 state_path=tuple(states),
@@ -656,6 +847,9 @@ class FirstPersonContextHarness:
                 state_path=tuple(states),
             )
 
+        # Keep the parent record's validated adjacency/order through citation
+        # construction and verbatim reconstruction. Do not re-derive order from
+        # timestamps or child pointers here.
         cites = self._citations(spans)
         gates["citations_verified"] = self._citations_verified(spans, cites)
         state = enter(HarnessState.CITATION_AND_AUDIO_GATE)

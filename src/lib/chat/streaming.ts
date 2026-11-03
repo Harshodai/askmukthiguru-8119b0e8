@@ -361,6 +361,9 @@ export async function* sendMessageStreaming(
               queryTier: meta.query_tier ?? null,
               isFirstPersonAbstain,
               routeDecision,
+              safetyNotices: Array.isArray(meta.safety_notices)
+                ? (meta.safety_notices as unknown[]).filter((n): n is string => typeof n === 'string' && n.trim().length > 0)
+                : [],
             };
           } catch {
             // Ignore malformed done payload

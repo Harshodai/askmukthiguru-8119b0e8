@@ -1,17 +1,21 @@
-# Architecture Overview
+# Architecture Guide & Documents
 
 AskMukthiGuru is a two-surface application:
 
 - **Seeker experience**: the public site, chat experience, practices, profile, and study notebook
 - **Admin experience**: dashboards and control panels for ingestion, quality, retrieval, telemetry, and model/queue operations
 
-The backend is the core orchestration layer. It combines:
+The backend is the core orchestration layer combining FastAPI, Celery, LangGraph RAG, and multi-tier persistence.
 
-- a **FastAPI** application bootstrap in `backend/app/main.py`
-- a **service container** in `backend/app/dependencies.py`
-- a **LangGraph RAG pipeline** in `backend/rag/`
-- an **ingestion pipeline** in `backend/ingest/pipeline.py`
-- multiple persistent stores: **Supabase**, **Qdrant**, **Redis**, and **Neo4j**
+---
+
+## Architecture Documentation Pages
+
+1. **[System Architecture Overview](overview.md)** — High-level system architecture, component topology, FastAPI gateway, Celery worker pool, multi-tier data plane, and ASCII/Mermaid interaction diagrams.
+2. **[12-Layer RAG Pipeline & LangGraph Engine](rag-pipeline.md)** — 12-layer RAG execution breakdown, LangGraph state machine, Fast/Standard/Deep execution strategies, query decomposition, HyDE, hybrid vector retrieval, and quote verification.
+3. **[First-Person Context Serving Architecture](first-person-serving.md)** — Verbatim context serving, the zero-hallucination guarantee ("Answer text is evidence, directness is metadata"), serving contract B4 isolation, ECAPA acoustic attribution gates, and quarantine policies.
+
+---
 
 ## System shape
 
@@ -61,6 +65,14 @@ See `lessons.md` and the recent git history for the rationale behind these chang
 - **RAG graph structure**: `backend/rag/graph.py`, `backend/rag/graph_strategies.py`, `backend/rag/states.py`
 - **Ingestion flow**: `backend/ingest/pipeline.py`, `backend/ingest/quality_gate.py`
 - **Cross-service configuration**: `backend/app/config.py`
+
+## Deep-Dive Guides
+
+- [Corpus Ingestion & Verification Architecture](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/wiki/architecture/ingestion.md)
+- [Spiritual Teachings & Ontological Knowledge Framework (OKF)](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/wiki/domain/teachings-and-okf.md)
+- [Serene Mind & Clinical Safety Architecture](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/wiki/domain/serene-mind.md)
+- [Admin Portal & Operator's Guide](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/wiki/admin/portal-guide.md)
+- [Operations, Deployment & CI/CD Pipeline Gates](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/wiki/operations/deployment-and-ci.md)
 
 ## Source anchors
 

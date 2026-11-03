@@ -15,3 +15,4 @@ export * from './SeedDemoButton';
 export * from './SpanWaterfall';
 export * from './TimeseriesChart';
 export * from './TraceDrawer';
+export * from './CorpusProvenanceModal';

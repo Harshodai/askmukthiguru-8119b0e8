@@ -8,7 +8,7 @@ import asyncio
 import logging
 import os
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from ingest.cleaner import clean_transcript
@@ -29,6 +29,11 @@ class VideoIngestResult:
     duration_seconds: float
     transcript_preview: str
     status: str
+    # The exact point ids written for this file. A caller that wants to stamp
+    # extra payload onto the chunks must use these ids: they are uuid5 ids, and
+    # a caller that reconstructs them from "video_id_index" writes to ids that
+    # do not exist (silent no-op — the direct-video upload path did exactly that).
+    point_ids: list[str] = field(default_factory=list)
 
 
 class VideoPipeline:
@@ -69,7 +74,7 @@ class VideoPipeline:
             return VideoIngestResult(0, duration, cleaned[:200], "no_chunks")
 
         # 5. Embed and upsert
-        written = await self._upsert_chunks(chunks, file_path)
+        written, point_ids = await self._upsert_chunks(chunks, file_path)
         if written == 0:
             return VideoIngestResult(0, duration, cleaned[:200], "chunks_rejected")
 
@@ -78,6 +83,7 @@ class VideoPipeline:
             duration_seconds=duration,
             transcript_preview=cleaned[:500],
             status="ok",
+            point_ids=point_ids,
         )
 
     async def _extract_audio(self, video_path: str, output_path: str) -> float:
@@ -228,20 +234,23 @@ class VideoPipeline:
             step = max(effective_size - effective_overlap, 1)
             return [" ".join(words[i : i + effective_size]) for i in range(0, len(words), step)]
 
-    async def _upsert_chunks(self, chunks: list, source: str) -> int:
+    async def _upsert_chunks(self, chunks: list, source: str) -> tuple[int, list[str]]:
         """Embed and upsert chunks to Qdrant with modality:video.
 
-        Returns the number of points actually written after the quality gate —
-        zero when every chunk is rejected (so callers can distinguish a clean
-        skip from a successful write).
+        Returns ``(written, point_ids)`` — the number of points actually written
+        after the quality gate, and the uuid5 ids those points carry. Zero
+        written means every chunk was rejected, so callers can distinguish a
+        clean skip from a successful write. ``point_ids`` exists so a caller can
+        stamp payload onto exactly the points this write created instead of
+        rebuilding ids it cannot know (the direct-video path did the latter and
+        silently wrote to nothing).
         """
+        import hashlib
         import uuid
 
-        # Quality gate. This path writes through the raw Qdrant client, so it
-        # bypasses the gate in `QdrantIndexer.upsert_chunks`. Applied before
-        # embedding so rejected chunks cost nothing. See the 2026-08-01 audit:
-        # 29.4% of the main corpus became machine output because validation
-        # lived on one write path instead of all of them.
+        from app.config import settings
+        from services.qdrant.client import QdrantClientManager
+        from services.qdrant.indexer import QdrantIndexer, resolve_source_rights_status
         from services.text_quality_filter import select_clean
 
         _keep, _rejected = select_clean(chunks)
@@ -258,23 +267,48 @@ class VideoPipeline:
             chunks = [chunks[i] for i in _keep]
         if not chunks:
             logger.warning("video_pipeline: all chunks from %s rejected — nothing written", source)
-            return 0
+            return 0, []
 
         embeddings = self._embedder.embed(chunks)
-        points = []
-        for i, (chunk, vec) in enumerate(zip(chunks, embeddings)):
-            points.append(
+        texts = chunks
+        vectors = embeddings
+        # Rights are resolved once per file, from the curated register, and fail
+        # closed to "unverified". A caller must never overwrite this with a
+        # hardcoded "licensed" (X40: register -> stamp -> filter -> enforce).
+        rights_status = resolve_source_rights_status(source)
+        metadatas = []
+        point_ids: list[str] = []
+        for i, chunk in enumerate(texts):
+            content_hash = hashlib.sha256(chunk.encode("utf-8")).hexdigest()[:16]
+            point_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{source}_{i}_0"))
+            point_ids.append(point_id)
+            metadatas.append(
                 {
-                    "id": str(uuid.uuid4()),
-                    "vector": vec,
-                    "payload": {
-                        "text": chunk,
-                        "source": source,
-                        "modality": "video",
-                        "chunk_index": i,
-                    },
+                    "text": chunk,
+                    "source_url": source,
+                    "title": "",
+                    "speaker": "Unknown",
+                    "topic": "Spiritual",
+                    "chunk_index": i,
+                    "content_type": "video_transcript",
+                    "raptor_level": 0,
+                    "chunker_version": "v10",
+                    "parent_id_scheme": "url_hash",
+                    "modality": "video",
+                    "rights_status": rights_status,
+                    "content_hash": content_hash,
+                    "point_id": point_id,
                 }
             )
-        await self._qdrant.upsert("mukthi_guru", points)
-        logger.info("Upserted %d video chunks", len(points))
-        return len(points)
+
+        collection_name = getattr(settings, "qdrant_collection", "mukthi_guru")
+        client = getattr(self._qdrant, "_client", None) or QdrantClientManager().client
+        indexer = QdrantIndexer(client=client, collection=collection_name)
+        written = indexer.upsert_chunks(
+            texts=texts,
+            vectors=vectors,
+            metadatas=metadatas,
+            replace_source_url=source,
+        )
+        logger.info("Upserted %d video chunks via QdrantIndexer", written)
+        return written, point_ids[:written] if written else []

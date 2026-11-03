@@ -94,6 +94,16 @@ describe('A30 playback fallback — DiscourseAudioStrip', () => {
       expect(screen.queryByText(/^Playing /)).not.toBeInTheDocument();
     },
   );
+
+  it('shows a fallback when YouTube emits Error 153 (configuration/origin restriction)', () => {
+    render(<DiscourseAudioStrip citation={CITATION} />);
+    fireEvent.click(screen.getByTestId('discourse-audio-play-button'));
+
+    emitYoutubeEmbedError(153);
+
+    expect(screen.getAllByText(FALLBACK_COPY).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^Playing /)).not.toBeInTheDocument();
+  });
 });
 
 describe('A30 playback fallback — DiscourseVideoModal', () => {

@@ -37,6 +37,10 @@ LLM_CALLS_PER_REQUEST = 3
 FIRST_PERSON_MODES: tuple[str, ...] = ("disabled", "retrieval_only", "hybrid")
 
 
+# Rollback clip store the legacy first-person slot uses outside v10-only posture.
+_LEGACY_FP_COLLECTION = "first_person_v8"
+
+
 class Settings(BaseSettings):
     """
     All application config, loaded from .env with sensible defaults.
@@ -195,7 +199,22 @@ class Settings(BaseSettings):
     # collection so a deployment without env lines serves first-person clips,
     # never the generating graph. v7 stays available as the rollback target
     # via FIRST_PERSON_COLLECTION=first_person_v7.
-    first_person_collection: str = "first_person_v8"
+    # Resolved by resolve_first_person_active_collection(): "" = not overridden. In
+    # v10-only posture (context harness + terminal both on) an unset slot is the
+    # active collection; otherwise the legacy slot keeps this rollback default.
+    first_person_collection: str = ""
+    # THE one name of the collection a deployment serves (owner request 2026-11-01:
+    # the two slots held the same literal and drifted). FIRST_PERSON_COLLECTION and
+    # FIRST_PERSON_CONTEXT_COLLECTION are optional overrides of it, kept for rollback.
+    first_person_active_collection: str = "first_person_v10"
+    # /api/ingest/federated is an admin file/URL ingest door. OFF unless explicitly enabled,
+    # and path-based source types may only read files under FEDERATED_INGEST_ALLOWED_DIR
+    # (empty = no path source is accepted).
+    federated_ingest_enabled: bool = False
+    federated_ingest_allowed_dir: str = ""
+    # Comma-separated first_person_* collections the ingest pipeline may dual-index into
+    # after a video ingest. EMPTY (default) = ingest writes to no first_person_* collection.
+    fp_dual_index_collections: str = ""
     # Gate for the /api/first-person/query route itself (separate from
     # first_person_mode, which the route also still checks).
     # Updated 2026-10-04: enabled by default — route was silently off for all
@@ -251,6 +270,7 @@ class Settings(BaseSettings):
     # clip moves toward abstention, never toward unverified text.
     # Tests: tests/test_fp_serve_quality_2026_10_07.py.
     first_person_content_quality_gate_enabled: bool = True
+    first_person_require_speaker_verified: bool = False
     # Conditionally prefetch question_dense vector lane in hybrid search.
     # Off by default until question embeddings are completely distinct from passages.
     first_person_question_dense_enabled: bool = False
@@ -276,12 +296,44 @@ class Settings(BaseSettings):
     # Read-only shadow evaluation is independent of active harness serving.
     # It runs only when explicitly enabled and never changes response/cache/safety.
     first_person_context_shadow_enabled: bool = False
-    # Explicit fp-context-v1 candidate collection; empty disables shadow reads.
+    # The fp-context-v1 collection (single source of truth for the v10 context path).
+    # Naming it does not enable anything: serving needs the owner flag
+    # first_person_context_harness_enabled, shadow reads need their own flag.
     first_person_context_collection: str = ""
+    # v10-only serving: when True (and the context harness is on) a question the
+    # harness cannot answer abstains instead of falling through to the legacy store.
+    first_person_context_terminal_enabled: bool = False
+    # Admin video-approval page (services/first_person_video_decisions.py).
+    # Directory for the human per-video decisions + audit log; empty uses
+    # <backend>/data/fp_video_decisions (/app/data is the persisted Docker volume).
+    # Env: FIRST_PERSON_VIDEO_DECISIONS_DIR.
+    first_person_video_decisions_dir: str = ""
+    # Directory for corpus_publication_manifest_<corpus>.json. Empty means the repo's
+    # audits/manifests. Point it at a volume shared by the ingest worker and the
+    # backend, or at a temp dir in tests.
+    corpus_publication_manifest_dir: str = ""
+    # Served-answer length window (words). Below the floor a clip is a fragment (graded
+    # fragments had 21-22 words, the shortest showable clip 23); above the cap it is several
+    # topics run together (318 words, not showable). Measured 2026-10-31, one small sample.
+    first_person_min_answer_words: int = 23
+    first_person_max_answer_words: int = 300
+    # Optional CSV of every known video (channel, title, v10 counts) so the page can list
+    # videos that are not in v10. Empty uses config/first_person_video_inventory.csv.
+    # Env: FIRST_PERSON_VIDEO_INVENTORY_PATH.
+    first_person_video_inventory_path: str = ""
     # Maximum child spans concatenated for one parent-context answer
     # (harness policy max_context_spans). Bounded so a long parent unit can
     # never turn into a wall of text on the chat surface.
     first_person_context_max_spans: int = 3
+    # Optional temporal quality adjustment for fp-context retrieval ranking.
+    # Disabled until a reviewed calibration demonstrates that the adjustment
+    # improves held-out serving quality without changing evidence eligibility.
+    first_person_context_temporal_quality_enabled: bool = False
+    # Serve only spans that carry a recorded voice_verification_method. OFF (default): a bare
+    # speaker_verified flag still serves and the citation shows "unverified". ON: those spans
+    # are not served at all. Graded 2026-10-31: 13 of 33 served clips had a bare flag, and the
+    # proposed hard gate H2 allows none. Turning it on costs coverage; the owner decides.
+    first_person_require_voice_method: bool = False
     # Phase D8: optional structured span selector. OFF: the only thing it may
     # return is span IDs drawn from retrieved clips; every other field in the
     # reply (prose, answer, explanation) is ignored. An unknown ID or malformed
@@ -306,6 +358,11 @@ class Settings(BaseSettings):
     # truncated retrieval window. Costs one extra scroll per parent per request;
     # OFF by default until measured (master plan RAG-2).
     first_person_enrichment_window_enabled: bool = False
+    # Hard timeout (seconds) for one enrichment-window re-hydration. Fail-open:
+    # a slow parent read keeps the retrieved span instead of delaying the answer
+    # (the window is an addition, never a reason to wait — same policy as the
+    # graph-expansion timeout below).
+    first_person_enrichment_window_timeout_s: float = 1.5
     # T3 graph-guided candidate expansion. When True, ontology-neighbor concepts
     # for the query are used to run one additional payload-filtered context
     # retrieval over spans already tagged with those concepts. The extra pool is
@@ -317,6 +374,11 @@ class Settings(BaseSettings):
     # Hard timeout (seconds) for the graph expansion lookup. Fail-open: a slow or
     # unavailable graph adds nothing rather than delaying the answer.
     first_person_graph_expansion_timeout_s: float = 1.5
+    # --- Phase-5 TeachingUnit graph expansion (2026-11-03) ---
+    # When True, span-level TU graph neighbours are appended AFTER the vector
+    # and concept-expansion results. The TU graph must be built offline first
+    # via scripts/ops/build_teaching_unit_graph.py. OFF by default everywhere.
+    first_person_teaching_unit_graph_enabled: bool = False
     # --- Owner-only local review candidate preview (2026-10-22) ---
     # A file-backed, LOCAL-ONLY preview of the Phase-4 `local_review_candidate`
     # tier. It reads the immutable candidate manifests directly: no Qdrant
@@ -362,6 +424,12 @@ class Settings(BaseSettings):
     # unchanged. Set FIRST_PERSON_LLM_FALLBACK_ENABLED=false to restore the
     # first-person-only abstention posture. Safety/crisis and guided-practice
     # carve-outs continue to use their dedicated stages.
+    # Speculative LLM drafting (app/generation/speculative_stream.py). OFF: the product serves
+    # the teachers' verbatim clip or a static abstain, never generated teaching (CLAUDE.md
+    # first-person invariants 1, 15, 21). Nothing on the request path calls it; the flag is
+    # read at the orchestrator's only entry point so enabling it later is an explicit act.
+    # Env: SPECULATIVE_GENERATION_ENABLED.
+    speculative_generation_enabled: bool = False
     first_person_llm_fallback_enabled: bool = False
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
@@ -406,6 +474,10 @@ class Settings(BaseSettings):
     first_person_relevance_model: str = ""
     # Timeout in seconds for the first-person LLM relevance scorer. 25s accommodates reasoning models and provider latency jitter.
     first_person_relevance_timeout_s: float = 25.0
+    # Retained as a compatibility setting only. Provider errors/refusals are
+    # relevance-indeterminate in serving; no uncalibrated local fallback may
+    # turn a budget denial or provider failure into an answer.
+    first_person_relevance_fallback_enabled: bool = False
     # Path to a JSON list of approved clip point_ids (ids only, no transcript text). When set, ONLY those
     # clips can be served; a missing/unreadable file serves nothing (fail closed). Empty = off.
     first_person_quality_allowlist_path: str = ""
@@ -497,6 +569,8 @@ class Settings(BaseSettings):
     # --- Guardrails ---
     # Provider: "nemo" (NeMo Guardrails), "lightweight" (regex-based), "llama_guard" (Llama Guard 3 1B + Rejection Classifier), "rejection_classifier", "disabled"
     guardrails_provider: str = "nemo"  # Falls back to lightweight if provider unavailable
+    guardrails_llama_guard_openrouter_enabled: bool = True
+    guardrails_llama_guard_model: str = "meta-llama/llama-guard-3-8b"
     # CRIT-5: message-level language detection + translate-to-EN before EN
     # guardrail regexes, so an EN-preferred user typing in a non-EN script
     # gets the same injection/crisis protection. Gates three call sites:
@@ -1260,11 +1334,17 @@ class Settings(BaseSettings):
     bm25_result_limit: int = 10
     rag_compression_similarity_threshold: float = 0.50
     rag_context_compression_enabled: bool = False
-    # Stays True. The OKF bundle was cleared on 2026-08-01 for a clean rebuild from
-    # the green corpus, so injection currently finds an empty index and contributes
-    # nothing — harmless, and it means the layer switches back on by itself as soon
-    # as entries are re-extracted, reviewed, and recompiled.
+    # Controls injection of the Ontological Knowledge Framework (memory/okf/compiled.json)
+    # as a canonical knowledge layer in retrieval. Entries are subject to manifest
+    # clearance and verbatim quote validation.
     rag_okf_injection_enabled: bool = True  # OKF as canonical knowledge layer
+
+    # P0 (2026-10-27): OKF manifest governance gate. When True, enforces strict
+    # manifest clearance on all OKF entries before injection into retrieval.
+    # DORMANT: default False, and memory/okf/source_asset_manifest.json does not exist.
+    # Enabling without that manifest fails closed to zero OKF entries (every entry is
+    # 'unmanifested_source'); create and owner-sign the manifest first.
+    okf_governance_manifest_enabled: bool = False
 
     # P0 (2026-09-25): OKF load-time verbatim quote gate. Default OFF — built
     # and dry-run-reported per owner decision, not yet enabled. When True,
@@ -1410,8 +1490,24 @@ class Settings(BaseSettings):
     context_chunk_dedup_threshold: float = 0.85
     use_adaptive_chunking: bool = True
     adaptive_chunking_min_chars: int = 800
-    use_proposition_chunking: str = "auto"
-    proposition_char_limit: int = 15000
+    chunker_contract_strict: bool = False
+    use_proposition_chunking: bool | str = Field(
+        default=False,
+        description="Deprecated per Decision D3: proposition chunking is retired.",
+    )
+
+    # --- RAG Phase 6 Feature Closures ---
+    # RAG-1: Retrieval Feedback Loop (suppression-only, TTL'd, off by default)
+    retrieval_feedback_enabled: bool = False
+    retrieval_feedback_ttl_days: int = 30
+    retrieval_feedback_min_samples: int = 3
+
+    # RAG-2: Context Enrichment Window (general RAG path)
+    enrichment_window_enabled: bool = False
+    enrichment_window_size: int = 1
+
+    # RAG-3: Channel Provenance for Explainability (admin-only, excluded from public SSE)
+    retrieval_channel_provenance_enabled: bool = False
 
     # --- Implicit Teachings Concept Connector (ingestion optimization) ---
     # Cosine similarity below which entity-pair LLM relation classification is skipped.
@@ -1472,6 +1568,8 @@ class Settings(BaseSettings):
     # Governed source publication is opt-in until approval/rollback staging drills pass.
     corpus_release_registry_enabled: bool = False
     corpus_release_fallback_version: int = 1
+    # Read-time release filter mode ("off", "shadow", "enforce")
+    release_filter_mode: str = "off"
     # Published retrieval-index contracts are opt-in until the first production
     # corpus publication drill has created a durable Redis manifest. When true,
     # startup refuses a missing, malformed, or incompatible contract.
@@ -2184,6 +2282,27 @@ class Settings(BaseSettings):
         if self.raptor_summary_model:  # Explicit override
             return self.raptor_summary_model
         return self.model_for_generation  # Default to generation model
+
+    @model_validator(mode="after")
+    def resolve_first_person_active_collection(self):
+        """Fill the two first-person collection slots from the single active name.
+
+        An explicit FIRST_PERSON_COLLECTION / FIRST_PERSON_CONTEXT_COLLECTION still
+        wins (rollback). Outside v10-only posture the legacy slot falls back to the
+        v8 clip store, because the serving contract forbids it from naming an
+        fp-context collection. The startup check that the slots agree with the
+        active name is `validate_serving_contract(active_collection=...)`.
+        """
+        active = self.first_person_active_collection.strip()
+        v10_only = (
+            self.first_person_context_harness_enabled
+            and self.first_person_context_terminal_enabled is True
+        )
+        if not self.first_person_collection.strip():
+            self.first_person_collection = active if v10_only else _LEGACY_FP_COLLECTION
+        if not self.first_person_context_collection.strip():
+            self.first_person_context_collection = active
+        return self
 
     @model_validator(mode="after")
     def validate_semantic_distress_escalation(self):

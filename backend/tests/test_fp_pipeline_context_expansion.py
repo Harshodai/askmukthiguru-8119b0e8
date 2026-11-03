@@ -382,5 +382,15 @@ def test_fp_served_true_on_served_result_and_false_on_abstain():
 
 
 def test_expansion_flags_default_off():
-    assert settings.first_person_enrichment_window_enabled is False
-    assert settings.first_person_graph_expansion_enabled is False
+    """Both context-expansion features must be off by default (serving invariant 3).
+
+    Read the *declared* defaults, not a ``Settings()`` instance: ``backend/.env``
+    turns both features on for local work, so an instance asserts the developer's
+    environment instead of the shipped default (same trap as
+    ``test_config_validation::test_spend_guard_defaults``).
+    """
+    from app.config import Settings
+
+    fields = Settings.model_fields
+    assert fields["first_person_enrichment_window_enabled"].default is False
+    assert fields["first_person_graph_expansion_enabled"].default is False

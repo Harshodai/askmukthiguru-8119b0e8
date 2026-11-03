@@ -43,6 +43,7 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
+from services.first_person_video_decisions import video_is_blocked
 from services.qdrant.client import QdrantClientManager
 
 logger = logging.getLogger(__name__)
@@ -506,6 +507,8 @@ class FirstPersonStore:
                 "layer_sha256",
                 "caption_status",
                 "speaker_verified",
+                # Spoken-voice proof; without it speaker_verified reads as unverified.
+                "voice_verification_method",
                 # I2 context & OKF concept tags (separate from pure passage_dense vector)
                 "discourse_context",
                 "tags",
@@ -589,7 +592,7 @@ class FirstPersonStore:
         points = self.client.retrieve(
             collection_name=self.collection,
             ids=list(point_ids),
-            with_payload=["first_person_eligible", "rights_cleared"],
+            with_payload=["first_person_eligible", "rights_cleared", "video_id"],
             with_vectors=False,
         )
         if len(points) != len(set(point_ids)):
@@ -597,6 +600,7 @@ class FirstPersonStore:
         need_rights = not getattr(settings, "first_person_serve_unregistered", False)
         return all(
             (p.payload or {}).get("first_person_eligible") is True
+            and not video_is_blocked((p.payload or {}).get("video_id"))
             and (not need_rights or (p.payload or {}).get("rights_cleared") is True)
             for p in points
         )
@@ -778,6 +782,91 @@ class FirstPersonStore:
                 best = payload
                 best_key = key
         return best
+
+    def get_clip_by_video_and_start_in_collection(
+        self,
+        collection: str,
+        video_id: str,
+        timestamp_seconds: float,
+        tolerance_s: float = 1.5,
+    ) -> Optional[dict[str, Any]]:
+        """Look up a context-collection clip by exact video and nearby start.
+
+        This is the explicit service boundary for the personalize fallback when
+        the configured legacy clip collection has no match. Context records do
+        not necessarily carry the legacy eligibility/rights payload fields, so
+        this deliberately preserves the fallback's narrower filter and adapts
+        the stored payload into the clip shape consumed by the serving gate.
+        ``None`` means no matching context clip; Qdrant errors are allowed to
+        propagate to the caller's infrastructure-decline path.
+        """
+        if not str(collection or "").strip():
+            return None
+        try:
+            target_ms = int(round(float(timestamp_seconds) * 1000.0))
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if target_ms < 0:
+            return None
+        try:
+            tolerance_ms = int(round(float(tolerance_s) * 1000.0))
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if tolerance_ms < 0:
+            return None
+
+        canonical = canonical_video_id(str(video_id or ""))
+        if not canonical:
+            return None
+        scroll_filter = Filter(
+            must=[
+                FieldCondition(key="video_id", match=MatchValue(value=canonical)),
+                FieldCondition(
+                    key="start_ms",
+                    range=Range(
+                        gte=max(0, target_ms - tolerance_ms),
+                        lte=target_ms + tolerance_ms,
+                    ),
+                ),
+            ]
+        )
+        points, _next_offset = self._client.scroll(
+            collection_name=str(collection),
+            scroll_filter=scroll_filter,
+            limit=50,
+            with_payload=True,
+            with_vectors=False,
+        )
+
+        candidates: list[tuple[int, dict[str, Any]]] = []
+        for point in points or []:
+            payload = dict(getattr(point, "payload", None) or {})
+            verbatim_text = payload.get("verbatim_text")
+            if not verbatim_text:
+                continue
+            try:
+                start_ms = int(payload.get("start_ms"))
+            except (TypeError, ValueError):
+                continue
+            diff_ms = abs(start_ms - target_ms)
+            if diff_ms > tolerance_ms:
+                continue
+            payload["point_id"] = str(getattr(point, "id", payload.get("point_id", "")))
+            if not payload.get("speaker"):
+                payload["speaker"] = (
+                    "Sri Preethaji" if payload.get("guru_id") == "preethaji" else "Sri Krishnaji"
+                )
+            payload["transcript_hash"] = hashlib.sha256(
+                str(verbatim_text).encode("utf-8")
+            ).hexdigest()
+            candidates.append((diff_ms, payload))
+
+        if not candidates:
+            return None
+        # Stable sorting preserves Qdrant's prior order for equal-distance
+        # candidates while still choosing the nearest timestamp first.
+        candidates.sort(key=lambda candidate: candidate[0])
+        return candidates[0][1]
 
     def count(self) -> int:
         """Return total points in collection."""

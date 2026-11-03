@@ -598,7 +598,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--qdrant-url", default=os.getenv("QDRANT_URL", "http://localhost:6333"))
     parser.add_argument(
-        "--collection", default=os.getenv("FIRST_PERSON_COLLECTION", "first_person_v10")
+        "--collection",
+        default=os.getenv("FIRST_PERSON_COLLECTION")
+        or os.getenv("FIRST_PERSON_ACTIVE_COLLECTION")
+        or "first_person_v10",
     )
     parser.add_argument("--alias", default=os.getenv("FIRST_PERSON_ALIAS", "first_person"))
     parser.add_argument(

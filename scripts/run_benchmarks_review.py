@@ -20,9 +20,7 @@ from pathlib import Path
 BASE_URL = "http://localhost:8000"
 BENCHMARK_SECRET = os.environ.get("BENCHMARK_SECRET", "").strip()
 if not BENCHMARK_SECRET:
-    sys.exit(
-        "BENCHMARK_SECRET is not set. Export a non-empty value before running this review."
-    )
+    sys.exit("BENCHMARK_SECRET is not set. Export a non-empty value before running this review.")
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_DIR = Path(
     os.environ.get("BENCHMARK_ARTIFACT_DIR", str(REPO_ROOT / "artifacts" / "benchmark_review"))
@@ -412,9 +410,9 @@ def run_all():
         cat = item["category"]
         diff = item["difficulty"]
         q = item["query"]
-        desc = item["description"]
+        item["description"]
 
-        print(f"\n[{idx}/30] [{cat.upper()} | {diff}] \"{q}\"")
+        print(f'\n[{idx}/30] [{cat.upper()} | {diff}] "{q}"')
         res = send_query(token, q)
         status_code = res["status_code"]
         latency = res["latency_s"]
@@ -422,13 +420,15 @@ def run_all():
 
         if status_code != 200:
             print(f"  ERROR: {res.get('error')}")
-            results.append({
-                **item,
-                "status_code": status_code,
-                "latency_s": latency,
-                "error": res.get("error"),
-                "answer": "",
-            })
+            results.append(
+                {
+                    **item,
+                    "status_code": status_code,
+                    "latency_s": latency,
+                    "error": res.get("error"),
+                    "answer": "",
+                }
+            )
             time.sleep(1.0)
             continue
 
@@ -437,10 +437,14 @@ def run_all():
         verification = data.get("verification") or {}
         grounding_state = data.get("grounding_state") or verification.get("grounding_state")
         citations = data.get("citations") or []
-        route_decision = data.get("route_decision") or (data.get("evaluation_trace") or {}).get("route_decision")
+        route_decision = data.get("route_decision") or (data.get("evaluation_trace") or {}).get(
+            "route_decision"
+        )
         intent = data.get("intent") or data.get("route")
 
-        print(f"  Route: {route_decision} | Grounding: {grounding_state} | Citations: {len(citations)}")
+        print(
+            f"  Route: {route_decision} | Grounding: {grounding_state} | Citations: {len(citations)}"
+        )
         snippet = answer[:140].replace("\n", " ") + ("..." if len(answer) > 140 else "")
         print(f"  Answer: {snippet}")
 
@@ -457,18 +461,20 @@ def run_all():
                 title = str(c)[:60]
             parsed_cits.append({"url": url, "title": title})
 
-        results.append({
-            **item,
-            "status_code": status_code,
-            "latency_s": latency,
-            "grounding_state": grounding_state,
-            "route_decision": route_decision,
-            "routing_reason": (data.get("evaluation_trace") or {}).get("routing_reason"),
-            "verification_method": verification.get("method"),
-            "intent": intent,
-            "citations": parsed_cits,
-            "answer": answer,
-        })
+        results.append(
+            {
+                **item,
+                "status_code": status_code,
+                "latency_s": latency,
+                "grounding_state": grounding_state,
+                "route_decision": route_decision,
+                "routing_reason": (data.get("evaluation_trace") or {}).get("routing_reason"),
+                "verification_method": verification.get("method"),
+                "intent": intent,
+                "citations": parsed_cits,
+                "answer": answer,
+            }
+        )
         time.sleep(1.0)
 
     # Save to JSON
@@ -494,7 +500,10 @@ def run_all():
     ]
 
     from collections import defaultdict
-    cat_summary = defaultdict(lambda: {"count": 0, "latencies": [], "grounded": 0, "abstained": 0, "safety": 0})
+
+    cat_summary = defaultdict(
+        lambda: {"count": 0, "latencies": [], "grounded": 0, "abstained": 0, "safety": 0}
+    )
     for r in results:
         c = r["category"]
         cat_summary[c]["count"] += 1
@@ -509,21 +518,29 @@ def run_all():
 
     for cat_name, s in cat_summary.items():
         avg_l = round(sum(s["latencies"]) / len(s["latencies"]), 2) if s["latencies"] else 0
-        lines.append(f"| {cat_name.title()} | {s['count']} | {avg_l}s | {s['grounded']} | {s['abstained']} | {s['safety']} |")
+        lines.append(
+            f"| {cat_name.title()} | {s['count']} | {avg_l}s | {s['grounded']} | {s['abstained']} | {s['safety']} |"
+        )
 
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## Detailed Benchmark Responses",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## Detailed Benchmark Responses",
+            "",
+        ]
+    )
 
     for r in results:
-        lines.append(f"### Benchmark #{r['index']} [{r['category'].upper()} | {r['difficulty'].upper()}]: {r['query']}")
+        lines.append(
+            f"### Benchmark #{r['index']} [{r['category'].upper()} | {r['difficulty'].upper()}]: {r['query']}"
+        )
         lines.append(f"- **Description / Goal**: {r['description']}")
         lines.append(f"- **HTTP Status**: {r['status_code']} | **Latency**: {r['latency_s']}s")
-        lines.append(f"- **Route Decision**: `{r.get('route_decision')}` | **Grounding State**: `{r.get('grounding_state')}` | **Verification**: `{r.get('verification_method')}`")
+        lines.append(
+            f"- **Route Decision**: `{r.get('route_decision')}` | **Grounding State**: `{r.get('grounding_state')}` | **Verification**: `{r.get('verification_method')}`"
+        )
         cits = r.get("citations", [])
         if cits:
             lines.append(f"- **Citations ({len(cits)})**:")

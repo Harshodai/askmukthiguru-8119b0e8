@@ -631,10 +631,15 @@ def process_video(wd: WorkDir, state: State, archive: Any, video_id: str) -> dic
     # Latin-script must never reach the vote -- the agreement would be between a
     # model that heard it and a model that could not. Script-level, not LID.
     script = dominant_script(
-        " ".join(str(w.get("w", "")) for w in load_json(wd.raw / f"{video_id}_whisper.json", {}).get("words") or [])
+        " ".join(
+            str(w.get("w", ""))
+            for w in load_json(wd.raw / f"{video_id}_whisper.json", {}).get("words") or []
+        )
     )
     if script and script != "LATIN":
-        log(f"quarantine {video_id}: whisper script {script} is outside Parakeet's English-only range")
+        log(
+            f"quarantine {video_id}: whisper script {script} is outside Parakeet's English-only range"
+        )
         result["error"] = f"unsupported_parakeet_script:{script}"
         result["script"] = script
         return result
@@ -804,7 +809,9 @@ def apply_index(
     os.environ.setdefault("EMBEDDING_BACKEND", "onnx_int8")
     _ensure_backend_on_path()
 
+    import scripts.ops.build_first_person_index as bpi
     from app.config import settings
+    from scripts.ops.build_first_person_index import build_index
     from services.embedding_service import EmbeddingService
     from services.first_person_store import (
         FirstPersonStore,
@@ -812,9 +819,6 @@ def apply_index(
         store_point_id_for_clip,
     )
     from services.qdrant.utils import QdrantUtils
-
-    import scripts.ops.build_first_person_index as bpi
-    from scripts.ops.build_first_person_index import build_index
 
     # build_index() has no clips-out parameter and keeps its gated clip list
     # local; capture it at the module-level build_store_clip() seam so every

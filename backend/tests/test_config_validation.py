@@ -101,11 +101,19 @@ def test_max_concurrent_chat_accepts_positive(monkeypatch):
 
 
 def test_spend_guard_defaults():
-    """Verify spend guard default enablement and daily/monthly ceilings."""
-    s = Settings()
+    """Verify spend guard default enablement and daily/monthly ceilings.
+
+    The numeric caps are read from the declared field defaults, not from a
+    ``Settings()`` instance: ``backend/.env`` raises the local caps (25/100 on
+    2026-11-01) and ``conftest`` exports that file, so an instance reports the
+    developer's environment and the test would silently assert nothing. Same
+    trap as the first-person collection pin in ``tests/conftest.py``.
+    """
+    s = Settings(_env_file=None)
     assert s.openrouter_budget_guard_enabled is True
-    assert s.openrouter_daily_budget_usd == 10.0
-    assert s.openrouter_monthly_budget_usd == 40.0
+    defaults = Settings.model_fields
+    assert defaults["openrouter_daily_budget_usd"].default == 10.0
+    assert defaults["openrouter_monthly_budget_usd"].default == 40.0
 
     assert s.sarvam_budget_guard_enabled is True
     assert s.sarvam_daily_budget_usd == 10.0
@@ -313,7 +321,9 @@ def test_first_person_only_posture_is_the_default():
     # promoted to `first_person_v9` via `FIRST_PERSON_COLLECTION` in `backend/.env`
     # (v8 untouched at 1,801 points as the rollback target), which made the old
     # env-resolved assertion fail for a reason the test name does not claim.
-    assert Settings.model_fields["first_person_collection"].default == "first_person_v8"
+    # The slot default is "" (derived from first_person_active_collection, else the v8 rollback).
+    assert Settings.model_fields["first_person_collection"].default == ""
+    assert Settings.model_fields["first_person_active_collection"].default == "first_person_v10"
     assert s.first_person_llm_fallback_enabled is False
     assert s.first_person_serve_weak_match is True
     # Same idiom: the local `backend/.env` overrides this to 2, so assert the

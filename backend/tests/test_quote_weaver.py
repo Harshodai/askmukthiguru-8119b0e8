@@ -299,14 +299,25 @@ def test_weaver_deterministic_fallback_when_no_llm(sample_clip, sample_okf_entry
     assert result.fallback_used is True
     assert result.passed_gate is True
 
-    # Output passes assertion gate
-    ok, reason = QuoteWeaverAssertionGate.validate(result.text, [sample_clip], [sample_okf_entry])
-    assert ok is True
+    # Output passes assertion gate. The body is evidence only (invariant 1);
+    # reflection questions and the pointer ride in metadata.
+    ok, reason = QuoteWeaverAssertionGate.validate(
+        result.text,
+        [sample_clip],
+        [sample_okf_entry],
+        reflection_text=result.atma_vichara_inquiry,
+        heading_text=result.related_clips_heading,
+    )
+    assert ok is True, reason
     assert sample_clip["verbatim_text"] in result.text
     assert sample_clip["video_id"] in result.text
-    assert "---" in result.text
-    assert "*" in result.text
     assert "###" not in result.text
+    # Invariant 1: no generated question, no pointer line in the body.
+    assert result.atma_vichara_inquiry
+    assert "*" in result.atma_vichara_inquiry
+    assert result.atma_vichara_inquiry not in result.text
+    if result.related_clips_heading:
+        assert result.related_clips_heading not in result.text
 
 
 def test_weaver_deterministic_clip_only_mode(sample_clip, sample_okf_entry, monkeypatch):
@@ -441,14 +452,22 @@ def test_hybrid_weaving_scaffolding_preserves_db_verbatim(
 
     assert res.passed_gate is True
     assert res.fallback_used is False
-    # The opening sentence is from LLM
-    assert "Sri Preethaji addresses this seeker inquiry from a space of deep stillness." in res.text
+    # The opening sentence is LLM-authored metadata, never body text (invariant 1).
+    assert res.related_clips_heading
+    assert (
+        "Sri Preethaji addresses this seeker inquiry from a space of deep stillness."
+        in res.related_clips_heading
+    )
+    assert "Sri Preethaji addresses this seeker inquiry" not in res.text
     # Invariant: the teaching text MUST BE the exact character-for-character DB text
     assert sample_clip["verbatim_text"] in res.text
-    # Reflection questions are included
-    assert "*What is the primary belief you are holding right now?*" in res.text
-    assert "*Can you observe the disturbance in your breath without resistance?*" in res.text
-    assert "---" in res.text
+    # Reflection questions are metadata, not body
+    assert "*What is the primary belief you are holding right now?*" in res.atma_vichara_inquiry
+    assert (
+        "*Can you observe the disturbance in your breath without resistance?*"
+        in res.atma_vichara_inquiry
+    )
+    assert res.atma_vichara_inquiry not in res.text
 
 
 def test_banned_affirmations_in_hybrid_triggers_fallback(
@@ -524,7 +543,11 @@ def test_weaver_formats_multiple_clips_without_truncation(sample_clip, sample_ok
     assert clip3["verbatim_text"] in result.text
     # Assertion gate passes on all 3 clips
     ok, reason = QuoteWeaverAssertionGate.validate(
-        result.text, [sample_clip, clip2, clip3], [sample_okf_entry]
+        result.text,
+        [sample_clip, clip2, clip3],
+        [sample_okf_entry],
+        reflection_text=result.atma_vichara_inquiry,
+        heading_text=result.related_clips_heading,
     )
     assert ok is True, f"Assertion gate failed: {reason}"
 
@@ -663,8 +686,14 @@ def test_deterministic_opening_makes_no_topic_claim(sample_clip):
     res = QuoteWeaverService(llm_service=None).weave(
         "What is suffering?", [sample_clip], [], sources=_src(sample_clip)
     )
-    assert res.text.startswith("Sri Preethaji speaks to a related theme:")
+    # A weak-match pointer is not evidence, so it must never enter the verbatim
+    # body (invariant 1). Framing is off by default, so the deterministic path
+    # emits no pointer at all; when one is produced it rides in metadata.
+    assert not res.text.startswith("Sri Preethaji speaks to a related theme:")
     assert "discourse on" not in res.text.split("**")[0]
+    if res.related_clips_heading:
+        assert "speaks to a related theme" in res.related_clips_heading
+        assert res.related_clips_heading not in res.text
 
 
 def test_llm_pointer_claiming_a_direct_answer_is_replaced():

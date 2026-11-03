@@ -111,24 +111,27 @@ RUN --mount=type=secret,id=hf_token,env=HF_TOKEN,required=false \
 RUN cp -a /app/model_cache /opt/model_cache_seed
 
 
-# Copy application code
-COPY backend/ .
+# Copy application code. --chmod=go+rX: COPY keeps the build context's working-tree modes, and
+# editor/atomic-write tools leave some tracked files at 0600 (git records 644), which the
+# gosu-dropped appuser cannot read: `PermissionError: /app/services/qdrant/client.py` on the
+# graded override (no code bind mounts). Normalize here so the image never depends on host modes.
+COPY --chmod=go+rX backend/ .
 
 # The OKF compiled index lives at the repo root, not under backend/, but
 # rag/nodes/retrieval.py resolves it to /app/memory/okf/compiled.json inside the
 # image. Without this the loader caches an empty index and OKF injection
 # (rag_okf_injection_enabled, default True) contributes nothing.
-COPY memory/ ./memory/
+COPY --chmod=go+rX memory/ ./memory/
 
 # Owner-approved crisis helplines (config/helplines.yaml at the repo root).
 # services/crisis_helplines.py resolves this to /config/helplines.yaml inside
 # the image (Path(__file__).resolve().parents[2] from /app/services/, i.e.
 # filesystem root, not /app/config/) -- without it the safety path silently
 # serves the in-code fallback list instead of the reviewed one.
-COPY config/helplines.yaml /config/helplines.yaml
+COPY --chmod=go+rX config/helplines.yaml /config/helplines.yaml
 
 # Copy the entrypoint script
-COPY backend/docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY --chmod=755 backend/docker-entrypoint.sh /app/docker-entrypoint.sh
 
 # Expose port
 EXPOSE 8000

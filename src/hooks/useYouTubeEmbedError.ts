@@ -27,11 +27,12 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
  * box claiming to play. Callers must render that escape hatch.
  */
 
-const EMBED_LOAD_TIMEOUT_MS = 10_000;
+const EMBED_LOAD_TIMEOUT_MS = 4_500;
 
-/** YouTube emits 101/150 for "embedding disabled by request"; 2/5/100 are
- *  bad-parameter / HTML5-player / deleted-video — all unplayable in an embed. */
-const UNPLAYABLE_EMBED_CODES = new Set([2, 5, 100, 101, 150]);
+/** YouTube emits 101/150 for "embedding disabled by request"; 153 for player
+ *  configuration / origin restriction; 2/5/100 are bad-parameter / HTML5-player
+ *  / deleted-video — all unplayable in an embed. */
+const UNPLAYABLE_EMBED_CODES = new Set([2, 5, 100, 101, 150, 153]);
 
 export const useYouTubeEmbedError = (
   videoId: string | null | undefined,
@@ -62,7 +63,12 @@ export const useYouTubeEmbedError = (
     };
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== 'https://www.youtube.com') return;
+      if (
+        event.origin !== 'https://www.youtube.com' &&
+        event.origin !== 'https://www.youtube-nocookie.com'
+      ) {
+        return;
+      }
       // Only accept messages posted by OUR iframe. A real cross-frame message always
       // carries a non-null source, so a mismatched source is another frame's traffic;
       // a source-less synthetic dispatch is still let through.
@@ -107,13 +113,14 @@ export const useYouTubeEmbedError = (
     const frameWindow = iframeRef.current?.contentWindow;
     if (!frameWindow) return;
     try {
+      const targetOrigin = iframeRef.current?.src ? new URL(iframeRef.current.src).origin : '*';
       frameWindow.postMessage(
         JSON.stringify({
           event: 'listening',
           id: iframeRef.current?.id ?? '',
           channel: 'widget',
         }),
-        'https://www.youtube.com',
+        targetOrigin,
       );
     } catch {
       // postMessage can throw on a torn-down window; the timeout stays armed.

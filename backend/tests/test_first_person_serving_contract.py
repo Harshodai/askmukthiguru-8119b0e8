@@ -146,6 +146,17 @@ def test_shipped_contract_declares_the_live_v10_as_a_context_collection(contract
     assert "first_person_eligible" not in entry.required_payload_fields
 
 
+def test_shipped_contract_declares_v11_identically_to_v10(contract):
+    v10, v11 = contract["first_person_v10"], contract["first_person_v11"]
+    assert (v11.schema, v11.role, v11.corpus_version, v11.required_payload_fields) == (
+        v10.schema,
+        v10.role,
+        v10.corpus_version,
+        v10.required_payload_fields,
+    )
+    assert v11.evidence_policy == v10.evidence_policy
+
+
 def test_contract_file_is_valid_json_and_pins_the_required_fields():
     raw = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
     assert raw["schema"] == contract_mod.CONTRACT_SCHEMA

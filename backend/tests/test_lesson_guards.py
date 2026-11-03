@@ -193,3 +193,29 @@ def test_stop_hook_allows_clean_tree_and_honours_active_flag(tmp_path):
     _git(tmp_path, "add", "a")
     _git(tmp_path, "commit", "-qm", "c")
     assert _stop(tmp_path, '{"stop_hook_active": true}').returncode == 0
+
+
+def test_fp_write_guard_flags_new_writers_and_allows_ops_build_and_tests():
+    code = 'COL = "first_person_v10"\nclient.upsert(collection_name=COL, points=[])\n'
+    assert g.fp_write_problems("backend/ingest/new_writer.py", code)
+    assert g.fp_write_problems("backend/scripts/ops/build_first_person_index.py", code) == []
+    assert g.fp_write_problems("backend/scripts/ops/tag_x.py", code) == []
+    assert g.fp_write_problems("backend/tests/test_x.py", code) == []
+    # variable collection name in a file that names a first_person collection is still caught
+    assert g.fp_write_problems(
+        "backend/ingest/x.py",
+        'for c in ["first_person_v11"]:\n    client.delete(collection_name=c)\n',
+    )
+    # reviewed line, and files that never name a first_person collection
+    assert (
+        g.fp_write_problems(
+            "backend/ingest/x.py", code.replace("points=[])", "points=[])  # fp-write-ok")
+        )
+        == []
+    )
+    assert (
+        g.fp_write_problems(
+            "backend/ingest/x.py", "client.upsert(collection_name='lightrag', points=[])"
+        )
+        == []
+    )

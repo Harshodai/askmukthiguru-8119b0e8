@@ -240,6 +240,8 @@ export interface TeachingPreview {
   teacher?: string | null;
   url?: string | null;
   excerpt?: string | null;
+  audio_slice_url?: string | null;
+  audio_start_ms?: number | null;
 }
 
 export interface AIResponse {
@@ -279,6 +281,11 @@ export interface AIResponse {
   queryTier?: string | null;
   isFirstPersonAbstain?: boolean | null;
   routeDecision?: string | null;
+  /** Platform copy that accompanies a served verbatim clip but is not the
+   *  teacher's words (compassion framing, relationship/addiction safety
+   *  boundaries, the human support line). Rendered as its own block after the
+   *  answer; never concatenated into the answer body. */
+  safetyNotices?: string[];
   /** Seconds the client should wait before retrying (429 responses). */
   retryAfterSeconds?: number;
   /** Anonymous quota state from a 429 quota_exceeded response, for the "X of Y used" caption. */
@@ -362,6 +369,7 @@ export type StreamChunk =
       queryTier?: string | null;
       isFirstPersonAbstain?: boolean | null;
       routeDecision?: string | null;
+      safetyNotices?: string[];
     }
   | { type: 'error'; text: string; errorCode?: AIErrorCode };
 

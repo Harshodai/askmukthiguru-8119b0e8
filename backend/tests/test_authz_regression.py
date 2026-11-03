@@ -26,6 +26,7 @@ from services.auth_service import (
     get_current_user_from_supabase,
     get_optional_user,
     require_aal2,
+    require_admin,
 )
 
 
@@ -219,6 +220,39 @@ def test_cache_metrics_admin_only():
     )
     src = inspect.getsource(cache_metrics)
     assert "is_superuser" in src, "/api/metrics/cache must enforce is_superuser."
+
+
+def test_first_person_local_review_endpoints_use_canonical_admin_dependency():
+    """Status and query must share the canonical AAL2 + admin dependency."""
+    from app.api.first_person_local_review import local_review_query, local_review_status
+
+    for endpoint in (local_review_query, local_review_status):
+        assert require_admin.__name__ in _dependency_names(endpoint), (
+            f"REGRESSION: {endpoint.__name__} must depend on require_admin"
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "user",
+    [
+        {"id": "anonymous", "is_anonymous": True},
+        {"id": "ordinary-user", "is_superuser": False},
+    ],
+)
+async def test_canonical_admin_dependency_rejects_anonymous_and_non_admin(user):
+    with pytest.raises(HTTPException) as exc_info:
+        await require_admin(user)
+    assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_canonical_admin_dependency_rejects_aal1_superuser():
+    """Direct calls cannot bypass the nested AAL2 dependency."""
+    with pytest.raises(HTTPException) as exc_info:
+        await require_admin({"id": "aal1-admin", "is_superuser": True, "aal": "aal1"})
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == "AAL2 step-up required"
 
 
 # --- Broad sweep: no route under /admin or /api/jobs may be anonymous -------

@@ -206,7 +206,7 @@ def capture(qdrant_url: str, label: str) -> dict[str, Any]:
                 "backend",
                 "sh",
                 "-c",
-                "echo ${FIRST_PERSON_COLLECTION:-<unset>}",
+                "echo ${FIRST_PERSON_COLLECTION:-${FIRST_PERSON_ACTIVE_COLLECTION:-<unset>}}",
             ]
         ).get("stdout", ""),
     }

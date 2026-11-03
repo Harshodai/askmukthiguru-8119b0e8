@@ -14,7 +14,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from services.auth_service import require_aal2
 from services.hot_cache import hot_cache
 
@@ -26,7 +26,7 @@ router = APIRouter(tags=["Metrics"])
 @router.get("/metrics/cache")
 async def cache_metrics(
     user: dict = Depends(require_aal2),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> JSONResponse:
     """Return cache tier statistics for production monitoring. Admin only."""
     if not user or not user.get("is_superuser"):
@@ -81,7 +81,7 @@ async def cache_metrics(
 @router.post("/admin/clear-cache")
 async def clear_cache(
     user: dict = Depends(require_aal2),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ) -> JSONResponse:
     """Flush all cache tiers. Admin only.
 

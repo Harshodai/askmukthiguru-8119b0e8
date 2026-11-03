@@ -459,6 +459,35 @@ async def request_data_deletion(
             exception_tenants.add(target_tenant)
             combined_results[target_tenant] = {"error": type(exc).__name__}
 
+    # 26-table DPDP Act 2023 & GDPR Art 17 Hard Cascade Account Erasure across Postgres, Memgraph C++, Qdrant, & Redis
+    try:
+        from services.personalization.cascade_erasure import hard_cascade_account_erasure
+
+        cascade_receipt = await hard_cascade_account_erasure(
+            user_id=user_id,
+            supabase_client=getattr(container, "supabase_client", None),
+            qdrant_client=getattr(container, "qdrant_client", None),
+            memgraph_driver=getattr(container, "neo4j_driver", None),
+            redis_client=getattr(container, "redis_client", None),
+        )
+        combined_results["dpdp_cascade_receipt"] = {
+            "receipt_id": cascade_receipt.receipt_id,
+            "status": cascade_receipt.status,
+            "audit_verified": cascade_receipt.audit_verified,
+            "primary_tables_covered": cascade_receipt.primary_tables_covered,
+            "tables_wiped": len(cascade_receipt.tables_wiped),
+            "audit_hash": cascade_receipt.audit_hash,
+        }
+        if cascade_receipt.failures:
+            all_errors.extend(cascade_receipt.failures)
+    except Exception as cascade_exc:
+        logger.warning(
+            "Cascade erasure encountered error for user %s: %s",
+            sanitize_log_input(user_id),
+            cascade_exc,
+        )
+        all_errors.append(f"dpdp_cascade_erasure: {type(cascade_exc).__name__}")
+
     final_result = (
         combined_results[target_tenants[0]] if len(target_tenants) == 1 else combined_results
     )

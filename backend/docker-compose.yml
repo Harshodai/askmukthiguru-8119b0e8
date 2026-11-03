@@ -3,8 +3,7 @@
 #
 # Profiles:
 #   (default)         — memgraph, redis, qdrant, backend, frontend
-#   legacy-neo4j      — neo4j fallback (port 7689, enable: COMPOSE_PROFILES=legacy-neo4j)
-#   ingestion         — celery-worker (enable: COMPOSE_PROFILES=ingestion)
+#   ingestion         — celery-worker, celery-beat (enable: COMPOSE_PROFILES=ingestion)
 #   observability     — jaeger, prometheus, grafana (enable: COMPOSE_PROFILES=observability)
 #   cache             — gptcache-server (enable: COMPOSE_PROFILES=cache)
 #
@@ -38,7 +37,7 @@ x-logging: &default-logging
 
 services:
   # ============================================================
-  # Graph Databases: Memgraph (Primary, 7687) & Neo4j (Fallback, 7689)
+  # Graph Database: Memgraph C++ MAGE (Primary Bolt 7687, Zero Neo4j)
   # ============================================================
 
   # --- Memgraph (Primary Graph Database, port 7687, C++, ~80MB RAM) ---
@@ -67,36 +66,6 @@ services:
           memory: 1G
           cpus: '1.0'
     restart: unless-stopped
-
-  # --- Neo4j Database (Fallback / Legacy, port 7689, JVM, ~1GB+ RAM) ---
-  neo4j:
-    image: neo4j:5.17.0
-    container_name: mukthiguru-neo4j
-    profiles:
-      - legacy-neo4j
-    ports:
-      - "7475:7474" # HTTP Browser (Fallback)
-      - "7689:7687" # Bolt Protocol (Fallback)
-    environment:
-      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
-      - NEO4J_PLUGINS=["apoc","n10s","graph-data-science"]
-      - NEO4J_server_memory_heap_initial__size=${NEO4J_HEAP_INITIAL_SIZE:-256M}
-      - NEO4J_server_memory_heap_max__size=${NEO4J_HEAP_MAX_SIZE:-512M}
-      - NEO4J_server_memory_pagecache_size=${NEO4J_PAGECACHE_SIZE:-512M}
-    volumes:
-      - neo4j_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1.0'
-    restart: "no"
 
   # --- Redis Cache ---
   redis:
@@ -333,9 +302,12 @@ services:
       # reach a running stack. Override with FIRST_PERSON_MODE=hybrid only for
       # a deliberate local experiment (production contract rejects it).
       - FIRST_PERSON_MODE=${FIRST_PERSON_MODE:-retrieval_only}
-      - FIRST_PERSON_COLLECTION=${FIRST_PERSON_COLLECTION:-first_person_v8}
+      # One name for the served collection; the two slot variables below are optional
+      # overrides (empty = derived from it by Settings.resolve_first_person_active_collection).
+      - FIRST_PERSON_ACTIVE_COLLECTION=${FIRST_PERSON_ACTIVE_COLLECTION:-first_person_v10}
+      - FIRST_PERSON_COLLECTION=${FIRST_PERSON_COLLECTION:-}
       - FIRST_PERSON_CONTEXT_HARNESS_ENABLED=${FIRST_PERSON_CONTEXT_HARNESS_ENABLED:-false}
-      - FIRST_PERSON_CONTEXT_COLLECTION=${FIRST_PERSON_CONTEXT_COLLECTION:-fp_context_v1}
+      - FIRST_PERSON_CONTEXT_COLLECTION=${FIRST_PERSON_CONTEXT_COLLECTION:-}
       # Owner-only, file-backed first-person review preview (2026-10-22).
       # LOCAL ONLY: the route refuses to run when IS_PRODUCTION is true, and it
       # refuses to start when any pinned artifact is missing or stale. The
@@ -346,6 +318,7 @@ services:
       # /app rather than from the derived host path.
       - FIRST_PERSON_LOCAL_REVIEW_ROOT=${FIRST_PERSON_LOCAL_REVIEW_ROOT:-/app}
       - FIRST_PERSON_RELEVANCE_MIN_SCORE=${FIRST_PERSON_RELEVANCE_MIN_SCORE:-3}
+      - FIRST_PERSON_RELEVANCE_TIMEOUT_S=${FIRST_PERSON_RELEVANCE_TIMEOUT_S:-15.0}
       - FIRST_PERSON_MAX_CLIP_SECONDS=${FIRST_PERSON_MAX_CLIP_SECONDS:-300}
       - FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED=${FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED:-true}
       # Supabase
@@ -442,7 +415,7 @@ services:
           # "container OOMs 137" report did NOT reproduce (OOMKilled=false). One
           # worker did die once, but on a native SIGSEGV inside turbovec, not on
           # memory; see TURBOQUANT_NATIVE_ENABLED in services/turboquant_cache.py.
-          # Note the limits across all services (qdrant 3G + neo4j 2G + redis
+          # Note the limits across all services (qdrant 3G + memgraph + redis
           # 512M + this) exceed a 8GB VM, so raise Docker Desktop's memory
           # allocation before running the full stack under load.
           memory: ${BACKEND_MEMORY_LIMIT:-6G}
@@ -476,6 +449,7 @@ services:
       # same single implementation under a second anchor so the repo-root
       # wrappers and their tests resolve in-image. Read-only.
       - ./scripts:/app/backend_scripts:ro
+      - ../transcripts:/app/transcripts:ro
       # Mount the auditor outside /app/scripts to avoid nesting beneath its
       # repository-root bind mount. This anchor is also shared by the worker.
       - type: bind
@@ -536,7 +510,7 @@ services:
     command: >
       celery -A celery_config worker
       --loglevel=info
-      --queues=transcription,embedding,indexing,ingestion,okf,memory
+      --queues=transcription,embedding,indexing,ingestion,okf,memory,celery
       --concurrency=${CELERY_CONCURRENCY:-1}
     depends_on:
       redis:
@@ -550,6 +524,34 @@ services:
         limits:
           cpus: '2.0'
           memory: 3G
+    restart: unless-stopped
+    volumes: *backend-volumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # --- Celery Beat (scheduled periodic tasks) ---
+  celery-beat:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: mukthiguru-celery-beat
+    profiles: [ingestion]
+    logging: *default-logging
+    env_file:
+      - path: ./.env
+        required: false
+      - path: ../.env
+        required: false
+    environment: *backend-env
+    command: celery -A celery_config beat --loglevel=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     restart: unless-stopped
     volumes: *backend-volumes
     extra_hosts:
@@ -575,6 +577,8 @@ services:
     container_name: mukthiguru-frontend
     ports:
       - "80:80"
+    volumes:
+      - ./nginx.docker.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       backend:
         condition: service_healthy
@@ -928,8 +932,6 @@ volumes:
   qdrant_data:
     driver: local
   memgraph_data:
-    driver: local
-  neo4j_data:
     driver: local
   redis_data:
     driver: local

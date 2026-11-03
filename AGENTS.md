@@ -5,6 +5,13 @@
 ### Standing rules extracted from dated handoffs (2026-10-22)
 Verbatim from the entries archived in `docs/agent/claude-md-archive/AGENTS-handoffs-2026-10-22.md`. Source heading and line are noted per item; counts and states inside them were true on their stated date, not necessarily now. For a conflict, code and scoped CLAUDE.md files prevail.
 
+**X40** (added directly on 2026-10-28; NOT extracted from the archive above, which predates it. Authority: `docs/adr/0002..0005` and `.claude/tasks/2026-10-25-rag-data-platform-master-plan.md`, Phase 7)
+- **Register -> stamp -> filter -> enforce:** Rights status originates solely from the curated rights register (`docs/rights/CONTENT-RIGHTS.md` / `source_releases`). Ingestion stamps the status onto Qdrant payloads, retrieval filters on `domain_rights_status == "licensed"`, and the gate enforces complete exclusion of unverified or revoked materials. Never default missing rights to "licensed".
+- **`chunker_version` must name the real chunker:** The payload attribute `chunker_version` must declare the actual chunking class per grammar (`boundary_v1:...`, `recursive_v1:...`, `adaptive_v1`, `semantic_v1`). Proposition chunking is permanently retired (D3).
+- **Rejections must be persisted:** Every item rejected by ingest quality gates must be recorded in `public.corpus_gate_rejections` with reason, tier, and source coordinates.
+- **`unknown_legacy` is honest, not an error:** Pre-contract legacy points must return `"unknown_legacy"` for `chunker_version`. Ingestion and reindexing tools must never guess, synthesize, or backfill an unverified algorithm onto historical points.
+
+
 **X1** (from "Repository dead-code sweep + script-tree drift closure — Oct 22, 2026", was line 6)
 - **Binding:** the `scripts/` ↔ `backend/scripts/` duplicate trees are now **fully reconciled and pinned**. Three duplicated paths outside `scripts/ops/` had drifted in both directions, and because `backend/docker-compose.yml` bind-mounts repo-root `scripts/` at `/app/scripts` (shadowing the image's baked `backend/scripts`), the **container ran the stale copies** while CI and the host ran the backend ones. Worst case: `scripts/verify_rls_policies.py` was missing the `canonical_memories` RLS probe — a **security control** silently skipping the most sensitive table. All shared paths are byte-identical now, and `backend/tests/test_repo_layout.py::test_cross_tree_shared_scripts_are_identical` pins every one of them. **Any new script duplicated across the two trees must be added byte-identical in both, or not duplicated at all.**
 

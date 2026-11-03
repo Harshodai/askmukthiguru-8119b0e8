@@ -297,6 +297,46 @@ def augment_query(query: str, neighbors: list[str]) -> str:
     return f"{query} {' '.join(neighbors)}"
 
 
+def fetch_doctrine_subgraph(
+    concepts: list[str],
+    neo4j_driver: Any,
+    limit: int = 10,
+) -> str:
+    """Retrieve doctrine context from Memgraph for concepts and format as concise text."""
+    if not concepts or neo4j_driver is None:
+        return ""
+    try:
+        query = (
+            "MATCH (c) WHERE (c.entity_id IN $concepts OR c.name IN $concepts) "
+            "OPTIONAL MATCH (c)-[r]-(m) "
+            "RETURN coalesce(c.name, c.entity_id) AS concept, c.description AS description, "
+            "type(r) AS rel, coalesce(m.name, m.entity_id) AS related "
+            "LIMIT $limit"
+        )
+        with neo4j_driver.session() as session:
+            records = session.run(query, concepts=concepts, limit=limit).data()
+        if not records:
+            return ""
+        doctrine_lines = []
+        seen_concepts = set()
+        for r in records:
+            c_name = r.get("concept")
+            if c_name and c_name not in seen_concepts:
+                seen_concepts.add(c_name)
+                desc = (r.get("description") or "").strip()
+                if desc:
+                    first_sentence = desc.split(". ")[0] + "."
+                    doctrine_lines.append(f"- **{c_name}**: {first_sentence}")
+            rel = r.get("rel")
+            target = r.get("related")
+            if rel and target and rel != "DIRECTED":
+                doctrine_lines.append(f"  * {c_name} {rel.lower().replace('_', ' ')} {target}")
+        return "\n".join(doctrine_lines)
+    except Exception as exc:
+        logger.debug("[kg_expansion] fetch_doctrine_subgraph failed: %s", exc)
+        return ""
+
+
 if __name__ == "__main__":
     # Self-check — no live Neo4j needed. Exercise concept-finding only.
     q = "What does Sadhguru say about karma and the beautiful state?"

@@ -126,6 +126,17 @@ queue infrastructure yet.
 SQLite tables created automatically on first run:
 - `wa_messages(phone, role, content, created_at)` — conversation history
 - `wa_state(phone, meditation_step, last_serene_at, language)` — per-user state
+- `wa_inbound(provider, provider_msg_id, ...)` — each inbound message id is processed once
+- `wa_window(phone, last_inbound_at)` — start of the 24-hour service window
+- `wa_outbound(...)` — one row per send attempt; `status` follows provider callbacks
+- `wa_status_events(...)` — delivery callbacks (`sent`, `delivered`, `read`, `failed`), one per message and status
+
+The DB file is created mode 0600 and no endpoint reads it. `accepted` in
+`wa_outbound` means the gateway took the message; only `delivered` or `read`
+shows the recipient got it. Free-form replies are sent only within 24 hours of
+the user's last message; outside it, only `META_TEMPLATE_NAME` is sent, or the
+send is blocked (`blocked_window`). A phone number is never linked to a
+signed-in user's memory; that needs a separate verified linking and consent flow.
 
 In containerized deploys, **mount a volume** for `WA_DB_PATH`. Otherwise every
 restart wipes meditation state mid-session.
@@ -212,9 +223,7 @@ stack trace. Adjust to taste in `wa_bot.py:FALLBACK_DOWN` / `FALLBACK_GENERIC`.
 
 - Multi-tenant isolation
 - Voice notes / media messages (text only)
-- Webhook idempotency (Twilio's signature includes a request id, but
-  this code re-processes duplicates — fine for the spiritual-Q&A use
-  case, but if you build a transactional bot, dedupe on `MessageSid`)
+- Account linking: a phone number is anonymous; no user memory is attached
 - Group chat handling (assumes 1-on-1 conversations)
 
 Each of these is a half-day to add — but YAGNI for a first launch.

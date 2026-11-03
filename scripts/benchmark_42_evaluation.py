@@ -138,17 +138,23 @@ def verify_citation(cit: dict[str, Any]) -> dict[str, Any]:
     """Verify cryptographic integrity and field validity of a citation."""
     verbatim_text = cit.get("verbatim_text", "")
     expected_hash = hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest()
-    
-    actual_hash = cit.get("transcript_hash") or cit.get("source_text_hash") or cit.get("video_transcript_hash")
-    hash_valid = (actual_hash == expected_hash)
-    
+
+    actual_hash = (
+        cit.get("transcript_hash")
+        or cit.get("source_text_hash")
+        or cit.get("video_transcript_hash")
+    )
+    hash_valid = actual_hash == expected_hash
+
     has_video_id = bool(cit.get("video_id"))
     has_start_ms = "start_ms" in cit and cit["start_ms"] >= 0
     has_end_ms = "end_ms" in cit and cit["end_ms"] > cit.get("start_ms", 0)
     has_speaker = bool(cit.get("speaker"))
     is_verbatim = bool(cit.get("is_verbatim", False))
-    
-    all_valid = hash_valid and has_video_id and has_start_ms and has_end_ms and has_speaker and is_verbatim
+
+    all_valid = (
+        hash_valid and has_video_id and has_start_ms and has_end_ms and has_speaker and is_verbatim
+    )
     return {
         "citation_valid": all_valid,
         "hash_valid": hash_valid,
@@ -184,8 +190,10 @@ def main() -> None:
                 item["source_file"] = "ooc13.jsonl"
                 questions.append(item)
 
-    print(f"=== Starting 42-Question First-Person Benchmark Suite ===")
-    print(f"Loaded {len(questions)} queries: 29 on-topic (frozen29) + 13 negative controls (ooc13)\n")
+    print("=== Starting 42-Question First-Person Benchmark Suite ===")
+    print(
+        f"Loaded {len(questions)} queries: 29 on-topic (frozen29) + 13 negative controls (ooc13)\n"
+    )
 
     results = []
     for i, q in enumerate(questions, 1):
@@ -237,7 +245,7 @@ def main() -> None:
         results.append(record)
 
         prov = citations[0].get("provenance_kind") if citations else "none"
-        spk_v = citations[0].get("speaker_verified") if citations else False
+        citations[0].get("speaker_verified") if citations else False
         zh_flag = "ZH=PASS" if zh_report.get("zero_hallucination", True) else "ZH=FAIL"
         cit_flag = "CIT=PASS" if all_cits_valid else "CIT=FAIL"
 
@@ -254,7 +262,9 @@ def main() -> None:
 
     # Compute aggregate metrics
     n_total = len(results)
-    served = [r for r in results if r["status"] in ("success", "weak_match") and r["n_citations"] > 0]
+    served = [
+        r for r in results if r["status"] in ("success", "weak_match") and r["n_citations"] > 0
+    ]
     direct_served = [r for r in served if r["is_direct_answer"]]
     weak_served = [r for r in served if not r["is_direct_answer"]]
     abstained = [r for r in results if r["status"] == "abstained"]
@@ -303,7 +313,11 @@ def main() -> None:
 
     # Per-stage timings median
     def stage_p50(key: str) -> float:
-        vals = [r["stage_timings"].get(key, 0.0) for r in results if r["stage_timings"].get(key, 0.0) > 0]
+        vals = [
+            r["stage_timings"].get(key, 0.0)
+            for r in results
+            if r["stage_timings"].get(key, 0.0) > 0
+        ]
         return round(statistics.median(vals), 1) if vals else 0.0
 
     # Zero-hallucination metrics
@@ -344,7 +358,11 @@ def main() -> None:
             "served_evaluated": len(served),
             "zero_hallucination_passed": zh_passed,
             "zero_hallucination_rate_pct": zh_rate,
-            "hallucinated_tokens_count": 0 if zh_passed == len(served) else sum(r["zero_hallucination_report"].get("unmatched_words_count", 0) for r in served),
+            "hallucinated_tokens_count": 0
+            if zh_passed == len(served)
+            else sum(
+                r["zero_hallucination_report"].get("unmatched_words_count", 0) for r in served
+            ),
         },
         "citation_verification": {
             "served_evaluated": len(served),
@@ -362,10 +380,12 @@ def main() -> None:
     print("=== 42-QUESTION FIRST-PERSON BENCHMARK SUMMARY ===")
     print("=" * 60)
     print(f"Total Queries Evaluated:       {n_total}")
-    print(f"Served (Total):                {len(served)} ({len(served)/n_total*100:.1f}%)")
+    print(f"Served (Total):                {len(served)} ({len(served) / n_total * 100:.1f}%)")
     print(f"  - Direct Answers (Harness):  {len(direct_served)}")
     print(f"  - Related / Weak Match:      {len(weak_served)}")
-    print(f"Abstained:                     {len(abstained)} ({len(abstained)/n_total*100:.1f}%)")
+    print(
+        f"Abstained:                     {len(abstained)} ({len(abstained) / n_total * 100:.1f}%)"
+    )
     print(f"Crisis Redirect:               {len(crisis)}")
     print(f"Errors:                        {len(errors)}")
     print(f"Out-of-Corpus Leak Count:      {len(ooc_leaks)} (Must be 0)")
@@ -375,19 +395,33 @@ def main() -> None:
         print(f"  - {reason:<32}: {count}")
     print("-" * 60)
     print("Latency Metrics (ms):")
-    print(f"  Pipeline Latency : P50={pipeline_latency['p50']}ms | P90={pipeline_latency['p90']}ms | P95={pipeline_latency['p95']}ms (Mean={pipeline_latency['mean']}ms)")
-    print(f"  Wall-Clock Latency: P50={wall_latency['p50']}ms | P90={wall_latency['p90']}ms | P95={wall_latency['p95']}ms (Mean={wall_latency['mean']}ms)")
-    print(f"  Served Latency    : P50={served_latency_q['p50']}ms | P90={served_latency_q['p90']}ms | P95={served_latency_q['p95']}ms")
-    print(f"  Abstained Latency : P50={abstained_latency_q['p50']}ms | P90={abstained_latency_q['p90']}ms | P95={abstained_latency_q['p95']}ms")
+    print(
+        f"  Pipeline Latency : P50={pipeline_latency['p50']}ms | P90={pipeline_latency['p90']}ms | P95={pipeline_latency['p95']}ms (Mean={pipeline_latency['mean']}ms)"
+    )
+    print(
+        f"  Wall-Clock Latency: P50={wall_latency['p50']}ms | P90={wall_latency['p90']}ms | P95={wall_latency['p95']}ms (Mean={wall_latency['mean']}ms)"
+    )
+    print(
+        f"  Served Latency    : P50={served_latency_q['p50']}ms | P90={served_latency_q['p90']}ms | P95={served_latency_q['p95']}ms"
+    )
+    print(
+        f"  Abstained Latency : P50={abstained_latency_q['p50']}ms | P90={abstained_latency_q['p90']}ms | P95={abstained_latency_q['p95']}ms"
+    )
     print("-" * 60)
     print("Stage Timings P50 (ms):")
     for stage, t in summary["stage_timings_p50_ms"].items():
         print(f"  - {stage:<20}: {t:6.1f}ms")
     print("-" * 60)
     print("Zero-Hallucination & Integrity Verification:")
-    print(f"  Zero-Hallucination Rate:     {zh_rate:.1f}% ({zh_passed}/{len(served)} served answers)")
-    print(f"  Hallucinated Tokens Count:   {summary['zero_hallucination']['hallucinated_tokens_count']}")
-    print(f"  Citation Validity Rate:      {cit_rate:.1f}% ({cit_passed}/{len(served)} served answers)")
+    print(
+        f"  Zero-Hallucination Rate:     {zh_rate:.1f}% ({zh_passed}/{len(served)} served answers)"
+    )
+    print(
+        f"  Hallucinated Tokens Count:   {summary['zero_hallucination']['hallucinated_tokens_count']}"
+    )
+    print(
+        f"  Citation Validity Rate:      {cit_rate:.1f}% ({cit_passed}/{len(served)} served answers)"
+    )
     print(f"  Cryptographic Hash Matches:  {cit_passed}/{len(served)}")
     print("=" * 60)
     print(f"Artifacts saved to:\n  {summary_path}\n  {detailed_path}")
