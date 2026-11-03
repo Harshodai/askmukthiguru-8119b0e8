@@ -28,6 +28,8 @@ interface GuidedMeditationFlowProps {
   /** Step 14: accepted for compatibility; never blocks closing. */
   isGated?: boolean;
   onComplete?: () => void;
+  /** When true, begins audio playback immediately upon opening. */
+  autoPlay?: boolean;
 }
 
 type BreathPhase = 'inhale' | 'hold' | 'exhale';
@@ -68,7 +70,15 @@ const clearResume = () => {
   clearMeditationResume();
 };
 
-export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeaching, isGated = false, onComplete }: GuidedMeditationFlowProps) => {
+export const GuidedMeditationFlow = ({
+  isOpen,
+  onClose,
+  customSteps,
+  sourceTeaching,
+  isGated = false,
+  onComplete,
+  autoPlay = false,
+}: GuidedMeditationFlowProps) => {
   // Step 14: isGated is accepted for API compatibility but never traps the user.
   void isGated;
   const { t } = useTranslation();
@@ -151,7 +161,7 @@ export const GuidedMeditationFlow = ({ isOpen, onClose, customSteps, sourceTeach
     setCurrentStepIndex(0);
     setElapsed(0);
     setAudioSeek(usesCanonicalAudio ? 0 : null);
-    setIsPlaying(false);
+    setIsPlaying(autoPlay);
     setBreathPhase('inhale');
     setReflectionStep(0);
     setSelectedMood('');
