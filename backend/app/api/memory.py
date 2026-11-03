@@ -309,6 +309,7 @@ async def upsert_core_memory_endpoint(
         "updated_at": _dt.datetime.now(_dt.UTC).isoformat(),
     }
     try:
+
         def _do_upsert():
             builder = client.table("guru_core_memory").upsert(
                 payload, on_conflict="user_id,tenant_id"
