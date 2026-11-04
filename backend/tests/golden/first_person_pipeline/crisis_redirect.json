@@ -1,0 +1,37 @@
+{
+  "compound_called": 0,
+  "events": [
+    {
+      "confidence": 0.0,
+      "llm_tokens": 0,
+      "n_citations": 0,
+      "n_quarantined": 0,
+      "reason": "none",
+      "status": "crisis_redirect"
+    }
+  ],
+  "result": {
+    "abstain_reason": "none",
+    "answer_text": {
+      "chars": 504,
+      "sha256": "06d8575c694304d3dace695e55d5f52d386e0975703339f5c06257182fde0c57"
+    },
+    "answerability": null,
+    "atma_vichara_inquiry": null,
+    "audio_playback_clip": null,
+    "audio_playback_clips": [],
+    "cached": false,
+    "citations": [],
+    "detected_concepts": [],
+    "error": null,
+    "is_direct_answer": false,
+    "practice_recommendation": null,
+    "related_clips_heading": null,
+    "second_quote_note": null,
+    "status": "crisis_redirect"
+  },
+  "store": {
+    "points_servable_calls": 0,
+    "search_hybrid_calls": 0
+  }
+}

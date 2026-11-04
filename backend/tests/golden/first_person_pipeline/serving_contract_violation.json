@@ -1,0 +1,37 @@
+{
+  "compound_called": 0,
+  "events": [
+    {
+      "confidence": 0.0,
+      "llm_tokens": 0,
+      "n_citations": 0,
+      "n_quarantined": 0,
+      "reason": "serving_contract_violation",
+      "status": "abstained"
+    }
+  ],
+  "result": {
+    "abstain_reason": "serving_contract_violation",
+    "answer_text": {
+      "chars": 122,
+      "sha256": "7791c34d75e232384d499137a28b032c765792f1256142a09068aaa61de48d30"
+    },
+    "answerability": null,
+    "atma_vichara_inquiry": null,
+    "audio_playback_clip": null,
+    "audio_playback_clips": [],
+    "cached": false,
+    "citations": [],
+    "detected_concepts": [],
+    "error": "serving_contract_violation",
+    "is_direct_answer": false,
+    "practice_recommendation": null,
+    "related_clips_heading": null,
+    "second_quote_note": null,
+    "status": "abstained"
+  },
+  "store": {
+    "points_servable_calls": 0,
+    "search_hybrid_calls": 0
+  }
+}

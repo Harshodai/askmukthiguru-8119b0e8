@@ -34,6 +34,15 @@ Owner: lead. Each row needs a person, live infrastructure, or both. Agents must 
 | D-26 | Qdrant hosting: a Railway service with a volume, or Qdrant Cloud? | Ops burden, backups, keys | T9-01 | 22b | Decide with cost data at staging. |
 | D-27 | **Decided 2026-11-04: committed under `audits/audit-output-2026-11-04/`.** Commit this audit package? Where? | The container is temporary; the repo's clean-root rule puts audits under `audits/` | — | 27 | Commit under `audits/audit-output-2026-11-04/` on a fresh branch from `main`. |
 
+**T7-01 sub-decisions — all four answered by the owner on 2026-11-05** (see `decision-log.md` §3):
+
+| ID | Question | Answer |
+|---|---|---|
+| Q-T7-01-A | Golden-output evidence: offline matrix, frozen bank, or live run? | Offline characterization matrix on fixture stores; `frozen29`/`ooc13` as inputs only; labelled "not the frozen bank" |
+| Q-T7-01-B | One large refactor PR or several small ones? | One refactor PR, exempt from the ≤400-line cap, no logic edits, per-commit diff shown before each push |
+| Q-T7-01-C | Which routes and which fields does "identical" cover? | Every early-return exit + serve + weak match + error + context-harness serve; all `to_dict()` fields except `latency_ms`, `stage_timings` |
+| Q-T7-01-D | Split the 735-line Step 2c block internally? | No — move it whole into one named step; internal split is a follow-up finding |
+
 ## 2. Unknowns that need live infrastructure (not decisions)
 
 | ID | Unknown | Label | Procedure |
