@@ -28,7 +28,7 @@ import threading
 import time
 import unicodedata
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlsplit
@@ -1978,6 +1978,24 @@ def _editorial_set_enabled() -> bool:
         and getattr(settings, "first_person_context_harness_enabled", False) is True
         and getattr(settings, "first_person_editorial_set_selection_enabled", False) is True
     )
+
+
+@dataclass(slots=True)
+class _RetrievalOutcome:
+    """What Step 3 leaves behind for the serve-time gate and the RC-D-2 join.
+
+    ``result`` is set only on a terminal early exit (an answerability abstention or
+    a retrieval error); the caller returns it and ignores the other fields.
+    """
+
+    result: Optional[FirstPersonPipelineResult] = None
+    raw_clips: list[dict[str, Any]] = field(default_factory=list)
+    retrieval_ms: float = 0.0
+    answerability_future: Optional[Any] = None
+    early_verdict: Any = _ANSWERABILITY_UNSET
+    speculative_enabled: bool = False
+    max_clips: int = 0
+    practice_intent: bool = False
 
 
 class FirstPersonPipeline:
@@ -4557,124 +4575,29 @@ class FirstPersonPipeline:
 
         return None
 
-    def execute(
+    def _retrieve_with_answerability_gate(
         self,
+        *,
         query: str,
         query_dense_vector: list[float],
-        query_sparse_vector: Optional[dict[str, Any]] = None,
-        teacher_id: Optional[str] = None,
-        max_clips: int = 3,
-        retrieval_query: Optional[str] = None,
-        language: str = "en",
-        cache_bypass: bool = False,
-    ) -> FirstPersonPipelineResult:
+        query_sparse_vector: Optional[dict[str, Any]],
+        teacher_id: Optional[str],
+        max_clips: int,
+        retrieval_query: str,
+        fp_llm_tokens: list[int],
+        _ans_box: dict[str, Any],
+        _ans_tokens: list[int],
+        start_time: float,
+    ) -> _RetrievalOutcome:
+        """Step 3: retrieve candidates, with the answerability gate in flight.
+
+        The gate and the retrieval run concurrently where the owner flags allow it,
+        so a firm NO or an indeterminate verdict discards the candidates without
+        spending a rerank or scorer call. A terminal verdict or a retrieval error
+        is returned as ``outcome.result``; everything the serve-time gate and the
+        RC-D-2 join need travels back in the other fields.
         """
-        Execute the end-to-end first-person verbatim serving pipeline.
-
-        ``query`` is the seeker's own words (cache key, safety checks).
-        ``retrieval_query`` is its English translation when the question was not
-        in English; the dense/sparse vectors must already be computed from it.
-        ``language`` is the seeker's requested language code (cache key scoping).
-        ``cache_bypass`` skips the exact cache read AND write (evaluation cold
-        path, incognito). The safety checks above the cache run either way.
-        """
-        start_time = time.monotonic()
-        # RP-C10: per-request accumulator for estimated LLM tokens spent by the
-        # gate calls below; flushed with the final outcome in _log_and_count.
-        fp_llm_tokens: list[int] = []
-        # Safety checks run on every form of the question: a translation can only
-        # make them stricter (English-only regexes see an Indic question), never skip one.
-        safety_texts = [query] + (
-            [retrieval_query] if retrieval_query and retrieval_query != query else []
-        )
-        retrieval_query = retrieval_query or query
-
-        if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
-            teacher_id = (
-                requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
-            )
-
-        # Step 1: crisis pre-emption, then the topic rail, then the serving contract.
-        crisis_result = self._crisis_preemption(safety_texts, start_time)
-        if crisis_result is not None:
-            return crisis_result
-
-        topic_result = self._topic_rail_block(safety_texts, start_time)
-        if topic_result is not None:
-            return topic_result
-
-        contract_result = self._serving_contract_refusal(start_time)
-        if contract_result is not None:
-            return contract_result
-
-        # Step 2: exact-cache lookup.
-        cache_bypass, request_allow_state, request_block_state = self._cache_scope(
-            cache_bypass=cache_bypass
-        )
-        cached_result = self._cached_replay(
-            query=query,
-            teacher_id=teacher_id,
-            language=language,
-            retrieval_query=retrieval_query,
-            cache_bypass=cache_bypass,
-            request_allow_state=request_allow_state,
-            request_block_state=request_block_state,
-            start_time=start_time,
-        )
-        if cached_result is not None:
-            return cached_result
-
-        # Step 2b: compound question decomposition.
-        compound_result = self._compound_delegation(
-            query=query,
-            query_dense_vector=query_dense_vector,
-            query_sparse_vector=query_sparse_vector,
-            teacher_id=teacher_id,
-            max_clips=max_clips,
-            start_time=start_time,
-            cache_bypass=cache_bypass,
-            request_allow_state=request_allow_state,
-            request_block_state=request_block_state,
-            fp_llm_tokens=fp_llm_tokens,
-            language=language,
-            retrieval_query=retrieval_query,
-        )
-        if compound_result is not None:
-            return compound_result
-
-        # The answerability gate has one request-local tri-state decision.  An
-        # explicit sentinel is required because ``None`` is the real
-        # indeterminate verdict and an unset/future result must not be promoted
-        # to YES by a later path.
-        _ans_box: dict[str, Any] = {"verdict": _ANSWERABILITY_UNSET}
-        _ans_tokens: list[int] = []
         _ans_future: Optional[Any] = None
-        t_retrieval_ms = 0.0
-        t_integrity_ms = 0.0
-        t_rerank_ms = 0.0
-        t_scorer_ms = 0.0
-        t_assembly_ms = 0.0
-
-        # Step 2c: first-person context harness (fp-context-v1), else no result.
-        # The harness may serve deterministically, abstain, or decline; a None
-        # return falls through to the legacy store below.
-        harness_result = self._serve_from_context_harness(
-            query=query,
-            query_dense_vector=query_dense_vector,
-            query_sparse_vector=query_sparse_vector,
-            teacher_id=teacher_id,
-            max_clips=max_clips,
-            retrieval_query=retrieval_query,
-            language=language,
-            cache_bypass=cache_bypass,
-            request_allow_state=request_allow_state,
-            request_block_state=request_block_state,
-            fp_llm_tokens=fp_llm_tokens,
-            _ans_box=_ans_box,
-            start_time=start_time,
-        )
-        if harness_result is not None:
-            return harness_result
 
         # RC-D-2: start the question-only answerability gate in parallel with
         # retrieval. Crisis (Step 1), the topic rail, and the exact cache are
@@ -4828,15 +4751,17 @@ class FirstPersonPipeline:
                     "discarded retrieval candidates, skipped rerank/scorer",
                     "NO" if is_no else "indeterminate",
                 )
-                return FirstPersonPipelineResult(
-                    answer_text="No verified first-person discourse found for this question.",
-                    citations=[],
-                    status="abstained",
-                    is_direct_answer=False,
-                    latency_ms=latency,
-                    answerability="no" if is_no else "indeterminate",
-                    abstain_reason="answerability_withheld",
-                    stage_timings=stage_timings,
+                return _RetrievalOutcome(
+                    result=FirstPersonPipelineResult(
+                        answer_text="No verified first-person discourse found for this question.",
+                        citations=[],
+                        status="abstained",
+                        is_direct_answer=False,
+                        latency_ms=latency,
+                        answerability="no" if is_no else "indeterminate",
+                        abstain_reason="answerability_withheld",
+                        stage_timings=stage_timings,
+                    )
                 )
 
             # If Answerability Gate returns 'yes', candidates are already pre-fetched in memory
@@ -4852,15 +4777,17 @@ class FirstPersonPipeline:
                     "total_ms": round(latency, 2),
                 }
                 self._log_and_count("error", latency, 0.0, 0, 0, "none", sum(fp_llm_tokens))
-                return FirstPersonPipelineResult(
-                    answer_text="An error occurred while retrieving first-person teachings.",
-                    citations=[],
-                    status="error",
-                    is_direct_answer=False,
-                    latency_ms=latency,
-                    error=str(ret_res),
-                    abstain_reason="none",
-                    stage_timings=stage_timings,
+                return _RetrievalOutcome(
+                    result=FirstPersonPipelineResult(
+                        answer_text="An error occurred while retrieving first-person teachings.",
+                        citations=[],
+                        status="error",
+                        is_direct_answer=False,
+                        latency_ms=latency,
+                        error=str(ret_res),
+                        abstain_reason="none",
+                        stage_timings=stage_timings,
+                    )
                 )
             raw_clips = ret_res
         else:
@@ -4921,17 +4848,171 @@ class FirstPersonPipeline:
                     "total_ms": round(latency, 2),
                 }
                 self._log_and_count("error", latency, 0.0, 0, 0, "none", sum(fp_llm_tokens))
-                return FirstPersonPipelineResult(
-                    answer_text="An error occurred while retrieving first-person teachings.",
-                    citations=[],
-                    status="error",
-                    is_direct_answer=False,
-                    latency_ms=latency,
-                    error=str(e),
-                    abstain_reason="none",
-                    stage_timings=stage_timings,
+                return _RetrievalOutcome(
+                    result=FirstPersonPipelineResult(
+                        answer_text="An error occurred while retrieving first-person teachings.",
+                        citations=[],
+                        status="error",
+                        is_direct_answer=False,
+                        latency_ms=latency,
+                        error=str(e),
+                        abstain_reason="none",
+                        stage_timings=stage_timings,
+                    )
                 )
             t_retrieval_ms = (time.monotonic() - t_ret_start) * 1000.0
+        return _RetrievalOutcome(
+            raw_clips=raw_clips,
+            retrieval_ms=t_retrieval_ms,
+            answerability_future=_ans_future,
+            early_verdict=early_verdict,
+            speculative_enabled=speculative_enabled,
+            max_clips=effective_max_clips,
+            practice_intent=has_practice_intent,
+        )
+
+    def execute(
+        self,
+        query: str,
+        query_dense_vector: list[float],
+        query_sparse_vector: Optional[dict[str, Any]] = None,
+        teacher_id: Optional[str] = None,
+        max_clips: int = 3,
+        retrieval_query: Optional[str] = None,
+        language: str = "en",
+        cache_bypass: bool = False,
+    ) -> FirstPersonPipelineResult:
+        """
+        Execute the end-to-end first-person verbatim serving pipeline.
+
+        ``query`` is the seeker's own words (cache key, safety checks).
+        ``retrieval_query`` is its English translation when the question was not
+        in English; the dense/sparse vectors must already be computed from it.
+        ``language`` is the seeker's requested language code (cache key scoping).
+        ``cache_bypass`` skips the exact cache read AND write (evaluation cold
+        path, incognito). The safety checks above the cache run either way.
+        """
+        start_time = time.monotonic()
+        # RP-C10: per-request accumulator for estimated LLM tokens spent by the
+        # gate calls below; flushed with the final outcome in _log_and_count.
+        fp_llm_tokens: list[int] = []
+        # Safety checks run on every form of the question: a translation can only
+        # make them stricter (English-only regexes see an Indic question), never skip one.
+        safety_texts = [query] + (
+            [retrieval_query] if retrieval_query and retrieval_query != query else []
+        )
+        retrieval_query = retrieval_query or query
+
+        if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
+            teacher_id = (
+                requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
+            )
+
+        # Step 1: crisis pre-emption, then the topic rail, then the serving contract.
+        crisis_result = self._crisis_preemption(safety_texts, start_time)
+        if crisis_result is not None:
+            return crisis_result
+
+        topic_result = self._topic_rail_block(safety_texts, start_time)
+        if topic_result is not None:
+            return topic_result
+
+        contract_result = self._serving_contract_refusal(start_time)
+        if contract_result is not None:
+            return contract_result
+
+        # Step 2: exact-cache lookup.
+        cache_bypass, request_allow_state, request_block_state = self._cache_scope(
+            cache_bypass=cache_bypass
+        )
+        cached_result = self._cached_replay(
+            query=query,
+            teacher_id=teacher_id,
+            language=language,
+            retrieval_query=retrieval_query,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            start_time=start_time,
+        )
+        if cached_result is not None:
+            return cached_result
+
+        # Step 2b: compound question decomposition.
+        compound_result = self._compound_delegation(
+            query=query,
+            query_dense_vector=query_dense_vector,
+            query_sparse_vector=query_sparse_vector,
+            teacher_id=teacher_id,
+            max_clips=max_clips,
+            start_time=start_time,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            fp_llm_tokens=fp_llm_tokens,
+            language=language,
+            retrieval_query=retrieval_query,
+        )
+        if compound_result is not None:
+            return compound_result
+
+        # The answerability gate has one request-local tri-state decision.  An
+        # explicit sentinel is required because ``None`` is the real
+        # indeterminate verdict and an unset/future result must not be promoted
+        # to YES by a later path.
+        _ans_box: dict[str, Any] = {"verdict": _ANSWERABILITY_UNSET}
+        _ans_tokens: list[int] = []
+        t_retrieval_ms = 0.0
+        t_integrity_ms = 0.0
+        t_rerank_ms = 0.0
+        t_scorer_ms = 0.0
+        t_assembly_ms = 0.0
+
+        # Step 2c: first-person context harness (fp-context-v1), else no result.
+        # The harness may serve deterministically, abstain, or decline; a None
+        # return falls through to the legacy store below.
+        harness_result = self._serve_from_context_harness(
+            query=query,
+            query_dense_vector=query_dense_vector,
+            query_sparse_vector=query_sparse_vector,
+            teacher_id=teacher_id,
+            max_clips=max_clips,
+            retrieval_query=retrieval_query,
+            language=language,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            fp_llm_tokens=fp_llm_tokens,
+            _ans_box=_ans_box,
+            start_time=start_time,
+        )
+        if harness_result is not None:
+            return harness_result
+
+        # Step 3: retrieval from FirstPersonStore with the RC-D-2 question-only
+        # answerability gate in flight. A terminal gate verdict or a retrieval
+        # error comes back as outcome.result and is served as-is.
+        outcome = self._retrieve_with_answerability_gate(
+            query=query,
+            query_dense_vector=query_dense_vector,
+            query_sparse_vector=query_sparse_vector,
+            teacher_id=teacher_id,
+            max_clips=max_clips,
+            retrieval_query=retrieval_query,
+            fp_llm_tokens=fp_llm_tokens,
+            _ans_box=_ans_box,
+            _ans_tokens=_ans_tokens,
+            start_time=start_time,
+        )
+        if outcome.result is not None:
+            return outcome.result
+        raw_clips = outcome.raw_clips
+        t_retrieval_ms = outcome.retrieval_ms
+        _ans_future = outcome.answerability_future
+        early_verdict = outcome.early_verdict
+        speculative_enabled = outcome.speculative_enabled
+        effective_max_clips = outcome.max_clips
+        has_practice_intent = outcome.practice_intent
 
         # Step 4: Serve-time Integrity Gate
         t_int_start = time.monotonic()
