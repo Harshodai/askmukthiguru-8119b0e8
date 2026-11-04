@@ -35,6 +35,7 @@ import {
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
 import { buildMessageError } from '@/lib/chat/errors';
+import { isPushPromptEligible } from '@/lib/chat/pushEligibility';
 import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBanner';
 import { MoodBanner } from '@/components/mood/MoodBanner';
 import { MemoryConsentBanner } from './MemoryConsentBanner';
@@ -1544,7 +1545,15 @@ export const ChatInterface = () => {
 
         if (fullContent) {
           streamingWorked = true;
-          if (streamCompleted && !streamedBlocked) {
+          // T1-10: engagement prompt only after a grounded teaching answer.
+          if (streamCompleted && isPushPromptEligible({
+            blocked: streamedBlocked,
+            groundingState: streamedGroundingState,
+            routeDecision: streamedRouteDecision,
+            isFirstPersonAbstain: streamedIsFirstPersonAbstain,
+            safetyNotices: streamedSafetyNotices,
+            proactiveSereneMind: streamedProactiveSereneMind,
+          })) {
             window.dispatchEvent(new CustomEvent('askmukthiguru:chat_response_success'));
           }
           // Commit the final streamed content to the message list
@@ -1937,7 +1946,14 @@ openSereneMind('audio');
         if (!responseError) {
           jsonCompletedSuccessfully = !response.blocked && Boolean(response.content);
           setCachedResponse(cacheKey, response.content, guruMessage.citations);
-          if (!response.blocked && response.content) {
+          if (response.content && isPushPromptEligible({
+            blocked: response.blocked,
+            groundingState: response.groundingState,
+            routeDecision: response.routeDecision,
+            isFirstPersonAbstain: response.isFirstPersonAbstain,
+            safetyNotices: response.safetyNotices,
+            proactiveSereneMind: response.proactiveSereneMind,
+          })) {
             window.dispatchEvent(new CustomEvent('askmukthiguru:chat_response_success'));
           }
         }
