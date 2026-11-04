@@ -1299,6 +1299,10 @@ def _maybe_apply_langhanam_voice(
         return system_prompt, answer
     if not is_voice_eligible(state.get("intent") or "FACTUAL"):
         return system_prompt, answer
+    # T1-06 (AI-003): general mode answers in a neutral voice; never append the
+    # teacher-register ("THE TEACHER'S VOICE") or Langhanam persona block.
+    if state.get("general_knowledge_mode"):
+        return system_prompt, answer
 
     # Per-teacher, shape-conditional register (services/voice/register.py).
     # It supersedes the single static LANGHANAM block: that block applied one
