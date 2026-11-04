@@ -3520,6 +3520,197 @@ class FirstPersonPipeline:
             max(0, int(llm_tokens)),
         )
 
+    def _crisis_preemption(
+        self, safety_texts: list[str], start_time: float
+    ) -> Optional[FirstPersonPipelineResult]:
+        """Step 1: crisis pre-check (fails closed to a safety redirect).
+
+        Same pre-emption rule as the chat DistressStage: ``assess_distress() >=
+        SEVERE``. ``has_crisis_keywords`` is only a broad pre-screen ("does NOT
+        mean the message is actually crisis-level"); OR-ing it in redirected
+        benign questions.
+        """
+        assessments = [self._serene_mind.assess_distress(t) for t in safety_texts]
+        distress_assessment = max(
+            (a for a in assessments if a), key=lambda a: a.level.value, default=None
+        )
+        is_crisis = bool(
+            distress_assessment and distress_assessment.level.value >= DistressLevel.SEVERE.value
+        )
+        if not is_crisis:
+            return None
+        # N4: never log the seeker's words, only the level.
+        logger.warning(
+            "[FirstPersonPipeline] Crisis pre-emption (distress level %s).",
+            distress_assessment.level.name,
+        )
+        latency = (time.monotonic() - start_time) * 1000.0
+        self._log_and_count("crisis_redirect", latency, 0.0, 0, 0, "none", 0)
+        return FirstPersonPipelineResult(
+            answer_text=format_helplines_block(),
+            citations=[],
+            status="crisis_redirect",
+            is_direct_answer=False,
+            latency_ms=latency,
+            abstain_reason="none",
+        )
+
+    def _topic_rail_block(
+        self, safety_texts: list[str], start_time: float
+    ) -> Optional[FirstPersonPipelineResult]:
+        """Step 1b: topic rail (same regex list as chat, no LLM).
+
+        A teacher's clip served in reply to a political or abusive question
+        reads as endorsement.
+        """
+        blocked = next((b for b in map(match_blocked_topic, safety_texts) if b is not None), None)
+        if blocked is None:
+            return None
+        topic, response = blocked
+        status = "crisis_redirect" if topic in SAFETY_TOPICS else "abstained"
+        logger.info("[FirstPersonPipeline] Topic rail blocked input: topic=%s", topic)
+        latency = (time.monotonic() - start_time) * 1000.0
+        self._log_and_count(status, latency, 0.0, 0, 0, "topic_blocked", 0)
+        return FirstPersonPipelineResult(
+            answer_text=response,
+            citations=[],
+            status=status,
+            is_direct_answer=False,
+            latency_ms=latency,
+            abstain_reason="topic_blocked",
+        )
+
+    def _serving_contract_refusal(self, start_time: float) -> Optional[FirstPersonPipelineResult]:
+        """Step 1c: serving-contract gate (B4).
+
+        The legacy clip store and the fp-context store must not share a
+        collection, and neither may point at a collection whose payload schema it
+        cannot read. When the contract is violated this path serves NOTHING (fail
+        closed) instead of reading context records through a legacy filter. It is
+        called AFTER the crisis and topic rails on purpose: a crisis query must
+        still get the helplines even when the first-person corpus is mis-configured.
+        """
+        contract_error = self._serving_contract_error()
+        if not contract_error:
+            return None
+        logger.error(
+            "[FirstPersonPipeline] Serving contract violated; serving nothing: %s",
+            contract_error,
+        )
+        latency = (time.monotonic() - start_time) * 1000.0
+        self._log_and_count("abstained", latency, 0.0, 0, 0, "serving_contract_violation", 0)
+        return FirstPersonPipelineResult(
+            answer_text=(
+                "First-person verbatim teaching is temporarily unavailable while its "
+                "serving contract is being repaired. No clip is served."
+            ),
+            citations=[],
+            status="abstained",
+            is_direct_answer=False,
+            latency_ms=latency,
+            abstain_reason="serving_contract_violation",
+            error="serving_contract_violation",
+        )
+
+    def _cache_scope(self, *, cache_bypass: bool) -> tuple[bool, str, str]:
+        """Resolve the request-wide cache switch and the allow/block states.
+
+        The benchmark cache switch every other cache honours applies here too
+        (2026-10-05). The allowlist and blocklist states are computed once for
+        the whole request so the lookup and the write key identically even if a
+        file changes mid-request.
+        """
+        cache_bypass = (
+            cache_bypass
+            or _editorial_set_enabled()
+            or bool(getattr(settings, "latency_benchmark_cache_disabled", False))
+        )
+        return cache_bypass, self._allowlist_state(), self._blocklist_state()
+
+    def _cached_replay(
+        self,
+        *,
+        query: str,
+        teacher_id: Optional[str],
+        language: str,
+        retrieval_query: str,
+        cache_bypass: bool,
+        request_allow_state: str,
+        request_block_state: str,
+        start_time: float,
+    ) -> Optional[FirstPersonPipelineResult]:
+        """Step 2: serve an exact-cache entry, or None to continue the pipeline."""
+        cached_data = (
+            None
+            if cache_bypass
+            else self.check_exact_cache(
+                query,
+                teacher_id,
+                language=language,
+                allow_state=request_allow_state,
+                block_state=request_block_state,
+                retrieval_query=retrieval_query,
+            )
+        )
+        if not cached_data:
+            return None
+        latency = (time.monotonic() - start_time) * 1000.0
+        self._log_and_count(
+            cached_data["status"],
+            latency,
+            0.0,
+            0,
+            len(cached_data.get("citations", [])),
+            cached_data["abstain_reason"],
+            0,  # cache hit spends no LLM tokens on this request
+        )
+        return FirstPersonPipelineResult(
+            answer_text=cached_data["answer_text"],
+            citations=cached_data["citations"],
+            status=cached_data["status"],
+            is_direct_answer=cached_data["is_direct_answer"],
+            latency_ms=latency,
+            cached=True,
+            error=cached_data.get("error"),
+            answerability=cached_data.get("answerability"),
+            abstain_reason=cached_data.get("abstain_reason"),
+            audio_playback_clip=cached_data.get("audio_playback_clip"),
+            audio_playback_clips=cached_data.get("audio_playback_clips"),
+            detected_concepts=cached_data.get("detected_concepts") or [],
+            atma_vichara_inquiry=cached_data.get("atma_vichara_inquiry"),
+            related_clips_heading=cached_data.get("related_clips_heading"),
+            second_quote_note=cached_data.get("second_quote_note"),
+            practice_recommendation=cached_data.get("practice_recommendation"),
+            # A cached replay of a served clip is still first-person served;
+            # an abstain / error entry in the cache is not.
+            fp_served=bool(cached_data.get("citations"))
+            and cached_data.get("status") in ("success", "weak_match"),
+            editorial_set=cached_data.get("editorial_set"),
+        )
+
+    def _store_exact_cache(
+        self,
+        *,
+        query: str,
+        result: FirstPersonPipelineResult,
+        teacher_id: Optional[str],
+        language: str,
+        cache_bypass: bool,
+        request_allow_state: str,
+        request_block_state: str,
+    ) -> None:
+        """Write the served answer to the exact cache (skipped on a bypassed request)."""
+        if cache_bypass:
+            return
+        self.set_exact_cache(
+            query,
+            result.to_dict(),
+            teacher_id,
+            language=language,
+            allow_state=request_allow_state,
+            block_state=request_block_state,
+        )
+
     def execute(
         self,
         query: str,
@@ -3557,137 +3748,35 @@ class FirstPersonPipeline:
                 requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
             )
 
-        # Step 1: Crisis Pre-Check (Fails closed to safety redirect)
-        # Same pre-emption rule as the chat DistressStage: assess_distress() >= SEVERE.
-        # has_crisis_keywords is only a broad pre-screen ("does NOT mean the message is
-        # actually crisis-level"); OR-ing it in redirected benign questions.
-        assessments = [self._serene_mind.assess_distress(t) for t in safety_texts]
-        distress_assessment = max(
-            (a for a in assessments if a), key=lambda a: a.level.value, default=None
-        )
-        is_crisis = bool(
-            distress_assessment and distress_assessment.level.value >= DistressLevel.SEVERE.value
-        )
-        if is_crisis:
-            # N4: never log the seeker's words, only the level.
-            logger.warning(
-                "[FirstPersonPipeline] Crisis pre-emption (distress level %s).",
-                distress_assessment.level.name,
-            )
-            latency = (time.monotonic() - start_time) * 1000.0
-            self._log_and_count("crisis_redirect", latency, 0.0, 0, 0, "none", 0)
-            return FirstPersonPipelineResult(
-                answer_text=format_helplines_block(),
-                citations=[],
-                status="crisis_redirect",
-                is_direct_answer=False,
-                latency_ms=latency,
-                abstain_reason="none",
-            )
+        # Step 1: crisis pre-emption, then the topic rail, then the serving contract.
+        crisis_result = self._crisis_preemption(safety_texts, start_time)
+        if crisis_result is not None:
+            return crisis_result
 
-        # Step 1b: Topic rail (same regex list as chat, no LLM). A teacher's clip
-        # served in reply to a political or abusive question reads as endorsement.
-        blocked = next((b for b in map(match_blocked_topic, safety_texts) if b is not None), None)
-        if blocked is not None:
-            topic, response = blocked
-            status = "crisis_redirect" if topic in SAFETY_TOPICS else "abstained"
-            logger.info("[FirstPersonPipeline] Topic rail blocked input: topic=%s", topic)
-            latency = (time.monotonic() - start_time) * 1000.0
-            self._log_and_count(status, latency, 0.0, 0, 0, "topic_blocked", 0)
-            return FirstPersonPipelineResult(
-                answer_text=response,
-                citations=[],
-                status=status,
-                is_direct_answer=False,
-                latency_ms=latency,
-                abstain_reason="topic_blocked",
-            )
+        topic_result = self._topic_rail_block(safety_texts, start_time)
+        if topic_result is not None:
+            return topic_result
 
-        # Step 1c: Serving-contract gate (B4). The legacy clip store and the
-        # fp-context store must not share a collection, and neither may point at
-        # a collection whose payload schema it cannot read. When the contract
-        # is violated this path serves NOTHING (fail closed) instead of reading
-        # context records through a legacy filter. It sits AFTER the crisis and
-        # topic rails on purpose: a crisis query must still get the helplines
-        # even when the first-person corpus is mis-configured.
-        contract_error = self._serving_contract_error()
-        if contract_error:
-            logger.error(
-                "[FirstPersonPipeline] Serving contract violated; serving nothing: %s",
-                contract_error,
-            )
-            latency = (time.monotonic() - start_time) * 1000.0
-            self._log_and_count("abstained", latency, 0.0, 0, 0, "serving_contract_violation", 0)
-            return FirstPersonPipelineResult(
-                answer_text=(
-                    "First-person verbatim teaching is temporarily unavailable while its "
-                    "serving contract is being repaired. No clip is served."
-                ),
-                citations=[],
-                status="abstained",
-                is_direct_answer=False,
-                latency_ms=latency,
-                abstain_reason="serving_contract_violation",
-                error="serving_contract_violation",
-            )
+        contract_result = self._serving_contract_refusal(start_time)
+        if contract_result is not None:
+            return contract_result
 
-        # Step 2: Check Exact-Match Cache. The benchmark cache switch every
-        # other cache honours applies here too (2026-10-05). The allowlist and
-        # blocklist states are computed once for the whole request so lookup
-        # and write below key identically even if a file changes mid-request.
-        cache_bypass = (
-            cache_bypass
-            or _editorial_set_enabled()
-            or bool(getattr(settings, "latency_benchmark_cache_disabled", False))
+        # Step 2: exact-cache lookup.
+        cache_bypass, request_allow_state, request_block_state = self._cache_scope(
+            cache_bypass=cache_bypass
         )
-        request_allow_state = self._allowlist_state()
-        request_block_state = self._blocklist_state()
-        cached_data = (
-            None
-            if cache_bypass
-            else self.check_exact_cache(
-                query,
-                teacher_id,
-                language=language,
-                allow_state=request_allow_state,
-                block_state=request_block_state,
-                retrieval_query=retrieval_query,
-            )
+        cached_result = self._cached_replay(
+            query=query,
+            teacher_id=teacher_id,
+            language=language,
+            retrieval_query=retrieval_query,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            start_time=start_time,
         )
-        if cached_data:
-            latency = (time.monotonic() - start_time) * 1000.0
-            self._log_and_count(
-                cached_data["status"],
-                latency,
-                0.0,
-                0,
-                len(cached_data.get("citations", [])),
-                cached_data["abstain_reason"],
-                0,  # cache hit spends no LLM tokens on this request
-            )
-            return FirstPersonPipelineResult(
-                answer_text=cached_data["answer_text"],
-                citations=cached_data["citations"],
-                status=cached_data["status"],
-                is_direct_answer=cached_data["is_direct_answer"],
-                latency_ms=latency,
-                cached=True,
-                error=cached_data.get("error"),
-                answerability=cached_data.get("answerability"),
-                abstain_reason=cached_data.get("abstain_reason"),
-                audio_playback_clip=cached_data.get("audio_playback_clip"),
-                audio_playback_clips=cached_data.get("audio_playback_clips"),
-                detected_concepts=cached_data.get("detected_concepts") or [],
-                atma_vichara_inquiry=cached_data.get("atma_vichara_inquiry"),
-                related_clips_heading=cached_data.get("related_clips_heading"),
-                second_quote_note=cached_data.get("second_quote_note"),
-                practice_recommendation=cached_data.get("practice_recommendation"),
-                # A cached replay of a served clip is still first-person served;
-                # an abstain / error entry in the cache is not.
-                fp_served=bool(cached_data.get("citations"))
-                and cached_data.get("status") in ("success", "weak_match"),
-                editorial_set=cached_data.get("editorial_set"),
-            )
+        if cached_result is not None:
+            return cached_result
 
         # Step 2b: Compound question decomposition (Tasks F1 & F2)
         # Compound decomposition searches only the legacy store, so it is off while
@@ -5633,15 +5722,15 @@ class FirstPersonPipeline:
             stage_timings=stage_timings,
             fp_served=bool(citations),
         )
-        if not cache_bypass:
-            self.set_exact_cache(
-                query,
-                res.to_dict(),
-                teacher_id,
-                language=language,
-                allow_state=request_allow_state,
-                block_state=request_block_state,
-            )
+        self._store_exact_cache(
+            query=query,
+            result=res,
+            teacher_id=teacher_id,
+            language=language,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+        )
 
         # Measured last so scoring, citation building and the cache write are all counted.
         res.latency_ms = (time.monotonic() - start_time) * 1000.0
