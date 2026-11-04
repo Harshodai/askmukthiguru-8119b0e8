@@ -26,6 +26,33 @@ These tasks are implemented. Verify them in CI and do not redo them. Re-check ea
 
 Everything else in section 6 is still open. Owner-gated items are listed in section 5.
 
+### 0b. Second batch (P2/P3), head `0fc474dd`
+
+| Item | What landed | Verified | Left |
+|---|---|---|---|
+| SEC-008 + SEC-010 (T1-14 part) | Production startup rejects a bare `*` CORS origin (scoped patterns still allowed). `/api/health` and `/api/health/services` return only `{ready, status}` unless the caller sends the `METRICS_SCRAPE_TOKEN` bearer | 12 tests passed (`test_health`, `test_health_hard_bound`, `test_main_cors`) | Railway and Docker health probes still get the short form; check they only read the status code |
+| SEC-006 (T1-14 part) | Qdrant, Redis, Memgraph and gptcache host ports bound to `127.0.0.1` in `backend/docker-compose.yml`; test asserts no datastore port on all interfaces | 2 passed | Qdrant API keys (T3-02) and image pinning not done |
+| CQ-013 (T1-13 part) | `compliance.py` `_get_container_safely` is async | 14 passed | Root shim packages and the `langdetect` stub (CQ-005) not removed |
+| MEM-005 + SAFE-008 | Client conversation summary and relevance-scorer clip text are fenced as untrusted data | 98 passed | — |
+| ADV-05 (T5-06 part) | Quote-translation popover labelled "Machine translation — not the teacher's words" (i18n default; no `en.json` key yet) | 18 vitest passed | Add the key to all 14 locales with native review (T1-20) |
+| SEC-009 | **Skipped**: `mint_jwt` has no runtime caller, but `tests/test_whatsapp_bot_integration.py` patches `wa_bot.JWT_SECRET` | — | Remove both together |
+
+### 0c. CI state and review concerns (2026-11-04)
+
+- CI on `0a80eb36` (first batch): Backend regression gates **5 failed, 12,485 passed, 52 skipped**. "Lint & Test" also failed. At least one failure is a T1-05 behaviour change: a test now receives `route_metadata.decision_method = "fp_node_error"` with `selected_variant = "no_match_abstain"`. Decide per test whether the new fail-closed behaviour is intended (update the test with a T1-05 comment) or a bug. The second batch (`0fc474dd`) has not been through CI yet. The owner is fixing CI.
+- Read-only guardrail review (Haiku) found no guardrail violation. Concerns to resolve: (1) the rights register now copied into both backend images contains the owner's local `/Users/...` paths (lines ~18786–18787): scrub them before the next image build; (2) the root `CLAUDE.md` voice section was rewritten (T1-01) and needs the owner's sign-off; (3) proactive Serene Mind now requires memory consent (intended, MEM-003); (4) more abstains when the bridge is off (intended, T1-05); (5) production startup now needs the spend guard on (or `ALLOW_UNCAPPED_LLM_SPEND=true`) and the rights register present.
+
+### 0d. What remains to fully complete (register)
+
+| Who can do it | Tasks still open |
+|---|---|
+| **Agent, no decision needed** (do these next, in this order) | Fix CI (owner doing it now) → T1-03 unsourced attributions → T2-05 fixture-store CI → T2-03 outcome telemetry → T2-01 PR eval suite harness (crisis set non-blocking until clinician review) → T2-02 retrieval-bank harness → T2-06 config lint → T3-12 encoder fingerprint → T3-02 Qdrant read-only/write keys (code) → T3-04 builder per-video replace → T3-08 schema snapshot CI → T3-05 promotion gate + daily audit → T3-03 hash rename in vNext (code only) → T3-06 source registry + takedown + structured citations (migration written, not applied) → T4-01 gate-then-dedup → T4-02 hybrid RRF on v10 → T4-05 DISTRESS direct route (routing only, no classifier change) → T4-06 evidence-judge consolidation (after T7-01) → T1-18 stream contract → T6-05 client RLS `role='user'` → T6-09 account history → T6-06 durable erasure + purge job → T6-04 save/report/revisit → T6-02 memory on the teaching lane → T6-03 remaining (replace L3 persona) → T6-10 honest copy → T7-01 split → T7-02 async → T7-03 LLM gateway → T7-04 caches → T7-05 ratchets → T8-01/T8-02 teacher registry → T1-13 rest (shims, `langdetect` stub, WA signer + its test) → T1-14 rest (Qdrant keys in compose, verified image pins) → T1-15 documentation diet → T1-19 cleanup (`updateConversationSummary` now unused) → scrub `/Users/` paths from the shipped rights register |
+| **Owner decision first** | T0-01/T0-02 (D-01, D-02 public exposure), T0-03 branch protection, T0-04 scopes (D-11), T0-07 (D-24), T1-04 personas (D-20), T1-08 FP endpoint (D-07), T1-12 deletion funnel (D-19), T3-09/T3-10 storage and backups (D-08), T3-11 graph stack (D-05), T4-03 general lane (D-04), all of P5 (D-03), T7-06 (D-04), scorer model and timeout (D-16), sign-off on the T1-01 `CLAUDE.md` rewrite |
+| **Clinician or native speakers** | T4-04 distress topic-vs-state, T6-07 dependency guard, crisis items in T2-01 becoming blocking, T1-20 translations, T5-06 labelled translations |
+| **Live infrastructure** (owner present) | T9-01 staging, T9-02 smoke and load, T9-03 alerts, T9-04 Qdrant/Railway runbooks, applying any migration, running builders, T4-07 helpline calls (never test-call 112) |
+| **Human-only** | T2-04 independent gold labels (≥299), T2-07 user study, T10-02 gates, T10-01 review package, T10-03 scorecard |
+
+
 ## 1. What the product is
 
 - A privacy-first spiritual guide grounded in the recorded teachings of **Sri Krishnaji** and **Sri Preethaji**.

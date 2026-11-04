@@ -1,6 +1,42 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 4, 2026 — Architecture audit and first remediation batches
+
+### L-RELEASE-GATE-CLEAN-CHECKOUT-1. A release status is the output of a command on a clean checkout.
+- **What:** Commit `26209a3b` recorded "24/24" while CI on the same tree computed `OWNER_ACTION_REQUIRED`; the gold check depended on two gitignored annotator sheets, and the repository test had been edited to expect the wanted status.
+- **Fix:** T0-04 restored the computed assertion; T1-11 hardened the gate (independence, SHA ancestry, human certifiers, helpline age, scope-versus-note conflicts).
+- **Rule:** Never edit a gate test to match a desired status. If CI and a laptop disagree, the laptop depends on untracked evidence.
+
+### L-GOLD-INDEPENDENCE-1. Self-described non-independent labels are not gold.
+- **What:** The 303-row "gold" reports say `independent_review: false` and `curated_consensus_alignment`, with agreement and kappa exactly 1.0; the calibration profile is still the n=14 pilot.
+- **Rule:** Gold means two independent humans, recomputed agreement, and an adjudication record. Perfect agreement over hundreds of items is a red flag, not a pass.
+
+### L-DISTRESS-TOPIC-VS-STATE-1. Asking about anxiety is not being in distress.
+- **What:** "What is the cause of my anxiety?" matches the MODERATE regex (`serene_mind_engine.py` ~368); the bridge declines and the seeker gets a template with helplines, no teaching. MILD always upgrades to MODERATE, and topic words in history can escalate to SEVERE.
+- **Rule:** Separate topic from state before routing to the distress lane. Any change needs clinician-reviewed sets and written sign-off (T4-04); never weaken SEVERE handling.
+
+### L-KILL-SWITCH-FAIL-OPEN-1. Turning the first-person bridge off must not turn generation on.
+- **What:** With the bridge flag off, teaching questions fell through to the generating "warm Guru" prompt.
+- **Fix:** T1-05 adds `teaching_generation_allowed()`; bridge off or node faults now return a static abstain (`fp_disabled`, `fp_node_error`) unless `FIRST_PERSON_LLM_FALLBACK_ENABLED=true` is set deliberately.
+- **Rule:** Every kill switch must fail toward the safe lane. Test the switch itself.
+
+### L-VACUOUS-ANON-TEST-1. A gate test that never reaches the gate passes for the wrong reason.
+- **What:** New consent tests passed the user id as the third positional argument (`preferred_lang`), so every call ran anonymous, the gated block was skipped, and the "no consent" test passed vacuously.
+- **Rule:** Every gate test pairs the negative case with a positive case that proves the gated branch runs. Pass identity by keyword.
+
+### L-DOCS-DRIFT-CODE-WINS-1. Agent guidance drifted from code in at least five places.
+- **What:** Stage order, default served collection (v8 at code defaults), LLM calls per turn (3), relevance-scorer timeout (12/15/25 s across sources) and the CancelFlow status all differed between documents and code. An independent review refuted 1 of 16 specialist claims and partly corrected 5.
+- **Rule:** Code is the truth. Put a code-backed check behind any documented invariant, and run an independent read-only review before acting on an audit.
+
+### L-REPLACE-BEFORE-REMOVE-1. The churn funnel is the only UI path to account deletion.
+- **What:** `ProfilePage.tsx` → `AccountDataCard` → `CancelFlow` is the only way to reach `delete-my-account`; scheduled deletions never run.
+- **Rule:** Ship the direct deletion path first, then remove the funnel (T1-12, owner decision D-19).
+
+### L-PARALLEL-WORKTREE-AGENTS-1. Disjoint files and one commit per task make parallel agents safe.
+- **What:** Six Sonnet agents in isolated worktrees produced 19 task commits that cherry-picked onto one branch with zero conflicts. The full backend requirements install did not finish within 30 minutes in the cloud container, so most backend tests ran only in CI.
+- **Rule:** Assign disjoint file sets, integrate in a fixed order, run guards on the integrated branch, and treat CI as the full-suite verifier when a local install is impractical.
+
 ## Nov 4, 2026 — First-person editorial evidence ordering and safety-policy versioning
 
 ### L-FP-EDITORIAL-EVIDENCE-ORDER-1. Editorial citation grouping must preserve source identity and parent-local order.

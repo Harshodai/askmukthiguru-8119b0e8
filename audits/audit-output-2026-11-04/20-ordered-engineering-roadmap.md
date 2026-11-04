@@ -244,3 +244,5 @@ Safe to run at once (different files): T1-01, T1-03, T1-07, T1-08, T1-09, T1-13,
 ## 8. Implementation status (2026-11-04)
 
 Implemented on `feature/audit-strengthen-rag-qdrant` (head `5a9501ac` plus the docs commit), CI pending: T0-04, T1-01, T1-02, T1-05, T1-06, T1-07, T1-09, T1-10 (backend and frontend), T1-11, T1-16, T1-17, T1-19, T3-01. Details and follow-ups: `IMPLEMENTATION-AGENT-PROMPT.md` §0. All other tasks remain open.
+
+Second batch (head `0fc474dd`): SEC-008, SEC-010, SEC-006 (parts of T1-14), CQ-013 (part of T1-13), MEM-005, SAFE-008, ADV-05. SEC-009 skipped. CI on the first batch: 5 backend failures (owner fixing). Remaining-work register: `IMPLEMENTATION-AGENT-PROMPT.md` §0d.
