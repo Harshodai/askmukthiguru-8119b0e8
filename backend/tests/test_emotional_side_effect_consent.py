@@ -44,7 +44,11 @@ async def _run_prepare(container, monkeypatch):
         ),
         patch("services.healing_course_service.maybe_assign_healing_course", new=assign),
     ):
-        await utils.prepare_request_state(container, body, str(uuid.uuid4()))
+        # Signed-in user: the third argument is preferred_lang and `user` carries the id;
+        # an anonymous call would skip the block and make these assertions vacuous.
+        await utils.prepare_request_state(
+            container, body, "en", user={"id": str(uuid.uuid4())}
+        )
         await asyncio.sleep(0.05)  # let the background task run
     return assign
 
