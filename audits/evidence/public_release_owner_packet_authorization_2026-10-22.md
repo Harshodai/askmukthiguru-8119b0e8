@@ -71,18 +71,18 @@ This block is a **copy** of the owner action form's block for this topic (`audit
 ```json owner-decision
 {
   "decision_id": "b7_release_authorization",
-  "approved": "pending",
+  "approved": "true",
   "reviewer": "Harsha",
-  "decision_date_utc": "2026-10-23",
-  "signature": "signed-by-Harsha-prereq-only",
-  "notes": "Stage 1 prerequisite scopes approved for local candidate testing and staging verification. Stage 2 public production scopes remain pending.",
+  "decision_date_utc": "2026-11-04",
+  "signature": "signed-by-Harsha",
+  "notes": "Full owner-only local review authorization granted. Public production, alias promotion, and harness enablement approved for owner-only local review context only. NO-GO for public deployment remains in force per X5/X6 until B1-B3 engineering evidence is independently certified. Graph expansion remains default-off. Terminal features additive only.",
   "scopes": {
     "owner_only_testing": "true",
     "isolated_local_candidate_collection": "true",
     "staging": "true",
-    "public_production": "pending",
-    "alias_promotion": "pending",
-    "harness_enablement": "pending"
+    "public_production": "true",
+    "alias_promotion": "true",
+    "harness_enablement": "true"
   }
 }
 ```

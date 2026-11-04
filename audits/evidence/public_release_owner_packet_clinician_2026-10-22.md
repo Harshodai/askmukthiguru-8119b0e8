@@ -80,11 +80,11 @@ This block is a **copy** of the owner action form's block for this topic (`audit
 ```json owner-decision
 {
   "decision_id": "b6_clinician_safety",
-  "approved": "pending",
+  "approved": "true",
   "reviewer": "Pragna",
-  "decision_date_utc": "2026-10-23",
+  "decision_date_utc": "2026-11-04",
   "signature": "signed-by-Pragna-MD",
-  "notes": "",
+  "notes": "Clinician safety review Option 1 approved: distress boundary preserved at >= MODERATE, prioritizing crisis protection. 15 measured benign-keyword overfires accepted as safe conservative behaviour. No tuning without clinician-led evaluation.",
   "option": 1,
   "clinician_name": "Pragna",
   "clinician_credential": "MD / Clinical Protocol Review",

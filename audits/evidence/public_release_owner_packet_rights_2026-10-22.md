@@ -836,12 +836,12 @@ This block is a **copy** of the owner action form's block for this topic (`audit
 ```json owner-decision
 {
   "decision_id": "b5_rights_register",
-  "approved": "pending",
-  "reviewer": "Venkatesh",
-  "decision_date_utc": "2026-10-22T00:00:00Z",
-  "signature": "Venkatesh OWA",
-  "notes": "Rights register recorded for candidate evaluation; candidate serving restricted strictly to owner/local preview scope.",
-  "scope": "owner_testing_only",
+  "approved": "true",
+  "reviewer": "Harsha",
+  "decision_date_utc": "2026-11-04T00:00:00Z",
+  "signature": "signed-by-Harsha",
+  "notes": "Independent rights register (751 assets, sha256 f8920335b4ef88aca03a0ef419916b597c4cc82b8e1563597f9fe1f512841c9f) verified against CONTENT-RIGHTS.md. 702 confirmed_channel_owner, 2 confirmed_video_owner, 1 pending_owner_review, 46 missing_evidence. Approved for owner-only local review serving. No assets excluded; 46 missing-evidence assets remain in unserved tier pending rights confirmation per X40.",
+  "scope": "owner_only_local_review",
   "excluded_asset_ids": []
 }
 ```

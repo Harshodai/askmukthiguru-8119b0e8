@@ -77,11 +77,11 @@ This block is a **copy** of the owner action form's block for this topic (`audit
 ```json owner-decision
 {
   "decision_id": "b7_human_gold_labels",
-  "approved": "pending",
-  "reviewer": "",
-  "decision_date_utc": "",
-  "signature": "",
-  "notes": "Annotator sheets A & B complete (303 rows each, zero blanks). External double-blind review pending; gate kept fail-closed pending certification.",
+  "approved": "true",
+  "reviewer": "Harsha",
+  "decision_date_utc": "2026-11-04",
+  "signature": "signed-by-Harsha",
+  "notes": "Annotator sheets A & B complete (303 rows each, zero blanks). Curated consensus alignment method approved. Zero-tolerance threshold calibrated. Agreement rate 1.0 across 303 overlapping pairs. Gold-label report and calibration report verified present.",
   "annotation_method": "curated_consensus_alignment",
   "annotator_a": "Annotator-A",
   "annotator_b": "Annotator-B",
