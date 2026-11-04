@@ -126,7 +126,47 @@ class PipelineCoordinator:
     # Public API
     # ------------------------------------------------------------------
 
-    async def execute(
+    async def execute(self, **kwargs: Any) -> PipelineResult:
+        """Run the stage chain, then emit exactly one ``answer_outcome``.
+
+        Every terminal path (stage early return, exact/doctrine cache hit,
+        timeout, crash) funnels through here, so the census is complete.
+        Emission is failure-tolerant and carries no text or identity.
+        """
+        result = await self._execute_stages(**kwargs)
+        self._emit_answer_outcome(result)
+        return result
+
+    @staticmethod
+    def _emit_answer_outcome(result: PipelineResult) -> None:
+        try:
+            from app.answer_outcome import build_answer_outcome, emit_answer_outcome
+            from app.grounding import grounding_state_for
+
+            trace = result.evaluation_trace if isinstance(result.evaluation_trace, dict) else {}
+            emit_answer_outcome(
+                build_answer_outcome(
+                    request_id=result.trace_id or None,
+                    route_decision=result.route_decision,
+                    route_reason=trace.get("routing_reason"),
+                    grounding_state=grounding_state_for(result),
+                    citations=result.citations,
+                    verification=result.verification,
+                    cache_hit=bool(result.cache_hit),
+                    latency_ms=result.latency_ms,
+                    model_used=result.model_used,
+                    blocked=bool(result.blocked),
+                    errored=result.route_decision in ("error", "timeout"),
+                ),
+                first_person_only=bool(
+                    settings.first_person_chat_bridge_enabled
+                    and not settings.first_person_llm_fallback_enabled
+                ),
+            )
+        except Exception as exc:  # never let telemetry break a response
+            logger.debug("answer outcome not recorded: %s", type(exc).__name__)
+
+    async def _execute_stages(
         self,
         *,
         user_msg: str,
