@@ -291,3 +291,9 @@ When no unblocked task remains, run `audit-output/25` §12 (independent verifica
 4. The residual risks that remain.
 
 Do not claim readiness that the evidence does not show.
+
+### 0f. T2-03 outcome telemetry (backend part), commit `2c80d884`
+
+- Landed: `backend/app/answer_outcome.py` builds one `answer_outcome` record per turn (no text, no user or session id) and `ResultAssemblyStage` (`glue_stages.py`) emits it inside a try/except. New metrics: `guru_answer_outcome_total{lane,outcome}`, `guru_answer_latency_seconds{lane,outcome}`, `guru_integrity_breach_total{lane}` (a served teaching-lane turn with a non-empty `model_used` while the bridge is on and LLM fallback is off). Tests: 39 passed after rebase (`test_answer_outcome_telemetry.py`, `test_no_seeker_text_in_logs.py`, `test_pipeline_stages.py`).
+- Left for the next agent: emit outcomes on early-return paths (exact cache, doctrine cache, other stages that return before ResultAssembly; `cache_hit` is hard-coded false today); per-LLM-call `prompt_id@version`, tokens and cost; per-stage latency; the frontend feedback join and the `useful_answer` metric; the Supabase sink write (needs a schema change).
+- CI on `2c80d884` (branch head) not yet observed. Remaining register: §0d (as updated in §0e).
