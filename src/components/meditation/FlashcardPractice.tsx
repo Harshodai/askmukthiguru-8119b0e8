@@ -77,7 +77,7 @@ export const FlashcardPractice = () => {
     if (cards.length === 0 || submitting) return;
     setSubmitting(true);
     const card = cards[currentIndex];
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -167,7 +167,7 @@ export const FlashcardPractice = () => {
           Card {currentIndex + 1} of {cards.length}
         </span>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* Flashcard container */}
         <div className="min-h-[140px] rounded-lg bg-zinc-900/60 border border-zinc-800/80 p-5 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700/50">
@@ -191,8 +191,8 @@ export const FlashcardPractice = () => {
         {/* Buttons layout */}
         <div className="flex flex-col gap-3">
           {!showAnswer ? (
-            <Button 
-              onClick={() => setShowAnswer(true)} 
+            <Button
+              onClick={() => setShowAnswer(true)}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-950/20"
             >
               Reveal Answer
