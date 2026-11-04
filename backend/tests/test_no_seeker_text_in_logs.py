@@ -28,11 +28,14 @@ _SEEKER_NAMES = {
     "last_user",
 }
 #: Offenders found on 2026-10-25 after fixing first_person_bridge and refiner (len() and hash uses excluded).
-KNOWN_OFFENDER_BUDGET = 26
+KNOWN_OFFENDER_BUDGET = 19  # T1-09: 26 -> 19 (prerouter + resolve_followup)
 #: Files whose seeker-text logging was fixed and must stay fixed.
 FIXED_FILES = {
     "app/pipeline/stages/first_person_bridge.py",
     "app/core/refiner.py",
+    # T1-09 (SEC-003): log length + sha256 prefix only.
+    "rag/intent_prerouter.py",
+    "rag/resolve_followup.py",
 }
 
 
@@ -43,7 +46,7 @@ def _safe_name_ids(arg: ast.AST) -> set[int]:
         if not isinstance(sub, ast.Call):
             continue
         func = sub.func
-        is_len = isinstance(func, ast.Name) and func.id == "len"
+        is_len = isinstance(func, ast.Name) and func.id in {"len", "_q_tag"}  # T1-09: _q_tag = len + sha256 prefix
         is_hash = isinstance(func, ast.Attribute) and func.attr in {"sha256", "md5", "blake2b"}
         if is_len or is_hash:
             safe.update(id(n) for n in ast.walk(sub) if isinstance(n, ast.Name))

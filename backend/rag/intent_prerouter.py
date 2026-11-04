@@ -1,8 +1,14 @@
+import hashlib
 import logging
 import re
 from typing import Optional
 
 from app.config import settings
+
+
+def _q_tag(text: str) -> str:
+    """Length + short sha256 prefix; never the seeker's words (SEC-003)."""
+    return f"len={len(text or '')} sha={hashlib.sha256((text or '').encode('utf-8')).hexdigest()[:8]}"
 
 logger = logging.getLogger(__name__)
 
@@ -89,15 +95,15 @@ def preroute_intent(query: str) -> Optional[str]:
         return "CASUAL"
 
     if DISTRESS_RE.search(cleaned):
-        logger.info("Regex Pre-Router: matched DISTRESS intent for query: %s...", query[:50])
+        logger.info("Regex Pre-Router: matched DISTRESS intent for query: %s", _q_tag(query))
         return "DISTRESS"
 
     if MEDITATION_RE.search(cleaned):
-        logger.info("Regex Pre-Router: matched MEDITATION intent for query: %s...", query[:50])
+        logger.info("Regex Pre-Router: matched MEDITATION intent for query: %s", _q_tag(query))
         return "MEDITATION"
 
     if GREETINGS_RE.match(cleaned):
-        logger.info("Regex Pre-Router: matched CASUAL intent for query: %s...", query[:50])
+        logger.info("Regex Pre-Router: matched CASUAL intent for query: %s", _q_tag(query))
         return "CASUAL"
 
     return None
