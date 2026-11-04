@@ -3711,6 +3711,53 @@ class FirstPersonPipeline:
             block_state=request_block_state,
         )
 
+    def _compound_delegation(
+        self,
+        *,
+        query: str,
+        query_dense_vector: Optional[list[float]],
+        query_sparse_vector: Optional[dict[str, Any]],
+        teacher_id: Optional[str],
+        max_clips: int,
+        start_time: float,
+        cache_bypass: bool,
+        request_allow_state: str,
+        request_block_state: str,
+        fp_llm_tokens: list[int],
+        language: str,
+        retrieval_query: str,
+    ) -> Optional[FirstPersonPipelineResult]:
+        """Step 2b: delegate a compound question to the per-facet pipeline.
+
+        Compound decomposition searches only the legacy store, so it is off while
+        the context harness is terminal (v10-only): otherwise a compound question
+        would be served from the legacy collection past the terminal flag.
+        """
+        terminal_active = (
+            bool(getattr(settings, "first_person_context_harness_enabled", False))
+            and getattr(settings, "first_person_context_terminal_enabled", False) is True
+        )
+        if not getattr(settings, "first_person_facet_split_enabled", False) or terminal_active:
+            return None
+        facets = _decompose_query_facets(query, self._llm_service, token_sink=fp_llm_tokens)
+        if len(facets) <= 1:
+            return None
+        return self._execute_compound(
+            query=query,
+            facets=facets,
+            query_dense_vector=query_dense_vector,
+            query_sparse_vector=query_sparse_vector,
+            teacher_id=teacher_id,
+            max_clips=max_clips,
+            start_time=start_time,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            fp_llm_tokens=fp_llm_tokens,
+            language=language,
+            retrieval_query=retrieval_query,
+        )
+
     def execute(
         self,
         query: str,
@@ -3778,32 +3825,23 @@ class FirstPersonPipeline:
         if cached_result is not None:
             return cached_result
 
-        # Step 2b: Compound question decomposition (Tasks F1 & F2)
-        # Compound decomposition searches only the legacy store, so it is off while
-        # the context harness is terminal (v10-only): otherwise a compound question
-        # would be served from the legacy collection past the terminal flag.
-        _terminal_active = (
-            bool(getattr(settings, "first_person_context_harness_enabled", False))
-            and getattr(settings, "first_person_context_terminal_enabled", False) is True
+        # Step 2b: compound question decomposition.
+        compound_result = self._compound_delegation(
+            query=query,
+            query_dense_vector=query_dense_vector,
+            query_sparse_vector=query_sparse_vector,
+            teacher_id=teacher_id,
+            max_clips=max_clips,
+            start_time=start_time,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            fp_llm_tokens=fp_llm_tokens,
+            language=language,
+            retrieval_query=retrieval_query,
         )
-        if getattr(settings, "first_person_facet_split_enabled", False) and not _terminal_active:
-            facets = _decompose_query_facets(query, self._llm_service, token_sink=fp_llm_tokens)
-            if len(facets) > 1:
-                return self._execute_compound(
-                    query=query,
-                    facets=facets,
-                    query_dense_vector=query_dense_vector,
-                    query_sparse_vector=query_sparse_vector,
-                    teacher_id=teacher_id,
-                    max_clips=max_clips,
-                    start_time=start_time,
-                    cache_bypass=cache_bypass,
-                    request_allow_state=request_allow_state,
-                    request_block_state=request_block_state,
-                    fp_llm_tokens=fp_llm_tokens,
-                    language=language,
-                    retrieval_query=retrieval_query,
-                )
+        if compound_result is not None:
+            return compound_result
 
         # The answerability gate has one request-local tri-state decision.  An
         # explicit sentinel is required because ``None`` is the real
