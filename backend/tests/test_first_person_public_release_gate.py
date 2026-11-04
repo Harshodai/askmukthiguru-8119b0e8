@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,14 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from scripts.ops import check_first_person_public_release as gate  # noqa: E402
+
+_REAL_IS_ANCESTOR = gate._is_ancestor
+
+
+@pytest.fixture(autouse=True)
+def _stub_ancestor(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Synthetic repos are not git repos: treat only the fixture sha as a real ancestor."""
+    monkeypatch.setattr(gate, "_is_ancestor", lambda _root, sha: sha == "abc1234")
 
 CONFIG_SCHEMA = "first-person-public-release-gate-v1"
 DECISION_FENCE = "owner-decision"
@@ -238,19 +247,35 @@ def _build_repo(tmp_path: Path) -> Path:
 
     _write_json(
         evidence / "speaker_certification.json",
-        {"schema": "x", "reviewers": ["A", "B"], "agreement_rate": 1.0},
+        {"schema": "x", "reviewers": ["Asha Rao", "Ravi Menon"], "agreement_rate": 0.97},
     )
-    _write_json(evidence / "gold_label_report.json", {"schema": "x", "rows": 300})
-    _write_json(evidence / "agreement_calibration_report.json", {"schema": "x", "rate": 1.0})
+    _prov = {"independent_review": True, "reviewer_ids": ["Asha Rao", "Ravi Menon"]}
+    _write_json(
+        evidence / "gold_label_report.json",
+        {"schema": "x", "total_pairs_reviewed": 300, "provenance": _prov},
+    )
+    _write_json(
+        evidence / "agreement_calibration_report.json",
+        {"schema": "x", "agreement_rate": 0.96, "total_comparisons": 300, "provenance": _prov},
+    )
     _write_json(
         evidence / "staging_readiness.json",
         {
             "schema": "x",
+            "commit_sha": "abc1234",
+            "environment_id": "staging-eu-1",
+            "auditor_id": "Asha Rao",
             "suites": {
                 suite: {"status": "pass"}
                 for suite in ("smoke", "safety", "citation", "cache", "fault")
             },
         },
+    )
+    (root / "config").mkdir(exist_ok=True)
+    (root / "config" / "helplines.yaml").write_text(
+        "crisis_helplines:\n  - name: Line A\n"
+        f'    last_verified_by_call: "{date.today().isoformat()}"\n',
+        encoding="utf-8",
     )
 
     config = {
@@ -863,8 +888,11 @@ def test_the_release_gate_never_writes_or_mutates() -> None:
     source = (
         _REPO_ROOT / "backend" / "scripts" / "ops" / "check_first_person_public_release.py"
     ).read_text(encoding="utf-8")
-    for forbidden in ("qdrant_client", "import redis", "subprocess", "os.environ["):
+    for forbidden in ("qdrant_client", "import redis", "os.environ["):
         assert forbidden not in source, f"the gate controller must not contain {forbidden!r}"
+    # T1-11: the one permitted process call is the read-only ancestry query for staging evidence.
+    assert source.count("subprocess.run(") == 1
+    assert '"merge-base", "--is-ancestor"' in source
 
 
 # ---------------------------------------------------------------------------
@@ -915,7 +943,7 @@ def test_the_repository_packets_mirror_the_owner_action_form() -> None:
 
 
 def test_the_repository_gate_reports_owner_action_required() -> None:
-    """The shipped repository state is OWNER_ACTION_REQUIRED (T0-04): owner decisions are not honestly complete."""
+    """The shipped repository state is OWNER_ACTION_REQUIRED (T0-04): the owner decisions are not honestly complete."""
     config_path = _REPO_ROOT / "backend" / "config" / "first_person_public_release_gate.json"
     config = gate._load_config(_REPO_ROOT, config_path)
     # backend/.env is gitignored and developer-local; always assert the tracked example's shipped default.
@@ -960,3 +988,104 @@ def test_the_repository_copy_of_the_controller_is_the_canonical_one() -> None:
     if root_copy.exists():
         assert canonical.samefile(canonical)
         assert root_copy.read_bytes() == canonical.read_bytes()
+
+
+# ---------------------------------------------------------------------------
+# T1-11 — evidence-integrity rules (one failing fixture per rule)
+# ---------------------------------------------------------------------------
+def _ready_repo(tmp_path: Path) -> Path:
+    root = _build_repo(tmp_path)
+    _write_form(root, _all_approved())
+    _write_json(
+        root / "audits" / "evidence" / "promotion.json",
+        {"snapshot": {"evidence_path": "snap.json"}, "rollback": {"evidence_path": "rb.json"}},
+    )
+    assert _evaluate(root)["status"] == gate.STATUS_READY  # baseline the rules perturb
+    return root
+
+
+def test_t1_11_non_independent_gold_review_fails(tmp_path: Path) -> None:
+    root = _ready_repo(tmp_path)
+    _write_json(
+        root / "audits" / "evidence" / "gold_label_report.json",
+        {"total_pairs_reviewed": 300, "provenance": {"independent_review": False,
+         "reviewer_ids": ["Asha Rao", "Ravi Menon"]}},
+    )
+    g = _gate(_evaluate(root), "gold_label_evidence")
+    assert g["passed"] is False and "independent_review" in g["detail"]
+
+
+def test_t1_11_single_annotator_fails(tmp_path: Path) -> None:
+    root = _ready_repo(tmp_path)
+    _write_json(
+        root / "audits" / "evidence" / "gold_label_report.json",
+        {"total_pairs_reviewed": 300, "provenance": {"independent_review": True,
+         "reviewer_ids": ["Asha Rao", "asha rao"]}},
+    )
+    g = _gate(_evaluate(root), "gold_label_evidence")
+    assert g["passed"] is False and "two distinct annotators" in g["detail"]
+
+
+def test_t1_11_perfect_agreement_without_adjudication_fails(tmp_path: Path) -> None:
+    root = _ready_repo(tmp_path)
+    _write_json(
+        root / "audits" / "evidence" / "agreement_calibration_report.json",
+        {"agreement_rate": 1.0, "total_comparisons": 303, "provenance": {
+         "independent_review": True, "reviewer_ids": ["Asha Rao", "Ravi Menon"]}},
+    )
+    g = _gate(_evaluate(root), "gold_label_evidence")
+    assert g["passed"] is False and "no adjudication" in g["detail"]
+
+
+def test_t1_11_staging_commit_must_be_a_real_ancestor(tmp_path: Path) -> None:
+    root = _ready_repo(tmp_path)
+    path = root / "audits" / "evidence" / "staging_readiness.json"
+    doc = json.loads(path.read_text())
+    doc["commit_sha"] = "ffff000"
+    _write_json(path, doc)
+    g = _gate(_evaluate(root), "staging_readiness_review")
+    assert g["passed"] is False and "real ancestor" in g["detail"]
+    assert _REAL_IS_ANCESTOR(_REPO_ROOT, "ffffffffffffffffffffffffffffffffffffffff") is False
+    assert _REAL_IS_ANCESTOR(_REPO_ROOT, "not-a-sha") is False
+
+
+def test_t1_11_staging_environment_must_not_be_local(tmp_path: Path) -> None:
+    root = _ready_repo(tmp_path)
+    path = root / "audits" / "evidence" / "staging_readiness.json"
+    doc = json.loads(path.read_text())
+    doc["environment_id"] = "local-docker-preview"
+    _write_json(path, doc)
+    g = _gate(_evaluate(root), "staging_readiness_review")
+    assert g["passed"] is False and "environment_id is local" in g["detail"]
+
+
+def test_t1_11_agent_certifier_ids_are_rejected(tmp_path: Path) -> None:
+    root = _ready_repo(tmp_path)
+    _write_json(
+        root / "audits" / "evidence" / "speaker_certification.json",
+        {"reviewers": ["Harsha", "subagent-speaker-reviewer"]},
+    )
+    g = _gate(_evaluate(root), "speaker_certification_evidence")
+    assert g["passed"] is False and "non-human" in g["detail"]
+
+
+def test_t1_11_uncalled_helplines_fail(tmp_path: Path) -> None:
+    root = _ready_repo(tmp_path)
+    (root / "config" / "helplines.yaml").write_text(
+        "crisis_helplines:\n  - name: Line A\n    last_verified_by_call: null\n"
+        '  - name: Line B\n    last_verified_by_call: "2020-01-01"\n',
+        encoding="utf-8",
+    )
+    g = _gate(_evaluate(root), "helpline_call_verification")
+    assert g["passed"] is False and "2 of 2" in g["detail"]
+
+
+def test_t1_11_public_scopes_contradicting_a_no_go_note_fail(tmp_path: Path) -> None:
+    root = _ready_repo(tmp_path)
+    sections = _all_approved()
+    sections["b7_release_authorization"] = sections["b7_release_authorization"].replace(
+        '"notes": ""', '"notes": "NO-GO for public deployment remains in force"'
+    )
+    _write_form(root, sections)
+    g = _gate(_evaluate(root), "authorization_note_consistency")
+    assert g["passed"] is False
