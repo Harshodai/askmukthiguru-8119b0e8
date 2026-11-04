@@ -596,6 +596,9 @@ async def prepare_request_state(
                 logger.warning("Healing course assignment failed (non-fatal): %s", exc)
 
         try:
+            # T1-10 (MEM-003): no active consent -> no emotional-history read, no assignment write.
+            if not await has_active_memory_consent(container, user_id):
+                raise _ConsentDenied
             turn_history = await _build_emotional_arc_turns(container, user_id)
             trigger = evaluate_course_trigger(turn_history)
             if trigger:
@@ -608,6 +611,8 @@ async def prepare_request_state(
                 )
             )
             task.add_done_callback(_observe_background_task_error)
+        except _ConsentDenied:
+            logger.debug("Healing course skipped: no active memory consent")
         except RuntimeError as exc:
             logger.debug("Healing course task not scheduled: %s", exc)
         except Exception as exc:
@@ -631,6 +636,34 @@ async def prepare_request_state(
         "conversation_summary": conversation_summary,
         "cache_key": cache_key,
     }
+
+
+class _ConsentDenied(Exception):
+    """Internal control flow: skip the course side effect without consent."""
+
+
+async def has_active_memory_consent(container: Any, user_id: str) -> bool:
+    """Fail-closed active-consent check for durable emotional-history side effects.
+
+    T1-10 (MEM-003): reading episodic emotional arcs or writing a course
+    assignment is a memory feature and needs the same active consent receipt as
+    the durable-memory reads in ``prepare_user_memory``. A missing outbox, a
+    lookup error or no receipt all mean "no consent".
+    """
+    outbox = getattr(container, "memory_outbox", None)
+    if outbox is None or not user_id:
+        return False
+    try:
+        from services.tenant_context import TenantContext
+
+        consent = await outbox.active_consent(user_id=user_id, tenant_id=TenantContext.get())
+    except Exception as exc:
+        logger.warning(
+            "Emotional-history side effect skipped: consent unverifiable (%s)",
+            type(exc).__name__,
+        )
+        return False
+    return bool(consent)
 
 
 async def _build_emotional_arc_turns(container: Any, user_id: str) -> list[dict[str, Any]]:

@@ -151,7 +151,9 @@ async def test_proactive_serene_mind_returns_teaching_first_consent_offer(monkey
     serene = MagicMock()
     serene.analyze_distress_trend = AsyncMock(return_value=proactive)
     serene.get_response.return_value = "optional support"
-    container = SimpleNamespace(serene_mind=serene, user_profile=profile)
+    # T1-10 (MEM-003): the trend read now requires an active memory consent receipt.
+    outbox = SimpleNamespace(active_consent=AsyncMock(return_value={"granted": True}))
+    container = SimpleNamespace(serene_mind=serene, user_profile=profile, memory_outbox=outbox)
     ctx = SimpleNamespace(container=container)
 
     result = await stage._maybe_trigger_proactive_serene_mind(
