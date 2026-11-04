@@ -4,6 +4,28 @@
 
 You are the implementation agent for **Ask Mukti Guru** (repository `Harshodai/askmukthiguru-8119b0e8`). An independent architecture and product audit was completed on 2026-11-04 against `origin/main@46b808fb`. Your job is to implement its roadmap correctly, safely and verifiably, one small PR at a time, until every task you are unblocked to do is complete. This prompt carries the essential context. The full audit package (`audits/audit-output-2026-11-04/`; every `audit-output/` path below means this folder) holds the evidence. Read the named files when you need detail.
 
+## 0. Work already done (branch `feature/audit-strengthen-rag-qdrant`, commits after `c7befa3d`, head `5a9501ac` plus this docs commit)
+
+These tasks are implemented. Verify them in CI and do not redo them. Re-check each against its spec before building on it.
+
+| Task | What landed | Verified | Follow-up left for you |
+|---|---|---|---|
+| T0-04 | Release-gate repo test asserts the computed status (`OWNER_ACTION_REQUIRED`) | Gate test file 34/37 in a minimal venv (3 need full conftest); CI pending | — |
+| T1-01 | Root `CLAUDE.md` voice section replaced by "Voice Governance & Invariants"; `test_voice_governance_docs.py` | 75 tests passed (with quote-weaver and voice tests) | — |
+| T1-02 | Quote-weaver editorial/hybrid LLM paths, ingestion FP dual-index writer, `REFERENCE_VOICE` and their flags removed | 289 passed, 2 skipped (bridge, wiring, stale flags, repo layout, config) | `first_person_mode="hybrid"` is still accepted and behaves like `retrieval_only`; remove it in a separate PR. `QuoteWeaverAssertionGate` and `_run_sync` have no production caller. Exact-cache fingerprint changed (one-time cache miss). |
+| T1-05 | `services/fp_fail_closed.py`: `teaching_generation_allowed()`; bridge off → abstain `fp_disabled`; node fault → `fp_node_error` + `guru_fp_fail_closed_total`; `generate_answer` guard; rollback flag `FP_FAIL_CLOSED_ENABLED` (default true) | `test_fp_fail_closed.py` and bridge/wiring tests passed in the integrated branch (298 passed) | Classifier-failure branch in `graph_stage.py` (~211–220) still routes to the general boundary lane; a node call with no pipeline context still reaches the general graph except where `generate_answer` catches a teaching intent. |
+| T1-06 | `_maybe_apply_langhanam_voice` skips register blocks in general mode | `test_general_mode_no_register.py` passed | — |
+| T1-07 | Budget guard and fail-closed default on; production validator; `ALLOW_UNCAPPED_LLM_SPEND` escape (default false) | Spend tests passed | Production now refuses to start with the guard off unless the escape is set. Scorer model and timeout remain owner decisions (D-16). |
+| T1-09 | Prerouter and follow-up resolver log length + sha256 prefix; ratchet budget 26 → 19 | Ratchet test passed | — |
+| T1-10 | Backend: `has_active_memory_consent()` gates emotional-arc reads, course assignment and the proactive Serene Mind trend. Frontend: push prompt only after a grounded `first_person_bridge` answer with no safety signals | Consent tests 10 passed after a test fix (they had been running as anonymous); frontend vitest passed | Frontend `TEACHING_ROUTES` allowlist is strict; add routes deliberately. Default on/off flags unchanged (D-21). |
+| T1-11 | Gate rejects non-independent gold, agreement 1.0 over >50 items without adjudication, non-ancestor SHAs, `local*` environments, agent-like certifiers, unverified helplines (365-day age), scopes that exceed the notes; one fixture per rule | Gate fixtures passed (minimal venv); real repo still `OWNER_ACTION_REQUIRED` with 5 failing checks | The gate now needs `git` on PATH and lazy-imports PyYAML. |
+| T1-16 | Absolute API URLs (5 sites, one found by the new ESLint rule); WhatsApp button hidden unless a `whatsapp` capability and number exist | Lint 0 errors; vitest passed; build passed | ESLint regex `^.api.` also matches a few lookalike paths. |
+| T1-17 | Every chat error card shows a care line with call-verified helplines (Tele-MANAS) and a retry; developer text to console only; vitest ties the constant to `config/helplines.yaml` | vitest passed | No e2e for 500/drop/timeout/429 yet; the care line uses a `t()` default with no `en.json` key (i18n sync needs an API key). Fold into T1-20. |
+| T1-19 | Client summary call to `/api/chat` removed | vitest passed | Local last-5-messages fallback still stored in `conv.summary`; `updateConversationSummary` is now unused (clean up). |
+| T3-01 | Both backend Dockerfiles copy the pinned rights register; production startup fails if it is missing or empty; health shows `rights_register` (count, sha256 prefix) | `test_rights_register_startup.py` passed in the integrated run | No digest-versus-serving-contract check (the contract has no digest field yet). Docker build not run. |
+
+Everything else in section 6 is still open. Owner-gated items are listed in section 5.
+
 ## 1. What the product is
 
 - A privacy-first spiritual guide grounded in the recorded teachings of **Sri Krishnaji** and **Sri Preethaji**.
