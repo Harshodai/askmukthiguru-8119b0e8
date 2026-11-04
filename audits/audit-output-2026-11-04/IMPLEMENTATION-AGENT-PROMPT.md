@@ -112,6 +112,8 @@ Everything else in section 6 is still open. Owner-gated items are listed in sect
 
 ## 4. Non-negotiable guardrails
 
+0. **Reserved tasks** (§0j): T4-04, T6-07, T3-06, T6-05, T6-06, T7-01, T7-02. Do not start them unless the owner names you for them in writing.
+
 1. **Teacher voice.** Never generate, paraphrase into, or machine-translate into text that is presented in a teacher's voice or first person. Teacher words appear only as verbatim spans rendered from the store by span id, with a source. The assistant speaks only in its own labelled voice ("In our own words").
 2. **No fake closure.** Never mark a human gate done. Never edit a test, threshold, gate or evidence file to produce a wanted status. Gates are computed on a clean checkout.
 3. **Data writes.** Every Qdrant, Memgraph, Supabase or OKF write follows dry-run → snapshot → ask the owner → apply. Builders run host-side with `backend/.venv/bin/python3`, never in the backend container (6 GiB OOM). Never mutate a serving collection in place: a new schema means a new collection, and the old one stays for rollback.
@@ -370,3 +372,19 @@ Totals: 152 defect findings. 30 closed in code (CI to confirm), 8 partly address
 | Live infrastructure | SYS-007, SYS-008 |
 
 Start the next session with §1 (revalidation), then work group A top to bottom, one task ID per PR-sized commit, following §4 and §7.
+
+### 0j. RESERVED tasks — do NOT start them unless the owner names you for them in writing
+
+Owner decision (2026-11-04): these tasks are reserved for a stronger model working under the owner's direct supervision. Any other agent (for example a Flash-class model) must skip them, list them as "reserved" in its report, and never edit their files for another task without asking.
+
+| Task | Why it is reserved | Preconditions before starting | Evidence required to close |
+|---|---|---|---|
+| T4-04 distress topic vs state | Crisis safety code (`serene_mind_engine.py`, `distress_stage.py`, `first_person_bridge.py` decline level) | Clinician-reviewed crisis core set, benign set (≥200) and multi-turn set (≥50) in `evals/`; owner's written go-ahead | Behind a flag; crisis recall 100% on the core set; benign overfire ≤5%; 0 benign multi-turn SEVERE; clinician's written sign-off filed by sha256 before the production default changes |
+| T6-07 emotional-dependency guard | Safety behaviour | A clinician-written rule | Tests that implement exactly that rule; clinician sign-off |
+| T3-06 source registry, `takedown()`, structured citations | New migrations; deletes points and citations across stores | T3-08 schema snapshot CI merged; owner approves the migration text | Migration reviewed by the owner; takedown dry-run report on a fixture; no in-place mutation of a serving collection; never applied to production without the owner |
+| T6-05 client RLS `role='user'` only | RLS migration that changes who may write chat history | The backend writes assistant turns first; owner approves the migration | RLS tests (client cannot insert `role != 'user'`); e2e chat still works; applied only by the owner |
+| T6-06 durable erasure and scheduled purge | Deletes user data | Owner approves the purge rule, the queue design and the retention window | Erasure drill with the backend down; purge-job test on a fixture with a due row and a not-due row; dry-run mode default on until the owner switches it off |
+| T7-01 split `FirstPersonPipeline.execute` | 2,145-line core function | Golden-output snapshots recorded for the frozen bank and the PR suite before any change | Snapshots identical after the split; no logic change in the same PR |
+| T7-02 async teaching lane | Concurrency change in the core path | T7-01 merged | Staging c20 load test without executor starvation; the watchdog is removed only after that |
+
+Recommended way to run them: one task per session, on a fresh branch from the PR head, with the owner reviewing the diff before each push.
