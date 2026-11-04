@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal
 
-SAFETY_POLICY_VERSION = "first_person_safety_v1"
+SAFETY_POLICY_VERSION = "first_person_safety_v4"
 
 
 class SafetySignalType(StrEnum):

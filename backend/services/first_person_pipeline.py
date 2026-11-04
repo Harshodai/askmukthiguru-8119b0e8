@@ -28,8 +28,10 @@ import threading
 import time
 import unicodedata
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import parse_qs, urlsplit
 
 import numpy as np
 
@@ -50,8 +52,11 @@ from domain.first_person_context import (
     HarnessDecision,
     ParentContext,
     SourceSpan,
+    SpeakerRole,
     ValidatedCrossParentEdge,
+    clip_text_hash,
 )
+from domain.first_person_facets import FACET_PLANNER_VERSION, QueryFacets
 from domain.speaker_provenance import AUTOMATED_PROVENANCE_KEYS, HUMAN_REVIEW_KEYS
 from guardrails.lightweight_handler import _BLOCKED_TOPICS, SAFETY_TOPICS, match_blocked_topic
 from ingest.verbatim.boundaries import boundary_defects
@@ -59,8 +64,15 @@ from services.attribution import resolve_attribution_label
 from services.crisis_helplines import format_helplines_block
 from services.first_person_context_selector import select_span_ids
 from services.first_person_evidence_policy import first_person_evidence_policy
+from services.first_person_facet_planner import get_default_planner
 from services.first_person_graph_expansion import expand_query_concepts, expand_teaching_units
+from services.first_person_rights import source_is_authoritatively_licensed
 from services.first_person_serving_contract import legacy_slot_aliases_context
+from services.first_person_set_selector import (
+    SET_SELECTOR_VERSION,
+    FirstPersonSetSelector,
+    ScoredSpan,
+)
 from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
     BLOCKED_PROMISE_POINT_IDS,
@@ -84,6 +96,40 @@ from services.text_quality_filter import find_artifact, find_asr_repetition_arti
 from services.youtube_availability import is_youtube_video_available
 
 logger = logging.getLogger(__name__)
+
+_YOUTUBE_SOURCE_HOSTS = frozenset(
+    {
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtu.be",
+        "youtube-nocookie.com",
+        "www.youtube-nocookie.com",
+    }
+)
+
+
+def _youtube_video_id_from_url(value: object) -> str:
+    """Return a canonical YouTube video id from an HTTPS watch/embed URL only."""
+    if not isinstance(value, str):
+        return ""
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return ""
+    host = (parsed.hostname or "").casefold()
+    if parsed.scheme != "https" or host not in _YOUTUBE_SOURCE_HOSTS:
+        return ""
+    if host == "youtu.be":
+        return parsed.path.strip("/").split("/", 1)[0]
+    if parsed.path.rstrip("/") == "/watch":
+        values = parse_qs(parsed.query).get("v", [])
+        return values[0] if len(values) == 1 else ""
+    path_parts = [part for part in parsed.path.split("/") if part]
+    if len(path_parts) == 2 and path_parts[0] in {"embed", "shorts", "live"}:
+        return path_parts[1]
+    return ""
+
 
 # Exact cache TTL: 24 hours
 EXACT_CACHE_TTL = 86400
@@ -338,9 +384,18 @@ def _passes_integrity_gate(
     point_id_str = str(clip.get("point_id") or clip.get("id") or clip.get("clip_id") or "")
     vid_str = str(clip.get("video_id") or "")
 
-    if clip.get("provenance_kind") == "curated_okf" or clip.get("is_verbatim") is False:
+    if clip.get("provenance_kind") == "curated_okf":
         return False
-    if clip.get("first_person_eligible") is False:
+    if (
+        clip.get("first_person_eligible") is not True
+        or clip.get("rights_cleared") is not True
+        or clip.get("is_verbatim") is not True
+        or not source_is_authoritatively_licensed(
+            source_url=clip.get("source_url"),
+            video_id=clip.get("video_id"),
+            domain_rights_status=clip.get("domain_rights_status"),
+        )
+    ):
         return False
 
     # Hard Stop H4: Blocked promise point IDs or video IDs
@@ -1509,6 +1564,7 @@ class FirstPersonPipelineResult:
         stage_timings: Optional[dict[str, float]] = None,
         related_clips: Optional[list[dict[str, Any]]] = None,
         fp_served: bool = False,
+        editorial_set: Optional[dict[str, Any]] = None,
     ) -> None:
         self.answer_text = answer_text
         self.citations = citations
@@ -1539,6 +1595,7 @@ class FirstPersonPipelineResult:
         # served from the first-person collection (status success/weak_match with
         # citations). Abstain / crisis / error results keep it False.
         self.fp_served = bool(fp_served)
+        self.editorial_set = editorial_set
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -1562,6 +1619,8 @@ class FirstPersonPipelineResult:
         }
         if self.related_clips:
             data["related_clips"] = self.related_clips
+        if self.editorial_set is not None:
+            data["editorial_set"] = self.editorial_set
         return data
 
 
@@ -1655,6 +1714,7 @@ def _build_citation_dict(
         "title": clip_title,
         "url": clip_url,
         "teacher_id": clip.get("teacher_id"),
+        "guru_id": clip.get("guru_id") or clip.get("teacher_id"),
         "speaker_verified": _speaker_verification(clip)[0],
         "voice_verification_method": _speaker_verification(clip)[1],
         "channel": clip.get("channel"),
@@ -1667,7 +1727,10 @@ def _build_citation_dict(
         "playback_end_seconds": round(playback_end, 2),
         "playback_url": f"https://www.youtube.com/watch?v={video_id}&t={int(playback_start)}s",
         "confidence": clip_confidence,
+        "first_person_eligible": clip.get("first_person_eligible") is True,
         "is_verbatim": True,
+        "rights_cleared": clip.get("rights_cleared") is True,
+        "domain_rights_status": clip.get("domain_rights_status"),
         "provenance_kind": provenance_kind,
         "caption_status": clip.get("caption_status") or "auto_transcript",
         **transcript_label(clip["verbatim_text"], clip.get("caption_status")),
@@ -1890,6 +1953,15 @@ _CALIBRATION_UNSET = object()
 # Sentinel for the lazily-computed B4 serving-contract verdict ("" = no
 # violation, computed once per pipeline instance).
 _CONTRACT_UNSET = object()
+
+
+def _editorial_set_enabled() -> bool:
+    """Allow the set selector only in explicit non-production harness mode."""
+    return (
+        getattr(settings, "is_production", True) is False
+        and getattr(settings, "first_person_context_harness_enabled", False) is True
+        and getattr(settings, "first_person_editorial_set_selection_enabled", False) is True
+    )
 
 
 class FirstPersonPipeline:
@@ -2247,6 +2319,189 @@ class FirstPersonPipeline:
 
         return merged
 
+    def _build_editorial_set_result(
+        self,
+        query: str,
+        context_results: list[tuple[ParentContext, FirstPersonPipelineResult]],
+        *,
+        facets: QueryFacets,
+        max_clips: int,
+        start_time: float,
+        retrieval_ms: float,
+        answerability: Optional[str],
+    ) -> FirstPersonPipelineResult:
+        """Select among parent results only after each has passed the live gates."""
+        selection_started = time.monotonic()
+        candidates: list[ScoredSpan] = []
+        result_by_span_id: dict[str, FirstPersonPipelineResult] = {}
+        for context, result in context_results:
+            if not result.fp_served or result.status not in ("success", "weak_match"):
+                continue
+            if not result.citations or not result.answer_text.strip():
+                continue
+            citations = result.citations
+            # Recheck the adapter contract; no selector may operate on a partially
+            # cited, mixed-source, non-verbatim, or rights-uncleared result.
+            if any(
+                citation.get("is_verbatim") is not True
+                or citation.get("rights_cleared") is not True
+                or citation.get("domain_rights_status") != "licensed"
+                for citation in citations
+            ):
+                continue
+            video_id = str(citations[0].get("video_id") or "")
+            guru_id = str(citations[0].get("guru_id") or "")
+            span_id = str(citations[0].get("source_span_id") or "")
+            speaker_id = str(citations[0].get("speaker_id") or "")
+            parent = getattr(context, "parent", None)
+            parent_id = str(getattr(parent, "parent_unit_id", "") or "")
+            if (
+                not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id)
+                or not guru_id
+                or not span_id
+                or not speaker_id
+                or not parent_id
+                or str(getattr(parent, "video_id", "")) != video_id
+                or str(getattr(parent, "guru_id", "")) != guru_id
+            ):
+                continue
+            span_ids: list[str] = []
+            span_indices: list[int] = []
+            same_parent_verified_source = True
+            expected_video_url = f"https://www.youtube.com/watch?v={video_id}"
+            for citation in citations:
+                source_span_id = str(citation.get("source_span_id") or "")
+                raw_index = citation.get("source_span_index")
+                if (
+                    not source_span_id
+                    or isinstance(raw_index, bool)
+                    or not isinstance(raw_index, int)
+                    or str(citation.get("video_id") or "") != video_id
+                    or str(citation.get("guru_id") or "") != guru_id
+                    or str(citation.get("teacher_id") or "") != guru_id
+                    or str(citation.get("parent_unit_id") or "") != parent_id
+                    or str(citation.get("speaker_id") or "") != speaker_id
+                    or citation.get("speaker_verified") is not True
+                    or citation.get("speaker_role") != "guru"
+                    or citation.get("video_url") != expected_video_url
+                    or _youtube_video_id_from_url(citation.get("source_url") or citation.get("url"))
+                    != video_id
+                ):
+                    same_parent_verified_source = False
+                    break
+                span_ids.append(source_span_id)
+                span_indices.append(raw_index)
+            if (
+                not same_parent_verified_source
+                or len(set(span_ids)) != len(span_ids)
+                or span_indices != list(range(span_indices[0], span_indices[0] + len(span_indices)))
+            ):
+                continue
+            selection_id = f"{video_id}:{guru_id}:{parent_id}:{span_id}"
+            reconstructed = " ".join(
+                str(citation.get("verbatim_text") or "").strip() for citation in citations
+            )
+            if reconstructed != result.answer_text:
+                continue
+            try:
+                score = float(getattr(context, "score", 0.0))
+            except (TypeError, ValueError, OverflowError):
+                score = 0.0
+            if not np.isfinite(score):
+                score = 0.0
+            score = max(0.0, min(1.0, score))
+            candidates.append(
+                ScoredSpan(
+                    span_id=selection_id,
+                    video_id=video_id,
+                    guru_id=guru_id,
+                    text=result.answer_text,
+                    score=score,
+                    is_direct=result.is_direct_answer,
+                    facet="general",
+                    source=context,
+                )
+            )
+            result_by_span_id[selection_id] = result
+
+        decision = FirstPersonSetSelector().select(
+            query,
+            facets,
+            candidates,
+            max_clips=max(0, int(max_clips)),
+            # Weak matches remain eligible only because the existing harness
+            # already gated them and the UI will mark them as related, not direct.
+            require_direct=False,
+        )
+        selected_results = [
+            result_by_span_id[item.span_id]
+            for item in decision.selected
+            if item.span_id in result_by_span_id
+        ]
+        selection_ms = (time.monotonic() - selection_started) * 1000.0
+        latency = (time.monotonic() - start_time) * 1000.0
+        editorial_set = {
+            "status": decision.status,
+            "primary_intent": facets.primary_intent,
+            "candidate_facets": list(facets.all_facets),
+            "teacher_scope": facets.teacher_scope,
+            "event_scope": facets.event_scope,
+            "facet_coverage": dict(decision.facet_coverage),
+            "reasons": list(decision.reasons),
+            "candidate_contexts": len(candidates),
+            "selected_contexts": len(selected_results),
+            "group_span_counts": [len(result.citations) for result in selected_results],
+            "planner_version": facets.planner_version,
+            "selector_version": decision.selector_version,
+        }
+        stage_timings = {
+            "answerability_ms": max(
+                (
+                    float(result.stage_timings.get("answerability_ms", 0.0))
+                    for _, result in context_results
+                ),
+                default=0.0,
+            ),
+            "retrieval_ms": round(float(retrieval_ms), 2),
+            "editorial_selection_ms": round(selection_ms, 2),
+            "assembly_ms": round(selection_ms, 2),
+            "total_ms": round(latency, 2),
+        }
+        if not selected_results:
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                answerability=answerability,
+                abstain_reason="no_verified_clips",
+                stage_timings=stage_timings,
+                editorial_set=editorial_set,
+            )
+
+        citations = [citation for result in selected_results for citation in result.citations]
+        audio_clips = [clip for result in selected_results for clip in result.audio_playback_clips]
+        answer_text = "\n\n".join(result.answer_text.strip() for result in selected_results)
+        is_direct = (
+            all(result.is_direct_answer for result in selected_results)
+            and decision.status == "supported"
+        )
+        return FirstPersonPipelineResult(
+            answer_text=answer_text,
+            citations=citations,
+            status="success" if is_direct else "weak_match",
+            is_direct_answer=is_direct,
+            latency_ms=latency,
+            answerability=answerability,
+            abstain_reason="none",
+            audio_playback_clip=audio_clips[0] if audio_clips else None,
+            audio_playback_clips=audio_clips,
+            stage_timings=stage_timings,
+            fp_served=bool(citations),
+            editorial_set=editorial_set,
+        )
+
     @staticmethod
     def _build_context_citation(
         span: SourceSpan,
@@ -2262,7 +2517,9 @@ class FirstPersonPipeline:
         playback_start = max(0.0, span.start_ms / 1000.0 - CITATION_PLAYBACK_PAD_S)
         playback_end = span.end_ms / 1000.0 + CITATION_PLAYBACK_PAD_S
         clip_url = span.source_url or f"https://www.youtube.com/watch?v={video_id}&t={start_sec}s"
-        speaker_name = label_for(span.guru_id) or span.speaker_id
+        speaker_name = (
+            label_for(span.speaker_id) if span.speaker_verified is True else "unverified clip"
+        ) or "unverified clip"
         title = f"Discourse by {speaker_name}"
         label = cite_span.label if cite_span else None
         return {
@@ -2274,6 +2531,7 @@ class FirstPersonPipeline:
             "source_span_id": span.source_span_id,
             "source_asset_id": span.source_asset_id,
             "parent_unit_id": span.parent_unit_id,
+            "source_span_index": span.source_span_index,
             "corpus_version": span.corpus_version,
             "video_id": video_id,
             "guru_id": span.guru_id,
@@ -2308,7 +2566,7 @@ class FirstPersonPipeline:
             "playback_end_seconds": round(playback_end, 2),
             "playback_url": f"https://www.youtube.com/watch?v={video_id}&t={int(playback_start)}s",
             "confidence": confidence,
-            "is_verbatim": True,
+            "is_verbatim": span.is_verbatim is True,
             "boundary_status": (
                 span.boundary_status.value
                 if hasattr(span.boundary_status, "value")
@@ -2320,6 +2578,19 @@ class FirstPersonPipeline:
                 else str(span.completeness_status)
             ),
             "rights_cleared": span.rights_cleared,
+            "domain_rights_status": span.domain_rights_status,
+            "first_person_eligible": bool(
+                span.speaker_role is SpeakerRole.GURU
+                and span.speaker_verified is True
+                and span.rights_cleared is True
+                and span.is_verbatim is True
+                and clip_text_hash(span.verbatim_text) == span.source_text_hash
+                and source_is_authoritatively_licensed(
+                    source_url=span.source_url,
+                    video_id=span.video_id,
+                    domain_rights_status=span.domain_rights_status,
+                )
+            ),
             "quality_status": span.quality_status,
             "quarantine_reason": span.quarantine_reason,
             "provenance_kind": (
@@ -2609,6 +2880,9 @@ class FirstPersonPipeline:
                 "boundary_guard": str(bool(self._boundary_guard_enabled)),
                 "content_gate": str(bool(self._content_quality_gate_enabled)),
                 "first_person_evidence_policy": _FIRST_PERSON_EVIDENCE_POLICY_VERSION,
+                "editorial_set_enabled": str(_editorial_set_enabled()),
+                "facet_planner_version": FACET_PLANNER_VERSION,
+                "set_selector_version": SET_SELECTOR_VERSION,
                 "require_speaker_verified": str(
                     bool(getattr(settings, "first_person_require_speaker_verified", False))
                 ),
@@ -2922,6 +3196,11 @@ class FirstPersonPipeline:
                                 "verbatim_text": cit.get("verbatim_text", ""),
                                 "transcript_hash": cit.get("transcript_hash", ""),
                                 "speaker": cit.get("speaker"),
+                                "source_url": cit.get("source_url") or cit.get("video_url"),
+                                "first_person_eligible": cit.get("first_person_eligible"),
+                                "rights_cleared": cit.get("rights_cleared"),
+                                "is_verbatim": cit.get("is_verbatim"),
+                                "domain_rights_status": cit.get("domain_rights_status"),
                             },
                             boundary_guard_enabled=self._boundary_guard_enabled,
                         ):
@@ -3342,8 +3621,10 @@ class FirstPersonPipeline:
         # other cache honours applies here too (2026-10-05). The allowlist and
         # blocklist states are computed once for the whole request so lookup
         # and write below key identically even if a file changes mid-request.
-        cache_bypass = cache_bypass or bool(
-            getattr(settings, "latency_benchmark_cache_disabled", False)
+        cache_bypass = (
+            cache_bypass
+            or _editorial_set_enabled()
+            or bool(getattr(settings, "latency_benchmark_cache_disabled", False))
         )
         request_allow_state = self._allowlist_state()
         request_block_state = self._blocklist_state()
@@ -3391,6 +3672,7 @@ class FirstPersonPipeline:
                 # an abstain / error entry in the cache is not.
                 fp_served=bool(cached_data.get("citations"))
                 and cached_data.get("status") in ("success", "weak_match"),
+                editorial_set=cached_data.get("editorial_set"),
             )
 
         # Step 2b: Compound question decomposition (Tasks F1 & F2)
@@ -3490,6 +3772,68 @@ class FirstPersonPipeline:
         # the public-release NO-GO forbids. Store presence is configuration, not
         # permission.
         harness_enabled = bool(getattr(settings, "first_person_context_harness_enabled", False))
+        editorial_set_enabled = _editorial_set_enabled()
+        editorial_facets = (
+            get_default_planner().plan(retrieval_query or query) if editorial_set_enabled else None
+        )
+        editorial_teacher_id = str(teacher_id).strip().lower() if teacher_id else ""
+        if editorial_teacher_id in {"", "both", "all"}:
+            editorial_teacher_id = None
+        editorial_teacher_id = {
+            "sri krishnaji": "krishnaji",
+            "sri preethaji": "preethaji",
+        }.get(editorial_teacher_id, editorial_teacher_id)
+        if editorial_facets:
+            if editorial_teacher_id:
+                if (
+                    editorial_facets.teacher_scope
+                    and editorial_facets.teacher_scope != editorial_teacher_id
+                ):
+                    latency = (time.monotonic() - start_time) * 1000.0
+                    self._log_and_count(
+                        "abstained",
+                        latency,
+                        0.0,
+                        0,
+                        0,
+                        "no_verified_clips",
+                        sum(fp_llm_tokens),
+                    )
+                    return FirstPersonPipelineResult(
+                        answer_text="No verified first-person discourse found for this question.",
+                        citations=[],
+                        status="abstained",
+                        is_direct_answer=False,
+                        latency_ms=latency,
+                        answerability=None,
+                        abstain_reason="no_verified_clips",
+                        stage_timings={
+                            "total_ms": round(latency, 2),
+                        },
+                        editorial_set={
+                            "status": "insufficient",
+                            "primary_intent": editorial_facets.primary_intent,
+                            "candidate_facets": list(editorial_facets.all_facets),
+                            "teacher_scope": editorial_teacher_id,
+                            "facet_coverage": {
+                                facet: "absent" for facet in editorial_facets.all_facets
+                            },
+                            "reasons": ["teacher_scope_conflict"],
+                            "candidate_contexts": 0,
+                            "selected_contexts": 0,
+                            "planner_version": editorial_facets.planner_version,
+                            "selector_version": SET_SELECTOR_VERSION,
+                        },
+                    )
+                # An explicit caller filter is authoritative. Keep planner,
+                # retrieval and selector scopes identical; never let a name
+                # parsed from query text silently override the chosen teacher.
+                editorial_facets = replace(editorial_facets, teacher_scope=editorial_teacher_id)
+            else:
+                editorial_teacher_id = editorial_facets.teacher_scope
+        harness_candidate_limit = (
+            min(8, max(0, int(max_clips)) * 2) if editorial_set_enabled else max_clips
+        )
         ctx_store = self._get_context_store() if harness_enabled else None
         if ctx_store is not None and query_dense_vector:
             t_ctx_start = time.monotonic()
@@ -3502,8 +3846,8 @@ class FirstPersonPipeline:
                 contexts = ctx_store.retrieve(
                     query_dense=query_dense_vector,
                     query_sparse=query_sparse_vector,
-                    guru_id=teacher_id,
-                    limit_parents=max_clips,
+                    guru_id=editorial_teacher_id,
+                    limit_parents=harness_candidate_limit,
                     spans_per_parent=max_spans,
                 )
                 # Plan T2b + T3: flag-gated enrichment window and graph-guided
@@ -3514,8 +3858,8 @@ class FirstPersonPipeline:
                     query_dense_vector=query_dense_vector,
                     query_sparse_vector=query_sparse_vector,
                     retrieval_query=retrieval_query,
-                    teacher_id=teacher_id,
-                    max_clips=max_clips,
+                    teacher_id=editorial_teacher_id,
+                    max_clips=harness_candidate_limit,
                     max_spans=max_spans,
                 )
             except Exception as exc:
@@ -3642,7 +3986,7 @@ class FirstPersonPipeline:
                     decision = harness.decide(
                         ctx,
                         query=query,
-                        requested_teacher=teacher_id,
+                        requested_teacher=editorial_teacher_id,
                         answerability=ans_str,
                         selected_span_ids=selected_span_ids,
                         retrieval_query=retrieval_query,
@@ -3956,6 +4300,32 @@ class FirstPersonPipeline:
                         ),
                         None,
                     )
+                    if editorial_set_enabled:
+                        _editorial_pairs = [
+                            (contexts[i], context_result)
+                            for i, context_result in enumerate(_ctx_results)
+                            if context_result is not None and i < _lowest_indeterminate_idx
+                        ]
+                        if _editorial_pairs:
+                            _editorial_res = self._build_editorial_set_result(
+                                retrieval_query or query,
+                                _editorial_pairs,
+                                facets=editorial_facets or get_default_planner().plan(query),
+                                max_clips=max_clips,
+                                start_time=start_time,
+                                retrieval_ms=t_ctx_ret_ms,
+                                answerability=public_context_answerability,
+                            )
+                            self._log_and_count(
+                                _editorial_res.status,
+                                _editorial_res.latency_ms,
+                                float(getattr(contexts[0], "score", 1.0) or 1.0),
+                                0,
+                                len(_editorial_res.citations),
+                                _editorial_res.abstain_reason or "none",
+                                sum(fp_llm_tokens),
+                            )
+                            return _editorial_res
                     if _harness_res is not None:
                         if not cache_bypass:
                             self.set_exact_cache(
@@ -4002,6 +4372,7 @@ class FirstPersonPipeline:
                 else:
                     # Sequential path (single context or parallel flag off).
                     # Reuses _eval_ctx_worker to avoid code duplication.
+                    _editorial_pairs_seq: list[tuple[ParentContext, FirstPersonPipelineResult]] = []
                     for ctx in contexts:
                         try:
                             _seq_res, _seq_tokens = _eval_ctx_worker(ctx)
@@ -4009,6 +4380,8 @@ class FirstPersonPipeline:
                             fp_llm_tokens.extend(_seq_tokens)
                         except _HarnessRelevanceIndeterminate as _ird:
                             fp_llm_tokens.extend(_ird.tokens)
+                            if editorial_set_enabled and _editorial_pairs_seq:
+                                break
                             latency = (time.monotonic() - start_time) * 1000.0
                             self._log_and_count(
                                 "abstained",
@@ -4036,6 +4409,9 @@ class FirstPersonPipeline:
                             )
                             continue
                         if _seq_res is not None:
+                            if editorial_set_enabled:
+                                _editorial_pairs_seq.append((ctx, _seq_res))
+                                continue
                             if not cache_bypass:
                                 self.set_exact_cache(
                                     query,
@@ -4055,6 +4431,26 @@ class FirstPersonPipeline:
                                 sum(fp_llm_tokens),
                             )
                             return _seq_res
+                    if editorial_set_enabled and _editorial_pairs_seq:
+                        _editorial_res = self._build_editorial_set_result(
+                            retrieval_query or query,
+                            _editorial_pairs_seq,
+                            facets=editorial_facets or get_default_planner().plan(query),
+                            max_clips=max_clips,
+                            start_time=start_time,
+                            retrieval_ms=t_ctx_ret_ms,
+                            answerability=public_context_answerability,
+                        )
+                        self._log_and_count(
+                            _editorial_res.status,
+                            _editorial_res.latency_ms,
+                            float(getattr(contexts[0], "score", 1.0) or 1.0),
+                            0,
+                            len(_editorial_res.citations),
+                            _editorial_res.abstain_reason or "none",
+                            sum(fp_llm_tokens),
+                        )
+                        return _editorial_res
 
                 logger.info(
                     "[FirstPersonPipeline] Context harness evaluated %d contexts with no direct answer; falling back to legacy",
@@ -4948,17 +5344,9 @@ class FirstPersonPipeline:
                 "start_sec": start_sec,
                 "end_sec": end_sec,
                 "timestamp_seconds": sec,
-                "speaker": (
-                    "Sri Preethaji"
-                    if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower()
-                    == "preethaji"
-                    else (
-                        "Sri Krishnaji"
-                        if str(clip.get("guru_id") or clip.get("teacher_id") or "").lower()
-                        == "krishnaji"
-                        else clip["speaker"]
-                    )
-                ),
+                # Display attribution is copied from the stored, verified clip;
+                # a guru ID is not evidence that the speaker label is correct.
+                "speaker": clip.get("speaker"),
                 "title": clip_title,
                 "url": clip_url,
                 "teacher_id": clip.get("teacher_id"),
@@ -4981,7 +5369,10 @@ class FirstPersonPipeline:
                 "playback_end_seconds": round(playback_end, 2),
                 "playback_url": f"https://www.youtube.com/watch?v={video_id}&t={int(playback_start)}s",
                 "confidence": clip_confidence,
-                "is_verbatim": True,
+                "first_person_eligible": clip.get("first_person_eligible") is True,
+                "rights_cleared": clip.get("rights_cleared") is True,
+                "domain_rights_status": clip.get("domain_rights_status"),
+                "is_verbatim": clip.get("is_verbatim") is True,
                 "provenance_kind": provenance_kind,
                 "caption_status": clip.get("caption_status") or "auto_transcript",
                 **transcript_label(clip["verbatim_text"], clip.get("caption_status")),
@@ -5419,8 +5810,6 @@ class FirstPersonPipeline:
         part_results: list[dict[str, Any]] = []
 
         from services.quote_weaver import (
-            _format_continuous_quote_block,
-            _format_continuous_sources_footer,
             audio_strip_for,
             verify_hero_clip,
         )
@@ -5508,24 +5897,17 @@ class FirstPersonPipeline:
 
         # Assembly (Task F4 / Section 4 continuous layout)
         t_asm_start = time.monotonic()
-        rendered_blocks: list[str] = []
         citations: list[dict[str, Any]] = []
         audio_playback_clips: list[dict[str, Any]] = []
         served_clips: list[dict[str, Any]] = []
 
         for p in part_results:
-            facet = p["facet"]
             clip = p["clip"]
             if clip is not None:
                 hero = verify_hero_clip(clip, sources)
                 if not hero:
-                    rendered_blocks.append(
-                        f"### On {facet}\nI don't have a recording that answers this part yet."
-                    )
                     continue
                 clip_with_hero = {**clip, "_hero": hero}
-                block = _format_continuous_quote_block(clip_with_hero, facet=facet)
-                rendered_blocks.append(block)
                 served_clips.append(clip_with_hero)
 
                 cit = _build_citation_dict(
@@ -5535,10 +5917,6 @@ class FirstPersonPipeline:
                 strip = audio_strip_for(clip, hero)
                 if strip:
                     audio_playback_clips.append(strip)
-            else:
-                rendered_blocks.append(
-                    f"### On {facet}\nI don't have a recording that answers this part yet."
-                )
 
         if not served_clips:
             # Every selected clip failed hero verification: nothing quotable was
@@ -5565,10 +5943,12 @@ class FirstPersonPipeline:
                 stage_timings=stage_timings,
             )
 
-        footer = _format_continuous_sources_footer(served_clips)
-        # "Related, not a direct answer" is signalled via status="weak_match" +
-        # is_direct_answer=False in the result; do not inject it into the text body.
-        final_text = "\n\n".join(rendered_blocks) + (f"\n{footer}" if footer else "")
+        # The evidence body contains source-verbatim text only. Facet headings,
+        # missing-clip filler, and source lists are product/UI metadata, never
+        # attributed to a teacher. Each source clip remains a separate block.
+        final_text = "\n\n".join(
+            str(clip.get("verbatim_text") or "").strip() for clip in served_clips
+        )
 
         stage_timings["assembly_ms"] = round((time.monotonic() - t_asm_start) * 1000.0, 2)
         stage_timings["total_ms"] = round((time.monotonic() - start_time) * 1000.0, 2)

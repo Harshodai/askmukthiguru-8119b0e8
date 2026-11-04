@@ -30,6 +30,19 @@ def _disable_speculative_parallelism(monkeypatch):
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
+
+
 from app.pipeline.stages.first_person_bridge import (
     FirstPersonBridgeStage,
     _eligible_citations,
@@ -64,9 +77,10 @@ _HASH = hashlib.sha256(_TEXT.encode("utf-8")).hexdigest()
 
 
 def _clip(**over):
+    vid = over.get("video_id", "vid_abc")
     base = {
         "point_id": "p1",
-        "video_id": "vid_abc",
+        "video_id": vid,
         "title": "Why we suffer",
         "start_ms": 65000,
         "end_ms": 75000,
@@ -76,8 +90,12 @@ def _clip(**over):
         "transcript_hash": _HASH,
         "verbatim_text": _TEXT,
         "passage_dense": [1.0, 0.0],
-        "source_url": "https://youtube.com/watch?v=vid_abc",
+        "source_url": f"https://www.youtube.com/watch?v={vid}",
         "caption_status": "auto_transcript",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
     base.update(over)
     return base

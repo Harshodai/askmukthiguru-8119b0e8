@@ -40,6 +40,14 @@ from services.first_person_context_selector import parse_selection, select_span_
 TRANSCRIPT_HASH = "b" * 64
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_registry(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_context_harness.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 def _span(
     index: int = 0,
     text: str = "Suffering is a call to awaken.",
@@ -90,6 +98,7 @@ def _span(
         "boundary_status": BoundaryStatus.VERIFIED,
         "completeness_status": CompletenessStatus.COMPLETE,
         "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "caption_status": "auto",
         "provenance_kind": ProvenanceKind.SPEECH_TURN_SPAN,
         "source_url": f"https://www.youtube.com/watch?v={video_id}",

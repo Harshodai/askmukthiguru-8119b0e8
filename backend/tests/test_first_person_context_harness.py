@@ -7,6 +7,8 @@ and audio offsets. Every gate is tested for both sides — pass and abstain.
 
 from __future__ import annotations
 
+import pytest
+
 from domain.first_person_context import (
     _VALIDATED_EDGE_ISSUE_TOKEN,
     AnswerRole,
@@ -33,6 +35,14 @@ from services.first_person_context_harness import (
 TEXT_ONE = "Suffering is a call to awaken."
 TEXT_TWO = "It is not a punishment from existence."
 HASH = "a" * 64
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_registry(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_context_harness.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
 
 def span(n=0, text=None, **overrides):
@@ -80,6 +90,7 @@ def span(n=0, text=None, **overrides):
         "boundary_status": BoundaryStatus.VERIFIED,
         "completeness_status": CompletenessStatus.COMPLETE,
         "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "caption_status": "auto",
         "provenance_kind": ProvenanceKind.SPEECH_TURN_SPAN,
         "source_url": "https://www.youtube.com/watch?v=vidA",
@@ -176,6 +187,29 @@ def test_host_role_never_served_as_guru_voice():
 def test_rights_gate_abstains():
     harness = FirstPersonContextHarness()
     decision = harness.decide(context([span(rights_cleared=False)]), answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "rights_not_cleared"
+
+
+def test_canonical_rights_gate_abstains_when_legacy_boolean_is_true():
+    harness = FirstPersonContextHarness()
+    decision = harness.decide(
+        context([span(rights_cleared=True, domain_rights_status="unverified")]),
+        answerability="yes",
+    )
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "rights_not_cleared"
+
+
+def test_missing_legacy_rights_status_defaults_unverified_and_abstains():
+    payload = span().to_payload()
+    payload.pop("record_type")
+    payload.pop("domain_rights_status")
+    legacy_span = SourceSpan.model_validate(payload)
+
+    decision = FirstPersonContextHarness().decide(context([legacy_span]), answerability="yes")
+
+    assert legacy_span.domain_rights_status == "unverified"
     assert decision.decision is HarnessDecision.ABSTAIN
     assert decision.abstain_reason == "rights_not_cleared"
 
@@ -487,7 +521,7 @@ def test_orphan_first_span_abstains_but_later_pronoun_span_is_fine():
 def test_context_harness_rejects_dangling_question_tail():
     text = (
         "Suffering is a call to awaken. It is a moment of quiet attention that lets us "
-        "observe the mind without choosing and notice its movement carefully. What do you do?"
+        "observe the mind without choosing and notice its movement carefully. But how can we?"
     )
     decision = FirstPersonContextHarness().decide(
         context([span(0, text=text)]), answerability="yes"

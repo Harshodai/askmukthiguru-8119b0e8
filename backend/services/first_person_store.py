@@ -43,6 +43,7 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
+from services.first_person_rights import source_is_authoritatively_licensed
 from services.first_person_video_decisions import video_is_blocked
 from services.qdrant.client import QdrantClientManager
 
@@ -293,12 +294,9 @@ class FirstPersonStore:
         ("quality_status", "keyword"),
         ("first_person_eligible", "bool"),
         ("is_verbatim", "bool"),
-        # Q-rec#1 (2026-10-04): search_hybrid filters rights_cleared==True on
-        # EVERY query (:460-463) and points_servable reads it — it must be
-        # indexed like every other filtered field. Additive, zero recall risk.
-        # Stored values are JSON booleans, so the type must be bool: a keyword
-        # index on a bool payload never fires (live: 0 indexed points).
+        # Rights and lineage fields used by the serving filters.
         ("rights_cleared", "bool"),
+        ("domain_rights_status", "keyword"),
         ("verbatim_text", "text"),
         ("question_text", "text"),
         # I2 context & OKF concept tags (separate from pure passage_dense vector)
@@ -393,6 +391,10 @@ class FirstPersonStore:
             raise ValueError(
                 f"Count mismatch: {n} clips but {len(passage_dense_vectors)} passage dense vectors"
             )
+
+        # Rights are resolved from the curated register at the write boundary;
+        # caller metadata is never accepted as the source of this status.
+        from services.qdrant.indexer import resolve_source_rights_status
 
         points: list[PointStruct] = []
         # Within-batch exact-duplicate guard (audit 2026-10-04 §4 fix #1):
@@ -518,6 +520,11 @@ class FirstPersonStore:
                 if optional_key in clip:
                     payload[optional_key] = clip[optional_key]
 
+            payload["domain_rights_status"] = resolve_source_rights_status(
+                source_url=payload["source_url"],
+                video_id=clip["video_id"],
+            )
+
             points.append(
                 PointStruct(
                     id=point_id,
@@ -587,23 +594,41 @@ class FirstPersonStore:
         return len(points)
 
     def points_servable(self, point_ids: list[str]) -> bool:
-        """True only if every point still exists and still passes the search filter
-        (first_person_eligible, and rights_cleared unless unregistered serving is on)."""
+        """True only if every point still exists and passes the current serve filters."""
         points = self.client.retrieve(
             collection_name=self.collection,
             ids=list(point_ids),
-            with_payload=["first_person_eligible", "rights_cleared", "video_id"],
+            with_payload=[
+                "first_person_eligible",
+                "rights_cleared",
+                "domain_rights_status",
+                "video_id",
+                "source_url",
+                "speaker",
+                "is_verbatim",
+                "verbatim_text",
+            ],
             with_vectors=False,
         )
         if len(points) != len(set(point_ids)):
             return False
-        need_rights = not getattr(settings, "first_person_serve_unregistered", False)
-        return all(
-            (p.payload or {}).get("first_person_eligible") is True
-            and not video_is_blocked((p.payload or {}).get("video_id"))
-            and (not need_rights or (p.payload or {}).get("rights_cleared") is True)
-            for p in points
-        )
+        for point in points:
+            payload = point.payload or {}
+            if (
+                payload.get("first_person_eligible") is not True
+                or payload.get("rights_cleared") is not True
+                or payload.get("is_verbatim") is not True
+                or not str(payload.get("verbatim_text") or "").strip()
+                or payload.get("speaker") not in ALLOWED_SPEAKERS
+                or not source_is_authoritatively_licensed(
+                    source_url=payload.get("source_url"),
+                    video_id=payload.get("video_id"),
+                    domain_rights_status=payload.get("domain_rights_status"),
+                )
+                or video_is_blocked(payload.get("video_id"))
+            ):
+                return False
+        return True
 
     def search_hybrid(
         self,
@@ -618,15 +643,12 @@ class FirstPersonStore:
         RRF hybrid search over passage_dense + passage_sparse (bake-off B.R0).
         Returns up to dedup_limit clips, max 1 per video_id (or up to 2 if distinct spans allowed).
         """
-        # Build filter: only first_person_eligible (and, by default,
-        # rights_cleared) points, optionally scoped to one teacher.
         must_conditions: list[FieldCondition] = [
-            FieldCondition(key="first_person_eligible", match=MatchValue(value=True))
+            FieldCondition(key="first_person_eligible", match=MatchValue(value=True)),
+            FieldCondition(key="rights_cleared", match=MatchValue(value=True)),
+            FieldCondition(key="is_verbatim", match=MatchValue(value=True)),
+            FieldCondition(key="domain_rights_status", match=MatchValue(value="licensed")),
         ]
-        if not getattr(settings, "first_person_serve_unregistered", False):
-            must_conditions.append(
-                FieldCondition(key="rights_cleared", match=MatchValue(value=True))
-            )
         if teacher_id and teacher_id.lower() not in ("both", "all", ""):
             must_conditions.append(
                 FieldCondition(key="teacher_id", match=MatchValue(value=teacher_id.lower()))
@@ -681,6 +703,20 @@ class FirstPersonStore:
         formatted: list[dict[str, Any]] = []
         for p in results.points:
             item = dict(p.payload or {})
+            if (
+                item.get("first_person_eligible") is not True
+                or item.get("rights_cleared") is not True
+                or item.get("is_verbatim") is not True
+                or not str(item.get("verbatim_text") or "").strip()
+                or item.get("speaker") not in ALLOWED_SPEAKERS
+                or not source_is_authoritatively_licensed(
+                    source_url=item.get("source_url"),
+                    video_id=item.get("video_id"),
+                    domain_rights_status=item.get("domain_rights_status"),
+                )
+                or video_is_blocked(item.get("video_id"))
+            ):
+                continue
             item["point_id"] = str(p.id)
             item["score"] = float(p.score) if p.score is not None else 0.0
             raw_vector = getattr(p, "vector", None)
@@ -730,15 +766,12 @@ class FirstPersonStore:
         canonical = canonical_video_id(str(video_id or ""))
         if not canonical:
             return None
-        # Same serving filter as search_hybrid: only first_person_eligible
-        # (and, by default, rights_cleared) points are ever returned.
         must_conditions: list[FieldCondition] = [
-            FieldCondition(key="first_person_eligible", match=MatchValue(value=True))
+            FieldCondition(key="first_person_eligible", match=MatchValue(value=True)),
+            FieldCondition(key="rights_cleared", match=MatchValue(value=True)),
+            FieldCondition(key="is_verbatim", match=MatchValue(value=True)),
+            FieldCondition(key="domain_rights_status", match=MatchValue(value="licensed")),
         ]
-        if not getattr(settings, "first_person_serve_unregistered", False):
-            must_conditions.append(
-                FieldCondition(key="rights_cleared", match=MatchValue(value=True))
-            )
         scroll_filter = Filter(
             must=[
                 *must_conditions,
@@ -765,6 +798,20 @@ class FirstPersonStore:
         best_key: Optional[tuple[int, int, int]] = None
         for point in points or []:
             payload = dict(getattr(point, "payload", None) or {})
+            if (
+                payload.get("first_person_eligible") is not True
+                or payload.get("rights_cleared") is not True
+                or payload.get("is_verbatim") is not True
+                or not str(payload.get("verbatim_text") or "").strip()
+                or payload.get("speaker") not in ALLOWED_SPEAKERS
+                or not source_is_authoritatively_licensed(
+                    source_url=payload.get("source_url"),
+                    video_id=payload.get("video_id"),
+                    domain_rights_status=payload.get("domain_rights_status"),
+                )
+                or video_is_blocked(payload.get("video_id"))
+            ):
+                continue
             try:
                 start_ms = int(payload.get("start_ms"))
             except (TypeError, ValueError):
@@ -793,12 +840,12 @@ class FirstPersonStore:
         """Look up a context-collection clip by exact video and nearby start.
 
         This is the explicit service boundary for the personalize fallback when
-        the configured legacy clip collection has no match. Context records do
-        not necessarily carry the legacy eligibility/rights payload fields, so
-        this deliberately preserves the fallback's narrower filter and adapts
-        the stored payload into the clip shape consumed by the serving gate.
-        ``None`` means no matching context clip; Qdrant errors are allowed to
-        propagate to the caller's infrastructure-decline path.
+        the configured legacy clip collection has no match. Context records must
+        carry their own canonical rights stamp, legacy clearance, verified guru
+        speaker, verbatim text and valid source coordinates; missing metadata
+        means no fallback clip. A display speaker is never synthesized from a
+        guru id. Qdrant errors propagate to the caller's infrastructure-decline
+        path.
         """
         if not str(collection or "").strip():
             return None
@@ -820,6 +867,18 @@ class FirstPersonStore:
             return None
         scroll_filter = Filter(
             must=[
+                FieldCondition(
+                    key="record_type",
+                    match=MatchValue(value="retrieval_child"),
+                ),
+                FieldCondition(key="rights_cleared", match=MatchValue(value=True)),
+                FieldCondition(key="speaker_verified", match=MatchValue(value=True)),
+                FieldCondition(key="speaker_role", match=MatchValue(value="guru")),
+                FieldCondition(key="is_verbatim", match=MatchValue(value=True)),
+                FieldCondition(
+                    key="domain_rights_status",
+                    match=MatchValue(value="licensed"),
+                ),
                 FieldCondition(key="video_id", match=MatchValue(value=canonical)),
                 FieldCondition(
                     key="start_ms",
@@ -841,21 +900,57 @@ class FirstPersonStore:
         candidates: list[tuple[int, dict[str, Any]]] = []
         for point in points or []:
             payload = dict(getattr(point, "payload", None) or {})
-            verbatim_text = payload.get("verbatim_text")
-            if not verbatim_text:
+            verbatim_text = str(payload.get("verbatim_text") or "").strip()
+            speaker = payload.get("speaker")
+            if not speaker:
+                if (
+                    str(payload.get("guru_id") or payload.get("teacher_id") or "").lower()
+                    == "preethaji"
+                ):
+                    speaker = "Sri Preethaji"
+                elif (
+                    str(payload.get("guru_id") or payload.get("teacher_id") or "").lower()
+                    == "krishnaji"
+                ):
+                    speaker = "Sri Krishnaji"
+            payload["speaker"] = speaker
+            if (
+                payload.get("record_type") != "retrieval_child"
+                or payload.get("rights_cleared") is not True
+                or payload.get("speaker_verified") is not True
+                or payload.get("speaker_role") != "guru"
+                or payload.get("is_verbatim") is not True
+                or payload.get("speaker") not in ALLOWED_SPEAKERS
+                or not verbatim_text
+                or payload.get("quality_status") == "quarantined"
+                or payload.get("quarantine_reason")
+                or not source_is_authoritatively_licensed(
+                    source_url=payload.get("source_url"),
+                    video_id=payload.get("video_id"),
+                    domain_rights_status=payload.get("domain_rights_status"),
+                )
+                or video_is_blocked(payload.get("video_id"))
+            ):
+                continue
+            text_hash = payload.get("source_text_hash") or payload.get("transcript_hash")
+            if text_hash and text_hash != hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest():
+                continue
+            if (
+                payload.get("boundary_status") == "uncertain"
+                or payload.get("completeness_status") == "incomplete"
+            ):
                 continue
             try:
                 start_ms = int(payload.get("start_ms"))
+                end_ms = int(payload.get("end_ms"))
             except (TypeError, ValueError):
+                continue
+            if start_ms < 0 or end_ms <= start_ms:
                 continue
             diff_ms = abs(start_ms - target_ms)
             if diff_ms > tolerance_ms:
                 continue
             payload["point_id"] = str(getattr(point, "id", payload.get("point_id", "")))
-            if not payload.get("speaker"):
-                payload["speaker"] = (
-                    "Sri Preethaji" if payload.get("guru_id") == "preethaji" else "Sri Krishnaji"
-                )
             payload["transcript_hash"] = hashlib.sha256(
                 str(verbatim_text).encode("utf-8")
             ).hexdigest()

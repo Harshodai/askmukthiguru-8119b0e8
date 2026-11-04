@@ -3,10 +3,21 @@
 2. UT-04 / UT-05: Spans with guru_id/teacher_id map strictly to single-teacher display labels.
 """
 
+import pytest
+
 from app.config import settings
 from app.pipeline.stages.first_person_bridge import _eligible_citations
 from services.quote_fidelity import canonical_speaker
 from services.quote_weaver import _stored_label
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    """Synthetic citations model a licensed source without reading the live register."""
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
 
 def test_unverified_citation_is_dropped_when_verification_required(monkeypatch):
@@ -19,6 +30,9 @@ def test_unverified_citation_is_dropped_when_verification_required(monkeypatch):
         "speaker": "Sri Preethaji",
         "speaker_verified": False,
         "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",  # synthetic unit fixture only
     }
     verified_citation = {
         "source_url": "https://www.youtube.com/watch?v=vid123&t=20s",
@@ -26,6 +40,9 @@ def test_unverified_citation_is_dropped_when_verification_required(monkeypatch):
         "speaker": "Sri Preethaji",
         "speaker_verified": True,
         "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",  # synthetic unit fixture only
     }
 
     result = _eligible_citations([unverified_citation, verified_citation])

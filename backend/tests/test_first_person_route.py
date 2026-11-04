@@ -297,3 +297,57 @@ def test_query_translation_timeout_embeds_raw_question(monkeypatch):
     )
     assert resp.status_code == 200
     embedding.encode_single_full_async.assert_called_once_with(_HI_QUERY + " (timeout)")
+
+
+def test_direct_route_projects_only_bounded_editorial_metadata():
+    mock_embedding = create_autospec(EmbeddingService, instance=True)
+
+    async def _encode(_text):
+        return {"dense": [0.1] * 1024, "sparse": {}}
+
+    mock_embedding.encode_single_full_async.side_effect = _encode
+
+    class _FakeContainer:
+        embedding = mock_embedding
+        guardrails = _PassRail()
+
+    app.dependency_overrides[get_container_async] = lambda: _FakeContainer()
+    unsafe_editorial = {
+        "status": "partial",
+        "primary_intent": "definition",
+        "candidate_facets": ["definition", "unregistered"],
+        "teacher_scope": "preethaji",
+        "facet_coverage": {"definition": "direct", "unregistered": "direct"},
+        "candidate_contexts": 99,
+        "selected_contexts": 99,
+        "planner_version": "attacker-version",
+        "selector_version": "attacker-version",
+        "reasons": ["private-reason"],
+        "group_span_counts": [99],
+        "source_ids": ["private-source-id"],
+        "event_scope": "private-event-name",
+    }
+    try:
+        with patch("app.api.first_person.FirstPersonPipeline") as mock_pipeline_cls:
+            mock_pipeline_cls.return_value.execute.return_value = FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=1.0,
+                editorial_set=unsafe_editorial,
+            )
+            response = client.post(
+                "/api/first-person/query",
+                json={"query": "What is love?", "teacher_id": "both"},
+            )
+        assert response.status_code == 200
+        editorial = response.json()["editorial_set"]
+        assert editorial["candidate_contexts"] == 8
+        assert editorial["selected_contexts"] == 5
+        assert editorial["candidate_facets"] == ["definition"]
+        assert editorial["facet_coverage"] == {"definition": "direct"}
+        assert editorial["selector_version"] == "first_person_set_selector_v3"
+        assert not {"reasons", "group_span_counts", "source_ids", "event_scope"} & set(editorial)
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)

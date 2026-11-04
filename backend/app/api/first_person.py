@@ -23,6 +23,7 @@ from app.language_utils import guardrail_text_for
 from app.orchestrator_utils import _translate_cached
 from services.auth_service import require_aal2, require_admin
 from services.first_person_pipeline import FirstPersonPipeline
+from services.first_person_public_projection import public_editorial_set_metadata
 from services.first_person_store import FirstPersonStore
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,7 @@ class FirstPersonQueryResponse(BaseModel):
     related_clips_heading: Optional[str] = None
     practice_recommendation: Optional[dict[str, Any]] = None
     stage_timings: dict[str, float] = Field(default_factory=dict)
+    editorial_set: Optional[dict[str, Any]] = None
 
 
 def _build_redis_client() -> Optional[redis.Redis]:
@@ -371,6 +373,8 @@ async def query_first_person_teaching(
         raise HTTPException(status_code=503, detail="First-person retrieval unavailable")
 
     payload = result.to_dict()
+    if payload.get("editorial_set") is not None:
+        payload["editorial_set"] = public_editorial_set_metadata(payload["editorial_set"])
     if payload.get("citations") and not await _output_rail_passes(container, result.answer_text):
         # Same output rail the chat bridge applies before serving a clip. A
         # blocked, missing or crashing rail abstains: no clip is served unchecked.

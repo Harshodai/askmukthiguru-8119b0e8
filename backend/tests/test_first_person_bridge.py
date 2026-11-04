@@ -50,11 +50,7 @@ _CLIP_TEXT = (
 # Invariant 1 (answer text is evidence): the served body is the verbatim quote
 # plus its attribution — the "related clips" pointer, the section heading and the
 # reflection questions ride route metadata, never the body.
-_ANSWER = (
-    "**Sri Preethaji** · [The Nature of Consciousness]"
-    "(https://www.youtube.com/watch?v=abc123&t=99s)\n\n"
-    f"{_CLIP_TEXT}"
-)
+_ANSWER = _CLIP_TEXT
 _RELATED_HEADING = "Related, not a direct answer"
 _REFLECTION_QUESTIONS = (
     "*Where does resistance show up in the body right now?*\n\n"
@@ -109,6 +105,9 @@ def _clip_citation(**overrides) -> dict:
         "playback_url": "https://www.youtube.com/watch?v=abc123&t=98s",
         "confidence": 0.71,
         "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "provenance_kind": "speech_turn_clip",
         "caption_status": "auto_transcript",
     }
@@ -124,6 +123,7 @@ def _fp_result(
     is_direct: bool = True,
     related_clips_heading: str | None = None,
     atma_vichara_inquiry: str | None = None,
+    editorial_set: dict | None = None,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         answer_text=answer,
@@ -135,6 +135,7 @@ def _fp_result(
         error=None,
         related_clips_heading=related_clips_heading,
         atma_vichara_inquiry=atma_vichara_inquiry,
+        editorial_set=editorial_set,
     )
 
 
@@ -184,6 +185,11 @@ def _bridge_gates(monkeypatch):
     # Most bridge tests exercise the explicit first-person-only rollback path;
     # production default behavior is pinned separately below.
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    monkeypatch.setattr(
+        bridge_module,
+        "source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
     _TRANSLATION_CACHE.clear()
 
 
@@ -209,8 +215,8 @@ def test_stage_documents_the_chat_corpus_exclusion_rule():
 
 
 @pytest.mark.asyncio
-async def test_non_clip_citations_are_dropped_at_the_bridge(fp_pipeline):
-    """A chat-corpus chunk or OKF summary cannot ride along as teacher voice."""
+async def test_mixed_clip_and_non_clip_citations_abstain_all_or_nothing(fp_pipeline):
+    """Dropping any source cannot leave its quote in an uncited answer body."""
     chat_chunk = {
         "source_url": "https://example.com/chunk-1",
         "text_snippet": "machine rewritten corpus text",
@@ -228,8 +234,9 @@ async def test_non_clip_citations_are_dropped_at_the_bridge(fp_pipeline):
     result = await FirstPersonBridgeStage().run(_ctx(_container()))
 
     assert result is not None
-    assert [c["video_id"] for c in result.citations] == ["abc123"]
-    assert all(c["is_verbatim"] is True for c in result.citations)
+    assert result.route_decision == "first_person_abstain"
+    assert result.citations == []
+    assert _CLIP_TEXT not in result.final_answer
 
 
 @pytest.mark.asyncio
@@ -248,14 +255,34 @@ async def test_answer_with_only_chat_or_okf_citations_is_not_served(fp_pipeline)
     assert "rewritten" not in result.final_answer
 
 
+@pytest.mark.parametrize("domain_rights_status", [None, "unverified", "revoked"])
+@pytest.mark.asyncio
+async def test_nonlicensed_or_missing_canonical_rights_abstains_all_or_nothing(
+    fp_pipeline, domain_rights_status
+):
+    citation = _clip_citation()
+    if domain_rights_status is None:
+        citation.pop("domain_rights_status")
+    else:
+        citation["domain_rights_status"] = domain_rights_status
+    fp_pipeline.execute.return_value = _fp_result(citations=[citation])
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    assert result.citations == []
+    assert _CLIP_TEXT not in result.final_answer
+
+
 # ---------------------------------------------------------------------------
 # Sub-task 2 — verbatim-only assembly (zero generation)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_assembled_answer_is_served_byte_identical(fp_pipeline):
-    """The pipeline's assertion-gated text passes through untouched."""
+async def test_assembled_answer_is_source_verbatim_only(fp_pipeline):
+    """The bridge removes renderer prose and serves only cited source words."""
     result = await FirstPersonBridgeStage().run(_ctx(_container()))
 
     assert result is not None
@@ -265,8 +292,53 @@ async def test_assembled_answer_is_served_byte_identical(fp_pipeline):
     assert result.model_provider is None
     assert result.verification["method"] == "first_person_verbatim_clip_gate"
     assert result.verification["passed"] is True
+    assert result.verification["citation_integrity_verified"] is True
+    assert result.verification["evidence_set_supported"] is True
     assert result.citations_verified is True
     assert result.faithfulness_score is None  # not computed — never fabricated
+
+
+@pytest.mark.asyncio
+async def test_editorial_set_verification_is_bounded_and_survives_chat_serialization(fp_pipeline):
+    fp_pipeline.execute.return_value = _fp_result(
+        editorial_set={
+            "status": "partial",
+            "primary_intent": "definition",
+            "candidate_facets": ["experience", "connection", "not_a_real_facet"],
+            "teacher_scope": "both",
+            "facet_coverage": {
+                "definition": "direct",
+                "experience": "absent",
+                "not_a_real_facet": "direct",
+            },
+            "candidate_contexts": 99,
+            "selected_contexts": 99,
+            "query": "private query must not be projected",
+            "source_span_ids": ["private-source-id"],
+        }
+    )
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result is not None
+    summary = result.verification["editorial_set"]
+    assert summary == {
+        "status": "partial",
+        "primary_intent": "definition",
+        "candidate_facets": ["experience", "connection"],
+        "teacher_scope": None,
+        "facet_coverage": {"definition": "direct", "experience": "absent"},
+        "candidate_contexts": 8,
+        "selected_contexts": 5,
+        "planner_version": "first_person_facets_v1",
+        "selector_version": "first_person_set_selector_v3",
+    }
+    assert "query" not in summary
+    assert "source_span_ids" not in summary
+    assert result.verification["passed"] is False
+    assert result.verification["citation_integrity_verified"] is True
+    assert result.verification["evidence_set_supported"] is False
+    assert result.to_chat_response()["verification"]["editorial_set"] == summary
 
 
 def test_stage_contains_no_text_generation_call():
@@ -404,8 +476,10 @@ async def test_glue_translation_timeout_fails_open_with_quotes_intact(fp_pipelin
     result = await FirstPersonBridgeStage().run(_ctx(container, lang="hi", is_indic=True))
 
     assert result is not None
-    assert _CLIP_TEXT in result.final_answer
-    assert "**Sri Preethaji**" in result.final_answer
+    assert result.final_answer == _CLIP_TEXT
+    assert result.citations[0]["speaker"] == "Sri Preethaji"
+    assert result.citations[0]["is_verbatim"] is True
+    assert result.citations[0]["rights_cleared"] is True
 
 
 @pytest.mark.asyncio
@@ -1601,3 +1675,41 @@ async def test_turn_the_distress_llm_could_not_check_carries_the_support_line(
 
     assert result is not None
     assert ensure_support_line("") in result.route_metadata["safety_notices"]
+
+
+@pytest.mark.asyncio
+async def test_bridge_refuses_editorial_answer_missing_any_cited_quote(fp_pipeline):
+    second_text = "A distinct source sentence that must also appear verbatim."
+    second = _clip_citation(
+        point_id="abc123@130s",
+        start_ms=130_000,
+        end_ms=160_000,
+        timestamp_seconds=130,
+        verbatim_text=second_text,
+        text_snippet=second_text,
+        source_url="https://www.youtube.com/watch?v=abc123&t=130s",
+        playback_url="https://www.youtube.com/watch?v=abc123&t=129s",
+    )
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=_CLIP_TEXT,
+        citations=[_clip_citation(), second],
+    )
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    assert result.citations == []
+
+
+@pytest.mark.asyncio
+async def test_bridge_refuses_citation_without_authoritative_rights_stamp(fp_pipeline):
+    fp_pipeline.execute.return_value = _fp_result(
+        citations=[_clip_citation(rights_cleared=False)],
+    )
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    assert result.citations == []

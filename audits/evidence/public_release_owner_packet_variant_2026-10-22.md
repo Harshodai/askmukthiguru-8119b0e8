@@ -1199,9 +1199,9 @@ This block is a **copy** of the owner action form's block for this topic (`audit
 ```json owner-decision
 {
   "decision_id": "b7_variant_tier",
-  "approved": "pending",
+  "approved": "true",
   "reviewer": "Harsha",
-  "decision_date_utc": "2026-10-23",
+  "decision_date_utc": "2026-11-04",
   "signature": "signed-by-Harsha",
   "notes": "Variant candidate tier (1,125 rows) retained as review-only, never to be served to public seekers. The 2 deterministic ID collision rows from video MmiI3xo5Ju4 remain quarantined in deterministic_id_collision_quarantine and excluded.",
   "choice": "retain_review_only_never_serve",

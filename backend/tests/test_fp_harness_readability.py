@@ -10,6 +10,8 @@ Pins:
 
 from __future__ import annotations
 
+import pytest
+
 from app.config import settings
 from domain.first_person_context import (
     AnswerRole,
@@ -28,6 +30,14 @@ from services.first_person_context_harness import (
     HarnessPolicy,
     _span_starts_with_antecedent,
 )
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_registry(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_context_harness.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
 
 def _make_span(
@@ -84,6 +94,7 @@ def _make_span(
         boundary_status=BoundaryStatus.VERIFIED,
         completeness_status=completeness_status,
         rights_cleared=True,
+        domain_rights_status="licensed",
         caption_status="auto",
         provenance_kind=ProvenanceKind.SPEECH_TURN_SPAN,
         answer_role=answer_role,

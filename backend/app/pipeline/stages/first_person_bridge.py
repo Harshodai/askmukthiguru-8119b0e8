@@ -52,6 +52,10 @@ from rag.resolve_followup import (
     _is_heuristic_followup,
     names_new_topic,
 )
+from services.first_person_public_projection import (
+    public_editorial_set_metadata as _public_editorial_set_metadata,
+)
+from services.first_person_rights import source_is_authoritatively_licensed
 from services.user_profile_service import _is_persistable_user_id
 
 if TYPE_CHECKING:
@@ -87,6 +91,7 @@ _SYNTHESIS_SHAPE_RE = re.compile(
     r"|\?[^?]+\?",
     re.IGNORECASE,
 )
+
 
 # Strong references to in-flight memory writes to prevent garbage collection before execution
 _FP_MEMORY_WRITE_TASKS: set[asyncio.Task] = set()
@@ -425,8 +430,24 @@ def _eligible_citations(citations: object) -> list[dict]:
             continue
         if citation.get("is_verbatim") is not True:
             continue
+        if citation.get("domain_rights_status") != "licensed":
+            logger.info("[FirstPersonBridge] Dropping citation without canonical licensed status.")
+            continue
+        if citation.get("rights_cleared") is not True:
+            logger.info("[FirstPersonBridge] Dropping citation without rights clearance.")
+            continue
+        if citation.get("first_person_eligible") is not True:
+            logger.info("[FirstPersonBridge] Dropping citation not marked first-person eligible.")
+            continue
         url = str(citation.get("source_url") or citation.get("url") or "")
         if not url.startswith(("http://", "https://")):
+            continue
+        if not source_is_authoritatively_licensed(
+            source_url=url,
+            video_id=citation.get("video_id"),
+            domain_rights_status=citation.get("domain_rights_status"),
+        ):
+            logger.info("[FirstPersonBridge] Dropping citation not licensed in current register.")
             continue
         if not str(citation.get("verbatim_text") or "").strip():
             continue
@@ -904,9 +925,15 @@ class FirstPersonBridgeStage(Stage):
             )
             return None
 
-        citations = _eligible_citations(getattr(result, "citations", None))
+        raw_citations = getattr(result, "citations", None)
+        citations = _eligible_citations(raw_citations)
         answer = str(getattr(result, "answer_text", "") or "").strip()
-        if not answer or not citations:
+        if (
+            not isinstance(raw_citations, list)
+            or len(citations) != len(raw_citations)
+            or not answer
+            or not citations
+        ):
             logger.debug("[FirstPersonBridge] No servable verbatim answer; declining.")
             return await self._decline(
                 ctx, status, boundaries, compassion=distress_compassion, related=related
@@ -921,12 +948,18 @@ class FirstPersonBridgeStage(Stage):
             for c in citations
             if str(c.get("verbatim_text") or "").strip()
         ]
-        if not any(quote in answer for quote in verbatim_quotes):
+        if not verbatim_quotes or any(quote not in answer for quote in verbatim_quotes):
             logger.warning(
                 "[FirstPersonBridge] Answer text does not contain its cited clip text; "
                 "refusing to serve it as teacher voice."
             )
             return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
+
+        # Pipeline renderers may include headings, missing-clip prose, or a source
+        # footer. Those are UI structure, not guru speech. Rebuild from every
+        # eligible citation in source order as discrete exact quote blocks; the
+        # citation cards carry speaker/source attribution.
+        answer = "\n\n".join(verbatim_quotes)
 
         # Sub-task 4 (quote preservation): this answer never reaches
         # format_final_answer / _unquote_unverifiable_spans (the bridge
@@ -1105,6 +1138,24 @@ class FirstPersonBridgeStage(Stage):
             float(getattr(result, "latency_ms", 0.0) or 0.0),
             bool(getattr(result, "cached", False)),
         )
+        editorial_set = _public_editorial_set_metadata(getattr(result, "editorial_set", None))
+        evidence_set_supported = (
+            editorial_set.get("status") == "supported" if editorial_set is not None else is_direct
+        )
+        verification = {
+            # Citation integrity and answer/set support are independent facts:
+            # every quote can be authentic even when the evidence set is partial
+            # or conflicting and therefore cannot be certified as a direct answer.
+            "passed": bool(is_direct and evidence_set_supported),
+            "method": "first_person_verbatim_clip_gate",
+            "citations_verified": True,
+            "citation_integrity_verified": True,
+            "evidence_set_supported": evidence_set_supported,
+            # False = weak_match served under the "Related, not a direct answer" label.
+            "direct": is_direct,
+        }
+        if editorial_set is not None:
+            verification["editorial_set"] = editorial_set
         # Dispatches consented canonical memory and outbox persistence asynchronously
         _dispatch_fp_memory(ctx, answer, citations)
         return PipelineResult(
@@ -1125,13 +1176,7 @@ class FirstPersonBridgeStage(Stage):
             # Every citation is a sha256 + voice-census verified clip from the
             # first-person collection; `speaker` is named for that reason only.
             citations_verified=True,
-            verification={
-                "passed": True,
-                "method": "first_person_verbatim_clip_gate",
-                "citations_verified": True,
-                # False = weak_match served under the "Related, not a direct answer" label.
-                "direct": is_direct,
-            },
+            verification=verification,
             release_manifest=get_release_manifest().to_dict(),
             route_metadata={
                 "requested_variant": "first_person",

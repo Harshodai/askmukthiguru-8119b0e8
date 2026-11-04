@@ -48,6 +48,7 @@ from domain.speaker_provenance import (
     speaker_write_violations,
 )
 from ingest.verbatim.boundaries import boundary_defects
+from services.first_person_rights import source_is_authoritatively_licensed
 from services.first_person_video_decisions import blocked_video_ids_or_none, video_is_blocked
 from services.text_quality_filter import find_artifact
 
@@ -59,6 +60,7 @@ RECORD_TYPE_PARENT = "parent_unit"
 _SERVABILITY_PAYLOAD_KEYS: tuple[str, ...] = (
     "record_type",
     "rights_cleared",
+    "domain_rights_status",
     "speaker_role",
     "speaker_verified",
     "video_id",
@@ -141,6 +143,7 @@ SPAN_INDEXES: tuple[tuple[str, str], ...] = (
     ("speaker_role", "keyword"),
     ("speaker_verified", "bool"),
     ("rights_cleared", "bool"),
+    ("domain_rights_status", "keyword"),
     ("is_verbatim", "bool"),
     ("boundary_status", "keyword"),
     ("completeness_status", "keyword"),
@@ -363,14 +366,24 @@ class FirstPersonContextStore:
             self._assert_belongs(parent, span)
             self._assert_verified_has_method(span)
 
-        points = [
-            PointStruct(
-                id=point_id_for_record(span.source_span_id),
-                vector=(vectors.get(span.source_span_id, {}) if vectors else {}),
-                payload=span.to_payload(),
+        # Stamp canonical rights from the curated register; a SourceSpan's
+        # caller-provided status is descriptive input, never the authority.
+        from services.qdrant.indexer import resolve_source_rights_status
+
+        points: list[PointStruct] = []
+        for span in span_list:
+            payload = span.to_payload()
+            payload["domain_rights_status"] = resolve_source_rights_status(
+                source_url=span.source_url,
+                video_id=span.video_id,
             )
-            for span in span_list
-        ]
+            points.append(
+                PointStruct(
+                    id=point_id_for_record(span.source_span_id),
+                    vector=(vectors.get(span.source_span_id, {}) if vectors else {}),
+                    payload=payload,
+                )
+            )
         points.append(
             PointStruct(
                 id=parent_point_id(parent.parent_unit_id),
@@ -444,6 +457,7 @@ class FirstPersonContextStore:
         conditions = [
             FieldCondition(key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)),
             FieldCondition(key="rights_cleared", match=MatchValue(value=True)),
+            FieldCondition(key="domain_rights_status", match=MatchValue(value="licensed")),
             FieldCondition(key="speaker_verified", match=MatchValue(value=True)),
         ]
         if guru_id and guru_id.lower() not in ("both", "all", ""):
@@ -484,7 +498,20 @@ class FirstPersonContextStore:
         contexts: list[ParentContext] = []
         for parent_unit_id, hits, score in groups:
             try:
-                contexts.append(self.fetch_parent_context(parent_unit_id, hits, score))
+                context = self.fetch_parent_context(parent_unit_id, hits, score)
+                hit_ids = set(hits)
+                hit_spans = [span for span in context.spans if span.source_span_id in hit_ids]
+                if not hit_spans or any(
+                    span.rights_cleared is not True
+                    or not source_is_authoritatively_licensed(
+                        source_url=span.source_url,
+                        video_id=span.video_id,
+                        domain_rights_status=span.domain_rights_status,
+                    )
+                    for span in context.spans
+                ):
+                    continue
+                contexts.append(context)
             except FirstPersonContextStoreError:
                 logger.warning("[ContextStore] dropping invalid parent context")
         return contexts
@@ -1000,6 +1027,11 @@ class FirstPersonContextStore:
             span.speaker_role is not SpeakerRole.GURU
             or span.speaker_verified is not True
             or span.rights_cleared is not True
+            or not source_is_authoritatively_licensed(
+                source_url=span.source_url,
+                video_id=span.video_id,
+                domain_rights_status=span.domain_rights_status,
+            )
             or span.is_verbatim is not True
             or span.boundary_status is BoundaryStatus.UNCERTAIN
         ):
@@ -1153,6 +1185,11 @@ class FirstPersonContextStore:
                 span.speaker_role is not SpeakerRole.GURU
                 or span.speaker_verified is not True
                 or span.rights_cleared is not True
+                or not source_is_authoritatively_licensed(
+                    source_url=span.source_url,
+                    video_id=span.video_id,
+                    domain_rights_status=span.domain_rights_status,
+                )
                 or not span.video_id
                 or self._span_is_quarantined(span)
                 or video_is_blocked(span.video_id)
@@ -1188,12 +1225,12 @@ class FirstPersonContextStore:
             return False
         unique = list(dict.fromkeys(str(pid) for pid in point_ids))
         if expected_evidence is not None:
-            return (
-                self.fresh_spans_for_citations(
-                    unique,
-                    expected_evidence=expected_evidence,
-                )
-                is not None
+            fresh_spans = self.fresh_spans_for_citations(
+                unique,
+                expected_evidence=expected_evidence,
+            )
+            return fresh_spans is not None and all(
+                not video_is_blocked(span.video_id) for span in fresh_spans
             )
         records = self._client.retrieve(
             collection_name=self._collection,
@@ -1217,6 +1254,14 @@ class FirstPersonContextStore:
             if payload.get("speaker_verified") is not True:
                 return False
             if payload.get("rights_cleared") is not True:
+                return False
+            if payload.get("domain_rights_status") != "licensed":
+                return False
+            if not source_is_authoritatively_licensed(
+                source_url=payload.get("source_url"),
+                video_id=payload.get("video_id"),
+                domain_rights_status=payload.get("domain_rights_status"),
+            ):
                 return False
             if not payload.get("video_id"):
                 return False
@@ -1264,6 +1309,7 @@ class FirstPersonContextStore:
             ("boundary_status", span.boundary_status.value),
             ("completeness_status", span.completeness_status.value),
             ("rights_cleared", span.rights_cleared),
+            ("domain_rights_status", span.domain_rights_status),
             ("quality_status", span.quality_status),
             ("quarantine_reason", span.quarantine_reason),
             ("source_url", span.source_url),

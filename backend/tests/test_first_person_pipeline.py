@@ -43,6 +43,10 @@ def _clip(**overrides):
         "verbatim_text": GOOD_TEXT,
         "passage_dense": [1.0, 0.0],
         "source_url": "https://youtube.com/watch?v=vid_abc",
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+        "is_verbatim": True,
         "caption_status": "auto_transcript",
     }
     base.update(overrides)
@@ -60,6 +64,10 @@ def _content_quality_gate_off_for_toy_fixtures(monkeypatch):
     from app.config import settings
 
     monkeypatch.setattr(settings, "first_person_content_quality_gate_enabled", False)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
 
 @pytest.fixture
@@ -224,6 +232,7 @@ def test_valid_profile_confidence_above_threshold_is_success(mock_store, mock_re
     assert cit["teacher_id"] == "preethaji"
     assert cit["caption_status"] == "auto_transcript"
     assert cit["video_url"] == "https://www.youtube.com/watch?v=vid_abc"
+    assert cit["domain_rights_status"] == "licensed"
 
 
 def test_valid_profile_confidence_below_threshold_is_weak_match(mock_store, mock_redis):
@@ -335,6 +344,11 @@ def _clip_with(text, video_id, vec):
         "end_ms": 5000,
         "passage_dense": vec,
         "point_id": video_id,
+        "source_url": f"https://www.youtube.com/watch?v={video_id}",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
 
 
@@ -756,8 +770,14 @@ def test_integrity_gate_rejects_trailing_coordinating_conjunction(trailing_conju
         "verbatim_text": text,
         "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "speaker": "Sri Krishnaji",
+        "video_id": "gate-test-video",
+        "source_url": "https://www.youtube.com/watch?v=gate-test-video",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
-    assert _passes_integrity_gate(clip) is False
+    assert _passes_integrity_gate(clip, check_availability=False) is False
 
 
 def test_integrity_gate_accepts_clean_sentence():
@@ -768,8 +788,14 @@ def test_integrity_gate_accepts_clean_sentence():
         "verbatim_text": text,
         "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "speaker": "Sri Krishnaji",
+        "video_id": "gate-test-video",
+        "source_url": "https://www.youtube.com/watch?v=gate-test-video",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
-    assert _passes_integrity_gate(clip) is True
+    assert _passes_integrity_gate(clip, check_availability=False) is True
 
 
 def test_pipeline_skips_clips_with_trailing_conjunctions(mock_store, mock_redis):
@@ -964,6 +990,11 @@ def test_teacher_diversity_preserves_top_rank():
             "end_ms": 30000,
             "passage_dense": vec,
             "provenance_kind": "speech_turn_clip",
+            "source_url": f"https://www.youtube.com/watch?v=vid_{pid}",
+            "is_verbatim": True,
+            "first_person_eligible": True,
+            "rights_cleared": True,
+            "domain_rights_status": "licensed",
         }
 
     # Top match is Sri Preethaji with high similarity (vec = [1.0, 0.0])
@@ -1584,7 +1615,7 @@ class TestQualityAndSafetyFilters20261101:
         clip_dangling = (
             "Only connection can heal. Because love and connection is an energy that has this "
             "tremendous power to heal. It is not just like hurt has this very bad power to separate. "
-            "When you are deeply hurt, what do you do?"
+            "When you are deeply hurt, how do we?"
         )
         assert _standalone_problem(clip_dangling) == "dangling_question_tail"
 

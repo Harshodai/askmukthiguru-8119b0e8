@@ -81,6 +81,19 @@ def test_mode_detection(q, exp):
     assert requested_teacher(q) == exp
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    """Synthetic unit fixtures model licensed clips without live register files."""
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 def _clip(teacher, label, text, cos_vec):
     return {
         "verbatim_text": text,
@@ -92,6 +105,11 @@ def _clip(teacher, label, text, cos_vec):
         "point_id": f"p-{teacher}-{len(text)}",
         "start_ms": 0,
         "end_ms": 20000,
+        "source_url": f"https://www.youtube.com/watch?v=v-{teacher}",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
 
 

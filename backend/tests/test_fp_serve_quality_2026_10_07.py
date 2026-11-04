@@ -25,6 +25,20 @@ import pytest
 from app.config import Settings
 from services.first_person_pipeline import FirstPersonPipeline, _passes_content_quality_gate
 
+
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    """Synthetic unit fixtures model licensed clips without live register files."""
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 # Real-shaped stored text carrying the three live artifact shapes (P1 in
 # L-RELEASE-OPEN-2026-10-05). Long enough (>25 words) to clear the content gate.
 _ARTIFACT_TEXT = (
@@ -56,7 +70,10 @@ def _clip(text: str, **over):
         "verbatim_text": text,
         "passage_dense": [1.0, 0.0],
         "source_url": "https://www.youtube.com/watch?v=abcdefghijk",
+        "is_verbatim": True,
+        "first_person_eligible": True,
         "rights_cleared": True,
+        "domain_rights_status": "licensed",  # synthetic unit fixture only
     }
     base.update(over)
     return base

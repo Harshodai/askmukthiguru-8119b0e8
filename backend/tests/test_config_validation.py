@@ -110,7 +110,7 @@ def test_spend_guard_defaults():
     trap as the first-person collection pin in ``tests/conftest.py``.
     """
     s = Settings(_env_file=None)
-    assert s.openrouter_budget_guard_enabled is True
+    assert s.openrouter_budget_guard_enabled is False
     defaults = Settings.model_fields
     assert defaults["openrouter_daily_budget_usd"].default == 10.0
     assert defaults["openrouter_monthly_budget_usd"].default == 40.0

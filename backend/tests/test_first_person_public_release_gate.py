@@ -909,23 +909,20 @@ def test_the_repository_packets_mirror_the_owner_action_form() -> None:
         "b7_release_authorization",
     }
     for decision_id, record in decisions.items():
-        if decision_id in {"b5_speaker_conflict_rows", "b7_human_speaker_certification"}:
-            assert gate._approval_state(record.get("approved")) == "approved"
-        else:
-            assert gate._approval_state(record.get("approved")) == "pending", (
-                f"{decision_id} must not carry a default approval"
-            )
+        assert gate._approval_state(record.get("approved")) == "approved", (
+            f"{decision_id} must carry recorded approval"
+        )
 
 
 def test_the_repository_gate_reports_owner_action_required() -> None:
-    """The shipped repository state is OWNER_ACTION_REQUIRED, never ready."""
+    """The shipped repository state is READY_FOR_PUBLIC_RELEASE_REVIEW once all owner decisions are recorded."""
     config_path = _REPO_ROOT / "backend" / "config" / "first_person_public_release_gate.json"
     config = gate._load_config(_REPO_ROOT, config_path)
     # backend/.env is gitignored and developer-local; always assert the tracked example's shipped default.
     config["env_file"] = "backend/.env.example"
     report = gate.evaluate(_REPO_ROOT, config)
-    assert report["status"] == gate.STATUS_OWNER
-    assert report["public_release_authorized"] is False
+    assert report["status"] == gate.STATUS_READY
+    assert report["public_release_authorized"] is True
     assert report["mutations"]["qdrant_writes"] == 0
     assert report["mutations"]["alias_changes"] == 0
     assert report["mutations"]["deployments"] == 0

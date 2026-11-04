@@ -26,6 +26,24 @@ _CLIP_TEXT = (
 )
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    """Synthetic unit fixtures model licensed clips without live register files."""
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "services.first_person_store.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.personalize_stage.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
+
+
 def _clip_payload(**overrides) -> dict:
     payload = {
         "point_id": "test-point-1",
@@ -37,6 +55,10 @@ def _clip_payload(**overrides) -> dict:
         "verbatim_text": _CLIP_TEXT,
         "source_url": f"https://www.youtube.com/watch?v={_VIDEO_ID}",
         "title": "Synthetic test discourse",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
     payload.update(overrides)
     # A real stored clip carries the sha256 of its own text; the stage applies
@@ -609,7 +631,11 @@ def test_store_lookup_filters_on_eligibility_and_rights(monkeypatch):
     monkeypatch.setattr(settings, "first_person_serve_unregistered", True)
     FirstPersonStore(collection="c", client=client).get_clip_by_video_and_start(_VIDEO_ID, 99)
     keys_on = [c.key for c in client.scroll.call_args.kwargs["scroll_filter"].must]
-    assert "first_person_eligible" in keys_on and "rights_cleared" not in keys_on
+    assert (
+        "first_person_eligible" in keys_on
+        and "rights_cleared" in keys_on
+        and "domain_rights_status" in keys_on
+    )
 
 
 def test_store_lookup_huge_finite_timestamp_returns_none():
@@ -724,6 +750,9 @@ def test_context_store_lookup_uses_collection_and_adapts_nearest_payload():
         start_ms=99_200,
         speaker=None,
         guru_id="preethaji",
+        record_type="retrieval_child",
+        speaker_role="guru",
+        speaker_verified=True,
     )
     far = _clip_payload(
         point_id="far-context",
@@ -731,6 +760,9 @@ def test_context_store_lookup_uses_collection_and_adapts_nearest_payload():
         start_ms=100_000,
         speaker=None,
         guru_id="preethaji",
+        record_type="retrieval_child",
+        speaker_role="guru",
+        speaker_verified=True,
     )
     store = FirstPersonStore.__new__(FirstPersonStore)
     client = MagicMock()
@@ -762,8 +794,20 @@ def test_context_store_lookup_preserves_qdrant_order_for_equal_distance_candidat
     from services.first_person_store import FirstPersonStore
 
     store = FirstPersonStore.__new__(FirstPersonStore)
-    first = _clip_payload(point_id="first", start_ms=98_500)
-    second = _clip_payload(point_id="second", start_ms=99_500)
+    first = _clip_payload(
+        point_id="first",
+        start_ms=98_500,
+        record_type="retrieval_child",
+        speaker_role="guru",
+        speaker_verified=True,
+    )
+    second = _clip_payload(
+        point_id="second",
+        start_ms=99_500,
+        record_type="retrieval_child",
+        speaker_role="guru",
+        speaker_verified=True,
+    )
     client = MagicMock()
     client.scroll.return_value = _scroll_points(first, second)
     store._client = client

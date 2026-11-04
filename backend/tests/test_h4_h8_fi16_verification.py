@@ -36,6 +36,15 @@ from services.youtube_availability import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    """Synthetic unit fixtures model licensed clips without live register files."""
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 def _make_valid_clip(
     text: str = "When you observe your thoughts without judgment, inner freedom begins.",
     speaker: str = "Sri Preethaji",
@@ -48,6 +57,7 @@ def _make_valid_clip(
     clip = {
         "point_id": make_first_person_point_id(h, start_ms, end_ms),
         "video_id": video_id,
+        "source_url": f"https://www.youtube.com/watch?v={video_id}",
         "start_ms": start_ms,
         "end_ms": end_ms,
         "speaker": speaker,
@@ -55,6 +65,8 @@ def _make_valid_clip(
         "verbatim_text": text,
         "first_person_eligible": True,
         "is_verbatim": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
     clip.update(kwargs)
     return clip
@@ -175,11 +187,16 @@ class TestHardStopH8HeadFragmentRepairs:
 
         payload = {
             "video_id": "vid_test",
+            "source_url": "https://www.youtube.com/watch?v=vid_test",
             "start_ms": 10000,
             "end_ms": 30000,
             "speaker": "Sri Krishnaji",
             "verbatim_text": bad_text,
             "transcript_hash": hashlib.sha256(bad_text.encode("utf-8")).hexdigest(),
+            "first_person_eligible": True,
+            "is_verbatim": True,
+            "rights_cleared": True,
+            "domain_rights_status": "licensed",
         }
 
         plan = plan_clip_repair("test-point-id", payload)

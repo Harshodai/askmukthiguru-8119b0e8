@@ -68,6 +68,9 @@ def _make_clip(point_id: str, text: str, video_id: str = "hLg4WPG4ehE") -> dict[
         "passage_dense": [0.8] * 1024,
         "confidence": 0.88,
         "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "caption_status": "auto_transcript",
         "transcript_status": "auto_transcript",
         "asr_artifacts": [],
@@ -79,6 +82,14 @@ def _content_quality_gate_off_for_toy_fixtures(monkeypatch):
     """Disable length filter so concise fixtures pass integrity gate cleanly."""
     monkeypatch.setattr(settings, "first_person_content_quality_gate_enabled", False)
     monkeypatch.setattr(settings, "first_person_relevance_model", "")
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
 
 # ---------------------------------------------------------------------------

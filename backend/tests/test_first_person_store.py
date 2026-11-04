@@ -22,6 +22,14 @@ from services.first_person_store import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_store.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 def test_make_first_person_point_id_deterministic():
     h = "a" * 64
     id1 = make_first_person_point_id(h, 1000, 5000)
@@ -394,7 +402,16 @@ def _mock_point(point_id, score, video_id, vector=None):
     p = MagicMock()
     p.id = point_id
     p.score = score
-    p.payload = {"video_id": video_id, "verbatim_text": f"Text {video_id}"}
+    p.payload = {
+        "video_id": video_id,
+        "source_url": f"https://www.youtube.com/watch?v={video_id}",
+        "verbatim_text": f"Text {video_id}",
+        "speaker": "Sri Krishnaji",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+    }
     p.vector = vector or {}
     return p
 
@@ -425,6 +442,31 @@ def test_search_hybrid():
     assert call_kwargs["with_vectors"] == ["passage_dense"]
 
 
+def test_search_hybrid_drops_nonlicensed_results_even_if_qdrant_returns_them():
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+    revoked = _mock_point("revoked", 0.99, "vid_revoked")
+    revoked.payload["domain_rights_status"] = "revoked"
+    licensed = _mock_point("licensed", 0.80, "vid_licensed")
+    client.query_points.return_value = MagicMock(points=[revoked, licensed])
+
+    results = store.search_hybrid(query_dense_vector=[0.1] * 1024)
+
+    assert [item["point_id"] for item in results] == ["licensed"]
+
+
+def test_search_hybrid_rejects_stale_licensed_stamp_when_register_revokes(monkeypatch):
+    client = MagicMock()
+    store = FirstPersonStore(collection="first_person_v1", client=client)
+    client.query_points.return_value = MagicMock(points=[_mock_point("stale", 0.99, "vid_stale")])
+    monkeypatch.setattr(
+        "services.first_person_store.source_is_authoritatively_licensed",
+        lambda **_kwargs: False,
+    )
+
+    assert store.search_hybrid(query_dense_vector=[0.1] * 1024) == []
+
+
 def test_search_hybrid_prefetches_only_passage_dense_and_sparse():
     """question_dense must never be prefetched (it double-counts passage RRF)."""
     client = MagicMock()
@@ -441,8 +483,8 @@ def test_search_hybrid_prefetches_only_passage_dense_and_sparse():
     assert used == {"passage_dense", "passage_sparse"}
 
 
-def test_search_hybrid_filters_rights_cleared_by_default(monkeypatch):
-    """(i) rights_cleared filter present by default, absent when serve_unregistered=True."""
+def test_search_hybrid_always_filters_canonical_rights_status(monkeypatch):
+    """Canonical and legacy rights gates remain mandatory with the compatibility flag."""
     client = MagicMock()
     store = FirstPersonStore(collection="first_person_v1", client=client)
     client.query_points.return_value = MagicMock(points=[])
@@ -452,12 +494,15 @@ def test_search_hybrid_filters_rights_cleared_by_default(monkeypatch):
     prefetch = client.query_points.call_args.kwargs["prefetch"]
     keys = {c.key for c in prefetch[0].filter.must}
     assert "rights_cleared" in keys
+    assert "domain_rights_status" in keys
 
     monkeypatch.setattr(settings, "first_person_serve_unregistered", True)
     store.search_hybrid(query_dense_vector=[0.1] * 1024)
     prefetch = client.query_points.call_args.kwargs["prefetch"]
     keys = {c.key for c in prefetch[0].filter.must}
-    assert "rights_cleared" not in keys
+    assert "rights_cleared" in keys
+    conditions = {c.key: c.match.value for c in prefetch[0].filter.must}
+    assert conditions["domain_rights_status"] == "licensed"
 
 
 def test_search_hybrid_teacher_filter_uses_teacher_id(monkeypatch):
@@ -494,7 +539,18 @@ def test_rrf_prefetch_depth_matches_bakeoff_b_r0():
 
 def _point(pid, **payload):
     return models.Record(
-        id=pid, payload={"first_person_eligible": True, "rights_cleared": True, **payload}
+        id=pid,
+        payload={
+            "video_id": "test-video",
+            "source_url": "https://www.youtube.com/watch?v=test-video",
+            "speaker": "Sri Krishnaji",
+            "is_verbatim": True,
+            "verbatim_text": "A registered test teaching.",
+            "first_person_eligible": True,
+            "rights_cleared": True,
+            "domain_rights_status": "licensed",
+            **payload,
+        },
     )
 
 
@@ -504,6 +560,9 @@ def _point(pid, **payload):
         ([_point("a"), _point("b")], True),
         ([_point("a")], False),  # b was deleted from the index
         ([_point("a"), _point("b", rights_cleared=False)], False),  # rights revoked
+        ([_point("a"), _point("b", domain_rights_status="unverified")], False),
+        ([_point("a"), _point("b", domain_rights_status="revoked")], False),
+        ([_point("a"), _point("b", domain_rights_status=None)], False),
         ([_point("a"), _point("b", first_person_eligible=False)], False),  # quarantined
     ],
 )
@@ -656,6 +715,7 @@ def test_payload_indexes_declare_bool_for_boolean_fields():
     declared = dict(FirstPersonStore.PAYLOAD_INDEXES)
     for field in ("is_verbatim", "first_person_eligible", "rights_cleared"):
         assert declared[field] == "bool", f"{field} must be bool-indexed"
+    assert declared["domain_rights_status"] == "keyword"
 
 
 def test_init_collection_creates_bool_indexes_for_boolean_fields():
@@ -669,6 +729,7 @@ def test_init_collection_creates_bool_indexes_for_boolean_fields():
     }
     for field in ("is_verbatim", "first_person_eligible", "rights_cleared"):
         assert created[field] == "bool"
+    assert created["domain_rights_status"] == "keyword"
     # Non-boolean declarations are untouched.
     assert created["video_id"] == "keyword"
     assert created["start_ms"] == "integer"
@@ -698,7 +759,17 @@ def _store_with(points):
 def test_lookup_prefers_clip_flooring_to_requested_second():
     """Two clips equidistant in ms: the one whose start floors to the
     requested second wins (playback seeks whole seconds)."""
-    base = {"first_person_eligible": True}
+    base = {
+        "video_id": "vid",
+        "source_url": "https://www.youtube.com/watch?v=vid",
+        "speaker": "Sri Krishnaji",
+        "verbatim_text": "A complete source-verbatim sentence.",
+        "transcript_hash": hashlib.sha256(b"A complete source-verbatim sentence.").hexdigest(),
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+    }
     pts = [
         _FakePoint("a", {**base, "start_ms": 9499}),  # diff 501, floors to 9
         _FakePoint("b", {**base, "start_ms": 10501}),  # diff 501, floors to 10
@@ -709,7 +780,17 @@ def test_lookup_prefers_clip_flooring_to_requested_second():
 
 def test_lookup_tie_breaks_hold_after_floor_preference():
     """Same floor: smaller distance wins; same distance: earlier start wins."""
-    base = {"first_person_eligible": True}
+    base = {
+        "video_id": "vid",
+        "source_url": "https://www.youtube.com/watch?v=vid",
+        "speaker": "Sri Krishnaji",
+        "verbatim_text": "A complete source-verbatim sentence.",
+        "transcript_hash": hashlib.sha256(b"A complete source-verbatim sentence.").hexdigest(),
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+    }
     pts = [
         _FakePoint("a", {**base, "start_ms": 10300}),  # diff 300
         _FakePoint("b", {**base, "start_ms": 10200}),  # diff 200 wins
@@ -718,8 +799,62 @@ def test_lookup_tie_breaks_hold_after_floor_preference():
     assert best is not None and best["point_id"] == "b"
 
 
-def test_upsert_clips_persists_context_and_okf_payload_fields():
+def test_lookup_rejects_unverified_status_when_qdrant_ignores_filter():
+    text = "A complete source-verbatim sentence."
+    base = {
+        "video_id": "vid",
+        "source_url": "https://www.youtube.com/watch?v=vid",
+        "speaker": "Sri Krishnaji",
+        "verbatim_text": text,
+        "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+        "start_ms": 10_000,
+    }
+    point = _FakePoint("unverified", {**base, "domain_rights_status": "unverified"})
+
+    assert _store_with([point]).get_clip_by_video_and_start("vid", 10.0) is None
+
+
+def test_context_personalize_fallback_rejects_nonlicensed_status():
+    text = "A source span must remain exact."
+    base = {
+        "record_type": "retrieval_child",
+        "video_id": "vid",
+        "source_url": "https://www.youtube.com/watch?v=vid",
+        "speaker": "Sri Krishnaji",
+        "speaker_id": "krishnaji",
+        "guru_id": "krishnaji",
+        "speaker_verified": True,
+        "speaker_role": "guru",
+        "verbatim_text": text,
+        "source_text_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "is_verbatim": True,
+        "rights_cleared": True,
+        "first_person_eligible": True,
+        "domain_rights_status": "licensed",
+        "boundary_status": "verified",
+        "completeness_status": "complete",
+        "quality_status": "verified_verbatim",
+        "quarantine_reason": None,
+        "start_ms": 10_000,
+        "end_ms": 12_000,
+    }
+    point = _FakePoint("unverified", {**base, "domain_rights_status": "unverified"})
+    store = _store_with([point])
+
+    assert store.get_clip_by_video_and_start_in_collection("fp_context", "vid", 10.0) is None
+
+
+def test_upsert_clips_persists_context_and_okf_payload_fields(monkeypatch):
     from services.first_person_store import FirstPersonStore
+
+    monkeypatch.setattr(
+        "services.qdrant.indexer.resolve_source_rights_status",
+        lambda **_kwargs: "unverified",
+    )
 
     class _CaptureClient:
         def __init__(self):
@@ -751,6 +886,8 @@ def test_upsert_clips_persists_context_and_okf_payload_fields():
         "speaker": "Sri Krishnaji",
         "transcript_hash": "a" * 64,
         "verbatim_text": "verbatim words without context",
+        # Deliberate spoof: the writer must replace caller status from the register.
+        "domain_rights_status": "licensed",
         # I2 context fields:
         "discourse_context": "Discourse on overcoming spiritual suffering and anxiety",
         "tags": ["suffering", "peace", "ekam"],
@@ -780,6 +917,7 @@ def test_upsert_clips_persists_context_and_okf_payload_fields():
     assert pt.payload["okf_title"] == "The Beautiful State"
     assert pt.payload["verbatim_text"] == "verbatim words without context"
     assert pt.payload["is_verbatim"] is True
+    assert pt.payload["domain_rights_status"] == "unverified"
 
     # Check payload indexes include the 4 fields
     index_dict = dict(FirstPersonStore.PAYLOAD_INDEXES)

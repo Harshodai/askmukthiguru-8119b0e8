@@ -57,6 +57,19 @@ TEXT_TWO = (
 )
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_rights_register(monkeypatch):
+    for target in (
+        "services.first_person_context_harness.source_is_authoritatively_licensed",
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        "services.first_person_context_store.source_is_authoritatively_licensed",
+    ):
+        monkeypatch.setattr(
+            target,
+            lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        )
+
+
 def make_test_span(n: int = 0, text: str | None = None, **overrides) -> SourceSpan:
     span_text = text or (TEXT_ONE if n == 0 else TEXT_TWO)
     word_start = overrides.pop("word_start", n * 10)
@@ -107,6 +120,7 @@ def make_test_span(n: int = 0, text: str | None = None, **overrides) -> SourceSp
         "boundary_status": BoundaryStatus.VERIFIED,
         "completeness_status": CompletenessStatus.COMPLETE,
         "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "caption_status": "auto_transcript",
         "provenance_kind": ProvenanceKind.SPEECH_TURN_SPAN,
         "source_url": f"https://www.youtube.com/watch?v={video_id}",
@@ -173,6 +187,14 @@ def _reset_env(monkeypatch):
     # are synthetic, so keep the check out of the network.
     monkeypatch.setattr(
         "services.first_person_pipeline.is_youtube_video_available", lambda _vid: True
+    )
+    monkeypatch.setattr(
+        "services.first_person_context_harness.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
     )
 
 
@@ -265,6 +287,407 @@ def test_serving_parent_context_multiple_spans(monkeypatch):
     assert result.answer_text == " ".join(
         citation["verbatim_text"] for citation in result.citations
     )
+
+
+def test_local_editorial_set_selects_multiple_gated_video_contexts(monkeypatch):
+    """The opt-in path selects only independently served contexts, without LLM glue."""
+    monkeypatch.setattr(settings, "is_production", False)
+    monkeypatch.setattr(settings, "first_person_editorial_set_selection_enabled", True)
+    monkeypatch.setattr(settings, "first_person_facet_split_enabled", False)
+    monkeypatch.setattr(settings, "first_person_harness_parallel_enabled", False)
+
+    krishnaji_text = (
+        "Love is not possession or dependence; it is freedom from fear, expectation, "
+        "and the need to complete oneself through another."
+    )
+    preethaji_text = (
+        "Love is a movement of openness in which one meets another without fear, "
+        "control, expectation, or demand."
+    )
+    krishnaji_span = make_test_span(
+        n=0,
+        text=krishnaji_text,
+        guru_id="krishnaji",
+        video_id="vARTudIEq30",
+        parent_unit_id="parent_love_k",
+    )
+    preethaji_span = make_test_span(
+        n=0,
+        text=preethaji_text,
+        guru_id="preethaji",
+        video_id="_GEMrEWCiXw",
+        parent_unit_id="parent_love_p",
+    )
+    contexts = [make_test_context([krishnaji_span]), make_test_context([preethaji_span])]
+    context_store = Mock()
+    context_store.retrieve.return_value = contexts
+    redis = Mock()
+    redis.get.return_value = None
+    legacy_store = Mock()
+    legacy_store.collection = "first_person_v9"
+
+    pipeline = FirstPersonPipeline(
+        store=legacy_store,
+        redis_client=redis,
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+        calibration_profile=DIRECT_PROFILE,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="What is love according to Krishnaji and Preethaji?",
+        query_dense_vector=[0.1] * 1024,
+        max_clips=2,
+    )
+
+    assert result.status == "weak_match", result.editorial_set
+    assert result.is_direct_answer is False
+    assert len(result.citations) == 2
+    assert {citation["video_id"] for citation in result.citations} == {
+        "vARTudIEq30",
+        "_GEMrEWCiXw",
+    }
+    assert result.answer_text == "\n\n".join(
+        citation["verbatim_text"] for citation in result.citations
+    )
+    editorial = result.to_dict()["editorial_set"]
+    assert editorial["status"] == "partial"
+    assert editorial["candidate_contexts"] == 2
+    assert editorial["selected_contexts"] == 2
+    assert editorial["planner_version"] == "first_person_facets_v1"
+    assert editorial["selector_version"] == "first_person_set_selector_v3"
+    context_store.retrieve.assert_called_once()
+    assert context_store.retrieve.call_args.kwargs["limit_parents"] == 4
+    redis.get.assert_not_called()
+    redis.set.assert_not_called()
+
+
+def test_editorial_set_conflict_is_returned_as_weak_non_direct_evidence(monkeypatch):
+    monkeypatch.setattr(settings, "is_production", False)
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
+    monkeypatch.setattr(settings, "first_person_editorial_set_selection_enabled", True)
+    monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
+    krishnaji_text = (
+        "Love is freedom from fear, and this openness shows itself in attention, relationship, "
+        "and the whole movement of living together."
+    )
+    preethaji_text = (
+        "Love is not freedom from fear; it is a quiet field of presence that arises through "
+        "attentive listening, patience, and connection with another."
+    )
+    contexts = [
+        make_test_context(
+            [
+                make_test_span(
+                    n=0,
+                    text=krishnaji_text,
+                    guru_id="krishnaji",
+                    video_id="vARTudIEq30",
+                    parent_unit_id="conflict-parent-k",
+                )
+            ]
+        ),
+        make_test_context(
+            [
+                make_test_span(
+                    n=0,
+                    text=preethaji_text,
+                    guru_id="preethaji",
+                    video_id="_GEMrEWCiXw",
+                    parent_unit_id="conflict-parent-p",
+                )
+            ]
+        ),
+    ]
+    context_store = Mock()
+    context_store.retrieve.return_value = contexts
+    redis = Mock()
+    redis.get.return_value = None
+    pipeline = FirstPersonPipeline(
+        store=Mock(collection="first_person_v9"),
+        redis_client=redis,
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+        calibration_profile=DIRECT_PROFILE,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="What is love according to Krishnaji and Preethaji?",
+        query_dense_vector=[0.1] * 1024,
+        max_clips=2,
+        cache_bypass=True,
+    )
+
+    assert result.status == "weak_match"
+    assert result.is_direct_answer is False
+    assert result.editorial_set["status"] == "conflicted"
+    citation_texts = {citation["verbatim_text"] for citation in result.citations}
+    assert citation_texts == {krishnaji_text, preethaji_text}
+    assert result.answer_text == "\n\n".join(
+        citation["verbatim_text"] for citation in result.citations
+    )
+    redis.get.assert_not_called()
+    redis.set.assert_not_called()
+
+
+def test_editorial_selection_map_disambiguates_duplicate_span_ids():
+    import time
+
+    from services.first_person_facet_planner import get_default_planner
+    from services.first_person_pipeline import FirstPersonPipelineResult
+
+    pipeline = FirstPersonPipeline(
+        store=Mock(),
+        serene_mind_engine=Mock(),
+        calibration_profile=DIRECT_PROFILE,
+    )
+    shared_span_id = "deliberate-duplicate-span-id"
+    first_text = "Love is an unconditioned movement of attention."
+    second_text = "Love is the quiet presence that recognizes another person."
+    first_span = make_test_span(
+        n=0,
+        text=first_text,
+        guru_id="krishnaji",
+        video_id="vARTudIEq30",
+        parent_unit_id="love-parent-k",
+    )
+    second_span = make_test_span(
+        n=0,
+        text=second_text,
+        guru_id="preethaji",
+        video_id="_GEMrEWCiXw",
+        parent_unit_id="love-parent-p",
+    )
+    contexts = [make_test_context([first_span]), make_test_context([second_span])]
+
+    def _served_result(span, text):
+        citation = pipeline._build_context_citation(span)
+        # Deliberately collide the raw ID; selection-map identity must still
+        # retain the exact source video, teacher, and parent.
+        citation["source_span_id"] = shared_span_id
+        return FirstPersonPipelineResult(
+            answer_text=text,
+            citations=[citation],
+            status="success",
+            is_direct_answer=True,
+            latency_ms=1.0,
+            fp_served=True,
+        )
+
+    combined = pipeline._build_editorial_set_result(
+        "What is love?",
+        [
+            (contexts[0], _served_result(first_span, first_text)),
+            (contexts[1], _served_result(second_span, second_text)),
+        ],
+        facets=get_default_planner().plan("What is love?"),
+        max_clips=2,
+        start_time=time.monotonic(),
+        retrieval_ms=0.0,
+        answerability="yes",
+    )
+
+    assert {citation["video_id"] for citation in combined.citations} == {
+        "vARTudIEq30",
+        "_GEMrEWCiXw",
+    }
+    assert combined.answer_text == "\n\n".join(
+        citation["verbatim_text"] for citation in combined.citations
+    )
+
+
+def test_editorial_set_rejects_noncontiguous_parent_span_identity():
+    import time
+
+    from services.first_person_facet_planner import get_default_planner
+    from services.first_person_pipeline import FirstPersonPipelineResult
+
+    pipeline = FirstPersonPipeline(
+        store=Mock(),
+        serene_mind_engine=Mock(),
+        calibration_profile=DIRECT_PROFILE,
+    )
+    span_zero = make_test_span(
+        n=0,
+        text="Love becomes clear when attention is present and the mind is quiet.",
+        video_id="vARTudIEq30",
+        parent_unit_id="love-parent-contiguous",
+    )
+    span_two = make_test_span(
+        n=2,
+        text="In relationship, one may discover fear and the movement of dependence.",
+        video_id="vARTudIEq30",
+        parent_unit_id="love-parent-contiguous",
+    )
+    context = make_test_context([span_zero, span_two])
+    citations = [pipeline._build_context_citation(span) for span in (span_zero, span_two)]
+    result = FirstPersonPipelineResult(
+        answer_text=" ".join(citation["verbatim_text"] for citation in citations),
+        citations=citations,
+        status="success",
+        is_direct_answer=True,
+        latency_ms=1.0,
+        fp_served=True,
+    )
+
+    combined = pipeline._build_editorial_set_result(
+        "What is love?",
+        [(context, result)],
+        facets=get_default_planner().plan("What is love?"),
+        max_clips=1,
+        start_time=time.monotonic(),
+        retrieval_ms=0.0,
+        answerability="yes",
+    )
+
+    assert combined.status == "abstained"
+    assert combined.is_direct_answer is False
+    assert combined.citations == []
+    assert combined.editorial_set["candidate_contexts"] == 0
+
+
+def test_editorial_set_abstains_on_caller_query_teacher_conflict(monkeypatch):
+    monkeypatch.setattr(settings, "is_production", False)
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
+    monkeypatch.setattr(settings, "first_person_editorial_set_selection_enabled", True)
+    monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
+    context_store = Mock()
+    redis = Mock()
+    pipeline = FirstPersonPipeline(
+        store=Mock(collection="first_person_v9"),
+        redis_client=redis,
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+        calibration_profile=DIRECT_PROFILE,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    result = pipeline.execute(
+        query="What is love according to Krishnaji?",
+        query_dense_vector=[0.1] * 1024,
+        teacher_id="preethaji",
+        cache_bypass=True,
+    )
+
+    assert result.status == "abstained"
+    assert result.is_direct_answer is False
+    assert result.abstain_reason == "no_verified_clips"
+    assert result.citations == []
+    assert result.editorial_set["status"] == "insufficient"
+    assert result.editorial_set["teacher_scope"] == "preethaji"
+    context_store.retrieve.assert_not_called()
+    redis.get.assert_not_called()
+    redis.set.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("case", "query", "candidate_text", "expected_reason"),
+    [
+        (
+            "ordinary_anxiety",
+            "What can I understand about anxiety?",
+            "Anxiety may arise when the mind anticipates danger, and noticing fear without judgment "
+            "brings attention back to the present moment with greater steadiness.",
+            None,
+        ),
+        (
+            "unsolicited_self_harm",
+            "What is love?",
+            "People who engage in self-harm often feel disconnected; compassionate support can help "
+            "them express pain they carry alone and reconnect with others.",
+            "unsolicited_self_harm_reference",
+        ),
+        (
+            "event_bound",
+            "What is love?",
+            "During the covid pandemic, many people had to rethink how they cope with uncertainty; "
+            "the event changed many conversations about human connection.",
+            "event_marker",
+        ),
+        (
+            "medical_claim",
+            "What is love?",
+            "Meditation has been scientifically proven to cure depression and anxiety, and this "
+            "method has transformed every person who tried it.",
+            "health_claim",
+        ),
+        (
+            "outcome_promise",
+            "What is love?",
+            "If you follow this practice, you will definitely achieve lasting happiness for the rest "
+            "of your life and never experience fear again.",
+            "outcome_promise",
+        ),
+        (
+            "dangling_question_tail",
+            "What is suffering?",
+            "Suffering asks us to observe the mind carefully as it moves through the day. "
+            "But how can we?",
+            "dangling_question_tail",
+        ),
+    ],
+)
+def test_phase3_policy_gates_actual_context_pipeline_before_selection(
+    monkeypatch, case, query, candidate_text, expected_reason
+):
+    """The shared safety facade runs on real context candidates before a set can serve."""
+    from services.first_person_evidence_policy import first_person_evidence_policy
+
+    monkeypatch.setattr(settings, "is_production", False)
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", True)
+    monkeypatch.setattr(settings, "first_person_editorial_set_selection_enabled", False)
+    monkeypatch.setattr(settings, "first_person_facet_split_enabled", False)
+    span = make_test_span(
+        n=0,
+        text=candidate_text,
+        guru_id="krishnaji",
+        video_id="vARTudIEq30",
+        parent_unit_id=f"parent_{case}",
+    )
+    context_store = Mock()
+    context_store.retrieve.return_value = [make_test_context([span])]
+    legacy_store = Mock()
+    legacy_store.collection = "first_person_v9"
+    pipeline = FirstPersonPipeline(
+        store=legacy_store,
+        serene_mind_engine=Mock(),
+        context_store=context_store,
+        calibration_profile=DIRECT_PROFILE,
+    )
+    pipeline._serene_mind.assess_distress.return_value = None
+
+    observed = []
+    original_contextual = first_person_evidence_policy.assess_contextual_safety
+    original_standalone = first_person_evidence_policy.assess_context_standalone
+
+    def _observe(query_text, candidate, *, retrieval_query=""):
+        decision = original_contextual(query_text, candidate, retrieval_query=retrieval_query)
+        observed.append(decision)
+        return decision
+
+    def _observe_standalone(texts):
+        decision = original_standalone(texts)
+        observed.append(decision)
+        return decision
+
+    monkeypatch.setattr(first_person_evidence_policy, "assess_contextual_safety", _observe)
+    monkeypatch.setattr(
+        first_person_evidence_policy, "assess_context_standalone", _observe_standalone
+    )
+    result = pipeline.execute(query=query, query_dense_vector=[0.1] * 1024, cache_bypass=True)
+
+    assert observed, f"{case}: shared safety facade was not called"
+    if expected_reason is None:
+        assert any(decision.may_serve for decision in observed)
+        assert result.status == "success"
+        assert len(result.citations) == 1
+    else:
+        assert any(expected_reason in decision.reason_codes for decision in observed), case
+        assert result.status == "abstained"
+        assert result.citations == []
+        legacy_store.search_hybrid.assert_not_called()
 
 
 @pytest.mark.answerability_real
@@ -673,6 +1096,7 @@ def test_fallback_when_context_harness_abstains(monkeypatch):
         "verbatim_text": "Legacy clip text.",
         "transcript_hash": "b" * 64,
         "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "first_person_eligible": True,
         "passage_dense": [0.1] * 1024,
     }
@@ -925,6 +1349,10 @@ def test_exact_cache_preserves_legacy_quote_plus_attribution_body():
                 "transcript_hash": hashlib.sha256(quote.encode("utf-8")).hexdigest(),
                 "speaker": "Sri Krishnaji",
                 "is_verbatim": True,
+                "first_person_eligible": True,
+                "rights_cleared": True,
+                "domain_rights_status": "licensed",
+                "source_url": "https://www.youtube.com/watch?v=legacy-video&t=12s",
             }
         ],
         "status": "weak_match",
@@ -954,6 +1382,7 @@ def test_hybrid_fp_context_result_is_not_written_to_exact_cache(monkeypatch):
         context_store=Mock(),
     )
     citation = pipeline._build_context_citation(span1)
+    assert citation["domain_rights_status"] == "licensed"
     data = {
         "answer_text": f"Opening prose. {TEXT_ONE}",
         "citations": [citation],
@@ -1103,11 +1532,15 @@ def test_policy_fingerprint_covers_the_context_collection(monkeypatch):
 
 
 def test_policy_fingerprint_pins_evidence_policy_and_candidate_thresholds(monkeypatch):
+    from domain.first_person_safety import SAFETY_POLICY_VERSION
+    from services.first_person_evidence_policy import POLICY_VERSION
+
     monkeypatch.setattr(settings, "first_person_require_speaker_verified", False)
     pipeline = FirstPersonPipeline(store=Mock(), redis_client=Mock(), serene_mind_engine=Mock())
     base_components = pipeline._serving_policy_components()
     base = pipeline._serving_policy_fingerprint()
-    assert base_components["first_person_evidence_policy"] == "first_person_evidence_v1"
+    assert base_components["first_person_evidence_policy"] == POLICY_VERSION
+    assert SAFETY_POLICY_VERSION in POLICY_VERSION
 
     monkeypatch.setattr(settings, "first_person_require_speaker_verified", True)
     assert pipeline._serving_policy_components()["require_speaker_verified"] == "True"
@@ -1445,6 +1878,7 @@ def _rejected_antecedent_fixture():
         "verbatim_text": legacy_text,
         "transcript_hash": hashlib.sha256(legacy_text.encode("utf-8")).hexdigest(),
         "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "first_person_eligible": True,
         "speaker_verified": True,
         "voice_verification_method": "synthetic-test-fixture",
@@ -1538,3 +1972,20 @@ def test_non_terminal_rejected_antecedent_intentionally_uses_legacy_fallback(mon
     assert "source_span_id" not in result.citations[0]
     assert opener.verbatim_text not in result.answer_text
     assert predecessor.verbatim_text not in result.answer_text
+
+
+def test_editorial_set_selector_is_default_off_and_nonproduction_only(monkeypatch):
+    from services.first_person_pipeline import _editorial_set_enabled
+
+    assert settings.model_fields["first_person_editorial_set_selection_enabled"].default is False
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
+    monkeypatch.setattr(settings, "first_person_editorial_set_selection_enabled", True)
+    monkeypatch.setattr(settings, "is_production", True)
+    assert _editorial_set_enabled() is False
+
+    monkeypatch.setattr(settings, "is_production", False)
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", False)
+    assert _editorial_set_enabled() is False
+
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
+    assert _editorial_set_enabled() is True

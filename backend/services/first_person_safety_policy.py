@@ -18,7 +18,9 @@ Design constraints
 ------------------
 - No LLM calls, no network calls, no Qdrant reads.
 - Fail-closed: any exception inside a detector returns ``exclude``.
-- No production behavior change — existing serving paths are not modified.
+- Called through the shared ``FirstPersonEvidencePolicy`` facade; it remains
+  one deterministic gate and does not replace crisis, rights, speaker, or
+  relevance decisions.
 - All regex patterns are imported from ``first_person_evidence_policy`` so
   the vocabulary stays consistent.
 """
@@ -91,36 +93,6 @@ _BENIGN_TOPIC_QUERY_RE: Final = re.compile(
     r"|togetherness"
     r"|harmony"
     r")\b",
-    re.IGNORECASE,
-)
-
-# Broader audience-directed question tail — covers patterns the core
-# _DANGLING_QUESTION_TAIL_RE intentionally omits because they have too many
-# false positives for the legacy harness gate, but which are still rhetorical
-# audience-engagement tails that leave a clip semantically incomplete.
-# Examples: "What do you do when it arises?" / "How can we address this?"
-_AUDIENCE_QUESTION_TAIL_RE: Final = re.compile(
-    r"(?:"
-    r"what\s+(?:do|did|would|will|can)\s+you\s+\w+(?:\s+\w+){0,4}"
-    r"|how\s+(?:do|can|could|would|shall|might)\s+(?:we|you)\s+\w+(?:\s+\w+){0,4}"
-    r"|why\s+(?:is|are|was|were|do|did|would|will|can)\s+(?:we|you|this|that)\b[^?]*"
-    r"|(?:have|did)\s+you\s+(?:ever|noticed|tried|thought)\b[^?]*"
-    r"|(?:isn't|aren't|doesn't|don't|won't|can't)\s+(?:it|we|you)\b[^?]*"
-    r")\s*\\?\\s*$",
-    re.IGNORECASE,
-)
-
-# Simpler broad-form for audience rhetorical closers (backup for above).
-_AUDIENCE_RHETORICAL_RE: Final = re.compile(
-    r"(?:"
-    r"(?:what|how|why)\s+(?:do|can|could|would|should|will|did|shall|might)\s+(?:you|we)\b"
-    r")\s*\\?",
-    re.IGNORECASE,
-)
-
-# Even simpler: any sentence ending in "?" that starts with what/how/why + you/we
-_TRAILING_AUDIENCE_QUESTION_RE: Final = re.compile(
-    r"[.!]\s+(?:what|how|why)\s+(?:\w+\s+){0,4}(?:you|we)\b[^.!]*\?[\s]*$",
     re.IGNORECASE,
 )
 
@@ -284,13 +256,11 @@ class FirstPersonSafetyPolicy:
             reason_codes.append("outcome_promise")
 
         # ---- Dangling question tail (candidate-only) -------------------
-        # Check both the core narrow regex (imported from evidence_policy) and
-        # the broader audience-directed-question patterns defined locally.
+        # Only explicit open/dependent forms are a dangling dependency. A
+        # complete rhetorical question is not evidence of a missing antecedent;
+        # question-only clips are handled by the harness's dedicated gate.
         stripped = candidate_text.rstrip()
-        _dangling_tail_hit = _DANGLING_QUESTION_TAIL_RE.search(
-            stripped
-        ) or _TRAILING_AUDIENCE_QUESTION_RE.search(stripped)
-        if _dangling_tail_hit:
+        if _DANGLING_QUESTION_TAIL_RE.search(stripped):
             dimensions.append(
                 SafetyDimension(
                     category=SafetyCategory.DANGLING_DEPENDENCY,

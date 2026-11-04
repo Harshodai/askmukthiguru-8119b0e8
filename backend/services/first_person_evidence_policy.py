@@ -12,8 +12,9 @@ from collections.abc import Iterable
 from typing import Optional
 
 from domain.first_person_evidence import EvidenceAction, EvidenceDecision
+from domain.first_person_safety import SAFETY_POLICY_VERSION
 
-POLICY_VERSION = "first_person_evidence_v1"
+POLICY_VERSION = f"first_person_evidence_v2+{SAFETY_POLICY_VERSION}"
 
 # Existing standalone detectors moved here so both the legacy clip path and the
 # fp-context harness use the same policy vocabulary. Compatibility imports in
@@ -103,7 +104,7 @@ _EVENT_MARKER_RE = re.compile(
 )
 
 _DANGLING_QUESTION_TAIL_RE = re.compile(
-    r"(?:what\s+(?:do|did|would|will|can)\s+you\s+do|why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you)\s*\?\s*$",
+    r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you)\s*\?\s*$",
     re.IGNORECASE,
 )
 
@@ -225,8 +226,41 @@ class FirstPersonEvidencePolicy:
             reasons.append("violent_relationship_context")
         if _self_harm_for_context(query, text):
             reasons.append("unsolicited_self_harm_reference")
+        # Lazy import: first_person_safety_policy imports the regex vocabulary
+        # from this module, so importing it at module scope would form a cycle.
+        from services.first_person_safety_policy import FirstPersonSafetyPolicy
+
+        contextual = FirstPersonSafetyPolicy().evaluate(query=query, candidate_text=text)
+        reasons.extend(contextual.reason_codes)
+        reasons = list(dict.fromkeys(reasons))
+        # Event-bound wording alone is a review signal, not an exclusion: the
+        # candidate may still be servable once a reviewer confirms the context.
+        # Any other exclusion reason keeps the hard exclude.
+        event_bound_only_exclusion = contextual.action == "exclude" and set(reasons) == {
+            "event_bound"
+        }
+        if "violent_relationship_context" in reasons:
+            action = EvidenceAction.EXCLUDE
+        elif event_bound_only_exclusion:
+            action = EvidenceAction.NEEDS_REVIEW
+        elif contextual.action == "exclude" or any(
+            reason in reasons
+            for reason in ("unsolicited_self_harm_reference", "health_claim", "outcome_promise")
+        ):
+            action = EvidenceAction.EXCLUDE
+        elif contextual.action == "needs_review" or any(
+            reason in reasons
+            for reason in ("event_bound", "dangling_dependency", "cross_turn_reference")
+        ):
+            action = EvidenceAction.NEEDS_REVIEW
+        elif contextual.action == "allow_with_context":
+            action = EvidenceAction.ALLOW_WITH_CONTEXT
+        elif contextual.action == "allow":
+            action = EvidenceAction.ALLOW
+        else:
+            action = EvidenceAction.NEEDS_REVIEW
         return EvidenceDecision(
-            action=EvidenceAction.EXCLUDE if reasons else EvidenceAction.ALLOW,
+            action=action,
             reason_codes=tuple(reasons),
             policy_version=self.policy_version,
         )

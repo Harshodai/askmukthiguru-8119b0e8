@@ -28,6 +28,24 @@ import pytest
 pytestmark = [pytest.mark.answerability_real]
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "services.first_person_store.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
+
+
 @pytest.mark.asyncio
 async def test_hung_memory_probe_resolves_inside_two_seconds():
     """The 0.2 s probe bound fires; eligibility falls back conservative-True."""
@@ -120,7 +138,11 @@ def test_answerability_join_waits_for_slow_gate_worker(monkeypatch):
             "transcript_hash": _h.sha256(text.encode()).hexdigest(),
             "verbatim_text": text,
             "passage_dense": [1.0, 0.0],
-            "source_url": "https://youtube.com/watch?v=v1",
+            "source_url": "https://www.youtube.com/watch?v=v1",
+            "is_verbatim": True,
+            "first_person_eligible": True,
+            "rights_cleared": True,
+            "domain_rights_status": "licensed",
         }
     ]
     redis = MagicMock()

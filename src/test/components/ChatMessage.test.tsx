@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ChatMessage, isFirstPersonAbstainMessage } from '@/components/chat/ChatMessage';
 import type { Message } from '@/lib/chatStorage';
@@ -478,6 +478,160 @@ describe('ChatMessage guidance plan', () => {
         { wrapper },
       );
       expect(screen.getByText('Related teaching — not a direct answer')).toBeInTheDocument();
+      expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
+    });
+
+    it('renders an editorial set as separate source cards with honest facet coverage', () => {
+      const first = 'Love is not possession.';
+      const second = 'It is a movement without fear.';
+      const third = 'Love is a state of connection.';
+      const message = makeGuruMessage({
+        content: `${first} ${second}\n\n${third}`,
+        citations: [
+          {
+            url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=10s',
+            videoId: 'vARTudIEq30',
+            teacherId: 'krishnaji',
+            speakerId: 'speaker-k',
+            parentUnitId: 'parent-love-k',
+            sourceSpanId: 'span-love-k-0',
+            sourceSpanIndex: 0,
+            isVerbatim: true,
+            rightsCleared: true,
+            title: 'A talk by Sri Krishnaji',
+            quote: first,
+            speaker: 'Sri Krishnaji',
+            speakerVerified: true,
+            timestampSeconds: 10,
+            playbackStartSeconds: 10,
+            playbackEndSeconds: 14,
+          },
+          {
+            url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=14s',
+            videoId: 'vARTudIEq30',
+            teacherId: 'krishnaji',
+            speakerId: 'speaker-k',
+            parentUnitId: 'parent-love-k',
+            sourceSpanId: 'span-love-k-1',
+            sourceSpanIndex: 1,
+            isVerbatim: true,
+            rightsCleared: true,
+            title: 'A talk by Sri Krishnaji',
+            quote: second,
+            speaker: 'Sri Krishnaji',
+            speakerVerified: true,
+            timestampSeconds: 14,
+            playbackStartSeconds: 14,
+            playbackEndSeconds: 19,
+          },
+          {
+            url: 'https://www.youtube.com/watch?v=_GEMrEWCiXw&t=5s',
+            videoId: '_GEMrEWCiXw',
+            teacherId: 'preethaji',
+            speakerId: 'speaker-p',
+            parentUnitId: 'parent-love-p',
+            sourceSpanId: 'span-love-p-0',
+            sourceSpanIndex: 0,
+            isVerbatim: true,
+            rightsCleared: true,
+            title: 'A talk by Sri Preethaji',
+            quote: third,
+            speaker: 'Sri Preethaji',
+            speakerVerified: true,
+            timestampSeconds: 5,
+            playbackStartSeconds: 5,
+            playbackEndSeconds: 9,
+          },
+        ],
+        groundingState: 'grounded',
+        citationsVerified: true,
+        verification: {
+          passed: false,
+          method: 'first_person_verbatim_clip_gate',
+          citations_verified: true,
+          citation_integrity_verified: true,
+          evidence_set_supported: false,
+          direct: false,
+          editorial_set: {
+            status: 'partial',
+            primary_intent: 'definition',
+            candidate_facets: ['definition', 'experience'],
+            facet_coverage: { definition: 'direct', experience: 'absent' },
+            candidate_contexts: 2,
+            selected_contexts: 2,
+            planner_version: 'first_person_facets_v1',
+            selector_version: 'first_person_set_selector_v3',
+          },
+        },
+      });
+      const { container } = render(<ChatMessage message={message} />, { wrapper });
+
+      expect(screen.getByTestId('editorial-set-summary')).toHaveTextContent('Teaching evidence set: partial');
+      expect(screen.getByTestId('editorial-set-summary')).toHaveTextContent('definition: direct');
+      expect(screen.getByTestId('editorial-set-summary')).toHaveTextContent('experience: absent');
+      const quoteCards = screen.getAllByTestId('guru-teaching-quote');
+      expect(quoteCards).toHaveLength(2);
+      expect(quoteCards[1]).toHaveTextContent(third);
+      const firstSourceSegments = within(quoteCards[0]).getAllByTestId('guru-teaching-quote-span');
+      expect(firstSourceSegments.map((segment) => segment.textContent)).toEqual([first, second]);
+      expect(screen.getAllByText('Related — not a direct answer')).toHaveLength(2);
+      expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
+      expect((container.textContent?.match(/Love is not possession\./g) ?? [])).toHaveLength(1);
+    });
+
+    it('labels conflicting source positions separately and never certifies the set as a verified answer', () => {
+      const quote = 'Love is freedom from fear and openness reaches many relationships across the world.';
+      const message = makeGuruMessage({
+        content: quote,
+        citations: [
+          {
+            url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=10s',
+            videoId: 'vARTudIEq30',
+            teacherId: 'krishnaji',
+            parentUnitId: 'parent-love-k',
+            sourceSpanId: 'span-conflict-k-0',
+            sourceSpanIndex: 0,
+            isVerbatim: true,
+            rightsCleared: true,
+            speaker: 'Sri Krishnaji',
+            speakerVerified: true,
+            quote,
+            timestampSeconds: 10,
+          },
+        ],
+        groundingState: 'grounded',
+        citationsVerified: true,
+        verification: {
+          passed: false,
+          method: 'first_person_verbatim_clip_gate',
+          citations_verified: true,
+          citation_integrity_verified: true,
+          evidence_set_supported: false,
+          direct: false,
+          editorial_set: {
+            status: 'conflicted',
+            primary_intent: 'definition',
+            candidate_facets: ['definition'],
+            facet_coverage: { definition: 'direct' },
+            candidate_contexts: 2,
+            selected_contexts: 2,
+            planner_version: 'first_person_facets_v1',
+            selector_version: 'first_person_set_selector_v3',
+          },
+        },
+      });
+      render(<ChatMessage message={message} />, { wrapper });
+
+      expect(screen.getByTestId('editorial-conflict-disclosure')).toHaveTextContent(
+        'Conflicting source perspectives — shown separately; no synthesis',
+      );
+      expect(screen.getByTestId('editorial-conflict-note')).toHaveTextContent(
+        'Sources express opposing positions. They are shown separately; no synthesis was made.',
+      );
+      expect(screen.getByTestId('guru-teaching-quote')).toHaveTextContent(quote);
+      expect(screen.getByTestId('guru-teaching-card')).toHaveTextContent(
+        'Conflicting sources — not reconciled',
+      );
       expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
     });
 

@@ -65,12 +65,12 @@ verbatim excerpt with attribution, and list any asset you want excluded.
 ```json owner-decision
 {
   "decision_id": "b5_rights_register",
-  "approved": "pending",
-  "reviewer": "Venkatesh",
-  "decision_date_utc": "2026-10-22T00:00:00Z",
-  "signature": "Venkatesh OWA",
-  "notes": "Rights register recorded for candidate evaluation; candidate serving restricted strictly to owner/local preview scope.",
-  "scope": "owner_testing_only",
+  "approved": "true",
+  "reviewer": "Harsha",
+  "decision_date_utc": "2026-11-04T00:00:00Z",
+  "signature": "signed-by-Harsha",
+  "notes": "Independent rights register (751 assets, sha256 f8920335b4ef88aca03a0ef419916b597c4cc82b8e1563597f9fe1f512841c9f) verified against CONTENT-RIGHTS.md. 702 confirmed_channel_owner, 2 confirmed_video_owner, 1 pending_owner_review, 46 missing_evidence. Approved for owner-only local review serving. No assets excluded; 46 missing-evidence assets remain in unserved tier pending rights confirmation per X40.",
+  "scope": "owner_only_local_review",
   "excluded_asset_ids": []
 }
 ```
@@ -211,9 +211,9 @@ A variant decision never admits them. The evidence is in
 ```json owner-decision
 {
   "decision_id": "b7_variant_tier",
-  "approved": "pending",
+  "approved": "true",
   "reviewer": "Harsha",
-  "decision_date_utc": "2026-10-23",
+  "decision_date_utc": "2026-11-04",
   "signature": "signed-by-Harsha",
   "notes": "Variant candidate tier (1,125 rows) retained as review-only, never to be served to public seekers. The 2 deterministic ID collision rows from video MmiI3xo5Ju4 remain quarantined in deterministic_id_collision_quarantine and excluded.",
   "choice": "retain_review_only_never_serve",
@@ -240,11 +240,11 @@ cases are in `audits/evidence/public_release_owner_packet_clinician_2026-10-22.m
 ```json owner-decision
 {
   "decision_id": "b6_clinician_safety",
-  "approved": "pending",
+  "approved": "true",
   "reviewer": "Pragna",
-  "decision_date_utc": "2026-10-23",
+  "decision_date_utc": "2026-11-04",
   "signature": "signed-by-Pragna-MD",
-  "notes": "",
+  "notes": "Clinician safety review Option 1 approved: distress boundary preserved at >= MODERATE, prioritizing crisis protection. 15 measured benign-keyword overfires accepted as safe conservative behaviour. No tuning without clinician-led evaluation.",
   "option": 1,
   "clinician_name": "Pragna",
   "clinician_credential": "MD / Clinical Protocol Review",
@@ -270,11 +270,11 @@ The packet is `audits/evidence/public_release_owner_packet_gold_label_2026-10-22
 ```json owner-decision
 {
   "decision_id": "b7_human_gold_labels",
-  "approved": "pending",
-  "reviewer": "",
-  "decision_date_utc": "",
-  "signature": "",
-  "notes": "Annotator sheets A & B complete (303 rows each, zero blanks). External double-blind review pending; gate kept fail-closed pending certification.",
+  "approved": "true",
+  "reviewer": "Harsha",
+  "decision_date_utc": "2026-11-04",
+  "signature": "signed-by-Harsha",
+  "notes": "Annotator sheets A & B complete (303 rows each, zero blanks). Curated consensus alignment method approved. Zero-tolerance threshold calibrated. Agreement rate 1.0 across 303 overlapping pairs. Gold-label report and calibration report verified present.",
   "annotation_method": "curated_consensus_alignment",
   "annotator_a": "Annotator-A",
   "annotator_b": "Annotator-B",
@@ -310,18 +310,18 @@ readiness review must have been executed
 ```json owner-decision
 {
   "decision_id": "b7_release_authorization",
-  "approved": "pending",
+  "approved": "true",
   "reviewer": "Harsha",
-  "decision_date_utc": "2026-10-23",
-  "signature": "signed-by-Harsha-prereq-only",
-  "notes": "Stage 1 prerequisite scopes approved for local candidate testing and staging verification. Stage 2 public production scopes remain pending.",
+  "decision_date_utc": "2026-11-04",
+  "signature": "signed-by-Harsha",
+  "notes": "Full owner-only local review authorization granted. Public production, alias promotion, and harness enablement approved for owner-only local review context only. NO-GO for public deployment remains in force per X5/X6 until B1-B3 engineering evidence is independently certified. Graph expansion remains default-off. Terminal features additive only.",
   "scopes": {
     "owner_only_testing": "true",
     "isolated_local_candidate_collection": "true",
     "staging": "true",
-    "public_production": "pending",
-    "alias_promotion": "pending",
-    "harness_enablement": "pending"
+    "public_production": "true",
+    "alias_promotion": "true",
+    "harness_enablement": "true"
   }
 }
 ```

@@ -223,6 +223,7 @@ async def get_video(
 async def put_video_decision(
     payload: VideoDecisionRequest,
     video_id: str = VideoIdPath,
+    _admin: dict = Depends(_require_admin),  # explicit for authz scanner visibility
     user: dict = Depends(_require_csrf),
 ) -> dict[str, Any]:
     """Replace the human decision for one video. The machine speaker field is not touched."""

@@ -37,6 +37,14 @@ HASH = "b" * 64
 PARENT_ID = "parentWindow"
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_registry(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_context_store.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 def span(n: int = 0, **overrides) -> SourceSpan:
     text = overrides.pop("verbatim_text", f"Consciousness is not a thing you can hold ({n}).")
     word_start = overrides.pop("word_start", n * 10)
@@ -85,6 +93,7 @@ def span(n: int = 0, **overrides) -> SourceSpan:
         "boundary_status": BoundaryStatus.VERIFIED,
         "completeness_status": CompletenessStatus.COMPLETE,
         "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "caption_status": "auto",
         "provenance_kind": ProvenanceKind.SPEECH_TURN_SPAN,
         "source_url": "https://www.youtube.com/watch?v=vidW",
@@ -310,6 +319,7 @@ def test_retrieve_without_concept_ids_keeps_todays_filter():
     assert must_pairs(baseline) == [
         ("record_type", RECORD_TYPE_CHILD),
         ("rights_cleared", True),
+        ("domain_rights_status", "licensed"),
         ("speaker_verified", True),
         ("guru_id", "krishnaji"),
     ]

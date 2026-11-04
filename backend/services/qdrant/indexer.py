@@ -375,8 +375,8 @@ class QdrantIndexer:
                 source_url=payload.get("source_url") or "",
                 video_id=payload.get("video_id"),
             )
-            payload.setdefault("domain_rights_status", rights_stat)
-            payload.setdefault("rights_status", rights_stat)
+            payload["domain_rights_status"] = rights_stat
+            payload["rights_status"] = rights_stat
 
             # DE-0.2: Stamp source_release_version (int) and content_checksum (str)
             rel_ver = payload.get("source_release_version")
@@ -770,6 +770,7 @@ class QdrantIndexer:
             {
                 "text": r.payload.get("text", ""),
                 "source_url": r.payload.get("source_url", ""),
+                "domain_rights_status": r.payload.get("domain_rights_status", "unverified"),
                 "title": r.payload.get("title", ""),
                 "speaker": r.payload.get("speaker", "Unknown"),
                 "topic": r.payload.get("topic", "Spiritual"),

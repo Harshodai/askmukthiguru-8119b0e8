@@ -41,6 +41,14 @@ def _configure_answerability_tests(monkeypatch):
     """
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", True)
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
 
 GOOD_TEXT = (
@@ -75,6 +83,10 @@ def _clip(**overrides):
         "passage_dense": [1.0, 0.0],
         "source_url": "https://youtube.com/watch?v=vid_abc",
         "caption_status": "auto_transcript",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
     base.update(overrides)
     return base

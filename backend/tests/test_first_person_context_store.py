@@ -79,6 +79,7 @@ def span(n=0, **overrides):
         "boundary_status": BoundaryStatus.VERIFIED,
         "completeness_status": CompletenessStatus.COMPLETE,
         "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "caption_status": "auto",
         "provenance_kind": ProvenanceKind.SPEECH_TURN_SPAN,
         "source_url": "https://www.youtube.com/watch?v=vidA",
@@ -133,6 +134,7 @@ def citation_evidence(source: SourceSpan) -> dict:
         "boundary_status": source.boundary_status.value,
         "completeness_status": source.completeness_status.value,
         "rights_cleared": source.rights_cleared,
+        "domain_rights_status": source.domain_rights_status,
         "quality_status": source.quality_status,
         "quarantine_reason": source.quarantine_reason,
         "source_url": source.source_url,
@@ -219,6 +221,19 @@ def store(client=None, collection="fp_context_test"):
     return FirstPersonContextStore(client or FakeClient(), collection)
 
 
+@pytest.fixture(autouse=True)
+def _registered_synthetic_sources(monkeypatch):
+    """Serving fixtures model an explicitly registered source; focused writer tests override it."""
+    monkeypatch.setattr(
+        "services.qdrant.indexer.resolve_source_rights_status",
+        lambda **_kwargs: "licensed",
+    )
+    monkeypatch.setattr(
+        "services.first_person_context_store.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 def test_upsert_writes_uuid_point_ids_for_children_and_parent():
     s1, s2 = span(0), span(1)
     client = FakeClient()
@@ -229,6 +244,21 @@ def test_upsert_writes_uuid_point_ids_for_children_and_parent():
     payload = client.points[point_id_for_record(s1.source_span_id)].payload
     assert payload["record_type"] == RECORD_TYPE_CHILD
     assert payload["verbatim_text"] == s1.verbatim_text
+    assert payload["domain_rights_status"] == "licensed"
+
+
+def test_upsert_overwrites_caller_rights_status_from_register(monkeypatch):
+    monkeypatch.setattr(
+        "services.qdrant.indexer.resolve_source_rights_status",
+        lambda **_kwargs: "unverified",
+    )
+    source = span(domain_rights_status="licensed")
+    client = FakeClient()
+
+    store(client).upsert(parent([source]), [source])
+
+    payload = client.points[point_id_for_record(source.source_span_id)].payload
+    assert payload["domain_rights_status"] == "unverified"
 
 
 def test_upsert_rejects_out_of_order_spans():
@@ -256,7 +286,12 @@ def test_upsert_rejects_span_from_another_guru():
 def test_ensure_indexes_creates_expected_keys():
     client = FakeClient()
     created = store(client).ensure_indexes()
-    assert {"parent_unit_id", "record_type", "rights_cleared"} <= set(created)
+    assert {
+        "parent_unit_id",
+        "record_type",
+        "rights_cleared",
+        "domain_rights_status",
+    } <= set(created)
 
 
 def test_retrieve_falls_back_to_client_side_grouping_and_hydrates_parent():
@@ -286,6 +321,44 @@ def test_retrieve_filter_requires_rights_cleared_and_child_record():
     conditions = {c.key: c.match.value for c in query_filter.must}
     assert conditions["record_type"] == RECORD_TYPE_CHILD
     assert conditions["rights_cleared"] is True
+    assert conditions["domain_rights_status"] == "licensed"
+
+
+def test_retrieve_rechecks_canonical_rights_after_qdrant_returns_hit():
+    source = span()
+    client = FakeClient()
+    adapter = store(client)
+    adapter.upsert(parent([source]), [source])
+    client.points[point_id_for_record(source.source_span_id)].payload["domain_rights_status"] = (
+        "revoked"
+    )
+    client.query_points = lambda **_kwargs: SimpleNamespace(
+        points=[
+            SimpleNamespace(
+                id=point_id_for_record(source.source_span_id),
+                score=1.0,
+                payload={
+                    "parent_unit_id": source.parent_unit_id,
+                    "source_span_id": source.source_span_id,
+                },
+            )
+        ]
+    )
+
+    assert adapter.retrieve([0.1] * 8) == []
+
+
+def test_points_servable_rejects_revoked_status_even_when_legacy_boolean_is_true():
+    source = span()
+    client = FakeClient()
+    adapter = store(client)
+    adapter.upsert(parent([source]), [source])
+    point_id = point_id_for_record(source.source_span_id)
+    evidence = [citation_evidence(source)]
+
+    assert adapter.points_servable([point_id], expected_evidence=evidence) is True
+    client.points[point_id].payload["domain_rights_status"] = "revoked"
+    assert adapter.points_servable([point_id], expected_evidence=evidence) is False
 
 
 def test_retrieve_scopes_to_requested_guru():
@@ -432,6 +505,7 @@ def test_every_harness_filter_field_has_a_declared_payload_index():
     for field in (
         "record_type",
         "rights_cleared",
+        "domain_rights_status",
         "guru_id",
         "parent_unit_id",
         "source_span_id",
@@ -797,6 +871,7 @@ def test_points_servable_revalidates_complete_exact_cache_provenance():
         "speaker_role",
         "speaker_verified",
         "rights_cleared",
+        "domain_rights_status",
         "voice_verification_method",
         "voice_model_revision",
         "voice_score",
@@ -820,6 +895,21 @@ def test_points_servable_revalidates_complete_exact_cache_provenance():
         voice_score=child.voice_score, voice_verification_method="unknown_voice_method"
     )
     assert adapter.points_servable([point_id]) is False
+
+
+def test_points_servable_rejects_stale_licensed_status_after_register_change(monkeypatch):
+    child = span(0)
+    client = FakeClient()
+    adapter = store(client)
+    adapter.upsert(parent([child]), [child])
+    point_id = point_id_for_record(child.source_span_id)
+    evidence = [citation_evidence(child)]
+    monkeypatch.setattr(
+        "services.first_person_context_store.source_is_authoritatively_licensed",
+        lambda **_kwargs: False,
+    )
+
+    assert adapter.points_servable([point_id], expected_evidence=evidence) is False
 
 
 @pytest.mark.parametrize(

@@ -9,6 +9,7 @@ Covers:
 
 from __future__ import annotations
 
+from itertools import permutations
 from types import SimpleNamespace
 
 import pytest
@@ -260,6 +261,9 @@ class TestFirstPersonSetSelector:
         selected_ids = {s.span_id for s in decision.selected}
         # s1 (high score, vid1) must be preferred over s2 (low score, vid1)
         assert "s1" in selected_ids
+        assert len(decision.selected) == 2
+        assert len({span.video_id for span in decision.selected}) == len(decision.selected)
+        assert ("s2", "same_video_cap_exceeded") in decision.excluded
 
     def test_two_clips_different_videos_both_selected(self, selector):
         c1 = _span(
@@ -279,6 +283,151 @@ class TestFirstPersonSetSelector:
         )
         decision = selector.select("What is love?", _FACETS_LOVE, [c1, c2], max_clips=3)
         assert len(decision.selected) == 2
+
+    def test_missing_video_identity_is_excluded(self, selector):
+        candidate = _span(
+            span_id="missing-video",
+            video_id="",
+            text="Love is a quality of attention that remains open to the whole of life.",
+        )
+
+        decision = selector.select("What is love?", _FACETS_LOVE, [candidate], max_clips=3)
+
+        assert decision.selected == ()
+        assert ("missing-video", "missing_video_id") in decision.excluded
+
+    def test_distinct_love_predicates_are_not_mislabeled_as_a_conflict(self, selector):
+        c1 = _span(
+            span_id="s1",
+            video_id="vid1",
+            text=(
+                "Love is not possession or dependence; it is freedom from fear, "
+                "and the need to complete oneself through another."
+            ),
+        )
+        c2 = _span(
+            span_id="s2",
+            video_id="vid2",
+            guru_id="preethaji",
+            text=(
+                "Love is a movement of openness in which one meets another "
+                "without fear, control, expectation, or demand."
+            ),
+        )
+
+        decision = selector.select("What is love?", _FACETS_LOVE, [c1, c2], max_clips=3)
+
+        assert len(decision.selected) == 2
+        assert decision.status in ("supported", "partial")
+        assert "conflicting_positions_detected" not in decision.reasons
+
+    def test_same_explicit_predicate_affirmed_and_negated_is_conflicted(self, selector):
+        affirmed = _span(
+            span_id="s1",
+            video_id="vid1",
+            text="Love is freedom from fear and opens the heart.",
+        )
+        negated = _span(
+            span_id="s2",
+            video_id="vid2",
+            guru_id="preethaji",
+            text="Love is not freedom from fear; it is something else.",
+        )
+
+        decision = selector.select("What is love?", _FACETS_LOVE, [affirmed, negated], max_clips=3)
+
+        assert decision.status == "conflicted"
+        assert "conflicting_positions_detected" in decision.reasons
+
+    def test_opposite_polarity_within_one_video_is_not_cross_source_conflict(self, selector):
+        affirmed = _span(
+            span_id="same-a",
+            video_id="same-video",
+            text="Love is freedom from fear and openness reaches many relationships across the world.",
+        )
+        negated = _span(
+            span_id="same-b",
+            video_id="same-video",
+            text="Love is not freedom from fear; inward quietness grows through patient attention.",
+        )
+
+        decision = selector.select("What is love?", _FACETS_LOVE, [affirmed, negated], max_clips=3)
+
+        assert len(decision.selected) == 1
+        assert decision.status != "conflicted"
+        assert ("same-a", "same_video_cap_exceeded") in decision.excluded or (
+            "same-b",
+            "same_video_cap_exceeded",
+        ) in decision.excluded
+
+    @pytest.mark.parametrize(
+        ("affirmed_text", "negated_text"),
+        [
+            (
+                "Love is at peace when attention is clear and unforced.",
+                "Love is not in peace while the mind seeks comfort and quietness.",
+            ),
+            (
+                "Love is deeply open to another person who is present and responsive.",
+                "Love is not deeply open to another person who is distant and indifferent.",
+            ),
+        ],
+    )
+    def test_conflict_requires_identical_complete_predicate(
+        self, selector, affirmed_text, negated_text
+    ):
+        affirmed = _span(span_id="affirmed", video_id="vid-a", text=affirmed_text)
+        negated = _span(
+            span_id="negated",
+            video_id="vid-b",
+            guru_id="preethaji",
+            text=negated_text,
+        )
+
+        decision = selector.select("What is love?", _FACETS_LOVE, [affirmed, negated], max_clips=3)
+
+        assert decision.status != "conflicted"
+        assert "conflicting_positions_detected" not in decision.reasons
+
+    def test_equal_score_selection_is_invariant_to_candidate_order(self, selector):
+        facets = QueryFacets(
+            primary_intent="general",
+            candidate_facets=("general",),
+            teacher_scope=None,
+            event_scope=None,
+        )
+        candidates = [
+            _span(
+                span_id="span-c",
+                video_id="video-c",
+                text="Love begins from silent freedom beyond the known.",
+                score=0.8,
+            ),
+            _span(
+                span_id="span-a",
+                video_id="video-a",
+                text="Love follows simple attention and kindness in daily life.",
+                score=0.8,
+            ),
+            _span(
+                span_id="span-b",
+                video_id="video-b",
+                text="Love notices quiet clarity while the mind remains open.",
+                score=0.8,
+            ),
+        ]
+
+        observed = {
+            tuple(
+                (span.video_id, span.span_id)
+                for span in selector.select(
+                    "What is love?", facets, list(candidate_order), max_clips=2
+                ).selected
+            )
+            for candidate_order in permutations(candidates)
+        }
+
+        assert observed == {(("video-a", "span-a"), ("video-b", "span-b"))}
 
     def test_facet_coverage_populated(self, selector):
         c = _span(
