@@ -1,4 +1,5 @@
 """T1-01 / ANS-005: agent instruction files must not order teacher first-person text."""
+
 import re
 from pathlib import Path
 

@@ -132,7 +132,11 @@ def test_relevance_prompt_asks_for_scores_only_and_carries_question_and_clips():
     )
     system, user = llm.calls[0]
     assert "ONLY with comma-separated integers" in system
-    assert "Is it okay to cry?" in user and "[1] <clip>alpha</clip>" in user and "[2] <clip>beta</clip>" in user
+    assert (
+        "Is it okay to cry?" in user
+        and "[1] <clip>alpha</clip>" in user
+        and "[2] <clip>beta</clip>" in user
+    )
 
 
 # ---- pipeline wiring ----------------------------------------------------------------------

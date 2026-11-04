@@ -10,7 +10,11 @@ def test_no_teacher_register_in_general_mode(monkeypatch):
 
     monkeypatch.setattr(settings, "langhanam_voice_enabled", True)
     base = "BASE PROMPT"
-    general = {"intent": "FACTUAL", "question": "capital of France?", "general_knowledge_mode": True}
+    general = {
+        "intent": "FACTUAL",
+        "question": "capital of France?",
+        "general_knowledge_mode": True,
+    }
     out, _ = _maybe_apply_langhanam_voice(general, base, "")
     assert out == base
     assert "THE TEACHER'S VOICE" not in out

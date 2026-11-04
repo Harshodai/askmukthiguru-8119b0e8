@@ -142,4 +142,3 @@ async def test_generate_answer_guard_abstains_for_teaching_intent(closed, monkey
     assert out["answer"] == fp_fail_closed.STATIC_ABSTAIN_TEXT
     assert llm.method_calls == []
     assert _counter_value("generate_answer_guard") == before + 1
-

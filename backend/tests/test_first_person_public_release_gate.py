@@ -47,6 +47,7 @@ def _stub_ancestor(monkeypatch: pytest.MonkeyPatch) -> None:
     """Synthetic repos are not git repos: treat only the fixture sha as a real ancestor."""
     monkeypatch.setattr(gate, "_is_ancestor", lambda _root, sha: sha == "abc1234")
 
+
 CONFIG_SCHEMA = "first-person-public-release-gate-v1"
 DECISION_FENCE = "owner-decision"
 
@@ -1008,8 +1009,10 @@ def test_t1_11_non_independent_gold_review_fails(tmp_path: Path) -> None:
     root = _ready_repo(tmp_path)
     _write_json(
         root / "audits" / "evidence" / "gold_label_report.json",
-        {"total_pairs_reviewed": 300, "provenance": {"independent_review": False,
-         "reviewer_ids": ["Asha Rao", "Ravi Menon"]}},
+        {
+            "total_pairs_reviewed": 300,
+            "provenance": {"independent_review": False, "reviewer_ids": ["Asha Rao", "Ravi Menon"]},
+        },
     )
     g = _gate(_evaluate(root), "gold_label_evidence")
     assert g["passed"] is False and "independent_review" in g["detail"]
@@ -1019,8 +1022,10 @@ def test_t1_11_single_annotator_fails(tmp_path: Path) -> None:
     root = _ready_repo(tmp_path)
     _write_json(
         root / "audits" / "evidence" / "gold_label_report.json",
-        {"total_pairs_reviewed": 300, "provenance": {"independent_review": True,
-         "reviewer_ids": ["Asha Rao", "asha rao"]}},
+        {
+            "total_pairs_reviewed": 300,
+            "provenance": {"independent_review": True, "reviewer_ids": ["Asha Rao", "asha rao"]},
+        },
     )
     g = _gate(_evaluate(root), "gold_label_evidence")
     assert g["passed"] is False and "two distinct annotators" in g["detail"]
@@ -1030,8 +1035,11 @@ def test_t1_11_perfect_agreement_without_adjudication_fails(tmp_path: Path) -> N
     root = _ready_repo(tmp_path)
     _write_json(
         root / "audits" / "evidence" / "agreement_calibration_report.json",
-        {"agreement_rate": 1.0, "total_comparisons": 303, "provenance": {
-         "independent_review": True, "reviewer_ids": ["Asha Rao", "Ravi Menon"]}},
+        {
+            "agreement_rate": 1.0,
+            "total_comparisons": 303,
+            "provenance": {"independent_review": True, "reviewer_ids": ["Asha Rao", "Ravi Menon"]},
+        },
     )
     g = _gate(_evaluate(root), "gold_label_evidence")
     assert g["passed"] is False and "no adjudication" in g["detail"]

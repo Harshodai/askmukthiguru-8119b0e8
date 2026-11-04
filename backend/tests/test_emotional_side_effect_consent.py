@@ -39,16 +39,12 @@ async def _run_prepare(container, monkeypatch):
         patch.object(
             utils, "detect_and_prepare_language_info", return_value=(None, "en", False, False)
         ),
-        patch.object(
-            utils, "prepare_user_memory", new=AsyncMock(return_value=("", [], None, ""))
-        ),
+        patch.object(utils, "prepare_user_memory", new=AsyncMock(return_value=("", [], None, ""))),
         patch("services.healing_course_service.maybe_assign_healing_course", new=assign),
     ):
         # Signed-in user: the third argument is preferred_lang and `user` carries the id;
         # an anonymous call would skip the block and make these assertions vacuous.
-        await utils.prepare_request_state(
-            container, body, "en", user={"id": str(uuid.uuid4())}
-        )
+        await utils.prepare_request_state(container, body, "en", user={"id": str(uuid.uuid4())})
         await asyncio.sleep(0.05)  # let the background task run
     return assign
 

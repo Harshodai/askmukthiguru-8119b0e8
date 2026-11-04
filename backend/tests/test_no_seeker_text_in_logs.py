@@ -46,7 +46,10 @@ def _safe_name_ids(arg: ast.AST) -> set[int]:
         if not isinstance(sub, ast.Call):
             continue
         func = sub.func
-        is_len = isinstance(func, ast.Name) and func.id in {"len", "_q_tag"}  # T1-09: _q_tag = len + sha256 prefix
+        is_len = isinstance(func, ast.Name) and func.id in {
+            "len",
+            "_q_tag",
+        }  # T1-09: _q_tag = len + sha256 prefix
         is_hash = isinstance(func, ast.Attribute) and func.attr in {"sha256", "md5", "blake2b"}
         if is_len or is_hash:
             safe.update(id(n) for n in ast.walk(sub) if isinstance(n, ast.Name))

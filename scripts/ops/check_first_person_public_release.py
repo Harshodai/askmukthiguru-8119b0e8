@@ -221,7 +221,9 @@ def _gold_evidence_problems(root: Path, config: dict[str, Any]) -> list[str]:
         if bots:
             problems.append(f"{key}: non-human annotator ids {', '.join(bots)}")
         agreement = doc.get("agreement_rate")
-        items = doc.get("total_comparisons") or doc.get("total_pairs_reviewed") or doc.get("rows") or 0
+        items = (
+            doc.get("total_comparisons") or doc.get("total_pairs_reviewed") or doc.get("rows") or 0
+        )
         adjudicated = bool(doc.get("adjudication") or prov.get("adjudication"))
         if (
             agreement == 1.0

@@ -8,7 +8,10 @@ from app.config import settings
 
 def _q_tag(text: str) -> str:
     """Length + short sha256 prefix; never the seeker's words (SEC-003)."""
-    return f"len={len(text or '')} sha={hashlib.sha256((text or '').encode('utf-8')).hexdigest()[:8]}"
+    return (
+        f"len={len(text or '')} sha={hashlib.sha256((text or '').encode('utf-8')).hexdigest()[:8]}"
+    )
+
 
 logger = logging.getLogger(__name__)
 

@@ -175,5 +175,3 @@ def test_health_public_view_is_shallow_without_token(monkeypatch):
     assert not health_mod._has_internal_health_token(_Req({}))
     monkeypatch.setattr(health_mod.settings, "metrics_scrape_token", None, raising=False)
     assert not health_mod._has_internal_health_token(_Req({"Authorization": "Bearer "}))
-
-
