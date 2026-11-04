@@ -76,7 +76,6 @@ vi.mock('@/lib/chatStorage', () => ({
   getConversationPreview: vi.fn().mockReturnValue('preview'),
   getCurrentConversationId: vi.fn().mockReturnValue(null),
   setCurrentConversationId: vi.fn(),
-  updateConversationSummary: vi.fn(),
 }));
 
 // Mock the AI service

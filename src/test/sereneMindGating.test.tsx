@@ -154,7 +154,6 @@ vi.mock('@/lib/chatStorage', () => ({
   getConversationPreview: vi.fn().mockReturnValue('preview'),
   getCurrentConversationId: vi.fn(async () => null),
   setCurrentConversationId: vi.fn(async () => {}),
-  updateConversationSummary: vi.fn(async () => {}),
   hashMessages: vi.fn().mockReturnValue('mockhash'),
 }));
 
