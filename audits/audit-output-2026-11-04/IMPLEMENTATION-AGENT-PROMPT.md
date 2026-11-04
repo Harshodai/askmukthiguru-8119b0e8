@@ -310,18 +310,26 @@ Do not claim readiness that the evidence does not show.
 **Do first in the next session:** confirm CI on the branch head; fix any remaining failure (treat T1-05/SEC-010 behaviour as intended; anything else is a regression).
 
 **Next agent-doable tasks, in order (no owner decision, no clinician, no live infrastructure):**
-1. T2-03 remainder: emit `answer_outcome` on early-return paths (exact cache, doctrine cache), per-call `prompt_id@version`, tokens and cost.
+1. T2-03 rest: per-call `prompt_id@version`, tokens and cost; per-stage latency; frontend feedback join (`useful_answer`).
 2. T2-05 fixture Qdrant + Redis CI job.
 3. T2-01 offline PR eval-suite harness (crisis set non-blocking until clinician review).
 4. T2-02 retrieval-bank harness (labels are human work; the harness is not).
 5. T1-18 stream contract (citations, labels and safety notices before or with the final text).
 6. T3-02 Qdrant read-only and write keys (code and compose; enabling in production is infrastructure).
 7. T3-04 builder per-video replace and snapshot-before-write (code only; running it needs the owner).
-8. T3-12 encoder fingerprint; T3-08 schema snapshot CI; T3-05 promotion gate and daily audit.
+8. T3-08 schema snapshot CI; T3-05 promotion gate and daily audit.
 9. T3-06 source registry, `takedown()` and structured citations (migration written, not applied).
 10. T4-01 gate-then-dedup; T4-02 hybrid RRF on v10 (both measured on the T2-02 bank).
 11. T6-05 client RLS `role='user'` → T6-09 account-level history → T6-06 durable erasure and purge job → T6-04 save, report, revisit.
 12. T7-01 split `FirstPersonPipeline.execute` (behaviour-identical) → T4-06 evidence judge → T7-02 async.
-13. T1-13 rest (root shims, `langdetect` stub), T1-14 rest (Qdrant keys in compose, verified image pins), T2-06 config lint, T1-15 documentation diet.
+13. T1-14 rest (Qdrant keys in compose, verified image pins), T2-06 config lint, T1-15 documentation diet.
 
 **Before every push** (lesson from this session): run `ruff format --check` with the CI version, the pre-commit whitespace and end-of-file hooks on changed files, and `rg` for tests that assert behaviour you changed on purpose.
+
+### 0h. Fourth batch (2026-11-04)
+
+| Item | What landed | Verified | Left |
+|---|---|---|---|
+| T2-03 remainder | `answer_outcome` is emitted once from `PipelineCoordinator.execute` (wrapper over the stage chain) instead of `ResultAssemblyStage`; covers exact/doctrine cache hits, guardrail/distress early returns, timeout and crash; `cache_hit`, `blocked`, `grounding_state` come from the final `PipelineResult`; failure-tolerant | `test_answer_outcome_telemetry.py`, `test_pipeline_stages.py`, `test_no_seeker_text_in_logs.py`: 43 passed | per-call `prompt_id@version`, tokens, cost; per-stage latency; frontend join; Supabase sink |
+| T3-12 (RET-07) | Optional `embedding_model` / `embedding_dimension` on `CollectionContract` (validated on load); `validate_serving_contract` reports "encoder mismatch" errors; lifespan passes the configured encoder; production stops, elsewhere logs | `test_first_person_serving_contract.py`, `test_first_person_v10_only.py`: 59 passed | The shipped contract declares no encoder, so the check is a no-op until the owner records the index encoder per collection (not inferred) |
+| T1-13 rest | Removed root `langdetect/` stub (always returned "en", shadowed the real package; nothing depended on it) | `test_repo_layout.py`, `test_intelligent_metadata_extractor.py`, `test_splitter_stub_fails_closed.py`: 12 passed | Kept root `app/`, `rag/`, `services/`, `ingest/` shims (used by root-cwd scripts and `pytest.ini` `pythonpath = .`) and `langchain_text_splitters/` (pinned by its own test); removing them needs the scripts moved to run from `backend/` |
