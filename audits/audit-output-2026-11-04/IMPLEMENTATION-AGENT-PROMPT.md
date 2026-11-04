@@ -333,3 +333,40 @@ Do not claim readiness that the evidence does not show.
 | T2-03 remainder | `answer_outcome` is emitted once from `PipelineCoordinator.execute` (wrapper over the stage chain) instead of `ResultAssemblyStage`; covers exact/doctrine cache hits, guardrail/distress early returns, timeout and crash; `cache_hit`, `blocked`, `grounding_state` come from the final `PipelineResult`; failure-tolerant | `test_answer_outcome_telemetry.py`, `test_pipeline_stages.py`, `test_no_seeker_text_in_logs.py`: 43 passed | per-call `prompt_id@version`, tokens, cost; per-stage latency; frontend join; Supabase sink |
 | T3-12 (RET-07) | Optional `embedding_model` / `embedding_dimension` on `CollectionContract` (validated on load); `validate_serving_contract` reports "encoder mismatch" errors; lifespan passes the configured encoder; production stops, elsewhere logs | `test_first_person_serving_contract.py`, `test_first_person_v10_only.py`: 59 passed | The shipped contract declares no encoder, so the check is a no-op until the owner records the index encoder per collection (not inferred) |
 | T1-13 rest | Removed root `langdetect/` stub (always returned "en", shadowed the real package; nothing depended on it) | `test_repo_layout.py`, `test_intelligent_metadata_extractor.py`, `test_splitter_stub_fails_closed.py`: 12 passed | Kept root `app/`, `rag/`, `services/`, `ingest/` shims (used by root-cwd scripts and `pytest.ini` `pythonpath = .`) and `langchain_text_splitters/` (pinned by its own test); removing them needs the scripts moved to run from `backend/` |
+
+### 0i. Remaining findings by who can close them (after `771cb5e9`; budget for this session ended here)
+
+Totals: 152 defect findings. 30 closed in code (CI to confirm), 8 partly addressed, 114 open. Still present (open or partial): **122**. Classification below is the lead's judgement; revalidate it in the first task.
+
+**A. Agent-doable now, no owner decision, no clinician, no live infrastructure: ~55 findings.** Do them in the §0g order. Each row: findings → task.
+
+| Group | Findings | Tasks |
+|---|---|---|
+| CI and baseline | X-01, GURU-001 (green `main`), X-04 | Confirm CI on the branch head; T0-06 revalidation |
+| Measurement | SYS-011 (per-call prompt id, tokens, cost; frontend join), UX-004, EVAL-003, EVAL-004, ADV-04, RET-08, CQ-008, CQ-010, AI-004 | T2-03 rest, T2-01 harness, T2-02 harness, T2-05, T2-06, T5-07 |
+| Data correctness (code only; running builders and applying migrations need the owner) | DATA-03, DATA-05, DATA-06, DATA-07, DATA-11, DATA-12, DATA-13, DATA-15, DATA-16, DATA-18, GURU-013 | T3-02, T3-03, T3-04, T3-05, T3-06, T3-07 (code), T3-08 |
+| Retrieval and cost | RET-01, RET-02, RET-10, SYS-006 (judge part), AI-002 | T4-01, T4-02, T4-06 (after T7-01), T4-05 |
+| Privacy and continuity | ADV-01, SEC-004, PRD-003, UX-006, PRD-006, MEM-002, MEM-004, ADV-06 | T6-06, T6-05, T6-09, T6-04, T6-02, T6-03, T6-01 inventory only |
+| Frontend honesty | UX-005, PRD-010, UX-009, UX-011 | T1-18, T6-10 (copy needs owner review before release) |
+| Platform | SYS-003, CQ-001, CQ-002, CQ-003, CQ-006, CQ-007, CQ-011, CQ-014, AI-005, AI-008, SEC-006 (Qdrant keys, pins), SEC-007 (fencing elsewhere) | T7-01, T7-02, T7-03, T7-04, T7-05, T1-14 rest |
+| Teachers and docs | GURU-010, CQ-009, X-07 | T8-01, T8-02, T1-15 |
+
+**B. Needs an owner decision, a clinician, native speakers, human labellers, or live infrastructure: ~67 findings.**
+
+| Gate | Findings |
+|---|---|
+| Owner D-01/D-02 (public exposure) | X-06, IP-001 (both P0), SEC-005, DATA-19, IP-008 |
+| Owner settings and scopes | X-02, X-03 (T0-03), X-05 (D-24), GURU-004 (D-11) |
+| Owner D-03 (layered answer, all of P5) | ANS-004, ANS-006, ANS-007, RET-03, RET-04, RET-06, PRD-007 |
+| Owner D-04 (general lane) | SYS-002, ANS-003, AI-001, RET-11, CQ-012 (T7-06) |
+| Owner D-05/D-08 (graph stack, storage, bundle, backups) | RET-05, DATA-08, DATA-10, DATA-17, DATA-01, DATA-09, DATA-14, SYS-012, IP-004 |
+| Owner D-07, D-16, D-19, D-20, D-25 | SEC-001, SEC-002, AI-007, UX-001, UX-002, GURU-011, IP-006, PRD-002, EVAL-006 |
+| Owner records the encoder in the serving contract | RET-07 (check exists, inactive until recorded) |
+| Owner: processor agreements | ADV-02 (inventory is agent-doable; DPA choices are not) |
+| Owner: memory migration approval | MEM-001, CQ-004 |
+| Clinician | ANS-001, ANS-002, SAFE-001, SAFE-002, SAFE-003, SAFE-007 |
+| Native speakers | ANS-008, UX-008 |
+| Human labellers, study, calls, filed approvals | GURU-002, GURU-005, SAFE-005, GURU-007, SAFE-004, EVAL-002, EVAL-005, PRD-008, GURU-014, IP-002, IP-003, IP-005, IP-007 |
+| Live infrastructure | SYS-007, SYS-008 |
+
+Start the next session with §1 (revalidation), then work group A top to bottom, one task ID per PR-sized commit, following §4 and §7.
