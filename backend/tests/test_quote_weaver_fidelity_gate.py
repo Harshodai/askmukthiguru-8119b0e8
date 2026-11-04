@@ -143,22 +143,3 @@ def test_verified_clip_renders_stored_label_neutral_link_and_backed_audio():
     }
     [q] = parse_attributed_quotes(res.text)
     assert verify_quote(q, sources_from_payloads([clip])[VID]).ok
-
-
-def test_llm_pointer_naming_the_wrong_teacher_is_replaced(monkeypatch):
-    from app.config import settings
-
-    monkeypatch.setattr(settings, "first_person_mode", "hybrid")
-
-    class LLM:
-        def generate(self, **_):
-            return "OPENING: Sri Krishnaji answers this:\nCONNECTIVE: NONE\nQUESTIONS:\n*What do you see in yourself now?*"
-
-    clip = _fp_clip("Consciousness is your superpower.")
-    res = QuoteWeaverService(llm_service=LLM()).weave(
-        "What is consciousness?", [clip], [], sources=sources_from_payloads([clip])
-    )
-    assert "Sri Krishnaji" not in res.text
-    assert "Sri Krishnaji" not in (res.related_clips_heading or "")
-    assert res.related_clips_heading.startswith("Sri Preethaji speaks to a related theme:")
-    assert not res.text.startswith("Sri Preethaji speaks to a related theme:")

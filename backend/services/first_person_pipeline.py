@@ -86,7 +86,6 @@ from services.quote_fidelity import (
     sources_from_payloads,
 )
 from services.quote_weaver import (
-    _SCAFFOLD_PROMPT_VERSION,
     QuoteWeaverService,
     audio_strip_for,
     verify_hero_clip,
@@ -2886,7 +2885,6 @@ class FirstPersonPipeline:
                 "require_speaker_verified": str(
                     bool(getattr(settings, "first_person_require_speaker_verified", False))
                 ),
-                "editorial_rewrite": str(bool(settings.first_person_editorial_rewrite_enabled)),
                 "llm_rerank": str(bool(settings.first_person_llm_rerank_enabled)),
                 "second_quote": str(
                     bool(getattr(settings, "first_person_second_quote_enabled", False))
@@ -2917,7 +2915,6 @@ class FirstPersonPipeline:
                         ).encode()
                     ).hexdigest()[:12]
                 ),
-                "scaffold_prompt": str(_SCAFFOLD_PROMPT_VERSION),
                 "serve_weak_match": str(bool(settings.first_person_serve_weak_match)),
                 "standalone_gate": str(bool(settings.first_person_standalone_gate_enabled)),
                 "standalone_min_words": str(

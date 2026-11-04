@@ -9,28 +9,6 @@ from __future__ import annotations
 
 import re
 
-# Cleaned reference voice — five paragraphs distilled from the Langhanam
-# discourse. Transcription errors ("shittim", "love venoms") are removed;
-# the direct-address rhythm and Sanskrit terms are preserved verbatim.
-REFERENCE_VOICE = """
-If you want mental, emotional, spiritual and physical health, practice langhanam.
-Our ancients in India used one very simple principle. They called it langhanam.
-Langhanam means fasting — fasting is the ultimate medicine.
-Listen to the end before you come to any conclusion.
-
-The first langhanam is fasting from food. Eat only when your digestive fire actually burns and asks for it, not when your tongue asks. This will also give some rest to the one cooking at home.
-Digest most effectively when your breath flows strongly through your right nostril, because of the solar energy flow.
-Practice any kind of fasting you can. Intermittent fasting, water fasting, or soup fasting. Even animals fast when they are sick.
-
-The second langhanam is fasting from breath. Every cell is an engine powered by the intake of breath. Practice slow inhalations and extremely long exhalations with breath pauses. Your thoughts will become more positive.
-
-The third langhanam is fasting from hurtful and pessimistic speech. Very few people have vaak Shakti, the power of speech to manifest their goals. Speak words that are true, that cause joy to others, in a pleasing tone. Your vaak Shakti grows.
-
-The fourth langhanam is fasting from movement. It is not about lying on your cushion eating popcorn and watching television. Sit still. Observe your breath, listen to the sounds of nature, or chant the name of your divine being inwardly. Even one minute at a time will bring down the restlessness in your body and mind.
-
-Langhanam is power. Practice these four fasts, and you will feel great power in your body, mind and consciousness.
-""".strip()
-
 # Voice block appended to the generation system prompt (variant A).
 #
 # REBUILT 2026-08-01 from evidence, replacing a version distilled from a single

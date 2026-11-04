@@ -179,18 +179,9 @@ class Settings(BaseSettings):
     # retrieval_only, so an unconfigured deployment ran LLM scaffolding against
     # an invariant that forbids LLM-authored teachings. The production release
     # contract (services/first_person_release.py) accepts only retrieval_only;
-    # the default now matches it. Set FIRST_PERSON_MODE=hybrid explicitly (and
-    # expect the LLM opening/connective/questions branch) to opt back in.
+    # the default now matches it. "hybrid" is still a declared value but the quote
+    # weaver no longer has an LLM branch (T1-02): it behaves like retrieval_only.
     first_person_mode: str = "retrieval_only"
-    # Hybrid mode (opt-in): the LLM writes only OPENING/CONNECTIVE/QUESTIONS and code
-    # assembles the quotes verbatim. Letting it rewrite the whole chapter (ASR
-    # "proofreading", pronoun "anchoring") can change the teacher's words, so it
-    # needs an explicit owner opt-in.
-    first_person_editorial_rewrite_enabled: bool = False
-    first_person_scaffold_max_tokens: int = 160
-    # "" = the LLM service's default model. Set to a small OpenRouter model for cheap framing,
-    # e.g. "meta-llama/llama-3.1-8b-instruct" (already on the model allowlist).
-    first_person_scaffold_model: str = ""
     # Updated 2026-10-04: v7 is the active production collection (1,589 clips,
     # 306 videos, 100% rights_cleared). Old default "first_person_v1" was a
     # 580-clip pilot predating the bake-off pipeline — any env without explicit
@@ -212,9 +203,6 @@ class Settings(BaseSettings):
     # (empty = no path source is accepted).
     federated_ingest_enabled: bool = False
     federated_ingest_allowed_dir: str = ""
-    # Comma-separated first_person_* collections the ingest pipeline may dual-index into
-    # after a video ingest. EMPTY (default) = ingest writes to no first_person_* collection.
-    fp_dual_index_collections: str = ""
     # Gate for the /api/first-person/query route itself (separate from
     # first_person_mode, which the route also still checks).
     # Updated 2026-10-04: enabled by default — route was silently off for all

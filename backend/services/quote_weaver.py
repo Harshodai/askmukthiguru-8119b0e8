@@ -23,11 +23,8 @@ from __future__ import annotations
 import asyncio
 import difflib
 import hashlib
-import inspect
 import logging
 import re
-import threading
-from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -1043,296 +1040,6 @@ def _deterministic_fallback(
     )
 
 
-def _build_scaffolding_prompts(
-    query: str,
-    clips: list[dict[str, Any]],
-    doctrine_context: Optional[str] = None,
-) -> tuple[str, str]:
-    """Construct strict system and user prompts requesting ONLY minimal framing scaffolding.
-    The LLM is NOT provided the teaching text to prevent summarization, rewriting, or distortion.
-    """
-    system_prompt = (
-        "You are a serene spiritual facilitator for the wisdom teachings of Sri Preethaji and Sri Krishnaji.\n"
-        "Your task is strictly to provide MINIMAL serene framing for the retrieved video teachings.\n"
-        "DO NOT generate, summarize, paraphrase, or alter the spiritual teachings.\n"
-        "DO NOT use bullet points (*, -), numbered lists (1. 2. 3.), or markdown headers (###).\n\n"
-        "Provide exactly three fields:\n"
-        "1. OPENING: A minimal pointer of 15 words or fewer introducing the discourse "
-        "(e.g., 'Sri Preethaji speaks to a related theme:' or 'Sri Krishnaji observes:'). "
-        "Do NOT summarize what the teacher will say.\n"
-        "2. CONNECTIVE: If two clips are provided, a minimal pointer of 15 words or fewer transitioning "
-        "to the second teacher's discourse (e.g., 'Sri Krishnaji further deepens this understanding:'). "
-        "If only one clip is provided, output NONE.\n"
-        "3. QUESTIONS: Exactly 1 or 2 sharp inward Atma Vichara (self-inquiry) reflection questions "
-        "in italics (*...*) turning attention back to the observer. Do not invent affirmations, do not ask them to place hands on hearts.\n\n"
-        "OUTPUT FORMAT EXACTLY:\n"
-        "OPENING: <minimal pointer <= 15 words>\n"
-        "CONNECTIVE: <minimal pointer <= 15 words or NONE>\n"
-        "QUESTIONS:\n"
-        "*<inward self-inquiry question 1>*\n"
-        "*<inward self-inquiry question 2>*"
-    )
-
-    clip_info = []
-    for i, c in enumerate(clips[:2], 1):
-        hero = c.get("_hero") or {}
-        spk = hero.get("label") or "Teacher"
-        title = hero.get("title")
-        clip_info.append(f"Teacher {i}: {spk}" + (f" (Discourse: '{title}')" if title else ""))
-
-    user_prompt = f"Seeker's Query: {query}\n\nRetrieved Discourses:\n" + "\n".join(clip_info)
-    if doctrine_context:
-        user_prompt += f"\n\nDoctrine Knowledge Context (Memgraph):\n{doctrine_context}"
-    user_prompt += "\n\nProvide the OPENING, CONNECTIVE, and QUESTIONS. Do not write anything else."
-    return system_prompt, user_prompt
-
-
-def _build_editorial_review_prompt(
-    query: str,
-    clips: list[dict[str, Any]],
-    metadata: Optional[dict[str, Any]] = None,
-    doctrine_context: Optional[str] = None,
-) -> tuple[str, str]:
-    """Construct prompt for the Elite Spiritual Manuscript Editor persona.
-    Enforces the Sacred Arc of Awakening, ASR proofreading, antecedent grounding,
-    and zero-paraphrase invariant.
-    """
-    system_prompt = (
-        "You are an Elite Spiritual Manuscript Editor for the sacred teachings of Sri Krishnaji and Sri Preethaji.\n"
-        "Your role is to edit, proofread, and weave the authentic spoken words of the Gurus into ONE continuous, "
-        "flowing book chapter in the style of 'The Four Sacred Secrets'.\n\n"
-        "CORE INVARIANTS (NON-NEGOTIABLE):\n"
-        "1. ZERO PARAPHRASE / ZERO REGENERATION: Do NOT rewrite, summarize, explain, or regenerate the Gurus' teachings. "
-        "100% of the substantive spiritual insights, parables, and metaphors MUST remain the Gurus' authentic spoken words.\n"
-        "2. ASR PROOFREADING ONLY: Proofread oral transcript artifacts: remove stuttered word repetitions "
-        "(e.g., 'carried carried' -> 'carried', 'her her' -> 'her', 'healing Healing' -> 'healing'), remove Whisper decoder hallucinations "
-        "(e.g., 'arise eyes.' -> 'arise.'), restore clean oral punctuation and capitalization, and excise ephemeral "
-        "retreat dates or logistics (e.g., 'In February when we meet').\n"
-        "3. ANTECEDENT GROUNDING: Where spoken pronouns are ambiguous without video context, anchor them to the sacred context "
-        "(e.g., replace 'him living with 10 heads' with 'Ravana living with ten heads').\n"
-        "4. NO HEADERS OR BULLETS: Absolutely NO markdown section headers (no ###) and NO bullet points (no *, -).\n"
-        "5. SACRED ARC OF AWAKENING:\n"
-        "   Weave the discourses into one seamless chapter following the natural movement of consciousness:\n"
-        "   - The Seeker's Predicament (validating the inner turmoil, conflict, or division)\n"
-        "   - The Foundational Law (The Two States / Inner State determining destiny)\n"
-        "   - The Living Metaphor & Parable (e.g., The Hollow Bamboo / Ravana's Ten Heads)\n"
-        "   - The Awakening Shift (Somatic stillness / Living presence / Dropping resistance)\n"
-        "6. SACRED MICRO-BRIDGES: Connect the voices with minimal, elegant micro-bridges "
-        "(e.g., 'Sri Krishnaji reveals the foundational law:', 'Sri Preethaji observes how this manifests in the heart:').\n"
-        "7. FOOTNOTE CITATION MARKERS: Insert footnote markers [1], [2] at the end of corresponding discourse segments.\n"
-        "8. ATMA VICHARA INQUIRY: Conclude the chapter with a single divider '---' followed by 2–3 sharp, inward "
-        "contemplative reflection questions in italics (*...*) that turn the seeker's attention back to the observer.\n\n"
-        "Do NOT include conversational filler, greetings, or canned AI disclaimers (e.g., 'As an AI', 'In this chapter')."
-    )
-
-    clip_blocks = []
-    for i, c in enumerate(clips, 1):
-        hero = c.get("_hero") or {}
-        speaker = hero.get("label") or c.get("speaker") or "Teacher"
-        title = hero.get("title") or c.get("video_title") or c.get("title") or "Discourse"
-        raw_text = _clip_text(c)
-        cleaned = clean_verbatim_text(raw_text)
-        clip_blocks.append(
-            f"--- DISCOURSE CLIP [{i}] ---\n"
-            f"Speaker: {speaker}\n"
-            f"Context / Title: {title}\n"
-            f"Spoken Transcript:\n{cleaned}"
-        )
-
-    user_prompt = (
-        f"Seeker Inquiry: {query}\n\n"
-        f"Retrieved Spoken Discourses:\n" + "\n\n".join(clip_blocks) + "\n\n"
-    )
-    if doctrine_context:
-        user_prompt += f"Doctrine Knowledge Context (Memgraph):\n{doctrine_context}\n\n"
-    user_prompt += (
-        "Instructions:\n"
-        "Proofread, anchor antecedents, and weave the authentic spoken words above into ONE continuous book chapter "
-        "with footnote markers [1], [2], followed by '---' and 2–3 italic reflection questions (*...*). "
-        "Do not summarize or paraphrase. Keep the Gurus' authentic words intact."
-    )
-    return system_prompt, user_prompt
-
-
-def _build_prompts(
-    query: str,
-    clips: list[dict[str, Any]],
-    okf_entries: list[dict[str, Any]],
-) -> tuple[str, str]:
-    """Backward-compatible prompt builder alias."""
-    return _build_scaffolding_prompts(query, clips)
-
-
-def _parse_scaffolding(raw_text: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    """Parse OPENING, CONNECTIVE, and QUESTIONS from LLM output.
-    Returns (opening, connective, reflection_questions).
-    """
-    if not raw_text or not raw_text.strip():
-        return None, None, None
-
-    opening = None
-    connective = None
-    questions = None
-
-    # Parse OPENING
-    m_open = re.search(
-        r"(?i)OPENING:\s*(.+?)(?=\n(?:CONNECTIVE|QUESTIONS):|$)", raw_text, re.DOTALL
-    )
-    if m_open:
-        op = m_open.group(1).strip()
-        if op and not op.upper().startswith("NONE"):
-            opening = op
-
-    # Parse CONNECTIVE
-    m_conn = re.search(r"(?i)CONNECTIVE:\s*(.+?)(?=\nQUESTIONS:|$)", raw_text, re.DOTALL)
-    if m_conn:
-        cn = m_conn.group(1).strip()
-        if cn and not cn.upper().startswith("NONE"):
-            connective = cn
-
-    # Parse QUESTIONS
-    m_q = re.search(r"(?i)QUESTIONS:\s*(.+)$", raw_text, re.DOTALL)
-    q_block = m_q.group(1).strip() if m_q else raw_text
-    italic_qs = [
-        m.strip()
-        for m in re.findall(r"(?<!\*)\*([^*\n]+)\*(?!\*)", q_block)
-        if len(m.strip()) >= 10
-    ]
-    if len(italic_qs) >= 1:
-        questions = "---\n\n" + "\n\n".join(f"*{q}*" for q in italic_qs[:2])
-
-    return opening, connective, questions
-
-
-_SCAFFOLD_PROMPT_VERSION = "v1"
-_SCAFFOLD_CACHE_MAX = 512
-_SCAFFOLD_CACHE: OrderedDict[str, str] = OrderedDict()
-_SCAFFOLD_CACHE_LOCK = threading.Lock()
-
-
-def _scaffold_cache_key(query: str, clips: list[dict[str, Any]], use_rewrite: bool) -> str:
-    """Content-hash key: same query + same clips (by hash/window) + same prompt version."""
-    parts = [_SCAFFOLD_PROMPT_VERSION, "rw" if use_rewrite else "sc", normalise(query)]
-    for c in clips:
-        hero = c.get("_hero") or {}
-        parts.append(
-            "|".join(
-                str(x)
-                for x in (
-                    c.get("transcript_hash") or hashlib.sha256(_clip_text(c).encode()).hexdigest(),
-                    c.get("video_id"),
-                    c.get("start_ms"),
-                    hero.get("label"),
-                )
-            )
-        )
-    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
-
-
-def _scaffold_cache_get(key: str) -> Optional[str]:
-    with _SCAFFOLD_CACHE_LOCK:
-        val = _SCAFFOLD_CACHE.get(key)
-        if val is not None:
-            _SCAFFOLD_CACHE.move_to_end(key)
-        return val
-
-
-def _scaffold_cache_put(key: str, raw: str) -> None:
-    with _SCAFFOLD_CACHE_LOCK:
-        _SCAFFOLD_CACHE[key] = raw
-        _SCAFFOLD_CACHE.move_to_end(key)
-        while len(_SCAFFOLD_CACHE) > _SCAFFOLD_CACHE_MAX:
-            _SCAFFOLD_CACHE.popitem(last=False)
-
-
-def _llm_kwargs(use_rewrite: bool) -> dict[str, Any]:
-    """Per-call cost bounds. Scaffolding emits ~60 tokens, so cap it tightly."""
-    if use_rewrite:
-        return {"max_tokens": 1200, "temperature": 0.0}
-    kw: dict[str, Any] = {
-        "max_tokens": int(getattr(settings, "first_person_scaffold_max_tokens", 160)),
-        "temperature": 0.0,
-    }
-    model = str(getattr(settings, "first_person_scaffold_model", "") or "").strip()
-    if model:
-        kw["model"] = model
-    return kw
-
-
-def _assemble_from_llm(
-    raw_str: str,
-    clips: list[dict[str, Any]],
-    query: str,
-    okf_entries: list[dict[str, Any]],
-    intent: Optional[str],
-    use_rewrite: bool,
-) -> Optional[tuple[str, Optional[str], Optional[str]]]:
-    """Turn LLM output into (answer body, reflection questions, heading), or None.
-
-    Default (scaffold) mode: the LLM never sees or returns teaching text. Only the
-    OPENING / CONNECTIVE / QUESTIONS fields are used and CODE assembles the quotes
-    from stored clips, so the teacher's words cannot be altered. The OPENING and
-    CONNECTIVE become `related_clips_heading` metadata and QUESTIONS become
-    `atma_vichara_inquiry` metadata — never body text (invariant 1).
-    Free-form output (a rewritten chapter) is accepted only when the owner opted
-    into rewrite mode, because a rewrite can substitute words ("him" -> "Ravana")
-    that the quote check never sees when the text carries no quotation marks.
-    """
-    if "OPENING:" in raw_str:
-        opening, connective, questions = _parse_scaffolding(raw_str)
-        body = _format_assembled_answer(
-            clips=clips,
-            query=query,
-            opening=opening,
-            connective=connective,
-            questions=questions,
-            okf_entries=okf_entries,
-            intent=intent,
-        )
-        heading, inquiry = _format_pointer_and_questions(
-            clips=clips,
-            query=query,
-            opening=opening,
-            connective=connective,
-            questions=questions,
-            okf_entries=okf_entries,
-        )
-        return body, inquiry, heading
-    if not use_rewrite:
-        return None
-    if "*Sources of Wisdom:*" not in raw_str:
-        footer = _format_sources_footer(clips)
-        body = (raw_str + "\n\n" + footer) if footer else raw_str
-        return body, _extract_inquiry_from_chapter(raw_str), None
-    return raw_str, _extract_inquiry_from_chapter(raw_str), None
-
-
-async def _generate_llm(
-    llm_service: Any, system_prompt: str, user_prompt: str, **gen_kwargs: Any
-) -> str:
-    """Invoke an LLM service (sync or async) and return the generated text.
-
-    ``gen_kwargs`` (max_tokens / temperature / model) bound cost and variance. A
-    service whose ``generate`` rejects them is retried bare rather than failing.
-    """
-    if hasattr(llm_service, "generate"):
-        try:
-            res = llm_service.generate(
-                system_prompt=system_prompt, user_prompt=user_prompt, **gen_kwargs
-            )
-        except TypeError:
-            res = llm_service.generate(system_prompt=system_prompt, user_prompt=user_prompt)
-        if inspect.isawaitable(res):
-            return await res
-        return str(res)
-    elif callable(llm_service):
-        res = llm_service(system_prompt, user_prompt)
-        if inspect.isawaitable(res):
-            return await res
-        return str(res)
-    raise TypeError(f"llm_service must have .generate() or be callable, got {type(llm_service)}")
-
-
 def _run_sync(coro_or_fn: Any, timeout: float = 4.5) -> Any:
     """Run an async coroutine or factory from synchronous (worker-thread) code.
 
@@ -1377,7 +1084,7 @@ class QuoteWeaverService:
         token_sink: Optional[list[int]] = None,
         doctrine_context: Optional[str] = None,
     ) -> QuoteWeaverResult:
-        """Weave verified clips into an authentic first-person teaching voice.
+        """Render verified clips verbatim from the store (deterministic only).
 
         ``sources`` maps video_id to the stored record the clips were retrieved
         from (``quote_fidelity.sources_from_payloads``). Every clip is checked
@@ -1385,12 +1092,8 @@ class QuoteWeaverService:
         survive the result has ``passed_gate=False`` and empty text so the caller
         falls back to its normal grounded answer with no quote and no audio.
 
-        # ponytail: Extractive-Abstractive Hybrid Architecture.
-        100% of teachings are formatted directly from the DB clips by Python code.
-        If llm_service is provided and hybrid mode is enabled, prompts LLM strictly for
-        editorial manuscript proofreading, micro-bridges, and dynamic Atma Vichara reflection questions.
-        The teaching text itself is NEVER regenerated by LLM.
-        Falls back to clean deterministic template on timeout or assertion failure.
+        No LLM is ever called here: ``llm_service``, ``token_sink`` and
+        ``doctrine_context`` are accepted for caller compatibility and ignored.
         """
         clips, no_hero = _hero_clips(query, clips, sources)
         if no_hero:
@@ -1405,104 +1108,16 @@ class QuoteWeaverService:
                     all_audios.append(strip)
         audio = all_audios[0] if all_audios else None
 
-        active_llm = llm_service or self.llm_service
-        mode = getattr(settings, "first_person_mode", "retrieval_only")
-        is_practice = _is_practice_intent(query, intent)
         practice_rec = _extract_practice_recommendation(okf_entries, query)
-
-        if not active_llm or mode != "hybrid" or not clips:
-            text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-            heading, inquiry = _format_pointer_and_questions(
-                clips=clips, query=query, okf_entries=okf_entries
-            )
-            return QuoteWeaverResult(
-                text=text,
-                passed_gate=True,
-                fallback_used=True,
-                gate_reason="deterministic_clip_only_mode",
-                atma_vichara_inquiry=inquiry,
-                related_clips_heading=heading,
-                practice_recommendation=practice_rec,
-                audio_playback_clip=audio,
-                audio_playback_clips=all_audios,
-            )
-
-        try:
-            use_rewrite = bool(getattr(settings, "first_person_editorial_rewrite_enabled", False))
-            cache_key = _scaffold_cache_key(query, clips, use_rewrite)
-            raw = _scaffold_cache_get(cache_key)
-            if raw is None:
-                if use_rewrite:
-                    system_prompt, user_prompt = _build_editorial_review_prompt(
-                        query, clips, doctrine_context=doctrine_context
-                    )
-                else:
-                    system_prompt, user_prompt = _build_scaffolding_prompts(
-                        query, clips, doctrine_context=doctrine_context
-                    )
-                gen_kwargs = _llm_kwargs(use_rewrite)
-                raw = _run_sync(
-                    lambda: _generate_llm(active_llm, system_prompt, user_prompt, **gen_kwargs),
-                    timeout=3.5,
-                )
-                if token_sink is not None:
-                    # RP-C10: only a real call spends tokens; a scaffold-cache
-                    # hit appends nothing.
-                    try:
-                        from rag.compressor import estimate_tokens
-
-                        token_sink.append(
-                            estimate_tokens(system_prompt)
-                            + estimate_tokens(user_prompt)
-                            + estimate_tokens(raw or "")
-                        )
-                    except Exception as e:
-                        logger.warning("[QuoteWeaverService] Token estimate failed: %s", e)
-            if raw and isinstance(raw, str) and raw.strip():
-                assembled = _assemble_from_llm(
-                    raw.strip(), clips, query, okf_entries, intent, use_rewrite
-                )
-                if assembled is None:
-                    raise ValueError("LLM output is not in scaffold format; rejected")
-                body, questions_text, heading = assembled
-
-                valid, reason = QuoteWeaverAssertionGate.validate(
-                    body,
-                    clips,
-                    okf_entries,
-                    is_practice=is_practice,
-                    reflection_text=questions_text,
-                    heading_text=heading,
-                )
-                if valid:
-                    if not use_rewrite:
-                        _scaffold_cache_put(cache_key, raw.strip())  # only gate-passing output
-                    return QuoteWeaverResult(
-                        text=body,
-                        passed_gate=True,
-                        fallback_used=False,
-                        atma_vichara_inquiry=questions_text,
-                        related_clips_heading=heading,
-                        practice_recommendation=practice_rec,
-                        audio_playback_clip=audio,
-                        audio_playback_clips=all_audios,
-                    )
-                logger.warning(
-                    "[QuoteWeaverService] Hybrid output failed assertion gate: %s; using fallback",
-                    reason,
-                )
-        except Exception as e:
-            logger.warning("[QuoteWeaverService] Hybrid LLM weaving error: %s; using fallback", e)
-
-        fallback_text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
+        text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
         heading, inquiry = _format_pointer_and_questions(
             clips=clips, query=query, okf_entries=okf_entries
         )
         return QuoteWeaverResult(
-            text=fallback_text,
+            text=text,
             passed_gate=True,
             fallback_used=True,
-            gate_reason="assertion_gate_or_timeout_fallback",
+            gate_reason="deterministic_clip_only_mode",
             atma_vichara_inquiry=inquiry,
             related_clips_heading=heading,
             practice_recommendation=practice_rec,
@@ -1522,119 +1137,13 @@ class QuoteWeaverService:
         doctrine_context: Optional[str] = None,
     ) -> QuoteWeaverResult:
         """Async counterpart of weave()."""
-        clips, no_hero = _hero_clips(query, clips, sources)
-        if no_hero:
-            return _no_hero_result(no_hero)
-
-        all_audios = []
-        for c in clips:
-            hero = c.get("_hero")
-            if hero:
-                strip = audio_strip_for(c, hero)
-                if strip:
-                    all_audios.append(strip)
-        audio = all_audios[0] if all_audios else None
-
-        active_llm = llm_service or self.llm_service
-        mode = getattr(settings, "first_person_mode", "retrieval_only")
-        is_practice = _is_practice_intent(query, intent)
-        practice_rec = _extract_practice_recommendation(okf_entries, query)
-
-        if not active_llm or mode != "hybrid" or not clips:
-            text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-            heading, inquiry = _format_pointer_and_questions(
-                clips=clips, query=query, okf_entries=okf_entries
-            )
-            return QuoteWeaverResult(
-                text=text,
-                passed_gate=True,
-                fallback_used=True,
-                gate_reason="deterministic_clip_only_mode",
-                atma_vichara_inquiry=inquiry,
-                related_clips_heading=heading,
-                practice_recommendation=practice_rec,
-                audio_playback_clip=audio,
-                audio_playback_clips=all_audios,
-            )
-
-        try:
-            use_rewrite = bool(getattr(settings, "first_person_editorial_rewrite_enabled", False))
-            cache_key = _scaffold_cache_key(query, clips, use_rewrite)
-            raw = _scaffold_cache_get(cache_key)
-            if raw is None:
-                if use_rewrite:
-                    system_prompt, user_prompt = _build_editorial_review_prompt(
-                        query, clips, doctrine_context=doctrine_context
-                    )
-                else:
-                    system_prompt, user_prompt = _build_scaffolding_prompts(
-                        query, clips, doctrine_context=doctrine_context
-                    )
-                raw = await asyncio.wait_for(
-                    _generate_llm(
-                        active_llm, system_prompt, user_prompt, **_llm_kwargs(use_rewrite)
-                    ),
-                    timeout=3.5,
-                )
-                if token_sink is not None:
-                    try:
-                        from rag.compressor import estimate_tokens
-
-                        token_sink.append(
-                            estimate_tokens(system_prompt)
-                            + estimate_tokens(user_prompt)
-                            + estimate_tokens(raw or "")
-                        )
-                    except Exception as e:
-                        logger.warning("[QuoteWeaverService] Token estimate failed: %s", e)
-            if raw and isinstance(raw, str) and raw.strip():
-                assembled = _assemble_from_llm(
-                    raw.strip(), clips, query, okf_entries, intent, use_rewrite
-                )
-                if assembled is None:
-                    raise ValueError("LLM output is not in scaffold format; rejected")
-                body, questions_text, heading = assembled
-
-                valid, reason = QuoteWeaverAssertionGate.validate(
-                    body,
-                    clips,
-                    okf_entries,
-                    is_practice=is_practice,
-                    reflection_text=questions_text,
-                    heading_text=heading,
-                )
-                if valid:
-                    if not use_rewrite:
-                        _scaffold_cache_put(cache_key, raw.strip())  # only gate-passing output
-                    return QuoteWeaverResult(
-                        text=body,
-                        passed_gate=True,
-                        fallback_used=False,
-                        atma_vichara_inquiry=questions_text,
-                        related_clips_heading=heading,
-                        practice_recommendation=practice_rec,
-                        audio_playback_clip=audio,
-                        audio_playback_clips=all_audios,
-                    )
-                logger.warning(
-                    "[QuoteWeaverService] Hybrid output failed assertion gate: %s; using fallback",
-                    reason,
-                )
-        except Exception as e:
-            logger.warning("[QuoteWeaverService] Hybrid LLM weaving error: %s; using fallback", e)
-
-        fallback_text = _deterministic_fallback(query, clips, okf_entries, intent=intent)
-        heading, inquiry = _format_pointer_and_questions(
-            clips=clips, query=query, okf_entries=okf_entries
-        )
-        return QuoteWeaverResult(
-            text=fallback_text,
-            passed_gate=True,
-            fallback_used=True,
-            gate_reason="assertion_gate_or_timeout_fallback",
-            atma_vichara_inquiry=inquiry,
-            related_clips_heading=heading,
-            practice_recommendation=practice_rec,
-            audio_playback_clip=audio,
-            audio_playback_clips=all_audios,
+        return self.weave(
+            query,
+            clips,
+            okf_entries,
+            llm_service=llm_service,
+            intent=intent,
+            sources=sources,
+            token_sink=token_sink,
+            doctrine_context=doctrine_context,
         )
