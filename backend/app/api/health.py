@@ -200,6 +200,16 @@ async def health_endpoint(
         )
 
 
+def _rights_register_health() -> dict:
+    """T3-01: digest prefix and asset count only; never a filesystem path."""
+    try:
+        from services.first_person_serving_contract import rights_register_status
+
+        return rights_register_status()
+    except Exception:  # noqa: BLE001 - health must not fail on this probe
+        return {"present": False, "asset_count": 0, "sha256_prefix": None}
+
+
 async def _build_health_response(container: ServiceContainer) -> JSONResponse:
     if not _app_deps.startup_complete:
         HEALTH_CHECK_TOTAL.labels(result="not_ready").inc()
@@ -498,6 +508,7 @@ async def _build_health_response(container: ServiceContainer) -> JSONResponse:
             "ready": critical_ok,
             "status": "healthy" if all_ok else ("degraded" if critical_ok else "unhealthy"),
             "services": results,
+            "rights_register": _rights_register_health(),
         }
     )
 

@@ -123,6 +123,11 @@ COPY --chmod=go+rX backend/ .
 # (rag_okf_injection_enabled, default True) contributes nothing.
 COPY --chmod=go+rX memory/ ./memory/
 
+# Pinned rights register (T3-01 / DATA-02). services/first_person_serving_contract.py
+# reads it at audits/evidence/... relative to /app; without it every clip is
+# unlicensed and the system abstains silently. Only this one file, not audits/.
+COPY --chmod=go+rX audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json ./audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json
+
 # Owner-approved crisis helplines (config/helplines.yaml at the repo root).
 # services/crisis_helplines.py resolves this to /config/helplines.yaml inside
 # the image (Path(__file__).resolve().parents[2] from /app/services/, i.e.

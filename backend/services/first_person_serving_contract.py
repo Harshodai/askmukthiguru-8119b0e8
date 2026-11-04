@@ -187,6 +187,33 @@ def rights_manifest_path() -> Path:
     return p
 
 
+def rights_register_status() -> dict:
+    """Presence, sha256 prefix and asset count of the pinned rights register.
+
+    T3-01 (DATA-02): a missing register makes every clip unlicensed, so callers
+    (startup check, health payload) need a path-free summary. Never includes the
+    filesystem path.
+    """
+    import hashlib
+
+    candidates = [Path(RIGHTS_MANIFEST_RELPATH), rights_manifest_path()]
+    path = next((c for c in candidates if c.is_file()), None)
+    if path is None:
+        return {"present": False, "asset_count": 0, "sha256_prefix": None}
+    try:
+        raw = path.read_bytes()
+        data = json.loads(raw.decode("utf-8"))
+        assets = data.get("assets", []) if isinstance(data, dict) else []
+        count = len(assets) if isinstance(assets, list) else 0
+    except (OSError, ValueError):
+        return {"present": False, "asset_count": 0, "sha256_prefix": None}
+    return {
+        "present": True,
+        "asset_count": count,
+        "sha256_prefix": hashlib.sha256(raw).hexdigest()[:12],
+    }
+
+
 def load_contract(path: str | Path) -> dict[str, CollectionContract]:
     """Load and validate the contract file. Fails closed."""
     contract_path = Path(path)

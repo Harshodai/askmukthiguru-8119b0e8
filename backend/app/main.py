@@ -783,8 +783,27 @@ def check_startup_posture(s: Any) -> list[str]:
     return problems
 
 
+def check_rights_register_startup(s: Any) -> list[str]:
+    """T3-01 (DATA-02): in production a missing/empty rights register is fatal.
+
+    Without it every clip resolves to "unverified" and the system abstains
+    silently. Pure function so it has a fast unit test.
+    """
+    if not getattr(s, "is_production", False):
+        return []
+    from services.first_person_serving_contract import rights_register_status
+
+    status = rights_register_status()
+    if not status["present"]:
+        return ["rights register is missing or unreadable in the serving image."]
+    if status["asset_count"] <= 0:
+        return ["rights register is empty (0 assets)."]
+    return []
+
+
 def _raise_if_startup_posture_unsafe() -> None:
     problems = check_startup_posture(settings)
+    problems += check_rights_register_startup(settings)
     if problems:
         raise RuntimeError("Refusing to start unsafe posture: " + "; ".join(problems))
 
