@@ -52,6 +52,12 @@ REQUEST_COUNT = Counter(
     ["status"],
 )
 
+FP_FAIL_CLOSED_TOTAL = Counter(
+    "guru_fp_fail_closed_total",
+    "Teaching-lane turns answered with the static abstain instead of generated prose (T1-05)",
+    ["reason"],
+)
+
 CRISIS_BYPASS_TOTAL = Counter(
     "guru_crisis_bypass_total",
     "Chat admissions that bypassed the concurrency cap on crisis keywords (RP-A2)",

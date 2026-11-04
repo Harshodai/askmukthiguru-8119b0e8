@@ -1372,3 +1372,25 @@ def first_person_bridge_enabled() -> bool:
 async def run_first_person_bridge(ctx: PipelineContext) -> PipelineResult | None:
     """Run the bridge fail-open — shared by the stage shim and the graph node."""
     return await FirstPersonBridgeStage().run(ctx)
+
+
+async def fail_closed_result(ctx: PipelineContext, method: str) -> PipelineResult:
+    """T1-05: the static abstain for a teaching-lane turn FP could not serve.
+
+    ``method`` is ``fp_disabled`` (kill switch) or ``fp_node_error`` (node
+    fault). Reuses the bridge's static abstain, then marks it as a failed
+    (not passed) verification so it is never counted as a grounded answer.
+    """
+    import dataclasses
+
+    from services.fp_fail_closed import record_fail_closed
+
+    record_fail_closed(method)
+    base = await FirstPersonBridgeStage()._abstain(ctx, method)
+    metadata = dict(base.route_metadata or {})
+    metadata["decision_method"] = method
+    return dataclasses.replace(
+        base,
+        verification={"passed": False, "method": method, "citations_verified": False},
+        route_metadata=metadata,
+    )

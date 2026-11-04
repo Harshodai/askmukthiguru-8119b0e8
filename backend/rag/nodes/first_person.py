@@ -47,19 +47,46 @@ async def first_person_node(
     state: GraphState,
     config: Optional[RunnableConfig] = None,
 ) -> dict:
-    """Run the first-person bridge inside the graph; claim or fall through."""
+    """Run the first-person bridge inside the graph; claim or fall through.
+
+    T1-05: a teaching-lane turn FP cannot serve (kill switch off, node fault)
+    gets the static abstain unless generation is deliberately allowed.
+    """
+    ctx = ((config or {}).get("configurable") or {}).get("pipeline_ctx")
     try:
-        ctx = ((config or {}).get("configurable") or {}).get("pipeline_ctx")
         if ctx is None:
             logger.debug("[FirstPersonNode] No pipeline_ctx in config; falling through to general.")
             return {}
 
-        from app.pipeline.stages.first_person_bridge import run_first_person_bridge
+        from app.pipeline.stages.first_person_bridge import (
+            fail_closed_result,
+            first_person_bridge_enabled,
+            run_first_person_bridge,
+        )
+        from services.fp_fail_closed import fail_closed_active
+
+        if not first_person_bridge_enabled():
+            from rag.meditation import is_meditation_imperative
+
+            if fail_closed_active() and not is_meditation_imperative(
+                str(getattr(ctx, "user_msg", "") or "")
+            ):
+                return {"first_person_result": await fail_closed_result(ctx, "fp_disabled")}
+            return {}
 
         result: Any = await run_first_person_bridge(ctx)
         if result is None:
             return {}
         return {"first_person_result": result}
-    except Exception:  # noqa: BLE001 — fail-open: bridge infra never fails chat
-        logger.exception("[FirstPersonNode] Bridge failed; falling through to general.")
+    except Exception:  # noqa: BLE001 - bridge infra never fails chat
+        logger.exception("[FirstPersonNode] Bridge failed.")
+        try:
+            from services.fp_fail_closed import fail_closed_active
+
+            if ctx is not None and fail_closed_active():
+                from app.pipeline.stages.first_person_bridge import fail_closed_result
+
+                return {"first_person_result": await fail_closed_result(ctx, "fp_node_error")}
+        except Exception:  # noqa: BLE001
+            logger.exception("[FirstPersonNode] Fail-closed abstain failed.")
         return {}

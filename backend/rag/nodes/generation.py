@@ -2651,6 +2651,42 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             configurable = config.configurable
     stream_queue = configurable.get("stream_queue")
 
+    # T1-05: fail closed. A teaching-lane turn that reaches generation while
+    # first person is unavailable gets the static abstain, never generated prose.
+    if state.get("domain_route") == "teaching" and not state.get("general_knowledge_mode"):
+        from services.fp_fail_closed import (
+            STATIC_ABSTAIN_TEXT,
+            record_fail_closed,
+            teaching_generation_allowed,
+        )
+
+        if not teaching_generation_allowed():
+            record_fail_closed("generate_answer_guard")
+            if stream_queue:
+                await stream_queue.put(STATIC_ABSTAIN_TEXT)
+            return {
+                "answer": STATIC_ABSTAIN_TEXT,
+                "citations": [],
+                "citation_reasoning": {},
+                "is_faithful": True,
+                "confidence_score": 0.0,
+                "faithfulness_score": 0.0,
+                "verification": {
+                    "passed": False,
+                    "method": "fp_disabled",
+                    "citations_verified": False,
+                },
+                "grounding_state": "abstained",
+                "evaluation_trace": _trace_update(
+                    state,
+                    generated_answer_chars=len(STATIC_ABSTAIN_TEXT),
+                    citation_urls=[],
+                    model_used=None,
+                    model_provider=None,
+                    route_decision="first_person_abstain",
+                ),
+            }
+
     # Live logistics is an official-web retrieval mode, not a doctrinal RAG
     # question. Use the typed official results directly so reranking/content-gap
     # logic cannot discard them or turn them into a teaching abstention.

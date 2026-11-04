@@ -423,6 +423,11 @@ class Settings(BaseSettings):
     # Env: SPECULATIVE_GENERATION_ENABLED.
     speculative_generation_enabled: bool = False
     first_person_llm_fallback_enabled: bool = False
+    # T1-05 rollback flag (env FP_FAIL_CLOSED_ENABLED, default True): when on, a
+    # teaching-lane turn that cannot be served by first person (bridge off, node
+    # fault) gets the static abstain instead of the generating graph, unless
+    # first_person_llm_fallback_enabled is deliberately True.
+    fp_fail_closed_enabled: bool = True
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
     # labelled "Related, not a direct answer", instead of declining. RP-A4/QBUG-2
