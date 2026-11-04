@@ -1,6 +1,30 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 4, 2026 — Remediation batches: CI, telemetry and agent orchestration
+
+### L-INTENDED-CHANGE-BREAKS-OLD-TESTS-1. Changing a safety default breaks tests that encoded the old default.
+- **What:** T1-05 (fail-closed teaching route) and SEC-010 (redacted public `/api/health`) broke 15 existing tests (12,480 passed) that asserted the old fall-through and the full health payload.
+- **Fix:** Each test was classified as "intended change" and updated with a task-ID comment; the old behaviour stays asserted only behind its rollback flag.
+- **Rule:** Before pushing a default change, `rg` for tests asserting the old behaviour and decide per test: intended change (update with a task-ID comment) or regression (fix the code).
+
+### L-FORMAT-AND-HOOKS-BEFORE-PUSH-1. Agent commits failed CI on formatting, not logic.
+- **What:** "Backend Lint & Test" failed only on `ruff format --check` (12 files), and "Validate Pre-commit Hooks" on trailing whitespace and missing end-of-file newlines.
+- **Rule:** Run `ruff format --check` with the CI version and the pre-commit whitespace/end-of-file hooks on changed files before every push. Keep ops-script twins byte-identical after formatting.
+
+### L-HASH-PINNED-EVIDENCE-1. A pinned evidence file cannot be edited without re-pinning it everywhere.
+- **What:** The rights register copied into the backend images contains the owner's `/Users/...` paths, but its sha256 is pinned in `backend/config/first_person_public_release_gate.json`, `backend/config/first_person_local_review.json` and `scripts/guards/publication_baseline.txt`.
+- **Rule:** Scrubbing a pinned file is an owner decision that changes all pins in one commit. Check for pins (`rg` the file name and its digest) before editing any evidence file.
+
+### L-TELEMETRY-EVERY-TERMINAL-PATH-1. An outcome event at one assembly point misses early returns.
+- **What:** The new `answer_outcome` record is emitted in `ResultAssemblyStage`; exact-cache and doctrine-cache hits return earlier and emit nothing, so `cache_hit` is always false.
+- **Rule:** Emit outcome telemetry from every terminal path, or from one wrapper around the whole pipeline. Never put text or identity in the record.
+
+### L-LEAD-CONTEXT-COST-1. A large lead context makes every orchestration turn expensive.
+- **What:** With ~700K tokens of context, each lead turn cost about one dollar; background pollers and per-agent notifications multiplied that.
+- **Fix:** Cheaper-model agents in isolated worktrees with disjoint files; agents fetch, rebase their own commit and push (never force); stop pollers that only wake the lead.
+- **Rule:** Keep the lead for decisions and integration. Delegate reading and coding, and batch wake-ups.
+
 ## Nov 4, 2026 — Architecture audit and first remediation batches
 
 ### L-RELEASE-GATE-CLEAN-CHECKOUT-1. A release status is the output of a command on a clean checkout.

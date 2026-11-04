@@ -297,3 +297,31 @@ Do not claim readiness that the evidence does not show.
 - Landed: `backend/app/answer_outcome.py` builds one `answer_outcome` record per turn (no text, no user or session id) and `ResultAssemblyStage` (`glue_stages.py`) emits it inside a try/except. New metrics: `guru_answer_outcome_total{lane,outcome}`, `guru_answer_latency_seconds{lane,outcome}`, `guru_integrity_breach_total{lane}` (a served teaching-lane turn with a non-empty `model_used` while the bridge is on and LLM fallback is off). Tests: 39 passed after rebase (`test_answer_outcome_telemetry.py`, `test_no_seeker_text_in_logs.py`, `test_pipeline_stages.py`).
 - Left for the next agent: emit outcomes on early-return paths (exact cache, doctrine cache, other stages that return before ResultAssembly; `cache_hit` is hard-coded false today); per-LLM-call `prompt_id@version`, tokens and cost; per-stage latency; the frontend feedback join and the `useful_answer` metric; the Supabase sink write (needs a schema change).
 - CI on `2c80d884` (branch head) not yet observed. Remaining register: §0d (as updated in §0e).
+
+
+### 0g. Findings status after all batches (2026-11-04, branch head after `311ec7e2`)
+
+| Status | Findings | P1 among them |
+|---|---|---|
+| Closed in code (pending CI confirmation) | 29: ANS-005, AI-006, DATA-04, SAFE-006, GURU-012, ADV-03, RET-09, SYS-001, AI-003, SYS-004, SEC-003, MEM-003, PRD-004, UX-003, EVAL-001, GURU-003, GURU-006, PRD-001, UX-010, UX-007, PRD-009, DATA-02, SEC-008, SEC-010, CQ-013, SEC-009, MEM-005, SAFE-008, ADV-05 | 11 |
+| Partly addressed | 7: X-01 and GURU-001 (honest test; `main` green pending), GURU-002 (gate rejects; independent labels are human work), GURU-004 (gate flags; owner corrects scopes), GURU-007 (gate checks; phone calls are human), SEC-006 (localhost binds; Qdrant keys and pins open), SYS-011 (backend outcome events; early-return paths and frontend join open) | 6 |
+| Open | 116 (both P0 included: X-06, IP-001 need owner D-01) | 30 |
+
+**Do first in the next session:** confirm CI on the branch head; fix any remaining failure (treat T1-05/SEC-010 behaviour as intended; anything else is a regression).
+
+**Next agent-doable tasks, in order (no owner decision, no clinician, no live infrastructure):**
+1. T2-03 remainder: emit `answer_outcome` on early-return paths (exact cache, doctrine cache), per-call `prompt_id@version`, tokens and cost.
+2. T2-05 fixture Qdrant + Redis CI job.
+3. T2-01 offline PR eval-suite harness (crisis set non-blocking until clinician review).
+4. T2-02 retrieval-bank harness (labels are human work; the harness is not).
+5. T1-18 stream contract (citations, labels and safety notices before or with the final text).
+6. T3-02 Qdrant read-only and write keys (code and compose; enabling in production is infrastructure).
+7. T3-04 builder per-video replace and snapshot-before-write (code only; running it needs the owner).
+8. T3-12 encoder fingerprint; T3-08 schema snapshot CI; T3-05 promotion gate and daily audit.
+9. T3-06 source registry, `takedown()` and structured citations (migration written, not applied).
+10. T4-01 gate-then-dedup; T4-02 hybrid RRF on v10 (both measured on the T2-02 bank).
+11. T6-05 client RLS `role='user'` → T6-09 account-level history → T6-06 durable erasure and purge job → T6-04 save, report, revisit.
+12. T7-01 split `FirstPersonPipeline.execute` (behaviour-identical) → T4-06 evidence judge → T7-02 async.
+13. T1-13 rest (root shims, `langdetect` stub), T1-14 rest (Qdrant keys in compose, verified image pins), T2-06 config lint, T1-15 documentation diet.
+
+**Before every push** (lesson from this session): run `ruff format --check` with the CI version, the pre-commit whitespace and end-of-file hooks on changed files, and `rg` for tests that assert behaviour you changed on purpose.
