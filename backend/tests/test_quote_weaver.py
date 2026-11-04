@@ -29,6 +29,14 @@ def _disable_speculative_parallelism(monkeypatch):
     from app.config import settings
 
     monkeypatch.setattr(settings, "first_person_speculative_parallelism_enabled", False)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
 
 def _src(*clips):
@@ -62,6 +70,10 @@ def sample_clip():
         "verbatim_text": text,
         "source_url": "https://www.youtube.com/watch?v=vid_abc123&t=65s",
         "video_title": "The Nature of Mind",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
 
 

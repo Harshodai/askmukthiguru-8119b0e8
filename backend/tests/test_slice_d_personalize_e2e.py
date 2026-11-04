@@ -25,6 +25,25 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "services.first_person_store.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
+
+
 _VIDEO_ID = "dQw4w9WgXcQ"  # 11-char YouTube id shape (synthetic test value)
 _CLIP_TEXT = (
     "Awareness sees the movement of thought without following it, and in "
@@ -44,6 +63,10 @@ def _clip_payload(**overrides) -> dict:
         "verbatim_text": _CLIP_TEXT,
         "source_url": f"https://www.youtube.com/watch?v={_VIDEO_ID}",
         "title": "Synthetic test discourse",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
     payload.update(overrides)
     payload.setdefault(

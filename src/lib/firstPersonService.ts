@@ -10,6 +10,11 @@ import { getAccessToken } from './chat/auth';
 export const firstPersonCitationSchema = z.object({
   video_id: z.string(),
   point_id: z.string().nullable().optional(),
+  parent_unit_id: z.string().nullable().optional(),
+  source_span_id: z.string().nullable().optional(),
+  source_span_index: z.number().int().min(0).nullable().optional(),
+  guru_id: z.string().nullable().optional(),
+  speaker_id: z.string().nullable().optional(),
   title: z.string().nullable().optional(),
   url: z.string().nullable().optional(),
   start_ms: z.number(),
@@ -21,6 +26,7 @@ export const firstPersonCitationSchema = z.object({
   // Voiceprint check from _build_citation; only a subset of clips carry it,
   // so falsy here must render as unverified, never as a bare teacher name.
   speaker_verified: z.boolean().nullable().optional(),
+  rights_cleared: z.boolean().nullable().optional(),
   transcript_hash: z.string(),
   verbatim_text: z.string(),
   text_snippet: z.string(),
@@ -43,6 +49,18 @@ export const firstPersonStatusSchema = z.enum([
   'error',
 ]);
 
+export const editorialSetSchema = z.object({
+  status: z.enum(['supported', 'partial', 'conflicted', 'insufficient']),
+  primary_intent: z.string().optional(),
+  candidate_facets: z.array(z.string()).max(14).optional(),
+  teacher_scope: z.string().nullable().optional(),
+  facet_coverage: z.record(z.string(), z.enum(['direct', 'indirect', 'absent'])).optional(),
+  candidate_contexts: z.number().int().min(0).max(8).optional(),
+  selected_contexts: z.number().int().min(0).max(5).optional(),
+  planner_version: z.string().optional(),
+  selector_version: z.string().optional(),
+});
+
 export const firstPersonResponseSchema = z.object({
   answer_text: z.string(),
   citations: z.array(firstPersonCitationSchema),
@@ -56,6 +74,7 @@ export const firstPersonResponseSchema = z.object({
   related_clips_heading: z.string().nullable().optional(),
   /** Contemplative inquiry shown beside (never inside) the verbatim quote. */
   atma_vichara_inquiry: z.string().nullable().optional(),
+  editorial_set: editorialSetSchema.nullable().optional(),
 });
 
 export type FirstPersonCitation = z.infer<typeof firstPersonCitationSchema>;

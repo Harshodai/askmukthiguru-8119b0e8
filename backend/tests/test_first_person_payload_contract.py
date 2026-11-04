@@ -36,6 +36,19 @@ from services.quote_weaver import (
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    """Synthetic clips model a licensed source without reading the live register."""
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 @pytest.fixture
 def sample_verified_clip() -> dict[str, Any]:
     text = "Suffering arises whenever there is psychological resistance to the present moment."
@@ -64,6 +77,9 @@ def sample_verified_clip() -> dict[str, Any]:
         "playback_url": "https://www.youtube.com/watch?v=hLg4WPG4ehE&t=72s",
         "confidence": 0.92,
         "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "provenance_kind": "speech_turn_clip",
         "caption_status": "manual_transcript",
         "_hero": {
@@ -343,7 +359,9 @@ async def test_chat_bridge_route_metadata_contract(sample_verified_clip: dict[st
     assert res.model_provider is None
     assert res.route_decision == "first_person_bridge"
     assert res.citations_verified is True
-    assert res.verification["passed"] is True
+    assert res.verification["passed"] is False
+    assert res.verification["citation_integrity_verified"] is True
+    assert res.verification["evidence_set_supported"] is False
     assert res.verification["direct"] is False
 
     # Route metadata validation
@@ -555,12 +573,13 @@ def test_compound_facet_split_and_assembly_contract(sample_verified_clip: dict[s
         assert len(res.citations) == 1
         assert res.citations[0]["point_id"] == "pt_med_1"
 
-        # Continuous layout contract check. The related label is metadata
-        # (status/is_direct_answer), never answer text (plan T2a 2026-10-27).
-        assert "### On " in res.answer_text
-        assert "I don't have a recording that answers this part yet." in res.answer_text
+        # The answer body is source evidence only. Facet headings, missing-clip
+        # filler, and a source footer must never be attributed to the guru.
+        assert res.answer_text == text1
+        assert "### On " not in res.answer_text
+        assert "I don't have a recording that answers this part yet." not in res.answer_text
         assert "Related, not a direct answer" not in res.answer_text
-        assert "Sources: [1]" in res.answer_text
+        assert "Sources: [1]" not in res.answer_text
 
         # Audio playback clips
         assert len(res.audio_playback_clips) == 1
@@ -645,7 +664,8 @@ def test_compound_below_min_facet_keeps_honest_gap_and_does_not_reuse_clip(
     assert result.answerability is None
     assert len(result.citations) == 1
     assert result.citations[0]["point_id"] == "pt_med_1"
-    assert "I don't have a recording that answers this part yet." in result.answer_text
+    assert result.answer_text == clip1["verbatim_text"]
+    assert "I don't have a recording that answers this part yet." not in result.answer_text
     assert text2 not in result.answer_text
     # The first clip may not be reused to fill the second facet.
     assert result.answer_text.count(clip1["verbatim_text"]) == 1

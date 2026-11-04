@@ -192,6 +192,7 @@ PROBE_ROUTES: set[str] = {
     "/redoc",
     "/api/health/mfa",
     "/api/metrics",
+    "/internal/metrics",
     "/api/auth/anon-session",
 }
 
@@ -211,6 +212,8 @@ PUBLIC_ROUTES: dict[str, str] = {
     "/api/compliance/eu-ai-act/status": "EU AI Act transparency and compliance public status",
     "/api/compliance/provenance/manifest/{artifact_id:path}": "Public provenance manifest query",
     "/api/compliance/provenance/search": "Public provenance query/search endpoint",
+    "/api/media/videos/{video_id}": "Direct uploaded video streaming with HTTP 206 Partial Content (public playback)",
+    "/api/first-person/query": "Public first-person candidate retrieval (read-only search, rate-limited and faculty-gated)",
 }
 
 # Markers looked up in a dependency callable's source. Includes the canonical
@@ -454,3 +457,33 @@ if __name__ == "__main__":
     unowned = dead - set(ALLOWED_DEAD_SETTINGS) - set(KNOWN_EXTRA_DEAD)
     print(f"unowned={sorted(unowned)}")
     sys.exit(1 if unowned else 0)
+
+
+# --- Test-store isolation ----------------------------------------------------
+
+
+def test_test_redis_url_is_forced_to_reserved_db15(monkeypatch):
+    from redis.connection import parse_url
+    from redis_url_safety import force_test_database, validate_test_redis_url
+
+    for candidate in (
+        "redis://localhost:6379/0",
+        "redis://redis:6379/0",
+        # redis-py's parse_url lets ``?db=`` override the path, so the forced
+        # database must survive a conflicting query parameter.
+        "redis://localhost:6379/0?db=0",
+    ):
+        resolved = force_test_database(candidate, database=15)
+        assert parse_url(resolved)["db"] == 15
+        assert validate_test_redis_url(resolved, database=15) == resolved
+
+
+def test_test_redis_url_rejects_application_db_and_unapproved_remote_host():
+    from redis_url_safety import validate_test_redis_url
+
+    with pytest.raises(RuntimeError, match="reserved DB /15"):
+        validate_test_redis_url("redis://localhost:6379/0", database=15)
+    with pytest.raises(RuntimeError, match="reserved DB /15"):
+        validate_test_redis_url("redis://localhost:6379/15?db=0", database=15)
+    with pytest.raises(RuntimeError, match="not an approved local test endpoint"):
+        validate_test_redis_url("redis://shared.example:6379/15", database=15)

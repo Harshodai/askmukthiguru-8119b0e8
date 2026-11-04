@@ -31,6 +31,7 @@ from domain.first_person_context import (
 )
 from domain.speaker_provenance import speaker_write_violations
 from services.first_person_evidence_policy import first_person_evidence_policy
+from services.first_person_rights import source_is_authoritatively_licensed
 
 logger = logging.getLogger(__name__)
 
@@ -304,7 +305,15 @@ class FirstPersonContextHarness:
 
     @staticmethod
     def _rights_gate(spans: tuple[SourceSpan, ...]) -> bool:
-        return all(span.rights_cleared for span in spans)
+        return all(
+            span.rights_cleared is True
+            and source_is_authoritatively_licensed(
+                source_url=span.source_url,
+                video_id=span.video_id,
+                domain_rights_status=span.domain_rights_status,
+            )
+            for span in spans
+        )
 
     @staticmethod
     def _hash_gate(spans: tuple[SourceSpan, ...]) -> bool:
@@ -918,6 +927,7 @@ class FirstPersonContextHarness:
                     start_ms=span.start_ms,
                     end_ms=span.end_ms,
                     source_url=span.source_url,
+                    domain_rights_status=span.domain_rights_status,
                     label=label,
                 )
             )
@@ -933,6 +943,11 @@ class FirstPersonContextHarness:
             if (cite.start_ms, cite.end_ms) != (span.start_ms, span.end_ms):
                 return False
             if cite.source_span_id != span.source_span_id:
+                return False
+            if (
+                cite.domain_rights_status != "licensed"
+                or cite.domain_rights_status != span.domain_rights_status
+            ):
                 return False
         return True
 

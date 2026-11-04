@@ -17,6 +17,14 @@ from services.quote_weaver import QuoteWeaverService
 _TEXT = "Suffering arises from resisting what is."
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_registered_sources(monkeypatch):
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 def _clip(**over):
     clip = {
         "point_id": "clip_p1",
@@ -96,6 +104,10 @@ def test_bridge_does_not_stamp_speaker_verified_on_third_party_clip() -> None:
         "channel": "Some Vlog",
         "source_url": "https://www.youtube.com/watch?v=vid_abc123&t=65s",
         "verbatim_text": _TEXT,
+        "video_id": "vid_abc123",
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",  # explicit synthetic test fixture evidence
     }
     (out,) = _eligible_citations([citation])
     assert out.get("speaker_verified") is not True

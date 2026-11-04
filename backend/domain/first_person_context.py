@@ -193,6 +193,9 @@ class SourceSpan(BaseModel):
     boundary_status: BoundaryStatus
     completeness_status: CompletenessStatus
     rights_cleared: bool
+    # Canonical X40 rights lineage. Historical payloads without a register stamp
+    # remain readable but fail closed at every serving gate.
+    domain_rights_status: str = Field(default="unverified", min_length=1)
     caption_status: str = Field(min_length=1)
     provenance_kind: ProvenanceKind = ProvenanceKind.SPEECH_TURN_SPAN
     previous_span_id: str | None = None
@@ -578,6 +581,7 @@ class CitationSpan(BaseModel):
     start_ms: int = Field(ge=0)
     end_ms: int = Field(gt=0)
     source_url: str = Field(min_length=1)
+    domain_rights_status: str = Field(default="unverified", min_length=1)
     label: str | None = None
 
 

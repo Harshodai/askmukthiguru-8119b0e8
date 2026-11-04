@@ -5,7 +5,7 @@ with a proper set-selection algorithm that:
 - Requires at least one direct-evidence clip when ``require_direct=True``.
 - Removes near-duplicates (high token-overlap clips from the same parent).
 - Reports ``supported | partial | conflicted | insufficient`` for the set.
-- Prefers distinct video IDs when score-tied.
+- Selects at most one context per distinct video ID.
 - Enforces teacher-scope from ``QueryFacets.teacher_scope``.
 - Never force-fills a facet slot with a tangential clip.
 
@@ -29,7 +29,7 @@ from typing import Literal
 
 logger = logging.getLogger(__name__)
 
-SET_SELECTOR_VERSION = "first_person_set_selector_v1"
+SET_SELECTOR_VERSION = "first_person_set_selector_v3"
 
 # ---------------------------------------------------------------------------
 # Near-duplicate detection threshold.
@@ -42,42 +42,49 @@ _NEAR_DUPLICATE_THRESHOLD = 0.80
 _MIN_WORDS = 5
 
 # ---------------------------------------------------------------------------
-# Simple stance-marker sets for conflict detection.
-# A "conflicted" set contains both affirmative and negating stance markers
-# for the same facet topic word — indicating genuinely contradictory positions.
+# Conservative stance-conflict detection.
+# A conflict is raised only when different sources explicitly affirm and negate
+# the same short predicate for the same query topic. A generic "not X" in one
+# teaching and "is Y" in another is not evidence of contradiction.
 # ---------------------------------------------------------------------------
-_AFFIRMATIVE_MARKERS = frozenset(
+_CONFLICT_QUERY_STOPWORDS = frozenset(
     {
+        "what",
+        "which",
+        "when",
+        "where",
+        "why",
+        "how",
+        "does",
+        "did",
+        "do",
         "is",
         "are",
-        "means",
-        "represents",
-        "embodies",
-        "creates",
-        "produces",
-        "leads to",
-        "results in",
-        "enables",
-        "allows",
-        "opens",
+        "the",
+        "and",
+        "or",
+        "for",
+        "from",
+        "with",
+        "about",
+        "according",
+        "both",
+        "either",
+        "together",
+        "guru",
+        "teacher",
+        "teachers",
+        "says",
+        "say",
+        "said",
+        "teach",
+        "teaches",
+        "krishnaji",
+        "preethaji",
     }
 )
-_NEGATING_MARKERS = frozenset(
-    {
-        "is not",
-        "are not",
-        "isn't",
-        "aren't",
-        "does not",
-        "doesn't",
-        "never",
-        "nothing to do with",
-        "has nothing",
-        "opposite of",
-        "not what",
-        "not about",
-    }
-)
+_STANCE_CLAUSE_SPLIT_RE = re.compile(r"[.;!?,:]+|\b(?:but|however|whereas)\b", re.IGNORECASE)
+_MAX_CONFLICT_PREDICATE_CHARS = 160
 
 
 # ---------------------------------------------------------------------------
@@ -180,20 +187,52 @@ def _best_facet(text: str, facets: tuple[str, ...]) -> tuple[str, float]:
     return scored[0]
 
 
+def _selection_order(span: ScoredSpan) -> tuple[bool, float, str, str]:
+    """Stable preference order: direct evidence, score, then source identity."""
+    return (not span.is_direct, -span.score, span.video_id, span.span_id)
+
+
 def _detect_stance_conflict(clips: list[ScoredSpan], topic_words: list[str]) -> bool:
-    """Return True when clips appear to take contradictory positions on topic_words."""
-    has_affirm = False
-    has_negate = False
-    for clip in clips:
-        lower = clip.text.lower()
-        for tw in topic_words:
-            for marker in _AFFIRMATIVE_MARKERS:
-                if f"{tw} {marker}" in lower or f"{marker} {tw}" in lower:
-                    has_affirm = True
-            for marker in _NEGATING_MARKERS:
-                if marker in lower and tw in lower:
-                    has_negate = True
-    return has_affirm and has_negate
+    """Detect explicit cross-source polarity disagreement on an identical predicate.
+
+    This intentionally prefers false negatives over false conflicts: natural
+    language disagreement cannot be inferred from unrelated ``is``/``not``
+    markers. Only the bounded English ``topic is [not] predicate`` family is
+    recognized; all other cases remain unclassified rather than labelled
+    contradictory.
+    """
+    for topic in topic_words:
+        pattern = re.compile(
+            rf"\b{re.escape(topic)}\b\s+(?P<verb>is|are|means|represents|embodies)\s+"
+            rf"(?:(?P<negative>not|never)\s+)?(?:(?:a|an|the)\s+)?"
+            rf"(?P<predicate>[^.;!?,:\n]+)",
+            re.IGNORECASE,
+        )
+        affirmed: dict[str, set[str]] = {}
+        negated: dict[str, set[str]] = {}
+        for clip in clips:
+            # A same-video pair is not cross-source disagreement. Missing video
+            # identity is insufficient evidence to classify a conflict.
+            source_id = clip.video_id.strip()
+            if not source_id:
+                continue
+            positive_for_source = affirmed.setdefault(source_id, set())
+            negative_for_source = negated.setdefault(source_id, set())
+            for clause in _STANCE_CLAUSE_SPLIT_RE.split(clip.text.lower()):
+                for match in pattern.finditer(clause):
+                    predicate = re.split(r"\b(?:and|or)\b", match.group("predicate"), maxsplit=1)[0]
+                    # Keep short tokens and never compare truncated prefixes.
+                    normalized = " ".join(re.findall(r"[a-z]+", predicate))
+                    if not normalized or len(normalized) > _MAX_CONFLICT_PREDICATE_CHARS:
+                        continue
+                    target = negative_for_source if match.group("negative") else positive_for_source
+                    target.add(normalized)
+
+        for source_id, positive in affirmed.items():
+            for other_source_id, negative in negated.items():
+                if source_id != other_source_id and positive & negative:
+                    return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +310,7 @@ class FirstPersonSetSelector:
 
         for raw in candidates:
             span_id = getattr(raw, "source_span_id", None) or getattr(raw, "span_id", "")
-            video_id = getattr(raw, "video_id", "") or ""
+            video_id = str(getattr(raw, "video_id", "") or "").strip()
             guru_id = getattr(raw, "guru_id", "") or ""
             text = (
                 getattr(raw, "text", None)
@@ -284,6 +323,9 @@ class FirstPersonSetSelector:
 
             if not span_id or not text or len(text.split()) < _MIN_WORDS:
                 excluded.append((span_id or "unknown", "too_short_or_empty"))
+                continue
+            if not video_id:
+                excluded.append((span_id, "missing_video_id"))
                 continue
 
             # Teacher scope enforcement.
@@ -319,9 +361,9 @@ class FirstPersonSetSelector:
             )
 
         # ------------------------------------------------------------------
-        # Step 2: Sort by score descending.
+        # Step 2: Prefer direct evidence, then score, then stable source identity.
         # ------------------------------------------------------------------
-        scored.sort(key=lambda s: s.score, reverse=True)
+        scored.sort(key=_selection_order)
 
         # ------------------------------------------------------------------
         # Step 3: Near-duplicate removal.
@@ -352,8 +394,7 @@ class FirstPersonSetSelector:
             )
 
         # ------------------------------------------------------------------
-        # Step 4: Apply max_clips cap, preferring direct clips and distinct
-        # video IDs when score-tied.
+        # Step 4: Apply the max_clips cap with a strict one-context-per-video rule.
         # ------------------------------------------------------------------
         if max_clips == 0:
             return EvidenceSetDecision(
@@ -365,26 +406,15 @@ class FirstPersonSetSelector:
                 selector_version=self.SELECTOR_VERSION,
             )
 
-        # Prefer direct clips; for each video_id keep the best-scoring span.
+        # Keep the highest-ranked context for each video; overflow is ineligible.
         per_video: dict[str, ScoredSpan] = {}
-        overflow: list[ScoredSpan] = []
-
         for span in kept:
-            vid = span.video_id or "unknown"
-            if vid not in per_video:
-                per_video[vid] = span
-            elif span.score > per_video[vid].score:
-                overflow.append(per_video[vid])
-                per_video[vid] = span
+            if span.video_id not in per_video:
+                per_video[span.video_id] = span
             else:
-                overflow.append(span)
+                excluded.append((span.span_id, "same_video_cap_exceeded"))
 
-        # Merge best-per-video (sorted by score) then overflow.
-        candidates_for_cap = sorted(per_video.values(), key=lambda s: s.score, reverse=True)
-        candidates_for_cap += sorted(overflow, key=lambda s: s.score, reverse=True)
-
-        # Re-sort: direct clips first, then by score.
-        candidates_for_cap.sort(key=lambda s: (not s.is_direct, -s.score))
+        candidates_for_cap = sorted(per_video.values(), key=_selection_order)
 
         selected = candidates_for_cap[:max_clips]
         remaining = candidates_for_cap[max_clips:]
@@ -422,7 +452,11 @@ class FirstPersonSetSelector:
         # ------------------------------------------------------------------
         # Step 7: Conflict detection.
         # ------------------------------------------------------------------
-        topic_words = [w for w in query.lower().split() if len(w) > 3][:5]
+        topic_words = [
+            word
+            for word in re.findall(r"[a-z]{4,}", query.lower())
+            if word not in _CONFLICT_QUERY_STOPWORDS
+        ][:5]
         is_conflicted = _detect_stance_conflict(list(selected), topic_words)
 
         # ------------------------------------------------------------------

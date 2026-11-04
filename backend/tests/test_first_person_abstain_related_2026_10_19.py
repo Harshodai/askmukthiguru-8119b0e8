@@ -60,11 +60,25 @@ _CLIP_TEXT = (
 _CLIP_TEXT_HASH = hashlib.sha256(_CLIP_TEXT.encode("utf-8")).hexdigest()
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    """Synthetic unit fixtures model licensed clips without live register files."""
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 def _clip(**overrides) -> dict:
     """A minimal stored clip payload with the keys ``_build_citation_dict`` reads."""
+    vid = overrides.get("video_id", "abc123")
     base = {
         "point_id": "abc123@99s",
-        "video_id": "abc123",
+        "video_id": vid,
         "start_ms": 99_000,
         "end_ms": 129_000,
         "speaker": "Sri Preethaji",
@@ -73,7 +87,12 @@ def _clip(**overrides) -> dict:
         "verbatim_text": _CLIP_TEXT,
         "channel": "Preethaji Channel",
         "passage_dense": [1.0, 0.0],
+        "source_url": f"https://www.youtube.com/watch?v={vid}",
         "caption_status": "auto_transcript",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
     base.update(overrides)
     return base
@@ -119,6 +138,9 @@ def _clip_citation(**overrides) -> dict:
         "video_url": "https://www.youtube.com/watch?v=abc123",
         "confidence": 0.71,
         "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "provenance_kind": "speech_turn_clip",
         "caption_status": "auto_transcript",
     }

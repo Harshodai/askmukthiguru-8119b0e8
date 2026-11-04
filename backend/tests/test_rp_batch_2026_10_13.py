@@ -14,6 +14,24 @@ from app import metrics as metrics_mod
 from app.config import settings
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "services.first_person_store.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
+
+
 def _clip(text, vid, dense):
     return {
         "point_id": vid,
@@ -25,8 +43,12 @@ def _clip(text, vid, dense):
         "transcript_hash": hashlib.sha256(text.encode()).hexdigest(),
         "verbatim_text": text,
         "passage_dense": dense,
-        "source_url": f"https://youtube.com/watch?v={vid}",
+        "source_url": f"https://www.youtube.com/watch?v={vid}",
         "caption_status": "auto_transcript",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
 
 

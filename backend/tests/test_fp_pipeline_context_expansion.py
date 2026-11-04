@@ -72,6 +72,7 @@ def _span(parent_id: str, n: int, *, video_id: str = "vidT") -> SourceSpan:
         boundary_status=BoundaryStatus.VERIFIED,
         completeness_status=CompletenessStatus.COMPLETE,
         rights_cleared=True,
+        domain_rights_status="licensed",
         caption_status="auto",
         provenance_kind=ProvenanceKind.SPEECH_TURN_SPAN,
         source_url=f"https://www.youtube.com/watch?v={video_id}",

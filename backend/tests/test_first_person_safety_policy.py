@@ -12,6 +12,7 @@ from __future__ import annotations
 import pytest
 
 from domain.first_person_safety import (
+    SAFETY_POLICY_VERSION,
     ContextualSafetyDecision,
     SafetyCategory,
     SafetySignalType,
@@ -91,28 +92,44 @@ def test_q040_session_reference_clip_excluded(policy):
 # ---------------------------------------------------------------------------
 
 
-def test_q061_dangling_question_tail_needs_review(policy):
-    """A clip ending in a rhetorical question aimed at the audience → needs_review."""
+def test_q061_complete_audience_question_is_not_dangling(policy):
+    """A complete rhetorical question is not, by itself, a missing antecedent."""
     result = policy.evaluate(
         query="What is the nature of suffering?",
         candidate_text=(
             "We all experience suffering in different ways. What do you do when it arises?"
         ),
     )
-    assert result.action == "needs_review"
-    assert "dangling_dependency" in result.reason_codes
+    assert result.action == "allow"
+    assert "dangling_dependency" not in result.reason_codes
 
 
-def test_q061_how_can_we_tail_needs_review(policy):
-    """'How can we …?' at end of clip → dangling_dependency → needs_review."""
+def test_q061_mixed_teaching_and_complete_question_is_not_dangling(policy):
+    """A complete teaching followed by a grammatical question is not auto-rejected."""
     result = policy.evaluate(
         query="How do I overcome anger?",
         candidate_text=(
             "Anger arises from a deep sense of unmet expectation. How can we address this?"
         ),
     )
-    assert result.action == "needs_review"
-    assert "dangling_dependency" in result.reason_codes
+    assert result.action == "allow"
+    assert "dangling_dependency" not in result.reason_codes
+
+
+@pytest.mark.parametrize(
+    "candidate_text",
+    [
+        "How can we address this?",
+        "What do you do when it arises?",
+        "Have you ever noticed this?",
+        "Why should we continue?",
+    ],
+)
+def test_q061_standalone_complete_audience_questions_are_not_dangling(policy, candidate_text):
+    result = policy.evaluate(query="What is inner peace?", candidate_text=candidate_text)
+
+    assert result.action == "allow"
+    assert "dangling_dependency" not in result.reason_codes
 
 
 # ---------------------------------------------------------------------------
@@ -355,10 +372,10 @@ def test_policy_version_propagated(policy):
         query="What is stillness?",
         candidate_text="Stillness is not the absence of movement but its ground.",
     )
-    assert result.policy_version == "first_person_safety_v1"
+    assert result.policy_version == SAFETY_POLICY_VERSION
 
 
 def test_singleton_has_correct_policy_version():
     from services.first_person_safety_policy import first_person_safety_policy
 
-    assert first_person_safety_policy.POLICY_VERSION == "first_person_safety_v1"
+    assert first_person_safety_policy.POLICY_VERSION == SAFETY_POLICY_VERSION

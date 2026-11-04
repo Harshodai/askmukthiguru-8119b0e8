@@ -36,6 +36,14 @@ from services.first_person_context_store import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_registry(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_context_store.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 @pytest.mark.asyncio
 async def test_enrich_context_flag_off_returns_identical(monkeypatch: pytest.MonkeyPatch) -> None:
     """When enrichment_window_enabled=False, enrich_context returns identical output."""
@@ -179,6 +187,7 @@ def _make_span(n: int, text: str, parent_id: str = "p1") -> SourceSpan:
         boundary_status=BoundaryStatus.VERIFIED,
         completeness_status=CompletenessStatus.COMPLETE,
         rights_cleared=True,
+        domain_rights_status="licensed",
         caption_status="auto",
         provenance_kind=ProvenanceKind.SPEECH_TURN_SPAN,
         source_url="https://youtube.com/watch?v=v1",

@@ -42,6 +42,10 @@ os.environ.setdefault("PYTHON_MEMORY_LIMIT_MB", "0")
 # regardless of whether pytest is invoked from the repo root or backend/.
 _BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _BACKEND_DIR)
+_TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _TESTS_DIR)
+
+from redis_url_safety import COMPOSE_REDIS_HOSTS, force_test_database, validate_test_redis_url
 
 # Configure threading limits before heavy numerical libraries are imported.
 from app.core.threading_config import configure_threading
@@ -52,6 +56,9 @@ configure_threading()
 # keeping the suite off it means the per-test flush below can never destroy a
 # developer's running state.
 _TEST_REDIS_DB = 15
+# Remote Redis is never inferred from .env.test. CI must opt in from its process
+# environment when its dedicated test service is not a local/Compose endpoint.
+_ALLOW_REMOTE_TEST_REDIS = os.environ.get("ALLOW_REMOTE_TEST_REDIS_DB15") == "true"
 
 
 def _resolve_test_redis_url() -> str:
@@ -75,29 +82,23 @@ def _resolve_test_redis_url() -> str:
     Still never commits a password: the value is read at runtime from a file
     that is gitignored, and the last resort remains passwordless localhost.
     """
-    from urllib.parse import urlsplit, urlunsplit
-
     explicit = os.environ.get("REDIS_URL")
     if explicit:
-        # Always force the test DB index, even in Docker where REDIS_URL=/0.
         try:
-            parts = urlsplit(explicit)
-            if parts.hostname:
-                # Keep scheme, authority (incl. credentials) and every other
-                # query option; only the database parameter is forced to the
-                # dedicated test index.
-                return urlunsplit(
-                    (parts.scheme, parts.netloc, f"/{_TEST_REDIS_DB}", parts.query, "")
-                )
-            # No hostname (unix-socket / scheme-only URL): the path is the
-            # socket path, so the db can only be forced through the query.
-            # Rewrite/append db= so such URLs cannot bypass the test-DB
-            # invariant that the hostname branch enforces.
-            params = [p for p in parts.query.split("&") if p and p.split("=", 1)[0] != "db"]
-            params.append(f"db={_TEST_REDIS_DB}")
-            return urlunsplit((parts.scheme, parts.netloc, parts.path, "&".join(params), ""))
+            from urllib.parse import urlsplit
+
+            hostname = (urlsplit(explicit).hostname or "").casefold()
+            host_override = (
+                "127.0.0.1"
+                if not os.path.exists("/.dockerenv") and hostname in COMPOSE_REDIS_HOSTS
+                else None
+            )
+            return force_test_database(
+                explicit, database=_TEST_REDIS_DB, host_override=host_override
+            )
         except Exception:
-            pass
+            # Leave malformed values intact; the validation below fails closed.
+            return explicit
         return explicit
 
     env_file = os.path.join(_BACKEND_DIR, ".env")
@@ -110,29 +111,29 @@ def _resolve_test_redis_url() -> str:
                 candidate = line.split("=", 1)[1].strip().strip("'\"")
                 if not candidate:
                     break
-                from urllib.parse import urlsplit, urlunsplit
+                from urllib.parse import urlsplit
 
                 parts = urlsplit(candidate)
                 if not parts.hostname:
                     break
-                # Keep userinfo (the credentials) and port; swap only the host.
-                userinfo = ""
-                if parts.username or parts.password:
-                    userinfo = parts.username or ""
-                    if parts.password:
-                        userinfo += f":{parts.password}"
-                    userinfo += "@"
-                port = f":{parts.port}" if parts.port else ""
-                # Dedicated DB index: the app uses /0, and the suite flushes
-                # whatever it is given between tests. Never point the tests at
-                # the database a developer's running backend is using.
-                return urlunsplit(
-                    (parts.scheme, f"{userinfo}127.0.0.1{port}", f"/{_TEST_REDIS_DB}", "", "")
+                return force_test_database(
+                    candidate,
+                    database=_TEST_REDIS_DB,
+                    host_override="127.0.0.1",
                 )
     except OSError:
         pass
 
     return f"redis://localhost:6379/{_TEST_REDIS_DB}"
+
+
+def _validate_test_redis_url(redis_url: str) -> str:
+    """Fail closed unless Redis flushes target the reserved, safe test DB."""
+    return validate_test_redis_url(
+        redis_url,
+        database=_TEST_REDIS_DB,
+        allow_remote=_ALLOW_REMOTE_TEST_REDIS,
+    )
 
 
 # Point REDIS_URL to local host-mapped Redis for testing. Env-driven, with the
@@ -167,6 +168,12 @@ from dotenv import load_dotenv
 test_env_path = os.path.join(_BACKEND_DIR, ".env.test")
 if os.path.exists(test_env_path):
     load_dotenv(test_env_path, override=True)
+
+# `.env.test` is untrusted with respect to shared state: it may contain a stale
+# /0 URL or a Compose-only hostname. Re-resolve and validate AFTER dotenv loading,
+# before the autouse fixture is allowed to flush anything.
+os.environ["REDIS_URL"] = _validate_test_redis_url(_resolve_test_redis_url())
+os.environ["RATE_LIMIT_STORAGE_URI"] = "memory://"
 
 # `.env.test` may contain host defaults. Use the reachable Compose hostname
 # inside Docker and the host-mapped port for host-run pytest.
@@ -527,10 +534,11 @@ def _flush_test_redis():
     Best-effort — a missing or unreachable Redis must not fail a test that does
     not need one.
     """
+    redis_url = _validate_test_redis_url(os.environ.get("REDIS_URL", ""))
     try:
         import redis as _redis
 
-        client = _redis.from_url(os.environ["REDIS_URL"])
+        client = _redis.from_url(redis_url)
         client.flushdb()
     except Exception:
         client = None

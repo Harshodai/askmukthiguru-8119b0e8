@@ -150,3 +150,55 @@ npm run build
 # 4. Check live backend health
 curl -s http://localhost:8000/api/health | jq .
 ```
+
+
+---
+
+# Session Handoff — X40 Rights Lineage, Answer Quality, and Delivery
+**Date:** 2026-11-04 11:25 local · **Branch:** `feature/audit-strengthen-rag-qdrant` · **HEAD:** `d2511065` · **Upstream:** `origin/feature/audit-strengthen-rag-qdrant`
+
+## 1. Goal
+Deliver editor-like first-person teachings without synthetic guru prose: select relevant clips across videos, keep each source quote verbatim and separate, preserve speaker/source attribution, enforce safety and curated rights, and present citations clearly. User explicitly approved X40 fail-closed code changes and accepts abstentions until authoritative status is registered and stamped. No rights-data edits, corpus writes, aliases, migrations, deployment, or paid provider requests are approved by that code approval.
+
+## 2. Current code and runtime state
+The working tree contains **50 changed/untracked paths**, all unstaged/uncommitted; HEAD and upstream still point to `d2511065`. X40 code now overrides supplied status from the curated resolver, fails closed in both first-person stores and the bridge, carries status through typed spans/citations, validates current rights at serving/cache boundaries, and rejects ID-only replay. Recent context citations derive first-person eligibility from typed role, verified speaker, verbatim hash, legacy rights bit, canonical rights and current resolver. UI work keeps excerpts as separate quote segments/cards, not a synthetic concatenated teacher sentence. Other uncommitted source work includes Phase 3/4 runtime wiring, safety policy corrections, bounded editorial selection, public metadata projection, UI grouping/attribution, and safe Redis DB15 test bootstrap.
+
+`backend/.env` reports `IS_PRODUCTION=false`, `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false`, `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=false`, `FIRST_PERSON_LOCAL_REVIEW_ENABLED=true`, `FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED=false`, and `FIRST_PERSON_GRAPH_EXPANSION_ENABLED=false`. These are distinct controls: owner-only local review is enabled; public context serving, terminal mode, and graph expansion remain off. X5/X6 public-release NO-GO and X40 rights gates still bind. Direct current-container flag inspection was blocked by permission denial on `~/.docker/run/docker.sock`; no post-X40 Docker rebuild occurred.
+
+The read-only Supabase audit found 70 topic-matched query/response rows, 30 citations, zero `retrieval_events`, and **zero local `public.source_releases` rows**; citation video/span identities had no local release joins. This does not prove any material is licensed. Do not create rights rows or reindex without separate approval.
+
+The read-only Supabase audit found 70 topic-matched query/response rows, 30 citations, zero `retrieval_events`, and **zero local `public.source_releases` rows**; citation video/span identities had no local release joins. This does not prove any material is licensed. Do not create rights rows or reindex without separate approval.
+
+## 3. Files actively changed
+Core backend: `backend/services/qdrant/indexer.py`; new `backend/services/first_person_rights.py`; `backend/services/first_person_store.py`; `backend/services/first_person_context_store.py`; `backend/services/first_person_context_harness.py`; `backend/services/first_person_pipeline.py`; `backend/domain/first_person_context.py`; `backend/app/pipeline/stages/first_person_bridge.py`; `backend/app/api/first_person.py`; `backend/app/config.py`; safety/evidence/selector modules; new `backend/services/first_person_public_projection.py`.
+
+Frontend: `src/components/chat/ChatMessage.tsx`, `src/lib/chat/teachingPreview.ts`, `src/lib/chat/types.ts`, `src/lib/firstPersonService.ts`, `src/pages/TeacherWords.tsx`.
+
+Tests and isolation: `backend/tests/conftest.py`, new `backend/tests/redis_url_safety.py`, plus X40/serving/pipeline/bridge/context, safety, payload, attribution and wiring tests including `test_rights_register_lookup.py`, `test_first_person_store.py`, `test_first_person_context_store.py`, `test_first_person_context_serving.py`, `test_first_person_pipeline.py`, `test_first_person_bridge.py`, `test_citation_contract.py`, `test_unverified_clip_serving_gate.py`, and related modules. Docs: `lessons.md`, `docs/PRODUCT_OPPORTUNITIES.md`, this handoff, and `.claude/tasks/first_person_trace_audit_budget_guard_and_delivery_2026-11-04.md`. Full inventory: `git status --short`.
+
+## 4. What was tried and what failed
+- Prior Love live smoke hit OpenRouter daily/monthly reservation limit. Answerability became indeterminate; retrieval candidates were withheld before reranking/relevance and zero citations were emitted. No spend-limit bypass/reset/raise was attempted. No new dedicated $0.25 provider hard-cap key plus `READY` was supplied, so no paid query was sent in this session.
+- Before X40 code, full backend quality was **12,577 passed, 11 failed, 22 skipped, 3 deselected, 1 xfailed; 70.39% coverage**. Ten bridge fixtures failed the legacy boolean rights gate; one rhetorical-tail fixture was actually a complete question. Adding only the canonical field did not fix the legacy gate, confirming `rights_cleared` alone is separate from X40.
+- First X40-focused attempt: **528 passed, 41 failed**. Main issue was old synthetic fixtures missing explicit lineage; context typed citations also lacked derived `first_person_eligible`. Corrected the context projection and test-local resolver stubs/fixtures. A later focused attempt had two failures (cached legacy fixture missing full lineage; teacher-diversity fixture missing evidence); both fixtures were corrected.
+- Final focused backend run: **610 passed, 1 live-Qdrant integration deselected**. Python compile, Ruff lint/format, and `git diff --check` passed.
+- Full `make quality`: **12,507 passed, 85 failed, 36 skipped, 3 deselected, 1 xfailed; 70.04% coverage**; 59% coverage floor met, but suite is not green. Ruff, format, Bandit, and JWT/backdoor guard advanced to pytest. Failures span 21 modules; multiple first-person failures log the stricter integrity gate rejecting old synthetic clips without canonical status/register test setup. Answerability/thread failures returned indeterminate under deliberate provider-egress blocking and need separate test-double diagnosis. The run took 8m17s. Do not describe it as a passing full suite.
+- Frontend run: **164 files passed, 1 skipped; 1,052 tests passed, 6 skipped**; TypeScript, ESLint and production build exited successfully; 29 prerendered routes.
+- Direct read-only Docker inspection failed with local permission denial to the Docker socket. No `make docker-rebuild-web`, no container health/log verification, no post-rebuild Love/anxiety request, and no commit/push. Docker rebuild remains gated on a green full suite and usable safe-wrapper access.
+
+## 5. Next step
+Triage the 85 failures by exact module and cause. Update synthetic test records to explicitly carry `domain_rights_status="licensed"`, `rights_cleared=True`, and the other required evidence only where a test intends a compliant source; install test-local current-register stubs for those synthetic sources. Preserve tests for missing, revoked, conflicting and forged status; never weaken runtime gates to make fixtures pass. Separately repair provider/async test doubles so tests remain deterministic with egress blocked. Run focused tests, then full `make quality` again.
+
+Only after the full backend and frontend gates are green, attempt `make docker-rebuild-web` through `scripts/docker-safe.sh` (frontend/backend only; no data services or volumes). Verify health, logs, and flags. Do not enable public context/terminal/graph flags: X5/X6 and open rights/evidence gates prohibit that. If live answer quality is needed, first require the new isolated provider key with a hard $0.25 cap and the user's explicit `READY`; do not use the existing key. Commit and push only after green tests and staged-scope review.
+
+## 6. Learnings and results
+`rights_cleared=True` is a legacy boolean, not a license record. `setdefault` permits caller-supplied stale/forged status to survive; register-derived status must overwrite it. Every retrieval, hydration, citation, bridge and cache path needs the same fail-closed rights lineage. Focused suites can miss older test factories, so the full suite is essential after contract hardening. Typed context passed its own harness but previously failed shared pipeline eligibility; derive that metadata from the actual verified typed evidence rather than adding prose or weakening gates. The local release registry is empty, so abstention is the honest current-data outcome.
+
+Public harness is disabled because first-person public release remains NO-GO (B5/B7/X40, plus provenance/review closure), not because the advanced code is discarded. `FIRST_PERSON_LOCAL_REVIEW_ENABLED=true` is an isolated owner review control; it is not public release. Terminal/graph expansion are additive experimental features and remain default-off until evidence/rights, held-out quality and release gates close.
+
+## 7. Additional decision record
+**Editorial one-liner:** Not yet end-to-end; the code can keep relevant multi-video evidence in separate, attributed verbatim cards, but current rights data is empty locally, the public harness is off, the full backend suite is red, and no successful live answer/A-B comparison has been demonstrated. Release remains NO-GO. Code-review-graph MCP was not available in the active server list; final review used focused tests and local diffs instead.
+
+
+**Audit-scope clarification:** References above to “empty locally” mean zero rows in audited Supabase `public.source_releases` and no joins for those 30 recorded citations. They do **not** assert that the separate curated manifest contains no assets; each served source still needs an authoritative resolver match.
+
+**Execution-policy note:** The background runner also reported a denied file-create attempt under `/app`; the saved `make-quality.log` nevertheless contains the complete pytest summary and coverage. Treat the `/app` denial as a separate environment-policy warning, not as evidence that the suite passed or as the sole explanation for its 85 failed tests.

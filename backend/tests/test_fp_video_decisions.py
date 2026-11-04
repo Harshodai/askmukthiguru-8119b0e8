@@ -190,6 +190,18 @@ def test_clip_without_video_id_is_not_blocked_by_this_layer(store):
     assert fvd.video_is_blocked(None) is False
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "services.first_person_context_store.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 # ----------------------------------------------------- wiring into serve paths
 def _clip(video_id: str) -> dict:
     text = (
@@ -201,6 +213,11 @@ def _clip(video_id: str) -> dict:
         "speaker": "Sri Krishnaji",
         "point_id": "p1",
         "video_id": video_id,
+        "source_url": f"https://www.youtube.com/watch?v={video_id}",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
 
 
@@ -247,6 +264,8 @@ def test_context_store_points_servable_rechecks_admin_block(store, monkeypatch):
         "voice_verified_at": "2026-10-31T00:00:00+00:00",
         "speaker_verification_status": "verified",
         "video_id": VID,
+        "source_url": f"https://www.youtube.com/watch?v={VID}",
+        "domain_rights_status": "licensed",
     }
     ctx = FirstPersonContextStore(client=_client({"pt1": payload}), collection="first_person_v10")
     assert ctx.points_servable(["pt1"]) is True

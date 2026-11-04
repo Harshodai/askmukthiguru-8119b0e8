@@ -73,6 +73,7 @@ def span(**overrides):
         "boundary_status": BoundaryStatus.VERIFIED,
         "completeness_status": CompletenessStatus.COMPLETE,
         "rights_cleared": True,
+        "domain_rights_status": "licensed",
         "caption_status": "auto",
         "provenance_kind": ProvenanceKind.SPEECH_TURN_SPAN,
         "source_url": "https://www.youtube.com/watch?v=vidA",

@@ -40,14 +40,28 @@ from services.text_quality_filter import find_artifact
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 def _clean_clip(**overrides):
     text = "Suffering is resistance to what is."
+    vid = overrides.get("video_id", "abc123")
     clip = {
         "verbatim_text": text,
         "transcript_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "speaker": "Sri Preethaji",
-        "video_id": "abc123",
+        "video_id": vid,
+        "source_url": f"https://www.youtube.com/watch?v={vid}",
         "provenance_kind": "speech_turn_clip",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
     clip.update(overrides)
     return clip

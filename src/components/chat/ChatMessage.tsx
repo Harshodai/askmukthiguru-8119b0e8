@@ -12,10 +12,11 @@ import gurusPhoto from '@/assets/gurus-photo.jpg';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Message } from '@/lib/chatStorage';
-import type { TeachingPreview, GroundingState, TeachingAttribution } from '@/lib/chat/types';
+import type { TeachingPreview, GroundingState, TeachingAttribution, EditorialSetMetadata } from '@/lib/chat/types';
 import { resolveAttributionLabel, isPersonalizedCitation } from '@/lib/chat/types';
 import { isAutoTranscript } from '@/lib/transcriptStatus';
 import { selectGuruTeachingCitation } from '@/lib/firstPersonCitationMapper';
+import { groupEditorialTeachingCitations, type EditorialTeachingCitationGroup } from '@/lib/chat/teachingPreview';
 import { evidenceSupport } from '@/lib/chat/evidenceSupport';
 import { FEATURE_FLAGS } from '@/lib/featureFlags';
 import { cn } from '@/lib/utils';
@@ -82,6 +83,46 @@ const injectCitationLinks = (content: string, citationsLen: number): string => {
  * javascript:/data: links, so every scheme outside the allowlist is dropped.
  */
 export const safeUrlTransform = (url: string): string =>  /^(https?:|mailto:|#|\/api\/)/i.test(url) ? url : '';
+
+const parseEditorialSetMetadata = (value: unknown): EditorialSetMetadata | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const statuses = ['supported', 'partial', 'conflicted', 'insufficient'];
+  if (typeof raw.status !== 'string' || !statuses.includes(raw.status)) return null;
+
+  const coverageLevels = ['direct', 'indirect', 'absent'];
+  const rawCoverage = raw.facet_coverage;
+  const facetCoverage = rawCoverage && typeof rawCoverage === 'object' && !Array.isArray(rawCoverage)
+    ? Object.fromEntries(
+      Object.entries(rawCoverage as Record<string, unknown>)
+        .filter(([facet, level]) => /^[a-z_]{1,32}$/.test(facet) && typeof level === 'string' && coverageLevels.includes(level))
+        .slice(0, 14),
+    ) as Record<string, 'direct' | 'indirect' | 'absent'>
+    : undefined;
+  const rawFacets = raw.candidate_facets;
+  const candidateFacets = Array.isArray(rawFacets)
+    ? rawFacets.filter((facet): facet is string => typeof facet === 'string' && /^[a-z_]{1,32}$/.test(facet)).slice(0, 14)
+    : undefined;
+  const boundedCount = (value: unknown, max: number): number | undefined =>
+    typeof value === 'number' && Number.isInteger(value) ? Math.max(0, Math.min(max, value)) : undefined;
+  const teacherScope = raw.teacher_scope === 'krishnaji' || raw.teacher_scope === 'preethaji' || raw.teacher_scope === 'both'
+    ? raw.teacher_scope
+    : null;
+
+  return {
+    status: raw.status as EditorialSetMetadata['status'],
+    primary_intent: typeof raw.primary_intent === 'string' && /^[a-z_]{1,32}$/.test(raw.primary_intent)
+      ? raw.primary_intent
+      : undefined,
+    candidate_facets: candidateFacets,
+    teacher_scope: teacherScope,
+    facet_coverage: facetCoverage,
+    candidate_contexts: boundedCount(raw.candidate_contexts, 8),
+    selected_contexts: boundedCount(raw.selected_contexts, 5),
+    planner_version: typeof raw.planner_version === 'string' ? raw.planner_version.slice(0, 80) : undefined,
+    selector_version: typeof raw.selector_version === 'string' ? raw.selector_version.slice(0, 80) : undefined,
+  };
+};
 
 /** Extract a valid 11-character YouTube video ID from a source URL. */
 const getYouTubeId = (url: string): string | null => {
@@ -373,6 +414,8 @@ export interface GuruTeachingCardProps {
   verified: boolean;
   /** Served under "Related, not a direct answer" — never badged Verified. */
   related?: boolean;
+  /** Evidence selector found explicit opposing source predicates. */
+  conflicted?: boolean;
   /** 1-based position, forwarded to the playback modal. */
   index?: number;
   /** Opens the timestamped playback modal. Absent: play degrades to a source link. */
@@ -393,6 +436,7 @@ export const GuruTeachingCard = ({
   citation,
   verified,
   related = false,
+  conflicted = false,
   index = 1,
   onPlay,
 }: GuruTeachingCardProps) => {
@@ -402,7 +446,10 @@ export const GuruTeachingCard = ({
     : citation.textSnippet?.trim()
       ? citation.textSnippet
       : null;
-  if (!quote) return null;
+  const quoteSegments = (citation.quoteSegments ?? []).filter((segment) => segment.trim());
+  const displayedQuoteSegments = quoteSegments.length > 0 ? quoteSegments : quote ? [quote] : [];
+  const playbackQuote = displayedQuoteSegments.join(' ');
+  if (!playbackQuote) return null;
 
   const personalized = isPersonalizedCitation(citation);
   const attribution = resolveAttributionLabel({
@@ -434,14 +481,16 @@ export const GuruTeachingCard = ({
       startTimestamp: citation.timestampSeconds,
       playbackStartSeconds: citation.playbackStartSeconds,
       playbackEndSeconds: citation.playbackEndSeconds,
-      quote,
+      quote: playbackQuote,
       transcriptStatus: citation.transcriptStatus,
     });
   };
 
   const badgeLabel = personalized
     ? t('chat.guruTeaching.personalizedBadge', 'Personalized reflection')
-    : showVerified
+    : conflicted
+      ? t('chat.guruTeaching.conflictedBadge', 'Conflicting sources — not reconciled')
+      : showVerified
       ? t('chat.guruTeaching.verifiedBadge', 'Verified')
       : related
         ? t('chat.guruTeaching.relatedBadge', 'Related — not a direct answer')
@@ -475,8 +524,24 @@ export const GuruTeachingCard = ({
         data-testid="guru-teaching-quote"
         className="mt-2 border-s-2 border-ojas/40 ps-3 font-serif text-[15px] leading-[1.75] text-foreground"
       >
-        {quote}
+        {displayedQuoteSegments.map((segment, segmentIndex) => (
+          <span
+            key={`${citation.sourceSpanIndex ?? index}-${segmentIndex}`}
+            data-testid="guru-teaching-quote-span"
+            className={displayedQuoteSegments.length > 1 ? 'block' : undefined}
+          >
+            {segment}
+          </span>
+        ))}
       </blockquote>
+      {conflicted && (
+        <p data-testid="editorial-conflict-note" role="note" className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+          {t(
+            'chat.guruTeaching.conflictedNote',
+            'Sources express opposing positions. They are shown separately; no synthesis was made.',
+          )}
+        </p>
+      )}
       {personalized && (
         <p className="mt-1.5 text-xs italic text-muted-foreground">
           {t(
@@ -805,6 +870,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         ? citations.some(isPersonalizedCitation)
         : Boolean(message.content?.includes(PERSONALIZED_LABEL));
     const groundingState = message.groundingState ?? 'abstained';
+    const editorialSet = parseEditorialSetMetadata(message.verification?.editorial_set);
 
     // Attribution integrity: a quoted teacher statement with no linked source
     // must be labelled unverified rather than rendered as doctrine (QA P1).
@@ -859,19 +925,38 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     // Served-teaching artifact: the first quote-bearing citation becomes the
     // distinct guru-teaching card. Suppressed while streaming, on errors, and
     // on crisis answers (same guards as the audio strip below).
-    const guruTeachingCitation = useMemo(() => {
-      if (!isGuru || isStreaming || message.error) return null;
-      if (isCrisisAnswer(message.content)) return null;
-      return selectGuruTeachingCitation(citations);
-    }, [isGuru, isStreaming, message.error, message.content, citations]);
+    const guruTeachingGroups = useMemo<EditorialTeachingCitationGroup[]>(() => {
+      if (!isGuru || isStreaming || message.error) return [];
+      if (isCrisisAnswer(message.content)) return [];
+      if (editorialSet) {
+        return groupEditorialTeachingCitations(citations).filter(
+          (group) => selectGuruTeachingCitation([group.citation]) !== null,
+        );
+      }
+      const citation = selectGuruTeachingCitation(citations);
+      return citation
+        ? [{ citation, citationIndex: citations.indexOf(citation) }]
+        : [];
+    }, [isGuru, isStreaming, message.error, message.content, citations, editorialSet]);
+    const guruTeachingCitation = guruTeachingGroups[0]?.citation ?? null;
 
     // Verified only on the strict path: backend citationsVerified plus no
     // partial/failed/related flag and no source-unbacked attribution. The card
     // itself downgrades the badge for related/personalized turns.
+    const everySelectedCitationHasIntegrity = guruTeachingGroups.length > 0
+      && guruTeachingGroups.every(({ citation }) =>
+        citation.isVerbatim === true
+        && citation.rightsCleared === true
+        && citation.speakerVerified === true
+        && (citation.quoteSegments?.length ?? Number(Boolean(citation.quote || citation.textSnippet))) > 0);
     const isGuruTeachingVerified = guruTeachingCitation !== null
+      && everySelectedCitationHasIntegrity
       && message.citationsVerified === true
-      && message.verification?.passed !== false
+      && message.verification?.passed === true
+      && message.verification?.citation_integrity_verified === true
+      && message.verification?.evidence_set_supported === true
       && message.verification?.partial !== true
+      && (!editorialSet || editorialSet.status === 'supported')
       && message.guidancePlan?.attribution?.source_backed !== false;
 
     const { teachingBody, inquiryBody } = useMemo(() => {
@@ -903,8 +988,11 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     // When GuruTeachingCard is rendered for a verbatim/first-person clip, suppress
     // repeating the identical quote in the markdown body below it.
     const isBodyDuplicateOfGuruCard = useMemo(() => {
-      if (!guruTeachingCitation) return false;
-      const quote = (guruTeachingCitation.quote ?? guruTeachingCitation.textSnippet ?? '').trim();
+      if (guruTeachingGroups.length === 0) return false;
+      const quote = guruTeachingGroups
+        .map(({ citation }) => (citation.quote ?? citation.textSnippet ?? '').trim())
+        .filter(Boolean)
+        .join('\n\n');
       if (!quote || !teachingBody) return false;
       const normalize = (text: string) =>
         text
@@ -916,8 +1004,9 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       const normBody = normalize(teachingBody);
       const normQuote = normalize(quote);
       if (!normBody || !normQuote) return false;
+      if (editorialSet) return normBody === normQuote;
       return normBody === normQuote || normQuote.startsWith(normBody) || normBody.startsWith(normQuote);
-    }, [guruTeachingCitation, teachingBody]);
+    }, [guruTeachingGroups, editorialSet, teachingBody]);
 
     const markdownComponents = useMemo(() => ({
       p: ({ children }: { children?: ReactNode }) => {
@@ -1296,20 +1385,48 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           </p>
                         </div>
                       )}
-                      {guruTeachingCitation && (
-                        <div className="mb-3.5 w-full">
-                          <GuruTeachingCard
-                            citation={guruTeachingCitation}
-                            verified={isGuruTeachingVerified}
-                            related={message.verification?.direct === false}
-                            index={citations.indexOf(guruTeachingCitation) + 1}
-                            onPlay={(c) => {
-                              // Playing a real served clip is the proof for the journey's teaching step.
-                              completeStep('teaching');
-                              setActiveVideoCitation(c);
-                              onCitationClick?.(message.id, c.index - 1);
-                            }}
-                          />
+                      {editorialSet && (
+                        <aside
+                          data-testid="editorial-set-summary"
+                          aria-label="Teaching evidence set and facet coverage"
+                          className="mb-3.5 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5 text-xs text-muted-foreground"
+                        >
+                          <p className="m-0 font-semibold text-foreground">
+                            Teaching evidence set: {editorialSet.status}
+                          </p>
+                          <p className="m-0 mt-1">
+                            Facet coverage:{' '}
+                            {Object.entries(editorialSet.facet_coverage ?? {}).length > 0
+                              ? Object.entries(editorialSet.facet_coverage ?? {})
+                                .map(([facet, level]) => `${facet.replace(/_/g, ' ')}: ${level}`)
+                                .join(' · ')
+                              : 'not available'}
+                          </p>
+                        </aside>
+                      )}
+                      {guruTeachingGroups.length > 0 && (
+                        <div className="mb-3.5 flex w-full flex-col gap-2.5" data-testid="editorial-teaching-cards">
+                          {guruTeachingGroups.map(({ citation, citationIndex }) => (
+                            <GuruTeachingCard
+                              key={`${citation.videoId || citation.url}:${citation.parentUnitId || 'parent-unknown'}:${citation.sourceSpanIndex ?? citationIndex}`}
+                              citation={citation}
+                              verified={isGuruTeachingVerified
+                                && citation.isVerbatim === true
+                                && citation.rightsCleared === true
+                                && citation.speakerVerified === true}
+                              conflicted={editorialSet?.status === 'conflicted'}
+                              related={message.verification?.direct === false
+                                || editorialSet?.status === 'conflicted'
+                                || editorialSet?.status === 'insufficient'}
+                              index={citationIndex + 1}
+                              onPlay={(c) => {
+                                // A grouped source card is one selected discourse window.
+                                completeStep('teaching');
+                                setActiveVideoCitation(c);
+                                onCitationClick?.(message.id, c.index - 1);
+                              }}
+                            />
+                          ))}
                         </div>
                       )}
                       <div className="text-[15px] leading-[1.75] text-foreground selection:bg-ojas/20">
@@ -1697,6 +1814,18 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   onClick={() => setProvenanceOpen(true)}
                   size="sm"
                 />
+                {editorialSet?.status === 'conflicted' && (
+                  <span
+                    data-testid="editorial-conflict-disclosure"
+                    role="status"
+                    className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-700 dark:text-amber-300"
+                  >
+                    {t(
+                      'chat.editorialConflictDisclosure',
+                      'Conflicting source perspectives — shown separately; no synthesis',
+                    )}
+                  </span>
+                )}
                 {citations.length > 0 && (
                   <button
                     type="button"

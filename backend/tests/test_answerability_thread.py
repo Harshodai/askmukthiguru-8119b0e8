@@ -40,6 +40,14 @@ def _content_quality_gate_off_for_toy_fixtures(monkeypatch):
     rejects clips under 15 words) would quarantine them. The gate itself is
     covered elsewhere."""
     monkeypatch.setattr(settings, "first_person_content_quality_gate_enabled", False)
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -79,10 +87,15 @@ def _clip_with(text, video_id, vec):
         "speaker": "Sri Preethaji",
         "teacher_id": "preethaji",
         "video_id": video_id,
+        "source_url": f"https://www.youtube.com/watch?v={video_id}",
         "start_ms": 1000,
         "end_ms": 5000,
         "passage_dense": vec,
         "point_id": video_id,
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
 
 

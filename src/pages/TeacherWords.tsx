@@ -307,7 +307,9 @@ function ClipCard({
       {cardCitation ? (
         <GuruTeachingCard
           citation={cardCitation}
-          verified={citation.speaker_verified === true}
+          verified={citation.speaker_verified === true
+            && citation.is_verbatim === true
+            && citation.rights_cleared === true}
           related={!isDirectAnswer}
           index={index}
           onPlay={onPlay}

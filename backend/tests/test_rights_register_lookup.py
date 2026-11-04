@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from services.first_person_rights import source_is_authoritatively_licensed
 from services.qdrant.indexer import QdrantIndexer, resolve_source_rights_status
 from services.qdrant.utils import QdrantUtils
 
@@ -25,7 +26,14 @@ def test_unlisted_source_gets_unverified_zero_defaulted_licensed():
     ix.upsert_chunks(
         texts=["Spiritual teaching chunk for testing rights lookup."],
         vectors=[[0.1] * 8],
-        metadatas=[{"source_url": unlisted_url, "chunk_index": 0}],
+        metadatas=[
+            {
+                "source_url": unlisted_url,
+                "chunk_index": 0,
+                "domain_rights_status": "licensed",
+                "rights_status": "licensed",
+            }
+        ],
     )
 
     upsert_calls = client.upsert.call_args_list
@@ -53,7 +61,15 @@ def test_cleared_source_in_rights_manifest_gets_licensed():
     ix.upsert_chunks(
         texts=["Cleared teaching chunk from confirmed channel owner."],
         vectors=[[0.1] * 8],
-        metadatas=[{"source_url": cleared_url, "video_id": cleared_vid, "chunk_index": 0}],
+        metadatas=[
+            {
+                "source_url": cleared_url,
+                "video_id": cleared_vid,
+                "chunk_index": 0,
+                "domain_rights_status": "unverified",
+                "rights_status": "revoked",
+            }
+        ],
     )
 
     upsert_calls = client.upsert.call_args_list
@@ -68,3 +84,39 @@ def test_cleared_source_in_rights_manifest_gets_licensed():
     # Direct helper checks by URL and by video_id
     assert resolve_source_rights_status(cleared_url) == "licensed"
     assert resolve_source_rights_status("", video_id=cleared_vid) == "licensed"
+
+
+def test_serve_time_status_requires_current_register_even_for_licensed_payload(monkeypatch):
+    resolver = MagicMock(return_value="unverified")
+    monkeypatch.setattr("services.qdrant.indexer.resolve_source_rights_status", resolver)
+
+    assert not source_is_authoritatively_licensed(
+        source_url="https://www.youtube.com/watch?v=revoked-video",
+        video_id="revoked-video",
+        domain_rights_status="licensed",
+    )
+    assert not source_is_authoritatively_licensed(
+        source_url="https://www.youtube.com/watch?v=revoked-video",
+        video_id="revoked-video",
+        domain_rights_status="unverified",
+    )
+    resolver.assert_called_once_with(
+        "https://www.youtube.com/watch?v=revoked-video", "revoked-video"
+    )
+
+
+def test_serve_time_status_rejects_missing_source_identity(monkeypatch):
+    resolver = MagicMock(return_value="licensed")
+    monkeypatch.setattr("services.qdrant.indexer.resolve_source_rights_status", resolver)
+
+    assert not source_is_authoritatively_licensed(
+        source_url="",
+        video_id="video-id",
+        domain_rights_status="licensed",
+    )
+    assert not source_is_authoritatively_licensed(
+        source_url="https://www.youtube.com/watch?v=video-id",
+        video_id=None,
+        domain_rights_status="licensed",
+    )
+    resolver.assert_not_called()

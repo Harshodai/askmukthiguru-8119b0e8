@@ -94,11 +94,40 @@ export interface PersonalizationProvenance {
 
 export type BackendMetadata = Record<string, unknown>;
 
+export type EditorialSetStatus = 'supported' | 'partial' | 'conflicted' | 'insufficient';
+export type EditorialFacetCoverage = 'direct' | 'indirect' | 'absent';
+export interface EditorialSetMetadata {
+  status: EditorialSetStatus;
+  primary_intent?: string;
+  candidate_facets?: string[];
+  teacher_scope?: string | null;
+  facet_coverage?: Record<string, EditorialFacetCoverage>;
+  candidate_contexts?: number;
+  selected_contexts?: number;
+  planner_version?: string;
+  selector_version?: string;
+}
+
 /** A single cited source. `title` is the real video/article title resolved
  *  server-side from the retrieved document; null/absent for sources the
  *  backend could not resolve a title for (renderers fall back to the domain). */
 export interface Citation {
   url: string;
+  /** Canonical source video ID when supplied by a first-person citation. */
+  videoId?: string;
+  teacherId?: string;
+  speakerId?: string;
+  parentUnitId?: string;
+  sourceSpanId?: string;
+  sourceSpanIndex?: number;
+  /** True only when this exact citation body is source-verbatim. */
+  isVerbatim?: boolean;
+  /** True only when the rights gate cleared this exact source span. */
+  rightsCleared?: boolean;
+  /** Exact child-span text nodes used by grouped editorial teaching cards. */
+  quoteSegments?: string[];
+  startMs?: number;
+  endMs?: number;
   title?: string | null;
   quote?: string;
   channel_name?: string;
@@ -126,6 +155,24 @@ export interface Citation {
   /** @deprecated legacy camelCase alias — read via `isPersonalizedCitation`. */
   personalizedFor?: boolean;
 }
+
+const normalizeQuoteSegments = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined;
+  const segments: string[] = [];
+  let totalLength = 0;
+  for (const segment of value) {
+    if (
+      typeof segment !== 'string'
+      || !segment.trim()
+      || segment.length > 12000
+      || segments.length >= 20
+      || totalLength + segment.length > 25000
+    ) return undefined;
+    segments.push(segment);
+    totalLength += segment.length;
+  }
+  return segments.length > 0 ? segments : undefined;
+};
 
 /** Canonical read of the backend personalize flag. `personalized_for`
  *  (snake_case wire shape) is the single source of truth; `personalizedFor`
@@ -165,6 +212,8 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
       const pbs = c.playback_start_seconds ?? c.playbackStartSeconds ?? ts;
       const pbe = c.playback_end_seconds ?? c.playbackEndSeconds;
       const sv = c.speaker_verified ?? c.speakerVerified;
+      const verbatim = c.is_verbatim ?? c.isVerbatim;
+      const rightsCleared = c.rights_cleared ?? c.rightsCleared;
       const rawTs = c.transcript_status ?? c.transcriptStatus ?? c.caption_status ?? c.captionStatus;
       const pf = typeof c.personalized_for === 'boolean' ? c.personalized_for : typeof c.personalizedFor === 'boolean' ? c.personalizedFor : undefined;
       let playbackUrl = (c.playback_url as string | undefined) ?? (c.playbackUrl as string | undefined);
@@ -179,6 +228,23 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
       }
       return {
         url,
+        videoId: typeof c.video_id === 'string' ? c.video_id : typeof c.videoId === 'string' ? c.videoId : undefined,
+        teacherId: typeof c.teacher_id === 'string'
+          ? c.teacher_id
+          : typeof c.guru_id === 'string'
+            ? c.guru_id
+            : typeof c.teacherId === 'string'
+              ? c.teacherId
+              : undefined,
+        speakerId: typeof c.speaker_id === 'string' ? c.speaker_id : typeof c.speakerId === 'string' ? c.speakerId : undefined,
+        parentUnitId: typeof c.parent_unit_id === 'string' ? c.parent_unit_id : typeof c.parentUnitId === 'string' ? c.parentUnitId : undefined,
+        sourceSpanId: typeof c.source_span_id === 'string' ? c.source_span_id : typeof c.sourceSpanId === 'string' ? c.sourceSpanId : undefined,
+        sourceSpanIndex: typeof (c.source_span_index ?? c.sourceSpanIndex) === 'number' && Number.isInteger(c.source_span_index ?? c.sourceSpanIndex) && Number(c.source_span_index ?? c.sourceSpanIndex) >= 0 ? Number(c.source_span_index ?? c.sourceSpanIndex) : undefined,
+        isVerbatim: typeof verbatim === 'boolean' ? verbatim : undefined,
+        rightsCleared: typeof rightsCleared === 'boolean' ? rightsCleared : undefined,
+        quoteSegments: normalizeQuoteSegments(c.quote_segments ?? c.quoteSegments),
+        startMs: typeof (c.start_ms ?? c.startMs) === 'number' && Number.isFinite(c.start_ms ?? c.startMs) ? Number(c.start_ms ?? c.startMs) : undefined,
+        endMs: typeof (c.end_ms ?? c.endMs) === 'number' && Number.isFinite(c.end_ms ?? c.endMs) ? Number(c.end_ms ?? c.endMs) : undefined,
         title: (c.title as string | null | undefined) ?? undefined,
         quote: (c.quote as string | undefined) ?? (c.verbatim_text as string | undefined) ?? undefined,
         channel_name: (c.channel_name as string | undefined) ?? undefined,

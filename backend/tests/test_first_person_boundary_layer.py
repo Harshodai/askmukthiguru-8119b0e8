@@ -12,7 +12,18 @@ terminal is served now; head defects and tail_dangling_word still block.
 
 import hashlib
 
+import pytest
+
 from services.first_person_pipeline import _passes_integrity_gate
+
+
+@pytest.fixture(autouse=True)
+def _synthetic_sources_are_registered(monkeypatch):
+    """Synthetic unit fixtures model licensed clips without live register files."""
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
 
 def _clip(verbatim: str, display: str | None = None) -> dict:
@@ -22,6 +33,12 @@ def _clip(verbatim: str, display: str | None = None) -> dict:
         "transcript_hash": hashlib.sha256(verbatim.encode("utf-8")).hexdigest(),
         "speaker": "Sri Preethaji",
         "point_id": "p",
+        "video_id": "vid1",
+        "source_url": "https://www.youtube.com/watch?v=vid1",
+        "is_verbatim": True,
+        "first_person_eligible": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
     }
 
 

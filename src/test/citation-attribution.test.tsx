@@ -185,3 +185,174 @@ describe('mapFirstPersonCitationToDiscourseCitation — verified only when the b
     expect(resolveAttributionLabel(mapped)).toBe('Sri Krishnaji');
   });
 });
+
+describe('groupEditorialTeachingCitations — source-preserving evidence cards', () => {
+  const withVerifiedSourceRights = (citation: Record<string, unknown>) => ({
+    ...citation,
+    speaker_id: citation.speaker_id ?? `test-speaker-${citation.teacher_id}`,
+    source_span_id: citation.source_span_id
+      ?? `test-span-${citation.parent_unit_id}-${citation.source_span_index}`,
+    is_verbatim: true,
+    rights_cleared: true,
+  });
+  it('joins ordered child spans only within each video and retains the full playback window', async () => {
+    const { groupEditorialTeachingCitations } = await import('@/lib/chat/teachingPreview');
+    const groups = groupEditorialTeachingCitations(normalizeCitations([
+      {
+        url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=10s',
+        video_id: 'vARTudIEq30',
+        teacher_id: 'krishnaji',
+        parent_unit_id: 'parent-k',
+        source_span_id: 'span-k-0',
+        source_span_index: 0,
+        speaker: 'Sri Krishnaji',
+        speaker_verified: true,
+        verbatim_text: 'Love is not possession.',
+        playback_start_seconds: 10,
+        playback_end_seconds: 14,
+      },
+      {
+        url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=14s',
+        video_id: 'vARTudIEq30',
+        teacher_id: 'krishnaji',
+        parent_unit_id: 'parent-k',
+        source_span_id: 'span-k-1',
+        source_span_index: 1,
+        speaker: 'Sri Krishnaji',
+        speaker_verified: true,
+        verbatim_text: 'It is a movement without fear.',
+        playback_start_seconds: 14,
+        playback_end_seconds: 19,
+      },
+      {
+        url: 'https://www.youtube.com/watch?v=_GEMrEWCiXw&t=5s',
+        video_id: '_GEMrEWCiXw',
+        teacher_id: 'preethaji',
+        parent_unit_id: 'parent-p',
+        source_span_id: 'span-p-0',
+        source_span_index: 0,
+        speaker: 'Sri Preethaji',
+        speaker_verified: true,
+        verbatim_text: 'Love is a state of connection.',
+        playback_start_seconds: 5,
+        playback_end_seconds: 9,
+      },
+    ].map(withVerifiedSourceRights)));
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0].citation.quote).toBe('Love is not possession. It is a movement without fear.');
+    expect(groups[0].citation.playbackStartSeconds).toBe(10);
+    expect(groups[0].citation.playbackEndSeconds).toBe(19);
+    expect(groups[0].citation.speakerVerified).toBe(true);
+    expect(groups[0].citation.quoteSegments).toEqual([
+      'Love is not possession.',
+      'It is a movement without fear.',
+    ]);
+    expect(groups[1].citation.quote).toBe('Love is a state of connection.');
+    expect(groups[1].citation.videoId).toBe('_GEMrEWCiXw');
+  });
+
+  it('does not merge a claimed video identity that disagrees with the source URL', async () => {
+    const { groupEditorialTeachingCitations } = await import('@/lib/chat/teachingPreview');
+    const groups = groupEditorialTeachingCitations(normalizeCitations([
+      {
+        url: 'https://www.youtube.com/watch?v=_GEMrEWCiXw&t=10s',
+        video_id: 'vARTudIEq30',
+        teacher_id: 'krishnaji',
+        parent_unit_id: 'parent-k',
+        source_span_index: 0,
+        speaker: 'Sri Krishnaji',
+        speaker_verified: true,
+        verbatim_text: 'First source excerpt.',
+      },
+      {
+        url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=14s',
+        video_id: 'vARTudIEq30',
+        teacher_id: 'krishnaji',
+        parent_unit_id: 'parent-k',
+        source_span_index: 1,
+        speaker: 'Sri Krishnaji',
+        speaker_verified: true,
+        verbatim_text: 'Second source excerpt.',
+      },
+    ].map(withVerifiedSourceRights)));
+
+    expect(groups).toHaveLength(2);
+    expect(groups.map((group) => group.citation.quote)).toEqual([
+      'First source excerpt.',
+      'Second source excerpt.',
+    ]);
+  });
+
+  it('keeps different parent units and non-contiguous source spans separate', async () => {
+    const { groupEditorialTeachingCitations } = await import('@/lib/chat/teachingPreview');
+    const groups = groupEditorialTeachingCitations(normalizeCitations([
+      {
+        url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=14s',
+        video_id: 'vARTudIEq30',
+        teacher_id: 'krishnaji',
+        parent_unit_id: 'parent-a',
+        source_span_index: 2,
+        speaker: 'Sri Krishnaji',
+        speaker_verified: true,
+        verbatim_text: 'Non-adjacent excerpt.',
+      },
+      {
+        url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=19s',
+        video_id: 'vARTudIEq30',
+        teacher_id: 'krishnaji',
+        parent_unit_id: 'parent-b',
+        source_span_index: 1,
+        speaker: 'Sri Krishnaji',
+        speaker_verified: true,
+        verbatim_text: 'Different parent excerpt.',
+      },
+      {
+        url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=10s',
+        video_id: 'vARTudIEq30',
+        teacher_id: 'krishnaji',
+        parent_unit_id: 'parent-a',
+        source_span_index: 0,
+        speaker: 'Sri Krishnaji',
+        speaker_verified: true,
+        verbatim_text: 'First excerpt.',
+      },
+    ].map(withVerifiedSourceRights)));
+
+    expect(groups).toHaveLength(3);
+    expect(groups.map((group) => group.citation.quote)).toEqual([
+      'First excerpt.',
+      'Non-adjacent excerpt.',
+      'Different parent excerpt.',
+    ]);
+  });
+
+  it('orders reversed contiguous children by source span index, not retrieval order', async () => {
+    const { groupEditorialTeachingCitations } = await import('@/lib/chat/teachingPreview');
+    const groups = groupEditorialTeachingCitations(normalizeCitations([
+      {
+        url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=14s',
+        video_id: 'vARTudIEq30',
+        teacher_id: 'krishnaji',
+        parent_unit_id: 'parent-k',
+        source_span_index: 1,
+        speaker: 'Sri Krishnaji',
+        speaker_verified: true,
+        verbatim_text: 'Second source sentence.',
+      },
+      {
+        url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=10s',
+        video_id: 'vARTudIEq30',
+        teacher_id: 'krishnaji',
+        parent_unit_id: 'parent-k',
+        source_span_index: 0,
+        speaker: 'Sri Krishnaji',
+        speaker_verified: true,
+        verbatim_text: 'First source sentence.',
+      },
+    ].map(withVerifiedSourceRights)));
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].citation.quote).toBe('First source sentence. Second source sentence.');
+  });
+});

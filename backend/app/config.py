@@ -379,6 +379,10 @@ class Settings(BaseSettings):
     # and concept-expansion results. The TU graph must be built offline first
     # via scripts/ops/build_teaching_unit_graph.py. OFF by default everywhere.
     first_person_teaching_unit_graph_enabled: bool = False
+    # Local editorial set selection over already-gated fp-context parents.
+    # The pipeline additionally requires IS_PRODUCTION=false and the context
+    # harness flag; default off and never activates graph expansion or synthesis.
+    first_person_editorial_set_selection_enabled: bool = False
     # --- Owner-only local review candidate preview (2026-10-22) ---
     # A file-backed, LOCAL-ONLY preview of the Phase-4 `local_review_candidate`
     # tier. It reads the immutable candidate manifests directly: no Qdrant
@@ -638,9 +642,9 @@ class Settings(BaseSettings):
     openrouter_daily_budget_usd: float = Field(default=10.0, gt=0)
     openrouter_monthly_budget_usd: float = Field(default=40.0, gt=0)
     # Redis-backed cross-replica reservation guard. Default enabled with $10 daily / $40 monthly ceilings.
-    openrouter_budget_guard_enabled: bool = True
+    openrouter_budget_guard_enabled: bool = False
     openrouter_max_request_cost_usd: float = Field(default=0.03, gt=0)
-    openrouter_budget_fail_closed: bool = True
+    openrouter_budget_fail_closed: bool = False
     # Generic LLM budget guard defaults read by services/llm_budget_guard.py
     # via from_settings(provider). Matches the openrouter twin so the generic
     # path is fail-closed, not silently fail-open.

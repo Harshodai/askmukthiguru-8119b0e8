@@ -15,6 +15,14 @@ from app.schemas import Citation
 from rag.nodes.citation_extractor import extract_citations
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_registered_sources(monkeypatch):
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
+
+
 @pytest.mark.unit
 def test_citation_serialises_new_fields() -> None:
     c = Citation(
@@ -145,8 +153,11 @@ def _bridged_citation() -> dict:
         "text_snippet": "Suffering is resistance to what is.",
         "source_url": "https://www.youtube.com/watch?v=abc123&t=99s",
         "video_url": "https://www.youtube.com/watch?v=abc123",
+        "domain_rights_status": "licensed",  # synthetic unit fixture only
         "confidence": 0.71,
         "is_verbatim": True,
+        "rights_cleared": True,
+        "first_person_eligible": True,
         "provenance_kind": "speech_turn_clip",
         "caption_status": "auto_transcript",
         # voice verification stored on the clip (the bridge copies, never infers, this flag)
@@ -155,7 +166,7 @@ def _bridged_citation() -> dict:
 
 
 @pytest.mark.unit
-def test_bridged_citation_survives_chat_response_serialisation() -> None:
+def test_bridged_citation_survives_chat_response_serialisation(monkeypatch) -> None:
     """Bridged citations narrow to the wire shape and stay schema-valid.
 
     `speaker` is carried only because first-person clips are voice-verified
@@ -164,6 +175,11 @@ def test_bridged_citation_survives_chat_response_serialisation() -> None:
     """
     from app.chat_engine import ChatEngine
     from app.pipeline.stages.first_person_bridge import _eligible_citations
+
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+    )
 
     # Production order: the bridge stamps allowlisted clips speaker_verified
     # before they ever reach the wire coercion (FirstPersonBridgeStage._bridge
