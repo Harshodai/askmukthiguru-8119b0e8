@@ -4,7 +4,7 @@ import { parse } from 'yaml';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { CrisisLines } from '@/components/common/CrisisLines';
-import { INDIA_CRISIS_LINES, US_CRISIS_LINES } from '@/lib/crisisHelplines';
+import { CALL_VERIFIED_CRISIS_LINES, INDIA_CRISIS_LINES, US_CRISIS_LINES } from '@/lib/crisisHelplines';
 
 interface RegistryEntry {
   name: string;
@@ -48,5 +48,16 @@ describe('frontend crisis helplines mirror config/helplines.yaml', () => {
       const link = screen.getByRole('link', { name: `Call ${line.label} at ${line.display}` });
       expect(link).toHaveAttribute('href', `tel:${line.tel}`);
     }
+  });
+});
+
+// T1-17: the error-card constant must list exactly the registry entries that
+// have a non-null last_verified_by_call.
+describe('CALL_VERIFIED_CRISIS_LINES (T1-17)', () => {
+  it('lists exactly the registry entries with last_verified_by_call', () => {
+    const verified = registry.filter((e) => e.last_verified_by_call).map((e) => e.name).sort();
+    const listed = CALL_VERIFIED_CRISIS_LINES.map((l) => l.registryName).sort();
+    expect(listed).toEqual(verified);
+    expect(listed.length).toBeGreaterThan(0);
   });
 });

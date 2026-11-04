@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CALL_VERIFIED_CRISIS_LINES } from '@/lib/crisisHelplines';
 import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -1289,16 +1290,20 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-destructive leading-tight">{errorTitle}</p>
                           <p className="text-sm text-foreground/80 mt-1 leading-relaxed">{errorDescription}</p>
-                          {message.error.detail && (
-                            <details className="mt-1.5">
-                              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground/70 select-none">
-                                {t('chat.technicalDetail')}
-                              </summary>
-                              <pre className="mt-1 text-xs text-muted-foreground whitespace-pre-wrap break-all font-mono bg-background/40 rounded px-2 py-1.5 border border-border/40">
-                                {message.error.detail}
-                              </pre>
-                            </details>
-                          )}
+                          {/* T1-17: every error card carries a care line with call-verified helpline(s); static so it works when the backend is down. */}
+                          <p className="text-sm text-foreground/80 mt-1.5 leading-relaxed" data-testid="error-care-line">
+                            {t('chat.errorCareLine', 'If you are in distress, you are not alone. Help is available now:')}{' '}
+                            {CALL_VERIFIED_CRISIS_LINES.map((line, i) => (
+                              <span key={line.registryName}>
+                                {i > 0 && ', '}
+                                <a href={`tel:${line.tel}`} className="underline font-medium">
+                                  {line.label} {line.display}
+                                </a>{' '}
+                                ({line.hours})
+                              </span>
+                            ))}
+                            .
+                          </p>
                           <div className="flex flex-wrap gap-2 mt-2.5">
                             {(message.error.actionLabel === 'retry' || !message.error.actionLabel) && onRegenerate && (
                               <button

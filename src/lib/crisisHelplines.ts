@@ -55,3 +55,12 @@ export const US_CRISIS_LINES: readonly CrisisLine[] = [
     hours: '24/7',
   },
 ];
+
+/**
+ * T1-17: lines whose `last_verified_by_call` is non-null in
+ * config/helplines.yaml (today only Tele-MANAS). These are the only numbers
+ * shown on chat error cards, which render even when the backend is down.
+ * src/test/crisisHelplines.test.tsx fails if this list drifts from the
+ * registry (lists an unverified entry or omits a verified one).
+ */
+export const CALL_VERIFIED_CRISIS_LINES: readonly CrisisLine[] = [INDIA_CRISIS_LINES[0]];

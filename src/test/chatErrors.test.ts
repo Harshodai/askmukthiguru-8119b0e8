@@ -18,3 +18,15 @@ describe('chat context exhaustion errors', () => {
     expect(error.description).toContain('new chat');
   });
 });
+
+// T1-17 (UX-007): developer text never reaches the card.
+describe('seeker-safe chat errors (T1-17)', () => {
+  it.each(['network', 'server_error', 'timeout', 'rate_limited', 'unknown'])(
+    '%s card carries no developer detail',
+    (code) => {
+      const err = buildMessageError(code, 'Backend not reachable. Set VITE_BACKEND_URL to your FastAPI URL.', 500);
+      expect(err.detail).toBeUndefined();
+      expect(JSON.stringify(err)).not.toMatch(/VITE_BACKEND_URL|HTTP 500/);
+    },
+  );
+});

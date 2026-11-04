@@ -19,7 +19,12 @@ export function httpStatusToErrorCode(
 
 export type BuiltChatError = MessageError;
 
-export function buildMessageError(
+/**
+ * T1-17 (UX-007): developer-facing text (stack-ish messages, "Set
+ * VITE_BACKEND_URL ...", raw HTTP statuses) must never reach a seeker. It is
+ * logged to the console only and `detail` is never populated on the card.
+ */
+function buildMessageErrorInner(
   code: AIErrorCode | string | undefined,
   message?: string,
   status?: number,
@@ -113,4 +118,18 @@ export function buildMessageError(
         detail: status ? `HTTP ${status}` : message,
       };
   }
+}
+
+export function buildMessageError(
+  code: AIErrorCode | string | undefined,
+  message?: string,
+  status?: number,
+): MessageError {
+  const built = buildMessageErrorInner(code, message, status);
+  if (built.detail || message || status) {
+    console.debug('[chat-error]', { code, status, message });
+  }
+  // Seeker-safe: developer detail stays in the console.
+  const { detail: _detail, ...safe } = built;
+  return safe as MessageError;
 }
