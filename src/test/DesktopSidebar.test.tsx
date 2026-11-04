@@ -27,6 +27,11 @@ vi.mock('@/lib/chatStorage', () => ({
   formatRelativeTime: vi.fn(() => 'Today'),
 }));
 
+const capState = vi.hoisted(() => ({ whatsapp: false }));
+vi.mock('@/hooks/useChatCapabilities', () => ({
+  useChatCapabilities: () => ({ capabilities: { whatsapp: capState.whatsapp }, manifestReady: true }),
+}));
+
 vi.mock('@/assets/gurus-photo.jpg', () => ({
   default: '/test-photo.jpg',
 }));
@@ -86,7 +91,15 @@ describe('DesktopSidebar', () => {
     expect(onToggleSidebar).toHaveBeenCalledTimes(1);
   });
 
-  it('renders WhatsApp action button with expected wa.me link in chat header', () => {
+  // T1-16: the WhatsApp channel is disabled_by_policy; the button is hidden by default.
+  it('hides the WhatsApp action button unless the capability is enabled', () => {
+    render(<ChatHeader onClearChat={vi.fn()} sidebarCollapsed={false} />, { wrapper });
+    expect(screen.queryByTestId('whatsapp-action-button')).not.toBeInTheDocument();
+  });
+
+  it('renders WhatsApp action button with expected wa.me link when the capability and number are set (T1-16)', () => {
+    capState.whatsapp = true;
+    vi.stubEnv('VITE_WHATSAPP_NUMBER', '+91 90000 00000');
     render(
       <ChatHeader
         onClearChat={vi.fn()}
@@ -102,6 +115,8 @@ describe('DesktopSidebar', () => {
     expect(waBtn.getAttribute('href')).toContain('text=Namaste%20Mukthi%20Guru');
     expect(waBtn).toHaveAttribute('target', '_blank');
     expect(waBtn).toHaveAttribute('rel', 'noopener noreferrer');
+    capState.whatsapp = false;
+    vi.unstubAllEnvs();
   });
 
   it('shows delete button on conversation hover in expanded mode', async () => {

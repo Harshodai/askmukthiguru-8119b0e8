@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Brain, Check, RefreshCw } from 'lucide-react';
+import { BACKEND_URL } from '@/lib/backendUrl';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Flashcard {
@@ -40,7 +41,7 @@ export const FlashcardPractice = () => {
         return;
       }
 
-      const response = await fetch('/api/srs/due?limit=10', {
+      const response = await fetch(`${BACKEND_URL}/api/srs/due?limit=10`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -81,7 +82,7 @@ export const FlashcardPractice = () => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      const response = await fetch('/api/srs/review', {
+      const response = await fetch(`${BACKEND_URL}/api/srs/review`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -34,6 +34,7 @@ import {
 } from '@/lib/chat/attachmentLimits';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
+import { BACKEND_URL } from '@/lib/backendUrl';
 import { buildMessageError } from '@/lib/chat/errors';
 import { isPushPromptEligible } from '@/lib/chat/pushEligibility';
 import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBanner';
@@ -1056,7 +1057,7 @@ export const ChatInterface = () => {
     if (decision === 'interrupt') {
       streamControllerRef.current?.abort();
       if (currentJobIdRef.current) {
-        fetch(`/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
+        fetch(`${BACKEND_URL}/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
       }
       setIsTyping(false);
       setIsStreaming(false);
@@ -2069,7 +2070,7 @@ const handleSendNowQueued = useCallback((id: string) => {
   setQueuedMessages((prev) => prev.filter((m) => m.id !== id));
   streamControllerRef.current?.abort();
   if (currentJobIdRef.current) {
-    fetch(`/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
+    fetch(`${BACKEND_URL}/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
   }
   setIsTyping(false);
   setIsStreaming(false);

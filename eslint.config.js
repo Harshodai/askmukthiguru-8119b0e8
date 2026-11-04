@@ -61,6 +61,19 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
       // Generated UI components legitimately use empty object types for extension patterns
       "@typescript-eslint/no-empty-object-type": "off",
+      // T1-16: API calls must use the backend URL helper (src/lib/backendUrl.ts);
+      // a relative "/api/..." fetch breaks on static hosts and native builds.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.name='fetch'] > Literal[value=/^.api./]",
+          message: "Use `${BACKEND_URL}/api/...` from '@/lib/backendUrl' instead of a relative /api fetch.",
+        },
+        {
+          selector: "CallExpression[callee.name='fetch'] > TemplateLiteral > TemplateElement:first-child[value.raw=/^.api./]",
+          message: "Use `${BACKEND_URL}/api/...` from '@/lib/backendUrl' instead of a relative /api fetch.",
+        },
+      ],
     },
   },
   {
