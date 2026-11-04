@@ -629,10 +629,13 @@ class Settings(BaseSettings):
     openrouter_enforce_model_policy: bool = True
     openrouter_daily_budget_usd: float = Field(default=10.0, gt=0)
     openrouter_monthly_budget_usd: float = Field(default=40.0, gt=0)
-    # Redis-backed cross-replica reservation guard. Default enabled with $10 daily / $40 monthly ceilings.
-    openrouter_budget_guard_enabled: bool = False
+    # Redis-backed cross-replica reservation guard. Default enabled with $10 daily / $40 monthly ceilings (T1-07).
+    openrouter_budget_guard_enabled: bool = True
     openrouter_max_request_cost_usd: float = Field(default=0.03, gt=0)
-    openrouter_budget_fail_closed: bool = False
+    openrouter_budget_fail_closed: bool = True
+    # Explicit, recorded owner decision to run production with no OpenRouter spend cap (T1-07).
+    # Without it, production refuses to start when the guard is disabled or fail-open.
+    allow_uncapped_llm_spend: bool = False
     # Generic LLM budget guard defaults read by services/llm_budget_guard.py
     # via from_settings(provider). Matches the openrouter twin so the generic
     # path is fail-closed, not silently fail-open.
@@ -2457,6 +2460,17 @@ class Settings(BaseSettings):
                 "faculty preview gate is silently off. Set FACULTY_ACCESS_CODE, "
                 "or set faculty_gate_disabled=true as a recorded owner decision "
                 "that this launch is intentionally ungated."
+            )
+        # T1-07: an uncapped paid-LLM path must be a recorded decision, never an env typo.
+        if (
+            self.is_production
+            and not self.allow_uncapped_llm_spend
+            and not (self.openrouter_budget_guard_enabled and self.openrouter_budget_fail_closed)
+        ):
+            raise ValueError(
+                "openrouter_budget_guard_enabled and openrouter_budget_fail_closed must both be "
+                "true in production (spend cap). Set allow_uncapped_llm_spend=true only as a "
+                "recorded owner decision."
             )
         return self
 
