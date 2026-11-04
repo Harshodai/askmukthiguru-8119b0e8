@@ -430,40 +430,6 @@ export const sendMessage = async (
   return { content: '', errorCode: 'unknown' as AIErrorCode };
 };
 
-export const generateSummary = async (messages: MessagePayload[]): Promise<string> => {
-  const { provider, endpoint } = getCurrentConfig();
-  if (provider !== 'custom' || !endpoint) return '';
-
-  try {
-    const token = await getAccessToken();
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a summarizer. Provide a concise 2-3 sentence summary of the key spiritual insights and user concerns discussed in this conversation history. Focus on maintaining teaching continuity.'
-          },
-          ...messages.slice(-10),
-        ],
-        user_message: 'Summarize our conversation so far.',
-      }),
-    });
-
-    if (!response.ok) return '';
-    const data = await response.json();
-    return data.response || data.choices?.[0]?.message?.content || data.content || '';
-  } catch (error) {
-    console.error('Failed to generate summary:', error);
-    return '';
-  }
-};
-
 export const generateConversationTitle = async (
   firstUserMessage: string,
   options?: { signal?: AbortSignal },

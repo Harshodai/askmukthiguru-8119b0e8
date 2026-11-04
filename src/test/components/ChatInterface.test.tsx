@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   sendMessage: vi.fn(),
   sendMessageStreaming: vi.fn(),
-  generateSummary: vi.fn(),
   generateConversationTitle: vi.fn(),
   setLanguage: vi.fn(),
   openSereneMind: vi.fn(),
@@ -77,7 +76,6 @@ vi.mock('@/i18n', () => ({
 vi.mock('@/lib/aiService', () => ({
   sendMessage: mocks.sendMessage,
   sendMessageStreaming: mocks.sendMessageStreaming,
-  generateSummary: mocks.generateSummary,
   generateConversationTitle: mocks.generateConversationTitle,
   setLanguage: mocks.setLanguage,
   queueMemoryExtraction: vi.fn(),
@@ -204,7 +202,6 @@ describe('ChatInterface (regression)', () => {
         yield { type: 'message', text: 'Mocked guru response' };
       },
     }));
-    mocks.generateSummary.mockResolvedValue('');
     mocks.generateConversationTitle.mockResolvedValue('Finding Peace');
     vi.clearAllMocks();
   });

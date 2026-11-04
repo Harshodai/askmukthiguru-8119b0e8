@@ -15,7 +15,6 @@ import {
   getConversationPreview,
   getCurrentConversationId,
   setCurrentConversationId,
-  updateConversationSummary,
   setIncognitoMode,
   isIncognitoMode,
   deleteConversation,
@@ -46,7 +45,7 @@ import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, queueMemoryExtraction, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateConversationTitle, queueMemoryExtraction, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
 import {
   PERSONALIZE_TEACHING_PROMPT,
   personalizeTeachingEnabled,
@@ -1168,22 +1167,6 @@ export const ChatInterface = () => {
     const allMsgs = [...messageHistory, { role: 'user' as const, content: cacheInput }];
     const cacheKey = `${turnLanguage}:${hashMessages(allMsgs)}`;
 
-    // Summary helper — fire-and-forget after every ~6 user messages.
-    // Temporary Chat is a hard privacy boundary: it must never produce or
-    // update durable continuation summaries.
-    const maybeSummarize = () => {
-      if (isIncognito) return;
-      const userMsgCount = allMsgs.filter(m => m.role === 'user').length;
-      if (userMsgCount > 0 && userMsgCount % 6 === 0 && currentConversation?.id) {
-        generateSummary(allMsgs).then(async (summary) => {
-          if (summary) {
-            await updateConversationSummary(currentConversation.id, summary);
-            setCurrentConversation(prev => prev ? { ...prev, summary } : null);
-          }
-        }).catch(() => { /* non-fatal */ });
-      }
-    };
-
     const drainNextQueuedMessage = () => {
       const nextMsg = queuedMessagesRef.current[0];
       if (!nextMsg) return;
@@ -1219,7 +1202,6 @@ export const ChatInterface = () => {
       setIsTyping(false);
       // Cached completions are real completions too: continue draining the
       // queue so a cached first queued turn cannot strand the remaining turns.
-      if (!isIncognito) maybeSummarize();
       drainNextQueuedMessage();
       return;
     }
@@ -1819,7 +1801,6 @@ openSereneMind('audio');
           });
         }
         hapticAudio.playCompletionChime();
-        if (!isIncognito) maybeSummarize();
         drainNextQueuedMessage();
       }
       return;
@@ -2040,7 +2021,6 @@ openSereneMind('audio');
     setIsTyping(false);
     setShowInstantPill(false);
     if (jsonCompletedSuccessfully) {
-      maybeSummarize();
       drainNextQueuedMessage();
     }
   }
@@ -2526,21 +2506,13 @@ return (
         const priorMessages = messages;
         let continuationSummary = currentConversation?.summary?.trim() || '';
         if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
-          try {
-            continuationSummary = await generateSummary(
-              priorMessages.map((m) => ({
-                role: m.role === 'guru' ? 'assistant' : 'user',
-                content: m.content,
-              }))
-            );
-          } catch {
-            continuationSummary = priorMessages
-              .filter((m) => m.role === 'user')
-              .slice(-5)
-              .map((m) => m.content.trim())
-              .filter(Boolean)
-              .join('\n');
-          }
+          // T1-19: no client summary call; local, user-text-only fallback.
+          continuationSummary = priorMessages
+            .filter((m) => m.role === 'user')
+            .slice(-5)
+            .map((m) => m.content.trim())
+            .filter(Boolean)
+            .join('\n');
         }
         await handleNewConversation(continuationSummary);
       }} />
@@ -2684,21 +2656,13 @@ return (
                     const priorMessages = messages;
                     let continuationSummary = currentConversation?.summary?.trim() || '';
                     if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
-                      try {
-                        continuationSummary = await generateSummary(
-                          priorMessages.map((m) => ({
-                            role: m.role === 'guru' ? 'assistant' : 'user',
-                            content: m.content,
-                          }))
-                        );
-                      } catch {
-                        continuationSummary = priorMessages
-                          .filter((m) => m.role === 'user')
-                          .slice(-5)
-                          .map((m) => m.content.trim())
-                          .filter(Boolean)
-                          .join('\n');
-                      }
+                      // T1-19: no client summary call; local, user-text-only fallback.
+                      continuationSummary = priorMessages
+                        .filter((m) => m.role === 'user')
+                        .slice(-5)
+                        .map((m) => m.content.trim())
+                        .filter(Boolean)
+                        .join('\n');
                     }
                     await handleNewConversation(continuationSummary);
                   }}
