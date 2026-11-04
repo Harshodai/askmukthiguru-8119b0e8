@@ -101,6 +101,10 @@ class CollectionContract:
     required_payload_fields: tuple[str, ...]
     evidence_policy: str
     source: str = ""
+    # RET-07 / T3-12: optional encoder fingerprint of the index. Empty / 0 means
+    # "not declared" and the serve-time encoder check is a no-op for it.
+    embedding_model: str = ""
+    embedding_dimension: int = 0
 
     @property
     def is_legacy(self) -> bool:
@@ -265,6 +269,16 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
             raise FirstPersonServingContractError(
                 f"contract entry for {name!r} omits required payload fields: {missing}"
             )
+        enc_model = entry.get("embedding_model", "")
+        enc_dim = entry.get("embedding_dimension", 0)
+        if not isinstance(enc_model, str):
+            raise FirstPersonServingContractError(
+                f"contract entry for {name!r} has a non-string embedding_model"
+            )
+        if isinstance(enc_dim, bool) or not isinstance(enc_dim, int) or enc_dim < 0:
+            raise FirstPersonServingContractError(
+                f"contract entry for {name!r} has an invalid embedding_dimension {enc_dim!r}"
+            )
         out[str(name)] = CollectionContract(
             name=str(name),
             schema=schema,
@@ -273,6 +287,8 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
             required_payload_fields=tuple(str(f) for f in fields),
             evidence_policy=str(entry.get("evidence_policy") or ""),
             source=str(contract_path),
+            embedding_model=enc_model.strip(),
+            embedding_dimension=enc_dim,
         )
     return out
 
@@ -317,6 +333,34 @@ def v10_only_mode_active(
 # ---------------------------------------------------------------------------
 # validation
 # ---------------------------------------------------------------------------
+def encoder_mismatch_errors(
+    entries: Iterable[CollectionContract],
+    *,
+    embedding_model: str,
+    embedding_dimension: int,
+) -> list[str]:
+    """Compare the serve-time encoder with what each entry declares (RET-07)."""
+    errors: list[str] = []
+    serve_model = str(embedding_model or "").strip()
+    for entry in entries:
+        if entry.embedding_model and serve_model and entry.embedding_model != serve_model:
+            errors.append(
+                f"encoder mismatch: collection {entry.name!r} was indexed with "
+                f"{entry.embedding_model!r} but the serving encoder is {serve_model!r}"
+            )
+        if (
+            entry.embedding_dimension
+            and embedding_dimension
+            and entry.embedding_dimension != int(embedding_dimension)
+        ):
+            errors.append(
+                f"encoder mismatch: collection {entry.name!r} has dimension "
+                f"{entry.embedding_dimension} but the serving encoder produces "
+                f"{int(embedding_dimension)}"
+            )
+    return errors
+
+
 def validate_serving_contract(
     *,
     contract: Mapping[str, CollectionContract],
@@ -326,8 +370,15 @@ def validate_serving_contract(
     legacy_route_enabled: bool = True,
     context_terminal_enabled: bool = False,
     active_collection: str = "",
+    embedding_model: str = "",
+    embedding_dimension: int = 0,
 ) -> ContractReport:
     """Check a configuration against the declared contract. Never raises.
+
+    ``embedding_model`` / ``embedding_dimension`` are the serve-time encoder. When
+    a served collection declares its index encoder in the contract, a different
+    serve-time encoder is an error (RET-07): query vectors from another model or
+    size cannot be compared with the index. Undeclared fields are not checked.
 
     ``active_collection`` is the single name the deployment says it serves
     (``FIRST_PERSON_ACTIVE_COLLECTION``). When given it must be declared in the
@@ -459,6 +510,15 @@ def validate_serving_contract(
             f"legacy first-person route is enabled against undeclared collection "
             f"{legacy_name!r}; it will refuse to serve"
         )
+
+    served_names = {n for n in (legacy_name, context_name, active_name) if n}
+    errors.extend(
+        encoder_mismatch_errors(
+            [contract[n] for n in sorted(served_names) if n in contract],
+            embedding_model=embedding_model,
+            embedding_dimension=embedding_dimension,
+        )
+    )
 
     fingerprint = fingerprint_components(legacy_entry)
     missing_fingerprint = [
