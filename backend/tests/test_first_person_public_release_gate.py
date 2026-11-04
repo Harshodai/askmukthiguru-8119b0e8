@@ -915,14 +915,14 @@ def test_the_repository_packets_mirror_the_owner_action_form() -> None:
 
 
 def test_the_repository_gate_reports_owner_action_required() -> None:
-    """The shipped repository state is READY_FOR_PUBLIC_RELEASE_REVIEW once all owner decisions are recorded."""
+    """The shipped repository state is OWNER_ACTION_REQUIRED (T0-04): owner decisions are not honestly complete."""
     config_path = _REPO_ROOT / "backend" / "config" / "first_person_public_release_gate.json"
     config = gate._load_config(_REPO_ROOT, config_path)
     # backend/.env is gitignored and developer-local; always assert the tracked example's shipped default.
     config["env_file"] = "backend/.env.example"
     report = gate.evaluate(_REPO_ROOT, config)
-    assert report["status"] == gate.STATUS_READY
-    assert report["public_release_authorized"] is True
+    assert report["status"] == gate.STATUS_OWNER
+    assert report["public_release_authorized"] is False
     assert report["mutations"]["qdrant_writes"] == 0
     assert report["mutations"]["alias_changes"] == 0
     assert report["mutations"]["deployments"] == 0
