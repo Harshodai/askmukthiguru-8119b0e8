@@ -3758,103 +3758,35 @@ class FirstPersonPipeline:
             retrieval_query=retrieval_query,
         )
 
-    def execute(
+    def _serve_from_context_harness(
         self,
+        *,
         query: str,
         query_dense_vector: list[float],
-        query_sparse_vector: Optional[dict[str, Any]] = None,
-        teacher_id: Optional[str] = None,
-        max_clips: int = 3,
-        retrieval_query: Optional[str] = None,
-        language: str = "en",
-        cache_bypass: bool = False,
-    ) -> FirstPersonPipelineResult:
+        query_sparse_vector: Optional[dict[str, Any]],
+        teacher_id: Optional[str],
+        max_clips: int,
+        retrieval_query: str,
+        language: str,
+        cache_bypass: bool,
+        request_allow_state: str,
+        request_block_state: str,
+        fp_llm_tokens: list[int],
+        _ans_box: dict[str, Any],
+        start_time: float,
+    ) -> Optional[FirstPersonPipelineResult]:
+        """Step 2c: serve the question from the fp-context harness, else return None.
+
+        The context harness is configuration-gated: it runs only when the owner flag
+        is on and a context store is injected, and it may still decline to serve. A
+        ``None`` return means the harness produced no servable context, so the caller
+        continues to the legacy store. When the terminal flag is on, the harness
+        abstains here instead of letting a legacy clip through.
+
+        ``_ans_box`` is the request-local answerability tri-state. This step records
+        the verdict and duration it computed so the later retrieval join reuses it
+        instead of paying for a second gate call.
         """
-        Execute the end-to-end first-person verbatim serving pipeline.
-
-        ``query`` is the seeker's own words (cache key, safety checks).
-        ``retrieval_query`` is its English translation when the question was not
-        in English; the dense/sparse vectors must already be computed from it.
-        ``language`` is the seeker's requested language code (cache key scoping).
-        ``cache_bypass`` skips the exact cache read AND write (evaluation cold
-        path, incognito). The safety checks above the cache run either way.
-        """
-        start_time = time.monotonic()
-        # RP-C10: per-request accumulator for estimated LLM tokens spent by the
-        # gate calls below; flushed with the final outcome in _log_and_count.
-        fp_llm_tokens: list[int] = []
-        # Safety checks run on every form of the question: a translation can only
-        # make them stricter (English-only regexes see an Indic question), never skip one.
-        safety_texts = [query] + (
-            [retrieval_query] if retrieval_query and retrieval_query != query else []
-        )
-        retrieval_query = retrieval_query or query
-
-        if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
-            teacher_id = (
-                requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
-            )
-
-        # Step 1: crisis pre-emption, then the topic rail, then the serving contract.
-        crisis_result = self._crisis_preemption(safety_texts, start_time)
-        if crisis_result is not None:
-            return crisis_result
-
-        topic_result = self._topic_rail_block(safety_texts, start_time)
-        if topic_result is not None:
-            return topic_result
-
-        contract_result = self._serving_contract_refusal(start_time)
-        if contract_result is not None:
-            return contract_result
-
-        # Step 2: exact-cache lookup.
-        cache_bypass, request_allow_state, request_block_state = self._cache_scope(
-            cache_bypass=cache_bypass
-        )
-        cached_result = self._cached_replay(
-            query=query,
-            teacher_id=teacher_id,
-            language=language,
-            retrieval_query=retrieval_query,
-            cache_bypass=cache_bypass,
-            request_allow_state=request_allow_state,
-            request_block_state=request_block_state,
-            start_time=start_time,
-        )
-        if cached_result is not None:
-            return cached_result
-
-        # Step 2b: compound question decomposition.
-        compound_result = self._compound_delegation(
-            query=query,
-            query_dense_vector=query_dense_vector,
-            query_sparse_vector=query_sparse_vector,
-            teacher_id=teacher_id,
-            max_clips=max_clips,
-            start_time=start_time,
-            cache_bypass=cache_bypass,
-            request_allow_state=request_allow_state,
-            request_block_state=request_block_state,
-            fp_llm_tokens=fp_llm_tokens,
-            language=language,
-            retrieval_query=retrieval_query,
-        )
-        if compound_result is not None:
-            return compound_result
-
-        # The answerability gate has one request-local tri-state decision.  An
-        # explicit sentinel is required because ``None`` is the real
-        # indeterminate verdict and an unset/future result must not be promoted
-        # to YES by a later path.
-        _ans_box: dict[str, Any] = {"verdict": _ANSWERABILITY_UNSET}
-        _ans_tokens: list[int] = []
-        _ans_future: Optional[Any] = None
-        t_retrieval_ms = 0.0
-        t_integrity_ms = 0.0
-        t_rerank_ms = 0.0
-        t_scorer_ms = 0.0
-        t_assembly_ms = 0.0
 
         def _answerability_withheld_result(
             verdict: Optional[bool],
@@ -4622,6 +4554,127 @@ class FirstPersonPipeline:
                 abstain_reason="no_verified_clips",
                 stage_timings={"total_ms": round(latency, 2)},
             )
+
+        return None
+
+    def execute(
+        self,
+        query: str,
+        query_dense_vector: list[float],
+        query_sparse_vector: Optional[dict[str, Any]] = None,
+        teacher_id: Optional[str] = None,
+        max_clips: int = 3,
+        retrieval_query: Optional[str] = None,
+        language: str = "en",
+        cache_bypass: bool = False,
+    ) -> FirstPersonPipelineResult:
+        """
+        Execute the end-to-end first-person verbatim serving pipeline.
+
+        ``query`` is the seeker's own words (cache key, safety checks).
+        ``retrieval_query`` is its English translation when the question was not
+        in English; the dense/sparse vectors must already be computed from it.
+        ``language`` is the seeker's requested language code (cache key scoping).
+        ``cache_bypass`` skips the exact cache read AND write (evaluation cold
+        path, incognito). The safety checks above the cache run either way.
+        """
+        start_time = time.monotonic()
+        # RP-C10: per-request accumulator for estimated LLM tokens spent by the
+        # gate calls below; flushed with the final outcome in _log_and_count.
+        fp_llm_tokens: list[int] = []
+        # Safety checks run on every form of the question: a translation can only
+        # make them stricter (English-only regexes see an Indic question), never skip one.
+        safety_texts = [query] + (
+            [retrieval_query] if retrieval_query and retrieval_query != query else []
+        )
+        retrieval_query = retrieval_query or query
+
+        if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
+            teacher_id = (
+                requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
+            )
+
+        # Step 1: crisis pre-emption, then the topic rail, then the serving contract.
+        crisis_result = self._crisis_preemption(safety_texts, start_time)
+        if crisis_result is not None:
+            return crisis_result
+
+        topic_result = self._topic_rail_block(safety_texts, start_time)
+        if topic_result is not None:
+            return topic_result
+
+        contract_result = self._serving_contract_refusal(start_time)
+        if contract_result is not None:
+            return contract_result
+
+        # Step 2: exact-cache lookup.
+        cache_bypass, request_allow_state, request_block_state = self._cache_scope(
+            cache_bypass=cache_bypass
+        )
+        cached_result = self._cached_replay(
+            query=query,
+            teacher_id=teacher_id,
+            language=language,
+            retrieval_query=retrieval_query,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            start_time=start_time,
+        )
+        if cached_result is not None:
+            return cached_result
+
+        # Step 2b: compound question decomposition.
+        compound_result = self._compound_delegation(
+            query=query,
+            query_dense_vector=query_dense_vector,
+            query_sparse_vector=query_sparse_vector,
+            teacher_id=teacher_id,
+            max_clips=max_clips,
+            start_time=start_time,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            fp_llm_tokens=fp_llm_tokens,
+            language=language,
+            retrieval_query=retrieval_query,
+        )
+        if compound_result is not None:
+            return compound_result
+
+        # The answerability gate has one request-local tri-state decision.  An
+        # explicit sentinel is required because ``None`` is the real
+        # indeterminate verdict and an unset/future result must not be promoted
+        # to YES by a later path.
+        _ans_box: dict[str, Any] = {"verdict": _ANSWERABILITY_UNSET}
+        _ans_tokens: list[int] = []
+        _ans_future: Optional[Any] = None
+        t_retrieval_ms = 0.0
+        t_integrity_ms = 0.0
+        t_rerank_ms = 0.0
+        t_scorer_ms = 0.0
+        t_assembly_ms = 0.0
+
+        # Step 2c: first-person context harness (fp-context-v1), else no result.
+        # The harness may serve deterministically, abstain, or decline; a None
+        # return falls through to the legacy store below.
+        harness_result = self._serve_from_context_harness(
+            query=query,
+            query_dense_vector=query_dense_vector,
+            query_sparse_vector=query_sparse_vector,
+            teacher_id=teacher_id,
+            max_clips=max_clips,
+            retrieval_query=retrieval_query,
+            language=language,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            fp_llm_tokens=fp_llm_tokens,
+            _ans_box=_ans_box,
+            start_time=start_time,
+        )
+        if harness_result is not None:
+            return harness_result
 
         # RC-D-2: start the question-only answerability gate in parallel with
         # retrieval. Crisis (Step 1), the topic rail, and the exact cache are
