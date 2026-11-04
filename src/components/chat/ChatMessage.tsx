@@ -2122,6 +2122,11 @@ export const LanguageTranslateButton = ({ message }: { message: Message }) => {
             exit={{ opacity: 0, y: -4 }}
             className="absolute bottom-full right-0 mb-2 w-72 p-2 rounded-lg bg-popover border border-border shadow-lg text-xs text-popover-foreground z-50"
           >
+            <p className="mb-1 font-medium text-muted-foreground" data-testid="machine-translation-label">
+              {t('chat.machineTranslationLabel', {
+                defaultValue: "Machine translation — not the teacher's words",
+              })}
+            </p>
             <p className="leading-relaxed">{translated}</p>
           </motion.div>
         )}

@@ -23,7 +23,8 @@ vi.mock('react-i18next', async () => {
         const value = key
           .split('.')
           .reduce((acc: unknown, part: string) => (acc as Record<string, unknown> | null)?.[part], en);
-        return (typeof value === 'string' ? value : key).replace(
+        const fallback = typeof opts?.defaultValue === 'string' ? opts.defaultValue : key;
+        return (typeof value === 'string' ? value : fallback).replace(
           /\{\{(\w+)\}\}/g,
           (_, name: string) => String(opts?.[name] ?? `{{${name}}}`),
         );
@@ -60,6 +61,18 @@ describe('LanguageTranslateButton', () => {
     rerender(<LanguageTranslateButton message={makeMessage()} />);
     expect(screen.queryByTitle('Translate to hi')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Show original')).not.toBeInTheDocument();
+  });
+
+  it('labels shown translations as machine translation, not the teacher', async () => {
+    langMock.mockReturnValue('hi');
+    vi.mocked(translateText).mockResolvedValue('नमस्ते');
+    render(<LanguageTranslateButton message={makeMessage()} />);
+
+    fireEvent.click(screen.getByTitle('Translate to hi'));
+
+    const label = await screen.findByTestId('machine-translation-label');
+    expect(label).toHaveTextContent("Machine translation — not the teacher's words");
+    expect(screen.getByText('नमस्ते')).toBeInTheDocument();
   });
 
   it('translates from the answer language to the preferred target language', async () => {
