@@ -157,6 +157,24 @@ ANSWER_ROUTE_TOTAL = Counter(
     ["route", "grounding_state"],
 )
 
+# T2-03: one outcome per turn. Lane/outcome are small closed sets.
+ANSWER_OUTCOME_TOTAL = Counter(
+    "guru_answer_outcome_total",
+    "Chat turns by lane and outcome (served|abstained|crisis|boundary|error)",
+    ["lane", "outcome"],
+)
+ANSWER_LATENCY_SECONDS = Histogram(
+    "guru_answer_latency_seconds",
+    "End-to-end chat turn latency by lane and outcome",
+    ["lane", "outcome"],
+    buckets=(0.1, 0.5, 1, 2, 4, 6, 10, 20, 40, 90),
+)
+INTEGRITY_BREACH_TOTAL = Counter(
+    "guru_integrity_breach_total",
+    "Teaching-lane turns that returned generated text in first-person-only mode",
+    ["lane"],
+)
+
 TELEMETRY_SINK_WRITES = Counter(
     "telemetry_sink_writes_total",
     "Telemetry sink write attempts by outcome",

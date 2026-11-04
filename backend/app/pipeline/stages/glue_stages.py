@@ -530,6 +530,30 @@ class ResultAssemblyStage(Stage):
         except Exception as exc:  # never let a metric break a response
             logger.debug("answer route metric not recorded: %s", exc)
 
+        try:
+            from app.answer_outcome import build_answer_outcome, emit_answer_outcome
+
+            emit_answer_outcome(
+                build_answer_outcome(
+                    request_id=getattr(ctx, "trace_id", None),
+                    route_decision=resolved_route_decision,
+                    route_reason=eval_trace.get("routing_reason"),
+                    grounding_state=graph_result.get("grounding_state"),
+                    citations=ctx.citations,
+                    verification=graph_result.get("verification"),
+                    cache_hit=False,
+                    latency_ms=latency_ms,
+                    model_used=graph_result.get("model_used"),
+                    errored=ctx.last_stage_status == "error",
+                ),
+                first_person_only=bool(
+                    settings.first_person_chat_bridge_enabled
+                    and not settings.first_person_llm_fallback_enabled
+                ),
+            )
+        except Exception as exc:
+            logger.debug("answer outcome not recorded: %s", exc)
+
         # Record final execution layer provenance if not already stamped
         chain = getattr(ctx, "routing_chain", None)
         if chain is not None and (
