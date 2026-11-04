@@ -42,8 +42,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/compliance", tags=["compliance"])
 
 
-def _get_container_safely() -> Optional[ServiceContainer]:
-    """Safely resolve container if available, returning None during unit testing."""
+async def _get_container_safely() -> Optional[ServiceContainer]:
+    """Safely resolve container if available, returning None during unit testing.
+
+    Async per L-DOCKER-18: sync Depends callables run in the AnyIO threadpool.
+    """
     try:
         from app.dependencies import get_container
 
