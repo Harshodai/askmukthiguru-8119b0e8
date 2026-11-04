@@ -35,7 +35,7 @@ Truth anchors: this section and `docs/architecture/first-person-path-to-prod.md`
 
 - Mukthi Guru: privacy-first spiritual guide grounded in Sri Preethaji and Sri Krishnaji's teachings; React frontend + FastAPI multi-layer RAG backend. Only their YouTube videos and approved images are data sources.
 - $0-budget constraint suspended 2026-09-06; `LLM_PROVIDER=openrouter` is the live default (not drift). Dependencies must be open source; exceptions in `LICENSE-EXCEPTIONS.md`. <1% hallucination and <3 s are aspirational and unverified.
-- First-person voice: guidance is delivered in the teacher's own words ("I"), correct speaker (`persona_discriminator.py`), no detached "According to Sri Krishnaji..." phrasing.
+- Voice: the teachers' words appear only as verbatim sourced spans (correct speaker, `persona_discriminator.py`); the assistant speaks in its own labelled voice, never in a teacher's first person.
 - Secrets stay in env vars; only `backend/.env.example` is checked in. Never commit `backend/.env`, `.env.local`, `.env.optimized`.
 - npm is canonical; do not touch `bun.lockb`.
 - Clean root: no ad-hoc scripts, `.db`, media or loose markdown at repo root. Audits -> `audits/`; plans/handoffs/notes -> `docs/`; deploy scripts -> `scripts/deploy/`; ops scripts -> `scripts/ops/`; evals -> `evals/`; k8s -> `infrastructure/k8s/`. Never create paths with leading spaces.
@@ -118,10 +118,10 @@ Folder-scoped guidance also exists — `backend/CLAUDE.md` (backend workflow, re
   - **Infrastructure**: Kubernetes manifests and Helm charts live under `infrastructure/k8s/`.
 - **Accidental Space-Prefixed Paths Banned**: Directories or files with leading spaces (e.g. `" audit_work"`, `" backend"`) are strictly forbidden and blocked via `.gitignore`.
 
-## First-Person Voice Architecture & Invariants
-- **Direct Sacred Presence ("I" Voice)**: All teaching and guidance responses MUST be delivered directly in the first person ("I invite you to see...", "When I speak of the Beautiful State..."). Detached 3rd-person academic or clinical phrasing ("According to Sri Krishnaji...", "The teachings explain that suffering...") is strictly prohibited.
+## Voice Governance & Invariants (T1-01, audit ANS-005)
+- **Teachers' words are verbatim only**: the teachers' words appear only as verbatim spans rendered from the store, each with its source. Quotes are never rewritten, paraphrased or woven into generated prose.
+- **Assistant voice is labelled**: the assistant speaks only in its own labelled voice and never in a teacher's first person ("I invite you...", "When I speak of..."). `GURU_SYSTEM_PROMPT` ("never as the founders themselves") is the binding rule.
 - **Speaker Attribution**: Responses must respect whether Sri Krishnaji or Sri Preethaji is speaking, grounded by `persona_discriminator.py` and canonical transcript attribution.
-- **Quote Weaver**: Verbatim transcript clips must be woven organically into conversational wisdom, not pasted as disjointed quotes.
 - **OKF Non-Verbatim Boundary**: `memory/okf/compiled.json` contains curated structural summaries, NOT raw verbatim spoken quotes. OKF is strictly for conceptual vector routing and reflection questions, never rendered as raw direct speech.
 
 ## Rules for This Repo
