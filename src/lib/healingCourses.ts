@@ -49,14 +49,14 @@ export const HEALING_COURSES: HealingCourse[] = [
         title: 'Seeing the two states',
         intention: 'Notice, without judgement, which state you are living in right now.',
         minutes: 6,
-        guruPrompt: 'Teach me the difference between the stressful state and the beautiful state, as Sri Preethaji describes it.',
+        guruPrompt: 'Teach me the difference between the stressful state and the beautiful state.',
       },
       {
         id: 'es-2',
         title: 'The inner truth of suffering',
         intention: 'All lingering suffering is self-centric thinking. Meet yours honestly.',
         minutes: 8,
-        guruPrompt: 'Sri Krishnaji says all lingering suffering is self-centric thinking. Help me see the self-centric thought underneath what I am feeling.',
+        guruPrompt: 'I have heard that lingering suffering comes from self-centric thinking. Help me see the self-centric thought underneath what I am feeling.',
       },
       {
         id: 'es-3',
@@ -86,7 +86,7 @@ export const HEALING_COURSES: HealingCourse[] = [
         title: 'Letting the wave move',
         intention: 'Grief is not a problem to solve. Let it be felt fully.',
         minutes: 7,
-        guruPrompt: 'I am grieving. What do Sri Preethaji and Sri Krishnaji teach about moving through grief without resisting it?',
+        guruPrompt: 'I am grieving. What do the teachings say about moving through grief without resisting it?',
       },
       {
         id: 'gr-2',
