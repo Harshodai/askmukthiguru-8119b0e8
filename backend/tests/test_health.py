@@ -1,5 +1,7 @@
+import json
 from unittest.mock import MagicMock
 
+from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
 import app.dependencies as _app_deps
@@ -14,6 +16,8 @@ async def _async_true(*args, **kwargs):
 
 def test_health_check(monkeypatch):
     """Verify the health endpoint returns a valid healthy response with mocked container."""
+    import app.api.health as health_mod
+
     monkeypatch.setattr(_app_deps, "startup_complete", True)
     monkeypatch.setattr("app.api.health._check_redis", lambda c: _async_true())
     monkeypatch.setattr("app.api.health._check_neo4j", lambda c: _async_true())
@@ -64,7 +68,8 @@ def test_health_check(monkeypatch):
     app.dependency_overrides[_app_deps.get_container] = mock_get_container
 
     try:
-        response = client.get("/api/health")
+        monkeypatch.setattr(health_mod.settings, "metrics_scrape_token", "tok-123", raising=False)
+        response = client.get("/api/health", headers={"Authorization": "Bearer tok-123"})
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "healthy"
@@ -118,7 +123,8 @@ def test_lightrag_disabled_by_config_reports_ok(monkeypatch):
     app.dependency_overrides[_app_deps.get_container] = mock_get_container
 
     try:
-        response = client.get("/api/health")
+        monkeypatch.setattr(health_mod.settings, "metrics_scrape_token", "tok-123", raising=False)
+        response = client.get("/api/health", headers={"Authorization": "Bearer tok-123"})
         assert response.status_code == 200
         data = response.json()
         assert data["services"]["lightrag"]["ok"] is True
@@ -149,3 +155,25 @@ def test_metrics_admin_only():
         assert response.status_code == 403
     finally:
         app.dependency_overrides.pop(get_current_user_from_supabase, None)
+
+
+def test_health_public_view_is_shallow_without_token(monkeypatch):
+    """SEC-010: unauthenticated callers get ready/status only, never the services map."""
+    import app.api.health as health_mod
+
+    monkeypatch.setattr(health_mod.settings, "metrics_scrape_token", "tok-123", raising=False)
+    full = JSONResponse({"ready": True, "status": "healthy", "services": {"qdrant": {"ok": True}}})
+    shallow = health_mod._redact_health_body(full)
+    assert json.loads(shallow.body) == {"ready": True, "status": "healthy"}
+
+    class _Req:
+        def __init__(self, h):
+            self.headers = h
+
+    assert health_mod._has_internal_health_token(_Req({"Authorization": "Bearer tok-123"}))
+    assert not health_mod._has_internal_health_token(_Req({"Authorization": "Bearer nope"}))
+    assert not health_mod._has_internal_health_token(_Req({}))
+    monkeypatch.setattr(health_mod.settings, "metrics_scrape_token", None, raising=False)
+    assert not health_mod._has_internal_health_token(_Req({"Authorization": "Bearer "}))
+
+

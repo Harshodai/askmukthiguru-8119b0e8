@@ -1057,7 +1057,18 @@ def _build_origin_regex(origins: list[str]) -> str | None:
     return "|".join(wildcard_patterns) if wildcard_patterns else None
 
 
+def _assert_no_bare_wildcard_origin(origins: list[str]) -> None:
+    """SEC-008: a bare "*" would become a credentialed match-anything regex."""
+    if any(o.strip() == "*" for o in origins):
+        raise RuntimeError(
+            "CORS_ORIGINS contains a bare '*' wildcard, which is refused in production "
+            "(it would be served as a credentialed match-anything origin). "
+            "List explicit origins or scoped patterns such as 'https://*.example.com'."
+        )
+
+
 if settings.is_production:
+    _assert_no_bare_wildcard_origin(cors_origins)
     # In production, strictly enforce explicit origins (no wildcard origins with credentials)
     cors_origins_exact = [o for o in cors_origins if o != "*" and "*" not in o]
     cors_origins_regex = _build_origin_regex(cors_origins)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import inspect
+import json
 import logging
 import threading
 import time
@@ -169,8 +170,29 @@ async def healthz() -> JSONResponse:
     )
 
 
+def _has_internal_health_token(request: Request) -> bool:
+    """True when the caller presents the METRICS_SCRAPE_TOKEN bearer (fail closed)."""
+    expected = getattr(settings, "metrics_scrape_token", None)
+    if not expected:
+        return False
+    header = request.headers.get("Authorization", "")
+    presented = header[7:] if header.startswith("Bearer ") else ""
+    return bool(presented) and hmac.compare_digest(presented, str(expected))
+
+
+def _redact_health_body(response: JSONResponse) -> JSONResponse:
+    """Shallow public view: ready/status only, same status code (SEC-010)."""
+    try:
+        body = json.loads(response.body)
+    except Exception:
+        return response
+    shallow = {"ready": body.get("ready", False), "status": body.get("status", "unknown")}
+    return JSONResponse(shallow, status_code=response.status_code)
+
+
 @router.get("/api/health")
 async def health_endpoint(
+    request: Request,
     container: ServiceContainer = Depends(get_container_async),
 ) -> JSONResponse:
     """Comprehensive service health with go/no-go status for each service.
@@ -180,9 +202,12 @@ async def health_endpoint(
     downstream checks behave -- see that constant's docstring.
     """
     try:
-        return await asyncio.wait_for(
+        response = await asyncio.wait_for(
             _build_health_response(container), timeout=_HEALTH_HARD_BOUND_SECONDS
         )
+        if _has_internal_health_token(request):
+            return response
+        return _redact_health_body(response)
     except TimeoutError:
         HEALTH_CHECK_TOTAL.labels(result="not_ready").inc()
         logger.error(
@@ -556,10 +581,11 @@ async def _check_neo4j(container) -> bool:
 
 @router.get("/api/health/services")
 async def services_health_endpoint(
+    request: Request,
     container: ServiceContainer = Depends(get_container_async),
 ) -> JSONResponse:
     """Alias for /api/health — comprehensive service health with go/no-go per service."""
-    return await health_endpoint(container)
+    return await health_endpoint(request, container)
 
 
 @router.get("/api/health/mfa")
