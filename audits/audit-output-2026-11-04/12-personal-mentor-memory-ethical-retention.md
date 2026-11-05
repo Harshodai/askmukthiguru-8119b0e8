@@ -8,7 +8,7 @@ Related: `14` (S1: privacy, RLS, erasure), `06` (S2: datastores), `10` (answer b
 
 | # | Statement | Label |
 |---|---|---|
-| 1 | At least seven memory planes exist, plus two dead modules. One request can merge up to five of them into one prompt string. | [V-STATIC] |
+| 1 | At least nine memory planes exist (including WhatsApp bot SQLite and edge extraction worker), plus two dead modules. One request can merge up to five of them into one prompt string. | [V-STATIC] |
 | 2 | Durable memory reads are gated by an active consent receipt and skipped for Temporary Chat. This part is well built. | [V-STATIC] |
 | 3 | On the live teaching lane (first-person clips), memory is read but never used. The seeker gets no continuity or personalisation where it matters most. | [V-STATIC] |
 | 4 | Two personalisation side effects read durable emotional history without the consent gate: healing-course assignment and the proactive Serene Mind trend. | [V-STATIC] (probable defect; [LIVE-L] to confirm data presence) |
@@ -28,6 +28,8 @@ Related: `14` (S1: privacy, RLS, erasure), `06` (S2: datastores), `10` (answer b
 | 6 | Second Brain vault (encrypted personal notes) | `services/second_brain/` | vault tables | User actions | `fetch_second_brain` (`orchestrator_utils.py:933-955`) | Live when unlocked |
 | 7 | Study notebooks | `services/notebook_service.py` | `study_notebooks` (`20260630140000_study_notebooks.sql`; scoped by `user_id`, no `tenant_id`) | UI | Not in chat prompts | Live (UI feature) |
 | 8 | Personal knowledge graph | `app/api/memory.py:802-960` `/memory/knowledge-graph` | Derived from planes 1, 4, 5 | Read-time derivation | `PersonalizeStage` eligibility | Live |
+| 9 | WhatsApp bot SQLite | `whatsapp_bot/wa_bot.py:121-185` | SQLite `wa_messages`, `wa_state` | Webhook handler | In-session continuity only | Disabled by policy (ADV-06) |
+| 10 | Edge extraction worker | `supabase/functions/` (ADV-02) | Pending extraction queue | Webhooks/triggers | Asynchronous memory ingestion | Scoped background (ADV-06) |
 | — | `services/personalization/unified_engine.py` | — | — | — | No importers | Dead |
 | — | `services/memory/episodic.py` | — | — | — | No importers | Dead |
 
