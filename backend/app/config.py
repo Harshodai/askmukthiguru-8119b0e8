@@ -1130,6 +1130,9 @@ class Settings(BaseSettings):
     # Optional override for the single-source crisis/DV helpline registry.
     # Empty uses the bundled repo-root config/helplines.yaml.
     helplines_config_path: Optional[str] = None
+    # Maximum age in days for a helpline's last_verified_by_call before it is
+    # considered stale and excluded from user-facing crisis templates (SAFE-004, T4-07).
+    helpline_max_verified_age_days: int = 180
     # Benchmarks (ragas_eval.py) default their live --endpoint to this value
     # instead of reading the env directly, so the endpoint is validated the same
     # way as every other settings-sourced URL.

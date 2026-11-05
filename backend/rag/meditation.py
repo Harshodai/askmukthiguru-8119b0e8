@@ -127,7 +127,8 @@ def get_distress_response() -> str:
     # tests that stub out the services package.
     from services.crisis_helplines import format_helplines_block
 
-    helpline_block = format_helplines_block(style="compact_two_line")
+    # T4-07 / SAFE-004: Only render call-verified numbers in user-facing distress templates
+    helpline_block = format_helplines_block(style="compact_two_line", verified_only=True)
     return (
         "I hear you, and I want you to know that your feelings are valid. \U0001f64f\n\n"
         "In moments like these, you don't have to fight what you feel. "
