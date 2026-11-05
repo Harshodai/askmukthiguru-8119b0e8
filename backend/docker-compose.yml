@@ -42,7 +42,7 @@ services:
 
   # --- Memgraph (Primary Graph Database, port 7687, C++, ~80MB RAM) ---
   memgraph:
-    image: memgraph/memgraph-mage:latest
+    image: memgraph/memgraph-mage:2.20.1
     container_name: mukthiguru-memgraph
     logging: *default-logging
     ports:
@@ -877,7 +877,7 @@ services:
   # (railway.json's healthcheckPath=/api/healthz + restartPolicyType) is
   # independent of this sidecar and of the deep /api/health check.
   autoheal:
-    image: willfarrell/autoheal:latest
+    image: willfarrell/autoheal:1.2.0
     container_name: mukthiguru-autoheal
     restart: unless-stopped
     environment:
