@@ -1,6 +1,24 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 5, 2026 — Batch 9: Distress direct route, stream contract, and memory signals (T4-05, T1-18, T6-02)
+
+### L-STREAM-CONTRACT-DONE-BEFORE-FINAL-1. Deliver metadata before final text and discard unlabelled teacher text on stream disconnects.
+- **What:** In streaming responses, emitting `final` text before `done` metadata meant a connection drop between `final` and `done` left verbatim quotes on the client without citations, speaker labels, or safety notices (UX-005), which were then persisted to local storage. Additionally, SSE lacked a client inactivity timeout.
+- **Fix:** Reversed emission order in `backend/app/orchestrator.py` and `stream_orchestrator.py` so `done` metadata is delivered before or with `final` text. Added a 30s inactivity timeout in `src/lib/chat/streaming.ts` and threw `stream_interrupted` on done-less end. In `ChatInterface.tsx`, replaced keeping recovered text with clearing content and presenting the retryable error card with verified helplines.
+- **Rule:** Never allow verbatim text to persist on clients without accompanying citation and safety metadata. Emit metadata before final text, enforce client-side inactivity timeouts, and discard incomplete/unlabelled teacher text upon interruption.
+
+### L-DISTRESS-DIRECT-ROUTE-STANDARD-1. Safety routes must dispatch immediately without running retrieval or grading stages.
+- **What:** In `StandardRAGGraphStrategy`, `route_after_intent` was hardcoded to return `"query"` for `intent == "DISTRESS"` (AI-002), wasting HyDE expansion, document retrieval, and LLM grading calls before `route_after_grading` eventually routed to `"distress"`.
+- **Fix:** Updated `route_after_intent` in `backend/rag/graph_strategies.py` so `intent == "DISTRESS"` dispatches directly to `"distress"`, eliminating redundant external calls and latency during crisis moments.
+- **Rule:** Critical safety intents like DISTRESS must route directly to their dedicated handling nodes at the earliest decision point in the graph.
+
+### L-MEMORY-CONTINUITY-ZERO-GENERATION-1. Use memory on verbatim teaching lanes strictly for candidate diversity without altering text.
+- **What:** Consented user memory was read in `RequestStateStage` but completely ignored by `FirstPersonBridgeStage` and `FirstPersonPipeline` (MEM-002), causing returning seekers to receive the exact same clips on similar questions while paying memory read latency.
+- **Fix:** Extended `FirstPersonPipeline.execute` and `_rerank_and_balance_candidates` with `memory_signals` and `_apply_memory_reranking`, prioritizing unseen clips from the verified candidate pool for returning seekers and bypassing the shared cache for personalized queries. The verbatim quote text and metadata remain 100% byte-identical.
+- **Rule:** When applying personalization to verbatim or immutable teaching lanes, use memory signals strictly to re-rank pre-verified candidates (e.g. promoting unseen content) without ever generating, paraphrasing, or altering the underlying source words.
+
+
 ## Nov 5, 2026 — Batch 8: Hash field semantics, gate-first-then-dedup, and v10 hybrid retrieval (T3-03, T4-01, T4-02)
 
 ### L-HASH-FIELDS-DISAMBIGUATION-1. Disambiguate hash field semantics across video and span granularities in data schemas.
