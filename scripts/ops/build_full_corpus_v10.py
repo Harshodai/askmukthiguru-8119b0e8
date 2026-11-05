@@ -1148,6 +1148,8 @@ def main() -> int:
                 verbatim_text=spec["text"],
                 transcript_hash=transcript_hash,
                 source_text_hash=clip_text_hash(spec["text"]),
+                span_text_sha256=clip_text_hash(spec["text"]),
+                video_transcript_sha256=transcript_hash,
                 boundary_status=(
                     BoundaryStatus.UNCERTAIN if has_boundary_defect else BoundaryStatus.VERIFIED
                 ),

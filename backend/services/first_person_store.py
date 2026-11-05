@@ -179,12 +179,18 @@ def validate_clip_entry(clip: dict[str, Any]) -> None:
         "start_ms",
         "end_ms",
         "speaker",
-        "transcript_hash",
         "verbatim_text",
     ]
     for field in required_fields:
         if field not in clip or clip[field] is None:
             raise ValueError(f"Missing required first-person field: '{field}'")
+
+    hash_field = "span_text_sha256" if "span_text_sha256" in clip else "transcript_hash"
+    t_hash = clip.get("span_text_sha256") or clip.get("transcript_hash")
+    if not t_hash:
+        raise ValueError(
+            "Missing required first-person field: 'span_text_sha256' or 'transcript_hash'"
+        )
 
     if not isinstance(clip["start_ms"], int) or clip["start_ms"] < 0:
         raise ValueError(f"start_ms must be non-negative integer, got {clip['start_ms']}")
@@ -194,13 +200,12 @@ def validate_clip_entry(clip: dict[str, Any]) -> None:
             f"end_ms ({clip['end_ms']}) must be strictly greater than start_ms ({clip['start_ms']})"
         )
 
-    t_hash = clip["transcript_hash"]
     if (
         not isinstance(t_hash, str)
         or len(t_hash) != 64
         or not all(c in "0123456789abcdefABCDEF" for c in t_hash)
     ):
-        raise ValueError(f"transcript_hash must be a 64-char hex SHA-256 string, got '{t_hash}'")
+        raise ValueError(f"{hash_field} must be a 64-char hex SHA-256 string, got '{t_hash}'")
 
     if clip["speaker"] not in ALLOWED_SPEAKERS:
         raise ValueError(
@@ -212,7 +217,7 @@ def validate_clip_entry(clip: dict[str, Any]) -> None:
     expected_hash = hashlib.sha256(str(clip["verbatim_text"]).encode("utf-8")).hexdigest()
     if t_hash.casefold() != expected_hash:
         raise ValueError(
-            "transcript_hash must equal sha256(verbatim_text.encode('utf-8')).hexdigest()"
+            f"{hash_field} must equal sha256(verbatim_text.encode('utf-8')).hexdigest()"
         )
     if clip.get("first_person_eligible", True) is not True:
         raise ValueError("first_person_eligible must be true for indexed clips")

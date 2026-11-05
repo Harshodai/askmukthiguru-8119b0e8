@@ -1317,9 +1317,17 @@ class FirstPersonContextStore:
         for key, current_value in exact_fields:
             if key not in expected or expected.get(key) != current_value:
                 return False
-        if expected.get("transcript_hash") != span.source_text_hash:
+        # DATA-03 / T3-03: resolve both v2 (span_text_sha256 / video_transcript_sha256)
+        # and v1 (transcript_hash / source_text_hash).
+        exp_span_hash = expected.get("span_text_sha256") or expected.get("transcript_hash")
+        actual_span_hash = span.span_text_sha256 or span.source_text_hash
+        if exp_span_hash and exp_span_hash != actual_span_hash:
             return False
-        if expected.get("video_transcript_hash") != span.transcript_hash:
+        exp_vid_hash = expected.get("video_transcript_sha256") or expected.get(
+            "video_transcript_hash"
+        )
+        actual_vid_hash = span.video_transcript_sha256 or span.transcript_hash
+        if exp_vid_hash and exp_vid_hash != actual_vid_hash:
             return False
 
         # A verified citation must carry the complete provenance snapshot. This

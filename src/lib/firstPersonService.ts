@@ -27,7 +27,9 @@ export const firstPersonCitationSchema = z.object({
   // so falsy here must render as unverified, never as a bare teacher name.
   speaker_verified: z.boolean().nullable().optional(),
   rights_cleared: z.boolean().nullable().optional(),
-  transcript_hash: z.string(),
+  transcript_hash: z.string().optional(),
+  span_text_sha256: z.string().optional(),
+  video_transcript_sha256: z.string().optional(),
   verbatim_text: z.string(),
   text_snippet: z.string(),
   source_url: z.string(),
