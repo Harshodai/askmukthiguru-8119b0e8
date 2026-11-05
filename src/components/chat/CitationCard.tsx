@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search, Video } from 'lucide-react';
+import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search, Video, Flag, Check, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { resolveAttributionLabel } from '@/lib/chat/types';
 import { isUnreviewedTranscript } from '@/lib/transcriptStatus';
@@ -33,6 +33,9 @@ export interface DiscourseCitation {
   playbackStartSeconds?: number;
   /** Clip end plus the same pad, capped at the video duration. */
   playbackEndSeconds?: number;
+  pointId?: string;
+  sourceSpanId?: string;
+  videoId?: string;
 }
 
 interface CitationBadgeProps {
@@ -148,6 +151,10 @@ export const DiscourseVideoModal: React.FC<{
   citation: DiscourseCitation | null;
 }> = ({ isOpen, onClose, citation }) => {
   const { t } = useTranslation();
+  const [showReport, setShowReport] = useState(false);
+  const [reportCategory, setReportCategory] = useState<'wrong teacher' | 'wrong topic' | 'cut mid-thought' | 'other'>('wrong teacher');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportStatus, setReportStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
 
   const isDirectVideo = Boolean(
     citation?.url?.includes('/api/media/videos/') ||
@@ -205,6 +212,32 @@ export const DiscourseVideoModal: React.FC<{
   const directFragment = `#t=${exactStart.toFixed(3)}${
     exactEnd != null && exactEnd > exactStart ? `,${exactEnd.toFixed(3)}` : ''
   }`;
+
+  const handleReportClip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (reportStatus === 'submitting') return;
+    setReportStatus('submitting');
+    try {
+      const pointId = citation.pointId || citation.sourceSpanId || citation.videoId || videoId || 'unknown';
+      const res = await fetch(`${BACKEND_URL}/api/feedback/clip-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          served_point_id: pointId,
+          question: citation.title || 'Discourse clip playback',
+          reason: reportDetails ? `${reportCategory}: ${reportDetails}` : reportCategory,
+          reason_category: reportCategory,
+        }),
+      });
+      if (res.ok) {
+        setReportStatus('submitted');
+      } else {
+        setReportStatus('error');
+      }
+    } catch {
+      setReportStatus('error');
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -279,6 +312,92 @@ export const DiscourseVideoModal: React.FC<{
               "{citation.quote}"
               {isUnreviewedTranscript(citation.transcriptStatus) && (
                 <span className="ml-2 not-italic text-[10px]" data-testid="auto-transcript-note">(Auto-transcript)</span>
+              )}
+            </div>
+          )}
+
+          <div className="mt-3.5 pt-2.5 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+            {!showReport ? (
+              <button
+                type="button"
+                onClick={() => setShowReport(true)}
+                className="inline-flex items-center gap-1.5 hover:text-foreground text-muted-foreground transition-colors"
+                data-testid="report-clip-trigger"
+              >
+                <Flag className="h-3 w-3" /> Report clip issue
+              </button>
+            ) : null}
+          </div>
+
+          {showReport && (
+            <div className="mt-2.5 rounded-2xl border border-border/50 bg-secondary/30 p-3 space-y-2.5" data-testid="report-clip-form">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-xs text-foreground">Report this clip</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReport(false);
+                    setReportStatus('idle');
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {reportStatus === 'submitted' ? (
+                <div className="flex items-center gap-2 text-xs text-green-500 py-1" data-testid="report-success-msg">
+                  <Check className="h-4 w-4" /> Thank you. Your report has been submitted for faculty review.
+                </div>
+              ) : (
+                <form onSubmit={handleReportClip} className="space-y-2.5">
+                  <div className="grid grid-cols-2 gap-1.5 text-xs">
+                    {(['wrong teacher', 'wrong topic', 'cut mid-thought', 'other'] as const).map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setReportCategory(cat)}
+                        className={`rounded-lg px-2.5 py-1.5 text-left capitalize transition-colors border ${
+                          reportCategory === cat
+                            ? 'bg-saffron-gold/15 border-saffron-gold text-foreground font-medium'
+                            : 'bg-card/50 border-border/50 text-muted-foreground hover:bg-card'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Optional details..."
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                    maxLength={500}
+                    className="w-full rounded-lg border border-border/50 bg-card/60 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-saffron-gold/50"
+                  />
+                  {reportStatus === 'error' && (
+                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> Could not submit report. Please try again.
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowReport(false)}
+                      className="px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={reportStatus === 'submitting'}
+                      className="rounded-lg bg-saffron-gold px-3 py-1 text-xs font-medium text-black hover:bg-saffron-gold/90 transition-colors disabled:opacity-50"
+                      data-testid="report-clip-submit"
+                    >
+                      {reportStatus === 'submitting' ? 'Submitting...' : 'Submit Report'}
+                    </button>
+                  </div>
+                </form>
               )}
             </div>
           )}

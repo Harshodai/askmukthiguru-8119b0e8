@@ -7,7 +7,7 @@ import re
 from collections import deque
 from datetime import UTC, datetime
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -275,16 +275,29 @@ _POINT_ID_UINT_MAX = 2**53
 _UINT_ID_RE = re.compile(r"^[0-9]+$")
 
 
+_VALID_REPORT_CATEGORIES = {
+    "wrong teacher",
+    "wrong topic",
+    "cut mid-thought",
+    "other",
+}
+
+
 class ClipReportRequest(BaseModel):
-    """Faculty report of a bad served clip (point id + free text, never transcript text).
+    """Faculty/seeker report of a bad served clip (point id + free text, never transcript text).
 
     WARNING: question/reason/reporter are reporter-supplied free text and may
     contain PII. Stored 0600, served HTML-escaped, never exported without review.
     """
 
     served_point_id: str = Field(..., max_length=128)
-    question: str = Field(..., max_length=10000)
+    question: Optional[str] = Field("Clip playback report", max_length=10000)
     reason: str = Field(..., max_length=5000)
+    reason_category: Optional[str] = Field(
+        None,
+        description="One of: wrong teacher | wrong topic | cut mid-thought | other",
+        max_length=64,
+    )
     reporter: Optional[str] = Field(None, max_length=255)
 
 
@@ -317,7 +330,7 @@ def _build_clip_record(body: ClipReportRequest, user_id: Optional[str]) -> dict[
     if not reason:
         raise HTTPException(status_code=422, detail="reason must not be empty")
     reporter = (body.reporter or "").strip() or (user_id or "anonymous")
-    return {
+    record = {
         "ts": datetime.now(UTC).isoformat(),
         "served_point_id": point_id,
         "question": question,
@@ -325,6 +338,10 @@ def _build_clip_record(body: ClipReportRequest, user_id: Optional[str]) -> dict[
         "reporter": reporter,
         "reporter_user_id": user_id or "",
     }
+    if body.reason_category:
+        category = body.reason_category.strip().lower()
+        record["reason_category"] = category if category in _VALID_REPORT_CATEGORIES else "other"
+    return record
 
 
 def _tighten_clip_reports_file(target: str) -> None:
@@ -435,6 +452,7 @@ class ClipReport(BaseModel):
     served_point_id: str = ""
     question: str = ""
     reason: str = ""
+    reason_category: str = "other"
     reporter: str = ""
     reporter_user_id: str = ""
 
@@ -450,7 +468,7 @@ def _escape_clip_report(record: dict) -> dict:
     if not isinstance(record, dict):
         return {}
     escaped = dict(record)
-    for key in ("question", "reason", "reporter"):
+    for key in ("question", "reason", "reporter", "reason_category"):
         value = escaped.get(key)
         if isinstance(value, str):
             escaped[key] = html.escape(value, quote=True)
@@ -491,3 +509,136 @@ async def get_clip_reports(
         raise HTTPException(
             status_code=500, detail="Failed to load clip reports. Please try again."
         )
+
+
+# ── Saved Answers & Collections (FR-SAVE-01, T6-04) ─────────────────────────
+
+
+class SavedAnswerRequest(BaseModel):
+    """Save an answer with optional collection and note (FR-SAVE-01, T6-04)."""
+
+    message_id: str = Field(..., max_length=255)
+    question: str = Field(..., max_length=10000)
+    answer_text: str = Field(..., max_length=20000)
+    collection_name: str = Field(default="Favorites", max_length=100)
+    notes: Optional[str] = Field(None, max_length=5000)
+    citations: list[dict] = Field(default_factory=list)
+
+
+class SavedAnswer(BaseModel):
+    id: str
+    user_id: str
+    message_id: str
+    question: str
+    answer_text: str
+    collection_name: str
+    notes: Optional[str] = None
+    created_at: str
+    citations: list[dict] = Field(default_factory=list)
+
+
+def _default_saved_answers_path() -> str:
+    backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return os.path.join(backend_root, "data", "saved_answers.jsonl")
+
+
+def _read_saved_answers(user_id: str, collection: Optional[str] = None) -> list[dict]:
+    path = _default_saved_answers_path()
+    if not os.path.exists(path):
+        return []
+    records = []
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                    if data.get("user_id") == user_id:
+                        if (
+                            collection
+                            and data.get("collection_name", "").lower() != collection.lower()
+                        ):
+                            continue
+                        records.append(data)
+                except Exception:
+                    continue
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Failed to read saved answers: %s", exc)
+    return records
+
+
+@router.post("/saved-answers", response_model=SavedAnswer, status_code=201)
+async def save_answer(
+    body: SavedAnswerRequest,
+    user: Optional[dict] = Depends(get_current_user_from_supabase),
+):
+    """Save an answer to a personal collection with notes (FR-SAVE-01, T6-04)."""
+    user_id = (user or {}).get("id") or "anonymous"
+    save_id = str(uuid4())
+    record = {
+        "id": save_id,
+        "user_id": user_id,
+        "message_id": body.message_id,
+        "question": body.question,
+        "answer_text": body.answer_text,
+        "collection_name": body.collection_name.strip() or "Favorites",
+        "notes": (body.notes or "").strip() or None,
+        "created_at": datetime.now(UTC).isoformat(),
+        "citations": body.citations,
+    }
+    path = _default_saved_answers_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception as exc:
+        logging.getLogger(__name__).error("Failed to persist saved answer: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to persist saved answer")
+    return SavedAnswer(**record)
+
+
+@router.get("/saved-answers", response_model=list[SavedAnswer])
+async def get_saved_answers(
+    collection: Optional[str] = None,
+    user: Optional[dict] = Depends(get_current_user_from_supabase),
+):
+    """List saved answers for the current user, optionally filtered by collection."""
+    user_id = (user or {}).get("id") or "anonymous"
+    records = await asyncio.to_thread(_read_saved_answers, user_id, collection)
+    return [SavedAnswer(**r) for r in records]
+
+
+@router.delete("/saved-answers/{save_id}", status_code=200)
+async def delete_saved_answer(
+    save_id: str,
+    user: Optional[dict] = Depends(get_current_user_from_supabase),
+):
+    """Delete a saved answer by id."""
+    user_id = (user or {}).get("id") or "anonymous"
+    path = _default_saved_answers_path()
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Saved answer not found")
+
+    surviving = []
+    found = False
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+                if row.get("id") == save_id and row.get("user_id") == user_id:
+                    found = True
+                    continue
+                surviving.append(line)
+            except Exception:
+                surviving.append(line)
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Saved answer not found")
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.writelines(surviving)
+    return {"status": "ok", "deleted_id": save_id}
