@@ -109,6 +109,9 @@ class CollectionContract:
     # DATA-06 / T3-02: optional signed collection digest. Empty string means
     # "not declared" and the startup digest check is a no-op for it.
     collection_digest: str = ""
+    # DATA-16 / T3-05: optional approved corpus version. When declared, must match
+    # corpus_version to guarantee approved version == served version.
+    approved_corpus_version: str = ""
 
     @property
     def is_legacy(self) -> bool:
@@ -288,6 +291,11 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
             raise FirstPersonServingContractError(
                 f"contract entry for {name!r} has a non-string collection_digest"
             )
+        appr_corpus = entry.get("approved_corpus_version", "")
+        if not isinstance(appr_corpus, str):
+            raise FirstPersonServingContractError(
+                f"contract entry for {name!r} has a non-string approved_corpus_version"
+            )
         out[str(name)] = CollectionContract(
             name=str(name),
             schema=schema,
@@ -299,6 +307,7 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
             embedding_model=enc_model.strip(),
             embedding_dimension=enc_dim,
             collection_digest=col_digest.strip(),
+            approved_corpus_version=appr_corpus.strip(),
         )
     return out
 
@@ -414,6 +423,20 @@ def collection_digest_mismatch_errors(
             errors.append(
                 f"collection digest mismatch: collection {entry.name!r} has signed digest "
                 f"{entry.collection_digest!r} but active digest is {active_digest!r}"
+            )
+    return errors
+
+
+def approved_corpus_version_mismatch_errors(
+    entries: Iterable[CollectionContract],
+) -> list[str]:
+    """Flag any served collection whose declared corpus_version != approved_corpus_version (DATA-16)."""
+    errors: list[str] = []
+    for entry in entries:
+        if entry.approved_corpus_version and entry.approved_corpus_version != entry.corpus_version:
+            errors.append(
+                f"Collection {entry.name!r} declared corpus_version '{entry.corpus_version}' "
+                f"does not match approved_corpus_version '{entry.approved_corpus_version}' (DATA-16)"
             )
     return errors
 
@@ -581,6 +604,11 @@ def validate_serving_contract(
         collection_digest_mismatch_errors(
             [contract[n] for n in sorted(served_names) if n in contract],
             active_collection_digest=active_collection_digest,
+        )
+    )
+    errors.extend(
+        approved_corpus_version_mismatch_errors(
+            [contract[n] for n in sorted(served_names) if n in contract]
         )
     )
 

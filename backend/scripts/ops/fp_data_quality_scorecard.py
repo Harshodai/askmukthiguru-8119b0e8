@@ -944,6 +944,37 @@ def build_report(
     return report
 
 
+def evaluate_promotion_gate(
+    report: dict[str, Any], target_strict_clean: float = 0.60
+) -> tuple[bool, list[str]]:
+    """Check whether a dataset meets production promotion criteria (DATA-14 / T3-05).
+
+    Requirements:
+    1. 0 BLOCKER check failures.
+    2. 0 HIGH check failures.
+    3. strict_clean_rate >= target_strict_clean (default 0.60).
+    """
+    reasons: list[str] = []
+    summary = report.get("summary", {})
+    gating_failures = summary.get("gating_failures", [])
+    if gating_failures:
+        reasons.append(f"Gating failures present: {', '.join(gating_failures)}")
+
+    for c in report.get("checks", []):
+        if c.get("id") == "strict_clean_rate":
+            measured = c.get("measured") or 0.0
+            if measured < target_strict_clean:
+                reasons.append(
+                    f"strict_clean_rate {measured:.2%} is below promotion target {target_strict_clean:.2%}"
+                )
+        elif c.get("severity") == "BLOCKER" and c.get("status") == "FAIL":
+            reasons.append(
+                f"BLOCKER check {c.get('id')} failed: {c.get('measured')} (target {c.get('target')})"
+            )
+
+    return len(reasons) == 0, reasons
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -959,6 +990,11 @@ def main(argv: list[str] | None = None) -> int:
         "--redact-text",
         action="store_true",
         help="drop teacher text from examples (use before committing a report: the repo is public)",
+    )
+    ap.add_argument(
+        "--promotion-gate",
+        action="store_true",
+        help="refuse promotion (exit non-zero) if any BLOCKER/HIGH fails or strict_clean_rate < 0.60",
     )
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--md-out", type=Path, default=None)
@@ -991,6 +1027,13 @@ def main(argv: list[str] | None = None) -> int:
         f"{s['verdict']}: {s['passed']}/{s['checks']} checks pass over {report['spans']} spans; "
         f"gating failures: {', '.join(s['gating_failures']) or 'none'}"
     )
+    if args.promotion_gate:
+        promotable, reasons = evaluate_promotion_gate(report)
+        if not promotable:
+            print("PROMOTION REFUSED:", file=sys.stderr)
+            for r in reasons:
+                print(f"  - {r}", file=sys.stderr)
+            return 1
     return 0 if s["verdict"] == "PASS" else 1
 
 
