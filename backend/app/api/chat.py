@@ -660,7 +660,9 @@ async def generate_title_endpoint(
         system_prompt = "Create a concise, meaningful chat title. Return ONLY the title, no quotes, no punctuation, and keep it under 6 words."
         user_prompt = f"Title this conversation: {first_message}"
 
-        raw_title = await container.ollama.generate(
+        from app.container import get_llm_provider
+
+        raw_title = await get_llm_provider(container).generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )

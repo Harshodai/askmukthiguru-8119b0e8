@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, Response
 
 import app.dependencies as _app_deps
 from app.config import settings
+from app.container import get_llm_provider
 from app.dependencies import ServiceContainer, get_container, get_container_async
 from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
 from app.runtime_artifacts import inspect_runtime_artifacts
@@ -292,10 +293,11 @@ async def _build_health_response(container: ServiceContainer) -> JSONResponse:
     # that incident on the request-gating path in PipelineCoordinator) must
     # also gate this status signal, or the signal stays unfalsifiable by the
     # exact failure it exists to catch.
-    await check("llm", container.ollama.health_check(), critical=True)
-    if results["llm"]["ok"] and getattr(container.ollama, "is_circuit_open", None):
+    _llm = get_llm_provider(container)
+    await check("llm", _llm.health_check(), critical=True)
+    if results["llm"]["ok"] and getattr(_llm, "is_circuit_open", None):
         try:
-            if container.ollama.is_circuit_open():
+            if _llm.is_circuit_open():
                 results["llm"]["ok"] = False
                 results["llm"]["error"] = "circuit_open"
         except Exception as exc:
@@ -623,7 +625,8 @@ async def readiness_endpoint(
     circuit_breaker_ok = True
     circuit_state = "unknown"
     try:
-        _is_open_fn = getattr(container.ollama, "is_circuit_open", None)
+        _llm_inst = get_llm_provider(container)
+        _is_open_fn = getattr(_llm_inst, "is_circuit_open", None)
         if callable(_is_open_fn):
             if _is_open_fn():
                 circuit_breaker_ok = False
@@ -683,8 +686,9 @@ async def circuit_breaker_status(
         active_provider = registry.get_active_provider()
 
         sarvam_circuit = None
-        if hasattr(container.ollama, "_service"):
-            svc = container.ollama._service
+        _llm_inst = get_llm_provider(container)
+        if hasattr(_llm_inst, "_service"):
+            svc = _llm_inst._service
             if hasattr(svc, "_circuit"):
                 sarvam_circuit = svc._circuit.get_stats()
 
@@ -693,7 +697,7 @@ async def circuit_breaker_status(
             "active_provider": active_provider,
             "registry_breakers": all_stats,
             "sarvam_service_circuit": sarvam_circuit,
-            "llm_provider_config": container.ollama.__class__.__name__,
+            "llm_provider_config": _llm_inst.__class__.__name__,
         }
     except Exception as e:
         logger.error(f"Circuit breaker status failed: {e}")

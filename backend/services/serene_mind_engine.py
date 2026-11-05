@@ -1903,11 +1903,12 @@ class SereneMindEngine:
                 from app.dependencies import get_container
 
                 container = get_container()
-                if container.ollama:
+                from app.container import get_llm_provider
+
+                _llm = get_llm_provider(container)
+                if _llm:
                     # Phase 3: Deterministic JSON outputs via Instructor
-                    structured_assessment = await container.ollama.classify_distress_structured(
-                        message[:512]
-                    )
+                    structured_assessment = await _llm.classify_distress_structured(message[:512])
                     if structured_assessment.get("is_distress"):
                         assessment.level = DistressLevel.MODERATE
                         assessment.confidence = structured_assessment.get("confidence", 0.55)

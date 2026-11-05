@@ -171,6 +171,43 @@ class LLMGateway:
         finally:
             self._inflight.discard(key)
 
+    async def generate_fast(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context: str = "",
+        *,
+        use_cache: bool = True,
+        **kwargs: Any,
+    ) -> str:
+        """Fast generation path for latency-critical tasks."""
+        if hasattr(self._primary, "generate_fast"):
+            try:
+                return await self._primary.generate_fast(
+                    system_prompt, user_prompt, context, **kwargs
+                )
+            except Exception:
+                pass
+        return await self.generate(
+            system_prompt, user_prompt, context, task="casual", use_cache=use_cache, **kwargs
+        )
+
+    async def stream(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context: str = "",
+        *,
+        task: TaskType = "standard",
+        use_cache: bool = False,
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
+        """Stream generated text chunks (alias for generate_stream)."""
+        async for chunk in self.generate_stream(
+            system_prompt, user_prompt, context, task=task, use_cache=use_cache, **kwargs
+        ):
+            yield chunk
+
     def _cache_key(
         self, system_prompt: str, user_prompt: str, context: str, task: str, kwargs: dict
     ) -> str:

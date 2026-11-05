@@ -903,7 +903,7 @@ async def ask_admin_question(
 ):
 
     container = get_container()
-    llm_service = container.ollama
+    llm_service = getattr(container, "llm", None) or container.ollama
 
     # Fetch rich context dynamically to support complex queries.
     # Note: get_kpis/get_node_latencies are already imported at module top.

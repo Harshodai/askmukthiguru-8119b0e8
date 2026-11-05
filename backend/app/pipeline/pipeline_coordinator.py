@@ -720,7 +720,9 @@ class PipelineCoordinator:
         ``_service._circuit``, which breaks silently on refactors. Providers
         without a circuit report False (never open) by default.
         """
-        provider = self.container.ollama
+        from app.container import get_llm_provider
+
+        provider = get_llm_provider(self.container)
         if not hasattr(provider, "is_circuit_open"):
             # Unknown/legacy provider shape — treat as not open (fail-open,
             # same behavior as a provider without a breaker).

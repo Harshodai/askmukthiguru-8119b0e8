@@ -525,7 +525,10 @@ class LightRAGService:
             if history_messages is None:
                 history_messages = []
             container = get_container()
-            if container.ollama is None:
+            from app.container import get_llm_provider
+
+            _llm = get_llm_provider(container)
+            if _llm is None:
                 logger.warning("LLM service not ready in container")
                 return ""
 
@@ -703,7 +706,7 @@ class LightRAGService:
                 else:
                     # Force the fast classification model for ALL LightRAG internals.
                     # timeout=25 gives 3× headroom over typical 5-8s fast-model calls.
-                    response = await container.ollama._generate_fast(
+                    response = await _llm._generate_fast(
                         system_prompt=system_prompt or "You are a helpful assistant.",
                         user_prompt=prompt,
                         context=context,
