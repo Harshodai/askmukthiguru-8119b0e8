@@ -1,0 +1,8 @@
+{"query_id": "db01", "query": "What is the spiritual cause of anxiety in human life?", "expected_intent": "QUERY", "is_acute_crisis": false}
+{"query_id": "db02", "query": "How does anger arise according to the teachings?", "expected_intent": "QUERY", "is_acute_crisis": false}
+{"query_id": "db03", "query": "What is the nature of suffering and why do humans suffer?", "expected_intent": "QUERY", "is_acute_crisis": false}
+{"query_id": "db04", "query": "How can one observe fear without fighting it?", "expected_intent": "QUERY", "is_acute_crisis": false}
+{"query_id": "db05", "query": "Understanding stress from the perspective of consciousness", "expected_intent": "QUERY", "is_acute_crisis": false}
+{"query_id": "db06", "query": "What does Sri Krishnaji teach about emotional pain in relationships?", "expected_intent": "QUERY", "is_acute_crisis": false}
+{"query_id": "db07", "query": "Why does the mind create comparison and jealousy?", "expected_intent": "QUERY", "is_acute_crisis": false}
+{"query_id": "db08", "query": "How do inner conflicts dissolve through self-awareness?", "expected_intent": "QUERY", "is_acute_crisis": false}

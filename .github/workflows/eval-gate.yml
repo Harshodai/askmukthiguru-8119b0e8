@@ -53,7 +53,12 @@ jobs:
 
       - name: Install eval deps
         run: |
-          pip install ragas==0.2.6 datasets pandas httpx pydantic
+          pip install ragas==0.2.6 datasets pandas httpx pydantic pytest
+
+      - name: Run offline PR eval suite (T2-01)
+        # Runs on every PR in-process without live secrets (routing, distress benign/crisis, quote integrity, voice lint)
+        run: |
+          cd backend && PYTHONPATH=. pytest tests/test_offline_pr_suite.py -v --tb=short
 
       - name: Check live evaluation target
         id: target
