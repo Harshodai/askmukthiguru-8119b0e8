@@ -709,6 +709,12 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom_contextual"
     qdrant_api_key: str = ""  # empty = no auth (current default); set to require API-key auth
+    # T3-02 / DATA-06: Read-only Qdrant key for backend serving path.
+    # Falls back to qdrant_api_key when unset.
+    qdrant_read_only_api_key: str = ""
+    # T3-02 / DATA-06: Write-only Qdrant key for offline builder/ingest scripts.
+    # The running backend container never receives this key.
+    qdrant_write_api_key: str = ""
     qdrant_timeout: float = 30.0
     # Quantization strategy for the Qdrant dense vector index.
     # Quantization strategy for the Qdrant dense vector index.

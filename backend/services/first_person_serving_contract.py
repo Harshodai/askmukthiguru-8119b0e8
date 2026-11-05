@@ -36,6 +36,7 @@ them so the pipeline and the tests cannot drift apart.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -105,6 +106,9 @@ class CollectionContract:
     # "not declared" and the serve-time encoder check is a no-op for it.
     embedding_model: str = ""
     embedding_dimension: int = 0
+    # DATA-06 / T3-02: optional signed collection digest. Empty string means
+    # "not declared" and the startup digest check is a no-op for it.
+    collection_digest: str = ""
 
     @property
     def is_legacy(self) -> bool:
@@ -279,6 +283,11 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
             raise FirstPersonServingContractError(
                 f"contract entry for {name!r} has an invalid embedding_dimension {enc_dim!r}"
             )
+        col_digest = entry.get("collection_digest", "")
+        if not isinstance(col_digest, str):
+            raise FirstPersonServingContractError(
+                f"contract entry for {name!r} has a non-string collection_digest"
+            )
         out[str(name)] = CollectionContract(
             name=str(name),
             schema=schema,
@@ -289,6 +298,7 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
             source=str(contract_path),
             embedding_model=enc_model.strip(),
             embedding_dimension=enc_dim,
+            collection_digest=col_digest.strip(),
         )
     return out
 
@@ -361,6 +371,53 @@ def encoder_mismatch_errors(
     return errors
 
 
+def compute_collection_digest(points: Iterable[Any]) -> str:
+    """Compute deterministic SHA256 digest of collection points (DATA-06 / T3-02).
+
+    Hash is computed over sorted tuples:
+    `{point_id}:{source_text_hash or span_text_sha256 or transcript_hash}`
+    prefixed by `count={N};`.
+    """
+    elements: list[str] = []
+    for p in points:
+        if isinstance(p, dict):
+            pid = str(p.get("id", ""))
+            payload = p.get("payload", {}) or {}
+        else:
+            pid = str(getattr(p, "id", ""))
+            payload = getattr(p, "payload", {}) or {}
+        thash = str(
+            payload.get("span_text_sha256")
+            or payload.get("source_text_hash")
+            or payload.get("transcript_hash")
+            or ""
+        )
+        elements.append(f"{pid}:{thash}")
+    elements.sort()
+    header = f"count={len(elements)};"
+    body = ",".join(elements)
+    return hashlib.sha256((header + body).encode("utf-8")).hexdigest()
+
+
+def collection_digest_mismatch_errors(
+    entries: Iterable[CollectionContract],
+    *,
+    active_collection_digest: str,
+) -> list[str]:
+    """Compare active collection digest against declared collection_digest (DATA-06 / T3-02)."""
+    errors: list[str] = []
+    active_digest = str(active_collection_digest or "").strip()
+    if not active_digest:
+        return errors
+    for entry in entries:
+        if entry.collection_digest and entry.collection_digest != active_digest:
+            errors.append(
+                f"collection digest mismatch: collection {entry.name!r} has signed digest "
+                f"{entry.collection_digest!r} but active digest is {active_digest!r}"
+            )
+    return errors
+
+
 def validate_serving_contract(
     *,
     contract: Mapping[str, CollectionContract],
@@ -372,6 +429,7 @@ def validate_serving_contract(
     active_collection: str = "",
     embedding_model: str = "",
     embedding_dimension: int = 0,
+    active_collection_digest: str = "",
 ) -> ContractReport:
     """Check a configuration against the declared contract. Never raises.
 
@@ -517,6 +575,12 @@ def validate_serving_contract(
             [contract[n] for n in sorted(served_names) if n in contract],
             embedding_model=embedding_model,
             embedding_dimension=embedding_dimension,
+        )
+    )
+    errors.extend(
+        collection_digest_mismatch_errors(
+            [contract[n] for n in sorted(served_names) if n in contract],
+            active_collection_digest=active_collection_digest,
         )
     )
 
@@ -689,6 +753,8 @@ __all__ = [
     "ROLE_CONTEXT",
     "ROLE_LEGACY",
     "assert_startup_safe",
+    "collection_digest_mismatch_errors",
+    "compute_collection_digest",
     "fingerprint_components",
     "legacy_slot_aliases_context",
     "legacy_store_preflight",

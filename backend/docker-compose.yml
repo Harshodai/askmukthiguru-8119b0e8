@@ -159,6 +159,8 @@ services:
       - qdrant_data:/qdrant/storage
     environment:
       - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__SERVICE__API_KEY=${QDRANT_WRITE_API_KEY:-${QDRANT_API_KEY:-}}
+      - QDRANT__SERVICE__READ_ONLY_API_KEY=${QDRANT_READ_ONLY_API_KEY:-}
     healthcheck:
       test: [ "CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/localhost/6333'" ]
       interval: 30s
@@ -297,6 +299,8 @@ services:
       # Qdrant runs as a sibling container
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom_contextual}
+      - QDRANT_API_KEY=${QDRANT_READ_ONLY_API_KEY:-${QDRANT_API_KEY:-}}
+      - QDRANT_READ_ONLY_API_KEY=${QDRANT_READ_ONLY_API_KEY:-}
       - QDRANT_LOCAL_PATH=
       # 2026-10-20: pin the safe mode so a code-default regression cannot
       # reach a running stack. Override with FIRST_PERSON_MODE=hybrid only for
