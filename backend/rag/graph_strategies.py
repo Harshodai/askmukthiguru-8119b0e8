@@ -95,13 +95,13 @@ def route_after_intent_fast(state: GraphState) -> str:
 def route_after_intent(state: GraphState) -> str:
     """Route after intent classification, checking for web search needs.
 
-    Standard strategy routes DISTRESS to the retrieval chain ('query') so we can ground
-    our response in spiritual teachings, rather than bypassing it immediately.
+    T4-05 (AI-002): DISTRESS routes directly to 'distress' (handle_distress),
+    avoiding wasted retrieval, HyDE expansion, and document grading.
     """
     intent = state.get("intent", "CASUAL")
     needs_web_search = state.get("needs_web_search", False)
     if intent == "DISTRESS":
-        return "query"
+        return "distress"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
     elif intent == IntentType.LIVE_LOGISTICS.value:

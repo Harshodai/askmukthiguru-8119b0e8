@@ -273,7 +273,8 @@ def test_route_after_intent_routes_distress():
         memory_context="",
         ab_model="primary",
     )
-    assert route_after_intent(state) == "query"
+    # T4-05 (AI-002): Standard strategy routes DISTRESS directly to 'distress' instead of 'query'
+    assert route_after_intent(state) == "distress"
     from rag.graph_strategies import route_after_intent_fast
 
     assert route_after_intent_fast(state) == "distress"
