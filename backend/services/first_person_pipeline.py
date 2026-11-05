@@ -5278,6 +5278,51 @@ class FirstPersonPipeline:
 
         return None, verified_clips, t_rerank_ms
 
+    def _abstain_no_verified_clips(
+        self,
+        *,
+        verified_clips: list[dict[str, Any]],
+        t_retrieval_ms: float,
+        t_integrity_ms: float,
+        t_rerank_ms: float,
+        n_quarantined: int,
+        fp_llm_tokens: list[int],
+        _ans_box: dict[str, Any],
+        start_time: float,
+    ) -> Optional[FirstPersonPipelineResult]:
+        """Step 5: the canonical zero-citation abstention when nothing survived.
+
+        Returns None when candidates remain, so the caller continues to the
+        confidence decision.
+        """
+        # Step 5: Abstention check if zero verified clips
+        if not verified_clips:
+            latency = (time.monotonic() - start_time) * 1000.0
+            stage_timings = {
+                "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                "retrieval_ms": round(t_retrieval_ms, 2),
+                "integrity_ms": round(t_integrity_ms, 2),
+                "rerank_ms": round(t_rerank_ms, 2),
+                "scorer_ms": 0.0,
+                "assembly_ms": 0.0,
+                "total_ms": round(latency, 2),
+            }
+            logger.info("[FirstPersonPipeline] Zero verified clips found. Honest abstention.")
+            self._log_and_count(
+                "abstained", latency, 0.0, n_quarantined, 0, "no_verified_clips", sum(fp_llm_tokens)
+            )
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                abstain_reason="no_verified_clips",
+                stage_timings=stage_timings,
+            )
+
+        return None
+
     def execute(
         self,
         query: str,
@@ -5475,31 +5520,19 @@ class FirstPersonPipeline:
         if rerank_result is not None:
             return rerank_result
 
-        # Step 5: Abstention check if zero verified clips
-        if not verified_clips:
-            latency = (time.monotonic() - start_time) * 1000.0
-            stage_timings = {
-                "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
-                "retrieval_ms": round(t_retrieval_ms, 2),
-                "integrity_ms": round(t_integrity_ms, 2),
-                "rerank_ms": round(t_rerank_ms, 2),
-                "scorer_ms": 0.0,
-                "assembly_ms": 0.0,
-                "total_ms": round(latency, 2),
-            }
-            logger.info("[FirstPersonPipeline] Zero verified clips found. Honest abstention.")
-            self._log_and_count(
-                "abstained", latency, 0.0, n_quarantined, 0, "no_verified_clips", sum(fp_llm_tokens)
-            )
-            return FirstPersonPipelineResult(
-                answer_text="No verified first-person discourse found for this question.",
-                citations=[],
-                status="abstained",
-                is_direct_answer=False,
-                latency_ms=latency,
-                abstain_reason="no_verified_clips",
-                stage_timings=stage_timings,
-            )
+        # Step 5: abstain honestly when no candidate survived the gates.
+        empty_result = self._abstain_no_verified_clips(
+            verified_clips=verified_clips,
+            t_retrieval_ms=t_retrieval_ms,
+            t_integrity_ms=t_integrity_ms,
+            t_rerank_ms=t_rerank_ms,
+            n_quarantined=n_quarantined,
+            fp_llm_tokens=fp_llm_tokens,
+            _ans_box=_ans_box,
+            start_time=start_time,
+        )
+        if empty_result is not None:
+            return empty_result
 
         # Step 6: Calibrated Confidence Decision
         # One cosine per clip, reused by the confidence decision, the per-clip filter and the citation.
