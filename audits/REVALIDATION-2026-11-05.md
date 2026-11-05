@@ -71,6 +71,50 @@ five first-person files combined                     194 passed, 1 skipped in 3.
   application code touched). Findings closed: none (it is the precondition for CQ-001).
 - Decision log and unresolved-question register updated with Q-T7-01-A/B/C/D.
 
+## 5b. CI state at the T7-01 push series (head `0cd67884`)
+
+Recorded because two jobs changed state during the push series and neither change is explained by
+the refactor content.
+
+**`Security Audit` flipped from success to failure at `a38cbc28`.** On this branch it succeeded at
+`6cb63170` (2026-11-04T20:47Z) and failed at `a38cbc28` (2026-11-04T21:02Z) and every commit after.
+It also succeeds on `main@46b808fb`. The failing log is a GitHub API permission error, not a leak
+report:
+
+```
+Pre-Launch Security Checklist  GitLeaks Secret Scan
+  message: 'Resource not accessible by integration'
+  url: 'https://api.github.com/repos/Harshodai/askmukthiguru-8119b0e8/pulls/97/commits'
+  status: '403'
+```
+
+The step dies while listing the PR's commits, before it produces any scan result. PR #97 was opened
+by the owner at 2026-11-04T18:58Z, before this session's pushes, and the workflow token lacks
+`pull-requests: read`. **Nothing in the diff causes this, and it must not be "fixed" by editing the
+workflow or skipping the scan.** Owner action: grant the token `pull-requests: read`, or configure
+the scan's commit range explicitly. Left untouched.
+
+**`Pre-launch gate` stays red on the UI device matrix (firefox / Mobile Safari / webkit)** — the
+same failures exist on `main@46b808fb`; documented pre-existing (`01` §10, `22a` §7). Not
+attributable to this work.
+
+Local evidence at `0cd67884` (this head differs from `0c643bc2` by docs only):
+
+```
+AST span of execute            5589-5854 = 266 lines   (pre-split 3523-5668 = 2146)
+5-file first-person set        194 passed, 1 skipped
+golden module, three runs      18 passed / 18 passed / 18 passed
+tests/ -k "first_person or fp_"  1351 passed, 5 skipped, 11329 deselected
+ruff 0.15.13                   All checks passed!  /  1 file already formatted
+git diff 31ebbd89..HEAD -- tests/golden/ tests/test_first_person_pipeline.py   (empty)
+non-docstring string literals  1804 -> 1804, none added, none removed
+lesson_guards publication|fp-writes|claims   exit 0
+```
+
+The literal-count check is the strongest single guardrail proof for this task: across a
+2,146-line refactor, the module's 1,804 non-docstring string literals are an identical multiset, so
+no served text, reason code, prompt fragment or log message was typed, reworded or dropped.
+
 ## 6. Not done (and why)
 
 - No other task from §0i group A or B was started: the owner named this session for T7-01 only.
