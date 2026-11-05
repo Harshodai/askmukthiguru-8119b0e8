@@ -58,7 +58,7 @@ jobs:
       - name: Run offline PR eval suite (T2-01)
         # Runs on every PR in-process without live secrets (routing, distress benign/crisis, quote integrity, voice lint)
         run: |
-          cd backend && PYTHONPATH=. pytest tests/test_offline_pr_suite.py -v --tb=short
+          cd backend && PYTHONPATH=. pytest --noconftest tests/test_offline_pr_suite.py -v --tb=short
 
       - name: Check live evaluation target
         id: target
