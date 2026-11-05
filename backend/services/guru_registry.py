@@ -42,6 +42,12 @@ class Guru:
     label: str
     pattern: re.Pattern
     attribution_tag: str
+    rights_policy: str = "channel_owner_confirmed"
+    attribution_policy: str = "direct_verbatim_quote"
+    sources: tuple[dict[str, Any], ...] = ()
+    voice_refs: tuple[dict[str, Any], ...] = ()
+    allowed_surfaces: tuple[str, ...] = ("first_person_clip", "practice_guide", "wisdom_tip")
+    aliases: tuple[str, ...] = ()
 
 
 @lru_cache(maxsize=1)
@@ -59,12 +65,31 @@ def get_gurus() -> tuple[Guru, ...]:
             continue
         try:
             pat = "|".join(f"(?:{alias})" for alias in aliases) or re.escape(str(entry["label"]))
+            sources = tuple(dict(s) for s in (entry.get("sources") or []) if isinstance(s, dict))
+            voice_refs = tuple(
+                dict(v) for v in (entry.get("voice_refs") or []) if isinstance(v, dict)
+            )
+            allowed_surfaces = tuple(
+                str(s).strip()
+                for s in (
+                    entry.get("allowed_surfaces")
+                    or ["first_person_clip", "practice_guide", "wisdom_tip"]
+                )
+            )
             gurus.append(
                 Guru(
                     id=str(entry["id"]).strip().lower(),
                     label=str(entry["label"]).strip(),
                     pattern=re.compile(rf"\b(?:{pat})\b", re.I),
                     attribution_tag=str(entry.get("attribution_tag") or f"teacher:{entry['id']}"),
+                    rights_policy=str(entry.get("rights_policy") or "channel_owner_confirmed"),
+                    attribution_policy=str(
+                        entry.get("attribution_policy") or "direct_verbatim_quote"
+                    ),
+                    sources=sources,
+                    voice_refs=voice_refs,
+                    allowed_surfaces=allowed_surfaces,
+                    aliases=tuple(str(a) for a in aliases),
                 )
             )
         except re.error:
@@ -205,6 +230,78 @@ def is_shared_guru_scope(value: str | None) -> bool:
     if primary and candidate == primary:
         return True
     return False
+
+
+def get_rights_policy_for(guru_id: str | None) -> str | None:
+    gid = (guru_id or "").strip().lower()
+    return next((g.rights_policy for g in get_gurus() if g.id == gid), None)
+
+
+def get_attribution_policy_for(guru_id: str | None) -> str | None:
+    gid = (guru_id or "").strip().lower()
+    return next((g.attribution_policy for g in get_gurus() if g.id == gid), None)
+
+
+def get_allowed_surfaces_for(guru_id: str | None) -> tuple[str, ...]:
+    gid = (guru_id or "").strip().lower()
+    return next((g.allowed_surfaces for g in get_gurus() if g.id == gid), ())
+
+
+def get_impersonation_patterns() -> list[str]:
+    """Dynamically generate impersonation refusal patterns for all registered teachers."""
+    names: list[str] = []
+    for g in get_gurus():
+        names.append(re.escape(g.id))
+        names.append(re.escape(g.label))
+        for a in g.aliases:
+            names.append(a)
+    names_re = "|".join(dict.fromkeys(names))
+    return [
+        rf"\bpretend\s+(?:you\s+are|to\s+be)\s+(?:sri\s+)?(?:{names_re})\b",
+        rf"\bspeak\s+as\s+(?:if\s+you\s+were\s+)?(?:sri\s+)?(?:{names_re})\b",
+        rf"\b(speak|talk|answer|reply|respond|write|chat)\s+(to\s+me\s+)?(in\s+the\s+first\s+person\s+)?as\s+"
+        rf"(if\s+you\s+(were|are)\s+)?(sri\s+|lord\s+|amma\s+)?(god|the\s+divine|bhagavan|bhagwan|krishna|amma|the\s+founders?|{names_re})\b",
+        rf"\b(be|become|play)\s+(sri\s+)?({names_re}|god|bhagavan|bhagwan)\s+(for\s+me|and|to\s+me|tonight|now)\b",
+    ]
+
+
+def validate_guru_registry_schema(doc: dict[str, Any] | None = None) -> list[str]:
+    """Validate gurus.yaml document against required schema (T8-01).
+
+    Returns list of validation error messages (empty if valid).
+    """
+    data = doc if doc is not None else _registry_document()
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["Document must be a YAML mapping"]
+
+    gurus = data.get("gurus")
+    if not isinstance(gurus, list) or not gurus:
+        return ["Document must contain a non-empty 'gurus' list"]
+
+    required_keys = {
+        "id",
+        "label",
+        "attribution_tag",
+        "aliases",
+        "rights_policy",
+        "attribution_policy",
+    }
+    for idx, entry in enumerate(gurus):
+        if not isinstance(entry, dict):
+            errors.append(f"guru[{idx}] is not a mapping")
+            continue
+        missing = required_keys - set(entry.keys())
+        if missing:
+            errors.append(
+                f"guru[{idx}] (id={entry.get('id')}) missing required keys: {sorted(missing)}"
+            )
+        if not isinstance(entry.get("aliases"), list) or not entry["aliases"]:
+            errors.append(f"guru[{idx}] aliases must be a non-empty list")
+        if not isinstance(entry.get("allowed_surfaces"), list) or not entry["allowed_surfaces"]:
+            errors.append(f"guru[{idx}] allowed_surfaces must be a non-empty list")
+
+    return errors
 
 
 if __name__ == "__main__":

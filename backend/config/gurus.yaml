@@ -24,7 +24,32 @@ gurus:
     label: Sri Preethaji
     attribution_tag: teacher:sri_preethaji
     aliases: ['(?:sri\s+)?preeth(?:a|i)ji', 'preetha']
+    rights_policy: channel_owner_confirmed
+    attribution_policy: direct_verbatim_quote
+    sources:
+      - platform: youtube
+        channel: Preethaji Krishnaji
+        rights_status: licensed
+    voice_refs:
+      - anchor_id: anchor_preethaji_01
+    allowed_surfaces:
+      - first_person_clip
+      - practice_guide
+      - wisdom_tip
+
   - id: krishnaji
     label: Sri Krishnaji
     attribution_tag: teacher:sri_krishnaji
     aliases: ['(?:sri\s+)?krishnaji']
+    rights_policy: channel_owner_confirmed
+    attribution_policy: direct_verbatim_quote
+    sources:
+      - platform: youtube
+        channel: Preethaji Krishnaji
+        rights_status: licensed
+    voice_refs:
+      - anchor_id: anchor_krishnaji_01
+    allowed_surfaces:
+      - first_person_clip
+      - practice_guide
+      - wisdom_tip

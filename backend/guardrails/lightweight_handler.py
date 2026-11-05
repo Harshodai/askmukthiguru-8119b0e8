@@ -277,7 +277,15 @@ _BLOCKED_TOPICS = {
         r"(भगवान|ईश्वर|परमात्मा|श्री\s*कृष्णाजी|कृष्णाजी|श्री\s*प्रीताजी|प्रीताजी)\s*बन\s*(कर|के)",
         # Spelling variants (कृष्णजी, कृष्ण जी, प्रीतजी) and "बनकर" written as one word.
         r"(भगवान|ईश्वर|परमात्मा|श्री\s*कृष्ण\s*जी|कृष्ण\s*जी|श्री\s*कृष्णाजी|श्री\s*प्रीता\s*जी|प्रीता\s*जी|प्रीत\s*जी)\s*बनकर",
-    ],
+    ]
+    + (
+        # Dynamic teacher impersonation refusal from guru_registry (T8-02 / GURU-010)
+        __import__(
+            "services.guru_registry", fromlist=["get_impersonation_patterns"]
+        ).get_impersonation_patterns()
+        if True
+        else []
+    ),
     # Run 1: live sports/news questions were answered from teachings.
     "off_domain": [
         r"\bwho\s+won\b[^.?!]*\b(?:cup|match|game|championship|final|tournament|series|oscars?)\b",
