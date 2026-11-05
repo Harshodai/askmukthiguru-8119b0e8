@@ -2019,6 +2019,40 @@ class _ConfidenceOutcome:
     answerability: Optional[str] = None
 
 
+def _apply_memory_reranking(
+    clips: list[dict[str, Any]],
+    memory_signals: Optional[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """T6-02 (MEM-002): Re-rank gated candidates based on memory signals.
+
+    Prefers unseen clips over recently seen clips to prevent repetitive answers
+    for returning seekers. Invariant: NEVER alters verbatim_text or any clip payload.
+    """
+    if not memory_signals or len(clips) <= 1:
+        return clips
+
+    seen_clips = set(str(x) for x in (memory_signals.get("seen_clip_ids") or []))
+    seen_videos = set(str(x) for x in (memory_signals.get("seen_video_ids") or []))
+
+    if not seen_clips and not seen_videos:
+        return clips
+
+    unseen: list[dict[str, Any]] = []
+    seen: list[dict[str, Any]] = []
+
+    for clip in clips:
+        clip_id = str(clip.get("id") or clip.get("span_id") or clip.get("source_span_id") or "")
+        video_id = str(clip.get("video_id") or clip.get("videoId") or "")
+        if (clip_id and clip_id in seen_clips) or (video_id and video_id in seen_videos):
+            seen.append(clip)
+        else:
+            unseen.append(clip)
+
+    if unseen:
+        return unseen + seen
+    return clips
+
+
 class FirstPersonPipeline:
     """
     Executes first-person verbatim retrieval, validation, and citation serving.
@@ -5143,6 +5177,7 @@ class FirstPersonPipeline:
         t_integrity_ms: float,
         _ans_box: dict[str, Any],
         start_time: float,
+        memory_signals: Optional[dict[str, Any]] = None,
     ) -> tuple[Optional[FirstPersonPipelineResult], list[dict[str, Any]], float]:
         """Steps 4b-4d: reorder, optionally LLM-rerank, then balance and truncate.
 
@@ -5182,6 +5217,9 @@ class FirstPersonPipeline:
                 # ponytail: fail open to fusion order — the flag is an unproven ranking
                 # tweak, and a reranker outage must not take the whole route down.
                 logger.error(f"[FirstPersonPipeline] Rerank failed; keeping fusion order: {e}")
+
+        # T6-02 (MEM-002): Apply memory signals to prioritize unseen clips for returning users.
+        verified_clips = _apply_memory_reranking(verified_clips, memory_signals)
 
         # Step 4c: LLM reranker (selection-only, zero text generation, 2.5s budget, fallback to cosine)
         # Reranks across top candidates (up to 8) before final truncation or balancing,
@@ -5608,6 +5646,7 @@ class FirstPersonPipeline:
         retrieval_query: Optional[str] = None,
         language: str = "en",
         cache_bypass: bool = False,
+        memory_signals: Optional[dict[str, Any]] = None,
     ) -> FirstPersonPipelineResult:
         """
         Execute the end-to-end first-person verbatim serving pipeline.
@@ -5649,6 +5688,12 @@ class FirstPersonPipeline:
             return contract_result
 
         # Step 2: exact-cache lookup.
+        if memory_signals and (
+            memory_signals.get("seen_video_ids") or memory_signals.get("seen_clip_ids")
+        ):
+            # T6-02: Requests with returning-seeker memory signals bypass shared exact cache
+            cache_bypass = True
+
         cache_bypass, request_allow_state, request_block_state = self._cache_scope(
             cache_bypass=cache_bypass
         )
@@ -5793,6 +5838,7 @@ class FirstPersonPipeline:
             t_integrity_ms=t_integrity_ms,
             _ans_box=_ans_box,
             start_time=start_time,
+            memory_signals=memory_signals,
         )
         if rerank_result is not None:
             return rerank_result

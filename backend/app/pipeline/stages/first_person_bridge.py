@@ -846,6 +846,36 @@ class FirstPersonBridgeStage(Stage):
                 )
 
         user_lang = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
+
+        # T6-02 (MEM-002): Extract memory signals (seen videos, stated interests) for clip diversity
+        memory_signals = None
+        if not getattr(ctx, "incognito", False):
+            user_profile = (
+                getattr(ctx, "state", {}).get("user_profile")
+                if hasattr(ctx, "state") and isinstance(ctx.state, dict)
+                else None
+            )
+            seen_videos = set()
+            chat_history = (
+                getattr(ctx, "state", {}).get("original_chat_history") or []
+                if hasattr(ctx, "state") and isinstance(ctx.state, dict)
+                else []
+            )
+            for msg in chat_history:
+                if isinstance(msg, dict):
+                    for cit in msg.get("citations") or []:
+                        if isinstance(cit, dict):
+                            vid = cit.get("videoId") or cit.get("video_id")
+                            if vid:
+                                seen_videos.add(str(vid))
+            if seen_videos or (user_profile and getattr(user_profile, "topics_of_interest", None)):
+                memory_signals = {
+                    "seen_video_ids": list(seen_videos),
+                    "stated_interests": list(getattr(user_profile, "topics_of_interest", []) or [])
+                    if user_profile
+                    else [],
+                }
+
         pipeline = _fp_pipeline(container)
         result = await asyncio.to_thread(
             pipeline.execute,
@@ -867,7 +897,9 @@ class FirstPersonBridgeStage(Stage):
             cache_bypass=(
                 getattr(ctx, "cache_bypass", False) is True
                 or getattr(ctx, "incognito", False) is True
+                or bool(memory_signals and memory_signals.get("seen_video_ids"))
             ),
+            memory_signals=memory_signals,
         )
 
         # Calibrated gate: the pipeline's own is_direct decision (fitted
