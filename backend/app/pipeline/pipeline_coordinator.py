@@ -644,7 +644,7 @@ class PipelineCoordinator:
         personalize_scope = personalize_scope or ""
         collection = (
             getattr(settings, "first_person_collection", "")
-            or getattr(settings, "collection_name", "")
+            or getattr(settings, "qdrant_collection", "")
             or getattr(manifest, "corpus_version", "")
             or "v10"
         )

@@ -562,9 +562,9 @@ def _read_saved_answers(user_id: str, collection: Optional[str] = None) -> list[
                         ):
                             continue
                         records.append(data)
-                except Exception:
+                except (json.JSONDecodeError, KeyError):
                     continue
-    except Exception as exc:
+    except OSError as exc:
         logging.getLogger(__name__).warning("Failed to read saved answers: %s", exc)
     return records
 
@@ -593,7 +593,7 @@ async def save_answer(
     try:
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
-    except Exception as exc:
+    except OSError as exc:
         logging.getLogger(__name__).error("Failed to persist saved answer: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to persist saved answer")
     return SavedAnswer(**record)
@@ -633,7 +633,7 @@ async def delete_saved_answer(
                     found = True
                     continue
                 surviving.append(line)
-            except Exception:
+            except (json.JSONDecodeError, KeyError):
                 surviving.append(line)
 
     if not found:
