@@ -16,6 +16,7 @@ type RichError = Error & {
   errorCode?: string;
   quotaRemaining?: number;
   quotaTotalLimit?: number;
+  retryAfterSeconds?: number;
 };
 
 /**
@@ -205,6 +206,7 @@ export async function* sendMessageStreaming(
       (err as RichError).errorCode = errorCode;
       if (typeof errorData?.remaining === 'number') (err as RichError).quotaRemaining = errorData.remaining;
       if (typeof errorData?.total_limit === 'number') (err as RichError).quotaTotalLimit = errorData.total_limit;
+      if (typeof errorData?.retry_after_seconds === 'number') (err as RichError).retryAfterSeconds = errorData.retry_after_seconds;
       throw err;
     }
   }
@@ -232,6 +234,7 @@ export async function* sendMessageStreaming(
     (error as RichError).errorCode = errorCode;
     if (typeof errorData?.remaining === 'number') (error as RichError).quotaRemaining = errorData.remaining;
     if (typeof errorData?.total_limit === 'number') (error as RichError).quotaTotalLimit = errorData.total_limit;
+    if (typeof errorData?.retry_after_seconds === 'number') (error as RichError).retryAfterSeconds = errorData.retry_after_seconds;
     throw error;
   }
 

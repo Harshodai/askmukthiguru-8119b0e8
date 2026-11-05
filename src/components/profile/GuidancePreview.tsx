@@ -36,7 +36,7 @@ export function GuidancePreview({ guruTone, familiarityLevel }: GuidancePreviewP
         {toneCopy[guruTone]} {familiarityCopy[familiarityLevel]}
       </p>
       <p className="mt-2 text-xs text-ojas/90">
-        Source-aware by design: verified quotations remain attributed; unsupported questions receive a clear limit or clarification.
+        Source-aware by design: Tone and depth preferences apply to practice prompts and reflections. Recorded teachings of Sri Krishnaji and Sri Preethaji are always delivered verbatim in the teachers' original recorded words.
       </p>
     </div>
   );

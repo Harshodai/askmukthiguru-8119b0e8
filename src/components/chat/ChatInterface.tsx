@@ -173,7 +173,7 @@ export const ChatInterface = () => {
 
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [conversationContextExhausted, setConversationContextExhausted] = useState(false);
-  const [quotaMeta, setQuotaMeta] = useState<{ remaining?: number; totalLimit?: number }>({});
+  const [quotaMeta, setQuotaMeta] = useState<{ remaining?: number; totalLimit?: number; retryAfterSeconds?: number }>({});
   const [responsePreferences, setResponsePreferences] = useState<ResponsePreferences>(() => loadResponsePreferences());
   const updateResponsePreferences = useCallback((next: ResponsePreferences) => {
     setResponsePreferences(next);
@@ -1241,6 +1241,7 @@ export const ChatInterface = () => {
     // stream dies, so it must live at try/catch scope, not in the nested
     // streaming-prep block (a `let` there is invisible to catch → TDZ error).
     let streamedFinalText: string | null = null;
+    let gotFirstToken = false;
 
 
     if (!isAwaitingSereneMind) {
@@ -1306,7 +1307,7 @@ export const ChatInterface = () => {
         }, 500);
         // ────────────────────────────────────────────────────────────────
 
-        let gotFirstToken = false;
+        gotFirstToken = false;
         streamCompleted = false;
         streamedFinalText = null;
         let streamedCitations: Citation[] = [];
@@ -1727,7 +1728,11 @@ openSereneMind('audio');
             const msgError = buildMessageError(streamErrorCode, err?.message, err?.status);
             if (msgError.kind === 'quota_exceeded') {
               setQuotaExceeded(true);
-              setQuotaMeta({ remaining: err?.quotaRemaining, totalLimit: err?.quotaTotalLimit });
+              setQuotaMeta({
+                remaining: err?.quotaRemaining,
+                totalLimit: err?.quotaTotalLimit,
+                retryAfterSeconds: (err as { retryAfterSeconds?: number })?.retryAfterSeconds,
+              });
             }
             if (msgError.kind === 'context_exhausted') {
               setConversationContextExhausted(true);
@@ -1864,7 +1869,11 @@ openSereneMind('audio');
         }
         if (responseError?.kind === 'quota_exceeded') {
           setQuotaExceeded(true);
-          setQuotaMeta({ remaining: response.quotaRemaining, totalLimit: response.quotaTotalLimit });
+          setQuotaMeta({
+            remaining: response.quotaRemaining,
+            totalLimit: response.quotaTotalLimit,
+            retryAfterSeconds: (response as { retryAfterSeconds?: number }).retryAfterSeconds,
+          });
         }
         const guruMessageId = generateId();
         if (responseError) {
@@ -1991,7 +2000,11 @@ openSereneMind('audio');
     );
     if (msgError.kind === 'quota_exceeded') {
       setQuotaExceeded(true);
-      setQuotaMeta({ remaining: errObj?.quotaRemaining, totalLimit: errObj?.quotaTotalLimit });
+      setQuotaMeta({
+        remaining: errObj?.quotaRemaining,
+        totalLimit: errObj?.quotaTotalLimit,
+        retryAfterSeconds: errObj?.retryAfterSeconds,
+      });
     }
 
     const fallbackId = generateId();
@@ -2723,7 +2736,13 @@ return (
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
         >
-          {quotaExceeded && <QuotaAuthPrompt remaining={quotaMeta.remaining} totalLimit={quotaMeta.totalLimit} />}
+          {quotaExceeded && (
+            <QuotaAuthPrompt
+              remaining={quotaMeta.remaining}
+              totalLimit={quotaMeta.totalLimit}
+              retryAfterSeconds={quotaMeta.retryAfterSeconds}
+            />
+          )}
           <HealingPathCard
             lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
             recommendedCourse={recommendedCourse}

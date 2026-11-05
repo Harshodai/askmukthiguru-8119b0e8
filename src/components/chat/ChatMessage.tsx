@@ -511,6 +511,13 @@ export const GuruTeachingCard = ({
             : t('chat.guruTeaching.label', 'Guru teaching · verbatim')}
         </span>
         <span
+          title={
+            related
+              ? 'Related teaching: addresses surrounding spiritual concepts, not a direct direct answer to your specific query.'
+              : !showVerified
+                ? 'Unverified clip: recording from an uncertified channel or unconfirmed speaker.'
+                : 'Verified teaching: verbatim quotation from recorded teachings.'
+          }
           className={cn(
             'ms-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
             showVerified

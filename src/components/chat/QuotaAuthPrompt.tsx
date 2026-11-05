@@ -7,8 +7,21 @@ import { useNavigate } from 'react-router-dom';
  * exhausts its free-message quota. Uses the same visual language as the
  * chat error banner but keeps the input disabled state in the parent.
  */
-export const QuotaAuthPrompt = ({ remaining, totalLimit }: { remaining?: number; totalLimit?: number }) => {
+export const QuotaAuthPrompt = ({
+  remaining,
+  totalLimit,
+  retryAfterSeconds,
+}: {
+  remaining?: number;
+  totalLimit?: number;
+  retryAfterSeconds?: number;
+}) => {
   const navigate = useNavigate();
+  const resetText =
+    retryAfterSeconds && retryAfterSeconds > 0
+      ? ` Resets in ${Math.ceil(retryAfterSeconds / 3600)} hour${Math.ceil(retryAfterSeconds / 3600) > 1 ? 's' : ''}.`
+      : '';
+
   return (
     <div className="mx-3 sm:mx-5 mb-3 rounded-2xl border border-ojas/20 bg-gradient-to-r from-ojas/10 to-background p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-3">
       <div className="flex-1 min-w-0">
@@ -16,7 +29,7 @@ export const QuotaAuthPrompt = ({ remaining, totalLimit }: { remaining?: number;
           Free message limit reached
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Sign in to continue the conversation{totalLimit !== undefined && remaining !== undefined ? ` (${totalLimit - remaining} of ${totalLimit} used)` : ''}.
+          Sign in to continue the conversation{totalLimit !== undefined && remaining !== undefined ? ` (${totalLimit - remaining} of ${totalLimit} used)` : ''}.{resetText}
         </p>
       </div>
       <Button
