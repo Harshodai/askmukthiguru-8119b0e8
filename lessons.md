@@ -1,6 +1,24 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 5, 2026 — Batch 13: Verified helplines, clip reporting & saved answers, and canonical teacher IDs (T4-07, T6-04, T3-07)
+
+### L-HELPLINE-FRESHNESS-CALL-VERIFIED-1. Display only call-verified helplines within the freshness window and preserve national emergency lines.
+- **What:** In SAFE-004, `config/helplines.yaml` contained 15 entries with only one call-verified line (Tele-MANAS); the other 14 entries had `last_verified_by_call: null` and were served to seekers in MODERATE distress templates, risking displaying numbers that nobody had dialled.
+- **Fix:** Added `helpline_max_verified_age_days: int = 180` to `Settings`. In `backend/services/crisis_helplines.py`, added `_is_call_verified_and_fresh()` to strictly enforce call verification within the freshness window (exempting national 112 which must never be test-called), and fall back cleanly to the verified national line (Tele-MANAS/112) so a crisis block is never empty or displaying unverified contacts. Updated `rag/meditation.py` and `format_support_line()` to enforce `verified_only=True`.
+- **Rule:** Every displayed helpline must have `last_verified_by_call` within the configured freshness window, preserving official national emergency lines as immutable fallbacks. Never display unverified or stale numbers to seekers in crisis.
+
+### L-CLIP-REPORTING-SAVED-ANSWERS-1. Provide structured clip reporting categories and personal saved answer collections.
+- **What:** In PRD-006 and FR-SAVE-01, seekers watching a discourse video had no in-modal control to report errors (misattribution, irrelevant topic, cut mid-thought), and chat lacked the ability to save an answer to a personal collection with notes for later review.
+- **Fix:** In `src/components/chat/CitationCard.tsx`, added a "Report clip issue" control with 4 canonical categories (`wrong teacher`, `wrong topic`, `cut mid-thought`, `other`) submitting to `/api/feedback/clip-report`. Updated `backend/app/api/feedback.py` with `reason_category` support. Created `src/lib/savedAnswersStorage.ts` and added backend endpoints `/api/feedback/saved-answers` (POST, GET by collection, DELETE) allowing seekers to save answers to personal collections with notes.
+- **Rule:** Seekers must be empowered to flag video and clip attribution defects directly from the playback interface across standard categories, and must be able to curate personal collections of helpful teachings.
+
+### L-TEACHER-ID-CANONICAL-NORMALIZATION-1. Normalize cross-store teacher vocabularies to canonical registry IDs at retrieval boundaries.
+- **What:** In DATA-13 and GURU-013, teacher identifiers drifted across chat (`sri-krishnaji`, `sri_krishnaji`, `ekam`), v8/v10 schemas (`guru_id`, `teacher_id`), and Postgres tables (`gurus`), causing queries with variant names to fail Qdrant match filters and miss relevant teachings.
+- **Fix:** Added `canonical_guru_id` and recognized shared founder pairs in `backend/services/guru_registry.py`. In `FirstPersonContextStore.retrieve` and `FirstPersonStore.search_hybrid`, normalized input `guru_id`/`teacher_id` filters using `canonical_guru_id`, ensuring variant teacher names resolve to canonical IDs (`krishnaji`, `preethaji`). Added `scripts/ops/check_legacy_guru_tables.py` auditing database usage and confirming 0 active runtime dependencies on legacy Postgres `kb_chunks` and `gurus` tables.
+- **Rule:** Stores and retrieval engines must normalize teacher filters to canonical registry IDs (`gurus.yaml`) at the retrieval boundary so vocabulary variations never cause false retrieval misses.
+
+
 ## Nov 5, 2026 — Batch 12: Docker image pinning, pipeline order AST guard, and memory plane inventory (T1-14, T1-15, T6-01 / ADV-06)
 
 ### L-DOCKER-PIN-ALL-IMAGES-1. Pin exact image tags on all infrastructure sidecars; ban unpinned latest in compose.
