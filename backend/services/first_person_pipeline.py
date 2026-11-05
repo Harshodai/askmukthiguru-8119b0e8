@@ -3224,8 +3224,11 @@ class FirstPersonPipeline:
                     )
                     try:
                         self._redis.delete(key)
-                    except Exception:
-                        pass  # best-effort cleanup; a stuck malformed key just keeps missing
+                    except Exception as _exc:
+                        logger.debug(
+                            "[FirstPersonPipeline] Best-effort Redis cache eviction failed: %s",
+                            _exc,
+                        )
                     return None
                 if not isinstance(data.get("citations"), list):
                     logger.warning(

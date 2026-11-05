@@ -176,8 +176,8 @@ def record_fp_job_progress(
             chunks_indexed=clips_indexed,
             error_message=error_message,
         )
-    except Exception:
-        pass
+    except Exception as _exc:
+        logger.debug("[FirstPersonIngest] Celery update_job_progress failed: %s", _exc)
 
 
 def get_fp_job_progress(redis_client: Optional[Any], job_id: str) -> Optional[dict[str, Any]]:

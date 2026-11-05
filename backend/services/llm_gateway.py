@@ -186,8 +186,10 @@ class LLMGateway:
                 return await self._primary.generate_fast(
                     system_prompt, user_prompt, context, **kwargs
                 )
-            except Exception:
-                pass
+            except Exception as _exc:
+                logger.debug(
+                    "Primary generate_fast raised %s; falling back to standard generate", _exc
+                )
         return await self.generate(
             system_prompt, user_prompt, context, task="casual", use_cache=use_cache, **kwargs
         )
@@ -414,8 +416,8 @@ class LLMGateway:
             override = getattr(settings, f"llm_task_timeout_{task}", None)
             if override:
                 return float(override)
-        except Exception:
-            pass
+        except Exception as _exc:
+            logger.debug("Failed reading llm_task_timeout_%s: %s", task, _exc)
         return _TASK_TIMEOUTS.get(task, 60.0)
 
     async def _soft_budget_throttled(self) -> bool:
@@ -458,8 +460,8 @@ class LLMGateway:
                 finally:
                     try:
                         await client.aclose()
-                    except Exception:
-                        pass
+                    except Exception as _exc:
+                        logger.debug("Redis client aclose raised: %s", _exc)
                 spent = float(raw or 0)
                 if spent >= 0.8 * daily_budget:
                     logger.warning(

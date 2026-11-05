@@ -224,8 +224,8 @@ def expand_teaching_units(
             if cfg_path.exists():
                 with cfg_path.open() as _fh:
                     return _json.load(_fh)["queries"][key]
-        except Exception:
-            pass
+        except Exception as _exc:
+            logger.debug("Failed to load graph query template %s: %s", key, _exc)
         return fallback
 
     hop_key = "one_hop_expansion" if max_hops <= 1 else "two_hop_expansion"
