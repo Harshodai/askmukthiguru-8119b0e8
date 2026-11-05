@@ -391,7 +391,7 @@ Recommended way to run them: one task per session, on a fresh branch from the PR
 
 ### 0k. T7-01 split of `FirstPersonPipeline.execute` (2026-11-05)
 
-`backend/services/first_person_pipeline.py`: `execute` was 2,146 lines; it is now 267 lines and reads as a linear sequence of named steps: 14 step methods called directly from `execute`, plus `_store_exact_cache`, which the assembly step calls. Ten refactor commits plus the goldens commit, each pushed separately: `31ebbd89` (goldens), `1343702c`, `b9902a59`, `0caa21f2`, `a38cbc28`, `6c1179b8`, `997ccc3a`, `c6e5b4bd`, `2870ddf4`, `e875073c`, `0c643bc2`.
+`backend/services/first_person_pipeline.py`: `execute` was 2,146 lines; it is now 266 lines and reads as a linear sequence of named steps: 14 step methods called directly from `execute`, plus `_store_exact_cache`, which the assembly step calls. Ten refactor commits plus the goldens commit, each pushed separately: `31ebbd89` (goldens), `1343702c`, `b9902a59`, `0caa21f2`, `a38cbc28`, `6c1179b8`, `997ccc3a`, `c6e5b4bd`, `2870ddf4`, `e875073c`, `0c643bc2`.
 
 | Item | What landed | Verified | Left |
 |---|---|---|---|
