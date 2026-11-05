@@ -248,19 +248,23 @@ class QdrantService:
         offset: Any = None,
         limit: int = 512,
         with_payload: Any = True,
+        scroll_filter: Any = None,
     ) -> tuple[list[Any], Any]:
         """Read-only: one scroll page — returns (points, next_offset).
 
         Vectors are never requested; `with_payload` may be True (full payload),
         False, or a list of payload keys to project.
         """
-        page, next_offset = self._client.scroll(
-            collection_name=collection or self._collection,
-            offset=offset,
-            limit=limit,
-            with_payload=with_payload,
-            with_vectors=False,
-        )
+        scroll_kw: dict[str, Any] = {
+            "collection_name": collection or self._collection,
+            "offset": offset,
+            "limit": limit,
+            "with_payload": with_payload,
+            "with_vectors": False,
+        }
+        if scroll_filter is not None:
+            scroll_kw["scroll_filter"] = scroll_filter
+        page, next_offset = self._client.scroll(**scroll_kw)
         return list(page), next_offset
 
     def set_payload(

@@ -774,6 +774,12 @@ def main() -> int:
         default=False,
         help="Allow writing to a collection currently configured for live serving",
     )
+    parser.add_argument(
+        "--replace-existing",
+        action="store_true",
+        default=False,
+        help="Rebuild videos even if already present in target collection (deletes stale points per video)",
+    )
     args = parser.parse_args()
 
     if not args.wav_dir:
@@ -890,18 +896,20 @@ def main() -> int:
     all_transcripts = sorted(list(transcripts_dir.glob("*.md")))
     all_wavs = {p.stem for p in wav_dir.glob("*.wav")} if wav_dir.is_dir() else set()
 
-    missing_candidates = [
-        p for p in all_transcripts if p.stem not in existing_videos and p.stem in all_wavs
-    ]
-    logger.info("Found %d missing candidate videos with WAV audio.", len(missing_candidates))
+    if args.replace_existing:
+        missing_candidates = [p for p in all_transcripts if p.stem in all_wavs]
+    else:
+        missing_candidates = [
+            p for p in all_transcripts if p.stem not in existing_videos and p.stem in all_wavs
+        ]
+    logger.info("Found %d candidate videos with WAV audio.", len(missing_candidates))
 
     only = {v.strip() for v in str(args.only_videos or "").split(",") if v.strip()}
     if only:
         unknown = only - {p.stem for p in missing_candidates}
         if unknown:
             logger.warning(
-                "--only-videos ids that are not buildable additions (already indexed, no "
-                "transcript, or no WAV): %s",
+                "--only-videos ids that are not buildable additions (no transcript or no WAV): %s",
                 sorted(unknown),
             )
         missing_candidates = [p for p in missing_candidates if p.stem in only]
@@ -912,8 +920,11 @@ def main() -> int:
         logger.info("Applying limit: processing %d videos.", len(missing_candidates))
 
     if not missing_candidates:
-        logger.info("No missing candidate videos to process.")
-        return 0
+        logger.error(
+            "Refusing build: 0 candidate videos to process for target collection %s.",
+            args.target_collection,
+        )
+        return 1
 
     # Load ECAPA centroids and embedder
     logger.info("Computing ECAPA teacher voice centroids...")
@@ -942,6 +953,16 @@ def main() -> int:
     # code. Reported, not enforced: dropping spans here would hide a data-quality
     # defect from the scorecard instead of measuring it.
     release_grade_defects: Counter[str] = Counter()
+
+    # Pre-build snapshot before the first write (T3-04 / DATA-05)
+    if not args.dry_run:
+        try:
+            snapshot = qdrant.create_snapshot(collection=args.target_collection)
+            logger.info(
+                "Created pre-build Qdrant snapshot: %s", getattr(snapshot, "name", snapshot)
+            )
+        except Exception as exc:
+            logger.warning("Pre-build snapshot creation: %s", exc)
 
     for p in missing_candidates:
         video_id = p.stem
@@ -1235,6 +1256,38 @@ def main() -> int:
             total_spans_created += len(spans)
             total_parents_created += 1
             continue
+
+        # Delete stale points for this video before upserting new ones (T3-04 / DATA-05)
+        stale_ids: list[Any] = []
+        try:
+            from qdrant_client.http.models import FieldCondition, Filter, MatchValue
+
+            vid_filter = Filter(
+                must=[FieldCondition(key="video_id", match=MatchValue(value=video_id))]
+            )
+            off = None
+            while True:
+                p_page, off = qdrant.scroll_page(
+                    collection=args.target_collection,
+                    offset=off,
+                    limit=500,
+                    with_payload=False,
+                    scroll_filter=vid_filter,
+                )
+                for pt in p_page:
+                    if hasattr(pt, "id") and pt.id is not None:
+                        stale_ids.append(pt.id)
+                if off is None:
+                    break
+            if stale_ids:
+                qdrant.delete_points_by_ids(stale_ids, collection=args.target_collection)
+                logger.info(
+                    "Video %s: deleted %d stale points before upserting new ones",
+                    video_id,
+                    len(stale_ids),
+                )
+        except Exception as del_exc:
+            logger.warning("Video %s: stale point check/deletion failed: %s", video_id, del_exc)
 
         try:
             qdrant.upsert_points(points_to_upsert, collection=args.target_collection, wait=True)
