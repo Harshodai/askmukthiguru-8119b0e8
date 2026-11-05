@@ -442,6 +442,29 @@ class CacheCheckStage(Stage):
                 logger.warning(f"Semantic cache lookup failed (non-fatal, treating as miss): {e}")
                 cached = None
 
+            # CQ-003 / T7-04: Teaching answers must never be served from semantic cache.
+            # Discard any semantic cache hit that represents a first-person teaching or verified clip.
+            if cached is not None:
+                is_cached_teaching = bool(
+                    (cached.get("route_metadata") or {}).get("fp_served")
+                    or cached.get("answer_evidence")
+                    or (
+                        isinstance(cached.get("verification"), dict)
+                        and cached.get("verification", {}).get("method")
+                        in (
+                            "first_person_verified",
+                            "fp_context_harness",
+                            "first_person_exact_cache",
+                            "first_person_teaching",
+                        )
+                    )
+                )
+                if is_cached_teaching:
+                    logger.info(
+                        "Semantic cache returned a teaching answer; discarding hit (exact cache only for teachings per CQ-003)"
+                    )
+                    cached = None
+
         if cached is not None:
             REQUEST_COUNT.labels(status="cache_hit").inc()
             cached_response = cached["response"]
@@ -692,12 +715,47 @@ class CacheUpdateStage(Stage):
                     user_id=user_id_for_cache,
                 )
 
+                # CQ-003 / T7-04: Teaching answers are strictly excluded from semantic and
+                # vector caches. Paraphrase similarity creates staleness and cross-seeker attribution
+                # risks for spiritual teachings and verbatim quotes. Only exact-match caching is allowed.
+                is_teaching = bool(
+                    (getattr(ctx, "route_metadata", None) or {}).get("fp_served")
+                    or getattr(ctx, "first_person_served", False)
+                    or getattr(ctx, "is_teaching_answer", False)
+                    or getattr(ctx, "answer_evidence", None)
+                    or (
+                        isinstance(getattr(ctx, "verification", None), dict)
+                        and getattr(ctx, "verification", {}).get("method")
+                        in (
+                            "first_person_verified",
+                            "fp_context_harness",
+                            "first_person_exact_cache",
+                            "first_person_teaching",
+                        )
+                    )
+                    or (
+                        isinstance(getattr(ctx, "graph_result", None), dict)
+                        and isinstance(getattr(ctx, "graph_result", {}).get("verification"), dict)
+                        and getattr(ctx, "graph_result", {}).get("verification", {}).get("method")
+                        in (
+                            "first_person_verified",
+                            "fp_context_harness",
+                            "first_person_exact_cache",
+                            "first_person_teaching",
+                        )
+                    )
+                )
+
                 # A partial-evidence response is intentionally excluded from
                 # semantic/vector writes. Those tiers are similarity-based and
                 # currently have no fresh-evidence/source-version/support gate.
                 # Skip semantic/vector writes for personalized queries — both tiers
                 # are shared/unscoped, same reasoning as the hot_cache guard above.
-                if not partial_evidence and not _is_personalization_eligible(ctx):
+                if (
+                    not is_teaching
+                    and not partial_evidence
+                    and not _is_personalization_eligible(ctx)
+                ):
                     # Update semantic cache using the natural-language query. The
                     # exact cache keeps the composite release/tenant/preferences
                     # key, while semantic search needs the original utterance for
@@ -719,7 +777,8 @@ class CacheUpdateStage(Stage):
                 # every repeat/similar query missed. Partial evidence is excluded
                 # because this tier has no evidence/version gate on reads.
                 if (
-                    not partial_evidence
+                    not is_teaching
+                    and not partial_evidence
                     and not _is_personalization_eligible(ctx)
                     and getattr(settings, "hybrid_search_enabled", False)
                 ):

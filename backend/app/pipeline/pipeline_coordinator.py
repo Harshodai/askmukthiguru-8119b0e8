@@ -642,13 +642,29 @@ class PipelineCoordinator:
         # personalize_cache_scope — never clip text). Absent turns keep the
         # legacy key unchanged.
         personalize_scope = personalize_scope or ""
-        if ":" in manifest.release_id or ":" in manifest.policy_version:
-            scope_digest = hashlib.sha256(
-                f":rel:{manifest.release_id}:pol:{manifest.policy_version}".encode()
-            ).hexdigest()[:16]
+        collection = (
+            getattr(settings, "first_person_collection", "")
+            or getattr(settings, "collection_name", "")
+            or getattr(manifest, "corpus_version", "")
+            or "v10"
+        )
+        prompt_version = getattr(settings, "prompt_version", "v1")
+        cache_version = getattr(settings, "cache_key_version", "v2")
+        version_scope_str = (
+            f":rel:{manifest.release_id}:pol:{manifest.policy_version}"
+            f":col:{collection}:pv:{prompt_version}:cv:{cache_version}"
+        )
+        if (
+            ":" in manifest.release_id
+            or ":" in manifest.policy_version
+            or ":" in collection
+            or ":" in prompt_version
+            or ":" in cache_version
+        ):
+            scope_digest = hashlib.sha256(version_scope_str.encode()).hexdigest()[:16]
             release_scope = f":rel:{scope_digest}"
         else:
-            release_scope = f":rel:{manifest.release_id}:pol:{manifest.policy_version}"
+            release_scope = version_scope_str
         base_key = f"tenant:{tenant}{release_scope}{persona}{preference_scope}{personalize_scope}:{cache_language_key(user_msg, preferred_lang)}"
 
         is_standalone = self._is_standalone_question(user_msg)

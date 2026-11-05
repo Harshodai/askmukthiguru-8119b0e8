@@ -1602,6 +1602,9 @@ class Settings(BaseSettings):
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching
+    # Cache key versioning and invalidation (CQ-003 / T7-04)
+    cache_key_version: str = "v2"
+    prompt_version: str = "v1"
     # Local measurement control: when enabled, all application cache reads and
     # writes are bypassed so latency samples represent the uncached path.
     latency_benchmark_cache_disabled: bool = False
