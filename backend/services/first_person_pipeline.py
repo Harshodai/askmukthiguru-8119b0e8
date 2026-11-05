@@ -5096,6 +5096,188 @@ class FirstPersonPipeline:
 
         return None, early_verdict
 
+    def _rerank_and_balance_candidates(
+        self,
+        *,
+        retrieval_query: str,
+        verified_clips: list[dict[str, Any]],
+        speculative_enabled: bool,
+        fp_llm_tokens: list[int],
+        query_dense_vector: list[float],
+        teacher_id: Optional[str],
+        effective_max_clips: int,
+        n_quarantined: int,
+        t_retrieval_ms: float,
+        t_integrity_ms: float,
+        _ans_box: dict[str, Any],
+        start_time: float,
+    ) -> tuple[Optional[FirstPersonPipelineResult], list[dict[str, Any]], float]:
+        """Steps 4b-4d: reorder, optionally LLM-rerank, then balance and truncate.
+
+        Reorders only: the confidence below stays dense cosine (the calibration
+        contract). A reranker that answers NONE implies an early abstention when the
+        owner flag says so; with it off the candidates it was shown keep their
+        retrieval order. Returns the early result, if any, the final candidate list
+        and the combined rerank duration.
+        """
+        # Step 4b: optional cross-encoder reorder of the verified candidates. Reorders
+        # only; confidence below stays dense cosine (the calibration contract).
+        t_rerank_start = time.monotonic()
+        if self._rerank_fn and len(verified_clips) >= (1 if speculative_enabled else 2):
+            try:
+                scores = self._rerank_fn(
+                    retrieval_query, [c["verbatim_text"] for c in verified_clips]
+                )
+                if speculative_enabled:
+                    min_rerank_score = float(
+                        getattr(settings, "first_person_cross_encoder_min_score", 0.30)
+                    )
+                    pairs = [
+                        (verified_clips[i], scores[i])
+                        for i in range(len(verified_clips))
+                        if scores[i] >= min_rerank_score
+                    ]
+                    if not pairs:
+                        pairs = [(verified_clips[i], scores[i]) for i in range(len(verified_clips))]
+                    pairs.sort(key=lambda p: p[1], reverse=True)
+                    verified_clips = [p[0] for p in pairs]
+                else:
+                    order = sorted(
+                        range(len(verified_clips)), key=lambda i: scores[i], reverse=True
+                    )
+                    verified_clips = [verified_clips[i] for i in order]
+            except Exception as e:
+                # ponytail: fail open to fusion order — the flag is an unproven ranking
+                # tweak, and a reranker outage must not take the whole route down.
+                logger.error(f"[FirstPersonPipeline] Rerank failed; keeping fusion order: {e}")
+
+        # Step 4c: LLM reranker (selection-only, zero text generation, 2.5s budget, fallback to cosine)
+        # Reranks across top candidates (up to 8) before final truncation or balancing,
+        # ensuring the most relevant teaching clip is selected into top position.
+        if (
+            getattr(settings, "first_person_llm_rerank_enabled", True)
+            and self._llm_service is not None
+            and len(verified_clips) > 1
+        ):
+            rerank_res = _llm_rerank_clips(
+                retrieval_query,
+                verified_clips[:8],
+                self._llm_service,
+                token_sink=fp_llm_tokens,
+            )
+            if not rerank_res and getattr(
+                settings, "first_person_rerank_none_abstain_enabled", False
+            ):
+                # E6c early abstention: model indicated NONE of the top candidate clips relate/answer
+                t_rerank_ms = (time.monotonic() - t_rerank_start) * 1000.0
+                latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": round(t_integrity_ms, 2),
+                    "rerank_ms": round(t_rerank_ms, 2),
+                    "scorer_ms": 0.0,
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
+                logger.info(
+                    "[FirstPersonPipeline] Reranker returned NONE; early abstaining without scorer."
+                )
+                self._log_and_count(
+                    "abstained",
+                    latency,
+                    0.0,
+                    n_quarantined,
+                    0,
+                    "relevance_below_min",
+                    sum(fp_llm_tokens),
+                )
+                return (
+                    FirstPersonPipelineResult(
+                        answer_text="No verified first-person discourse found for this question.",
+                        citations=[],
+                        status="abstained",
+                        is_direct_answer=False,
+                        latency_ms=latency,
+                        abstain_reason="relevance_below_min",
+                        stage_timings=stage_timings,
+                    ),
+                    verified_clips,
+                    t_rerank_ms,
+                )
+            # An empty reply is the reranker's NONE verdict. With the early-abstain flag
+            # off it must NOT drop the candidates it was shown (rerank_res + [8:] would
+            # silently discard the top 8); keep their retrieval order instead.
+            verified_clips = (rerank_res or verified_clips[:8]) + verified_clips[8:]
+
+        # Step 4d: Teacher diversity balancing when teacher_id is 'both' or None
+        is_both_teachers = not teacher_id or teacher_id.lower() in ("both", "all", "")
+        if is_both_teachers and len(verified_clips) > 1:
+            top_clip = verified_clips[0]
+            top_guru = str(top_clip.get("teacher_id") or top_clip.get("speaker") or "").lower()
+
+            # Partition remaining candidates: any other guru vs the top clip's guru
+            other_clips = [
+                c
+                for c in verified_clips[1:]
+                if str(c.get("teacher_id") or c.get("speaker") or "").lower() != top_guru
+            ]
+            same_clips = [c for c in verified_clips[1:] if c not in other_clips]
+
+            # Invariant: top-ranked match ALWAYS remains at index 0
+            balanced: list[dict[str, Any]] = [top_clip]
+            # ponytail: δ — plan-approved initial value (Task 1 Step B, 2026-09-29);
+            # validate/fit by harness ablation, one δ only (see trace_1A.md for the
+            # defect this gates: an other-teacher clip at cosine 0.5791 displaced a
+            # same-teacher clip at 0.6837).
+            max_cosine_gap = 0.05
+            o_idx, s_idx = 0, 0
+            while len(balanced) < effective_max_clips and (
+                o_idx < len(other_clips) or s_idx < len(same_clips)
+            ):
+                # Alternate secondary slots: slot 1 gets other teacher if available, slot 2 gets same teacher, etc.
+                want_other = o_idx < len(other_clips) and (
+                    len(balanced) % 2 == 1 or s_idx >= len(same_clips)
+                )
+                if want_other and s_idx < len(same_clips):
+                    # ponytail: promoting the other teacher displaces a same-teacher clip —
+                    # allowed only on calibrated quality parity: candidate dense cosine must
+                    # clear the fitted profile threshold (same value is_direct uses) AND the
+                    # cosine gap to the displaced clip must stay within δ. No profile → no fit
+                    # → never promote over a higher-cosine same-teacher clip.
+                    if self._profile is not None:
+                        candidate_cos = _cosine_similarity(
+                            query_dense_vector, other_clips[o_idx].get("passage_dense")
+                        )
+                        displaced_cos = _cosine_similarity(
+                            query_dense_vector, same_clips[s_idx].get("passage_dense")
+                        )
+                        promote_other = (
+                            candidate_cos >= self._profile["threshold"]
+                            and displaced_cos - candidate_cos <= max_cosine_gap
+                        )
+                    else:
+                        promote_other = False
+                    if promote_other:
+                        balanced.append(other_clips[o_idx])
+                        o_idx += 1
+                    else:
+                        balanced.append(same_clips[s_idx])
+                        s_idx += 1
+                elif want_other:
+                    # nothing displaced (same-teacher partition exhausted) → plain append
+                    balanced.append(other_clips[o_idx])
+                    o_idx += 1
+                else:
+                    balanced.append(same_clips[s_idx])
+                    s_idx += 1
+            verified_clips = balanced
+        else:
+            verified_clips = verified_clips[:effective_max_clips]
+        t_rerank_ms = (time.monotonic() - t_rerank_start) * 1000.0
+
+        return None, verified_clips, t_rerank_ms
+
     def execute(
         self,
         query: str,
@@ -5275,157 +5457,23 @@ class FirstPersonPipeline:
         if join_result is not None:
             return join_result
 
-        # Step 4b: optional cross-encoder reorder of the verified candidates. Reorders
-        # only; confidence below stays dense cosine (the calibration contract).
-        t_rerank_start = time.monotonic()
-        if self._rerank_fn and len(verified_clips) >= (1 if speculative_enabled else 2):
-            try:
-                scores = self._rerank_fn(
-                    retrieval_query, [c["verbatim_text"] for c in verified_clips]
-                )
-                if speculative_enabled:
-                    min_rerank_score = float(
-                        getattr(settings, "first_person_cross_encoder_min_score", 0.30)
-                    )
-                    pairs = [
-                        (verified_clips[i], scores[i])
-                        for i in range(len(verified_clips))
-                        if scores[i] >= min_rerank_score
-                    ]
-                    if not pairs:
-                        pairs = [(verified_clips[i], scores[i]) for i in range(len(verified_clips))]
-                    pairs.sort(key=lambda p: p[1], reverse=True)
-                    verified_clips = [p[0] for p in pairs]
-                else:
-                    order = sorted(
-                        range(len(verified_clips)), key=lambda i: scores[i], reverse=True
-                    )
-                    verified_clips = [verified_clips[i] for i in order]
-            except Exception as e:
-                # ponytail: fail open to fusion order — the flag is an unproven ranking
-                # tweak, and a reranker outage must not take the whole route down.
-                logger.error(f"[FirstPersonPipeline] Rerank failed; keeping fusion order: {e}")
-
-        # Step 4c: LLM reranker (selection-only, zero text generation, 2.5s budget, fallback to cosine)
-        # Reranks across top candidates (up to 8) before final truncation or balancing,
-        # ensuring the most relevant teaching clip is selected into top position.
-        if (
-            getattr(settings, "first_person_llm_rerank_enabled", True)
-            and self._llm_service is not None
-            and len(verified_clips) > 1
-        ):
-            rerank_res = _llm_rerank_clips(
-                retrieval_query,
-                verified_clips[:8],
-                self._llm_service,
-                token_sink=fp_llm_tokens,
-            )
-            if not rerank_res and getattr(
-                settings, "first_person_rerank_none_abstain_enabled", False
-            ):
-                # E6c early abstention: model indicated NONE of the top candidate clips relate/answer
-                t_rerank_ms = (time.monotonic() - t_rerank_start) * 1000.0
-                latency = (time.monotonic() - start_time) * 1000.0
-                stage_timings = {
-                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
-                    "retrieval_ms": round(t_retrieval_ms, 2),
-                    "integrity_ms": round(t_integrity_ms, 2),
-                    "rerank_ms": round(t_rerank_ms, 2),
-                    "scorer_ms": 0.0,
-                    "assembly_ms": 0.0,
-                    "total_ms": round(latency, 2),
-                }
-                logger.info(
-                    "[FirstPersonPipeline] Reranker returned NONE; early abstaining without scorer."
-                )
-                self._log_and_count(
-                    "abstained",
-                    latency,
-                    0.0,
-                    n_quarantined,
-                    0,
-                    "relevance_below_min",
-                    sum(fp_llm_tokens),
-                )
-                return FirstPersonPipelineResult(
-                    answer_text="No verified first-person discourse found for this question.",
-                    citations=[],
-                    status="abstained",
-                    is_direct_answer=False,
-                    latency_ms=latency,
-                    abstain_reason="relevance_below_min",
-                    stage_timings=stage_timings,
-                )
-            # An empty reply is the reranker's NONE verdict. With the early-abstain flag
-            # off it must NOT drop the candidates it was shown (rerank_res + [8:] would
-            # silently discard the top 8); keep their retrieval order instead.
-            verified_clips = (rerank_res or verified_clips[:8]) + verified_clips[8:]
-
-        # Step 4d: Teacher diversity balancing when teacher_id is 'both' or None
-        is_both_teachers = not teacher_id or teacher_id.lower() in ("both", "all", "")
-        if is_both_teachers and len(verified_clips) > 1:
-            top_clip = verified_clips[0]
-            top_guru = str(top_clip.get("teacher_id") or top_clip.get("speaker") or "").lower()
-
-            # Partition remaining candidates: any other guru vs the top clip's guru
-            other_clips = [
-                c
-                for c in verified_clips[1:]
-                if str(c.get("teacher_id") or c.get("speaker") or "").lower() != top_guru
-            ]
-            same_clips = [c for c in verified_clips[1:] if c not in other_clips]
-
-            # Invariant: top-ranked match ALWAYS remains at index 0
-            balanced: list[dict[str, Any]] = [top_clip]
-            # ponytail: δ — plan-approved initial value (Task 1 Step B, 2026-09-29);
-            # validate/fit by harness ablation, one δ only (see trace_1A.md for the
-            # defect this gates: an other-teacher clip at cosine 0.5791 displaced a
-            # same-teacher clip at 0.6837).
-            max_cosine_gap = 0.05
-            o_idx, s_idx = 0, 0
-            while len(balanced) < effective_max_clips and (
-                o_idx < len(other_clips) or s_idx < len(same_clips)
-            ):
-                # Alternate secondary slots: slot 1 gets other teacher if available, slot 2 gets same teacher, etc.
-                want_other = o_idx < len(other_clips) and (
-                    len(balanced) % 2 == 1 or s_idx >= len(same_clips)
-                )
-                if want_other and s_idx < len(same_clips):
-                    # ponytail: promoting the other teacher displaces a same-teacher clip —
-                    # allowed only on calibrated quality parity: candidate dense cosine must
-                    # clear the fitted profile threshold (same value is_direct uses) AND the
-                    # cosine gap to the displaced clip must stay within δ. No profile → no fit
-                    # → never promote over a higher-cosine same-teacher clip.
-                    if self._profile is not None:
-                        candidate_cos = _cosine_similarity(
-                            query_dense_vector, other_clips[o_idx].get("passage_dense")
-                        )
-                        displaced_cos = _cosine_similarity(
-                            query_dense_vector, same_clips[s_idx].get("passage_dense")
-                        )
-                        promote_other = (
-                            candidate_cos >= self._profile["threshold"]
-                            and displaced_cos - candidate_cos <= max_cosine_gap
-                        )
-                    else:
-                        promote_other = False
-                    if promote_other:
-                        balanced.append(other_clips[o_idx])
-                        o_idx += 1
-                    else:
-                        balanced.append(same_clips[s_idx])
-                        s_idx += 1
-                elif want_other:
-                    # nothing displaced (same-teacher partition exhausted) → plain append
-                    balanced.append(other_clips[o_idx])
-                    o_idx += 1
-                else:
-                    balanced.append(same_clips[s_idx])
-                    s_idx += 1
-            verified_clips = balanced
-        else:
-            verified_clips = verified_clips[:effective_max_clips]
-        t_rerank_ms = (time.monotonic() - t_rerank_start) * 1000.0
+        # Steps 4b-4d: reorder, optionally LLM-rerank, then balance and truncate.
+        rerank_result, verified_clips, t_rerank_ms = self._rerank_and_balance_candidates(
+            retrieval_query=retrieval_query,
+            verified_clips=verified_clips,
+            speculative_enabled=speculative_enabled,
+            fp_llm_tokens=fp_llm_tokens,
+            query_dense_vector=query_dense_vector,
+            teacher_id=teacher_id,
+            effective_max_clips=effective_max_clips,
+            n_quarantined=n_quarantined,
+            t_retrieval_ms=t_retrieval_ms,
+            t_integrity_ms=t_integrity_ms,
+            _ans_box=_ans_box,
+            start_time=start_time,
+        )
+        if rerank_result is not None:
+            return rerank_result
 
         # Step 5: Abstention check if zero verified clips
         if not verified_clips:
