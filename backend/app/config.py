@@ -55,6 +55,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # --- Version & Provenance (CQ-010 / T2-06) ---
+    git_sha: str = "unknown-sha"
+    schema_version: str = "1.0.0"
+
     # --- LLM Provider ---
     # Set LLM_PROVIDER to switch between backends:
     #   "openrouter"   → OpenRouter (deepseek/deepseek-chat generation,
@@ -75,6 +79,7 @@ class Settings(BaseSettings):
 
     # --- Sarvam Cloud API ---
     sarvam_api_key: str = ""  # API subscription key from dashboard.sarvam.ai
+    sarvam_rpm_limit: int = 60
     sarvam_cloud_model: str = "sarvam-30b"  # Main generation model — any Sarvam model works (sarvam-30b, sarvam-105b, sarvam-m)
     sarvam_cloud_classify_model: str = (
         "sarvam-30b"  # Classification model — can be same or different from generation model
@@ -704,6 +709,7 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom_contextual"
     qdrant_api_key: str = ""  # empty = no auth (current default); set to require API-key auth
+    qdrant_timeout: float = 30.0
     # Quantization strategy for the Qdrant dense vector index.
     # Quantization strategy for the Qdrant dense vector index.
     # Options: scalar_int8 (default, current production behavior), binary,
@@ -783,6 +789,7 @@ class Settings(BaseSettings):
     # Distinct service-role key for worker/admin paths (no RLS). Falls back
     # to supabase_key when unset, matching auth_service.get_current_user_from_supabase.
     supabase_service_key: Optional[str] = None
+    supabase_service_role_key: Optional[str] = None
     # Public anon/publishable key. `SUPABASE_ANON_KEY` is set in .env, but until
     # now no Settings field declared it -- and pydantic-settings runs with
     # extra="ignore", so it was silently dropped. Anything reaching for it via
@@ -828,6 +835,8 @@ class Settings(BaseSettings):
     kg_max_query_len: int = Field(default=4_000, gt=0)
     kg_query_timeout_s: float = Field(default=5.0, gt=0)
     kg_subgraph_max_edges: int = Field(default=200, ge=1, le=2_000)
+    kg_max_concurrent_queries: int = 10
+    lightrag_query_timeout_seconds: float = 30.0
     lightrag_graph_storage: str = Field(
         default="MemgraphStorage",
         description="LightRAG graph backend: 'MemgraphStorage' (default, C++) or 'Neo4JStorage' (legacy, JVM)",
@@ -977,10 +986,15 @@ class Settings(BaseSettings):
 
     # --- Data Quality ---
     data_audit_enabled: bool = True
+    data_quality_gate_enabled: bool = True
+    quality_gate_threshold: Optional[float] = None
+    upload_dir: Optional[str] = None
+    llm_generate_timeout: float = 60.0
 
     # --- Redis ---
     # Default uses 'redis' resolving inside Docker Compose. For local non-docker dev, override with REDIS_URL=redis://localhost:6379/0 via .env
     redis_url: str = "redis://redis:6379/0"
+    redis_password: Optional[str] = None
     # Exact-query cache only; queue/session/quota/telemetry/Second Brain namespaces
     # are intentionally outside this ceiling.
     redis_cache_max_keys: int = Field(default=10_000, ge=0, le=1_000_000)
@@ -2020,6 +2034,8 @@ class Settings(BaseSettings):
     # (sigmoid-normalized [0,1]), skip the LLM grading and sufficiency calls for
     # complex queries — saves 2 serial LLM round-trips. 0 disables.
     crag_skip_confidence: float = 0.75
+    crag_score_delta_ratio: float = 0.5
+    citation_by_sentence: bool = True
     # The deep graph adds a second verifier after standard verification. Skip
     # only when the first verifier already returned a strict faithful pass;
     # disable this flag to restore the duplicate contradiction check.
