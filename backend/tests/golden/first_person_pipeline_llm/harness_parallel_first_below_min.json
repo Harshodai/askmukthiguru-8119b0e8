@@ -1,0 +1,134 @@
+{
+  "events": [
+    {
+      "confidence": 0.95,
+      "llm_tokens": 404,
+      "n_citations": 1,
+      "n_quarantined": 0,
+      "reason": "none",
+      "status": "success"
+    }
+  ],
+  "llm_calls": [
+    "scorer",
+    "scorer"
+  ],
+  "result": {
+    "abstain_reason": "none",
+    "answer_text": {
+      "chars": 156,
+      "sha256": "8f19873c865fd4943a53c4eb9414fd5471f0191619c5823eadbbe45507a2cfb4"
+    },
+    "answerability": null,
+    "atma_vichara_inquiry": null,
+    "audio_playback_clip": {
+      "duration_sec": 1,
+      "end_sec": 1,
+      "speaker": "Sri Krishnaji",
+      "start_sec": 0,
+      "title": "Discourse by Sri Krishnaji",
+      "url": "https://www.youtube.com/watch?v=vid_test_1",
+      "video_id": "vid_test_1"
+    },
+    "audio_playback_clips": [
+      {
+        "duration_sec": 1,
+        "end_sec": 1,
+        "speaker": "Sri Krishnaji",
+        "start_sec": 0,
+        "title": "Discourse by Sri Krishnaji",
+        "url": "https://www.youtube.com/watch?v=vid_test_1",
+        "video_id": "vid_test_1"
+      }
+    ],
+    "cached": false,
+    "citations": [
+      {
+        "asr_artifacts": [],
+        "boundary_status": "verified",
+        "caption_status": "auto_transcript",
+        "category": "teaching",
+        "channel": null,
+        "completeness_status": "complete",
+        "confidence": 0.95,
+        "corpus_version": "ctx-v1",
+        "domain_rights_status": "licensed",
+        "end_ms": 900,
+        "end_sec": 1,
+        "first_person_eligible": true,
+        "guru_id": "krishnaji",
+        "is_verbatim": true,
+        "label": null,
+        "parent_unit_id": "parent_102",
+        "playback_end_seconds": 1.15,
+        "playback_start_seconds": 0.0,
+        "playback_url": "https://www.youtube.com/watch?v=vid_test_1&t=0s",
+        "point_id": "d8c02c68-b477-52b4-b198-c2701b367b39",
+        "provenance_kind": "speech_turn_span",
+        "quality_status": "verified_verbatim",
+        "quarantine_reason": null,
+        "review_choice": null,
+        "review_guidelines_version": null,
+        "reviewed_at": null,
+        "reviewed_audio_sha256": null,
+        "reviewer_id": null,
+        "rights_cleared": true,
+        "source_asset_id": "vid_test_1",
+        "source_span_id": "dbc71491fc7a26c21819acae4ba4bd65226ee78f2225b6627e91ec4cca45edf6",
+        "source_span_index": 0,
+        "source_text_hash": "8f19873c865fd4943a53c4eb9414fd5471f0191619c5823eadbbe45507a2cfb4",
+        "source_url": "https://www.youtube.com/watch?v=vid_test_1",
+        "speaker": "Sri Krishnaji",
+        "speaker_id": "krishnaji",
+        "speaker_role": "guru",
+        "speaker_verification_status": "verified",
+        "speaker_verified": true,
+        "start_ms": 0,
+        "start_sec": 0,
+        "tags": [],
+        "teacher_id": "krishnaji",
+        "text_snippet": {
+          "chars": 156,
+          "sha256": "8f19873c865fd4943a53c4eb9414fd5471f0191619c5823eadbbe45507a2cfb4"
+        },
+        "timestamp_seconds": 0,
+        "title": "Discourse by Sri Krishnaji",
+        "topic_ids": [],
+        "transcript_hash": "8f19873c865fd4943a53c4eb9414fd5471f0191619c5823eadbbe45507a2cfb4",
+        "transcript_status": "auto_transcript",
+        "url": "https://www.youtube.com/watch?v=vid_test_1",
+        "verbatim_text": {
+          "chars": 156,
+          "sha256": "8f19873c865fd4943a53c4eb9414fd5471f0191619c5823eadbbe45507a2cfb4"
+        },
+        "video_id": "vid_test_1",
+        "video_transcript_hash": "8f19873c865fd4943a53c4eb9414fd5471f0191619c5823eadbbe45507a2cfb4",
+        "video_url": "https://www.youtube.com/watch?v=vid_test_1",
+        "voice_calibration_id": "synthetic-calibration-v1",
+        "voice_margin": 0.22,
+        "voice_model_revision": "synthetic-model-rev",
+        "voice_score": 0.91,
+        "voice_threshold_applied": {
+          "cosine_floor": 0.75,
+          "margin_threshold": 0.15
+        },
+        "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
+        "voice_verified_at": "2026-11-02T00:00:00Z",
+        "voice_window_check": "pass",
+        "word_end": 6,
+        "word_start": 0
+      }
+    ],
+    "detected_concepts": [],
+    "error": null,
+    "is_direct_answer": true,
+    "practice_recommendation": null,
+    "related_clips_heading": null,
+    "second_quote_note": null,
+    "status": "success"
+  },
+  "store": {
+    "points_servable_calls": 0,
+    "search_hybrid_calls": 0
+  }
+}

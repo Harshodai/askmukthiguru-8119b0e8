@@ -1,0 +1,108 @@
+{
+  "events": [
+    {
+      "confidence": 1.0,
+      "llm_tokens": 197,
+      "n_citations": 1,
+      "n_quarantined": 0,
+      "reason": "none",
+      "status": "success"
+    }
+  ],
+  "llm_calls": [
+    "scorer"
+  ],
+  "result": {
+    "abstain_reason": "none",
+    "answer_text": {
+      "chars": 367,
+      "sha256": "de8eb77b5e8d39cfba94efa27908d0e5831f1e5e82d69a80dbe6a37f87d4fcd1"
+    },
+    "answerability": null,
+    "atma_vichara_inquiry": "*What is the thought or expectation you are clinging to right now that creates this inner ache?*\n\n*Can you witness this suffering without attempting to escape it, and notice how much of it circles around your own self?*",
+    "audio_playback_clip": {
+      "duration_sec": 10,
+      "end_sec": 75,
+      "speaker": "Sri Preethaji",
+      "start_sec": 65,
+      "title": null,
+      "url": "https://www.youtube.com/watch?v=vid_abc&t=65s",
+      "video_id": "vid_abc"
+    },
+    "audio_playback_clips": [
+      {
+        "duration_sec": 10,
+        "end_sec": 75,
+        "speaker": "Sri Preethaji",
+        "start_sec": 65,
+        "title": null,
+        "url": "https://www.youtube.com/watch?v=vid_abc&t=65s",
+        "video_id": "vid_abc"
+      }
+    ],
+    "cached": false,
+    "citations": [
+      {
+        "asr_artifacts": [],
+        "caption_status": "auto_transcript",
+        "channel": null,
+        "confidence": 1.0,
+        "domain_rights_status": "licensed",
+        "end_ms": 75000,
+        "end_sec": 75,
+        "first_person_eligible": true,
+        "is_verbatim": true,
+        "playback_end_seconds": 75.25,
+        "playback_start_seconds": 64.75,
+        "playback_url": "https://www.youtube.com/watch?v=vid_abc&t=64s",
+        "point_id": "p1",
+        "provenance_kind": "speech_turn_clip",
+        "rights_cleared": true,
+        "source_url": "https://www.youtube.com/watch?v=vid_abc&t=65s",
+        "speaker": "Sri Preethaji",
+        "speaker_verified": false,
+        "start_ms": 65000,
+        "start_sec": 65,
+        "teacher_id": "preethaji",
+        "text_snippet": {
+          "chars": 152,
+          "sha256": "abc846117ce7e6bf150bfd1ddc8dd71a07e5cceeca7a028c54b70fdd0909116b"
+        },
+        "timestamp_seconds": 65,
+        "title": "Watch on YouTube",
+        "transcript_hash": "abc846117ce7e6bf150bfd1ddc8dd71a07e5cceeca7a028c54b70fdd0909116b",
+        "transcript_status": "auto_transcript",
+        "url": "https://www.youtube.com/watch?v=vid_abc&t=65s",
+        "verbatim_text": {
+          "chars": 152,
+          "sha256": "abc846117ce7e6bf150bfd1ddc8dd71a07e5cceeca7a028c54b70fdd0909116b"
+        },
+        "video_id": "vid_abc",
+        "video_url": "https://www.youtube.com/watch?v=vid_abc",
+        "voice_verification_method": null
+      }
+    ],
+    "detected_concepts": [
+      "Suffering"
+    ],
+    "error": null,
+    "is_direct_answer": true,
+    "practice_recommendation": null,
+    "related_clips_heading": "Sri Preethaji speaks to a related theme:",
+    "second_quote_note": null,
+    "status": "success"
+  },
+  "store": {
+    "points_servable_calls": 0,
+    "search_hybrid_calls": 1,
+    "search_hybrid_kwargs": {
+      "allow_same_video_distinct_spans": false,
+      "dedup_limit": 40,
+      "deduplicate": false,
+      "limit": 80,
+      "query_dense_vector": "vector[2]",
+      "query_sparse_vector": null,
+      "teacher_id": null
+    }
+  }
+}
