@@ -1998,6 +1998,26 @@ class _RetrievalOutcome:
     practice_intent: bool = False
 
 
+@dataclass(slots=True)
+class _ConfidenceOutcome:
+    """What Step 6 leaves for assembly: the chosen clip, its score and the verdict.
+
+    ``result`` is set only on a terminal early exit (a relevance or answerability
+    abstention); the caller returns it and ignores the other fields.
+    """
+
+    result: Optional[FirstPersonPipelineResult] = None
+    verified_clips: list[dict[str, Any]] = field(default_factory=list)
+    clip_scores: list[float] = field(default_factory=list)
+    second_clip: Optional[dict[str, Any]] = None
+    second_score: float = 0.0
+    scorer_ms: float = 0.0
+    top_clip: Optional[dict[str, Any]] = None
+    confidence: float = 0.0
+    is_direct: bool = False
+    answerability: Optional[str] = None
+
+
 class FirstPersonPipeline:
     """
     Executes first-person verbatim retrieval, validation, and citation serving.
@@ -5323,6 +5343,249 @@ class FirstPersonPipeline:
 
         return None
 
+    def _decide_confidence(
+        self,
+        *,
+        query: str,
+        query_dense_vector: list[float],
+        retrieval_query: str,
+        verified_clips: list[dict[str, Any]],
+        speculative_enabled: bool,
+        early_verdict: Any,
+        fp_llm_tokens: list[int],
+        n_quarantined: int,
+        t_retrieval_ms: float,
+        t_integrity_ms: float,
+        t_rerank_ms: float,
+        _ans_box: dict[str, Any],
+        start_time: float,
+    ) -> _ConfidenceOutcome:
+        """Step 6: score the candidates, apply the relevance gate and set confidence.
+
+        One dense cosine per clip feeds the confidence decision, the per-clip filter
+        and the citation, with no keyword boost (the profile threshold is fitted on
+        raw cosine). The relevance gate scores the top candidates and abstains below
+        its minimum or on an indeterminate scorer verdict; the answerability verdict
+        joined earlier is reused here rather than asked again. A terminal abstention
+        comes back as ``outcome.result``; the rest of the request reads the remaining
+        fields.
+        """
+        # Step 6: Calibrated Confidence Decision
+        # One cosine per clip, reused by the confidence decision, the per-clip filter and the citation.
+        clip_scores = [
+            _cosine_similarity(query_dense_vector, c.get("passage_dense")) for c in verified_clips
+        ]
+
+        # No keyword boost: the profile threshold is fitted on raw dense cosine
+        # (invariant 3). A topic word in the QUESTION says nothing about whether
+        # the CLIP answers it, and +0.1 on the score would let a fitted profile
+        # promote a topic match to "direct answer" (removed 2026-10-05).
+
+        # Relevance gate (2026-10-11): the answerability gate only reads the QUESTION, so an
+        # in-domain question was always served its top clip whatever that clip said. Score
+        # (question, clip) for the top candidates and serve the best >= min score, else abstain.
+        t_scorer_start = time.monotonic()
+        second_clip: Optional[dict[str, Any]] = None
+        second_score = 0.0
+        if getattr(settings, "first_person_relevance_gate_enabled", True):
+            candidates = verified_clips[:3]
+            rel_scores: list[int] = []
+            if speculative_enabled and candidates:
+                min_rel = int(getattr(settings, "first_person_relevance_min_score", 3))
+                # Cascade Reranker-to-Scorer Filtering (Track 1):
+                # Only score candidate #1 first. If candidate #1 passes with score >= min_rel,
+                # serve it immediately. Only evaluate candidate #2 on tie/rejection.
+                scores_c1: list[int] = []
+                pick_c1 = _relevance_select(
+                    retrieval_query or query,
+                    [candidates[0]],
+                    self._llm_service,
+                    self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                    scores_out=scores_c1,
+                )
+                if pick_c1 == 0 and scores_c1 and scores_c1[0] >= min_rel:
+                    pick = 0
+                    rel_scores = scores_c1
+                elif pick_c1 == _RELEVANCE_INDETERMINATE:
+                    pick = _RELEVANCE_INDETERMINATE
+                    rel_scores = []
+                elif len(candidates) > 1:
+                    # Clips 2 and 3 are scored together in one call, so the third
+                    # candidate is no longer silently dropped (audit 2026-10-25;
+                    # review R5) and the worst case is still two scorer calls.
+                    scores_rest: list[int] = []
+                    pick_rest = _relevance_select(
+                        retrieval_query or query,
+                        candidates[1:],
+                        self._llm_service,
+                        self._llm_loop,
+                        token_sink=fp_llm_tokens,
+                        scores_out=scores_rest,
+                    )
+                    if pick_rest == _RELEVANCE_INDETERMINATE:
+                        pick = _RELEVANCE_INDETERMINATE
+                        rel_scores = []
+                    elif pick_rest is not None and scores_rest:
+                        pick = 1 + pick_rest
+                        rel_scores = [scores_c1[0] if scores_c1 else 0, *scores_rest]
+                    else:
+                        pick = None
+                        rel_scores = [scores_c1[0] if scores_c1 else 0, *scores_rest]
+                else:
+                    pick = None
+                    rel_scores = scores_c1
+            else:
+                pick = _relevance_select(
+                    retrieval_query or query,
+                    candidates,
+                    self._llm_service,
+                    self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                    scores_out=rel_scores,
+                )
+            if pick is None or pick == _RELEVANCE_INDETERMINATE:
+                t_scorer_ms = (time.monotonic() - t_scorer_start) * 1000.0
+                latency = (time.monotonic() - start_time) * 1000.0
+                abstain_answerability = (
+                    "relevance_indeterminate" if pick is not None else "relevance_below_min"
+                )
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": round(t_integrity_ms, 2),
+                    "rerank_ms": round(t_rerank_ms, 2),
+                    "scorer_ms": round(t_scorer_ms, 2),
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
+                self._log_and_count(
+                    "abstained",
+                    latency,
+                    clip_scores[0],
+                    n_quarantined,
+                    0,
+                    abstain_answerability,
+                    sum(fp_llm_tokens),
+                )
+                return _ConfidenceOutcome(
+                    result=FirstPersonPipelineResult(
+                        answer_text="No verified first-person discourse found for this question.",
+                        citations=[],
+                        status="abstained",
+                        is_direct_answer=False,
+                        latency_ms=latency,
+                        answerability=abstain_answerability,
+                        abstain_reason=abstain_answerability,
+                        stage_timings=stage_timings,
+                        # A25: the candidates are integrity-verified; they simply did
+                        # not reach the relevance minimum, so they are offered as
+                        # explicitly related, not-answer clips (flag-gated). Indeterminate
+                        # is a scorer failure, not a below-min verdict — offer nothing there.
+                        related_clips=(
+                            _related_clips_for(verified_clips, clip_scores) if pick is None else []
+                        ),
+                    )
+                )
+            if getattr(settings, "first_person_second_quote_enabled", False) and len(
+                rel_scores
+            ) == len(candidates):
+                minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
+                others = [
+                    i
+                    for i in range(len(candidates))
+                    if i != pick
+                    and rel_scores[i] >= minimum
+                    and candidates[i].get("video_id") != candidates[pick].get("video_id")
+                ]
+                if others:
+                    best_other = max(others, key=lambda i: (rel_scores[i], -i))
+                    second_clip, second_score = candidates[best_other], clip_scores[best_other]
+            if pick != 0:
+                verified_clips = [verified_clips[pick]] + [
+                    c for i, c in enumerate(verified_clips) if i != pick
+                ]
+                clip_scores = [clip_scores[pick]] + [
+                    s for i, s in enumerate(clip_scores) if i != pick
+                ]
+        t_scorer_ms = (time.monotonic() - t_scorer_start) * 1000.0
+
+        top_clip = verified_clips[0]
+        confidence = clip_scores[0]
+        is_direct = self._profile is not None and confidence >= self._profile["threshold"]
+
+        # Phase 2 (2026-09-30): answerability gate. Audit B served 3/3
+        # out-of-corpus questions as direct answers (top-1 cosine 0.48-0.65 vs the
+        # 0.45 threshold), so cosine alone cannot enforce the abstention contract.
+        # An LLM classifies the QUESTION only (YES/NO, never answers it) before
+        # is_direct=True is committed. Anything but YES — NO, timeout, provider
+        # error, degraded/canned output, unparseable output, no llm_service —
+        # fails toward the existing honest abstention shape (zero citations).
+        # Gated by first_person_answerability_check_enabled (kill-switch: flag off
+        # = exact pre-change behavior, no LLM call, byte-compatible cache keys).
+        answerability: Optional[str] = None
+        # 2026-10-11: the gate must cover EVERY clip about to be served, not only
+        # is_direct ones. With no calibration profile is_direct is always False, so
+        # the weak_match ("Related, not a direct answer") path skipped the gate and
+        # served 'capital of France' a leadership quote and 'bake a cake' an
+        # 'addicted to chocolate' quote (live, 2026-10-11).
+        if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
+            # RC-D-2: the verdict was already joined before rerank above; reuse
+            # it so the gate costs exactly one LLM call. Any unset state should
+            # have been resolved before rerank/scorer above; keep a defensive
+            # indeterminate mapping here rather than ever defaulting to YES.
+            verdict = None if early_verdict is _ANSWERABILITY_UNSET else early_verdict
+            answerability = {True: "yes", False: "no"}.get(verdict, "indeterminate")
+            logger.info(
+                "[FirstPersonPipeline] Answerability verdict=%s direct_served=%s",
+                answerability,
+                verdict is True,
+            )
+            if verdict is not True:
+                latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": round(t_integrity_ms, 2),
+                    "rerank_ms": round(t_rerank_ms, 2),
+                    "scorer_ms": round(t_scorer_ms, 2),
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
+                self._log_and_count(
+                    "abstained",
+                    latency,
+                    confidence,
+                    n_quarantined,
+                    0,
+                    "answerability_withheld",
+                    sum(fp_llm_tokens),
+                )
+                return _ConfidenceOutcome(
+                    result=FirstPersonPipelineResult(
+                        answer_text="No verified first-person discourse found for this question.",
+                        citations=[],
+                        status="abstained",
+                        is_direct_answer=False,
+                        latency_ms=latency,
+                        answerability=answerability,
+                        abstain_reason="answerability_withheld",
+                        stage_timings=stage_timings,
+                    )
+                )
+
+        return _ConfidenceOutcome(
+            verified_clips=verified_clips,
+            clip_scores=clip_scores,
+            second_clip=second_clip,
+            second_score=second_score,
+            scorer_ms=t_scorer_ms,
+            top_clip=top_clip,
+            confidence=confidence,
+            is_direct=is_direct,
+            answerability=answerability,
+        )
+
     def execute(
         self,
         query: str,
@@ -5534,205 +5797,34 @@ class FirstPersonPipeline:
         if empty_result is not None:
             return empty_result
 
-        # Step 6: Calibrated Confidence Decision
-        # One cosine per clip, reused by the confidence decision, the per-clip filter and the citation.
-        clip_scores = [
-            _cosine_similarity(query_dense_vector, c.get("passage_dense")) for c in verified_clips
-        ]
-
-        # No keyword boost: the profile threshold is fitted on raw dense cosine
-        # (invariant 3). A topic word in the QUESTION says nothing about whether
-        # the CLIP answers it, and +0.1 on the score would let a fitted profile
-        # promote a topic match to "direct answer" (removed 2026-10-05).
-
-        # Relevance gate (2026-10-11): the answerability gate only reads the QUESTION, so an
-        # in-domain question was always served its top clip whatever that clip said. Score
-        # (question, clip) for the top candidates and serve the best >= min score, else abstain.
-        t_scorer_start = time.monotonic()
-        second_clip: Optional[dict[str, Any]] = None
-        second_score = 0.0
-        if getattr(settings, "first_person_relevance_gate_enabled", True):
-            candidates = verified_clips[:3]
-            rel_scores: list[int] = []
-            if speculative_enabled and candidates:
-                min_rel = int(getattr(settings, "first_person_relevance_min_score", 3))
-                # Cascade Reranker-to-Scorer Filtering (Track 1):
-                # Only score candidate #1 first. If candidate #1 passes with score >= min_rel,
-                # serve it immediately. Only evaluate candidate #2 on tie/rejection.
-                scores_c1: list[int] = []
-                pick_c1 = _relevance_select(
-                    retrieval_query or query,
-                    [candidates[0]],
-                    self._llm_service,
-                    self._llm_loop,
-                    token_sink=fp_llm_tokens,
-                    scores_out=scores_c1,
-                )
-                if pick_c1 == 0 and scores_c1 and scores_c1[0] >= min_rel:
-                    pick = 0
-                    rel_scores = scores_c1
-                elif pick_c1 == _RELEVANCE_INDETERMINATE:
-                    pick = _RELEVANCE_INDETERMINATE
-                    rel_scores = []
-                elif len(candidates) > 1:
-                    # Clips 2 and 3 are scored together in one call, so the third
-                    # candidate is no longer silently dropped (audit 2026-10-25;
-                    # review R5) and the worst case is still two scorer calls.
-                    scores_rest: list[int] = []
-                    pick_rest = _relevance_select(
-                        retrieval_query or query,
-                        candidates[1:],
-                        self._llm_service,
-                        self._llm_loop,
-                        token_sink=fp_llm_tokens,
-                        scores_out=scores_rest,
-                    )
-                    if pick_rest == _RELEVANCE_INDETERMINATE:
-                        pick = _RELEVANCE_INDETERMINATE
-                        rel_scores = []
-                    elif pick_rest is not None and scores_rest:
-                        pick = 1 + pick_rest
-                        rel_scores = [scores_c1[0] if scores_c1 else 0, *scores_rest]
-                    else:
-                        pick = None
-                        rel_scores = [scores_c1[0] if scores_c1 else 0, *scores_rest]
-                else:
-                    pick = None
-                    rel_scores = scores_c1
-            else:
-                pick = _relevance_select(
-                    retrieval_query or query,
-                    candidates,
-                    self._llm_service,
-                    self._llm_loop,
-                    token_sink=fp_llm_tokens,
-                    scores_out=rel_scores,
-                )
-            if pick is None or pick == _RELEVANCE_INDETERMINATE:
-                t_scorer_ms = (time.monotonic() - t_scorer_start) * 1000.0
-                latency = (time.monotonic() - start_time) * 1000.0
-                abstain_answerability = (
-                    "relevance_indeterminate" if pick is not None else "relevance_below_min"
-                )
-                stage_timings = {
-                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
-                    "retrieval_ms": round(t_retrieval_ms, 2),
-                    "integrity_ms": round(t_integrity_ms, 2),
-                    "rerank_ms": round(t_rerank_ms, 2),
-                    "scorer_ms": round(t_scorer_ms, 2),
-                    "assembly_ms": 0.0,
-                    "total_ms": round(latency, 2),
-                }
-                self._log_and_count(
-                    "abstained",
-                    latency,
-                    clip_scores[0],
-                    n_quarantined,
-                    0,
-                    abstain_answerability,
-                    sum(fp_llm_tokens),
-                )
-                return FirstPersonPipelineResult(
-                    answer_text="No verified first-person discourse found for this question.",
-                    citations=[],
-                    status="abstained",
-                    is_direct_answer=False,
-                    latency_ms=latency,
-                    answerability=abstain_answerability,
-                    abstain_reason=abstain_answerability,
-                    stage_timings=stage_timings,
-                    # A25: the candidates are integrity-verified; they simply did
-                    # not reach the relevance minimum, so they are offered as
-                    # explicitly related, not-answer clips (flag-gated). Indeterminate
-                    # is a scorer failure, not a below-min verdict — offer nothing there.
-                    related_clips=(
-                        _related_clips_for(verified_clips, clip_scores) if pick is None else []
-                    ),
-                )
-            if getattr(settings, "first_person_second_quote_enabled", False) and len(
-                rel_scores
-            ) == len(candidates):
-                minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
-                others = [
-                    i
-                    for i in range(len(candidates))
-                    if i != pick
-                    and rel_scores[i] >= minimum
-                    and candidates[i].get("video_id") != candidates[pick].get("video_id")
-                ]
-                if others:
-                    best_other = max(others, key=lambda i: (rel_scores[i], -i))
-                    second_clip, second_score = candidates[best_other], clip_scores[best_other]
-            if pick != 0:
-                verified_clips = [verified_clips[pick]] + [
-                    c for i, c in enumerate(verified_clips) if i != pick
-                ]
-                clip_scores = [clip_scores[pick]] + [
-                    s for i, s in enumerate(clip_scores) if i != pick
-                ]
-        t_scorer_ms = (time.monotonic() - t_scorer_start) * 1000.0
-
-        top_clip = verified_clips[0]
-        confidence = clip_scores[0]
-        is_direct = self._profile is not None and confidence >= self._profile["threshold"]
-
-        # Phase 2 (2026-09-30): answerability gate. Audit B served 3/3
-        # out-of-corpus questions as direct answers (top-1 cosine 0.48-0.65 vs the
-        # 0.45 threshold), so cosine alone cannot enforce the abstention contract.
-        # An LLM classifies the QUESTION only (YES/NO, never answers it) before
-        # is_direct=True is committed. Anything but YES — NO, timeout, provider
-        # error, degraded/canned output, unparseable output, no llm_service —
-        # fails toward the existing honest abstention shape (zero citations).
-        # Gated by first_person_answerability_check_enabled (kill-switch: flag off
-        # = exact pre-change behavior, no LLM call, byte-compatible cache keys).
-        answerability: Optional[str] = None
-        # 2026-10-11: the gate must cover EVERY clip about to be served, not only
-        # is_direct ones. With no calibration profile is_direct is always False, so
-        # the weak_match ("Related, not a direct answer") path skipped the gate and
-        # served 'capital of France' a leadership quote and 'bake a cake' an
-        # 'addicted to chocolate' quote (live, 2026-10-11).
-        if bool(getattr(settings, "first_person_answerability_check_enabled", False)):
-            # RC-D-2: the verdict was already joined before rerank above; reuse
-            # it so the gate costs exactly one LLM call. Any unset state should
-            # have been resolved before rerank/scorer above; keep a defensive
-            # indeterminate mapping here rather than ever defaulting to YES.
-            verdict = None if early_verdict is _ANSWERABILITY_UNSET else early_verdict
-            answerability = {True: "yes", False: "no"}.get(verdict, "indeterminate")
-            logger.info(
-                "[FirstPersonPipeline] Answerability verdict=%s direct_served=%s",
-                answerability,
-                verdict is True,
-            )
-            if verdict is not True:
-                latency = (time.monotonic() - start_time) * 1000.0
-                stage_timings = {
-                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
-                    "retrieval_ms": round(t_retrieval_ms, 2),
-                    "integrity_ms": round(t_integrity_ms, 2),
-                    "rerank_ms": round(t_rerank_ms, 2),
-                    "scorer_ms": round(t_scorer_ms, 2),
-                    "assembly_ms": 0.0,
-                    "total_ms": round(latency, 2),
-                }
-                self._log_and_count(
-                    "abstained",
-                    latency,
-                    confidence,
-                    n_quarantined,
-                    0,
-                    "answerability_withheld",
-                    sum(fp_llm_tokens),
-                )
-                return FirstPersonPipelineResult(
-                    answer_text="No verified first-person discourse found for this question.",
-                    citations=[],
-                    status="abstained",
-                    is_direct_answer=False,
-                    latency_ms=latency,
-                    answerability=answerability,
-                    abstain_reason="answerability_withheld",
-                    stage_timings=stage_timings,
-                )
+        # Step 6: calibrated confidence, with the relevance gate and the
+        # already-joined answerability verdict deciding directness.
+        confidence_outcome = self._decide_confidence(
+            query=query,
+            query_dense_vector=query_dense_vector,
+            retrieval_query=retrieval_query,
+            verified_clips=verified_clips,
+            speculative_enabled=speculative_enabled,
+            early_verdict=early_verdict,
+            fp_llm_tokens=fp_llm_tokens,
+            n_quarantined=n_quarantined,
+            t_retrieval_ms=t_retrieval_ms,
+            t_integrity_ms=t_integrity_ms,
+            t_rerank_ms=t_rerank_ms,
+            _ans_box=_ans_box,
+            start_time=start_time,
+        )
+        if confidence_outcome.result is not None:
+            return confidence_outcome.result
+        verified_clips = confidence_outcome.verified_clips
+        clip_scores = confidence_outcome.clip_scores
+        second_clip = confidence_outcome.second_clip
+        second_score = confidence_outcome.second_score
+        t_scorer_ms = confidence_outcome.scorer_ms
+        top_clip = confidence_outcome.top_clip
+        confidence = confidence_outcome.confidence
+        is_direct = confidence_outcome.is_direct
+        answerability = confidence_outcome.answerability
 
         # ponytail: retrieve matching OKF entries using in-memory vector matching (<1ms)
         okf_entries: list[dict[str, Any]] = []
