@@ -1709,30 +1709,18 @@ openSereneMind('audio');
             ),
           );
           streamingWorked = true;
-        } else if (fullContent || streamedFinalText) {
-          // Prefer the arrived `final` text: on a done-less disconnect the
-          // complete answer already arrived and must not be discarded for an
-          // error card. Partial tokens are the fallback, never nothing.
-          const recovered = streamedFinalText ?? fullContent;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: recovered } : m))
-          );
-          toast({ title: t('chat.connectionInterrupted', 'Connection interrupted'), description: t('chat.responseIncomplete', 'Response may be incomplete.') });
-          streamingWorked = true;
         } else {
+          // T1-18 (UX-005): Never persist or display unlabelled teacher text on an
+          // interrupted or incomplete stream. On any done-less disconnect or error,
+          // discard partial content and render the safe retryable error card.
           const streamDetail = err?.message ?? '';
           const streamOffline = !navigator.onLine || /network|fetch|failed to fetch|load failed/i.test(streamDetail);
           const streamErrorCode = err?.errorCode || (streamOffline ? 'network' : undefined);
           const canFallbackToJson =
             navigator.onLine &&
+            !gotFirstToken &&
             (streamErrorCode === 'network' || streamErrorCode === 'unknown');
 
-          // A proxy, static preview, or browser-specific fetch path can fail
-          // before the first token even though the JSON API is healthy. Leave
-          // streamingWorked false so the existing non-stream path below runs
-          // exactly once; do not render a terminal ERR_UNKNOWN for this case.
-          // Auth, quota, rate-limit, policy, and server errors remain terminal
-          // here because retrying them would duplicate a meaningful failure.
           if (canFallbackToJson) {
             streamingWorked = false;
           } else {

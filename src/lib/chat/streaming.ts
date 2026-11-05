@@ -28,6 +28,27 @@ export function splitSseLines(buffer: string): { lines: string[]; remainder: str
   return { lines: lines.slice(0, -1), remainder: lines[lines.length - 1] ?? '' };
 }
 
+export const DEFAULT_STREAM_TIMEOUT_MS = 30_000;
+
+async function readWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new Error('Stream timed out waiting for server response.');
+        (error as RichError).errorCode = 'timeout';
+        reject(error);
+      }, timeoutMs);
+    });
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * Streaming variant of sendMessage. Yields content chunks as they arrive
  * from an SSE/chunked endpoint. Falls back by throwing if streaming is
@@ -55,6 +76,7 @@ export async function* sendMessageStreaming(
   attachmentContext?: string,
   languageOverride?: string,
   personalizeTeaching?: PersonalizeTeachingRef,
+  streamTimeoutMs: number = DEFAULT_STREAM_TIMEOUT_MS,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -235,7 +257,7 @@ export async function* sendMessageStreaming(
   try {
     while (true) {
       if (signal?.aborted) break;
-      const { done, value } = await reader.read();
+      const { done, value } = await readWithTimeout(reader.read(), streamTimeoutMs);
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const { lines: sseLines, remainder } = splitSseLines(buffer);
@@ -401,7 +423,9 @@ export async function* sendMessageStreaming(
       }
     }
     if (!signal?.aborted && !doneSeen) {
-      throw new Error('The response stream ended before completion metadata was received.');
+      const err = new Error('The response stream ended before completion metadata was received.');
+      (err as RichError).errorCode = 'stream_interrupted';
+      throw err;
     }
     await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId: effectiveSessionId, tags: { provider: 'custom', endpoint: 'stream' } });
   } finally {

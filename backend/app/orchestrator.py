@@ -439,11 +439,31 @@ async def _drain_stream_to_redis(
                     logger.debug("Pipeline task failed in queue worker: %s", e)
                     completion_payload = "__ERROR__"
                 else:
+                    completion_payload = None
                     # Queued workers drain raw generation chunks directly and
                     # therefore do not pass through ChatStreamRequestOrchestrator
                     # (which emits the authoritative normalized final event).
                     # Always persist that final event here, including cache hits
                     # where the queue contains no text chunks at all.
+                    # T1-18 (UX-005): Done event with metadata (citations, labels,
+                    # safety notices) is published before final text so clients never
+                    # receive final text without authoritative metadata.
+                    done_payload = json.dumps(
+                        {
+                            "event": "done",
+                            "data": json.dumps(_stream_done_metadata(pipeline_result)),
+                        },
+                        ensure_ascii=False,
+                    )
+                    done_published_at = time.time()
+                    await r.xadd(stream_key, {"data": done_payload}, maxlen=1000)
+                    await _record_queue_milestone(
+                        r,
+                        job_id,
+                        done_published_at=str(done_published_at),
+                        trace_id=str(getattr(pipeline_result, "trace_id", "")),
+                    )
+
                     final_payload = json.dumps(
                         {
                             "event": "final",
@@ -462,20 +482,15 @@ async def _drain_stream_to_redis(
                         final_published_at=str(final_published_at),
                         trace_id=str(getattr(pipeline_result, "trace_id", "")),
                     )
-                    completion_payload = json.dumps(
-                        {
-                            "event": "done",
-                            "data": json.dumps(_stream_done_metadata(pipeline_result)),
-                        },
-                        ensure_ascii=False,
+
+                if completion_payload == "__ERROR__":
+                    done_published_at = time.time()
+                    await r.xadd(stream_key, {"data": completion_payload}, maxlen=1000)
+                    await _record_queue_milestone(
+                        r,
+                        job_id,
+                        done_published_at=str(done_published_at),
                     )
-                done_published_at = time.time()
-                await r.xadd(stream_key, {"data": completion_payload}, maxlen=1000)
-                await _record_queue_milestone(
-                    r,
-                    job_id,
-                    done_published_at=str(done_published_at),
-                )
                 final_timestamp = locals().get("final_published_at")
                 trace_id = str(getattr(locals().get("pipeline_result"), "trace_id", "")) or "-"
                 logger.info(

@@ -108,6 +108,15 @@ function buildMessageErrorInner(
         actionLabel: 'retry',
         detail: message,
       };
+    case 'stream_interrupted':
+      return {
+        kind: 'network',
+        title: 'Connection interrupted',
+        description: 'The answer could not be completed before the connection was lost. Please retry.',
+        retryable: true,
+        actionLabel: 'retry',
+        detail: message,
+      };
     default:
       return {
         kind: 'unknown',
