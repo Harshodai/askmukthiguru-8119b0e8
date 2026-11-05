@@ -339,8 +339,6 @@ class SourceSpan(BaseModel):
                 payload["span_text_sha256"] = self.source_text_hash
             if not payload.get("video_transcript_sha256") and self.transcript_hash:
                 payload["video_transcript_sha256"] = self.transcript_hash
-        elif not payload.get("span_text_sha256") and self.source_text_hash:
-            payload["span_text_sha256"] = self.source_text_hash
         return payload
 
     def retrieval_text(self, contextual_header: str = "") -> str:

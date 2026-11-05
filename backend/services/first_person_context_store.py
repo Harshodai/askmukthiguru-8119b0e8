@@ -25,9 +25,13 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
     FieldCondition,
     Filter,
+    Fusion,
+    FusionQuery,
     MatchAny,
     MatchValue,
     PointStruct,
+    Prefetch,
+    SparseVector,
 )
 
 from app.config import settings
@@ -490,6 +494,7 @@ class FirstPersonContextStore:
 
         groups = self._query_groups(
             query_dense,
+            query_sparse=query_sparse,
             query_filter=query_filter,
             limit_parents=limit_parents,
             spans_per_parent=spans_per_parent,
@@ -520,22 +525,54 @@ class FirstPersonContextStore:
         self,
         query_dense: list[float],
         *,
+        query_sparse: Optional[dict[str, Any]] = None,
         query_filter: Filter,
         limit_parents: int,
         spans_per_parent: int,
     ) -> list[tuple[str, tuple[str, ...], float]]:
+        has_sparse = bool(query_sparse and query_sparse.get("indices"))
         if hasattr(self._client, "query_points_groups"):
             try:
-                response = self._client.query_points_groups(
-                    collection_name=self._collection,
-                    query=query_dense,
-                    using="passage_dense",
-                    query_filter=query_filter,
-                    group_by="parent_unit_id",
-                    limit=limit_parents * 3,
-                    group_size=spans_per_parent,
-                    with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
-                )
+                if has_sparse:
+                    prefetch_limit = max(limit_parents * spans_per_parent * 3, 40)
+                    sp_vector = SparseVector(
+                        indices=query_sparse["indices"],
+                        values=query_sparse["values"],
+                    )
+                    prefetch_queries = [
+                        Prefetch(
+                            query=query_dense,
+                            using="passage_dense",
+                            limit=prefetch_limit,
+                            filter=query_filter,
+                        ),
+                        Prefetch(
+                            query=sp_vector,
+                            using="passage_sparse",
+                            limit=prefetch_limit,
+                            filter=query_filter,
+                        ),
+                    ]
+                    response = self._client.query_points_groups(
+                        collection_name=self._collection,
+                        prefetch=prefetch_queries,
+                        query=FusionQuery(fusion=Fusion.RRF),
+                        group_by="parent_unit_id",
+                        limit=limit_parents * 3,
+                        group_size=spans_per_parent,
+                        with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
+                    )
+                else:
+                    response = self._client.query_points_groups(
+                        collection_name=self._collection,
+                        query=query_dense,
+                        using="passage_dense",
+                        query_filter=query_filter,
+                        group_by="parent_unit_id",
+                        limit=limit_parents * 3,
+                        group_size=spans_per_parent,
+                        with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
+                    )
                 out: list[tuple[str, tuple[str, ...], float]] = []
                 for group in getattr(response, "groups", []) or []:
                     hits = list(getattr(group, "hits", []) or [])
@@ -554,6 +591,7 @@ class FirstPersonContextStore:
 
         return self._group_in_python(
             query_dense,
+            query_sparse=query_sparse,
             query_filter=query_filter,
             limit_parents=limit_parents,
             spans_per_parent=spans_per_parent,
@@ -563,24 +601,60 @@ class FirstPersonContextStore:
         self,
         query_dense: list[float],
         *,
+        query_sparse: Optional[dict[str, Any]] = None,
         query_filter: Filter,
         limit_parents: int,
         spans_per_parent: int,
     ) -> list[tuple[str, tuple[str, ...], float]]:
-        response = self._client.query_points(
-            collection_name=self._collection,
-            query=query_dense,
-            using="passage_dense",
-            query_filter=query_filter,
-            limit=limit_parents * spans_per_parent * 3,
-            with_payload=[
-                "parent_unit_id",
-                "source_span_id",
-                "start_ms",
-                "end_ms",
-                "verbatim_text",
-            ],
-        )
+        has_sparse = bool(query_sparse and query_sparse.get("indices"))
+        if has_sparse:
+            prefetch_limit = max(limit_parents * spans_per_parent * 3, 40)
+            sp_vector = SparseVector(
+                indices=query_sparse["indices"],
+                values=query_sparse["values"],
+            )
+            prefetch_queries = [
+                Prefetch(
+                    query=query_dense,
+                    using="passage_dense",
+                    limit=prefetch_limit,
+                    filter=query_filter,
+                ),
+                Prefetch(
+                    query=sp_vector,
+                    using="passage_sparse",
+                    limit=prefetch_limit,
+                    filter=query_filter,
+                ),
+            ]
+            response = self._client.query_points(
+                collection_name=self._collection,
+                prefetch=prefetch_queries,
+                query=FusionQuery(fusion=Fusion.RRF),
+                limit=limit_parents * spans_per_parent * 3,
+                with_payload=[
+                    "parent_unit_id",
+                    "source_span_id",
+                    "start_ms",
+                    "end_ms",
+                    "verbatim_text",
+                ],
+            )
+        else:
+            response = self._client.query_points(
+                collection_name=self._collection,
+                query=query_dense,
+                using="passage_dense",
+                query_filter=query_filter,
+                limit=limit_parents * spans_per_parent * 3,
+                with_payload=[
+                    "parent_unit_id",
+                    "source_span_id",
+                    "start_ms",
+                    "end_ms",
+                    "verbatim_text",
+                ],
+            )
         hits = list(getattr(response, "points", []) or [])
         grouped: dict[str, list[Any]] = {}
         for hit in hits:
