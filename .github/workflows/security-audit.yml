@@ -15,6 +15,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+# gitleaks-action v3 lists a pull request's commits through the REST API on
+# `pull_request` events, so it needs `pull-requests: read` on top of the default
+# `contents: read`. Without it the scan dies with 403 "Resource not accessible
+# by integration" before it produces any result, i.e. the secret scan silently
+# stops scanning. The scan itself is unchanged.
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   security-audit:
     name: Pre-Launch Security Checklist
