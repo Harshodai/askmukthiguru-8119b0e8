@@ -77,6 +77,7 @@ from services.first_person_store import (
     _OUTCOME_PROMISE_CLIP_RE,
     BLOCKED_PROMISE_POINT_IDS,
     FirstPersonStore,
+    deduplicate_clips_by_video,
 )
 from services.first_person_video_decisions import video_is_blocked
 from services.memory.okf_store import match_okf_entries
@@ -4656,6 +4657,7 @@ class FirstPersonPipeline:
                 # spare videos: a clip the integrity gate quarantines is backfilled
                 dedup_limit=max(40, effective_max_clips * 8),
                 allow_same_video_distinct_spans=has_practice_intent,
+                deduplicate=False,
             )
 
         spec_val = getattr(settings, "first_person_speculative_parallelism_enabled", False)
@@ -4898,6 +4900,8 @@ class FirstPersonPipeline:
         teacher_id: Optional[str],
         query: str,
         retrieval_query: str,
+        dedup_limit: Optional[int] = None,
+        allow_same_video_distinct_spans: bool = False,
     ) -> tuple[list[dict[str, Any]], int, float]:
         """Step 4: apply the serve-time gates and report what survived.
 
@@ -4905,6 +4909,7 @@ class FirstPersonPipeline:
         duration. The integrity, content-quality and speaker-verification checks
         fail closed; the allowlist is an intersect and the blocklist wins over it,
         so an unapproved or quarantined clip can never win a slot back.
+        After all quality gates run, deduplicates per video (T4-01 / RET-01).
         """
         # Step 4: Serve-time Integrity Gate
         t_int_start = time.monotonic()
@@ -4975,6 +4980,13 @@ class FirstPersonPipeline:
                 retrieval_query=retrieval_query,
             ).may_serve
         ]
+        if dedup_limit:
+            # T4-01 (RET-01): Gate first, then dedup per video.
+            verified_clips = deduplicate_clips_by_video(
+                verified_clips,
+                max_clips=dedup_limit,
+                allow_same_video_distinct_spans=allow_same_video_distinct_spans,
+            )
         t_integrity_ms = (time.monotonic() - t_int_start) * 1000.0
 
         return verified_clips, n_quarantined, t_integrity_ms
@@ -5728,12 +5740,15 @@ class FirstPersonPipeline:
         effective_max_clips = outcome.max_clips
         has_practice_intent = outcome.practice_intent
 
-        # Step 4: serve-time integrity gate, then the allowlist/blocklist quarantine.
+        # Step 4: serve-time integrity gate, then the allowlist/blocklist quarantine,
+        # then per-video deduplication (T4-01 / RET-01).
         verified_clips, n_quarantined, t_integrity_ms = self._verify_candidates(
             raw_clips=raw_clips,
             teacher_id=teacher_id,
             query=query,
             retrieval_query=retrieval_query,
+            dedup_limit=max(40, effective_max_clips * 8),
+            allow_same_video_distinct_spans=has_practice_intent,
         )
 
         # Served text is the stored verbatim_text, byte for byte (invariants 2
@@ -6272,6 +6287,7 @@ class FirstPersonPipeline:
                 teacher_id=teacher_id,
                 limit=max(80, max_clips * 16),
                 dedup_limit=max(40, max_clips * 8),
+                deduplicate=False,
             )
         except Exception as e:
             logger.error(f"[FirstPersonPipeline] Compound retrieval failed: {e}")
@@ -6334,6 +6350,11 @@ class FirstPersonPipeline:
                 retrieval_query=retrieval_query,
             ).may_serve
         ]
+        # T4-01 (RET-01): Gate first, then dedup per video.
+        verified_clips = deduplicate_clips_by_video(
+            verified_clips,
+            max_clips=max(40, max_clips * 8),
+        )
         stage_timings["integrity_ms"] = round((time.monotonic() - t_int_start) * 1000.0, 2)
 
         if not verified_clips:

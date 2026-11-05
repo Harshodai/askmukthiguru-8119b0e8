@@ -643,10 +643,11 @@ class FirstPersonStore:
         limit: int = 10,
         dedup_limit: int = 3,
         allow_same_video_distinct_spans: bool = False,
+        deduplicate: bool = True,
     ) -> list[dict[str, Any]]:
         """
         RRF hybrid search over passage_dense + passage_sparse (bake-off B.R0).
-        Returns up to dedup_limit clips, max 1 per video_id (or up to 2 if distinct spans allowed).
+        Returns up to limit clips, deduplicated per video_id if deduplicate is True.
         """
         must_conditions: list[FieldCondition] = [
             FieldCondition(key="first_person_eligible", match=MatchValue(value=True)),
@@ -729,6 +730,9 @@ class FirstPersonStore:
                 raw_vector.get("passage_dense") if isinstance(raw_vector, dict) else None
             )
             formatted.append(item)
+
+        if not deduplicate:
+            return formatted[:limit]
 
         # Enforce max 1 clip per video invariant (or up to 2 distinct spans if requested)
         return deduplicate_clips_by_video(

@@ -36,6 +36,7 @@
     "search_hybrid_kwargs": {
       "allow_same_video_distinct_spans": false,
       "dedup_limit": 40,
+      "deduplicate": false,
       "limit": 80,
       "query_dense_vector": "vector[2]",
       "query_sparse_vector": null,
