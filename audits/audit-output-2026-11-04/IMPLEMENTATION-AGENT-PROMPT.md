@@ -418,3 +418,11 @@ Follow-ups this task deliberately leaves open (not regressions): the fp-context 
 | T2-05 | `fixture-stores.yml` workflow with real Qdrant + Redis service containers; `backend/tests/test_fixture_stores.py` (7 tests asserting retrieval rights filter, register join, serve-time point checks, exact cache replay) | 7 passed in 1.10s locally; fixture store CI workflow | — |
 | T2-03 remainder | `stage_latencies_ms` breakdown in `answer_outcome`; `TokenAccumulator.record_call` tracking per-call prompt, model, tokens, cost; `compute_useful_answer` and `record_useful_answer_signal`; `/feedback/engagement` endpoint | 15 passed in 0.33s; 36 passed in pipeline stages/accounting | Supabase persistent audit table sink write (needs migration) |
 | T2-01 | `evals/pr_suite/` (`routing.jsonl`, `distress_benign.jsonl`, `distress_crisis.jsonl`, `abstain_null.jsonl`, `quote_integrity.py`, `voice_lint.py`); `backend/tests/test_offline_pr_suite.py`; wired into `eval-gate.yml` so every PR runs offline quality tests without live secrets | 6 passed in 0.32s | Clinician review of `distress_crisis.jsonl` to make it blocking |
+
+### 0m. Sixth batch (2026-11-05)
+
+| Item | What landed | Verified | Left |
+|---|---|---|---|
+| T2-02 | `evals/retrieval_bank/` (`metrics.py`, `bank.jsonl`, `harness.py`); `backend/tests/test_retrieval_bank_harness.py` (Recall@k, MRR, nDCG@k, bootstrap 95% CI) | 6 passed in 0.29s | Owner expansion of frozen queries across all doctrine topics |
+| T2-06 | Declared 14 missing settings fields on `app.config.Settings` (timeouts, limits, quality gates, RAG flags, redis/supabase keys); `scripts/guards/config_lint.py`; `backend/tests/test_config_lint.py` asserting 0 undeclared `getattr(settings, ...)` in repo code | 3 passed in 2.75s; config guard exit 0 | — |
+| T3-02 | Qdrant read-only/write key governance on `Settings` and `backend/docker-compose.yml`; `compute_collection_digest` and signed collection digest startup verification in `first_person_serving_contract.py`; `backend/tests/test_qdrant_write_governance.py` | 7 passed in 0.16s; backend write attempt fails 403; digest mismatch fails startup in production | Production Railway secret configuration (infrastructure) |

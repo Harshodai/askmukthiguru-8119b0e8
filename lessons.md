@@ -1,6 +1,23 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 5, 2026 — Batch 6: Config lint and Qdrant write governance (T2-06, T3-02)
+
+### L-CONFIG-LINT-UNDECLARED-SETTINGS-1. Unvalidated getattr(settings, ...) reads create invisible configuration debt.
+- **What:** Fourteen attributes in backend and ops scripts were read via `getattr(settings, "xxx", default)` without being declared in `app.config.Settings`. Pydantic ignored them in `.env`, so operators setting `QDRANT_TIMEOUT` or `LLM_GENERATE_TIMEOUT` saw the default silently win.
+- **Fix:** Declared all 14 fields on `Settings` with typed defaults, and built `scripts/guards/config_lint.py` + `backend/tests/test_config_lint.py` (3 passed) asserting 0 undeclared `getattr(settings, ...)` in repo code.
+- **Rule:** Every setting read in the codebase must be explicitly declared on `Settings`; never use `getattr` as a backdoor for ad-hoc configuration.
+
+### L-QDRANT-WRITE-GOVERNANCE-1. Backend service containers must never hold write credentials to vector stores.
+- **What:** Without key separation (DATA-06), any code in the serving backend could accidentally or maliciously mutate collection payloads, causing incidents like the v11 speaker re-marking.
+- **Fix:** Added `qdrant_read_only_api_key` and `qdrant_write_api_key`. Pinned `docker-compose.yml` so the backend container receives only read-only credentials, while Qdrant enforces read-only access for queries and rejects writes with 403 Forbidden.
+- **Rule:** Datastores must run with least privilege; runtime web backends receive read-only keys, while write keys are restricted to offline build/migration harnesses.
+
+### L-SERVING-CONTRACT-SIGNED-DIGEST-1. Signed collection digests prevent silent drift of vetted teaching corpora.
+- **What:** Serving contracts declared schemas and models, but could not detect out-of-band point mutations or additions to approved collections.
+- **Fix:** Added `compute_collection_digest` (deterministic SHA-256 over sorted point ID and text hashes) and wired `collection_digest` validation into `validate_serving_contract` and `assert_startup_safe`. Mismatched digests fail production startup closed.
+- **Rule:** An approved collection must be pinned by a cryptographic digest of its contents, verified before traffic is admitted.
+
 ## Nov 5, 2026 — Batch 5: Fixture stores, outcome telemetry, and offline PR eval suite (T2-05, T2-03, T2-01)
 
 ### L-OFFLINE-EVAL-GATE-1. Quality gates must never be inert in PRs: run deterministic suites in-process.
