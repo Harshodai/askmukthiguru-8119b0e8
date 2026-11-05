@@ -1,6 +1,24 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 5, 2026 — Batch 5: Fixture stores, outcome telemetry, and offline PR eval suite (T2-05, T2-03, T2-01)
+
+### L-OFFLINE-EVAL-GATE-1. Quality gates must never be inert in PRs: run deterministic suites in-process.
+- **What:** Without a live `BACKEND_URL`, eval gates historically skipped entirely with "This PR received no live quality proof". This left PRs unguarded against routing regressions, voice impersonations, and quote tampering.
+- **Fix:** Added `evals/pr_suite/` containing deterministic routing, benign/crisis distress, abstain null cases, quote integrity, and voice lint, wired directly into `eval-gate.yml` so every PR runs offline tests in <1s.
+- **Rule:** Every CI gate must have an in-process offline tier that exercises deterministic routing, safety pre-screens, quote integrity, and voice governance without requiring live network secrets.
+
+### L-TELEMETRY-PER-CALL-ACCOUNTING-1. Granular LLM accounting and stage latencies belong in the turn outcome.
+- **What:** Measuring cost per useful answer (SYS-011) requires per-call `prompt_id@version`, token in/out, and cost_usd, alongside stage latencies, without ever logging seeker or answer text.
+- **Fix:** Extended `TokenAccumulator` to capture individual calls, wired `OpenRouterService` to record operation metadata, and surfaced stage latencies and engagement feedback (`compute_useful_answer`) in `answer_outcome`.
+- **Rule:** Never aggregate token usage into a single opaque integer; record per-call operation and model metadata in the request context and funnel it into the failure-tolerant outcome event.
+
+### L-FIXTURE-STORE-STRICT-CI-1. Store-level contracts must run against real engine containers.
+- **What:** Mocked vector and cache clients cannot prove that Qdrant filters out unlicensed clips at retrieval time or that Redis exact-cache replay validates citation integrity on deserialize.
+- **Fix:** Added `.github/workflows/fixture-stores.yml` running real Qdrant and Redis service containers with `FIXTURE_STORES_REQUIRED=1` so an unreachable store is a hard failure, not a silent skip.
+- **Rule:** When testing rights filters and cache security invariants, execute against pinned engine containers. Locally skip gracefully if docker is absent, but fail closed in CI.
+
+
 ## Nov 5, 2026 — T7-01 split of `FirstPersonPipeline.execute`
 
 ### L-SPLIT-BY-INDENTATION-1. A behaviour-identical split is a relocation, and a relocation can be proven byte-for-byte.

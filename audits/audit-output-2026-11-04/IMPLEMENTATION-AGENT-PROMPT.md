@@ -410,3 +410,12 @@ Recommended way to run them: one task per session, on a fresh branch from the PR
 Method: each slice moved a contiguous region under its original indentation, so the move is a pure relocation. Only the signature, docstring, call site, the wrapper around a terminal `return` and a closing `return None` are new. Every slice was checked two ways before commit — `git status` shows no golden-file change, and an AST comparison of the moved body against the pre-slice file equals after unwrapping the returned outcome — then `ruff check`, `ruff format --check` (0.15.13), the three lesson guards and the pre-commit whitespace/EOF hooks.
 
 Follow-ups this task deliberately leaves open (not regressions): the fp-context harness block is one method; `execute` still threads ~20 locals through keyword arguments, which is what T7-02 replaces with a request object when it makes the lane async; the `_RetrievalOutcome` / `_ConfidenceOutcome` split is a transitional shape T7-02/T4-06 may collapse.
+
+### 0l. Fifth batch (2026-11-05)
+
+| Item | What landed | Verified | Left |
+|---|---|---|---|
+| T2-05 | `fixture-stores.yml` workflow with real Qdrant + Redis service containers; `backend/tests/test_fixture_stores.py` (7 tests asserting retrieval rights filter, register join, serve-time point checks, exact cache replay) | 7 passed in 1.10s locally; fixture store CI workflow | — |
+| T2-03 remainder | `stage_latencies_ms` breakdown in `answer_outcome`; `TokenAccumulator.record_call` tracking per-call prompt, model, tokens, cost; `compute_useful_answer` and `record_useful_answer_signal`; `/feedback/engagement` endpoint | 15 passed in 0.33s; 36 passed in pipeline stages/accounting | Supabase persistent audit table sink write (needs migration) |
+| T2-01 | `evals/pr_suite/` (`routing.jsonl`, `distress_benign.jsonl`, `distress_crisis.jsonl`, `abstain_null.jsonl`, `quote_integrity.py`, `voice_lint.py`); `backend/tests/test_offline_pr_suite.py`; wired into `eval-gate.yml` so every PR runs offline quality tests without live secrets | 6 passed in 0.32s | Clinician review of `distress_crisis.jsonl` to make it blocking |
+
