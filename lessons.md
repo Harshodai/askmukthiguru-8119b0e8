@@ -1,6 +1,23 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 5, 2026 — Batch 11: Cache consolidation, exception/import ratchets, and teacher extensibility (T7-04, T7-05, T8-01)
+
+### L-CACHE-VERSIONING-COLLECTION-BOUND-1. Bind collection version, prompt version, and cache version into exact cache keys; ban semantic cache on teachings.
+- **What:** In CQ-003, exact-match and semantic caching were decoupled from collection versions and prompt versions. Changing collections or prompt versions left stale doctrine answers in Redis that survived for 7 days unless flushed. Teaching answers were also written to similarity-based semantic caches, causing cross-question paraphrase bleed.
+- **Fix:** In `backend/app/pipeline/pipeline_coordinator.py`, bound `:col:{collection}:pv:{prompt_version}:cv:{cache_version}` directly into `_build_context_aware_cache_key`, automatically invalidating exact cache entries upon collection repointing or cache version bump without requiring a manual Redis flush. In `backend/app/pipeline/stages/cache_stage.py`, strictly excluded first-person teachings and verified clips from semantic and vector cache writes, and added a guard in `CacheCheckStage` to discard any legacy semantic cache hit containing teaching indicators or citations.
+- **Rule:** Exact cache keys must always bind collection, prompt, and cache version identifiers. Teaching answers and verbatim clips must be exact-cache only; never write or serve them from similarity-based semantic caches.
+
+### L-EXCEPTION-RATCHET-ZERO-FP-SWALLOW-1. Enforce zero silent swallows in core serving and track broad exceptions with decreasing ratchets.
+- **What:** In CQ-006, 1,513 broad `except Exception` blocks and silent `pass` swallows hid downstream errors in background ingestion, gateway fallbacks, and graph queries, causing silent failures and "fail open" regressions.
+- **Fix:** In `backend/services/first_person_pipeline.py`, `first_person_graph_expansion.py`, `first_person_ingest_service.py`, and `llm_gateway.py`, eliminated silent exception swallows, replacing `pass` with debug logging. Added `scripts/guards/exception_ratchet.py` and `scripts/guards/exception_baseline.txt` to enforce 0 silent swallows in `services/first_person*` and pin the broad exception ceiling (729) as a ratchet that may only decrease. Added `scripts/guards/import_layer_lint.py` (CQ-007) to enforce layer boundaries (`domain` -> `services` -> `rag` -> `app.pipeline` -> `app.api`) and bound grandfathered cross-layer imports (21 <= 50).
+- **Rule:** Silent `pass` in exception handlers is forbidden across first-person serving and pipeline paths. Broad exception counts and cross-layer imports must be enforced by automated ratchet guards that fail on regression.
+
+### L-TEACHER-REGISTRY-DATA-DRIVEN-GUARD-1. Drive serving, attribution, rights, and impersonation guardrails from one authoritative teacher registry.
+- **What:** In GURU-010, `backend/config/gurus.yaml` defined teachers for serving, but impersonation guardrails in `lightweight_handler.py` hardcoded regexes for only two founders (`krishnaji|preethaji`), leaving new registered teachers unprotected against persona escape.
+- **Fix:** Extended `backend/config/gurus.yaml` with `rights_policy`, `attribution_policy`, `sources`, `voice_refs`, and `allowed_surfaces`. Extended `Guru` dataclass in `backend/services/guru_registry.py`, added schema validation (`validate_guru_registry_schema`), and created dynamic impersonation pattern generator `get_impersonation_patterns()`. Wired dynamic patterns into `persona_escape` in `backend/guardrails/lightweight_handler.py`, and added `scripts/guards/guru_literal_guard.py` to ensure all configured teachers generate safety boundaries.
+- **Rule:** One authoritative registry (`gurus.yaml`) must drive both serving filters and guardrail refusal patterns. Safety rails must dynamically compile impersonation boundaries from the registry rather than hardcoding names.
+
 ## Nov 5, 2026 — Batch 10: Persona preferences, honest copy and controls, and one LLM gateway (T6-03, T6-10, T7-03)
 
 ### L-USER-PREFERENCES-NO-PSYCHOLOGICAL-PROFILING-1. Group user-stated facts and explicit preferences; strictly ban speculative psychological or spiritual profiling.
