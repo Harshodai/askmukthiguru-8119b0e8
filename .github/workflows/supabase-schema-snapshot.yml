@@ -1,0 +1,46 @@
+name: Supabase Schema Snapshot & Migration Lint (DATA-11 / T3-08)
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/schema_snapshot.sql'
+      - 'scripts/guards/migration_lint.py'
+      - '.github/workflows/supabase-schema-snapshot.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  schema-snapshot-check:
+    name: Verify migration integrity and schema snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run migration duplicate check and snapshot presence
+        run: |
+          python scripts/guards/migration_lint.py
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase and dump schema
+        run: |
+          supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,supavisor
+          supabase db dump --local --schema public -f /tmp/current_schema.sql
+
+      - name: Diff current schema against committed snapshot
+        run: |
+          python scripts/guards/migration_lint.py --dump-file /tmp/current_schema.sql
