@@ -1,6 +1,23 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 5, 2026 — Batch 7: Builder replace, schema snapshot CI, and continuous data audit (T3-04, T3-08, T3-05)
+
+### L-BUILDER-PER-VIDEO-REPLACE-1. Rebuilding a single video must purge prior points to prevent duplicate and orphaned spans.
+- **What:** Without `--replace-existing` and a pre-upsert delete by `video_id`, rebuilding an asset resulted in point duplication, broken chain continuity, and conflicting span boundaries (DATA-05).
+- **Fix:** Added `--replace-existing` to `build_full_corpus_v10.py` which scrolls existing points for the video and deletes them before new span upsert, refused empty builds with non-zero exit, and enforced taking a pre-build snapshot before the first write.
+- **Rule:** Incremental index builders must delete existing points for target asset IDs prior to upserting new spans and snapshot the collection before writing.
+
+### L-SCHEMA-SNAPSHOT-MIGRATION-LINT-1. Database schema drift originates from unchecked duplicate CREATE TABLE statements across authoring tools.
+- **What:** Mixing independent authoring tools (Lovable UUID migrations and hand-written scripts) produced 32 tables created more than once via `CREATE TABLE IF NOT EXISTS` (DATA-11), causing silent column divergence on fresh databases.
+- **Fix:** Dumped verified clean public schema to `supabase/schema_snapshot.sql`, built `scripts/guards/migration_lint.py` enforcing zero duplicate table definitions after baseline, and added `.github/workflows/supabase-schema-snapshot.yml` to diff fresh migration dumps against the committed snapshot.
+- **Rule:** All database schema changes past the baseline must be unified in a single table definition and guarded by CI schema snapshot comparison.
+
+### L-SCORECARD-PROMOTION-GATE-1. Promotion of vector corpora requires continuous data-quality gates and approved=served verification.
+- **What:** Serving collections could drift silently without continuous verification, and candidate collections could be served even while failing gating scorecard checks or declaring mismatched corpus versions (DATA-14, DATA-15, DATA-16).
+- **Fix:** Added `evaluate_promotion_gate` in `fp_data_quality_scorecard.py` (enforcing 0 BLOCKER/HIGH failures and strict clean >= 60%), added `approved_corpus_version` validation to `first_person_serving_contract.py`, extended `data_quality_audit.py` to audit first-person points (verifying digests and flagging `verified_without_method`), and wired checks into nightly CI.
+- **Rule:** Never promote a corpus without passing the data-quality scorecard, and strictly verify at startup that the served collection matches the approved release record's corpus version and signed digest.
+
 ## Nov 5, 2026 — Batch 6: Config lint and Qdrant write governance (T2-06, T3-02)
 
 ### L-CONFIG-LINT-UNDECLARED-SETTINGS-1. Unvalidated getattr(settings, ...) reads create invisible configuration debt.
