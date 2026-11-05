@@ -2,8 +2,14 @@
 
 import json
 
-from app.answer_outcome import build_answer_outcome, emit_answer_outcome
-from app.metrics import ANSWER_OUTCOME_TOTAL, INTEGRITY_BREACH_TOTAL
+from app.answer_outcome import (
+    build_answer_outcome,
+    compute_useful_answer,
+    emit_answer_outcome,
+    record_useful_answer_signal,
+)
+from app.metrics import ANSWER_OUTCOME_TOTAL, INTEGRITY_BREACH_TOTAL, USEFUL_ANSWER_TOTAL
+from services.cost_tracker import TokenAccumulator
 
 SEEKER = "my secret question about grief"
 ANSWER = "verbatim teaching text"
@@ -54,11 +60,77 @@ def test_error():
 
 
 def test_no_seeker_text_or_ids():
-    r = _rec()
+    r = _rec(
+        stage_latencies_ms={"retrieval": 12.5, "rerank": 35.0},
+        llm_calls=[
+            {
+                "prompt_id": "answerability@v1",
+                "model": "deepseek/deepseek-chat",
+                "tokens_in": 120,
+                "tokens_out": 25,
+                "cost_usd": 0.00015,
+            }
+        ],
+    )
     blob = json.dumps(r)
     assert SEEKER not in blob and ANSWER not in blob
     for k in ("user_id", "session_id", "message", "answer", "final_answer"):
         assert k not in r
+    assert r["stage_latencies_ms"]["retrieval"] == 12.5
+    assert len(r["llm_calls"]) == 1
+    assert r["total_tokens_in"] == 120
+    assert r["total_tokens_out"] == 25
+    assert r["total_cost_usd"] == 0.00015
+
+
+def test_token_accumulator_records_calls():
+    acc = TokenAccumulator()
+    acc.record_call(
+        prompt_id="scorer@v2",
+        model="deepseek/deepseek-chat",
+        tokens_in=200,
+        tokens_out=50,
+        cost_usd=0.0003,
+    )
+    assert len(acc.llm_calls) == 1
+    call = acc.llm_calls[0]
+    assert call["prompt_id"] == "scorer@v2"
+    assert call["tokens_in"] == 200
+    assert call["tokens_out"] == 50
+    assert call["cost_usd"] == 0.0003
+
+
+def test_compute_useful_answer():
+    # useful_answer = served AND (helpful OR played >= 20 s OR saved) AND NOT reported
+    assert compute_useful_answer(outcome="served", helpful=True) == (True, "helpful")
+    assert compute_useful_answer(outcome="served", played_seconds=22.5) == (True, "played_20s")
+    assert compute_useful_answer(outcome="served", saved=True) == (True, "saved")
+
+    # Not served
+    assert compute_useful_answer(outcome="abstained", helpful=True) == (False, "not_served")
+    assert compute_useful_answer(outcome="crisis", played_seconds=30) == (False, "not_served")
+
+    # Reported cancels usefulness
+    assert compute_useful_answer(outcome="served", helpful=True, reported=True) == (
+        False,
+        "reported",
+    )
+    assert compute_useful_answer(outcome="served", played_seconds=30, reported=True) == (
+        False,
+        "reported",
+    )
+
+    # Unconfirmed
+    assert compute_useful_answer(outcome="served", helpful=False, played_seconds=5) == (
+        False,
+        "unconfirmed",
+    )
+
+
+def test_record_useful_answer_signal():
+    before = USEFUL_ANSWER_TOTAL.labels(lane="teaching", signal="helpful")._value.get()
+    record_useful_answer_signal(lane="teaching", signal="helpful")
+    assert USEFUL_ANSWER_TOTAL.labels(lane="teaching", signal="helpful")._value.get() == before + 1
 
 
 def test_integrity_breach_counter():
@@ -125,6 +197,29 @@ def test_early_return_paths_emit_exactly_once():
     for route in ("distress", "adversarial", "timeout", "error", "casual"):
         _, emit = _run_execute(PipelineResult(trace_id="t", route_decision=route))
         assert emit.call_count == 1, route
+
+
+def test_coordinator_passes_stage_latencies_and_llm_calls():
+    from app.pipeline.result import PipelineResult
+    from services.cost_tracker import TokenAccumulator, token_accumulator_var
+
+    acc = TokenAccumulator()
+    acc.record_call(prompt_id="test@v1", model="m", tokens_in=10, tokens_out=5, cost_usd=0.00001)
+    tok = token_accumulator_var.set(acc)
+    try:
+        res = PipelineResult(
+            trace_id="t_lat",
+            route_decision="first_person_bridge",
+            route_metadata={"stage_timings": {"retrieval_ms": 15.0}},
+        )
+        _, emit = _run_execute(res)
+        assert emit.call_count == 1
+        rec = emit.call_args.args[0]
+        assert rec["stage_latencies_ms"] == {"retrieval_ms": 15.0}
+        assert len(rec["llm_calls"]) == 1
+        assert rec["llm_calls"][0]["prompt_id"] == "test@v1"
+    finally:
+        token_accumulator_var.reset(tok)
 
 
 def test_result_assembly_no_longer_emits():

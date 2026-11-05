@@ -1192,6 +1192,7 @@ class FirstPersonBridgeStage(Stage):
                 "clips_served": len(citations),
                 "pipeline_latency_ms": round(float(getattr(result, "latency_ms", 0.0) or 0.0), 2),
                 "pipeline_cached": bool(getattr(result, "cached", False)),
+                "stage_timings": getattr(result, "stage_timings", {}) or {},
                 "routing_chain": list(getattr(ctx, "routing_chain", [])),
                 "audio_playback_clip": getattr(result, "audio_playback_clip", None),
                 "audio_playback_clips": getattr(result, "audio_playback_clips", []) or [],

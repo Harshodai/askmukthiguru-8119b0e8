@@ -41,11 +41,12 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass
+from contextvars import ContextVar
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from threading import Lock
-from typing import Optional
+from typing import Any, Optional
 
 from app.config import settings
 
@@ -514,7 +515,6 @@ def get_cost_tracker() -> CostTracker:
 
 
 # Token Accumulator & ContextVar for request-scoped token tracking
-from contextvars import ContextVar
 
 
 @dataclass
@@ -527,6 +527,27 @@ class TokenAccumulator:
     # runtime metrics never label an estimate as actual provider spend.
     cost_usd: float = 0.0
     estimated_cost_usd: float = 0.0
+    llm_calls: list[dict[str, Any]] = field(default_factory=list)
+
+    def record_call(
+        self,
+        *,
+        prompt_id: str,
+        model: str,
+        tokens_in: int,
+        tokens_out: int,
+        cost_usd: float = 0.0,
+    ) -> None:
+        """T2-03: record individual LLM call metadata (no text/payloads)."""
+        self.llm_calls.append(
+            {
+                "prompt_id": str(prompt_id or "unknown"),
+                "model": str(model or "unknown"),
+                "tokens_in": max(0, int(tokens_in or 0)),
+                "tokens_out": max(0, int(tokens_out or 0)),
+                "cost_usd": max(0.0, float(cost_usd or 0.0)),
+            }
+        )
 
 
 token_accumulator_var: ContextVar[Optional[TokenAccumulator]] = ContextVar(

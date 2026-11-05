@@ -460,6 +460,13 @@ class OpenRouterService:
                     acc.cost_usd += max(0.0, cost_usd)
                 acc.model = model
                 acc.provider = "openrouter"
+                acc.record_call(
+                    prompt_id=operation,
+                    model=model,
+                    tokens_in=tokens_in,
+                    tokens_out=tokens_out,
+                    cost_usd=cost_usd if cost_usd is not None else estimated_cost,
+                )
             from app.runtime_metrics import (
                 observe_openrouter_accounting,
                 observe_provider_actual_cost,

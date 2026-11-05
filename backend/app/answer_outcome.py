@@ -14,6 +14,7 @@ from app.metrics import (
     ANSWER_LATENCY_SECONDS,
     ANSWER_OUTCOME_TOTAL,
     INTEGRITY_BREACH_TOTAL,
+    USEFUL_ANSWER_TOTAL,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,12 +77,37 @@ def build_answer_outcome(
     model_used: str | None,
     blocked: bool = False,
     errored: bool = False,
+    stage_latencies_ms: dict[str, float] | None = None,
+    llm_calls: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build the record. Takes no text or identity arguments by design."""
     route = str(route_decision or "error")
     state = str(grounding_state or "unknown")
     ver = verification if isinstance(verification, dict) else {}
     ids = [i for i in (_cid(c) for c in (citations or [])) if i]
+
+    # Clean and bounded per-stage latencies
+    clean_stages = {
+        str(k)[:40]: round(float(v), 2)
+        for k, v in (stage_latencies_ms or {}).items()
+        if isinstance(v, (int, float)) and v >= 0
+    }
+
+    # Clean and bounded per-call LLM accounting (operation, model, tokens, cost)
+    clean_calls = []
+    for call in llm_calls or []:
+        if not isinstance(call, dict):
+            continue
+        clean_calls.append(
+            {
+                "prompt_id": str(call.get("prompt_id") or "unknown")[:80],
+                "model": str(call.get("model") or "unknown")[:80],
+                "tokens_in": max(0, int(call.get("tokens_in") or 0)),
+                "tokens_out": max(0, int(call.get("tokens_out") or 0)),
+                "cost_usd": round(max(0.0, float(call.get("cost_usd") or 0.0)), 6),
+            }
+        )
+
     return {
         "request_id": request_id,
         "lane": lane_for(route),
@@ -96,7 +122,52 @@ def build_answer_outcome(
         "cache_hit": bool(cache_hit),
         "latency_ms": latency_ms,
         "model_used": model_used,
+        "stage_latencies_ms": clean_stages,
+        "llm_calls": clean_calls,
+        "total_tokens_in": sum(c["tokens_in"] for c in clean_calls),
+        "total_tokens_out": sum(c["tokens_out"] for c in clean_calls),
+        "total_cost_usd": round(sum(c["cost_usd"] for c in clean_calls), 6),
     }
+
+
+def compute_useful_answer(
+    *,
+    outcome: str,
+    helpful: bool | None = None,
+    played_seconds: float | int = 0,
+    saved: bool = False,
+    reported: bool = False,
+) -> tuple[bool, str]:
+    """T2-03: Evaluate whether an outcome is a 'useful_answer'.
+
+    useful_answer = served AND (helpful OR played >= 20 s OR saved) AND NOT reported.
+    Returns (is_useful, reason).
+    """
+    if outcome != "served":
+        return False, "not_served"
+    if reported:
+        return False, "reported"
+    if helpful is True:
+        return True, "helpful"
+    try:
+        played = float(played_seconds or 0)
+    except (TypeError, ValueError):
+        played = 0.0
+    if played >= 20.0:
+        return True, "played_20s"
+    if saved:
+        return True, "saved"
+    return False, "unconfirmed"
+
+
+def record_useful_answer_signal(lane: str, signal: str) -> None:
+    """T2-03: record a useful answer signal in Prometheus metrics."""
+    try:
+        USEFUL_ANSWER_TOTAL.labels(
+            lane=str(lane or "teaching"), signal=str(signal or "unknown")
+        ).inc()
+    except Exception as exc:
+        logger.debug("useful_answer metric not recorded: %s", exc)
 
 
 def is_integrity_breach(record: dict[str, Any], *, first_person_only: bool) -> bool:

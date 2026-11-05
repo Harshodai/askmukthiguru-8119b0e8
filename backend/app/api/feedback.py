@@ -161,10 +161,43 @@ async def rate_feedback(
         result = await asyncio.to_thread(
             lambda: client.table("feedback_events").insert(row).execute()
         )
+        if body.feedback_type == "positive":
+            from app.answer_outcome import record_useful_answer_signal
+
+            record_useful_answer_signal("teaching", "helpful")
         return {"status": "ok", "id": result.data[0]["id"] if result.data else None}
     except Exception as e:
         logging.getLogger(__name__).error("Failed to store rate feedback: %s", e)
         raise HTTPException(status_code=500, detail="Failed to store feedback")
+
+
+class EngagementFeedbackRequest(BaseModel):
+    message_id: str = Field(..., max_length=255)
+    played_seconds: float = Field(default=0.0, ge=0.0)
+    saved: bool = False
+    reported: bool = False
+    lane: str = Field(default="teaching", max_length=50)
+
+
+@router.post("/engagement", status_code=200)
+@limiter.limit(settings.feedback_rate_limit)
+async def record_engagement(
+    request: Request,
+    body: EngagementFeedbackRequest,
+    user: Optional[dict] = Depends(get_current_user_from_supabase),
+):
+    """T2-03: records engagement signals (clip play time, saved) and updates useful_answer telemetry."""
+    from app.answer_outcome import compute_useful_answer, record_useful_answer_signal
+
+    is_useful, reason = compute_useful_answer(
+        outcome="served",
+        played_seconds=body.played_seconds,
+        saved=body.saved,
+        reported=body.reported,
+    )
+    if is_useful:
+        record_useful_answer_signal(lane=body.lane, signal=reason)
+    return {"status": "ok", "useful": is_useful, "reason": reason}
 
 
 def _get_supabase_client():

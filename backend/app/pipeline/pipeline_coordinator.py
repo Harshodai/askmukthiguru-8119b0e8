@@ -142,8 +142,14 @@ class PipelineCoordinator:
         try:
             from app.answer_outcome import build_answer_outcome, emit_answer_outcome
             from app.grounding import grounding_state_for
+            from services.cost_tracker import token_accumulator_var
 
             trace = result.evaluation_trace if isinstance(result.evaluation_trace, dict) else {}
+            acc = token_accumulator_var.get()
+            llm_calls = list(acc.llm_calls) if acc is not None else []
+            route_meta = result.route_metadata if isinstance(result.route_metadata, dict) else {}
+            stage_timings = route_meta.get("stage_timings") or result.node_timings or {}
+
             emit_answer_outcome(
                 build_answer_outcome(
                     request_id=result.trace_id or None,
@@ -157,6 +163,8 @@ class PipelineCoordinator:
                     model_used=result.model_used,
                     blocked=bool(result.blocked),
                     errored=result.route_decision in ("error", "timeout"),
+                    stage_latencies_ms=stage_timings,
+                    llm_calls=llm_calls,
                 ),
                 first_person_only=bool(
                     settings.first_person_chat_bridge_enabled

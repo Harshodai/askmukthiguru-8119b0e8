@@ -174,6 +174,11 @@ INTEGRITY_BREACH_TOTAL = Counter(
     "Teaching-lane turns that returned generated text in first-person-only mode",
     ["lane"],
 )
+USEFUL_ANSWER_TOTAL = Counter(
+    "guru_useful_answer_total",
+    "Useful answers determined from explicit and engagement signals",
+    ["lane", "signal"],
+)
 
 TELEMETRY_SINK_WRITES = Counter(
     "telemetry_sink_writes_total",
