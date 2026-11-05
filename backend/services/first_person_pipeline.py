@@ -4959,6 +4959,143 @@ class FirstPersonPipeline:
 
         return verified_clips, n_quarantined, t_integrity_ms
 
+    def _join_answerability_gate(
+        self,
+        *,
+        query_dense_vector: list[float],
+        retrieval_query: str,
+        verified_clips: list[dict[str, Any]],
+        n_quarantined: int,
+        t_retrieval_ms: float,
+        t_integrity_ms: float,
+        speculative_enabled: bool,
+        early_verdict: Any,
+        fp_llm_tokens: list[int],
+        _ans_box: dict[str, Any],
+        _ans_tokens: list[int],
+        _ans_future: Optional[Any],
+        start_time: float,
+    ) -> tuple[Optional[FirstPersonPipelineResult], Any]:
+        """RC-D-2 join: freeze the answerability verdict before any rerank or scorer.
+
+        The speculative path already ran the gate beside retrieval, so only the
+        non-speculative path joins here. A firm NO and an indeterminate verdict both
+        abstain and skip the rerank/scorer pair, which is why a timeout is fixed to
+        indeterminate and never reread. Returns the early result, if any, and the
+        request-local verdict.
+        """
+        # RC-D-2 join: the background gate overlapped retrieval above. Firm NO
+        # skips rerank/scorer; YES runs the full path. (Seventh review set:
+        # indeterminate — timed-out/failed worker — also skips, since it
+        # abstains either way; the Step 6 gate below agrees on both labels.)
+        # Zero verified clips still falls through to the Step 5 reason below,
+        # preserving the no_verified_clips > answerability_withheld precedence.
+        if not speculative_enabled:
+            early_verdict = _ans_box.get("verdict", _ANSWERABILITY_UNSET)
+            if _ans_future is not None:
+                # Bounded join: a hung gate worker must never stall serving. A
+                # timeout leaves early_verdict None = indeterminate, the same
+                # fail-toward-abstention path as a gate timeout below. Tokens
+                # merge only after the future completes, so every sum() below
+                # reads a serving-thread-only list.
+                try:
+                    _ans_future.result(timeout=_ANSWERABILITY_TIMEOUT_S)
+                    fp_llm_tokens.extend(_ans_tokens)
+                    early_verdict = _ans_box.get("verdict", _ANSWERABILITY_UNSET)
+                except TimeoutError:
+                    logger.info(
+                        "[FirstPersonPipeline] Answerability join timed out; "
+                        "continuing as indeterminate"
+                    )
+                    # The worker may still complete later, but this request's
+                    # decision is already fixed to indeterminate.  Never start
+                    # a second gate call and never reread the late future result.
+                    early_verdict = None
+                except Exception as exc:
+                    logger.info(
+                        "[FirstPersonPipeline] Answerability join failed; continuing as indeterminate: %s",
+                        exc,
+                    )
+                    early_verdict = None
+            if (
+                bool(getattr(settings, "first_person_answerability_check_enabled", False))
+                and early_verdict is _ANSWERABILITY_UNSET
+                and _ans_future is None
+            ):
+                # Defensive single-call fallback: an enabled gate that was not
+                # scheduled for any reason must resolve here, before rerank or
+                # scorer spend.  Its result is stored as the same request-local
+                # decision used below; there is no final-stage default.
+                ans_start = time.monotonic()
+                early_verdict = _answerability_check(
+                    retrieval_query,
+                    self._llm_service,
+                    request_loop=self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                )
+                _ans_box["verdict"] = early_verdict
+                _ans_box["duration_ms"] = (time.monotonic() - ans_start) * 1000.0
+            if (
+                bool(getattr(settings, "first_person_answerability_check_enabled", False))
+                and early_verdict is not True
+                and verified_clips
+            ):
+                # Anything other than a firm YES skips rerank/scorer: a NO verdict
+                # and an indeterminate (timed-out/failed gate worker) both end in
+                # abstention, so spending two more LLM calls cannot change the
+                # outcome. Label honestly: "no" for a firm NO, "indeterminate"
+                # otherwise (the Step 6 gate below agrees on both).
+                _is_firm_no = early_verdict is False
+                try:
+                    early_confidence = (
+                        _cosine_similarity(
+                            query_dense_vector, verified_clips[0].get("passage_dense")
+                        )
+                        if query_dense_vector
+                        else 0.0
+                    )
+                except Exception:  # noqa: BLE001 - logging confidence must not break serving
+                    early_confidence = 0.0
+                latency = (time.monotonic() - start_time) * 1000.0
+                stage_timings = {
+                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
+                    "retrieval_ms": round(t_retrieval_ms, 2),
+                    "integrity_ms": round(t_integrity_ms, 2),
+                    "rerank_ms": 0.0,
+                    "scorer_ms": 0.0,
+                    "assembly_ms": 0.0,
+                    "total_ms": round(latency, 2),
+                }
+                self._log_and_count(
+                    "abstained",
+                    latency,
+                    early_confidence,
+                    n_quarantined,
+                    0,
+                    "answerability_withheld",
+                    sum(fp_llm_tokens),
+                )
+                logger.info(
+                    "[FirstPersonPipeline] Answerability %s before scoring; "
+                    "skipped rerank/scorer (saved up to 2 LLM calls)",
+                    "NO" if _is_firm_no else "indeterminate",
+                )
+                return (
+                    FirstPersonPipelineResult(
+                        answer_text="No verified first-person discourse found for this question.",
+                        citations=[],
+                        status="abstained",
+                        is_direct_answer=False,
+                        latency_ms=latency,
+                        answerability="no" if _is_firm_no else "indeterminate",
+                        abstain_reason="answerability_withheld",
+                        stage_timings=stage_timings,
+                    ),
+                    early_verdict,
+                )
+
+        return None, early_verdict
+
     def execute(
         self,
         query: str,
@@ -5119,112 +5256,24 @@ class FirstPersonPipeline:
         # FirstPersonStore.upsert_clips), where the hash is written with it.
         # Pinned by tests/test_fp_serves_stored_text_2026_10_06.py.
 
-        # RC-D-2 join: the background gate overlapped retrieval above. Firm NO
-        # skips rerank/scorer; YES runs the full path. (Seventh review set:
-        # indeterminate — timed-out/failed worker — also skips, since it
-        # abstains either way; the Step 6 gate below agrees on both labels.)
-        # Zero verified clips still falls through to the Step 5 reason below,
-        # preserving the no_verified_clips > answerability_withheld precedence.
-        if not speculative_enabled:
-            early_verdict = _ans_box.get("verdict", _ANSWERABILITY_UNSET)
-            if _ans_future is not None:
-                # Bounded join: a hung gate worker must never stall serving. A
-                # timeout leaves early_verdict None = indeterminate, the same
-                # fail-toward-abstention path as a gate timeout below. Tokens
-                # merge only after the future completes, so every sum() below
-                # reads a serving-thread-only list.
-                try:
-                    _ans_future.result(timeout=_ANSWERABILITY_TIMEOUT_S)
-                    fp_llm_tokens.extend(_ans_tokens)
-                    early_verdict = _ans_box.get("verdict", _ANSWERABILITY_UNSET)
-                except TimeoutError:
-                    logger.info(
-                        "[FirstPersonPipeline] Answerability join timed out; "
-                        "continuing as indeterminate"
-                    )
-                    # The worker may still complete later, but this request's
-                    # decision is already fixed to indeterminate.  Never start
-                    # a second gate call and never reread the late future result.
-                    early_verdict = None
-                except Exception as exc:
-                    logger.info(
-                        "[FirstPersonPipeline] Answerability join failed; continuing as indeterminate: %s",
-                        exc,
-                    )
-                    early_verdict = None
-            if (
-                bool(getattr(settings, "first_person_answerability_check_enabled", False))
-                and early_verdict is _ANSWERABILITY_UNSET
-                and _ans_future is None
-            ):
-                # Defensive single-call fallback: an enabled gate that was not
-                # scheduled for any reason must resolve here, before rerank or
-                # scorer spend.  Its result is stored as the same request-local
-                # decision used below; there is no final-stage default.
-                ans_start = time.monotonic()
-                early_verdict = _answerability_check(
-                    retrieval_query,
-                    self._llm_service,
-                    request_loop=self._llm_loop,
-                    token_sink=fp_llm_tokens,
-                )
-                _ans_box["verdict"] = early_verdict
-                _ans_box["duration_ms"] = (time.monotonic() - ans_start) * 1000.0
-            if (
-                bool(getattr(settings, "first_person_answerability_check_enabled", False))
-                and early_verdict is not True
-                and verified_clips
-            ):
-                # Anything other than a firm YES skips rerank/scorer: a NO verdict
-                # and an indeterminate (timed-out/failed gate worker) both end in
-                # abstention, so spending two more LLM calls cannot change the
-                # outcome. Label honestly: "no" for a firm NO, "indeterminate"
-                # otherwise (the Step 6 gate below agrees on both).
-                _is_firm_no = early_verdict is False
-                try:
-                    early_confidence = (
-                        _cosine_similarity(
-                            query_dense_vector, verified_clips[0].get("passage_dense")
-                        )
-                        if query_dense_vector
-                        else 0.0
-                    )
-                except Exception:  # noqa: BLE001 - logging confidence must not break serving
-                    early_confidence = 0.0
-                latency = (time.monotonic() - start_time) * 1000.0
-                stage_timings = {
-                    "answerability_ms": round(float(_ans_box.get("duration_ms", 0.0)), 2),
-                    "retrieval_ms": round(t_retrieval_ms, 2),
-                    "integrity_ms": round(t_integrity_ms, 2),
-                    "rerank_ms": 0.0,
-                    "scorer_ms": 0.0,
-                    "assembly_ms": 0.0,
-                    "total_ms": round(latency, 2),
-                }
-                self._log_and_count(
-                    "abstained",
-                    latency,
-                    early_confidence,
-                    n_quarantined,
-                    0,
-                    "answerability_withheld",
-                    sum(fp_llm_tokens),
-                )
-                logger.info(
-                    "[FirstPersonPipeline] Answerability %s before scoring; "
-                    "skipped rerank/scorer (saved up to 2 LLM calls)",
-                    "NO" if _is_firm_no else "indeterminate",
-                )
-                return FirstPersonPipelineResult(
-                    answer_text="No verified first-person discourse found for this question.",
-                    citations=[],
-                    status="abstained",
-                    is_direct_answer=False,
-                    latency_ms=latency,
-                    answerability="no" if _is_firm_no else "indeterminate",
-                    abstain_reason="answerability_withheld",
-                    stage_timings=stage_timings,
-                )
+        # RC-D-2 join: freeze the answerability verdict before rerank or scorer.
+        join_result, early_verdict = self._join_answerability_gate(
+            query_dense_vector=query_dense_vector,
+            retrieval_query=retrieval_query,
+            verified_clips=verified_clips,
+            n_quarantined=n_quarantined,
+            t_retrieval_ms=t_retrieval_ms,
+            t_integrity_ms=t_integrity_ms,
+            speculative_enabled=speculative_enabled,
+            early_verdict=early_verdict,
+            fp_llm_tokens=fp_llm_tokens,
+            _ans_box=_ans_box,
+            _ans_tokens=_ans_tokens,
+            _ans_future=_ans_future,
+            start_time=start_time,
+        )
+        if join_result is not None:
+            return join_result
 
         # Step 4b: optional cross-encoder reorder of the verified candidates. Reorders
         # only; confidence below stays dense cosine (the calibration contract).
