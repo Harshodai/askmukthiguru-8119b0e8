@@ -54,6 +54,7 @@ from domain.speaker_provenance import (
 from ingest.verbatim.boundaries import boundary_defects
 from services.first_person_rights import source_is_authoritatively_licensed
 from services.first_person_video_decisions import blocked_video_ids_or_none, video_is_blocked
+from services.guru_registry import canonical_guru_id
 from services.text_quality_filter import find_artifact
 
 logger = logging.getLogger(__name__)
@@ -465,9 +466,8 @@ class FirstPersonContextStore:
             FieldCondition(key="speaker_verified", match=MatchValue(value=True)),
         ]
         if guru_id and guru_id.lower() not in ("both", "all", ""):
-            conditions.append(
-                FieldCondition(key="guru_id", match=MatchValue(value=guru_id.lower()))
-            )
+            canonical = canonical_guru_id(guru_id) or guru_id.lower()
+            conditions.append(FieldCondition(key="guru_id", match=MatchValue(value=canonical)))
         # Videos the owner rejected on the admin page are excluded here so they cannot crowd
         # real candidates out of the top-k. An invalid decisions file fails closed: no results.
         blocked_videos = blocked_video_ids_or_none()

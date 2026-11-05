@@ -161,6 +161,14 @@ def resolve_guru_id(value: str | None) -> str | None:
     candidate = unicodedata.normalize("NFKC", value or "").strip().lower()
     if not candidate:
         return None
+    if candidate in {
+        "preethaji_krishnaji",
+        "krishnaji_preethaji",
+        "preethaji-krishnaji",
+        "krishnaji-preethaji",
+    }:
+        primary, _ = shared_attribution()
+        return primary or "preethaji_krishnaji"
     for guru in get_gurus():
         slug_values = {
             guru.id.lower(),
@@ -189,6 +197,29 @@ def resolve_guru_id(value: str | None) -> str | None:
             except re.error:
                 continue
     return None
+
+
+def canonical_guru_id(value: str | None) -> str | None:
+    """Resolve any raw teacher/guru identifier across stores to its canonical ID (DATA-13, GURU-013).
+
+    Handles store vocabulary drift across chat payloads, v8/v10 schemas, and OKF:
+      - 'sri-krishnaji', 'sri_krishnaji', 'krishnaji' -> 'krishnaji'
+      - 'sri-preethaji', 'sri_preethaji', 'preethaji' -> 'preethaji'
+      - 'preethaji_krishnaji', 'both', 'shared' -> 'preethaji_krishnaji'
+      - 'ekam', 'oneworld academy' -> 'ekam'
+    """
+    if not value:
+        return None
+    candidate = unicodedata.normalize("NFKC", value).strip().lower()
+    if is_shared_guru_scope(candidate) or candidate in {
+        "preethaji_krishnaji",
+        "krishnaji_preethaji",
+        "preethaji-krishnaji",
+        "krishnaji-preethaji",
+    }:
+        primary, _ = shared_attribution()
+        return primary or "preethaji_krishnaji"
+    return resolve_guru_id(candidate)
 
 
 def shared_attribution() -> tuple[str | None, list[str]]:
