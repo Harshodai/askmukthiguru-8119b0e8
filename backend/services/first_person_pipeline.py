@@ -5681,7 +5681,6 @@ class FirstPersonPipeline:
         t_integrity_ms = 0.0
         t_rerank_ms = 0.0
         t_scorer_ms = 0.0
-        t_assembly_ms = 0.0
 
         # Step 2c: first-person context harness (fp-context-v1), else no result.
         # The harness may serve deterministically, abstain, or decline; a None
@@ -5826,6 +5825,70 @@ class FirstPersonPipeline:
         is_direct = confidence_outcome.is_direct
         answerability = confidence_outcome.answerability
 
+        # Assembly: citations, clip metadata, the exact-cache write and the metrics.
+        return self._assemble_result(
+            query=query,
+            query_dense_vector=query_dense_vector,
+            language=language,
+            teacher_id=teacher_id,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            verified_clips=verified_clips,
+            clip_scores=clip_scores,
+            top_clip=top_clip,
+            second_clip=second_clip,
+            second_score=second_score,
+            confidence=confidence,
+            is_direct=is_direct,
+            answerability=answerability,
+            has_practice_intent=has_practice_intent,
+            n_quarantined=n_quarantined,
+            fp_llm_tokens=fp_llm_tokens,
+            _ans_box=_ans_box,
+            t_retrieval_ms=t_retrieval_ms,
+            t_integrity_ms=t_integrity_ms,
+            t_rerank_ms=t_rerank_ms,
+            t_scorer_ms=t_scorer_ms,
+            start_time=start_time,
+        )
+
+    def _assemble_result(
+        self,
+        *,
+        query: str,
+        query_dense_vector: list[float],
+        language: str,
+        teacher_id: Optional[str],
+        cache_bypass: bool,
+        request_allow_state: str,
+        request_block_state: str,
+        verified_clips: list[dict[str, Any]],
+        clip_scores: list[float],
+        top_clip: dict[str, Any],
+        second_clip: Optional[dict[str, Any]],
+        second_score: float,
+        confidence: float,
+        is_direct: bool,
+        answerability: Optional[str],
+        has_practice_intent: bool,
+        n_quarantined: int,
+        fp_llm_tokens: list[int],
+        _ans_box: dict[str, Any],
+        t_retrieval_ms: float,
+        t_integrity_ms: float,
+        t_rerank_ms: float,
+        t_scorer_ms: float,
+        start_time: float,
+    ) -> FirstPersonPipelineResult:
+        """Assemble the served answer: citations, clip metadata, cache write, metrics.
+
+        The served text is the stored verbatim_text, byte for byte, and every rendered
+        quote is re-checked against the payload it came from, so a quote whose
+        speaker, link or timestamp is not backed by the store is never shown.
+        Writes the exact cache (unless bypassed) and measures latency last, so
+        scoring, citation building and the cache write are all counted.
+        """
         # ponytail: retrieve matching OKF entries using in-memory vector matching (<1ms)
         okf_entries: list[dict[str, Any]] = []
         if query_dense_vector and len(query_dense_vector) == 1024:
