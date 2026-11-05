@@ -63,7 +63,7 @@ Truth anchors: this section and `docs/architecture/first-person-path-to-prod.md`
 
 ## Pipeline
 
-Chain (`app/pipeline/stages/pipeline_builder.py`): CacheCheck -> RequestState -> InputGuardrail -> CircuitBreaker -> DoctrineCache -> CasualShortCircuit -> Distress -> BoundedComparisonShortCircuit -> Personalize -> Graph (first_person registry module runs inside, before general nodes) -> MeditationGen -> Translation -> ToneAdapter -> OutputGuardrail -> Memory -> CacheUpdate -> ResultAssembly. Chat routes: `app/api/chat.py`.
+Chain (`app/pipeline/stages/pipeline_builder.py`): KillSwitch -> CacheCheck -> RequestState -> InputGuardrail -> Distress -> CircuitBreaker -> DoctrineCache -> CasualShortCircuit -> OffTopic -> BoundedComparisonShortCircuit -> Personalize -> Graph (first_person registry module runs inside, before general nodes) -> MeditationGen -> Translation -> ToneAdapter -> OutputGuardrail -> Memory -> CacheUpdate -> ResultAssembly. Chat routes: `app/api/chat.py`.
 
 ### First-Person Verbatim Route: invariants (verified against code 2026-09-26)
 
