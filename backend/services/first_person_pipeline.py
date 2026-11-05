@@ -4871,6 +4871,94 @@ class FirstPersonPipeline:
             practice_intent=has_practice_intent,
         )
 
+    def _verify_candidates(
+        self,
+        *,
+        raw_clips: list[dict[str, Any]],
+        teacher_id: Optional[str],
+        query: str,
+        retrieval_query: str,
+    ) -> tuple[list[dict[str, Any]], int, float]:
+        """Step 4: apply the serve-time gates and report what survived.
+
+        Returns the servable clips, how many were quarantined, and the gate
+        duration. The integrity, content-quality and speaker-verification checks
+        fail closed; the allowlist is an intersect and the blocklist wins over it,
+        so an unapproved or quarantined clip can never win a slot back.
+        """
+        # Step 4: Serve-time Integrity Gate
+        t_int_start = time.monotonic()
+        verified_clips: list[dict[str, Any]] = []
+        n_quarantined = 0
+        for clip in raw_clips:
+            if _passes_integrity_gate(clip, boundary_guard_enabled=self._boundary_guard_enabled):
+                # ponytail: content quality gate — rejects thin clips, live-event
+                # instructions, and discourse acknowledgments after integrity passes
+                if _passes_content_quality_gate(
+                    clip, gate_enabled=self._content_quality_gate_enabled
+                ):
+                    # Fail-closed invariant: unverified clips must NEVER be served to public users (UT-06)
+                    if getattr(settings, "first_person_require_speaker_verified", False):
+                        spk_ok, _ = _speaker_verification(clip)
+                        is_verified = spk_ok or clip.get("speaker_verified") is True
+                        if is_verified:
+                            verified_clips.append(clip)
+                        else:
+                            n_quarantined += 1
+                            FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                            logger.warning(
+                                f"[FirstPersonPipeline] Clip {clip.get('point_id')} for video {clip.get('video_id')} "
+                                f"rejected: speaker is not verified ({clip.get('speaker_verified')}). Quarantined."
+                            )
+                    else:
+                        verified_clips.append(clip)
+                else:
+                    n_quarantined += 1
+                    FIRST_PERSON_QUARANTINED_TOTAL.inc()
+            else:
+                n_quarantined += 1
+                FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                logger.warning(
+                    f"[FirstPersonPipeline] Clip {clip.get('point_id')} for video {clip.get('video_id')} "
+                    f"failed the serve-time integrity gate. Quarantined from serving."
+                )
+
+        # A named guru is a hard scope: even if the store filter were bypassed, a clip
+        # by anyone else is never substituted (L-FP-SPEAKER-REQUEST-1).
+        if teacher_id and teacher_id.strip().lower() not in ("both", "all", ""):
+            _want = teacher_id.strip().lower()
+            verified_clips = [
+                c for c in verified_clips if str(c.get("teacher_id") or "").lower() == _want
+            ]
+
+        # Quality allowlist (opt-in): serve only clips a reviewer/grader approved. Applied before reranking so
+        # an unapproved clip can never win a slot; an empty/unreadable list abstains (fail closed).
+        _allow = _quality_allowlist()
+        if _allow is not None:
+            verified_clips = [c for c in verified_clips if str(c.get("point_id")) in _allow]
+
+        # Quality blocklist (opt-in quarantine, T-B12): a quarantined clip is
+        # never served, even if allowlisted — quarantine wins. Applied AFTER
+        # the allowlist intersect so a bad clip can never win a slot back. A
+        # configured-but-unreadable file serves nothing (fail closed).
+        _blocked = _quality_blocklist()
+        if _blocked is not None:
+            verified_clips = [c for c in verified_clips if str(c.get("point_id")) not in _blocked]
+        elif str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip():
+            verified_clips = []
+        verified_clips = [
+            c
+            for c in verified_clips
+            if first_person_evidence_policy.assess_contextual_safety(
+                query,
+                str(c.get("verbatim_text") or ""),
+                retrieval_query=retrieval_query,
+            ).may_serve
+        ]
+        t_integrity_ms = (time.monotonic() - t_int_start) * 1000.0
+
+        return verified_clips, n_quarantined, t_integrity_ms
+
     def execute(
         self,
         query: str,
@@ -5014,76 +5102,13 @@ class FirstPersonPipeline:
         effective_max_clips = outcome.max_clips
         has_practice_intent = outcome.practice_intent
 
-        # Step 4: Serve-time Integrity Gate
-        t_int_start = time.monotonic()
-        verified_clips: list[dict[str, Any]] = []
-        n_quarantined = 0
-        for clip in raw_clips:
-            if _passes_integrity_gate(clip, boundary_guard_enabled=self._boundary_guard_enabled):
-                # ponytail: content quality gate — rejects thin clips, live-event
-                # instructions, and discourse acknowledgments after integrity passes
-                if _passes_content_quality_gate(
-                    clip, gate_enabled=self._content_quality_gate_enabled
-                ):
-                    # Fail-closed invariant: unverified clips must NEVER be served to public users (UT-06)
-                    if getattr(settings, "first_person_require_speaker_verified", False):
-                        spk_ok, _ = _speaker_verification(clip)
-                        is_verified = spk_ok or clip.get("speaker_verified") is True
-                        if is_verified:
-                            verified_clips.append(clip)
-                        else:
-                            n_quarantined += 1
-                            FIRST_PERSON_QUARANTINED_TOTAL.inc()
-                            logger.warning(
-                                f"[FirstPersonPipeline] Clip {clip.get('point_id')} for video {clip.get('video_id')} "
-                                f"rejected: speaker is not verified ({clip.get('speaker_verified')}). Quarantined."
-                            )
-                    else:
-                        verified_clips.append(clip)
-                else:
-                    n_quarantined += 1
-                    FIRST_PERSON_QUARANTINED_TOTAL.inc()
-            else:
-                n_quarantined += 1
-                FIRST_PERSON_QUARANTINED_TOTAL.inc()
-                logger.warning(
-                    f"[FirstPersonPipeline] Clip {clip.get('point_id')} for video {clip.get('video_id')} "
-                    f"failed the serve-time integrity gate. Quarantined from serving."
-                )
-
-        # A named guru is a hard scope: even if the store filter were bypassed, a clip
-        # by anyone else is never substituted (L-FP-SPEAKER-REQUEST-1).
-        if teacher_id and teacher_id.strip().lower() not in ("both", "all", ""):
-            _want = teacher_id.strip().lower()
-            verified_clips = [
-                c for c in verified_clips if str(c.get("teacher_id") or "").lower() == _want
-            ]
-
-        # Quality allowlist (opt-in): serve only clips a reviewer/grader approved. Applied before reranking so
-        # an unapproved clip can never win a slot; an empty/unreadable list abstains (fail closed).
-        _allow = _quality_allowlist()
-        if _allow is not None:
-            verified_clips = [c for c in verified_clips if str(c.get("point_id")) in _allow]
-
-        # Quality blocklist (opt-in quarantine, T-B12): a quarantined clip is
-        # never served, even if allowlisted — quarantine wins. Applied AFTER
-        # the allowlist intersect so a bad clip can never win a slot back. A
-        # configured-but-unreadable file serves nothing (fail closed).
-        _blocked = _quality_blocklist()
-        if _blocked is not None:
-            verified_clips = [c for c in verified_clips if str(c.get("point_id")) not in _blocked]
-        elif str(getattr(settings, "first_person_quality_blocklist_path", "") or "").strip():
-            verified_clips = []
-        verified_clips = [
-            c
-            for c in verified_clips
-            if first_person_evidence_policy.assess_contextual_safety(
-                query,
-                str(c.get("verbatim_text") or ""),
-                retrieval_query=retrieval_query,
-            ).may_serve
-        ]
-        t_integrity_ms = (time.monotonic() - t_int_start) * 1000.0
+        # Step 4: serve-time integrity gate, then the allowlist/blocklist quarantine.
+        verified_clips, n_quarantined, t_integrity_ms = self._verify_candidates(
+            raw_clips=raw_clips,
+            teacher_id=teacher_id,
+            query=query,
+            retrieval_query=retrieval_query,
+        )
 
         # Served text is the stored verbatim_text, byte for byte (invariants 2
         # and 13). An earlier serve-time pass rewrote verbatim_text with the ASR
