@@ -388,3 +388,25 @@ Owner decision (2026-11-04): these tasks are reserved for a stronger model worki
 | T7-02 async teaching lane | Concurrency change in the core path | T7-01 merged | Staging c20 load test without executor starvation; the watchdog is removed only after that |
 
 Recommended way to run them: one task per session, on a fresh branch from the PR head, with the owner reviewing the diff before each push.
+
+### 0k. T7-01 split of `FirstPersonPipeline.execute` (2026-11-05)
+
+`backend/services/first_person_pipeline.py`: `execute` was 2,146 lines; it is now 267 lines and reads as a linear sequence of named steps: 14 step methods called directly from `execute`, plus `_store_exact_cache`, which the assembly step calls. Ten refactor commits plus the goldens commit, each pushed separately: `31ebbd89` (goldens), `1343702c`, `b9902a59`, `0caa21f2`, `a38cbc28`, `6c1179b8`, `997ccc3a`, `c6e5b4bd`, `2870ddf4`, `e875073c`, `0c643bc2`.
+
+| Item | What landed | Verified | Left |
+|---|---|---|---|
+| T7-01a goldens | `backend/tests/test_first_person_pipeline_golden.py` + 17 recorded scenarios in `backend/tests/golden/first_person_pipeline/`. Deterministic settings fixture pins ~18 first-person flags; no live LLM, Qdrant or spend | 18 passed; three consecutive runs byte-identical | Text fields stored as sha256 + char count, because `scripts/guards/lesson_guards.py publication` blocks `verbatim_text`/`answer_text` keys in committed JSON |
+| T7-01b | `_crisis_preemption`, `_topic_rail_block`, `_serving_contract_refusal`, `_cache_scope`, `_cached_replay`, `_store_exact_cache` | 194 passed, 1 skipped; goldens unchanged | — |
+| T7-01c | `_compound_delegation` (Step 2b) | 194 passed, 1 skipped; goldens unchanged | — |
+| T7-01d | `_serve_from_context_harness` (Step 2c, the fp-context block moved whole per Q-T7-01-D, plus the terminal abstain and the request-local `_answerability_withheld_result`) | 766 moved lines byte-identical; 194 passed, 1 skipped | The harness block is still one method: its internal split is a follow-up finding |
+| T7-01f | `_retrieve_with_answerability_gate` (Step 3) returning a `_RetrievalOutcome` | Body AST-identical; 194 passed, 1 skipped | — |
+| T7-01g | `_verify_candidates` (Step 4 integrity/allowlist/blocklist/quarantine) | Body AST-identical; 194 passed, 1 skipped | — |
+| T7-01h | `_join_answerability_gate` (RC-D-2 join) | Body AST-identical; 194 passed, 1 skipped | — |
+| T7-01i | `_rerank_and_balance_candidates` (Steps 4b–4d) | Body AST-identical; 194 passed, 1 skipped | — |
+| T7-01j | `_abstain_no_verified_clips` (Step 5) | Body AST-identical; 194 passed, 1 skipped | — |
+| T7-01k | `_decide_confidence` (Step 6) returning a `_ConfidenceOutcome` | Body AST-identical; 194 passed, 1 skipped | — |
+| T7-01l | `_assemble_result` (assembly tail) | Body AST-identical; 194 passed, 1 skipped; whole first-person selection 1,351 passed, 5 skipped | — |
+
+Method: each slice moved a contiguous region under its original indentation, so the move is a pure relocation. Only the signature, docstring, call site, the wrapper around a terminal `return` and a closing `return None` are new. Every slice was checked two ways before commit — `git status` shows no golden-file change, and an AST comparison of the moved body against the pre-slice file equals after unwrapping the returned outcome — then `ruff check`, `ruff format --check` (0.15.13), the three lesson guards and the pre-commit whitespace/EOF hooks.
+
+Follow-ups this task deliberately leaves open (not regressions): the fp-context harness block is one method; `execute` still threads ~20 locals through keyword arguments, which is what T7-02 replaces with a request object when it makes the lane async; the `_RetrievalOutcome` / `_ConfidenceOutcome` split is a transitional shape T7-02/T4-06 may collapse.

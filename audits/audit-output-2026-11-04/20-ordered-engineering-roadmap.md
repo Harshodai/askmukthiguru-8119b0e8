@@ -248,3 +248,5 @@ Implemented on `feature/audit-strengthen-rag-qdrant` (head `5a9501ac` plus the d
 Second batch (head `0fc474dd`): SEC-008, SEC-010, SEC-006 (parts of T1-14), CQ-013 (part of T1-13), MEM-005, SAFE-008, ADV-05. SEC-009 skipped. CI on the first batch: 5 backend failures (owner fixing). Remaining-work register: `IMPLEMENTATION-AGENT-PROMPT.md` §0d.
 
 Third batch: CI repair (formatting, SEC-010 and T1-05 test updates), T1-03, SEC-009, T1-19 cleanup. Rights register path scrub skipped because its sha256 is pinned in three places. Details: `IMPLEMENTATION-AGENT-PROMPT.md` §0e.
+
+T7-01 (2026-11-05, `feature/audit-strengthen-rag-qdrant` @ `0c643bc2`): `FirstPersonPipeline.execute` split into named steps (14 step methods called directly, 15 extracted in total), 2,146 → 267 lines. Golden characterization matrix (17 scenarios, `backend/tests/test_first_person_pipeline_golden.py`) recorded before the first move and unmoved at every commit. Details: `IMPLEMENTATION-AGENT-PROMPT.md` §0k.

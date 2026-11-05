@@ -128,7 +128,7 @@ Owner: lead. Scope: every finding in this audit package, with the lead's reconci
 | SEC-005 | Public repo tracks corpus/graph backups and internal reports | CD | P4 | RC-7 | 14 | T0-02 | Part of X-06 |
 | SEC-006 | Datastores on 0.0.0.0; Qdrant no API key; unpinned image | AR | P1 | RC-9 | 14 | T1-14 | |
 | SEC-007 | Prompt injection: low on FP gates, real on general lane | AR | P2,P4 | RC-3 | 14 | T4-03, T5-04 | |
-| CQ-001 | Giant functions (execute 2,145 lines; generate_answer 1,247) | CD | P3,P1 | RC-8 | 13 | T7-01 | |
+| CQ-001 | Giant functions (execute 2,145 lines; generate_answer 1,247) | CD | P3,P1 | RC-8 | 13 | T7-01 | Split landed 2026-11-05: `execute` 2,146 → 267 lines, 14 named step methods, golden matrix identical. `generate_answer` (1,247) untouched |
 | CQ-002 | ~14 overlapping LLM abstraction modules | CD | P1,P3 | RC-1 | 13 | T7-03 | |
 | CQ-003 | At least 8 cache mechanisms | AR | P1,P3 | RC-1 | 13 | T7-04 | |
 | CQ-004 | 5+ memory subsystems | AR | P3,P5 | RC-1 | 13 | T6-01 | Same as MEM-001 |

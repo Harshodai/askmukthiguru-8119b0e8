@@ -1,6 +1,26 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 5, 2026 — T7-01 split of `FirstPersonPipeline.execute`
+
+### L-SPLIT-BY-INDENTATION-1. A behaviour-identical split is a relocation, and a relocation can be proven byte-for-byte.
+- **What:** 2,146 lines of `FirstPersonPipeline.execute` moved into 15 named methods. A method body inside a class sits at the same 8-space indentation the block already had, so each slice could be a literal cut-and-paste: only the signature, docstring, call site, the wrapper around a terminal `return` and a closing `return None` were typed by hand.
+- **Fix:** For every slice, an AST comparison of the moved body against the pre-slice file (after unwrapping the returned outcome) returned identical, and `git status` showed no golden-file change.
+- **Rule:** Split a giant function by moving contiguous regions at their existing indentation and prove each move with an AST equality check. Do not retype a body "cleanly" — a retyped move cannot be distinguished from a rewrite in review.
+
+### L-SPLIT-GOLDENS-FIRST-1. Record the goldens before the first move, and freeze them.
+- **What:** The golden module (`backend/tests/test_first_person_pipeline_golden.py`, 17 scenarios) was recorded on the untouched function and never re-recorded. Any behavioural drift would have appeared as a JSON diff in `git status`.
+- **Rule:** Characterization tests come before the first extraction, their fixtures pin every flag the function reads, and a changed golden file is treated as a behaviour change, not an expected update.
+
+### L-SPLIT-SHARED-LOCALS-1. Enumerate a block's free variables before moving it, and mind the ones it *writes*.
+- **What:** Most extracted steps read execute's locals; a few also wrote them — `_ans_box` (a tri-state dict), the `fp_llm_tokens` list, `_ans_future`, `verified_clips`, `early_verdict`. Missing a write would have silently changed a later step.
+- **Fix:** Free-variable extraction (`ast` walk over the block) plus a separate list of the names the block assigns, before writing the signature. Mutable objects travel as parameters; plain values come back in a small outcome dataclass.
+- **Rule:** Never infer a parameter list from a grep of names — compute loaded-minus-assigned for the exact block, and decide per name whether it is read, written, or both.
+
+### L-SPLIT-EXIT-PARITY-1. Every early return is a behaviour, and each one needs the same output shape.
+- **What:** The steps contain ten terminal exits (crisis, topic rail, contract, cache replay, compound, harness abstain, answerability NO/indeterminate, retrieval error, relevance below minimum, zero candidates). All of them are covered by the matrix and all of them had to keep their exact answer text, reason code and stage timings.
+- **Rule:** Count the early returns before a split and map each to a golden scenario; a split that changes one branch's returned shape is a behaviour change even if the happy path is identical.
+
 ## Nov 4, 2026 — Remediation batches: CI, telemetry and agent orchestration
 
 ### L-INTENDED-CHANGE-BREAKS-OLD-TESTS-1. Changing a safety default breaks tests that encoded the old default.
