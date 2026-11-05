@@ -1,6 +1,24 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 5, 2026 — Batch 12: Docker image pinning, pipeline order AST guard, and memory plane inventory (T1-14, T1-15, T6-01 / ADV-06)
+
+### L-DOCKER-PIN-ALL-IMAGES-1. Pin exact image tags on all infrastructure sidecars; ban unpinned latest in compose.
+- **What:** In SEC-006, `docker-compose.yml` referenced unpinned `:latest` tags for Memgraph (`memgraph/memgraph-mage:latest`) and Autoheal (`willfarrell/autoheal:latest`), allowing upstream image mutations to break local development or introduce unvetted binaries.
+- **Fix:** Pinned `memgraph/memgraph-mage:2.20.1` and `willfarrell/autoheal:1.2.0` in `backend/docker-compose.yml`, establishing immutable, reproducible image coordinates across all docker-compose datastores and sidecars.
+- **Rule:** Every image in docker-compose must pin an explicit version tag; `:latest` is strictly forbidden across all development and production container definitions.
+
+### L-DOC-VS-CODE-PIPELINE-ORDER-GUARD-1. Guard documented pipeline stage sequences with automated AST linting.
+- **What:** In CQ-009, `CLAUDE.md` maintained an outdated 17-stage pipeline sequence that documented `DistressStage` after `CircuitBreakerStage`, conflicting with runtime `build_default_pipeline()` where input safety and kill switches precede circuit breakers.
+- **Fix:** Corrected the documented stage list in `CLAUDE.md` to match runtime `build_default_pipeline()`, and added `scripts/guards/pipeline_order_guard.py` (tested via `backend/tests/test_pipeline_order_guard.py`) to parse `backend/app/pipeline/stages/pipeline_builder.py` using AST and enforce exact alignment against docstrings and documentation.
+- **Rule:** Documentation describing execution-critical pipelines must be verified by automated AST-based doc-vs-code guards to prevent architectural documentation drift.
+
+### L-MEMORY-PLANE-EXHAUSTIVE-INVENTORY-1. Account for every persistent plane, including local client and edge states, in ethical retention governance.
+- **What:** In ADV-06, the ethical retention and personal mentor memory inventory (`12-personal-mentor-memory-ethical-retention.md`) tracked 8 storage planes but omitted the WhatsApp bot SQLite database (`wa_messages`/`wa_state`) and edge extraction workers, creating a blind spot in user data retention and erasure completeness.
+- **Fix:** Updated `12-personal-mentor-memory-ethical-retention.md` with Plane 9 (WhatsApp SQLite store) and Plane 10 (Edge extraction worker), documenting their retention periods, encryption status, and inclusion under user deletion requests.
+- **Rule:** Personal memory and mentor inventories must account for every persistence plane across channels and edge workers to ensure compliance with DPDP erasure and retention policies.
+
+
 ## Nov 5, 2026 — Batch 11: Cache consolidation, exception/import ratchets, and teacher extensibility (T7-04, T7-05, T8-01)
 
 ### L-CACHE-VERSIONING-COLLECTION-BOUND-1. Bind collection version, prompt version, and cache version into exact cache keys; ban semantic cache on teachings.

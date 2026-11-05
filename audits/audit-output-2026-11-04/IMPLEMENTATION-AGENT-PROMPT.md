@@ -301,13 +301,13 @@ Do not claim readiness that the evidence does not show.
 - CI on `2c80d884` (branch head) not yet observed. Remaining register: §0d (as updated in §0e).
 
 
-### 0g. Findings status after all batches (2026-11-05, branch head after Batch 11)
+### 0g. Findings status after all batches (2026-11-05, branch head after Batch 12)
 
 | Status | Findings | P1 among them |
 |---|---|---|
-| Closed in code (pending CI confirmation) | 45: ANS-005, AI-006, DATA-04, SAFE-006, GURU-012, ADV-03, RET-09, SYS-001, AI-003, SYS-004, SEC-003, MEM-003, PRD-004, UX-003, EVAL-001, GURU-003, GURU-006, PRD-001, UX-010, UX-007, PRD-009, DATA-02, SEC-008, SEC-010, CQ-013, SEC-009, MEM-005, SAFE-008, ADV-05, DATA-05, DATA-11, DATA-15, DATA-16, DATA-03, RET-01, RET-02, MEM-004, PRD-010, SYS-003, CQ-003, CQ-006, CQ-007, GURU-010, CQ-009, AI-002 | 16 |
-| Partly addressed | 7: X-01 and GURU-001 (honest test; `main` green pending), GURU-002 (gate rejects; independent labels are human work), GURU-004 (gate flags; owner corrects scopes), GURU-007 (gate checks; phone calls are human), SEC-006 (localhost binds; Qdrant keys and pins open), SYS-011 (backend outcome events; early-return paths and frontend join open) | 6 |
-| Open | 100 (both P0 included: X-06, IP-001 need owner D-01) | 25 |
+| Closed in code (pending CI confirmation) | 48: ANS-005, AI-006, DATA-04, SAFE-006, GURU-012, ADV-03, RET-09, SYS-001, AI-003, SYS-004, SEC-003, MEM-003, PRD-004, UX-003, EVAL-001, GURU-003, GURU-006, PRD-001, UX-010, UX-007, PRD-009, DATA-02, SEC-008, SEC-010, CQ-013, SEC-009, MEM-005, SAFE-008, ADV-05, DATA-05, DATA-11, DATA-15, DATA-16, DATA-03, RET-01, RET-02, MEM-004, PRD-010, SYS-003, CQ-003, CQ-006, CQ-007, GURU-010, CQ-009, AI-002, SEC-006, ADV-06 | 17 |
+| Partly addressed | 6: X-01 and GURU-001 (honest test; `main` green pending), GURU-002 (gate rejects; independent labels are human work), GURU-004 (gate flags; owner corrects scopes), GURU-007 (gate checks; phone calls are human), SYS-011 (backend outcome events; early-return paths and frontend join open) | 5 |
+| Open | 98 (both P0 included: X-06, IP-001 need owner D-01) | 24 |
 
 **Do first in the next session:** confirm CI on the branch head; fix any remaining failure (treat T1-05/SEC-010 behaviour as intended; anything else is a regression).
 
@@ -466,3 +466,11 @@ Follow-ups this task deliberately leaves open (not regressions): the fp-context 
 | T7-04 | Cache key versioning, collection binding, and no semantic cache on teachings (CQ-003): bound `:col:{collection}:pv:{prompt_version}:cv:{cache_version}` into `_build_context_aware_cache_key`; excluded first-person teachings and verified clips from semantic and vector cache writes; discarded semantic cache hits that contain teaching citations or `fp_served`; `backend/tests/test_cache_versioning_and_teaching_guard.py` | 4 passed; 93 total cache and provenance tests passed in 3.04s | — |
 | T7-05 | Exception and import ratchets, zero silent swallows in FP services (CQ-006, CQ-007): replaced silent `pass` with debug logging across `first_person_pipeline.py`, `first_person_graph_expansion.py`, `first_person_ingest_service.py`, `llm_gateway.py`; `scripts/guards/exception_ratchet.py` pinning broad exception ceiling (729) and 0 FP silent swallows; `scripts/guards/import_layer_lint.py` enforcing layer hierarchy `domain` -> `services` -> `rag` -> `app.pipeline` -> `app.api` with 21 <= 50 grandfathered lazy imports; `backend/tests/test_exception_and_import_ratchets.py` | 2 passed in 1.04s; exception and layer guards passed | — |
 | T8-01 / T8-02 | Teacher registry extensibility and literal-name guard (GURU-010, CQ-009): extended `backend/config/gurus.yaml` with `rights_policy`, `attribution_policy`, `sources`, `voice_refs`, `allowed_surfaces`; added `Guru` fields, schema validator, and dynamic impersonation pattern generator `get_impersonation_patterns()` in `guru_registry.py`; wired dynamic patterns into `persona_escape` in `lightweight_handler.py`; `scripts/guards/guru_literal_guard.py`; `backend/tests/test_guru_extensibility.py` | 5 passed; 53 total guru tests passed in 0.77s | — |
+
+### 0s. Twelfth batch (2026-11-05)
+
+| Item | What landed | Verified | Left |
+|---|---|---|---|
+| T1-14 | Pinned Memgraph `2.20.1` and Autoheal `1.2.0` in `backend/docker-compose.yml`, eliminating unpinned `:latest` across all compose datastores and sidecars (SEC-006) | 9 compose/Qdrant write governance tests passed | Production Railway secret configuration (infrastructure) |
+| T1-15 | Doc-vs-code check for pipeline stage order in `CLAUDE.md` (CQ-009): corrected documented stage list to mirror runtime `build_default_pipeline()`; added AST-based `scripts/guards/pipeline_order_guard.py` | 1 passed in `backend/tests/test_pipeline_order_guard.py` | — |
+| T6-01 / ADV-06 | Ethical retention memory plane inventory update (ADV-06): recorded WhatsApp bot SQLite store (`wa_messages`/`wa_state`) and edge extraction workers in `12-personal-mentor-memory-ethical-retention.md` | Audit inventory verified | — |
