@@ -301,13 +301,13 @@ Do not claim readiness that the evidence does not show.
 - CI on `2c80d884` (branch head) not yet observed. Remaining register: §0d (as updated in §0e).
 
 
-### 0g. Findings status after all batches (2026-11-04, branch head after `311ec7e2`)
+### 0g. Findings status after all batches (2026-11-05, branch head after Batch 8)
 
 | Status | Findings | P1 among them |
 |---|---|---|
-| Closed in code (pending CI confirmation) | 29: ANS-005, AI-006, DATA-04, SAFE-006, GURU-012, ADV-03, RET-09, SYS-001, AI-003, SYS-004, SEC-003, MEM-003, PRD-004, UX-003, EVAL-001, GURU-003, GURU-006, PRD-001, UX-010, UX-007, PRD-009, DATA-02, SEC-008, SEC-010, CQ-013, SEC-009, MEM-005, SAFE-008, ADV-05 | 11 |
+| Closed in code (pending CI confirmation) | 38: ANS-005, AI-006, DATA-04, SAFE-006, GURU-012, ADV-03, RET-09, SYS-001, AI-003, SYS-004, SEC-003, MEM-003, PRD-004, UX-003, EVAL-001, GURU-003, GURU-006, PRD-001, UX-010, UX-007, PRD-009, DATA-02, SEC-008, SEC-010, CQ-013, SEC-009, MEM-005, SAFE-008, ADV-05, DATA-05, DATA-11, DATA-15, DATA-16, DATA-03, RET-01, RET-02 | 14 |
 | Partly addressed | 7: X-01 and GURU-001 (honest test; `main` green pending), GURU-002 (gate rejects; independent labels are human work), GURU-004 (gate flags; owner corrects scopes), GURU-007 (gate checks; phone calls are human), SEC-006 (localhost binds; Qdrant keys and pins open), SYS-011 (backend outcome events; early-return paths and frontend join open) | 6 |
-| Open | 116 (both P0 included: X-06, IP-001 need owner D-01) | 30 |
+| Open | 107 (both P0 included: X-06, IP-001 need owner D-01) | 27 |
 
 **Do first in the next session:** confirm CI on the branch head; fix any remaining failure (treat T1-05/SEC-010 behaviour as intended; anything else is a regression).
 
@@ -434,3 +434,11 @@ Follow-ups this task deliberately leaves open (not regressions): the fp-context 
 | T3-04 | Builder per-video replace (`--replace-existing`), empty build refusal, pre-build snapshot before first write in `build_full_corpus_v10.py`; `scroll_page` with filter in `QdrantService`; `backend/tests/test_builder_replace_and_snapshot.py` | 3 passed in 1.51s; test_repo_layout 5 passed | Running actual full rebuild requires owner |
 | T3-08 | Supabase schema snapshot (`supabase/schema_snapshot.sql`), migration duplicate table lint guard (`scripts/guards/migration_lint.py`); `.github/workflows/supabase-schema-snapshot.yml`; `backend/tests/test_migration_lint.py` | 5 passed in 0.40s | Squashing baseline migrations on production (owner) |
 | T3-05 | Scorecard promotion gate (`evaluate_promotion_gate` in `fp_data_quality_scorecard.py`), `approved_corpus_version` serving contract validation (DATA-16) in `first_person_serving_contract.py`; continuous FP quality audit in `data_quality_audit.py` and `nightly-audit.yml`; `backend/tests/test_data_quality_promotion_gate.py` | 6 passed in 0.30s; 75 total quality/contract tests passed in 2.47s | Applying to production deployment |
+
+### 0o. Eighth batch (2026-11-05)
+
+| Item | What landed | Verified | Left |
+|---|---|---|---|
+| T3-03 | Hash-field semantics in vNext schema (`fp-context-v2`), canonical hash helpers (`compute_span_text_sha256`, `compute_video_transcript_sha256`) in `backend/domain/hash_fields.py`; writer contract enforcement in `first_person_store.py` and `first_person_context_store.py`; `backend/tests/test_writer_hash_contract.py` | 6 passed in 0.29s; 87 contract/store tests passed in 0.65s | Rebuilding new collection with vNext schema (needs builder run) |
+| T4-01 | Candidate pool gated before per-video deduplication (RET-01); `deduplicate` flag on `FirstPersonStore.search_hybrid`; `FirstPersonPipeline._verify_candidates` gates entire retrieved pool before deduping per video; `backend/tests/test_gate_first_then_dedup.py` | 3 passed in 0.30s; 72 pipeline/golden tests passed in 0.72s | — |
+| T4-02 | Hybrid dense + sparse RRF retrieval in v10 context store (RET-02); `FirstPersonContextStore.retrieve` prefetches `passage_dense` and `passage_sparse` fused with `FusionQuery(Fusion.RRF)` in `query_points_groups` and fallback; `backend/tests/test_v10_hybrid_retrieval.py` | 3 passed in 0.30s; 156 context store tests passed in 1.15s | — |
