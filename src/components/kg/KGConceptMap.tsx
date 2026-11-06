@@ -922,10 +922,10 @@ export const KGConceptMap = ({
                   <Loader2 className="h-7 w-7 animate-spin text-ojas" />
                 </div>
               </div>
-              <h3 className="font-sacred text-xl font-medium text-foreground">
+              <h3 className="font-sacred text-xl font-medium text-graph-foreground">
                 {t('kg.weavingTitle', 'Weaving Your Consciousness Map…')}
               </h3>
-              <p className="mt-2 max-w-sm text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-2 max-w-sm text-xs leading-relaxed text-graph-foreground/80">
                 {t(
                   'kg.weavingDesc',
                   'Connecting your reflections, spiritual inquiries, and meditation practices with the sacred wisdom of Sri Krishnaji and Sri Preethaji.',
@@ -1158,10 +1158,10 @@ export const KGConceptMap = ({
                   <Sparkles className="h-7 w-7 text-ojas" />
                 </div>
               </div>
-              <h3 className="font-sacred text-2xl font-medium text-foreground">
+              <h3 className="font-sacred text-2xl font-medium text-graph-foreground">
                 {t('kg.personalPausedTitle', 'Personal Wisdom Map Paused')}
               </h3>
-              <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-muted-foreground">
+              <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-graph-foreground/80">
                 {t(
                   'kg.personalPausedDesc',
                   'Allow Mukthi Guru to remember your reflections to weave your personal spiritual journey.',
@@ -1187,10 +1187,10 @@ export const KGConceptMap = ({
                   <Sparkles className="h-7 w-7 text-ojas" />
                 </div>
               </div>
-              <h3 className="font-sacred text-2xl font-medium text-foreground">
+              <h3 className="font-sacred text-2xl font-medium text-graph-foreground">
                 {isPersonal ? t('kg.bloomingTitle', 'Your Personal Wisdom Map is Blooming') : t('kg.title')}
               </h3>
-              <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-muted-foreground">
+              <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-graph-foreground/80">
                 {isPersonal
                   ? (scope === 'personal' || embedded)
                     ? t(
