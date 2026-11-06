@@ -89,3 +89,17 @@ def test_tune_redis_failure_is_not_silenced():
 def test_health_gate_uses_healthz():
     assert "/api/healthz" in SCRIPT
     assert not re.search(r"/api/health(?!z)", "\n".join(_code_lines()))
+
+
+def test_docs_name_healthz_as_the_deploy_gate():
+    """NEW-RW-7: CLAUDE.md said `/api/health` gate; the IaC gate is /api/healthz."""
+    claude = (REPO_ROOT / "CLAUDE.md").read_text()
+    line = next(ln for ln in claude.splitlines() if "Railway is scaled down" in ln)
+    assert "/api/healthz" in line
+    assert "`/api/health` gate" not in line
+    archive = (REPO_ROOT / "docs/agent/claude-md-archive/railway-deployment.md").read_text()
+    assert "Correction 2026-11-06 (NEW-RW-7)" in archive
+    runbook = (
+        REPO_ROOT / "audits/audit-output-2026-11-04/22b-railway-deployment-readiness-runbook.md"
+    ).read_text()
+    assert "NEW-RW-7" in runbook

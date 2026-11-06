@@ -2,6 +2,8 @@
 
 > **2026-11-06:** Superseded in part by `specifications/RAILWAY_DEPLOYMENT_AND_PRODUCTION_OPERATIONS_RUNBOOK.md` (11 corrections to this file in its §2 (C-1 to C-11), topology, IaC, drain and signal handling). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
 
+> **2026-11-06 (NEW-RW-7):** the deploy health gate is `/api/healthz` (`.railway/railway.ts`, `healthcheckTimeout: 330`), not `/api/health`. `/api/health` is the deep check and needs the internal token. `.railway/railway.ts` now declares Redis, backend, worker and beat (T9-01); the table row below that says "one service" describes the file as audited on 2026-11-04.
+
 Owner: S1. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 Companion: 22 (Qdrant and graph deferred validation, S2). Related: 05, 14, 15.
 
