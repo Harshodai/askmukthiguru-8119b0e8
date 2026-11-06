@@ -949,7 +949,8 @@ def get_crisis_resource(region_key: str = "global") -> str:
         if region_key == "global"
         else f"🆘 Crisis Helplines ({region or 'International'}):"
     )
-    return format_helplines_block(region=region, style="bullet", intro=intro)
+    # SAFE-004 (T4-07): call-verified lines only; never empty (fallback inside).
+    return format_helplines_block(region=region, style="bullet", intro=intro, verified_only=True)
 
 
 # Backwards-compatible read-only dict surface. Existing call sites that

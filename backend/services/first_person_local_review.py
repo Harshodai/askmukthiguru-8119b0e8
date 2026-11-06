@@ -1557,7 +1557,7 @@ class LocalReviewService:
                 try:
                     from services.crisis_helplines import format_helplines_block
 
-                    return ("crisis_redirect", format_helplines_block())
+                    return ("crisis_redirect", format_helplines_block(verified_only=True))
                 except Exception:  # noqa: BLE001
                     return (
                         "crisis_redirect",

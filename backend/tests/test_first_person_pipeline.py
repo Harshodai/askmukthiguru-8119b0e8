@@ -107,7 +107,8 @@ def test_crisis_precheck_fails_closed(mock_store, mock_redis):
 
     assert res.status == "crisis_redirect"
     assert not res.is_direct_answer
-    assert res.answer_text == format_helplines_block()
+    # SAFE-004 (T4-07, owner decision 2026-11-06): verified lines only.
+    assert res.answer_text == format_helplines_block(verified_only=True)
     assert len(res.citations) == 0
     # Store was never queried
     mock_store.search_hybrid.assert_not_called()

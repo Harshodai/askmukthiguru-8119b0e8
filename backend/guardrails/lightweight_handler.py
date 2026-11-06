@@ -476,7 +476,7 @@ def _resolve_block_response(category: str, default_message: str) -> str:
 
             template = template.replace(
                 "__HELPLINES__",
-                format_helplines_block(style="compact_two_line", intro=""),
+                format_helplines_block(style="compact_two_line", intro="", verified_only=True),
             )
         except Exception:  # noqa: BLE001 — defensive: safety path must never crash
             logger.exception("Failed to render helplines; using template as-is.")

@@ -267,7 +267,11 @@ def _only_call_verified(
         max_age_days = getattr(settings, "helpline_max_verified_age_days", 180)
     all_lines = tuple(helplines)
     kept = tuple(h for h in all_lines if _is_call_verified_and_fresh(h, max_age_days))
-    if kept:
+    # SAFE-004: 112 always qualifies (official listing), so it alone used to
+    # count as "a verified line" and the block lost Tele-MANAS once its call
+    # date aged out. A crisis block needs a support line, not only the
+    # emergency number: fall back unless a call-verified non-112 line remains.
+    if any(h.contact.strip() != "112" for h in kept):
         return kept
     # Fallback strictly to verified national line (Tele-MANAS, 112); never leak unverified numbers
     fallback_national = tuple(

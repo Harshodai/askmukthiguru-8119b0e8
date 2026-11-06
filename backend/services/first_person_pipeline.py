@@ -3888,7 +3888,7 @@ class FirstPersonPipeline:
         latency = (time.monotonic() - start_time) * 1000.0
         self._log_and_count("crisis_redirect", latency, 0.0, 0, 0, "none", 0)
         return FirstPersonPipelineResult(
-            answer_text=format_helplines_block(),
+            answer_text=format_helplines_block(verified_only=True),  # SAFE-004 (T4-07)
             citations=[],
             status="crisis_redirect",
             is_direct_answer=False,
