@@ -108,9 +108,16 @@ def _first_person_claims(state: GraphState) -> bool:
 
         return is_spiritual_domain_query(question)
     except Exception:
-        # Fail toward general synthesis rather than inventing teacher speech if
-        # the route classifier cannot be loaded.
-        return False
+        # SYS-001 remainder: with generated teaching not deliberately allowed,
+        # claim the turn so the answer is a verbatim clip or the static abstain.
+        # The bridge never invents teacher speech. With generation allowed,
+        # fall to general synthesis as before.
+        try:
+            from services.fp_fail_closed import fail_closed_active
+
+            return bool(fail_closed_active())
+        except Exception:  # noqa: BLE001
+            return False
 
 
 PIPELINE_MODULES: tuple[PipelineModule, ...] = (

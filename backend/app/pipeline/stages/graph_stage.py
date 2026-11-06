@@ -37,6 +37,42 @@ logger = logging.getLogger(__name__)
 from app.language_utils import internal_pipeline_language  # noqa: E402  (re-exported for tests)
 
 
+def select_general_knowledge_mode(state: dict, routing_question: str) -> bool:
+    """Route an unrouted turn to the general lane only when it is not a teaching question.
+
+    An earlier stage (OffTopicStage) that explicitly routed to the teaching
+    lane is authoritative: the keyword classifier must not flip a life
+    question ("my wife and I fight") to LLM prose (invariant 21). Only an
+    unrouted turn falls through to the classifier.
+    """
+    if bool(state.get("general_knowledge_mode")):
+        return True
+    if state.get("domain_route") == "teaching":
+        return False
+    try:
+        from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
+
+        return not is_spiritual_domain_query(routing_question)
+    except Exception as exc:
+        # SYS-001 remainder: with generated teaching not deliberately allowed, a
+        # broken classifier keeps the turn on the teaching lane (a verbatim clip
+        # or the static abstain), never the generating general lane.
+        from services.fp_fail_closed import fail_closed_active, record_fail_closed
+
+        if fail_closed_active():
+            record_fail_closed("domain_classifier_error")
+            logger.warning(
+                "Domain classifier unavailable; keeping the teaching lane (fail closed): %s",
+                type(exc).__name__,
+            )
+            return False
+        logger.warning(
+            "Domain classifier unavailable; selecting general-answer mode: %s",
+            type(exc).__name__,
+        )
+        return True
+
+
 def _assistant_config_fingerprint(assistant: Any, *, is_authed: bool) -> str:
     """Bounded SHA-256 digest of the effective assistant configuration.
 
@@ -202,23 +238,9 @@ class GraphStage(Stage):
             # finalized. Unknown/non-doctrinal questions default to general
             # answering; classifier failure must not trap users in closed-corpus
             # abstention or an unrelated first-person teacher clip.
-            general_knowledge_mode = bool((ctx.state or {}).get("general_knowledge_mode"))
-            # An earlier stage (OffTopicStage) that explicitly routed to the
-            # teaching lane is authoritative: the keyword classifier below must
-            # not flip a life question ("my wife and I fight") to LLM prose
-            # (invariant 21). Only an unrouted turn falls through to it.
-            explicitly_teaching = (ctx.state or {}).get("domain_route") == "teaching"
-            if not general_knowledge_mode and not explicitly_teaching:
-                try:
-                    from app.pipeline.stages.off_topic_stage import is_spiritual_domain_query
-
-                    general_knowledge_mode = not is_spiritual_domain_query(routing_question)
-                except Exception as exc:
-                    logger.warning(
-                        "Domain classifier unavailable; selecting general-answer mode: %s",
-                        type(exc).__name__,
-                    )
-                    general_knowledge_mode = True
+            general_knowledge_mode = select_general_knowledge_mode(
+                ctx.state or {}, routing_question
+            )
             initial_state["general_knowledge_mode"] = general_knowledge_mode
             # Preserve the pre-graph semantic decision. In particular, a
             # time-sensitive Jev route must not lose needs_web_search when this
