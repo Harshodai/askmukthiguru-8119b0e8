@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search, Video, Flag, Check, AlertCircle } from 'lucide-react';
+import { quoteLang } from '@/lib/quoteLang';
+import { buildCaptionVtt } from '@/lib/captionVtt';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { resolveAttributionLabel } from '@/lib/chat/types';
 import { isUnreviewedTranscript } from '@/lib/transcriptStatus';
@@ -23,6 +25,8 @@ export interface DiscourseCitation {
   startTimestamp?: number; // in seconds; 0 is a valid, playable start
   endTimestamp?: number;
   quote?: string;
+  /** BCP-47 language of the quote when the clip record says so (NEW-A11Y-5). */
+  language?: string;
   /** Backend transcript provenance (`transcript_status`, or first-person `caption_status`).
    *  Absent => rendered as "Auto-transcript"; only an explicit reviewed status hides the label. */
   transcriptStatus?: string;
@@ -195,6 +199,27 @@ export const DiscourseVideoModal: React.FC<{
     isOpen && !!citation && !isDirectVideo
   );
 
+  // NEW-A11Y-4 (A11Y-06): a captions track for direct video, built from the stored
+  // verbatim quote only. Cue times are source-video seconds, matching the #t= fragment.
+  const captionText = citation?.quote ?? '';
+  const captionStart = Math.max(0, citation?.playbackStartSeconds ?? citation?.startTimestamp ?? 0);
+  const captionEnd = citation?.playbackEndSeconds ?? citation?.endTimestamp ?? 0;
+  const [captionUrl, setCaptionUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isOpen || !isDirectVideo) {
+      setCaptionUrl(null);
+      return;
+    }
+    const vtt = buildCaptionVtt(captionText, captionStart, captionEnd);
+    if (!vtt) {
+      setCaptionUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }));
+    setCaptionUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [isOpen, isDirectVideo, captionText, captionStart, captionEnd]);
+
   if (!citation) return null;
   // YouTube's embed `start` takes whole seconds. Round UP (ceil) to prevent
   // starting up to 1.0s early into preceding host speech.
@@ -251,7 +276,11 @@ export const DiscourseVideoModal: React.FC<{
               className="h-full w-full object-contain"
               data-testid="direct-video-player"
               src={`${directStreamUrl}${directFragment}`}
-            />
+            >
+              {captionUrl && (
+                <track kind="captions" src={captionUrl} srcLang={quoteLang(citation.language) ?? 'en'} label="Spoken words" default />
+              )}
+            </video>
           </div>
         ) : embedError ? (
           <div className="flex aspect-video w-full flex-col items-center justify-center gap-1.5 bg-black/95 px-4 text-center">
@@ -273,7 +302,7 @@ export const DiscourseVideoModal: React.FC<{
             <iframe
               ref={iframeRef}
               className="h-full w-full"
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}${endParam}&enablejsapi=1&origin=${encodeURIComponent(
+              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&cc_load_policy=1&start=${start}${endParam}&enablejsapi=1&origin=${encodeURIComponent(
                 typeof window !== 'undefined' ? window.location.origin : '',
               )}`}
               referrerPolicy="strict-origin-when-cross-origin"
