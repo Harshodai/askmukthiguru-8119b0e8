@@ -330,7 +330,7 @@ The first pass left four defect groups in `FINAL_AUDIT_GAP_ANALYSIS.md` §2 with
 | ID | Sev | Finding | Type | Doc | Task | Found by |
 |---|---|---|---|---|---|---|
 | RW-01 | P1 (lead) | Railway drains for 0 s by default and nothing sets `RAILWAY_DEPLOYMENT_DRAINING_SECONDS`; `backend/app/main.py:135` assumes a longer window, so deploys drop in-flight requests | CD | `specifications/RAILWAY_DEPLOYMENT_AND_PRODUCTION_OPERATIONS_RUNBOOK.md` §1, §8 | NEW-RW-1 | Railway review |
-| RW-02 | P1 (lead) | `railway up` gives no `RAILWAY_GIT_COMMIT_SHA`; the first-person production contract can stop startup (`backend/app/first_person_release.py:119-125`) | CD | Railway runbook §1 | NEW-RW-2 | Railway review |
+| RW-02 | P1 (lead) | `railway up` gives no `RAILWAY_GIT_COMMIT_SHA`; the first-person production contract can stop startup (`backend/services/first_person_release.py:119-125`) | CD | Railway runbook §1 | NEW-RW-2 | Railway review |
 | RW-03 | P1 (lead) | `scripts/deploy/deploy_railway.sh` sets Redis `volatile-lru` (compose decided `noeviction`), generates a random `JWT_SECRET`, and omits required variables | CD | Railway runbook §1 (C-7) | NEW-RW-4 | Railway review |
 | RW-04 | P2 (lead) | Celery worker and beat modes in `backend/start_railway.py` install no SIGTERM handler (no `signal` use in the file) | PD | Railway runbook §1 | NEW-RW-3 | Railway review |
 | RW-05 | P1 (lead) | `.railway/railway.ts` declares one service (no worker, beat or Redis) and `dockerfilePath` is commented out; IaC `service()` cannot name a Dockerfile, so `RAILWAY_DOCKERFILE_PATH` must be set | AR | Railway runbook §5 | T9-01 | Railway review |

@@ -73,6 +73,7 @@ Source: `FINAL_PENDING_WORK_REGISTER.md`.
 |---|---|
 | Owner (decisions, 30 min) | This file -> `FINAL_DECISION_AND_RISK_REGISTER.md` §2.1 -> `FINAL_QDRANT_LIVE_VALIDATION_CHECKLIST.md` -> `FINAL_RAILWAY_STAGING_READINESS.md` Gate A |
 | Coding agent | `FINAL_CODING_AGENT_EXECUTION_PACKAGE.md` §1 -> the spec named by the task |
+| Next two sessions (2026-11-06) | Opus: `NEXT_SESSION_PROMPT_OPUS.md` (safety, honesty, security, data integrity, review of T7-02). Sonnet: `NEXT_SESSION_PROMPT_SONNET.md` (Railway, operations, configuration, accessibility, k8s, Lovable, guards, docs). Disjoint file ownership; both can run in parallel. |
 | Reviewer of this pass | `FINAL_AUDIT_GAP_ANALYSIS.md` -> `FINAL_USAGE_AND_VERIFICATION_LOG.md` |
 
 ## 6. Other files changed by this pass
