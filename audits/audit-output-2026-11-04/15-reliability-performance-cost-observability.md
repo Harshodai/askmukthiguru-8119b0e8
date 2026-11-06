@@ -172,7 +172,7 @@ Worked illustration (placeholder, not a quote): if `c_rel` were $0.003, the per-
 | Alertmanager to PagerDuty/Slack (prod file) and a local-only variant | `infrastructure/prometheus/alertmanager*.yml` | [V-STATIC]; not deployed [LIVE-R] |
 | OTEL spans per node to Jaeger | `backend/app/tracing.py` | [V-STATIC] |
 | Telemetry sink to Supabase (`chat_queries`, `chat_responses`, `trace_spans`, `safety_events`, `router_decisions`) and admin trace viewer with prompt-version filter | `app/telemetry_sink.py`, `app/api/admin.py:76-95` | [V-STATIC] |
-| `/metrics` admin+AAL2; scrape via `/internal/metrics` with token | CLAUDE.md; `health.py:741-760` | [V-STATIC] |
+| `/metrics` admin+AAL2; scrape via `/internal/metrics` with token | CLAUDE.md; `backend/app/api/health.py:741-760` | [V-STATIC] |
 
 ### 6.2 Gaps
 

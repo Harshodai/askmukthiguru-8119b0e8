@@ -28,17 +28,17 @@ No live store was contacted. Every count from a live store is `[DOC-CLAIM]` or n
 
 | # | Store | Technology | What it holds | Writers | Readers on serving path today | Evidence |
 |---|---|---|---|---|---|---|
-| S-1 | `first_person_v10` (and v11 staging) | Qdrant, schema `fp-context-v1` | ParentUnit + SourceSpan records. Vectors: `passage_dense` 1024-d, `passage_sparse` | Host scripts `build_full_corpus_v10.py`, `build_fp_context_from_v9.py`, ingestion dual-index (off) | v10-only posture: context harness (`first_person_context_store.py`) | `backend/domain/first_person_context.py:166-301`, `backend/config/first_person_serving_contract.json` [V-STATIC] |
-| S-2 | `first_person_v8` (legacy default), v1-v9 | Qdrant, schema `first-person-legacy-clip-v1` | Flat clips. Vectors: `passage_dense`, `question_dense`, `passage_sparse` | `build_first_person_index.py` (host) | Legacy path whenever the harness flags are off (code default) | `backend/app/config.py:41,205-209,2294-2310`; `backend/services/first_person_store.py:276-376` [V-STATIC] |
+| S-1 | `first_person_v10` (and v11 staging) | Qdrant, schema `fp-context-v1` | ParentUnit + SourceSpan records. Vectors: `passage_dense` 1024-d, `passage_sparse` | Host scripts `backend/scripts/ops/build_full_corpus_v10.py`, `backend/scripts/ops/build_fp_context_from_v9.py`, ingestion dual-index (off) | v10-only posture: context harness (`first_person_context_store.py`) | `backend/domain/first_person_context.py:166-301`, `backend/config/first_person_serving_contract.json` [V-STATIC] |
+| S-2 | `first_person_v8` (legacy default), v1-v9 | Qdrant, schema `first-person-legacy-clip-v1` | Flat clips. Vectors: `passage_dense`, `question_dense`, `passage_sparse` | `backend/scripts/ops/build_first_person_index.py` (host) | Legacy path whenever the harness flags are off (code default) | `backend/app/config.py:41,205-209,2294-2310`; `backend/services/first_person_store.py:276-376` [V-STATIC] |
 | S-3 | `spiritual_wisdom_contextual` (chat corpus); legacy `spiritual_wisdom` | Qdrant, vectors `dense`/`sparse` | YouTube-caption chunks, RAPTOR summaries | `IngestionPipeline`, `QdrantIndexer.upsert_chunks`, 7 scripts under `scripts/ingestion/` | Only when the first-person module does not claim (personalize turns) or fails open | `backend/app/config.py:709`; `backend/services/qdrant/indexer.py:203-480`; `backend/rag/pipeline_registry.py:79-104` [V-STATIC] |
 | S-4 | `lightrag_vdb_{entities,relationships,chunks}_baai_bge_m3_1024d` | Qdrant (via LightRAG) | LLM-extracted entities and relations | `LightRAGService.ainsert` from ingestion | Generating path only (`rag_lightrag_context_injection_enabled=True`) | `backend/services/lightrag_service.py:370-415,775-790`; `lessons.md:6293-6300` [V-STATIC]/[DOC-CLAIM] |
 | S-5 | `mukthi_semantic_cache_1024d` | Qdrant | Chat answer cache (semantic) | Cache adapter | Generating path only | `backend/services/cache/semantic_adapter.py:56`; `config.py:1588` [V-STATIC] |
 | S-6 | `canonical_memory_vectors`, `second_brain_vault` | Qdrant | User memory vectors, user vault | Memory services | Memory features (S3 scope) | `services/canonical_memory/vector_index.py:49`; `services/second_brain/vault_index.py:45` [V-STATIC] |
-| S-7 | Memgraph (`base` entities, `__Chunk__`, ontology labels, `TU_*`) | Memgraph via neo4j driver | Ontology and LightRAG graph, TeachingUnit projection (off) | `ontology_writer.py`, `triple_extractor.py`, LightRAG, `build_teaching_unit_graph.py` | Generating path graph context; first-person graph expansion (off) | `backend/ingest/ontology_writer.py:152-180`; `backend/ingest/pipeline.py:4380-4400` [V-STATIC] |
+| S-7 | Memgraph (`base` entities, `__Chunk__`, ontology labels, `TU_*`) | Memgraph via neo4j driver | Ontology and LightRAG graph, TeachingUnit projection (off) | `ontology_writer.py`, `triple_extractor.py`, LightRAG, `backend/scripts/ops/build_teaching_unit_graph.py` | Generating path graph context; first-person graph expansion (off) | `backend/ingest/ontology_writer.py:152-180`; `backend/ingest/pipeline.py:4380-4400` [V-STATIC] |
 | S-8 | LightRAG working dir `data/lightrag` | Local files | LightRAG KV and doc status | LightRAG | LightRAG | `lightrag_service.py:387` [V-STATIC] |
 | S-9 | Supabase Postgres | Postgres, 139 migrations, about 85 tables | Users, conversations, memory, telemetry, ingestion jobs, source releases, review queues | Backend, frontend (Supabase JS), edge functions | Auth, conversations, telemetry, memory | `supabase/migrations/` [V-STATIC] |
 | S-10 | Redis | Redis | FP exact cache `cache:first_person_exact:*` (TTL 86,400 s); chat cache `mukthiguru:cache:tenant:*`; `mukthiguru:semcache:*`; rate limit `rl:*`; anon quota `anon:*`; locks `mukthiguru:lock:*`; `whatsapp:*`; Celery | Backend, workers | Yes (exact cache, quota, rate limit) | `first_person_pipeline.py:135,3033-3066` [V-STATIC] |
-| S-11 | OKF bundle `memory/okf/` | Markdown + `compiled.json` (10.9 MB) | 1,541 tracked `.md` files (820 in `staging/`). 429 compiled entries (424 teaching) | `extract_okf_from_stores.py` (LLM), `okf_compile` | Routing/reflection only (invariant 12) | `memory/okf/compiled.json` [V-STATIC] |
+| S-11 | OKF bundle `memory/okf/` | Markdown + `compiled.json` (10.9 MB) | 1,541 tracked `.md` files (820 in `staging/`). 429 compiled entries (424 teaching) | `backend/scripts/extract_okf_from_stores.py` (LLM), `okf_compile` | Routing/reflection only (invariant 12) | `memory/okf/compiled.json` [V-STATIC] |
 | S-12 | Rights register | JSON file `audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json` | 751 assets: 702 `confirmed_channel_owner`, 2 `confirmed_video_owner`, 46 `missing_evidence`, 1 `pending_owner_review` | Offline script | **Every served clip** (`source_is_authoritatively_licensed`) | `services/first_person_serving_contract.py:177-186`; `services/qdrant/indexer.py:44-135` [V-STATIC] |
 | S-13 | Serving contract | JSON `backend/config/first_person_serving_contract.json` | Schema, role, corpus version, required fields for v1-v11 | Hand-edited | Startup and per-request contract check | [V-STATIC] |
 | S-14 | Video decisions | JSON files in `backend/data/fp_video_decisions` (or `FIRST_PERSON_VIDEO_DECISIONS_DIR`) | Per-video human approve/block and audit log | Admin API | First-person serving filter and cache re-check | `services/first_person_video_decisions.py:98-367` [V-STATIC] |
@@ -54,7 +54,7 @@ No live store was contacted. Every count from a live store is `[DOC-CLAIM]` or n
 |---|---|---|
 | `kb_sources`, `kb_chunks` (pgvector `vector(768)`) | A second vector store. Its dimension (768) differs from BGE-M3 (1024). One backend file references it. | `supabase/migrations/20260605023720_*.sql:22-66` [V-STATIC] |
 | `gurus` table (`slug`, `collection_name`) | A second teacher registry. It does not match `backend/config/gurus.yaml`. | `20260703170000_gurus_and_configurations.sql:18-27` [V-STATIC] |
-| `fp-context-v1` / `fp_context_v1` collections | Named in code and in the TU-graph builder default. The serving collection is `first_person_v10`. | `config.py:296-302`; `build_teaching_unit_graph.py:425-426` [V-STATIC] |
+| `fp-context-v1` / `fp_context_v1` collections | Named in code and in the TU-graph builder default. The serving collection is `first_person_v10`. | `config.py:296-302`; `backend/scripts/ops/build_teaching_unit_graph.py:425-426` [V-STATIC] |
 | GPTCache server | Compose service `gptcache-server` | `backend/docker-compose.yml:594` [V-STATIC] |
 
 ## 3. Per-store assessment
@@ -126,13 +126,13 @@ flowchart LR
 | Entity | Authoritative store (today) | Copies | Join key | Consistency check that exists | Missing check |
 |---|---|---|---|---|---|
 | Video (source) | None. It is split across the host manifest, `corpus_sources`, the rights manifest and Qdrant payloads. | 6 or more | `video_id` (and raw URL in the chat corpus) | Rights manifest lookup at serve time | A single source registry; URL canonicalisation; re-upload map |
-| Transcript text | Host transcripts (FP); YouTube captions (chat) | 2 divergent | None | v10 builder recomputes the body hash (`build_full_corpus_v10.py:349-385`) | Chat ↔ FP transcript join |
+| Transcript text | Host transcripts (FP); YouTube captions (chat) | 2 divergent | None | v10 builder recomputes the body hash (`backend/scripts/ops/build_full_corpus_v10.py:349-385`) | Chat ↔ FP transcript join |
 | Served span text | Qdrant v10 payload `verbatim_text` | Release evidence JSONL | `source_span_id` | `source_text_hash == sha256(verbatim_text)` at serve (harness HASH_GATE) | Continuous audit of the live collection (DATA-15) |
 | Speaker attribution | v10 payload `speaker_verified` + `voice_verification_method` | Speaker verdict files (host) | `source_span_id` | Builder gate; v11 post-checks `[DOC-CLAIM]` | Write lock (DATA-06); the dual-index path fabricates it (DATA-04) |
 | Rights status | Rights manifest file | Payload `domain_rights_status`, `rights_cleared` | URL / `video_id` | Serve-time re-resolution (fail closed) | Shipping the file to Railway (DATA-02) |
 | Takedown | Video decisions JSON | None | `video_id` | FP serve and cache-hit re-check | Every other store (DATA-07) |
 | Graph concept → evidence | Memgraph | LightRAG Qdrant | Entity name | None | Span-level provenance (DATA-08) |
-| OKF entry → source | `source` URL in front matter | `compiled.json` | URL | `data_quality_audit.py` OKF quote check | Compile drift (721 vs 429) |
+| OKF entry → source | `source` URL in front matter | `compiled.json` | URL | `backend/scripts/ops/data_quality_audit.py` OKF quote check | Compile drift (721 vs 429) |
 | Conversation → citation | `chat_messages.citations text[]` | None | Free text | None | Structured citation table (DATA-12) |
 | Corpus version → release approval | Owner decision files | Serving contract | `corpus_version` | None | Binding check (DATA-16) |
 
@@ -142,7 +142,7 @@ flowchart LR
 |---|---|---|---|---|---|---|---|---|
 | Re-ingest a video (same URL) | Two-phase replace when the pipeline passes `replace_source_url` (`indexer.py:220-480`). Scripts do not. | Not touched | Re-extract; duplicate merge risk | MERGE by name | New staging entry | `_invalidate_answer_caches(source_url)` (`pipeline.py:3598`) | New `source_releases` row | Partial |
 | Re-ingest under a different URL form | New point set (duplicate) | n/a | Duplicate | Merge | Duplicate | Miss | Same `source_identity` (video ID) | **Duplicates** (DATA-10) |
-| Rebuild FP v10 for a corrected video | n/a | **Skipped**: "already indexed" (`build_full_corpus_v10.py:867-894`) | n/a | n/a | n/a | Policy digest changes only if contract/rights files change | n/a | **Stale** (DATA-05) |
+| Rebuild FP v10 for a corrected video | n/a | **Skipped**: "already indexed" (`backend/scripts/ops/build_full_corpus_v10.py:867-894`) | n/a | n/a | n/a | Policy digest changes only if contract/rights files change | n/a | **Stale** (DATA-05) |
 | Takedown of a video | Not removed | Blocked at serve via JSON | Not removed | Not removed | Not removed | FP cache re-check blocks it | Old citations remain | **Incomplete** (DATA-07) |
 | User erasure | n/a | n/a | n/a | `DETACH DELETE` user and memories (`app/api/memory.py:1290`) | n/a | Memory keys | Cascades | S3 scope |
 
@@ -214,7 +214,7 @@ Scale: Good / Fair / Poor / Unknown. Numbers are `[DOC-CLAIM]` unless marked `[V
 | Severity | P1 |
 | Type | Confirmed defect (semantic drift) |
 | Confidence | High |
-| Evidence | Legacy v8: clip hash, validated (`first_person_store.py:172-215`). v10 builder: whole-transcript body hash (`build_full_corpus_v10.py:349-385`; `first_person_context.py:12-15,261-265`). Ingestion dual-index: clip hash in the same v10 field (`backend/ingest/pipeline.py` ≈3759-3761: `"transcript_hash": text_hash, "source_text_hash": text_hash`). Citation dict: key `transcript_hash` carries the clip hash; `video_transcript_hash` carries the body hash (`first_person_context_store.py:1320-1323`). Root `CLAUDE.md` invariant 2: match on only 1,839 of 2,758 v10 children `[DOC-CLAIM]`. [V-STATIC] |
+| Evidence | Legacy v8: clip hash, validated (`first_person_store.py:172-215`). v10 builder: whole-transcript body hash (`backend/scripts/ops/build_full_corpus_v10.py:349-385`; `first_person_context.py:12-15,261-265`). Ingestion dual-index: clip hash in the same v10 field (`backend/ingest/pipeline.py` ≈3759-3761: `"transcript_hash": text_hash, "source_text_hash": text_hash`). Citation dict: key `transcript_hash` carries the clip hash; `video_transcript_hash` carries the body hash (`first_person_context_store.py:1320-1323`). Root `CLAUDE.md` invariant 2: match on only 1,839 of 2,758 v10 children `[DOC-CLAIM]`. [V-STATIC] |
 | Actual behaviour | One field name holds different quantities depending on the writer. Within v10 itself, the two writers disagree. |
 | Expected behaviour | One name per quantity: `video_transcript_sha256` and `span_text_sha256`. |
 | Root cause | The v10 schema reused the legacy name with a new meaning. |
@@ -256,7 +256,7 @@ Scale: Good / Fair / Poor / Unknown. Numbers are `[DOC-CLAIM]` unless marked `[V
 | Severity | P1 |
 | Type | Confirmed defect |
 | Confidence | High |
-| Evidence | `build_full_corpus_v10.py:867-894` (videos already present are skipped); `:1238-1258` (on failure, delete the attempted IDs only); `:1295-1298` (snapshot **after** the writes); there is no stale-ID diff. Contrast `build_first_person_index.py:677-783` (diff, delete stale, refuse empty). `backend/CLAUDE.md` rule: "dry-run → snapshot → ask → apply". [V-STATIC] |
+| Evidence | `backend/scripts/ops/build_full_corpus_v10.py:867-894` (videos already present are skipped); `:1238-1258` (on failure, delete the attempted IDs only); `:1295-1298` (snapshot **after** the writes); there is no stale-ID diff. Contrast `backend/scripts/ops/build_first_person_index.py:677-783` (diff, delete stale, refuse empty). `backend/CLAUDE.md` rule: "dry-run → snapshot → ask → apply". [V-STATIC] |
 | Actual behaviour | A corrected transcript or speaker verdict for an indexed video never reaches v10 unless someone deletes points by hand. |
 | Expected behaviour | Per-video replace: build the new set, snapshot, upsert, delete stale IDs for that video, verify. |
 | Root cause | Resume-on-crash logic uses "video present" as "video done". |
@@ -319,7 +319,7 @@ Scale: Good / Fair / Poor / Unknown. Numbers are `[DOC-CLAIM]` unless marked `[V
 | Severity | P2 |
 | Type | Confirmed defect |
 | Confidence | High |
-| Evidence | `ontology_writer.py:152-163` (`MERGE (n:base {entity_id})` then `SET n.source_doc_id`, so the last writer wins); `pipeline.py:4392` (`MERGE (src:__Chunk__ {text: $chunk_text[:300]})`); `pipeline.py:1270,1547` (`ainsert(clean_text)` without `file_paths`); `lessons.md:6295` (LightRAG chunks 41.4% contaminated) `[DOC-CLAIM]`. [V-STATIC] |
+| Evidence | `ontology_writer.py:152-163` (`MERGE (n:base {entity_id})` then `SET n.source_doc_id`, so the last writer wins); `backend/ingest/pipeline.py:4392` (`MERGE (src:__Chunk__ {text: $chunk_text[:300]})`); `pipeline.py:1270,1547` (`ainsert(clean_text)` without `file_paths`); `lessons.md:6295` (LightRAG chunks 41.4% contaminated) `[DOC-CLAIM]`. [V-STATIC] |
 | Actual behaviour | A graph fact cannot be traced to a video and timestamp, or deleted by source. |
 | Expected behaviour | Every node or edge used as evidence lists the `source_span_id`s that support it. |
 | Root cause | LightRAG defaults; name-keyed MERGE. |
@@ -361,7 +361,7 @@ Scale: Good / Fair / Poor / Unknown. Numbers are `[DOC-CLAIM]` unless marked `[V
 | Severity | P2 |
 | Type | Probable defect |
 | Confidence | Medium |
-| Evidence | `services/qdrant/utils.py:23-35` (ID from `source_url`); `pipeline.py:1038-1216` (`"source_url": url`, uncanonicalised). Only `pipeline.py:3537` and `video_pipeline.py:311` pass `replace_source_url`. `scripts/ingestion/{bulk_ingest_async,smart_extract_and_ingest,ingest_pageindex_json,ingest_structure_to_qdrant,bulk_ingest_whisper,ingest_four_sacred_secrets}.py` do not. [V-STATIC] |
+| Evidence | `services/qdrant/utils.py:23-35` (ID from `source_url`); `backend/ingest/pipeline.py:1038-1216` (`"source_url": url`, uncanonicalised). Only `backend/ingest/pipeline.py:3537` and `video_pipeline.py:311` pass `replace_source_url`. `scripts/ingestion/{bulk_ingest_async,smart_extract_and_ingest,ingest_pageindex_json,ingest_structure_to_qdrant,bulk_ingest_whisper,ingest_four_sacred_secrets}.py` do not. [V-STATIC] |
 | Actual behaviour | URL variants (`youtu.be`, `&t=`) create parallel point sets. Shrinking chunk counts leave stale tail chunks. |
 | Expected behaviour | ID derived from the canonical `video_id`; every writer replaces by source. |
 | Root cause | No canonicalisation helper at the write boundary. |
@@ -424,7 +424,7 @@ Scale: Good / Fair / Poor / Unknown. Numbers are `[DOC-CLAIM]` unless marked `[V
 | Severity | P2 |
 | Type | Confirmed defect |
 | Confidence | High |
-| Evidence | Chat: `teacher_id` ∈ {`ekam`, `preethaji_krishnaji`, `krishnaji`} (root `CLAUDE.md`, 4,337 of 12,904 `ekam`) `[DOC-CLAIM]`. v8: `teacher_id`/`speaker` ∈ {`preethaji`, `krishnaji`} (`build_first_person_index.py:561-578`). v10: `guru_id`. OKF: `teacher: sri-krishnaji`. Postgres `gurus.slug` "preethaji_krishnaji". Runtime registry `backend/config/gurus.yaml`. [V-STATIC] |
+| Evidence | Chat: `teacher_id` ∈ {`ekam`, `preethaji_krishnaji`, `krishnaji`} (root `CLAUDE.md`, 4,337 of 12,904 `ekam`) `[DOC-CLAIM]`. v8: `teacher_id`/`speaker` ∈ {`preethaji`, `krishnaji`} (`backend/scripts/ops/build_first_person_index.py:561-578`). v10: `guru_id`. OKF: `teacher: sri-krishnaji`. Postgres `gurus.slug` "preethaji_krishnaji". Runtime registry `backend/config/gurus.yaml`. [V-STATIC] |
 | Actual behaviour | Filters and joins need per-store translation. |
 | Expected behaviour | One registry ID set used by every store. |
 | Root cause | No registry when the early stores were built. |
@@ -487,7 +487,7 @@ Scale: Good / Fair / Poor / Unknown. Numbers are `[DOC-CLAIM]` unless marked `[V
 | Severity | P2 |
 | Type | Probable defect |
 | Confidence | Medium |
-| Evidence | Serving contract: `first_person_v10.corpus_version = "fp-context-transcript-v1"`; builder `DEFAULT_CORPUS_VERSION = "fp-context-transcript-v1"` (`build_full_corpus_v10.py:131`). Release evidence: `public_release_phase4_tiers_manifest_2026-10-22.json` `corpus_version = "fp-context-transcript-v2"`; `build_fp_rights_register.py:636,748`; owner packets. [V-STATIC] |
+| Evidence | Serving contract: `first_person_v10.corpus_version = "fp-context-transcript-v1"`; builder `DEFAULT_CORPUS_VERSION = "fp-context-transcript-v1"` (`backend/scripts/ops/build_full_corpus_v10.py:131`). Release evidence: `public_release_phase4_tiers_manifest_2026-10-22.json` `corpus_version = "fp-context-transcript-v2"`; `build_fp_rights_register.py:636,748`; owner packets. [V-STATIC] |
 | Actual behaviour | Owner decisions reference a file-based v2 candidate corpus. The served Qdrant collection is declared v1. |
 | Expected behaviour | Each release record binds `(collection, corpus_version, bundle digest, scorecard digest, decisions)`. Startup verifies it. |
 | Root cause | Evidence pipeline and serving pipeline evolved separately. |

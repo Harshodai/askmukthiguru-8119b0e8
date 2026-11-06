@@ -315,7 +315,7 @@ D-18 (delete dormant modules) blocks no finding here. D-27 is decided (audit com
 
 ## 10. Findings from the 2026-11-06 reviews (not yet in `findings-index.md`)
 
-The mobile, k8s and accessibility reviews added findings with new prefixes. They are not in the counts in §1. The next agent registers the prefixes (`CONVENTIONS.md`) and adds each finding to `findings-index.md` when it confirms it.
+The mobile, k8s and accessibility reviews added findings with new prefixes. They are not in the counts in §1. The prefixes are now registered in `CONVENTIONS.md` §5, and all 75 findings from the specifications (DATA, MEM, OPS, ANS, RET, MOB, K8S, A11Y) are listed in the last section of `findings-index.md`, status Open (found 2026-11-05/06). They are still not in the §1 counts or the §2 register.
 
 | Prefix | P0 | P1 | P2 | P3 | P1 IDs | Source |
 |---|---|---|---|---|---|---|
@@ -324,5 +324,28 @@ The mobile, k8s and accessibility reviews added findings with new prefixes. They
 | A11Y | 0 | 7 | 9 | 1 (6 parts) | A11Y-01, A11Y-02, A11Y-03, A11Y-05, A11Y-06, A11Y-11, A11Y-16 | `specifications/ACCESSIBILITY_AUDIT_AND_REQUIREMENTS.md` |
 | Total | 0 | 14 | 21 | 6 | | |
 
-Also not yet indexed: the defects in `FINAL_AUDIT_GAP_ANALYSIS.md` §2 (DATA-20 to DATA-27, Railway, alerting, answer honesty, harness, MEM-007 to MEM-012).
+Now indexed: DATA-20 to DATA-27, MEM-007 to MEM-012, OPS-001 to OPS-009, ANS-009 to ANS-013, RET-12 to RET-17. Still not indexed because they carry no ID: the Railway, AI-harness, GURU and RLIMIT groups of `FINAL_AUDIT_GAP_ANALYSIS.md` §2.
 
+### 10.1 Second pass (2026-11-06): IDs assigned to unnumbered groups and the Lovable review
+
+| Prefix | P0 | P1 | P2 | P3 | P1 IDs | Source |
+|---|---|---|---|---|---|---|
+| RW | 0 | 4 | 2 | 0 | RW-01, RW-02, RW-03, RW-05 | Railway runbook spec |
+| AI | 0 | 2 | 3 | 0 | AI-009, AI-010 | Harness spec |
+| GURU | 0 | 0 | 2 | 0 | — | Guru spec |
+| SYS | 0 | 0 | 1 | 0 | — | Lessons review |
+| LOV | 0 | 3 | 4 | 1 | LOV-01, LOV-02, LOV-03 | `specifications/LOVABLE_SYNC_PATH_REVIEW.md` |
+| Total | 0 | 9 | 12 | 1 | | |
+
+All 22 are registered in `findings-index.md` (second-pass section). Status: Open. Who can close: an agent for RW-01 to RW-06, AI-009 to AI-013, GURU-016, SYS-013, LOV-02 to LOV-08; the owner for LOV-01 (GitHub settings) and GURU-015 (D-05).
+
+### 10.2 Third pass (2026-11-06): load model and accessibility proxy session
+
+| ID | Sev | Who can close |
+|---|---|---|
+| SYS-014 | P1 (lead) | Agent (NEW-LOAD-3) after the owner records the scorer price (D-16) |
+| A11Y-20 | P2 | Agent (NEW-A11Y-2) |
+| A11Y-22 | P2 (candidate) | Human screenshot check, then agent |
+| A11Y-18, A11Y-19, A11Y-21 | P3 | Agent |
+
+Running total of findings added by the final verification pass: 75 (first pass) + 22 (second pass) + 6 (third pass) = 103, all in `findings-index.md`.

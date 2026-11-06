@@ -9,7 +9,7 @@
 
 ## 2. Read-only rules
 
-- Write or edit files only under `/home/user/askmukthiguru-8119b0e8/audit-output/`.
+- Write or edit files only under `/home/user/askmukthiguru-8119b0e8/audits/audit-output-2026-11-04/` (the package was first written as `audit-output/` at the repository root; moved by D-27).
 - Do not change Git state: no checkout, commit, stash, reset, branch, push, fetch, merge.
 - Do not install packages (no pip, npm, apt).
 - Do not connect to Qdrant, Railway, Supabase, Redis, Memgraph, Lovable or any deployed backend. Do not call Railway, Supabase or Lovable MCP tools.
@@ -86,6 +86,9 @@ Do not inflate severity. Keep confirmed defects, probable defects, architectural
 | S3 AI harness, prompts, memory, answers, safety, evaluation | `AI-`, `ANS-`, `MEM-`, `SAFE-`, `EVAL-` |
 | S4 product, users, FRs, guru, rights, retention | `PRD-`, `UX-`, `GURU-`, `IP-`, `FR-<AREA>-nn` |
 | Lead | `X-` (cross-cutting), `ADR-`, `T-` (roadmap tasks), `NFR-` |
+| S1 reliability, security, cost (registered 2026-11-06) | `OPS-` |
+| Lead (registered 2026-11-06, second pass) | `RW-` (Railway deployment), `LOV-` (Lovable sync path) |
+| Lead (registered 2026-11-06; found by the mobile, k8s and accessibility reviews) | `MOB-` (mobile apps), `K8S-` (k8s manifests), `A11Y-` (accessibility) |
 
 ## 6. The six pillars
 

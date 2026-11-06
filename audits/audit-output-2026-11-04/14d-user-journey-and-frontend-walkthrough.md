@@ -125,7 +125,7 @@ What does change the answer on the teaching lane: the question text, the languag
 |---|---|
 | Code | `handleLanguageChange` sets the AI language, clears the response cache, saves the profile and switches the UI language (`ChatInterface.tsx:886-903`). There are 14 locale files with identical key sets (1,937 keys each) [V-STATIC]. |
 | What is translated | Glue and notices on the backend, within a 5 s fail-open budget. Quotes stay in the original language. The UI chrome is translated. |
-| Where it fails | 33 of 234 `t()` keys in 8 chat components are missing from **every** locale file, including `en.json`. They fall back to inline English. They include every trust badge (`chat.teachingContext.relatedBadge`, `partialBadge`, `chat.guruTeaching.*`), the whole abstain help card (`chat.abstainHelp.*`), the conflict disclosure and "Play clip". Hard-coded English also appears in `errors.ts` titles, `QuotaAuthPrompt`, "unverified clip" and "shared in …" (`types.ts:297-299`), "Watch on YouTube" (`CitationCard.tsx:235`), the welcome text and the `GuidancePreview` copy. A Hindi seeker therefore gets Hindi chrome with English trust and error labels. → UX-008. Native-speaker review of crisis detection is owned by `14b`. |
+| Where it fails | 33 of 234 `t()` keys in 8 chat components are missing from **every** locale file, including `en.json`. They fall back to inline English. They include every trust badge (`chat.teachingContext.relatedBadge`, `partialBadge`, `chat.guruTeaching.*`), the whole abstain help card (`chat.abstainHelp.*`), the conflict disclosure and "Play clip". Hard-coded English also appears in `errors.ts` titles, `QuotaAuthPrompt`, "unverified clip" and "shared in …" (`src/lib/chat/types.ts:297-299`), "Watch on YouTube" (`CitationCard.tsx:235`), the welcome text and the `GuidancePreview` copy. A Hindi seeker therefore gets Hindi chrome with English trust and error labels. → UX-008. Native-speaker review of crisis detection is owned by `14b`. |
 
 ### Step 12 — Profile
 
@@ -186,7 +186,7 @@ Gaps: (1) Only the 503 state carries a support line. A seeker who writes a crisi
 | Dependencies | T5-03 (API contract) |
 | Remediation | Hold `final` until `done` arrives. On a done-less disconnect, re-fetch the job result (`/api/jobs/{id}`) or show "Answer could not be completed" with no teacher text. Send citations and `safety_notices` in or before `final`. |
 | Acceptance criteria | Simulated cut between `final` and `done` → no teacher text without its citation; support line present when the server sent one. |
-| Regression test | Vitest: mocked SSE stream truncated after `final` (`src/lib/chat/__tests__/`), plus a `ChatInterface` render test. |
+| Regression test | Vitest: mocked SSE stream truncated after `final` (`src/test/chat/`), plus a `ChatInterface` render test. |
 | Implementation risk | Low; perceived latency rises slightly. |
 | Verification | [V-STATIC] |
 
@@ -227,7 +227,7 @@ Gaps: (1) Only the 503 state carries a support line. A seeker who writes a crisi
 | Dependencies | T4-07 (call-verified helplines) |
 | Remediation | Append the support line to every terminal error card. It is static text and needs no detection. |
 | Acceptance criteria | Each `MessageErrorKind` card renders the support line; snapshot test. |
-| Regression test | `src/lib/chat/__tests__/errors.test.ts` over all kinds. |
+| Regression test | `src/test/chat/errors.test.ts` over all kinds. |
 | Implementation risk | Low |
 | Verification | [V-STATIC] |
 
@@ -239,7 +239,7 @@ Gaps: (1) Only the 503 state carries a support line. A seeker who writes a crisi
 | Severity | P2 |
 | Type | Confirmed defect |
 | Confidence | High |
-| Evidence | Script over 8 chat components: 33 of 234 `t()` keys are absent from every `src/locales/*.json`, for example `chat.teachingContext.relatedBadge`, `chat.guruTeaching.relatedBadge`, `chat.guruTeaching.unverifiedBadge`, `chat.abstainHelp.title`. Hard-coded: `errors.ts` titles, `QuotaAuthPrompt.tsx:16-19`, `types.ts:297-299`, `CitationCard.tsx:235`, `ChatHelpers.tsx:65`, `GuidancePreview.tsx:11-21`. |
+| Evidence | Script over 8 chat components: 33 of 234 `t()` keys are absent from every `src/locales/*.json`, for example `chat.teachingContext.relatedBadge`, `chat.guruTeaching.relatedBadge`, `chat.guruTeaching.unverifiedBadge`, `chat.abstainHelp.title`. Hard-coded: `errors.ts` titles, `QuotaAuthPrompt.tsx:16-19`, `src/lib/chat/types.ts:297-299`, `CitationCard.tsx:235`, `ChatHelpers.tsx:65`, `GuidancePreview.tsx:11-21`. |
 | Actual behaviour | The honesty labels that matter most ("Related — not a direct answer", "unverified clip") and the no-match help card show in English. |
 | Expected behaviour | Every trust, safety and error string exists in every pilot locale and is native-reviewed (FR-LANG-01). |
 | Root cause | Inline `t(key, fallback)` defaults hide missing keys. No CI check for missing keys. |

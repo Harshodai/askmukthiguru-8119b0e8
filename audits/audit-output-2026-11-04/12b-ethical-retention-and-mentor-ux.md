@@ -82,7 +82,7 @@ See PRD-004 (doc 03). The push prompt can appear after a crisis answer. Severity
 | Severity | P2 |
 | Type | Product gap |
 | Confidence | Medium |
-| Evidence | Implemented metrics are streaks, retention curves (`retention.py:60`) and churn metrics (`cancel_flow.py:732`). No measure of answer usefulness per user over time was found beyond per-answer feedback (`feedback.py`). |
+| Evidence | Implemented metrics are streaks, retention curves (`retention.py:60`) and churn metrics (`cancel_flow.py:732`). No measure of answer usefulness per user over time was found beyond per-answer feedback (`backend/app/api/feedback.py`). |
 | Expected behaviour | The north star measures value delivered (§3). Usage counts are guardrails, not goals. |
 | Remediation | Implement §3 metrics; remove churn metrics with UX-001. |
 | Verification | [V-STATIC] |

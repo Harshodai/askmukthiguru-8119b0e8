@@ -24,6 +24,8 @@ The conditions that turn Gate A into a yes are, in order: CI passes; the snapsho
 - All defects: 152: 35 closed [33], 37 partial [22], 15 open [30], 45 need a decision [46], 18 need a human [19], 2 live [2]. 117 are not closed.
 - New defects found in this pass and not yet indexed: see `FINAL_AUDIT_GAP_ANALYSIS.md` §2 (DATA-20 to DATA-27, Railway, alerting, answer honesty, harness, MEM-007 to MEM-012).
 
+- Added by the final verification pass and registered in `findings-index.md` (2026-11-05/06): 103 findings: 0 P0, 35 P1, 57 P2, 11 P3 (first pass 75, second pass 22, third pass 6). All open. Details: register §10, §10.1, §10.2.
+
 Source: `FINAL_PENDING_WORK_REGISTER.md`.
 
 ## 3. The 10 FINAL files
@@ -61,6 +63,8 @@ Source: `FINAL_PENDING_WORK_REGISTER.md`.
 | Extra | `ARCHITECTURE_DECISION_RECORDS_HISTORICAL.md` | 16 historical ADRs; do-not-reintroduce list |
 | Extra (2026-11-06) | `MOBILE_APPS_REVIEW_AND_RELEASE_SPEC.md` | Review: 15 findings (6 P1); not submission-ready; Gate C |
 | Extra (2026-11-06) | `K8S_MANIFESTS_REVIEW.md` | Review: manifests are not a live path; 9 findings (1 P1, committed default passwords); D-PK8S1 |
+| Extra (2026-11-06) | `LOVABLE_SYNC_PATH_REVIEW.md` | Lovable bot self-merges to `main`; 8 findings (3 P1); D-24 proposal: PR-only with required checks |
+| Extra (2026-11-06) | `LOAD_AND_COST_MODEL.md` | Model, not a measurement: cost per useful answer about $0.002 to $0.08 [INF]; about 7 concurrent requests per 4-vCPU replica [INF]; Locust staging plan for B8; SYS-014 budget-cap finding |
 | Extra (2026-11-06) | `ACCESSIBILITY_AUDIT_AND_REQUIREMENTS.md` | WCAG 2.2 AA audit with axe runtime run on 4 pages; 17 findings (7 P1); C7 not met |
 
 ## 5. Reading order

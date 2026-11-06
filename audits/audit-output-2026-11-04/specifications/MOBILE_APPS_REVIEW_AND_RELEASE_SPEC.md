@@ -422,3 +422,116 @@ Existing decisions touched: D-19 (delete the churn funnel, MOB-10), D-21 (proact
 - The current Apple and Google rule text and minimum SDK dates.
 - Plugin-level privacy manifests and native-library page-size support.
 - Whether Railway will host the backend for mobile, and when.
+
+
+---
+
+## 10. Mobile-viewport web proxy and owner-run native test checklist (2026-11-06)
+
+**This is a proxy.** What ran is the **web app in a mobile-sized Chromium window**, with the Playwright device descriptors for Pixel 7 and iPhone 14. It is **not** the Capacitor native shell, **not** a phone, and **not** WebKit. No Android SDK, emulator, KVM or macOS was available, and none was installed. No native result in this spec (MOB-01 to MOB-15) is confirmed or cleared by this section. Every native item stays `[HUMAN]` and UNPROVEN until the owner runs 10.3. Full accessibility detail is in section 10 of `ACCESSIBILITY_AUDIT_AND_REQUIREMENTS.md`.
+
+### 10.1 What ran
+
+Pages: `/`, `/auth`, `/chat`, `/practices` (4 of 4 reached; no backend; placeholder Supabase values). Devices: `devices['Pixel 7']` (412x839) and `devices['iPhone 14']` (390x664), both Chromium with touch and a mobile user agent. Dev server and script commands are listed in section 10.1 of the accessibility spec; the server was stopped afterwards (curl returned 000). No file under `src/`, tests, config or packages was changed.
+
+| Check | Pixel 7 | iPhone 14 | Reading |
+|---|---|---|---|
+| Elements under 24 px (measured with `getBoundingClientRect`, includes the 1x1 skip link) | `/` 19, `/auth` 8, `/chat` 3, `/practices` 11 | `/` 19, `/auth` 7, `/chat` 3, `/practices` 11 | Matches A11Y-09. Examples: slide dots 8x8, Show password 16x16, footer and legal links 13 to 18 px high, "Details" 40x16. |
+| Cookie banner overlaps the Send button on `/chat` | Yes. Send centre (361,707) returns the dialog. Banner top 704, 123 px high. | Yes. Send centre (339,532) returns the dialog. Banner top 529, 123 px high (about 18% of the viewport). | Confirms A11Y-11 on two phone sizes. Textarea is not covered. |
+| Viewport meta | `width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0` | same | Pinch zoom allowed. |
+| Safe-area / `dvh` rules in the CSS | `safe-area-inset` and `dvh` both present | same | Headless Chromium reports zero insets, so notch and home-indicator clearance is UNPROVEN. |
+| Horizontal scroll | none on any page | none on any page | |
+| Console errors per page load | `/` 7, `/auth` 3, `/chat` 18, `/practices` 6 | `/` 6, `/auth` 3, `/chat` 18, `/practices` 6 | Mostly set-up noise: 502 from the dev proxy, refused Supabase URL and WebSocket, Google script origin message, React dev warnings, one uncaught rejection on `/auth` ("Error: Ya"). |
+
+What this tells the owner: the web layout holds at 390 and 412 px without sideways scroll, small targets and the banner overlap reproduce on phone-sized viewports, and the page boots without a backend. What it cannot tell: anything about the WebView, OAuth, microphone, clip playback, deletion, `tel:` links, offline start, push, or screen readers.
+
+### 10.2 How to use the checklist
+
+Run each block on one Android phone and one iPhone with a release-like build (`MOBILE_RELEASE_RUNBOOK.md`, build commands) pointing at a staging backend with a test account. Do not use a production account. Do not call 112 or any real emergency number; use a number from `crisisHelplines.ts` only to see that the dialer opens, and cancel before the call connects. Record the build number, OS version and device in the header row. A box is ticked only by the person who ran the step.
+
+Header: Build ____  Date ____  Tester ____  Android device/OS ____  iPhone/OS ____
+
+### 10.3 Owner-run native test checklist
+
+**MOB-01: OAuth in the system browser** (AC-MOB-01; finding says the code runs OAuth in the WebView)
+
+| # | Step | Expected result | Android | iOS |
+|---|---|---|---|---|
+| 1.1 | Fresh install. Open Sign in. Tap "Continue with Google". | The system browser (Custom Tab or SFSafariViewController) opens. The address bar shows Google. No Google page loads inside the app. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 1.2 | Finish Google sign-in with the test account. | The app returns on its own. The user lands on `/chat`, signed in. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 1.3 | Repeat 1.1 and 1.2 for "Continue with Apple" (iOS) and for Apple if offered on Android. | Same as 1.1 and 1.2, or the button is absent by design. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 1.4 | Start Google sign-in, then close the browser without finishing. | The app stays on the sign-in screen with no stuck spinner ("Connecting to Google..." goes away). | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 1.5 | Sign in with email and password. | Signs in (this path is not affected by MOB-01). | [ ] pass [ ] fail | [ ] pass [ ] fail |
+
+**MOB-03: Microphone permission** (AC-MOB-03)
+
+| # | Step | Expected result | Android | iOS |
+|---|---|---|---|---|
+| 3.1 | Open `/chat`. Do not tap the microphone. Check Settings > App > Permissions. | No microphone prompt at launch. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 3.2 | Tap "Start voice input" (if shown). | A system prompt with a plain reason appears at this first tap. If voice is not shipped in v1, no microphone control is shown at all. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 3.3 | Allow. Speak a short sentence. | Text appears in the composer, or a clear message says why not. The app does not crash. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 3.4 | Deny in a fresh install, then tap the control again. | A clear message explains how to enable the microphone. No silent failure. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 3.5 | (Reviewer) Check the build: `RECORD_AUDIO` in the Android manifest; `NSMicrophoneUsageDescription` in `Info.plist`. | Present if the control ships; the control is hidden if they are absent. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+
+**MOB-05: Clip playback** (AC-MOB-05; use three clips: a short one, one near the end of a video, one direct stream if available)
+
+| # | Step | Expected result | Android | iOS |
+|---|---|---|---|---|
+| 5.1 | Ask a question that returns a clip. Open the clip. | The clip window opens. Audio or video starts within the span (start minus 0.25 s to end plus 0.25 s). | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 5.2 | Repeat for the clip near the end of its video. | Plays to the end of the span and stops; no long tail from the host. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 5.3 | Rotate the phone during playback. Lock and unlock the screen. | Playback state is sensible; the app does not crash. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 5.4 | Turn off the network, then open a clip. | A clear message and a way to open the source link; no blank player. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 5.5 | If the embed does not start (YouTube refuses `https://localhost` or `capacitor://localhost`), note it. | A fallback "open the source" action exists. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 5.6 | Check the verbatim text beside the player matches what is said. | Text equals the spoken span. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+
+**MOB-10: Account deletion and Apple token revocation** (AC-MOB-10 area; use a throwaway account)
+
+| # | Step | Expected result | Android | iOS |
+|---|---|---|---|---|
+| 10.1 | Sign in with a throwaway account (email). Go to Profile and find "Delete my account". | Reachable without contacting support. Count the taps from Profile. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 10.2 | Choose immediate deletion. Count taps. | Two taps or fewer to reach the final confirm, with any retention offer optional (spec target). | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 10.3 | Confirm. Then try to sign in again with the same account. | Sign-in fails; the user is signed out of the app at once. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 10.4 | iOS only: create a throwaway account with Sign in with Apple. Delete it. Then open Settings > Apple ID > Sign-In & Security > Sign in with Apple. | The app is gone from that list (token revoked). If it is still listed, mark fail. | n/a | [ ] pass [ ] fail |
+| 10.5 | If deletion is scheduled for a later date, check the date shown. | The date is shown and the account is gone on that date. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 10.6 | Offline: start deletion with no network. | A clear error. The account is NOT reported as deleted. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 10.7 | Ask the backend owner to confirm the user's rows are gone (server side, not in this checklist's reach). | Confirmed by the owner. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+
+**MOB-11: Helpline `tel:` links** (safety path; one phone, one tablet)
+
+| # | Step | Expected result | Android | iOS |
+|---|---|---|---|---|
+| 11.1 | Open the first-run safety notice (fresh install) and tap a helpline number. | The dialer opens with the number filled in. Cancel before the call connects. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 11.2 | Trigger the error card (airplane mode, send a question) and tap the Tele-MANAS line. | Same as 11.1. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 11.3 | Repeat 11.1 on a tablet or an iPad without a phone. | Nothing breaks. The number is also shown as plain text so it can be read out. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 11.4 | Check the number on screen against `src/lib/crisisHelplines.ts`. | They match. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 11.5 | Do NOT dial 112 or any emergency number. | n/a | n/a | n/a |
+
+**MOB-12: Offline and cold start**
+
+| # | Step | Expected result | Android | iOS |
+|---|---|---|---|---|
+| 12.1 | Force-close the app. Turn on airplane mode. Launch. | The app opens with no crash and no blank screen. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 12.2 | Send a question offline. | A clear offline message that shows the bundled helplines. No spinner that never ends. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 12.3 | Send a question, then switch to airplane mode while the answer loads. | A clear failure, not a half answer with unlabelled teacher text. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| 12.4 | Turn the network back on. Tap retry. | The question goes through. | [ ] pass [ ] fail | [ ] pass [ ] fail |
+
+**TalkBack (Android) and VoiceOver (iOS) basics.** These are the screen-reader checks this proxy could not run. Turn the screen reader on, then use swipe-right (next) and swipe-left (previous). Write what is spoken.
+
+| # | Step | Expected result | Heard (write it) | Android | iOS |
+|---|---|---|---|---|---|
+| S.1 | Open `/chat`. Swipe through the page from the top. | Order: skip link, heading "Chat with your AI Spiritual Guide", then the sidebar or menu, greeting, composer ("Your message"), language, More actions, Start voice input, Send. No unnamed "button". | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| S.2 | Note any element read as "graphic" or "image" with no name. | Few or none (the web tree lists many unnamed icons; A11Y-19). | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| S.3 | Type a question and send it. | The answer's arrival is announced (A11Y-13), for example "Answer ready" or "No teaching matched". Focus does not drop to the page top (A11Y-08). | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| S.4 | Swipe through an answer that has a clip. | Order is sensible: the assistant's own labelled text, the teacher label and the speaker name, then the verbatim quote, then the source and the play control. The quote is announced as the teacher's words, and the speaker name is spoken. | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| S.5 | Find the "Related, not a direct answer" label. | The exact words are spoken, once, next to the answer. The reason for "related" or "unverified" is reachable (A11Y-04), not only on hover. | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| S.6 | Open the clip window. | Spoken as a dialog with a name (A11Y-05). The close control is named. Focus returns to the clip button on close. | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| S.7 | Choose Hindi or Telugu as the language, then open an English quote. | The quote is read with a suitable voice, not garbled (A11Y-07). | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| S.8 | Trigger the error card (offline) and listen. | The error is announced without moving focus; the helpline line is read in full. | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| S.9 | Find the helpline link in the first-run notice and in the error card. | Spoken as a link with the number, for example "Tele-MANAS, 14416". Double-tap opens the dialer. | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+| S.10 | With the cookie banner visible, reach Send by swiping and double-tap it. | Send works with the banner on screen (A11Y-11 shows a touch tap on Send may hit the banner in the web view). | ______ | [ ] pass [ ] fail | [ ] pass [ ] fail |
+
+### 10.4 Boundaries of this section
+
+- A tick in a pass box closes nothing in the findings register by itself. The owner updates MOB-01, MOB-03, MOB-05, MOB-10, MOB-11 and MOB-12 after the run, with the build and device recorded.
+- Items S.1 to S.10 depend on text that does not render without a backend. The owner needs a staging backend and a test account to get an answer, a clip and the "Related, not a direct answer" label.
+- Store readiness (section 4) stays NOT met until the P1 items pass on real devices.

@@ -5,10 +5,10 @@ Owner: lead. Each prompt starts with the shared preamble (§0). Paste the preamb
 ## §0 Shared preamble (prepend to every prompt)
 
 ```
-Context: Ask Mukti Guru. Audit package in audit-output/ (built 2026-11-04 against origin/main@46b808fb).
-Read audit-output/24-coding-agent-master-handoff.md §5 (guardrails) before doing anything. They are binding.
+Context: Ask Mukti Guru. Audit package in audits/audit-output-2026-11-04/ (built 2026-11-04 against origin/main@46b808fb).
+Read audits/audit-output-2026-11-04/24-coding-agent-master-handoff.md §5 (guardrails) before doing anything. They are binding.
 Start from the latest origin/main on a fresh branch. One task ID per PR. Report real test output.
-If a task needs an owner decision listed in audit-output/unresolved-questions.md, stop and ask.
+If a task needs an owner decision listed in audits/audit-output-2026-11-04/unresolved-questions.md, stop and ask.
 Line numbers in the audit are approximate: re-locate every symbol with `rg -n` before editing.
 ```
 
@@ -19,13 +19,13 @@ Goal: confirm that the audit still describes the code before anyone changes it. 
 except a new report file.
 
 1. Record `git rev-parse origin/main` and `git log --oneline 46b808fb..origin/main | wc -l`.
-2. For every P0 and P1 finding in audit-output/findings-index.md, open the cited file and symbol and mark:
+2. For every P0 and P1 finding in audits/audit-output-2026-11-04/findings-index.md, open the cited file and symbol and mark:
    STILL-TRUE / CHANGED / FIXED / CANNOT-LOCATE, with the current file:line.
-3. For every task spec in audit-output/21, confirm each listed file and symbol exists. List any that moved.
+3. For every task spec in audits/audit-output-2026-11-04/21, confirm each listed file and symbol exists. List any that moved.
 4. Re-run the CI-visible facts: is main green? Which jobs fail? (GitHub Actions UI or API, read-only.)
-5. Check whether the owner has answered any item in audit-output/unresolved-questions.md
-   (look in audit-output/decision-log.md §3).
-6. Write audit-output/REVALIDATION-<date>.md with the tables above and a list of roadmap tasks that are now
+5. Check whether the owner has answered any item in audits/audit-output-2026-11-04/unresolved-questions.md
+   (look in audits/audit-output-2026-11-04/decision-log.md §3).
+6. Write audits/audit-output-2026-11-04/REVALIDATION-<date>.md with the tables above and a list of roadmap tasks that are now
    unblocked, blocked or obsolete.
 Acceptance: every P0/P1 finding has a status; no code changed.
 ```
@@ -34,7 +34,7 @@ Acceptance: every P0/P1 finding has a status; no code changed.
 
 ```
 Tasks: T0-04 first (honest gate test), then T0-02 (purge + publication guard) once the owner has answered
-D-01 and D-02. Specs: audit-output/21 §T0-04, §T0-02.
+D-01 and D-02. Specs: audits/audit-output-2026-11-04/21 §T0-04, §T0-02.
 
 T0-04: restore backend/tests/test_first_person_public_release_gate.py so it asserts the status the gate
 computes on a clean checkout. Do not change the gate logic here. The owner edits the scopes in
@@ -57,10 +57,10 @@ merge in this order: T1-07, T1-02, T1-06.
 Priority order: T1-05 (fail closed) → T1-02 (latent P0 removal) → T1-01 (voice governance) → T1-07
 (spend cap) → T1-08 (endpoint auth) → T1-11 (gate hardening, after T0-04) → T1-03 → T1-10 → others.
 
-For each task, follow audit-output/21 (P1 specs) or the finding record (P2 tasks). Required tests:
+For each task, follow audits/audit-output-2026-11-04/21 (P1 specs) or the finding record (P2 tasks). Required tests:
 - T1-05: fault injection proves no generated text on teaching intents in first-person-only mode.
 - T1-02: grep proves no LLM path writes or rewrites teacher text; existing tests still pass.
-- T1-11: one failing fixture per defect listed in audit-output/16 §3 X-RC2.
+- T1-11: one failing fixture per defect listed in audits/audit-output-2026-11-04/16 §3 X-RC2.
 - T1-07: production settings validation fails without caps or the scorer model.
 Do not change distress or crisis logic in this phase.
 ```
@@ -73,7 +73,7 @@ Goal: make quality and safety measurable before any behaviour change in P4/P5.
 T2-05 first (fixture Qdrant + Redis CI job), then T2-02 (frozen retrieval bank: Recall@k, MRR, nDCG
 artifacts per PR), T2-01 (offline PR eval suite: routing set, benign and crisis distress sets, quote
 integrity, voice lint, abstain set; blocking on regression), T2-03 (answer_outcome events, prompt_id@version,
-tokens and cost per call, useful_answer definition per audit-output/21 §T2-03), T2-06 (config lint).
+tokens and cost per call, useful_answer definition per audits/audit-output-2026-11-04/21 §T2-03), T2-06 (config lint).
 
 Datasets: you may draft items, but crisis items become blocking only after the clinician reviews them,
 and multilingual items only after native review. Never label gold items yourself (T2-04 is human).
@@ -165,7 +165,7 @@ frozen bank (ADR-004) and the owner confirms D-04.
 Extend backend/config/gurus.yaml (sources, rights policy, attribution policy, aliases, voice references,
 allowed surfaces). Generate guardrail patterns, labels and doctrine aliases from it. Add a CI guard that
 rejects new teacher-name literals in runtime code (ratchet the existing 621). Dry-run the onboarding
-checklist in audit-output/11 §6 with a fictional test teacher in fixtures only. Never add a real teacher
+checklist in audits/audit-output-2026-11-04/11 §6 with a fictional test teacher in fixtures only. Never add a real teacher
 without the owner and that teacher's written permission.
 ```
 
@@ -176,23 +176,23 @@ Only when the owner asks in this session. T9-01 Railway IaC for backend, worker,
 if self-hosted) per environment; staging first; env-var names only in the repo. T9-02 smoke suite,
 cross-browser e2e green, real-model load test at c20 (record p50/p95/p99, error rate, cost). T9-03 alerts
 (integrity breach, crisis-lane error, spend 80%, p95 breach, data-audit fail) firing in a drill.
-T9-04 run audit-output/22 (Qdrant) and 22b (Railway) runbooks read-only and file the reports.
+T9-04 run audits/audit-output-2026-11-04/22 (Qdrant) and 22b (Railway) runbooks read-only and file the reports.
 ```
 
 ## §12 Final implementation-verification prompt (independent reviewer)
 
 ```
 You are an independent verifier. You did not implement this work. Read-only.
-1. For every finding in audit-output/findings-index.md marked closed by a merged PR, open the PR, read the
-   diff, and confirm the acceptance criteria in audit-output/21 or the finding record are met. Re-run the
+1. For every finding in audits/audit-output-2026-11-04/findings-index.md marked closed by a merged PR, open the PR, read the
+   diff, and confirm the acceptance criteria in audits/audit-output-2026-11-04/21 or the finding record are met. Re-run the
    named tests. Mark VERIFIED / NOT MET / PARTIAL with evidence.
 2. Re-run: the PR eval suite (T2-01), the frozen retrieval bank (T2-02), the release gate on a clean
    checkout (T1-11), the voice lint, the publication guard, and the fixture-store CI job. Attach outputs.
-3. Check the guardrails in audit-output/24 §5 across all merged PRs: any teacher-voice generation, any
+3. Check the guardrails in audits/audit-output-2026-11-04/24 §5 across all merged PRs: any teacher-voice generation, any
    edited gate or test to force a status, any in-place collection mutation, any secret, any human gate
    marked done without an artefact hash.
-4. Re-score audit-output/23 "Release-readiness scorecard" with evidence links. Never upgrade a dimension
+4. Re-score audits/audit-output-2026-11-04/23 "Release-readiness scorecard" with evidence links. Never upgrade a dimension
    without the computed evidence.
-5. Write audit-output/VERIFICATION-<date>.md. List residual risks plainly. Do not claim readiness that the
+5. Write audits/audit-output-2026-11-04/VERIFICATION-<date>.md. List residual risks plainly. Do not claim readiness that the
    evidence does not show.
 ```

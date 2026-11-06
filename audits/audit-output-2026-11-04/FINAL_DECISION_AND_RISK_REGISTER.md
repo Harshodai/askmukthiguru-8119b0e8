@@ -37,7 +37,7 @@ Proposed decision IDs keep the prefix of the spec that raised them, so the specs
 | D-11 | Scope of the 2026-11-04 authorisation | "Owner-only local review" | `unresolved-questions.md` |
 | D-13 | Is the broadcaster clearance intentional and filed? | Non-servable until permitted. Note: the v10 builder hard-codes "times now" in its rights allowlist (DATA-21) | `unresolved-questions.md`; ingestion spec |
 | D-15 | Who writes to Qdrant; turn on API keys? | Keys on; builder-only write key | `unresolved-questions.md` |
-| D-16 | Relevance-scorer model and price | Record a dated price entry; the code default model is empty (`config.py:476`) | `unresolved-questions.md`; harness spec |
+| D-16 | Relevance-scorer model and price | Record a dated price entry; the code default model is empty (`config.py:476`) | `unresolved-questions.md`; harness spec 2026-11-06: also confirm that OpenRouter returns `usage.cost` for the scorer; if not, each call keeps the $0.03 reservation (SYS-014; `specifications/LOAD_AND_COST_MODEL.md` §5). |
 | D-19 | Delete the churn funnel and win-back emails? | Yes, after the direct deletion path ships | `unresolved-questions.md` |
 | D-21 | Healing-course assignment and proactive Serene Mind on by default? | Off by default; opt-in | `unresolved-questions.md`; memory spec |
 | PROPOSED D-PG13 (= D-PQ4) | One scorer timeout value (code 25 s at `config.py:478`, `docker-compose.yml:325` 15 s, CLAUDE.md 12 s). Raised twice; decide once | Retrieval spec: keep `Settings` 25.0 and align both compose files; harness spec: pick one and pin it in config lint | Harness spec; retrieval spec |
@@ -90,7 +90,7 @@ Proposed decision IDs keep the prefix of the spec that raised them, so the specs
 | D-05 | Retire Memgraph and LightRAG from serving and deploy? The graph is off the default teaching path but still deployed and written at ingestion (`write_ontology_to_neo4j=True`) | `unresolved-questions.md`; guru spec |
 | D-17 | Remove the Sarvam, Ollama and NIM provider code? | `unresolved-questions.md` |
 | D-18 | Delete `ToneAdapterStage` and the dormant modules? | `unresolved-questions.md` |
-| D-24 | Lovable's role; merge or delete `lovable-sync` | `unresolved-questions.md` |
+| D-24 | Lovable's role; merge or delete `lovable-sync` | `unresolved-questions.md`; `specifications/LOVABLE_SYNC_PATH_REVIEW.md` §4 (2026-11-06: the bot self-merges to `main`; proposal: PR-only with required checks, delete the stale branch first, revisit retirement later) |
 | PROPOSED D-PG7 | Is the Supabase `gurus` table read by live code? | Guru spec |
 | PROPOSED D-PG8 | Concept vocabulary table or graph for facet tagging? Proposed: table | Guru spec |
 | PROPOSED D-PG11 | Prompt registry loaded from files in the image or from the database? Proposed: files | Harness spec |
@@ -160,6 +160,8 @@ Likelihood and impact are the lead's judgement [INF], not measurements.
 | RK-16 | Default Redis and Neo4j passwords committed in the Helm values and a ConfigMap get reused somewhere real | Low | High | K8S-06 (`values.yaml:153`, `:189`; `configmap.yaml:19`), k8s review | NEW-K8S-5; D-01 | B | Agent |
 | RK-17 | Mobile store rejection or takedown: OAuth inside the WebView, no iOS privacy manifest, undeclared microphone use, disclosures that omit Sentry replay and the LLM provider | High if submitted today | Medium | MOB-01 to MOB-05, MOB-10 | Mobile spec tasks; D-PMOB6 | C | Owner + agent |
 | RK-18 | Seekers with low vision cannot read trust labels ("Related, not a direct answer" about 2.9:1; gold text 1.52:1) or reach help | High | Medium | A11Y-01 to A11Y-03, A11Y-10 (axe runtime run, 2026-11-06) | NEW-A11Y-2, NEW-A11Y-8 | C (B for helpline per D-PA11Y3) | Agent |
+| RK-19 | An unreviewed Lovable bot commit lands on `main` and undoes a safety, voice or storage contract | High while direct writes continue | High | LOV-01, LOV-02, LOV-06 (202 bot merges, last 2026-10-31) | NEW-LOV-01 (owner), NEW-LOV-02, NEW-LOV-03 | B | Owner + agent |
+| RK-20 | The budget guard denies service at low traffic because unreported costs keep the full reservation | Medium | High | SYS-014 (`openrouter_budget.py:87-98`; `config.py:640`, `:644`) | D-16; NEW-LOAD-3; count denials (NEW-OPS-8) | B | Owner + agent |
 
 ## 4. Verified, assumptions, unknowns
 

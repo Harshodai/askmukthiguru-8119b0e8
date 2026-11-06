@@ -15,17 +15,17 @@ Owner: lead. Audience: an independent implementation agent (any vendor) and its 
 
 | Path | What |
 |---|---|
-| `backend/app/api/` | FastAPI routes (231 handlers, 91 admin). Chat: `chat.py`. First-person: `first_person.py`. |
+| `backend/app/api/` | FastAPI routes (231 handlers, 91 admin). Chat: `chat.py`. First-person: `backend/app/api/first_person.py`. |
 | `backend/app/pipeline/stages/` | Stage chain; order in `pipeline_builder.py` (the root `CLAUDE.md` order is stale). Bridge: `first_person_bridge.py`. Routing: `off_topic_stage.py`. Distress: `distress_stage.py`. |
 | `backend/app/config.py` | Settings (679 fields). `from app.config import settings` only. |
 | `backend/app/container.py`, `dependencies.py` | DI composition root. Use `get_container_async()` in `Depends`. |
-| `backend/rag/` | LangGraph: `graph_strategies.py`, `pipeline_registry.py`, `nodes/` (`first_person.py`, `generation.py`, `intent.py`, `retrieval.py`), `prompts/system.py` |
+| `backend/rag/` | LangGraph: `graph_strategies.py`, `pipeline_registry.py`, `nodes/` (`backend/rag/nodes/first_person.py`, `generation.py`, `intent.py`, `retrieval.py`), `prompts/system.py` |
 | `backend/services/first_person_pipeline.py` | Legacy FP engine (6,017 lines; `execute` = 2,145 lines; sync) |
 | `backend/services/first_person_context_store.py`, `first_person_context_harness.py` | v10 context store and harness |
 | `backend/domain/first_person_context.py` | `SourceSpan` schema (strongest data contract) |
 | `backend/services/serene_mind_engine.py` | Distress and crisis classifier (regex) |
 | `backend/services/guru_registry.py`, `backend/config/gurus.yaml` | Teacher registry |
-| `backend/ingest/` | Online ingestion (`pipeline.py`); `verbatim/` used by offline builders |
+| `backend/ingest/` | Online ingestion (`backend/ingest/pipeline.py`); `verbatim/` used by offline builders |
 | `backend/scripts/ops/`, `scripts/ops/` | Ops scripts. Same-named files must be byte-identical (`tests/test_repo_layout.py`). |
 | `backend/scripts/ops/check_first_person_public_release.py` | Release gate |
 | `supabase/migrations/`, `supabase/functions/` | Schema, RLS, edge functions (account deletion, export) |
@@ -108,16 +108,16 @@ The scorecard and exit conditions are in `23` (scorecard section). Summary:
 
 ```
 You are the implementation agent for Ask Mukti Guru. An architecture audit was completed on 2026-11-04
-against origin/main@46b808fb. Its package is in audit-output/ (or audits/audit-output-2026-11-04/ if moved).
+against origin/main@46b808fb. Its package is in audits/audit-output-2026-11-04/ (first written as `audit-output/` at the repository root, then moved).
 
-Your job: implement the roadmap in audit-output/20-ordered-engineering-roadmap.md, one task per PR,
-using the specs in audit-output/21-file-level-implementation-specifications.md and the finding records
+Your job: implement the roadmap in audits/audit-output-2026-11-04/20-ordered-engineering-roadmap.md, one task per PR,
+using the specs in audits/audit-output-2026-11-04/21-file-level-implementation-specifications.md and the finding records
 they cite.
 
-Before any change, run the first-task prompt in audit-output/25-phase-specific-coding-prompts.md §1:
+Before any change, run the first-task prompt in audits/audit-output-2026-11-04/25-phase-specific-coding-prompts.md §1:
 revalidate the audit against the current main, and report drift. Do not skip this.
 
-Non-negotiable guardrails (audit-output/24 §5):
+Non-negotiable guardrails (audits/audit-output-2026-11-04/24 §5):
 1. Never generate or present text in a teacher's voice or first person. Teacher words come only from the
    store, by span id, with a source.
 2. Never mark a human gate done; never edit a test, gate or evidence file to show a wanted status.
@@ -136,5 +136,5 @@ decides ADR-001) → P6–P10. Respect the file-conflict sequences in 20 §5.
 
 For each PR: title "<task-id>: <objective>", body = finding IDs closed, files changed, tests run with
 output, acceptance criteria met (checklist), rollback note. Ask the owner when a task depends on a
-decision listed in audit-output/unresolved-questions.md.
+decision listed in audits/audit-output-2026-11-04/unresolved-questions.md.
 ```

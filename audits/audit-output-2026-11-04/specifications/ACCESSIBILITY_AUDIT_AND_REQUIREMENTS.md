@@ -504,3 +504,100 @@ Order: NEW-A11Y-1 first (it shows the failing state), then 2, 7, 3, 6, 8, 5, 4, 
 - Whether axe "incomplete" contrast nodes (55 on `/`, 16 on `/auth`, 3 on `/chat`) pass. They need a human check.
 - Whether the same code exists on `origin/main@46b808fb` (this audit read `fb5cab0f`).
 - Session-expiry and time-limit behaviour (2.2.1) and sign-up redundant entry (3.3.7).
+
+
+---
+
+## 10. Automated proxy session (2026-11-06)
+
+**This is a proxy, not a screen-reader session.** No screen reader (NVDA, JAWS, VoiceOver, TalkBack) ran. The "what a screen reader would announce" lists below come from the Chromium accessibility tree (Playwright `locator('body').ariaSnapshot()` plus DOM queries). They show names, roles and order. They do NOT show how any screen reader speaks them, so every item that depends on speech output stays `[HUMAN]` and UNPROVEN. No native device ran either (see section 10 of `MOBILE_APPS_REVIEW_AND_RELEASE_SPEC.md`).
+
+### 10.1 Method and exact commands
+
+Same set-up as section 2.2: no backend, no credentials, placeholder Supabase values. Repo head `004f3cf5`, branch `feature/audit-strengthen-rag-qdrant`. No file under `src/`, tests, config or package files was changed. Scripts live only in the session scratchpad.
+
+```text
+# Dev server (as in 2.2). It was stopped at the end: curl to 127.0.0.1:8080 returned 000.
+VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_PUBLISHABLE_KEY=dummy-placeholder \
+  npx vite --host 127.0.0.1 --port 8080
+# Main pass (all four pages, five checks, two device descriptors), Chromium from /opt/pw-browsers/chromium-1243:
+node <scratchpad>/proxy/a11y.js          # writes results.json and snap_{home,auth,chat,practices}.txt
+# Two follow-up probes (send-button tab order; axe wcag2aa+wcag22aa on /chat and /practices):
+node <scratchpad>/proxy/probe.js ; node <scratchpad>/proxy/probe2.js
+```
+
+Pages reached: `/`, `/auth`, `/chat`, `/practices` (4 of 4). The first-run safety notice was closed by clicking "I Understand" before each check. Not reached (same limits as 2.2): signed-in `/profile`, a real answer, the clip dialog, a crisis answer, the abstain card, account deletion, `/teachers-words`. The "Related, not a direct answer" label, the clip dialog and the helpline answer card were therefore NOT exercised here.
+
+Method notes that limit the results:
+
+- "200% zoom" was tested as a 640 CSS px viewport. A 1280 px viewport at `deviceScaleFactor` 2 does not change CSS px, so that run (also recorded) says nothing about zoom.
+- Focus visibility was tested as "outline or box-shadow present" on each Tab stop. It does NOT measure contrast, so it cannot confirm or clear A11Y-15.
+- The text-spacing overlap test is a heuristic (bounding boxes of buttons, links and headings). The cookie banner buttons are not `position: fixed` themselves, so several "overlaps" are the banner on top of page content. I treat overlap hits as candidates only.
+- Tab cap was 80 per page. The `/practices` run stopped at stop 41 on a repeat detector; the stops before it were distinct, so I do not count that as a focus trap (see 10.3).
+
+### 10.2 Results per check
+
+| Check | `/` | `/auth` | `/chat` | `/practices` |
+|---|---|---|---|---|
+| axe (`wcag2a/aa`, `wcag21a/aa`, `wcag22aa`), violations | `target-size` serious, 5 nodes (slide dots). Incomplete: `color-contrast` 55 | `target-size` serious, 1 node (Show password). Incomplete: `color-contrast` 16, `link-in-text-block` 3 | `color-contrast` serious, 1 node (`.space-y-1.5 > .leading-snug`). Incomplete: `color-contrast` 3 | `color-contrast` serious, 1 node (3.87:1, see A11Y-20). Incomplete: `color-contrast` 9 |
+| Landmarks in the tree | `main`, `nav` (no label), `footer` | `main` | `main`, `complementary`, `header`, 2 labelled regions, `form "Message composer"` | **2 `main`**, `nav`, `header`, `footer` |
+| Headings | h1, h2, then **h4** "Dissolving Turbulence into Stillness" (h3 skipped) | h1 only | h1, then h3 "Begin Your Journey", then h2 greeting (h3 before h2) | h1, five h3 |
+| Controls with no accessible name | 0 | 0 | 0 | 0 |
+| Duplicate names | link "Practices" x2; "See how AskMukthiGuru works in a three-step tour" x2 | none | none | link "Practices" x2; **"Add to favorites" x5** |
+| `img` without `alt` / unnamed `img` nodes in the tree | 0 / 58 | 0 / 5 | 0 / 25 | 0 / 24 |
+| Keyboard: stops (cap 80) / focus trap / stop with no outline or shadow | 80 / none / 0 | 30 / none / 0 | 68 / none / 0 | 41 / see 10.3 / 0 |
+| Main action reachable by keyboard | Not applicable (links "Start Chat", "Ask your first question" reached) | Yes: Email, Password, Show password, Sign in reached in that order | Yes: composer reached; Send reached after typing (see A11Y-18) | Not applicable |
+| Horizontal scroll at 320 px / 640 px | none / none | none / none | none / none | none / none |
+| `prefers-reduced-motion: reduce`: running / infinite animations (no-preference in brackets) | **14 / 10** (27 / 27) | 0 / 0 (1 / 1, a spinner) | 0 / 0 (14 / 14) | 0 / 0 (0 / 0) |
+
+Notes on the table:
+
+- Reading order (from `snap_*.txt`): `/chat` reads skip link, main, h1, a status line ("AskMukthiGuru cannot reach its teaching service right now ...", a result of having no backend), the sidebar (`complementary`), the h2 greeting, the "Inspired by the teachings" region, the composer form, quick buttons, and the cookie dialog last. The cookie dialog is last in DOM order and last in Tab order (`/auth`: ... Privacy, Reject, Accept, Dismiss).
+- The composer textbox is named "Your message". Send is `disabled` while the box is empty, so it is out of the Tab order until text is typed.
+- At 320 px, `/chat` has suggestion chips whose right edge sits at 361 and 451 px (`button.group`), beyond the viewport. The page itself does not scroll sideways, so they are probably in a scroller. I did not check that.
+- `/` at 320 px: the elements past the edge are decorative absolute-positioned shapes. No page-level horizontal scroll.
+- Text spacing (WCAG 1.4.12 CSS injected: line-height 1.5, letter-spacing 0.12em, word-spacing 0.16em, paragraph spacing 2em). No page-level horizontal scroll on any page at 1280 px or 390 px. Candidate clipping at 390 px: on `/`, the graph labels "Universal Consciousness", "Beautiful State", "Suffering State", "Four Sacred Secrets", "Sakshi (Witness)" have `scrollWidth` 78 to 125 px in a 64 px box; the paragraph "Slow, steady 4s/6s breathing ..." has `scrollHeight` 54 in an 18 px box (line clamp?); on `/chat`, "How are you arriving today?" is 204 px wide in a 145 px box. I did not take screenshots, so these are candidates (A11Y-22).
+
+### 10.3 Mapping to existing findings
+
+| Finding | Result | Evidence from this session |
+|---|---|---|
+| A11Y-09 target size | **Confirmed** | axe `target-size` on `/` (5 nodes) and `/auth` (1 node), identical to R1 to R3. Measured under 24 px at 412 px (Pixel 7 size): `/` 19 elements (incl. skip link 1x1), `/auth` 8, `/chat` 3 ("Details" 40x16, "Privacy" 50x18, skip link), `/practices` 11 (nav and footer links 13 to 18 px high). New detail: `/auth` "Forgot your password?" 131x16, "Sign up" 43x16, "Terms" 31x13, "Privacy Policy" 71x13, "Run diagnostics" 83x13. axe does not flag these (spacing exception may apply); they are measured, not axe results. |
+| A11Y-11 cookie banner covers Send | **Confirmed on a second and third viewport** | See the mobile section, 10.4. |
+| A11Y-12 animations under reduce | **Confirmed and narrowed** | `/` has 14 running, 10 infinite under `reduce` (27/27 without), the same counts as R16. `/auth`, `/chat`, `/practices` have 0 under `reduce`. The infinite ones on `/` have a `SPAN` target and `DIV.absolute` targets; the `pulse` ones (`SPAN.w-1.5`, `svg`) run only without the preference. The `SPAN`/`DIV` sources are still not mapped to a file. |
+| A11Y-17a nested `main` | **Confirmed** | `/practices` tree has two `main` landmarks (the earlier run saw the same on R6). |
+| A11Y-17b/17f, A11Y-04, 05, 06, 07, 13 | Not testable here | The needed states (answer, clip dialog) did not render. |
+| A11Y-08 focus after send | Not retested | No send was made. |
+| A11Y-10 helpline link | Not retested | |
+| A11Y-15 composer focus ring | Neither confirmed nor cleared | The composer was a Tab stop with an outline or shadow present; contrast was not measured. |
+| A11Y-16 tests do not cover the journey | **Supported** | `/chat` showed 1 axe `color-contrast` violation in the first pass (empty chat, banner visible), where R4 recorded 0. A second axe run (`wcag2aa`, `wcag22aa` only) on `/chat` returned no violation. The state differs by time or banner timing; a single axe run is not a stable gate. |
+| R9 focus lands on `BODY` after the notice | Not retested | |
+
+Keyboard notes: no Tab stop on any page was without an outline or box-shadow (0 of 219 stops). On `/practices` the repeat detector fired at stop 40 on "Add to favorites" at the same screen position. The preceding stops were distinct links and buttons, so this is more likely a detector artefact (five identical names at the same top after a scroll) than a trap. It is `[NOT-TESTED]` whether focus can leave the card list; a 80-stop run would settle it.
+
+### 10.4 Mobile-viewport results that map to accessibility
+
+Run with Playwright `devices['Pixel 7']` (412x839, touch, mobile UA) and `devices['iPhone 14']` (390x664). Both run in **Chromium**. The iPhone descriptor changes the viewport, UA and touch only; the engine is NOT WebKit. These runs are the web app in a mobile browser, not the Capacitor native shell. Full discussion is in section 10 of the mobile spec.
+
+- `/chat`, banner visible: the Send button (44x44, centre 361,707 on Pixel 7; 339,532 on iPhone 14) is covered by the cookie dialog (`elementFromPoint` returns the dialog) on both. The dialog is 123 px high (about 18 percent of the 664 px iPhone viewport). The composer textarea itself is not covered (bottom edge at 671 and 496 px).
+- Viewport meta: `width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0`. Pinch zoom is allowed. The CSS contains `safe-area-inset` and `dvh` rules. Headless Chromium reports zero safe-area insets, so whether the composer clears a notch or home indicator is UNPROVEN.
+- No page had horizontal scroll at either size.
+- Console errors (counts per page load, Pixel 7 / iPhone 14): `/` 7 / 6, `/auth` 3 / 3, `/chat` 18 / 18, `/practices` 6 / 6. Most come from the set-up: HTTP 502 from the dev proxy (no backend), refused connections to the placeholder Supabase URL and its realtime WebSocket, a Google sign-in script message ("The given origin is not allowed for the given client ID", `/` on iPhone 14), "Provider's accounts list is empty" (Pixel 7, `/`), and an uncaught promise rejection on `/auth` ("Error: Ya"). Two React dev warnings repeat (a DOM prop that React does not recognise; "`ref` is not a prop"). These are not accessibility defects; they show the pages boot without a backend.
+
+### 10.5 New findings
+
+| ID | Finding | Severity | Type | SC | Evidence |
+|---|---|---|---|---|---|
+| A11Y-18 | The Send button sits behind an extra Tab stop: a wrapper `<div class="inline-flex" tabindex="0">` around it. From the composer, Tab goes: language, More actions, Start voice input, the `div`, then Send (5 presses). A keyboard user lands on an element with no role or name. | P3 | Confirmed behaviour | 2.4.3, 4.1.2 (advisory) | `[V-RUN]` probe2: stop 4 is the `div` with `tabindex="0"`, stop 5 is the Send button (44x44 at 1040,570). Likely a tooltip wrapper; the source file was not traced. |
+| A11Y-19 | The accessibility tree lists many unnamed `img` nodes (58 on `/`, 5 on `/auth`, 25 on `/chat`, 24 on `/practices`), mostly icons inside named buttons. Whether a screen reader announces "graphic" for each is UNPROVEN. Icons inside a named button add noise at best. | P3 | Probable defect (speech not tested) | 1.1.1, 4.1.2 (advisory) | `[V-RUN]` `snap_*.txt` (`- img` with no name). Fix idea: `aria-hidden="true"` on decorative icons. Needs `[HUMAN]` check with a screen reader. |
+| A11Y-20 | Cookie banner text "No third-party trackers." is 3.87:1 (`#8a7b70` on `#faf9f5`, 14 px, normal weight; class `text-muted-foreground`). The `/chat` violation (`.space-y-1.5 > .leading-snug`) has the same class pattern and is probably the same paragraph; I did not confirm that. It appeared in one of two runs. | P2 | Confirmed on `/practices`; `/chat` probable | 1.4.3 | `[V-RUN]` probe.js (message from axe). The banner shows on every page, so the same text likely fails everywhere it is shown. |
+| A11Y-21 | Names and structure: "Add to favorites" x5 buttons with identical names on `/practices` (no card title in the name); link "Practices" twice in one page; heading order skips (h2 to h4 on `/`; h3 before h2 on `/chat`). | P3 | Probable defect | 2.4.6, 4.1.2, 1.3.1 (advisory) | `[V-RUN]` tree walk. A screen-reader user in a links or buttons list cannot tell the five buttons apart. |
+| A11Y-22 | Text spacing (1.4.12) candidates at 390 px: graph labels on `/` wider than their 64 px boxes; a clamped paragraph on `/`; "How are you arriving today?" on `/chat` wider than its box. Not seen on screen. | P2 until checked | Unverified candidate | 1.4.12 (AA) | `[V-RUN]` measured `scrollWidth`/`scrollHeight` after injecting the standard CSS. Needs a screenshot or a human look to decide whether text is cut off or only an inner element overflows. |
+
+### 10.6 What still needs a human
+
+- Screen reader (NVDA or VoiceOver on desktop, TalkBack and VoiceOver on a phone): speech for the "Related, not a direct answer" label, the clip dialog name (A11Y-05), live-region announcement of an answer (A11Y-13), icon noise (A11Y-19), language switching on quotes (A11Y-07). The owner-run list is in the mobile spec, section 10.
+- Real 200% browser zoom (browser zoom changes CSS px; this session used a 640 px viewport as a stand-in), forced-colours mode, speech input.
+- Answer-state checks: none of the answer, abstain, crisis or clip states rendered here.
+- Whether the 55 / 16 / 3 / 9 axe "incomplete" contrast nodes pass.
+- Screenshots to settle A11Y-22.

@@ -238,7 +238,7 @@ Legend for "Current": FP = first-person lane (clip or abstain); DT = distress te
 
 ## 4. Routing simulation (static)
 
-Method: extracted `_ON_TOPIC_RE`, `_INNER_HELP_RE`, `_EXPLICIT_TEACHING_CUE_RE` from `off_topic_stage.py` and the English MODERATE/MILD lists from `serene_mind_engine.py:366-384` with an AST script; ran 20 synthetic questions. Script: scratchpad `s3/route_sim.py`. This simulates only these regexes, not every stage. [V-STATIC]
+Method: extracted `_ON_TOPIC_RE`, `_INNER_HELP_RE`, `_EXPLICIT_TEACHING_CUE_RE` from `off_topic_stage.py` and the English MODERATE/MILD lists from `serene_mind_engine.py:366-384` with an AST script; ran 20 synthetic questions. Script: scratchpad `s3/route_sim.py` (scratchpad, not committed). This simulates only these regexes, not every stage. [V-STATIC]
 
 | Question (synthetic) | Distress level (chat) | Teaching cue | Inner-help cue |
 |---|---|---|---|

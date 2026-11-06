@@ -190,7 +190,7 @@ Decision proposal: **Remove from serving and freeze writes.** Keep a small, huma
 | Severity | P2 |
 | Type | Probable defect (default-off feature) |
 | Confidence | Medium-High |
-| Evidence | `build_teaching_unit_graph.py:157-161` filters `FieldCondition(key="rights_status", …)`. `SourceSpan` uses `domain_rights_status` with `extra="forbid"` (`first_person_context.py:166-196`). Default `--collection fp_context_v1` (`:425-426`); the serving collection is `first_person_v10`. [V-STATIC] |
+| Evidence | `backend/scripts/ops/build_teaching_unit_graph.py:157-161` filters `FieldCondition(key="rights_status", …)`. `SourceSpan` uses `domain_rights_status` with `extra="forbid"` (`first_person_context.py:166-196`). Default `--collection fp_context_v1` (`:425-426`); the serving collection is `first_person_v10`. [V-STATIC] |
 | Actual behaviour | Expected result: an empty or wrong TU graph. |
 | Expected behaviour | Filter on `domain_rights_status`. Read the collection from the serving contract. |
 | Root cause | Field name drift; no integration test against a v10 fixture. |

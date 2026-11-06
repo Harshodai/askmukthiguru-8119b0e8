@@ -30,15 +30,15 @@ Scope: audio and transcript processing, speaker attribution, timestamps, segment
 | Step | Implementation | Status | Evidence |
 |---|---|---|---|
 | Acquisition | `scripts/ops/audio_archive.py`: yt-dlp with `android,ios,mweb,web` clients, hash-partitioned workers, manifest with lock | Host only | Root `CLAUDE.md` invariant 17 [DOC-CLAIM]; file exists [V-STATIC] |
-| Online acquisition (separate) | `ingest/youtube_loader.py`: transcript API, then yt-dlp subtitles, then audio download + Whisper | Online ingestion; contradicts invariant 17 | `youtube_loader.py:7-12`; `pipeline.py:542-555` [V-STATIC] |
+| Online acquisition (separate) | `ingest/youtube_loader.py`: transcript API, then yt-dlp subtitles, then audio download + Whisper | Online ingestion; contradicts invariant 17 | `youtube_loader.py:7-12`; `backend/ingest/pipeline.py:542-555` [V-STATIC] |
 | ASR | Whisper with `initial_prompt` = sacred-vocabulary prompt, `condition_on_previous_text=False` | Live in both paths | `services/speech_config.py:11-38` [V-STATIC] |
 | Voice activity detection | None | Absent | Root `CLAUDE.md` invariant 7 [DOC-CLAIM] |
 | Multi-ASR vote | `ingest/verbatim/vote.py` | Tested; offline only | [V-STATIC] |
 | Cleaning | `ingest/verbatim/asr_cleaner.py` (stutters, fillers); `punctuation.py` | Offline builders; legacy store re-cleans before ID | `first_person_store.py:115-134` [V-STATIC] |
 | Boundaries | `ingest/verbatim/boundaries.py`: `CONJUNCTIONS = {and, or, so, but, because, nor, yet}`; defect `head_conjunction` | Offline builders | `boundaries.py:29,251` [V-STATIC] |
 | Word timings | From a transcript alignment. A video without one is quarantined `no_word_timings`. Timings are never synthesised. | v10 builder | `build_full_corpus_v10.py:9-17,986` [V-STATIC] |
-| Speaker verification | ECAPA-TDNN on each span's own slice. Calibrated floors. `calibration_v2`: 0 false accepts in 1,400 impostor trials; 95% upper bound 0.21% `[DOC-CLAIM]` | v10/v11 builders | `build_full_corpus_v10.py:4-17`; `audits/evidence/first_person_v11_speaker_backfill_and_build_2026-10-31.md` |
-| Teacher identity | `guru_id` from voice + metadata agreement. A mismatch is skipped. | v10 builder | `build_full_corpus_v10.py:1041-1050` [V-STATIC] |
+| Speaker verification | ECAPA-TDNN on each span's own slice. Calibrated floors. `calibration_v2`: 0 false accepts in 1,400 impostor trials; 95% upper bound 0.21% `[DOC-CLAIM]` | v10/v11 builders | `backend/scripts/ops/build_full_corpus_v10.py:4-17`; `audits/evidence/first_person_v11_speaker_backfill_and_build_2026-10-31.md` |
+| Teacher identity | `guru_id` from voice + metadata agreement. A mismatch is skipped. | v10 builder | `backend/scripts/ops/build_full_corpus_v10.py:1041-1050` [V-STATIC] |
 | Rights | Builder and serve time read the same pinned register | Both | `06` DATA-02 |
 | Language | Transcripts are English. Non-English questions are translated before embedding. Quotes are never translated; a gloss is optional. | Live | `config.py` (`first_person_translation_timeout_s` comment) [V-STATIC] |
 | Playback | `start_ms − 0.25 s` to `end_ms + 0.25 s`, capped at duration. Played from YouTube. Availability is checked by oEmbed with a 600 ms fail-open timeout and a 24 h cache (`yt:avail:*`). | Live | `first_person_pipeline.py:154,1697-1700`; `services/youtube_availability.py:1-37` [V-STATIC] |

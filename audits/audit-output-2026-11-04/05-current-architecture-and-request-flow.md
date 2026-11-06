@@ -65,7 +65,7 @@ The CLAUDE.md pipeline line (`CacheCheck → RequestState → InputGuardrail →
 | `app/api/chat.py` | 8 | `get_optional_user` + `resolve_anon_identity` + anon quota | [V-STATIC] |
 | `app/api/second_brain.py` | 8 | `_authed_user_id` + passphrase-derived unlock header | [V-STATIC] |
 | `app/api/ingest.py` | 8 | admin; `GET /media/videos/{video_id}` is public (`ingest.py:561`) | [V-STATIC] |
-| `app/api/first_person.py` | 3 | `POST /api/first-person/query` has no auth and no anon quota (`first_person.py:297-301`) | [V-STATIC] |
+| `app/api/first_person.py` | 3 | `POST /api/first-person/query` has no auth and no anon quota (`backend/app/api/first_person.py:297-301`) | [V-STATIC] |
 | others (26 files) | 80 | mix; see doc 14 §3 | [V-STATIC] |
 
 Totals from the scan: 67 strict-auth, 22 AAL2, 14 optional-auth, 24 unauthenticated, 105 "other" (mostly `_require_admin`). 87 `Depends(get_container_async)`; one sync dependency remains (`_get_container_safely`, `app/api/compliance.py`, 3 uses) — CQ-014.
@@ -158,7 +158,7 @@ Distress at MODERATE or above declines the bridge (`_DISTRESS_DECLINE_LEVEL = 2`
 
 ### 4.2 The general branch
 
-Reached when (a) the bridge is off, (b) `_first_person_claims` is false (personalize turn, `general_knowledge_mode`, or the keyword classifier says "not spiritual"), or (c) the FP node raises before the bridge (`first_person.py:52-65` returns `{}`) [V-STATIC]. The general graph runs `intent_router` + `handle_distress_check` in parallel, then retrieval, rerank, grading, `generate_answer`, `reflect_on_answer`, `verify_answer`, `format_final_answer`. Node behaviour and prompts: doc 09.
+Reached when (a) the bridge is off, (b) `_first_person_claims` is false (personalize turn, `general_knowledge_mode`, or the keyword classifier says "not spiritual"), or (c) the FP node raises before the bridge (`backend/rag/nodes/first_person.py:52-65` returns `{}`) [V-STATIC]. The general graph runs `intent_router` + `handle_distress_check` in parallel, then retrieval, rerank, grading, `generate_answer`, `reflect_on_answer`, `verify_answer`, `format_final_answer`. Node behaviour and prompts: doc 09.
 
 ## 5. LLM calls per request type (code defaults; [V-STATIC] unless marked)
 

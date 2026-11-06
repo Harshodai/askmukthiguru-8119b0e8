@@ -2,7 +2,7 @@
 
 ---
 
-You are the implementation agent for **Ask Mukti Guru** (repository `Harshodai/askmukthiguru-8119b0e8`). An independent architecture and product audit was completed on 2026-11-04 against `origin/main@46b808fb`. Your job is to implement its roadmap correctly, safely and verifiably, one small PR at a time, until every task you are unblocked to do is complete. This prompt carries the essential context. The full audit package (`audits/audit-output-2026-11-04/`; every `audit-output/` path below means this folder) holds the evidence. Read the named files when you need detail.
+You are the implementation agent for **Ask Mukti Guru** (repository `Harshodai/askmukthiguru-8119b0e8`). An independent architecture and product audit was completed on 2026-11-04 against `origin/main@46b808fb`. Your job is to implement its roadmap correctly, safely and verifiably, one small PR at a time, until every task you are unblocked to do is complete. This prompt carries the essential context. The full audit package (`audits/audit-output-2026-11-04/`; the folder was first written as `audit-output/` at the repository root, and every path below uses the new name) holds the evidence. Read the named files when you need detail.
 
 ## 0. Work already done (branch `feature/audit-strengthen-rag-qdrant`, commits after `c7befa3d`, head `5a9501ac` plus this docs commit)
 
@@ -32,7 +32,7 @@ Everything else in section 6 is still open. Owner-gated items are listed in sect
 |---|---|---|---|
 | SEC-008 + SEC-010 (T1-14 part) | Production startup rejects a bare `*` CORS origin (scoped patterns still allowed). `/api/health` and `/api/health/services` return only `{ready, status}` unless the caller sends the `METRICS_SCRAPE_TOKEN` bearer | 12 tests passed (`test_health`, `test_health_hard_bound`, `test_main_cors`) | Railway and Docker health probes still get the short form; check they only read the status code |
 | SEC-006 (T1-14 part) | Qdrant, Redis, Memgraph and gptcache host ports bound to `127.0.0.1` in `backend/docker-compose.yml`; test asserts no datastore port on all interfaces | 2 passed | Qdrant API keys (T3-02) and image pinning not done |
-| CQ-013 (T1-13 part) | `compliance.py` `_get_container_safely` is async | 14 passed | Root shim packages and the `langdetect` stub (CQ-005) not removed |
+| CQ-013 (T1-13 part) | `backend/app/api/compliance.py` `_get_container_safely` is async | 14 passed | Root shim packages and the `langdetect` stub (CQ-005) not removed |
 | MEM-005 + SAFE-008 | Client conversation summary and relevance-scorer clip text are fenced as untrusted data | 98 passed | — |
 | ADV-05 (T5-06 part) | Quote-translation popover labelled "Machine translation — not the teacher's words" (i18n default; no `en.json` key yet) | 18 vitest passed | Add the key to all 14 locales with native review (T1-20) |
 | SEC-009 | **Skipped**: `mint_jwt` has no runtime caller, but `tests/test_whatsapp_bot_integration.py` patches `wa_bot.JWT_SECRET` | — | Remove both together |
@@ -93,7 +93,7 @@ Everything else in section 6 is still open. Owner-gated items are listed in sect
 - Retrieval: v10 search is dense-only (breaks invariant 5). On v8, per-video dedup runs before the integrity gates.
 - Evaluation: there are no independent human gold labels. The 303-row "gold" reports say `independent_review:false`; tracked packets have 0/300 judgments. CI eval gates skip without a deployment. The admin `eval-run` edge function judges Gemini answers with Gemini.
 - Undocumented processors receive user data: the Lovable AI gateway (Supabase `memory-extract` functions), Sarvam STT, Sentry replays, SMTP and web push.
-- Frontend journey (`audit-output/14d`): signed-in history lives in one browser, capped at 10, and is wiped on sign-out (the cloud copy is never read back). Only the 503 error card shows a helpline. The backend sends `final` before `done`, so a cut stream leaves teacher text without citation, label or safety notices. 33 of 234 chat strings are missing in every non-English locale. The client "summary" posts "Summarize our conversation so far." to `/api/chat`. Landing copy promises an "AI companion".
+- Frontend journey (`audits/audit-output-2026-11-04/14d`): signed-in history lives in one browser, capped at 10, and is wiped on sign-out (the cloud copy is never read back). Only the 503 error card shows a helpline. The backend sends `final` before `done`, so a cut stream leaves teacher text without citation, label or safety notices. 33 of 234 chat strings are missing in every non-English locale. The client "summary" posts "Summarize our conversation so far." to `/api/chat`. Landing copy promises an "AI companion".
 - Docs drift: root `CLAUDE.md` is stale in several places. Its "First-Person Voice Architecture" section orders teacher first-person delivery. **That section is wrong**: the code's `GURU_SYSTEM_PROMPT` forbids it, and so do you.
 
 ## 3. Root causes (fix these, not symptoms)
@@ -152,13 +152,13 @@ Ask the owner, then wait, before the tasks that depend on them:
 | D-07 | Is `/api/first-person/query` used by any client? | T1-08 |
 | D-08 | Private evidence store and source bundle location | T3-09, T1-11 |
 | D-11 | Correct release scopes | T0-04 |
-| D-17/18/19/20/21/24/26 | Remaining owner items | `audit-output/unresolved-questions.md` |
+| D-17/18/19/20/21/24/26 | Remaining owner items | `audits/audit-output-2026-11-04/unresolved-questions.md` |
 
 If a decision is missing, skip that task, record it as blocked, and continue with unblocked work.
 
-## 6. Work order (dependency-ordered; full table in `audit-output/20-ordered-engineering-roadmap.md`)
+## 6. Work order (dependency-ordered; full table in `audits/audit-output-2026-11-04/20-ordered-engineering-roadmap.md`)
 
-**Step 0 (mandatory, read-only):** run `audit-output/25-phase-specific-coding-prompts.md` §1. Record the current `origin/main` SHA. Re-locate every P0/P1 symbol below with `rg -n`, and mark each STILL-TRUE / CHANGED / FIXED. Write `audits/REVALIDATION-<date>.md`. Do not change code in this step.
+**Step 0 (mandatory, read-only):** run `audits/audit-output-2026-11-04/25-phase-specific-coding-prompts.md` §1. Record the current `origin/main` SHA. Re-locate every P0/P1 symbol below with `rg -n`, and mark each STILL-TRUE / CHANGED / FIXED. Write `audits/REVALIDATION-<date>.md`. Do not change code in this step.
 
 **P0 — exposure and honest status**
 - T0-04: restore the honest gate-test assertion (computed status on a clean checkout). Ask the owner to correct the scopes. Get `main` green.
@@ -188,7 +188,7 @@ If a decision is missing, skip that task, record it as blocked, and continue wit
 - T1-14: datastores bound to localhost or a private network; Qdrant API keys; pinned images; reject CORS wildcards in production; protect deep health.
 - T1-15: documentation diet. Archive `lessons.md`; one status file ≤30 KB; root `CLAUDE.md` ≤15 KB; CI check that the documented stage order equals `pipeline_builder.py`.
 - T1-16: replace relative `/api` fetches with `BACKEND_URL`; lint rule; hide the WhatsApp button while the channel is disabled.
-- T1-17 (P1): every client error state shows a call-verified helpline line and a retry; the helpline list ships in the bundle; no developer text reaches seekers (`src/lib/errors.ts` ~79–97).
+- T1-17 (P1): every client error state shows a call-verified helpline line and a retry; the helpline list ships in the bundle; no developer text reaches seekers (`src/lib/chat/errors.ts` ~79–97).
 - T1-18: stream contract. Citations, labels and safety notices arrive before or with the final text; the client discards or marks an incomplete turn and never saves it as complete; add a client stream timeout (`orchestrator.py` ~447–468; `streaming.ts` ~320–368).
 - T1-19: delete the client summary call to `/api/chat` (`transport.ts` ~433–463).
 - T1-20: localise trust, abstain, error and quota strings; CI guard for missing chat keys; native review before release.
@@ -254,9 +254,9 @@ If a decision is missing, skip that task, record it as blocked, and continue wit
 
 **P8 — teachers:** T8-01 extend `backend/config/gurus.yaml` (sources, rights, attribution policy, aliases). T8-02 generate guardrails and labels from it, plus a literal-name ratchet guard.
 
-**P9 — deploy (owner present):** T9-01 Railway IaC for backend, worker, beat and Redis (+ Qdrant if self-hosted), staging first. T9-02 smoke, cross-browser e2e green, real-model c20 load. T9-03 alerts (integrity breach, crisis-lane error, spend 80%, p95, data audit). T9-04 run the Qdrant and Railway runbooks (`audit-output/22`, `22b`).
+**P9 — deploy (owner present):** T9-01 Railway IaC for backend, worker, beat and Redis (+ Qdrant if self-hosted), staging first. T9-02 smoke, cross-browser e2e green, real-model c20 load. T9-03 alerts (integrity breach, crisis-lane error, spend 80%, p95, data audit). T9-04 run the Qdrant and Railway runbooks (`audits/audit-output-2026-11-04/22`, `22b`).
 
-**P10 — review and release:** T10-01 guru-review package from staging (`audit-output/23`). T10-02 human gates (never fake). T10-03 re-score the readiness scorecard.
+**P10 — review and release:** T10-01 guru-review package from staging (`audits/audit-output-2026-11-04/23`). T10-02 human gates (never fake). T10-03 re-score the readiness scorecard.
 
 File-conflict sequences:
 - `first_person_pipeline.py`: T4-01 → T7-01 → T4-06 → T7-02 → T5-02 → T5-04.
@@ -265,7 +265,7 @@ File-conflict sequences:
 - `ChatInterface.tsx`: T1-16 → T1-19 → T1-10 → T1-18 → T6-09 → T5-03.
 - `chatStorage.ts`: T6-05 → T6-09.
 
-## 7. Verification protocol for every PR (`audit-output/22a` §4)
+## 7. Verification protocol for every PR (`audits/audit-output-2026-11-04/22a` §4)
 
 1. Re-locate the symbols. Note any drift.
 2. Write behaviour tests first and watch them fail. No source-text assertions.
@@ -278,14 +278,14 @@ File-conflict sequences:
 
 ## 8. Definition of done
 
-- A task is done when its acceptance criteria (`audit-output/21` for P0/P1; the finding record otherwise) pass with evidence in the PR.
-- A phase is done when its completion evidence in `audit-output/20` §7 exists.
-- Release scopes are defined in `audit-output/23` ("Overall verdict"): internal testing → limited beta → broader release.
+- A task is done when its acceptance criteria (`audits/audit-output-2026-11-04/21` for P0/P1; the finding record otherwise) pass with evidence in the PR.
+- A phase is done when its completion evidence in `audits/audit-output-2026-11-04/20` §7 exists.
+- Release scopes are defined in `audits/audit-output-2026-11-04/23` ("Overall verdict"): internal testing → limited beta → broader release.
 - You never declare a scope reached. You report the computed evidence; the owner decides.
 
 ## 9. Final step
 
-When no unblocked task remains, run `audit-output/25` §12 (independent verification) yourself as a self-check. Then report:
+When no unblocked task remains, run `audits/audit-output-2026-11-04/25` §12 (independent verification) yourself as a self-check. Then report:
 
 1. Tasks merged, with PR links.
 2. Tasks blocked, with the owner decision each needs.
@@ -423,7 +423,7 @@ Follow-ups this task deliberately leaves open (not regressions): the fp-context 
 
 | Item | What landed | Verified | Left |
 |---|---|---|---|
-| T2-02 | `evals/retrieval_bank/` (`metrics.py`, `bank.jsonl`, `harness.py`); `backend/tests/test_retrieval_bank_harness.py` (Recall@k, MRR, nDCG@k, bootstrap 95% CI) | 6 passed in 0.29s | Owner expansion of frozen queries across all doctrine topics |
+| T2-02 | `evals/retrieval_bank/` (`evals/retrieval_bank/metrics.py`, `bank.jsonl`, `harness.py`); `backend/tests/test_retrieval_bank_harness.py` (Recall@k, MRR, nDCG@k, bootstrap 95% CI) | 6 passed in 0.29s | Owner expansion of frozen queries across all doctrine topics |
 | T2-06 | Declared 14 missing settings fields on `app.config.Settings` (timeouts, limits, quality gates, RAG flags, redis/supabase keys); `scripts/guards/config_lint.py`; `backend/tests/test_config_lint.py` asserting 0 undeclared `getattr(settings, ...)` in repo code | 3 passed in 2.75s; config guard exit 0 | — |
 | T3-02 | Qdrant read-only/write key governance on `Settings` and `backend/docker-compose.yml`; `compute_collection_digest` and signed collection digest startup verification in `first_person_serving_contract.py`; `backend/tests/test_qdrant_write_governance.py` | 7 passed in 0.16s; backend write attempt fails 403; digest mismatch fails startup in production | Production Railway secret configuration (infrastructure) |
 
@@ -431,9 +431,9 @@ Follow-ups this task deliberately leaves open (not regressions): the fp-context 
 
 | Item | What landed | Verified | Left |
 |---|---|---|---|
-| T3-04 | Builder per-video replace (`--replace-existing`), empty build refusal, pre-build snapshot before first write in `build_full_corpus_v10.py`; `scroll_page` with filter in `QdrantService`; `backend/tests/test_builder_replace_and_snapshot.py` | 3 passed in 1.51s; test_repo_layout 5 passed | Running actual full rebuild requires owner |
+| T3-04 | Builder per-video replace (`--replace-existing`), empty build refusal, pre-build snapshot before first write in `backend/scripts/ops/build_full_corpus_v10.py`; `scroll_page` with filter in `QdrantService`; `backend/tests/test_builder_replace_and_snapshot.py` | 3 passed in 1.51s; test_repo_layout 5 passed | Running actual full rebuild requires owner |
 | T3-08 | Supabase schema snapshot (`supabase/schema_snapshot.sql`), migration duplicate table lint guard (`scripts/guards/migration_lint.py`); `.github/workflows/supabase-schema-snapshot.yml`; `backend/tests/test_migration_lint.py` | 5 passed in 0.40s | Squashing baseline migrations on production (owner) |
-| T3-05 | Scorecard promotion gate (`evaluate_promotion_gate` in `fp_data_quality_scorecard.py`), `approved_corpus_version` serving contract validation (DATA-16) in `first_person_serving_contract.py`; continuous FP quality audit in `data_quality_audit.py` and `nightly-audit.yml`; `backend/tests/test_data_quality_promotion_gate.py` | 6 passed in 0.30s; 75 total quality/contract tests passed in 2.47s | Applying to production deployment |
+| T3-05 | Scorecard promotion gate (`evaluate_promotion_gate` in `fp_data_quality_scorecard.py`), `approved_corpus_version` serving contract validation (DATA-16) in `first_person_serving_contract.py`; continuous FP quality audit in `backend/scripts/ops/data_quality_audit.py` and `nightly-audit.yml`; `backend/tests/test_data_quality_promotion_gate.py` | 6 passed in 0.30s; 75 total quality/contract tests passed in 2.47s | Applying to production deployment |
 
 ### 0o. Eighth batch (2026-11-05)
 
@@ -494,3 +494,4 @@ Follow-ups this task deliberately leaves open (not regressions): the fp-context 
 - Railway: `.railway/railway.ts` (IaC) is the current method; `railway.json`/`railway.toml` are deprecated and stop working on 2026-12-01 (docs.railway.com, checked 2026-11-05).
 - The package was verified against `c9b42d3e`. Batches 9 to 13 (21 commits, `2edee1c4` to `a7be7e65`) landed before it was committed and were not verified by it. Re-verify the findings they name: `FINAL_READINESS_AND_GAP_ANALYSIS.md` §7.
 - Added 2026-11-06: batches 9-13 verified (statuses updated in the register; SYS-003 is still open; six commit claims were larger than their diffs, listed in `FINAL_READINESS_AND_GAP_ANALYSIS.md` §7). New reviews: mobile, k8s and accessibility specs in `specifications/`; their findings are in register §10. Document inventory: `FINAL_AUDIT_DOCUMENT_INVENTORY.md`. Phases 10 to 12 in the coding package cover them.
+- Added 2026-11-06 (third pass): Lovable write-path review, load and cost model, accessibility proxy session (specs in `specifications/`); 28 more findings registered (RW, AI-009..013, GURU-015/016, SYS-013/014, LOV, A11Y-18..22). `backend/CLAUDE.md` stage chain corrected to match `pipeline_builder.py`. Phases 13 and 14 in the coding package.

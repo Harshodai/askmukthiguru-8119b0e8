@@ -5,7 +5,7 @@
 Owner: S1. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 
 > **Addendum (lead, after the independent review in `26`).**
-> - **ADV-02 (P2):** user data reaches processors that no privacy document lists. These are the Lovable AI gateway (`supabase/functions/memory-extract/index.ts:25`, `memory-extract-drain:22`, the STT fallback, admin ask, eval-run), Sarvam STT (`supabase/functions/sarvam-stt:7-8`), Sentry error replays (`src/lib/sentry.ts:15-26`), SMTP and web push. Task T6-08: a processor inventory, a privacy-notice update, and routing memory extraction through the backend LLM gateway or documenting it with consent.
+> - **ADV-02 (P2):** user data reaches processors that no privacy document lists. These are the Lovable AI gateway (`supabase/functions/memory-extract/index.ts:25`, `memory-extract-drain:22`, the STT fallback, admin ask, eval-run), Sarvam STT (`supabase/functions/sarvam-stt/index.ts:7-8`), Sentry error replays (`src/lib/sentry.ts:15-26`), SMTP and web push. Task T6-08: a processor inventory, a privacy-notice update, and routing memory extraction through the backend LLM gateway or documenting it with consent.
 > - **ADV-01 (P1):** scheduled account deletions never run (no purge job), and immediate deletion needs the backend up. This extends SEC-004. Tasks: T6-06, T1-12.
 > - **ADV-03 (P1):** the first-person kill switch fails open to generation. Task: T1-05.
 Companion documents: **14b** safety, crisis and spiritual trust (S3); **14c** content permissions and IP register (S4).
@@ -50,7 +50,7 @@ Related: request flow (05), code debt (13), reliability (15), memory design (12)
 | Optional user (anon allowed, quota applies on chat) | 14 | chat endpoints |
 | Unauthenticated | 24 | listed below |
 
-Unauthenticated handlers [V-STATIC]: health/ready probes (4), `/` root, `/.well-known/jwks.json`, `/api/auth/anon-session`, `/api/auth/register` (disabled stub), `/api/capabilities`, `/api/teachings/tips`, `/api/contact`, waitlist signup, `/api/memory/knowledge-graph` (anonymous view allowed, `memory.py:803-815`), `/api/memory/knowledge-graph/export` (flag `kg_export_enabled`), `/api/media/videos/{video_id}` (`ingest.py:561`), **`/api/first-person/query`** (`first_person.py:297`). The 8 `second_brain` handlers appeared unauthenticated to the scan but use `_authed_user_id` (`second_brain.py:68-75`) — false positive.
+Unauthenticated handlers [V-STATIC]: health/ready probes (4), `/` root, `/.well-known/jwks.json`, `/api/auth/anon-session`, `/api/auth/register` (disabled stub), `/api/capabilities`, `/api/teachings/tips`, `/api/contact`, waitlist signup, `/api/memory/knowledge-graph` (anonymous view allowed, `backend/app/api/memory.py:803-815`), `/api/memory/knowledge-graph/export` (flag `kg_export_enabled`), `/api/media/videos/{video_id}` (`ingest.py:561`), **`/api/first-person/query`** (`backend/app/api/first_person.py:297`). The 8 `second_brain` handlers appeared unauthenticated to the scan but use `_authed_user_id` (`second_brain.py:68-75`) — false positive.
 
 ## 4. Findings
 

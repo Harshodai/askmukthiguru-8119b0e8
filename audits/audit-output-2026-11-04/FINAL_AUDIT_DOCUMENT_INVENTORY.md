@@ -124,34 +124,34 @@ Line numbers are in the file as it stands now. Documents `03` to `22b` that rece
 
 ### 2.1 Truly broken (22 tokens in 13 groups)
 
-| Doc : line | Token | Why it is broken | Suggested fix |
-|---|---|---|---|
-| `10` :241 | `s3/route_sim.py` | Scratchpad script; not in the repository. | Cite the method in `10` §4 only, or add 'scratchpad, not committed'. |
-| `13` :49 | `app/__init__.py:1-20` | The root alias file has 19 lines at `46b808fb` (and at `HEAD`). | Use `:1-19`. |
-| `14` :8 | `supabase/functions/sarvam-stt:7-8` | Names a directory with line numbers. | `supabase/functions/sarvam-stt/index.ts:7-8` (file exists, 153 lines at `HEAD`; line content at `46b808fb` not checked). |
-| `14d` :230 | `src/lib/chat/__tests__/errors.test.ts` | Named as the regression test. The existing chat tests are in `src/test/chat/`. | Use `src/test/chat/errors.test.ts` or mark the file as new. |
-| `20` :71; `21` :77 | `src/components/PushPermissionPrompt.tsx` | Wrong folder. | `src/components/common/PushPermissionPrompt.tsx` |
-| `20` :77; `21` :262; `IMPLEMENTATION-AGENT-PROMPT.md` :191 | `src/lib/errors.ts` | Wrong folder. | `src/lib/chat/errors.ts` |
-| `20` :78 | `src/lib/streaming.ts` | Wrong folder. | `src/lib/chat/streaming.ts` |
-| `20` :79 | `src/lib/transport.ts` | Wrong folder. | `src/lib/chat/transport.ts` |
-| `20` :80 | `src/components/chat/types.ts` | Wrong folder. | `src/lib/chat/types.ts` |
-| `20` :89; `21` :99 | `backend/services/telemetry_sink.py` | Wrong folder. | `backend/app/telemetry_sink.py` |
-| `20` :129 (2 tokens); `21` :196 (2); `27` :40 (2) | `facet_planner.py`, `set_selector.py` | Planned names. The files added later are `backend/services/first_person_facet_planner.py` and `backend/services/first_person_set_selector.py` (commit `76fa2bf0`). Neither name existed at `46b808fb`. | Use the implemented names. |
-| `traceability-matrix.md` :18 | `teaching_scope.yaml` | No file with this name exists in the `HEAD` tree. | Name an existing file, or mark it 'proposed' (see `GURU…` §3 for the registry files). |
-| `FINAL_USAGE_AND_VERIFICATION_LOG.md` :66 | `apply_review_fixes.py` | Scratchpad script; not in the repository. | Add 'scratchpad, not committed'. |
+| Doc : line | Token | Why it is broken | Suggested fix | Status (2026-11-06) |
+|---|---|---|---|---|
+| `10` :241 | `s3/route_sim.py` | Scratchpad script; not in the repository. | Cite the method in `10` §4 only, or add 'scratchpad, not committed'. | Fixed 2026-11-06 (marked 'scratchpad, not committed') |
+| `13` :49 | `app/__init__.py:1-20` | The root alias file has 19 lines at `46b808fb` (and at `HEAD`). | Use `:1-19`. | Fixed (`:1-19`) |
+| `14` :8 | `supabase/functions/sarvam-stt:7-8` | Names a directory with line numbers. | `supabase/functions/sarvam-stt/index.ts:7-8` (file exists, 153 lines at `HEAD`; line content at `46b808fb` not checked). | Fixed (full file path) |
+| `14d` :230 | `src/lib/chat/__tests__/errors.test.ts` | Named as the regression test. The existing chat tests are in `src/test/chat/`. | Use `src/test/chat/errors.test.ts` or mark the file as new. | Fixed (`src/test/chat/errors.test.ts`; `14d` :189 directory also fixed) |
+| `20` :71; `21` :77 | `src/components/PushPermissionPrompt.tsx` | Wrong folder. | `src/components/common/PushPermissionPrompt.tsx` | Fixed (`20` :71, `21` :77) |
+| `20` :77; `21` :262; `IMPLEMENTATION-AGENT-PROMPT.md` :191 | `src/lib/errors.ts` | Wrong folder. | `src/lib/chat/errors.ts` | Fixed (`20` :77, `21` :262, prompt :191) |
+| `20` :78 | `src/lib/streaming.ts` | Wrong folder. | `src/lib/chat/streaming.ts` | Fixed |
+| `20` :79 | `src/lib/transport.ts` | Wrong folder. | `src/lib/chat/transport.ts` | Fixed |
+| `20` :80 | `src/components/chat/types.ts` | Wrong folder. | `src/lib/chat/types.ts` | Fixed |
+| `20` :89; `21` :99 | `backend/services/telemetry_sink.py` | Wrong folder. | `backend/app/telemetry_sink.py` | Fixed (`20` :89, `21` :99) |
+| `20` :129 (2 tokens); `21` :196 (2); `27` :40 (2) | `facet_planner.py`, `set_selector.py` | Planned names. The files added later are `backend/services/first_person_facet_planner.py` and `backend/services/first_person_set_selector.py` (commit `76fa2bf0`). Neither name existed at `46b808fb`. | Use the implemented names. | Marked '(new files; implemented later as …)' in `20` :129 and `21` :196; renamed in `27` :40 (execution log) |
+| `traceability-matrix.md` :18 | `teaching_scope.yaml` | No file with this name exists in the `HEAD` tree. | Name an existing file, or mark it 'proposed' (see `GURU…` §3 for the registry files). | Marked '(new file, proposed in `21`)' |
+| `FINAL_USAGE_AND_VERIFICATION_LOG.md` :66 | `apply_review_fixes.py` | Scratchpad script; not in the repository. | Add 'scratchpad, not committed'. | NOT fixed: `FINAL_USAGE_AND_VERIFICATION_LOG.md` is outside this task's ownership |
 
 ### 2.2 Valid at `46b808fb`, stale at `HEAD` (11 tokens)
 
 The audit cites `46b808fb`. Later commits changed these files. The citation is not wrong for the audit target. An implementer who reads the file at `HEAD` will not find the line.
 
-| Doc : line | Token | At `46b808fb` | At `HEAD` |
-|---|---|---|---|
-| `03` :67 | `transport.ts:613–629` | 648 lines; lines 613-629 hold the consent read and `pending_extractions` insert (checked) | 614 lines |
-| `06` :37 | `backend/ingest/pipeline.py:4380-4400` | 4,408 lines | 4,174 lines |
-| `09` :66, :108, :120, :260 | `quote_weaver.py:1414-1420`, `:1207`, `:1100-1154`, `:1380` | 1,640 lines; `:1207` is `_SCAFFOLD_PROMPT_VERSION = "v1"` (checked) | 1,149 lines; the symbol is gone |
-| `14d` :95 | `ChatHelpers.tsx:71-99` | 100 lines; `:71` starts `buildPersonalisedWelcome` (checked) | 93 lines |
-| `26` :60 | `src/lib/chat/transport.ts:608-626` | 648 lines | 614 lines |
-| `13` :50, :50, :126 | `langdetect/__init__.py` (3 tokens) | exists (root stub) | removed by `42e883b3` (T1-13) |
+| Doc : line | Token | At `46b808fb` | At `HEAD` | Status (2026-11-06) |
+|---|---|---|---|---|
+| `03` :67 | `transport.ts:613–629` | 648 lines; lines 613-629 hold the consent read and `pending_extractions` insert (checked) | 614 lines | Left: `03` states its audit commit at the top |
+| `06` :37 | `backend/ingest/pipeline.py:4380-4400` | 4,408 lines | 4,174 lines | Left: `06` states its audit commit at the top |
+| `09` :66, :108, :120, :260 | `quote_weaver.py:1414-1420`, `:1207`, `:1100-1154`, `:1380` | 1,640 lines; `:1207` is `_SCAFFOLD_PROMPT_VERSION = "v1"` (checked) | 1,149 lines; the symbol is gone | Left: `09` states its audit commit at the top (and in line 8 for line numbers) |
+| `14d` :95 | `ChatHelpers.tsx:71-99` | 100 lines; `:71` starts `buildPersonalisedWelcome` (checked) | 93 lines | Left: `14d` states its audit commit at the top |
+| `26` :60 | `src/lib/chat/transport.ts:608-626` | 648 lines | 614 lines | Left: `26` states its audit commit at the top |
+| `13` :50, :50, :126 | `langdetect/__init__.py` (3 tokens) | exists (root stub) | removed by `42e883b3` (T1-13) | Left: `13` states its audit commit at the top |
 
 ### 2.3 The 9 past-EOF items
 
@@ -305,3 +305,147 @@ Total: 20 notes. Not changed: `00`, `01`, `02`, `02b`, `13`, `16`, `17`, `19`, `
 - Whether line cites that fit the file length still point at the same content. Only 4 were read (§2.5).
 - Whether the specification files' cites into `memory.py`, `first_person.py`, `health.py`, `pipeline.py` point at the intended file (ambiguous names).
 - Another agent is editing `FINAL_PENDING_WORK_REGISTER.md`, `IMPLEMENTATION-AGENT-PROMPT.md` and others while this file was written; rows for them reflect the state read at the time.
+
+## 6. Citation cleanup change log (2026-11-06)
+
+Scope: only the reference was changed. No finding, number, conclusion or evidence label was altered. Re-check used `doc_linkcheck.py` (copy, same logic) on the 42 original files at head `004f3cf5`.
+
+### 6.1 Counts, before and after
+
+| Class | Before | After | Note |
+|---|---:|---:|---|
+| Truly broken (§2.1, 22 tokens) | 22 | 1 | The one left is in `FINAL_USAGE_AND_VERIFICATION_LOG.md` (outside this task's ownership). Planned files in `20`/`21`/`traceability-matrix.md` are marked '(new file)' rather than changed. |
+| Stale at `HEAD` (§2.2, 11 tokens) | 11 | 11 | Left by rule: each document states `46b808fb` as its audit target at the top (`09` also says its line numbers were read there). |
+| Past end of file | 9 | 9 | 8 are the stale items above; `13` :49 fixed; `06` :322 now shows as past-EOF because its bare `pipeline.py:4392` was qualified (stale at `HEAD`, valid at `46b808fb`: `MERGE (src:__Chunk__ …)`). |
+| Ambiguous bare names | 63 (62 + 1 in `findings-index.md`) | 5 | 58 qualified; 4 left in files I own, 1 in `findings-index.md` (not mine). |
+| Old folder name `audit-output/` used as a path | 40 in my files | 0 | 20: 3, 24: 6, 25: 19, `IMPLEMENTATION-AGENT-PROMPT.md`: 12. Kept as history: `27` :73, :88, :92; `decision-log.md` L-06; `README.md` line 5; this file's descriptions. Not mine: `CONVENTIONS.md` §2 (1). |
+| Citations OK (script) | 2,039 | 2,115 | |
+
+### 6.2 Truly broken and related fixes
+
+| File | Line | Before | After | Class | Evidence |
+|---|---:|---|---|---|---|
+| `10` | 241 | `s3/route_sim.py` | `s3/route_sim.py` (scratchpad, not committed) | broken | Scratchpad script, not in repo. |
+| `13` | 49 | `app/__init__.py:1-20` | `app/__init__.py:1-19` | broken / past-EOF | `git show 46b808fb:app/__init__.py` has 19 lines. |
+| `14` | 8 | `supabase/functions/sarvam-stt:7-8` | `supabase/functions/sarvam-stt/index.ts:7-8` | broken | Lines 7-8 hold `SARVAM_STT_URL`, `GATEWAY_STT_URL` at `46b808fb` and `HEAD`. |
+| `14d` | 230 | `src/lib/chat/__tests__/errors.test.ts` | `src/test/chat/errors.test.ts` | broken | File exists. |
+| `14d` | 189 | `src/lib/chat/__tests__/` | `src/test/chat/` | broken (same cause, not in §2.1) | Directory `src/lib/chat/__tests__` does not exist. |
+| `20` | 71 | `src/components/PushPermissionPrompt.tsx` | `src/components/common/PushPermissionPrompt.tsx` | broken | File exists. |
+| `21` | 77 | same | same | broken | |
+| `20` | 77 | `src/lib/errors.ts` | `src/lib/chat/errors.ts` | broken | File exists; error mapping (`case 'server_error'`) near line 77-80 at `46b808fb`. |
+| `21` | 262 | `src/lib/errors.ts` | `src/lib/chat/errors.ts` | broken | |
+| `IMPLEMENTATION-AGENT-PROMPT.md` | 191 | `src/lib/errors.ts` | `src/lib/chat/errors.ts` | broken | |
+| `20` | 78 | `src/lib/streaming.ts` | `src/lib/chat/streaming.ts` | broken | File exists. |
+| `20` | 79 | `src/lib/transport.ts` | `src/lib/chat/transport.ts` | broken | File exists. |
+| `20` | 80 | `src/components/chat/types.ts` | `src/lib/chat/types.ts` | broken | File exists; `src/components/chat/types.ts` absent at both trees. |
+| `20` | 89 | `backend/services/telemetry_sink.py` | `backend/app/telemetry_sink.py` | broken | File exists. |
+| `21` | 99 | same | same | broken | |
+| `20` | 129 | `facet_planner.py`, `set_selector.py` | same, plus '(new files; implemented later as `backend/services/first_person_facet_planner.py` and `backend/services/first_person_set_selector.py`)'; `first_person_pipeline.py` qualified to `backend/services/first_person_pipeline.py` | broken (planned) | Neither name exists at either tree; implemented names exist at `HEAD`. |
+| `21` | 196 | same | same | broken (planned) | |
+| `27` | 40 | `set_selector.py`, `facet_planner.py` | `first_person_set_selector.py`, `first_person_facet_planner.py` | broken | Execution-log list; implemented names per §2.1. Whether those files were the ones read at `46b808fb` is not checked. |
+| `traceability-matrix.md` | 18 | `teaching_scope.yaml` | `teaching_scope.yaml` (new file, proposed in `21`) | broken (planned) | No such file at `HEAD`; `21` :172 proposes it. |
+| `21` | 172 | `backend/config/teaching_scope.yaml` | same, plus ', new file' | planned | Same. |
+
+### 6.3 Stale at `46b808fb`: left, not moved to `HEAD`
+
+| File | Line | Token | Action | Evidence |
+|---|---:|---|---|---|
+| `03` | 67 | `transport.ts:613–629` | left | Header line 5 states target `46b808fb`; 648 lines there. |
+| `06` | 37 | `backend/ingest/pipeline.py:4380-4400` | left | Header states target; 4,408 lines there. |
+| `09` | 66, 108, 120, 260 | `quote_weaver.py:1414-1420`, `:1207`, `:1100-1154`, `:1380` | left | Header and line 8 state `main@46b808fb`. |
+| `13` | 50, 50, 126 | `langdetect/__init__.py` | left | Header states target. |
+| `14d` | 95 | `ChatHelpers.tsx:71-99` | left | Header states target. |
+| `26` | 60 | `src/lib/chat/transport.ts:608-626` | left | Header states target. |
+
+### 6.4 Ambiguous bare names qualified
+
+Rule: the owning row or sentence names the folder or the subject, or the two same-named copies are byte-identical (`scripts/ops/` and `backend/scripts/ops/`, `scripts/` and `backend/scripts/`, checked with `git show` at `46b808fb` and `HEAD`). Where line cites exist, the cited line was read at `46b808fb` (for example `backend/app/api/first_person.py:297` is `query_first_person_teaching`; `backend/rag/nodes/first_person.py:52-65` returns `{}`; `src/lib/chat/types.ts:293-300` is `resolveAttributionLabel`; `backend/app/api/feedback.py:336` is `/clip-report`; `src/App.tsx:269` is the `ClipReportsPage` entry).
+
+| File | Line | Before | After |
+|---|---:|---|---|
+| `03` | 32 | `App.tsx:381–384` | `src/App.tsx:381–384` |
+| `03` | 58 | `App.tsx:373` | `src/App.tsx:373` |
+| `03` | 62 | `feedback.py:26` | `backend/app/api/feedback.py:26` |
+| `03` | 63 | `feedback.py:336` | `backend/app/api/feedback.py:336` |
+| `03` | 63 | `App.tsx:269` | `src/App.tsx:269` |
+| `03` | 67 | `memory.py` | `backend/app/api/memory.py` |
+| `03` | 81 | `push.py` | `backend/app/api/push.py` |
+| `03` | 176 | `App.tsx:269` | `src/App.tsx:269` |
+| `03` | 283 | `types.ts:293–300` | `src/lib/chat/types.ts:293–300` |
+| `05` | 68 | `first_person.py:297-301` | `backend/app/api/first_person.py:297-301` |
+| `05` | 161 | `first_person.py:52-65` | `backend/rag/nodes/first_person.py:52-65` |
+| `06` | 31 | `build_full_corpus_v10.py` | `backend/scripts/ops/build_full_corpus_v10.py` |
+| `06` | 31 | `build_fp_context_from_v9.py` | `backend/scripts/ops/build_fp_context_from_v9.py` |
+| `06` | 32 | `build_first_person_index.py` | `backend/scripts/ops/build_first_person_index.py` |
+| `06` | 37 | `build_teaching_unit_graph.py` | `backend/scripts/ops/build_teaching_unit_graph.py` |
+| `06` | 41 | `extract_okf_from_stores.py` | `backend/scripts/extract_okf_from_stores.py` |
+| `06` | 57 | `build_teaching_unit_graph.py:425-426` | `backend/scripts/ops/build_teaching_unit_graph.py:425-426` |
+| `06` | 129 | `build_full_corpus_v10.py:349-385` | `backend/scripts/ops/build_full_corpus_v10.py:349-385` |
+| `06` | 135 | `data_quality_audit.py` | `backend/scripts/ops/data_quality_audit.py` |
+| `06` | 145 | `build_full_corpus_v10.py:867-894` | `backend/scripts/ops/build_full_corpus_v10.py:867-894` |
+| `06` | 217 | `build_full_corpus_v10.py:349-385` | `backend/scripts/ops/build_full_corpus_v10.py:349-385` |
+| `06` | 259 | `build_full_corpus_v10.py:867-894` | `backend/scripts/ops/build_full_corpus_v10.py:867-894` |
+| `06` | 259 | `build_first_person_index.py:677-783` | `backend/scripts/ops/build_first_person_index.py:677-783` |
+| `06` | 322 | `pipeline.py:4392` | `backend/ingest/pipeline.py:4392` |
+| `06` | 364 | `pipeline.py:1038-1216` | `backend/ingest/pipeline.py:1038-1216` |
+| `06` | 364 | `pipeline.py:3537` | `backend/ingest/pipeline.py:3537` |
+| `06` | 427 | `build_first_person_index.py:561-578` | `backend/scripts/ops/build_first_person_index.py:561-578` |
+| `06` | 490 | `build_full_corpus_v10.py:131` | `backend/scripts/ops/build_full_corpus_v10.py:131` |
+| `07` | 33 | `pipeline.py:542-555` | `backend/ingest/pipeline.py:542-555` |
+| `07` | 40 | `build_full_corpus_v10.py:4-17` | `backend/scripts/ops/build_full_corpus_v10.py:4-17` |
+| `07` | 41 | `build_full_corpus_v10.py:1041-1050` | `backend/scripts/ops/build_full_corpus_v10.py:1041-1050` |
+| `08` | 193 | `build_teaching_unit_graph.py:157-161` | `backend/scripts/ops/build_teaching_unit_graph.py:157-161` |
+| `12b` | 85 | `feedback.py` | `backend/app/api/feedback.py` |
+| `13` | 89 | `base.py` | `backend/services/llm/base.py` |
+| `13` | 89 | `factory.py` | `backend/services/llm/factory.py` |
+| `14` | 53 | `memory.py:803-815` | `backend/app/api/memory.py:803-815` |
+| `14` | 53 | `first_person.py:297` | `backend/app/api/first_person.py:297` |
+| `14d` | 128 | `types.ts:297-299` | `src/lib/chat/types.ts:297-299` |
+| `14d` | 242 | `types.ts:297-299` | `src/lib/chat/types.ts:297-299` |
+| `15` | 175 | `health.py:741-760` | `backend/app/api/health.py:741-760` |
+| `16` | 192 | `build_full_corpus_v10.py:867-894` | `backend/scripts/ops/build_full_corpus_v10.py:867-894` |
+| `20` | 101 | `build_full_corpus_v10.py` | `backend/scripts/ops/build_full_corpus_v10.py` |
+| `20` | 129 | `build_teaching_unit_graph.py` | `backend/scripts/ops/build_teaching_unit_graph.py` |
+| `20` | 258 | `build_full_corpus_v10.py` | `backend/scripts/ops/build_full_corpus_v10.py` |
+| `20` | 258 | `data_quality_audit.py` | `backend/scripts/ops/data_quality_audit.py` |
+| `20` | 270 | `check_legacy_guru_tables.py` | `backend/scripts/ops/check_legacy_guru_tables.py` |
+| `21` | 130 | `build_full_corpus_v10.py` | `backend/scripts/ops/build_full_corpus_v10.py` |
+| `22a` | 28 | `gate1_load_test.py` | `backend/scripts/ops/gate1_load_test.py` |
+| `24` | 18 | `first_person.py` | `backend/app/api/first_person.py` |
+| `24` | 22 | `first_person.py` | `backend/rag/nodes/first_person.py` |
+| `24` | 28 | `pipeline.py` | `backend/ingest/pipeline.py` |
+| `27` | 40 | `build_full_corpus_v10.py` | `backend/scripts/ops/build_full_corpus_v10.py` |
+| `27` | 40 | `build_first_person_index.py` | `backend/scripts/ops/build_first_person_index.py` |
+| `27` | 42 | `App.tsx` | `src/App.tsx` |
+| `IMPLEMENTATION-AGENT-PROMPT.md` | 35 | `compliance.py` | `backend/app/api/compliance.py` |
+| `IMPLEMENTATION-AGENT-PROMPT.md` | 426 | `metrics.py` | `evals/retrieval_bank/metrics.py` |
+| `IMPLEMENTATION-AGENT-PROMPT.md` | 434 | `build_full_corpus_v10.py` | `backend/scripts/ops/build_full_corpus_v10.py` |
+| `IMPLEMENTATION-AGENT-PROMPT.md` | 436 | `data_quality_audit.py` | `backend/scripts/ops/data_quality_audit.py` |
+
+Left unqualified (not certain, or not a repository file):
+
+| File | Line | Token | Why |
+|---|---:|---|---|
+| `06` | 46 | `manifest.json` | Host file `~/mukthiguru_attribution_data/audio_archive/manifest.json`, not in the repository. |
+| `13` | 49 | `__init__.py` | Generic phrase 'each one `__init__.py`', not a single file. |
+| `27` | 39 | `health.py` | `backend/app/api/health.py` or `backend/app/health.py`; the log does not say which was read. |
+| `27` | 40 | `raptor.py` | `backend/ingest/raptor.py` or `backend/services/qdrant/raptor.py`; not stated. |
+| `findings-index.md` | 175 | `compliance.py` | Not mine. `backend/app/api/compliance.py` (holds `_get_container_safely`) or `backend/app/schemas/compliance.py`. |
+
+### 6.5 Old folder name
+
+Replaced `audit-output/` with `audits/audit-output-2026-11-04/` on: `20` :55, :182, :184; `24` :111, :113, :114, :117, :120, :139; `25` :8, :9, :11, :22, :24, :26, :27, :28, :37, :60, :63, :76, :168, :179, :186, :187, :191, :194, :196; `IMPLEMENTATION-AGENT-PROMPT.md` :5, :96, :155, :159, :161, :257, :259, :268, :281, :282, :283, :288. Two sentences that compared old and new names were reworded to keep their meaning: `24` :111 now says the package was 'first written as `audit-output/` at the repository root, then moved'; `IMPLEMENTATION-AGENT-PROMPT.md` :5 says the same in place of 'every `audit-output/` path below means this folder'. Class: old folder name. Evidence: `README.md` line 5 and decision D-27.
+
+### 6.6 Other
+
+- `15` :174 `app/telemetry_sink.py` still resolves only as a `backend/`-relative shorthand (`backend/app/telemetry_sink.py`). Not changed (outside the 22).
+- `26` :59 `sarvam-stt/index.ts:7`/`:8` are partial paths; not changed.
+- Items for `findings-index.md` and `CONVENTIONS.md` (not edited): `findings-index.md` :175 bare `compliance.py`; `CONVENTIONS.md` §2 uses `/home/user/askmukthiguru-8119b0e8/audit-output/` as the write path (old folder name).
+
+## 7. Documents added after this inventory was built (2026-11-06)
+
+| Document | Exists | Complete for its purpose | Evidence present | Detailed enough to implement | Requires updating |
+|---|---|---|---|---|---|
+| `specifications/LOVABLE_SYNC_PATH_REVIEW.md` | Yes | Yes (review) | Commit SHAs and file paths | Partial: NEW-LOV-01 is an owner step; NEW-LOV-05 waits for D-24 | No |
+| `specifications/LOAD_AND_COST_MODEL.md` | Yes | Yes as a model; nothing measured | Labelled [V-STATIC] / [DOC-CLAIM] / [INF]; three 8,192-token statements corrected by the lead | Yes for NEW-LOAD-1 to -6; NEW-LOAD-7 needs staging | Yes after the staging load run |
+| Accessibility audit §10 and mobile spec §10 (appended) | Yes | Proxy only; states its limits | Commands and probe outputs | Owner-run checklists | Yes after a human screen-reader and device session |

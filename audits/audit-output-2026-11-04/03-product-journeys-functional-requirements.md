@@ -29,7 +29,7 @@ Configuration assumption: root `CLAUDE.md` invariant 21 (first-person-only chat:
 
 | # | Journey | Steps as implemented | Weak points |
 |---|---|---|---|
-| J1 | First anonymous visit | `/` landing (`src/pages/Index.tsx`, `components/landing/*`) → `/chat` → client mints a signed anonymous token (`POST /api/auth/anon-session`, `src/lib/chat/anonSession.ts:21`) → question → `/api/chat/stream` (SSE, `src/lib/chat/streaming.ts:36`) with JSON fallback (`/api/chat`, `transport.ts:122`) → verbatim clip with "Related — not a direct answer" badge, or abstain card. Quota: 5 messages per 24 h (`backend/CLAUDE.md`). | About 3 in 4 on-topic questions abstain [DOC-CLAIM, task list §0]. The abstain card says "This contemplation is offered from foundational spiritual principles…" (`ChatMessage.tsx:293`) though the FP-only abstain is a static message. Cookie banner, safety disclaimer and (after first answer) push prompt compete for attention (`App.tsx:381–384`). |
+| J1 | First anonymous visit | `/` landing (`src/pages/Index.tsx`, `components/landing/*`) → `/chat` → client mints a signed anonymous token (`POST /api/auth/anon-session`, `src/lib/chat/anonSession.ts:21`) → question → `/api/chat/stream` (SSE, `src/lib/chat/streaming.ts:36`) with JSON fallback (`/api/chat`, `transport.ts:122`) → verbatim clip with "Related — not a direct answer" badge, or abstain card. Quota: 5 messages per 24 h (`backend/CLAUDE.md`). | About 3 in 4 on-topic questions abstain [DOC-CLAIM, task list §0]. The abstain card says "This contemplation is offered from foundational spiritual principles…" (`ChatMessage.tsx:293`) though the FP-only abstain is a static message. Cookie banner, safety disclaimer and (after first answer) push prompt compete for attention (`src/App.tsx:381–384`). |
 | J2 | Returning signed-in user | `/auth` (email, Google, Apple; 18+ checkbox, `AuthPage.tsx`) → local conversations (localStorage) + cloud sync to Supabase (`chatStorage.ts:400`) → sidebar history → profile (`/profile`: stats, streaks, heatmap, journey, memory manager). | Server history for the model is read from `chat_messages`, which the client writes directly (PRD-003). Continuity across devices depends on that sync. |
 | J3 | Crisis | Message → backend crisis pre-check and distress stage (S3 doc 14b) → helpline response with `safety_notices` (`ChatMessage.tsx:1455`) → Serene Mind practice may be gated (`src/lib/chat/sereneMindGating.ts`). | Push-permission prompt can appear 4 s after a crisis answer (PRD-004). Helplines: 1 of 15 call-verified (doc 23 GURU-007). |
 | J4 | Deep exploration | Follow-up chips (`FEATURE_FLAGS.suggestedFollowUps`, `ChatMessage.tsx:1896`), source panel (`ConversationSourcesPanel.tsx`), link inspection (`LinkSearchModal.tsx`), knowledge graph page (`/knowledge-graph`). | Link inspection uses a relative URL (PRD-001). Depth preferences have no visible effect on a verbatim clip [INF] (FR-DEPTH-01). |
@@ -55,16 +55,16 @@ Legend for status: **Live** (wired end to end on default config), **Flagged** (w
 | Speaker label / "unverified clip" | `resolveAttributionLabel` | — | `speaker_verified` copied from clip | Qdrant | `speaker_verified` | Live | `src/lib/chat/types.ts:293–300` never shows a bare teacher name unless verified |
 | Abstain help card | `AbstainHelpCard` | — | `route_decision=first_person_abstain` | — | `isFirstPersonAbstain`, `routeDecision` | Live | Hardcoded "Verified Inquiries" list (`AbstainHelpCard.tsx:12–24`) — not checked to have servable clips [INF] |
 | Safety notices | `ChatMessage.tsx:1455` | — | `safety_notices` | — | `safetyNotices` | Live | |
-| Teacher's Words page | `/teachers-words` | `POST /api/first-person/query` (`firstPersonService.ts`) | `backend/app/api/first_person.py` | Qdrant | `is_direct_answer`, `status`, `related_clips_heading` | Flagged (`VITE_FIRST_PERSON_ENABLED`, `App.tsx:373`) | Second, separate first-person path from chat (duplicate surface) |
+| Teacher's Words page | `/teachers-words` | `POST /api/first-person/query` (`firstPersonService.ts`) | `backend/app/api/first_person.py` | Qdrant | `is_direct_answer`, `status`, `related_clips_heading` | Flagged (`VITE_FIRST_PERSON_ENABLED`, `src/App.tsx:373`) | Second, separate first-person path from chat (duplicate surface) |
 | Assistant switcher | `AssistantSwitcher` in composer (`ChatComposer.tsx:462`) | `GET /api/assistants`; `POST /api/assistants/redeem` | `assistants.py`; `assistant_authorization.py` | Supabase `assistants`, settings | slug | Partial | Slug vocabularies disagree (PRD-005, doc 11 §3) |
 | Follow-up suggestions | chips | — | `follow_up_suggestions` | — | `followUpSuggestions` | Flagged (on by default) | S3 owns generation |
 | Response preferences (depth/mode) | settings | sent as `response_preferences` (`transport.ts:58`) | consumed in `generation.py`, `glue_stages.py`, `pipeline_coordinator.py` | localStorage | — | Partial | Generation path is off in FP-only mode, so the effect is limited to glue text [INF] |
-| Feedback (thumbs) | `InlineActions` | `POST /api/feedback` | `feedback.py:26` | Supabase `feedback_events` | — | Live | Saved locally too (`saveFeedback`) |
-| Clip report (content correction) | none for seekers | — | `POST /api/feedback/clip-report` (`feedback.py:336`) | Supabase | — | Partial | Admin "Clip Reports" page exists (`App.tsx:269`); no seeker control found (PRD-006) |
+| Feedback (thumbs) | `InlineActions` | `POST /api/feedback` | `backend/app/api/feedback.py:26` | Supabase `feedback_events` | — | Live | Saved locally too (`saveFeedback`) |
+| Clip report (content correction) | none for seekers | — | `POST /api/feedback/clip-report` (`backend/app/api/feedback.py:336`) | Supabase | — | Partial | Admin "Clip Reports" page exists (`src/App.tsx:269`); no seeker control found (PRD-006) |
 | Faculty answer labels | `FacultyLabelPanel` | Supabase upsert `faculty_answer_labels` (`facultyLabels.ts:67`) | — | Supabase | — | Flagged (`VITE_FACULTY_REVIEW_ENABLED`) | Migration not applied per task list §2 N5 [DOC-CLAIM] |
 | Conversation history | sidebar, `/chat` | Supabase direct upsert/insert (`chatStorage.ts:400–441`) | backend also reads/writes `chat_messages` (`chat.py:479`) | localStorage + Supabase | — | Live | Two writers (PRD-003) |
 | Conversation export | export action | — (client-side `exportConversation.ts`) | — | localStorage | — | Live | |
-| Memory (view/edit/forget/consent) | `MemoryManager`, `MemorySettingsModal`, `MemoryConsentBanner` | `/api/memory/*` (`memoryApi.ts`) + Supabase reads (`guru_memories`, `guru_core_memory`, `guru_session_summaries`) + RPC `match_user_memories` | `memory.py`, `canonical_memory.py` | Supabase | — | Live | S3 owns internals. Client inserts `pending_extractions` directly after reading consent (`transport.ts:613–629`) |
+| Memory (view/edit/forget/consent) | `MemoryManager`, `MemorySettingsModal`, `MemoryConsentBanner` | `/api/memory/*` (`memoryApi.ts`) + Supabase reads (`guru_memories`, `guru_core_memory`, `guru_session_summaries`) + RPC `match_user_memories` | `backend/app/api/memory.py`, `canonical_memory.py` | Supabase | — | Live | S3 owns internals. Client inserts `pending_extractions` directly after reading consent (`transport.ts:613–629`) |
 | Personalise this teaching | button on citation | `personalize_teaching` in chat body | `PersonalizeStage` | memory | `personalized` flag | Flagged (`VITE_PERSONALIZE_TEACHING_ENABLED`) | Label "In our own words — not a direct quote from the teachers." (`ChatMessage.tsx:549`) — correct separation |
 | Wisdom tips while waiting | tip ticker | `GET /api/teachings/tips` (`useWisdomTips.ts`) | `teachings.py:318` | Redis cache, Qdrant harvest, curated fallback | text, source, teacher | Live (flag on) | Unsourced attributed quotations (GURU-012) |
 | Deepen & Tune bar | chat | — | — | hardcoded | — | Flagged off | Hand-written per-teacher concepts (GURU-012) |
@@ -78,7 +78,7 @@ Legend for status: **Live** (wired end to end on default config), **Flagged** (w
 | SRS flashcards | `FlashcardPractice` | `/api/srs/due`, `/api/srs/review` (relative) | `srs.py` | Supabase | — | Partial | PRD-001 |
 | Knowledge graph | `/knowledge-graph` | `/api/kg/subgraph`, `/api/kg/personal` | `kg.py` | Memgraph, Supabase | — | Live [INF] | Graph is off the answer path (task list §1 item 1) |
 | Second brain / notebooks | `/second-brain`, `/notebooks` | `/api/brain/*` | `second_brain.py`, notebooks router | Supabase (vault) | — | Live [INF] | Not linked from answers (no "save answer") |
-| Push notifications | `PushPermissionPrompt` (global), `PushNotificationsManager` | `/api/push/register` | `push.py` (prefix `/push` under `/api`) | Supabase `push_subscriptions` | — | Flagged (`push_notifications_enabled`) | PRD-004 |
+| Push notifications | `PushPermissionPrompt` (global), `PushNotificationsManager` | `/api/push/register` | `backend/app/api/push.py` (prefix `/push` under `/api`) | Supabase `push_subscriptions` | — | Flagged (`push_notifications_enabled`) | PRD-004 |
 | Daily push | — | edge fn `daily-teaching-push` (cron secret) | — | `daily_teachings` | caption | Live [INF] | Title "Today's Teaching" with caption; source attribution not checked |
 | Data export / account deletion | `AccountDataCard` | edge fns `export-my-data`, `delete-my-account` | Supabase functions | Supabase | — | Live | Second, dormant deletion path `CancelFlow` (doc 12b UX-001) |
 | Support contact | settings | `/api/support/contact` | `support.py:33` | — | — | Live | |
@@ -173,7 +173,7 @@ Legend for status: **Live** (wired end to end on default config), **Flagged** (w
 | Severity | P1 |
 | Type | Product gap |
 | Confidence | Medium (search-based absence) |
-| Evidence | Backend `POST /api/feedback/clip-report` (`backend/app/api/feedback.py:336`); admin page `ClipReportsPage` (`App.tsx:269`). `rg -i "clip-report|report.?clip"` in `src/` outside `admin/` and locales returns no seeker control. |
+| Evidence | Backend `POST /api/feedback/clip-report` (`backend/app/api/feedback.py:336`); admin page `ClipReportsPage` (`src/App.tsx:269`). `rg -i "clip-report|report.?clip"` in `src/` outside `admin/` and locales returns no seeker control. |
 | Expected behaviour | Every served clip has a "Report a problem with this clip" control (wrong speaker, wrong words, cut mid-thought, not relevant, harmful). Reports reach the admin queue and the teachers' correction contact (doc 23 D6). |
 | User impact | Errors persist; the teachers' team has no correction path to inspect. |
 | Remediation | Add the control to `CitationCard`. Post `{point_id, video_id, start_ms, reason}`. Show an acknowledgement. |
@@ -280,7 +280,7 @@ Format per FR: actor; problem; preconditions; trigger; expected behaviour; busin
 
 **FR-ATTR-01 — Attribution on every clip**
 - Behaviour: show speaker only when voice-verified; otherwise "unverified clip"; show video title, link and time window.
-- AC: no clip shows a teacher name with `speaker_verified !== true` (`types.ts:293–300`).
+- AC: no clip shows a teacher name with `speaker_verified !== true` (`src/lib/chat/types.ts:293–300`).
 - Priority: Must. Status: Live.
 
 **FR-ATTR-02 — No unsourced attributed quotations anywhere in the product**

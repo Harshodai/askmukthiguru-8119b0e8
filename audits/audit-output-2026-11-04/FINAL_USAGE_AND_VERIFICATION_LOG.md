@@ -63,7 +63,7 @@ A separate Sonnet agent, which wrote none of the files, reviewed the package rea
 | Claims guard | 22 files and all added lines | 0 hits |
 | Scope | `git status` | 0 non-Markdown files changed |
 
-Fixes the lead applied (script `apply_review_fixes.py` in the scratchpad; each replacement counted and asserted):
+Fixes the lead applied (script `/tmp/claude-0/-home-user-askmukthiguru-8119b0e8/0de5ec3b-836c-5256-a4b0-1b431ea0ab5a/scratchpad/apply_review_fixes.py`, session scratchpad, not in the repository; each replacement counted and asserted):
 
 1. Short citations in the reliability spec now name the full path: `backend/app/api/health.py` (10), `backend/app/api/feedback.py` (11), `backend/app/metrics.py` (20).
 2. Three ranges past the end of file corrected; `okf_store.py` citation corrected to lines 79, 100-103 and 220-227.
@@ -111,4 +111,21 @@ The owner asked for three gaps to be closed with cheaper models: re-verify batch
 The lead integrated the reviews into the decision register (§2.5, RK-16 to RK-18), the release gates (C7, C13), the index, the completeness matrix, the gap analysis, the pending register (§10) and the coding package (phases 10 to 12).
 
 Exact files read and changed: `FINAL_USAGE_AND_VERIFICATION_LOG_APPENDIX_FILES.md`. It replaces the pointer in §3 above.
+
+## 8. Third pass on 2026-11-06 (owner request: "make sure nothing is left")
+
+| Area | Model | Result | Files | Tokens |
+|---|---|---|---|---|
+| Register 75 finding IDs | Sonnet | 75 added (0 P0, 25 P1, 43 P2, 7 P3); 3 severity conflicts resolved to the defining spec | `findings-index.md`, `CONVENTIONS.md`, register §10 | 189,638 |
+| Citation cleanup | Sonnet | Truly broken 22 to 1 (the 1 fixed by the lead); ambiguous 63 to 5; 40 old folder paths updated; 11 stale-at-HEAD kept with the audit commit stated | Numbered docs, prompt, inventory §6 | 160,088 |
+| Lovable write path | Sonnet | Bot self-merges to `main` (202 merges); 8 findings (3 P1); D-24 proposal | `specifications/LOVABLE_SYNC_PATH_REVIEW.md` | 134,505 |
+| Load and cost model | Sonnet (interrupted by the rate limit, resumed) | Model only; SYS-014 budget-cap issue; one wrong 8,192-token claim corrected by the lead | `specifications/LOAD_AND_COST_MODEL.md` | 287,787 (final run) |
+| Accessibility and mobile proxy session | Sonnet (interrupted, resumed) | axe, keyboard, reflow, text spacing, reduced motion, phone viewports; A11Y-18 to A11Y-22; owner-run native checklist | Accessibility §10, mobile §10 (append-only) | 178,553 (final run) |
+| Lead | — | Assigned IDs to 4 unnumbered groups (RW, AI-009..013, GURU-015/016, SYS-013); registered LOV and third-pass findings; corrected `backend/CLAUDE.md` stage chain against `pipeline_builder.py:53-92` (pipeline-order guard passes); built `package_check.py` (scratchpad) | See commit | — |
+
+Lead verification in this pass: `config.py:640`, `:644`, `openrouter_budget.py:87-98`, `:127` (SYS-014); `openrouter_service.py:495`, `model_policy.py:172-175`, `config.py:144` (refutes the 8,192-token claim); `cost_tracker.py:476` and its three callers in `chat.py`; `main.py:55-59`, `ingest/pipeline.py:1288`, `:1576`, `start_railway.py` (no `signal` use).
+
+Consistency check (`package_check.py`, scratchpad): 0 duplicate finding IDs; every finding ID used in the package is in the index except 8 requirement short forms in a column headed "Metric (NFR)"; every decision ID, gate ID and coding-package task ID resolves; the only missing file reference is `INCIDENT_LOG.md`, a planned file (NEW-OPS-9).
+
+Still not possible in this environment: a real screen-reader session, native device tests, and load or cost under real traffic.
 

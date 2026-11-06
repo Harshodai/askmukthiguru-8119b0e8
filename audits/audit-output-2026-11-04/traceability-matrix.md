@@ -15,7 +15,7 @@ Owner: lead. Chain: business objective → user need → FR → architectural co
 | FR-PROF-01 | L | O3 | Manage profile and settings | Profile pages | `profiles` | Supabase RLS | profile e2e | PRIV-03 | — |
 | FR-CONV-01 | L | O1 | Ask and receive in a conversation | Stage chain → route → lane | conversations, messages | `POST /api/chat`, `/api/chat/stream` | chat e2e; outcome event emitted | OBS-01, REL-01 | T2-03 |
 | FR-CONV-02 | LD | O4, O3 | My history is mine, correct, and available on any device | Backend writes assistant turns; server is the history source of truth for signed-in users | `chat_messages` RLS | RLS: client inserts `role='user'`; list/read/delete conversations API | RLS test; cross-device e2e (UX-006) | SEC-06 | T6-05, T6-09 |
-| FR-INT-01 | P | O1 | The system understands what I ask | Route-decision service; AnswerPlan | `teaching_scope.yaml` | internal | routing set recall ≥95% | AIQ-03 | T4-03, T5-01 |
+| FR-INT-01 | P | O1 | The system understands what I ask | Route-decision service; AnswerPlan | `teaching_scope.yaml` (new file, proposed in `21`) | internal | routing set recall ≥95% | AIQ-03 | T4-03, T5-01 |
 | FR-INT-02 | A | O1 | Ask me when my question is unclear | AnswerPlan `clarify` mode | — | `layers[type=follow_up]` | held-out ambiguous stratum | AIQ-01 | T5-01 |
 | FR-SRC-01 | P | O5 | Choose a teacher or source | Teacher registry filter | `gurus.yaml`, span `teacher_id` | request `teacher_ids[]` | filter test; no cross-teacher leakage | DI-03 | T8-01, T1-04 |
 | FR-RET-01 | L | O1 | Find the right teaching | Hybrid retrieval, gates, evidence judge | Qdrant vNext | internal | frozen bank Recall@10 | AIQ-06, PERF-05 | T4-01, T4-02, T4-06 |

@@ -151,6 +151,14 @@ NEW-K8S-5 (remove committed default passwords; do it early, it is a security fix
 
 After D-PMOB1 to D-PMOB8: NEW-MOB-2 (correct the runbook), NEW-MOB-3 (backend URL per mode), NEW-MOB-4 (OAuth in the system browser), NEW-MOB-5 (privacy manifest and usage strings), then NEW-MOB-6 to NEW-MOB-13. Source: `specifications/MOBILE_APPS_REVIEW_AND_RELEASE_SPEC.md` §7.
 
+### Phase 13: Lovable write path (added 2026-11-06)
+
+NEW-LOV-01 is an owner step (require a PR and checks on `main`, remove the bot's direct-push right); do it with T0-03 branch protection. Then NEW-LOV-02 (CI guard for bot PRs), NEW-LOV-03 (UI-copy voice check), NEW-LOV-04 (generated types check), NEW-LOV-06 (`src/CLAUDE.md` rule), NEW-LOV-07 (frontend hosting fact sheet), NEW-LOV-08 (remove an unused secret). NEW-LOV-05 (delete the stale branch) waits for D-24. Source: `specifications/LOVABLE_SYNC_PATH_REVIEW.md` §5.
+
+### Phase 14: load and cost (added 2026-11-06; before Gate B item B8)
+
+NEW-LOAD-3 (record the scorer price and handle unreported cost; closes SYS-014 with D-16), NEW-LOAD-4 (one budget table for the three scorer timeouts and the RPM limit), NEW-LOAD-5 (executor sizing guard), NEW-LOAD-6 (bound the rerank call's `max_tokens`; count budget denials), NEW-LOAD-1 and NEW-LOAD-2 (Locust file and outcome/cost capture), then NEW-LOAD-7 (run the staging load test with the real provider under a spend cap) and NEW-LOAD-8 (inputs for D-PE7). Source: `specifications/LOAD_AND_COST_MODEL.md` §7.
+
 ### Reserved, human or decision-only (do not start without the owner)
 
 T7-02 (SYS-003, CQ-011), T6-06 (erasure queue), T6-05 (RLS role change), T3-06 (registry and runtime state), T4-04 (clinician), T6-07 (clinician), T5-03 and T5-04 (Variant B; D-03), T1-12 (D-19).

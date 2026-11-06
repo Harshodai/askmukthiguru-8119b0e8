@@ -25,7 +25,7 @@ Owner: lead. Purpose: tell the implementation agent exactly how to prove each ch
 | Held-out human evaluation | Usefulness, faithfulness, attribution, emotional appropriateness | `evals/golden_v2/` (T2-04) | Per release candidate | Release gate |
 | Security | Auth on every LLM-spending route, RLS, injection fixtures, secrets scan, dependency CVEs | `backend/tests/security/`, CodeQL, gitleaks | Every PR / nightly | Yes |
 | Data quality | Scorecard blockers, hash and ID recomputation, teacher-ID vocabulary, verified-without-method | `scripts/ops/data_quality_audit.py` (T3-05) | Before promotion; daily | Promotion gate |
-| Performance | p50/p95/p99 per lane; LLM calls per turn; tokens and cost per turn | `gate1_load_test.py` on staging (T9-02) | Per release candidate | Release gate |
+| Performance | p50/p95/p99 per lane; LLM calls per turn; tokens and cost per turn | `backend/scripts/ops/gate1_load_test.py` on staging (T9-02) | Per release candidate | Release gate |
 | End-to-end | Seeker journeys on Chromium, Firefox, WebKit, mobile viewports | `tests/e2e/` | Every PR (smoke); nightly (matrix) | Smoke yes |
 | Chaos | Redis down, Qdrant down, backend down during deletion, LLM timeouts | staging scripts | Monthly; before release | Release gate |
 | Migration | Forward migration on a copy; no automatic down migration (existing check) | `supabase/`, CI | Every migration PR | Yes |

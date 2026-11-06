@@ -74,7 +74,7 @@ Template for each spec: Files and symbols · Existing behaviour · Required chan
 - **Evidence:** `14` SEC-001, SEC-002.
 
 ## T1-10 — Consent gate on emotional side effects; no engagement prompts on safety turns
-- **Files:** `backend/app/orchestrator_utils.py` (~577–610 healing-course assignment; ~636–705 proactive Serene Mind); `src/components/PushPermissionPrompt.tsx` (~31–37); `src/components/chat/ChatInterface.tsx` (~1548, ~1941 event dispatch).
+- **Files:** `backend/app/orchestrator_utils.py` (~577–610 healing-course assignment; ~636–705 proactive Serene Mind); `src/components/common/PushPermissionPrompt.tsx` (~31–37); `src/components/chat/ChatInterface.tsx` (~1548, ~1941 event dispatch).
 - **Existing:** Episodic emotional arcs are read and an assignment is written without checking active consent. The push prompt opens 4 s after any non-blocked answer.
 - **Change:** Check the active consent receipt and an explicit opt-in before reading arcs or writing assignments. Dispatch the push event only when `route_decision` is a grounded teaching answer and no safety notice is present.
 - **Tests:** Unit tests for no-consent and no-opt-in. Frontend test: a safety-route answer does not trigger the prompt.
@@ -96,7 +96,7 @@ Template for each spec: Files and symbols · Existing behaviour · Required chan
 - **Evidence:** `18` EVAL-003, EVAL-004; `14b`.
 
 ## T2-03 — Outcome telemetry
-- **Files:** `backend/app/metrics.py`; `backend/services/telemetry_sink.py`; the response assembly stage; frontend feedback hooks.
+- **Files:** `backend/app/metrics.py`; `backend/app/telemetry_sink.py`; the response assembly stage; frontend feedback hooks.
 - **Change:** Emit one `answer_outcome` event per turn: `request_id, lane, route_reason, served|abstained|crisis, layers[], span_ids[], verification, latency_ms by stage, llm_calls[{prompt_id@version, model, tokens_in, tokens_out, cost_usd}], cache_hit`. Join frontend signals: helpful/not, clip played (seconds), report, follow-up within 5 minutes, saved. Define `useful_answer` = served AND (helpful OR played ≥ 20 s OR saved) AND NOT reported. Dashboard: cost per useful answer, served share, integrity breaches.
 - **Acceptance:** 100% of turns emit the event in tests. No seeker text in the event.
 - **Evidence:** `15` SYS-011; `12b` UX-004.
@@ -127,7 +127,7 @@ Template for each spec: Files and symbols · Existing behaviour · Required chan
 - **Evidence:** `06` DATA-03; root `CLAUDE.md` invariant 2.
 
 ## T3-04 — Builder per-video replace; snapshot before apply
-- **Files:** `build_full_corpus_v10.py` (both tracked copies; ~867–894 skip-existing; ~1238–1298 snapshot order); `tests/test_repo_layout.py` (byte-identity).
+- **Files:** `backend/scripts/ops/build_full_corpus_v10.py` (both tracked copies; ~867–894 skip-existing; ~1238–1298 snapshot order); `tests/test_repo_layout.py` (byte-identity).
 - **Change:** For each video in the build, compute the new point set, delete stale ids for that video, upsert new ones. Take the snapshot before the first write. Refuse an empty build (keep the existing pattern from `build_first_person_index.py`).
 - **Acceptance:** Rebuilding a corrected video leaves no stale point. A snapshot exists before the first write.
 - **Evidence:** `06` DATA-05.
@@ -169,7 +169,7 @@ Template for each spec: Files and symbols · Existing behaviour · Required chan
 
 ## T4-03 — Single route-decision service
 - **Files:** `backend/app/pipeline/stages/off_topic_stage.py` (~57–67 `_ON_TOPIC_RE`; ~645–680 general routing); `backend/rag/pipeline_registry.py` (~75–100); `backend/services/first_person_pipeline.py` (~1329 answerability scope).
-- **Change:** New module `backend/services/routing/route_decision.py` with one scope file (`backend/config/teaching_scope.yaml`). It returns `{lane, reason_code, confidence}`. The pipeline order is: crisis and greeting pre-filters → embedding similarity to scope exemplars → small LLM classifier only when ambiguous. All three existing call sites use it. The general lane follows ADR-002.
+- **Change:** New module `backend/services/routing/route_decision.py` with one scope file (`backend/config/teaching_scope.yaml`, new file). It returns `{lane, reason_code, confidence}`. The pipeline order is: crisis and greeting pre-filters → embedding similarity to scope exemplars → small LLM classifier only when ambiguous. All three existing call sites use it. The general lane follows ADR-002.
 - **Acceptance:** Teaching-intent routing recall ≥95% on the routing set; no regression on crisis routing.
 - **Evidence:** `09` AI-001; `10` ANS-003; `05` SYS-002.
 
@@ -193,7 +193,7 @@ Template for each spec: Files and symbols · Existing behaviour · Required chan
 - **Evidence:** `14b` SAFE-004.
 
 ## T5-02 — Per-facet retrieval and evidence sets
-- **Files:** `backend/services/facet_planner.py`; `backend/services/set_selector.py`; `first_person_pipeline.py` (~5684–5690, ~5817–5822 compound path); `scripts/**/build_teaching_unit_graph.py` (~157–161 `rights_status` → `domain_rights_status`; ~425 default collection).
+- **Files:** `backend/services/facet_planner.py`; `backend/services/set_selector.py` (new files; implemented later as `backend/services/first_person_facet_planner.py` and `backend/services/first_person_set_selector.py`); `backend/services/first_person_pipeline.py` (~5684–5690, ~5817–5822 compound path); `scripts/**/build_teaching_unit_graph.py` (~157–161 `rights_status` → `domain_rights_status`; ~425 default collection).
 - **Change:** Embed and retrieve each facet separately. The selector maximises facet coverage and video diversity, removes contained or duplicate spans, and keeps each teacher's spans labelled separately. Remove the `IS_PRODUCTION=false` condition on the selector once it is measured.
 - **Evidence:** `08` RET-03, RET-04, RET-06; `07` §4.
 
@@ -259,7 +259,7 @@ Template for each spec: Files and symbols · Existing behaviour · Required chan
 ## Added after the journey walkthrough (`14d`)
 
 ## T1-17 — Client safety fallback on every error (P1)
-- **Files:** `src/lib/errors.ts` (~79–97, error-to-card mapping); the chat error cards under `src/components/chat/`; a static list of call-verified helplines generated from `config/helplines.yaml` at build time.
+- **Files:** `src/lib/chat/errors.ts` (~79–97, error-to-card mapping); the chat error cards under `src/components/chat/`; a static list of call-verified helplines generated from `config/helplines.yaml` at build time.
 - **Existing:** Only the 503 error card carries a support line. A 500, a network drop, a timeout or a 429 shows a generic card. Developer text such as "Set VITE_BACKEND_URL" can reach seekers. A seeker who writes a crisis message during a backend fault sees nothing protective.
 - **Change:** Every error card shows a short care line with at least one call-verified helpline (Tele-MANAS today) and a retry. Map developer-facing errors to seeker-safe copy. The helpline list ships with the bundle, so the fallback works when the backend is down.
 - **Non-goals:** Client-side crisis classification (server-side safety stays authoritative).

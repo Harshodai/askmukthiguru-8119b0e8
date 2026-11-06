@@ -31,11 +31,13 @@ Benchmarks: `benchmarks/RUN_ME.sh` (needs the live Docker stack; normally run by
 `POST /api/chat` → anonymous-quota check (`ServiceContainer.anon_quota_service`) → `app/orchestrator.py` (sync) or `app/stream_orchestrator.py` (SSE) → `app/pipeline/pipeline_coordinator.py:PipelineCoordinator.execute()` → `StageRunner` runs the ordered stage chain from `app/pipeline/stages/pipeline_builder.py`:
 
 ```
-CacheCheck → RequestState → InputGuardrail → CircuitBreaker → DoctrineCache
-→ CasualShortCircuit → Distress → BoundedComparisonShortCircuit → Personalize → Graph
-→ MeditationGen → Translation → ToneAdapter → OutputGuardrail → Memory
-→ CacheUpdate → ResultAssembly
+KillSwitch → CacheCheck → RequestState → InputGuardrail → Distress → CircuitBreaker
+→ DoctrineCache → CasualShortCircuit → OffTopic → BoundedComparisonShortCircuit
+→ Personalize → Graph → MeditationGen → Translation → ToneAdapter → OutputGuardrail
+→ Memory → CacheUpdate → ResultAssembly
 ```
+
+(Corrected 2026-11-06 to match `pipeline_builder.py:53-92` and the guarded chain in root `CLAUDE.md`. Distress runs before CircuitBreaker and CasualShortCircuit: a crisis message must never reach a short-circuit.)
 
 Chat routes live in `app/api/chat.py` (streaming path too), not `app/main.py`. Full runtime DAG, including which stages are dead on the live config: `../docs/RAG_RUNTIME_DAG.md`.
 
