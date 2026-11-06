@@ -16,7 +16,7 @@ data:
   QDRANT_URL: "http://{{ include "mukthiguru.fullname" . }}-qdrant:6333"
   NEO4J_BOLT_URL: "bolt://{{ include "mukthiguru.fullname" . }}-neo4j:7687"
   NEO4J_USER: "neo4j"
-  REDIS_URL: "redis://:{{ .Values.redis.auth.password }}@{{ include "mukthiguru.fullname" . }}-redis-master:6379"
+  REDIS_URL: "redis://:{{ required "redis.auth.password is required (no default is shipped)" .Values.redis.auth.password }}@{{ include "mukthiguru.fullname" . }}-redis-master:6379"
   JAEGER_AGENT_HOST: "{{ include "mukthiguru.fullname" . }}-jaeger"
   JAEGER_AGENT_PORT: "16686"
   ENVIRONMENT: "{{ .Values.environment | default "production" }}"

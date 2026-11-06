@@ -46,7 +46,7 @@ spec:
           image: "{{ .Values.neo4j.image.repository }}:{{ .Values.neo4j.image.tag }}"
           env:
             - name: NEO4J_AUTH
-              value: neo4j/{{ .Values.neo4j.auth.password }}
+              value: neo4j/{{ required "neo4j.auth.password is required (no default is shipped)" .Values.neo4j.auth.password }}
             - name: NEO4J_PLUGINS
               value: "[\"apoc\", \"n10s\", \"graph-data-science\"]"
           ports:

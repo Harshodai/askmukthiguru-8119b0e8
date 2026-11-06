@@ -48,7 +48,7 @@ spec:
           volumeMounts:
             - name: redis-data
               mountPath: /data
-          command: ["redis-server", "--appendonly", "yes", "--requirepass", "{{ .Values.redis.auth.password }}"]
+          command: ["redis-server", "--appendonly", "yes", "--requirepass", "{{ required "redis.auth.password is required (no default is shipped)" .Values.redis.auth.password }}"]
   volumeClaimTemplates:
     - metadata:
         name: redis-data
