@@ -1571,6 +1571,11 @@ _FACADE_TIMEOUT_S = 120.0
 # the outer deadline, the own-loop deadlock guard, a cancelled future.
 _BRIDGE_ERRORS = (TimeoutError, RuntimeError, concurrent.futures.CancelledError)
 
+# Outer bound of the sync ``execute`` entry point (T7-02 review, SYS-003). Each
+# LLM core bounds itself; this stops a wedged store read or loop from holding
+# the caller's thread forever. Same ceiling as the facades.
+_EXECUTE_TIMEOUT_S = _FACADE_TIMEOUT_S
+
 
 # T7-02: the async lane's sync I/O (Qdrant, Redis, file reads, the legacy tail)
 # runs on this pool, never on the loop's default executor. A sync caller of
@@ -1618,7 +1623,15 @@ async def _bounded(coro: Any, timeout_s: float) -> Any:
     import asyncio
 
     task = asyncio.ensure_future(coro)
-    done, _pending = await asyncio.wait({task}, timeout=timeout_s)
+    try:
+        done, _pending = await asyncio.wait({task}, timeout=timeout_s)
+    except asyncio.CancelledError:
+        # The request was cancelled (pipeline timeout, route wait_for, client
+        # disconnect). ``asyncio.wait`` never cancels what it waits on, so the
+        # provider call would run on as an orphan, spending money and holding
+        # its budget reservation (T7-02 review, SYS-003).
+        task.cancel()
+        raise
     if not done:
         task.cancel()
         raise TimeoutError(f"first-person LLM call exceeded {timeout_s:.2f}s")
@@ -5895,7 +5908,15 @@ class FirstPersonPipeline:
         except RuntimeError:
             coro.close()
             raise
-        return asyncio.run_coroutine_threadsafe(coro, target).result()
+        fut = asyncio.run_coroutine_threadsafe(coro, target)
+        try:
+            return fut.result(timeout=_EXECUTE_TIMEOUT_S)
+        except concurrent.futures.TimeoutError:
+            # T7-02 review (SYS-003): a thread cannot be cancelled, so the run is.
+            fut.cancel()
+            raise TimeoutError(
+                f"first-person pipeline exceeded {_EXECUTE_TIMEOUT_S:.0f}s"
+            ) from None
 
     async def aexecute(
         self,
