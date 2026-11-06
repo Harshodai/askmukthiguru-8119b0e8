@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search, Video, Flag, Check, AlertCircle } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { resolveAttributionLabel } from '@/lib/chat/types';
 import { isUnreviewedTranscript } from '@/lib/transcriptStatus';
 import { useYouTubeEmbedError } from '@/hooks/useYouTubeEmbedError';
@@ -287,10 +287,12 @@ export const DiscourseVideoModal: React.FC<{
         <div className="p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="font-serif text-base font-semibold text-foreground">
+              <DialogTitle className="font-serif text-base font-semibold leading-normal tracking-normal text-foreground">
                 {citation.title || 'Sacred Discourse'}
-              </h3>
-              <p className="text-xs text-ojas-ink">{resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}</p>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-ojas-ink">
+                {resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}
+              </DialogDescription>
             </div>
             {isDirectVideo ? (
               <span className="flex items-center gap-1.5 text-xs font-medium text-ojas-ink bg-ojas/10 px-2.5 py-1 rounded-full border border-ojas/20">
