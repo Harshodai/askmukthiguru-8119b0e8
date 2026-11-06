@@ -115,6 +115,11 @@ except ImportError:  # repo-root copy: the sibling lives in the backend tree
         return module
 
     speaker_verify = _load_sibling("verify_speakers_ecapa")
+from services.corpus_build_safety import (  # noqa: E402
+    BuildRunManifest,
+    video_rights_decision,
+    write_video_points,
+)
 from services.embedding_service import EmbeddingService  # noqa: E402
 from services.first_person_context_store import (  # noqa: E402
     assert_speaker_provenance,
@@ -140,19 +145,10 @@ GURU_IDS = ("krishnaji", "preethaji")
 # weakens an uncalibrated gate; D3 calibration must land first.)
 WINDOW_COSINE_FLOOR_MARGIN = 0.10
 
-CLEARED_CHANNELS = {
-    "sri preethaji & sri krishnaji",
-    "ekam",
-    "o&o academy",
-    "times now",
-}
-CLEARED_VIDEO_IDS = {
-    "TqxxCYnAxo8",
-    "UlOt31lBhLY",
-    "iKkySU5r_x8",
-    "hUmlujE6SN0",
-    "HCs6I_BNtxo",
-}
+# NEW-ING-1 (DATA-20, DATA-21): no channel allowlist. Rights for every video
+# come from the rights register through the serving resolver
+# (services.corpus_build_safety.video_rights_decision), and the decision is
+# stamped on each span as domain_rights_status.
 
 
 def load_calibration(path: Path) -> tuple[float, float]:
@@ -780,6 +776,14 @@ def main() -> int:
         default=False,
         help="Rebuild videos even if already present in target collection (deletes stale points per video)",
     )
+    parser.add_argument(
+        "--run-manifest",
+        default="",
+        help=(
+            "Per-run manifest path (planned/written/verified/failed). Default: "
+            "<cache-dir>/build_runs/<collection>-<UTC time>.json"
+        ),
+    )
     args = parser.parse_args()
 
     if not args.wav_dir:
@@ -954,15 +958,46 @@ def main() -> int:
     # defect from the scorecard instead of measuring it.
     release_grade_defects: Counter[str] = Counter()
 
-    # Pre-build snapshot before the first write (T3-04 / DATA-05)
+    # NEW-ING-2 (DATA-22, DATA-23): one manifest per run, written atomically.
+    run_started = datetime.now(UTC)
+    manifest = BuildRunManifest(
+        collection=args.target_collection,
+        corpus_version=args.corpus_version,
+        started_at=run_started.isoformat(timespec="seconds"),
+        dry_run=bool(args.dry_run),
+        planned=[p.stem for p in missing_candidates],
+    )
+    manifest_path = (
+        Path(args.run_manifest)
+        if args.run_manifest
+        else cache_dir
+        / "build_runs"
+        / f"{args.target_collection}-{run_started.strftime('%Y%m%dT%H%M%SZ')}.json"
+    )
+
+    def _finish(status: str, code: int) -> int:
+        manifest.finished_at = datetime.now(UTC).isoformat(timespec="seconds")
+        manifest.exit_status = status
+        try:
+            manifest.write(manifest_path)
+            logger.info("Run manifest: %s", manifest_path)
+        except OSError as exc:
+            logger.error("Run manifest %s not written: %s", manifest_path, exc)
+            return code or 1
+        return code
+
+    # Pre-build snapshot before the first write (T3-04 / DATA-05). NEW-ING-2: a
+    # failed snapshot aborts the build; there would be no rollback point.
     if not args.dry_run:
         try:
             snapshot = qdrant.create_snapshot(collection=args.target_collection)
             logger.info(
                 "Created pre-build Qdrant snapshot: %s", getattr(snapshot, "name", snapshot)
             )
+            manifest.snapshots.append(f"pre:{getattr(snapshot, 'name', snapshot)}")
         except Exception as exc:
-            logger.warning("Pre-build snapshot creation: %s", exc)
+            logger.error("Pre-build snapshot failed (%s); aborting before any write", exc)
+            return _finish("aborted_pre_build_snapshot_failed", 1)
 
     for p in missing_candidates:
         video_id = p.stem
@@ -972,17 +1007,15 @@ def main() -> int:
         inv_row = inv_rows.get(video_id, {})
         channel, speaker_meta, transcript_hash, words, artifact_sha256 = parse_transcript(p)
         channel_name = str(inv_row.get("channel") or channel or "").lower().strip()
-        rights_cleared = (
-            channel_name in CLEARED_CHANNELS
-            or video_id in CLEARED_VIDEO_IDS
-            or "preethaji" in channel_name
-            or "krishnaji" in channel_name
-            or "ekam" in channel_name
-        )
-        if not rights_cleared:
+        source_url = f"https://www.youtube.com/watch?v={video_id}"
+        rights = video_rights_decision(video_id=video_id, source_url=source_url)
+        if not rights.cleared or video_id not in cleared_videos:
             quarantined["rights_not_cleared"] += 1
+            manifest.skipped[video_id] = "rights_not_cleared"
             logger.info(
-                "Video %s: rights not cleared (channel=%s) -> skipped", video_id, channel_name
+                "Video %s: not licensed in the rights register (%s) -> skipped",
+                video_id,
+                rights.domain_rights_status,
             )
             continue
 
@@ -1007,12 +1040,6 @@ def main() -> int:
             logger.info("Video %s: no reliable word timings -> skipped", video_id)
             continue
 
-        if video_id not in cleared_videos:
-            quarantined["rights_unconfirmed"] += 1
-            logger.warning(
-                "Video %s is not in the confirmed rights register -> quarantined", video_id
-            )
-            continue
         span_specs = slice_into_sentence_spans(words, timings)
         # D2: the cleaner's deletion rules (trailing severed clause, retreat-date
         # announcement, embedded audience acknowledgement) are quarantine reasons,
@@ -1095,7 +1122,6 @@ def main() -> int:
         asr_engine, asr_model_version = asr_provenance(video_id, tb_dirs)
         spans: list[SourceSpan] = []
         vectors: dict[str, Any] = {}
-        source_url = f"https://www.youtube.com/watch?v={video_id}"
 
         for idx, spec in enumerate(span_specs):
             verdict = verdicts[idx]
@@ -1158,7 +1184,8 @@ def main() -> int:
                     if has_boundary_defect
                     else CompletenessStatus.COMPLETE
                 ),
-                rights_cleared=True,
+                rights_cleared=rights.cleared,
+                domain_rights_status=rights.domain_rights_status,
                 caption_status="auto",
                 provenance_kind=ProvenanceKind.SPEECH_TURN_SPAN,
                 previous_span_id=span_ids[idx - 1] if idx > 0 else None,
@@ -1259,61 +1286,23 @@ def main() -> int:
             total_parents_created += 1
             continue
 
-        # Delete stale points for this video before upserting new ones (T3-04 / DATA-05)
-        stale_ids: list[Any] = []
-        try:
-            from qdrant_client.http.models import FieldCondition, Filter, MatchValue
-
-            vid_filter = Filter(
-                must=[FieldCondition(key="video_id", match=MatchValue(value=video_id))]
-            )
-            off = None
-            while True:
-                p_page, off = qdrant.scroll_page(
-                    collection=args.target_collection,
-                    offset=off,
-                    limit=500,
-                    with_payload=False,
-                    scroll_filter=vid_filter,
-                )
-                for pt in p_page:
-                    if hasattr(pt, "id") and pt.id is not None:
-                        stale_ids.append(pt.id)
-                if off is None:
-                    break
-            if stale_ids:
-                qdrant.delete_points_by_ids(stale_ids, collection=args.target_collection)
-                logger.info(
-                    "Video %s: deleted %d stale points before upserting new ones",
-                    video_id,
-                    len(stale_ids),
-                )
-        except Exception as del_exc:
-            logger.warning("Video %s: stale point check/deletion failed: %s", video_id, del_exc)
-
-        try:
-            qdrant.upsert_points(points_to_upsert, collection=args.target_collection, wait=True)
-        except Exception as exc:
-            # A raised upsert leaves this video's state unknown: the write may
-            # have partially applied before the error or timeout. Quarantine the
-            # video and delete the IDs we attempted, because reruns treat any
-            # video_id already present in the collection as indexed and would
-            # otherwise keep a partial clip set.
-            quarantined["upsert_failed"] += 1
-            logger.error("Video %s: upsert failed: %s -> quarantined", video_id, exc)
-            try:
-                qdrant.delete_points_by_ids(
-                    [point.id for point in points_to_upsert],
-                    collection=args.target_collection,
-                )
-            except Exception as cleanup_exc:
-                logger.error(
-                    "Video %s: cleanup after failed upsert also failed: %s "
-                    "(a rerun may treat it as already indexed)",
-                    video_id,
-                    cleanup_exc,
-                )
+        # NEW-ING-2 (DATA-22, DATA-23): upsert first, then delete this video's stale
+        # points, then verify the video holds exactly the new ids. A failure keeps
+        # the previous version of the video and is recorded in the run manifest.
+        outcome = write_video_points(
+            qdrant,
+            collection=args.target_collection,
+            video_id=video_id,
+            points=points_to_upsert,
+        )
+        if outcome.written:
+            manifest.written.append(video_id)
+        if outcome.status != "verified":
+            quarantined[outcome.reason] += 1
+            manifest.failed[video_id] = outcome.reason
+            logger.error("Video %s: write %s -> quarantined", video_id, outcome.reason)
             continue
+        manifest.verified.append(video_id)
 
         verified_spans = sum(1 for s in spans if s.speaker_verified)
         if verified_spans == 0:
@@ -1345,14 +1334,21 @@ def main() -> int:
             processed_videos,
             args.target_collection,
         )
-        return 0
+        return _finish("dry_run", 0)
+
+    if not manifest.verified:
+        # Invariant 4: an apply that wrote nothing is a failed run, not a success.
+        logger.error("No video was written and verified; the build is refused as empty")
+        return _finish("refused_empty_build", 1)
 
     # 6. Snapshot
     try:
         snapshot = qdrant.create_snapshot(collection=args.target_collection)
         logger.info("Created Qdrant snapshot: %s", getattr(snapshot, "name", snapshot))
+        manifest.snapshots.append(f"post:{getattr(snapshot, 'name', snapshot)}")
     except Exception as exc:
-        logger.warning("Snapshot creation: %s", exc)
+        logger.error("Post-build snapshot failed: %s", exc)
+        return _finish("written_post_build_snapshot_failed", 2)
 
     info = qdrant.collection_info(args.target_collection)
     logger.info(
@@ -1361,7 +1357,7 @@ def main() -> int:
         getattr(info, "points_count", 0),
         getattr(info, "status", "unknown"),
     )
-    return 0
+    return _finish("completed_with_failures" if manifest.failed else "completed", 0)
 
 
 if __name__ == "__main__":
