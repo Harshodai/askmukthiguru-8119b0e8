@@ -474,7 +474,11 @@ def test_crisis_preemption_invariant_s4_executes_before_speculative_tasks(monkey
     )
 
     assert res.status == "crisis_redirect"
-    assert "988" in res.answer_text
+    # SAFE-004 (T4-07, owner decision 2026-11-06): the crisis block shows only
+    # call-verified lines. 988 has no recorded call date, so it is not shown;
+    # Tele-MANAS (call-verified 2026-09-26) is the support line.
+    assert "14416" in res.answer_text
+    assert "988" not in res.answer_text
     assert mock_store.search_hybrid.call_count == 0
     assert mock_llm.generate.call_count == 0
 
