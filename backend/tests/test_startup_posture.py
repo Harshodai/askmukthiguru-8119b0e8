@@ -78,3 +78,52 @@ async def test_lifespan_stops_on_unsafe_posture_before_init(monkeypatch):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# NEW-AI-3 (AI-013): the relevance scorer model must be named in production.
+# An empty value silently uses the provider default generation model, which is
+# not the measured scorer (lessons: the default model rated same-theme clips
+# 3/3, so precision was poor).
+
+
+def _fp_cfg(**overrides):
+    values = dict(
+        is_production=True,
+        environment="production",
+        faculty_gate_disabled=True,
+        first_person_route_enabled=True,
+        first_person_relevance_gate_enabled=True,
+        first_person_relevance_model="anthropic/claude-haiku-5.5",
+    )
+    values.update(overrides)
+    return _cfg(**values)
+
+
+def test_production_requires_relevance_scorer_model():
+    problems = check_startup_posture(_fp_cfg(first_person_relevance_model=""))
+    assert any("FIRST_PERSON_RELEVANCE_MODEL" in p for p in problems)
+    assert check_startup_posture(_fp_cfg()) == []
+
+
+def test_blank_relevance_model_counts_as_empty():
+    problems = check_startup_posture(_fp_cfg(first_person_relevance_model="   "))
+    assert any("FIRST_PERSON_RELEVANCE_MODEL" in p for p in problems)
+
+
+def test_relevance_model_not_required_when_route_or_gate_is_off():
+    off_route = check_startup_posture(
+        _fp_cfg(first_person_relevance_model="", first_person_route_enabled=False)
+    )
+    off_gate = check_startup_posture(
+        _fp_cfg(first_person_relevance_model="", first_person_relevance_gate_enabled=False)
+    )
+    assert off_route == [] and off_gate == []
+
+
+def test_relevance_model_not_required_outside_production():
+    local = _cfg(
+        first_person_route_enabled=True,
+        first_person_relevance_gate_enabled=True,
+        first_person_relevance_model="",
+    )
+    assert check_startup_posture(local) == []

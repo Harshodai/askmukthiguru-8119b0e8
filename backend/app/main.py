@@ -786,6 +786,18 @@ def check_startup_posture(s: Any) -> list[str]:
         problems.append(
             "preview gate is neither FACULTY_ACCESS_CODE nor FACULTY_GATE_DISABLED=true."
         )
+    # NEW-AI-3 (AI-013): an empty scorer model silently uses the provider's default
+    # generation model, which is not the measured relevance scorer. Named in
+    # production, or startup stops.
+    if (
+        getattr(s, "first_person_route_enabled", False)
+        and getattr(s, "first_person_relevance_gate_enabled", False)
+        and not str(getattr(s, "first_person_relevance_model", "") or "").strip()
+    ):
+        problems.append(
+            "FIRST_PERSON_RELEVANCE_MODEL is empty: set the relevance scorer model "
+            "(it must also be allowed by OPENROUTER_EXTRA_ALLOWED_MODELS)."
+        )
     return problems
 
 
