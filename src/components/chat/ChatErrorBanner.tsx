@@ -86,7 +86,7 @@ export const ChatErrorBanner = ({ onRetry, onStartNewChat }: ChatErrorBannerProp
                 <button
                   type="button"
                   onClick={() => setExpanded((v) => !v)}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="inline-flex min-h-6 items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   aria-expanded={expanded}
                 >
                   {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}

@@ -2572,7 +2572,7 @@ return (
                 </div>
               </div>
 
-              <div className="mt-auto w-full max-w-2xl px-2 sm:mt-0 sm:px-4">
+              <div className="mt-auto w-full max-w-2xl px-2 pb-[var(--cookie-banner-h,0px)] sm:mt-0 sm:px-4">
                 <ChatComposer
                                   inputValue={inputValue}
                                   inputRef={inputRef}
@@ -2734,7 +2734,7 @@ return (
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
+          className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
         >
           {quotaExceeded && (
             <QuotaAuthPrompt
