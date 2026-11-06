@@ -318,7 +318,7 @@ function ClipCard({
         />
       ) : (
         <blockquote
-          lang={quoteLang(citation.language)}
+          lang={quoteLang(citation.quote_language)}
           className="border-l-2 border-saffron-gold/40 pl-3 font-serif text-base italic text-foreground"
         >
           &quot;{citation.verbatim_text}&quot;
