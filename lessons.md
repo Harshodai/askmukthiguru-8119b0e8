@@ -2,6 +2,16 @@
      Add new entries here; never append to the bottom of this file. -->
 
 
+## Nov 6, 2026 — Opus final review of the audit branch
+
+### L-ASYNC-WAIT-OUTER-CANCEL-1. `asyncio.wait` does not cancel what it waits on when the caller is cancelled.
+- **What:** T7-02's `_bounded` awaited the provider call with `asyncio.wait(..., timeout=...)`. A pipeline timeout, the breath route's `wait_for` or a disconnect cancelled the caller, and the provider call ran on as an orphan task: it kept spending and held its budget reservation. `test_first_person_bounded_cancel.py` failed before dcfb3a5 (orphan left running). The same review found `execute()` waiting on the scheduled `aexecute` with no bound, so a wedged read held the caller's thread forever (`test_first_person_execute_bound.py` hung for 30 s).
+- **Rule:** When you wrap a task in `asyncio.wait`, catch `CancelledError` around it and cancel the inner task before you re-raise; or use `asyncio.wait_for`, which cancels it. Every sync-over-async wait needs a timeout that cancels the run. Test the outer cancel, not only the inner timeout.
+
+### L-NEW-ENUM-VALUE-EVERY-VOCABULARY-1. A new reason string must be added to every bounded vocabulary that reads it.
+- **What:** NEW-AI-5 (aba9bf4) added the harness abstain reason `injection_screen`. The harness metric bounds reasons to `_ALLOWED_ABSTAIN_REASONS` and maps anything else to "other", so a drop-mode spike would have been invisible on the dashboard. The tests checked the decision, not the metric label. Fixed in c609c6f.
+- **Rule:** When you add a reason, cause or status string, search for every set or enum that bounds that field (`grep -rn "_REASONS\|_CAUSES\|frozenset(" backend/`) and add a test that the new value survives each one.
+
 ## Nov 6, 2026 — T7-02 async teaching lane
 
 ### L-ASYNC-SYNC-WRAPPER-DEADLOCK-1. A sync wrapper over an async pipeline deadlocks when both share the default executor.
