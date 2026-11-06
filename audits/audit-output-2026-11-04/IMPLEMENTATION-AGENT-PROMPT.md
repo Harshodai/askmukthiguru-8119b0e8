@@ -508,4 +508,10 @@ Owner named T7-02 in the thread on 2026-11-05 ("lets go with the one as present"
 | T7-02d (`a7359225`) | Sync bridges catch only their own failure modes | `scripts/guards/exception_ratchet.py` 728/729 | - |
 | Pre-existing failures (`39470bd3`) | 4 tests failing on `12bb3225` before T7-02 (verified on an untouched `git archive` copy): fixtures from before T4-01 (same-video fallback candidates) and T3-04 (source anchor). Assertions unchanged | 26 passed | - |
 
-UNPROVEN: staging c20 with real models; production latency. The `start_railway.py` watchdog stays until the owner runs that test.
+Proven in tests only: the chat bridge stage, run on one loop with the sync entry point set to raise, serves through `aexecute` (`test_chat_bridge_stage_runs_the_pipeline_on_the_request_loop`); the graph runs the `first_person` node with `ainvoke` on the request loop and `_pipeline` captures that loop when the bridge first builds it.
+
+UNPROVEN: the async branch on a running local Docker stack; staging c20 with real models; production latency. The `start_railway.py` watchdog stays until the owner runs that test.
+
+Not done: the legacy-store tail (steps 3-6) is still sync on the `fp-io` pool. Converting it changes mechanisms that tests pin on purpose (`test_answerability_thread.py` patches `_answerability_executor` submit/join; `test_fp_memory_signals.py` replaces `_retrieve_with_answerability_gate` synchronously), and v10-only mode never reaches it. Owner decision.
+
+Behaviour differences the goldens cannot see: the sync bridges have a 120 s outer bound and the inner provider budget starts when the core starts; a stopped loop is skipped instead of waited on; harness tokens merge in context order instead of completion order; a `wait_for` timeout on the breath route now cancels the pipeline instead of leaving a thread running.

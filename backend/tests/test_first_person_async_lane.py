@@ -216,3 +216,35 @@ def test_c20_async_lane_does_not_starve_the_executor(harness_gates_on, caplog) -
     # One wave plus scheduling slack, against five waves for the thread shape.
     assert async_s < 2.5 * one_request_s, async_s
     assert thread_s > (CONCURRENCY / EXECUTOR_THREADS - 1) * one_request_s, thread_s
+
+
+def test_chat_bridge_stage_runs_the_pipeline_on_the_request_loop(harness_gates_on, monkeypatch):
+    """The live chat route: the bridge stage awaits the pipeline built on its loop.
+
+    The graph runs the ``first_person`` node with ``ainvoke`` on the request loop,
+    and ``_pipeline`` captures that loop when the bridge first builds it. Here the
+    pipeline is built on the stage's loop and its sync entry point raises, so a
+    provider call proves the async branch ran.
+    """
+    import app.pipeline.stages.first_person_bridge as bridge_module
+    from app.pipeline.stages.first_person_bridge import FirstPersonBridgeStage
+    from tests.test_first_person_bridge import _container, _ctx
+
+    monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", True)
+    monkeypatch.setattr(settings, "first_person_route_enabled", True)
+    monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+
+    async def _run() -> _RecordingPipeline:
+        pipeline = _loop_pipeline(asyncio.get_running_loop())
+        pipeline._llm_service = FakeLLM()
+        pipeline.execute = MagicMock(side_effect=AssertionError("sync entry used on the loop"))
+        monkeypatch.setattr(bridge_module, "_fp_pipeline", lambda container: pipeline)
+        await FirstPersonBridgeStage().run(
+            _ctx(_container(), msg="What is the nature of suffering?")
+        )
+        return pipeline
+
+    pipeline = asyncio.run(_run())
+    assert pipeline.execute.call_count == 0
+    assert "scorer" in pipeline._llm_service.calls, "the async harness lane did not run"
