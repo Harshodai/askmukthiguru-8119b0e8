@@ -70,6 +70,7 @@ except Exception:
 # There is deliberately no module-level tenant init here — a bare module-level
 # call would run without a request and set the wrong tenant.
 # Backward-compatible module-level coalescer (tests patch app.main.coalescer).
+from app.boot_timing import BootTimer
 from app.coalescer import build_coalescer as _build_coalescer
 from app.config import settings
 from app.context import correlation_id_var, set_request_id
@@ -816,6 +817,10 @@ def _raise_if_startup_posture_unsafe() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=== Starting Mukthi Guru Backend ===")
+    # NEW-RW-8: measure each boot phase and log one "Boot timing:" line, so the
+    # first Railway deploy shows how much of the 330 s healthcheck is used (R-5).
+    timer = BootTimer()
+    timer.start()
 
     # DS-12: fail-closed startup checks run FIRST, as small named functions —
     # never buried in the 400-line background body below. Each unsafe
@@ -923,11 +928,14 @@ async def lifespan(app: FastAPI):
         return None
 
     # 3. Initialize LightRAG inline with timeout (critical for answer quality)
+    timer.record("pre_lightrag", timer.total_seconds())
     try:
         logger.info("Lifespan: initializing LightRAG (timeout 120s)...")
-        await asyncio.wait_for(container.lightrag.initialize(), timeout=120)
+        with timer.phase("lightrag_init", budget_s=120):
+            await asyncio.wait_for(container.lightrag.initialize(), timeout=120)
         logger.info("Lifespan: LightRAG initialized")
     except TimeoutError:
+        timer.mark_last("timeout")
         logger.warning("Lifespan: LightRAG init timed out — degraded mode")
     except Exception as e:
         logger.warning(f"Lifespan: LightRAG init failed — {e}")
@@ -941,8 +949,10 @@ async def lifespan(app: FastAPI):
     # .railway/railway.ts) so Railway won't kill us during init. The /api/health endpoint returns
     # ready:false until startup_complete=True at the end of this block.
     try:
-        await asyncio.wait_for(_background_startup_body(container, app), timeout=180)
+        with timer.phase("background_init", budget_s=180):
+            await asyncio.wait_for(_background_startup_body(container, app), timeout=180)
     except TimeoutError:
+        timer.mark_last("timeout")
         logger.warning("Background init timed out after 180s")
         app_dependencies.startup_error = "Background init timed out"
     except Exception as e:
@@ -950,6 +960,7 @@ async def lifespan(app: FastAPI):
         app_dependencies.startup_error = str(e)
 
     # YIELD NOW — Railway health check can reach /api/health
+    timer.log(logger, healthcheck_timeout_s=330)
     logger.info("=== Server accepting requests ===")
     yield
 

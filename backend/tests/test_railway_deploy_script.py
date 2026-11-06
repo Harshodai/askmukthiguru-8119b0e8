@@ -103,3 +103,54 @@ def test_docs_name_healthz_as_the_deploy_gate():
         REPO_ROOT / "audits/audit-output-2026-11-04/22b-railway-deployment-readiness-runbook.md"
     ).read_text()
     assert "NEW-RW-7" in runbook
+
+
+# ---------------------------------------------------------------------------
+# NEW-RW-2 / P7-05 / X-A2: release identity on Railway
+# ---------------------------------------------------------------------------
+
+
+def _prod_cfg():
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        is_production=True,
+        first_person_route_enabled=True,
+        first_person_mode="retrieval_only",
+        first_person_collection="first_person_v8",
+        first_person_calibration_path="",
+        first_person_serve_unregistered=False,
+        first_person_answerability_check_enabled=True,
+    )
+
+
+def test_startup_aborts_without_a_git_sha_and_passes_with_one(monkeypatch):
+    """The failure the deploy script and the IaC `github()` source both prevent.
+
+    A `railway up` deploy sets no RAILWAY_GIT_COMMIT_SHA. With no GIT_SHA either,
+    the production contract raises, which aborts startup (main.py).
+    """
+    import pytest
+
+    from app.release_manifest import build_release_manifest
+    from services.first_person_release import (
+        FirstPersonReleaseError,
+        validate_first_person_production_contract,
+    )
+
+    monkeypatch.delenv("GIT_SHA", raising=False)
+    monkeypatch.delenv("RAILWAY_GIT_COMMIT_SHA", raising=False)
+    monkeypatch.delenv("RELEASE_ID", raising=False)
+    monkeypatch.setattr("app.release_manifest.settings.git_sha", "unknown-sha", raising=False)
+    manifest = build_release_manifest()
+    with pytest.raises(FirstPersonReleaseError, match="concrete git_sha"):
+        validate_first_person_production_contract(_prod_cfg(), manifest)
+
+    # Script path: deploy_railway.sh sets GIT_SHA.
+    monkeypatch.setenv("GIT_SHA", "0123456789abcdef0123456789abcdef01234567")
+    validate_first_person_production_contract(_prod_cfg(), build_release_manifest())
+    monkeypatch.delenv("GIT_SHA")
+
+    # GitHub-trigger path: Railway sets RAILWAY_GIT_COMMIT_SHA.
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "fedcba9876543210fedcba9876543210fedcba98")
+    validate_first_person_production_contract(_prod_cfg(), build_release_manifest())
