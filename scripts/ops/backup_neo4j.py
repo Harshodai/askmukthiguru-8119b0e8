@@ -30,6 +30,9 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from backup_metrics import record_backup_success  # noqa: E402
+
 # ─── Configuration ───────────────────────────────────────────────────────────
 
 NEO4J_URI = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
@@ -164,6 +167,9 @@ def backup_dump(retention: int) -> bool:
         ok = verify_dump(host_dest)
         if not ok:
             return False
+
+        # NEW-OPS-4: report freshness only after the dump verified.
+        record_backup_success("graph", "neo4j")
 
         # 6. Cleanup old
         cleanup_old_backups("*.dump", retention)

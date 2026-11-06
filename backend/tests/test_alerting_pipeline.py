@@ -37,7 +37,7 @@ ALERTMANAGER_FILES = (
 # names the task that closes it. This set may only shrink: when the emitter
 # lands, delete the entry. Never add a name to make a rule pass.
 EXTERNAL_METRICS: dict[str, str] = {
-    "backup_last_success_timestamp_seconds": "NEW-OPS-4 (backup script writes it)",
+    "backup_last_success_timestamp_seconds": "scripts/ops/backup_metrics.py (textfile or Pushgateway)",
     "qdrant_collection_points_count": "NEW-OPS-3 (backend scrape-time gauge)",
 }
 
