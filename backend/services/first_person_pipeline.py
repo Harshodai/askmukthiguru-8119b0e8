@@ -1334,6 +1334,11 @@ _relevance_select_scored._async_core = _relevance_select_scored_async  # type: i
 
 
 # ponytail: LLM reranker — selects clip indices, never generates text. Timeout 2.5s, fallback = cosine order.
+# NEW-LOAD-6: the rerank returns indices ("8,7,6,5,4,3,2,1" or "NONE"), about
+# 16 tokens for the 8-clip maximum. Without a cap the provider default applies.
+_RERANK_MAX_TOKENS = 24
+
+
 def _llm_rerank_clips(
     query: str,
     clips: list[dict[str, Any]],
@@ -1373,7 +1378,11 @@ def _llm_rerank_clips(
 
         async def _call() -> Optional[str]:
             if hasattr(llm_service, "generate"):
-                res = llm_service.generate(system_prompt=system_prompt, user_prompt=user_prompt)
+                res = llm_service.generate(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    max_tokens=_RERANK_MAX_TOKENS,
+                )
                 if inspect.isawaitable(res):
                     res = await res
                 return str(res).strip()
