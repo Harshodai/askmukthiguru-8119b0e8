@@ -400,9 +400,13 @@ from services.serene_mind_engine import DistressAssessment  # noqa: E402
 
 
 def test_support_line_is_india_first_and_from_yaml():
+    # T4-07 (SAFE-004): only call-verified lines are shown, so the verified
+    # India line comes first and the 112 fallback follows. Unverified lines
+    # (988, 116 123 until a call date is recorded) are excluded; that contract
+    # is pinned in tests/test_verified_helplines_only.py.
     line = format_support_line()
-    assert "14416" in line and "988" in line and "116 123" in line
-    assert line.index("14416") < line.index("988") < line.index("116 123")
+    assert "14416" in line and "112" in line
+    assert line.index("14416") < line.index("112")
 
 
 def test_ensure_support_line_appends_once():

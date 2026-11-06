@@ -92,6 +92,13 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "use_contextual_chunking": "Declared chunking toggle; contextual chunking read via reingest_late_chunking",
     "verifier_pass_ratio": "Verifier pass ratio threshold config",
     "SERVICE_ORCID_MAP": "Declared ORCID mapping; no runtime read",
+    "qdrant_write_api_key": (
+        "T3-02: consumed by docker-compose (QDRANT__SERVICE__API_KEY) only; no Python "
+        "write path reads it yet (open: wire the builders to the write key)"
+    ),
+    "redis_password": (
+        "T2-06 declaration; Redis auth reaches Python inside REDIS_URL, the field is unread"
+    ),
 }
 
 # Newly-added settings that must NEVER be flagged dead. If any of these shows
