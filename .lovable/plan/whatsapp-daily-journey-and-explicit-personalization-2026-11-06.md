@@ -19,7 +19,7 @@
 - Acceptance (UNPROVEN until run): real phone message → stored inbound row → reply → recipient receipt → `delivered`/`read` callback row. Needs a connected Business number, a reachable HTTPS receiver and a real recipient. Railway stays off.
 - Teaching engine hosting is a separate dependency. Qdrant/OKF/LightRAG data are not moved by any web change.
 
-Research: Meta documents incoming messages and delivery statuses as webhook events: https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/overview.
+Research: Meta documents incoming messages and delivery statuses as webhook events: [https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/overview](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/overview).
 
 ## 2. Chat query interaction
 
@@ -84,4 +84,6 @@ Research: Meta documents incoming messages and delivery statuses as webhook even
 
 Implement Chat/daily journey/personalization/Profile changes after plan approval. Record measured passes and named blockers rather than marking all work complete.
 
-Faculty release needs actual teaching/playback, reflection readback, consent/isolation and relevant auth/admin checks. Keep calibration, clinician/native-speaker review, rights and backup/load evidence explicit under the existing release checklist; do not invent sign-offs or activate production infrastructure.
+Faculty release needs actual teaching/playback, reflection readback, consent/isolation and relevant auth/admin checks. Keep calibration, clinician/native-speaker review, rights and backup/load evidence explicit under the existing release checklist; do not invent sign-offs or activate production infrastructure.  
+  
+please do these in the pr and merge to the feature/audit-strengthen-rag-qdrant branch
