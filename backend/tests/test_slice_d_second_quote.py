@@ -162,9 +162,13 @@ def test_second_quote_blocklisted_runner_up_serves_one_citation(monkeypatch, tmp
 
 
 def test_second_quote_same_video_span_is_not_a_second_recording(monkeypatch, tmp_path):
-    """Two qualifying spans from ONE video serve a single citation."""
+    """Two qualifying spans from ONE video serve a single citation.
+
+    T4-01 dedups per video after the gates, so the scorer sees one clip and
+    returns one score; a second same-video clip reaching it would make the
+    reply's count wrong and abstain, failing this test either way."""
     monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
-    llm = _ThreeKindLLM(verdict="YES", scores="3,3")
+    llm = _ThreeKindLLM(verdict="YES", scores="3")
     clips = [
         _clip(_GOOD_A, "vidA", point_id="vidA-seg1"),
         _clip(_GOOD_B, "vidA", point_id="vidA-seg2", dense=(0.9, 0.1)),
