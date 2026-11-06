@@ -877,8 +877,10 @@ class FirstPersonBridgeStage(Stage):
                 }
 
         pipeline = _fp_pipeline(container)
-        result = await asyncio.to_thread(
-            pipeline.execute,
+        from services.first_person_pipeline import serve_first_person
+
+        result = await serve_first_person(
+            pipeline,
             query=query,
             # retrieval_dense is the HyDE embedding when HyDE is active; otherwise
             # identical to `dense`. Confidence scoring inside the pipeline always

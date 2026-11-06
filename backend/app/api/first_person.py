@@ -22,7 +22,7 @@ from app.dependencies import ServiceContainer, get_container_async
 from app.language_utils import guardrail_text_for
 from app.orchestrator_utils import _translate_cached
 from services.auth_service import require_aal2, require_admin
-from services.first_person_pipeline import FirstPersonPipeline
+from services.first_person_pipeline import FirstPersonPipeline, serve_first_person
 from services.first_person_public_projection import public_editorial_set_metadata
 from services.first_person_store import FirstPersonStore
 
@@ -350,8 +350,8 @@ async def query_first_person_teaching(
     )
 
     try:
-        result = await asyncio.to_thread(
-            pipeline.execute,
+        result = await serve_first_person(
+            pipeline,
             query=req.query,
             query_dense_vector=dense_vec,
             query_sparse_vector=sparse_vec,

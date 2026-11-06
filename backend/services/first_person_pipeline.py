@@ -19,6 +19,7 @@ Pipeline Flow:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -878,6 +879,24 @@ def _relevance_select_jev(
     request_loop: Optional[Any] = None,
     token_sink: Optional[list[int]] = None,
 ) -> Optional[int]:
+    """Sync bridge over ``_relevance_select_jev_async`` for offline callers (T7-02)."""
+    try:
+        return run_llm_coroutine(
+            lambda: _relevance_select_jev_async(query, clips, None, token_sink),
+            _FACADE_TIMEOUT_S,
+            request_loop,
+        )
+    except Exception as exc:  # noqa: BLE001 - fail closed to the scorer fallback
+        logger.info("Jev clip selection bridge failed: %s; falling back", type(exc).__name__)
+        return _RELEVANCE_INDETERMINATE
+
+
+async def _relevance_select_jev_async(
+    query: str,
+    clips: list[dict[str, Any]],
+    request_loop: Optional[Any] = None,
+    token_sink: Optional[list[int]] = None,
+) -> Optional[int]:
     """Select the best candidate clip using TypeSafe Jev discrete decision model.
 
     Returns the integer index of the selected clip, None if Jev decided NONE (no clip
@@ -976,10 +995,13 @@ def _relevance_select_jev(
             return _RELEVANCE_INDETERMINATE
 
     try:
-        return run_llm_coroutine(_call_jev, timeout_s, request_loop)
+        return await _bounded(_call_jev(), timeout_s)
     except Exception as exc:
         logger.info("Jev clip selection failed: %s; falling back", type(exc).__name__)
         return _RELEVANCE_INDETERMINATE
+
+
+_relevance_select_jev._async_core = _relevance_select_jev_async  # type: ignore[attr-defined]
 
 
 def _build_relevance_user_prompt(query: str, clips: list[dict]) -> str:
@@ -1016,23 +1038,51 @@ def _relevance_select(
     token_sink: Optional[list[int]] = None,
     scores_out: Optional[list[int]] = None,
 ) -> Optional[int]:
+    """Sync bridge over ``_relevance_select_async`` for offline callers (T7-02)."""
+    try:
+        return run_llm_coroutine(
+            lambda: _relevance_select_async(
+                query, clips, llm_service, None, token_sink=token_sink, scores_out=scores_out
+            ),
+            _FACADE_TIMEOUT_S,
+            request_loop,
+        )
+    except Exception as exc:  # noqa: BLE001 - fail closed as relevance-indeterminate
+        logger.info("[FirstPersonPipeline] Relevance bridge failed: %s", type(exc).__name__)
+        return _RELEVANCE_INDETERMINATE
+
+
+async def _relevance_select_async(
+    query: str,
+    clips: list[dict[str, Any]],
+    llm_service: Any,
+    request_loop: Optional[Any] = None,
+    token_sink: Optional[list[int]] = None,
+    scores_out: Optional[list[int]] = None,
+) -> Optional[int]:
     """Scorer entry point. The optional Jev picker only reorders candidates (its pick is
-    scored first); the min-score scorer still decides and its real scores are kept."""
+    scored first); the min-score scorer still decides and its real scores are kept.
+
+    T7-02: async core; both sub-helpers go through ``_acall`` so a test double
+    of either still applies."""
     order = list(range(len(clips)))
     if (
         len(clips) > 1
         and getattr(settings, "jev_enabled", True)
         and getattr(settings, "first_person_relevance_jev_enabled", False)
     ):
-        pick = _relevance_select_jev(query, clips, request_loop=request_loop, token_sink=token_sink)
+        pick = await _acall(
+            _relevance_select_jev, query, clips, request_loop=None, token_sink=token_sink
+        )
         if pick is not None and pick != _RELEVANCE_INDETERMINATE and 0 <= pick < len(clips):
             order = [pick] + [i for i in order if i != pick]
     local_scores: list[int] = []
-    chosen = _relevance_select_scored(
+    chosen = await _acall(
+        _relevance_select_scored,
         query,
         [clips[i] for i in order],
         llm_service,
-        request_loop=request_loop,
+        request_loop=None,
         token_sink=token_sink,
         scores_out=local_scores if scores_out is not None else None,
     )
@@ -1046,7 +1096,32 @@ def _relevance_select(
     return order[chosen]
 
 
+_relevance_select._async_core = _relevance_select_async  # type: ignore[attr-defined]
+
+
 def _relevance_select_scored(
+    query: str,
+    clips: list[dict[str, Any]],
+    llm_service: Any,
+    request_loop: Optional[Any] = None,
+    token_sink: Optional[list[int]] = None,
+    scores_out: Optional[list[int]] = None,
+) -> Optional[int]:
+    """Sync bridge over ``_relevance_select_scored_async`` for offline callers (T7-02)."""
+    try:
+        return run_llm_coroutine(
+            lambda: _relevance_select_scored_async(
+                query, clips, llm_service, None, token_sink=token_sink, scores_out=scores_out
+            ),
+            _FACADE_TIMEOUT_S,
+            request_loop,
+        )
+    except Exception as exc:  # noqa: BLE001 - fail closed as relevance-indeterminate
+        logger.info("[FirstPersonPipeline] Relevance bridge failed: %s", type(exc).__name__)
+        return _RELEVANCE_INDETERMINATE
+
+
+async def _relevance_select_scored_async(
     query: str,
     clips: list[dict[str, Any]],
     llm_service: Any,
@@ -1117,7 +1192,7 @@ def _relevance_select_scored(
                 res = await res
             return str(res)
 
-        raw = run_llm_coroutine(_call, _relevance_timeout_s(), request_loop)
+        raw = await _bounded(_call(), _relevance_timeout_s())
     except ProviderRefusalError as e:  # noqa: BLE001 - CA-4: fail closed, distinct line
         logger.info("[FirstPersonPipeline] Relevance check refused by provider (%s); abstaining", e)
         if token_sink is not None:
@@ -1210,6 +1285,9 @@ def _relevance_select_scored(
     # runs never reach here, so no valid score exists to observe.
     FIRST_PERSON_RELEVANCE_SCORE.observe(scores[best])
     return best if eligible else None
+
+
+_relevance_select_scored._async_core = _relevance_select_scored_async  # type: ignore[attr-defined]
 
 
 # ponytail: LLM reranker — selects clip indices, never generates text. Timeout 2.5s, fallback = cosine order.
@@ -1444,22 +1522,121 @@ def run_llm_coroutine(
     import asyncio
     import concurrent.futures
 
-    target = request_loop if request_loop is not None else _REQUEST_LOOP
-    if target is None or target.is_closed():
-        target = _persistent_gate_loop()
-    try:
-        running = asyncio.get_running_loop()
-    except RuntimeError:
-        running = None
-    if running is target:
-        # Blocking on our own loop would deadlock; use the persistent loop.
-        target = _persistent_gate_loop()
+    target = _stable_llm_loop(request_loop)
     fut = asyncio.run_coroutine_threadsafe(coro_factory(), target)
     try:
         return fut.result(timeout=timeout_s)
     except concurrent.futures.TimeoutError:
         fut.cancel()
         raise
+
+
+def _stable_llm_loop(request_loop: Optional[Any] = None) -> Any:
+    """The loop a sync caller may block on: the request loop, else the persistent one.
+
+    T7-02: a loop that is not running (a stopped test loop, a finished request
+    loop) never runs a scheduled coroutine, so it is skipped instead of being
+    waited on until the deadline. Blocking on the loop this thread runs would
+    deadlock, so that raises: async code awaits the async core instead.
+    """
+    import asyncio
+
+    target = None
+    for candidate in (request_loop, _REQUEST_LOOP):
+        if candidate is not None and not candidate.is_closed() and candidate.is_running():
+            target = candidate
+            break
+    try:
+        running = asyncio.get_running_loop()
+    except RuntimeError:
+        running = None
+    if target is None or running is target:
+        target = _persistent_gate_loop()
+    if running is target:
+        raise RuntimeError(
+            "sync first-person LLM bridge called on its own event loop thread; "
+            "await the async core instead"
+        )
+    return target
+
+
+# Upper bound for the sync facades of the async cores below. Every core bounds
+# its own provider call (gate _ANSWERABILITY_TIMEOUT_S, scorer
+# FIRST_PERSON_RELEVANCE_TIMEOUT_S, Jev jev_timeout_s) and fails closed by
+# itself, so this bound only stops a wedged loop from holding a sync caller.
+_FACADE_TIMEOUT_S = 120.0
+
+
+# T7-02: the async lane's sync I/O (Qdrant, Redis, file reads, the legacy tail)
+# runs on this pool, never on the loop's default executor. A sync caller of
+# ``execute`` blocks a default-executor thread (``to_thread(execute)``) while
+# ``aexecute`` runs on the request loop; if the lane's own hops also needed the
+# default executor, a burst of such callers would fill it and deadlock (found
+# by tests/test_first_person_async_lane.py). ponytail: fixed size; the
+# harness hops are milliseconds, only the legacy tail holds a thread for its
+# provider calls. Raise it if the legacy store becomes the serving path again.
+_FP_IO_MAX_WORKERS = 32
+_FP_IO_EXECUTOR: Optional[Any] = None
+_FP_IO_EXECUTOR_LOCK = threading.Lock()
+
+
+def _fp_io_executor() -> Any:
+    """Process-lifetime pool for the async lane's sync I/O (lazy: no threads at import)."""
+    global _FP_IO_EXECUTOR
+    with _FP_IO_EXECUTOR_LOCK:
+        if _FP_IO_EXECUTOR is None:
+            from concurrent.futures import ThreadPoolExecutor
+
+            _FP_IO_EXECUTOR = ThreadPoolExecutor(
+                max_workers=_FP_IO_MAX_WORKERS, thread_name_prefix="fp-io"
+            )
+        return _FP_IO_EXECUTOR
+
+
+async def _io_thread(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    """``asyncio.to_thread`` on the lane's own pool (contextvars carried, as to_thread does)."""
+    import contextvars
+    import functools
+
+    call = functools.partial(contextvars.copy_context().run, fn, *args, **kwargs)
+    return await asyncio.get_running_loop().run_in_executor(_fp_io_executor(), call)
+
+
+async def _bounded(coro: Any, timeout_s: float) -> Any:
+    """Await ``coro`` with ``run_llm_coroutine``'s deadline semantics (T7-02).
+
+    Raises ``TimeoutError`` at the deadline and cancels the call WITHOUT waiting
+    for it to unwind, exactly as ``fut.result(timeout)`` + ``fut.cancel()`` did.
+    ``asyncio.wait_for`` waits for the cancelled task to finish, so a slow
+    provider cleanup would overrun the gate and scorer budgets.
+    """
+    import asyncio
+
+    task = asyncio.ensure_future(coro)
+    done, _pending = await asyncio.wait({task}, timeout=timeout_s)
+    if not done:
+        task.cancel()
+        raise TimeoutError(f"first-person LLM call exceeded {timeout_s:.2f}s")
+    return task.result()
+
+
+async def _acall(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    """Call an LLM helper from async code without blocking the loop (T7-02).
+
+    A helper with an async core (``fn._async_core``) is awaited directly.
+    Anything else (a test double, a spy wrapping the sync helper) runs on a
+    worker thread, so a sync bridge inside it can block on this loop without
+    deadlocking it. Callers pass the module global, so a monkeypatch applies.
+    """
+    import inspect
+
+    core = getattr(fn, "_async_core", None)
+    if core is not None:
+        return await core(*args, **kwargs)
+    result = await _io_thread(fn, *args, **kwargs)
+    if inspect.isawaitable(result):
+        result = await result
+    return result
 
 
 async def _async_answerability_check(
@@ -1537,9 +1714,32 @@ def _answerability_check(
         return None
     try:
         return run_llm_coroutine(
-            lambda: _async_answerability_check(query, llm_service, token_sink),
-            _ANSWERABILITY_TIMEOUT_S,
+            lambda: _answerability_check_async(query, llm_service, None, token_sink),
+            _FACADE_TIMEOUT_S,
             request_loop,
+        )
+    except Exception as e:  # noqa: BLE001 - fail closed; the core already logged its own failures
+        logger.info("[FirstPersonPipeline] Answerability bridge failed: %s", type(e).__name__)
+        return None
+
+
+async def _answerability_check_async(
+    query: str,
+    llm_service: Any,
+    request_loop: Optional[Any] = None,
+    token_sink: Optional[list[int]] = None,
+) -> Optional[bool]:
+    """Async core of ``_answerability_check`` (T7-02): same contract and budget.
+
+    ``request_loop`` is accepted for signature parity with the sync helper and
+    unused: the core runs on the caller's loop.
+    """
+    if llm_service is None or not hasattr(llm_service, "generate"):
+        return None
+    try:
+        return await _bounded(
+            _async_answerability_check(query, llm_service, token_sink),
+            _ANSWERABILITY_TIMEOUT_S,
         )
     except Exception as e:
         if isinstance(e, ProviderRefusalError):
@@ -1551,6 +1751,9 @@ def _answerability_check(
         if token_sink is not None:
             token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query))
         return None
+
+
+_answerability_check._async_core = _answerability_check_async  # type: ignore[attr-defined]
 
 
 class FirstPersonPipelineResult:
@@ -3834,7 +4037,7 @@ class FirstPersonPipeline:
             retrieval_query=retrieval_query,
         )
 
-    def _serve_from_context_harness(
+    async def _serve_from_context_harness(
         self,
         *,
         query: str,
@@ -3992,25 +4195,30 @@ class FirstPersonPipeline:
                     int(getattr(settings, "first_person_context_max_spans", 3)),
                     self._get_context_harness()._policy.max_context_spans,
                 )
-                contexts = ctx_store.retrieve(
-                    query_dense=query_dense_vector,
-                    query_sparse=query_sparse_vector,
-                    guru_id=editorial_teacher_id,
-                    limit_parents=harness_candidate_limit,
-                    spans_per_parent=max_spans,
-                )
-                # Plan T2b + T3: flag-gated enrichment window and graph-guided
-                # candidate expansion. Pure pass-through when both flags are off.
-                contexts = self._expand_context_candidates(
-                    contexts,
-                    ctx_store=ctx_store,
-                    query_dense_vector=query_dense_vector,
-                    query_sparse_vector=query_sparse_vector,
-                    retrieval_query=retrieval_query,
-                    teacher_id=editorial_teacher_id,
-                    max_clips=harness_candidate_limit,
-                    max_spans=max_spans,
-                )
+
+                def _retrieve_contexts() -> list[ParentContext]:
+                    found = ctx_store.retrieve(
+                        query_dense=query_dense_vector,
+                        query_sparse=query_sparse_vector,
+                        guru_id=editorial_teacher_id,
+                        limit_parents=harness_candidate_limit,
+                        spans_per_parent=max_spans,
+                    )
+                    # Plan T2b + T3: flag-gated enrichment window and graph-guided
+                    # candidate expansion. Pure pass-through when both flags are off.
+                    return self._expand_context_candidates(
+                        found,
+                        ctx_store=ctx_store,
+                        query_dense_vector=query_dense_vector,
+                        query_sparse_vector=query_sparse_vector,
+                        retrieval_query=retrieval_query,
+                        teacher_id=editorial_teacher_id,
+                        max_clips=harness_candidate_limit,
+                        max_spans=max_spans,
+                    )
+
+                # T7-02: the sync Qdrant client must not block the event loop.
+                contexts = await _io_thread(_retrieve_contexts)
             except Exception as exc:
                 logger.warning(
                     "[FirstPersonPipeline] Context store retrieval failed: %s; falling back to legacy",
@@ -4025,7 +4233,8 @@ class FirstPersonPipeline:
                     getattr(settings, "first_person_answerability_check_enabled", False)
                 )
                 if context_answerability_enabled:
-                    ans_verdict = _answerability_check(
+                    ans_verdict = await _acall(
+                        _answerability_check,
                         retrieval_query or query,
                         self._llm_service,
                         request_loop=self._llm_loop,
@@ -4075,10 +4284,16 @@ class FirstPersonPipeline:
                     and len(contexts) > 1
                 )
 
-                def _eval_ctx_worker(
+                async def _eval_ctx_worker(
                     ctx: Any,
                 ) -> tuple[Optional[FirstPersonPipelineResult], list[int]]:
                     """Evaluate a single context through the harness + relevance gate.
+
+                    T7-02: a coroutine on the request loop. Store lookups run on a
+                    worker thread; the selector and scorer are awaited, so no thread
+                    is held while a provider call is in flight. The harness decision
+                    and the span gates are in-memory checks (the quality-list and
+                    rights-register reads are mtime-cached) and run on the loop.
 
                     Returns a 2-tuple of (result, tokens):
                     - result is a ready-to-serve FirstPersonPipelineResult on success, or
@@ -4115,7 +4330,9 @@ class FirstPersonPipeline:
                             # Typed identity lookup is deliberately before decide:
                             # the predecessor must enter every harness gate and
                             # cannot be appended after a decision.
-                            candidate_edge = ctx_store.fetch_preceding_span(opening_candidate)
+                            candidate_edge = await _io_thread(
+                                ctx_store.fetch_preceding_span, opening_candidate
+                            )
                         except Exception as exc:
                             logger.info(
                                 "[FirstPersonPipeline] Antecedent predecessor lookup refused: %s",
@@ -4128,8 +4345,8 @@ class FirstPersonPipeline:
 
                     selected_span_ids = None
                     if bool(getattr(settings, "first_person_context_selector_enabled", False)):
-                        selected_span_ids = select_span_ids(
-                            query, ctx.spans, llm_service=self._llm_service
+                        selected_span_ids = await _acall(
+                            select_span_ids, query, ctx.spans, llm_service=self._llm_service
                         )
 
                     decision = harness.decide(
@@ -4320,7 +4537,8 @@ class FirstPersonPipeline:
                             if served_spans
                             else None
                         )
-                        _h_pick = _relevance_select(
+                        _h_pick = await _acall(
+                            _relevance_select,
                             retrieval_query or query,
                             [
                                 {
@@ -4350,10 +4568,9 @@ class FirstPersonPipeline:
                             _harness_parallel,
                         )
 
-                    # Do NOT extend fp_llm_tokens here: the worker runs on a
-                    # thread-pool thread; returning tokens to the caller and
-                    # merging on the serving thread avoids concurrent list
-                    # mutation and ensures tokens are counted on every exit path.
+                    # Do NOT extend fp_llm_tokens here: workers run concurrently;
+                    # returning tokens to the caller and merging them in one place
+                    # ensures tokens are counted on every exit path.
 
                     t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
                     latency = (time.monotonic() - start_time) * 1000.0
@@ -4399,8 +4616,6 @@ class FirstPersonPipeline:
 
                 # --------------- parallel fan-out ----------------
                 if _harness_parallel:
-                    import concurrent.futures
-
                     _ctx_results: list[Optional[FirstPersonPipelineResult]] = [None] * len(contexts)
                     _indeterminate_tokens: list[int] = []
                     # Track the lowest context index that raised
@@ -4409,35 +4624,34 @@ class FirstPersonPipeline:
                     # indeterminate from ctx[i] prevents ctx[j>=i] from being
                     # accepted as a substitute.
                     _lowest_indeterminate_idx: int = len(contexts)
-                    with concurrent.futures.ThreadPoolExecutor(
-                        max_workers=len(contexts), thread_name_prefix="harness_ctx"
-                    ) as _pool:
-                        _futures = {
-                            _pool.submit(_eval_ctx_worker, ctx): i for i, ctx in enumerate(contexts)
-                        }
-                        for fut in concurrent.futures.as_completed(_futures):
-                            idx = _futures[fut]
-                            try:
-                                _ctx_result, _ctx_tokens = fut.result()
-                                # Merge tokens on the serving thread — never from a
-                                # worker thread — so concurrent list mutation is avoided
-                                # on every exit path (None results, success, indeterminate).
-                                fp_llm_tokens.extend(_ctx_tokens)
-                                _ctx_results[idx] = _ctx_result
-                            except _HarnessRelevanceIndeterminate as _ird:
-                                _indeterminate_tokens.extend(_ird.tokens)
-                                if idx < _lowest_indeterminate_idx:
-                                    _lowest_indeterminate_idx = idx
-                                logger.info(
-                                    "[FirstPersonPipeline] Harness parallel ctx[%d]: relevance indeterminate; noting for abstain",
-                                    idx,
-                                )
-                            except Exception as _exc:
-                                logger.warning(
-                                    "[FirstPersonPipeline] Harness parallel ctx[%d] raised: %s; skipping",
-                                    idx,
-                                    _exc,
-                                )
+                    # T7-02: one coroutine per context on this loop (was one
+                    # thread per context, each blocked on its scorer call).
+                    _outcomes = await asyncio.gather(
+                        *(_eval_ctx_worker(ctx) for ctx in contexts), return_exceptions=True
+                    )
+                    for idx, _outcome in enumerate(_outcomes):
+                        if isinstance(_outcome, _HarnessRelevanceIndeterminate):
+                            _indeterminate_tokens.extend(_outcome.tokens)
+                            if idx < _lowest_indeterminate_idx:
+                                _lowest_indeterminate_idx = idx
+                            logger.info(
+                                "[FirstPersonPipeline] Harness parallel ctx[%d]: relevance indeterminate; noting for abstain",
+                                idx,
+                            )
+                        elif isinstance(_outcome, Exception):
+                            logger.warning(
+                                "[FirstPersonPipeline] Harness parallel ctx[%d] raised: %s; skipping",
+                                idx,
+                                _outcome,
+                            )
+                        elif isinstance(_outcome, BaseException):
+                            raise _outcome
+                        else:
+                            _ctx_result, _ctx_tokens = _outcome
+                            # Merge tokens here, never inside a worker, so every
+                            # exit path (None, success, indeterminate) counts them.
+                            fp_llm_tokens.extend(_ctx_tokens)
+                            _ctx_results[idx] = _ctx_result
                     # Honour original ordering: first context by score wins,
                     # but only if its index is strictly before the lowest
                     # indeterminate index (sequential contract).
@@ -4477,7 +4691,8 @@ class FirstPersonPipeline:
                             return _editorial_res
                     if _harness_res is not None:
                         if not cache_bypass:
-                            self.set_exact_cache(
+                            await _io_thread(
+                                self.set_exact_cache,
                                 query,
                                 _harness_res.to_dict(),
                                 teacher_id,
@@ -4524,7 +4739,7 @@ class FirstPersonPipeline:
                     _editorial_pairs_seq: list[tuple[ParentContext, FirstPersonPipelineResult]] = []
                     for ctx in contexts:
                         try:
-                            _seq_res, _seq_tokens = _eval_ctx_worker(ctx)
+                            _seq_res, _seq_tokens = await _eval_ctx_worker(ctx)
                             # Merge tokens immediately — sequential, so no concurrency concern.
                             fp_llm_tokens.extend(_seq_tokens)
                         except _HarnessRelevanceIndeterminate as _ird:
@@ -4562,7 +4777,8 @@ class FirstPersonPipeline:
                                 _editorial_pairs_seq.append((ctx, _seq_res))
                                 continue
                             if not cache_bypass:
-                                self.set_exact_cache(
+                                await _io_thread(
+                                    self.set_exact_cache,
                                     query,
                                     _seq_res.to_dict(),
                                     teacher_id,
@@ -5651,8 +5867,50 @@ class FirstPersonPipeline:
         cache_bypass: bool = False,
         memory_signals: Optional[dict[str, Any]] = None,
     ) -> FirstPersonPipelineResult:
+        """Sync entry point for offline callers, scripts and tests (T7-02).
+
+        Runs ``aexecute`` on the stable LLM loop (the request loop when this
+        pipeline was built on one, else the persistent loop) and blocks until it
+        returns. Never ``asyncio.run``: a per-call loop poisons the shared
+        provider clients (invariant 22). Async routes use ``serve_first_person``.
+        """
+        coro = self.aexecute(
+            query=query,
+            query_dense_vector=query_dense_vector,
+            query_sparse_vector=query_sparse_vector,
+            teacher_id=teacher_id,
+            max_clips=max_clips,
+            retrieval_query=retrieval_query,
+            language=language,
+            cache_bypass=cache_bypass,
+            memory_signals=memory_signals,
+        )
+        try:
+            target = _stable_llm_loop(self._llm_loop)
+        except RuntimeError:
+            coro.close()
+            raise
+        return asyncio.run_coroutine_threadsafe(coro, target).result()
+
+    async def aexecute(
+        self,
+        query: str,
+        query_dense_vector: list[float],
+        query_sparse_vector: Optional[dict[str, Any]] = None,
+        teacher_id: Optional[str] = None,
+        max_clips: int = 3,
+        retrieval_query: Optional[str] = None,
+        language: str = "en",
+        cache_bypass: bool = False,
+        memory_signals: Optional[dict[str, Any]] = None,
+    ) -> FirstPersonPipelineResult:
         """
         Execute the end-to-end first-person verbatim serving pipeline.
+
+        T7-02: a coroutine. Sync store and cache I/O runs on worker threads; the
+        context-harness lane awaits its gate and scorer calls directly. The
+        legacy-store tail (steps 3-6, not reached in v10-only mode) still runs
+        synchronously on a worker thread.
 
         ``query`` is the seeker's own words (cache key, safety checks).
         ``retrieval_query`` is its English translation when the question was not
@@ -5686,7 +5944,9 @@ class FirstPersonPipeline:
         if topic_result is not None:
             return topic_result
 
-        contract_result = self._serving_contract_refusal(start_time)
+        # Steps 1c-2b read files, Redis and (for compound questions) the legacy
+        # store with sync clients, so they run on a worker thread.
+        contract_result = await _io_thread(self._serving_contract_refusal, start_time)
         if contract_result is not None:
             return contract_result
 
@@ -5697,10 +5957,11 @@ class FirstPersonPipeline:
             # T6-02: Requests with returning-seeker memory signals bypass shared exact cache
             cache_bypass = True
 
-        cache_bypass, request_allow_state, request_block_state = self._cache_scope(
-            cache_bypass=cache_bypass
+        cache_bypass, request_allow_state, request_block_state = await _io_thread(
+            self._cache_scope, cache_bypass=cache_bypass
         )
-        cached_result = self._cached_replay(
+        cached_result = await _io_thread(
+            self._cached_replay,
             query=query,
             teacher_id=teacher_id,
             language=language,
@@ -5714,7 +5975,8 @@ class FirstPersonPipeline:
             return cached_result
 
         # Step 2b: compound question decomposition.
-        compound_result = self._compound_delegation(
+        compound_result = await _io_thread(
+            self._compound_delegation,
             query=query,
             query_dense_vector=query_dense_vector,
             query_sparse_vector=query_sparse_vector,
@@ -5736,16 +5998,11 @@ class FirstPersonPipeline:
         # indeterminate verdict and an unset/future result must not be promoted
         # to YES by a later path.
         _ans_box: dict[str, Any] = {"verdict": _ANSWERABILITY_UNSET}
-        _ans_tokens: list[int] = []
-        t_retrieval_ms = 0.0
-        t_integrity_ms = 0.0
-        t_rerank_ms = 0.0
-        t_scorer_ms = 0.0
 
         # Step 2c: first-person context harness (fp-context-v1), else no result.
         # The harness may serve deterministically, abstain, or decline; a None
         # return falls through to the legacy store below.
-        harness_result = self._serve_from_context_harness(
+        harness_result = await self._serve_from_context_harness(
             query=query,
             query_dense_vector=query_dense_vector,
             query_sparse_vector=query_sparse_vector,
@@ -5762,6 +6019,53 @@ class FirstPersonPipeline:
         )
         if harness_result is not None:
             return harness_result
+
+        # ponytail: the legacy-store tail stays sync on a worker thread; its gate,
+        # rerank and scorer bridges schedule back onto this loop (which is free,
+        # awaiting the thread). Converting it is follow-up work: it is not
+        # reached in v10-only mode (invariant 25).
+        return await _io_thread(
+            self._serve_from_legacy_store,
+            query=query,
+            query_dense_vector=query_dense_vector,
+            query_sparse_vector=query_sparse_vector,
+            teacher_id=teacher_id,
+            max_clips=max_clips,
+            retrieval_query=retrieval_query,
+            language=language,
+            cache_bypass=cache_bypass,
+            request_allow_state=request_allow_state,
+            request_block_state=request_block_state,
+            fp_llm_tokens=fp_llm_tokens,
+            _ans_box=_ans_box,
+            start_time=start_time,
+            memory_signals=memory_signals,
+        )
+
+    def _serve_from_legacy_store(
+        self,
+        *,
+        query: str,
+        query_dense_vector: list[float],
+        query_sparse_vector: Optional[dict[str, Any]],
+        teacher_id: Optional[str],
+        max_clips: int,
+        retrieval_query: str,
+        language: str,
+        cache_bypass: bool,
+        request_allow_state: str,
+        request_block_state: str,
+        fp_llm_tokens: list[int],
+        _ans_box: dict[str, Any],
+        start_time: float,
+        memory_signals: Optional[dict[str, Any]],
+    ) -> FirstPersonPipelineResult:
+        """Steps 3-6 and assembly over the legacy FirstPersonStore (sync)."""
+        _ans_tokens: list[int] = []
+        t_retrieval_ms = 0.0
+        t_integrity_ms = 0.0
+        t_rerank_ms = 0.0
+        t_scorer_ms = 0.0
 
         # Step 3: retrieval from FirstPersonStore with the RC-D-2 question-only
         # answerability gate in flight. A terminal gate verdict or a retrieval
@@ -6651,6 +6955,24 @@ class FirstPersonPipeline:
             sum(fp_llm_tokens),
         )
         return res
+
+
+async def serve_first_person(pipeline: Any, **kwargs: Any) -> Any:
+    """Run the first-person pipeline from an async route (T7-02).
+
+    A ``FirstPersonPipeline`` built on the running loop runs as a coroutine and
+    holds no executor thread while a provider call is in flight. Anything else
+    (built off-loop, so its provider clients may belong to another loop, or a
+    duck-typed pipeline with only ``execute``) runs the sync entry point on a
+    worker thread, as every route did before T7-02.
+    """
+    if (
+        isinstance(pipeline, FirstPersonPipeline)
+        and pipeline._llm_loop is not None
+        and asyncio.get_running_loop() is pipeline._llm_loop
+    ):
+        return await pipeline.aexecute(**kwargs)
+    return await asyncio.to_thread(pipeline.execute, **kwargs)
 
 
 if __name__ == "__main__":

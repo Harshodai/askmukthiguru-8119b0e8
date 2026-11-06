@@ -1455,9 +1455,11 @@ async def get_breath_teaching(
             else None
         )
 
+        from services.first_person_pipeline import serve_first_person
+
         result = await asyncio.wait_for(
-            asyncio.to_thread(
-                pipeline.execute,
+            serve_first_person(
+                pipeline,
                 query=query,
                 query_dense_vector=dense_vec,
                 query_sparse_vector=sparse_vec,
