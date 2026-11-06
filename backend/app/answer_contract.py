@@ -13,6 +13,7 @@ _SYSTEM_REASONS = frozenset(
         "store_unavailable",
         "quote_contract_violation",
         "output_rail_unavailable",
+        "served_integrity_failure",
     }
 )
 _TOPIC_REASONS = frozenset({"topic_blocked"})
@@ -43,3 +44,29 @@ def abstain_cause(status: str | None, reason: str | None, answerability: str | N
 def abstain_copy_key(cause: str) -> str:
     """Static copy key for a cause (keys only; copy and review are NEW-ANS-4)."""
     return f"abstain.{cause}"
+
+
+def served_clip_integrity_failures(citations: list[dict], answer: str) -> list[str]:
+    """Re-check every served clip at response assembly (NEW-SEC-1, OPS-002).
+
+    Returns the failed checks (``hash``, ``substring``), one entry per failure.
+    The serve gate already quarantines a clip whose text no longer matches its
+    hash; this is the second line for a gate that was bypassed (a cache entry,
+    a new code path). ``source_text_hash`` is the v10 per-span field
+    (invariant 2); a legacy clip without it is checked against
+    ``transcript_hash``. A clip with neither hash fails.
+    """
+    import hashlib
+
+    failures: list[str] = []
+    for citation in citations or []:
+        if not isinstance(citation, dict):
+            failures.append("hash")
+            continue
+        text = str(citation.get("verbatim_text") or "")
+        expected = str(citation.get("source_text_hash") or citation.get("transcript_hash") or "")
+        if not text.strip() or hashlib.sha256(text.encode("utf-8")).hexdigest() != expected:
+            failures.append("hash")
+        if text.strip() and text.strip() not in (answer or ""):
+            failures.append("substring")
+    return failures

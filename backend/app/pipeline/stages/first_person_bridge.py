@@ -1003,6 +1003,33 @@ class FirstPersonBridgeStage(Stage):
                 reason="quote_contract_violation",
             )
 
+        # NEW-SEC-1 (OPS-002): re-check every served clip at assembly. A clip whose
+        # text no longer matches its stored hash means a gate was bypassed; fail
+        # closed and count it.
+        from app.answer_contract import served_clip_integrity_failures
+
+        integrity_failures = served_clip_integrity_failures(citations, answer)
+        if integrity_failures:
+            try:
+                from app.metrics import SERVED_INTEGRITY_FAILURE_TOTAL
+
+                for check in integrity_failures:
+                    SERVED_INTEGRITY_FAILURE_TOTAL.labels(check=check).inc()
+            except (ImportError, ValueError) as exc:  # telemetry never breaks a response
+                logger.debug("served integrity failure not counted: %s", type(exc).__name__)
+            logger.error(
+                "[FirstPersonBridge] Served clip failed the assembly integrity re-check "
+                "(%s); refusing to serve it.",
+                ",".join(sorted(set(integrity_failures))),
+            )
+            return await self._decline(
+                ctx,
+                status,
+                boundaries,
+                compassion=distress_compassion,
+                reason="served_integrity_failure",
+            )
+
         # Pipeline renderers may include headings, missing-clip prose, or a source
         # footer. Those are UI structure, not guru speech. Rebuild from every
         # eligible citation in source order as discrete exact quote blocks; the

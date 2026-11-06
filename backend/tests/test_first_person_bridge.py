@@ -112,6 +112,14 @@ def _clip_citation(**overrides) -> dict:
         "caption_status": "auto_transcript",
     }
     citation.update(overrides)
+    if "transcript_hash" not in overrides and "source_text_hash" not in overrides:
+        # NEW-SEC-1: the bridge re-checks sha256(verbatim_text) at assembly, as
+        # the store's integrity gate does; a fixture clip carries its real hash.
+        import hashlib
+
+        citation["transcript_hash"] = hashlib.sha256(
+            str(citation["verbatim_text"]).encode("utf-8")
+        ).hexdigest()
     return citation
 
 

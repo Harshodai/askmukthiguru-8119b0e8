@@ -143,6 +143,7 @@ class PipelineCoordinator:
             from app.answer_outcome import build_answer_outcome, emit_answer_outcome
             from app.grounding import grounding_state_for
             from services.cost_tracker import token_accumulator_var
+            from services.fp_fail_closed import fail_closed_active
 
             trace = result.evaluation_trace if isinstance(result.evaluation_trace, dict) else {}
             acc = token_accumulator_var.get()
@@ -166,10 +167,10 @@ class PipelineCoordinator:
                     stage_latencies_ms=stage_timings,
                     llm_calls=llm_calls,
                 ),
-                first_person_only=bool(
-                    settings.first_person_chat_bridge_enabled
-                    and not settings.first_person_llm_fallback_enabled
-                ),
+                # NEW-SEC-1 (OPS-001): keyed to the posture (generated teaching
+                # not allowed), not to the bridge flag. With the bridge switched
+                # off the detector must still see generated teaching.
+                first_person_only=fail_closed_active(),
             )
         except Exception as exc:  # never let telemetry break a response
             logger.debug("answer outcome not recorded: %s", type(exc).__name__)

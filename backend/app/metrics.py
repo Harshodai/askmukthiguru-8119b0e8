@@ -828,6 +828,13 @@ ABSTAIN_CAUSE_TOTAL = Counter(
     "First-person abstains by cause",
     ["cause"],  # no_evidence | system_unavailable | topic_boundary | safety
 )
+# A served clip failed the assembly re-check (hash or substring); the bridge
+# refused it. Any increment means a serve gate was bypassed: page (SLO-1).
+SERVED_INTEGRITY_FAILURE_TOTAL = Counter(
+    "guru_served_integrity_failure_total",
+    "Served first-person clips that failed the assembly integrity re-check",
+    ["check"],  # hash | substring
+)
 
 # NEW-OPS-8 / NEW-LOAD-4 (SYS-014): spend-guard visibility.
 # A call refused before it is sent: reason "limit" (daily or monthly cap) or
