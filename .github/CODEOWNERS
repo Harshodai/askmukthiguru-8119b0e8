@@ -1,0 +1,9 @@
+# NEW-LOV-02. Paths a Lovable edit must not change without a human review.
+# src/integrations/supabase/ is generated: do not edit by hand (NEW-LOV-04).
+/bun.lock*                         @Harshodai
+/package.json                      @Harshodai
+/package-lock.json                 @Harshodai
+/.env*                             @Harshodai
+/supabase/migrations/              @Harshodai
+/supabase/functions/               @Harshodai
+/src/integrations/supabase/        @Harshodai

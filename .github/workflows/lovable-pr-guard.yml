@@ -1,0 +1,36 @@
+name: lovable-pr-guard
+
+# NEW-LOV-02. Lovable (gpt-engineer-app[bot]) has no pre-commit hook, so the guards
+# run here. The job never merges anything. Making it a required check on main is
+# an owner step in GitHub settings (NEW-LOV-01).
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  lovable-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Lesson guards on the PR diff
+        env:
+          GUARD_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 scripts/guards/lesson_guards.py claims
+          git diff --name-only --diff-filter=A "$GUARD_BASE"...HEAD > /tmp/added.txt
+          xargs -a /tmp/added.txt -r python3 scripts/guards/lesson_guards.py publication
+      - name: Protected paths need the lovable-reviewed label
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          git diff --name-only "${{ github.event.pull_request.base.sha }}"...HEAD \
+            | python3 scripts/guards/lovable_pr_paths.py
