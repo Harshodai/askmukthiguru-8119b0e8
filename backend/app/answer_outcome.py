@@ -41,13 +41,25 @@ def lane_for(route: str) -> str:
     return "teaching"
 
 
-def classify_outcome(route: str, grounding_state: str, blocked: bool, errored: bool) -> str:
+def classify_outcome(
+    route: str,
+    grounding_state: str,
+    blocked: bool,
+    errored: bool,
+    served_clip: bool = False,
+) -> str:
     if errored or route in _ERROR:
         return "error"
     if route in _CRISIS:
         return "crisis"
     if blocked or route in _BOUNDARY:
         return "boundary"
+    if served_clip:
+        # NEW-ANS-1 (ANS-011): a verified clip served under "Related, not a direct
+        # answer" has verification.passed=False (no calibration profile), so the
+        # public grounding_state reads "abstained". The seeker still got a
+        # teaching: count it as served, or useful_answer can never fire.
+        return "served"
     if grounding_state in _ABSTAIN_STATES or route == "no_context_short_circuit":
         return "abstained"
     return "served"
@@ -85,6 +97,9 @@ def build_answer_outcome(
     state = str(grounding_state or "unknown")
     ver = verification if isinstance(verification, dict) else {}
     ids = [i for i in (_cid(c) for c in (citations or [])) if i]
+    served_clip = bool(
+        route == "first_person_bridge" and ids and ver.get("citations_verified") is True
+    )
 
     # Clean and bounded per-stage latencies
     clean_stages = {
@@ -113,7 +128,7 @@ def build_answer_outcome(
         "lane": lane_for(route),
         "route_decision": route,
         "route_reason": route_reason,
-        "outcome": classify_outcome(route, state, blocked, errored),
+        "outcome": classify_outcome(route, state, blocked, errored, served_clip=served_clip),
         "grounding_state": state,
         "citation_count": len(citations or []),
         "span_ids": ids,
