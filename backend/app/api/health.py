@@ -20,6 +20,7 @@ from app.config import settings
 from app.container import get_llm_provider
 from app.dependencies import ServiceContainer, get_container, get_container_async
 from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
+from app.ops_gauges import refresh_ops_gauges
 from app.runtime_artifacts import inspect_runtime_artifacts
 from app.runtime_metrics import observe_queue_depths
 from app.sanitization import sanitize_log_input
@@ -782,6 +783,7 @@ async def debug_headers(
 async def get_metrics(user: dict = Depends(require_aal2)) -> Response:
     """Prometheus metrics endpoint. Admin only — may expose system internals."""
     _require_admin(user)
+    await refresh_ops_gauges()
     data, content_type = metrics_endpoint()
     return Response(content=data, media_type=content_type)
 
@@ -821,5 +823,6 @@ async def scrape_metrics(request: Request) -> Response:
     if not presented or not hmac.compare_digest(presented, str(expected)):
         raise HTTPException(status_code=401, detail="Invalid scrape credentials")
 
+    await refresh_ops_gauges()
     data, content_type = metrics_endpoint()
     return Response(content=data, media_type=content_type)

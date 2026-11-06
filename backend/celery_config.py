@@ -63,6 +63,7 @@ celery_app = Celery(
         "tasks.contextual_reingest_task",
         "tasks.cache_maintenance_tasks",
         "tasks.retention_tasks",
+        "tasks.celery_metrics",
     ],
 )
 
@@ -117,6 +118,12 @@ celery_app.conf.update(
             "task": "tasks.ingest_tasks.sweep_stale_ingest_jobs",
             "schedule": 300.0,  # every 5 minutes
         },
+        # NEW-OPS-7: proves beat dispatches and a worker runs. Read as
+        # celery_beat_last_tick_timestamp_seconds (app/ops_gauges.py).
+        "beat-heartbeat": {
+            "task": "tasks.celery_metrics.beat_heartbeat",
+            "schedule": 30.0,
+        },
     },
 )
 
@@ -139,6 +146,7 @@ celery_app.conf.task_routes = {
     "tasks.okf_extract_tasks.extract_okf_entries": {"queue": "okf"},
     "tasks.memory_outbox_tasks.drain_memory_outbox": {"queue": "memory"},
     "tasks.layered_memory_tasks.process_batched_memories": {"queue": "memory"},
+    "tasks.celery_metrics.beat_heartbeat": {"queue": "memory"},
 }
 
 

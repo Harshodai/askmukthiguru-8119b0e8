@@ -854,6 +854,20 @@ BUDGET_RESERVATION_KEPT_USD_TOTAL = Counter(
     ["reason"],  # cost_unreported | no_response
 )
 
+# NEW-OPS-3 / NEW-OPS-7 (OPS-005, OPS-006): gauges set at scrape time by
+# app/ops_gauges.py, because Prometheus scrapes only the backend process.
+# The beat tick and task results are custom collectors there (they can be absent).
+QDRANT_COLLECTION_POINTS_COUNT = Gauge(
+    "qdrant_collection_points_count",
+    "Points in a watched Qdrant collection, read at scrape time with the read key",
+    ["collection"],
+)
+CELERY_QUEUE_LENGTH = Gauge(
+    "celery_queue_length",
+    "Messages waiting in a Celery queue (Redis LLEN), read at scrape time",
+    ["queue"],
+)
+
 
 if __name__ == "__main__":
     for _tier, _th in sorted(SLO_THRESHOLDS.items()):

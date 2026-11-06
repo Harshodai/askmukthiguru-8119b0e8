@@ -244,7 +244,7 @@ groups:
 
       - alert: CollectionPointCountShift
         expr: |
-          abs(delta(qdrant_collection_points_count{collection=~"first_person.*"}[1h])) > 100
+          abs(delta(qdrant_collection_points_count{collection=~"first_person.*|fp_context.*"}[1h])) > 100
         for: 15m
         labels:
           severity: critical
@@ -253,3 +253,31 @@ groups:
           summary: "Unexpected shift in first-person Qdrant collection point count"
           description: "First-person collection {{ $labels.collection }} changed point count by >100 in 1 hour."
           runbook: "docs/runbooks/ALERTING.md#collectionpointcountshift"
+
+      # NEW-OPS-7 (OPS-006): worker and beat expose no metrics path, so these read
+      # what the backend exports at scrape time (app/ops_gauges.py).
+      # celery_beat_last_tick_timestamp_seconds is written by the beat_heartbeat
+      # task (every 30 s). It goes stale when beat is down OR no worker consumes
+      # the memory queue, and either one silently stops consent and memory work.
+      # absent() makes a never-reported series fire too.
+      - alert: CeleryBeatOrWorkerSilent
+        expr: absent(celery_beat_last_tick_timestamp_seconds) or (time() - celery_beat_last_tick_timestamp_seconds) > 180
+        for: 5m
+        labels:
+          severity: warn
+          team: oncall
+        annotations:
+          summary: "Celery beat heartbeat has not run for 3 minutes"
+          description: "celery_beat_last_tick_timestamp_seconds is older than 180s or absent. Beat is down, no worker consumes the memory queue, or Redis is unreachable. The memory outbox and ingestion are not running."
+          runbook: "docs/runbooks/ALERTING.md#celerybeatorworkersilent"
+
+      - alert: CeleryQueueBacklog
+        expr: max by (queue) (celery_queue_length) > 100
+        for: 15m
+        labels:
+          severity: warn
+          team: oncall
+        annotations:
+          summary: "Celery queue {{ $labels.queue }} holds more than 100 messages for 15 minutes"
+          description: "Queue {{ $labels.queue }} length is {{ $value }}. The worker is down, stuck, or slower than the arrival rate. The threshold is a proposed starting value, not a measurement."
+          runbook: "docs/runbooks/ALERTING.md#celeryqueuebacklog"

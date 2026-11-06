@@ -38,7 +38,6 @@ ALERTMANAGER_FILES = (
 # lands, delete the entry. Never add a name to make a rule pass.
 EXTERNAL_METRICS: dict[str, str] = {
     "backup_last_success_timestamp_seconds": "scripts/ops/backup_metrics.py (textfile or Pushgateway)",
-    "qdrant_collection_points_count": "NEW-OPS-3 (backend scrape-time gauge)",
 }
 
 _PROMQL_WORDS = {
@@ -68,7 +67,9 @@ def _metric_names_in(expr: str) -> set[str]:
 def _emitted_metric_names() -> set[str]:
     """Names declared with prometheus_client in backend code (tests excluded)."""
     declared: set[str] = set()
-    pattern = re.compile(r"""\b(Counter|Gauge|Histogram|Summary)\(\s*["']([A-Za-z_:][\w:]*)["']""")
+    pattern = re.compile(
+        r"""\b(Counter|Gauge|Histogram|Summary)(?:MetricFamily)?\(\s*["']([A-Za-z_:][\w:]*)["']"""
+    )
     for path in BACKEND_DIR.rglob("*.py"):
         parts = set(path.relative_to(BACKEND_DIR).parts)
         if parts & {"tests", ".venv", "venv", "node_modules"}:
