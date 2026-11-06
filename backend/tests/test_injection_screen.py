@@ -153,3 +153,11 @@ def test_builder_flags_and_keeps_spans():
         assert "manifest.flagged_for_review[span.source_span_id]" in src, rel
         block = src[src.index("_injection_hits = screen_injection") :][:400]
         assert "continue" not in block, rel
+
+
+def test_harness_metric_keeps_injection_screen_reason():
+    """4.8 review of aba9bf4: the harness metric must not fold the new abstain
+    reason into "other", or a drop-mode spike is invisible on the dashboard."""
+    from services.first_person_context_harness import _bounded_abstain_reason
+
+    assert _bounded_abstain_reason("injection_screen") == "injection_screen"

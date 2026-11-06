@@ -65,6 +65,7 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "not_standalone",
         "violent_relationship_context",
         "unsolicited_self_harm_reference",
+        "injection_screen",  # NEW-AI-5 drop mode (default off, D-PG16)
     }
 )
 _SHADOW_OUTCOMES = frozenset({"evaluated", "no_candidate", "not_configured", "timeout", "error"})
