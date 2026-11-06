@@ -71,6 +71,7 @@ except Exception:
 # call would run without a request and set the wrong tenant.
 # Backward-compatible module-level coalescer (tests patch app.main.coalescer).
 from app.boot_timing import BootTimer
+from app.runtime_budget import log_runtime_budget
 from app.coalescer import build_coalescer as _build_coalescer
 from app.config import settings
 from app.context import correlation_id_var, set_request_id
@@ -973,6 +974,8 @@ async def lifespan(app: FastAPI):
 
     # YIELD NOW — Railway health check can reach /api/health
     timer.log(logger, healthcheck_timeout_s=330)
+    # NEW-OPS-8 / NEW-LOAD-4 / NEW-LOAD-5: one budget table and one capacity line.
+    log_runtime_budget(logger, settings)
     logger.info("=== Server accepting requests ===")
     yield
 

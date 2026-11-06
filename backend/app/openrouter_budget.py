@@ -13,9 +13,14 @@ down; a shared fallback store is the upgrade if that ceiling matters.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+from app.metrics import BUDGET_DENIED_TOTAL, BUDGET_RESERVATION_KEPT_USD_TOTAL
+
+logger = logging.getLogger(__name__)
 
 LOCAL_FALLBACK_FRACTION = 0.1
 
@@ -83,11 +88,33 @@ class BudgetReservation:
             await self.settle(response_cost_usd)
         else:
             self.settled = True
+            if response_arrived:
+                self._note_kept("cost_unreported")
+            else:
+                self._note_kept("no_response")
+
+    def _note_kept(self, reason: str) -> None:
+        """SYS-014: count and log a reservation that stays against the cap."""
+        if self.guard is None or self.amount_usd <= 0:
+            return
+        try:
+            BUDGET_RESERVATION_KEPT_USD_TOTAL.labels(reason=reason).inc(self.amount_usd)
+            logger.info(
+                "OpenRouter reservation kept (%s): $%.4f stays against the daily and "
+                "monthly caps because no actual cost was reported",
+                reason,
+                self.amount_usd,
+            )
+        except Exception:  # pragma: no cover - metrics must never break a call
+            logger.debug("budget kept-reservation metric failed", exc_info=True)
 
     async def settle(self, actual_cost_usd: float | None) -> None:
         """Refund unused known cost; unknown usage deliberately retains reserve."""
         self.settled = True
-        if self.guard is None or actual_cost_usd is None:
+        if self.guard is None:
+            return
+        if actual_cost_usd is None:
+            self._note_kept("cost_unreported")
             return
         refund = self.amount_usd - max(0.0, actual_cost_usd)
         if refund > 0:
@@ -182,6 +209,7 @@ class OpenRouterBudgetGuard:
                 return self._reserve_local(day_key, month_key, exc)
             return BudgetReservation(None)
         if not result or int(result[0]) != 1:
+            BUDGET_DENIED_TOTAL.labels(reason="limit").inc()
             raise OpenRouterBudgetExceeded("OpenRouter daily or monthly spend limit reached")
         return BudgetReservation(self, self._max_request_cost_usd)
 
@@ -194,6 +222,7 @@ class OpenRouterBudgetGuard:
             day + amount > self._daily_budget_usd * LOCAL_FALLBACK_FRACTION
             or month + amount > self._monthly_budget_usd * LOCAL_FALLBACK_FRACTION
         ):
+            BUDGET_DENIED_TOTAL.labels(reason="ledger_unavailable").inc()
             raise OpenRouterBudgetUnavailable(
                 "OpenRouter budget ledger unavailable and in-process fallback cap reached"
             ) from cause

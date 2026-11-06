@@ -829,6 +829,25 @@ ABSTAIN_CAUSE_TOTAL = Counter(
     ["cause"],  # no_evidence | system_unavailable | topic_boundary | safety
 )
 
+# NEW-OPS-8 / NEW-LOAD-4 (SYS-014): spend-guard visibility.
+# A call refused before it is sent: reason "limit" (daily or monthly cap) or
+# "ledger_unavailable" (Redis down and the in-process fallback cap reached).
+BUDGET_DENIED_TOTAL = Counter(
+    "guru_budget_denied_total",
+    "LLM calls refused by the OpenRouter spend guard before being sent",
+    ["reason"],  # limit | ledger_unavailable
+)
+# Dollars held against the cap with no actual cost to settle them: the provider
+# reported no usage.cost ("cost_unreported"), or the request was sent and no
+# reply arrived ("no_response"). At the default $0.03 reservation, the $10 daily
+# cap allows about 333 such calls, about 111 full-path requests.
+BUDGET_RESERVATION_KEPT_USD_TOTAL = Counter(
+    "guru_budget_reservation_kept_usd_total",
+    "USD kept reserved because no actual call cost was reported",
+    ["reason"],  # cost_unreported | no_response
+)
+
+
 if __name__ == "__main__":
     for _tier, _th in sorted(SLO_THRESHOLDS.items()):
         assert isinstance(_th, (int, float)) and _th > 0, _tier
