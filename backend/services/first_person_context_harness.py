@@ -32,6 +32,7 @@ from domain.first_person_context import (
 from domain.speaker_provenance import speaker_write_violations
 from services.first_person_evidence_policy import first_person_evidence_policy
 from services.first_person_rights import source_is_authoritatively_licensed
+from services.injection_screen import screen as screen_injection
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,24 @@ def _span_starts_with_antecedent(span: SourceSpan) -> bool:
     if span.coreference_chain_ids:
         return bool(span.previous_span_id)
     return bool(_ANTECEDENT_CONNECTIVE_RE.match(span.verbatim_text.strip()))
+
+
+def _injection_screen_refuses(spans: tuple[SourceSpan, ...]) -> bool:
+    """Count spans the injection screen matches; True only in drop mode."""
+    from services.first_person_pipeline import (
+        injection_screen_drop_enabled,
+        record_injection_screen,
+    )
+
+    flagged = [s.source_span_id for s in spans if screen_injection(s.verbatim_text)]
+    if not flagged:
+        return False
+    drop = injection_screen_drop_enabled()
+    action = "dropped" if drop else "flagged"
+    for span_id in flagged:
+        record_injection_screen("harness", action)
+        logger.warning("[FPHarness] injection screen %s span %s", action, span_id)
+    return drop
 
 
 def _is_question_only(text: str) -> bool:
@@ -733,6 +752,17 @@ class FirstPersonContextHarness:
                 context,
                 "asr_script_garbage",
                 gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        # NEW-AI-5 (AI-010): text addressed to a model is flagged for review;
+        # it refuses the answer only when the drop flag is on (D-PG16 open).
+        if _injection_screen_refuses(spans):
+            return self._abstain(
+                context,
+                "injection_screen",
+                gates={**gates, "injection_screen": False},
                 state=state,
                 state_path=tuple(states),
             )

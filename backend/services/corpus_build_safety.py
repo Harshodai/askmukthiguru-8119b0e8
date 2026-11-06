@@ -75,6 +75,8 @@ class BuildRunManifest:
     failed: dict[str, str] = field(default_factory=dict)
     skipped: dict[str, str] = field(default_factory=dict)
     snapshots: list[str] = field(default_factory=list)
+    # NEW-AI-5: span id -> injection-screen pattern names; review only, never dropped.
+    flagged_for_review: dict[str, str] = field(default_factory=dict)
     finished_at: Optional[str] = None
     exit_status: Optional[str] = None
 
@@ -92,6 +94,7 @@ class BuildRunManifest:
                 "verified": len(self.verified),
                 "failed": len(self.failed),
                 "skipped": len(self.skipped),
+                "flagged_for_review": len(self.flagged_for_review),
             },
             "planned": sorted(self.planned),
             "written": sorted(self.written),
@@ -99,6 +102,7 @@ class BuildRunManifest:
             "failed": dict(sorted(self.failed.items())),
             "skipped": dict(sorted(self.skipped.items())),
             "snapshots": list(self.snapshots),
+            "flagged_for_review": dict(sorted(self.flagged_for_review.items())),
         }
 
     def write(self, path: Path) -> None:

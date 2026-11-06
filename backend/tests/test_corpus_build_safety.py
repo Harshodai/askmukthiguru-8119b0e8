@@ -161,7 +161,15 @@ def test_manifest_is_written_atomically(tmp_path):
     out = tmp_path / "runs" / "m.json"
     m.write(out)
     data = json.loads(out.read_text())
-    assert data["counts"] == {"planned": 2, "written": 1, "verified": 1, "failed": 1, "skipped": 0}
+    # NEW-AI-5: counts also carry flagged_for_review (review-only span ids).
+    assert data["counts"] == {
+        "planned": 2,
+        "written": 1,
+        "verified": 1,
+        "failed": 1,
+        "skipped": 0,
+        "flagged_for_review": 0,
+    }
     assert list(out.parent.iterdir()) == [out], "no temp file left behind"
 
 

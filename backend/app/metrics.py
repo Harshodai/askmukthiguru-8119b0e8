@@ -835,6 +835,14 @@ SERVED_INTEGRITY_FAILURE_TOTAL = Counter(
     "Served first-person clips that failed the assembly integrity re-check",
     ["check"],  # hash | substring
 )
+# NEW-AI-5 (AI-010): first-person text that looks addressed to a model.
+# action=flagged (default, served and logged for review) or dropped (only when
+# FIRST_PERSON_INJECTION_SCREEN_DROP_ENABLED=true). lane: legacy | harness.
+INJECTION_SCREEN_TOTAL = Counter(
+    "guru_injection_screen_total",
+    "First-person clips matched by the injection screen",
+    ["lane", "action"],
+)
 
 # NEW-OPS-8 / NEW-LOAD-4 (SYS-014): spend-guard visibility.
 # A call refused before it is sent: reason "limit" (daily or monthly cap) or

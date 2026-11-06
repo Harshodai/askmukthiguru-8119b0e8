@@ -82,6 +82,7 @@ from services.first_person_store import (
     deduplicate_clips_by_video,
 )
 from services.first_person_video_decisions import video_is_blocked
+from services.injection_screen import screen as screen_injection
 from services.memory.okf_store import match_okf_entries
 from services.openrouter_service import ProviderRefusalError
 from services.quote_fidelity import (
@@ -638,6 +639,45 @@ def _quality_blocklist() -> Optional[frozenset[str]]:
                 exc,
             )
         return None
+
+
+def injection_screen_drop_enabled() -> bool:
+    return bool(getattr(settings, "first_person_injection_screen_drop_enabled", False))
+
+
+def record_injection_screen(lane: str, action: str) -> None:
+    try:
+        from app.metrics import INJECTION_SCREEN_TOTAL
+
+        INJECTION_SCREEN_TOTAL.labels(lane=lane, action=action).inc()
+    except (ImportError, ValueError) as exc:
+        logger.debug("injection screen metric not recorded: %s", exc)
+
+
+def apply_injection_screen(clips: list[dict[str, Any]], *, lane: str) -> list[dict[str, Any]]:
+    """NEW-AI-5 (AI-010): flag clips whose text addresses a model.
+
+    Default: every clip is kept; a match is counted and logged (point id and
+    pattern names only, never text) for review. With
+    ``first_person_injection_screen_drop_enabled`` a matched clip is dropped.
+    """
+    drop = injection_screen_drop_enabled()
+    kept: list[dict[str, Any]] = []
+    for clip in clips:
+        hits = screen_injection(str(clip.get("verbatim_text") or ""))
+        if hits:
+            action = "dropped" if drop else "flagged"
+            record_injection_screen(lane, action)
+            logger.warning(
+                "[FirstPersonPipeline] injection screen %s clip %s (%s)",
+                action,
+                clip.get("point_id"),
+                ",".join(hits),
+            )
+            if drop:
+                continue
+        kept.append(clip)
+    return kept
 
 
 def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bool] = None) -> bool:
@@ -5255,6 +5295,7 @@ class FirstPersonPipeline:
                 retrieval_query=retrieval_query,
             ).may_serve
         ]
+        verified_clips = apply_injection_screen(verified_clips, lane="legacy")
         if dedup_limit:
             # T4-01 (RET-01): Gate first, then dedup per video.
             verified_clips = deduplicate_clips_by_video(

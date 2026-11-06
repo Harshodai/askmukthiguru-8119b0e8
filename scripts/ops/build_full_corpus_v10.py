@@ -126,6 +126,7 @@ from services.first_person_context_store import (  # noqa: E402
     parent_point_id,
     point_id_for_record,
 )
+from services.injection_screen import screen as screen_injection  # noqa: E402
 from services.qdrant.utils import QdrantUtils  # noqa: E402
 from services.qdrant_service import QdrantService  # noqa: E402
 
@@ -1205,6 +1206,11 @@ def main() -> int:
                 source_artifact_sha256=artifact_sha256,
             )
             spans.append(span)
+            # NEW-AI-5 (AI-010): text addressed to a model is recorded for
+            # review in the run manifest. The span is kept (D-PG16 open).
+            _injection_hits = screen_injection(spec["text"])
+            if _injection_hits:
+                manifest.flagged_for_review[span.source_span_id] = ",".join(_injection_hits)
 
             # 4. Dense + sparse embedding via encode_batch (bypasses query expansion)
             res = embed_svc.encode_batch([spec["text"]])
