@@ -281,6 +281,16 @@ def deduplicate_clips_by_video(
     return deduped
 
 
+def _stored_text_matches_hash(payload: dict[str, Any]) -> bool:
+    """sha256(verbatim_text) equals the per-span hash (v10 ``source_text_hash``,
+    else the legacy ``transcript_hash``, invariant 2). Missing either fails."""
+    text = str(payload.get("verbatim_text") or "")
+    expected = str(payload.get("source_text_hash") or payload.get("transcript_hash") or "")
+    if not text or not expected:
+        return False
+    return hashlib.sha256(text.encode("utf-8")).hexdigest() == expected
+
+
 class FirstPersonStore:
     """
     Vector storage and hybrid retrieval service for first-person verbatim teachings.
@@ -615,13 +625,22 @@ class FirstPersonStore:
                 "speaker",
                 "is_verbatim",
                 "verbatim_text",
+                "transcript_hash",
+                "source_text_hash",
             ],
             with_vectors=False,
         )
         if len(points) != len(set(point_ids)):
             return False
+        check_hash = bool(
+            getattr(settings, "first_person_points_servable_hash_check_enabled", False)
+        )
         for point in points:
             payload = point.payload or {}
+            if check_hash and not _stored_text_matches_hash(payload):
+                # NEW-ING-6 (D-DQ1 proposal): a cached replay re-validates the
+                # stored text against its hash, not only the serve flags.
+                return False
             if (
                 payload.get("first_person_eligible") is not True
                 or payload.get("rights_cleared") is not True

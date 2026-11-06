@@ -2621,6 +2621,12 @@ class Settings(BaseSettings):
             )
         return self
 
+    # --- Opus thread 2026-11-06 (append-only block; each flag has a reader and
+    # tests for both states, per the CLAUDE.md "Dormant modules" rule) ---
+    # NEW-ING-6 (DATA-15/D-DQ1 proposal): the legacy store's points_servable also
+    # requires sha256(verbatim_text) to equal the stored hash. Off until D-DQ1.
+    first_person_points_servable_hash_check_enabled: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:
