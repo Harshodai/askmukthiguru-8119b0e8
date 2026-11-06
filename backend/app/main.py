@@ -132,7 +132,12 @@ from services.pii_scanner import PIIScanner
 
 # === Graceful shutdown in-flight request tracker (R3) ===
 _INFLIGHT = 0  # simple int — GIL protects single reads/writes in CPython
-_DRAIN_TIMEOUT_S = 45  # max seconds to wait for in-flight requests during shutdown; 15s margin under Railway drainingSeconds:60 (P1-OPS-5)
+# Max seconds to wait for in-flight requests during shutdown. Railway's drain time
+# (RAILWAY_DEPLOYMENT_DRAINING_SECONDS) defaults to 0 s, so it must be set per
+# service: .railway/railway.ts sets 60 for the backend, a 15 s margin over this
+# value (NEW-RW-1, runbook section 8 G-3). If that variable is missing, the old
+# deploy is killed before this loop can finish.
+_DRAIN_TIMEOUT_S = 45
 
 
 class JSONFormatter(logging.Formatter):
@@ -931,8 +936,9 @@ async def lifespan(app: FastAPI):
     _register_node_observers()
 
     # 4. Run remaining background init inline with timeout
-    # The start_railway.py wrapper returns 200 for /api/healthz for 90s
-    # so Railway won't kill us during init. The /api/health endpoint returns
+    # The start_railway.py wrapper returns 200 for /api/healthz for _GRACE_SECONDS
+    # (180 s, then real state until the 330 s deploy healthcheckTimeout in
+    # .railway/railway.ts) so Railway won't kill us during init. The /api/health endpoint returns
     # ready:false until startup_complete=True at the end of this block.
     try:
         await asyncio.wait_for(_background_startup_body(container, app), timeout=180)
