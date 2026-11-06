@@ -93,3 +93,22 @@ Fixes the lead applied (script `apply_review_fixes.py` in the scratchpad; each r
 - CI was not re-checked after 2026-11-05. The owner is fixing it.
 - Mobile apps, k8s manifests and an accessibility audit were not covered.
 - The review sampled citations. It did not check every citation.
+
+## 7. Follow-up work on 2026-11-06 (owner request: Sonnet and Haiku agents)
+
+The owner asked for three gaps to be closed with cheaper models: re-verify batches 9 to 13, build the full audit-document inventory, list the exact files read, and review mobile, k8s and accessibility. Meter at the end: `cost_usd` 183.12 (`get_session`, 2026-11-06 03:39 UTC; API-equivalent figure).
+
+| Area | Model | Result | Files | Tokens |
+|---|---|---|---|---|
+| Re-verify batches 9 to 13 (21 commits) | Sonnet | 2 findings closed (UX-005, ADV-06); 15 moved to Partial; SYS-003 still open; 6 commit claims larger than the diff | Pending register; index §2 and §7; 25 dated notes in specs and FINAL files | 240,544 |
+| Link and evidence check of 42 audit docs | Haiku | 2,001 citations resolve as written; 0 broken Markdown links; 0 broken cross-document references | Scratchpad only (`doc_linkcheck.py`, `.json`, `_summary.md`) | 119,458 |
+| Audit document inventory (Part 3) | Sonnet | 68 rows; 22 truly broken citations after re-resolution; 75 finding IDs not in the index; 20 pointer notes | `FINAL_AUDIT_DOCUMENT_INVENTORY.md`; one pointer note each in 20 numbered docs | 347,421 |
+| Mobile apps review | Sonnet | 15 findings (6 P1); not submission-ready; Gate C | `specifications/MOBILE_APPS_REVIEW_AND_RELEASE_SPEC.md` | 192,071 |
+| Kubernetes manifests review | Sonnet | Not a live path; 9 findings (1 P1: committed default passwords) | `specifications/K8S_MANIFESTS_REVIEW.md` | 140,013 |
+| Accessibility audit | Sonnet | axe with `wcag22aa` on 4 pages (dev server, no backend); 17 findings (7 P1); C7 not met | `specifications/ACCESSIBILITY_AUDIT_AND_REQUIREMENTS.md` | 263,890 |
+| Files-read list | Lead (script over the tool-call logs) | 466 files read, 101 directories searched, 45 web sources, 56 files created or changed | `FINAL_USAGE_AND_VERIFICATION_LOG_APPENDIX_FILES.md` | — |
+
+The lead integrated the reviews into the decision register (§2.5, RK-16 to RK-18), the release gates (C7, C13), the index, the completeness matrix, the gap analysis, the pending register (§10) and the coding package (phases 10 to 12).
+
+Exact files read and changed: `FINAL_USAGE_AND_VERIFICATION_LOG_APPENDIX_FILES.md`. It replaces the pointer in §3 above.
+

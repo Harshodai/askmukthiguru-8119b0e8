@@ -31,6 +31,11 @@ Head `c9b42d3e`. This file challenges the 2026-11-04 audit package and this pass
 | GURU | Teacher registry (ADR-013) not built; 28 hard-coded teacher places; the graph is off the default path but still deployed and written at ingestion; `memgraph:latest` unpinned | P2 | Guru spec §2 | NEW-GURU-1 to NEW-GURU-8 |
 | RLIMIT | `backend/app/main.py:55-59` still sets `RLIMIT_DATA` at 6144 MB against lesson L-MEM-RLIMIT-1 | P2 | Lessons review §2 | Not yet assigned |
 
+> **Update 2026-11-06 (batch 11, 1503e5f2; batch 12, 49c92325):** The registry now has rights, attribution and source fields, and generates one guardrail rail (`backend/config/gurus.yaml`, `backend/services/guru_registry.py`). The hard-coded places are not removed (T8-02 Open). `memgraph` is pinned to `2.20.1` in `backend/docker-compose.yml:45`. GURU-010 and SEC-006 are Partial.
+| MOB-01 to MOB-15 (2026-11-06) | Mobile: OAuth inside the WebView; no iOS privacy manifest; microphone used without permission strings; store disclosures omit Sentry replay and the LLM provider; clip playback in the WebView unproven; account deletion without Apple token revocation | 6 P1, 6 P2, 3 P3 | Mobile spec §3 | NEW-MOB-1 to NEW-MOB-13 |
+| K8S-01 to K8S-09 (2026-11-06) | k8s manifests are not live but look authoritative; committed default Redis and Neo4j passwords (K8S-06, P1); Neo4j vs Memgraph; wrong probe path; drifted env names; no Celery | 1 P1, 6 P2, 2 P3 | k8s review §3 | NEW-K8S-1 to NEW-K8S-6 |
+| A11Y-01 to A11Y-17 (2026-11-06) | Contrast failures on gold text, error cards and the "Related" label; clip dialog has no accessible name; no captions; cookie banner covers Send at 390 px; axe tests lack `wcag22aa` | 7 P1, 9 P2, 1 P3 (6 parts) | Accessibility audit §3 | NEW-A11Y-1 to NEW-A11Y-10 |
+
 These IDs are proposed by the specification agents. They are not yet in `findings-index.md`. The next agent adds them during the findings recount (`FINAL_CODING_AGENT_EXECUTION_PACKAGE.md` step 4).
 
 ## 3. Coverage against the six pillars
@@ -55,7 +60,7 @@ These IDs are proposed by the specification agents. They are not yet in `finding
 | E Operations and incidents | Specified: SLOs (proposed), alert rules, 10 runbooks, answer trace | Reliability spec |
 | F ADRs | 16 historical ADRs, 25 "do not reintroduce" items, template | Historical ADR file |
 | G Feedback loop | Specified: cause taxonomy, triage, human review, eval-set path; existing feedback stores keep seeker text without retention | Reliability spec §3.10 |
-| H Accessibility and multilingual | Multilingual rules and meaning-preservation tests specified; WCAG 2.2 AA tags missing in the a11y smoke test; no accessibility audit done | Answer contract spec; FR/NFR matrix |
+| H Accessibility and multilingual | Updated 2026-11-06: WCAG 2.2 AA audit done with an axe runtime run on 4 pages (17 findings, 7 P1; C7 not met). Multilingual rules and meaning-preservation tests specified; `lang` on quotes needs a clip language field (D-PA11Y4) | Accessibility audit; answer contract spec; FR/NFR matrix |
 | I Traceability | 12 broken links listed | FR/NFR matrix |
 | J Completeness challenge | §5 below | — |
 
@@ -63,7 +68,7 @@ These IDs are proposed by the specification agents. They are not yet in `finding
 
 | # | Question | Answer |
 |---|---|---|
-| 1 | Engineering capability not evaluated? | Mobile apps (`android/`, `ios/`), k8s manifests, and the Lovable frontend sync path (D-24). Load and cost under real traffic. |
+| 1 | Engineering capability not evaluated? | Updated 2026-11-06: mobile apps, k8s manifests and accessibility are now reviewed (`specifications/MOBILE_APPS_REVIEW_AND_RELEASE_SPEC.md`, `K8S_MANIFESTS_REVIEW.md`, `ACCESSIBILITY_AUDIT_AND_REQUIREMENTS.md`). Still not evaluated: the Lovable frontend sync path (D-24); load and cost under real traffic; a screen-reader session; native device tests. |
 | 2 | User need not represented? | Real seeker research: no seeker has been interviewed (`02` §3-§6). Accessibility for users with low technical familiarity has requirements but no test. |
 | 3 | Data-quality failure still possible? | A rebuild can silently produce an unservable or emptied collection (DATA-20, DATA-23) until NEW-ING-1 and NEW-ING-2 land. A corrected transcript can leave stale text in caches and saved items until the propagation tasks land. |
 | 4 | What can break after deployment? | Requests dropped on every deploy (drain 0 s); startup refused for missing release identity; Redis evicting Celery data under `volatile-lru`; alerts that never fire or always fire. |
@@ -75,6 +80,8 @@ These IDs are proposed by the specification agents. They are not yet in `finding
 | 10 | What will the next coding agent misunderstand? | Stale CLAUDE.md values: pipeline order omits `KillSwitchStage` and `OffTopicStage`; scorer model and timeout defaults; gate budget 12 s in code (`first_person_pipeline.py:1311`), not 6 s; `persona_discriminator.py` is a persona judge, not the attribution source. The lessons review §8 lists the proposed corrections; the owner has not applied them. |
 | 11 | Operational responsibility not assigned? | Backup on-call, clinician contact, legal contact, teachers' organisation contact (D-PE1); guru-review queue owner (D-PQ6); prompt owners (D-PG12). |
 | 12 | What cannot be proven in this cloud environment? | Everything live: Qdrant contents, Railway behaviour, Supabase RLS on the real project, provider latency and cost, restore drills, and every human sign-off. |
+
+> **Update 2026-11-06 (batch 12, 2c81a2d1):** The pipeline order in the root `CLAUDE.md` now matches `build_default_pipeline()` and `scripts/guards/pipeline_order_guard.py` checks it. `backend/CLAUDE.md` still shows the old order. The 12 s gate budget and the scorer defaults are unchanged. CQ-009 is Partial.
 
 ## 6. Remaining uncertainty
 

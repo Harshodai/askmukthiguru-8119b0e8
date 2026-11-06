@@ -93,6 +93,10 @@ Rows keep the `03` IDs. Gate IDs: A = `FINAL_READINESS_AND_GAP_ANALYSIS.md` §3;
 | FR-ADM-02 ★ | In production the `seed_admin_demo` RPC is absent or refuses. | P2 | O4; no demo data | `supabase/migrations/20260724080000_harden_security_and_rls_lints.sql` (defines it); `useSeedDemo.ts` (per `03`) | T9-01 | MISSING | Production config test: RPC call returns an error | B1 | Open |
 | FR-TCH-01 | A new teacher is added by configuration only. | P3 | O5; add a teacher safely | `backend/config/gurus.yaml` | T8-01, T8-02 | MISSING | Dry-run of the `11` §6 checklist | later | Open |
 
+> **Update 2026-11-06 (batch 13, a33d6b8d):** FR-CORR-01 is Partial. The citation card has a report control with four categories (`src/components/chat/CitationCard.tsx`). The route is now `backend/app/api/feedback.py:386` (was `:369`) and the list is `:478` (was `:460`). The control sends a video id, not a clip id (D-PQ7 open). No E2E test was added.
+
+> **Update 2026-11-06 (batch 13, a33d6b8d):** FR-SAVE-01 is Partial, not MISSING. `POST/GET/DELETE /api/feedback/saved-answers` (`backend/app/api/feedback.py:572-640`) and `src/lib/savedAnswersStorage.ts` exist. Storage is a local JSONL file with no takedown link, no erasure link and no E2E test. The target tables `saved_answers` and `POST /api/saved` were not built. FR-CORR-01: see its own update note.
+
 ### 3.2 New functional requirements (not in `03`)
 
 | ID | Statement (testable) | Pri | Obj, need | Where | Task | Test | Acceptance (pass condition) | Gate | Status |
@@ -109,6 +113,8 @@ Rows keep the `03` IDs. Gate IDs: A = `FINAL_READINESS_AND_GAP_ANALYSIS.md` §3;
 | FR-N-10 | A collection is promoted only when the scorecard has 0 BLOCKER fails, strict-clean rate meets the threshold, and `approved_corpus_version` equals the served version. | P1 | O1; data quality | `scripts/ops/data_quality_audit.py`; serving contract | T3-05 | `test_data_quality_promotion_gate.py::test_scorecard_promotion_gate_refuses_blocker_failure`; `::test_serving_contract_refuses_approved_corpus_version_mismatch` | Both pass. Threshold 60% is a proposal (NFR-DI-05) | B5 | Met |
 | FR-N-11 | A corpus build replaces a video's points per video, snapshots before the first write, refuses an empty build, and writes only with the write key. | P1 | O1; safe rebuild | `build_full_corpus_v10.py`; `QdrantService` | T3-02, T3-04 | `test_builder_replace_and_snapshot.py::test_builder_refuses_empty_build`; `test_qdrant_write_governance.py::test_backend_read_only_client_rejects_writes` | Both pass. Running a real build needs the owner | B5 | Met |
 | FR-N-12 | An operator can stop teaching serving on the next request: the bridge flag read per request, and the separate generation kill switch. | P1 | O4; incident control | `first_person_bridge.py:1368-1370`; `kill_switch_stage.py:54-63` | T1-05 | `test_fp_fail_closed.py::test_bridge_off_returns_static_abstain_without_llm` | Flag off gives abstain on the next request. Runtime toggle path is Unknown (C-12) | B11 | Partial |
+
+> **Update 2026-11-06 (batch 9, 43b6c6fd):** FR-N-1 is met in code, not run: the server sends `done` before `final` (`backend/app/stream_orchestrator.py:415-427`), and the client throws `stream_interrupted` and drops the turn when `done` never arrives (`src/lib/chat/streaming.ts:428-431`; `src/components/chat/ChatInterface.tsx:1712-1730`). Test: `src/test/chat/streaming-contract.test.ts`. UX-005 Closed. BL-1 and BL-3 in section 9 are out of date for the same reason.
 
 ## 4. Non-functional requirements
 
@@ -268,6 +274,8 @@ The chain is: objective, need, FR or NFR, component, source files, data, API, ta
 | BL-10 | NFR-A11Y-01, NFR-N-1 | WCAG 2.2 not tagged; manual pass absent | C-9 | Add tag; checklist |
 | BL-11 | NFR-SEC-01 | Decision D-07 pending; no route-table test | `unresolved-questions.md` D-07 | Decide; add test |
 | BL-12 | Several FRs (SRC-01, DEPTH-01, FUP-01, MV-01) | No test and no stratum in the golden set | §3.1 | Add strata from `18` §4.1 |
+
+> **Update 2026-11-06 (batch 9, 43b6c6fd):** BL-1: task T1-18 landed; the test `src/test/chat/streaming-contract.test.ts` exists; the pending register row UX-005 is Closed. A cut-stream step in the A10 smoke test is still to add. BL-3: the seeker control now exists (`a33d6b8d`); it does not send a clip id.
 
 Top 5 for the release: BL-1, BL-2, BL-3, BL-4, BL-7.
 

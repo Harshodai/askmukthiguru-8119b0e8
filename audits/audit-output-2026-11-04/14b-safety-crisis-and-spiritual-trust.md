@@ -1,5 +1,7 @@
 # 14b — Safety, crisis handling and spiritual trust
 
+> **2026-11-06:** Superseded in part by `specifications/SPIRITUAL_ANSWER_QUALITY_AND_RESPONSE_CONTRACT.md` (attribution tests on the wire, safety-notice ordering around multi-block answers). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S3. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 Line numbers were read at `main@46b808fb`; ranges are approximate to about ±10 lines.
 Parent document: `14` (S1: security, privacy, auth). Content permissions: `14c` (S4).

@@ -1,5 +1,7 @@
 # 14d — User journey and frontend walkthrough
 
+> **2026-11-06:** Superseded in part by `specifications/PERSONAL_MENTOR_MEMORY_AND_PERSONALIZATION_SPEC.md` (what the personalisation controls must do for UX-006 and UX-009). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S4 (product, UX). Target: `origin/main@46b808fb`, read from the snapshot. Access date: 2026-11-04.
 
 This document walks 14 steps through the real frontend and API code for two seekers:

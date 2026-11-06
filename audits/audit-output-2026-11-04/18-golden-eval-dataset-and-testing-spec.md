@@ -1,5 +1,7 @@
 # 18 — Golden evaluation dataset and testing specification
 
+> **2026-11-06:** Superseded in part by `specifications/AI_HARNESS_PROMPT_AND_CONTEXT_SPEC.md` (adversarial set (§3.11) and model-change procedure (§3.12)). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S3. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`. Line numbers read at `main@46b808fb`.
 Related: `10` (behaviour specs this dataset tests), `14b` (safety sets), `09` (prompts under test), `04` (lead: NFRs and SLOs), `23` (S4: guru-review question set).
 

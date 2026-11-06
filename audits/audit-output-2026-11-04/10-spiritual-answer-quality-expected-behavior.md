@@ -1,5 +1,7 @@
 # 10 — Spiritual answer quality and expected behaviour
 
+> **2026-11-06:** Superseded in part by `specifications/SPIRITUAL_ANSWER_QUALITY_AND_RESPONSE_CONTRACT.md` (field-level wire schema, render rules per voice layer, release invariants). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S3. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 
 > **Erratum (lead, after the independent review in `26`).**

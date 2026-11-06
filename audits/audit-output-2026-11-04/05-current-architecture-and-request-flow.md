@@ -1,5 +1,7 @@
 # 05 — Current architecture and end-to-end request flow
 
+> **2026-11-06:** Superseded in part by `specifications/RETRIEVAL_AND_RAG_SPEC.md` (live first-person path traced per step at `c9b42d3e` with every LLM call and budget). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S1. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 
 > **Erratum (lead, after the independent review in `26`). These corrections override the text below.**

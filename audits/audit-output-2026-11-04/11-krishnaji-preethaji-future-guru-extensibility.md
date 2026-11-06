@@ -1,5 +1,7 @@
 # 11 — Sri Krishnaji, Sri Preethaji and future-teacher extensibility
 
+> **2026-11-06:** Superseded in part by `specifications/GURU_KNOWLEDGE_AND_KNOWLEDGE_GRAPH_SPEC.md` (registry field rules, path:line table at `c9b42d3e`, per-step onboarding tests). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S4. Audit target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 
 Scope: teacher identity, attribution, hardcoded names, the teacher registry, corpus per teacher, shared versus distinct teachings, and the steps to add a future teacher. Speaker-verification internals (ECAPA, diarisation) belong to doc 07 (S2). Answer behaviour belongs to doc 10 (S3).

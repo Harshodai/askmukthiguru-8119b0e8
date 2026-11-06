@@ -1,5 +1,7 @@
 # 12b — Ethical retention and mentor experience (UX layer)
 
+> **2026-11-06:** Superseded in part by `specifications/PERSONAL_MENTOR_MEMORY_AND_PERSONALIZATION_SPEC.md` (journeys, reminders and retention schedule as contracts). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S4. Audit target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`. Memory and personalisation internals: doc 12 (S3). User research basis: doc 02.
 
 > **Erratum (lead, after the independent review in `26`).** The cancellation funnel is **not dormant**. `src/pages/ProfilePage.tsx:583` mounts `AccountDataCard.tsx:140-195`, which is the only UI path to account deletion. UX-001 is a **confirmed defect at P1**, and its implementation risk is not low: removing it without a replacement removes deletion from the UI. Emails are queued for every retention choice (`cancel_flow.py:502-515`). Users who choose "keep 30/90 days" receive all four emails and are never deleted, because no purge job exists (ADV-01). The fix: a direct, immediate, confirm-and-delete flow with an export offer, no win-back emails, and either a working scheduled purge job or no scheduled option (T1-12, T6-06).

@@ -1,5 +1,7 @@
 # 14 — Security, privacy, and data protection
 
+> **2026-11-06:** Superseded in part by `specifications/PRODUCTION_RELIABILITY_SECURITY_AND_COST_SPEC.md` (threat model, adversarial cases, untrusted-content fence). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S1. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 
 > **Addendum (lead, after the independent review in `26`).**

@@ -756,6 +756,8 @@ The classes SAFE-001 (Indic under-detection) and ANS-001/002 (benign over-fire) 
 | Faculty answer labels table | `supabase/migrations/20261007000000_faculty_answer_labels.sql` (name only; schema not read) | Unknown fit. |
 | Admin list of feedback | `app/api/admin.py:139` | Exists. |
 
+> **Update 2026-11-06 (batch 13, a33d6b8d; 7f63fe4c):** The clip-report route is now `backend/app/api/feedback.py:386` and the list route is `:478`. The routes at `:26`, `:137` and `:182` did not move. The commits also added `reason_category` to the report and the saved-answers routes (`:572-640`, a local JSONL file that is another container-file store, see DATA-18). `7f63fe4c` narrowed four `except Exception` blocks in this file.
+
 **What does not exist:** a negative-feedback cause taxonomy in the user-facing schema, a triage queue with owners and states, a human review step for disputed teachings, a controlled path into evaluation sets, a verified-correction record, and a regression check that a fixed case stays fixed.
 
 #### 3.10.2 Taxonomy of negative-feedback causes

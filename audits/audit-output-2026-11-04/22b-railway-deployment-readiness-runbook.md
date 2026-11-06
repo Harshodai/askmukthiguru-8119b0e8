@@ -1,5 +1,7 @@
 # 22b — Railway deployment-readiness runbook (deferred validation)
 
+> **2026-11-06:** Superseded in part by `specifications/RAILWAY_DEPLOYMENT_AND_PRODUCTION_OPERATIONS_RUNBOOK.md` (11 corrections to this file in its §2 (C-1 to C-11), topology, IaC, drain and signal handling). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S1. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 Companion: 22 (Qdrant and graph deferred validation, S2). Related: 05, 14, 15.
 

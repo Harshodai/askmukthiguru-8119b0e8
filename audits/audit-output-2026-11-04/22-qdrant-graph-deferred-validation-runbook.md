@@ -1,5 +1,7 @@
 # 22 — Qdrant and graph deferred-validation runbook (read-only)
 
+> **2026-11-06:** Superseded in part by `specifications/DATA_QUALITY_AND_CROSS_STORE_CONSISTENCY_SPEC.md` (static fixture equivalents, SQL and Redis checks, rights-stamp check (§5)). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: Specialist S2. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 Railway readiness is in S1 `22b-railway-deployment-readiness-runbook.md`.
 

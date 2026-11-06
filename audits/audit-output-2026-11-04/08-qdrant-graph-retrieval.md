@@ -1,5 +1,7 @@
 # 08 — Qdrant, graph and retrieval architecture
 
+> **2026-11-06:** Superseded in part by `specifications/RETRIEVAL_AND_RAG_SPEC.md` (retrieval contracts, floors, shadow mode, acceptance criteria and tasks). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: Specialist S2. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 No live retrieval was run. Quality numbers are `[DOC-CLAIM]`. Live checks are in `22`.
 

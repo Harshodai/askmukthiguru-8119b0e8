@@ -1,5 +1,7 @@
 # 09 — AI harness, agents, prompts and context engineering
 
+> **2026-11-06:** Superseded in part by `specifications/AI_HARNESS_PROMPT_AND_CONTEXT_SPEC.md` (call-site decisions at `c9b42d3e`, prompt registry contract, unfenced call sites). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S3. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 
 > **Erratum (lead, after the independent review in `26`).** Questions that do not match `_ON_TOPIC_RE` are **not** sent to the general lane by default. Any question that is not classified off-topic goes to the teaching lane (`off_topic_stage.py:591-607`). Only questions that combine a general-task word with an emotion word take the general exit (`:625-669`). The triple scope definition (AI-001) is still real, but its impact is smaller (now P2). The general-mode voice block (AI-003) tells the model "how, not what" and forbids invented first-person sentences (`register.py:229-236,292`). It is still a risk to remove (T1-06), at P2. New P1 path: **turning the first-person bridge off** sends teaching questions to the generating prompt (ADV-03).

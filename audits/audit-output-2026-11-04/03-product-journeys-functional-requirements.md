@@ -1,5 +1,7 @@
 # 03 — Product journeys, feature wiring and functional requirements
 
+> **2026-11-06:** Superseded in part by `specifications/COMPLETE_FR_NFR_AND_ACCEPTANCE_MATRIX.md` (44 FRs rewritten with test, acceptance, gate and status; stale rows corrected in its §2). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S4. Audit target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 
 > **Erratum (lead, after the independent review in `26`). These corrections override the text below.**

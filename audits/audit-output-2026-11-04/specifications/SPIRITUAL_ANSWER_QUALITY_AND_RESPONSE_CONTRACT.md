@@ -196,6 +196,9 @@ Rules:
 
 1. `answer_blocks[].text` for `teaching_clip` equals `Citation.text_snippet` for the same clip. It is the same public text. It is not a new leak.
 2. `clip_ref` equals the Qdrant `point_id` (`uuid5(FIRST_PERSON_NAMESPACE, transcript_hash:start_ms:end_ms)`, invariant 4). It carries no secret. It is required by saved clips, "report this clip" and follow-up exclusion (sibling specification). The existing test that forbids `point_id` on the wire (`tests/test_citation_contract.py:169-205`) must change in the same PR and says why. This is PROPOSED D-PQ7 (default: yes).
+
+> **Update 2026-11-06 (batch 13, a33d6b8d):** D-PQ7 is still open. No clip id reaches the client. `Citation` has no point id or span id (`backend/app/schemas/__init__.py`), and `backend/tests/test_citation_contract.py` still asserts `point_id` is absent. The new "Report clip issue" control (`src/components/chat/CitationCard.tsx:221`) falls back to the YouTube video id, so a report names a video, not a clip.
+
 3. `voice` is a closed set. A client must render `teacher_verbatim` only inside the quote component. A block with `voice != teacher_verbatim` never uses the quote component, a teacher avatar or a teacher name as speaker.
 4. `label_key` is `answer.label.related` whenever any `teaching_clip` is present and `answer_mode != direct_clip`.
 5. `answer_blocks` and `response` carry the same quotes. The server builds both from the same list. A test asserts equality (AC-ANS-05).
@@ -614,6 +617,8 @@ Migration rules: no database migration. Settings added by these tasks each have 
 | PROPOSED D-PQ7 | Put the Qdrant point id on the wire as `clip_ref`? The sibling memory specification needs a clip id on the client. The current test forbids `point_id` on the wire. | Saved clips, reports, follow-up exclusion. | Owner | Yes. The id is a uuid5 over hash and offsets and holds no secret. |
 | PROPOSED D-PQ8 | Who authored and who approves the reflection catalogue (the first four themes)? | A product-written spiritual question set needs an accountable author. | Owner and faculty | Owner approves; faculty reviews before public use. |
 | PROPOSED D-PQ9 | For a system failure that blocks the check (scorer timeout), show "try again" copy instead of "no recording found"? | Honest state. It changes visible behaviour. | Owner | Yes. |
+
+> **Update 2026-11-06 (batch 13, a33d6b8d):** Still PROPOSED. The report control shipped without it. See the update note under item 2 of the wire-field rules.
 
 ---
 

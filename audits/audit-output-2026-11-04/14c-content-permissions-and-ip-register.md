@@ -1,5 +1,7 @@
 # 14c — Content permissions and intellectual-property register
 
+> **2026-11-06:** Superseded in part by `specifications/GURU_KNOWLEDGE_AND_KNOWLEDGE_GRAPH_SPEC.md` (where rights live in the registry and how serving checks them). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S4. Audit target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`. Security and privacy: doc 14 (S1). Safety: doc 14b (S3).
 
 I am not a lawyer. This document reports facts and risks. Legal conclusions need qualified counsel ([HUMAN]).

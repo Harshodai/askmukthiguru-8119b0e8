@@ -377,6 +377,8 @@ Existing names (verified in `backend/app/metrics.py`): `CORPUS_ORPHAN_POINTS_TOT
 | 7 | T3-07 (canonical teacher IDs) | DATA-13 | T8-01 | No payload rewrite in place | New collection |
 | 8 | T3-11 (freeze graph writes; OKF compile report) | DATA-08, DATA-10, DATA-17 | D-05 | No data deletion | Flag |
 
+> **Update 2026-11-06 (batch 13, 4eb04ae8):** T3-07 landed in part: code-side `canonical_guru_id` and normalised query filters, plus `scripts/ops/check_legacy_guru_tables.py` (a usage scan; I did not run it). The live collection check and any payload change are not done. DATA-13 is Partial.
+
 A new script under `scripts/ops/` and `backend/scripts/ops/` must be byte-identical if it exists in both (`tests/test_repo_layout.py`). Put it in `backend/scripts/ops/` only.
 
 ## 9. Open questions

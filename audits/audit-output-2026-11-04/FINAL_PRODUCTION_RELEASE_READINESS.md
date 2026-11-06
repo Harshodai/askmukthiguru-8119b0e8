@@ -60,12 +60,15 @@ Gate C starts only after Gate B passes and the owner announces the public phase 
 | C4 | Calibration profile from human gold labels | `evaluation/gold/calibrator.py` run on at least 299 confident independent human labels with 0 errors (CLAUDE.md invariant 3) | A profile exists; or the owner accepts that every answer stays "Related, not a direct answer" | Human labellers (D-09, D-23) |
 | C5 | Guru review completed | Package `23` executed; scorecard signed | The teachers' representatives accept the scorecard | Owner + teachers' organisation |
 | C6 | Native-speaker review of multilingual crisis detection and teaching sets | Review records for the priority languages | Reviewed sets exist for each language offered publicly | Owner (D-22) |
-| C7 | Accessibility of the chat flow | WCAG 2.2 AA check of the core journey | No unresolved level-A or level-AA failure on the core journey | Not audited yet |
+| C7 | Accessibility of the chat flow | WCAG 2.2 AA check of the core journey (`specifications/ACCESSIBILITY_AUDIT_AND_REQUIREMENTS.md`) | No unresolved level-A or level-AA failure on the core journey | NOT met (2026-11-06): 17 findings, 7 P1 (contrast, clip dialog name, captions, banner over Send, tests lack `wcag22aa`); answer, crisis, settings and deletion states not rendered without a backend. D-PA11Y1 |
 | C8 | Privacy notice, terms and DPDP notices | Published pages | Match the real processors and retention | Owner |
 | C9 | Persona and voice risks removed | Seeds and features without rights removed | No persona or voice feature without a filed licence | D-12, D-20 |
 | C10 | Ethical retention | Churn funnel and dark patterns removed | No retention mechanism blocks or delays deletion | D-19, T1-12 |
 | C11 | Usefulness, not only abstention | Pass bar includes a usefulness target | Target agreed before the measurement run | D-25 |
 | C12 | Multi-video answers, if offered publicly | Synthesis evaluation in `specifications/MULTI_VIDEO_TEACHING_SYNTHESIS_SPEC.md` | Variant A attribution checks pass; Variant B only if D-03 approves it | D-03 |
+| C13 | Mobile store release, if the apps ship | `specifications/MOBILE_APPS_REVIEW_AND_RELEASE_SPEC.md` store checklist | MOB-01 to MOB-05 and MOB-10 closed; store paperwork signed (D-PMOB6) | Owner + agent; mobile stays out of Gates A and B unless D-PMOB8 allows test tracks |
+
+> **2026-11-06:** the accessibility audit proposes moving A11Y-02 and A11Y-10 (helpline reachability) into B16 and A11Y-14 (deletion flow) into B12 (PROPOSED D-PA11Y3).
 
 ## 5. Quality claims allowed at each gate
 

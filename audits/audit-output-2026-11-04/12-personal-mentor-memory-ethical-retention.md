@@ -1,5 +1,7 @@
 # 12 — Personal mentor: memory and personalisation architecture
 
+> **2026-11-06:** Superseded in part by `specifications/PERSONAL_MENTOR_MEMORY_AND_PERSONALIZATION_SPEC.md` (consent, lifecycle, export, erasure, saved-wisdom contracts; new defects MEM-007 to MEM-012). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S3 (architecture). Companion: `12b-ethical-retention-and-mentor-ux.md` (S4: UX, retention hooks, north-star metric).
 Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`. Line numbers read at `main@46b808fb`; ranges ±10 lines.
 Related: `14` (S1: privacy, RLS, erasure), `06` (S2: datastores), `10` (answer behaviour).

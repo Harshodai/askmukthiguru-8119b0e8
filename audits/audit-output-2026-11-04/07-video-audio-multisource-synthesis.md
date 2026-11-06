@@ -1,5 +1,7 @@
 # 07 — Video, audio and multi-source teaching synthesis
 
+> **2026-11-06:** Superseded in part by `specifications/MULTI_VIDEO_TEACHING_SYNTHESIS_SPEC.md` (decision-free Variant A, wire contract, staged gates for §4). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: Specialist S2. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 Scope: audio and transcript processing, speaker attribution, timestamps, segmentation, and the ability to answer from more than one video. Prompt and answer-voice specifications belong to S3 (`09`, `10`). Lineage and stores are in `06`.
 

@@ -111,6 +111,27 @@ Proposed decision IDs keep the prefix of the spec that raised them, so the specs
 | PROPOSED D-PQ1 | Run the new `RetrievalPlan` in shadow mode, then on after the bank run? | Retrieval spec |
 | PROPOSED D-PQ7 | Put the Qdrant point id on the wire as `clip_ref`? Cross-spec conflict: the memory spec needs a clip id on the client for saved clips, but `backend/tests/test_citation_contract.py:169-205` forbids `point_id` on the wire. Decide before NEW-ANS-3 or the saved-wisdom tasks | Answer contract spec; memory spec |
 
+### 2.5 Decisions raised by the 2026-11-06 reviews (mobile, k8s, accessibility)
+
+| ID | Question | Recommendation in the source | Gate | Raised in |
+|---|---|---|---|---|
+| PROPOSED D-PMOB1 | Keep Capacitor as the only mobile client and freeze `mobile/expo/`? | Yes | C | Mobile spec |
+| PROPOSED D-PMOB2 | Native Sign in with Apple, or the web OAuth flow? | Native, after MOB-01 is fixed for Google | C | Mobile spec |
+| PROPOSED D-PMOB3 | Ship voice input in v1? | No; hide it on native | C | Mobile spec |
+| PROPOSED D-PMOB4 | Background audio for clips? | No for v1 | C | Mobile spec |
+| PROPOSED D-PMOB5 | Universal Links and App Links? | No for v1; custom scheme with PKCE | C | Mobile spec |
+| PROPOSED D-PMOB6 | Who signs the store privacy answers? | The owner, after MOB-04 reconciliation | C | Mobile spec |
+| PROPOSED D-PMOB7 | Keep local chat history on native? | Yes, with backup excluded and a clear-data control | C | Mobile spec |
+| PROPOSED D-PMOB8 | Store test tracks for invited users before Gate C? | No; keep mobile at Gate C | B or C | Mobile spec |
+| PROPOSED D-PK8S1 | Kubernetes manifests: keep as reference (header and drift test), fix to parity, or retire? | Keep as reference only | None | k8s review |
+| PROPOSED D-PA11Y1 | Which WCAG 2.2 level binds the first invited release? | AA on the core journey (C7) | C | Accessibility audit |
+| PROPOSED D-PA11Y2 | May captions be built from the auto-transcript, with a visible "auto-transcript" note? | Yes | C | Accessibility audit |
+| PROPOSED D-PA11Y3 | Move A11Y-02 and A11Y-10 (helpline) into B16 and A11Y-14 (deletion) into B12? | Yes | B | Accessibility audit |
+| PROPOSED D-PA11Y4 | Who supplies a language per clip for `lang` on quotes? | Optional `language` field; offline tag | C | Accessibility audit |
+| PROPOSED D-PA11Y5 | Does Escape on the first-run safety notice count as acceptance? | Keep; confirm with the owner and the clinician | C | Accessibility audit |
+| PROPOSED D-PA11Y6 | Approve `eslint-plugin-jsx-a11y` (MIT) as a dev dependency? | Yes | None | Accessibility audit |
+| PROPOSED D-PA11Y7 | Who runs the screen-reader session, in which languages? | Owner names a tester; English, then Hindi or Telugu | C | Accessibility audit |
+
 ## 3. Risk register
 
 Likelihood and impact are the lead's judgement [INF], not measurements.
@@ -132,6 +153,13 @@ Likelihood and impact are the lead's judgement [INF], not measurements.
 | RK-13 | Future teacher onboarding needs code changes in many places | High | Medium | ADR-013 not built; 28 hard-coded teacher places (guru spec) | Guru spec registry tasks | C | Agent |
 | RK-14 | Seeker text retained without limit in feedback and lesson stores | Medium | Medium | Reliability spec §2 | D-PE2, D-PE4, D-PE5 | B | Owner |
 | RK-15 | Regressions from many agent sessions | Medium | Medium | `main` unprotected (X-02, T0-03); CI red on `c9b42d3e` (GitHub Actions run list, lead, 2026-11-05) | Branch protection; CI fix | A | Owner |
+
+> **Update 2026-11-06 (batch 11, 1503e5f2):** ADR-013 is partly built: the registry schema, a validator and generated impersonation patterns exist. The 28 hard-coded places (the guru spec counts 591 lines) are not removed. Mitigation is half done.
+
+> **Update 2026-11-06 (batch 12, 2c81a2d1):** Root `CLAUDE.md` pipeline order is fixed and guarded. `backend/CLAUDE.md` still has the old order and still says `memgraph-mage:latest`. The other stale values in this row remain. Risk stays High until those are fixed.
+| RK-16 | Default Redis and Neo4j passwords committed in the Helm values and a ConfigMap get reused somewhere real | Low | High | K8S-06 (`values.yaml:153`, `:189`; `configmap.yaml:19`), k8s review | NEW-K8S-5; D-01 | B | Agent |
+| RK-17 | Mobile store rejection or takedown: OAuth inside the WebView, no iOS privacy manifest, undeclared microphone use, disclosures that omit Sentry replay and the LLM provider | High if submitted today | Medium | MOB-01 to MOB-05, MOB-10 | Mobile spec tasks; D-PMOB6 | C | Owner + agent |
+| RK-18 | Seekers with low vision cannot read trust labels ("Related, not a direct answer" about 2.9:1; gold text 1.52:1) or reach help | High | Medium | A11Y-01 to A11Y-03, A11Y-10 (axe runtime run, 2026-11-06) | NEW-A11Y-2, NEW-A11Y-8 | C (B for helpline per D-PA11Y3) | Agent |
 
 ## 4. Verified, assumptions, unknowns
 

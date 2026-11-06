@@ -102,6 +102,8 @@ Corrections to existing audit text (code wins):
 | First-person turns still **write** memory (`_dispatch_fp_memory`). The outbox payload includes the answer text and citations. | `first_person_bridge.py:100-215` |
 | `PersonalizeStage` is an explicit opt-in that runs the **general generating graph** on a looked-up clip and appends a label ("in our own words, not a direct quote from the teachers"). This sits in tension with root `CLAUDE.md` invariants 1, 15 and 21 (no generation at serve time). It is an owner-accepted exception behind a frontend flag. Decision D-03 governs whether it stays. | `app/pipeline/stages/personalize_stage.py:1-35, 85-100` |
 
+> **Update 2026-11-06 (batch 9, 2edee1c4):** This is no longer true. `FirstPersonBridgeStage` builds `memory_signals` (`backend/app/pipeline/stages/first_person_bridge.py:850-876`) and `FirstPersonPipeline` takes them (`backend/services/first_person_pipeline.py:2022`, `:5225`, `:5694`). The signals are not the ones in section 3: they come from the chat history payload, whose `MessagePayload` has no citations (`backend/app/schemas/__init__.py:46-62`). On the live path `seen_video_ids` stays empty. MEM-002 is Partial.
+
 ### 2.4 Scheduled jobs that touch this area
 
 | Job | Schedule | Purpose | Evidence |
@@ -281,6 +283,8 @@ Minimum registry contents (target):
 | Redis exact cache, personal KG cache, ephemeral memory | As `memory.py:1139-1160, 1202-1209` | No |
 | Second Brain vault | `crypto_shred` | Encrypted blob only, user-initiated |
 | WhatsApp SQLite (`whatsapp_bot/wa_bot.py`), edge-function processors | Out of scope while the channel is disabled (`ADV-06`) | n/a |
+
+> **Update 2026-11-06 (batch 12, 4af5e711):** The memory plane inventory in `12-personal-mentor-memory-ethical-retention.md` now lists the WhatsApp SQLite store and the edge extraction worker (ADV-06 Closed).
 
 #### 3.4.2 Export
 
@@ -624,6 +628,8 @@ Each task is one PR. Order matters: tests and the registry come first.
 | 18 | T1-12 (D-19) | Replace the churn funnel | Direct confirm-and-delete flow with an export offer. Reminder and win-back removal. | D-19 | | |
 | 19 | T5-03 / T5-04 | Optional framing line (only if D-03 yes) | Composer, verifier, label. | D-03 | | |
 | 20 | T2-03 | Telemetry for the metrics in section 6 | | | | |
+
+> **Update 2026-11-06 (batch 10, 649ea2c3):** T6-03 landed in a smaller form. `l3_persona_generator.py` still calls an LLM; its prompt now allows only user-stated facts. `compile_user_preferences` has no caller outside its test. `/memory/persona*` is not retired. MEM-004 is Partial. T6-04 (batch 13, `a33d6b8d`) did not build `saved_teachings`: it added `POST/GET/DELETE /api/feedback/saved-answers` backed by a local JSONL file (`backend/app/api/feedback.py:572-640`). T6-02 is covered by the update note under the sentence about `memory_signals` in section 2.
 
 Task IDs from the roadmap used: T1-09 (landed, verified at `intent_prerouter.py:101`; extend with hashed ids), T1-10, T1-12, T1-20, T2-03, T3-06, T5-03, T5-04, T6-01, T6-02, T6-03, T6-04, T6-06, T6-07, T6-08. New: NEW-MEM-1 to NEW-MEM-11.
 

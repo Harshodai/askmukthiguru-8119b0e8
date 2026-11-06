@@ -54,6 +54,8 @@ If a requested capability conflicts with a rule, the section gives (a) a complia
 | ADR-013 is **not** built. No `sources`, `attribution_policy`, `voice_profile_ref`, `status` or generated guardrail patterns exist. T8-01 and T8-02 are Open. | `FINAL_PENDING_WORK_REGISTER.md` (GURU-010 row); grep of `gurus.yaml` | [V-STATIC] |
 | A test proves a new teacher resolves from a fixture registry with no code change. It covers `resolve_guru_id`, `requested_gurus` and `allowed_speaker_labels` only. | `backend/tests/test_guru_registry_and_modes.py:184-210` | [V-STATIC] |
 
+> **Update 2026-11-06 (batch 11, 1503e5f2):** This statement is now partly out of date. `backend/config/gurus.yaml` has `rights_policy`, `attribution_policy`, `sources`, `voice_refs` and `allowed_surfaces`. `backend/services/guru_registry.py` has `validate_guru_registry_schema` and `get_impersonation_patterns`. `backend/guardrails/lightweight_handler.py` adds the generated patterns to one rail. The field is `voice_refs`, not `voice_profile_ref`, and there is no `status` field. T8-02 (literals) is still Open. GURU-010 is Partial.
+
 ### 2.2 Who reads the registry
 
 Importers (12 modules besides the registry): `services/first_person_store.py`, `services/first_person_pipeline.py`, `services/voice/register.py`, `services/qdrant/searcher.py`, `services/embedding_service.py`, `services/guru_brain/guru_brain_service.py`, `services/teacher_attribution.py`, `rag/nodes/generation.py`, `rag/nodes/citation_extractor.py`, `rag/prompts/system.py`, `app/pipeline/stages/off_topic_stage.py`, `app/pipeline/stages/first_person_bridge.py` [V-STATIC, `grep -rl guru_registry`].
@@ -81,6 +83,8 @@ Verified gap: `first_person_require_speaker_verified` defaults to `False`. Unver
 | `guru_id` (v10 payload). | `backend/services/first_person_context_store.py:72`, `:141`, `:467-469` | [V-STATIC] |
 | `preethaji_krishnaji` as a joint id; `ekam` as an organisation id and also a `teacher_id` value. | `backend/config/gurus.yaml:5,16`; `backend/services/intelligent_metadata_extractor.py:69,171,184,237` | [V-STATIC] |
 | Assistant slug scopes carry `teacher_id`. | `backend/app/config.py:1194-1199`, `backend/app/assistant_registry.py:20-80` | [V-STATIC] |
+
+> **Update 2026-11-06 (batch 13, 4eb04ae8):** `canonical_guru_id` in `backend/services/guru_registry.py` maps raw identifiers to one canonical id. `FirstPersonStore` and `FirstPersonContextStore` apply it to query filters (`backend/services/first_person_store.py`, `first_person_context_store.py`). Stored payload values are not changed and not checked against a live collection. GURU-013 is Partial.
 
 ### 2.4 Every hardcoded teacher-specific place, with its replacement
 
@@ -119,6 +123,8 @@ Method: `grep -rniE "krishnaji|preethaji"` over `backend/{app,rag,services,guard
 
 The CI literal guard in 3.8 does not exist at this head. `scripts/guards/lesson_guards.py` contains no teacher-name check [V-STATIC, grep].
 
+> **Update 2026-11-06 (batch 11, 1503e5f2):** `scripts/guards/guru_literal_guard.py` now exists. It checks the registry schema and the generated impersonation patterns. It does not scan for teacher-name literals, and no hook, workflow or test calls it. The statement above stays true for the literal guard in 3.8.
+
 ### 2.5 CLAUDE.md names the wrong module for attribution
 
 Root `CLAUDE.md` says speaker attribution is "grounded by `persona_discriminator.py`". The module is a Reflexion persona-quality judge. It scores intimacy, OKF grounding and cliche use (`backend/services/guru_brain/persona_discriminator.py:1-9`). Its only importer is `rag/nodes/guru_tone_adapter.py:23-28`, which is not in the default stage chain; `ToneAdapterStage` is a no-op (`app/pipeline/stages/pipeline_builder.py:88`). Speaker attribution is in fact enforced by the integrity gate and `speaker_verified` copy (section 2.2). Fix the CLAUDE.md sentence in NEW-GURU-1 [V-STATIC].
@@ -146,6 +152,8 @@ R2 Supabase `gurus` table (H16). R4 `allowed_assistant_slugs` and R5 `assistant_
 | Does ingestion write to it? | Yes by default: `write_ontology_to_neo4j=True`, `ontology_write_required=False`. | `backend/app/config.py:1559-1562` |
 | Is the agentic traversal live? | No: `agentic_graph_traversal_enabled=False`. | `backend/app/config.py:2104` |
 | Does graph text carry span provenance? | No [DOC-CLAIM `08` RET-05; 41.4% LightRAG contamination]. | `08` |
+
+> **Update 2026-11-06 (batch 12, 49c92325):** The compose tag is now `memgraph/memgraph-mage:2.20.1` (`backend/docker-compose.yml:45`). The Railway deploy script was not checked.
 
 Conclusion (code-supported): the graph is off the teaching-answer path by default and on the general-lane path by default. It costs a deployed service and ingestion writes. ADR-005 (Proposed) says freeze writes and remove from the deploy stack. The evidence here supports ADR-005. The decision is D-05 and is not made. Section 3.9 gives the compliant variant (freeze, no removal) and the decision-gated variant (remove).
 

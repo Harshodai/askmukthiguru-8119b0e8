@@ -1,5 +1,7 @@
 # 04 — Non-functional requirements, SLOs and benchmarks
 
+> **2026-11-06:** Superseded in part by `specifications/COMPLETE_FR_NFR_AND_ACCEPTANCE_MATRIX.md` (82 NFRs with test, gate and status; stale baselines corrected in its §2 C-2 to C-10). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: lead. Pillars: P6, P1, P2, P4. Inputs: `15` (baselines), `18` (evaluation and benchmark research), `14`, `14b`, `06`. Functional requirements: `03` §4.
 
 ## 1. Rules used to set targets

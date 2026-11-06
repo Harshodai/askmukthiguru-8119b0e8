@@ -108,6 +108,10 @@ Tool calling: no live LLM tool-calling. `rag/nodes/tools.py` serves the agentic 
 | `memgraph/memgraph-mage:latest` is unpinned. | `backend/docker-compose.yml:45` |
 | Two provider stacks remain (AI-005, D-17). | `09` §2.1 |
 
+> **Update 2026-11-06 (batch 10, 2318a368):** `ServiceContainer.llm` is now the canonical provider and `ollama` is a property alias (`backend/app/container.py`). `LLMGateway.generate_fast` and `stream` exist (`backend/services/llm_gateway.py`). No provider stack was removed, so AI-005 and CQ-002 still wait on D-17. The commit message names SYS-003. The diff does not change the sync first-person pipeline, so SYS-003 stays Open (reserved under T7-02).
+
+> **Update 2026-11-06 (batch 12, 49c92325):** `backend/docker-compose.yml:45` now pins `memgraph/memgraph-mage:2.20.1` and `:880` pins `willfarrell/autoheal:1.2.0`. I did not check that the tags exist. `backend/Dockerfile.railway:16,58` still uses a floating base image. SEC-006 stays Partial.
+
 ### 2.5 Prompt and version state
 
 | Fact | Evidence |
@@ -419,6 +423,8 @@ Proposed new (NEW): `guru_prompt_calls_total{prompt_id,outcome}` (prompt id is a
 | 10 | T7-03: model role table; one gateway | T7-03 | D-17, 5 | none | revert |
 | 11 | NEW-AI-7: model-change and embedding-change runbook as a script plus checklist test | NEW | 5, 8 | no auto-switch | delete script |
 | 12 | Pin `memgraph` image tag if graph stays (see GURU spec 3.9) | NEW | none | none | revert |
+
+> **Update 2026-11-06 (batch 10, 2318a368; batch 12, 49c92325):** Task 10 (T7-03) is partly done: the `container.llm` rename and the two gateway methods landed. The model role table (section 3.6 step 3) did not. Task 12 (memgraph pin) is done in `backend/docker-compose.yml:45`.
 
 ## 9. Open questions
 

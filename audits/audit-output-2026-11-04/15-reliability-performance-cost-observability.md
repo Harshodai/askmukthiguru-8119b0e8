@@ -1,5 +1,7 @@
 # 15 — Reliability, performance, cost and observability
 
+> **2026-11-06:** Superseded in part by `specifications/PRODUCTION_RELIABILITY_SECURITY_AND_COST_SPEC.md` (SLO, alert, runbook and cost-attribution contracts; alert defects OPS-003 to OPS-008). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: S1. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 Related: request flow (05), code debt (13), security (14), Railway runbook (22b), NFRs (04, lead), evaluation (18, S3).
 

@@ -1,5 +1,7 @@
 # 06 — Data ingestion, data quality and cross-database lineage
 
+> **2026-11-06:** Superseded in part by `specifications/DATA_QUALITY_AND_CROSS_STORE_CONSISTENCY_SPEC.md` (15-field contract per datastore, lineage with link IDs, reconciliation rules). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: Specialist S2. Target: `origin/main@46b808fb`. Conventions: `CONVENTIONS.md`.
 No live store was contacted. Every count from a live store is `[DOC-CLAIM]` or needs `[LIVE-Q]`. The read-only verification procedure is in `22-qdrant-graph-deferred-validation-runbook.md`.
 

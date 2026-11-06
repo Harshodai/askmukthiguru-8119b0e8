@@ -98,6 +98,8 @@ Order rule: safety of data and honesty of answers first, then what staging needs
 | 5.6 | NEW-MEM-1: real-Postgres RLS fixture and memory RLS tests | Test database | Memory §8 |
 | 5.7 | SEC-003 remainder; T1-14 image pins | — | Pending register |
 
+> **Update 2026-11-06 (batch 12, 49c92325):** T1-14 image pins are done for `backend/docker-compose.yml`. What remains: pin `backend/Dockerfile.railway`, add a test that rejects `:latest`, fix `backend/CLAUDE.md`. See task 9 in `FINAL_PENDING_WORK_REGISTER.md` §3.
+
 ### Phase 6: evaluation baseline
 
 | # | Task | Needs | Spec |
@@ -122,9 +124,32 @@ Order rule: safety of data and honesty of answers first, then what staging needs
 
 NEW-GURU-1 to NEW-GURU-8 with T8-01, T8-02, T1-04, T3-07, in the guru spec's §8 order. NEW-GURU-7 (graph freeze) needs D-05 for full removal.
 
+> **Update 2026-11-06 (batch 11, 1503e5f2; batch 13, 4eb04ae8):** T8-01 and T3-07 landed in part (registry schema and validator; `canonical_guru_id` for query filters). Both findings (GURU-010, GURU-013) are Partial. Start at T8-02 (literal removal, and wire `scripts/guards/guru_literal_guard.py` to scan literals). T3-07 still needs a live collection check.
+
 ### Phase 9: personal mentor
 
 The memory spec's §8 order: NEW-MEM-2 to NEW-MEM-11, T6-03, T6-04, T6-02, T6-01. Journeys and reminders wait for D-PM6 and D-PM9.
+
+> **Update 2026-11-06 (batch 10, 649ea2c3; batch 9, 2edee1c4; batch 13, a33d6b8d):** T6-02, T6-03, T6-04 and T6-01 each landed in a smaller form than the memory spec describes. MEM-002, MEM-004 and PRD-006 are Partial. Read the register rows before you start these tasks: the live memory path cannot supply seen-clip ids, `compile_user_preferences` has no caller, and the report control sends a video id. T6-01 closed ADV-06.
+
+### Phase 10: accessibility (added 2026-11-06; no decision needed for 10.1 to 10.4)
+
+| # | Task | Needs | Spec |
+|---|---|---|---|
+| 10.1 | NEW-A11Y-1: add `wcag22aa` to the axe tests; extend to journey states | — | Accessibility audit §7 |
+| 10.2 | NEW-A11Y-2, NEW-A11Y-3: contrast tokens; clip dialog title and description | — | Accessibility audit §7 |
+| 10.3 | NEW-A11Y-6, NEW-A11Y-7, NEW-A11Y-8: focus and live region; target size and banner; persistent "Get help now" link | — | Accessibility audit §7 |
+| 10.4 | NEW-A11Y-9: delete-account flow focus and errors | D-19 interacts | Accessibility audit §7 |
+| 10.5 | NEW-A11Y-4, NEW-A11Y-5: captions; `lang` on quotes | D-PA11Y2, D-PA11Y4 | Accessibility audit §7 |
+| 10.6 | NEW-A11Y-10: screen-reader, keyboard, zoom and reflow session | Human tester (D-PA11Y7) | Accessibility audit §7 |
+
+### Phase 11: Kubernetes reference hygiene (added 2026-11-06)
+
+NEW-K8S-5 (remove committed default passwords; do it early, it is a security fix), then NEW-K8S-1 and NEW-K8S-2 (reference-only header and drift test) if D-PK8S1 keeps the manifests. Source: `specifications/K8S_MANIFESTS_REVIEW.md` §6.
+
+### Phase 12: mobile (Gate C; added 2026-11-06)
+
+After D-PMOB1 to D-PMOB8: NEW-MOB-2 (correct the runbook), NEW-MOB-3 (backend URL per mode), NEW-MOB-4 (OAuth in the system browser), NEW-MOB-5 (privacy manifest and usage strings), then NEW-MOB-6 to NEW-MOB-13. Source: `specifications/MOBILE_APPS_REVIEW_AND_RELEASE_SPEC.md` §7.
 
 ### Reserved, human or decision-only (do not start without the owner)
 

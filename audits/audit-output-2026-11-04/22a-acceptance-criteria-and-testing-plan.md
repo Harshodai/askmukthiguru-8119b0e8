@@ -1,5 +1,7 @@
 # 22a — Acceptance criteria and testing plan
 
+> **2026-11-06:** Superseded in part by `specifications/COMPLETE_FR_NFR_AND_ACCEPTANCE_MATRIX.md` (testing methodology by component (§8) and data-integrity invariants as executable checks (§6)). Status of findings: `FINAL_PENDING_WORK_REGISTER.md`.
+
 Owner: lead. Purpose: tell the implementation agent exactly how to prove each change works, and tell a reviewer how to tell that it does not. Task acceptance criteria: `20` (short) and `21` (P0/P1 detail). Metrics: `04`. Datasets: `18`.
 
 ## 1. Principles
