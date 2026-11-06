@@ -58,6 +58,9 @@ async def test_bridge_off_returns_static_abstain_without_llm(closed, monkeypatch
         "passed": False,
         "method": "fp_disabled",
         "citations_verified": False,
+        # NEW-ANS-2: additive key; the check did not run, so the cause is
+        # system_unavailable (counted as an error, not "no teaching found").
+        "abstain_cause": "system_unavailable",
     }
     run.assert_not_called()
     assert _counter_value("fp_disabled") == before + 1

@@ -602,6 +602,9 @@ class FirstPersonBridgeStage(Stage):
         boundaries: list[str] | None = None,
         compassion: bool = False,
         related: list[dict] | None = None,
+        *,
+        reason: str | None = None,
+        answerability: str | None = None,
     ) -> PipelineResult | None:
         """Hand off to the generating graph, or (first-person-only) abstain statically.
 
@@ -625,6 +628,8 @@ class FirstPersonBridgeStage(Stage):
             boundaries,
             compassion=compassion,
             related=await self._safe_related(ctx, related, compassion),
+            reason=reason,
+            answerability=answerability,
         )
 
     async def _safe_related(
@@ -952,6 +957,9 @@ class FirstPersonBridgeStage(Stage):
                         boundaries,
                         compassion=distress_compassion,
                         related=await self._safe_related(ctx, related, distress_compassion),
+                        # NEW-ANS-2: keep why the pipeline abstained.
+                        reason=getattr(result, "abstain_reason", None),
+                        answerability=getattr(result, "answerability", None),
                     )
             logger.debug(
                 "[FirstPersonBridge] No direct answer (status=%s); GraphStage runs.",
@@ -987,7 +995,13 @@ class FirstPersonBridgeStage(Stage):
                 "[FirstPersonBridge] Answer text does not contain its cited clip text; "
                 "refusing to serve it as teacher voice."
             )
-            return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
+            return await self._decline(
+                ctx,
+                status,
+                boundaries,
+                compassion=distress_compassion,
+                reason="quote_contract_violation",
+            )
 
         # Pipeline renderers may include headings, missing-clip prose, or a source
         # footer. Those are UI structure, not guru speech. Rebuild from every
@@ -1006,7 +1020,13 @@ class FirstPersonBridgeStage(Stage):
         guardrails = getattr(container, "guardrails", None)
         if guardrails is None:
             logger.warning("[FirstPersonBridge] No output rail available; declining.")
-            return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
+            return await self._decline(
+                ctx,
+                status,
+                boundaries,
+                compassion=distress_compassion,
+                reason="output_rail_unavailable",
+            )
         output_check = await guardrails.check_output(answer)
         if isinstance(output_check, dict) and output_check.get("blocked"):
             logger.info(
@@ -1255,6 +1275,9 @@ class FirstPersonBridgeStage(Stage):
         boundaries: list[str] | None = None,
         compassion: bool = False,
         related: list[dict] | None = None,
+        *,
+        reason: str | None = None,
+        answerability: str | None = None,
     ) -> PipelineResult:
         """Ask-1 FP-primary abstain — static text, no LLM, no fall-through.
 
@@ -1277,6 +1300,21 @@ class FirstPersonBridgeStage(Stage):
         blocked and crisis turn) leaves the payload byte-identical.
         """
         related_block = _abstain_related_payload(related)
+        # NEW-ANS-2 (ANS-010, RET-17): why the turn abstained. A check that could
+        # not run is never reported as a pass (verification.passed=False) and is
+        # counted as an error, not as "no teaching found". Copy is unchanged until
+        # D-PQ9 is decided; only the cause, the copy key and telemetry change.
+        from app.answer_contract import abstain_cause, abstain_copy_key
+
+        cause = abstain_cause(status, reason, answerability)
+        if compassion and cause != "system_unavailable":
+            cause = "safety"
+        try:
+            from app.metrics import ABSTAIN_CAUSE_TOTAL
+
+            ABSTAIN_CAUSE_TOTAL.labels(cause=cause).inc()
+        except Exception as exc:  # noqa: BLE001 - telemetry never breaks a response
+            logger.debug("abstain cause not counted: %s", type(exc).__name__)
         if compassion:
             answer = _distress_compassion_framing(ctx)
             from services.crisis_helplines import ensure_support_line
@@ -1368,9 +1406,10 @@ class FirstPersonBridgeStage(Stage):
             hallucination_flag=False,
             citations_verified=False,
             verification={
-                "passed": True,
+                "passed": cause != "system_unavailable",
                 "method": method,
                 "citations_verified": False,
+                "abstain_cause": cause,
             },
             release_manifest=get_release_manifest().to_dict(),
             route_metadata={
@@ -1378,6 +1417,9 @@ class FirstPersonBridgeStage(Stage):
                 "selected_variant": "no_match_abstain",
                 "decision_method": method,
                 "decline_status": status or "unknown",
+                "abstain_cause": cause,
+                "abstain_reason": str(reason) if reason else None,
+                "abstain_copy_key": abstain_copy_key(cause),
                 "llm_fallback_enabled": False,
                 # Owner decision 2026-10-19: the abstain is the distress compassion
                 # copy because the flag was on and this turn was MODERATE.
@@ -1421,11 +1463,16 @@ async def fail_closed_result(ctx: PipelineContext, method: str) -> PipelineResul
     from services.fp_fail_closed import record_fail_closed
 
     record_fail_closed(method)
-    base = await FirstPersonBridgeStage()._abstain(ctx, method)
+    base = await FirstPersonBridgeStage()._abstain(ctx, method, reason="serving_contract_violation")
     metadata = dict(base.route_metadata or {})
     metadata["decision_method"] = method
     return dataclasses.replace(
         base,
-        verification={"passed": False, "method": method, "citations_verified": False},
+        verification={
+            "passed": False,
+            "method": method,
+            "citations_verified": False,
+            "abstain_cause": "system_unavailable",
+        },
         route_metadata=metadata,
     )

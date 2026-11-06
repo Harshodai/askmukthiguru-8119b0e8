@@ -47,8 +47,10 @@ def classify_outcome(
     blocked: bool,
     errored: bool,
     served_clip: bool = False,
+    system_unavailable: bool = False,
 ) -> str:
-    if errored or route in _ERROR:
+    if errored or route in _ERROR or system_unavailable:
+        # NEW-ANS-2: an abstain whose check could not run is an error.
         return "error"
     if route in _CRISIS:
         return "crisis"
@@ -128,7 +130,14 @@ def build_answer_outcome(
         "lane": lane_for(route),
         "route_decision": route,
         "route_reason": route_reason,
-        "outcome": classify_outcome(route, state, blocked, errored, served_clip=served_clip),
+        "outcome": classify_outcome(
+            route,
+            state,
+            blocked,
+            errored,
+            served_clip=served_clip,
+            system_unavailable=ver.get("abstain_cause") == "system_unavailable",
+        ),
         "grounding_state": state,
         "citation_count": len(citations or []),
         "span_ids": ids,

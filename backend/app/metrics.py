@@ -819,6 +819,16 @@ FIRST_PERSON_LLM_TOKENS_TOTAL = Counter(
 )
 
 
+# --- Opus thread 2026-11-06 (append-only block; NEW-ANS-2, NEW-SEC-1) ---
+# Why a first-person turn abstained. Bounded label set
+# (app.answer_contract.ABSTAIN_CAUSES); separates "no teaching found" from
+# "the check could not run".
+ABSTAIN_CAUSE_TOTAL = Counter(
+    "guru_abstain_cause_total",
+    "First-person abstains by cause",
+    ["cause"],  # no_evidence | system_unavailable | topic_boundary | safety
+)
+
 if __name__ == "__main__":
     for _tier, _th in sorted(SLO_THRESHOLDS.items()):
         assert isinstance(_th, (int, float)) and _th > 0, _tier
