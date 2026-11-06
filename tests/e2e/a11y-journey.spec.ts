@@ -166,3 +166,60 @@ test('AC-A11Y-8: closing the first-run notice leaves focus on the composer or ma
     .poll(() => page.evaluate(() => document.activeElement?.tagName ?? 'NONE'), { timeout: 5_000 })
     .toMatch(/^(TEXTAREA|MAIN)$/);
 });
+
+// --- AC-A11Y-11: persistent help control ---------------------------------------
+
+for (const route of ['/', '/auth', '/chat']) {
+  test(`AC-A11Y-11: "Get help now" is on ${route} and opens the helpline list`, async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.clear();
+      localStorage.setItem('askmukthiguru_tour_completed', '1');
+      localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
+    });
+    await page.route('**/api/**', (r) => r.abort());
+    await page.route('**/supabase.co/**', (r) => r.abort());
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    await dismissSafetyDisclaimer(page);
+    const help = page.getByTestId('get-help-now');
+    await expect(help).toBeVisible({ timeout: 15_000 });
+    await expect(help).toHaveAccessibleName(/get help now/i);
+    await help.click();
+    const dialog = page.getByRole('dialog', { name: /get help now/i });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('a[href^="tel:"]').first()).toBeVisible();
+  });
+}
+
+// --- AC-A11Y-12: reduced motion ------------------------------------------------
+
+test.describe('AC-A11Y-12: reduced motion', () => {
+  for (const route of ['/', '/auth', '/chat']) {
+    test(`no infinite animation runs on ${route}`, async ({ page }) => {
+      // test.use({ reducedMotion }) is not honoured by this config; emulate directly.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.addInitScript(() => {
+        localStorage.clear();
+        localStorage.setItem('askmukthiguru_tour_completed', '1');
+        localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
+      });
+      await page.route('**/api/**', (r) => r.abort());
+      await page.route('**/supabase.co/**', (r) => r.abort());
+      await page.goto(route, { waitUntil: 'domcontentloaded' });
+      await dismissSafetyDisclaimer(page);
+      await page.waitForTimeout(1500);
+      const infinite = await page.evaluate(() =>
+        document
+          .getAnimations()
+          .filter((a) => {
+            const t = a.effect?.getComputedTiming();
+            return t && t.iterations === Infinity && a.playState === 'running';
+          })
+          .map((a) => {
+            const el = (a.effect as KeyframeEffect | null)?.target as HTMLElement | null;
+            return `${el?.tagName}.${(a as CSSAnimation).animationName ?? ''} class="${(el?.className ?? '').toString().slice(0, 80)}" keyframes=${JSON.stringify((a.effect as KeyframeEffect).getKeyframes().map((k) => Object.keys(k).filter((x) => !['offset', 'computedOffset', 'easing', 'composite'].includes(x)))).slice(0, 80)}`;
+          }),
+      );
+      expect(infinite, `infinite animations still running on ${route}`).toEqual([]);
+    });
+  }
+});

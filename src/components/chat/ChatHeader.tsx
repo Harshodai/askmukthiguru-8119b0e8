@@ -8,6 +8,7 @@ import { UserMenu } from '@/components/common/UserMenu';
 import { ResponsePreferencesMenu } from './ResponsePreferencesMenu';
 import type { ResponsePreferences } from '@/lib/chat/types';
 import { Button } from '@/components/ui/button';
+import { GetHelpNow } from '@/components/common/GetHelpNow';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -148,6 +149,7 @@ export const ChatHeader = ({
         >
           <WhatsAppIcon className="w-4 h-4 fill-current" />
         </a>}
+        <GetHelpNow />
         <div className={sidebarCollapsed ? '' : 'sm:hidden'} data-tour="profile"><UserMenu /></div>
       </div>
     </div>

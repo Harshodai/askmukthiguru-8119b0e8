@@ -34,6 +34,7 @@ import {
 } from '@/lib/authConstants';
 import { checkPasswordBreached, BREACHED_PASSWORD_MESSAGE } from '@/lib/passwordBreachCheck';
 import { isSafeRelativePath } from '@/lib/safeRedirect';
+import { GetHelpNow } from '@/components/common/GetHelpNow';
 
 const isNativePlatform = Capacitor.isNativePlatform();
 
@@ -981,6 +982,9 @@ const AuthPage = () => {
             'radial-gradient(ellipse 60% 40% at 50% 0%, hsl(var(--ojas-gold) / 0.10), transparent 70%)',
         }}
       />
+      <div className="absolute right-3 top-3 z-10">
+        <GetHelpNow />
+      </div>
       <div className="relative w-full max-w-[400px] mx-4 sm:mx-auto space-y-6 rounded-2xl backdrop-blur-2xl bg-card/60 ring-1 ring-border/40 shadow-2xl shadow-foreground/10 p-6 sm:p-8">
         <div className="text-center space-y-2">
           <div className="w-14 h-14 rounded-full p-0.5 border border-ojas/30 bg-gradient-to-br from-amber-400/20 via-background to-amber-600/20 flex items-center justify-center mx-auto shadow-[0_0_24px_hsl(var(--ojas-gold)/0.35)] overflow-hidden">

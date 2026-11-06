@@ -828,3 +828,14 @@ nav,
 body {
   padding-bottom: var(--cookie-banner-h, 0px);
 }
+
+/* NEW-A11Y-8 (A11Y-12, WCAG 2.2.2): under "reduce motion" no decorative CSS
+   animation loops. Loading spinners stay because they are the only sign that
+   work is in progress (essential motion); the rest play once at most. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *:not(.animate-spin)::before,
+  *:not(.animate-spin)::after {
+    animation-iteration-count: 1 !important;
+  }
+}

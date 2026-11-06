@@ -1,6 +1,8 @@
 import { useEffect, Suspense, type ComponentType, type ReactNode } from "react";
 import { lazyWithRetry, preloadCriticalRoutes } from "@/lib/lazyWithRetry";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MotionConfig } from "framer-motion";
+import { installReducedMotionGuard } from "@/lib/reducedMotionGuard";
 import { BrowserRouter, HashRouter, Routes, Route, Outlet, Navigate, useLocation } from "react-router-dom";
 import { GroupedPage } from "@/admin/pages/GroupedPage";
 import { Capacitor } from "@capacitor/core";
@@ -222,7 +224,11 @@ const App = () => {
     // Preload critical route chunks after initial render
     preloadCriticalRoutes();
 
+    // NEW-A11Y-8 (A11Y-12): stop looping decorative animation under "reduce motion".
+    const stopMotionGuard = installReducedMotionGuard();
+
     return () => {
+      stopMotionGuard();
       window.removeEventListener('retry-retention-purge', handleRetry);
       delete window.retryRetentionPurge;
     };
@@ -230,6 +236,7 @@ const App = () => {
 
   return (
     <FacultyAccessGate>
+    <MotionConfig reducedMotion="user">
     <QueryClientProvider client={queryClient}>
       {/*
         SereneMindProvider wraps the entire router so every route
@@ -390,6 +397,7 @@ const App = () => {
         </QueryErrorBoundary>
       </SereneMindProvider>
     </QueryClientProvider>
+    </MotionConfig>
     </FacultyAccessGate>
   );
 };
