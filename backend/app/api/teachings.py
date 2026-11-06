@@ -51,6 +51,35 @@ SEED_TOPICS = [
 
 DEFAULT_TEACHER = "Sri Preethaji & Sri Krishnaji"
 
+# GURU-012 (H27): a tip credits a teacher only when it carries a locator that
+# points back to the recording: a span/point id, or a YouTube video id plus a
+# start time. Without one the tip is served with teacher "" (no credit).
+_YOUTUBE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+
+def _has_locator(tip: dict) -> bool:
+    for key in ("span_id", "point_id"):
+        value = tip.get(key)
+        if isinstance(value, str) and value.strip():
+            return True
+    video_id = tip.get("video_id")
+    start_ms = tip.get("start_ms")
+    return (
+        isinstance(video_id, str)
+        and bool(_YOUTUBE_ID_RE.match(video_id))
+        and isinstance(start_ms, int)
+        and not isinstance(start_ms, bool)
+        and start_ms >= 0
+    )
+
+
+def _credited(tip: dict) -> dict:
+    """The tip as served: teacher credit kept only with a locator (GURU-012)."""
+    if tip.get("teacher") and not _has_locator(tip):
+        return {**tip, "teacher": ""}
+    return tip
+
+
 _NARRATIVE_STORY_RE = re.compile(
     r"\b(CEO|company|corporation|firm|business executive|colleague|coworker|"
     r"he said|she said|they said|one day|at work|boardroom|office|client|manager)\b",
@@ -267,21 +296,35 @@ def _harvest_tip_pool(qdrant) -> list[dict]:
             if not _looks_like_complete_thought(text) or fingerprint in seen:
                 continue
             seen.add(fingerprint)
-            pool.append(
-                {
-                    "text": text,
-                    "source": row.get("source_url") or row.get("title") or "the teachings",
-                    "teacher": row.get("teacher") or DEFAULT_TEACHER,
-                    "category": topic.title(),
-                }
+            meta = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            tip = {
+                "text": text,
+                "source": row.get("source_url")
+                or meta.get("source_url")
+                or row.get("title")
+                or meta.get("title")
+                or "the teachings",
+                "category": topic.title(),
+            }
+            locator = {k: meta[k] for k in ("video_id", "start_ms") if k in meta}
+            tip.update(locator)
+            # GURU-012: credit only with a locator; never a default teacher.
+            tip["teacher"] = (
+                (meta.get("teacher") or row.get("teacher") or DEFAULT_TEACHER)
+                if _has_locator(locator)
+                else ""
             )
+            if not _has_locator(locator):
+                for key in locator:
+                    tip.pop(key, None)
+            pool.append(tip)
     return pool
 
 
 def _build_payload(tips: list[dict]) -> dict:
     now = datetime.now(UTC)
     return {
-        "tips": [{"id": tip.get("id") or str(uuid.uuid4()), **tip} for tip in tips],
+        "tips": [{"id": tip.get("id") or str(uuid.uuid4()), **_credited(tip)} for tip in tips],
         "generated_at": now.isoformat(),
         "expires_at": (now + timedelta(seconds=TIPS_TTL_SECONDS)).isoformat(),
     }
@@ -325,7 +368,10 @@ async def get_wisdom_tips(container: ServiceContainer = Depends(get_container_as
         try:
             cached = redis_client.get(TIPS_CACHE_KEY)
             if cached:
-                return json.loads(cached)
+                payload = json.loads(cached)
+                # GURU-012: a cache written before the locator rule is re-checked.
+                payload["tips"] = [_credited(tip) for tip in payload.get("tips") or []]
+                return payload
         except Exception as exc:
             logger.warning("Tips cache read failed: %s", exc)
     return await _generate_tips(container)
@@ -353,9 +399,13 @@ async def add_curated_teaching(
     text = (item.get("text") or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="Teaching text is required")
-    teacher = (item.get("teacher") or DEFAULT_TEACHER).strip()
     source = (item.get("source") or "Master Discourse").strip()
     category = (item.get("category") or "Wisdom").strip()
+    locator = {k: item[k] for k in ("span_id", "point_id", "video_id", "start_ms") if k in item}
+    if not _has_locator(locator):
+        locator = {}
+    # GURU-012: an admin tip credits a teacher only with a locator.
+    teacher = (item.get("teacher") or DEFAULT_TEACHER).strip() if locator else ""
 
     library = _get_curated_library()
     new_entry = {
@@ -364,6 +414,7 @@ async def add_curated_teaching(
         "teacher": teacher,
         "source": source,
         "category": category,
+        **locator,
     }
     library.insert(0, new_entry)
     _save_curated_library(library)
