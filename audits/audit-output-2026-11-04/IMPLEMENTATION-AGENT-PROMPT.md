@@ -512,6 +512,8 @@ Proven in tests only: the chat bridge stage, run on one loop with the sync entry
 
 UNPROVEN: the async branch on a running local Docker stack; staging c20 with real models; production latency. The `start_railway.py` watchdog stays until the owner runs that test.
 
+Owner decisions 2026-11-06 (Harsha, thread: "accept as it is"): (1) the distress answer keeps call-verified lines only (Tele-MANAS today, no 112 or non-India line until a call date is recorded); `test_handle_distress_strips_hazard_and_carries_support_line` now pins the verified block. (2) The legacy-store tail stays sync.
+
 Not done: the legacy-store tail (steps 3-6) is still sync on the `fp-io` pool. Converting it changes mechanisms that tests pin on purpose (`test_answerability_thread.py` patches `_answerability_executor` submit/join; `test_fp_memory_signals.py` replaces `_retrieve_with_answerability_gate` synchronously), and v10-only mode never reaches it. Owner decision.
 
 Behaviour differences the goldens cannot see: the sync bridges have a 120 s outer bound and the inner provider budget starts when the core starts; a stopped loop is skipped instead of waited on; harness tokens merge in context order instead of completion order; a `wait_for` timeout on the breath route now cancels the pipeline instead of leaving a thread running.

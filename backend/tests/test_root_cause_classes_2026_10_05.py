@@ -452,7 +452,14 @@ async def test_handle_distress_strips_hazard_and_carries_support_line():
         result = await handle_distress(state, config={})
     answer = result["final_answer"]
     assert "life itself" not in answer
-    assert "14416" in answer and "988" in answer
+    # Owner decision 2026-11-06 (Harsha, thread "accept as it is"): since T4-07
+    # (SAFE-004) the distress answer carries only call-verified lines, which
+    # today is Tele-MANAS alone. Pin the verified block, not a list of numbers,
+    # so a line with a newly recorded call date appears without a test edit.
+    from services.crisis_helplines import format_helplines_block
+
+    assert "14416" in answer
+    assert format_helplines_block(style="compact_two_line", verified_only=True) in answer
 
 
 @pytest.mark.asyncio
