@@ -36,6 +36,8 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          // Text-only red that clears 4.5:1 on tinted cards (NEW-A11Y-2).
+          ink: "hsl(var(--destructive-ink))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -61,6 +63,8 @@ export default {
           // WCAG AA-passing gold for text; see --ojas-gold-ink in index.css.
           ink: "hsl(var(--ojas-gold-ink))",
         },
+        // Text-only amber for the "Related, not a direct answer" family (NEW-A11Y-2).
+        "amber-ink": "hsl(var(--amber-ink))",
         tejas: {
           DEFAULT: "hsl(var(--tejas-white))",
           glow: "hsl(var(--tejas-glow))",

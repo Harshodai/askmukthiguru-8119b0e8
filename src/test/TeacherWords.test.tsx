@@ -114,7 +114,9 @@ describe('TeacherWords page', () => {
     await askQuestion();
 
     await waitFor(() => {
-      expect(screen.getByText(/Related, not a direct answer/i)).toBeInTheDocument();
+      // NEW-A11Y-2 (A11Y-03): the heading badge and the per-clip badge use the
+      // same wording, so both must be present.
+      expect(screen.getAllByText(/Related, not a direct answer/i).length).toBeGreaterThanOrEqual(2);
     });
   });
 

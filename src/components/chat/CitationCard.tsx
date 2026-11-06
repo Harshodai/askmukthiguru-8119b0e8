@@ -69,7 +69,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
             onOpenVideoModal(citation);
           }
         }}
-        className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-saffron-gold transition-all hover:scale-110 hover:bg-saffron-gold/20 focus:outline-none"
+        className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-ojas-ink transition-all hover:scale-110 hover:bg-saffron-gold/20 focus:outline-none"
       >
         {citation.index}
       </button>
@@ -93,7 +93,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
                   {citation.title || 'Sacred Discourse Teaching'}
                 </p>
                 <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span className="flex items-center gap-1 text-saffron-gold">
+                  <span className="flex items-center gap-1 text-ojas-ink">
                     {resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}
                     {citation.speakerVerified && (
                       <Sparkles className="h-2.5 w-2.5 text-saffron-gold" aria-label="Voice verified teacher" />
@@ -123,7 +123,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
               <button
                 type="button"
                 onClick={() => onOpenVideoModal(citation)}
-                className="flex items-center justify-center gap-1 rounded-xl bg-saffron-gold/15 py-1.5 text-xs font-medium text-saffron-gold hover:bg-saffron-gold/25 transition-colors"
+                className="flex items-center justify-center gap-1 rounded-xl bg-saffron-gold/15 py-1.5 text-xs font-medium text-ojas-ink hover:bg-saffron-gold/25 transition-colors"
               >
                 <Play className="h-3 w-3 fill-current" /> Video
               </button>
@@ -262,7 +262,7 @@ export const DiscourseVideoModal: React.FC<{
               href={citation.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-saffron-gold/40 px-3 py-1 text-[11px] text-saffron-gold hover:bg-saffron-gold/15 transition-colors"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-saffron-gold/40 px-3 py-1 text-[11px] text-ojas-ink hover:bg-saffron-gold/15 transition-colors"
             >
               <ExternalLink className="h-3 w-3" />
               Watch on YouTube
@@ -290,10 +290,10 @@ export const DiscourseVideoModal: React.FC<{
               <h3 className="font-serif text-base font-semibold text-foreground">
                 {citation.title || 'Sacred Discourse'}
               </h3>
-              <p className="text-xs text-saffron-gold">{resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}</p>
+              <p className="text-xs text-ojas-ink">{resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}</p>
             </div>
             {isDirectVideo ? (
-              <span className="flex items-center gap-1.5 text-xs font-medium text-ojas bg-ojas/10 px-2.5 py-1 rounded-full border border-ojas/20">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-ojas-ink bg-ojas/10 px-2.5 py-1 rounded-full border border-ojas/20">
                 <Video className="h-3.5 w-3.5" /> Direct Video Recording
               </span>
             ) : (
@@ -376,7 +376,7 @@ export const DiscourseVideoModal: React.FC<{
                     className="w-full rounded-lg border border-border/50 bg-card/60 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-saffron-gold/50"
                   />
                   {reportStatus === 'error' && (
-                    <p className="text-[11px] text-destructive flex items-center gap-1">
+                    <p className="text-[11px] text-destructive-ink flex items-center gap-1">
                       <AlertCircle className="h-3 w-3" /> Could not submit report. Please try again.
                     </p>
                   )}

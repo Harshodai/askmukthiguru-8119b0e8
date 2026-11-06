@@ -6,6 +6,7 @@
  * Network is blocked, so these run against the built frontend alone. Anything
  * that needs a real backend or Supabase session is out of scope here.
  */
+import AxeBuilder from '@axe-core/playwright';
 import { test, expect, type Page } from '@playwright/test';
 import { dismissSafetyDisclaimer } from './support';
 
@@ -43,4 +44,63 @@ test('AC-A11Y-10: the cookie banner does not cover Send at 390 px', async ({ pag
     [box.x + box.width / 2, box.y + box.height / 2],
   );
   expect(topmost, 'the cookie banner sits on top of the Send button').toBe(true);
+});
+
+// --- AC-A11Y-2: axe on states the empty page never shows -----------------------
+
+async function auditStates(page: Page, label: string) {
+  await page
+    .waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'), undefined, {
+      timeout: 5_000,
+    })
+    .catch(() => undefined);
+  await page.waitForTimeout(500); // framer-motion entrances are not always in getAnimations()
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .disableRules(['frame-title', 'color-contrast-enhanced'])
+    .exclude('iframe')
+    .analyze();
+  const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+  const text = blocking
+    .map((v) => `[${v.impact}] ${v.id}: ${v.nodes.slice(0, 3).map((n) => JSON.stringify(n.target)).join(' ')}`)
+    .join('\n');
+  expect(blocking, `${label}: serious/critical axe violations\n${text}`).toHaveLength(0);
+}
+
+async function sendQuestion(page: Page, text: string) {
+  const box = page.getByRole('textbox', { name: /your message/i });
+  await box.fill(text);
+  await box.press('Enter');
+}
+
+test('AC-A11Y-2d: the error card has no serious or critical violations', async ({ page }) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"boom"}' }),
+  );
+  await sendQuestion(page, 'What is the nature of attention?');
+  await expect(page.getByTestId('error-care-line').first()).toBeVisible({ timeout: 15_000 });
+  await auditStates(page, 'error card');
+});
+
+test('AC-A11Y-2b: the abstain answer has no serious or critical violations', async ({ page }) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: [
+        'event: message\n',
+        'data: {"content": "I could not find a teaching that answers this directly."}\n\n',
+        'event: done\n',
+        'data: {"intent": "FACTUAL", "citations": [], "meditation_step": 0, "grounding_state": "abstained"}\n\n',
+        'data: [DONE]\n\n',
+      ].join(''),
+    }),
+  );
+  await sendQuestion(page, 'What is the capital of France?');
+  await expect(page.getByText(/could not find a teaching/i).first()).toBeVisible({ timeout: 15_000 });
+  await auditStates(page, 'abstain answer');
 });

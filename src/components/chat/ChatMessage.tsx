@@ -1,3 +1,4 @@
+import { RELATED_NOT_DIRECT_KEY, RELATED_NOT_DIRECT_LABEL } from '@/lib/relatedLabel';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
@@ -266,7 +267,7 @@ const TeachingGroundingCard = ({
       >
         <div className="flex flex-wrap items-center justify-between gap-2 text-[15px] leading-5 font-medium text-foreground">
           <span>{t('chat.teachingContext.title')}</span>
-          <span className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+          <span className="inline-flex items-center rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-medium text-amber-ink">
             {t('chat.teachingContext.partialBadge', 'Closest passages (not verified)')}
           </span>
         </div>
@@ -302,7 +303,7 @@ const TeachingGroundingCard = ({
     : isPartialEvidence
     ? t('chat.teachingContext.partialBadge', 'Closest passages (not verified)')
     : isRelatedOnly
-    ? t('chat.teachingContext.relatedBadge', 'Related teaching — not a direct answer')
+    ? t(RELATED_NOT_DIRECT_KEY, RELATED_NOT_DIRECT_LABEL)
     : isSupporting
     ? t('chat.teachingContext.supportingBadge', 'Supporting Context')
     : t('chat.teachingContext.unverifiedBadge', 'General Spiritual Context');
@@ -338,10 +339,10 @@ const TeachingGroundingCard = ({
           className={cn(
             'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium',
             isExplicitlyVerified
-              ? 'bg-ojas/10 text-ojas border border-ojas/20'
+              ? 'bg-ojas/10 text-ojas-ink border border-ojas/20'
               : isSupporting
               ? 'bg-muted/80 text-muted-foreground border border-border/40'
-              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+              : 'bg-amber-500/10 text-amber-ink border border-amber-500/20'
           )}
         >
           {badgeLabel}
@@ -494,7 +495,7 @@ export const GuruTeachingCard = ({
       : showVerified
       ? t('chat.guruTeaching.verifiedBadge', 'Verified')
       : related
-        ? t('chat.guruTeaching.relatedBadge', 'Related — not a direct answer')
+        ? t(RELATED_NOT_DIRECT_KEY, RELATED_NOT_DIRECT_LABEL)
         : t('chat.guruTeaching.unverifiedBadge', 'Unverified attribution');
 
   return (
@@ -505,7 +506,7 @@ export const GuruTeachingCard = ({
     >
       <div className="flex flex-wrap items-center gap-2">
         <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-ojas">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-ojas-ink">
           {personalized
             ? t('chat.guruTeaching.personalizedLabel', 'Personalized reflection')
             : t('chat.guruTeaching.label', 'Guru teaching · verbatim')}
@@ -521,8 +522,8 @@ export const GuruTeachingCard = ({
           className={cn(
             'ms-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
             showVerified
-              ? 'border-ojas/20 bg-ojas/10 text-ojas'
-              : 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+              ? 'border-ojas/20 bg-ojas/10 text-ojas-ink'
+              : 'border-amber-500/20 bg-amber-500/10 text-amber-ink'
           )}
         >
           {badgeLabel}
@@ -560,7 +561,7 @@ export const GuruTeachingCard = ({
       )}
       <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-muted-foreground">
         {attribution && (
-          <span className="font-medium text-ojas">{attribution}</span>
+          <span className="font-medium text-ojas-ink">{attribution}</span>
         )}
         <span className="tabular-nums">{clockLabel}</span>
         {playbackLabel && <span className="tabular-nums">{playbackLabel}</span>}
@@ -619,7 +620,7 @@ const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]>
       <div className="min-w-0 flex-1">
         {plan.action_step && (
           <>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">{t('chat.guidance.tryNow')}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas-ink">{t('chat.guidance.tryNow')}</p>
             <p className="mt-1 text-sm font-medium leading-5 text-foreground">{plan.action_step.title}</p>
             <p className="mt-1 text-sm leading-5 text-muted-foreground">{plan.action_step.instruction}</p>
             {plan.action_step.safety_note && (
@@ -629,7 +630,7 @@ const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]>
         )}
         {plan.reflection_prompt && (
           <div className={plan.action_step ? "mt-3 border-t border-ojas/15 pt-2.5" : ""}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">{t('chat.guidance.goDeeper')}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas-ink">{t('chat.guidance.goDeeper')}</p>
             <p className="mt-1 text-sm leading-5 text-foreground/85">{plan.reflection_prompt}</p>
           </div>
         )}
@@ -659,7 +660,7 @@ const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMind
       <div className="flex items-start gap-2">
         <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas">{t('chat.optionalPractice')}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas-ink">{t('chat.optionalPractice')}</p>
           <p className="mt-1 text-sm font-medium leading-5 text-foreground">
             {offer.offer_reason || t('chat.sereneMindOfferDefaultReason')}
           </p>
@@ -832,7 +833,7 @@ const UserMessageContent: React.FC<UserMessageContentProps> = ({
       <button
         type="button"
         onClick={() => setIsExpanded((prev) => !prev)}
-        className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-ojas hover:text-ojas-light transition-colors self-start select-none py-0.5 rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
+        className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-ojas-ink hover:text-ojas-light transition-colors self-start select-none py-0.5 rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ojas"
         aria-expanded={isExpanded}
       >
         <span>{isExpanded ? showLessLabel : `${showMoreLabel} (${wordCount} words)`}</span>
@@ -1035,9 +1036,9 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
             </p>
           );
         }
-        if (text.trim() === 'Related, not a direct answer') {
+        if (text.trim() === RELATED_NOT_DIRECT_LABEL) {
           return (
-            <p className="my-3 text-xs font-medium text-amber-600/90 dark:text-amber-400/90 flex items-center gap-1.5">
+            <p className="my-3 text-xs font-medium text-amber-ink flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500/70" />
               {children}
             </p>
@@ -1082,7 +1083,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           return <code className={`font-mono ${className ?? ''}`}>{children}</code>;
         }
         return (
-          <code className="bg-ojas/10 text-ojas px-1.5 py-0.5 rounded text-[0.875em] font-mono border border-ojas/15">
+          <code className="bg-ojas/10 text-ojas-ink px-1.5 py-0.5 rounded text-[0.875em] font-mono border border-ojas/15">
             {children}
           </code>
         );
@@ -1134,7 +1135,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           );
         }
         return (
-          <a href={href} {...rest} target="_blank" rel="noopener noreferrer" className="text-ojas underline-offset-2 hover:underline">
+          <a href={href} {...rest} target="_blank" rel="noopener noreferrer" className="text-ojas-ink underline-offset-2 hover:underline">
             {children}
           </a>
         );
@@ -1295,7 +1296,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <div className="flex items-start gap-2.5">
                         <AlertTriangle className="w-4 h-4 mt-0.5 text-destructive shrink-0" aria-hidden />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-destructive leading-tight">{errorTitle}</p>
+                          <p className="text-sm font-semibold text-destructive-ink leading-tight">{errorTitle}</p>
                           <p className="text-sm text-foreground/80 mt-1 leading-relaxed">{errorDescription}</p>
                           {/* T1-17: every error card carries a care line with call-verified helpline(s); static so it works when the backend is down. */}
                           <p className="text-sm text-foreground/80 mt-1.5 leading-relaxed" data-testid="error-care-line">
@@ -1316,7 +1317,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               <button
                                 type="button"
                                 onClick={onRegenerate}
-                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
+                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive-ink hover:text-destructive-ink/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
                               >
                                 <RefreshCw className="w-3 h-3" aria-hidden />
                                 {t('common.retry')}
@@ -1326,7 +1327,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               <button
                                 type="button"
                                 onClick={() => navigate('/auth')}
-                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
+                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive-ink hover:text-destructive-ink/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
                               >
                                 <LogIn className="w-3 h-3" aria-hidden />
                                 {t('chat.signInAgain', 'Sign in again')}
@@ -1336,7 +1337,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               <button
                                 type="button"
                                 onClick={onStartNewChat}
-                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
+                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive-ink hover:text-destructive-ink/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
                               >
                                 <RefreshCw className="w-3 h-3" aria-hidden />
                                 {t('chat.contextLimit.continueNewChat')}
@@ -1346,7 +1347,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               <button
                                 type="button"
                                 onClick={() => window.location.reload()}
-                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive hover:text-destructive/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
+                                className="inline-flex items-center gap-1.5 text-[12px] font-medium text-destructive-ink hover:text-destructive-ink/80 border border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10 rounded-md px-2.5 py-1 transition-colors"
                               >
                                 <RefreshCw className="w-3 h-3" aria-hidden />
                                 {t('chat.reload', 'Reload')}
@@ -1390,7 +1391,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             <button
                               type="button"
                               onClick={() => navigate('/profile?tab=memory')}
-                              className="text-ojas underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm font-medium"
+                              className="text-ojas-ink underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm font-medium"
                             >
                               {t('chat.personalizeManage', 'Review what is saved')}
                             </button>
@@ -1504,7 +1505,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               aria-label="Optional reflection prompt inspired by the cited teaching"
                               className="my-3.5 rounded-2xl border border-saffron-gold/25 bg-gradient-to-br from-saffron-gold/10 via-card to-card p-3.5 shadow-sm backdrop-blur-md"
                             >
-                              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-saffron-gold mb-2">
+                              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-ojas-ink mb-2">
                                 <Sparkles className="h-3.5 w-3.5 text-saffron-gold" aria-hidden="true" />
                                 <span>Atma Vichara · Contemplative Inquiry</span>
                               </div>
@@ -1551,7 +1552,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   <div className="flex flex-col gap-2.5 w-full">
                     <div className="flex items-center gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-ojas animate-pulse" />
-                      <p className="text-[11px] text-ojas/70 font-medium">
+                      <p className="text-[11px] text-ojas-ink/70 font-medium">
                         {t('chat.editingLabel')}
                       </p>
                     </div>
@@ -1643,7 +1644,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
 
               {isGuru && message.personalizationProvenance?.used && !isStreaming && !message.error && !isCrisisAnswer(message.content) && (
                 <details className="mt-2 rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2 text-[11px] text-muted-foreground max-w-xl">
-                  <summary className="cursor-pointer select-none text-ojas/80 font-medium">
+                  <summary className="cursor-pointer select-none text-ojas-ink/80 font-medium">
                     ✨ {t('chat.personalization.header')}
                   </summary>
                   <div className="mt-2 space-y-1.5 leading-relaxed">
@@ -1733,7 +1734,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   <span className="text-muted-foreground">{t('chat.practiceNudge.title')}</span>
                   <button
                     onClick={() => openSereneMind('audio', true)}
-                    className="flex-shrink-0 rounded-full border border-ojas/30 px-2.5 py-1 text-[11px] font-medium text-ojas hover:bg-ojas/10 transition-colors whitespace-nowrap"
+                    className="flex-shrink-0 rounded-full border border-ojas/30 px-2.5 py-1 text-[11px] font-medium text-ojas-ink hover:bg-ojas/10 transition-colors whitespace-nowrap"
                   >
                     {t('chat.practiceNudge.cta')}
                   </button>
@@ -1757,7 +1758,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         onClick={handleSpeak}
                         aria-pressed={isSpeaking}
                         className={`p-1 rounded-full transition-colors ${isSpeaking
-                            ? 'bg-ojas/15 text-ojas'
+                            ? 'bg-ojas/15 text-ojas-ink'
                             : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
                           }`}
                         title={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
@@ -1893,7 +1894,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             {/* Memory provenance — surfaces facts the Guru recalled from your reflections */}
             {isGuru && message.memoriesUsed && message.memoriesUsed.length > 0 && (
               <details className="w-full rounded-lg border border-ojas/15 bg-ojas/5 px-3 py-2 text-xs">
-                <summary className="cursor-pointer font-medium text-ojas/80 select-none">
+                <summary className="cursor-pointer font-medium text-ojas-ink/80 select-none">
                   {t('chat.recalledFromReflections', { count: message.memoriesUsed.length })}
                 </summary>
                 <ul className="mt-2 space-y-1 list-disc pl-4 text-muted-foreground">

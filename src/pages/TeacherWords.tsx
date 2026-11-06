@@ -1,3 +1,4 @@
+import { RELATED_NOT_DIRECT_LABEL } from '@/lib/relatedLabel';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Phone } from 'lucide-react';
 import { PublicShell } from '@/components/layout/PublicShell';
@@ -209,7 +210,7 @@ function TeacherWordsResult({
         aria-live="assertive"
         className="whitespace-pre-wrap rounded-xl border-2 border-destructive bg-destructive/10 p-5 text-base font-medium text-foreground focus:outline-none"
       >
-        <div className="mb-2 flex items-center gap-2 font-semibold text-destructive">
+        <div className="mb-2 flex items-center gap-2 font-semibold text-destructive-ink">
           <Phone className="h-5 w-5" aria-hidden="true" />
           Please reach out for support
         </div>
@@ -236,7 +237,7 @@ function TeacherWordsResult({
         ref={headingRef as unknown as React.RefObject<HTMLParagraphElement>}
         tabIndex={-1}
         role="alert"
-        className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive focus:outline-none"
+        className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive-ink focus:outline-none"
       >
         {result.error || 'Something went wrong retrieving these teachings.'}
       </p>
@@ -254,8 +255,8 @@ function TeacherWordsResult({
         Teachings found
       </h2>
       {!result.is_direct_answer && (
-        <Badge variant="outline" className="border-amber-500/50 text-amber-600">
-          {result.related_clips_heading || 'Related, not a direct answer'}
+        <Badge variant="outline" className="border-amber-500/50 text-amber-ink">
+          {result.related_clips_heading || RELATED_NOT_DIRECT_LABEL}
         </Badge>
       )}
       {result.citations.map((citation, i) => (

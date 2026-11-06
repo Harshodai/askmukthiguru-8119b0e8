@@ -142,7 +142,7 @@ describe('GuruTeachingCard', () => {
 
   it('badges a related (not direct) teaching as related, never verified', () => {
     render(<GuruTeachingCard citation={verifiedCitation()} verified related />);
-    expect(screen.getByText('Related — not a direct answer')).toBeInTheDocument();
+    expect(screen.getByText('Related, not a direct answer')).toBeInTheDocument();
     expect(screen.queryByText('Verified')).not.toBeInTheDocument();
   });
 
