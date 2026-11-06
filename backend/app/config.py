@@ -545,12 +545,6 @@ class Settings(BaseSettings):
     feature_regex_prerouter: bool = True
 
     # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
-    # Unwired: nothing in the codebase reads semantic_router_enabled or
-    # semantic_router_top_k. The routing behavior these names imply is
-    # actually gated by semantic_router_confidence_threshold /
-    # semantic_router_shadow_mode below (see orchestrator_utils.py).
-    semantic_router_enabled: bool = True
-    semantic_router_top_k: int = 3
     # Trust the semantic router's tier when its confidence exceeds this; below it,
     # routing defaults to the expensive "standard" path (orchestrator_utils.py:254).
     # Lowered 0.65→0.55 so borderline queries use the router's (often "fast") tier
@@ -586,7 +580,6 @@ class Settings(BaseSettings):
     ollama_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
     ollama_classify_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
     ollama_cloud_only: bool = True  # When True, refuse local-only models (no :cloud tag)
-    sarvam_model_name: str = "sarvam-30b:latest"  # Explicit Sarvam reference for scripts
 
     # --- OpenRouter (free tier for simple queries) ---
     openrouter_api_key: str = ""
@@ -666,12 +659,6 @@ class Settings(BaseSettings):
     reingest_late_chunking: bool = True
     late_chunk_window_tokens: int = Field(default=2048, gt=2)
     late_chunk_window_batch_size: int = Field(default=4, ge=1)
-    SERVICE_ORCID_MAP: dict[str, str] = {
-        # Maps service names to ORCID iDs for academic attribution.
-        # Populate before production if contributors have registered ORCIDs.
-        # Format: "service_name": "0000-0001-2345-6789"
-        # Look up ORCIDs at https://orcid.org/search
-    }
     # In-flight contextualizer LLM calls. 8 suits a hosted endpoint (calls are
     # network-bound); _contextualize() clamps it back to 3 for local Ollama,
     # where extra concurrency only queues behind one model.
@@ -962,7 +949,6 @@ class Settings(BaseSettings):
     transcript_languages: str = (
         "en,hi,bn,te,mr,ta,ur,gu,kn,ml,or,pa,as,mai,sa,ks,ne,sd,kok,doi,mni,sat,brx"
     )
-    transcript_max_retries: int = 3  # Retry per tier before falling to next
     transcript_concurrent_workers: int = 1  # Kept at 1 to avoid YouTube 429 rate limits
 
     # --- Scheduled external-content synchronization ---
@@ -981,11 +967,6 @@ class Settings(BaseSettings):
     # --- Transcript Council (Dual-STT Quality Check) ---
     # When enabled: fetches captions AND runs Sarvam STT on audio, then picks best result.
     enable_transcript_council: bool = True  # Run both YouTube captions + Sarvam STT per video
-    sarvam_stt_model: str = "saaras:v3"  # Sarvam Batch STT model
-    sarvam_stt_mode: str = "transcribe"  # Options: transcribe, codemix, translate
-    sarvam_stt_language: str = "en-IN"  # Language hint (en-IN for English w/ Indian accent)
-    stt_chunk_minutes: int = 55  # Chunk long audio into N-minute pieces (Batch API max 1hr)
-    stt_max_audio_mb: int = 200  # Skip STT if audio file exceeds this size (MB)
 
     # --- OCR ---
     ocr_languages: str = "en,hi"
@@ -1103,7 +1084,6 @@ class Settings(BaseSettings):
     # Required in production; Mode-B (session-unlock) vaults derive KEK from
     # the user's passphrase, but the default Mode-A wrap still needs this.
     brain_kek: Optional[str] = None
-    correlation_id_max_length: int = 64  # Max length for X-Correlation-ID header
     allowed_hosts: str = "localhost,127.0.0.1"  # Trusted hosts for Origin/Referer validation
 
     # --- Auth & Rate Limiting ---
@@ -1540,8 +1520,6 @@ class Settings(BaseSettings):
     ingestion_relation_model: str = ""
     # Max entity pairs classified in a single batched LLM call (reduces call count).
     ingestion_relation_batch_size: int = 5
-    # LRU cache size for (entity_a, entity_b) -> relation lookups.
-    ingestion_relation_cache_size: int = 256
 
     # --- Quality gate (Tier 1+) density / fact-check / bias stubs ---
     quality_min_information_density: float = (
@@ -1618,7 +1596,6 @@ class Settings(BaseSettings):
 
     # Qdrant-backed semantic cache (Phase 1.2). The live collection name is
     # built by the adapter (mukthi_semantic_cache_{dim}d); no name setting.
-    semantic_cache_hnsw_ef: int = 128  # HNSW ef parameter for cache lookups
 
     # --- P90/P99 Hybrid Search (Phase 1.1) ---
     faiss_cache_size: int = 500  # Number of top docs mirrored in local FAISS index
@@ -1873,15 +1850,9 @@ class Settings(BaseSettings):
 
     # --- LLM Gateway (Phase A7 — unified provider chain via emergentintegrations) ---
     # When llm_provider == "emergent", the LLMGateway uses the emergentintegrations
-    # library and picks a model from the comma-separated chain in
-    # `llm_provider_chain`. Format: "provider:model,provider:model,..."
-    # Example: "anthropic:claude-sonnet-4-6,anthropic:claude-haiku-4-5-20251001,openai:gpt-5.4"
-    # The gateway tries each in order on transient failure. NEVER hardcode model names
-    # in service code; always read from settings.
+    # library. The unread `llm_provider_chain` setting was removed 2026-11-06 (CQ-010).
+    # NEVER hardcode model names in service code; always read from settings.
     emergent_llm_key: str = ""  # Universal key, prefix sk-emergent-...
-    llm_provider_chain: str = (
-        "anthropic:claude-sonnet-4-6,anthropic:claude-haiku-4-5-20251001,openai:gpt-5.4"
-    )
 
     # --- LLM Gateway cross-provider fallback (services/llm_gateway.py — the
     # actual LLMGateway class; distinct from the emergentintegrations concept
@@ -1895,10 +1866,6 @@ class Settings(BaseSettings):
     # footer that was breaking immersion. The context-aware close is generated dynamically
     # from the intent + citation count instead.
     strip_canned_footer: bool = True
-    # Maximum paragraphs in a single answer (cadence control).
-    persona_max_paragraphs: int = 4
-    # Maximum words in a single sentence (cadence control). Trips a soft warning in logs.
-    persona_max_sentence_words: int = 35
     # Maximum age (days) of a stored persona before prepare_user_memory stops
     # injecting it into prompts; a stale persona is skipped, not served.
     persona_max_age_days: int = 30
@@ -2034,7 +2001,6 @@ class Settings(BaseSettings):
     # floor). Do not raise without re-measuring the score distribution.
     faithfulness_floor: float = 0.6
     confidence_gating_floor: float = 6.5
-    verifier_pass_ratio: float = 0.5
     rerank_threshold_complex: float = 0.01
     rerank_threshold_simple: float = 0.05
     rerank_floor: float = 0.3
