@@ -78,7 +78,6 @@ jobs:
         env:
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
           BACKEND_TOKEN: ${{ secrets.BACKEND_TOKEN }}
-          LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
         run: |
           python backend/evaluation/run_golden_eval.py \
             --dataset backend/evaluation/golden_dataset.json \
