@@ -43,12 +43,12 @@ class BootTimer:
     @contextmanager
     def phase(self, name: str, *, budget_s: float | None = None):
         began = self._now()
-        outcome = "ok"
+        # "failed" until the body finishes. An exception (or a cancel) skips the
+        # assignment, so no broad handler is needed (CQ-006 / T7-05).
+        outcome = "failed"
         try:
             yield
-        except BaseException:
-            outcome = "failed"
-            raise
+            outcome = "ok"
         finally:
             self.record(name, self._now() - began, outcome=outcome, budget_s=budget_s)
 
@@ -92,5 +92,9 @@ class BootTimer:
                     phase_total,
                     healthcheck_timeout_s,
                 )
-        except Exception:  # pragma: no cover - logging must never break startup
+        except (
+            TypeError,
+            ValueError,
+            KeyError,
+        ):  # pragma: no cover - a log line must not stop startup
             logger.debug("boot timing log failed", exc_info=True)

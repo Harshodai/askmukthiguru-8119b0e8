@@ -105,7 +105,11 @@ class BudgetReservation:
                 reason,
                 self.amount_usd,
             )
-        except Exception:  # pragma: no cover - metrics must never break a call
+        except (
+            ValueError,
+            KeyError,
+            TypeError,
+        ):  # pragma: no cover - a metric must not break a call
             logger.debug("budget kept-reservation metric failed", exc_info=True)
 
     async def settle(self, actual_cost_usd: float | None) -> None:

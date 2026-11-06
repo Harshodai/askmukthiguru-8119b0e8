@@ -25,7 +25,7 @@ def _answerability_timeout_s() -> float | None:
         from services import first_person_pipeline
 
         return float(first_person_pipeline._ANSWERABILITY_TIMEOUT_S)
-    except Exception:
+    except (ImportError, AttributeError, TypeError, ValueError):
         return None
 
 
@@ -105,5 +105,10 @@ def log_runtime_budget(logger: logging.Logger, settings: Any) -> None:
         logger.info("LLM budget table: %s", table)
         cap = capacity_snapshot(settings)
         logger.info("Capacity: %s", " ".join(f"{k}={v}" for k, v in cap.items()))
-    except Exception:  # pragma: no cover - reporting must never break startup
+    except (
+        TypeError,
+        ValueError,
+        KeyError,
+        AttributeError,
+    ):  # pragma: no cover - reporting must not stop startup
         logger.debug("runtime budget log failed", exc_info=True)
