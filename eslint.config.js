@@ -73,6 +73,19 @@ export default tseslint.config(
           selector: "CallExpression[callee.name='fetch'] > TemplateLiteral > TemplateElement:first-child[value.raw=/^.api./]",
           message: "Use `${BACKEND_URL}/api/...` from '@/lib/backendUrl' instead of a relative /api fetch.",
         },
+        // NEW-LOV-03: generated (Lovable) code reaches the API through other call forms too.
+        {
+          selector: "NewExpression[callee.name='EventSource'] > Literal[value=/^.api./]",
+          message: "Use `${BACKEND_URL}/api/...` from '@/lib/backendUrl' instead of a relative /api EventSource.",
+        },
+        {
+          selector: "NewExpression[callee.name='EventSource'] > TemplateLiteral > TemplateElement:first-child[value.raw=/^.api./]",
+          message: "Use `${BACKEND_URL}/api/...` from '@/lib/backendUrl' instead of a relative /api EventSource.",
+        },
+        {
+          selector: "CallExpression[callee.property.name='sendBeacon'] > Literal:first-child[value=/^.api./]",
+          message: "Use `${BACKEND_URL}/api/...` from '@/lib/backendUrl' instead of a relative /api beacon.",
+        },
       ],
     },
   },
