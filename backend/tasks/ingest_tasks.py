@@ -18,6 +18,7 @@ from httpx import HTTPError
 from app.config import settings
 from app.sanitization import sanitize_log_input
 from celery_config import celery_app, update_job_progress
+from tasks.worker_loop import run_in_worker_loop, worker_loop
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def classify_ingest_error(error: BaseException) -> str:
 
 
 class AsyncTask(Task):
-    """Base task with async support via asyncio.run() and failed-job tracking."""
+    """Base task with async support on the per-process worker loop and failed-job tracking."""
 
     _loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -90,10 +91,10 @@ class AsyncTask(Task):
 
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
-        if self._loop is None or self._loop.is_closed():
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-        return self._loop
+        # T7-02 (CQ-011): one loop per worker process, shared by every task class.
+        loop = worker_loop()
+        asyncio.set_event_loop(loop)
+        return loop
 
     def run_async(self, coro):
         try:
@@ -106,7 +107,7 @@ class AsyncTask(Task):
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 return pool.submit(asyncio.run, coro).result()
-        return self.loop.run_until_complete(coro)
+        return run_in_worker_loop(coro)
 
 
 @celery_app.task(

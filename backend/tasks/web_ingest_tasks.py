@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from celery import shared_task
 
 from app.config import settings
+from tasks.worker_loop import run_in_worker_loop
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +28,12 @@ def _sanitize_url(url: str) -> str:
 )
 def ingest_url_task(self, url: str, mode: str = "auto") -> dict:
     """Fetch a URL, extract clean text, chunk it, index into doctrine, return chunk metadata."""
-    import asyncio
 
     from ingestion.web_ingest_pipeline import ingest_url
 
     safe_url = _sanitize_url(url)
     try:
-        chunks = asyncio.run(ingest_url(url, mode=mode))
+        chunks = run_in_worker_loop(ingest_url(url, mode=mode))
         logger.info("ingest_url_task: %s → %d chunks", safe_url, len(chunks))
         if chunks:
             _index_chunks(chunks)
@@ -48,7 +48,6 @@ def ingest_url_task(self, url: str, mode: str = "auto") -> dict:
 
 def _index_chunks(chunks: list[dict]) -> None:
     """Embed and upsert chunks into Qdrant via the pipeline's ingest_raw_text."""
-    import asyncio
 
     from ingest.pipeline import IngestionPipeline
     from services.embedding_service import get_embedding_service
@@ -68,7 +67,7 @@ def _index_chunks(chunks: list[dict]) -> None:
         text = chunk.get("text", "")
         if not text.strip():
             continue
-        asyncio.run(
+        run_in_worker_loop(
             pipeline.ingest_raw_text(
                 text=text,
                 source_url=chunk.get("source", ""),

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from app.config import settings
 from celery_config import celery_app
+from tasks.worker_loop import run_in_worker_loop
 
 app = celery_app
 logger = logging.getLogger(__name__)
@@ -261,4 +261,4 @@ async def _drain_once(limit: int = 50) -> dict[str, int]:
 )
 def drain_memory_outbox(self) -> dict[str, int]:
     """Process at most 50 durable memory writes. Safe across worker replicas."""
-    return asyncio.run(_drain_once())
+    return run_in_worker_loop(_drain_once())
