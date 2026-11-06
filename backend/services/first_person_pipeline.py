@@ -20,6 +20,7 @@ Pipeline Flow:
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import hashlib
 import json
 import logging
@@ -886,7 +887,7 @@ def _relevance_select_jev(
             _FACADE_TIMEOUT_S,
             request_loop,
         )
-    except Exception as exc:  # noqa: BLE001 - fail closed to the scorer fallback
+    except _BRIDGE_ERRORS as exc:  # fail closed
         logger.info("Jev clip selection bridge failed: %s; falling back", type(exc).__name__)
         return _RELEVANCE_INDETERMINATE
 
@@ -1047,7 +1048,7 @@ def _relevance_select(
             _FACADE_TIMEOUT_S,
             request_loop,
         )
-    except Exception as exc:  # noqa: BLE001 - fail closed as relevance-indeterminate
+    except _BRIDGE_ERRORS as exc:  # fail closed
         logger.info("[FirstPersonPipeline] Relevance bridge failed: %s", type(exc).__name__)
         return _RELEVANCE_INDETERMINATE
 
@@ -1116,7 +1117,7 @@ def _relevance_select_scored(
             _FACADE_TIMEOUT_S,
             request_loop,
         )
-    except Exception as exc:  # noqa: BLE001 - fail closed as relevance-indeterminate
+    except _BRIDGE_ERRORS as exc:  # fail closed
         logger.info("[FirstPersonPipeline] Relevance bridge failed: %s", type(exc).__name__)
         return _RELEVANCE_INDETERMINATE
 
@@ -1566,6 +1567,10 @@ def _stable_llm_loop(request_loop: Optional[Any] = None) -> Any:
 # itself, so this bound only stops a wedged loop from holding a sync caller.
 _FACADE_TIMEOUT_S = 120.0
 
+# What a sync bridge itself can raise (the cores fail closed on their own):
+# the outer deadline, the own-loop deadlock guard, a cancelled future.
+_BRIDGE_ERRORS = (TimeoutError, RuntimeError, concurrent.futures.CancelledError)
+
 
 # T7-02: the async lane's sync I/O (Qdrant, Redis, file reads, the legacy tail)
 # runs on this pool, never on the loop's default executor. A sync caller of
@@ -1718,7 +1723,7 @@ def _answerability_check(
             _FACADE_TIMEOUT_S,
             request_loop,
         )
-    except Exception as e:  # noqa: BLE001 - fail closed; the core already logged its own failures
+    except _BRIDGE_ERRORS as e:  # fail closed; the core logs its own failures
         logger.info("[FirstPersonPipeline] Answerability bridge failed: %s", type(e).__name__)
         return None
 
