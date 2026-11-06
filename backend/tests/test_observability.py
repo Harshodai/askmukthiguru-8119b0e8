@@ -119,15 +119,15 @@ def test_prometheus_prod_config_validity():
     assert "rule_files" in config
     assert "alerting-rules.yml" in config["rule_files"]
 
+    # NEW-OPS-1: one job, on /internal/metrics. The old jobs scraped /api/metrics
+    # and /metrics, which both answer 401 to a static bearer token.
     scrape_jobs = {job["job_name"]: job for job in config["scrape_configs"]}
-    assert "askmukthiguru-backend-prod-api" in scrape_jobs
-    assert "askmukthiguru-backend-prod-system" in scrape_jobs
-
-    api_job = scrape_jobs["askmukthiguru-backend-prod-api"]
-    assert api_job.get("metrics_path") == "/api/metrics"
-    assert api_job.get("scheme") == "https"
-    assert api_job.get("authorization", {}).get("type") == "Bearer"
-    assert "${PROMETHEUS_BEARER_TOKEN}" in api_job.get("authorization", {}).get("credentials", "")
+    assert "askmukthiguru-backend-prod" in scrape_jobs
+    prod_job = scrape_jobs["askmukthiguru-backend-prod"]
+    assert prod_job.get("metrics_path") == "/internal/metrics"
+    assert prod_job.get("scheme") == "https"
+    assert prod_job.get("authorization", {}).get("type") == "Bearer"
+    assert "${METRICS_SCRAPE_TOKEN}" in prod_job.get("authorization", {}).get("credentials", "")
 
     # Validate remote write for Grafana Cloud
     assert len(config["remote_write"]) > 0
@@ -228,11 +228,11 @@ def test_first_person_alerting_rules_valid():
 
     quarantine = rules_by_name["FirstPersonQuarantineDetected"]
     assert "first_person_quarantined_total" in quarantine["expr"]
-    assert quarantine["labels"]["severity"] == "warning"
+    assert quarantine["labels"]["severity"] == "warn"  # the routed value (NEW-OPS-1)
 
     latency = rules_by_name["FirstPersonLatencySLOBreach"]
     assert "first_person_latency_seconds" in latency["expr"]
-    assert latency["labels"]["severity"] == "warning"
+    assert latency["labels"]["severity"] == "warn"
     assert latency["for"] == "10m"
 
     error_rate = rules_by_name["FirstPersonErrorRateHigh"]

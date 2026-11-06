@@ -37,6 +37,10 @@ route:
       receiver: oncall-slack
       continue: true
     - match:
+        severity: info
+      receiver: oncall-slack
+      continue: true
+    - match:
         alertname: HallucinationAnomaly
       receiver: oncall-pager
       continue: true

@@ -5,7 +5,8 @@
 #   envsubst < infrastructure/prometheus/prometheus.prod.yml > /etc/prometheus/prometheus.yml
 #
 # Required Environment Variables:
-#   - PROMETHEUS_BEARER_TOKEN: Bearer token authorized for backend /api/metrics & /metrics
+#   - METRICS_SCRAPE_TOKEN: the SAME value as the backend's METRICS_SCRAPE_TOKEN
+#     (backend/app/api/health.py scrape_metrics serves /internal/metrics with it)
 #   - BACKEND_PROD_HOST: Production hostname (e.g. askmukthiguru-8119b0e8-production.up.railway.app)
 #   - ALERTMANAGER_HOST: Alertmanager endpoint (default: alertmanager:9093)
 #   - GRAFANA_CLOUD_PROMETHEUS_URL: Remote write push URL for Grafana Cloud
@@ -43,28 +44,20 @@ remote_write:
       capacity: 5000
 
 scrape_configs:
-  # 1. AskMukthiGuru Production API Metrics Scraper (/api/metrics)
-  - job_name: 'askmukthiguru-backend-prod-api'
+  # NEW-OPS-1 (OPS-002): this file used to scrape '/api/metrics' (a per-user
+  # engagement JSON route behind Supabase auth) and '/metrics' (admin + AAL2).
+  # A static bearer token satisfies neither, so both jobs got 401 and every rule
+  # in alerting-rules.yml evaluated against an empty series set. The scraper's
+  # own credentialed path is '/internal/metrics'. It serves the same exposition
+  # and answers 404 while METRICS_SCRAPE_TOKEN is unset, which shows as a DOWN
+  # target, not as silence. '/metrics' stays admin-only and is never scraped.
+  # Worker and beat serve no metrics path today; their metrics are not scraped.
+  - job_name: 'askmukthiguru-backend-prod'
     scheme: https
-    metrics_path: '/api/metrics'
+    metrics_path: '/internal/metrics'
     authorization:
       type: Bearer
-      credentials: '${PROMETHEUS_BEARER_TOKEN}'
-    static_configs:
-      - targets: ['${BACKEND_PROD_HOST:-askmukthiguru-8119b0e8-production.up.railway.app}']
-    relabel_configs:
-      - target_label: 'instance'
-        replacement: 'railway-backend-prod'
-      - target_label: 'environment'
-        replacement: 'production'
-
-  # 2. AskMukthiGuru Production System & Health Prometheus Metrics (/metrics)
-  - job_name: 'askmukthiguru-backend-prod-system'
-    scheme: https
-    metrics_path: '/metrics'
-    authorization:
-      type: Bearer
-      credentials: '${PROMETHEUS_BEARER_TOKEN}'
+      credentials: '${METRICS_SCRAPE_TOKEN}'
     static_configs:
       - targets: ['${BACKEND_PROD_HOST:-askmukthiguru-8119b0e8-production.up.railway.app}']
     relabel_configs:

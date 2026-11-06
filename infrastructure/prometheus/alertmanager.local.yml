@@ -44,6 +44,9 @@ route:
     - match:
         severity: warn
       receiver: default
+    - match:
+        severity: info
+      receiver: default
 
 receivers:
   # A receiver with no notifier is valid and intentional: the alert still fires,
