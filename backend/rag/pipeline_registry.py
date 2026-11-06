@@ -116,7 +116,7 @@ def _first_person_claims(state: GraphState) -> bool:
             from services.fp_fail_closed import fail_closed_active
 
             return bool(fail_closed_active())
-        except Exception:  # noqa: BLE001
+        except ImportError:
             return False
 
 

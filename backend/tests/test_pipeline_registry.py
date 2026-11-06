@@ -161,8 +161,16 @@ def test_router_identical_to_parallel_start_when_general_only(flags_on):
 
 
 @pytest.mark.asyncio
-async def test_node_without_pipeline_ctx_falls_through():
-    """Out-of-band ainvoke (tests/evals) never claims — general path stays safe."""
+async def test_node_without_pipeline_ctx_falls_through(monkeypatch):
+    """Out-of-band ainvoke (tests/evals) falls through only when generation is allowed.
+
+    SYS-001 remainder: with generated teaching not allowed (fail closed, the
+    default), a context-free call returns the static abstain instead; that
+    state is pinned in tests/test_fp_fail_closed_remainder.py.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     assert await first_person_node({}, None) == {}
     assert await first_person_node({}, {"configurable": {}}) == {}
 

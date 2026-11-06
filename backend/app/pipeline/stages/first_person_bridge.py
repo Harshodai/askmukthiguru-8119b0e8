@@ -1313,7 +1313,7 @@ class FirstPersonBridgeStage(Stage):
             from app.metrics import ABSTAIN_CAUSE_TOTAL
 
             ABSTAIN_CAUSE_TOTAL.labels(cause=cause).inc()
-        except Exception as exc:  # noqa: BLE001 - telemetry never breaks a response
+        except (ImportError, ValueError) as exc:  # telemetry never breaks a response
             logger.debug("abstain cause not counted: %s", type(exc).__name__)
         if compassion:
             answer = _distress_compassion_framing(ctx)
