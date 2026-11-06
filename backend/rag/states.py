@@ -239,6 +239,11 @@ class GraphState(TypedDict):
     model_used: Optional[str]
     model_provider: Optional[str]
     route_decision: Optional[str]
+    # NEW-AI-1 (AI-011): written by generate_answer / verification / format,
+    # read after format_final_answer by route_after_formatting. Undeclared, it
+    # reached only the edge right after its writer and was None afterwards.
+    # keep_latest: several lanes write it and parallel branches may merge.
+    grounding_state: Annotated[Optional[str], keep_latest]
     # Plug-and-play pipeline handoff (rag/pipeline_registry.py): set only by
     # the first_person node when it claims the request. GraphStage extracts it
     # from the invoke result and short-circuits the stage chain with the exact
@@ -300,6 +305,8 @@ class GraphState(TypedDict):
     # Reject-and-retry loop
     retry_count: int
     _needs_retry: bool
+    # NEW-AI-1 (AI-011): set by handle_meditation, read by route_after_meditation.
+    _meditation_misroute: bool
 
     # Cache for LettuceDetect execution
     lettuce_detect_result: Optional[dict]
