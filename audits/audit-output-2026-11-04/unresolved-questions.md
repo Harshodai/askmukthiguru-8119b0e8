@@ -2,6 +2,8 @@
 
 Owner: lead. Each row needs a person, live infrastructure, or both. Agents must not answer these by assumption. Record answers in `decision-log.md` §3.
 
+> **2026-11-05.** The final verification pass proposed more decisions (D-28 to D-30, and D-PG, D-PI, D-DQ, D-PM, D-PE, D-PQ items). They are sorted by the release gate they block in `FINAL_DECISION_AND_RISK_REGISTER.md` §2. D-28 is closed by research: `.railway/railway.ts` is Railway's current configuration method. Give an accepted proposed decision the next free number here when it is decided.
+
 ## 1. Owner decisions (block roadmap tasks)
 
 | ID | Question | Why it matters | Blocks | Raised in | Recommendation |

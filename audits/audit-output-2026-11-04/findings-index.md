@@ -1,4 +1,5 @@
 # Findings index (stable IDs)
+2026-11-05 status: see FINAL_PENDING_WORK_REGISTER.md for the per-finding status after the remediation commits (head c9b42d3e).
 
 Owner: lead. Scope: every finding in this audit package, with the lead's reconciled severity (after the independent review in `26`) and the roadmap task that closes it.
 

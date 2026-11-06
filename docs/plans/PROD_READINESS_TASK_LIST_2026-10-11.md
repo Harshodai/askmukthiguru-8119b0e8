@@ -5,6 +5,15 @@
 `docs/audits/RELEASE_EVIDENCE_2026-10-11_CLAUDE_CODE.md` ("Acceptance criteria" and "Railway readiness gate"); the invariants
 are in `CLAUDE.md`. Do not start another plan file: edit this one. Companion (research session, 2026-10-12): `docs/plans/BEST_ANSWER_TASK_LIST_2026-10-12.md` was removed per owner's word 2026-10-13 (§20); its answer-quality rows live folded in §9/§12 below, and this list stays the single list.
 
+## Status sources for the 2026-11-04 audit findings (added 2026-11-05)
+
+For the findings of the 2026-11-04 architecture audit (IDs in `audits/audit-output-2026-11-04/findings-index.md`), the current status sources are:
+
+- `audits/audit-output-2026-11-04/FINAL_PENDING_WORK_REGISTER.md` (what is still open, per finding).
+- `audits/audit-output-2026-11-04/FINAL_READINESS_AND_GAP_ANALYSIS.md` (gaps and what stays unproven).
+
+This list stays the single open-work list for everything else. If a row below conflicts with those two files on an audit finding, check the code and fix the row. Docs review of 2026-11-05: `audits/audit-output-2026-11-04/FINAL_LESSONS_AND_DOCUMENTATION_REVIEW.md`.
+
 ## Ruthless order of work (2026-10-15 night; this block wins over any older ordering below)
 
 Verdict stays **NO-GO** until a clean-Docker run on final `main` is graded. Order: faculty-ready, then prod-ready, then Railway. A row is closed only with its evidence file named here. "Tree" = uncommitted in the working tree; nothing below is pushed.

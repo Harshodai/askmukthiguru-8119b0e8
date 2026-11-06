@@ -4,6 +4,10 @@ Read-only audit of `origin/main@46b808fb`. No application file was changed. Rule
 
 > **Location.** This package lives at `audits/audit-output-2026-11-04/` (owner decision D-27, 2026-11-04). It was written as `audit-output/` at the repository root. Read every `audit-output/` path inside these documents as this folder.
 
+## Final verification package (2026-11-05)
+
+Start at `FINAL_READINESS_AND_GAP_ANALYSIS.md`: the release decision for staging, production and public release, and an index of the 10 `FINAL_*` files and the 12 files in `specifications/`. The status of every finding at `c9b42d3e` is in `FINAL_PENDING_WORK_REGISTER.md`. The coding agent starts at `FINAL_CODING_AGENT_EXECUTION_PACKAGE.md` §1.
+
 ## Start here
 
 | If you are… | Read |

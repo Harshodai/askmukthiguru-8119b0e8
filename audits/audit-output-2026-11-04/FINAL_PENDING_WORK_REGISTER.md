@@ -1,0 +1,305 @@
+# Final pending-work register (2026-11-05)
+
+Owner: documentation agent for the final verification. Branch `feature/audit-strengthen-rag-qdrant`, head `c9b42d3e`. Base of the remediation range: `c7befa3d` (73 commits). Source of findings: `findings-index.md` (152 defect findings plus 1 strength, MEM-006). Conventions: `CONVENTIONS.md`.
+
+This register does not change any severity. It does not claim that CI is green: the CI result on the branch head was not observed while this register was written. Separately, the lead observed on 2026-11-05 that every workflow on `c9b42d3e` failed (GitHub Actions run list, [V-GIT]).
+
+
+> **Note added 2026-11-06.** These statuses are as of `c9b42d3e`. 21 later commits (batches 9 to 13) claim to close or change MEM-002, MEM-004, PRD-010, UX-005, UX-009, UX-011, SYS-003, CQ-002, CQ-003, CQ-006, CQ-007, CQ-009, CQ-014, AI-005, GURU-010, GURU-013, SEC-006, ADV-06, SAFE-004, PRD-006 and DATA-13. They are listed in `FINAL_READINESS_AND_GAP_ANALYSIS.md` §7. Re-verify each one before you change its status here.
+
+## Status vocabulary
+
+| Status | Meaning |
+|---|---|
+| Closed | A commit SHA and the code or test that proves it were read for this register. |
+| Partial | Part of the finding is closed. The "Remaining work" column says what is left. |
+| Open | No commit addresses it. An agent can do it, or it is reserved. |
+| Needs owner decision | Blocked by a D-** question in `unresolved-questions.md`. |
+| Needs human | A clinician, rights holder, native speaker, gold labeller or guru reviewer must act. |
+| Needs live infrastructure | Needs Qdrant, Railway or Supabase. |
+
+No finding is marked "Claimed closed, unverified" or "Superseded". Every closure that `IMPLEMENTATION-AGENT-PROMPT.md` §0g claimed was read. Five of the 38 claimed closures are downgraded to Partial (see section 8).
+
+## 1. Summary counts (severity x status)
+
+| Severity | Index count | Closed | Partial | Open | Needs owner decision | Needs human | Needs live infrastructure | Total here |
+|---|---|---|---|---|---|---|---|---|
+| P0 | 2 | 0 | 0 | 0 | 2 | 0 | 0 | 2 |
+| P1 | 47 | 11 | 10 | 6 | 8 | 11 | 1 | 47 |
+| P2 | 81 | 14 | 12 | 19 | 28 | 7 | 1 | 81 |
+| P3 | 22 | 8 | 0 | 5 | 8 | 1 | 0 | 22 |
+| All defects | 152 | 33 | 22 | 30 | 46 | 19 | 2 | 152 |
+
+Index counts: P0 2, P1 47, P2 81, P3 22, strength 1, total 153 (the "Counts" table of `findings-index.md`). The section headings of that file still say P1 45, P2 77, P3 19. The table is authoritative. The headings are stale (see section 8).
+
+Compared with `IMPLEMENTATION-AGENT-PROMPT.md` §0g (38 closed, 7 partial, 107 open): this register finds 33 closed and 22 partial. 119 findings are not closed. Both P0 findings are not closed.
+
+Closed per severity: P1 11 of 47, P2 14 of 81, P3 8 of 22, P0 0 of 2.
+
+## 2. Full register (P0 to P3; the strength MEM-006 is excluded)
+
+Columns: ID, title, severity, status, evidence (commit SHA and code or test read), remaining work, who can close it, roadmap task, blocking decision. "Any agent" means no owner decision, clinician, native speaker or live system is needed. "Reserved" means `IMPLEMENTATION-AGENT-PROMPT.md` §0j keeps the task for a supervised stronger model. Test ids use `file::test_name`; I did not run any test.
+
+| ID | Title | Sev | Status | Evidence | Remaining work | Who can close | Task | Blocking decision |
+|---|---|---|---|---|---|---|---|---|
+| X-06 | Public repository holds teaching content and operational data | P0 | Needs owner decision | No commit. `T0-02` guard not extended. | Make repo private or decide purge; then remove tracked content and extend publication guard. | Owner | T0-01, T0-02 | D-01, D-02 |
+| IP-001 | Verbatim text of 2,737 served spans published in the public repo (reviewer counted 2,737 non-empty `verbatim_text`) | P0 | Needs owner decision | No commit. | Same as X-06. Verbatim spans still tracked. | Owner | T0-01, T0-02 | D-01, D-02 |
+| X-01 | Release-gate claim not reproducible on a clean checkout; `main` red | P1 | Partial | 79ae227a, ec890c18: `backend/tests/test_first_person_public_release_gate.py::test_the_repository_gate_reports_owner_action_required` asserts the computed status. | CI result on branch head not observed by this register. `main` green is not shown. | Any agent (confirm CI); Owner (merge) | T0-04, T1-11 | - |
+| GURU-001 | "24/24 PASS" not reproducible (gold sheets gitignored) | P1 | Partial | Same as X-01 (79ae227a, ec890c18). | Gold sheets remain gitignored. Gate now says OWNER_ACTION_REQUIRED, so the false "24/24 PASS" claim is no longer asserted by the test. | Owner / Human specialist | T0-04, T1-11 | D-09 |
+| GURU-002 | Non-independent "consensus" labels accepted as human gold | P1 | Partial | ec890c18: gate rejects non-independent gold (`test_t1_11_non_independent_gold_review_fails`, `..._single_annotator_fails`, `..._perfect_agreement_without_adjudication_fails`). | Independent labels (>=299, two people) do not exist. Human work. | Human specialist | T1-11, T10-02 | D-09 |
+| EVAL-001 | Release gate accepts unverifiable, non-independent gold | P1 | Closed | ec890c18: `scripts/ops/check_first_person_public_release.py` (identical copy under `backend/scripts/ops/`, cmp verified) and the three `test_t1_11_*` gold tests. | None for the gate logic. Gate input data is still missing (see GURU-002). | - | T1-11 | - |
+| X-02 | `main` unprotected; merges precede CI; PR-less pushes | P1 | Needs owner decision | No commit. | Turn on branch protection and required checks on GitHub. | Owner | T0-03 | T0-03 (no D-** number) |
+| GURU-003 | "Staging readiness" is a local test summary; invalid commit id | P1 | Closed | ec890c18: `_is_ancestor` (`git merge-base --is-ancestor`) and the local-environment check in `_check_staging_readiness`; tests `test_t1_11_staging_commit_must_be_a_real_ancestor`, `..._staging_environment_must_not_be_local`. | A real staging readiness record still does not exist (needs T9-01). | - | T1-11 | - |
+| GURU-004 | Machine scopes authorise public release; notes say NO-GO | P1 | Partial | ec890c18: `_check_authorization_scopes` and `test_t1_11_public_scopes_contradicting_a_no_go_note_fail`. | Gate flags the conflict. Owner must correct the scopes in the config (D-11). | Owner | T0-04 | D-11 |
+| GURU-005 | Clinician and content-owner sign-offs exist only as strings | P1 | Needs human | ec890c18 adds no evidence; sign-offs remain strings. | Clinician and content-owner written messages filed by hash. | Human specialist / Owner | T3-09, T1-11, HUMAN | D-10 |
+| GURU-006 | AI subagent listed as a human audio certifier | P1 | Closed | ec890c18: `test_t1_11_agent_certifier_ids_are_rejected`. | A human audio certifier still has to certify. | - | T1-11 | - |
+| GURU-007 | Helpline call verification not in the gate (1/15 verified) | P1 | Partial | ec890c18: `test_t1_11_uncalled_helplines_fail` (365-day age check). | Phone calls to helplines are human work (1/15 verified). | Human specialist | T1-11, T4-07 | T4-07 calls |
+| SAFE-005 | Clinician approval evidence is an in-repo string | P1 | Needs human | Same as GURU-005. | Clinician approval artefact filed by hash. | Human specialist | T3-09, HUMAN | D-10 |
+| GURU-012 | Teacher-attributed text without a verifiable locator (titles only, or paraphrase in prompts) | P1 | Partial | 4a6ba426: `backend/tests/test_no_unsourced_teacher_attribution.py::test_fallback_tips_are_unattributed_paraphrases`, `::test_no_says_teaches_literals`; `backend/app/api/teachings.py` `DEFAULT_TEACHER` remains for admin-curated tips. | Admin-curated and harvested tips still carry a teacher name without a locator check. Book and series titles still lack locators. | Any agent | T1-03 | - |
+| IP-002 | Teacher voice audio from YouTube published with no rights row | P1 | Needs human | No commit. | A human must confirm the voice in the MP3 and file a rights row, or remove the file (T0-02). | Owner / Human specialist | T0-02, HUMAN | D-12, D-01 |
+| IP-003 | Rights basis rests on owner statements; no written approval filed | P1 | Needs human | No commit. | Written approval from the rights holder. | Human specialist (rights holder) | T3-09, HUMAN | D-10 |
+| IP-004 | yt-dlp acquisition conflicts with YouTube terms unless permitted | P1 | Needs owner decision | No commit. | Decide yt-dlp acquisition policy and the private source bundle (ADR-008). | Owner | T0-05, T3-09 | D-08 |
+| ANS-001 | "What is the cause of my anxiety?" gets a distress template, no teaching | P1 | Needs human | No commit. T4-04 is reserved (`IMPLEMENTATION-AGENT-PROMPT.md` §0j). `evals/pr_suite/distress_benign.jsonl` and `distress_crisis.jsonl` exist (32e73280) but are AI-authored. | Clinician-reviewed core, benign (>=200) and multi-turn (>=50) sets; then T4-04 behind a flag. | Reserved (stronger model, supervised) + Human specialist | T4-04 | D-06, D-22 |
+| ANS-002 | MILD words always upgraded to MODERATE in chat | P1 | Needs human | No commit. T4-04 is reserved (`IMPLEMENTATION-AGENT-PROMPT.md` §0j). `evals/pr_suite/distress_benign.jsonl` and `distress_crisis.jsonl` exist (32e73280) but are AI-authored. | Clinician-reviewed core, benign (>=200) and multi-turn (>=50) sets; then T4-04 behind a flag. | Reserved (stronger model, supervised) + Human specialist | T4-04 | D-06, D-22 |
+| SAFE-002 | Topic repetition escalates to SEVERE crisis pre-emption | P1 | Needs human | No commit. T4-04 is reserved (`IMPLEMENTATION-AGENT-PROMPT.md` §0j). `evals/pr_suite/distress_benign.jsonl` and `distress_crisis.jsonl` exist (32e73280) but are AI-authored. | Clinician-reviewed core, benign (>=200) and multi-turn (>=50) sets; then T4-04 behind a flag. | Reserved (stronger model, supervised) + Human specialist | T4-04 | D-06, D-22 |
+| SAFE-003 | Benign-question overfire accepted, not measured on a reviewed set | P1 | Needs human | No commit. T4-04 is reserved (`IMPLEMENTATION-AGENT-PROMPT.md` §0j). `evals/pr_suite/distress_benign.jsonl` and `distress_crisis.jsonl` exist (32e73280) but are AI-authored. | Clinician-reviewed core, benign (>=200) and multi-turn (>=50) sets; then T4-04 behind a flag. | Reserved (stronger model, supervised) + Human specialist | T4-04, T2-01 | D-06, D-22 |
+| SAFE-001 | Crisis detection = unreviewed regex; semantic stages off | P1 | Needs human | No commit. T4-04 is reserved (`IMPLEMENTATION-AGENT-PROMPT.md` §0j). `evals/pr_suite/distress_benign.jsonl` and `distress_crisis.jsonl` exist (32e73280) but are AI-authored. | Clinician-reviewed core, benign (>=200) and multi-turn (>=50) sets; then T4-04 behind a flag. | Reserved (stronger model, supervised) + Human specialist | T4-04, T10-02 | D-06, D-22 |
+| SAFE-004 | Helplines mostly not call-verified; shown on MODERATE | P1 | Needs human | No commit. | Helpline calls by the owner; then T4-07 filter in code. | Human specialist / Owner | T4-07, HUMAN | T4-07 calls |
+| RET-09 | Generating path stays enabled as the fail-open target | P1 | Closed | 0d32fbcd: `backend/services/fp_fail_closed.py::teaching_generation_allowed`; guard in `backend/rag/nodes/generation.py` (~2669); tests `backend/tests/test_fp_fail_closed.py::test_bridge_off_returns_static_abstain_without_llm`, `::test_generate_answer_guard_abstains_for_teaching_intent`. | Rollback flag `FP_FAIL_CLOSED_ENABLED` exists. T7-06 retires the generating path (D-04). | - | T1-05 | - |
+| ADV-03 | Turning the first-person bridge off sends teaching questions to the generating "warm Guru" prompt | P1 | Closed | 0d32fbcd: `test_fp_fail_closed.py::test_bridge_off_returns_static_abstain_without_llm`, `::test_registry_keeps_module_routable_when_bridge_off`. | None for the bridge-off trigger. | - | T1-05 | - |
+| ANS-004 | Live path cannot compose a complete answer (one clip only) | P1 | Needs owner decision | No commit. | Layered composer (ADR-001), flagged. | Any agent after decision | T5-03, ADR-001 | D-03 |
+| RET-03 | No multi-video composition of evidence | P1 | Needs owner decision | No commit. | Evidence-set selection across videos (T5-02). | Any agent after decision | T5-02 | D-03 |
+| ANS-005 | Root `CLAUDE.md` mandates teacher "I" voice; code forbids it | P1 | Closed | 69d8faaa: root `CLAUDE.md` section "Voice Governance & Invariants" (line 121); `backend/tests/test_voice_governance_docs.py::test_no_teacher_first_person_directives`, `::test_voice_governance_rule_present`. | Owner sign-off on the CLAUDE.md rewrite is requested in prompt §0d. | Owner (sign-off) | T1-01 | - |
+| DATA-01 | Serving corpus cannot be rebuilt from repo + infrastructure | P1 | Needs owner decision | No commit. | Private evidence store and source bundle; reproducible rebuild. | Owner + Any agent | T3-09 | D-08 |
+| DATA-02 | Rights register not in Railway image → every clip abstains | P1 | Closed | e0f42e1c: `backend/Dockerfile`, `backend/Dockerfile.railway`; `backend/tests/test_rights_register_startup.py::test_missing_register_fails_production`, `::test_serving_images_copy_the_register`. | Docker build not run. Register holds `/Users/...` paths; scrub needs re-pin of three digests (owner). | Owner (scrub); Live infrastructure (image build) | T3-01 | - |
+| DATA-05 | v10 builder is add-only; snapshot after writes | P1 | Closed | 741fe70a: `backend/scripts/ops/build_full_corpus_v10.py` (`--replace-existing`, snapshot before first write ~line 957); `backend/tests/test_builder_replace_and_snapshot.py::test_builder_takes_snapshot_before_first_write`, `::test_builder_per_video_replace_deletes_stale_points`, `::test_builder_refuses_empty_build`. | Running a real rebuild needs the owner. | - | T3-04 | - |
+| DATA-06 | Uncontrolled concurrent writers to Qdrant (no API key) | P1 | Partial | 13c818da: `backend/tests/test_qdrant_write_governance.py` (7 tests); read/write key split in `backend/app/config.py` and `backend/docker-compose.yml`. | Keys must be set on the live Qdrant and Railway. Other writers unknown. | Owner / Live infrastructure | T3-02, T1-14 | D-15 |
+| DATA-07 | No cross-store takedown of teaching content | P1 | Open | No commit. T3-06 is reserved. | Source registry, `takedown()`, migration review. | Reserved (stronger model, supervised) | T3-06 | - |
+| DATA-14 | v10 fails its own data-quality scorecard (13/26) | P1 | Partial | 492e7d33: `evaluate_promotion_gate` in `fp_data_quality_scorecard.py`; `backend/tests/test_data_quality_promotion_gate.py`. | Gate blocks promotion. The v10 data still scores 13/26 [DOC-CLAIM]; fixing the data needs builder runs. | Owner / Live infrastructure | T3-05 | D-14 |
+| MEM-003 | Emotional history read and acted on without the consent gate | P1 | Closed | 1e8bf812: `backend/app/orchestrator_utils.py::has_active_memory_consent` (gate before `_build_emotional_arc_turns`, ~line 600); `backend/app/pipeline/stages/distress_stage.py` (~654); `backend/tests/test_emotional_side_effect_consent.py::test_no_consent_no_read_and_no_write`, `::test_consent_lookup_error_fails_closed`, `::test_proactive_serene_mind_needs_consent`. | Default on/off of the features unchanged (D-21). | - | T1-10 | D-21 (default only) |
+| UX-001 | Account deletion runs through a churn funnel with win-back emails; it is the only UI deletion path | P1 | Needs owner decision | No commit. | Replace churn funnel with direct delete flow (T1-12). Needs native review of copy. | Any agent after decision | T1-12 | D-19 |
+| ADV-01 | Scheduled deletions never execute (no purge job); deletion needs the backend up | P1 | Open | No commit. T6-06 is reserved. | Durable erasure and scheduled purge job; dry-run default. | Reserved (stronger model, supervised) | T6-06, T1-12 | Owner approves purge rule |
+| SYS-003 | Sync FP pipeline blocks thread-pool workers on LLM calls | P1 | Open | No commit. T7-02 is reserved. | Async teaching lane after staging load test. | Reserved (stronger model, supervised) + Live infrastructure | T7-02 | - |
+| SYS-004 | OpenRouter spend cap off by default (the code comment says "Default enabled") | P1 | Closed | 1974dcb1: `backend/app/config.py` lines 643-648 (guard on, fail-closed on), production validator ~2494; `backend/tests/test_config_validation.py::test_uncapped_spend_refused_in_production_unless_recorded`. | Scorer price/timeout remain D-16 (see AI-007). | - | T1-07 | - |
+| SYS-006 | FP p95 12–14 s from 3 sequential LLM gates; scorer timeout 12/15/25 s across sources | P1 | Open | T4-06 not started. T7-01 precondition is done (0c643bc2). | Evidence-judge consolidation; scorer timeout decision. | Any agent (T4-06 judge); Owner (timeout) | T4-06, T1-07 | D-16 (timeout) |
+| SYS-007 | No reproducible deployed environment, no staging | P1 | Needs live infrastructure | No commit. | Railway IaC and staging (T9-01). | Owner + Live infrastructure | T9-01 | D-26 |
+| SYS-011 | No signal separates "HTTP 200 but poor" from useful | P1 | Partial | 03237677, 2c80d884, eba53ac5: `backend/app/answer_outcome.py`, `backend/tests/test_answer_outcome_telemetry.py`; `compute_useful_answer`, `/feedback/engagement` (eba53ac5). | Supabase sink write (needs migration) and a value-metrics dashboard are open. | Any agent (code); Owner (migration) | T2-03 | - |
+| SYS-012 | RPO unbounded for every store; backup workflow failing | P1 | Needs owner decision | No commit. | Off-host backups and restore drills (T3-10). | Owner + Live infrastructure | T3-10 | D-08 |
+| SEC-001 | `/api/first-person/query` unauthenticated, no quota, spends LLM budget | P1 | Needs owner decision | No commit. | Auth, quota, budget on `/api/first-person/query` (T1-08). | Any agent after decision | T1-08 | D-07 |
+| EVAL-002 | No held-out human-labelled set; gold questions AI-written | P1 | Needs human | No commit. `evals/pr_suite/` (32e73280) is AI-authored. | Independent human-labelled held-out set. | Human specialist | T2-04, HUMAN | D-09, D-23 |
+| EVAL-003 | CI quality gates inert without a deployment | P1 | Partial | 32e73280: `evals/pr_suite/`, `backend/tests/test_offline_pr_suite.py`, wired into `.github/workflows/eval-gate.yml`. | Offline suite runs without secrets. Live-stack gates are still inert without a deployment. CI result not observed here. | Any agent / Live infrastructure | T2-01 | - |
+| PRD-006 | Seekers cannot report a wrong or misattributed clip | P1 | Open | No commit. | Seeker clip report (T6-04, needs T3-06 citations). | Reserved (stronger model, supervised) first (T3-06), then agent | T6-04 | - |
+| UX-006 | Signed-in history is tied to one browser, capped at 10, wiped on sign-out or expiry; the cloud copy is never read back | P1 | Open | No commit. | Account-level history (T6-09, needs T6-05). | Reserved (stronger model, supervised) first (T6-05), then agent | T6-09 | - |
+| UX-007 | No support line or client crisis fallback on any error except 503; developer text can reach seekers | P1 | Closed | a07ef4b3: `src/lib/chat/errors.ts::buildMessageError` strips `detail`; care line in `src/components/chat/ChatMessage.tsx` (~1293); tests `src/test/chatErrors.test.ts` ("seeker-safe chat errors (T1-17)"), `src/test/crisisHelplines.test.tsx` ("CALL_VERIFIED_CRISIS_LINES"). | Care line uses a `t()` default with no locale key (T1-20). English only. Only call-verified lines are shown (Tele-MANAS). | - | T1-17 | - |
+| ANS-003 | Questions mixing a general-task word with an emotion word reach the general lane | P2 | Needs owner decision | No commit. | Single route-decision service (T4-03). | Any agent after decision | T4-03 | D-04 |
+| SYS-002 | Lane choice depends on keyword rules for the general-lane exit | P2 | Needs owner decision | No commit. | Same as ANS-003. | Any agent after decision | T4-03, T0-05 | D-04 |
+| AI-001 | Domain scope defined three times and disagrees | P2 | Needs owner decision | No commit. | Same as ANS-003. | Any agent after decision | T4-03 | D-04 |
+| SYS-001 | Node-level fall-through to generation on narrow failures (missing context, import error, error while abstaining) | P2 | Partial | 0d32fbcd: `test_fp_fail_closed.py::test_node_exception_abstains_and_counts`. | Classifier-failure branch in `backend/app/pipeline/stages/graph_stage.py` (~211-220) still selects the general lane. A node call with no pipeline context reaches the general graph except where `generate_answer` catches a teaching intent. | Any agent | T1-05 | - |
+| RET-01 | Per-video dedup before integrity gates (v8 path; back-fill from 40 videos limits the effect) | P2 | Closed | 59a9ae94: `backend/tests/test_gate_first_then_dedup.py::test_pipeline_serves_valid_lower_span_when_top_span_fails_gate`, `::test_pipeline_with_store_gates_before_dedup`; `deduplicate` flag in `FirstPersonStore.search_hybrid`; pipeline calls with `deduplicate=False`. | Effect not measured on the frozen bank. | - | T4-01 | - |
+| RET-02 | v10 retrieval ignores the sparse vector (breaks invariant 5; v10 is not the code default) | P2 | Closed | 4ec9eaed: `backend/services/first_person_context_store.py` (`passage_sparse` prefetch, `Fusion.RRF`, ~551-559 and ~625-633); `backend/tests/test_v10_hybrid_retrieval.py`. | Effect not measured on the frozen bank. Live Qdrant not tested. | - | T4-02 | - |
+| DATA-03 | `transcript_hash` has three meanings across writers (both gates fail closed today) | P2 | Closed | 7f8e463d: `backend/domain/hash_fields.py`; `backend/tests/test_writer_hash_contract.py`. | A rebuilt collection with the vNext schema needs a builder run (owner). | Owner | T3-03 | - |
+| UX-005 | An interrupted stream leaves teacher text without citation, "Related" label or safety notices, and saves it to history (`final` is sent before `done`) | P2 | Open | No commit. | Stream contract (T1-18). | Any agent | T1-18 | - |
+| UX-008 | Trust labels, abstain card, error and quota copy are English in all 13 non-English locales (33 of 234 chat keys missing) | P2 | Needs human | No commit. | Localise strings (T1-20). Native review before release. | Any agent (keys) + Human specialist | T1-20, HUMAN | D-22 |
+| PRD-009 | Client conversation summary is produced by sending "Summarize our conversation so far." to `/api/chat`; the clip or abstain reply is stored and reused as context | P2 | Closed | 3d81a932, 27606c82: `src/test/chat/noClientSummary.test.ts`; `transport.ts` summary call removed. | Local last-5-messages fallback is still stored in `conv.summary`. | - | T1-19 | - |
+| PRD-010 | Landing and welcome copy promise a conversational "AI companion"; the teaching lane answers with a clip or a static abstain | P2 | Open | No commit. | Honest copy (T6-10). Owner review before release. | Any agent + Owner | T6-10 | - |
+| ADV-02 | Undocumented third-party processors: Lovable AI gateway (memory extraction, STT fallback, admin ask, eval), Sarvam STT, Sentry replays, SMTP, web push | P2 | Needs owner decision | No commit. | Processor inventory is agent work. Agreements are not. | Any agent (inventory); Owner | T6-08 | T6-08 owner input |
+| ADV-04 | Admin `eval-run` scores Gemini answers judged by the same model, not the product | P2 | Open | No commit. `supabase/functions/eval-run` still exists. | Retire or relabel the edge function. | Any agent | T2-01 | - |
+| ADV-05 | On-demand client translation of teacher quotes carries no machine-translation label | P2 | Closed | 0fc474dd: `src/components/chat/ChatMessage.tsx`; `src/test/LanguageTranslateButton.test.tsx`. | Label has an i18n default only, no `en.json` key; 13 locales need native review (T1-20). | - | T5-06 | - |
+| X-03 | PR size makes review impossible | P2 | Needs owner decision | No commit. | PR-size warning and branch protection (T0-03). | Owner | T0-03 | T0-03 |
+| X-05 | Two frontend writers; `lovable-sync` diverged | P2 | Needs owner decision | No commit. | Resolve `lovable-sync`. | Owner | T0-07 | D-24 |
+| X-07 | Documents used as system memory; loose root files | P2 | Open | No commit. | Documentation diet (T1-15). | Any agent | T1-15 | - |
+| AI-002 | Distress turns pay for retrieval + grading, then discard | P2 | Closed | c9b42d3e: `backend/rag/graph_strategies.py` routes DISTRESS to `"distress"`; `backend/tests/test_graph_strategy_wiring.py`, `test_graph_strategies.py`. | Standard strategy only was read. Fast and Deep not checked. | - | T4-05 | - |
+| AI-003 | Teacher-style register block appended to general-mode prompts ("how, not what"; forbids invented first-person sentences) | P2 | Closed | 42da2db2: `backend/rag/nodes/generation.py`; `backend/tests/test_general_mode_no_register.py::test_no_teacher_register_in_general_mode`. | Register block in non-L3 prose not checked. | - | T1-06 | - |
+| AI-004 | 37 prompt constants + 72 inline prompts; no registry/version | P2 | Partial | eba53ac5: per-call `prompt_id`, model, tokens, cost in `TokenAccumulator.record_call`. | No prompt registry or versions (T5-07). | Any agent | T2-03, T5-07 | - |
+| AI-005 | Two provider stacks; `container.ollama` holds OpenRouter | P2 | Needs owner decision | No commit. | One LLM gateway (T7-03). | Any agent after decision | T7-03 | D-17 |
+| AI-006 | Dormant editorial prompt rewrites teacher words (P0 if enabled) | P2 | Closed | 66e0ef3e: quote-weaver editorial/hybrid paths removed (`backend/services/quote_weaver.py`, -521 lines); no `quote_weaver_mode` editorial match remains. | `first_person_mode="hybrid"` still accepted as `retrieval_only` (prompt §0a). | - | T1-02 | - |
+| AI-007 | Relevance-scorer model is an env-only dependency | P2 | Needs owner decision | No commit. | Make scorer model required; record price (T1-07 remainder). | Any agent after decision | T1-07 | D-16 |
+| ANS-006 | No depth or mode control on the live path | P2 | Needs owner decision | No commit. | AnswerPlan (T5-01). | Any agent after decision | T5-01 | D-03 |
+| ANS-007 | Follow-up continuity is string concatenation | P2 | Needs owner decision | No commit. | `answer_trace` (T5-05). | Any agent after decision | T5-05 | D-03 |
+| ANS-008 | Indic seekers get English quote + translated glue | P2 | Needs human | No commit. | Language field and labelled translation after native review (T5-06). | Human specialist | T5-06, HUMAN | D-22 |
+| MEM-001 | Seven overlapping memory planes (plus WhatsApp SQLite and edge extraction, ADV-06) | P2 | Needs owner decision | No commit. | Consolidate memory (T6-01); snapshot and owner OK. | Owner + Any agent | T6-01 | Owner approval of memory migration |
+| MEM-002 | Memory read on the teaching lane and never used | P2 | Open | No commit. | Memory on teaching lane (T6-02). | Any agent | T6-02 | - |
+| MEM-004 | LLM-written "spiritual profile" of the user | P2 | Open | No commit. | User-stated preferences replace LLM persona (T6-03). | Any agent | T6-03 | - |
+| SAFE-007 | No emotional-dependency guard | P2 | Needs human | No commit. T6-07 reserved. | Clinician-written rule, then guard. | Reserved (stronger model, supervised) + Human specialist | T6-07, HUMAN | - |
+| EVAL-004 | Benchmarks measure the dormant generating path | P2 | Partial | 32e73280: offline suite measures the serving lane. | Older benchmarks still target the dormant generating path. | Any agent | T2-01 | - |
+| EVAL-005 | LLM judge not calibrated against humans | P2 | Needs human | No commit. | Judge calibration against human labels (T2-04). | Human specialist | T2-04 | D-09 |
+| EVAL-006 | Pass bar accepts 70% abstention on answerable questions | P2 | Needs owner decision | No commit. | Add usefulness target; served-share floor. | Any agent after decision | T0-05, T2-01 | D-25 |
+| DATA-04 | Ingestion dual-index writes fabricated provenance (P0 if enabled) | P2 | Closed | 66e0ef3e: ingestion FP dual-index writer removed (`backend/ingest/pipeline.py` -234 lines, `test_fp_dual_index_default_off.py` deleted); no `dual_index` match remains in `app/ services/ ingest/ rag/`. | None. | - | T1-02 | - |
+| DATA-08 | Graph and LightRAG have no span-level provenance | P2 | Needs owner decision | No commit. | Freeze or retire graph stores (T3-11). | Any agent after decision | T3-11 | D-05 |
+| DATA-09 | Two transcript lineages per video; online ingest downloads directly | P2 | Needs owner decision | No commit. | Canonical transcript per video (T3-09). | Owner + Any agent | T3-09 | D-08 |
+| DATA-10 | Chat-corpus IDs use raw URL; scripts skip stale cleanup | P2 | Needs owner decision | No commit. | T3-11. | Any agent after decision | T3-11 | D-05 |
+| DATA-11 | Supabase schema drift (32 tables created more than once) | P2 | Closed | 37032757: `supabase/schema_snapshot.sql`, `scripts/guards/migration_lint.py`, `.github/workflows/supabase-schema-snapshot.yml`; `backend/tests/test_migration_lint.py`. | Squash of the baseline needs the owner. L-07 (production RLS state) needs Supabase. | Owner / Live infrastructure | T3-08 | - |
+| DATA-12 | Stored citations are unstructured `text[]` | P2 | Open | No commit. T3-06 reserved. | Structured citations. | Reserved (stronger model, supervised) | T3-06 | - |
+| DATA-13 | Teacher-ID vocabulary differs per store | P2 | Open | No commit. | Canonical teacher IDs (T3-07, needs T8-01). | Any agent | T3-07 | - |
+| DATA-15 | No continuous data-quality gate on serving collections | P2 | Partial | 492e7d33: `data_quality_audit.py`, `.github/workflows/nightly-audit.yml` (runs the promotion-gate tests). | The audit of the live serving collection needs Qdrant access. | Live infrastructure | T3-05 | - |
+| DATA-16 | Approved corpus version ≠ served version | P2 | Partial | 492e7d33: `approved_corpus_version` parsed in `backend/services/first_person_serving_contract.py` (~114, ~294). | `backend/config/first_person_serving_contract.json` sets no `approved_corpus_version`, so the check is inactive until the owner records it. | Owner | T3-05 | D-14 |
+| DATA-18 | Runtime state lives in container files | P2 | Open | No commit. T3-06 reserved. | Move runtime state out of container files. | Reserved (stronger model, supervised) | T3-06 | - |
+| RET-04 | Compound path does not retrieve per facet | P2 | Needs owner decision | No commit. | Per-facet retrieval (T5-02). | Any agent after decision | T5-02 | D-03 |
+| RET-05 | Graph/LightRAG: unproven value, dirty data, no provenance | P2 | Needs owner decision | No commit. | Retire stores (T3-11, ADR-005). | Any agent after decision | T3-11, ADR-005 | D-05 |
+| RET-06 | TU graph builder filters on a forbidden field; wrong default collection | P2 | Needs owner decision | No commit. | TU graph builder fix (T5-02). | Any agent after decision | T5-02 | D-03 |
+| RET-07 | No serving-vs-index encoder check | P2 | Partial | 4b86ae8b: encoder check in `first_person_serving_contract.py`; `backend/tests/test_first_person_serving_contract.py::test_encoder_model_mismatch_is_error`, `::test_encoder_dimension_mismatch_is_error`. | The shipped contract records no encoder, so the check does nothing until the owner records it. | Owner | T3-12 | D-14 |
+| RET-08 | No Recall@k/MRR/nDCG on the serving collection | P2 | Partial | 04fc2900: `evals/retrieval_bank/` and `backend/tests/test_retrieval_bank_harness.py`. | Bank is small. Labels are human work. No live runner. | Any agent (runner); Human specialist (labels) | T2-02 | - |
+| RET-10 | Duplicate LLM ranking: up to 4 LLM calls per question | P2 | Open | No commit. | Evidence-judge consolidation (T4-06). | Any agent | T4-06 | D-16 |
+| SYS-008 | Load evidence uses a mock LLM | P2 | Needs live infrastructure | No commit. | Real-model load test (T9-02). | Live infrastructure | T9-02 | D-26 |
+| SEC-002 | Public video streaming by id | P2 | Needs owner decision | No commit. | Rights-gate video streaming (T1-08). | Any agent after decision | T1-08 | D-07 |
+| SEC-003 | Distress and question text logged at INFO | P2 | Partial | 4ec81cad: `backend/rag/intent_prerouter.py`, `backend/rag/resolve_followup.py`; `backend/tests/test_no_seeker_text_in_logs.py`. | `KNOWN_OFFENDER_BUDGET = 19` other possible log sites remain. Fix them and lower the budget. | Any agent | T1-09 | - |
+| SEC-004 | Erasure gaps; deletion impossible while backend down | P2 | Open | No commit. T6-06 reserved. | Erasure completeness. | Reserved (stronger model, supervised) | T6-06 | - |
+| SEC-005 | Public repo tracks corpus/graph backups and internal reports | P2 | Needs owner decision | No commit. | Remove tracked backups and reports (T0-02). | Any agent after decision | T0-02 | D-01, D-02 |
+| SEC-006 | Datastores on 0.0.0.0; Qdrant no API key; unpinned image | P2 | Partial | 0ba6615c: `backend/docker-compose.yml` ports on 127.0.0.1; `backend/tests/test_docker_compose_healthcheck.py`. 13c818da: Qdrant key settings. | Verified image pins open. Production keys are infrastructure. | Any agent (pins); Live infrastructure | T1-14 | D-15 |
+| SEC-007 | Prompt injection: low on FP gates, real on general lane | P2 | Needs owner decision | a8bd93a5 fences clip and summary text only. | General-lane injection defence (T4-03, T5-04). | Any agent after decision | T4-03, T5-04 | D-04 |
+| CQ-001 | Giant functions (execute 2,145 lines; generate_answer 1,247) | P2 | Partial | 31ebbd89..0c643bc2 (T7-01a-l): `FirstPersonPipeline.execute` in `backend/services/first_person_pipeline.py` is about 266 lines (269 by AST span, def line 5601); golden test `backend/tests/test_first_person_pipeline_golden.py`. | `generate_answer` (1,247 lines) untouched. The fp-context harness block is still one method. | Any agent | T7-01 | - |
+| CQ-002 | ~14 overlapping LLM abstraction modules | P2 | Needs owner decision | No commit. | T7-03. | Any agent after decision | T7-03 | D-17 |
+| CQ-003 | At least 8 cache mechanisms | P2 | Open | No commit. | T7-04 (needs hit-rate data from T2-03). | Any agent | T7-04 | - |
+| CQ-004 | 5+ memory subsystems | P2 | Needs owner decision | No commit. | Same as MEM-001. | Owner + Any agent | T6-01 | Owner approval of memory migration |
+| CQ-005 | Root `langdetect` stub always returns "en" | P2 | Closed | 42e883b3: root `langdetect/` removed (directory absent). | None. | - | T1-13 | - |
+| CQ-006 | 1,513 `except Exception`; 70 silent swallows | P2 | Open | No commit. | T7-05 ratchets. | Any agent | T7-05 | - |
+| CQ-007 | 1,465 function-local imports hide cycles | P2 | Open | No commit. | T7-05 ratchets. | Any agent | T7-05 | - |
+| CQ-008 | 112 tests assert on source text; no real-store CI | P2 | Partial | 60076bc5: `.github/workflows/fixture-stores.yml`; `backend/tests/test_fixture_stores.py`. | Source-text tests are not yet replaced (112 tests). | Any agent | T2-05 | - |
+| CQ-009 | 11.2 MB markdown; key docs drift from code | P2 | Open | No commit. | T1-15. | Any agent | T1-15 | - |
+| CQ-010 | 679 settings; 27 unread; 23 undeclared reads | P2 | Partial | bec6e27b: `scripts/guards/config_lint.py`; `backend/tests/test_config_lint.py`. | 14 missing settings declared. The 27 unread settings are not removed. | Any agent | T2-06 | - |
+| CQ-012 | 21 `first_person_*` modules, many default-off | P2 | Needs owner decision | No commit. | T7-06. | Any agent after decision | T7-06 | D-04 |
+| GURU-010 | Registry exists; 621 literals in 128 runtime files bypass it | P2 | Open | No commit. | T8-01, T8-02. | Any agent | T8-01, T8-02 | - |
+| GURU-011 | Seeds/personas for other teachers and "private teachings" | P2 | Needs owner decision | No commit. | Remove other-teacher seeds (T1-04). | Any agent after decision | T1-04 | D-20 |
+| GURU-013 | Two identifier vocabularies for the same teachers | P2 | Open | No commit. | T3-07 (needs T8-01). | Any agent | T3-07 | - |
+| GURU-014 | No joint-attribution rule | P2 | Needs human | No commit. | Joint-attribution rule; guru review. | Human specialist (guru review) | T8-01, HUMAN | - |
+| IP-005 | Broadcaster content treated as teacher-approved | P2 | Needs human | No commit. | Broadcaster permission. | Human specialist (rights holder) | T3-06, HUMAN | D-13 |
+| IP-006 | Seed data defines other teachers and a "private teachings" persona | P2 | Needs owner decision | No commit. | Same as GURU-011. | Any agent after decision | T1-04 | D-20 |
+| PRD-001 | Relative `/api` fetches break cross-origin deploys | P2 | Closed | f4d94f13: `eslint.config.js` rule; 5 call sites changed. | ESLint regex also matches a few lookalike paths. | - | T1-16 | - |
+| PRD-003 | "Server history" is client-written | P2 | Open | No commit. T6-05 reserved. | Backend writes assistant turns. | Reserved (stronger model, supervised) | T6-05 | - |
+| PRD-004 | Push prompt can follow a crisis answer | P2 | Closed | e47d9f9f: `src/lib/chat/pushEligibility.ts`; `src/test/chat/pushEligibility.test.ts`. | Frontend `TEACHING_ROUTES` allowlist is strict. | - | T1-10 | - |
+| PRD-005 | Assistant slugs disagree (fails closed with 403) | P2 | Needs owner decision | No commit. | Unify assistant slugs (T1-04). | Any agent after decision | T1-04 | D-20 |
+| PRD-008 | No user research grounds product decisions | P2 | Needs human | No commit. | User study (T2-07, needs staging). | Human specialist + Live infrastructure | T2-07, HUMAN | - |
+| UX-002 | Streak copy ties usage to spiritual progress | P2 | Needs owner decision | No commit. | Neutral streak copy (T1-12). | Any agent after decision | T1-12 | D-19 |
+| UX-003 | Engagement prompts ignore emotional context | P2 | Closed | e47d9f9f and 1e8bf812 (same fix as PRD-004). | None. | - | T1-10 | - |
+| UX-004 | Retention metrics are usage-based | P2 | Open | T2-03 (eba53ac5) added outcome metrics; retention metrics unchanged. | Outcome-based retention view. | Any agent | T2-03 | - |
+| X-04 | Designated branch already merged; checkout stale and shallow | P3 | Open | No commit. | Revalidate against current `main` (T0-06). | Any agent | T0-06 | - |
+| ADV-06 | Memory inventory omits WhatsApp SQLite and the edge extraction worker | P3 | Open | No commit. | Memory inventory (T6-01). | Any agent | T6-01 | - |
+| AI-008 | Static model routing on the FP lane | P3 | Needs owner decision | No commit. | T7-03. | Any agent after decision | T7-03 | D-17 |
+| MEM-005 | Client conversation summary enters prompt unfenced | P3 | Closed | a8bd93a5: `backend/tests/test_untrusted_prompt_fences.py::test_conversation_summary_is_fenced_as_untrusted`. | None. | - | T6-03 | - |
+| SAFE-006 | `REFERENCE_VOICE` health claims left in a serving module | P3 | Closed | 66e0ef3e: `REFERENCE_VOICE` health claims removed from the serving module; the only remaining match is a docstring in `backend/services/voice/style.py:8`. | None. | - | T1-02 | - |
+| SAFE-008 | Transcript text unfenced in scorer prompt | P3 | Closed | a8bd93a5: `test_untrusted_prompt_fences.py::test_relevance_scorer_prompt_fences_clip_text`. | None. | - | T5-04 | - |
+| DATA-17 | OKF compile drift; absolute host paths | P3 | Needs owner decision | No commit. | T3-11. | Any agent after decision | T3-11 | D-05 |
+| DATA-19 | Corpus and graph backups tracked in the public repo | P3 | Needs owner decision | No commit. | T0-02. | Any agent after decision | T0-02 | D-01, D-02 |
+| RET-11 | Three vector schemas and searchers for teaching content | P3 | Needs owner decision | No commit. | T7-06. | Any agent after decision | T7-06 | D-04 |
+| SEC-008 | CORS wildcard converted to credentialed regex | P3 | Closed | 6d47a2fc: `backend/app/main.py::_assert_no_bare_wildcard_origin`; `backend/tests/test_main_cors.py::test_production_rejects_bare_wildcard_origin_at_startup`. | Scoped wildcard patterns are still allowed by design. | - | T1-14 | - |
+| SEC-009 | Dead WhatsApp JWT signer with default secret | P3 | Closed | b1231288: `whatsapp_bot/wa_bot.py` signer and PyJWT dependency removed. | None. | - | T1-13 | - |
+| SEC-010 | Unauthenticated deep health check | P3 | Closed | 6d47a2fc: `backend/app/api/health.py` token check; `backend/tests/test_health.py::test_health_public_view_is_shallow_without_token`. | Check Railway probes read only the status code. | - | T1-14 | - |
+| CQ-011 | `asyncio.run` inside Celery tasks | P3 | Open | No commit. Part of T7-02 (reserved). | Celery event-loop handling. | Reserved (stronger model, supervised) | T7-02 | - |
+| CQ-013 | Sync `Depends` in `compliance.py` (breaks L-DOCKER-18) | P3 | Closed | b045054a: `backend/app/api/compliance.py` `_get_container_safely` is async. | None. | - | T1-13 | - |
+| CQ-014 | Misleading names (`container.ollama`) | P3 | Needs owner decision | No commit. | T7-03. | Any agent after decision | T7-03 | D-17 |
+| PRD-002 | Client sends a system prompt the backend discards | P3 | Needs owner decision | No commit. | Stop sending the client system prompt (T1-04). | Any agent after decision | T1-04 | D-20 |
+| PRD-007 | Two first-person surfaces with different contracts | P3 | Needs owner decision | No commit. | One FP surface (T5-03). | Any agent after decision | T5-03 | D-03 |
+| IP-007 | Demo music, images, video licences unconfirmed | P3 | Needs human | No commit. | Licences for demo assets. | Human specialist (rights holder) | HUMAN | - |
+| IP-008 | Tracked evidence leaks owner's local paths and username | P3 | Needs owner decision | No commit. | T0-02. | Any agent after decision | T0-02 | D-01 |
+| UX-009 | Personalisation controls and memory copy promise effects the teaching lane ignores | P3 | Open | No commit. | T6-10. | Any agent + Owner review | T6-10 | - |
+| UX-010 | WhatsApp button always shown although the channel is `disabled_by_policy` | P3 | Closed | f4d94f13: `src/hooks/useChatCapabilities.ts`; `src/test/DesktopSidebar.test.tsx`, `src/test/useChatCapabilities.test.ts`. | None. | - | T1-16 | - |
+| UX-011 | Anonymous quota invisible until used up; reset time never shown | P3 | Open | No commit. | T6-10. | Any agent | T6-10 | - |
+
+## 3. Next 15 tasks an agent can do now without decisions
+
+Rules used: no owner decision, no clinician or native speaker, no live system, not a reserved task. Order: severity of the findings closed first, then the file-conflict order in `20-ordered-engineering-roadmap.md` §5 (`first_person_pipeline.py`: T4-01 -> T7-01 -> T4-06 -> T7-02; `config.py`: T2-06 last; `ChatInterface.tsx`: T1-16 -> T1-19 -> T1-10 -> T1-18 -> T6-09). One task ID per PR, under about 400 changed lines.
+
+| # | Task | Closes | Sev | Files it touches |
+|---|---|---|---|---|
+| 1 | Confirm CI on head `c9b42d3e`. Fix any regression. Treat T1-05 and SEC-010 behaviour as intended. | X-01, GURU-001 (Partial) | P1 | whatever the failing job names; no planned file |
+| 2 | T4-06 evidence-judge consolidation (ADR-009). T7-01 is done. The scorer timeout stays D-16. | SYS-006 (judge part), RET-10 | P1, P2 | `backend/services/first_person_pipeline.py`, `backend/tests/test_first_person_pipeline_golden.py`, relevance-gate tests |
+| 3 | GURU-012 remainder: locator check for admin-curated and harvested tips. | GURU-012 (Partial) | P1 | `backend/app/api/teachings.py`, `backend/tests/test_no_unsourced_teacher_attribution.py` |
+| 4 | EVAL-003/004 remainder: point legacy benchmarks at the serving lane, or label them as the dormant path. | EVAL-003, EVAL-004 (Partial) | P1, P2 | `backend/benchmarks/`, `.github/workflows/eval-gate.yml`, `evals/` |
+| 5 | T1-18 stream contract: send citations, labels and safety notices with the final text. Discard or mark an incomplete turn. | UX-005 | P2 | `src/components/chat/ChatInterface.tsx`, `backend/app/stream_orchestrator.py`, `backend/app/api/chat.py`, `src/lib/chat/`, tests |
+| 6 | SYS-001 remainder: classifier-failure branch and no-context node call fail closed. | SYS-001 (Partial) | P2 | `backend/app/pipeline/stages/graph_stage.py` (~211-220), `backend/rag/nodes/first_person.py`, `backend/tests/test_fp_fail_closed.py` |
+| 7 | SEC-003 remainder: fix the other log sites in the ratchet and lower `KNOWN_OFFENDER_BUDGET` (19). | SEC-003 (Partial) | P2 | files the AST scan in `backend/tests/test_no_seeker_text_in_logs.py` reports |
+| 8 | ADV-04: retire or relabel the admin `eval-run` edge function. | ADV-04 | P2 | `supabase/functions/eval-run/`, docs |
+| 9 | T1-14 rest: verified image pins; keys already in compose. | SEC-006 (Partial) | P2 | `backend/docker-compose.yml`, `backend/Dockerfile`, `backend/Dockerfile.railway`, `backend/tests/test_docker_compose_healthcheck.py` |
+| 10 | T1-15 documentation diet: archive `lessons.md`, one status file, doc-versus-code check of the stage order. | X-07, CQ-009 | P2 | `lessons.md`, root `CLAUDE.md`, `docs/`, `scripts/guards/` |
+| 11 | T8-01 then T8-02 teacher registry; then T3-07 (code only). | GURU-010, DATA-13, GURU-013 | P2 | `backend/config/gurus.yaml`, guardrail pattern loaders, `supabase/migrations/` (T3-08 snapshot CI exists; the owner applies any migration) |
+| 12 | T6-03 replace the LLM persona by user-stated preferences. | MEM-004 | P2 | memory persona code (find it first with a search), `backend/rag/nodes/generation.py` |
+| 13 | T7-05 exception and import ratchets. | CQ-006, CQ-007 | P2 | `backend/pyproject.toml` or ruff config, import-linter config, `backend/tests/` |
+| 14 | T7-04 cache consolidation with versioned keys. T2-03 hit-rate data now exists. | CQ-003 | P2 | cache modules under `backend/services/cache/`, `backend/app/pipeline/stages/cache_stage.py` |
+| 15 | T2-06 remainder, last in the `config.py` order: remove the 27 unread settings. | CQ-010 (Partial) | P2 | `backend/app/config.py`, `scripts/guards/config_lint.py`, `backend/tests/test_config_lint.py` |
+
+Also ready, not ranked: T1-20 (locale keys; native review before release), T6-10 (honest copy; owner review before release), T6-01 (inventory only), T5-07 (prompt registry), T0-06 (revalidation, X-04), CQ-008 (replace source-text tests). T1-12 needs D-19 first.
+
+## 4. Items blocked by each decision (D-**)
+
+| Decision | Topic | Findings blocked |
+|---|---|---|
+| D-01 | Private repository, purge | DATA-19, IP-001, IP-002, IP-008, SEC-005, X-06 |
+| D-02 | Tracked OKF files | DATA-19, IP-001, SEC-005, X-06 |
+| D-03 | ADR-001 layered answer | ANS-004, ANS-006, ANS-007, PRD-007, RET-03, RET-04, RET-06 |
+| D-04 | ADR-002 general lane | AI-001, ANS-003, CQ-012, RET-11, SEC-007, SYS-002 |
+| D-05 | ADR-005 retire graph stack | DATA-08, DATA-10, DATA-17, RET-05 |
+| D-06 | Clinician and distress ADR | ANS-001, ANS-002, SAFE-001, SAFE-002, SAFE-003 |
+| D-07 | `/api/first-person/query` clients | SEC-001, SEC-002 |
+| D-08 | Private evidence store and backups | DATA-01, DATA-09, IP-004, SYS-012 |
+| D-09 | Gold sheet authorship | EVAL-002, EVAL-005, GURU-001, GURU-002 |
+| D-10 | Sign-off artefacts outside the repo | GURU-005, IP-003, SAFE-005 |
+| D-11 | Scope of the 2026-11-04 authorisation | GURU-004 |
+| D-12 | Voice extraction rights | IP-002 |
+| D-13 | Broadcaster clearance | IP-005 |
+| D-14 | Served collection, encoder, approved version | DATA-14, DATA-16, RET-07 |
+| D-15 | Qdrant writers and keys | DATA-06, SEC-006 |
+| D-16 | Scorer model and price | AI-007, RET-10, SYS-006 |
+| D-17 | Remove provider code | AI-005, AI-008, CQ-002, CQ-014 |
+| D-19 | Churn funnel | UX-001, UX-002 |
+| D-20 | Other-teacher seeds | GURU-011, IP-006, PRD-002, PRD-005 |
+| D-21 | Consent defaults | MEM-003 |
+| D-22 | Priority Indic languages | ANS-001, ANS-002, ANS-008, SAFE-001, SAFE-002, SAFE-003, UX-008 |
+| D-23 | Seeker questions for held-out set | EVAL-002 |
+| D-24 | Lovable role | X-05 |
+| D-25 | Usefulness target | EVAL-006 |
+| D-26 | Qdrant hosting | SYS-007, SYS-008 |
+
+D-18 (delete dormant modules) blocks no finding here. D-27 is decided (audit committed under `audits/audit-output-2026-11-04/`). The four T7-01 sub-decisions were answered on 2026-11-05 and T7-01 is done. T0-03 (branch protection) is an owner action with no D-** number and blocks X-02 and X-03.
+
+## 5. Human-only items
+
+| Gate | Findings | Note |
+|---|---|---|
+| Clinician review (core, benign, multi-turn sets; discriminator; dependency rule) | ANS-001, ANS-002, SAFE-001, SAFE-002, SAFE-003, SAFE-007, SAFE-005 | T4-04 and T6-07 are also reserved. `evals/pr_suite/distress_crisis.jsonl` is AI-authored. |
+| Native-speaker review | ANS-008, UX-008 | Also the care line and the ADV-05 label. |
+| Independent gold labels (>=299, two people) and held-out set | GURU-001, GURU-002, EVAL-002, EVAL-005 | D-09, D-23. |
+| Helpline phone calls (never test-call 112) | GURU-007, SAFE-004 | 1 of 15 verified. |
+| Written rights approvals and licences | GURU-005, IP-002, IP-003, IP-005, IP-007 | D-10, D-12, D-13. |
+| Guru review of joint attribution | GURU-014 | |
+| User study | PRD-008 | Needs staging (T9-01). |
+
+## 6. Live-infrastructure items
+
+| Item | Findings | Task |
+|---|---|---|
+| Staging environment, IaC | SYS-007 | T9-01 (D-26) |
+| Real-model load test | SYS-008, SYS-003 (staging load before T7-02) | T9-02 |
+| Qdrant keys, live collection audit, hash and ID recomputation | DATA-06, DATA-15, DATA-14, SEC-006 | T3-02 enable, T9-04, `22` |
+| Backups and restore drills | SYS-012 | T3-10 |
+| Supabase RLS state versus migrations; applying any migration | DATA-11, L-07 | T3-08 |
+| Docker image build with the rights register | DATA-02 | T3-01 |
+| Railway runbook | L-03, L-04 | T9-04, `22b` |
+
+## 7. Reserved tasks and their current state
+
+| Task | Findings | State at `c9b42d3e` |
+|---|---|---|
+| T4-04 distress topic vs state | ANS-001, ANS-002, SAFE-001, SAFE-002, SAFE-003 | Not started. Preconditions (clinician-reviewed sets, owner go-ahead) are not met. |
+| T6-07 dependency guard | SAFE-007 | Not started. Needs a clinician-written rule. |
+| T3-06 source registry and `takedown()` | DATA-07, DATA-12, DATA-18 | Not started. T3-08 snapshot CI is merged (37032757), so one precondition is met. Owner must approve migration text. |
+| T6-05 client RLS `role='user'` | PRD-003 (and UX-006 via T6-09) | Not started. Owner approves migration. |
+| T6-06 durable erasure and purge | ADV-01, SEC-004 | Not started. Owner approves purge rule. |
+| T7-01 split of `FirstPersonPipeline.execute` | CQ-001 (part) | Done. Commits `31ebbd89` (goldens), `1343702c`, `b9902a59`, `0caa21f2`, `a38cbc28`, `6c1179b8`, `997ccc3a`, `c6e5b4bd`, `2870ddf4`, `e875073c`, `0c643bc2` (T7-01a-l). `execute` went from 2,146 lines to about 266 (269 by AST span). Golden test: `backend/tests/test_first_person_pipeline_golden.py`. I did not run it. Open: the 735-line harness block is one method; `generate_answer` is untouched. |
+| T7-02 async teaching lane | SYS-003, CQ-011 | Not started. Precondition T7-01 is met. Needs a staging c20 load test before the watchdog is removed. |
+
+## 8. Notes on severity and on the index
+
+- The section headings of `findings-index.md` (P1 45, P2 77, P3 19) disagree with its "Counts" table (47, 81, 22). I did not change either. The table is authoritative. The new dated line in the index points here.
+- The "Pillars" column shows P1 for some findings that sit in P2 or P3 tables (for example AI-002, CQ-011, CQ-013, SEC-008). That is a pillar label, not a severity. Readers can confuse the two. No severity change proposed.
+- I propose no severity change. Observation only: after T1-05, the residual in SYS-001 (classifier-failure branch) is narrow, so its P2 stays reasonable.
+- Downgraded closures (versus §0g): GURU-012 (admin-curated tips still default the teacher name), SEC-003 (19 other log sites under a ratchet), SYS-001 (residual general-lane branches), DATA-15 (live collection audit not run), DATA-16 (the shipped serving contract sets no `approved_corpus_version`, so the check is inactive). These are Partial here.
+- RET-07 is Partial for a similar reason: the shipped serving contract declares no encoder.
+
+## 9. Verified, assumptions, unknowns
+
+**Verified (read in this session, not run).** I read the cited code or test for all 11 P1 closures (EVAL-001, GURU-003, GURU-006, RET-09, ADV-03, ANS-005, DATA-02, DATA-05, MEM-003, SYS-004, UX-007). I read code or tests for 22 of the 22 P2 and P3 closures, with a shallower read (test file exists, key symbol present, commit diff) for AI-006, DATA-04, SAFE-006, MEM-005, SAFE-008, ADV-05, PRD-001, PRD-004, UX-003, UX-010, PRD-009, CQ-013, SEC-009, DATA-03, DATA-11, RET-01, RET-02, AI-002, AI-003 and CQ-005. So 33 closures were checked by reading: 11 P1 with full reads, 22 P2/P3 with spot reads. I checked by `git show --stat` and file greps that the test files named exist for T2-01, T2-02, T2-05, T2-06, T3-02, T3-03, T3-04, T3-05, T3-08, T4-01, T4-02. I confirmed by `cmp` that `scripts/ops/check_first_person_public_release.py` and its `backend/scripts/ops/` copy are identical.
+
+**Assumptions.** (1) The statuses of open items rest on the commit list `git log c7befa3d..HEAD` (73 commits) and on `IMPLEMENTATION-AGENT-PROMPT.md` §0 to §0o; I assumed an item with no commit is open. (2) "Who can close" follows §0i and §0j of that prompt, revalidated against the roadmap task table. (3) The `evidence` column cites symbol or test names, not line numbers, except where I read a line.
+
+**Unknowns.** (1) CI state on `c9b42d3e`: not observed. No test was run for this register. (2) Whether Fast and Deep strategies also route DISTRESS directly (AI-002): only the Standard change was read. (3) Whether non-L3 prose still gets the register block (AI-003). (4) Live Qdrant state, hash recomputation, Railway behaviour (L-01 to L-04). (5) The effect of T4-01 and T4-02 on retrieval quality: the frozen bank is small and was not run. (6) The owner's local `.env` flags (L-05).
+

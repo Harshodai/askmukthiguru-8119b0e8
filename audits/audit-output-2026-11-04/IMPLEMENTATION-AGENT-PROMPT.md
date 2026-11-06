@@ -483,3 +483,13 @@ Follow-ups this task deliberately leaves open (not regressions): the fp-context 
 | T6-04 | Clip issue reporting and saved answers API with personal collections (PRD-006, FR-SAVE-01, FR-CORR-01): expandable "Report clip issue" control in `CitationCard.tsx` with 4 categories; `reason_category` in feedback API; `src/lib/savedAnswersStorage.ts` and backend `/api/feedback/saved-answers` endpoints; `backend/tests/test_clip_reporting_and_saved_answers.py` | 4 passed in 0.20s; 3 vitest passed; 45 total feedback tests passed | — |
 | T3-07 | Canonical teacher IDs across stores and legacy tables usage audit (DATA-13, GURU-013): `canonical_guru_id()` and shared founder scopes in `guru_registry.py`; normalized `guru_id`/`teacher_id` filters in `FirstPersonContextStore` and `FirstPersonStore`; `scripts/ops/check_legacy_guru_tables.py` (and mirror in `backend/scripts/ops/`) auditing and confirming 0 runtime dependencies on legacy Postgres `kb_chunks` and `gurus` tables; `backend/tests/test_canonical_teacher_ids.py` | 5 passed in 0.17s; 15 guru tests passed in 0.30s | Dropping deprecated Postgres tables on production (owner) |
 
+### 0u. Final verification package (2026-11-05): read this before any task
+
+- Start with `FINAL_CODING_AGENT_EXECUTION_PACKAGE.md` §1 (first instruction) and §3 (phase order). It supersedes the order in §0d and §0i where they differ.
+- Status of every finding: `FINAL_PENDING_WORK_REGISTER.md` (33 closed, 22 partial; §0g above over-counted closures by 5: GURU-012, SEC-003, SYS-001, DATA-15, DATA-16 are partial).
+- New defects not yet in `findings-index.md`: `FINAL_AUDIT_GAP_ANALYSIS.md` §2. Highest priority before any rebuild: DATA-20 (v10 builder never stamps `domain_rights_status`), DATA-23 (per-video replace deletes before upsert). Highest priority for honesty: a store error can report `verification.passed=True` (NEW-ANS-2).
+- Task details: the 12 files in `specifications/` (§8 of each lists ordered tasks with files, dependencies, non-goals and rollback; §7 lists tests and pass conditions).
+- Decisions: `FINAL_DECISION_AND_RISK_REGISTER.md`. Do not implement a decision-gated variant before the decision is recorded.
+- Gate A IDs are A1-A21 in `FINAL_RAILWAY_STAGING_READINESS.md`; Gates B and C are in `FINAL_PRODUCTION_RELEASE_READINESS.md`.
+- Railway: `.railway/railway.ts` (IaC) is the current method; `railway.json`/`railway.toml` are deprecated and stop working on 2026-12-01 (docs.railway.com, checked 2026-11-05).
+- The package was verified against `c9b42d3e`. Batches 9 to 13 (21 commits, `2edee1c4` to `a7be7e65`) landed before it was committed and were not verified by it. Re-verify the findings they name: `FINAL_READINESS_AND_GAP_ANALYSIS.md` §7.

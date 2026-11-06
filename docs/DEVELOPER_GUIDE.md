@@ -14,8 +14,9 @@ that runs a **12-layer** retrieval-augmented-generation (RAG) pipeline.
 
 Current runtime defaults (updated 2026-08-01; see `AGENTS.md` for invariants):
 
-- **LLM provider**: Sarvam Cloud 30B (Indian multilingual), OpenRouter (Llama
-  free tier), or NIM (low latency) — set via `LLM_PROVIDER` env var.
+- **LLM provider**: OpenRouter is the code default (`backend/app/config.py:71`,
+  `llm_provider: str = "openrouter"`); Sarvam Cloud 30B and NIM stay selectable —
+  set via `LLM_PROVIDER` env var.
 - **Safety guardrails**: `GUARDRAILS_PROVIDER=lightweight` — 13 regex-based topic
   categories + prompt injection detection + emotional wellness redirects.
   NeMo Guardrails is available in `backend/guardrails/` but not the runtime default.
@@ -59,7 +60,7 @@ and self-hosted deployments where the ML rail is acceptable.
        │ SSE  POST /api/chat/stream
        ▼
 ┌──────────────┐  HTTP/gRPC ┌────────────────┐   Bolt     ┌─────────────────┐
-│  FastAPI     │◄──────────►│    Qdrant      │            │    Neo4j 5.17   │
+│  FastAPI     │◄──────────►│    Qdrant      │            │    Memgraph     │
 │  (12-layer   │  vector    │ (89k+ vectors) │            │ (LightRAG KG)   │
 │   RAG)       │  search    └────────────────┘            └─────────────────┘
 └──────┬───────┘
@@ -138,8 +139,8 @@ at a running FastAPI backend.
 cd backend
 cp .env.example .env                 # fill secrets: LLM_PROVIDER, SARVAM_API_KEY, etc.
 
-# Start infrastructure containers (Qdrant, Neo4j, Redis)
-bash ../scripts/docker-safe.sh docker compose up -d qdrant neo4j redis
+# Start infrastructure containers (Qdrant, Memgraph, Redis)
+bash ../scripts/docker-safe.sh docker compose up -d qdrant memgraph redis
 
 # Run FastAPI on host (override docker hostnames for local)
 export QDRANT_URL=http://localhost:6333 NEO4J_URI=bolt://localhost:7687 \
