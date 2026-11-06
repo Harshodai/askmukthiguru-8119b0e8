@@ -88,7 +88,9 @@ def test_pre_registration_targets(mock_env):
         assert entry["sha256"] is None
         assert entry["bytes"] is None
         assert entry["duration_s"] is None
-        assert entry["rights_status"] == "cleared"
+        # NEW-ING-3 (DATA-24): the archive no longer claims rights; the rights
+        # register decides at build time. The old "cleared" literal was unchecked.
+        assert entry["rights_status"] == "not_determined_see_rights_register"
         assert entry["source_url"] == f"https://www.youtube.com/watch?v={tid}"
         assert entry["archived_at"] is None
 
