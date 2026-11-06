@@ -71,13 +71,13 @@ except Exception:
 # call would run without a request and set the wrong tenant.
 # Backward-compatible module-level coalescer (tests patch app.main.coalescer).
 from app.boot_timing import BootTimer
-from app.runtime_budget import log_runtime_budget
 from app.coalescer import build_coalescer as _build_coalescer
 from app.config import settings
 from app.context import correlation_id_var, set_request_id
 from app.dependencies import async_shutdown, get_container, startup
 from app.metrics import REQUEST_COUNT
 from app.observability import init_observability
+from app.runtime_budget import log_runtime_budget
 from app.security_utils import (
     ExponentialBackoffRateLimiter,
     RedisBackedRateLimiter,
