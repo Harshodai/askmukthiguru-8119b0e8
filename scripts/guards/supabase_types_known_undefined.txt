@@ -1,0 +1,2 @@
+# Names in src/integrations/supabase/types.ts that no migration in this repo creates.
+# Format: table:<name> or rpc:<name>. Shrink only; never add a line to make the guard pass.
