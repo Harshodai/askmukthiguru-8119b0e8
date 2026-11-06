@@ -20,6 +20,8 @@ import {
   deleteConversation,
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
+import { useAnswerAnnouncement } from '@/lib/answerAnnouncement';
+import { focusWhenFree } from '@/lib/focusWhenFree';
 import { chatErrorBus } from '@/lib/chatErrorBus';
 import { buildGreeting, buildGreetingSubline } from '@/lib/greeting';
 import { useVisitContext } from '@/hooks/useVisitContext';
@@ -308,6 +310,9 @@ export const ChatInterface = () => {
   const [streamingContent, setStreamingContent] = useState<string>('');
   const deferredStreamingContent = useDeferredValue(streamingContent);
   const rotatingThinkingLabel = useThinkingStatus(isStreaming, streamingContent.length > 0);
+  // NEW-A11Y-6 (A11Y-13): one polite announcement per arrived answer.
+  const answerAnnouncement = useAnswerAnnouncement(messages, isTyping || isStreaming);
+
   const { open: openSereneMind, setOnComplete: setSereneMindOnComplete } = useSereneMind();
   const [isAwaitingSereneMind, setIsAwaitingSereneMind] = useState(false);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
@@ -2432,6 +2437,18 @@ useSwipeGesture({
 });
 
 const isLandingMode = messages.length <= 1 && messages[0]?.role === 'guru';
+
+// NEW-A11Y-6 (A11Y-08): sending swaps the landing composer for the chat composer
+// (the old one unmounts behind an exit animation), and a click on Send disables
+// the button; either leaves focus on <body>. When a send finishes and nothing
+// holds focus, return it to the new composer as soon as it is mounted (bounded
+// wait). A seeker who moved focus elsewhere on purpose keeps it.
+useEffect(() => {
+  if (isTyping || isStreaming || messages.length === 0) return;
+  // Query the DOM, not inputRef: the landing and chat composers share that ref, and
+  // the landing one unmounting late can null it after the new one has set it.
+  return focusWhenFree(() => document.querySelector<HTMLElement>('textarea[name="message"]'));
+}, [isTyping, isStreaming, isLandingMode, messages.length]);
 const thinkingVisible =
   showInstantPill ||
   showPipeline ||
@@ -2519,6 +2536,16 @@ return (
       }} />
 
       {/* EU AI Act Article 50(1) Transparency Banner */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        data-testid="chat-live-region"
+      >
+        {answerAnnouncement}
+      </div>
+
       <AiTransparencyBanner />
 
       {/* Daily Mood Check-In & Journey Banner (Landing Mode only) */}

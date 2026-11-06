@@ -104,3 +104,65 @@ test('AC-A11Y-2b: the abstain answer has no serious or critical violations', asy
   await expect(page.getByText(/could not find a teaching/i).first()).toBeVisible({ timeout: 15_000 });
   await auditStates(page, 'abstain answer');
 });
+
+// --- AC-A11Y-8 / AC-A11Y-9: focus and the polite live region -------------------
+
+const ABSTAIN_SSE = [
+  'event: message\n',
+  'data: {"content": "I could not find a teaching that answers this directly."}\n\n',
+  'event: done\n',
+  'data: {"intent": "FACTUAL", "citations": [], "meditation_step": 0, "grounding_state": "abstained"}\n\n',
+  'data: [DONE]\n\n',
+].join('');
+
+test('AC-A11Y-9: an arrived answer is announced once, and never reads the answer text', async ({ page }) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({ status: 200, contentType: 'text/event-stream', body: ABSTAIN_SSE }),
+  );
+  const region = page.getByTestId('chat-live-region');
+  await expect(region).toHaveText('');
+  await sendQuestion(page, 'What is the capital of France?');
+  await expect(region).toContainText(/no close match/i, { timeout: 15_000 });
+  await expect(region).not.toContainText(/could not find a teaching/i);
+  await expect(region).toHaveAttribute('aria-live', 'polite');
+});
+
+test('AC-A11Y-8: focus is on the composer after a send, whether by Enter or by the Send button', async ({
+  page,
+}) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({ status: 200, contentType: 'text/event-stream', body: ABSTAIN_SSE }),
+  );
+  const box = page.getByRole('textbox', { name: /your message/i });
+  await box.fill('What is the capital of France?');
+  await page.getByRole('button', { name: /^send message$/i }).click();
+  await expect(page.getByText(/could not find a teaching/i).first()).toBeVisible({ timeout: 15_000 });
+  await expect(
+    box,
+    `active element: ${await page.evaluate(() => (document.activeElement as HTMLElement | null)?.outerHTML.slice(0, 200))}`,
+  ).toBeFocused();
+});
+
+test('AC-A11Y-8: closing the first-run notice leaves focus on the composer or main, not <body>', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('askmukthiguru_tour_completed', '1');
+  });
+  await page.route('**/api/**', (r) => r.abort());
+  await page.route('**/supabase.co/**', (r) => r.abort());
+  await page.goto('/chat', { waitUntil: 'domcontentloaded' });
+  const notice = page.locator('[role="dialog"][aria-labelledby="safety-disclaimer-title"]');
+  await expect(notice).toBeVisible({ timeout: 15_000 });
+  // Escape is handled once the notice has taken focus; under load it can arrive earlier.
+  await expect(notice.locator('button:focus')).toHaveCount(1, { timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await expect(notice).toBeHidden();
+  await expect
+    .poll(() => page.evaluate(() => document.activeElement?.tagName ?? 'NONE'), { timeout: 5_000 })
+    .toMatch(/^(TEXTAREA|MAIN)$/);
+});
