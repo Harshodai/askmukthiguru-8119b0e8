@@ -245,7 +245,7 @@ export const DesktopSidebar = ({
             {groups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <BookOpen className="w-6 h-6 text-muted-foreground/60" />
-                <p className="text-sm text-muted-foreground/75 text-center whitespace-pre-line">
+                <p className="text-sm text-muted-foreground text-center whitespace-pre-line">
                   {search ? t('desktopSidebar.noResults') : t('desktopSidebar.noConversations')}
                 </p>
               </div>

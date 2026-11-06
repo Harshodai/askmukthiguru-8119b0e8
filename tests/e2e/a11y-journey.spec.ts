@@ -223,3 +223,46 @@ test.describe('AC-A11Y-12: reduced motion', () => {
     });
   }
 });
+
+// --- AC-A11Y-2 (Sources dialog) --------------------------------------
+
+test('AC-A11Y-2c: the Sources dialog opened by Play clip has no serious or critical violations', async ({ page }) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  const citation = {
+    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    video_id: 'dQw4w9WgXcQ',
+    title: 'On Stillness',
+    speaker: 'Sri Krishnaji',
+    speaker_verified: true,
+    is_verbatim: true,
+    rights_cleared: true,
+    verbatim_text: 'Be still, and the truth reveals itself in that stillness.',
+    start_ms: 76000,
+    end_ms: 165000,
+    playback_start_seconds: 75.75,
+    playback_end_seconds: 165.25,
+    caption_status: 'auto',
+  };
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: [
+        'event: message\n',
+        'data: {"content": "Here is a recorded teaching on stillness."}\n\n',
+        'event: done\n',
+        `data: ${JSON.stringify({ intent: 'FACTUAL', citations: [citation], meditation_step: 0, grounding_state: 'grounded' })}\n\n`,
+        'data: [DONE]\n\n',
+      ].join(''),
+    }),
+  );
+  await sendQuestion(page, 'How do I find stillness?');
+  const play = page.getByRole('button', { name: /play clip/i }).first();
+  await expect(play).toBeVisible({ timeout: 15_000 });
+  await play.click();
+  // "Play clip" opens the Sources panel, a dialog with its own clip player.
+  const dialog = page.getByRole('dialog', { name: /sources/i });
+  await expect(dialog).toBeVisible();
+  await auditStates(page, 'sources dialog');
+});
