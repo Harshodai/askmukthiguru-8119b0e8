@@ -2,6 +2,20 @@
      Add new entries here; never append to the bottom of this file. -->
 
 
+## Nov 6, 2026 — T7-02 async teaching lane
+
+### L-ASYNC-SYNC-WRAPPER-DEADLOCK-1. A sync wrapper over an async pipeline deadlocks when both share the default executor.
+- **What:** `execute()` became a sync wrapper that runs `aexecute` on the request loop, and `aexecute` moved its Qdrant and Redis calls to `asyncio.to_thread`. A route that still calls `await asyncio.to_thread(pipeline.execute)` holds one default-executor thread per request while it waits. In the c20 stub test, with 4 threads, all 4 threads waited on `aexecute`, and `aexecute` waited for a free thread. The test hung.
+- **Rule:** The async lane's own sync I/O runs on a dedicated pool (`_fp_io_executor`), never on the default executor that its sync callers block on. Any "sync wrapper over async core" needs a concurrency test at saturation (more callers than executor threads), not only an output test.
+
+### L-GOLDEN-STUBS-HIDE-CONVERTED-CODE-1. Golden snapshots prove nothing about code they stub out.
+- **What:** The T7-01 golden matrix replaces every LLM helper with a sync lambda and pins speculative parallelism off. A suite-wide `conftest.py` stub does the same for `_answerability_check` and `_relevance_select`. So none of the 17 goldens ran the code T7-02 converts. The real-helper scenarios (`test_first_person_pipeline_golden_llm.py`) need the `answerability_real` and `relevance_real` markers to bypass the stubs.
+- **Rule:** Before a refactor that relies on goldens, list which functions the golden harness and `conftest.py` replace. Record extra goldens that run the real code paths you will change, on the unchanged code, first.
+
+### L-SHARED-CHECKOUT-ONE-BRANCH-1. Two agents in one checkout cannot each switch branches.
+- **What:** The brief asked for `feature/t7-02`. Another session in the same folder switched the branch back within a minute and kept committing to the PR branch. A `git checkout` moves the working tree for every agent in it.
+- **Rule:** In a shared checkout, never switch branches. Work on the branch the owner names (here the PR branch). To save work off-branch without touching the tree, use `GIT_INDEX_FILE` + `git commit-tree` + `git update-ref`. Stage by path only.
+
 ## Nov 5, 2026 — Lessons and documentation review (audit final pass)
 
 ### L-DOC-PROSE-HAS-NO-PIN-TEST-1. A lesson that says "put a check behind the invariant" did not get a check, and the drift came back.
