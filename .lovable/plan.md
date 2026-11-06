@@ -31,12 +31,30 @@ Research: Meta documents incoming messages and delivery statuses as webhook even
 
 ## 3. Complete the daily check-in journey
 
-- Reuse MoodCheckIn and existing Chat/Notes/practice surfaces. Add save-in-progress protection, error/retry handling and reset-on-reopen; retain the draft after failed saves.
-- Keep check-ins separate from completed meditation counts/minutes/streaks. Inspect existing storage/grants/policies before any necessary schema migration.
-- After a confirmed check-in, submit its self-reported context through the normal safe teaching lane. Show exactly one eligible returned clip, never an invented quote or sample clip.
-- Associate one existing practice with the journey. Optional reflection stays editable; save through the existing Notes path with conversation/teaching provenance and confirmed write status.
-- Let users skip or cancel, and resume the pending step from Chat or Profile after returning. Only mark teaching/practice/reflection steps complete when their respective actions are confirmed.
-- Service failure must preserve the saved check-in and offer retry, not claim the teaching step succeeded. End-to-end teaching verification remains blocked until the approved teaching service is reachable.
+**Current implementation scope — November 6: finish this section only.** Chat redesign, WhatsApp, Personalize and broader Profile/KG work remain separate.
+
+### Journey experience
+
+1. **Check-in:** reuse the existing optional mood dialog and confirmed-save handling. Its next action opens the teaching step rather than bypassing it for practice. Keep mood check-ins outside completed-practice statistics.
+2. **Teaching:** send the saved self-reported mood through the existing safe Chat request flow. Select one eligible returned recorded clip with real attribution and timestamps; retain its source and conversation reference. No fabricated quotes, substitute sample teachings, or weaker rights/speaker/integrity gates. Unavailable service or no eligible clip leaves this step pending with retry.
+3. **Practice:** offer the single existing practice selected at check-in. Continue into its existing player/guide, preserving journey context and existing meditation pause/resume. Guided practice completion or an explicit completed-practice confirmation advances this step; simply visiting or pressing Play does not.
+4. **Reflection:** open a dedicated daily-reflection draft using the existing Notes save path. Keep its teaching/conversation provenance, preserve unsaved words when navigating or reloading, guard repeated saves, and complete only after a returned saved note. Ordinary notes and edits must not complete this journey accidentally. Signed-out users see a clear sign-in action for cloud Notes; keep their draft through that return.
+5. **Resume:** expose one compact next-step action in Chat and Profile, and retain the way back from practice and Notes. Resume the same saved clip/practice/draft, not a fresh unrelated query. Preserve unfinished journeys across midnight until completed, skipped or explicitly replaced; show completed reflection readback without pressure to start again.
+
+### Technical details and reasoning
+
+- Extend `src/lib/dailyJourney.ts`, not a second journey store. Validate persisted state, version it, and retain only minimal source references plus an explicit local reflection draft. Scope state to the active account or anonymous device so account switching cannot expose another user's journey; integrate existing sign-out cleanup. Same-device resume is this scope; do not claim cross-device progress sync without a server persistence implementation.
+- Reuse `MoodCheckIn`, ChatInterface/ChatMessage and their real clip player. Associate completion with the journey's selected message/clip rather than any teaching card clicked in any conversation. A Play request is not proof of successful playback; use observed player state where available and honest failure states otherwise.
+- Reuse existing practice completion hooks; match completion to the selected practice and make confirmation possible for guide-only practices. Do not let an unrelated meditation event complete this step.
+- Reuse NotesPanel/useNotes for authenticated storage and returned-note readback. Only the explicitly opened journey reflection receives journey completion/provenance. Existing Notes RLS remains unchanged unless inspection establishes a necessary schema change.
+- Reuse semantic theme tokens and Button controls, with small reduced-motion-safe step transitions. Keep active conversation uncluttered and actions comfortable on mobile.
+
+### Acceptance and handoff
+
+- Add focused tests for one clip/one practice association, unrelated actions not advancing progress, failed playback/save remaining pending, repeated-save prevention, persisted draft, next-day resume, explicit replacement/skip, account isolation, and saved reflection references.
+- Run existing mood/journey/Notes/practice suites plus the added tests. Check phone, tablet and desktop navigation, refresh/resume and reduced motion.
+- Exercise check-in → actual returned clip/playback → practice completion → authenticated reflection save/readback → return/resume when services and account access permit. Report any unavailable teaching or external-auth step as blocked, not passed. A controlled mocked flow may validate orchestration but is not live-teaching proof.
+- Update the existing task record, lessons and applicable architecture guidance with measured results. Railway remains off; no deployment, corpus changes or human sign-off substitutions.
 
 ## 4. Personalize answers using existing evidence pipeline
 

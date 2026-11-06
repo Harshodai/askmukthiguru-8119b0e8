@@ -1,5 +1,12 @@
 # Active UI and backend reliability roadmap
 
+## Current request — 2026-11-06: full daily loop in existing PR
+
+- [ ] Connect confirmed check-in to one real teaching clip and selected practice.
+- [ ] Connect dedicated saved reflection with source references and retained draft.
+- [ ] Add Chat/Profile resume, next-day continuity and account-safe state.
+- [ ] Run focused regressions and device checks; separate live-service/auth blockers from verified orchestration.
+
 ## Current request — 2026-10-31
 
 - [ ] Refine Chat send transitions and purposeful reduced-motion-safe animations; remove competing nonessential content during active conversation.
