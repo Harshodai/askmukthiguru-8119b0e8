@@ -2629,6 +2629,11 @@ class Settings(BaseSettings):
     # NEW-AI-5 (AI-010, D-PG16 open): the first-person lanes drop a clip the
     # injection screen matches. Off: flag for review only (served, counted).
     first_person_injection_screen_drop_enabled: bool = False
+    # T4-06 (ADR-009): one evidence-judge call replaces the relevance scorer.
+    # Active only with the flag on AND a model set; the model stays "" until
+    # D-16 (model and price) is decided, so the flag cannot turn on by accident.
+    first_person_judge_enabled: bool = False
+    first_person_judge_model: str = ""
 
 
 @lru_cache

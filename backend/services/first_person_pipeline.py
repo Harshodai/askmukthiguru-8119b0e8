@@ -1108,6 +1108,19 @@ async def _relevance_select_async(
 
     T7-02: async core; both sub-helpers go through ``_acall`` so a test double
     of either still applies."""
+    # T4-06 (ADR-009): with first_person_judge_enabled AND a judge model set
+    # (D-16), one structured judge call replaces this scorer call. Off by default.
+    from services import first_person_judge
+
+    if first_person_judge.judge_active():
+        return await first_person_judge.judge_select_async(
+            query,
+            clips,
+            llm_service,
+            minimum=int(getattr(settings, "first_person_relevance_min_score", 3)),
+            timeout_s=_relevance_timeout_s(),
+            scores_out=scores_out,
+        )
     order = list(range(len(clips)))
     if (
         len(clips) > 1
