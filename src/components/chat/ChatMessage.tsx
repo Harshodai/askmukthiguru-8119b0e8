@@ -1,4 +1,5 @@
 import { RELATED_NOT_DIRECT_KEY, RELATED_NOT_DIRECT_LABEL } from '@/lib/relatedLabel';
+import { quoteLang } from '@/lib/quoteLang';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
@@ -531,6 +532,7 @@ export const GuruTeachingCard = ({
       </div>
       <blockquote
         data-testid="guru-teaching-quote"
+        lang={quoteLang(citation.language)}
         className="mt-2 border-s-2 border-ojas/40 ps-3 font-serif text-[15px] leading-[1.75] text-foreground"
       >
         {displayedQuoteSegments.map((segment, segmentIndex) => (

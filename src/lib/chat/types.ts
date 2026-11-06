@@ -130,6 +130,8 @@ export interface Citation {
   endMs?: number;
   title?: string | null;
   quote?: string;
+  /** BCP-47 language of the quote, when the clip record says so (NEW-A11Y-5). Never inferred. */
+  language?: string;
   channel_name?: string;
   source?: string;
   speaker?: string;
@@ -247,6 +249,8 @@ export const normalizeCitations = (raw: unknown): Citation[] => {
         endMs: typeof (c.end_ms ?? c.endMs) === 'number' && Number.isFinite(c.end_ms ?? c.endMs) ? Number(c.end_ms ?? c.endMs) : undefined,
         title: (c.title as string | null | undefined) ?? undefined,
         quote: (c.quote as string | undefined) ?? (c.verbatim_text as string | undefined) ?? undefined,
+        // Only an explicit clip language; never the UI language (D-PA11Y4 decides the backend field).
+        language: typeof (c.quote_language ?? c.quoteLanguage) === 'string' && String(c.quote_language ?? c.quoteLanguage).trim() ? String(c.quote_language ?? c.quoteLanguage) : undefined,
         channel_name: (c.channel_name as string | undefined) ?? undefined,
         source: (c.source as string | undefined) ?? undefined,
         speaker: (c.speaker as string | null | undefined) ?? undefined,

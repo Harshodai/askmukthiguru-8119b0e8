@@ -1,3 +1,4 @@
+import { quoteLang } from '@/lib/quoteLang';
 import { RELATED_NOT_DIRECT_LABEL } from '@/lib/relatedLabel';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Phone } from 'lucide-react';
@@ -316,7 +317,10 @@ function ClipCard({
           onPlay={onPlay}
         />
       ) : (
-        <blockquote className="border-l-2 border-saffron-gold/40 pl-3 font-serif text-base italic text-foreground">
+        <blockquote
+          lang={quoteLang(citation.language)}
+          className="border-l-2 border-saffron-gold/40 pl-3 font-serif text-base italic text-foreground"
+        >
           &quot;{citation.verbatim_text}&quot;
         </blockquote>
       )}
