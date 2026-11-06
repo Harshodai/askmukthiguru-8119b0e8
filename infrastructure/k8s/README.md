@@ -1,3 +1,5 @@
+> **REFERENCE ONLY. Not deployed. Source of truth: .railway/railway.ts and docker-compose.prod.yml. Last reviewed (static, no cluster): 2026-11-06. Keep, fix or retire: decision D-PK8S1.**
+
 # Kubernetes Deployment Guide
 
 Complete Helm chart and Kubernetes manifests for deploying Mukthi Guru on Minikube (local demo) and production cloud clusters.
