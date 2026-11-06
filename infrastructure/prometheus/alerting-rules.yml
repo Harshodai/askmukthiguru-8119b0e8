@@ -175,7 +175,7 @@ groups:
         annotations:
           summary: "First-person verbatim route error rate above 5%"
           description: "More than 5% of /api/first-person/query requests are erroring over a 10m window."
-          runbook: "docs/runbooks/ALERTING.md#firstpersonerrateratehigh"
+          runbook: "docs/runbooks/ALERTING.md#firstpersonerrorratehigh"
 
       # First-Person Corpus Health Alerts (D22)
       - alert: BackupStale

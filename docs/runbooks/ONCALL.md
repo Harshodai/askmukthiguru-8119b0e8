@@ -11,7 +11,7 @@ Solo-operator on-call policy for AskMukthiGuru (Railway production).
 ## Escalation tree
 
 1. Pager fires (Slack/PagerDuty/webhook) → acknowledge within 30 min.
-2. Diagnose (see ALERTING.md → linked runbook for the alert).
+2. Diagnose (see ALERTING.md → linked runbook for the alert; incident runbooks RB-1 to RB-10 are in `INCIDENT_RUNBOOKS.md`).
 3. ✗ resolved within 1h → announce "noise / resolved" and close.
 4. ✗ within 4h or data-loss risk → **call the owner directly** (number in CREDENTIALS_GUIDE.md). Do not wait for the next alert cycle.
 5. Sev-1 (user data exposure or full outage) → start `docs/INCIDENT_RESPONSE.md` immediately; the runbook takes priority over this schedule.
@@ -24,12 +24,13 @@ Solo-operator on-call policy for AskMukthiGuru (Railway production).
 | Railway Dashboard | `railway.app/dashboard` | Owner account | Container CPU, memory, deployment status |
 | Streaming Logs | `railway logs` (CLI, linked service) | Owner account | Live stdout/stderr audit lines (`AUDIT <method> <path> -> <status>`) |
 | Health Probes | `GET /api/health`, `/api/healthz` | Public | Real-time readiness check across all subsystems |
-| Metrics Endpoint | `GET /api/metrics` | Admin auth (AAL2) | Prometheus text metrics including latency & error counters |
+| Metrics Endpoint (people) | `GET /metrics` | Admin auth (AAL2) | Prometheus text metrics including latency & error counters |
+| Metrics Endpoint (Prometheus) | `GET /internal/metrics` | Bearer `METRICS_SCRAPE_TOKEN`; 404 while the token is unset | Same exposition for the scraper. `/api/metrics` is a per-user JSON route, not a Prometheus path |
 
 ### Aspirational / Staging Alerting Pipeline
 The repository provides a complete Prometheus + Alertmanager stack configured in `infrastructure/prometheus/`:
 - **Alerting Rules (`infrastructure/prometheus/alerting-rules.yml`):** Evaluates multi-window burn rates and readiness/error rate thresholds against Prometheus metrics.
-- **Alertmanager (`infrastructure/prometheus/alertmanager.yml`):** Routes `page` alerts to PagerDuty/webhooks and `warn` alerts to Slack (`#alerts`).
+- **Alertmanager (`infrastructure/prometheus/alertmanager.yml`):** Routes `critical` and `page` alerts to PagerDuty/webhooks, and `warn` and `info` alerts to Slack (`#alerts`). Every rule severity must match a route (`test_alerting_pipeline.py`).
 - **Grafana (`infrastructure/grafana/`):** Pre-provisioned dashboards for visual analytics.
 - **Local/Staging Testing:** Run `docker compose up -d prometheus alertmanager` to simulate or test alerts locally.
 
