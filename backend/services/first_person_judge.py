@@ -31,15 +31,28 @@ logger = logging.getLogger(__name__)
 INDETERMINATE = -1  # same value as first_person_pipeline._RELEVANCE_INDETERMINATE
 JUDGE_MAX_TOKENS = 1024
 
-JUDGE_SYSTEM_PROMPT = (
-    "You judge recorded teaching clips for one seeker question. For each clip give "
-    "relevance 0-3 (3 = directly answers the question, 2 = closely related, "
-    "1 = loosely related, 0 = unrelated) and answers = true only if the clip itself "
-    "answers this specific question. Set question_answerable = true only if the "
-    "question is about inner life, spiritual practice or the teachings. Reply with "
-    'one JSON object: {"scores": [{"i": 0, "relevance": 0, "answers": false}], '
-    '"question_answerable": false}, one entry per clip index, nothing else. ' + data_notice("clip")
-)
+def _build_judge_system_prompt() -> str:
+    from services.guru_registry import allowed_speaker_labels
+
+    allowed = " and ".join(sorted(allowed_speaker_labels()))
+    return (
+        "You judge recorded teaching clips for one seeker question. For each clip give "
+        "relevance 0-3 (3 = directly answers the question, 2 = closely related, "
+        "1 = loosely related, 0 = unrelated) and answers = true only if the clip itself "
+        "answers this specific question. "
+        f"ATTRIBUTION INVARIANT: The recorded clips in this archive are exclusively from {allowed}. "
+        "If the seeker's question specifically asks what ANOTHER spiritual teacher, philosopher, "
+        "author, or tradition teaches (such as Thich Nhat Hanh, the Buddha, Eckhart Tolle, Sadhguru, "
+        "Marcus Aurelius, Zen, Kabbalah, etc.), a clip from this archive CANNOT answer "
+        "what that other teacher teaches. For any such attribution mismatch, score relevance 0 and answers false. "
+        "Set question_answerable = true only if the "
+        "question is about inner life, spiritual practice or the teachings. Reply with "
+        'one JSON object: {"scores": [{"i": 0, "relevance": 0, "answers": false}], '
+        '"question_answerable": false}, one entry per clip index, nothing else. ' + data_notice("clip")
+    )
+
+
+JUDGE_SYSTEM_PROMPT = _build_judge_system_prompt()
 
 JUDGE_JSON_SCHEMA: dict[str, Any] = {
     "type": "json_schema",

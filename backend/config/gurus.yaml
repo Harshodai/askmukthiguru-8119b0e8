@@ -40,7 +40,7 @@ gurus:
   - id: krishnaji
     label: Sri Krishnaji
     attribution_tag: teacher:sri_krishnaji
-    aliases: ['(?:sri\s+)?krishnaji']
+    aliases: ['(?:sri\s+)?krishna\s*ji']
     rights_policy: channel_owner_confirmed
     attribution_policy: direct_verbatim_quote
     sources:

@@ -184,13 +184,6 @@ _UNREGISTERED_TEACHER_RE = re.compile(
 )
 
 
-def requested_unregistered_teacher_or_tradition(query: str) -> str | None:
-    """Return the name/pattern of an unregistered teacher or external tradition named in query, if any."""
-    text = unicodedata.normalize("NFKC", query or "")
-    m = _UNREGISTERED_TEACHER_RE.search(text)
-    return m.group(0) if m else None
-
-
 def resolve_guru_id(value: str | None) -> str | None:
     """Resolve a configured teacher ID, label, or registered alias to its ID.
 
@@ -259,6 +252,95 @@ def canonical_guru_id(value: str | None) -> str | None:
         primary, _ = shared_attribution()
         return primary or "preethaji_krishnaji"
     return resolve_guru_id(candidate)
+
+
+# Syntactic authority-targeting patterns that ask what a specific teacher/thinker states or teaches.
+# Enables zero-shot detection of external spiritual authorities without requiring a closed list.
+_TARGET_AUTHORITY_PATTERNS = [
+    # 1. Direct syntactic questions: What does/did/has/would X teach/say/explain/state/write/think/guide/tell us
+    re.compile(
+        r"\b(?:what\s+(?:does|did|has|would))\s+([A-Za-z\s.\'\-]+?)\s+(?:teach|say|state|explain|write|think|guide|tell\s+us)\b",
+        re.I,
+    ),
+    # 2. How does/did/would X explain/define/approach/describe/view/guide/teach/address
+    re.compile(
+        r"\b(?:how\s+(?:does|did|would))\s+([A-Za-z\s.\'\-]+?)\s+(?:explain|define|approach|describe|view|guide|teach|address)\b",
+        re.I,
+    ),
+    # 3. Attributive framing: According to X / In the words of X / As taught by X
+    re.compile(
+        r"\b(?:according\s+to|in\s+the\s+words\s+of|as\s+taught\s+by)\s+([A-Za-z\s.\'\-]+?)(?:,|\?|\.|\s+about|\s+on|\s+in|$)",
+        re.I,
+    ),
+    # 4. Inquiries on specific methods/perspectives: What is X's / explain X's method/teachings/perspective/advice/view
+    re.compile(
+        r"\b(?:what\s+is|explain|what\s+are\s+(?:the\s+)?(?:main\s+)?(?:ideas?|views?|teachings?|steps?|arguments?)\s+(?:in|of))\s+([A-Za-z\s.\'\-]+?)(?:\'s|\x27s)\s+(?:meditations?|teachings?|perspective|argument|view|ideas?|steps?|method|philosophy|practice|writings?|work|book|canon|approach|take|advice|quote)\b",
+        re.I,
+    ),
+    # 5. Possessive authority framing: X's teachings / view / perspective / advice on/about
+    re.compile(
+        r"\b([A-Za-z\s.\'\-]+?)(?:\'s|\x27s)\s+(?:teachings?|perspective|argument|view|method|philosophy|approach|advice|take|quote)\s+(?:on|about|regarding)\b",
+        re.I,
+    ),
+    # 6. Concise topic framing: <Entity> on <topic> (e.g. 'Alan Watts on ego', 'Thich Nhat Hanh on walking meditation')
+    re.compile(
+        r"^([A-Za-z\s.\'\-]+?)\s+on\s+([A-Za-z\s.\'\-]+)$",
+        re.I,
+    ),
+]
+
+_CLEAN_PREFIX_RE = re.compile(
+    r"^(?:the\s+|an?\s+|master\s+|venerable\s+|swami\s+|father\s+|his\s+holiness\s+)",
+    re.I,
+)
+
+
+def extract_target_authority(query: str) -> dict[str, Any] | None:
+    """Intelligently extract the teacher or authority entity targeted by the query.
+
+    Returns a dict with:
+      - 'target': raw string of targeted authority
+      - 'is_registered': True if target maps to a registered guru in gurus.yaml
+      - 'guru_id': canonical guru ID if registered, else None
+      - 'source': detection method ('syntactic_authority' or 'tradition_or_teacher_lexicon')
+    or None if the query does not target a specific teacher or doctrine.
+    """
+    text = unicodedata.normalize("NFKC", query or "").strip()
+    if not text:
+        return None
+
+    for pat in _TARGET_AUTHORITY_PATTERNS:
+        m = pat.search(text)
+        if m:
+            raw_target = m.group(1).strip()
+            clean_target = _CLEAN_PREFIX_RE.sub("", raw_target).strip()
+            if len(clean_target) >= 2:
+                gid = resolve_guru_id(clean_target)
+                return {
+                    "target": clean_target,
+                    "is_registered": bool(gid),
+                    "guru_id": gid,
+                    "source": "syntactic_authority",
+                }
+
+    m_trad = _UNREGISTERED_TEACHER_RE.search(text)
+    if m_trad:
+        return {
+            "target": m_trad.group(0),
+            "is_registered": False,
+            "guru_id": None,
+            "source": "tradition_or_teacher_lexicon",
+        }
+
+    return None
+
+
+def requested_unregistered_teacher_or_tradition(query: str) -> str | None:
+    """Return the name/pattern of an unregistered teacher or external tradition named in query, if any."""
+    auth = extract_target_authority(query)
+    if auth and not auth["is_registered"]:
+        return str(auth["target"])
+    return None
 
 
 def shared_attribution() -> tuple[str | None, list[str]]:

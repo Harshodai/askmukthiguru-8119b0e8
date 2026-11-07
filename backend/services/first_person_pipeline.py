@@ -835,7 +835,8 @@ _RELEVANCE_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
     "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
-    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, or is event-bound (e.g. corona/lockdown). "
+    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, is event-bound (e.g. corona/lockdown), "
+    "or if the question asks what another spiritual teacher or external tradition teaches. "
     "Be strict: if a clip only discusses the topic generally without answering the specific question, score 1. "
     "Reply ONLY with comma-separated integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
 )
@@ -870,7 +871,8 @@ _RELEVANCE_JSON_SYSTEM_PROMPT = (
     "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
     "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
     "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
-    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, or is event-bound (e.g. corona/lockdown). "
+    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, is event-bound (e.g. corona/lockdown), "
+    "or if the question asks what another spiritual teacher or external tradition teaches. "
     "Be strict: if a clip only discusses the topic generally without answering the specific question, score 1. "
     'Reply ONLY with a JSON object of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
 )
@@ -6029,7 +6031,23 @@ class FirstPersonPipeline:
         )
         retrieval_query = retrieval_query or query
 
-        if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
+        from services.guru_registry import (
+            extract_target_authority,
+            requested_gurus,
+            requested_unregistered_teacher_or_tradition,
+        )
+
+        target_auth = extract_target_authority(query) or (
+            extract_target_authority(retrieval_query) if retrieval_query else None
+        )
+        if (
+            target_auth
+            and target_auth.get("is_registered")
+            and target_auth.get("guru_id")
+            and (not teacher_id or teacher_id.strip().lower() in ("both", "all", ""))
+        ):
+            teacher_id = target_auth["guru_id"]
+        elif not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
             teacher_id = (
                 requested_teacher(query) or requested_teacher(retrieval_query or "") or teacher_id
             )
@@ -6040,11 +6058,6 @@ class FirstPersonPipeline:
             return crisis_result
 
         # Step 1a: external / unregistered teacher or tradition inquiry check
-        from services.guru_registry import (
-            requested_gurus,
-            requested_unregistered_teacher_or_tradition,
-        )
-
         unreg_teacher = requested_unregistered_teacher_or_tradition(
             query
         ) or (
@@ -6052,7 +6065,7 @@ class FirstPersonPipeline:
             if retrieval_query
             else None
         )
-        if unreg_teacher and not requested_gurus(query):
+        if unreg_teacher:
             logger.info(
                 "[FirstPersonPipeline] Abstaining on external teacher/tradition inquiry (%s): %s",
                 unreg_teacher,
