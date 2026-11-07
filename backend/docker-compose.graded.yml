@@ -25,9 +25,11 @@ services:
       FIRST_PERSON_ENRICHMENT_WINDOW_ENABLED: "true"
       FIRST_PERSON_GRAPH_EXPANSION_ENABLED: "true"
       FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED: "true"
+      FIRST_PERSON_HYDE_ENABLED: "true"
+      FIRST_PERSON_SERVE_WEAK_MATCH: "true"
       # Relevance scorer: the single variable a stage may change.
       FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5
-      FIRST_PERSON_RELEVANCE_MIN_SCORE: "3"
+      FIRST_PERSON_RELEVANCE_MIN_SCORE: "2"
       OPENROUTER_EXTRA_ALLOWED_MODELS: "anthropic/claude-haiku-5.5"
       # 5 s turned slow provider replies into relevance_indeterminate abstains; Haiku verify
       # ran at a median of 1.8 s, max 2.6 s. D-PG13 decided by Harsha 2026-11-07: the
