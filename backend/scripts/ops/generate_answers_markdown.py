@@ -91,6 +91,6 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
     print(f"Generated {out_path} ({out_path.stat().st_size} bytes)")
 
 if __name__ == "__main__":
-    run_dir = Path.home() / "mukthiguru_attribution_data" / "graded_runs" / "20261107-graded-clean-v2"
+    run_dir = Path.home() / "mukthiguru_attribution_data" / "graded_runs" / "20261107-graded-clean-v3"
     out_file = REPO_ROOT / "audits" / "evidence" / "GRADED_RUN_ANSWERS_2026-11-07.md"
     generate_report(run_dir, out_file)
