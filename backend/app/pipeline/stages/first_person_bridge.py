@@ -1329,8 +1329,8 @@ class FirstPersonBridgeStage(Stage):
         related_block = _abstain_related_payload(related)
         # NEW-ANS-2 (ANS-010, RET-17): why the turn abstained. A check that could
         # not run is never reported as a pass (verification.passed=False) and is
-        # counted as an error, not as "no teaching found". Copy is unchanged until
-        # D-PQ9 is decided; only the cause, the copy key and telemetry change.
+        # counted as an error, not as "no teaching found". D-PQ9 (2026-11-07): its
+        # copy asks the seeker to try again.
         from app.answer_contract import abstain_cause, abstain_copy_key
 
         cause = abstain_cause(status, reason, answerability)
@@ -1351,6 +1351,14 @@ class FirstPersonBridgeStage(Stage):
         elif status == "error":
             answer = "I couldn't reach my teaching library just now. Please try again in a moment."
             method = "first_person_store_unavailable"
+        elif cause == "system_unavailable":
+            # D-PQ9 (owner decision 2026-11-07): a check that could not run (for
+            # example a scorer timeout) is a failure, not an absence of teaching.
+            answer = (
+                "I couldn't finish checking the teachings for this question just now. "
+                "Please try again in a moment."
+            )
+            method = "first_person_check_unavailable"
         else:
             answer = (
                 "I don't have a verified verbatim teaching that directly "
@@ -1389,7 +1397,13 @@ class FirstPersonBridgeStage(Stage):
                     ctx.container,
                     str(getattr(ctx, "preferred_lang", "") or ""),
                 )
-        elif getattr(ctx, "is_indic", False) and static and status != "error" and not boundaries:
+        elif (
+            getattr(ctx, "is_indic", False)
+            and static
+            and status != "error"
+            and cause != "system_unavailable"  # D-PQ9: that copy says "no teaching"
+            and not boundaries
+        ):
             answer = static  # no LLM call, no English words
         elif getattr(ctx, "is_indic", False):
             answer = await _translate_glue_only(

@@ -3,7 +3,8 @@
 The bridge used to pass only ``status`` to ``_abstain``. The pipeline's
 ``abstain_reason`` and answerability verdict were dropped, so "no teaching
 found" and "the check could not run" looked the same, and a store error still
-reported ``verification.passed=True``. Copy is unchanged here (D-PQ9 is open):
+reported ``verification.passed=True``. Copy for a failed check is D-PQ9 (decided
+2026-11-07, tests at the end of this file); the tests above pin
 only the cause, the honest ``passed`` flag, the outcome and the metric change.
 """
 
@@ -121,3 +122,64 @@ async def test_abstain_cause_metric_is_counted(fp_pipeline):
     await FirstPersonBridgeStage().run(_ctx(_container()))
 
     assert ABSTAIN_CAUSE_TOTAL.labels(cause="system_unavailable")._value.get() == before + 1
+
+
+# D-PQ9 (owner decision 2026-11-07): when a system failure blocks the check,
+# the seeker is told to try again, not that no teaching exists.
+_NO_TEACHING = "I don't have a verified verbatim teaching"
+
+
+@pytest.mark.asyncio
+async def test_scorer_failure_copy_says_try_again(fp_pipeline):
+    _pipeline_says(
+        fp_pipeline,
+        status="abstained",
+        reason="relevance_indeterminate",
+        answerability="relevance_indeterminate",
+    )
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert "Please try again" in result.final_answer
+    assert _NO_TEACHING not in result.final_answer
+    assert result.verification["method"] == "first_person_check_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_scorer_failure_skips_the_native_no_teaching_copy(fp_pipeline):
+    """The native-script static copy says "no verified teaching": wrong for a failure."""
+    from app.pipeline.stages.first_person_bridge import _STATIC_ABSTAIN
+
+    _pipeline_says(
+        fp_pipeline,
+        status="abstained",
+        reason="relevance_indeterminate",
+        answerability="relevance_indeterminate",
+    )
+
+    container = _container()
+    container.translation = None  # fail-open to English glue, no LLM
+    result = await FirstPersonBridgeStage().run(_ctx(container, lang="hi", is_indic=True))
+
+    assert result.final_answer != _STATIC_ABSTAIN["hi"]
+    assert "Please try again" in result.final_answer
+
+
+@pytest.mark.asyncio
+async def test_no_evidence_copy_is_unchanged(fp_pipeline):
+    _pipeline_says(fp_pipeline, status="abstained", reason="relevance_below_min")
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result.final_answer.startswith(_NO_TEACHING)
+    assert result.verification["method"] == "first_person_no_match_abstain"
+
+
+@pytest.mark.asyncio
+async def test_store_error_copy_is_unchanged(fp_pipeline):
+    _pipeline_says(fp_pipeline, status="error")
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container()))
+
+    assert result.final_answer.startswith("I couldn't reach my teaching library just now.")
+    assert result.verification["method"] == "first_person_store_unavailable"
