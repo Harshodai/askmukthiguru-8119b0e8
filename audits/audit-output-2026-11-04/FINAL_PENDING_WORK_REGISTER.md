@@ -367,7 +367,7 @@ Branch `feature/audit-strengthen-rag-qdrant`. Every SHA below is on the pushed b
 | AI-009 | NEW-AI-2 | Open -> Closed in code | 61a0ab8 | `test_untrusted_prompt_fences.py`; adversarial suite (9 of 27 cases fail on the base before 61a0ab8) | The answerability and judge prompts neutralise the seeker question but do not fence it (low) |
 | AI-011 | NEW-AI-1 | Open -> Closed in code | `54d5305` | `test_graph_state_routing_keys.py` | Dead `_context_sufficient` routing removed from `route_after_grading` and `reranking.py`; router reads no undeclared keys (`PENDING_DECISION` empty) |
 | MEM-012 | MEM-012 | Open -> Partial | e0ff3c3 | `test_memory_poisoning.py` | Patterns are English only (D-22, native-speaker review) |
-| AI-010 | NEW-AI-5 | Open -> Partial | aba9bf4, c609c6f | `test_injection_screen.py` (22 cases) | Flag-for-review is the default; drop mode waits on D-PG16. `ingest/pipeline.py` still drops `InjectionScanner` matches ("act as" included) on the chat corpus |
+| AI-010 | NEW-AI-5 | Open -> Closed in code | `aba9bf4`, `c609c6f` | `test_injection_screen.py` (24 cases) | Flag-for-review enforced; `ingest/pipeline.py` flags for review and never drops source chunks; scanner errors handled safely (D-PG16) |
 | NEW-SEC-5, NEW-AI-6 | adversarial suite | Open -> Closed in code (offline part) | 226e974 | `test_adversarial_suite.py` (27 cases; 2 tracked gaps ADV-S10c, ADV-U2a) | Live-stack cases listed in `evals/adversarial/README.md` |
 | SYS-014 (rerank part) | NEW-LOAD-6 | Open -> Partial | 36dc746 | `test_rerank_max_tokens.py` | Scorer price (D-16) |
 

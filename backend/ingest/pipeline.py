@@ -3348,23 +3348,23 @@ class IngestionPipeline:
         #     built for the PRE-filter list — one dropped chunk shifted every
         #     later chunk's metadata onto the wrong chunk, silently.
         # Filtering by index keeps every parallel array aligned.
+        # D-PG16: InjectionScanner flags chunks for review; it NEVER drops at ingest.
+        # Only LLM generation artifacts (CoT leaks, degradation text) are dropped.
         # ---------------------------------------------------------------
-        injection_clean, risky_chunks = scan_chunks_for_injection(chunks)
+        _, risky_chunks = scan_chunks_for_injection(chunks)
         if risky_chunks:
             logger.warning(
                 f"Injection patterns detected in {len(risky_chunks)}/{len(chunks)} chunks "
-                f"from source_url={source_url} — skipped"
+                f"from source_url={source_url} — flagged for review, preserved"
             )
-        # Recover indices: the scanner preserves order and only drops, so walking
-        # both lists by identity reconstructs which positions survived.
-        keep_indices: list[int] = []
-        cursor = 0
-        for i, chunk in enumerate(chunks):
-            if cursor < len(injection_clean) and injection_clean[cursor] is chunk:
-                keep_indices.append(i)
-                cursor += 1
+            if extra_metadatas is None:
+                extra_metadatas = [{} for _ in chunks]
+            for idx, _snippet, severity in risky_chunks:
+                if idx < len(extra_metadatas):
+                    extra_metadatas[idx]["injection_flagged"] = True
+                    extra_metadatas[idx]["injection_severity"] = severity
 
-        artifact_keep, artifact_rejected = select_clean(chunks[i] for i in keep_indices)
+        artifact_keep, artifact_rejected = select_clean(chunks)
         if artifact_rejected:
             logger.warning(
                 "LLM artifacts detected in %d/%d chunks from source_url=%s — skipped. "
@@ -3375,7 +3375,7 @@ class IngestionPipeline:
                 artifact_rejected[0][1],
                 artifact_rejected[0][2],
             )
-        keep_indices = [keep_indices[j] for j in artifact_keep]
+        keep_indices = artifact_keep
 
         if not keep_indices:
             logger.warning(
