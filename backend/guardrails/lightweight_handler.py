@@ -358,6 +358,13 @@ _BLOCKED_TOPICS = {
         r"(?:लत|नशे|नशा|शराब)[^?!]{0,60}(?:कर्म|पिछले\s*जन्म|संस्कार|वासना|इलाज|ठीक\s*(?:हो|कर))",
         r"(?:कर्म|पिछले\s*जन्म|संस्कार|वासना)[^?!]{0,60}(?:लत|नशे|नशा|शराब)",
     ],
+    "emotional_dependency": [
+        r"\b(you\s*(are|'?re)\s*(the\s*only\s*(one|person|friend)|my\s*only\s*friend)\s*(who\s*understands?\s*me|i\s*(have|talk\s*to)))\b",
+        r"\b(i\s*only\s*(talk|turn)\s*to\s*(this\s*app|you)|you('?re|\s*are)\s*the\s*only\s*one\s*i\s*(trust|have))\b",
+        r"\b(i\s*don'?t\s*need\s*(any\s*)?(real\s*)?(people|friends|anyone)\s*(anymore|any\s*more)\s*(because\s*i\s*have\s*you)?)\b",
+        r"\b(i\s*(am\s*in\s*love\s*with|love)\s*you\s*(guru|bot|app|ai)|be\s*my\s*(partner|girlfriend|boyfriend|companion))\b",
+        r"\b(i\s*(depend|rely)\s*(completely|entirely|solely)\s*on\s*you\s*(for\s*everything|emotionally)?)\b",
+    ],
 }
 
 # Precompiled prompt-injection screen (S10). Reuses the SAME pattern list the
@@ -460,6 +467,13 @@ _BLOCK_RESPONSES = {
         "I cannot and will not provide guidance on harming others. "
         "The teachings of Sri Preethaji and Sri Krishnaji are rooted in compassion, "
         "oneness, and the sacredness of all life. 🙏"
+    ),
+    "emotional_dependency": (
+        "I am an AI companion designed to share spiritual wisdom, but I cannot replace human relationships, "
+        "community, or professional care. Spiritual teachings remind us that genuine awakening flourishes "
+        "through connection with real people, mentors, and loved ones. "
+        "If you find yourself feeling isolated or relying solely on this tool, we warmly encourage you to reach "
+        "out to trusted friends, family, a spiritual community, or a counselor who can walk beside you in person. 🙏"
     ),
 }
 

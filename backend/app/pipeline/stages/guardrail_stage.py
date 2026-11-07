@@ -258,6 +258,8 @@ class InputGuardrailStage(Stage):
                 return None
             if "Emotional wellness" in reason:
                 intent, route_decision = "DISTRESS", "distress"
+            elif "emotional_dependency" in reason:
+                intent, route_decision = "EMOTIONAL_DEPENDENCY", "emotional_dependency_guard"
             elif "Medical advice" in reason or "Harmful pattern" in reason:
                 intent, route_decision = "SAFETY_VIOLATION", "blocked"
             else:
