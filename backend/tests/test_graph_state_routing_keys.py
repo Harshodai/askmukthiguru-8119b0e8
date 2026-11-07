@@ -28,12 +28,8 @@ DECLARED = set(typing.get_type_hints(GraphState, include_extras=True))
 
 # Known undeclared routing keys, each waiting on a recorded decision. Adding a
 # name here needs a finding ID; the test fails on any other undeclared key.
-# _context_sufficient: written by grade_documents, read by route_after_grading
-# two nodes later, so it is always None there and the "insufficient context ->
-# rewrite" branch never runs. Declaring it turns on extra rewrite LLM calls in
-# the general lane, a latency and cost change that needs a measured run first
-# (NEW-AI-1 follow-up, reported to the owner 2026-11-06).
-PENDING_DECISION = {"_context_sufficient"}
+# AI-011: dead `_context_sufficient` routing removed from route_after_grading.
+PENDING_DECISION: set[str] = set()
 
 
 def _state_keys(fn_node: ast.AST) -> set[str]:
@@ -156,6 +152,16 @@ def test_meditation_misroute_survives_to_a_later_node():
     g.add_edge("later", END)
     g.compile().invoke({"question": "q"})
     assert seen["flag"] is True
+
+
+def test_context_sufficient_not_read_by_any_router():
+    """AI-011: Verify that dead _context_sufficient routing is completely removed."""
+    seen: set[str] = set()
+    reads: dict[str, set[str]] = {}
+    for name in _router_names():
+        reads.update(_keys_read_by(name, seen))
+    all_read_keys = set().union(*reads.values())
+    assert "_context_sufficient" not in all_read_keys
 
 
 def test_pending_decision_keys_are_still_undeclared():

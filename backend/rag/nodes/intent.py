@@ -1864,11 +1864,10 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
 
 
 def route_after_grading(state: GraphState) -> str:
-    """Route after CRAG grading (merged with context sufficiency check)."""
+    """Route after CRAG grading."""
     relevant = state.get("relevant_docs", [])
     rewrite_count = state.get("rewrite_count", 0)
     intent = state.get("intent", "FACTUAL")
-    context_sufficient = state.get("_context_sufficient", True)
 
     if intent == "DISTRESS":
         return "distress"
@@ -1878,8 +1877,6 @@ def route_after_grading(state: GraphState) -> str:
 
     max_rewrites = max_rewrites_for_state(state)
     if relevant:
-        if not context_sufficient and rewrite_count < max_rewrites:
-            return "rewrite"
         return "relevant"
     elif rewrite_count < max_rewrites:
         return "rewrite"

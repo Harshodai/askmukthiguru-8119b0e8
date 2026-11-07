@@ -497,7 +497,6 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
     )
     return {
         "relevant_docs": relevant,
-        "_context_sufficient": context_sufficient,
         "low_confidence_retrieval": not context_sufficient,
         "grading_reasons": all_reasons,
         "evaluation_trace": _trace_update(
