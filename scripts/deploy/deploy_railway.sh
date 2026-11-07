@@ -324,7 +324,11 @@ fi
 # (backend/services/first_person_release.py). Set GIT_SHA from HEAD on EVERY run
 # (set_var would skip an old value) and refuse a dirty tree, because `railway up`
 # uploads the working tree and the SHA would not describe it.
-GIT_SHA_VALUE="$(git rev-parse HEAD)"
+GIT_SHA_VALUE="$(git rev-parse HEAD 2>/dev/null || true)"
+if [[ -z "$GIT_SHA_VALUE" || ! "$GIT_SHA_VALUE" =~ ^[0-9a-f]{40}$ ]]; then
+    error "Failed to resolve valid 40-character git SHA from HEAD. Cannot deploy without verified release identity."
+    exit 1
+fi
 if [[ -n "$(git status --porcelain)" && "$DRY_RUN" != true ]]; then
     error "Working tree is not clean. Commit or stash first: GIT_SHA must describe the code that is uploaded."
     exit 1
@@ -332,9 +336,15 @@ fi
 if [[ "$DRY_RUN" == true ]]; then
     log "[DRY RUN] Would set GIT_SHA=$GIT_SHA_VALUE and trigger: railway up --detach"
 else
-    railway variables set "GIT_SHA=$GIT_SHA_VALUE" > /dev/null 2>&1
+    if ! railway variables set "GIT_SHA=$GIT_SHA_VALUE"; then
+        error "Failed to set GIT_SHA on Railway. Aborting deployment."
+        exit 1
+    fi
     success "Set GIT_SHA=${GIT_SHA_VALUE:0:12}"
-    railway up --detach > /dev/null 2>&1
+    if ! railway up --detach; then
+        error "Railway deployment failed."
+        exit 1
+    fi
     success "Backend deployment triggered"
 fi
 

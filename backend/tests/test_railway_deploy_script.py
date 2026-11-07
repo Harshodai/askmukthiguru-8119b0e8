@@ -71,6 +71,14 @@ def test_git_sha_is_set_from_head_and_overwrites():
     assert "git status --porcelain" in SCRIPT
 
 
+def test_git_sha_is_validated_and_fails_closed():
+    """GIT_SHA must be verified as a 40-char hex SHA and fail closed on errors."""
+    assert "GIT_SHA_VALUE" in SCRIPT
+    assert "[0-9a-f]{40}" in SCRIPT
+    # Failure to set GIT_SHA must not be swallowed into /dev/null
+    assert 'railway variables set "GIT_SHA=$GIT_SHA_VALUE" > /dev/null 2>&1' not in SCRIPT
+
+
 def test_redis_policy_is_noeviction_not_volatile_lru():
     code = "\n".join(_code_lines())
     assert "volatile-lru" not in code  # comments may explain why
