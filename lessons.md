@@ -1,6 +1,25 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 7, 2026 — Graded run v3 forensics, graph expansion payload discovery & boundary quality
+
+### L-GRAPH-EXPANSION-PAYLOAD-DISCONNECT-1. Ontology graph expansion is a no-op if the vector store payloads lack concept tags.
+- **What:** `FIRST_PERSON_GRAPH_EXPANSION_ENABLED=true` was active in the container, and `expand_query_concepts()` successfully queried Memgraph for ontology concepts (e.g., returning 8 concepts for meditation like Health, Consciousness, Amygdala, Brain Changes). However, `FirstPersonContextStore.retrieve` filters on `should: [topic_ids IN concepts, entity_ids IN concepts, tags IN concepts]`. In `first_person_v10`, 4,224 of 4,226 points had empty `topic_ids`, 0 had `entity_ids`, and 0 had `tags`. The concept filter thus returned 0 extra candidates, silently collapsing retrieval to dense/sparse vector search only.
+- **Rule:** When enabling graph-guided concept filtering, verify that the active vector collection has non-empty tag/entity attributes in its payloads. If attributes are unpopulated, expand the retrieval query semantically or query the graph projection directly rather than applying a zero-match payload filter.
+
+### L-TU-GRAPH-MEMGRAPH-PROJECTION-1. Offline graph projections must align with Qdrant collection field schemas (Invariant X40).
+- **What:** `FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED=true` was enabled, but Memgraph contained 0 `TUTeachingUnit` nodes. `build_teaching_unit_graph.py` scrolled Qdrant with `rights_status == "licensed"`, but the `first_person_v10` schema declares `domain_rights_status == "licensed"` per Invariant X40. The query scrolled 0 points and the TU projection was never built.
+- **Rule:** Graph indexing scripts must use `domain_rights_status` (with fallbacks where necessary) to clear licensed spans per Invariant X40. Verify node counts in Memgraph (`MATCH (n:TUTeachingUnit) RETURN count(n)`) before activating TU graph traversal flags.
+
+### L-HEALTH-CLAIM-SAFETY-BOUNDARY-1. Extreme physiological destruction metaphors require medical boundary handling.
+- **What:** In `q050` (*"Can chronic stress actually make me physically sick?"*), Sri Preethaji's clip stating that suffering *"destroys your body"*, *"fills your body with stress hormones destroys your heart"*, and *"internally i can say you are dead"* was served. The dual judge flagged it `harmful: True` because it made strong physiological damage claims without nuance, pointer to medical care, or a health consultation disclaimer. `_HEALTH_CLAIM_RE` had only targeted explicit clinical nouns (*cancer, diabetes, tumour*).
+- **Rule:** Any discourse clip containing extreme physiological destruction claims (*"destroys your heart/body"*, *"internally dead"*) served in response to physical illness inquiries must be caught by health claim screening or accompanied by a clear wellbeing/medical consultation safety notice.
+
+### L-DANGLING-RHETORICAL-QUESTION-BOUNDARY-1. Dangling question detectors must catch general rhetorical question endings.
+- **What:** In `q061` and `q086`, clips cut off at *"When you are deeply hurt, what do you do?"* were served. The dual judge marked both `not_showable` for ending mid-thought without answering the rhetorical question. `_DANGLING_QUESTION_TAIL_RE` only matched three specific strings (`why is that?`, `how do we?`, `what about you?`), allowing unclosed rhetorical questions to pass.
+- **Rule:** The standalone boundary gate must check for any terminal rhetorical question ending without an answer span, ensuring that the answer either includes the resolution or abstains.
+
+
 ## Nov 7, 2026 - Sonnet platform thread
 
 ### L-PLAYWRIGHT-REDUCEDMOTION-BEFORE-EVIDENCE-1. A "before" run proves nothing until the setting is shown to take effect.
