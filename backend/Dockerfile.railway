@@ -13,7 +13,7 @@
 #   - Runtime uses malloc_trim + gc.collect to minimize resident memory (RSS)
 
 # ── Stage 1: Builder ─────────────────────────────────────────────────────────
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl gcc g++ make binutils && \
@@ -55,7 +55,7 @@ RUN find /opt/venv/lib -name "*.so*" -exec strip --strip-unneeded {} + 2>/dev/nu
     find /opt/venv -type f -name "*.a" -delete 2>/dev/null || true
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ffmpeg libgomp1 && \
