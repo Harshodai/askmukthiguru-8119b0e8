@@ -163,6 +163,21 @@ Likelihood and impact are the lead's judgement [INF], not measurements.
 | RK-19 | An unreviewed Lovable bot commit lands on `main` and undoes a safety, voice or storage contract | High while direct writes continue | High | LOV-01, LOV-02, LOV-06 (202 bot merges, last 2026-10-31) | NEW-LOV-01 (owner), NEW-LOV-02, NEW-LOV-03 | B | Owner + agent |
 | RK-20 | The budget guard denies service at low traffic because unreported costs keep the full reservation | Medium | High | SYS-014 (`openrouter_budget.py:87-98`; `config.py:640`, `:644`) | D-16; NEW-LOAD-3; count denials (NEW-OPS-8) | B | Owner + agent |
 
+## 3a. Owner answers, 2026-11-07
+
+Harsha, in the project thread on 2026-11-07: "do end to end and use intelligence", which the coordinator recorded as "take the recommendations". Code record in `FINAL_PENDING_WORK_REGISTER.md` §11.3.
+
+| Decision | Answer | Record |
+|---|---|---|
+| D-PG13 | Graded run 12 s; `Settings` default stays 25 s | 32c12c4, dea7b44 |
+| D-16 | Judge model = the relevance scorer's model, `anthropic/claude-haiku-5.5`; price $0.10 / $0.50 per million tokens in/out, read 2026-11-07 from `https://openrouter.ai/api/v1/models`; judge flag stays off until the frozen-bank comparison | eac1b03 |
+| D-DQ1 | Yes, behind a flag, off by default | 087af0a (built), 03d49e2 (recorded) |
+| D-PG16 | Flag only; never drop a span at ingest | 03d49e2 |
+| D-PQ7 | No `clip_ref` carrying the Qdrant point id on the wire (`test_citation_contract.py` keeps forbidding `point_id`); an opaque signed id is later work | no code change |
+| D-PQ9 | Yes: "please try again" copy when a system failure blocks the check | 7ad76a7 |
+| D-03 | No labelled assistant explanation layer for now; ANS-004, ANS-006, ANS-007, PRD-007, RET-03, RET-04, RET-06 stay blocked | no code change |
+| Crisis, outside India | Add "If you are outside India, call your local emergency number now." with no phone number | 144d854 |
+
 ## 4. Verified, assumptions, unknowns
 
 - Verified: decision texts copied from `unresolved-questions.md` and from §9 of each specification; config lines re-read by the lead on 2026-11-05.
