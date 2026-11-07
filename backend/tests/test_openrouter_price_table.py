@@ -68,9 +68,7 @@ def _allowed_models() -> set[str]:
         )
     }
     presets = {
-        model
-        for preset in Settings.OPENROUTER_PRESETS.values()
-        for model in preset.values()
+        model for preset in Settings.OPENROUTER_PRESETS.values() for model in preset.values()
     }
     return {m for m in defaults | presets | _compose_models() if m}
 
