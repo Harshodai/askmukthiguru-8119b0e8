@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 # Ensure scripts/ops is importable
@@ -20,6 +21,55 @@ if str(SCRIPTS_OPS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_OPS))
 
 import build_full_corpus_v10 as builder
+
+from services.corpus_build_safety import LICENSED, RightsDecision
+
+
+class _FakeQdrant:
+    """Stateful stand-in for QdrantService (NEW-ING-2).
+
+    write_video_points (f87c0de) reads a video's ids back after the upsert and
+    refuses the video unless they equal the new set, so a MagicMock that
+    forgets every write makes every video "verify_mismatch". This fake keeps
+    the points it was given and answers the video_id filter. Calls it does
+    not model fall through to a MagicMock.
+    """
+
+    def __init__(self, points=None, calls=None):
+        self.points = dict(points or {})
+        self.calls = calls if calls is not None else []
+        self._other = MagicMock()
+
+    def __getattr__(self, name):
+        return getattr(self._other, name)
+
+    def collection_info(self, *a, **k):
+        return MagicMock()
+
+    def create_snapshot(self, *a, **k):
+        self.calls.append("snapshot")
+        return MagicMock(name="snapshot_obj")
+
+    def scroll_page(self, *a, scroll_filter=None, **k):
+        want = None
+        if scroll_filter is not None:
+            want = scroll_filter.must[0].match.value
+        page = [
+            SimpleNamespace(id=pid, payload=payload)
+            for pid, payload in self.points.items()
+            if want is None or payload.get("video_id") == want
+        ]
+        return page, None
+
+    def upsert_points(self, points, *a, **k):
+        self.calls.append("upsert")
+        for p in points:
+            self.points[str(p.id)] = dict(p.payload or {})
+
+    def delete_points_by_ids(self, ids, *a, **k):
+        self.calls.append(("delete", sorted(str(i) for i in ids)))
+        for i in ids:
+            self.points.pop(str(i), None)
 
 
 def test_builder_refuses_empty_build(monkeypatch, tmp_path):
@@ -61,21 +111,8 @@ def test_builder_refuses_empty_build(monkeypatch, tmp_path):
 
 def test_builder_takes_snapshot_before_first_write(monkeypatch, tmp_path):
     """Pre-build snapshot must be called before upserting points."""
-    call_order: list[str] = []
-
-    mock_qdrant = MagicMock()
-    mock_qdrant.collection_info.return_value = MagicMock()
-    mock_qdrant.scroll_page.return_value = ([], None)
-
-    def record_snapshot(*args, **kwargs):
-        call_order.append("snapshot")
-        return MagicMock(name="snapshot_obj")
-
-    def record_upsert(*args, **kwargs):
-        call_order.append("upsert")
-
-    mock_qdrant.create_snapshot.side_effect = record_snapshot
-    mock_qdrant.upsert_points.side_effect = record_upsert
+    call_order: list = []
+    mock_qdrant = _FakeQdrant(calls=call_order)
 
     # Setup 1 candidate video
     wav_dir = tmp_path / "wavs"
@@ -149,8 +186,13 @@ def test_builder_takes_snapshot_before_first_write(monkeypatch, tmp_path):
                 {"window_count": 1, "min_window_cosine": 0.85, "foreign_window_count": 0},
             ),
         ),
-        patch.object(builder, "CLEARED_VIDEO_IDS", {"vid_001"}),
-        patch.object(builder, "CLEARED_CHANNELS", {"official"}),
+        # NEW-ING-1 (f87c0de): rights come from the rights register through
+        # video_rights_decision, not from the removed CLEARED_* lists.
+        patch.object(
+            builder,
+            "video_rights_decision",
+            return_value=RightsDecision(True, LICENSED, "register_licensed"),
+        ),
         patch.object(builder, "speaker_verify"),
     ):
         exit_code = builder.main()
@@ -161,19 +203,13 @@ def test_builder_takes_snapshot_before_first_write(monkeypatch, tmp_path):
 
 
 def test_builder_per_video_replace_deletes_stale_points(monkeypatch, tmp_path):
-    """When rebuilding a video, existing points for that video are deleted before new upsert."""
-    mock_qdrant = MagicMock()
-    mock_qdrant.collection_info.return_value = MagicMock()
+    """Rebuilding a video replaces its points and removes the stale ones.
 
-    mock_point_old = MagicMock(id="old-point-123")
-    mock_point_old.payload = {"video_id": "vid_replace_001"}
-
-    # First scroll (collection video set): returns old video
-    # Second scroll (per-video stale check): returns old point ID
-    mock_qdrant.scroll_page.side_effect = [
-        ([mock_point_old], None),  # collection scan
-        ([mock_point_old], None),  # stale points scan for vid_replace_001
-    ]
+    NEW-ING-2 (f87c0de) changed the order: the new points are upserted first and
+    the stale ids are deleted after, so a failed upsert never leaves the video
+    with no points (the old test pinned delete-then-upsert).
+    """
+    mock_qdrant = _FakeQdrant(points={"old-point-123": {"video_id": "vid_replace_001"}})
 
     wav_dir = tmp_path / "wavs"
     wav_dir.mkdir()
@@ -249,17 +285,22 @@ def test_builder_per_video_replace_deletes_stale_points(monkeypatch, tmp_path):
                 {"window_count": 1, "min_window_cosine": 0.88, "foreign_window_count": 0},
             ),
         ),
-        patch.object(builder, "CLEARED_VIDEO_IDS", {"vid_replace_001"}),
-        patch.object(builder, "CLEARED_CHANNELS", {"official"}),
+        # NEW-ING-1 (f87c0de): rights come from the rights register through
+        # video_rights_decision, not from the removed CLEARED_* lists.
+        patch.object(
+            builder,
+            "video_rights_decision",
+            return_value=RightsDecision(True, LICENSED, "register_licensed"),
+        ),
         patch.object(builder, "speaker_verify"),
     ):
         exit_code = builder.main()
         assert exit_code == 0
 
-        # delete_points_by_ids must have been called with old-point-123
-        assert mock_qdrant.delete_points_by_ids.called
-        deleted_ids = mock_qdrant.delete_points_by_ids.call_args[0][0]
-        assert "old-point-123" in deleted_ids
-
-        # upsert_points must also have been called
-        assert mock_qdrant.upsert_points.called
+        deletes = [c for c in mock_qdrant.calls if isinstance(c, tuple)]
+        assert any("old-point-123" in ids for _, ids in deletes)
+        assert "upsert" in mock_qdrant.calls
+        first_delete = next(i for i, c in enumerate(mock_qdrant.calls) if isinstance(c, tuple))
+        assert mock_qdrant.calls.index("upsert") < first_delete
+        assert "old-point-123" not in mock_qdrant.points
+        assert mock_qdrant.points  # the new version is in place
