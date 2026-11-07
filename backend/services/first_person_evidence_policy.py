@@ -247,11 +247,12 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
         return None
     first = text_list[0]
     whole = " ".join(text.strip() for text in text_list)
-    stripped = first.lstrip("\"'“‘ \t")
-    if stripped and stripped[0].islower():
-        return "orphan_opener"
     stripped_whole = whole.strip()
-    if not stripped_whole.endswith((".", "!", "?", '"', "'", "”", "’")):
+    if stripped_whole and stripped_whole[-1] in ",;:-\u2014\u2013":
+        return "ends_mid_sentence"
+    if any(p in stripped_whole for p in (".", "!", "?", "।", "॥")) and not stripped_whole.endswith(
+        (".", "!", "?", '"', "'", "”", "’", "।", "॥")
+    ):
         return "ends_mid_sentence"
     if _ATTENDEE_TESTIMONIAL_RE.search(whole):
         return "attendee_testimonial"

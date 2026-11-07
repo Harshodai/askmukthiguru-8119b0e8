@@ -93,6 +93,32 @@ export interface UserSkill {
   updated_at: string;
 }
 
+/** Layer 4 Preemptively Loaded Context (Seeker Core Dashboard — Anthropic Agent Memory). */
+export interface SeekerDashboard {
+  user_id: string;
+  preferred_language: string;
+  spiritual_stage: string;
+  active_inquiry: string | null;
+  active_practices: string[];
+  last_consolidated_at: string;
+  fingerprint: string;
+  system_prompt_block: string;
+}
+
+/** Report from 5-stage offline dreaming memory consolidation. */
+export interface MemoryDreamReport {
+  user_id: string;
+  dry_run: boolean;
+  snapshot_id: string | null;
+  evicted_count: number;
+  superseded_count: number;
+  decayed_count: number;
+  active_remaining: number;
+  dashboard_updated: boolean;
+  error: string | null;
+  audit_event_ids: string[];
+}
+
 export interface ConversationContinuity {
   session_id: string;
   started_at: string;
@@ -720,5 +746,66 @@ export const memoryApi = {
     } catch {
       return { status: 'error', persona: '', skills: [] };
     }
+  },
+
+  /**
+   * Layer 4 Preemptively Loaded Context (Seeker Core Dashboard).
+   * Fetches the compact, verified spiritual stage, active inquiry, and practices
+   * strictly bounded to <= 120 tokens to avoid context poisoning.
+   */
+  async getDashboard(): Promise<SeekerDashboard | null> {
+    const session = await supabase.auth.getSession();
+    if (!session.data.session) return null;
+
+    try {
+      const endpoint = resolveMemoryEndpoint('/api/memory/dashboard');
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${session.data.session.access_token}`,
+        },
+      });
+      if (!res.ok) {
+        if (res.status === 404 || res.status === 501) return null;
+        throw new MemoryApiError(
+          res.status === 401 ? 'unauthorized' : 'server_error',
+          `Failed to fetch seeker dashboard (${res.status}).`,
+          res.status
+        );
+      }
+      return (await res.json()) as SeekerDashboard;
+    } catch (err) {
+      if (err instanceof MemoryApiError) throw err;
+      console.warn('[memoryApi] getDashboard error (fail-open):', err);
+      return null;
+    }
+  },
+
+  /**
+   * 5-Stage Offline Dreaming Memory Consolidation.
+   * Executes sleep-time compute: snapshot failsafe -> transcript grounding anti-hallucination
+   * audit -> temporal contradiction resolution -> mathematical decay -> dashboard re-synthesis.
+   */
+  async dream(dryRun = false): Promise<MemoryDreamReport> {
+    const session = await requireSession();
+    const endpoint = resolveMemoryEndpoint('/api/memory/dream');
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ dry_run: dryRun }),
+    });
+
+    if (!res.ok) {
+      throw new MemoryApiError(
+        res.status === 401 ? 'unauthorized' : 'server_error',
+        `Memory dreaming consolidation failed (${res.status}).`,
+        res.status
+      );
+    }
+    return (await res.json()) as MemoryDreamReport;
   },
 };

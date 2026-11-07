@@ -57,6 +57,8 @@ vi.mock('@/lib/memoryApi', () => ({
     edit: vi.fn(),
     forget: vi.fn(),
     setCore: vi.fn(),
+    getDashboard: vi.fn(),
+    dream: vi.fn(),
     reflect: vi.fn().mockResolvedValue({ status: 'ok' }),
   },
   MemoryApiError: class extends Error {},
@@ -87,6 +89,19 @@ describe('MemoryManager Governance & Knowledge Graph Controls', () => {
     vi.mocked(memoryApi.hasConsent).mockResolvedValue(false);
     vi.mocked(memoryApi.recordConsent).mockResolvedValue(undefined);
     vi.mocked(memoryApi.deleteAll).mockResolvedValue(undefined);
+    vi.mocked(memoryApi.getDashboard).mockResolvedValue(null);
+    vi.mocked(memoryApi.dream).mockResolvedValue({
+      user_id: 'test-user',
+      dry_run: false,
+      snapshot_id: 'snap-1',
+      evicted_count: 1,
+      superseded_count: 2,
+      decayed_count: 0,
+      active_remaining: 5,
+      dashboard_updated: true,
+      error: null,
+      audit_event_ids: ['evt-1'],
+    });
   });
 
   it('renders Approval Notification Banner when hasConsent is false/not approved', async () => {
@@ -229,6 +244,59 @@ describe('MemoryManager Governance & Knowledge Graph Controls', () => {
 
     await waitFor(() => {
       expect(memoryApi.recordConsent).toHaveBeenCalledWith(true);
+    });
+  });
+
+  it('renders Layer 4 Seeker Core Dashboard with active practices and inquiry', async () => {
+    vi.mocked(memoryApi.getConsent).mockResolvedValue(true);
+    vi.mocked(memoryApi.hasConsent).mockResolvedValue(true);
+    vi.mocked(memoryApi.getDashboard).mockResolvedValue({
+      user_id: 'test-user',
+      preferred_language: 'en',
+      spiritual_stage: 'sadhak',
+      active_inquiry: 'Transforming anxiety into stillness',
+      active_practices: ['Serene Mind', 'Soul Sync'],
+      last_consolidated_at: new Date().toISOString(),
+      fingerprint: 'abcd1234abcd1234',
+      system_prompt_block: '<seeker_context>...</seeker_context>',
+    });
+
+    render(<MemoryManager />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Seeker Core Dashboard/i)).toBeInTheDocument();
+      expect(screen.getByText(/sadhak/i)).toBeInTheDocument();
+      expect(screen.getByText(/Transforming anxiety into stillness/i)).toBeInTheDocument();
+      expect(screen.getByText(/Serene Mind/i)).toBeInTheDocument();
+      expect(screen.getByText(/Soul Sync/i)).toBeInTheDocument();
+    });
+  });
+
+  it('triggers offline dreaming memory consolidation when Consolidate Memories button is clicked', async () => {
+    vi.mocked(memoryApi.getConsent).mockResolvedValue(true);
+    vi.mocked(memoryApi.hasConsent).mockResolvedValue(true);
+    vi.mocked(memoryApi.getDashboard).mockResolvedValue({
+      user_id: 'test-user',
+      preferred_language: 'en',
+      spiritual_stage: 'seeker',
+      active_inquiry: null,
+      active_practices: [],
+      last_consolidated_at: new Date().toISOString(),
+      fingerprint: '12345678',
+      system_prompt_block: '',
+    });
+
+    render(<MemoryManager />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Consolidate Memories/i })).toBeInTheDocument();
+    });
+
+    const consolidateBtn = screen.getByRole('button', { name: /Consolidate Memories/i });
+    fireEvent.click(consolidateBtn);
+
+    await waitFor(() => {
+      expect(memoryApi.dream).toHaveBeenCalledWith(false);
     });
   });
 });

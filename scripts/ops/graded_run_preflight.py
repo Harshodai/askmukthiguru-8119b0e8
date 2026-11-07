@@ -27,12 +27,26 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-BACKEND = Path(__file__).resolve().parents[2]
-REPO = BACKEND.parent
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
+
+
+def _find_repo_root() -> Path:
+    p = Path(__file__).resolve()
+    for parent in [p] + list(p.parents):
+        if (parent / ".git").exists() or (parent / "audits").is_dir():
+            return parent
+    return Path(__file__).resolve().parents[2]
+
+
+REPO = _find_repo_root()
+BACKEND = REPO / "backend"
 
 # Container paths that hold application code. A bind mount over any of them means the
 # container runs the host's working tree, not the image.

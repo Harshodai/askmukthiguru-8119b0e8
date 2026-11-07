@@ -1164,6 +1164,7 @@ async def get_seeker_dashboard(
 
 
 @router.get("/memory/core", response_model=SeekerCoreResponse)
+@router.get("/memory/dashboard/core", response_model=SeekerCoreResponse)
 async def get_seeker_core_memory(
     _tenant: None = Depends(set_tenant_from_request),
     user: dict = Depends(get_current_user_from_supabase),

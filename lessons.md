@@ -14556,4 +14556,22 @@ A stale or caller-supplied `domain_rights_status="licensed"` is not evidence. In
 - **Fix:** Added possessive pronouns (`their`, `theirs`, `his`, `hers`) to `_ORPHAN_OPENER_RE`. Added `_DANGLING_AFFIRMATION_TAIL_RE` targeting isolated conversational endings (`(?:[.!?]\s+)(?:yes|okay|alright)\s*[.?!]?\s*$`) in `_clip_standalone_problem` and `_context_standalone_problem`.
 - **Rule:** Discourse and standalone quality checks must cover all third-person possessive openers and isolated tail affirmations so unanchored transcripts fail closed.
 
+## Nov 8, 2026 — End-to-end remediation, benchmark onboarding, and serving contract synchronization
+
+### L-SERVING-CONTRACT-HASH-SYNC-1 — Serving contract changes require atomic synchronization of hash pins across release gate and local review configs
+- **What:** Modifying `backend/config/first_person_serving_contract.json` (such as declaring encoder models or approved versions) changes its SHA256 digest. When `backend/config/first_person_public_release_gate.json` and `backend/config/first_person_local_review.json` are not updated in the exact same commit, the public release gate and local review startup fail closed with an integrity violation (`blocker: integrity`), shifting release status to `NO_GO`.
+- **Fix:** Synchronized the SHA256 digest across all three configuration files, corrected the embedding model definition to `BAAI/bge-m3` (1024d) matching production index reality, and added regression tests ensuring hash agreement.
+- **Rule:** Any change to `first_person_serving_contract.json` must atomically recompute and pin its SHA256 in `first_person_local_review.json` and `first_person_public_release_gate.json`.
+
+### L-ASR-UNPUNCTUATED-STANDALONE-1 — Standalone checks on ASR transcripts must account for unpunctuated/lowercase transcripts and Indic dandas
+- **What:** Context standalone evaluation was failing on legitimate teacher clips: (1) unpunctuated ASR transcript fragments starting with lowercase letters were rejected as `orphan_opener`, (2) unpunctuated single-span clips were rejected as `ends_mid_sentence`, and (3) Hindi verbatim quotes (e.g. `दुःख एक आंतरिक विभाजन है।`) were rejected because sentence terminator checks omitted the Indic danda `।` (`\u0964`) and `॥` (`\u0965`).
+- **Fix:** Refined `_context_standalone_problem` in `backend/services/first_person_evidence_policy.py`: only flag `ends_mid_sentence` if ending in punctuation that cuts off mid-sentence (`",;:-\u2014\u2013"`) or if punctuated text fails to terminate on a valid sentence boundary (including dandas); removed blanket lowercase rejection in favor of specific regex openers (`_ORPHAN_OPENER_RE`).
+- **Rule:** Standalone sentence gates must support multilingual punctuation (Indic dandas) and allow unpunctuated speech fragments unless explicit cutoff markers or dangling openers are detected.
+
+### L-BENCHMARK-EVALUATION-ONBOARDING-1 — Graded capture runner must support core benchmark question suites alongside tuning sets
+- **What:** The graded run capture runner (`scripts/ops/graded_capture.py`) previously only evaluated the frozen 116 tuning set and 86 unanswerable safety probes, missing the formal 52-question benchmark suite (`frozen29.jsonl` on-topic doctrine, `compound10.jsonl` compound inquiries, and `ooc13.jsonl` out-of-corpus queries).
+- **Fix:** Onboarded `--include-benchmarks` and `--benchmarks-only` into `scripts/ops/graded_capture.py` and `backend/scripts/ops/graded_capture.py` (kept byte-identical per Rule X1), adding dedicated Markdown sections and report structures in `generate_answers_markdown.py`.
+- **Rule:** Evaluation runners must support executing both frozen tuning and formal held-out benchmark datasets with uniform logging, attribution stamping, and dual-judge grading.
+
+
 

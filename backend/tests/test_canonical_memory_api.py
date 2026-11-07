@@ -1249,6 +1249,10 @@ class TestSeekerDashboardAndDreamingEndpoints:
         assert "content" in data
         assert len(data["fingerprint"]) == 64
 
+        resp2 = client.get("/memory/dashboard/core")
+        assert resp2.status_code == 200
+        assert resp2.json()["fingerprint"] == data["fingerprint"]
+
     def test_post_memory_dream_dry_run(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient

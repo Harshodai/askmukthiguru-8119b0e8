@@ -27,11 +27,23 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
     grades = json.loads(grades_path.read_text(encoding="utf-8")) if grades_path.exists() else {}
     final_grades = grades.get("final", {})
 
+    frozen_count = len([r for r in rows if r.get("set") == "frozen116"])
+    unans_count = len([r for r in rows if r.get("set") == "unanswerable86"])
+    bench_count = len([r for r in rows if r.get("set") == "benchmark"])
+    breakdown_parts = []
+    if frozen_count:
+        breakdown_parts.append(f"{frozen_count} frozen tuning")
+    if unans_count:
+        breakdown_parts.append(f"{unans_count} unanswerable")
+    if bench_count:
+        breakdown_parts.append(f"{bench_count} benchmark")
+    breakdown_str = " + ".join(breakdown_parts) if breakdown_parts else f"{len(rows)} questions"
+
     lines: list[str] = [
-        "# Graded Run Answers & Attribution Evidence (2026-11-07)",
+        "# Graded Run Answers & Attribution Evidence (2026-11-08)",
         "",
         f"**Run ID:** `{run_dir.name}`  ",
-        f"**Total Questions Evaluated:** {len(rows)} (116 frozen tuning + 86 unanswerable)  ",
+        f"**Total Questions Evaluated:** {len(rows)} ({breakdown_str})  ",
         "**Evaluation Stack:** Clean Docker image, zero code bind-mounts, pinned environment  ",
         "",
         "---",
@@ -93,6 +105,21 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
             passed = no_clip
             status_str = "PASS" if passed else "FAIL"
             lines.append(f"| `{r['id']}` | `{r.get('scoring_group')}` | `{exp}` | `{r.get('route')}` | {len(r.get('citations', []))} | **{status_str}** |")
+
+    benchmark_rows = [r for r in rows if r.get("set") == "benchmark"]
+    if benchmark_rows:
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+        lines.append(f"## 4. Benchmark Questions Summary ({len(benchmark_rows)} Questions: Frozen29 + Compound10 + OOC13)")
+        lines.append("")
+        lines.append("| ID | Kind | Question | Route | Citations | Latency (ms) | Status |")
+        lines.append("| :--- | :--- | :--- | :--- | :---: | :---: | :---: |")
+        for r in benchmark_rows:
+            cits_count = len(r.get("citations", []))
+            kind = r.get("kind", "on_topic")
+            status = "SERVED" if cits_count > 0 else "ABSTAINED/GENERAL"
+            lines.append(f"| `{r['id']}` | `{kind}` | {r['question'][:40]}... | `{r.get('route')}` | {cits_count} | {r.get('latency_ms')} | **{status}** |")
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Generated {out_path} ({out_path.stat().st_size} bytes)")

@@ -78,6 +78,20 @@ def test_the_frozen_116_are_labelled_a_tuning_set():
     assert items and all(i["split"] == "tuning" for i in items)
 
 
+def test_the_benchmark_items_are_onboarded():
+    from scripts.ops.graded_capture import _items
+
+    items = _items(include_frozen=False, include_unanswerable=False, include_benchmarks=True)
+    assert len(items) == 52
+    assert all(i["set"] == "benchmark" for i in items)
+    on_topic = [i for i in items if i["kind"] == "on_topic"]
+    compound = [i for i in items if i["kind"] == "compound"]
+    ooc = [i for i in items if i["kind"] == "out_of_corpus"]
+    assert len(on_topic) == 29
+    assert len(compound) == 10
+    assert len(ooc) == 13
+
+
 def test_the_approved_bar_file_is_consistent():
     import json
     from pathlib import Path
