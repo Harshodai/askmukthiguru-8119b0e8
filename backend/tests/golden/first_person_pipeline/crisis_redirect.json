@@ -13,8 +13,8 @@
   "result": {
     "abstain_reason": "none",
     "answer_text": {
-      "chars": 171,
-      "sha256": "02b362053948bbca0f1c27da55805acca347dfce0fa61b016d6f6f255ce10a98"
+      "chars": 235,
+      "sha256": "f2c8d4dbdaf2d7d31c4257a0052295ecd3d543a70d26d1ae83bffd8376fcc111"
     },
     "answerability": null,
     "atma_vichara_inquiry": null,

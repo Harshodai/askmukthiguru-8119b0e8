@@ -286,6 +286,19 @@ def _only_call_verified(
     )
 
 
+# Owner decision 2026-11-07: the verified-only block lists India lines only
+# (SAFE-004), so a seeker in another country needs a route. No phone number:
+# an unverified foreign number is never shown (T4-07), and this is true anywhere.
+# English only; native-speaker review is D-22.
+OUTSIDE_INDIA_LINE = "If you are outside India, call your local emergency number now."
+
+
+def _with_outside_india_line(block: str) -> str:
+    if not block or OUTSIDE_INDIA_LINE in block:
+        return block
+    return f"{block}\n{OUTSIDE_INDIA_LINE}"
+
+
 def format_helplines_block(
     *,
     region: str | None = None,
@@ -311,10 +324,24 @@ def format_helplines_block(
                 header that makes a promise such as "available 24/7". If
                 nothing qualifies the verified national line is served: a
                 crisis block must never be empty or show unverified numbers.
+                The block ends with ``OUTSIDE_INDIA_LINE`` (owner decision
+                2026-11-07).
         max_age_days: Freshness ceiling in days for ``last_verified_by_call``.
                 Defaults to settings.helpline_max_verified_age_days (180).
     """
-    helplines = _filter_by_region(get_helplines(), region)
+    block = _render_helplines(
+        _filter_by_region(get_helplines(), region), style, intro, verified_only, max_age_days
+    )
+    return _with_outside_india_line(block) if verified_only else block
+
+
+def _render_helplines(
+    helplines: tuple[Helpline, ...],
+    style: str,
+    intro: str,
+    verified_only: bool,
+    max_age_days: int | None,
+) -> str:
     if verified_only:
         helplines = _only_call_verified(helplines, max_age_days=max_age_days)
     if not helplines:
