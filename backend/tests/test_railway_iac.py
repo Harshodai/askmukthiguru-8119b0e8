@@ -37,6 +37,15 @@ def test_declares_backend_redis_worker_and_beat():
     assert 'redis("redis")' in IAC
 
 
+def test_qdrant_is_external_by_d26():
+    # D-26 decided 2026-11-07: external QDRANT_URL, no Qdrant service on Railway.
+    assert "D-26 decided" in IAC
+    assert "pending" not in IAC.split("QDRANT_URL: preserve()")[1].splitlines()[0]
+    code = "\n".join(ln for ln in IAC.splitlines() if not ln.strip().startswith("//"))
+    assert 'service("qdrant"' not in code
+    assert "QDRANT_URL: preserve()" in code
+
+
 def test_qdrant_is_not_declared_until_d26():
     code = "\n".join(ln for ln in IAC.splitlines() if not ln.strip().startswith("//"))
     assert 'service("qdrant"' not in code
@@ -93,8 +102,26 @@ def test_main_py_comments_state_the_real_drain_and_grace_values():
     assert "RAILWAY_DEPLOYMENT_DRAINING_SECONDS" in MAIN
 
 
-def test_serving_posture_default_is_unset_until_d14():
-    assert 'const SERVING_POSTURE: ServingPosture = "unset";' in IAC
+def test_serving_posture_is_v10_only_by_d14():
+    # D-14 decided 2026-11-07: v10-only. The active name is a literal, the two
+    # harness flags are literal "true", and no serving variable is preserve().
+    assert 'const SERVING_POSTURE: ServingPosture = "v10_only";' in IAC
+    assert "D-14 decided" in IAC
+    block = IAC.split('SERVING_POSTURE === "v10_only"')[1].split(": SERVING_POSTURE")[0]
+    assert 'FIRST_PERSON_ACTIVE_COLLECTION: "first_person_v10"' in block
+    assert 'FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "true"' in block
+    assert 'FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true"' in block
+
+
+def test_celery_has_one_switch_by_d30():
+    assert "D-30 decided" in IAC
+    assert "const INCLUDE_CELERY = true;" in IAC
+    assert "INCLUDE_CELERY ? [worker, beat] : []" in IAC
+
+
+def test_faculty_access_code_is_the_only_staging_gate_by_d29():
+    assert "D-29 decided" in IAC
+    assert "FACULTY_ACCESS_CODE: preserve()" in IAC
 
 
 def test_no_literal_secret_values():

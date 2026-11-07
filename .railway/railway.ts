@@ -32,22 +32,27 @@ export const partial = "askmukthiguru-8119b0e8";
 
 // ---- Owner decisions that gate parts of this file -------------------------
 //
-// D-14 (serving posture). Until the owner records it, the serving variables are
-// preserve(): you set them in the dashboard and the posture is read back from
-// the "Serving posture:" startup log line (backend/app/main.py). Do not change
-// this default without the recorded decision (test_railway_iac.py pins it).
+// D-14 decided 2026-11-07: v10-only. The serving collection is first_person_v10
+// with the context harness and terminal flags on (config.py
+// resolve_first_person_active_collection fills both slots from the one active
+// name). The posture is read back from the "Serving posture:" startup log line
+// (backend/app/main.py). "v8_bridge" stays as the rollback value.
+// test_railway_iac.py pins this.
 type ServingPosture = "unset" | "v10_only" | "v8_bridge";
-const SERVING_POSTURE: ServingPosture = "unset";
+const SERVING_POSTURE: ServingPosture = "v10_only";
 
-// D-30 (Celery in staging). Worker and beat are declared so that plan lists
-// them. Set to false to drop both services from the plan.
+// D-30 decided 2026-11-07: worker and beat are ON in staging. This is the one
+// switch: set it to false to drop both services from the plan.
 const INCLUDE_CELERY = true;
 
-// D-26 (Qdrant hosting). Undecided, so Qdrant is NOT declared here. The backend
-// and worker read QDRANT_URL and the read-only key from the environment. If the
-// owner picks "Qdrant on Railway", add a service with a volume here and point
-// QDRANT_URL at its private domain. Never put the write key on a Railway
-// service (backend/app/config.py: the running backend never gets it).
+// D-26 decided 2026-11-07: Qdrant is external. It is NOT a Railway service here.
+// The backend and worker read QDRANT_URL and the read-only key from the
+// environment (preserve(): set both in the dashboard). Never put the write key
+// on a Railway service (backend/app/config.py: the running backend never gets it).
+//
+// D-29 decided 2026-11-07: the faculty access code is the only staging gate.
+// FACULTY_ACCESS_CODE is preserve(): set it in the dashboard before the first
+// deploy. No other staging gate is added.
 
 const REPO = "Harshodai/askmukthiguru-8119b0e8";
 
@@ -82,7 +87,7 @@ export default defineRailway((ctx) => {
     OPENROUTER_API_KEY: preserve(),
     SUPABASE_URL: preserve(),
     SUPABASE_KEY: preserve(),
-    QDRANT_URL: preserve(), // D-26 pending: http://<host>:6333
+    QDRANT_URL: preserve(), // D-26: external Qdrant, http://<host>:6333
     QDRANT_READ_ONLY_API_KEY: preserve(),
     // Spend controls. The guard is on and fails closed (config.py refuses a
     // production boot with it off). Caps are set per environment.
@@ -145,7 +150,7 @@ export default defineRailway((ctx) => {
       ...postureEnv,
       RAILWAY_DEPLOYMENT_DRAINING_SECONDS: DRAIN_SECONDS_BACKEND,
       REDIS_URL: cache.env.REDIS_URL,
-      FACULTY_ACCESS_CODE: preserve(), // D-29: staging access is restricted
+      FACULTY_ACCESS_CODE: preserve(), // D-29: the only staging gate
       METRICS_SCRAPE_TOKEN: preserve(),
       CORS_ORIGINS: preserve(), // exact origins only, no "*"
       ALLOWED_HOSTS: preserve(),
