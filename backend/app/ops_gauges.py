@@ -28,6 +28,7 @@ from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedR
 from app.metrics import (
     CELERY_QUEUE_LENGTH,
     QDRANT_COLLECTION_POINTS_COUNT,
+    QUEUE_DEPTH,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ BEAT_KEY = "mukthi:celery:beat_last_tick"
 class OpsSnapshot:
     points: dict[str, int | None] = field(default_factory=dict)
     queues: dict[str, int] | None = None
+    job_queue_depth: int | None = None
     beat_ts: float | None = None
     task_results: dict[tuple[str, str], int] = field(default_factory=dict)
 
@@ -59,6 +61,7 @@ def reset_for_tests() -> None:
     _state["beat_ts"] = None
     QDRANT_COLLECTION_POINTS_COUNT.clear()
     CELERY_QUEUE_LENGTH.clear()
+    QUEUE_DEPTH.clear()
 
 
 def collections_to_watch(cfg) -> list[str]:
@@ -103,6 +106,10 @@ def _fetch_snapshot(cfg) -> OpsSnapshot:
         client = redis.Redis.from_url(CELERY_BROKER_URL, socket_timeout=1, socket_connect_timeout=1)
         try:
             snap.queues = {q: int(client.llen(q)) for q in CELERY_QUEUES}
+            try:
+                snap.job_queue_depth = int(client.llen("job_queue:pending") or 0)
+            except (redis.RedisError, ValueError, OSError):
+                snap.job_queue_depth = None
             raw = client.get(BEAT_KEY)
             snap.beat_ts = float(raw) if raw else None
             for field_name, count in (client.hgetall(RESULT_HASH) or {}).items():
@@ -127,6 +134,8 @@ def _apply(snap: OpsSnapshot) -> None:
     else:
         for queue, length in snap.queues.items():
             CELERY_QUEUE_LENGTH.labels(queue=queue).set(length)
+    if snap.job_queue_depth is not None:
+        QUEUE_DEPTH.labels(priority="chat").set(snap.job_queue_depth)
     # Beat tick and task results are exposed by the collector below, so an
     # unknown tick is an absent series, never a stale or NaN sample.
     _state["beat_ts"] = snap.beat_ts

@@ -935,6 +935,15 @@ class JobQueueService:
                 finally:
                     token_accumulator_var.reset(cost_token)
             published_at = time.time()
+            # AMK-F-004 / PROD-OPS-05: Record per-node stage latency on completion
+            if isinstance(result, dict) and "node_timings" in result:
+                from app.metrics import PIPELINE_STAGE_LATENCY
+                for stage_name, timing_ms in (result.get("node_timings") or {}).items():
+                    if timing_ms is not None:
+                        try:
+                            PIPELINE_STAGE_LATENCY.labels(stage=str(stage_name)).observe(float(timing_ms) / 1000.0)
+                        except (ValueError, TypeError):
+                            pass
             if not is_stream:
                 await r.set(f"job:{job_id}:result", json.dumps(result, default=str))
             result_trace_id = result.get("trace_id") if isinstance(result, dict) else None

@@ -1487,10 +1487,26 @@ app.add_exception_handler(
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global error boundary catching all unhandled exceptions."""
+    """Global error boundary catching all unhandled exceptions (PROD-OPS-04)."""
     error_id = f"err_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+    correlation_id = (
+        getattr(request.state, "correlation_id", None)
+        or request.headers.get("x-correlation-id")
+        or request.headers.get("x-request-id")
+        or ""
+    )
+    request_id = getattr(request.state, "request_id", None) or request.headers.get("x-request-id") or ""
+    user_id = getattr(request.state, "user_id", None) or ""
     logger.error(
-        f"Unhandled server error on {request.url.path} (error_id: {error_id}): {exc}", exc_info=True
+        f"Unhandled server error on {request.url.path} (error_id: {error_id}, correlation_id: {correlation_id}): {exc}",
+        exc_info=True,
+        extra={
+            "error_id": error_id,
+            "correlation_id": correlation_id,
+            "request_id": request_id,
+            "path": request.url.path,
+            "user_id": user_id,
+        },
     )
     return JSONResponse(
         status_code=500,
@@ -1498,6 +1514,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "error": "An internal error occurred",
             "message": "We encountered an issue processing your request. Please try again.",
             "error_id": error_id,
+            "correlation_id": correlation_id,
         },
     )
 
