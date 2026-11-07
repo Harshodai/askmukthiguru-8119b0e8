@@ -96,7 +96,7 @@ export const MemoryManager = () => {
     setLoading(true);
     setUnavailable(null);
     const [listResult, coreResult, summariesResult, conversationsResult, personaResult, skillsResult, consentResult] = await Promise.allSettled([
-      memoryApi.list(1, 100),
+      typeof memoryApi.listCanonical === 'function' ? memoryApi.listCanonical(1, 100) : memoryApi.list(1, 100),
       memoryApi.getCore(),
       memoryApi.getSummaries(10),
       memoryApi.getConversations(5),
