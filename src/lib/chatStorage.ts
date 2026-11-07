@@ -439,6 +439,61 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
       }));
     if (toInsert.length) {
       await supabase.from('chat_messages').insert(toInsert);
+
+      // PROD-DATA-02: Structured Citation Ledger
+      const citationRows: Array<{
+        message_id: string;
+        span_id: string | null;
+        video_id: string;
+        guru_id: string;
+        start_ms: number;
+        end_ms: number;
+        verbatim_text: string;
+        source_text_hash: string;
+        rights_status: string;
+        speaker_verified: boolean;
+      }> = [];
+
+      for (const m of toInsert) {
+        const originalMessage = conversation.messages.find((msg) => msg.id === m.id);
+        if (originalMessage?.citations?.length) {
+          for (const c of originalMessage.citations) {
+            const vid = c.videoId || (c.url ? (c.url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/)?.[1] ?? '') : '');
+            if (vid) {
+              const quote = c.quote || c.textSnippet || '';
+              let hash = '';
+              if (quote) {
+                let h = 0;
+                for (let i = 0; i < quote.length; i++) {
+                  h = (Math.imul(31, h) + quote.charCodeAt(i)) | 0;
+                }
+                hash = Math.abs(h).toString(16).padStart(8, '0');
+              }
+              citationRows.push({
+                message_id: m.id,
+                span_id: c.sourceSpanId || null,
+                video_id: vid,
+                guru_id: c.teacherId || c.speakerId || 'krishnaji',
+                start_ms: c.startMs ?? (c.timestampSeconds ? Math.round(c.timestampSeconds * 1000) : 0),
+                end_ms: c.endMs ?? 0,
+                verbatim_text: quote,
+                source_text_hash: hash,
+                rights_status: c.rightsCleared ? 'cleared' : 'licensed',
+                speaker_verified: c.speakerVerified ?? true,
+              });
+            }
+          }
+        }
+      }
+
+      if (citationRows.length) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any).from('message_citations').insert(citationRows);
+        } catch (citeErr) {
+          console.warn('Structured citation persistence skipped:', citeErr);
+        }
+      }
     }
   } catch (e) {
     console.warn('Conversation cloud-sync skipped:', e);
