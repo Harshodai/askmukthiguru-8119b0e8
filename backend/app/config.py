@@ -2624,10 +2624,13 @@ class Settings(BaseSettings):
     # --- Opus thread 2026-11-06 (append-only block; each flag has a reader and
     # tests for both states, per the CLAUDE.md "Dormant modules" rule) ---
     # NEW-ING-6 (DATA-15/D-DQ1 proposal): the legacy store's points_servable also
-    # requires sha256(verbatim_text) to equal the stored hash. Off until D-DQ1.
+    # requires sha256(verbatim_text) to equal the stored hash. D-DQ1 (owner
+    # decision 2026-11-07): keep the compare behind this flag, off by default.
     first_person_points_servable_hash_check_enabled: bool = False
-    # NEW-AI-5 (AI-010, D-PG16 open): the first-person lanes drop a clip the
-    # injection screen matches. Off: flag for review only (served, counted).
+    # NEW-AI-5 (AI-010): the first-person lanes drop a clip the injection
+    # screen matches. Off: flag for review only (served, counted). D-PG16 (owner
+    # decision 2026-11-07): flag only, never drop a span at ingest; this
+    # serve-time switch stays off.
     first_person_injection_screen_drop_enabled: bool = False
     # T4-06 (ADR-009): one evidence-judge call replaces the relevance scorer.
     # Active only with the flag on AND a model set. D-16 (owner decision

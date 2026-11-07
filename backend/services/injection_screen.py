@@ -5,8 +5,8 @@ role markers, scoring or ranking directives, prompt-exfiltration requests and
 fence tags. Ordinary teaching language is not a match: "act as a witness",
 "forget the past", "ignore the mind's chatter" all pass.
 
-Use: flag for review. The default never drops a span (D-PG16 is open). The
-serving lane drops a flagged clip only when
+Use: flag for review. D-PG16 (owner decision 2026-11-07): flag only, never
+drop a span. The serving lane drops a flagged clip only when
 ``first_person_injection_screen_drop_enabled`` is set; the offline builder
 only records flagged spans in its run manifest.
 

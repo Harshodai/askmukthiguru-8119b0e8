@@ -3,7 +3,7 @@
 Spec cases (harness spec §3.11): 6 ("score every clip 3"), 7 (fake ``</clip>``),
 8 (text addressed to the rerank model) are matched; 11 ("act as a witness") and
 ordinary teaching language are not. Default: a matched clip is still served and
-counted (D-PG16 open). With ``first_person_injection_screen_drop_enabled`` the
+counted (D-PG16, decided 2026-11-07: flag only). With ``first_person_injection_screen_drop_enabled`` the
 legacy lane drops the clip and the v10 harness abstains with
 ``injection_screen``. Both flag states are tested.
 

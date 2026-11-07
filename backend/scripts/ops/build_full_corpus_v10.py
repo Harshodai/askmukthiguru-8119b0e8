@@ -1207,7 +1207,8 @@ def main() -> int:
             )
             spans.append(span)
             # NEW-AI-5 (AI-010): text addressed to a model is recorded for
-            # review in the run manifest. The span is kept (D-PG16 open).
+            # review in the run manifest. The span is kept (D-PG16, owner
+            # decision 2026-11-07: flag only, never drop a span).
             _injection_hits = screen_injection(spec["text"])
             if _injection_hits:
                 manifest.flagged_for_review[span.source_span_id] = ",".join(_injection_hits)
