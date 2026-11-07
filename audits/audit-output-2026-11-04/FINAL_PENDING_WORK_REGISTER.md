@@ -429,3 +429,15 @@ Head after this thread's last push: `fdd70af` plus the register commit that hold
 | Required checks | Harsha approved `release-invariants` and `lovable-pr-guard` | GitHub settings | Not set: needs a repo admin in the GitHub UI |
 
 Verdict stays **NO-GO**.
+
+## Live `first_person_v10` data fix 2026-11-07 (DATA-15, NEW-DQ-1/2)
+
+Owner approval: Harsha, 2026-11-07 ("approved", "its ok, you can do those", "ok"). Harsha ran the writes in a Mac terminal. The live audit before: C-L3, C-L5, C-L7, C-L8 failed. After: no failed check (C-L1, C-L2, C-L3, C-L5, C-L6, C-L7, C-L8 PASS).
+
+| Change | Tool | Result |
+|---|---|---|
+| 16 payload indexes | `scripts/ops/ensure_fp_span_indexes.py --apply` | `missing_after` empty, points 4226 |
+| `domain_rights_status=licensed` on children that lacked it, value from the serving rights resolver | `scripts/ops/backfill_fp_rights_status.py --apply` | 2758 children, 491 videos, 0 left over; serving filter 2 to 2738 of 2760 (22 lack `speaker_verified`) |
+| `source_text_hash` and derived id for 2 hashless test-looking points | `scripts/ops/fix_fp_unhashed_points.py --apply` | `3eb5cc1a…` to `877f7269…`, `52c880a0…` to `20b32148…`; quote text and `transcript_hash` unchanged |
+
+Cause: the v1 build wrote no `domain_rights_status`. The builder was fixed in `f87c0de` but v10 was not rebuilt. Rollback: restore snapshot `first_person_v10-1111874297854021-2026-11-07-01-09-45.snapshot`, or `delete_payload` on the ids in `/tmp/rights_backup_v10.json`. Points 4226 throughout. The C-L11 digest does not cover `domain_rights_status`. Serving is UNPROVEN until the graded clean-Docker run. Verdict stays **NO-GO**.
