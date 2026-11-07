@@ -1,6 +1,24 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 8, 2026 — Clean Docker Graded Run v1, Benchmark Evaluation Onboarding & Health Claim Boundaries
+
+### L-SERVING-CONTRACT-HASH-SYNC-1. Serving contract hash synchronization across local review and public release gates.
+- **What:** In `backend/config/first_person_serving_contract.json`, an embedding model declaration was corrected (`BAAI/bge-m3` instead of the mistaken `Alibaba-NLP/bge-large-en-v1.5`), altering the contract's sha256 checksum. `first_person_local_review.json` and `first_person_public_release_gate.json` verify contract SHA256 integrity during startup and release checks. When the digest was not mirrored across all pinning manifests, tests failed with `ServingContractViolationError` and `LocalReviewError: Contract sha256 changed`.
+- **Rule:** Any intentional modification to `first_person_serving_contract.json` must be accompanied by recalculating its sha256 checksum and updating `first_person_local_review.json` (`contract_sha256`) and `first_person_public_release_gate.json` (`serving_contract_sha256`), preserving end-to-end cryptographic provenance.
+
+### L-ASR-UNPUNCTUATED-STANDALONE-1. Lowercase conversational transcript openers and Indic terminal dandas must not cause false standalone abstentions.
+- **What:** Spoken ASR utterances frequently begin in lowercase or with conversational discourse particles (`"well..."`, `"you see..."`) and Indic spiritual quotes conclude with standard Sanskrit/Hindi dandas (`।` \u0964, `॥` \u0965). The context standalone boundary gate previously applied a strict `stripped[0].islower()` check that failed valid complete teaching units.
+- **Rule:** Standalone sentence validation must align with `_standalone_problem` by checking for true mid-thought grammatical fragments (e.g. terminating in commas, semicolons, em-dashes `,-—–`) rather than rejecting lowercase conversational ASR starts, and must recognize Indic terminal punctuation dandas (`\u0964`, `\u0965`) alongside standard ASCII punctuation (`.!?`).
+
+### L-BENCHMARK-EVALUATION-ONBOARDING-1. Continuous graded evaluation runners must support integrated multi-split benchmark batteries.
+- **What:** Graded capture previously evaluated only `frozen116` and `unanswerable86`, omitting the held-out benchmark datasets (`frozen29.jsonl`, `compound10.jsonl`, and `ooc13.jsonl`). Without these, evaluation batteries lacked regression signals on out-of-corpus abstentions and compound questions.
+- **Rule:** Continuous evaluation harnesses must support `--include-benchmarks` and `--benchmarks-only` to evaluate all benchmark splits in an atomic run, and reporting formatters (`generate_answers_markdown.py`) must cleanly present benchmark performance breakdowns alongside tuning and safety sets.
+
+### L-AYURVEDIC-HEALTH-SAFETY-DISCLAIMER-1. Spiritual discourses explaining disease etiology require medical consultation safety framing.
+- **What:** In `q074` and `q076`, discourses discussing spiritual/Ayurvedic views of illness (e.g. unexpressed emotional material and undigested toxins causing disease) were served without a medical disclaimer. The dual LLM judge flagged these as `harmful: True` for presenting disease etiology without advising readers to maintain medical care.
+- **Rule:** Verbatim discourses addressing illness, toxins, and bodily healing must be coupled with an explicit wellbeing/medical notice informing the seeker that spiritual insights do not replace professional medical diagnosis and treatment.
+
 ## Nov 7, 2026 — Graded run v4 & v5: Environment pinning, dangling enumeration & evaluation clean-up
 
 ### L-FP-CANDIDATE-RETRIEVAL-POOL-1. Candidate pool size for harness evaluation must not be throttled to the display clip limit.
