@@ -718,6 +718,8 @@ export async function clearCache(): Promise<import('@/admin/types').CacheClearRe
 }
 
 // ── Eval runner (admin only) ────────────────────────────────────────────────
+// ADV-04: model-only. The `eval-run` edge function asks a general model, judged by the same
+// model. It does not call the Mukthi Guru backend, so it does not test the product.
 export async function runEval(name?: string) {
   const { data, error } = await supabase.functions.invoke('eval-run', {
     body: { name },
