@@ -1282,8 +1282,10 @@ class TestSeekerDashboardAndDreamingEndpoints:
         assert data["user_id"] == "test-user-001"
         assert data["dry_run"] is True
         assert data["status"] == "success"
-        assert len(data["dashboard_fingerprint"]) == 64
-        assert "duration_ms" in data
+        assert "snapshot_id" in data
+        assert "evicted_count" in data
+        assert "superseded_count" in data
+        assert "decayed_count" in data
 
 
 # ---------------------------------------------------------------------------
