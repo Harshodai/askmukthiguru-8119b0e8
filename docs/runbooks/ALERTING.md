@@ -94,7 +94,7 @@ Abstains are honest, so a spike is a quality or dependency signal, not an outage
 The relevance scorer timed out, errored or returned an unparseable reply, so the turn abstained (fail closed).
 
 1. Check provider status and `guru_circuit_breaker_state` (RB-1).
-2. Check `FIRST_PERSON_RELEVANCE_TIMEOUT_S` (default 25 s in `Settings`; D-PG13 is open) and the scorer model named in the startup `Serving posture:` log line.
+2. Check `FIRST_PERSON_RELEVANCE_TIMEOUT_S` (default 25 s in `Settings`; the graded run pins 12 s, D-PG13 decided 2026-11-07) and the scorer model named in the startup `Serving posture:` log line.
 3. Do not change the scorer model without the owner's decision (D-16) and a frozen-bank run.
 
 ## <a name="firstpersonintegritybreach"></a>FirstPersonIntegrityBreach

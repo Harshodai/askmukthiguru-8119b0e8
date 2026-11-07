@@ -3,7 +3,7 @@
 The three scorer timeouts and the provider RPM limit used to live in four places
 (config.py, two compose files, one constant in the pipeline). `llm_budget_table`
 reads each from its single source and the compose files must not override the
-Settings default with another value (D-PG13 is open: the default stays 25 s).
+Settings default with another value (D-PG13 decided 2026-11-07: the default stays 25 s; only the graded run pins 12 s).
 """
 
 from __future__ import annotations

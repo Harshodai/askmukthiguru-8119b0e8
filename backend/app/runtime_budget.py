@@ -35,7 +35,7 @@ def llm_budget_table(settings: Any) -> list[dict[str, Any]]:
         {
             "name": "relevance_scorer_timeout_s",
             "value": float(getattr(settings, "first_person_relevance_timeout_s", 25.0)),
-            "source": "Settings.first_person_relevance_timeout_s (D-PG13 open)",
+            "source": "Settings.first_person_relevance_timeout_s (D-PG13 decided 2026-11-07: the graded run pins 12 s; this default stays)",
         }
     ]
     gate = _answerability_timeout_s()
