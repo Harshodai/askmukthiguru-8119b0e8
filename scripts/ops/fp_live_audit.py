@@ -165,6 +165,10 @@ def run_checks(
     # Single streaming pass for C-L3, C-L4, C-L5, C-L6, C-L7, C-L9, C-L11.
     hash_key = "source_text_hash" if schema == "v10" else "transcript_hash"
     children = bad_hash = bad_id = 0
+    bad_hash_ids: list[str] = []
+    bad_id_ids: list[str] = []
+    rights_values: dict[str, int] = {}
+    record_types: dict[str, int] = {}
     verified_no_method = not_licensed = 0
     bad_guru: set[str] = set()
     by_video: dict[str, list[tuple[int, int]]] = {}
@@ -181,12 +185,15 @@ def run_checks(
                 },
             }
         )
+        rt = str(pl.get("record_type") or "<missing>")
+        record_types[rt] = record_types.get(rt, 0) + 1
         if schema == "v10" and pl.get("record_type") not in (None, RECORD_TYPE_CHILD):
             continue
         children += 1
         text = pl.get("verbatim_text")
         if not isinstance(text, str) or _sha(text) != pl.get(hash_key):
             bad_hash += 1
+            bad_hash_ids.append(str(p.id))
         try:
             if schema == "v10":
                 expect = point_id_for_record(str(pl.get("source_span_id")))
@@ -198,6 +205,7 @@ def run_checks(
             expect = ""
         if str(uuid.UUID(str(p.id))) != expect:
             bad_id += 1
+            bad_id_ids.append(str(p.id))
         guru = str(pl.get("guru_id") or "")
         if guru and guru not in known_gurus:
             bad_guru.add(guru)
@@ -206,6 +214,8 @@ def run_checks(
             and not str(pl.get("voice_verification_method") or "").strip()
         ):
             verified_no_method += 1
+        rv = str(pl.get("domain_rights_status") or "<missing>")
+        rights_values[rv] = rights_values.get(rv, 0) + 1
         if pl.get("domain_rights_status") != "licensed":
             not_licensed += 1
         try:
@@ -221,9 +231,17 @@ def run_checks(
         f"sha256(verbatim_text) == {hash_key}",
         bad_hash == 0,
         bad=bad_hash,
+        bad_point_ids=bad_hash_ids[:20],
         children=children,
     )
-    add("C-L5", "point id recomputes", bad_id == 0, bad=bad_id, children=children)
+    add(
+        "C-L5",
+        "point id recomputes",
+        bad_id == 0,
+        bad=bad_id,
+        bad_point_ids=bad_id_ids[:20],
+        children=children,
+    )
     add(
         "C-L6",
         "guru ids in registry; no verified speaker without a method",
@@ -236,8 +254,12 @@ def run_checks(
         "every child carries domain_rights_status=licensed",
         not_licensed == 0,
         not_licensed=not_licensed,
+        status_values=dict(sorted(rights_values.items())),
         children=children,
     )
+    for c in checks:
+        if c["id"] == "C-L1":
+            c["record_types"] = dict(sorted(record_types.items()))
 
     contained = 0
     for spans in by_video.values():

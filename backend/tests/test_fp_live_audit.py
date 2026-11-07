@@ -176,3 +176,28 @@ def test_main_exit_code_follows_failures(monkeypatch, capsys):
     assert audit.main(argv) == 1
     out = capsys.readouterr().out
     assert "tampered" not in out
+
+
+def test_failures_list_point_ids_and_value_counts_without_text():
+    """The Mac run showed 2 bad children and 2758 not licensed with no way to see which."""
+    pts = [
+        _child(1, start=0, end=10_000),
+        _child(2, start=20_000, end=30_000, domain_rights_status="pending"),
+        _child(3, start=40_000, end=50_000, domain_rights_status="pending"),
+    ]
+    pts[0].payload["verbatim_text"] = "tampered private words"
+    report = _run(_client(pts))
+    c3 = _status(report, "C-L3")
+    assert c3["bad"] == 1 and c3["bad_point_ids"] == [str(pts[0].id)]
+    c7 = _status(report, "C-L7")
+    assert c7["status_values"] == {"licensed": 1, "pending": 2}
+    assert "tampered private words" not in json.dumps(report)
+
+
+def test_points_without_the_child_record_type_are_counted_apart():
+    pts = [_child(1, start=0, end=10_000)]
+    orphan = _child(2, start=20_000, end=30_000)
+    del orphan.payload["record_type"]
+    pts.append(orphan)
+    inv = _status(_run(_client(pts)), "C-L1")
+    assert inv["record_types"] == {"retrieval_child": 1, "<missing>": 1}
