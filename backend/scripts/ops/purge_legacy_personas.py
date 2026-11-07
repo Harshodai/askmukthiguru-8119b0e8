@@ -22,11 +22,11 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-UTC = timezone.utc
+UTC = UTC
 
 # Pinned cutoff: author timestamp of commit 1c5f3f2
 CUTOFF_ISO = "2026-11-06T20:13:44+00:00"
