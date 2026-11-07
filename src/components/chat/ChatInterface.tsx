@@ -1996,6 +1996,7 @@ openSereneMind('audio');
       message?: string;
       quotaRemaining?: number;
       quotaTotalLimit?: number;
+      retryAfterSeconds?: number;
     };
     const isOffline = !navigator.onLine || String(error).toLowerCase().includes('network') || String(error).toLowerCase().includes('fetch');
     const msgError = buildMessageError(

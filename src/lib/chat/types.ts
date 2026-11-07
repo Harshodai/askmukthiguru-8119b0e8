@@ -31,6 +31,7 @@ export type AIErrorCode =
   | 'network'
   | 'quota_exceeded'
   | 'context_exhausted'
+  | 'stream_interrupted'
   | 'unknown';
 
 /** Healing course recommended by the backend (streak-based assignment).
