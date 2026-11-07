@@ -271,6 +271,55 @@ export const memoryApi = {
   },
 
   /**
+   * PROD-MEM-01: List canonical memories directly from the canonical endpoint
+   * (/api/memory/canonical) so seekers inspect exactly what retrieval reads.
+   */
+  async listCanonical(page = 1, pageSize = 50): Promise<MemoryListResponse> {
+    const session = await requireSession();
+    try {
+      const endpoint = resolveMemoryEndpoint(`/api/memory/canonical?page=${page}&page_size=${pageSize}`);
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const data = await res.json() as {
+          items?: Array<{
+            id: string;
+            statement: string;
+            source: 'extracted' | 'explicit';
+            created_at: string;
+            confidence?: number;
+            decay_score?: number;
+            source_conversation_id?: string | null;
+          }>;
+          total?: number;
+        };
+        const items = data.items || [];
+        return {
+          memories: items.map((m) => ({
+            id: m.id,
+            content: m.statement,
+            source: m.source || 'explicit',
+            created_at: m.created_at,
+            confidence: m.confidence,
+            decay_score: m.decay_score,
+            source_ref: normalizeSourceRef(
+              m.source_conversation_id ? { kind: 'conversation', id: m.source_conversation_id } : null,
+            ),
+          })),
+          total: data.total ?? items.length,
+          page,
+          page_size: pageSize,
+        };
+      }
+    } catch {
+      // Fall through to standard list
+    }
+    return this.list(page, pageSize);
+  },
+
+  /**
    * Add an explicit memory — embeds server-side via `memory-embed` edge function
    * (which auto-routes to Lovable Gateway or local Ollama).
    */
