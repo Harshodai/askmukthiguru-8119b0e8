@@ -1,6 +1,17 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 7, 2026 — Graded run v4 & v5: Environment pinning, dangling enumeration & evaluation clean-up
+
+### L-FP-GRADED-ENV-PARITY-1. Override docker compose files must explicitly declare all active feature flags.
+- **What:** In graded evaluations using `docker-compose.graded.yml`, the override replaces the base compose environment definitions. Because flags like `FIRST_PERSON_ENRICHMENT_WINDOW_ENABLED`, `FIRST_PERSON_GRAPH_EXPANSION_ENABLED`, and `FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED` were not declared in `docker-compose.graded.yml`, they defaulted to `False` from `app/config.py`. As a result, candidate context expansion and antecedent enrichment were skipped during the graded capture.
+- **Rule:** When running clean Docker graded captures, ensure `docker-compose.graded.yml` explicitly declares every serving feature and configuration flag under test so container behavior strictly mirrors the intended evaluation posture.
+
+### L-FP-DANGLING-ENUMERATION-1. Mid-sequence enumerations without preceding context violate standalone quality.
+- **What:** In `q070`, a clip concluded with *"The third set of people replace the inconvenient beliefs with more convenient ones"* without mentioning the first or second sets. The dual judge flagged this as `not_showable` because it references an unresolved prior enumeration.
+- **Rule:** The standalone evidence policy must detect and reject dangling enumerations (`_DANGLING_ENUMERATION_RE`) where an ordinal reference (*second, third, fourth...*) is present without its introducing predecessor (*first*), preventing cut-off lists from reaching seekers.
+
+
 ## Nov 7, 2026 — Graded run v3 forensics, graph expansion payload discovery & boundary quality
 
 ### L-GRAPH-EXPANSION-PAYLOAD-DISCONNECT-1. Ontology graph expansion is a no-op if the vector store payloads lack concept tags.

@@ -82,6 +82,11 @@ _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
+_DANGLING_ENUMERATION_RE = re.compile(
+    r"\bthe\s+(?:second|third|fourth|fifth|sixth)\s+(?:set|group|type|kind|category|point|step|stage|level)\b",
+    re.IGNORECASE,
+)
+_FIRST_ENUMERATION_RE = re.compile(r"\bfirst\b", re.IGNORECASE)
 
 _HEALTH_CLAIM_RE = re.compile(
     r"\bcur(?:e|es|ed|ing)\b|\bcolic\w*|\bbedridden\b|\bcancer\b|\bdiabet\w+|\btumou?rs?\b"
@@ -176,6 +181,8 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(text):
         return "orphan_opener"
+    if _DANGLING_ENUMERATION_RE.search(text) and not _FIRST_ENUMERATION_RE.search(text):
+        return "orphan_opener"
     if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
         return "orphan_opener"
     if _EVENT_MARKER_RE.search(text):
@@ -195,6 +202,8 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
     if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
         return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(first):
+        return "orphan_opener"
+    if _DANGLING_ENUMERATION_RE.search(whole) and not _FIRST_ENUMERATION_RE.search(whole):
         return "orphan_opener"
     if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
         return "orphan_opener"

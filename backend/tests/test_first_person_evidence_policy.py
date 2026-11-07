@@ -167,3 +167,14 @@ def test_context_standalone_rejects_story_and_demonstrative_openers():
         decision = first_person_evidence_policy.assess_context_standalone((clip,))
         assert decision.action is EvidenceAction.EXCLUDE
         assert "orphan_opener" in decision.reason_codes
+
+
+def test_context_standalone_rejects_dangling_enumeration():
+    text = (
+        "What do we usually do when you get into stress? You indulge in stress and live in "
+        "those stressful states for very long periods of time or you distract yourself. "
+        "The third set of people replace the inconvenient beliefs with more convenient ones."
+    )
+    decision = first_person_evidence_policy.assess_context_standalone((text,))
+    assert decision.action is EvidenceAction.EXCLUDE
+    assert "orphan_opener" in decision.reason_codes

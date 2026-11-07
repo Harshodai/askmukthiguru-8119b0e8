@@ -21,6 +21,9 @@ services:
       FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "true"
       FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true"
       FIRST_PERSON_LLM_FALLBACK_ENABLED: "false"
+      FIRST_PERSON_ENRICHMENT_WINDOW_ENABLED: "true"
+      FIRST_PERSON_GRAPH_EXPANSION_ENABLED: "true"
+      FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED: "true"
       # Relevance scorer: the single variable a stage may change.
       FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5
       FIRST_PERSON_RELEVANCE_MIN_SCORE: "2"

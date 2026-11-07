@@ -6,7 +6,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2] if Path(__file__).resolve().parents[1].name == "scripts" else Path(__file__).resolve().parents[1]
+def _find_repo_root() -> Path:
+    p = Path(__file__).resolve()
+    for parent in [p] + list(p.parents):
+        if (parent / ".git").exists() or (parent / "audits").is_dir():
+            return parent
+    return Path(__file__).resolve().parents[2]
+
+REPO_ROOT = _find_repo_root()
 BACKEND_ROOT = REPO_ROOT / "backend"
 
 def generate_report(run_dir: Path, out_path: Path) -> None:
@@ -91,6 +98,14 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
     print(f"Generated {out_path} ({out_path.stat().st_size} bytes)")
 
 if __name__ == "__main__":
-    run_dir = Path.home() / "mukthiguru_attribution_data" / "graded_runs" / "20261107-graded-clean-v3"
-    out_file = REPO_ROOT / "audits" / "evidence" / "GRADED_RUN_ANSWERS_2026-11-07.md"
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--run-id", default="20261107-graded-clean-v4")
+    parser.add_argument("--run-dir", default=None)
+    parser.add_argument("--out", default=None)
+    args = parser.parse_args()
+
+    run_dir = Path(args.run_dir) if args.run_dir else Path.home() / "mukthiguru_attribution_data" / "graded_runs" / args.run_id
+    out_file = Path(args.out) if args.out else REPO_ROOT / "audits" / "evidence" / "GRADED_RUN_ANSWERS_2026-11-07.md"
     generate_report(run_dir, out_file)
