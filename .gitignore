@@ -393,6 +393,8 @@ rights_backup*.json
 fp_*backup*.json
 *_v10_backup*.json
 quarantine_backup*.json
+data/*backup*.json
+*_backup*.json
 *.bak_*
 *.snapshot
 .env.bak*

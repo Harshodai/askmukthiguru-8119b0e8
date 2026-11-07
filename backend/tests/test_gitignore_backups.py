@@ -19,6 +19,7 @@ IGNORED = [
     "fp_unhashed_points_backup.json",
     "first_person_v10_backup_2026-11-07.json",
     "quarantine_backup.json",
+    "data/neo4j_consolidation_backup_20260903_184931.json",
     ".env.bak_pre_v10only_20261107",
     "first_person_v10-1111874297854021-2026-11-07-01-09-45.snapshot",
     "somewhere/config.bak_20261107",
@@ -40,7 +41,10 @@ def test_no_rollback_file_is_tracked() -> None:
     bad = [
         p
         for p in tracked
-        if Path(p).name.startswith(("rights_backup", "fp_", "quarantine_backup"))
+        if (
+            Path(p).name.startswith(("rights_backup", "fp_", "quarantine_backup"))
+            or Path(p).parent.as_posix() == "data"
+        )
         and "backup" in Path(p).name
     ]
     bad += [p for p in tracked if p.endswith(".snapshot") or ".bak_" in Path(p).name]
