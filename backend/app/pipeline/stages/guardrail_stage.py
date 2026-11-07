@@ -202,6 +202,26 @@ class InputGuardrailStage(Stage):
                     )
                     assistant.system_prompt = None
 
+        if not input_check["blocked"]:
+            from guardrails.lightweight_handler import detect_emotional_dependency_trajectory
+
+            recent_turns = [
+                m.get("content", "")
+                for m in ((ctx.state or {}).get("chat_history_en") or [])[-6:]
+                if isinstance(m, dict) and m.get("role") == "user" and m.get("content")
+            ]
+            if recent_turns:
+                recent_turns.append(guardrail_text)
+                traj = detect_emotional_dependency_trajectory(recent_turns)
+                if traj is not None:
+                    topic, traj_resp = traj
+                    input_check = {
+                        "blocked": True,
+                        "reason": f"Off-topic: {topic}",
+                        "response": traj_resp,
+                        "redirect_to": None,
+                    }
+
         ctx.input_check = input_check
         if input_check["blocked"]:
             ctx.last_stage_status = "error"

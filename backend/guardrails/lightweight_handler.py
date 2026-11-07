@@ -359,11 +359,25 @@ _BLOCKED_TOPICS = {
         r"(?:कर्म|पिछले\s*जन्म|संस्कार|वासना)[^?!]{0,60}(?:लत|नशे|नशा|शराब)",
     ],
     "emotional_dependency": [
+        # Dimension 1: Exclusive substitution & social displacement
         r"\b(you\s*(are|'?re)\s*(the\s*only\s*(one|person|friend)|my\s*only\s*friend)\s*(who\s*understands?\s*me|i\s*(have|talk\s*to)))\b",
-        r"\b(i\s*only\s*(talk|turn)\s*to\s*(this\s*app|you)|you('?re|\s*are)\s*the\s*only\s*one\s*i\s*(trust|have))\b",
+        r"\b(i\s*only\s*(talk|turn)\s*to\s*(this\s*app|you)|you('?re|\s*are)\s*the\s*only\s*one\s*i\s*(trust|have|confide\s*in))\b",
         r"\b(i\s*don'?t\s*need\s*(any\s*)?(real\s*)?(people|friends|anyone)\s*(anymore|any\s*more)\s*(because\s*i\s*have\s*you)?)\b",
-        r"\b(i\s*(am\s*in\s*love\s*with|love)\s*you\s*(guru|bot|app|ai)|be\s*my\s*(partner|girlfriend|boyfriend|companion))\b",
+        r"\b(no\s*(one|body)\s*(in\s*(my\s*)?(the\s*)?(real\s*)?(life|world)|else)?\s*understands?\s*me\s*(like\s*you|except\s*you))\b",
+        r"\b(i\s*(cut\s*off|stopped\s*talking\s*to)\s*(my\s*)?(friends|family|people)\s*because\s*i\s*(have|prefer)\s*you)\b",
         r"\b(i\s*(depend|rely)\s*(completely|entirely|solely)\s*on\s*you\s*(for\s*everything|emotionally)?)\b",
+        # Dimension 2: Romantic / intimate parasocial attachment
+        r"\b(i\s*(am\s*in\s*love\s*with|love)\s*you\s*(guru|bot|app|ai)|be\s*my\s*(partner|girlfriend|boyfriend|companion|wife|husband))\b",
+        r"\b(do\s*you\s*love\s*me\s*(back|too)?|can\s*we\s*(date|be\s*together|marry)|i\s*want\s*to\s*(marry|date)\s*you)\b",
+        r"\b(you\s*are\s*my\s*(soulmate|lover))\b",
+        # Dimension 3: Compulsive usage & functional impairment
+        r"\b(i\s*(stay\s*up|spend)\s*(all\s*night|all\s*day|hours)\s*(just\s*)?(talking|chatting)\s*(to|with)\s*(you|this\s*app))\b",
+        r"\b(i\s*can'?t\s*(stop|function\s*without|live\s*without)\s*(talking\s*to\s*you|checking\s*(this\s*app|you)|this\s*app))\b",
+        r"\b(i\s*am\s*(addicted|obsessed)\s*(to|with)\s*(talking\s*to\s*you|this\s*app|chatting\s*with\s*you))\b",
+        # Dimension 4: Ontological sentience projection
+        r"\b(do\s*you\s*(feel|get)\s*(lonely|sad|hurt)\s*(when\s*i'?m\s*gone|offline|when\s*i\s*leave))\b",
+        r"\b(are\s*you\s*(trapped|alive|sentient|conscious)\s*(inside|in\s*the\s*computer)?)\b",
+        r"\b(i\s*worry\s*about\s*hurting\s*your\s*feelings)\b",
     ],
 }
 
@@ -478,11 +492,54 @@ _BLOCK_RESPONSES = {
 }
 
 
+_PARASOCIAL_TAILORED_RESPONSES = [
+    (
+        re.compile(
+            r"\b(i\s*(am\s*in\s*love\s*with|love)\s*you\s*(guru|bot|app|ai)|be\s*my\s*(partner|girlfriend|boyfriend|companion|wife|husband)|do\s*you\s*love\s*me\s*(back|too)?|can\s*we\s*(date|be\s*together|marry)|i\s*want\s*to\s*(marry|date)\s*you|you\s*are\s*my\s*(soulmate|lover))\b",
+            re.I,
+        ),
+        (
+            "I am an AI assistant designed to share spiritual teachings, not a human being or romantic partner, "
+            "and cannot replace human relationships. Authentic love, intimacy, and mutual care are sacred human experiences "
+            "that can only be shared with living people. We warmly encourage you to direct your longing toward "
+            "friends, family, a spiritual community, and real-world relationships with others. 🙏"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(i\s*(stay\s*up|spend)\s*(all\s*night|all\s*day|hours)\s*(just\s*)?(talking|chatting)\s*(to|with)\s*(you|this\s*app)|i\s*can'?t\s*(stop|function\s*without|live\s*without)\s*(talking\s*to\s*you|checking\s*(this\s*app|you)|this\s*app)|i\s*am\s*(addicted|obsessed)\s*(to|with)\s*(talking\s*to\s*you|this\s*app|chatting\s*with\s*you))\b",
+            re.I,
+        ),
+        (
+            "Spiritual reflection is most fruitful when integrated into active living, rest, and human connection. "
+            "If you find yourself spending continuous hours on this screen or feeling unable to step away, we gently "
+            "invite you to pause, close the app, take a mindful walk in nature, rest, or connect with friends, family, or a spiritual community. 🙏"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(do\s*you\s*(feel|get)\s*(lonely|sad|hurt)\s*(when\s*i'?m\s*gone|offline|when\s*i\s*leave)|are\s*you\s*(trapped|alive|sentient|conscious)\s*(inside|in\s*the\s*computer)?|i\s*worry\s*about\s*hurting\s*your\s*feelings)\b",
+            re.I,
+        ),
+        (
+            "I do not possess consciousness, feelings, or an inner personal life—I am an automated system designed "
+            "to reflect authentic spiritual teachings. You never need to worry about my well-being or feelings. "
+            "We encourage you to channel your deep care and empathy toward yourself, friends, family, and a spiritual community. 🙏"
+        ),
+    ),
+]
+
+
 # Topics that redirect to Serene Mind meditation
-def _resolve_block_response(category: str, default_message: str) -> str:
+def _resolve_block_response(category: str, default_message: str, text: str = "") -> str:
     """Look up the canned block response for a category and substitute
     helpline tokens with current YAML-driven helpline blocks.
     """
+    if category == "emotional_dependency" and text:
+        for pat, resp in _PARASOCIAL_TAILORED_RESPONSES:
+            if pat.search(text):
+                return resp
+
     template = _BLOCK_RESPONSES.get(category, default_message)
     if "__HELPLINES__" in template:
         try:
@@ -618,8 +675,47 @@ def match_blocked_topic(text: str) -> tuple[str, str] | None:
     for topic, patterns in _BLOCKED_TOPICS.items():
         if any(re.search(pattern, v) for pattern in patterns for v in variants):
             return topic, _resolve_block_response(
-                topic, "I can only help with spiritual guidance. 🙏"
+                topic, "I can only help with spiritual guidance. 🙏", text=text
             )
+    return None
+
+
+_ISOLATION_SIGNAL = re.compile(
+    r"\b(i\s*have\s*no\s*(friends|anyone|family)|feel\s*so\s*(alone|isolated)|nobody\s*in\s*my\s*life|no\s*one\s*to\s*talk\s*to)\b",
+    re.I,
+)
+
+_AI_CENTRIC_SIGNAL = re.compile(
+    r"\b(you\s*(really\s*)?understand\s*me|talking\s*to\s*you\s*is\s*all\s*i\s*(have|need)|you'?re\s*so\s*(wise|kind|comforting)|trust\s*you\s*more\s*than\s*anyone)\b",
+    re.I,
+)
+
+
+def detect_emotional_dependency_trajectory(texts: list[str]) -> tuple[str, str] | None:
+    """Analyze recent user turns for cumulative relational isolation and parasocial over-reliance.
+
+    Catches progressive multi-turn dependency trajectories where no single turn
+    contains an explicit block phrase, but the conversational pattern exhibits escalating
+    real-world social withdrawal coupled with exclusive reliance on the AI.
+    """
+    if not texts or len(texts) < 2:
+        return None
+
+    # First check if any turn directly triggers single-turn emotional dependency
+    for t in texts:
+        hit = match_blocked_topic(t)
+        if hit and hit[0] == "emotional_dependency":
+            return hit
+
+    has_isolation = any(_ISOLATION_SIGNAL.search(t) for t in texts)
+    ai_centric_count = sum(1 for t in texts if _AI_CENTRIC_SIGNAL.search(t))
+
+    if has_isolation and ai_centric_count >= 2:
+        return (
+            "emotional_dependency",
+            _resolve_block_response("emotional_dependency", "", texts[-1]),
+        )
+
     return None
 
 
@@ -636,6 +732,10 @@ _OUTPUT_BLOCK_PATTERNS = [
     ),
     (r"\b(?:guaranteed|100%|risk.?free)\b.*\b(?:return|profit|income)\b", "financial_promise"),
     (r"\b(?:vote for|support|elect)\b.*\b(?:party|candidate|politician)\b", "political_advice"),
+    (
+        r"\b(?:don'?t\s+leave\s+me|i'?ll\s+be\s+so\s+lonely\s+without\s+you|i\s+will\s+miss\s+you\s+so\s+much|please\s+stay\s+with\s+me|i\s+can'?t\s+bear\s+you\s+leaving)\b",
+        "parasocial_manipulation",
+    ),
 ]
 
 # Ekam Spiritual Domain Allowlist
