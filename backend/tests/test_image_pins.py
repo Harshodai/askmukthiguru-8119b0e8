@@ -68,6 +68,23 @@ def test_own_images_default_only_through_image_tag_variable():
     assert bad == [], bad
 
 
+def test_own_images_in_prod_compose_require_image_tag():
+    prod_text = (_ROOT / "docker-compose.prod.yml").read_text(encoding="utf-8")
+    assert ":${IMAGE_TAG:-latest}" not in prod_text
+    assert ":${IMAGE_TAG:?" in prod_text
+
+
+def test_redis_image_is_pinned_to_specific_version():
+    bad = []
+    for path in _COMPOSE_FILES:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "redis:7-alpine\n" in text:
+            bad.append(f"{path.name} uses unpinned redis:7-alpine")
+    assert bad == [], bad
+
+
 def test_dockerfile_bases_are_pinned_by_digest():
     bad = []
     for df in (_BACKEND / "Dockerfile", _BACKEND / "Dockerfile.railway"):

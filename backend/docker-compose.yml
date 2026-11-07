@@ -69,7 +69,7 @@ services:
 
   # --- Redis Cache ---
   redis:
-    image: redis:7-alpine
+    image: redis:7.2.5-alpine
     container_name: mukthiguru-redis
     logging: *default-logging
     ports:
