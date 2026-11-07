@@ -76,6 +76,11 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             "/api/ingest",
             "/api/ritual",
             "/api/memory",
+            "/api/brain",
+            "/api/healing-course",
+            "/api/chat",
+            "/api/profile",
+            "/api/user",
         ]
 
     async def _get_redis(self):
