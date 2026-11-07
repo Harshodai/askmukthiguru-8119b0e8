@@ -187,7 +187,7 @@ class VideoDecisionStore:
                 if vid:
                     out[vid] = _record_to_decision(vid, r)
             return out
-        except Exception as exc:
+        except (AttributeError, RuntimeError, TypeError, ValueError, OSError) as exc:
             logger.warning("[VideoDecisionStore] DB read failed: %s; falling back to file store", exc)
             return self.load()
 
@@ -216,7 +216,7 @@ class VideoDecisionStore:
             }
             client.table("video_serving_decision_audit").insert(audit_entry).execute()
             return True
-        except Exception as exc:
+        except (AttributeError, RuntimeError, TypeError, ValueError, OSError) as exc:
             logger.warning("[VideoDecisionStore] DB sync failed: %s", exc)
             return False
 
