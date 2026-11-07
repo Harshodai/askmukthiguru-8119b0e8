@@ -318,6 +318,8 @@ class Settings(BaseSettings):
     # (harness policy max_context_spans). Bounded so a long parent unit can
     # never turn into a wall of text on the chat surface.
     first_person_context_max_spans: int = 3
+    # Candidate parent units retrieved for harness evaluation (0 = use max_clips default)
+    first_person_context_candidate_limit: int = 0
     # Optional temporal quality adjustment for fp-context retrieval ranking.
     # Disabled until a reviewed calibration demonstrates that the adjustment
     # improves held-out serving quality without changing evidence eligibility.

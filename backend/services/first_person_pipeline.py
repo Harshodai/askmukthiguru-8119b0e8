@@ -4269,9 +4269,13 @@ class FirstPersonPipeline:
                 editorial_facets = replace(editorial_facets, teacher_scope=editorial_teacher_id)
             else:
                 editorial_teacher_id = editorial_facets.teacher_scope
-        harness_candidate_limit = (
-            min(8, max(0, int(max_clips)) * 2) if editorial_set_enabled else max_clips
-        )
+        candidate_pool = int(getattr(settings, "first_person_context_candidate_limit", 0) or 0)
+        if candidate_pool > 0:
+            harness_candidate_limit = candidate_pool
+        else:
+            harness_candidate_limit = (
+                min(8, max(0, int(max_clips)) * 2) if editorial_set_enabled else max_clips
+            )
         ctx_store = self._get_context_store() if harness_enabled else None
         if ctx_store is not None and query_dense_vector:
             t_ctx_start = time.monotonic()

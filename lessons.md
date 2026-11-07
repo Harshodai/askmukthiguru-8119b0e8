@@ -3,6 +3,10 @@
 
 ## Nov 7, 2026 — Graded run v4 & v5: Environment pinning, dangling enumeration & evaluation clean-up
 
+### L-FP-CANDIDATE-RETRIEVAL-POOL-1. Candidate pool size for harness evaluation must not be throttled to the display clip limit.
+- **What:** In `FirstPersonPipeline`, the context retrieval was bounded by `harness_candidate_limit = max_clips` (defaulting to 3 from `FirstPersonBridgeStage`). Because 228 parents in `first_person_v10` are rejected for non-chronological spans, requesting only 3 parents left only 1 or 2 candidates for relevance evaluation, causing `served_share` to drop to 10.11%. Expanding `FIRST_PERSON_CONTEXT_CANDIDATE_LIMIT` to 8 retrieves deeper relevant parents that score >= 2 in parallel evaluation.
+- **Rule:** Keep the candidate retrieval evaluation limit decoupled from the maximum displayed answer clips. Use `first_person_context_candidate_limit` to evaluate a sufficient candidate pool in parallel while preserving the display ceiling.
+
 ### L-FP-GRADED-ENV-PARITY-1. Override docker compose files must explicitly declare all active feature flags.
 - **What:** In graded evaluations using `docker-compose.graded.yml`, the override replaces the base compose environment definitions. Because flags like `FIRST_PERSON_ENRICHMENT_WINDOW_ENABLED`, `FIRST_PERSON_GRAPH_EXPANSION_ENABLED`, and `FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED` were not declared in `docker-compose.graded.yml`, they defaulted to `False` from `app/config.py`. As a result, candidate context expansion and antecedent enrichment were skipped during the graded capture.
 - **Rule:** When running clean Docker graded captures, ensure `docker-compose.graded.yml` explicitly declares every serving feature and configuration flag under test so container behavior strictly mirrors the intended evaluation posture.
