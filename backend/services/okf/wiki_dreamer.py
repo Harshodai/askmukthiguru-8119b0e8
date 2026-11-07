@@ -43,7 +43,11 @@ from services.memory.okf_store import (
     STAGING_DIR,
     _parse_frontmatter,
 )
-from services.okf_quality_filter import OKFQualityFilter
+from services.okf_quality_filter import (
+    OKFQualityFilter,
+    _MIN_COMPLETE_QUOTE_CHARS,
+    _QUOTE_TERMINATORS,
+)
 from services.text_quality_filter import find_artifact
 
 logger = logging.getLogger(__name__)
@@ -404,6 +408,58 @@ class OKFWikiDreamer:
 
         return backlinks_added
 
+    @classmethod
+    def repair_truncated_quotes(cls, body: str) -> str:
+        """Subtractively repair truncated blockquotes in OKF body.
+
+        Per repository invariants: subtractive repair cuts back to the last
+        complete sentence (. ? !) or drops the truncated quote line.
+        If ## Quotes has no remaining quotes, removes the section.
+        """
+        lines = body.split("\n")
+        new_lines = []
+        in_quotes_section = False
+
+        for line in lines:
+            if re.match(r"^##\s*Quotes", line, re.I):
+                in_quotes_section = True
+                new_lines.append(line)
+                continue
+            elif line.startswith("## ") and not line.startswith("### "):
+                in_quotes_section = False
+
+            m = re.match(r'^>\s*"(.+?)"(?:\s*—\s*(.*))?$', line)
+            if m:
+                quote_text = m.group(1).strip()
+                attrib = (m.group(2) or "").strip()
+                if (
+                    len(quote_text) > _MIN_COMPLETE_QUOTE_CHARS
+                    and quote_text[-1] not in _QUOTE_TERMINATORS
+                ):
+                    # Subtractive repair: find last sentence terminator . ? !
+                    term_matches = [
+                        tm.end()
+                        for tm in re.finditer(r"[\.\?!](?=\s|\Z)", quote_text)
+                    ]
+                    if term_matches:
+                        last_idx = term_matches[-1]
+                        trimmed = quote_text[:last_idx].strip()
+                        if len(trimmed) >= 25 and trimmed[-1] in _QUOTE_TERMINATORS:
+                            attrib_part = f" — {attrib}" if attrib else ""
+                            new_lines.append(f'> "{trimmed}"{attrib_part}')
+                            continue
+                    # Cannot trim to complete sentence -> drop this quote line
+                    continue
+                else:
+                    new_lines.append(line)
+            else:
+                new_lines.append(line)
+
+        repaired = "\n".join(new_lines)
+        # If a ## Quotes section has no quotes left, remove it
+        repaired = re.sub(r"##\s*Quotes\s*\n+(?=\n##|\Z)", "", repaired)
+        return repaired
+
     def triage_and_graduate(
         self, dry_run: bool = False, auto_compile: bool = True
     ) -> DreamingReport:
@@ -494,6 +550,16 @@ class OKFWikiDreamer:
             # OKF Quality filter
             entry_dict = {"type": type_, "title": title, "body": body, "source": source}
             ok, reason = OKFQualityFilter.validate_entry(entry_dict)
+            if not ok and "Truncated quote" in reason:
+                repaired_body = self.repair_truncated_quotes(body)
+                rep_entry_dict = {"type": type_, "title": title, "body": repaired_body, "source": source}
+                rep_ok, rep_reason = OKFQualityFilter.validate_entry(rep_entry_dict)
+                if rep_ok:
+                    body = repaired_body
+                    ok = True
+                else:
+                    reason = rep_reason
+
             if not ok:
                 records.append(
                     TriageRecord(
@@ -653,8 +719,29 @@ class OKFWikiDreamer:
             teacher_counts[canon_teacher] = teacher_counts.get(canon_teacher, 0) + 1
             meta["teacher"] = canon_teacher
 
+            # Sanitize source
+            raw_source = str(meta.get("source", "")).strip()
+            if raw_source.lower().startswith("youtube "):
+                raw_source = raw_source[8:].strip()
+            meta["source"] = raw_source
+
+            # Clean bold markers from Key Teachings
+            def _strip_bold_in_teachings(match: re.Match) -> str:
+                kt_body = match.group(2)
+                kt_cleaned = kt_body.replace("**", "")
+                return f"{match.group(1)}{kt_cleaned}"
+
+            body = re.sub(
+                r"(##\s*Key Teachings\s*\n)(.*?)(?=\n##|\Z)",
+                _strip_bold_in_teachings,
+                body,
+                flags=re.DOTALL,
+            )
+
             # Resolve description
             desc = self.extract_description(meta, body)
+            if not desc or len(desc) < 10:
+                desc = f"Core spiritual teaching on {title}."
             meta["description"] = desc
 
             # Determine clean target filename

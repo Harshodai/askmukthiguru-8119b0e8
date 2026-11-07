@@ -6083,9 +6083,8 @@ class FirstPersonPipeline:
             )
             if unreg_teacher:
                 logger.info(
-                    "[FirstPersonPipeline] Abstaining on external teacher/tradition inquiry (%s): %s",
+                    "[FirstPersonPipeline] Abstaining on external teacher/tradition inquiry (%s)",
                     unreg_teacher,
-                    query,
                 )
                 latency = (time.monotonic() - start_time) * 1000.0
                 self._log_and_count("abstained", latency, 0.0, 0, 0, "no_verified_clips", 0)

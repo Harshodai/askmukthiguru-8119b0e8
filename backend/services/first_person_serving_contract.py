@@ -453,6 +453,7 @@ def validate_serving_contract(
     embedding_model: str = "",
     embedding_dimension: int = 0,
     active_collection_digest: str = "",
+    scd_fingerprint: Optional[str] = None,
 ) -> ContractReport:
     """Check a configuration against the declared contract. Never raises.
 
@@ -612,7 +613,7 @@ def validate_serving_contract(
         )
     )
 
-    fingerprint = fingerprint_components(legacy_entry)
+    fingerprint = fingerprint_components(legacy_entry, scd_fingerprint=scd_fingerprint)
     missing_fingerprint = [
         key for key in REQUIRED_FINGERPRINT_COMPONENTS if not fingerprint.get(key)
     ]
@@ -633,7 +634,9 @@ def validate_serving_contract(
 
 
 def fingerprint_components(
-    entry: Optional[CollectionContract], release_version: Optional[int | str] = None
+    entry: Optional[CollectionContract],
+    release_version: Optional[int | str] = None,
+    scd_fingerprint: Optional[str] = None,
 ) -> dict[str, str]:
     """The cache-fingerprint inputs for a collection contract."""
     rel_ver = str(
@@ -642,20 +645,24 @@ def fingerprint_components(
         else (getattr(entry, "release_version", "") or "")
     )
     if entry is None:
-        return {
+        res = {
             "collection": "",
             "schema": "",
             "corpus_version": "",
             "evidence_policy": "",
             "release_version": rel_ver,
         }
-    return {
-        "collection": entry.name,
-        "schema": entry.schema,
-        "corpus_version": entry.corpus_version,
-        "evidence_policy": entry.evidence_policy,
-        "release_version": rel_ver,
-    }
+    else:
+        res = {
+            "collection": entry.name,
+            "schema": entry.schema,
+            "corpus_version": entry.corpus_version,
+            "evidence_policy": entry.evidence_policy,
+            "release_version": rel_ver,
+        }
+    if scd_fingerprint:
+        res["scd_fingerprint"] = str(scd_fingerprint)
+    return res
 
 
 def assert_startup_safe(

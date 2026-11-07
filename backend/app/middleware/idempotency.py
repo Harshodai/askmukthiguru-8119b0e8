@@ -95,7 +95,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     socket_timeout=5,
                 )
                 await self._redis.ping()
-            except Exception as e:
+            except (OSError, ConnectionError, ValueError, TimeoutError) as e:
                 logger.warning(f"Idempotency Redis unavailable: {e}. Idempotency disabled.")
                 self._redis = None
         return self._redis

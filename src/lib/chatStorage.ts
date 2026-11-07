@@ -629,8 +629,107 @@ export const loadConversations = async (): Promise<Conversation[]> => {
     return result.data as Conversation[];
   }
 
+  // Fallback for authenticated users on fresh devices / cleared local storage
+  if (!stored) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        return await syncConversationsFromCloud();
+      }
+    } catch {
+      // Fallback silently if offline or unauthenticated
+    }
+  }
+
   return [];
 };
+
+/**
+ * PROD-MEM-02 / UX-006: Bidirectional cross-device conversation synchronization.
+ * Pulls recent conversations from Supabase for authenticated users and merges
+ * them with local conversations by ID and latest timestamp.
+ */
+export async function syncConversationsFromCloud(): Promise<Conversation[]> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      return [];
+    }
+
+    const { data: cloudConvs, error: convError } = await supabase
+      .from('conversations')
+      .select('id, title, created_at, updated_at')
+      .eq('user_id', session.user.id)
+      .order('updated_at', { ascending: false })
+      .limit(50);
+
+    if (convError || !cloudConvs || cloudConvs.length === 0) {
+      return [];
+    }
+
+    let local: Conversation[] = [];
+    const rawLocal = await readConversationsRaw();
+    if (rawLocal) {
+      try {
+        const parsed = JSON.parse(rawLocal);
+        if (Array.isArray(parsed)) local = parsed;
+      } catch {
+        local = [];
+      }
+    }
+
+    const localMap = new Map<string, Conversation>(local.map(c => [c.id, c]));
+    const missingIds = cloudConvs.filter(c => !localMap.has(c.id)).map(c => c.id);
+
+    if (missingIds.length > 0) {
+      const { data: messages, error: msgError } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .in('conversation_id', missingIds)
+        .order('created_at', { ascending: true });
+
+      if (!msgError && messages) {
+        const msgsByConv = new Map<string, Message[]>();
+        for (const m of messages) {
+          const cid = m.conversation_id;
+          if (!msgsByConv.has(cid)) msgsByConv.set(cid, []);
+          const role: 'user' | 'guru' = m.role === 'user' ? 'user' : 'guru';
+          msgsByConv.get(cid)!.push({
+            id: m.id,
+            role,
+            content: m.content,
+            timestamp: new Date(m.created_at || Date.now()),
+          });
+        }
+
+        for (const cc of cloudConvs) {
+          if (!localMap.has(cc.id)) {
+            const convMsgs = msgsByConv.get(cc.id) || [];
+            const preview = convMsgs[0]?.content?.slice(0, 100) || 'Conversation';
+            localMap.set(cc.id, {
+              id: cc.id,
+              startedAt: new Date(cc.created_at || Date.now()),
+              updatedAt: new Date(cc.updated_at || Date.now()),
+              preview,
+              messageCount: convMsgs.length,
+              messages: convMsgs,
+              summary: (cc as { title?: string }).title || undefined,
+            });
+          }
+        }
+      }
+    }
+
+    const merged = Array.from(localMap.values()).sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+    await writeConversationsRaw(JSON.stringify(merged));
+    return merged;
+  } catch (err) {
+    console.warn('Cross-device conversation sync failed; preserving local cache:', err);
+    return [];
+  }
+}
 
 export const loadConversation = async (id: string): Promise<Conversation | null> => {
   try {

@@ -151,6 +151,64 @@ class GDPRExportResponse(BaseModel):
     total_memories: int
 
 
+class SeekerDashboardResponse(BaseModel):
+    """Structured response for GET /memory/dashboard (Layer 4 SeekerCoreDashboard)."""
+
+    user_id: str
+    fingerprint: str
+    spiritual_urgency: str
+    seeker_journey_phase: str
+    preferred_language: str
+    name: Optional[str] = None
+    pronouns: Optional[str] = None
+    primary_tradition: Optional[str] = None
+    core_values: list[str] = Field(default_factory=list)
+    key_life_context: list[str] = Field(default_factory=list)
+    growth_goals: list[str] = Field(default_factory=list)
+    active_challenges: list[str] = Field(default_factory=list)
+    last_session_topic: Optional[str] = None
+    last_discussed_at: Optional[str] = None
+    session_count: int = 0
+    xml_prompt_block: str
+    char_length: int
+    estimated_tokens: int
+
+
+class SeekerCoreResponse(BaseModel):
+    """Response model for GET /memory/core compatibility endpoint."""
+
+    id: str
+    content: str
+    fingerprint: str
+    updated_at: str
+
+
+class MemoryDreamRequest(BaseModel):
+    """Payload for POST /memory/dream."""
+
+    dry_run: bool = Field(default=False, description="Simulate dreaming without persisting changes.")
+    limit_conversations: int = Field(default=50, ge=1, le=200, description="Max recent conversations to process.")
+
+
+class MemoryDreamResponse(BaseModel):
+    """Response model for POST /memory/dream."""
+
+    user_id: str
+    dry_run: bool
+    status: str
+    conversations_processed: int
+    memories_before: int
+    memories_after: int
+    contradictions_resolved: int
+    memories_decayed: int
+    memories_pruned: int
+    anti_hallucination_quarantined: int
+    dashboard_updated: bool
+    dashboard_fingerprint: str
+    duration_ms: float
+    timestamp: str
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -1034,6 +1092,179 @@ async def export_canonical_memories(
     except Exception:
         logger.exception("GDPR export failed for user %s", sanitize_log_input(user_id))
         raise HTTPException(status_code=500, detail="Export failed")
+
+
+# ---------------------------------------------------------------------------
+# GET /memory/dashboard — SeekerCoreDashboard (Layer 4)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/memory/dashboard", response_model=SeekerDashboardResponse)
+async def get_seeker_dashboard(
+    _tenant: None = Depends(set_tenant_from_request),
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container_async),
+) -> SeekerDashboardResponse:
+    """Return the compact SeekerCoreDashboard (Layer 4) for the authenticated seeker.
+
+    Synthesizes core identity, spiritual urgency, values, and journey context into
+    a strictly bounded XML block (<=120 tokens) preventing context poisoning.
+    """
+    user_id = user["id"]
+    db = await _get_supabase(container)
+
+    try:
+        result = await asyncio.to_thread(
+            lambda: (
+                db.table("canonical_memories")
+                .select("*")
+                .eq("user_id", user_id)
+                .eq("tenant_id", TenantContext.get())
+                .eq("status", "active")
+                .order("importance", desc=True)
+                .execute()
+            )
+        )
+        rows = getattr(result, "data", None) or []
+    except (RuntimeError, ValueError, KeyError, OSError, AttributeError) as exc:
+        logger.warning("Failed to fetch memories for dashboard (%s)", exc)
+        rows = []
+
+    from services.canonical_memory.models import SeekerCoreDashboard
+
+    dashboard = SeekerCoreDashboard.from_core_facts(
+        user_id=user_id,
+        facts=rows,
+    )
+    xml_block = dashboard.to_system_prompt_block()
+    fingerprint = dashboard.compute_fingerprint()
+
+    return SeekerDashboardResponse(
+        user_id=user_id,
+        fingerprint=fingerprint,
+        spiritual_urgency=dashboard.spiritual_urgency,
+        seeker_journey_phase=dashboard.seeker_journey_phase,
+        preferred_language=dashboard.preferred_language,
+        name=dashboard.name,
+        pronouns=dashboard.pronouns,
+        primary_tradition=dashboard.primary_tradition,
+        core_values=dashboard.core_values,
+        key_life_context=dashboard.key_life_context,
+        growth_goals=dashboard.growth_goals,
+        active_challenges=dashboard.active_challenges,
+        last_session_topic=dashboard.last_session_topic,
+        last_discussed_at=dashboard.last_discussed_at.isoformat() if dashboard.last_discussed_at else None,
+        session_count=dashboard.session_count,
+        xml_prompt_block=xml_block,
+        char_length=len(xml_block),
+        estimated_tokens=dashboard.estimate_tokens(),
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /memory/core — compatibility context endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.get("/memory/core", response_model=SeekerCoreResponse)
+async def get_seeker_core_memory(
+    _tenant: None = Depends(set_tenant_from_request),
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container_async),
+) -> SeekerCoreResponse:
+    """Compatibility endpoint returning seeker core context string and fingerprint."""
+    user_id = user["id"]
+    db = await _get_supabase(container)
+
+    try:
+        result = await asyncio.to_thread(
+            lambda: (
+                db.table("canonical_memories")
+                .select("*")
+                .eq("user_id", user_id)
+                .eq("tenant_id", TenantContext.get())
+                .eq("status", "active")
+                .order("importance", desc=True)
+                .execute()
+            )
+        )
+        rows = getattr(result, "data", None) or []
+    except (RuntimeError, ValueError, KeyError, OSError, AttributeError) as exc:
+        logger.warning("Failed to fetch memories for core memory (%s)", exc)
+        rows = []
+
+    from services.canonical_memory.models import SeekerCoreDashboard
+
+    dashboard = SeekerCoreDashboard.from_core_facts(user_id=user_id, facts=rows)
+    fingerprint = dashboard.compute_fingerprint()
+    now_iso = datetime.now(UTC).isoformat()
+
+    return SeekerCoreResponse(
+        id=user_id,
+        content=dashboard.to_core_content(),
+        fingerprint=fingerprint,
+        updated_at=now_iso,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /memory/dream — 5-stage consolidation pipeline
+# ---------------------------------------------------------------------------
+
+
+@router.post("/memory/dream", response_model=MemoryDreamResponse)
+async def dream_user_memories(
+    payload: Optional[MemoryDreamRequest] = None,
+    _tenant: None = Depends(set_tenant_from_request),
+    user: dict = Depends(get_current_user_from_supabase),
+    container: ServiceContainer = Depends(get_container_async),
+) -> MemoryDreamResponse:
+    """Execute autonomous 5-stage memory dreaming consolidation for the current user.
+
+    1. Snapshot rollback contract.
+    2. Transcript grounding audit (anti-hallucination quarantine).
+    3. Temporal contradiction resolution.
+    4. Mathematical recency/importance decay and pruning.
+    5. SeekerCoreDashboard re-synthesis.
+    """
+    user_id = user["id"]
+    dry_run = payload.dry_run if payload else False
+    limit_convs = payload.limit_conversations if payload else 50
+    tenant_id = TenantContext.get()
+
+    db = await _get_supabase(container)
+
+    from services.canonical_memory.dreamer import MemoryDreamer
+
+    dreamer = MemoryDreamer(supabase_client=db, tenant_id=tenant_id)
+    report = await asyncio.to_thread(
+        lambda: dreamer.dream(user_id=user_id, dry_run=dry_run)
+    )
+
+    # Invalidate cache if modifications were persisted
+    if not dry_run and (
+        report.contradictions_resolved > 0
+        or report.memories_pruned > 0
+        or report.dashboard_updated
+    ):
+        await _invalidate_after_commit(container, user_id, action="dreamed and consolidated")
+
+    return MemoryDreamResponse(
+        user_id=user_id,
+        dry_run=report.dry_run,
+        status=report.status,
+        conversations_processed=report.conversations_processed,
+        memories_before=report.memories_before,
+        memories_after=report.memories_after,
+        contradictions_resolved=report.contradictions_resolved,
+        memories_decayed=report.memories_decayed,
+        memories_pruned=report.memories_pruned,
+        anti_hallucination_quarantined=report.anti_hallucination_quarantined,
+        dashboard_updated=report.dashboard_updated,
+        dashboard_fingerprint=report.dashboard_fingerprint,
+        duration_ms=report.duration_ms,
+        timestamp=report.timestamp,
+    )
 
 
 # ---------------------------------------------------------------------------

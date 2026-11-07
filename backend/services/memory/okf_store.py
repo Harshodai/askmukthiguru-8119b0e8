@@ -417,6 +417,10 @@ def clean_teaching_sentence(text: str) -> Optional[str]:
     if s and s[0].islower():
         s = s[0].upper() + s[1:]
 
+    # Strip any markdown bold markers
+    if "**" in s:
+        s = s.replace("**", "").strip()
+
     # Fix unbalanced trailing or leading single quote mark
     if s.count('"') % 2 != 0:
         if s.endswith('"'):

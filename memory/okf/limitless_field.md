@@ -24,3 +24,8 @@ Like a satellite that loses its path, needs a course correction to get back on i
 - Video: Divine Matrix  | Evolution Series 93 with Preethaji & Krishnaji
 - URL: https://www.youtube.com/watch?v=w1U9nHF3H5o
 - Speaker: Sri Preethaji & Sri Krishnaji
+
+## Related Concepts
+- **Impact on the World** ([[sri-preethaji/impact_on_the_world]]): The upcoming Deeksha event is set to be the first time it will be globally participated in by all individuals, emphasizing its potential to be a powerful and ancient method of divine blessing.
+- **Power of Observation** ([[sri-preethaji/power_of_observation]]): The power of observation plays a crucial role in overcoming addictions and negative habits.
+- **Relationship with EGO** ([[sri-preethaji/relationship_with_ego]]): The video discusses the manifestation of failure patterns in the physical, mind, and energy bodies, emphasizing the importance of purging these impressions to prevent them from recurring and manifesting as failure.

@@ -134,6 +134,12 @@ from services.canonical_memory.cost_tracker import (
     CostTracker,
     estimate_consolidation_cost,
 )
+from services.canonical_memory.dreamer import (
+    DreamingReport,
+    MemoryDreamer,
+    SeekerCoreDashboard,
+    create_dreamer,
+)
 from services.canonical_memory.evaluation import (
     EvalResult,
     EvalSuite,
@@ -228,6 +234,10 @@ __all__ = [
     "ConsolidationCandidate",
     "ConsolidationResult",
     "create_consolidator",
+    "MemoryDreamer",
+    "DreamingReport",
+    "SeekerCoreDashboard",
+    "create_dreamer",
     "TurnClassification",
     "classify_conversation_turn",
     "is_transient",
