@@ -32,9 +32,9 @@ def test_import_layer_lint_clean():
     allowlist_path = REPO_ROOT / "scripts" / "guards" / "import_layer_allowlist.txt"
     allowlist = load_allowlist(allowlist_path)
 
-    # Acceptance criteria: <= 50 justified lazy imports
-    assert len(allowlist) <= 50, (
-        f"Grandfathered cross-layer imports {len(allowlist)} exceeded ceiling 50"
+    # Acceptance criteria: <= 25 justified lazy imports
+    assert len(allowlist) <= 25, (
+        f"Grandfathered cross-layer imports {len(allowlist)} exceeded ceiling 25"
     )
 
     violations = scan_layer_violations(REPO_ROOT)

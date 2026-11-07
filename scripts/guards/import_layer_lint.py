@@ -10,7 +10,7 @@ Invariants:
 3. `backend/rag` NEVER imports `app.api`.
 4. `backend/app/pipeline` NEVER imports `app.api` (unless grandfathered).
 5. Grandfathered exceptions are pinned in `scripts/guards/import_layer_allowlist.txt`
-   and must never exceed 50.
+   and must never exceed 25.
 """
 
 from __future__ import annotations
@@ -96,9 +96,9 @@ def main() -> int:
     allowlist_path = repo_root / "scripts" / "guards" / "import_layer_allowlist.txt"
     allowlist = load_allowlist(allowlist_path)
 
-    if len(allowlist) > 50:
+    if len(allowlist) > 25:
         print(
-            f"ERROR: Grandfathered layer imports count {len(allowlist)} exceeds ceiling 50.",
+            f"ERROR: Grandfathered layer imports count {len(allowlist)} exceeds ceiling 25.",
             file=sys.stderr,
         )
         return 1
@@ -106,7 +106,7 @@ def main() -> int:
     violations = scan_layer_violations(repo_root)
 
     print(
-        f"[import_layer_lint] Layer allowlist entries: {len(allowlist)} (ceiling: 50); "
+        f"[import_layer_lint] Layer allowlist entries: {len(allowlist)} (ceiling: 25); "
         f"Unallowed violations: {len(violations)}"
     )
 

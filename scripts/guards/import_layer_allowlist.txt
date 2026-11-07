@@ -1,6 +1,6 @@
 # Grandfathered cross-layer imports (CQ-007 / T7-05).
 # Layer architecture: domain -> services -> rag -> app.pipeline -> app.api
-# Upward imports are forbidden. The 25 entries below are grandfathered lazy imports (<= 50 allowed).
+# Upward imports are forbidden. The 21 entries below are grandfathered lazy imports (<= 25 allowed).
 # Any new upward layer import fails CI.
 backend/app/pipeline/stages/first_person_bridge.py -> app.api.first_person
 backend/services/base_llm_service.py -> rag.compressor
