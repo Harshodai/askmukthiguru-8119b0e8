@@ -755,7 +755,7 @@ class OpenRouterService:
             logger.info(
                 "OPENROUTER_CALL_TIMING operation=%s model=%s attempts=%d total_ms=%.1f "
                 "prompt_tokens=%s completion_tokens=%s cached_tokens=%s cache_write_tokens=%s "
-                "finish_reason=%s",
+                "cost=%s finish_reason=%s",
                 operation,
                 model,
                 attempt_count,
@@ -764,6 +764,7 @@ class OpenRouterService:
                 tokens_out,
                 cached_tokens,
                 cache_write_tokens,
+                f"{cost_usd:.6f}" if cost_usd is not None else "none",
                 str(data.get("choices", [{}])[0].get("finish_reason") or "unknown")[:32],
             )
 
@@ -1301,7 +1302,7 @@ class OpenRouterService:
                             "OPENROUTER_STREAM_TIMING operation=%s model=%s attempt=%d status_class=%s "
                             "headers_ms=%.1f first_event_ms=%s ttft_ms=%s total_ms=%.1f "
                             "prompt_tokens=%s completion_tokens=%s cached_tokens=%s "
-                            "finish_reason=%s",
+                            "cost=%s finish_reason=%s",
                             operation,
                             model,
                             attempt + 1,
@@ -1313,6 +1314,7 @@ class OpenRouterService:
                             prompt_tokens,
                             completion_tokens,
                             cached_tokens,
+                            f"{cost_usd:.6f}" if cost_usd is not None else "none",
                             finish_reason,
                         )
                         # Streamed incrementally above; nothing left to emit.
