@@ -53,7 +53,7 @@ ORDER OF WORK.
 3. **Live v10 data fixes (approved by Harsha 2026-11-07).** Targets: the 2 bad points (C-L3 hash mismatch, C-L5 point id does not recompute) and `domain_rights_status` on 2,758 children.
    a. Read-only first: run `backend/.venv/bin/python scripts/ops/fp_live_audit.py --collection first_person_v10 --json /tmp/fp_audit.json`. Report the point ids (no text), the record types, and the `domain_rights_status` value counts. Answer: are the 2 bad points the same 2? Are they the 2 extra points (4,224 became 4,226; who added them and when)?
    b. Snapshot the collection and confirm the snapshot name and age.
-   c. For `domain_rights_status`: derive the value from the rights register through the corpus builder's own function (`f87c0de`). Never type a value by hand. Write only that payload key, through the backfill pattern (export before, allowlisted keys, post-checks: ids and count unchanged, text and both hashes unchanged on every point, vectors identical on a seeded sample of 20, zero write-rule violators). Dry run first and show the diff counts.
+   c. For `domain_rights_status`: use `scripts/ops/backfill_fp_rights_status.py` (`647ef2c`, written by the Sonnet lane, dry run by default). **Review it line by line first** (it must write one key only, take the value from `resolve_source_rights_status`, touch only children that lack the key, save a backup before any write, and never stamp "licensed" by assumption), and write a test for anything it does not cover. Never type a value by hand. Run it with `--backup <file>`, then with `--apply` only after the snapshot and the dry-run counts. Post-checks (extend them if the script lacks any): ids and count unchanged, text and both hashes unchanged on every point, vectors identical on a seeded sample of 20, zero write-rule violators). Dry run first and show the diff counts.
    d. For the 2 bad points: you may not edit text or either hash. Prefer stopping them from being served with an existing marker. **Ask Harsha before you delete a point.**
    e. Re-run the live audit. Record before and after counts.
 4. **D-PQ7.** Add `clip_ref` (uuid5 over hash and offsets) to the wire, update `test_citation_contract.py` on purpose, and keep `point_id` off the wire. The TypeScript types are Sonnet-lane: send the field name and shape to the coordinator.
@@ -92,7 +92,7 @@ RULES.
 8. Update the Pending List artifact (https://claude.ai/artifact/PtxfGz9iintSkmGsPNGFg9) when your work changes done, unproven or needed. Keep NO-GO.
 9. Mark every claim VERIFIED, REPORTED, ASSUMPTION, UNKNOWN or UNPROVEN.
 
-DECISIONS ALREADY MADE (do not re-ask): D-26 external `QDRANT_URL`, no Qdrant service on Railway; D-14 v10-only; D-29 faculty access code is the only staging gate; D-30 Celery on, `INCLUDE_CELERY` is the one switch; D-24 Lovable by PR only; D-PK8S1 Kubernetes is reference only; D-PA11Y6 axe only, no new dependency; D-PG13 graded run 12 s, default 25 s; **D-PE7: USD 25 hard cap for the staging load run, the harness stops at USD 20, approved (no chat confirmation needed)**; required checks approved.
+DECISIONS ALREADY MADE (do not re-ask): D-26 external `QDRANT_URL`, no Qdrant service on Railway; D-14 v10-only; D-29 faculty access code is the only staging gate; D-30 Celery on, `INCLUDE_CELERY` is the one switch; D-24 Lovable by PR only; D-PK8S1 Kubernetes is reference only; D-PA11Y6 axe only, no new dependency; D-PG13 graded run 12 s, default 25 s; **D-PE7: staging load run spend approved; Harsha removed the cap condition, so the harness has no default spend stop (`647ef2c`); `SPEND_CAP_USD` brings abort rule AB-1 back at 80%; the outside backstops are the provider spend limit and the Railway usage limit, which Harsha sets**; required checks approved.
 
 ORDER OF WORK.
 1. **Read the CI failure cause.** PR #97 at head `5e23438` shows 30 of 32 check runs failed within 2 to 8 seconds (VERIFIED). Use the GitHub MCP tools (`pull_request_read` `get_check_runs`; `actions_get`/`actions_list`; `get_job_logs` with `failed_only` and `run_id`). Report the first error line of 3 different failed jobs, and say whether it is a code problem or an account/runner/secret problem. If it is code, fix it test-first. If it is account or billing, say so plainly: that is Harsha's step.
@@ -102,7 +102,7 @@ ORDER OF WORK.
 5. **Opus review notes in your lane:** Redis `noeviction` on a Redis that holds cache and quota; the deploy script's unchecked `GIT_SHA` set; the metrics refresh exception list. Failing tests first.
 6. **Remaining doable rows:** the 9 silent exception handlers outside Opus files; shrink `import_layer_allowlist.txt`; own images default to `latest` when `IMAGE_TAG` is unset in `docker-compose.prod.yml`; `redis:7-alpine` floats; replace teacher-name literals where logic-bearing, outside Opus files.
 7. **Railway staging checklist** for the day after the merge: write one page of steps Harsha follows in a normal session with connectors (variables to set by name only, never values; `FACULTY_ACCESS_CODE`; external `QDRANT_URL` and read-only key; Redis policy; `GIT_SHA`; health gate `/api/healthz`; smoke test: one served clip, one abstain, one crisis route, worker alive).
-8. **Staging load run** (D-PE7): prepare only. The run starts when staging exists. Cap USD 25, abort USD 20.
+8. **Staging load run** (D-PE7): prepare only. The run starts when staging exists. There is no default spend stop now; confirm with Harsha that the provider spend limit and Railway usage limit are set before the run, and keep the cost log.
 9. **Mac-only extras** (ask Harsha to run): `promtool check rules infrastructure/prometheus/alerting-rules.yml`; Playwright `tests/e2e/a11y-journey.spec.ts` with the app and Supabase up (needs Harsha to allow Docker).
 10. Suggest the lesson `L-REQUIRED-CHECK-NAME-IS-JOB-NAME-1` (search `lessons.md` first; append only; rebase before you push).
 
@@ -173,6 +173,6 @@ Order matters. Items marked **H** are Harsha's. Items marked **A** are an agent'
 12. **H** Add the Telugu crisis row to the test sheet (a native speaker supplies the phrase).
 13. **H** Label the 50 served clips (or have faculty label them).
 14. **H** Only after the run is graded: rotate keys (OpenRouter, Supabase, Qdrant read and write, JWT secret, Redis password, Railway tokens; the old Helm literals are burned).
-15. **H/A** If the verdict allows: one PR to `main` (PR #97), Harsha types approval in the thread, then Railway staging in a normal session with connectors (Sonnet's Railway checklist), then the staging load run (cap USD 25, stop at USD 20).
+15. **H/A** If the verdict allows: one PR to `main` (PR #97), Harsha types approval in the thread, then Railway staging in a normal session with connectors (Sonnet's Railway checklist), then the staging load run (no default spend stop; the provider and Railway limits from step 4 are the backstop; keep the cost log).
 
 Verdict while any item above is open: **NO-GO**.
