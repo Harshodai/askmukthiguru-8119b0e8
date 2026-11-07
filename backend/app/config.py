@@ -428,6 +428,11 @@ class Settings(BaseSettings):
     # Env: SPECULATIVE_GENERATION_ENABLED.
     speculative_generation_enabled: bool = False
     first_person_llm_fallback_enabled: bool = False
+    # T6-02 / MEM-002 / D-PM4: Server-side authoritative seen-clip tracking.
+    # When False (default), first-person retrieval does not query server-side seen-clip
+    # state, preserving byte-for-byte legacy behavior. When True, queries namespaced
+    # server-side store to avoid serving recently seen clips to returning seekers.
+    first_person_server_seen_clips_enabled: bool = False
     # T1-05 rollback flag (env FP_FAIL_CLOSED_ENABLED, default True): when on, a
     # teaching-lane turn that cannot be served by first person (bridge off, node
     # fault) gets the static abstain instead of the generating graph, unless

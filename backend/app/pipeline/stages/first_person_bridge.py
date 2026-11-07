@@ -873,6 +873,39 @@ class FirstPersonBridgeStage(Stage):
                             vid = cit.get("videoId") or cit.get("video_id")
                             if vid:
                                 seen_videos.add(str(vid))
+            if getattr(settings, "first_person_server_seen_clips_enabled", False):
+                try:
+                    from services.first_person_seen_store import get_seen_clips
+
+                    _uid = str(
+                        getattr(ctx, "user_id", "")
+                        or (
+                            getattr(ctx, "state", {}).get("user_id")
+                            if hasattr(ctx, "state") and isinstance(ctx.state, dict)
+                            else ""
+                        )
+                        or ""
+                    )
+                    _tid = str(getattr(ctx, "tenant_id", "") or "default")
+                    _rcli = getattr(container, "redis_client", None)
+                    if _uid:
+                        _, _server_videos = get_seen_clips(
+                            user_id=_uid, tenant_id=_tid, redis_client=_rcli
+                        )
+                        seen_videos.update(_server_videos)
+                except (
+                    RuntimeError,
+                    OSError,
+                    ConnectionError,
+                    TimeoutError,
+                    ValueError,
+                    KeyError,
+                    AttributeError,
+                ) as _seen_exc:
+                    logger.debug(
+                        "[FirstPersonBridge] Server seen clips lookup failed (fail-open): %s",
+                        _seen_exc,
+                    )
             if seen_videos or (user_profile and getattr(user_profile, "topics_of_interest", None)):
                 memory_signals = {
                     "seen_video_ids": list(seen_videos),
@@ -1239,6 +1272,47 @@ class FirstPersonBridgeStage(Stage):
             verification["editorial_set"] = editorial_set
         # Dispatches consented canonical memory and outbox persistence asynchronously
         _dispatch_fp_memory(ctx, answer, citations)
+        if getattr(settings, "first_person_server_seen_clips_enabled", False) and not getattr(
+            ctx, "incognito", False
+        ):
+            try:
+                from services.first_person_seen_store import record_seen_clip
+
+                _uid = str(
+                    getattr(ctx, "user_id", "")
+                    or (
+                        getattr(ctx, "state", {}).get("user_id")
+                        if hasattr(ctx, "state") and isinstance(ctx.state, dict)
+                        else ""
+                    )
+                    or ""
+                )
+                _tid = str(getattr(ctx, "tenant_id", "") or "default")
+                _rcli = getattr(container, "redis_client", None)
+                if _uid:
+                    for cit in citations:
+                        c_id = cit.get("id") or cit.get("chunk_id") or cit.get("clip_id")
+                        v_id = cit.get("videoId") or cit.get("video_id")
+                        record_seen_clip(
+                            user_id=_uid,
+                            tenant_id=_tid,
+                            clip_id=str(c_id) if c_id else None,
+                            video_id=str(v_id) if v_id else None,
+                            redis_client=_rcli,
+                        )
+            except (
+                RuntimeError,
+                OSError,
+                ConnectionError,
+                TimeoutError,
+                ValueError,
+                KeyError,
+                AttributeError,
+            ) as _rec_exc:
+                logger.debug(
+                    "[FirstPersonBridge] Server seen clips recording failed: %s",
+                    _rec_exc,
+                )
         return PipelineResult(
             final_answer=answer,
             intent="QUERY",
