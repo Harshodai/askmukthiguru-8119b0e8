@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AskMukthiGuru — Human Action Items & Governance Checklist</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            gold: {
+              400: '#E6C687',
+              500: '#D4AF37',
+              600: '#AA820A',
+            },
+            spiritual: {
+              900: '#0F1117',
+              800: '#161922',
+              700: '#212634',
+              600: '#2F3649',
+              100: '#F5F3EF',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .badge-p0 { background: rgba(239, 68, 68, 0.15); color: #F87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-p1 { background: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-p2 { background: rgba(59, 130, 246, 0.15); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-human { background: rgba(168, 85, 247, 0.15); color: #C084FC; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-done { background: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+  </style>
+</head>
+<body class="bg-[#0B0D13] text-[#E2E8F0] min-h-screen font-sans antialiased selection:bg-gold-500 selection:text-black">
+
+  <!-- Header -->
+  <header class="border-b border-spiritual-700/60 bg-spiritual-900/90 backdrop-blur sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-gold-600 via-gold-500 to-amber-300 flex items-center justify-center shadow-lg shadow-gold-500/20">
+          <span class="text-spiritual-900 font-extrabold text-lg">ॐ</span>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            AskMukthiGuru <span class="text-xs uppercase tracking-widest px-2.5 py-0.5 rounded-full font-mono bg-spiritual-700 text-gold-400 border border-spiritual-600">Production Governance</span>
+          </h1>
+          <p class="text-xs text-slate-400 font-mono">Branch: feature/audit-strengthen-rag-qdrant | 341 Forensic Audit Records</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 bg-spiritual-800 p-1 rounded-xl border border-spiritual-700">
+        <button onclick="switchTab('human')" id="tab-btn-human" class="px-4 py-2 text-xs font-semibold rounded-lg bg-gold-500 text-spiritual-900 shadow-sm transition">
+          👤 Human Action Items (<span id="human-count">12</span>)
+        </button>
+        <button onclick="switchTab('agent')" id="tab-btn-agent" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition">
+          🤖 Agent Autonomous Tasks (<span id="agent-count">329</span>)
+        </button>
+        <button onclick="switchTab('gates')" id="tab-btn-gates" class="px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition">
+          🛡️ Release Gates (B1–B7)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: HUMAN ACTION ITEMS -->
+    <!-- ========================================================================= -->
+    <div id="tab-human" class="space-y-6">
+      
+      <!-- Banner -->
+      <div class="bg-gradient-to-r from-purple-950/40 via-spiritual-800 to-spiritual-800 border border-purple-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div class="max-w-3xl">
+          <span class="badge-human text-xs font-mono px-3 py-1 rounded-full uppercase tracking-wider font-semibold">Strict Human Prerequisite</span>
+          <h2 class="text-2xl font-bold text-white mt-3 mb-2">Items Requiring Human Authority & Action</h2>
+          <p class="text-sm text-slate-300 leading-relaxed">
+            By repository invariants (<code class="text-gold-400 font-mono">X5</code>, <code class="text-gold-400 font-mono">X6</code>, <code class="text-gold-400 font-mono">X40</code>), AI agents are strictly forbidden from fabricating human signatures, legal agreements, clinical approvals, or performing phone calls. The following items require action from Harsha (Owner), Dr. Pragna (Clinician), Legal Counsel, and Human Annotators.
+          </p>
+        </div>
+      </div>
+
+      <!-- Human Action Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Item 1: Repo Privacy -->
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 hover:border-red-500/50 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="badge-p0 text-xs font-mono px-2.5 py-0.5 rounded font-bold">P0 CRITICAL</span>
+              <span class="text-xs font-mono text-slate-400">ID: X-06 / IP-001 / D-01</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">Switch GitHub Repo to Private or Run Git History Scrub</h3>
+            <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+              2,737 verbatim teacher quotes in <code class="text-gold-400 font-mono">public_release_v10_points_export_2026-10-21.json</code> are tracked in public Git history.
+            </p>
+            <div class="bg-spiritual-900 p-3 rounded-xl border border-spiritual-700 text-xs font-mono text-slate-300 mb-4 space-y-1">
+              <div class="text-purple-400 font-semibold">Required Action:</div>
+              <div>Option A (Recommended): GitHub Repo &rarr; Settings &rarr; Danger Zone &rarr; <b>Change visibility &rarr; Make private</b>.</div>
+              <div>Option B: Authorize Git BFG history scrub to permanently purge the json file and audio assets.</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-4 border-t border-spiritual-700/60">
+            <span class="text-xs text-slate-400">Responsible: <b>Harsha (Owner)</b></span>
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+              <input type="checkbox" onchange="toggleItem('h1', this.checked)" id="chk-h1" class="rounded border-slate-700 text-gold-500 focus:ring-gold-500 w-4 h-4 bg-spiritual-900">
+              <span>Mark Done</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Item 2: Clinician Written Sign-off -->
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 hover:border-amber-500/50 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="badge-p1 text-xs font-mono px-2.5 py-0.5 rounded font-bold">P1 BLOCKER</span>
+              <span class="text-xs font-mono text-slate-400">ID: SAFE-005 / GURU-005 / D-06</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">Formal Written Clinician Approval (Gate B6)</h3>
+            <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+              The distress boundary currently uses an in-repo string claiming clinician review. Dr. Pragna MD must formally review and sign off on topic-vs-state distress discrimination thresholds.
+            </p>
+            <div class="bg-spiritual-900 p-3 rounded-xl border border-spiritual-700 text-xs font-mono text-slate-300 mb-4 space-y-1">
+              <div class="text-purple-400 font-semibold">Required Action:</div>
+              <div>1. Send Dr. Pragna the 400-turn clinical distress benchmark.</div>
+              <div>2. Obtain signed written memorandum (PDF or email).</div>
+              <div>3. File cryptographic SHA-256 hash in <code class="text-gold-400">audits/evidence/clinician_signoff_hash.txt</code>.</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-4 border-t border-spiritual-700/60">
+            <span class="text-xs text-slate-400">Responsible: <b>Dr. Pragna MD & Harsha</b></span>
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+              <input type="checkbox" onchange="toggleItem('h2', this.checked)" id="chk-h2" class="rounded border-slate-700 text-gold-500 focus:ring-gold-500 w-4 h-4 bg-spiritual-900">
+              <span>Mark Done</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Item 3: Independent Double-Blind Annotation -->
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 hover:border-amber-500/50 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="badge-p1 text-xs font-mono px-2.5 py-0.5 rounded font-bold">P1 BLOCKER</span>
+              <span class="text-xs font-mono text-slate-400">ID: GURU-002 / EVAL-001 / Gate B7</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">Double-Blind Human Gold Benchmarking</h3>
+            <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+              Gate B7 rejects single-annotator consensus. Two independent human annotators must label &ge; 299 audio clips and question responses without communicating.
+            </p>
+            <div class="bg-spiritual-900 p-3 rounded-xl border border-spiritual-700 text-xs font-mono text-slate-300 mb-4 space-y-1">
+              <div class="text-purple-400 font-semibold">Required Action:</div>
+              <div>1. Hand out <code class="text-gold-400">annotator_A.csv</code> and <code class="text-gold-400">annotator_B.csv</code> to 2 annotators.</div>
+              <div>2. Assert Cohen's &kappa; &ge; 0.85 inter-rater agreement.</div>
+              <div>3. Run <code class="text-gold-400">check_first_person_public_release.py</code> to verify Gate B7.</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-4 border-t border-spiritual-700/60">
+            <span class="text-xs text-slate-400">Responsible: <b>2 Independent Human Annotators</b></span>
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+              <input type="checkbox" onchange="toggleItem('h3', this.checked)" id="chk-h3" class="rounded border-slate-700 text-gold-500 focus:ring-gold-500 w-4 h-4 bg-spiritual-900">
+              <span>Mark Done</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Item 4: Content Rights Licensing -->
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 hover:border-amber-500/50 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="badge-p1 text-xs font-mono px-2.5 py-0.5 rounded font-bold">P1 BLOCKER</span>
+              <span class="text-xs font-mono text-slate-400">ID: IP-003 / IP-005 / Gate B5</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">Written Copyright Authorization (Gate B5)</h3>
+            <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+              In-app serving of teaching audio/transcripts currently rests on oral statements. Formal copyright license from Ekam / O&O Academy and broadcasters is required.
+            </p>
+            <div class="bg-spiritual-900 p-3 rounded-xl border border-spiritual-700 text-xs font-mono text-slate-300 mb-4 space-y-1">
+              <div class="text-purple-400 font-semibold">Required Action:</div>
+              <div>1. Secure written authorization from Ekam / O&O Academy.</div>
+              <div>2. Update <code class="text-gold-400">docs/rights/CONTENT-RIGHTS.md</code> with license register.</div>
+              <div>3. Sign off <code class="text-gold-400">public_release_phase4_rights_manifest_2026-10-22.json</code>.</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-4 border-t border-spiritual-700/60">
+            <span class="text-xs text-slate-400">Responsible: <b>Harsha & Rights Holders</b></span>
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+              <input type="checkbox" onchange="toggleItem('h4', this.checked)" id="chk-h4" class="rounded border-slate-700 text-gold-500 focus:ring-gold-500 w-4 h-4 bg-spiritual-900">
+              <span>Mark Done</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Item 5: Helpline Voice Calls -->
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 hover:border-amber-500/50 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="badge-p1 text-xs font-mono px-2.5 py-0.5 rounded font-bold">P1 BLOCKER</span>
+              <span class="text-xs font-mono text-slate-400">ID: SAFE-004 / GURU-007</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">14 Crisis Helpline Voice Test Calls</h3>
+            <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+              Only 1 of 15 national helplines is verified by voice call (Tele-MANAS on 2026-09-26). Gate requires voice verification within 180 days.
+            </p>
+            <div class="bg-spiritual-900 p-3 rounded-xl border border-spiritual-700 text-xs font-mono text-slate-300 mb-4 space-y-1">
+              <div class="text-purple-400 font-semibold">Required Action:</div>
+              <div>1. Place test calls to all 14 numbers in <code class="text-gold-400">config/helplines.yaml</code>.</div>
+              <div>2. Verify live human connection / triage responsiveness.</div>
+              <div>3. Populate <code class="text-gold-400">last_verified_by_call: YYYY-MM-DD</code> in config.</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-4 border-t border-spiritual-700/60">
+            <span class="text-xs text-slate-400">Responsible: <b>Operations Specialist</b></span>
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+              <input type="checkbox" onchange="toggleItem('h5', this.checked)" id="chk-h5" class="rounded border-slate-700 text-gold-500 focus:ring-gold-500 w-4 h-4 bg-spiritual-900">
+              <span>Mark Done</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Item 6: 50 Served Clips Human Labeling -->
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 hover:border-blue-500/50 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="badge-p2 text-xs font-mono px-2.5 py-0.5 rounded font-bold">P2 QUALITY</span>
+              <span class="text-xs font-mono text-slate-400">ID: Obligation B</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">50 Served Clips Human Quality Review</h3>
+            <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+              Human review sheet <code class="text-gold-400 font-mono">audits/evidence/50_served_clips_human_label_sheet.md</code> needs manual listening and score filling for accuracy and spiritual coherence.
+            </p>
+            <div class="bg-spiritual-900 p-3 rounded-xl border border-spiritual-700 text-xs font-mono text-slate-300 mb-4 space-y-1">
+              <div class="text-purple-400 font-semibold">Required Action:</div>
+              <div>Listen to audio clips 1 through 50 and populate: <code>is_authentic</code>, <code>quote_fidelity</code>, and <code>appropriate_for_seeker</code>.</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-4 border-t border-spiritual-700/60">
+            <span class="text-xs text-slate-400">Responsible: <b>Harsha (Owner)</b></span>
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+              <input type="checkbox" onchange="toggleItem('h6', this.checked)" id="chk-h6" class="rounded border-slate-700 text-gold-500 focus:ring-gold-500 w-4 h-4 bg-spiritual-900">
+              <span>Mark Done</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Item 7: 11 Demoted Clips Audit (Completed) -->
+        <div class="bg-spiritual-800/80 border border-emerald-500/40 rounded-2xl p-6 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="badge-done text-xs font-mono px-2.5 py-0.5 rounded font-bold">COMPLETED</span>
+              <span class="text-xs font-mono text-slate-400">ID: Obligation A</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">11 Demoted Clips Listening Audit</h3>
+            <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+              Harsha completed the listening audit. 4 non-teacher clips quarantined in live Qdrant <code class="text-gold-400 font-mono">first_person_v10</code> in commit <code class="text-emerald-400 font-mono">79b14025</code>.
+            </p>
+            <div class="bg-spiritual-900/60 p-3 rounded-xl border border-spiritual-700/60 text-xs font-mono text-emerald-400 space-y-1">
+              <div>&check; Audited: 11 clips in human_review_results.json</div>
+              <div>&check; Quarantined: 4 non-teacher spans</div>
+              <div>&check; Verified: 7 teacher spans kept</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-4 border-t border-spiritual-700/60">
+            <span class="text-xs text-slate-400">Responsible: <b>Harsha (Owner)</b></span>
+            <span class="text-xs font-bold text-emerald-400 flex items-center gap-1">&check; Verified</span>
+          </div>
+        </div>
+
+        <!-- Item 8: Decisions D-03, D-11, D-19, X-02 -->
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 hover:border-purple-500/50 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <span class="badge-p1 text-xs font-mono px-2.5 py-0.5 rounded font-bold">P1 DECISIONS</span>
+              <span class="text-xs font-mono text-slate-400">ID: D-03 / D-11 / D-19 / X-02</span>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2">Product & Architectural Confirmations</h3>
+            <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+              Sign off on key engineering decisions:
+            </p>
+            <div class="bg-spiritual-900 p-3 rounded-xl border border-spiritual-700 text-xs font-mono text-slate-300 mb-4 space-y-1.5">
+              <div>&bull; <b>D-03:</b> Confirm NO LLM explanation text beside quotes (pure verbatim).</div>
+              <div>&bull; <b>D-19:</b> Authorize immediate deletion of CancelFlow.tsx churn dialog.</div>
+              <div>&bull; <b>X-02:</b> Enable GitHub branch protection rules on `main`.</div>
+              <div>&bull; <b>D-11:</b> Correct authorization scopes to match NO-GO until gates pass.</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-4 border-t border-spiritual-700/60">
+            <span class="text-xs text-slate-400">Responsible: <b>Harsha (Owner)</b></span>
+            <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+              <input type="checkbox" onchange="toggleItem('h8', this.checked)" id="chk-h8" class="rounded border-slate-700 text-gold-500 focus:ring-gold-500 w-4 h-4 bg-spiritual-900">
+              <span>Mark Done</span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: AGENT AUTONOMOUS TASKS -->
+    <!-- ========================================================================= -->
+    <div id="tab-agent" class="hidden space-y-6">
+      
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 shadow-xl flex items-center justify-between">
+        <div>
+          <span class="badge-done text-xs font-mono px-3 py-1 rounded-full uppercase tracking-wider font-semibold">100% Agent Autonomous</span>
+          <h2 class="text-2xl font-bold text-white mt-2 mb-1">Agent Doable Engineering Work Packages</h2>
+          <p class="text-xs text-slate-300">329 code, datastore, infrastructure, and benchmark tasks divided across 7 sequential phases.</p>
+        </div>
+        <div class="text-right">
+          <div class="text-2xl font-extrabold text-gold-400 font-mono">0 / 7</div>
+          <div class="text-xs text-slate-400">Phases Complete</div>
+        </div>
+      </div>
+
+      <!-- Phases Breakdown -->
+      <div class="space-y-4">
+
+        <!-- Phase 1 -->
+        <div class="bg-spiritual-800/80 border border-spiritual-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold font-mono text-gold-400">PHASE 1</span>
+            <span class="badge-p0 text-xs px-2 py-0.5 rounded font-mono">P0 / P1</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-2">Security, Legal IP & Core Governance Hardening</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+            <li><b>PROD-SEC-01:</b> Automated git scrub / repository privacy guard in <code>scripts/guards/lesson_guards.py</code>.</li>
+            <li><b>PROD-SEC-02:</b> Qdrant read-only API key for backend container; write key for ingestion only.</li>
+            <li><b>PROD-SEC-03:</b> <code>PIIScrubber</code> in <code>feedback_store.py</code>; ratchet seeker text logging to 0.</li>
+            <li><b>PROD-SEC-04:</b> Delete <code>CancelFlow.tsx</code> churn dialog; durable Celery account purge worker.</li>
+          </ul>
+        </div>
+
+        <!-- Phase 2 -->
+        <div class="bg-spiritual-800/80 border border-spiritual-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold font-mono text-gold-400">PHASE 2</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">P1 CRITICAL</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-2">Candidate Starvation Resolution & Retrieval Tuning</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+            <li><b>PROD-RET-01:</b> Expand candidate pool limit $k$ from 8 to 16 in <code>FirstPersonContextStore.search_parent_units</code>.</li>
+            <li><b>PROD-RET-02:</b> Calibrate dense similarity cutoff floor from 0.65 to 0.58; enable parent window rehydration.</li>
+            <li><b>PROD-RET-03:</b> Activate Claude Haiku 5.5 single-call evidence judge (Option A / D-16) in <code>compare_fp_judge.py</code>.</li>
+            <li><b>PROD-RET-04:</b> Interval containment deduplication to eliminate 17.14% redundant span overlap.</li>
+            <li><b>PROD-RET-05:</b> Quarantine 4 promotional course call-to-action spans in live Qdrant.</li>
+          </ul>
+        </div>
+
+        <!-- Phase 3 -->
+        <div class="bg-spiritual-800/80 border border-spiritual-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold font-mono text-gold-400">PHASE 3</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">P1 SAFETY</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-2">Spiritual Safety, Clinical Boundaries & Crisis Engineering</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+            <li><b>PROD-SAFE-01:</b> Topic-vs-state distress discriminator in <code>distress_stage.py</code> & <code>serene_mind_engine.py</code>.</li>
+            <li><b>PROD-SAFE-02:</b> Universal crisis helpline block fallback on all client error boundaries in <code>ChatMessage.tsx</code>.</li>
+            <li><b>PROD-SAFE-03:</b> <code>EmotionalDependencyGuardStage</code> detecting parasocial claims and compulsive usage.</li>
+            <li><b>PROD-SAFE-04:</b> Build 400-turn clinical distress validation suite (200 benign spiritual, 200 acute distress).</li>
+          </ul>
+        </div>
+
+        <!-- Phase 4 -->
+        <div class="bg-spiritual-800/80 border border-spiritual-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold font-mono text-gold-400">PHASE 4</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">P1 DATA</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-2">Full Data Lineage, Schema v2 & Cross-Store Takedown</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+            <li><b>PROD-DATA-01:</b> Cross-store <code>takedown()</code> engine across Qdrant, Redis, Supabase, and Postgres.</li>
+            <li><b>PROD-DATA-02:</b> Structured relational <code>public.message_citations</code> table migration in Supabase.</li>
+            <li><b>PROD-DATA-03:</b> Migrate container video decisions JSON to Postgres table <code>public.video_serving_decisions</code>.</li>
+            <li><b>PROD-DATA-04:</b> Serving contract cryptographic pinning in <code>first_person_serving_contract.json</code>.</li>
+            <li><b>PROD-DATA-05:</b> Formal retirement of Memgraph and LightRAG from serving compose and deployment.</li>
+          </ul>
+        </div>
+
+        <!-- Phase 5 -->
+        <div class="bg-spiritual-800/80 border border-spiritual-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold font-mono text-gold-400">PHASE 5</span>
+            <span class="badge-p2 text-xs px-2 py-0.5 rounded font-mono">P2 MAINTAINABILITY</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-2">Architecture De-bloating, Central Registries & Code Quality</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+            <li><b>PROD-CQ-01:</b> Centralized prompt registry in <code>services/prompt_registry.py</code> for all 51 prompt constants.</li>
+            <li><b>PROD-CQ-02:</b> Wire parity for sync, SSE, and v2 chat writers via <code>build_public_answer_fields()</code>.</li>
+            <li><b>PROD-CQ-03:</b> Split monolithic <code>generate_answer()</code> (1,284 lines) and <code>retrieve_documents()</code> (1,169 lines).</li>
+            <li><b>PROD-CQ-04:</b> Replace 590 hardcoded teacher literals with <code>guru_registry</code>; ratchet guard ceiling to 0.</li>
+            <li><b>PROD-CQ-05:</b> Delete dead provider modules (Sarvam, Ollama, NIM, Krutrim) and dead caches (doctrine, turboquant).</li>
+            <li><b>PROD-CQ-06:</b> Narrow 722 broad <code>except Exception</code> blocks; lower upward import allowlist to 0.</li>
+          </ul>
+        </div>
+
+        <!-- Phase 6 -->
+        <div class="bg-spiritual-800/80 border border-spiritual-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold font-mono text-gold-400">PHASE 6</span>
+            <span class="badge-p2 text-xs px-2 py-0.5 rounded font-mono">P1 / P2 UX</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-2">Mentor Memory, Multi-Device Sync & A11y Standards</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+            <li><b>PROD-MEM-01:</b> Consolidate 7 memory modules onto <code>canonical_memories</code>; wire <code>MemoryManager.tsx</code>.</li>
+            <li><b>PROD-MEM-02:</b> Bi-directional cross-device chat sync in <code>chatStorage.ts</code>.</li>
+            <li><b>PROD-MEM-03:</b> Machine-readable profile data export in <code>export-my-data/index.ts</code>.</li>
+            <li><b>PROD-MEM-04:</b> Neutralize gamified streak copy across 14 locale JSON files.</li>
+            <li><b>PROD-A11Y-01..23:</b> WCAG 2.1 AA remediation (gold/cream contrast, live regions on answer arrival, reduced motion).</li>
+            <li><b>PROD-MOB-01..16:</b> iOS privacy manifest, microphone permission strings, system browser OAuth for Capacitor.</li>
+          </ul>
+        </div>
+
+        <!-- Phase 7 -->
+        <div class="bg-spiritual-800/80 border border-spiritual-700 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold font-mono text-gold-400">PHASE 7</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">P1 CLOUD</span>
+          </div>
+          <h3 class="text-base font-bold text-white mb-2">Live Cloud Deployment, Staging Verification & Disaster Recovery</h3>
+          <ul class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+            <li><b>PROD-OPS-01:</b> Railway staging deploy with Redis <code>noeviction</code>, Celery worker/beat.</li>
+            <li><b>PROD-OPS-02:</b> Staging real-model load testing at concurrency $c=20$ with Locust (p95 &le; 10s, error &lt; 0.5%).</li>
+            <li><b>PROD-OPS-03:</b> Automated daily off-host S3/GCS backups and clean-slate restore drill script.</li>
+            <li><b>PROD-OPS-04:</b> Distributed error tracking with <code>correlation_id</code> in <code>global_exception_handler</code>.</li>
+            <li><b>PROD-OPS-05:</b> Streaming per-node latency breakdown (<code>CHAT_STAGE_TIMING</code>) and job queue gauge.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: RELEASE GATES (B1-B7) -->
+    <!-- ========================================================================= -->
+    <div id="tab-gates" class="hidden space-y-6">
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 shadow-xl">
+        <h2 class="text-2xl font-bold text-white mb-2">Computed Public Release Gates (B1 through B7)</h2>
+        <p class="text-xs text-slate-300">Binding Rule X5 / X6: Public release verdict is strictly <b>NO-GO</b> until every gate computes to PASSED in <code>check_first_person_public_release.py</code>.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-4 rounded-xl">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-sm text-white">Gate B1: Clean Graded Run Pass-Bar</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">FAILED (10.11%)</span>
+          </div>
+          <p class="text-xs text-slate-300">Served share &ge; 30.0% (scored 10.11%), 0 harmful (passed), showable &ge; 85% (passed 88.89%). Remediated in Phase 2.</p>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-4 rounded-xl">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-sm text-white">Gate B2: Concurrency Load (c=20)</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">PENDING STAGING</span>
+          </div>
+          <p class="text-xs text-slate-300">15-minute load test on Railway staging with Locust at $c=20$. Remediated in Phase 7 (PROD-OPS-02).</p>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-4 rounded-xl">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-sm text-white">Gate B3: Zero Swallows & Clean Imports</span>
+            <span class="badge-done text-xs px-2 py-0.5 rounded font-mono">PASSED (CODE)</span>
+          </div>
+          <p class="text-xs text-slate-300">Exception ratchet at 0 swallows, 0 cyclic imports, 18/18 golden pipeline tests passing.</p>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-4 rounded-xl">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-sm text-white">Gate B4: Isolation & Verified Helplines</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">PARTIAL (1/15)</span>
+          </div>
+          <p class="text-xs text-slate-300">Serving contract isolation verified; 14 helpline voice verification calls pending (Human Action Item #5).</p>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-4 rounded-xl">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-sm text-white">Gate B5: Content Rights Register</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">PENDING HUMAN</span>
+          </div>
+          <p class="text-xs text-slate-300">Formal written authorization from Ekam / O&O Academy and broadcasters (Human Action Item #4).</p>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-4 rounded-xl">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-sm text-white">Gate B6: Clinician Written Approval</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">PENDING HUMAN</span>
+          </div>
+          <p class="text-xs text-slate-300">Signed distress boundary approval from Dr. Pragna MD filed by cryptographic hash (Human Action Item #2).</p>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-4 rounded-xl md:col-span-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="font-bold text-sm text-white">Gate B7: Independent Human Gold Annotation</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">PENDING HUMAN</span>
+          </div>
+          <p class="text-xs text-slate-300">&ge; 299 held-out audio clips scored by 2 independent annotators with Cohen's &kappa; &ge; 0.85 (Human Action Item #3).</p>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('tab-human').classList.add('hidden');
+      document.getElementById('tab-agent').classList.add('hidden');
+      document.getElementById('tab-gates').classList.add('hidden');
+      
+      document.getElementById('tab-btn-human').className = "px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition";
+      document.getElementById('tab-btn-agent').className = "px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition";
+      document.getElementById('tab-btn-gates').className = "px-4 py-2 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition";
+
+      if (tab === 'human') {
+        document.getElementById('tab-human').classList.remove('hidden');
+        document.getElementById('tab-btn-human').className = "px-4 py-2 text-xs font-semibold rounded-lg bg-gold-500 text-spiritual-900 shadow-sm transition";
+      } else if (tab === 'agent') {
+        document.getElementById('tab-agent').classList.remove('hidden');
+        document.getElementById('tab-btn-agent').className = "px-4 py-2 text-xs font-semibold rounded-lg bg-gold-500 text-spiritual-900 shadow-sm transition";
+      } else if (tab === 'gates') {
+        document.getElementById('tab-gates').classList.remove('hidden');
+        document.getElementById('tab-btn-gates').className = "px-4 py-2 text-xs font-semibold rounded-lg bg-gold-500 text-spiritual-900 shadow-sm transition";
+      }
+    }
+
+    function toggleItem(id, checked) {
+      localStorage.setItem('mukthi_human_' + id, checked ? 'true' : 'false');
+    }
+
+    // Restore state
+    window.addEventListener('DOMContentLoaded', () => {
+      ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h8'].forEach(id => {
+        const el = document.getElementById('chk-' + id);
+        if (el && localStorage.getItem('mukthi_human_' + id) === 'true') {
+          el.checked = true;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
