@@ -428,7 +428,7 @@ Head after this thread's last push: `fdd70af` plus the register commit that hold
 | PRD-010, UX-009, UX-011 / T6-10 | Partial | Partial | `fdd70af` | Drafts in `docs/product/COPY_DRAFTS_T6-10_2026-11-07.md` for owner review. No app copy changed. UX-011 needs a backend header and an owner choice. |
 | A11Y-01 to A11Y-16 (NEW-A11Y-1 to NEW-A11Y-9) | Open | Partial | `6ea59c6`, `d9b423d`, `db87fc3`, `f9eba2e`, `a67904a`, `1c9b612`, `31eb511`, `aace3bd`, `4d5f9b2`, `5caa10c`, `5ad9944` | 13 axe/Playwright journey tests and vitest pass here (vitest 1139). `/auth`, `/profile`, `/practices` and signed-in states could not run in the sandbox. Settings, memory-settings and delete-account axe states UNPROVEN. NEW-A11Y-10 (human screen-reader pass) untouched. A11Y-17d/e plain-language copy is a draft. Backend `quote_language` field is not added (D-PA11Y4). |
 | K8S-01 to K8S-06 (NEW-K8S-1, -2, -5) | Open | Partial | `9e0eb4b`, `49f9e85`, `d55c8e0` | Reference-only headers on 27 files, drift tests, Helm `required` for secrets. Real `helm template` not run. K8S-3 and file moves wait for D-PK8S1. The old chart password literals must be treated as burned if used anywhere live. |
-| LOV-02, LOV-03, LOV-04, LOV-06, LOV-07, LOV-08 (NEW-LOV-02 to -08) | Open | Partial | `78ac150`, `8238591`, `d23db14`, `f339f26`, `84ede91`, `5ce3bc9` | Guards and CODEOWNERS written and tested locally. Not observed running in GitHub Actions. Making `release-invariants` and `lovable-pr-guard` required checks is a repo-settings decision. Lovable "Project knowledge" text not changed (NEW-LOV-05 / D-24). |
+| LOV-02, LOV-03, LOV-04, LOV-06, LOV-07, LOV-08 (NEW-LOV-02 to -08) | Open | Partial | `78ac150`, `8238591`, `d23db14`, `f339f26`, `84ede91`, `5ce3bc9` | Guards and CODEOWNERS written and tested locally. Not observed running in GitHub Actions. Making `release-invariants` and `lovable-guard` (job name in `lovable-pr-guard.yml`) required checks is a repo-settings decision. Lovable "Project knowledge" text not changed (NEW-LOV-05 / D-24). |
 
 ## Decisions recorded 2026-11-07 (owner: "do end to end and use intelligence"; "approved and give me the list")
 
@@ -443,7 +443,7 @@ Head after this thread's last push: `fdd70af` plus the register commit that hold
 | D-PA11Y6 | No new dependency; axe only | A11Y commits | Done |
 | D-PE7 | Spend approved for the staging load run. Harsha then said "remove the cap" (2026-11-07): the harness has no default spend stop; `SPEND_CAP_USD` is optional and a cost log prints every 15 s. The app OpenRouter guard, the provider limit and the Railway usage limit stay as backstops | `backend/benchmarks/fp_staging_load.py` | Approved by Harsha. Run NOT started: no staging exists |
 | Indexes | Harsha approved creating the 16 missing indexes on live `first_person_v10` | `scripts/ops/ensure_fp_span_indexes.py` (dry run by default) | Script tested on fakes only. Not run on the live collection |
-| Required checks | Harsha approved `release-invariants` and `lovable-pr-guard` | GitHub settings | Not set: needs a repo admin in the GitHub UI |
+| Required checks | Harsha approved `release-invariants` and `lovable-guard` (job name in `lovable-pr-guard.yml`) | GitHub settings | Not set: needs a repo admin in the GitHub UI |
 
 Verdict stays **NO-GO**.
 
