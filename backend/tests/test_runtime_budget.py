@@ -63,11 +63,15 @@ def test_daily_cap_headroom_row_states_the_sys014_number():
 
 
 def test_compose_files_do_not_override_the_settings_default():
-    """One value, one source (NEW-AI-3). D-PG13 will change the Settings default only."""
+    """One value, one source (NEW-AI-3).
+
+    D-PG13 (Harsha, 2026-11-07): the graded override is a stage pin, not a
+    default. It is pinned at 12 s by tests/test_graded_run_preflight.py, so it is
+    not checked here.
+    """
     default = Settings.model_fields["first_person_relevance_timeout_s"].default
     for path in (
         BACKEND / "docker-compose.yml",
-        BACKEND / "docker-compose.graded.yml",
         BACKEND / "docker-compose.dev.yml",
         REPO_ROOT / "docker-compose.prod.yml",
     ):

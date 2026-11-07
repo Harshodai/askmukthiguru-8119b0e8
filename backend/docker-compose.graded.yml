@@ -25,10 +25,10 @@ services:
       FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5
       FIRST_PERSON_RELEVANCE_MIN_SCORE: "2"
       # 5 s turned slow provider replies into relevance_indeterminate abstains; Haiku verify
-      # ran at a median of 1.8 s, max 2.6 s. 25 s is the Settings default, the one source
-      # (NEW-AI-3); this file is aligned to it until the owner decides D-PG13. It only
-      # matters when the provider stalls: a timeout still abstains as relevance_indeterminate.
-      FIRST_PERSON_RELEVANCE_TIMEOUT_S: "25"
+      # ran at a median of 1.8 s, max 2.6 s. D-PG13 decided by Harsha 2026-11-07: the
+      # graded run is pinned at 12 s, so one stalled scorer cannot push a request past
+      # the 10 s p95 bar. Everywhere else the Settings default (25 s) is the one source.
+      FIRST_PERSON_RELEVANCE_TIMEOUT_S: "12"
       # Owner decisions recorded as pins (Opus plan O3 / O5): change only on Harsha's word.
       FIRST_PERSON_REQUIRE_VOICE_METHOD: "false" # O3: true withholds bare-flag speakers
       FIRST_PERSON_SERVE_UNREGISTERED: "true" # O5: recorded pin; ingestion approvals are held by Harsha
