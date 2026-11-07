@@ -196,17 +196,14 @@ class MemoryDreamResponse(BaseModel):
     user_id: str
     dry_run: bool
     status: str
-    conversations_processed: int
-    memories_before: int
-    memories_after: int
-    contradictions_resolved: int
-    memories_decayed: int
-    memories_pruned: int
-    anti_hallucination_quarantined: int
+    snapshot_id: str
+    evicted_count: int
+    superseded_count: int
+    decayed_count: int
+    active_remaining: int
     dashboard_updated: bool
-    dashboard_fingerprint: str
-    duration_ms: float
-    timestamp: str
+    error: Optional[str] = None
+    audit_event_ids: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -1237,14 +1234,13 @@ async def dream_user_memories(
     from services.canonical_memory.dreamer import MemoryDreamer
 
     dreamer = MemoryDreamer(supabase_client=db, tenant_id=tenant_id)
-    report = await asyncio.to_thread(
-        lambda: dreamer.dream(user_id=user_id, dry_run=dry_run)
-    )
+    report = await dreamer.dream(user_id=user_id, dry_run=dry_run)
 
     # Invalidate cache if modifications were persisted
     if not dry_run and (
-        report.contradictions_resolved > 0
-        or report.memories_pruned > 0
+        report.evicted_count > 0
+        or report.superseded_count > 0
+        or report.decayed_count > 0
         or report.dashboard_updated
     ):
         await _invalidate_after_commit(container, user_id, action="dreamed and consolidated")
@@ -1252,18 +1248,15 @@ async def dream_user_memories(
     return MemoryDreamResponse(
         user_id=user_id,
         dry_run=report.dry_run,
-        status=report.status,
-        conversations_processed=report.conversations_processed,
-        memories_before=report.memories_before,
-        memories_after=report.memories_after,
-        contradictions_resolved=report.contradictions_resolved,
-        memories_decayed=report.memories_decayed,
-        memories_pruned=report.memories_pruned,
-        anti_hallucination_quarantined=report.anti_hallucination_quarantined,
+        status="error" if report.error else "success",
+        snapshot_id=report.snapshot_id or "",
+        evicted_count=report.evicted_count,
+        superseded_count=report.superseded_count,
+        decayed_count=report.decayed_count,
+        active_remaining=report.active_remaining,
         dashboard_updated=report.dashboard_updated,
-        dashboard_fingerprint=report.dashboard_fingerprint,
-        duration_ms=report.duration_ms,
-        timestamp=report.timestamp,
+        error=report.error,
+        audit_event_ids=report.audit_event_ids,
     )
 
 
