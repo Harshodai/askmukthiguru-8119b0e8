@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 import re
 import time
 from typing import Any, Optional
@@ -171,6 +172,18 @@ async def personalize_retrieval_query(
     return personalized
 
 
+def extract_okf_wikilinks(body: str) -> list[str]:
+    """Extract Obsidian/Anthropic-style [[concept_id]] targets from OKF markdown."""
+    if not body or "[[" not in body:
+        return []
+    targets: list[str] = []
+    for match in re.findall(r"\[\[(.*?)\]\]", body):
+        target = match.split("|")[0].strip()
+        if target:
+            targets.append(target)
+    return list(dict.fromkeys(targets))
+
+
 def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[dict]:
     """Semantic match via cosine similarity on title embeddings; keyword fallback.
 
@@ -239,6 +252,8 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
                             "title": e["title"],
                             "type": e.get("type", "okf"),
                             "teacher": e.get("teacher", "both"),
+                            "wiki_id": Path(e.get("path", "")).stem if e.get("path") else "",
+                            "related_concepts": extract_okf_wikilinks(e.get("body", "")),
                         },
                     }
                 )
@@ -282,10 +297,99 @@ def _okf_match(query: str, limit: int = 3, teacher: str | None = None) -> list[d
                     "title": e["title"],
                     "type": e.get("type", "okf"),
                     "teacher": e.get("teacher", "both"),
+                    "wiki_id": Path(e.get("path", "")).stem if e.get("path") else "",
+                    "related_concepts": extract_okf_wikilinks(e.get("body", "")),
                 },
             }
         )
     return docs
+
+
+def traverse_okf_wikilinks(
+    matched_docs: list[dict],
+    query: str,
+    max_expanded_docs: int = 2,
+) -> list[dict]:
+    """Traverse Obsidian/Anthropic [[wikilinks]] in retrieved OKF documents.
+
+    If a query involves multiple concepts or asks about connections between teachings,
+    this resolves 1-hop linked OKF concepts directly from the curated knowledge tree,
+    mirroring the human-like wiki exploration described in Anthropic's agent memory research.
+    """
+    if not matched_docs or max_expanded_docs <= 0:
+        return []
+
+    entries = _load_okf_entries()
+    if not entries:
+        return []
+
+    # Map wiki_id / stem / title to entry
+    wiki_map: dict[str, dict] = {}
+    for e in entries:
+        p = e.get("path", "")
+        stem = Path(p).stem.lower()
+        wiki_map[stem] = e
+        if "memory/okf/" in p:
+            rel = p.split("memory/okf/")[-1].replace(".md", "").lower()
+            wiki_map[rel] = e
+        title = e.get("title", "").lower()
+        if title:
+            wiki_map[title] = e
+
+    q_lower = query.lower()
+    expanded_docs: list[dict] = []
+    seen_titles = {d.get("title", "").lower() for d in matched_docs}
+
+    for doc in matched_docs:
+        meta = doc.get("metadata", {})
+        related = meta.get("related_concepts", [])
+        for rel in related:
+            rel_clean = rel.split("|")[0].strip().lower()
+            rel_stem = Path(rel_clean).stem.lower()
+
+            target_entry = wiki_map.get(rel_clean) or wiki_map.get(rel_stem)
+            if not target_entry:
+                continue
+
+            target_title = target_entry.get("title", "")
+            if target_title.lower() in seen_titles:
+                continue
+
+            # Prioritize links that are mentioned in the query or relevant to the context
+            rel_words = set(re.findall(r"\w+", target_title.lower()))
+            is_query_relevant = bool(
+                rel_words and any(w in q_lower for w in rel_words if len(w) > 3)
+            )
+            base_score = float(doc.get("score", 0.8))
+            expanded_score = base_score * 0.95 if is_query_relevant else base_score * 0.85
+
+            if is_query_relevant or len(expanded_docs) < max_expanded_docs:
+                seen_titles.add(target_title.lower())
+                expanded_docs.append(
+                    {
+                        "text": f"{target_entry['title']}\n\n{target_entry.get('body', '')}",
+                        "score": round(expanded_score, 4),
+                        "knowledge_source": "okf_wikilink_traversal",
+                        "chunk_provenance": "polished_speech",
+                        "title": target_entry["title"],
+                        "source_url": target_entry.get("resource") or target_entry.get("source", ""),
+                        "metadata": {
+                            "source": target_entry.get("resource") or target_entry.get("source", "OKF"),
+                            "title": target_entry["title"],
+                            "type": target_entry.get("type", "okf"),
+                            "teacher": target_entry.get("teacher", "both"),
+                            "wiki_id": rel_stem,
+                            "traversed_from": doc.get("title", ""),
+                            "related_concepts": extract_okf_wikilinks(target_entry.get("body", "")),
+                        },
+                    }
+                )
+                if len(expanded_docs) >= max_expanded_docs:
+                    break
+        if len(expanded_docs) >= max_expanded_docs:
+            break
+
+    return expanded_docs
 
 
 # LightRAG's only_need_context=True output is a fixed four-section template
@@ -2279,6 +2383,13 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
                 _teacher = _entity_links["teachers"][0]
             okf_docs = _okf_match(base_question, limit=3, teacher=_teacher)
             if okf_docs:
+                # Anthropic Knowledge Wiki pattern: traverse 1-hop [[wikilinks]] for multi-concept queries
+                wikilink_docs = traverse_okf_wikilinks(okf_docs, base_question, max_expanded_docs=2)
+                if wikilink_docs:
+                    logger.info("OKF wikilink traversal: expanded %d multi-hop concepts", len(wikilink_docs))
+                    lane_trace["okf_wikilinks_traversed"] = len(wikilink_docs)
+                    okf_docs.extend(wikilink_docs)
+
                 logger.info("OKF injection: adding %d curated entries", len(okf_docs))
                 lane_trace["okf_injected_count"] = len(okf_docs)
                 all_docs = okf_docs + all_docs
