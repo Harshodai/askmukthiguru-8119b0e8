@@ -22,6 +22,32 @@ Labels used here:
 
 ---
 
+## 0b. Latest state, updated 2026-11-07 01:15Z (read this before sections 4 and 5)
+
+Sources: the register block "Live `first_person_v10` data fix 2026-11-07" in `FINAL_PENDING_WORK_REGISTER.md` (commit `0f56866`; VERIFIED that I read it), plus coordinator relays (REPORTED). I did not see the Mac output.
+
+| Item | State |
+|---|---|
+| Live audit of `first_person_v10` | **No failed check** after the fixes (REPORTED by the register: C-L1, C-L2, C-L3, C-L5, C-L6, C-L7, C-L8 pass; before: C-L3, C-L5, C-L7, C-L8 failed). Harsha ran the writes in a Mac terminal. |
+| 16 payload indexes | Created with `ensure_fp_span_indexes.py --apply`. `missing_after` empty. Points: 4,226 throughout. |
+| `domain_rights_status` | `backfill_fp_rights_status.py --apply` stamped `licensed` on **2,758 children across 491 videos**, 0 left over. The value comes from the serving rights resolver, not from hand. |
+| Serving filter | Passes **2,738 of 2,760** after the stamp. Before the stamp it passed **2** (register: "2 to 2738"). 22 children lack `speaker_verified`. |
+| The 2 hashless points | `fix_fp_unhashed_points.py --apply` added `source_text_hash` and moved them to new ids `877f7269-9e7c-5b77-94fd-531119c5f0b6` and `20b32148-06fa-5641-af61-73f44c1e9465` (old ids began `3eb5cc1a` and `52c880a0`). Quote text and `transcript_hash` unchanged. They look like **test data**, not teaching. |
+| **Quarantine of those 2 points** | **Approved by Harsha ("quarantine", relay 01:15Z). The Railway thread is scripting it. UNPROVEN until a live audit shows it.** I have not seen the script. Method (marker or delete) UNKNOWN. A delete is one-way for the live copy; the snapshot below is the rollback. |
+| Snapshot and backups | Snapshot `first_person_v10-1111874297854021-2026-11-07-01-09-45.snapshot` taken first. Backups sit in `/tmp` on the Mac (for example `/tmp/rights_backup_v10.json`). **One backup holds quote text.** Keep it local. Never commit it. `/tmp` can be cleared by a reboot, so move the backups to a safe local folder and copy the snapshot off the Mac (Harsha's step 1). |
+| Pending List artifact | Version 53 (REPORTED by the coordinator; I did not open it). |
+| Load-run harness | **No spend stop.** Harsha removed the cap (`647ef2c`). The provider spend limit and the Railway usage limit are the only backstop, and Harsha has not yet confirmed setting them. |
+| Serving verdict | Serving is **UNPROVEN** until the graded clean-Docker run. Verdict **NO-GO**. |
+
+What this changes, in plain words:
+1. **Stage A (2026-10-31) predates this data.** The serving filter used to pass 2 spans, and now passes 2,738. ASSUMPTION: the Stage A rows came from a build or filter that did not apply the rights gate the same way. UNKNOWN how. Treat Stage A as history, not as a forecast. The next graded run is the first one on the shipped data.
+2. **Before the graded run, check that `backend/.env` sets `FIRST_PERSON_COLLECTION` and `FIRST_PERSON_CONTEXT_COLLECTION` to `first_person_v10`.** Memory notes say `backend/.env` once pointed at v11 and the backend ran v8. The graded compose pins `FIRST_PERSON_ACTIVE_COLLECTION: first_person_v10`, but the preflight diffs only the pinned flags, so a stray value elsewhere can still matter. Print only the two variable names and values (no keys): `grep -n "FIRST_PERSON_.*COLLECTION" backend/.env`.
+3. **A gap in the audit:** the C-L11 digest does not cover `domain_rights_status` (register). A later edit to that key would not trip the digest. Sonnet lane: extend it, test first.
+4. **The speaker-verification gate decision (H2) is still open.** See section 8, item 2.
+5. The PR #86 merged / #97 open facts, the 30-of-32 CI failures, and the `lovable-guard` name are unchanged (section 0).
+
+---
+
 ## 1. The goal
 
 Make AskMukthiGuru the best product for disciples and seekers of Sri Preethaji and Sri Krishnaji. A person asks, and gets the apt teaching, in the teacher's own words, fast, with a source. Then onboard the Sri Amma Bhagavan teachings end to end.
@@ -140,7 +166,7 @@ Other defects in Stage A as a measurement:
 - **Incident:** an unidentified writer (host client, qdrant-client 1.19.1) edited the first v11 on 2026-10-31 at 13:03Z and 13:39 to 13:41Z. It re-set `speaker_verified=true` on 17 spans that had been demoted. v11 was dropped and rebuilt. The writer is still UNKNOWN.
 - Decision 2026-11-01 (Harsha): the graded run uses v10 now. v11 is a later add-on.
 
-### 4.4 Mac live-data audit of `first_person_v10` (read-only, at `dea7b44`). Four checks failed.
+### 4.4 Mac live-data audit of `first_person_v10` (read-only, at `dea7b44`). Four checks failed. FIXED LIVE 2026-11-07; see section 0b.
 REPORTED by the Mac session; the audit script is `scripts/ops/fp_live_audit.py`.
 
 | Check | Result | Cause | Next |
@@ -152,7 +178,7 @@ REPORTED by the Mac session; the audit script is `scripts/ops/fp_live_audit.py`.
 
 **New fact to chase:** the point count is now **4,226**. The 2026-10-31 backfill post-checks recorded 4,224 ids (REPORTED). Two more points exist. ASSUMPTION: they are the 2 "extra" records behind 2,760 counted versus 2,758 expected children, and they may be the same 2 points behind C-L3 and C-L5. Nobody has said who or what added them, or when. Find out from the Qdrant log and the audit's point-id list before you edit any point.
 
-**Approved by Harsha (2026-11-07, relay): data fixes on live v10 for (a) the 2 bad points (C-L3, C-L5) and (b) `domain_rights_status` on the 2,758 children.** Conditions:
+**DONE on 2026-11-07 (section 0b); kept here as the record of the conditions.** Approved by Harsha (2026-11-07, relay): data fixes on live v10 for (a) the 2 bad points (C-L3, C-L5) and (b) `domain_rights_status` on the 2,758 children.** Conditions:
 1. Take a Qdrant snapshot first, and confirm its name and age (the backfill tool already refuses a snapshot older than 2 h; reuse that check).
 2. **No edit to quote text. No edit to `transcript_hash` or `source_text_hash`.** (`CLAUDE.md`: teacher quotes are verbatim; a text change must update both hashes in one transaction, so the only safe text change is none.)
 3. For (b): **the script now exists:** `scripts/ops/backfill_fp_rights_status.py` (added in `647ef2c` by the Sonnet thread; dry run by default; `--backup <file>` first; `--apply` to write). I read its header, not its code or a run. It writes one key with `set_payload`, takes the value from `services.qdrant.indexer.resolve_source_rights_status` (the resolver serving uses), touches only children that lack the key, leaves a video the register does not clear untouched and lists it, and never stamps "licensed" by assumption. Do not type a value by hand. Because it is an integrity script written in the other lane, the Opus agent **reviews it and runs it**; the Sonnet thread does not run it. The value that belongs there is UNKNOWN to me. Required proof after the write, in the backfill pattern: export before, write allowlisted keys only, then prove point ids and count unchanged, text and both hashes unchanged on every point, vectors identical on a seeded sample, and zero write-rule violators.
@@ -195,8 +221,9 @@ Ratchets (exception 724/9, seeker-text 0, teacher-literal 590/129), image pins, 
 | 1 | **Copy the Qdrant snapshot off the Mac.** | Why first: the live v10 collection exists once, on the Mac. The backup cron is not installed (REPORTED: RPO unbounded). Take a fresh snapshot first: `curl -s -X POST localhost:6333/collections/first_person_v10/snapshots`. List: `curl -s localhost:6333/collections/first_person_v10/snapshots`. Download: `curl -o <name> localhost:6333/collections/first_person_v10/snapshots/<name>`. Then `shasum -a 256 <name>` and copy file + hash to a drive or bucket that is not the Mac. (Snapshot REST paths: UNVERIFIED against the current Qdrant docs; confirm.) **Also copy** `~/mukthiguru_attribution_data/` (the audio archive is immutable source truth, `CLAUDE.md` invariant 17, and I found no backup of it other than `backups_2026-10-08`). Never print keys. |
 | 2 | **Set the provider spend limit and the Railway usage limit, with alerts.** | OpenRouter: set a credit or key limit in its dashboard. Railway: set a usage limit and alert in workspace billing. UI paths UNVERIFIED. Local graded caps ($100/day, $300/month) are for the eval container only. Production rule (REPORTED): sized from expected daily volume with a 3x margin, alert at 70%. **These two limits now matter more:** the staging load run has no spend stop of its own (see D-PE7 below). They are the outside backstop. |
 | 3 | **Turn on required checks in GitHub**, if no thread can. | Settings > Branches > rule for `main` > require status checks. Enter **`release-invariants`** and **`lovable-guard`** (job names). Do **not** enter `lovable-pr-guard`. **Read the CI failure cause first (section 0, item 3).** A required check that always fails blocks every merge. Also enable "require a pull request". |
-| 3b | **Live v10 index creation: DONE** (16 indexes; 4,226 points; REPORTED by the coordinator, output not seen by me). | Confirm with `backend/.venv/bin/python scripts/ops/fp_live_audit.py --collection first_person_v10 --json after.json`: C-L8 should pass. Never run index, backfill or build jobs during the graded run. |
-| 3c | **Live v10 data fixes: APPROVED** (2 bad points C-L3 and C-L5; `domain_rights_status` on 2,758 children). Snapshot first. No edits to quote text or hashes. | Section 4.4 has the five conditions. Do this after step 1 (snapshot copied off the Mac) and **before** the graded run, so the run grades the data it will ship. The Opus agent does it; Harsha runs the Mac-side command if the Mac blocks a thread. |
+| 3b | **Live v10 indexes: DONE.** 16 indexes, 4,226 points. | `fp_live_audit.py` shows no failed check (REPORTED in the register). Never run index, backfill or build jobs during the graded run. |
+| 3c | **Live v10 data fixes: DONE** (`domain_rights_status` on 2,758 children; the 2 hashless points moved to new ids). Snapshot `first_person_v10-1111874297854021-2026-11-07-01-09-45.snapshot`. | Move the `/tmp` backups to a safe local folder (one holds quote text; never commit it). **Quarantine of the 2 moved test-looking points: approved by Harsha, the Railway thread is scripting it, UNPROVEN until the audit shows it.** Re-run `fp_live_audit.py` after it. |
+| 3d | **Check `backend/.env`:** `FIRST_PERSON_COLLECTION` and `FIRST_PERSON_CONTEXT_COLLECTION` must both say `first_person_v10` before the graded run. | `grep -n "FIRST_PERSON_.*COLLECTION" backend/.env` (do not print other lines). |
 | 4 | **Run the graded clean-Docker run** on the final branch head, after both threads report their work pushed. | **Covered.** Flow: (1) both threads report "pushed" with the head SHA; (2) the coordinator sends the exact Docker commands; (3) **Harsha runs them** and pastes the output; (4) **one thread grades** the result (prompt 3 in `docs/handoffs/AGENT_PROMPTS_2026-11-07.md`). No agent runs Docker. The skeleton is in the header of `backend/docker-compose.graded.yml`: clean tree; `docker compose -f docker-compose.yml -f docker-compose.graded.yml up -d --build --force-recreate --no-deps backend`; `make flush-cache && make verify-cache-empty && make verify-stack-fresh`; `.venv/bin/python -m scripts.ops.graded_run_preflight --check-logs`; then `.venv/bin/python -m scripts.ops.graded_capture --run-id <id>`; then the grader. Rules: no other Docker user, no embedding or build jobs, no second Qdrant writer, one value changed per stage. |
 | 5 | **Listen to the 11 demoted clips.** | Source: backfill 2 (section 4.6). The next Opus thread must build a one-page list (video id, start ms, end ms, teacher, link to audio). A listen counts only if the reviewer chooses the span's own teacher and the clip is 2 s or longer (rule D2). Results go in through the write rule, not by hand-editing Qdrant. Exact point-id list location: UNKNOWN (probably `.work/speaker_2026-10-31/` on the Mac). |
 | 6 | **Add the Telugu crisis row to the test sheet.** | The sheet's exact file is UNKNOWN. Candidates: `docs/FIRST_PERSON_OWNER_TEST_GUIDE_2026-10-22.md` or `docs/FIRST_PERSON_OWNER_DECISION_AND_TEST_CHECKLIST_2026-10-22.md` (UNVERIFIED which). A native Telugu speaker must supply the phrase. An agent must not invent crisis wording and call it reviewed (`CLAUDE.md` Open work: multilingual crisis detection is AI-authored and AI-tested, NOT native-speaker reviewed). Native review file: `human-gates/safety/crisis_patterns_by_language.md`. |
@@ -250,7 +277,8 @@ Follow `/mnt/project-files/prompts/agent-prompt-railway-and-ops-2026-11-07.md`, 
 | D-PG13 | Graded scorer timeout 12 s; default stays 25 s | `32c12c4`, `dea7b44` | Applied |
 | D-PE7 | **Staging load run: spend approved, and Harsha removed the cap condition ("remove this condition", relay 2026-11-07 01:06Z; the harness comment quotes him: "remove the cap").** The proposed USD 25 cap and USD 20 stop (80%) are no longer a default. `fp_staging_load.py` has no spend stop of its own; a cost log is kept; setting `SPEND_CAP_USD` brings abort rule AB-1 back at 80%. The remaining backstops are the app's OpenRouter budget guard, the provider spend limit and the Railway usage limit (Harsha's list, step 2). **My earlier text in this file said "USD 25 cap, stop at 20"; that was written before I saw commit `647ef2c` and was wrong.** | `647ef2c`; relay; `backend/benchmarks/fp_staging_load.py` lines 43 to 45 | Run not started (no staging exists). Ask Harsha once, in one line, whether "remove" meant the chat sentence or the cap itself; the code now treats it as the cap |
 | Indexes | Create the 16 live indexes | Register; relay | **Done** (REPORTED: 16 indexes, 4,226 points). I did not see the output. |
-| Live v10 data fixes | Approved: the 2 bad points (C-L3, C-L5) and `domain_rights_status` on 2,758 children. Backup first. No edits to quote text, `transcript_hash` or `source_text_hash`. | Harsha, relay 2026-11-07 01:06Z ("its ok, you can do those") | Not started. Delete of a point still needs Harsha's word (section 4.4) |
+| Live v10 data fixes | Approved: the 2 bad points (C-L3, C-L5) and `domain_rights_status` on 2,758 children. Backup first. No edits to quote text, `transcript_hash` or `source_text_hash`. | Harsha, relay 2026-11-07 01:06Z ("its ok, you can do those"); register block `0f56866` | **Done**; audit shows no failed check (REPORTED). Serving UNPROVEN |
+| Quarantine of the 2 moved test-looking points | Approved: Harsha typed "quarantine" in the Railway thread (relay 01:15Z). The Railway thread scripts it. | Relay | UNPROVEN until the live audit shows it. Method UNKNOWN |
 | Graded-run go-ahead | After both threads report work pushed, the coordinator sends the exact Docker commands. Harsha runs them. One thread grades. | Harsha, relay 2026-11-07 01:06Z | Waiting for both pushes |
 | Required checks | `release-invariants` and `lovable-pr-guard` approved. Use the job name `lovable-guard`. | Register | Not set |
 
@@ -272,6 +300,9 @@ Earlier decisions (REPORTED, memory index): v10-only; graded run uses v10; pass 
 10. **Add a lesson.** Suggested: `L-REQUIRED-CHECK-NAME-IS-JOB-NAME-1` (search `lessons.md` for an existing one first). I did not add it, because other threads write to that file.
 11. **Mac permission prompts cannot be approved from chat.** Plan all commit, push and delete steps as commands Harsha runs.
 12. **Hidden-cost reminder.** The Stage A grader uses OpenRouter calls (Haiku, then Opus on 25 rows). A re-run of 202 rows plus grading has a real cost. Check the headroom first (the preflight does).
+13. **Backups in `/tmp`.** The rollback files for the 2026-11-07 data fixes sit in `/tmp` on the Mac, and one holds quote text. A reboot may clear them. The snapshot is the durable rollback, so copy it off the Mac first. Move the files, keep them out of git (the publication guard would block them anyway).
+14. **The serving filter jumped from 2 to 2,738 spans.** That is a large change in what the product can serve, made by one payload key. Nothing has measured answers on it. Stage A cannot tell you what happens next. The graded run is the first real measure, so do not plan around Stage A numbers.
+15. **Check `backend/.env` collection variables** before the run (section 0b, item 2).
 
 ---
 
@@ -281,7 +312,9 @@ Earlier decisions (REPORTED, memory index): v10-only; graded run uses v10; pass 
 
 **Assumptions:** the cause of the 4 live-data failures (section 4.4); the CI failures are an environment problem, not a code problem; H2 will fail as configured; Amma Bhagavan work not started; 12 s timeout does not guarantee p95 under 10 s.
 
-**Unknown:** the CI failure cause; whether the Stage A safety gaps are closed; the exact recommended values for D-16, D-PG16 and the outside-India line; the file for the test sheet; the location of the 11 demoted point ids; whether the repo is public today; who wrote to v11 on 2026-10-31; why q077 took 98 s in Stage A.
+**Reported, not re-checked (added 01:15Z):** the live audit shows no failed check; 2,758 children stamped `licensed`; the serving filter passes 2,738 of 2,760; the 2 moved ids; the snapshot name; backups in `/tmp`; Pending List version 53.
+
+**Unknown:** the quarantine method and script; the CI failure cause; whether the Stage A safety gaps are closed; the exact recommended values for D-16, D-PG16 and the outside-India line; the file for the test sheet; the location of the 11 demoted point ids; whether the repo is public today; who wrote to v11 on 2026-10-31; why q077 took 98 s in Stage A.
 
 **Unproven:** everything live. No Docker, Qdrant, Supabase, Railway or OpenRouter use was made in writing this handoff. Verdict stays **NO-GO**.
 
