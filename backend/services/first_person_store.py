@@ -266,9 +266,15 @@ def deduplicate_clips_by_video(
                 break
         elif allow_same_video_distinct_spans and len(existing) < 2:
             r_start = r.get("start_ms", 0)
+            r_end = r.get("end_ms", r_start)
             can_add = True
             for prev in existing:
                 prev_start = prev.get("start_ms", 0)
+                prev_end = prev.get("end_ms", prev_start)
+                # RET-13: drop if either interval contains or is contained in the other
+                if (prev_start <= r_start and r_end <= prev_end) or (r_start <= prev_start and prev_end <= r_end):
+                    can_add = False
+                    break
                 if abs(r_start - prev_start) < min_span_gap_ms:
                     can_add = False
                     break
