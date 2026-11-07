@@ -40,8 +40,10 @@ S5_MIX = {
 GREETING_OFF_TOPIC = ["Hi", "Thank you", "Namaste", "What is the weather today?"]
 OTHER = ["Can you tell me a joke?", "Who won the cricket match?", "What is 17 times 23?"]
 
-TEST_CAP_USD = 25.0  # section 6.5, proposed
-AB1_FRACTION = 0.8  # AB-1: stop at 80 percent of the cap
+# AB-1 spend stop: removed by the owner on 2026-11-07 ("remove the cap"). The run has no spend
+# stop of its own. The app's OpenRouter budget guard, the provider spend limit and the Railway
+# usage limit stay as the outside backstops. SPEND_CAP_USD, if set, brings AB-1 back (80 percent).
+AB1_FRACTION = 0.8
 AB3_WINDOW_S = 120.0  # AB-3: over 2 minutes
 AB3_RATE = 0.05
 AB3_MIN_SAMPLES = 20
@@ -126,9 +128,9 @@ def violation(kind: str, outcome: str) -> str | None:
     return None
 
 
-def spend_exceeded(spend_usd: float, cap_usd: float = TEST_CAP_USD) -> bool:
-    """AB-1: stop when spend reaches 80 percent of the test cap."""
-    return spend_usd >= cap_usd * AB1_FRACTION
+def spend_exceeded(spend_usd: float, cap_usd: float | None = None) -> bool:
+    """AB-1: stop at 80 percent of an optional cap. With no cap it never stops the run."""
+    return cap_usd is not None and spend_usd >= cap_usd * AB1_FRACTION
 
 
 class AbortRules:

@@ -5,7 +5,7 @@ section 6. NOTHING HAS BEEN RUN. This file is for STAGING with an approved spend
 It refuses production hosts and needs LOAD_CONFIRM_STAGING=yes.
 
     export LOAD_CONFIRM_STAGING=yes BENCHMARK_SECRET=...      # staging with ENABLE_TEST_AUTH
-    export METRICS_SCRAPE_TOKEN=...  SPEND_CAP_USD=25          # optional AB-1 watcher
+    export METRICS_SCRAPE_TOKEN=...  SPEND_CAP_USD=<usd>      # optional: AB-1 stops at 80 percent. Unset = no stop, cost still logged
     locust -f benchmarks/locustfile_fp_staging.py --headless --tags s2 \
         -u 12 -r 1 -t 8m --host https://<staging-host>
 
@@ -40,11 +40,12 @@ _ABORT: dict[str, str] = {}
 
 
 def _spend_watcher(environment) -> None:
-    """AB-1: poll provider-reported cost and stop at 80 percent of the cap."""
+    """Poll provider-reported cost, log it, and stop at 80 percent of SPEND_CAP_USD if one is set."""
     token = os.environ.get("METRICS_SCRAPE_TOKEN")
     if not token or not environment.host:
         return
-    cap = float(os.environ.get("SPEND_CAP_USD", L.TEST_CAP_USD))
+    raw_cap = os.environ.get("SPEND_CAP_USD", "").strip()
+    cap = float(raw_cap) if raw_cap else None
     base = None
     while True:
         gevent.sleep(15)
@@ -59,6 +60,7 @@ def _spend_watcher(environment) -> None:
             continue
         total = sum(v for n, _, v in _parse(text) if n == "guru_provider_reported_cost_usd_total")
         base = total if base is None else base
+        print(f"[cost-log] provider-reported spend this run: {total - base:.4f} USD", flush=True)
         if L.spend_exceeded(total - base, cap):
             _ABORT["AB-1"] = f"spend {total - base:.2f} of cap {cap:.2f}"
             environment.runner.quit()

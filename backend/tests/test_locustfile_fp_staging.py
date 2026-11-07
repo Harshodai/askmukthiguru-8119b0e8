@@ -100,7 +100,13 @@ def test_ab3_five_percent_5xx_over_two_minutes():
     assert all(quiet.observe("on_topic", "served", now=float(i)) is None for i in range(100))
 
 
-def test_ab1_spend_stops_at_80_percent_of_cap():
+def test_ab1_has_no_default_cap():
+    # Owner removed the default cap 2026-11-07. Without SPEND_CAP_USD nothing stops the run.
+    assert L.spend_exceeded(10_000.0) is False
+    assert not hasattr(L, "TEST_CAP_USD")
+
+
+def test_ab1_spend_stops_at_80_percent_of_an_explicit_cap():
     assert L.spend_exceeded(19.99, cap_usd=25.0) is False
     assert L.spend_exceeded(20.0, cap_usd=25.0) is True
 

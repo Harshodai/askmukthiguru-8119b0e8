@@ -424,7 +424,7 @@ Head after this thread's last push: `fdd70af` plus the register commit that hold
 | D-24 | Lovable by PR only | guards from `78ac150` to `5ce3bc9` | Needs required checks (below) |
 | D-PK8S1 | Kubernetes files are reference only | headers from `9e0eb4b` | Done |
 | D-PA11Y6 | No new dependency; axe only | A11Y commits | Done |
-| D-PE7 | Spend approved for the staging load run; proposed hard cap USD 25 (`SPEND_CAP_USD`, AB-1 stops at USD 20) | `backend/benchmarks/fp_staging_load.py` | Approved by Harsha. Run NOT started: no staging exists |
+| D-PE7 | Spend approved for the staging load run. Harsha then said "remove the cap" (2026-11-07): the harness has no default spend stop; `SPEND_CAP_USD` is optional and a cost log prints every 15 s. The app OpenRouter guard, the provider limit and the Railway usage limit stay as backstops | `backend/benchmarks/fp_staging_load.py` | Approved by Harsha. Run NOT started: no staging exists |
 | Indexes | Harsha approved creating the 16 missing indexes on live `first_person_v10` | `scripts/ops/ensure_fp_span_indexes.py` (dry run by default) | Script tested on fakes only. Not run on the live collection |
 | Required checks | Harsha approved `release-invariants` and `lovable-pr-guard` | GitHub settings | Not set: needs a repo admin in the GitHub UI |
 
