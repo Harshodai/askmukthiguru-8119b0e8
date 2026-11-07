@@ -1,0 +1,302 @@
+{
+  "exported_at": "2026-11-07T09:24:51.888Z",
+  "auditor": "Harsha",
+  "demoted_clips": {
+    "085397d6-e1d1-5066-87a9-e7b396948a89": {
+      "verdict": "CONFIRMED_TEACHER",
+      "notes": ""
+    },
+    "0d36a4b1-f036-5e8f-a273-0d61d2f50bbf": {
+      "verdict": "REJECTED_IMPOSTOR",
+      "notes": "These are people or devotees"
+    },
+    "18056750-8033-5759-807a-563eb5b018ab": {
+      "verdict": "CONFIRMED_TEACHER",
+      "notes": ""
+    },
+    "18c87cc3-4e90-5906-b96d-c38754771a13": {
+      "verdict": "CONFIRMED_TEACHER",
+      "notes": ""
+    },
+    "25b649ba-72d2-5dbe-a1f2-3d852f7d0d69": {
+      "verdict": "CONFIRMED_TEACHER",
+      "notes": ""
+    },
+    "265ce97a-e7ff-514b-b475-60844ba81211": {
+      "verdict": "CONFIRMED_TEACHER",
+      "notes": ""
+    },
+    "3fabddc6-0263-52b6-b8b8-070640e02bbe": {
+      "verdict": "CONFIRMED_TEACHER",
+      "notes": ""
+    },
+    "4eb84252-c616-504b-873c-b33f04ff6a8e": {
+      "verdict": "CONFIRMED_TEACHER",
+      "notes": ""
+    },
+    "4f45734f-8d74-5120-991c-49991755aa5b": {
+      "verdict": "CONFIRMED_TEACHER",
+      "notes": ""
+    },
+    "58404214-eddb-5014-8026-3d781d766a48": {
+      "verdict": "CONFIRMED_TEACHER",
+      "notes": ""
+    },
+    "60b39aa2-d11d-5a1c-8fbb-76ec5944db91": {
+      "verdict": "REJECTED_IMPOSTOR",
+      "notes": "These are people or devotees "
+    }
+  },
+  "served_clips": {
+    "0045104c-0af1-565b-bcb5-98b91ef223f8": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": " preethaji is asking people to join manifest a program, so we can remove this and keep the before point of video, may be we can ask users to register for manifest "
+    },
+    "00b5a51f-7250-5f2a-abad-11e4a7f22114": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "because this is a story continuation as per the previous point, it would be better if we can serve both or entire story that preethaji here explaining at a single time"
+    },
+    "00c475c4-14c5-5f09-beca-06d79b278c44": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "continuity is missing before and after"
+    },
+    "00d2acb5-e6d3-5dff-9dc3-6ff06335c0ee": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "because this is a story continuation as per the previous point, it would be better if we can serve both or entire story that krishnaji here explaining at a single time"
+    },
+    "00ecb926-9f5d-5ce4-b115-f04d57e25c31": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "I feel if this is a video ingested would be better"
+    },
+    "034687a3-4a64-5219-8262-5be89e8a218c": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "03922e5d-ad6b-5d2c-b696-ab12fcb3faca": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": "because preethaji is asking people to join Field of awakening a program, keep the before point of video of the video if this reasonates the same with the user, but we need to be careful since we should not give everytime a session registration"
+    },
+    "03cde63d-1c1f-5be1-95f9-163a712e1318": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": ""
+    },
+    "03f24c38-d355-52d2-bf5f-fadc9838402f": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "this is also for a course registration, may be we can ask users to check this at the end and give the other parts of this video"
+    },
+    "044c708e-6680-518a-9e86-b283f5dd873d": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "05f0dbf7-96c4-5941-b41a-6f7cc232d19a": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "0751dc9b-37a9-57f7-9fbd-e96a881973e7": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": "this is best for one shot answers but if the users asks for more, we might not get"
+    },
+    "07866498-b6bc-5d98-9f84-54937bf3f775": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "09253b38-f7aa-5345-be08-a6a639673426": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "0a8d0a07-105c-5a77-aedb-3b07e052816b": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "not a good way of storing data because it is not continous"
+    },
+    "0ad56deb-43e1-594b-88ac-37cadea0aa00": {
+      "voice": "FAIL_SPEAKER",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "this is an experience shared by a devotee and not full"
+    },
+    "0ad9693a-32ea-5af1-8b23-8c045a841f8b": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "I feel if the before and after pieces are joined together so that we can give users a better part"
+    },
+    "0af96626-378f-58b6-85ee-2fb4037a56c7": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "there is still completion present"
+    },
+    "0b1daf8b-d954-5fe9-b756-e9b898e78435": {
+      "voice": "PASS",
+      "boundary": "UNSURE",
+      "notes": "it is not complete"
+    },
+    "0bf0b2bd-eebe-50ac-8f2e-0394783e695a": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "0cecf59d-be92-5621-8364-2eea0244aed5": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": ""
+    },
+    "0d246bd3-3197-589e-acfc-820ff22e9e79": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "0f72ae08-036c-5528-8b64-e4e36c53ae11": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": ""
+    },
+    "0fc844ee-e4b7-5db7-b55d-2a5eedc5d6dd": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "10a3f933-1e18-576d-9870-a42a6219c3c0": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "11571cb7-85be-56a3-a5b7-a3e34029f5da": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "13138aed-6824-56dc-98c3-f5eb2f1aa757": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "131e755f-0efa-5ac3-83d7-a0ca3642299c": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "not complete"
+    },
+    "145aeae3-842e-5ecb-bb21-d3b7d706f258": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "this is a prayer"
+    },
+    "171c5fa3-89ff-560c-872a-4ad6da34fc02": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "no need of this, because this had happened before so its not needed"
+    },
+    "18fa8b66-496c-5486-8578-a68e205b7700": {
+      "voice": "PASS",
+      "boundary": "UNSURE",
+      "notes": "preethaji is asking for self reflection and this is not complete"
+    },
+    "1965be58-bc89-5760-8a59-19629d21b75d": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "1b2be475-7332-5765-aa15-24c43fbc3bd5": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "1b2e053b-b2ac-534a-a8b5-f95f1aff9b24": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "1c202e65-73b5-542f-b0ea-3938f9f8fcb3": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "this is a manifest program which is not needed and also this is already happened"
+    },
+    "1d6c2225-75b9-5d10-a94d-d54c9bf04db1": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": ""
+    },
+    "1df20e3b-f73c-5ce4-90b1-e381ca5cec9f": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "1f6aa5da-3f13-59c7-ab9b-cb6898d026c0": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "20252ce5-d9c7-517c-8828-7bded06c4fa4": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": "this is a meditation based technique which krishnaji is leading, I feel this can be stored much better"
+    },
+    "2050bdeb-36e7-5d7d-af61-9456623a78a0": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "this can be deleted since it had happened, otherwise if anyone is asking for physical health related we can ask users to check oneness yoga "
+    },
+    "21105d61-bff7-55e0-8d04-19554e84a9e7": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "21d66f20-3427-5f9a-a37a-3b0ce1352d25": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "21f25c45-c9a2-58f0-8014-f2afc17e1314": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": "can be made better"
+    },
+    "22acb17e-b7ef-5afc-aabd-f6e20fc198b8": {
+      "voice": "PASS",
+      "boundary": "PASS",
+      "notes": "can be made better"
+    },
+    "22c2c5c8-64a0-57b5-8029-06fbedb1627e": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "25445c94-ab76-56bd-913d-abf4e244bf54": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": "krishnaji giving an example of a person experience, i feel this can be added and make this storing much better"
+    },
+    "25762e5d-5fb3-51ca-b30b-b9729e2393de": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "27fba9bf-41c1-55f4-b9a1-f1b046b57d5b": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    },
+    "295a5e1e-9f7e-587c-88d6-cdd8d0a948ac": {
+      "voice": "FAIL_SPEAKER",
+      "boundary": "UNSURE",
+      "notes": "this an experience shared by a devotee"
+    },
+    "2c856f1e-f317-5a6e-a145-6348769b8c69": {
+      "voice": "PASS",
+      "boundary": "FAIL_BOUNDARY",
+      "notes": ""
+    }
+  }
+}
