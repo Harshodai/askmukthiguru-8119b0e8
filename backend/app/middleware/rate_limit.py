@@ -81,8 +81,8 @@ def _try_set_tenant_from_auth_header(request: Request) -> None:
         if isinstance(tenant_id, str) and tenant_id.strip():
             TenantContext.set(tenant_id.strip())
     except Exception:
-        # Any failure is intentionally swallowed — this is advisory only.
-        pass
+        # Advisory only: a bad token must not fail the request, but leave a trace.
+        logger.debug("tenant context from token skipped", exc_info=True)
 
 
 def _chat_bucket_key(request: Request) -> str:

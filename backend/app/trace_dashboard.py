@@ -81,8 +81,8 @@ class TraceCollector:
         # Store in Redis if available
         try:
             _store_trace_redis(self.request_id, trace_data)
-        except Exception:
-            pass  # Redis optional
+        except Exception:  # Redis optional; the in-memory copy above is authoritative
+            logger.debug("trace redis store failed", exc_info=True)
 
         return trace_data
 

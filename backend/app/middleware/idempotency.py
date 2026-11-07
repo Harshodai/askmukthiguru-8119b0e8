@@ -179,7 +179,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 try:
                     await redis_conn.delete(lock_key)
                 except Exception:
-                    pass
+                    logger.warning("idempotency lock release failed", exc_info=True)
 
         if 200 <= response.status_code < 500:
             body = await self._extract_body(response)

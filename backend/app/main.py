@@ -61,7 +61,7 @@ try:
             logger_tmp.info("Python memory limit set to %dMB via RLIMIT_DATA", _mb)
         elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
             _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
-except Exception:
+except (ImportError, ValueError, OSError, AttributeError):
     pass  # Non-fatal: Docker itself provides hard memory limits
 
 
@@ -755,8 +755,8 @@ async def _background_startup_body(container, fastapi_app) -> None:
         if hasattr(_libc, "malloc_trim"):
             _libc.malloc_trim(0)
         logger.info("Lifespan: post-warmup memory trim complete (released to OS)")
-    except Exception:
-        pass
+    except (OSError, AttributeError):  # no libc.so.6 (non-glibc host): skip the trim
+        logger.debug("Lifespan: malloc_trim unavailable", exc_info=True)
 
     _app_deps.startup_complete = True
     logger.info("=== Mukthi Guru Backend Ready ===")

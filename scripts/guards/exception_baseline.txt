@@ -2,6 +2,6 @@
 # in backend/app/, backend/rag/, and backend/services/first_person*.
 # This is a RATCHET: it may only decrease, never increase.
 # Recorded for CQ-006 / T7-05 on 2026-11-05.
-max_broad_exceptions=729
-max_silent_swallows=17
+max_broad_exceptions=724
+max_silent_swallows=9
 max_silent_swallows_fp=0
