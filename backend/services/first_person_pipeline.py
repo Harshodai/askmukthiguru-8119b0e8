@@ -2442,9 +2442,9 @@ class FirstPersonPipeline:
 
             client = getattr(self._store, "_client", None)
             if client is None:
-                from qdrant_client import QdrantClient
+                from services.qdrant.client import QdrantClientManager
 
-                client = QdrantClient(url=settings.qdrant_url)
+                client = QdrantClientManager().client
             self._context_store = FirstPersonContextStore(client=client, collection=collection)
             return self._context_store
         return None
