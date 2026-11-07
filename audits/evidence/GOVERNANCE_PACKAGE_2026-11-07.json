@@ -1,0 +1,17 @@
+{
+  "exported_at": "2026-11-07T14:00:46.997Z",
+  "auditor": "Harsha (Owner)",
+  "demoted_clips_status": "100% COMPLETE (7 kept, 4 quarantined in 79b14025)",
+  "served_clips_status": "100% COMPLETE (50/50 clips reviewed with notes)",
+  "helplines": "Tele-MANAS call-verified; remaining lines tracked",
+  "decisions": {
+    "d01": "private",
+    "d03": "verbatim_only",
+    "d19": "keep",
+    "x02": "protect",
+    "d05": "keep",
+    "d17": "delete",
+    "timestamp": "2026-11-07T14:00:42.437Z"
+  },
+  "clinician_hash": "Pending"
+}

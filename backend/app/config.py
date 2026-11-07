@@ -320,6 +320,9 @@ class Settings(BaseSettings):
     first_person_context_max_spans: int = 3
     # Candidate parent units retrieved for harness evaluation (0 = use max_clips default)
     first_person_context_candidate_limit: int = 0
+    # Enable sparse RRF fusion in context retrieval. Default False (dense cosine vector search
+    # delivers superior candidate recall on conversational questions without sparse keyword penalty).
+    first_person_context_use_sparse: bool = False
     # Optional temporal quality adjustment for fp-context retrieval ranking.
     # Disabled until a reviewed calibration demonstrates that the adjustment
     # improves held-out serving quality without changing evidence eligibility.

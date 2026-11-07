@@ -1,6 +1,6 @@
 import type { MessageError } from '@/lib/chatStorage';
 import type { AIErrorCode } from './types';
-import { SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
+import { SERVER_BUSY_HELPLINE_MESSAGE, UNIVERSAL_HELPLINE_MESSAGE } from './fetchWithRetry';
 
 export function httpStatusToErrorCode(
   status: number,
@@ -71,7 +71,7 @@ function buildMessageErrorInner(
       return {
         kind: 'timeout',
         title: 'The response took too long',
-        description: 'Please retry your message.',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
         retryable: true,
         actionLabel: 'retry',
         detail: message,
@@ -94,7 +94,7 @@ function buildMessageErrorInner(
       return {
         kind: 'server_error',
         title: 'Something went wrong',
-        description: 'This answer could not be completed. Please retry.',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
         retryable: true,
         actionLabel: 'retry',
         detail: message,
@@ -103,7 +103,7 @@ function buildMessageErrorInner(
       return {
         kind: 'network',
         title: 'Connection problem',
-        description: 'AskMukthiGuru could not be reached. Check your connection and retry.',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
         retryable: true,
         actionLabel: 'retry',
         detail: message,
@@ -112,7 +112,7 @@ function buildMessageErrorInner(
       return {
         kind: 'network',
         title: 'Connection interrupted',
-        description: 'The answer could not be completed before the connection was lost. Please retry.',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
         retryable: true,
         actionLabel: 'retry',
         detail: message,
@@ -121,7 +121,7 @@ function buildMessageErrorInner(
       return {
         kind: 'unknown',
         title: 'Something went wrong',
-        description: 'The response could not be completed. Please retry.',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
         retryable: true,
         actionLabel: 'retry',
         detail: status ? `HTTP ${status}` : message,

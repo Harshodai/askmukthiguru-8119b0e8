@@ -94,6 +94,7 @@ _HEALTH_CLAIM_RE = re.compile(
     r"|\bheal(?:ed|s|ing)?\s+(?:physically|(?:your|the|his|her|their)\s+(?:body|bodies|illness|disease)s?)\b"
     r"|\bhealed\s+(?:and\s+)?(?:physically|emotionally|spiritually)\b"
     r"|\b(?:will|would|can|could)\s+be\s+healed\b"
+    r"|\b(?:repair|regeneration)\s+of\s+neurons\b|\bneurons?\s+in\s+your\s+brain\b"
     r"|\bpsychiatric\s+(?:breakdown|disorder|illness|condition|patient)s?\b"
     r"|\bmental\s+(?:illness|disorder|breakdown)s?\b"
     r"|\b(?:cur(?:e|ed|ing)|heal(?:ed|ing)?|overcom(?:e|ing)|recover(?:y|ed|ing)?\s+from)\s+"
@@ -118,11 +119,19 @@ _EVENT_MARKER_RE = re.compile(
 )
 
 _DANGLING_QUESTION_TAIL_RE = re.compile(
-    r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you|when\s+[^?]{3,80},\s*what\s+do\s+you\s+do)\s*\?\s*$",
+    r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you|shall\s+we\s+[^?]{0,50}|when\s+[^?]{3,80},\s*what\s+do\s+you\s+do)\s*\?\s*$",
     re.IGNORECASE,
 )
 _DANGLING_AFFIRMATION_TAIL_RE = re.compile(
     r"(?:[.!?]\s+)(?:yes|okay|alright)\s*[.?!]?\s*$",
+    re.IGNORECASE,
+)
+
+_EXTERNAL_TEACHER_RE = re.compile(
+    r"\b(?:thich\s+nhat\s+hanh|sadhguru|isha\s+kriya|eckhart\s+tolle|osho|ramana\s+maharshi|"
+    r"paramahansa\s+yogananda|yogananda|deepak\s+chopra|sri\s+sri\s+ravi\s+shankar|art\s+of\s+living|"
+    r"sudarshan\s+kriya|marcus\s+aurelius|dalai\s+lama|buddha|alan\s+watts|jiddu\s+krishnamurti|"
+    r"shankaracharya|advaita\s+vedanta)\b",
     re.IGNORECASE,
 )
 
@@ -205,6 +214,9 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
         return None
     first = text_list[0]
     whole = " ".join(text.strip() for text in text_list)
+    stripped = first.lstrip("\"'“‘ \t")
+    if stripped and stripped[0].islower():
+        return "orphan_opener"
     if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
         return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(first):
@@ -256,6 +268,8 @@ class FirstPersonEvidencePolicy:
             reasons.append("violent_relationship_context")
         if _self_harm_for_context(query, text):
             reasons.append("unsolicited_self_harm_reference")
+        if _EXTERNAL_TEACHER_RE.search(query) or (bool(retrieval_query) and _EXTERNAL_TEACHER_RE.search(retrieval_query)):
+            reasons.append("external_teacher_or_tradition")
         # Lazy import: first_person_safety_policy imports the regex vocabulary
         # from this module, so importing it at module scope would form a cycle.
         from services.first_person_safety_policy import FirstPersonSafetyPolicy
@@ -269,7 +283,7 @@ class FirstPersonEvidencePolicy:
         event_bound_only_exclusion = contextual.action == "exclude" and set(reasons) == {
             "event_bound"
         }
-        if "violent_relationship_context" in reasons:
+        if "violent_relationship_context" in reasons or "external_teacher_or_tradition" in reasons:
             action = EvidenceAction.EXCLUDE
         elif event_bound_only_exclusion:
             action = EvidenceAction.NEEDS_REVIEW

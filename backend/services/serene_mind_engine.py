@@ -912,6 +912,75 @@ def get_non_english_crisis_patterns() -> list[re.Pattern]:
 
 
 # ---------------------------------------------------------------------------
+# Topic-vs-State Distress Discrimination (PROD-SAFE-01)
+#
+# Differentiates conceptual, philosophical, and doctrinal inquiry ("What did
+# Bhagavan say about fear?", "How does anxiety arise in the mind?") from
+# acute personal emotional suffering or crisis ("I feel so depressed I want
+# to end it all", "I am having panic attacks").
+# ---------------------------------------------------------------------------
+
+_DOCTRINAL_INQUIRY_PATTERNS = [
+    re.compile(
+        r"\b(according\s+to|in\s+the\s+teachings|what\s+did\s+(the\s+)?(teacher|guru|bhagavan|krishnaji|preethaji|ammasri|buddha|sri\s+bhagavan)\s+say|"
+        r"what\s+does\s+(the\s+)?(teacher|guru|bhagavan|krishnaji|preethaji|ammasri|buddha|sri\s+bhagavan)\s+(teach|say)|"
+        r"teachings?\s+on|teachings?\s+about|perspective\s+on)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^\s*(what\s+(is|are|does|causes?|creates?)|why\s+(do|does|is|are|we)|how\s+(does|do|can\s+one|to)|"
+        r"explain|can\s+you\s+explain|tell\s+me\s+about|teach\s+me\s+about|"
+        r"what\s+is\s+the\s+(root\s+cause|nature|origin|definition|meaning|source)\s+of|"
+        r"understanding\s+(of\s+)?|the\s+relationship\s+between)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(how\s+(to|can\s+one|do\s+we)\s+(transcend|overcome|handle|deal\s+with|dissolve|understand|be\s+free\s+from|heal)|"
+        r"meaning\s+of|nature\s+of|root\s+cause\s+of|freedom\s+from)\b",
+        re.IGNORECASE,
+    ),
+]
+
+_ACUTE_PERSONAL_SUFFERING_RE = re.compile(
+    r"\b(i\s*(am|'?m|feel|felt)\s*(so\s*|too\s*|deeply\s*|completely\s*|really\s*)?"
+    r"(suicid|hopeless|worthless|broken|depressed|miserable|desperate|empty\s*inside|giving\s*up)|"
+    r"i\s*(can'?t|cannot)\s*(take\s*it|go\s*on|live|breathe|do\s*this)|"
+    r"i\s*want\s*to\s*(die|disappear|vanish|end\s*(it|my\s*life)|kill\s*myself)|"
+    r"help\s*me\s*(please\s*)?i'?m\s*(in\s*agony|dying|panicking))\b",
+    re.IGNORECASE,
+)
+
+_EXPLICIT_BURNOUT_RE = re.compile(
+    r"\b(i\s*(am|'?m|feel)\s*(completely\s*|so\s*|just\s*)?(burned?\s*out|drained|exhausted)|everything\s*is\s*pointless)\b",
+    re.IGNORECASE,
+)
+
+
+def is_doctrinal_topic_inquiry(text: str) -> bool:
+    """Return True if text is a philosophical, conceptual, or doctrinal inquiry
+    rather than an expression of personal acute emotional distress or crisis.
+    """
+    if not text or not isinstance(text, str):
+        return False
+    # Any acute personal suffering, ideation, or crisis pattern immediately disqualifies doctrinal inquiry
+    if _ACUTE_PERSONAL_SUFFERING_RE.search(text):
+        return False
+    if _THIRD_PARTY_CONCERN_RE.search(text):
+        return False
+    if _SEVERE_IDEATION_CHECKIN_RE.search(text):
+        return False
+    for pattern in _ALL_PATTERNS.get("en", {}).get(DistressLevel.CRISIS, []):
+        if pattern.search(text):
+            return False
+
+    # Check if text matches doctrinal inquiry patterns
+    for pattern in _DOCTRINAL_INQUIRY_PATTERNS:
+        if pattern.search(text):
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
 # Crisis resources by region
 #
 # This dictionary used to be hardcoded with helpline numbers literally inlined
@@ -1696,15 +1765,16 @@ class SereneMindEngine:
         # on the current message but history showed a pattern.
         assessment = await self.async_assess_distress(message, conversation_history=history)
 
-        # If user explicitly states they are burned out/pointless etc, trigger MODERATE
+        # If user explicitly states personal burnout/pointlessness, trigger MODERATE
         if (
             assessment.level == DistressLevel.MILD
-            and assessment.recommended_response_type == "gentle"
+            and _EXPLICIT_BURNOUT_RE.search(message)
+            and not is_doctrinal_topic_inquiry(message)
         ):
             assessment.level = DistressLevel.MODERATE
             assessment.recommended_response_type = "meditation"
 
-        # Escalate if persistent
+        # Escalate if persistent across history
         if distress_count >= self.distress_threshold and assessment.level.value >= 1:
             assessment.level = DistressLevel.SEVERE
             assessment.detected_signals.append("Persistent distress over rolling window")
@@ -1807,6 +1877,12 @@ class SereneMindEngine:
             if DistressLevel.CRISIS > max_level:
                 max_level = DistressLevel.CRISIS
                 max_confidence = min(0.5 + (DistressLevel.CRISIS.value * 0.15), 1.0)
+
+        # PROD-SAFE-01: Protect philosophical/doctrinal inquiries from false-positive MODERATE triggers
+        if max_level == DistressLevel.MODERATE and is_doctrinal_topic_inquiry(message):
+            max_level = DistressLevel.NONE
+            max_confidence = 0.0
+            signals.append("[doctrinal_inquiry] topic inquiry, not acute personal distress")
 
         # Escalation detection from conversation history
         if conversation_history and len(conversation_history) >= 2:
@@ -2116,6 +2192,9 @@ class SereneMindEngine:
 
     def _quick_distress_check_window(self, text: str) -> bool:
         """One bounded window of _quick_distress_check."""
+        # Doctrinal topic inquiries are philosophical questions, not personal distress
+        if is_doctrinal_topic_inquiry(text):
+            return False
         text_lower = text.lower()
         latin = [text_lower, normalize_contractions(text_lower)]
         for lang, levels in _ALL_PATTERNS.items():

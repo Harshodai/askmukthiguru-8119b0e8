@@ -324,6 +324,32 @@ def _ranking_score(hit: Any) -> float:
     return float(getattr(hit, "score", 0.0) or 0.0)
 
 
+def deduplicate_contained_contexts(contexts: list[ParentContext]) -> list[ParentContext]:
+    """Eliminate redundant contexts whose time intervals sit completely inside another context (RET-13)."""
+    if len(contexts) <= 1:
+        return contexts
+    kept: list[ParentContext] = []
+    for ctx in contexts:
+        if not ctx.spans:
+            continue
+        c_video = getattr(ctx.spans[0], "video_id", None) or getattr(ctx.parent, "video_id", None)
+        c_start = min(s.start_ms for s in ctx.spans)
+        c_end = max(s.end_ms for s in ctx.spans)
+        
+        is_contained = False
+        for k in kept:
+            k_video = getattr(k.spans[0], "video_id", None) or getattr(k.parent, "video_id", None)
+            if k_video and c_video and k_video == c_video:
+                k_start = min(s.start_ms for s in k.spans)
+                k_end = max(s.end_ms for s in k.spans)
+                if k_start <= c_start and c_end <= k_end:
+                    is_contained = True
+                    break
+        if not is_contained:
+            kept.append(ctx)
+    return kept
+
+
 class FirstPersonContextStore:
     def __init__(self, client: QdrantClient, collection: str) -> None:
         self._client = client
@@ -514,6 +540,13 @@ class FirstPersonContextStore:
         for parent_unit_id, hits, score in groups:
             try:
                 context = self.fetch_parent_context(parent_unit_id, hits, score)
+                teacher_spans = tuple(
+                    span for span in context.spans
+                    if span.guru_id == context.parent.guru_id and span.speaker_verified is True
+                )
+                if not teacher_spans:
+                    continue
+                context = context.model_copy(update={"spans": teacher_spans})
                 hit_ids = set(hits)
                 hit_spans = [span for span in context.spans if span.source_span_id in hit_ids]
                 if not hit_spans or any(
@@ -531,7 +564,7 @@ class FirstPersonContextStore:
                     break
             except FirstPersonContextStoreError:
                 logger.warning("[ContextStore] dropping invalid parent context")
-        return contexts
+        return deduplicate_contained_contexts(contexts)
 
     def _query_groups(
         self,
@@ -741,7 +774,7 @@ class FirstPersonContextStore:
 
         for previous, current in zip(spans, spans[1:]):
             if (
-                current.start_ms <= previous.start_ms
+                current.start_ms < previous.start_ms
                 or current.source_span_index <= previous.source_span_index
             ):
                 raise FirstPersonContextStoreError(
