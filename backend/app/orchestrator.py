@@ -21,6 +21,7 @@ from app.coalescer import build_coalescer
 from app.config import settings
 from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
+from app.answer_contract import build_public_answer_fields
 from app.log_safe import q_tag
 from app.pipeline import PipelineCoordinator
 from app.release_manifest import get_release_manifest, to_public_manifest_dict
@@ -708,41 +709,17 @@ def _strict_provenance_manifest(result) -> AIProvenanceManifest | None:
 
 def _stream_done_metadata(result) -> dict:
     """Return the JSON-safe completion metadata shared by direct and queued SSE."""
-    answer_evidence = getattr(result, "answer_evidence", None)
-    guidance_plan = getattr(result, "guidance_plan", None)
-    return {
-        "intent": result.intent,
-        "citations": _coerce_citations(result.citations),
-        "meditation_step": result.meditation_step,
-        "proactive_serene_mind": result.proactive_serene_mind,
-        "trace_id": result.trace_id,
-        "latency_ms": result.latency_ms,
-        "model_used": result.model_used,
-        "model_provider": result.model_provider,
-        "route_decision": result.route_decision,
-        "query_tier": result.query_tier,
-        "cache_hit": result.cache_hit,
-        "faithfulness_score": result.faithfulness_score,
-        "hallucination_flag": result.hallucination_flag,
-        "follow_up_suggestions": result.follow_up_suggestions,
-        "confidence_score": result.confidence_score,
-        "citations_verified": result.citations_verified,
-        "orphan_citations_stripped": result.orphan_citations_stripped,
-        "live_logistics_events": getattr(result, "live_logistics_events", []),
-        "answer_evidence": None if answer_evidence is None else asdict(answer_evidence),
-        # Invariant 1: platform copy (compassion framing, safety boundaries,
-        # support line) rides beside the answer, never inside it.
-        "safety_notices": list(
-            (getattr(result, "route_metadata", None) or {}).get("safety_notices") or []
-        ),
-        "guidance_plan": None if guidance_plan is None else asdict(guidance_plan),
-        "grounding_state": grounding_state_for(result),
-        "verification": getattr(result, "verification", None),
-        "release_manifest": getattr(result, "release_manifest", None)
-        or get_release_manifest().to_dict(),
-        "provenance_manifest": _provenance_manifest_for_result(result),
-        "route_metadata": getattr(result, "route_metadata", {}) or {},
-    }
+    fields = build_public_answer_fields(result)
+    fields.update(
+        {
+            "citations": _coerce_citations(result.citations),
+            "grounding_state": grounding_state_for(result),
+            "release_manifest": getattr(result, "release_manifest", None)
+            or get_release_manifest().to_dict(),
+            "provenance_manifest": _provenance_manifest_for_result(result),
+        }
+    )
+    return fields
 
 
 async def _increment_turn_counter(user_id: str) -> None:

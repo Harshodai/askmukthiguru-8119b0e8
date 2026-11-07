@@ -473,7 +473,7 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
                 message_id: m.id,
                 span_id: c.sourceSpanId || null,
                 video_id: vid,
-                guru_id: c.teacherId || c.speakerId || 'krishnaji',
+                guru_id: c.teacherId || c.speakerId || (c.speaker ? c.speaker.toLowerCase() : ''),
                 start_ms: c.startMs ?? (c.timestampSeconds ? Math.round(c.timestampSeconds * 1000) : 0),
                 end_ms: c.endMs ?? 0,
                 verbatim_text: quote,
