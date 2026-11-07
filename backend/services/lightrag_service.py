@@ -15,6 +15,7 @@ from lightrag.utils import EmbeddingFunc
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.log_safe import q_tag
 from services.circuit_breaker import (
     CircuitBreakerConfig,
     DefaultCircuitBreaker,
@@ -901,7 +902,7 @@ class LightRAGService:
         if actual_mode == "auto":
             actual_mode = determine_retrieval_mode(query, default="hybrid")
             logger.info(
-                f"LightRAG dual-level routing: query '{query[:60]}...' routed to mode='{actual_mode}'"
+                f"LightRAG dual-level routing: query {q_tag(query)} routed to mode='{actual_mode}'"
             )
 
         # Query Entity Canonicalization:

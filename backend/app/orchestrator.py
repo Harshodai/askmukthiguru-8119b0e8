@@ -21,6 +21,7 @@ from app.coalescer import build_coalescer
 from app.config import settings
 from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
+from app.log_safe import q_tag
 from app.pipeline import PipelineCoordinator
 from app.release_manifest import get_release_manifest, to_public_manifest_dict
 from app.sanitization import sanitize_log_input
@@ -99,9 +100,9 @@ class ChatRequestOrchestrator:
             )
         except TimeoutError:
             logger.error(
-                "Pipeline timeout for user %s: message='%s...'",
+                "Pipeline timeout for user %s: query=%s",
                 sanitize_log_input(user_id),
-                sanitize_log_input(user_msg[:60]),
+                q_tag(user_msg),
             )
             raise HTTPException(
                 status_code=504,

@@ -19,6 +19,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.dependencies import ServiceContainer
+from app.log_safe import q_tag
 from app.orchestrator import _stream_done_metadata
 from app.pipeline import PipelineCoordinator
 from app.release_manifest import get_release_manifest
@@ -335,7 +336,7 @@ class ChatStreamRequestOrchestrator:
             except TimeoutError:
                 logger.error(
                     f"Pipeline timeout for user {sanitize_log_input(str(user_id))}: "
-                    f"message='{sanitize_log_input(user_msg[:60])}...'"
+                    f"query={q_tag(user_msg)}"
                 )
                 yield _sse_event("error", "The Guru took too long to respond. Please try again.")
                 return
