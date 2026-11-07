@@ -673,6 +673,11 @@ def match_blocked_topic(text: str) -> tuple[str, str] | None:
 
     variants = {text.lower(), deobfuscate(text), normalize_contractions(text.lower())}
     for topic, patterns in _BLOCKED_TOPICS.items():
+        if topic == "emotional_dependency":
+            from guardrails.relational_safety import is_authentic_bhakti_devotion
+
+            if is_authentic_bhakti_devotion(text):
+                continue
         if any(re.search(pattern, v) for pattern in patterns for v in variants):
             return topic, _resolve_block_response(
                 topic, "I can only help with spiritual guidance. 🙏", text=text
@@ -706,6 +711,29 @@ def detect_emotional_dependency_trajectory(texts: list[str]) -> tuple[str, str] 
         hit = match_blocked_topic(t)
         if hit and hit[0] == "emotional_dependency":
             return hit
+
+    try:
+        from guardrails.relational_safety import (
+            IntelligentRelationalSafetyEngine,
+            InterventionTier,
+        )
+
+        engine = IntelligentRelationalSafetyEngine()
+        current_text = texts[-1]
+        history = [{"role": "user", "content": t} for t in texts[:-1]]
+        verdict = engine.evaluate(current_text, session_history=history)
+
+        if verdict.is_flagged and verdict.tier in (
+            InterventionTier.TIER_2_GENTLE_FRICTION,
+            InterventionTier.TIER_3_CRISIS_PREEMPTION,
+        ):
+            return (
+                "emotional_dependency",
+                verdict.guidance_message
+                or _resolve_block_response("emotional_dependency", "", current_text),
+            )
+    except (AttributeError, RuntimeError, TypeError, ValueError, KeyError, OSError):
+        logger.exception("Intelligent relational safety evaluation encountered an error; falling back to heuristic.")
 
     has_isolation = any(_ISOLATION_SIGNAL.search(t) for t in texts)
     ai_centric_count = sum(1 for t in texts if _AI_CENTRIC_SIGNAL.search(t))

@@ -6033,6 +6033,7 @@ class FirstPersonPipeline:
 
         from services.guru_registry import (
             extract_target_authority,
+            is_comparative_authority_query,
             requested_gurus,
             requested_unregistered_teacher_or_tradition,
         )
@@ -6058,29 +6059,44 @@ class FirstPersonPipeline:
             return crisis_result
 
         # Step 1a: external / unregistered teacher or tradition inquiry check
-        unreg_teacher = requested_unregistered_teacher_or_tradition(
-            query
-        ) or (
-            requested_unregistered_teacher_or_tradition(retrieval_query)
-            if retrieval_query
-            else None
-        )
-        if unreg_teacher:
+        is_comp, in_gurus, ext_auths = is_comparative_authority_query(query)
+        if not is_comp and retrieval_query:
+            is_comp, in_gurus, ext_auths = is_comparative_authority_query(retrieval_query)
+
+        if is_comp and in_gurus:
+            # Comparative inquiry: do not abstain; scope retrieval to the in-domain registered teacher
+            if not teacher_id or teacher_id.strip().lower() in ("both", "all", ""):
+                teacher_id = in_gurus[0]
             logger.info(
-                "[FirstPersonPipeline] Abstaining on external teacher/tradition inquiry (%s): %s",
-                unreg_teacher,
-                query,
+                "[FirstPersonPipeline] Comparative inquiry detected (in-domain: %s, external: %s); scoping retrieval to %s",
+                in_gurus,
+                ext_auths,
+                teacher_id,
             )
-            latency = (time.monotonic() - start_time) * 1000.0
-            self._log_and_count("abstained", latency, 0.0, 0, 0, "no_verified_clips", 0)
-            return FirstPersonPipelineResult(
-                answer_text="No verified first-person discourse found for this question.",
-                citations=[],
-                status="abstained",
-                is_direct_answer=False,
-                latency_ms=latency,
-                abstain_reason="no_verified_clips",
+        else:
+            unreg_teacher = requested_unregistered_teacher_or_tradition(
+                query, allow_comparative=True
+            ) or (
+                requested_unregistered_teacher_or_tradition(retrieval_query, allow_comparative=True)
+                if retrieval_query
+                else None
             )
+            if unreg_teacher:
+                logger.info(
+                    "[FirstPersonPipeline] Abstaining on external teacher/tradition inquiry (%s): %s",
+                    unreg_teacher,
+                    query,
+                )
+                latency = (time.monotonic() - start_time) * 1000.0
+                self._log_and_count("abstained", latency, 0.0, 0, 0, "no_verified_clips", 0)
+                return FirstPersonPipelineResult(
+                    answer_text="No verified first-person discourse found for this question.",
+                    citations=[],
+                    status="abstained",
+                    is_direct_answer=False,
+                    latency_ms=latency,
+                    abstain_reason="no_verified_clips",
+                )
 
         topic_result = self._topic_rail_block(safety_texts, start_time)
         if topic_result is not None:

@@ -287,6 +287,16 @@ _TARGET_AUTHORITY_PATTERNS = [
         r"^([A-Za-z\s.\'\-]+?)\s+on\s+([A-Za-z\s.\'\-]+)$",
         re.I,
     ),
+    # 7. Conversational inquiry: tell me about X's teachings / view / perspective on Y
+    re.compile(
+        r"\b(?:tell\s+me\s+about|what\s+can\s+you\s+tell\s+me\s+about)\s+([A-Za-z\s.\'\-]+?)(?:\'s|\x27s)?\s+(?:teachings?|perspective|view|philosophy|insights?)\b",
+        re.I,
+    ),
+    # 8. Tradition / doctrinal school framing: In <Tradition>, how/what / what does the <Tradition> say/teach
+    re.compile(
+        r"\b(?:what\s+does\s+(?:the\s+)?([A-Za-z\s.\'\-]+?)\s+(?:tradition|philosophy|school)\s+(?:say|teach)|in\s+(?:the\s+)?([A-Za-z\s.\'\-]+?)\s+(?:tradition|philosophy)\b)",
+        re.I,
+    ),
 ]
 
 _CLEAN_PREFIX_RE = re.compile(
@@ -351,12 +361,52 @@ def extract_target_authority(query: str) -> dict[str, Any] | None:
     return None
 
 
-def requested_unregistered_teacher_or_tradition(query: str) -> str | None:
-    """Return the name/pattern of an unregistered teacher or external tradition named in query, if any."""
+def requested_unregistered_teacher_or_tradition(
+    query: str, allow_comparative: bool = False
+) -> str | None:
+    """Return the name/pattern of an unregistered teacher or external tradition named in query, if any.
+
+    If allow_comparative is True, inquiries comparing an in-domain registered guru with an
+    external authority do not return the external authority as a hard block.
+    """
+    if allow_comparative and requested_gurus(query):
+        return None
     auth = extract_target_authority(query)
     if auth and not auth["is_registered"]:
         return str(auth["target"])
     return None
+
+
+def is_comparative_authority_query(query: str) -> tuple[bool, list[str], list[str]]:
+    """Determine if a query compares registered in-domain teachers with external authorities.
+
+    Returns:
+        tuple[bool, list[str], list[str]]: (is_comparative, in_domain_guru_ids, external_authorities)
+    """
+    in_domain = requested_gurus(query)
+    auth = extract_target_authority(query)
+    ext_list: list[str] = []
+    if auth and not auth.get("is_registered") and auth.get("target"):
+        ext_list.append(str(auth["target"]))
+    else:
+        m_trad = _UNREGISTERED_TEACHER_RE.search(query)
+        if m_trad:
+            ext_list.append(m_trad.group(0))
+
+    is_comp = bool(in_domain and ext_list)
+    return is_comp, in_domain, ext_list
+
+
+def format_external_teacher_boundary(target_entity: str, topic: str | None = None) -> str:
+    """Generate an honest, respectful domain boundary response for external teachers and traditions."""
+    topic_clause = f" on {topic.strip()}" if topic and topic.strip() else ""
+    teachers_label = " and ".join(g.label for g in get_gurus() if g.label) or "our spiritual teachers"
+    return (
+        f"I am dedicated exclusively to sharing the sacred teachings of {teachers_label}. "
+        f"While {target_entity} offers valued insights in their tradition, I do not have verified "
+        f"recordings of their teachings in this sanctuary. Would you like to explore what "
+        f"{teachers_label} teach{topic_clause}? 🙏"
+    )
 
 
 def shared_attribution() -> tuple[str | None, list[str]]:
