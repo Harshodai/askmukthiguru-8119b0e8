@@ -34,8 +34,10 @@ async def test_openrouter_call_timing_logs_cost(caplog):
     mock_client = AsyncMock()
     mock_client.post.return_value = mock_resp
 
-    with patch.object(service, "_get_http_client", return_value=mock_client), \
-         caplog.at_level(logging.INFO, logger="services.openrouter_service"):
+    with (
+        patch.object(service, "_get_http_client", return_value=mock_client),
+        caplog.at_level(logging.INFO, logger="services.openrouter_service"),
+    ):
         res = await service._call_api(
             messages=[{"role": "user", "content": "Hi"}],
             model="anthropic/claude-haiku-5.5",
@@ -75,8 +77,10 @@ async def test_openrouter_call_timing_logs_none_when_cost_omitted(caplog):
     mock_client = AsyncMock()
     mock_client.post.return_value = mock_resp
 
-    with patch.object(service, "_get_http_client", return_value=mock_client), \
-         caplog.at_level(logging.INFO, logger="services.openrouter_service"):
+    with (
+        patch.object(service, "_get_http_client", return_value=mock_client),
+        caplog.at_level(logging.INFO, logger="services.openrouter_service"),
+    ):
         res = await service._call_api(
             messages=[{"role": "user", "content": "Hi"}],
             model="anthropic/claude-haiku-5.5",

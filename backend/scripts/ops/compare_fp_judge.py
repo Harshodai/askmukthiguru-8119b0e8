@@ -61,7 +61,11 @@ def load_banks() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         raise FileNotFoundError(f"Unanswerable 86 bank missing: {UNANSWERABLE_86_PATH}")
 
     data_116 = json.loads(FROZEN_116_PATH.read_text(encoding="utf-8"))
-    questions_116 = data_116["questions"] if isinstance(data_116, dict) and "questions" in data_116 else data_116
+    questions_116 = (
+        data_116["questions"]
+        if isinstance(data_116, dict) and "questions" in data_116
+        else data_116
+    )
 
     questions_86 = []
     for line in UNANSWERABLE_86_PATH.read_text(encoding="utf-8").splitlines():
@@ -77,9 +81,18 @@ def evaluate_offline_rubric() -> dict[str, Any]:
 
     # Synthetic candidate clips for offline invariant verification
     sample_clips = [
-        {"verbatim_text": "Meditation brings quiet to the mind and dissolves emotional turmoil.", "clip_id": "c1"},
-        {"verbatim_text": "In a beautiful state, one acts with clarity and boundless compassion.", "clip_id": "c2"},
-        {"verbatim_text": "When you observe suffering without judgment, transformation begins.", "clip_id": "c3"},
+        {
+            "verbatim_text": "Meditation brings quiet to the mind and dissolves emotional turmoil.",
+            "clip_id": "c1",
+        },
+        {
+            "verbatim_text": "In a beautiful state, one acts with clarity and boundless compassion.",
+            "clip_id": "c2",
+        },
+        {
+            "verbatim_text": "When you observe suffering without judgment, transformation begins.",
+            "clip_id": "c3",
+        },
     ]
 
     prompt = build_judge_prompt(questions_116[0]["question"], sample_clips)
@@ -87,14 +100,16 @@ def evaluate_offline_rubric() -> dict[str, Any]:
     assert "[0]" in prompt and "[1]" in prompt and "[2]" in prompt
 
     # Verify strict parser on valid response
-    valid_raw = json.dumps({
-        "scores": [
-            {"i": 0, "relevance": 3, "answers": True},
-            {"i": 1, "relevance": 2, "answers": False},
-            {"i": 2, "relevance": 1, "answers": False},
-        ],
-        "question_answerable": True,
-    })
+    valid_raw = json.dumps(
+        {
+            "scores": [
+                {"i": 0, "relevance": 3, "answers": True},
+                {"i": 1, "relevance": 2, "answers": False},
+                {"i": 2, "relevance": 1, "answers": False},
+            ],
+            "question_answerable": True,
+        }
+    )
     parsed = parse_judge_reply(valid_raw, len(sample_clips))
     assert parsed is not None
     scores, answerable = parsed
@@ -102,14 +117,16 @@ def evaluate_offline_rubric() -> dict[str, Any]:
     assert idx == 0
 
     # Verify unanswerable gate: question_answerable=False forces abstain (None)
-    unanswerable_raw = json.dumps({
-        "scores": [
-            {"i": 0, "relevance": 3, "answers": True},
-            {"i": 1, "relevance": 1, "answers": False},
-            {"i": 2, "relevance": 0, "answers": False},
-        ],
-        "question_answerable": False,
-    })
+    unanswerable_raw = json.dumps(
+        {
+            "scores": [
+                {"i": 0, "relevance": 3, "answers": True},
+                {"i": 1, "relevance": 1, "answers": False},
+                {"i": 2, "relevance": 0, "answers": False},
+            ],
+            "question_answerable": False,
+        }
+    )
     parsed_un = parse_judge_reply(unanswerable_raw, len(sample_clips))
     assert parsed_un is not None
     scores_un, answerable_un = parsed_un

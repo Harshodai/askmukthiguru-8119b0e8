@@ -29,7 +29,9 @@ def test_record_and_get_seen_clips_in_memory():
     user_id = "user_123"
     tenant_id = "tenant_abc"
 
-    assert record_seen_clip(user_id=user_id, tenant_id=tenant_id, clip_id="clip_1", video_id="vid_A")
+    assert record_seen_clip(
+        user_id=user_id, tenant_id=tenant_id, clip_id="clip_1", video_id="vid_A"
+    )
     clips, videos = get_seen_clips(user_id=user_id, tenant_id=tenant_id)
 
     assert "clip_1" in clips
@@ -56,7 +58,9 @@ def test_user_and_tenant_isolation():
 
 def test_input_sanitization():
     # Disallowed characters in user_id, tenant_id, clip_id, video_id
-    assert not record_seen_clip(user_id="bad user with spaces", tenant_id="tenant_1", clip_id="clip_1")
+    assert not record_seen_clip(
+        user_id="bad user with spaces", tenant_id="tenant_1", clip_id="clip_1"
+    )
     assert not record_seen_clip(user_id="user_1", tenant_id="bad;tenant", clip_id="clip_1")
     assert not record_seen_clip(user_id="user_1", tenant_id="tenant_1", clip_id="clip\nmalicious")
     assert not record_seen_clip(user_id="user_1", tenant_id="tenant_1", clip_id="", video_id=None)
