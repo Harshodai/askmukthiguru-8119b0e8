@@ -14540,3 +14540,20 @@ A stale or caller-supplied `domain_rights_status="licensed"` is not evidence. In
 - **Fix:** Corrected all required-check documentation, registers, and operator guidance to specify `lovable-guard` (job name) and `release-invariants` (job name in `lint-test.yml`). Added a regression test asserting that documented required check names exactly match job names declared in `.github/workflows/`.
 - **Rule:** Always configure GitHub branch protection required status checks using the exact job `name:` (or job ID if unset) produced by GitHub Actions check runs, never the workflow file name or workflow title.
 
+## Nov 7, 2026 — Graded clean-Docker verification, candidate starvation, and boundary precision
+
+### L-FP-CANDIDATE-STARVATION-GROUPED-QUERY-1 — Truncating candidate groups before chronological validation starves pipeline candidates
+- **What:** In `FirstPersonContextStore._query_groups` (and `_group_in_python`), grouped search fetched `limit_parents * 3` items from Qdrant, but then returned `out[:limit_parents]`. In the downstream `retrieve` loop, each parent context was validated by `fetch_parent_context`. In `first_person_v10`, ~15% of historical parent clusters fail the strict chronological check (`current.start_ms <= previous.start_ms`) and are dropped. Because `_query_groups` truncated before the validation loop, a request asking for 8 parents often received only 2 to 4 valid contexts, severely starving the relevance and assembly stages.
+- **Fix:** In `_query_groups` and `_group_in_python`, return all sorted candidate groups (`out`), and in `retrieve`, iterate through the candidate list until collecting `limit_parents` valid chronological contexts.
+- **Rule:** Never truncate grouped retrieval results before downstream validity and rights filters. Pass the candidate pool forward and terminate the collection loop when the requested count of validated objects is reached.
+
+### L-FP-RELEVANCE-SCORE-3-VS-SHOWABLE-1 — Min score 3 guarantees showable quality and zero harm on verbatim teachings
+- **What:** In graded evaluations, relaxing `FIRST_PERSON_RELEVANCE_MIN_SCORE` from 3 to 2 allowed clips that only "partly answer" the question to pass to the user. When graded by an independent second judge (Claude Haiku 5.5), these partial-match clips were ruled `not_showable` (reducing showable rate to 0.60) and risked leaking sensitive topics (such as `q019` in older runs). Setting `FIRST_PERSON_RELEVANCE_MIN_SCORE: "3"` enforces that only direct answers are served, achieving `showable_rate = 0.8571` (6/7), `harmful = 0`, and 100% dual-judge agreement.
+- **Rule:** Verbatim first-person serving must maintain `FIRST_PERSON_RELEVANCE_MIN_SCORE: "3"`. Partial matches must remain abstained (`status="weak_match"` when permitted, or abstained with guidance) to prevent non-direct teachings from diluting showable quality.
+
+### L-FP-ORPHAN-PRONOUN-AND-TAIL-AFFIRMATION-1 — Boundary gates must detect possessive pronoun openers and isolated trailing affirmations
+- **What:** Independent dual-judge grading flagged two edge cases in served verbatim spans: `q035` opened with *"Their kindness..."* (where `their` was omitted from `_ORPHAN_OPENER_RE` while `they/them` were present), and `q073` ended with a conversational trailing affirmation *"And there'll be intelligence that flows. Yes."*.
+- **Fix:** Added possessive pronouns (`their`, `theirs`, `his`, `hers`) to `_ORPHAN_OPENER_RE`. Added `_DANGLING_AFFIRMATION_TAIL_RE` targeting isolated conversational endings (`(?:[.!?]\s+)(?:yes|okay|alright)\s*[.?!]?\s*$`) in `_clip_standalone_problem` and `_context_standalone_problem`.
+- **Rule:** Discourse and standalone quality checks must cover all third-person possessive openers and isolated tail affirmations so unanchored transcripts fail closed.
+
+
