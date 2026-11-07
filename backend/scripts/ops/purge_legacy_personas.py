@@ -157,6 +157,7 @@ def run_restore(backup_path: str) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true", help="Explicitly specify dry-run mode (default)")
     parser.add_argument("--apply", action="store_true", help="Apply deletion (default: dry run)")
     parser.add_argument("--backup", type=str, help="Path for required backup artifact")
     parser.add_argument("--restore", type=str, help="Restore records from backup artifact")
