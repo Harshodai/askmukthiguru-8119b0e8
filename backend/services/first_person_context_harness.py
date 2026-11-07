@@ -319,7 +319,10 @@ class FirstPersonContextHarness:
             # when the compatibility setting is left at its old value.
             if not span.speaker_verified:
                 return False
-            if speaker_write_violations(span.to_payload()):
+            if speaker_write_violations(
+                span.to_payload(),
+                allow_legacy_centroid=not policy.require_voice_method,
+            ):
                 return False
         return True
 

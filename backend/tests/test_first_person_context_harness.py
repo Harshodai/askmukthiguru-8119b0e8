@@ -726,6 +726,21 @@ def test_voice_method_requirement_withholds_a_bare_flag_and_serves_a_verified_on
     assert served.decision is HarnessDecision.SERVE_SINGLE_SPAN
 
 
+def test_centroid_span_is_served_when_require_voice_method_is_false():
+    policy = HarnessPolicy(require_voice_method=False)
+    centroid = span(0, voice_verification_method="ecapa_voxceleb_centroid_v1")
+    served = FirstPersonContextHarness(policy).decide(context([centroid]), answerability="yes")
+    assert served.decision is HarnessDecision.SERVE_SINGLE_SPAN
+
+
+def test_centroid_span_is_refused_when_require_voice_method_is_true():
+    policy = HarnessPolicy(require_voice_method=True)
+    centroid = span(0, voice_verification_method="ecapa_voxceleb_centroid_v1")
+    abstained = FirstPersonContextHarness(policy).decide(context([centroid]), answerability="yes")
+    assert abstained.decision is HarnessDecision.ABSTAIN
+    assert abstained.abstain_reason == "speaker_unverified_or_not_guru"
+
+
 def test_policy_from_settings_reads_the_voice_method_flag(monkeypatch):
     from app.config import settings
     from services.first_person_context_harness import policy_from_settings
