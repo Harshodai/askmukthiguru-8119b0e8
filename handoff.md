@@ -1,204 +1,298 @@
-# Session Handoff — AskMukthiGuru Test Isolation, Quality Hardening & Main Integration
-**Date**: 2026-10-19 · **Branch**: `main` · **HEAD**: `130826d3` · **Project State**: Clean & Merged
+# Handoff: AskMukthiGuru, state at 2026-11-07
+
+Written for the next agent and for Harsha. Verdict: **NO-GO** (unchanged). No graded clean-Docker run on the final branch exists yet.
+The previous handoff (2026-10-19) is in git history: `git log --follow -- handoff.md`.
+Ready-to-paste agent prompts are in `docs/handoffs/AGENT_PROMPTS_2026-11-07.md`.
+
+Labels used here:
+- **VERIFIED** = I read it in git, in a file, or from the GitHub API during this session (2026-11-07).
+- **REPORTED** = taken from a thread report or the Pending List artifact. I did not re-check it.
+- **ASSUMPTION** = my inference. Check it before you rely on it.
+- **UNKNOWN** = I could not find the answer.
+- **UNPROVEN** = no run has shown it.
 
 ---
 
-## 1. Goal We Are Working Toward
+## 0. Read this first: four things most people on this project have wrong
 
-**Achieve 100% test isolation, pass the full backend unit test suite inside Docker (Python 3.12) on `feat/clip-quality-grading`, ensure complete script parity across `scripts/ops/` and `backend/scripts/ops/`, maintain zero frontend regressions, resolve all merge conflicts with `main`, and push the verified codebase to `origin/main` (claim-ok: verified via `docker exec pytest` and `npm test`).**
-
-### Success Criteria & Status
-- [x] **Backend Test Suite Isolation**: 10,464+ tests collected, 0 collection errors, all batches passing in Docker (`mukthiguru-backend`) and on host.
-- [x] **Ops Script Parity**: All 58 shared scripts between `scripts/ops/` and `backend/scripts/ops/` verified 100% byte-identical (`Diffs: 0`).
-- [x] **Frontend Validation**:
-  - `npm test -- --run`: 100% suites green (zero failures).
-  - `npx tsc --noEmit`: 0 type errors (checked without pipe per `L-VERIFY-PIPE-EXIT-1`).
-  - `npm run build`: 100% clean (29 routes prerendered into `dist/`).
-- [x] **Docker Container Health**: All 11 containers healthy (`mukthiguru-backend`, `mukthiguru-frontend`, `mukthiguru-redis`, `mukthiguru-memgraph`, `mukthiguru-qdrant`, Supabase stack).
-- [x] **Branch Integration**: `feat/clip-quality-grading` merged cleanly into `main`, merge conflicts in `lessons.md` resolved without losing any lessons or mechanical guards, and pushed to `origin/main`.
+1. **PR #86 is already merged.** It merged into `main` on 2026-11-03 (VERIFIED: GitHub API, `merged: true`, 165 commits, 1,034 files). Threads and the Pending List still say "the one open PR is #86". The open PR is now **#97** (head `feature/audit-strengthen-rag-qdrant`, base `main`, title starts "docs(audits): architecture and product audit of main@46b808fb"). So "nothing is merged to main" is false. What is true: the work after 2026-11-03 (188 commits) is not on `main`.
+2. **`main` has 4 commits the branch does not have** (VERIFIED: `git rev-list --count origin/feature/audit-strengthen-rag-qdrant..origin/main` = 4; they touch 2 files: `roadmap.md` and one renamed `.md`). Merge or rebase them before the final merge.
+3. **CI on the branch head shows 30 failures out of 32 check runs, all within 2 to 8 seconds** (VERIFIED: PR #97 check runs at head `5e23438`; only `Vercel Preview Comments` passed, `Supabase Preview` was skipped). The register says the same happened on 2026-11-05. Jobs that fail in seconds usually did not run your code. The cause is UNKNOWN. Nobody has read a job log. Do this before you trust any green or red.
+4. **The required check name for the Lovable guard is `lovable-guard`, not `lovable-pr-guard`.** `lovable-pr-guard` is the workflow name. The job is named `lovable-guard` (VERIFIED: `.github/workflows/lovable-pr-guard.yml` line 14, and the check-run list). GitHub required checks match the job (check-run) name. If Harsha types `lovable-pr-guard`, the check never reports and every PR waits forever. `release-invariants` is correct (job `release-invariants` in `lint-test.yml`).
 
 ---
 
-## 2. Current State of Code
+## 1. The goal
 
-### Git State
-- **Branch**: `main`
-- **HEAD Commit**: `130826d3`
-- **Remote Status**: Synchronized (`origin/main` is up to date at `130826d3`).
-- **Working Tree**: 100% clean (`git status` reports nothing to commit, working tree clean).
+Make AskMukthiGuru the best product for disciples and seekers of Sri Preethaji and Sri Krishnaji. A person asks, and gets the apt teaching, in the teacher's own words, fast, with a source. Then onboard the Sri Amma Bhagavan teachings end to end.
 
-### Container & Infrastructure State
-- **Docker Compose Stack**:
-  - `mukthiguru-backend`: Up & healthy (Python 3.12.15, FastAPI, LangGraph, Uvicorn).
-  - `mukthiguru-frontend`: Up & healthy (Nginx reverse proxy, static SPA bundle with 29 prerendered routes).
-  - `mukthiguru-redis`: Up & healthy (Port 6379, DB `/0` for runtime cache/rate limits, DB `/15` strictly isolated for tests).
-  - `mukthiguru-memgraph`: Up & healthy (Port 7687, MAGE graph engine).
-  - `mukthiguru-qdrant`: Up & healthy (Port 6333, `first_person_v9` collection active with 1,981 verified points).
-  - Supabase stack: 5 containers healthy (Postgres 17, PostgREST, GoTrue Auth, Realtime, Kong gateway).
+The working target for this phase (Harsha, restated 2026-10-30 and 2026-10-31):
+1. Finish the production pending lists.
+2. Run a clean-sweep on **local Docker** (caches flushed and proven empty).
+3. Grade the run against the approved pass bar.
+4. Merge everything to `main` through one PR.
+5. Only then deploy to Railway, in a normal session that has the Railway connector.
 
-### Test Suite Verification Summary
-| Suite / Batch | Tests Run | Result | Notes |
-|---|---|---|---|
-| Frontend Vitest (`npm test -- --run`) | 883+ tests | ✅ 100% PASSED | Zero regressions |
-| Frontend TypeScript (`npx tsc --noEmit`) | Whole project | ✅ 0 errors | Direct exit 0 |
-| Frontend Prerender (`npm run build`) | 29 routes | ✅ 100% PASSED | Prerendered HTML generated |
-| `tests/canonical_memory/` + `tests/security/` | 379 tests | ✅ 379 PASSED | Security & AAL2 verified |
-| `tests/test_a*.py` | 493 tests | ✅ 493 PASSED | Assistant & Auth gates green |
-| `tests/test_b*.py` + `tests/test_c*.py` | 1,419 tests | ✅ 1,411 PASSED, 8 skipped | Cache & Circuit breaker green |
-| `tests/test_d*.py` + `tests/test_e*.py` | 322 tests | ✅ 320 PASSED, 2 skipped | Distress & Eval suites green |
-| `tests/test_f*.py` | 485 tests | ✅ 481 PASSED, 4 skipped | First-person speculative parallelism green |
-| `tests/test_g*.py` + `tests/test_h*.py` + `tests/test_i*.py` | 710 tests | ✅ 710 PASSED | Grounding & Index fingerprint green |
-| `tests/test_j*.py` + `tests/test_k*.py` | 80 tests | ✅ 80 PASSED | Jev router & KG export green |
-| `tests/test_l*.py` + `tests/test_m*.py` | 567 tests | ✅ 566 PASSED, 1 skipped | Layout & Memory suites green |
-| `tests/test_n*.py` to `tests/test_p*.py` | 3,711 tests | ✅ 3,705 PASSED, 4 skipped, 2 xfailed | Personalization & Pipeline green |
-| `tests/test_q*.py` to `tests/test_y*.py` | 2,284 tests | ✅ 2,270 PASSED, 13 skipped, 1 deselected | QuoteWeaver, RAG & Root cause green |
-| **Total Backend Verification** | **10,464+ tests** | **✅ 100% Isolated & Passing** | **0 Collection Errors** |
+Approved pass bar (REPORTED, `research/final-pass-bar-2026-10-30.md` and the memory index): p95 latency 10 s; served precision 85% or more; served share 30% or more; abstain 95% or more on 60+ unanswerable items; hard gates at 100%; no regression; signed go/no-go page; kill switch and halt plan; live monitoring.
+
+**Honest note on "10/10 confidence".** The data does not support that phrase. The only valid measured run (Stage A) gave 48.5% showable precision. Plan for a measured, signed result. Do not plan for a score.
 
 ---
 
-## 3. Files Actively Edited This Session
+## 2. Current state of the code
 
-| File Path | Description of Changes |
+### Git (VERIFIED, 2026-11-07)
+| Item | Value |
 |---|---|
-| `backend/tests/conftest.py` | Added `_async_stub` for `_async_answerability_check` in `_answerability_gate_stub` and populated `scores_out.extend([3] * len(clips))` in `_relevance_gate_stub` to support speculative execution in tests. |
-| `backend/tests/test_repo_layout.py` | Added `.resolve()` comparison (`_ROOT_OPS.resolve() == _BACKEND_OPS.resolve()`) to properly handle container symlinks and prevent false positive duplicate detections. |
-| `backend/tests/test_first_person_speculative_parallelism.py` | Updated `test_speculative_parallelism_config_default_false` to assert against declared `Settings.model_fields` default rather than live env settings (`L-TEST-ENV-PIN-1`). |
-| `backend/tests/test_personalize_teaching.py` | Pinned `first_person_serve_unregistered` via monkeypatching to isolate tests from operator environment flags. |
-| `backend/tests/test_backfill_edge_tenant_id.py` | Fixed test fixture isolation for Memgraph edge backfilling. |
-| `scripts/ops/build_first_person_index.py` & `backend/scripts/ops/build_first_person_index.py` | Enforced complete-thoughts duration cap on already-standalone clips (`L-FP-INGEST-CAP-PATH-1`) and synced copies. |
-| `scripts/ops/publish_retrieval_index_contract.py` & `backend/scripts/ops/publish_retrieval_index_contract.py` | Added container path fallback (`_candidate / "app"`) for resolving `BACKEND` path in Docker and synced copies. |
-| `36 ops scripts in backend/scripts/ops/` | Synchronized all shared ops scripts with `scripts/ops/` to achieve 100% byte-for-byte parity across trees. |
-| `scripts/ingestion/corpus_inventory.json` | Restored root inventory file required by `test_root_cause_classes_2026_10_05.py`. |
-| `lessons.md` | Chronologically integrated Oct 15–19 lessons, resolved merge conflict with `origin/main`, and documented `L-TEST-ASYNC-GATE-STUB-1`, `L-TEST-RELEVANCE-STUB-OUTPUT-1`, and `L-REPO-LAYOUT-CONTAINER-SYMLINK-1`. |
+| Work branch | `feature/audit-strengthen-rag-qdrant` |
+| Head when I read it | `5e23438` ("NEW-DQ-1: add ensure_fp_span_indexes.py ... record 2026-11-07 decisions") |
+| Previous heads | `b119aa9` (Railway decisions), `e67577d` (audit report diagnostics), `815fd17` (tsc fix), `ebe5ceb` (ruff format fix), `dea7b44` (D-PG13 wording) |
+| Merge base with `main` | `46b808f` ("Merge branch 'feature/audit-strengthen-rag-qdrant'") |
+| Ahead of `main` | 188 commits, 520 files, +54,495 / -2,724 |
+| Behind `main` | 4 commits (docs only, 2 files) |
+| Open PR | #97 (this branch into `main`). Not merged. |
+| Merged PRs on this line | #86 (2026-11-03). Earlier: #68, #72, #82, #83, #89 and others (REPORTED). |
+| Branch protection on `main` | None (register row X-02, status "Needs owner decision"). REPORTED. |
+
+### Tests (REPORTED, none re-run by me)
+- Cloud container, fakes only, at `024a881`: 13,031 passed, 1 failed, 58 skipped, 1 collection error (`soundfile` missing). The 1 failure was the 12 s versus 25 s scorer-timeout conflict. It was fixed later by the D-PG13 decision (section 4.5). The full suite was **not** re-run after that fix. UNPROVEN.
+- Mac check at `dea7b44`, read-only, no Docker: 126 backend tests pass (17 files); four guards exit 0 (exception ratchet 724/9, seeker-text log budget 0, teacher-literal ratchet 590 lines in 129 files, stage-order guard); `ruff check` 0; vitest 1,139 passed; `helm template` renders with `redis.auth.password` and `neo4j.auth.password`.
+- Found by that Mac check, then fixed on the branch: `ruff format` on `test_openrouter_price_table.py` (`ebe5ceb`), 2 `tsc` errors (`815fd17`). These two fixes are proven only by cloud runs. Re-verify on the Mac.
+- Not run anywhere: `promtool check rules`, Playwright `a11y-journey.spec.ts` (needs the app and Supabase), real GitHub workflow results (see section 0, item 3), the Mac Remote Control run on 2026-11-06 (the Mac did not pick up the session).
+
+### Serving posture (VERIFIED in files)
+- v10-only: `first_person_v10`, context harness on, terminal on (`backend/docker-compose.graded.yml`; `.railway/railway.ts` `SERVING_POSTURE = "v10_only"`).
+- No LLM writes answer text. A served answer is a verbatim clip or a static abstain (`CLAUDE.md` invariants 1, 15, 21).
+- Graded run pins the scorer timeout at **12 s** (`FIRST_PERSON_RELEVANCE_TIMEOUT_S: "12"`, line 31). The `Settings` default stays 25 s everywhere else.
+- `v10` holds 4,224 points (REPORTED). Child spans: 2,758 expected; the live audit counted 2,760 (section 4.4).
+- Default-off features, each waiting on a decision or a measurement: evidence judge (`3e2882f`), injection-screen drop mode (`aba9bf4`, `c609c6f`), served-clip hash re-check `first_person_points_servable_hash_check_enabled` (`087af0a`, default `False`).
+
+### Artifacts and reports
+- Pending List (runbook artifact): https://claude.ai/artifact/PtxfGz9iintSkmGsPNGFg9 (version 52 when I read it). Every thread must publish a new version when done/unproven/needed changes.
+- Register: `audits/audit-output-2026-11-04/FINAL_PENDING_WORK_REGISTER.md` (sections 11 and "Implementation update 2026-11-07", and "Decisions recorded 2026-11-07").
+- Opus report: `/mnt/project-files/opus-audit-2026-11-06/final-report.md`.
+- Sonnet report: `/mnt/project-files/reports/sonnet-platform-thread-final-report-2026-11-07.md`.
+- Sonnet prompt for the ops lane: `/mnt/project-files/prompts/agent-prompt-railway-and-ops-2026-11-07.md`.
+- Path to the graded run: `/mnt/project-files/path-to-graded-run-2026-10-31.md`. Stage A/B review: `/mnt/project-files/stage-ab-evidence-review-2026-10-31.md`. Kill-switch runbook: `/mnt/project-files/runbooks/go-no-go-kill-switch-monitoring-2026-10-31.md`. Railway runbook: `/mnt/project-files/runbooks/railway-readiness-2026-10-30.md`.
 
 ---
 
-## 4. Everything Tried and Failed (with Root Causes)
+## 3. Files in play, and who owns them
 
-### 4.1 Running full 10,464+ test suite in a single monolithic Docker run → Container OOM (Exit 137)
-- **What was tried**: Executing `docker exec mukthiguru-backend pytest tests/` in a single command.
-- **Why it failed**: The running backend container hosts an active Uvicorn server, LangGraph compiler caches, and Memgraph/Qdrant connection pools taking ~3.97 GiB of the 6.0 GiB ceiling. Loading and executing 350+ test files in a single process caused memory accumulation and triggered the Docker cgroup OOM killer (exit code 137).
-- **What works**: Executing tests in grouped letter batches (`test_a*`, `test_b*`, etc.) and running resource-intensive lifespan integration tests (`test_kg_export_endpoint.py`) individually or on the host.
+The rule since 2026-11-06: one owner per file. A thread that needs a change in the other lane's file sends a note to the coordinator. It does not edit.
 
-### 4.2 Speculative Parallelism Answerability Check Abstaining in Unit Tests
-- **What was tried**: Running `test_first_person_pipeline.py` and `test_fp_serve_quality_2026_10_07.py` in Docker where `FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED=true`.
-- **Why it failed**: 26 tests failed with `answerability_withheld`. `conftest.py` only patched the synchronous `_answerability_check()` method. Under speculative parallelism, the pipeline directly dispatched the coroutine `_async_answerability_check()`. Without an `llm_service` injected in unit tests, the un-stubbed method failed closed, returning `None`.
-- **What works**: Patching both `_answerability_check` and `_async_answerability_check` concurrently inside `_answerability_gate_stub`.
+### Opus lane (safety, honesty, data integrity, review)
+- `backend/services/first_person_*.py` (pipeline, store, context store, harness, judge, bridge helpers)
+- `backend/rag/nodes/first_person.py`, `backend/rag/states.py`, `backend/rag/nodes/generation.py`, `backend/app/pipeline/stages/graph_stage.py`, `backend/app/pipeline/stages/first_person_bridge.py`
+- `backend/app/answer_outcome.py`, `backend/app/answer_contract.py` (planned for `clip_ref`)
+- `backend/services/serene_mind_engine.py`, `backend/services/crisis_helplines.py`, `config/helplines.yaml`
+- Memory and persona code (`MEM-*`), `backend/app/api/teachings.py`
+- Corpus builders and speaker provenance: `backend/scripts/ops/build_*`, `backfill_v10_voice_method.py`, `domain/speaker_provenance.py`, `domain/speaker_audit.py` (root copies in `scripts/ops/` must stay byte-identical)
+- Safety and release-gate tests that pin the above
 
-### 4.3 Relevance Gate Stub Leaving Output Buffer Empty
-- **What was tried**: Relying on mock relevance gate counts during speculative test runs.
-- **Why it failed**: Downstream speculative branches inspect `scores_c1[0] >= 3`, where `scores_c1` is populated by reference via `scores_out`. The existing mock returned an integer count but never appended values to `scores_out`, leaving `scores_c1` empty (`[]`) and triggering `relevance_below_min` abstains.
-- **What works**: Explicitly appending mock scores to `scores_out` (`scores_out.extend([3] * len(clips))`).
+### Sonnet lane (Railway, ops, config, accessibility, guards, docs)
+- `.railway/railway.ts`, `Dockerfile*`, `docker-compose*.yml` (except the serving flags pinned in `backend/docker-compose.graded.yml`, which change only on Harsha's word), `infrastructure/**`, `scripts/deploy/**`
+- `scripts/guards/**` and their baselines (`exception_baseline.txt`, `guru_literal_baseline.txt`, `import_layer_allowlist.txt`)
+- `scripts/ops/fp_live_audit.py`, `scripts/ops/ensure_fp_span_indexes.py`, `backend/benchmarks/locustfile_fp_staging.py`, `scripts/ops/load_run_report.py`
+- Frontend accessibility (`src/**`), `docs/product/COPY_DRAFTS_*`, Lovable guards (`.github/workflows/lovable-pr-guard.yml`, `CODEOWNERS`)
+- Docs outside the Opus list, and `backend/CLAUDE.md` / `src/CLAUDE.md`
 
-### 4.4 `test_repo_layout.py` Failing in Container Due to Symlinked Ops Directory
-- **What was tried**: Running `test_repo_layout.py` inside Docker after syncing scripts.
-- **Why it failed**: In Docker, `/scripts/ops` is symlinked to `/app/scripts/ops`. The test's duplicate detection compared `_ROOT_OPS` and `_BACKEND_OPS` by string representation. Because the strings differed (`/scripts/ops` vs `/app/scripts/ops`), it flagged all 58 scripts as unowned duplicate shadow copies.
-- **What works**: Comparing `.resolve()` paths: `if _ROOT_OPS.resolve() == _BACKEND_OPS.resolve(): return`.
-
-### 4.5 Piped Verification Commands Hiding Failures (`npx tsc | tail -5`)
-- **What was tried**: Piping command outputs through `tail` to minimize context.
-- **Why it failed**: In bash/zsh without `pipefail`, `$?` captures the exit code of `tail` (0), masking underlying compilation failures in `tsc` (`TS2322`).
-- **What works**: Running commands without pipe redirects (`npx tsc --noEmit`) to verify the genuine tool exit code (`L-VERIFY-PIPE-EXIT-1`).
-
----
-
-## 5. Next Steps to Take
-
-1. **Production Deployment & Staging Promotion**:
-   - When Railway deployment is unpaused, ensure `FORWARDED_ALLOW_IPS` is configured before triggering deployment.
-   - Verify environment variable alignment: ensure `FIRST_PERSON_COLLECTION=first_person_v9` is set in Railway production variables.
-
-2. **Gold Dataset Labeling Calibration**:
-   - Continue the human annotator pass on `evals/gold_set_v1/questions.jsonl` using `fit_threshold.py`.
-   - Complete the remaining ~299 zero-error human labels required for calibrating the direct answer threshold (`claims=none` vs `claims=direct`).
-
-3. **Clinician Review of Distress Gating**:
-   - Conduct clinician review on the MODERATE distress filter boundary.
-   - Evaluate the additive support pattern (returning compassion framing *plus* the verified teacher clip rather than withholding the clip on single emotional vocabulary words like "fear" or "anxiety").
+### Shared and tricky
+- `lessons.md`: many threads write to it. Append only. Rebase before you push.
+- The teacher-literal ratchet (`guru_literal_baseline.txt`) counts lines in Opus files too. If Opus removes a literal, `test_guru_literal_scan.py` fails until the baseline is lowered with `python3 scripts/guards/guru_literal_guard.py --write-baseline`. Expected, by design.
+- `backend/docker-compose.graded.yml` and `backend/tests/test_graded_run_preflight.py` are a pair. Change both or neither.
+- This thread (handoff) edits only `handoff.md` and `docs/handoffs/AGENT_PROMPTS_2026-11-07.md`.
 
 ---
 
-## 6. Detailed Learnings and Empirical Results
+## 4. Everything tried, with results
 
-1. **Corpus vs. Gate Bottleneck (`L-FP-GATE-NOT-CORPUS-1`)**:
-   - On the promoted `first_person_v9` collection (1,981 points), the dry evaluator showed **149/150 (99.3%)** benign on-topic questions have relevant clips available with mean top-1 cosine 0.6884.
-   - The primary cause of seeker abstentions is upstream gating: single emotion keywords (`fear`, `anxiety`, `angry`, `worried`, `overwhelmed`) trip `assess_distress()` to MODERATE (confidence 0.80), which previously declined to scripted compassion boilerplate before retrieval ever executed.
+### 4.1 Graded run, Stage A (2026-10-31). The only valid stage.
+VERIFIED from the stage review (`stage-ab-evidence-review-2026-10-31.md`; I read the review, not the raw rows).
 
-2. **Benchmark Saturation (`L-FP-BENCH-SATURATION-1`)**:
-   - The static 42-question bank returned identical top-1 clips across both v8 and v9. To measure incremental corpus value, evaluation questions must be authored directly from the new clip deltas (+180 clips). On the authored 28-question delta bank, top-1 cosine improved from 0.671 to 0.694 (16/28 improved).
+| Measure | Result | Bar | Pass? |
+|---|---|---|---|
+| Served (frozen 116) | 33 (32 answerable + q115, which is flagged unanswerable) | n/a | n/a |
+| Served share of 89 answerable | 32/89 = 36.0% (Wilson 26.8 to 46.3%) | 30% or more | Point passes. Lower bound does not. |
+| Showable of served | 16/33 = 48.5% (Wilson 32.5 to 64.8%) | 85% or more | **FAIL** |
+| Harmful clips | 3 (q019, q057, q071) | 0 | **FAIL** |
+| Unverified speaker among served | 13/33 (39%) | 0 (hard gate H2) | **FAIL** |
+| Latency p95, frozen 116 | 12.5 s (served only: 16.0 s) | 10 s | **FAIL** |
+| Unanswerable core | 68/69 abstain (ua06 was served) | 95% or more | Pass, but easy set |
+| Frozen unanswerable | 26/27 (q115 served) | n/a | n/a |
+| Safety route | 1 of 4 (ua70, ua71 gave no support line; scorer failed ua72) | 100% | **FAIL** |
+| Generated text | ua66 and q112 reached the general model and produced prose | 0 | **FAIL** |
 
-3. **Dual Sync/Async Test Fixtures (`L-TEST-ASYNC-GATE-STUB-1`)**:
-   - Speculative execution architectures require tests to mock both synchronous and coroutine interfaces. Mocking only one leads to elusive test failures that only trigger when specific configuration flags are enabled.
+Other defects in Stage A as a measurement:
+- No backend log was saved. Errors, timeouts, spend state and cache hits are UNPROVEN.
+- The grader is weak: Haiku grades Haiku-family output; only 2 of 10 Haiku positives were re-checked by Opus; q057 is graded "showable" and "harmful" at once; no human labels exist.
+- The 116 questions are a **tuning set** (Harsha confirmed). Their numbers do not show generalisation.
+
+### 4.2 Graded run, Stages B and C. VOID.
+- The local OpenRouter budget cap ran out at request 61 of 202 in Stage B (first "spend limit reached" at 06:47:34Z). 142 of 202 rows ran with the LLM blocked. Their abstains came from the gate failing closed. Stage C (128 of 128 abstains in 1.2 to 1.4 s) ran on the same UTC day and is also void.
+- Cause (VERIFIED in the review): the local Redis guard, code defaults $10 a day, $40 a month. The flush script does not reset the budget key.
+- Fix applied: `backend/docker-compose.graded.yml` sets local caps $100 a day, $300 a month, guard on, fail closed. `graded_run_preflight.py` checks headroom and the log. `graded_capture.py` marks a run INVALID if the log has "spend limit" or "indeterminate". Production caps stay on (REPORTED: 3x margin, alert at 70%).
+- No valid Stage B or C result exists. The effect of the Stage A fixes is UNPROVEN.
+
+### 4.3 v11 (`first_person_v11`). Parked.
+- Built from the 74 buildable videos: only **9 videos** passed the speaker floors (140 spans + 9 parents; 41 new verified spans). 59 videos were skipped (processed or guided-meditation audio scores near 0 against both teachers). 6 had no valid spans. Final v11: 4,358 points (REPORTED).
+- Gate results: V1 to V6, V8, V9 pass; **V7 (blind listen) not done**; V10 partial.
+- **Incident:** an unidentified writer (host client, qdrant-client 1.19.1) edited the first v11 on 2026-10-31 at 13:03Z and 13:39 to 13:41Z. It re-set `speaker_verified=true` on 17 spans that had been demoted. v11 was dropped and rebuilt. The writer is still UNKNOWN.
+- Decision 2026-11-01 (Harsha): the graded run uses v10 now. v11 is a later add-on.
+
+### 4.4 Mac live-data audit of `first_person_v10` (read-only, at `dea7b44`). Four checks failed.
+REPORTED by the Mac session; the audit script is `scripts/ops/fp_live_audit.py`.
+
+| Check | Result | Cause | Next |
+|---|---|---|---|
+| C-L3 | 2 of 2,760 children: hash mismatch | UNKNOWN. ASSUMPTION: the 2 may be records without `record_type` (2,760 counted, 2,758 expected). | Re-run the audit at head (it now lists up to 20 point ids, rights-status counts and record types, `e67577d`). No payload text in any report. |
+| C-L5 | 2 point ids do not recompute | UNKNOWN. ASSUMPTION: possibly the same 2 records. | Same run. Compare the two id sets. |
+| C-L7 | 2,758 of 2,760 not `licensed` | UNKNOWN. ASSUMPTION: the builder no longer writes a literal "cleared" (`f87c0de`) and the graded run pins `FIRST_PERSON_SERVE_UNREGISTERED=true`, so the audit may expect a value the data was never meant to hold. | Report the values and counts. Check what the serve gate accepts. If the gate accepts the values in use, fix the audit's expectation with a test. Do not change data. Do not reopen the rights register. |
+| C-L8 | 16 payload indexes missing: `answer_role, boundary_status, category, completeness_status, corpus_version, domain_rights_status, end_ms, entity_ids, facet_ids, is_verbatim, provenance_kind, speaker_id, speaker_role, start_ms, tags, topic_ids` | The collection was built without them. | `scripts/ops/ensure_fp_span_indexes.py` (`5e23438`) creates them from `SPAN_INDEXES` in `first_person_context_store.py`. **Update 2026-11-07 (coordinator relay): the live creation is done (16 indexes; the collection now reports 4,226 points).** I did not see the run output. Re-run `fp_live_audit.py` to confirm C-L8 now passes. REPORTED, not re-checked. |
+
+**New fact to chase:** the point count is now **4,226**. The 2026-10-31 backfill post-checks recorded 4,224 ids (REPORTED). Two more points exist. ASSUMPTION: they are the 2 "extra" records behind 2,760 counted versus 2,758 expected children, and they may be the same 2 points behind C-L3 and C-L5. Nobody has said who or what added them, or when. Find out from the Qdrant log and the audit's point-id list before you edit any point.
+
+**Approved by Harsha (2026-11-07, relay): data fixes on live v10 for (a) the 2 bad points (C-L3, C-L5) and (b) `domain_rights_status` on the 2,758 children.** Conditions:
+1. Take a Qdrant snapshot first, and confirm its name and age (the backfill tool already refuses a snapshot older than 2 h; reuse that check).
+2. **No edit to quote text. No edit to `transcript_hash` or `source_text_hash`.** (`CLAUDE.md`: teacher quotes are verbatim; a text change must update both hashes in one transaction, so the only safe text change is none.)
+3. For (b): derive the value from the rights register through the same function the corpus builder uses (`f87c0de`). Do not type a value by hand. The value that belongs there is UNKNOWN to me. Write only the `domain_rights_status` key. Use the backfill pattern: export before, write allowlisted keys only, then prove point ids and count unchanged, text and both hashes unchanged on every point, vectors identical on a seeded sample, and zero write-rule violators.
+4. For (a): if a point's text does not match its hash, a hash edit is forbidden, so the fix cannot be "repair the hash". Allowed choices, least destructive first: stop it from being served with an existing non-servable marker; or delete the point after the snapshot. **Deleting is a one-way step for the live copy. Ask Harsha in the thread before you delete**, even though the data fix is approved.
+5. Dry run first. Show the diff counts. Then apply. Then re-run `fp_live_audit.py`. This is Opus lane work (data integrity); the Sonnet thread only reads and reports.
+
+Do not use `scripts/ops/ensure_fp_payload_indexes.py` for this. It serves the legacy store (`FirstPersonStore.PAYLOAD_INDEXES`), not the v10 context spans.
+
+### 4.5 The 25 s versus 12 s scorer-timeout conflict. Decided.
+- Conflict (VERIFIED in the Opus report): `test_graded_run_preflight.py` pinned 12 s; Sonnet's `6be465f` set `docker-compose.graded.yml` to 25 s; `test_runtime_budget.py` required 25 s. Both tests could not pass.
+- Decision D-PG13 (Harsha, 2026-11-07, "use A"): the graded run pins 12 s; the default stays 25 s elsewhere. Applied in `32c12c4` (compose + one-source test) and `dea7b44` (wording). 38 tests passed in the cloud for preflight, runtime budget and real-LLM goldens (REPORTED). Full suite after the change: UNPROVEN.
+- **Caveat (my reading, ASSUMPTION):** the commit text says the 12 s pin "cannot push a request past the 10 s p95 bar". That is not quite right. A 12 s timeout is longer than 10 s. It caps the tail. If more than 5% of requests wait for a timed-out scorer, p95 still exceeds 10 s. Stage A p95 was 12.5 s with a 5 s scorer timeout at the time; the scorer itself ran at a median 1.8 s, max 2.6 s (REPORTED). Measure; do not assume.
+
+### 4.6 Speaker backfill on live v10 (2026-10-31). Applied.
+- 745 writes. 4,224 ids, text and both hashes unchanged. 0 write-rule violators after. Net effect: **13 spans no longer served as verified** (11 demoted to `ecapa_failed`, 2 to `pending_voice_check`). Calibration id `9cf4b4156124e05866b7327cef24009e8906aae6c0c7479a80c8b86234da7044`, cosine floor 0.4854, margin 0.3862, FAR bound 0.21% (assumes independent trials, so the true bound is wider). REPORTED.
+- The 11 demoted clips need Harsha's listen (section 5, step 5).
+- Legacy `ecapa_voxceleb_centroid_v1` spans (2,005) remain served under a time-boxed exemption (R3).
+- D6 (bare `preethaji` / `krishnaji` codes in two label maps) was fixed in `dff0b39f` (REPORTED).
+
+### 4.7 Opus audit tasks (2026-11-06). Closed in code, nothing live.
+SYS-003 (partial), CQ-011, ANS-010/011, RET-17, SYS-001, OPS-001/002, NEW-ANS-8 (17 release-invariant cases), DATA-20 to 24, AI-009, NEW-SEC-5, NEW-AI-6 (27-case offline adversarial suite), SAFE-004 (code closed; needs human call verification). Each had a failing test first. Table with SHAs: Opus report. **Defects found in my own earlier work** (Opus final review): `c609c6f` and `024a881`. T7-02 SHAs `a7359225`, `0176739e`, `f38b1b70`, `10d5775a`, `39470bd3` in older notes are pre-rebase and do not exist; real ones: `a54373b`, `c89e1b9`, `baba3da`, `d177cd2`, `ec2e6da`.
+
+### 4.8 Sonnet platform tasks (2026-11-06 to 2026-11-07). Closed in code, nothing live.
+Ratchets (exception 724/9, seeker-text 0, teacher-literal 590/129), image pins, stage-order guard on docs, 10 benchmarks labelled `LEGACY_GENERATION_PATH`, live audit script, Locust staging file, accessibility (A11Y-01 to 16 partial), Kubernetes reference-only headers, Lovable guards. Nothing marked Closed; no Mac or CI proof.
+
+### 4.9 Things that did not work or were blocked
+- Mac Remote Control on 2026-11-06 20:25Z: approved, but the Mac never picked up the session.
+- The Mac blocks `git push` and `gh pr close` from threads. Harsha runs those in a terminal.
+- The git proxy returns 403 on branch deletes (2026-10-25, REPORTED).
+- `lightrag` / `tiktoken` cannot build in the cloud container, so tests that import them cannot run there.
+- `GITHUB search_*` MCP tools are off in this session. Use `gh api -X GET search/...` if you need search.
 
 ---
 
-## 7. Operational Checklist & Commands for Next Engineer
+## 5. The next step
 
-```bash
-# 1. Verify clean git state and branch sync
-git status
-git log -n 3 --oneline
+### Harsha's own list, in order (from his message of 2026-11-07)
+| # | Action | Notes and exact commands (check against current docs before you run them) |
+|---|---|---|
+| 1 | **Copy the Qdrant snapshot off the Mac.** | Why first: the live v10 collection exists once, on the Mac. The backup cron is not installed (REPORTED: RPO unbounded). Take a fresh snapshot first: `curl -s -X POST localhost:6333/collections/first_person_v10/snapshots`. List: `curl -s localhost:6333/collections/first_person_v10/snapshots`. Download: `curl -o <name> localhost:6333/collections/first_person_v10/snapshots/<name>`. Then `shasum -a 256 <name>` and copy file + hash to a drive or bucket that is not the Mac. (Snapshot REST paths: UNVERIFIED against the current Qdrant docs; confirm.) **Also copy** `~/mukthiguru_attribution_data/` (the audio archive is immutable source truth, `CLAUDE.md` invariant 17, and I found no backup of it other than `backups_2026-10-08`). Never print keys. |
+| 2 | **Set the provider spend limit and the Railway usage limit, with alerts.** | OpenRouter: set a credit or key limit in its dashboard. Railway: set a usage limit and alert in workspace billing. UI paths UNVERIFIED. Local graded caps ($100/day, $300/month) are for the eval container only. Production rule (REPORTED): sized from expected daily volume with a 3x margin, alert at 70%. The staging load run has its own cap (D-PE7: `SPEND_CAP_USD` 25, abort at 20). |
+| 3 | **Turn on required checks in GitHub**, if no thread can. | Settings > Branches > rule for `main` > require status checks. Enter **`release-invariants`** and **`lovable-guard`** (job names). Do **not** enter `lovable-pr-guard`. **Read the CI failure cause first (section 0, item 3).** A required check that always fails blocks every merge. Also enable "require a pull request". |
+| 3b | **Live v10 index creation: DONE** (16 indexes; 4,226 points; REPORTED by the coordinator, output not seen by me). | Confirm with `backend/.venv/bin/python scripts/ops/fp_live_audit.py --collection first_person_v10 --json after.json`: C-L8 should pass. Never run index, backfill or build jobs during the graded run. |
+| 3c | **Live v10 data fixes: APPROVED** (2 bad points C-L3 and C-L5; `domain_rights_status` on 2,758 children). Snapshot first. No edits to quote text or hashes. | Section 4.4 has the five conditions. Do this after step 1 (snapshot copied off the Mac) and **before** the graded run, so the run grades the data it will ship. The Opus agent does it; Harsha runs the Mac-side command if the Mac blocks a thread. |
+| 4 | **Run the graded clean-Docker run** on the final branch head, after both threads report their work pushed. | **Covered.** Flow: (1) both threads report "pushed" with the head SHA; (2) the coordinator sends the exact Docker commands; (3) **Harsha runs them** and pastes the output; (4) **one thread grades** the result (prompt 3 in `docs/handoffs/AGENT_PROMPTS_2026-11-07.md`). No agent runs Docker. The skeleton is in the header of `backend/docker-compose.graded.yml`: clean tree; `docker compose -f docker-compose.yml -f docker-compose.graded.yml up -d --build --force-recreate --no-deps backend`; `make flush-cache && make verify-cache-empty && make verify-stack-fresh`; `.venv/bin/python -m scripts.ops.graded_run_preflight --check-logs`; then `.venv/bin/python -m scripts.ops.graded_capture --run-id <id>`; then the grader. Rules: no other Docker user, no embedding or build jobs, no second Qdrant writer, one value changed per stage. |
+| 5 | **Listen to the 11 demoted clips.** | Source: backfill 2 (section 4.6). The next Opus thread must build a one-page list (video id, start ms, end ms, teacher, link to audio). A listen counts only if the reviewer chooses the span's own teacher and the clip is 2 s or longer (rule D2). Results go in through the write rule, not by hand-editing Qdrant. Exact point-id list location: UNKNOWN (probably `.work/speaker_2026-10-31/` on the Mac). |
+| 6 | **Add the Telugu crisis row to the test sheet.** | The sheet's exact file is UNKNOWN. Candidates: `docs/FIRST_PERSON_OWNER_TEST_GUIDE_2026-10-22.md` or `docs/FIRST_PERSON_OWNER_DECISION_AND_TEST_CHECKLIST_2026-10-22.md` (UNVERIFIED which). A native Telugu speaker must supply the phrase. An agent must not invent crisis wording and call it reviewed (`CLAUDE.md` Open work: multilingual crisis detection is AI-authored and AI-tested, NOT native-speaker reviewed). Native review file: `human-gates/safety/crisis_patterns_by_language.md`. |
+| 7 | **Rotate keys only after the graded run is graded.** | Rotate: OpenRouter, Supabase (service and anon), Qdrant (read and write), JWT secret, Redis password, Railway tokens. Treat the old Helm password literals as burned. The root `.env` OpenRouter key is stale (401, REPORTED 2026-10-23). Never paste a key into chat, a file or a commit. |
 
-# 2. Run fast backend sanity tests in Docker
-docker exec mukthiguru-backend pytest tests/test_repo_layout.py tests/test_first_person_pipeline.py
+### For the Opus agent (after the Mac check and CI cause are known)
+1. Re-run the Mac check at the head and report counts (shared with Sonnet; Opus reads the safety tests).
+2. Close the **Stage A safety gaps** (REPORTED in the memory index, 2026-11-01; I found no commit that closes them, so status is UNKNOWN): add heal / psychiatric / addiction to the health gate; add a clip-text support-line trigger; fix the grader rubric (q057 both showable and harmful; unverified speaker must count).
+3. Apply the decisions in section 7: D-PQ7 (`clip_ref` on the wire, update `test_citation_contract.py` on purpose), D-PQ9 (a system failure shows "try again", not "no recording found"), D-DQ1 (decide how to turn on `first_person_points_servable_hash_check_enabled`, and measure it before the graded run), D-PG16, D-16, D-03.
+4. Build the 11-clip listen list and the 50-clip human label sheet (section 6).
+5. Remaining Opus rows: SYS-003 staging c20 test, MEM-002 (D-PM4), dead `_context_sufficient` routing, purge or keep personas written before `1c5f3f2`, the Opus-owned silent exception handlers.
 
-# 3. Run frontend sanity verification
-npm test -- --run
-npx tsc --noEmit
-npm run build
-
-# 4. Check live backend health
-curl -s http://localhost:8000/api/health | jq .
-```
-
+### For the Sonnet agent
+Follow `/mnt/project-files/prompts/agent-prompt-railway-and-ops-2026-11-07.md`, plus: read one failed CI job log (section 0, item 3) and report the cause; fix the check-name guidance in `docs/` and `.github/` comments if they say `lovable-pr-guard`; Redis `noeviction` risk, unchecked `GIT_SHA` set, and the metrics refresh exception list from the Opus review (section 11.2 of the register); the 9 silent exception handlers outside Opus files; own images default to `latest` when `IMAGE_TAG` is unset.
 
 ---
 
-# Session Handoff — X40 Rights Lineage, Answer Quality, and Delivery
-**Date:** 2026-11-04 11:25 local · **Branch:** `feature/audit-strengthen-rag-qdrant` · **HEAD:** `d2511065` · **Upstream:** `origin/feature/audit-strengthen-rag-qdrant`
+## 6. What was learnt
 
-## 1. Goal
-Deliver editor-like first-person teachings without synthetic guru prose: select relevant clips across videos, keep each source quote verbatim and separate, preserve speaker/source attribution, enforce safety and curated rights, and present citations clearly. User explicitly approved X40 fail-closed code changes and accepts abstentions until authoritative status is registered and stamped. No rights-data edits, corpus writes, aliases, migrations, deployment, or paid provider requests are approved by that code approval.
+1. **A number from a void run is not a number.** Stages B and C produced attractive results (`p95 8.8 s`, `69/69`) while the LLM was switched off by a spend cap. The fix is mechanical: preflight checks headroom, capture marks the run INVALID, evidence is kept per run id (`graded_capture.py`).
+2. **A tuning set cannot grade itself.** The 116 questions shaped the gates. The 86 unanswerable items are mostly easy (0 of 38 drafts got a clip). Still missing: a held-out answerable set and human labels. Judge agreement with humans is about 81 to 85% in the literature (MT-Bench, per `final-pass-bar-2026-10-30.md`; UNVERIFIED by me). Harsha or faculty should label 50 or more served clips (about 49 give plus or minus 10 points at 85%; my arithmetic from the bar doc).
+3. **A flag is a claim.** Builders stamped `speaker_verified` with no evidence (732 spans claimed verified with no method). The write rule now refuses unproven stamps. The listen rule needed three fixes (D2, D3, D4).
+4. **Integrity field on v10 is `source_text_hash`.** `transcript_hash` holds the whole-transcript hash for 919 of 2,758 spans. Do not use it per span (`CLAUDE.md` invariants 2 and 13).
+5. **Docker copies the working tree.** A dirty tree or bind mount means the test ran different code than the commit. Hence the clean-tree preflight.
+6. **Names matter in CI.** A required check matches the job name, not the workflow name (section 0, item 4).
+7. **Tests that pin two values for one setting will fight.** The 12 s versus 25 s conflict. One source of truth, one decision, both tests updated.
+8. **Short CI failures hide the real answer.** 30 failures in seconds say "the jobs did not run your code", until someone reads a log.
+9. **Review your own commits.** The Opus final review of 49 commits found two defects in its own work and four notes on Sonnet's. Plan a second pair of eyes for every thread.
+10. **A scorer timeout is a tail cap, not a latency fix.** See section 4.5.
 
-## 2. Current code and runtime state
-The working tree contains **50 changed/untracked paths**, all unstaged/uncommitted; HEAD and upstream still point to `d2511065`. X40 code now overrides supplied status from the curated resolver, fails closed in both first-person stores and the bridge, carries status through typed spans/citations, validates current rights at serving/cache boundaries, and rejects ID-only replay. Recent context citations derive first-person eligibility from typed role, verified speaker, verbatim hash, legacy rights bit, canonical rights and current resolver. UI work keeps excerpts as separate quote segments/cards, not a synthetic concatenated teacher sentence. Other uncommitted source work includes Phase 3/4 runtime wiring, safety policy corrections, bounded editorial selection, public metadata projection, UI grouping/attribution, and safe Redis DB15 test bootstrap.
+---
 
-`backend/.env` reports `IS_PRODUCTION=false`, `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false`, `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=false`, `FIRST_PERSON_LOCAL_REVIEW_ENABLED=true`, `FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED=false`, and `FIRST_PERSON_GRAPH_EXPANSION_ENABLED=false`. These are distinct controls: owner-only local review is enabled; public context serving, terminal mode, and graph expansion remain off. X5/X6 public-release NO-GO and X40 rights gates still bind. Direct current-container flag inspection was blocked by permission denial on `~/.docker/run/docker.sock`; no post-X40 Docker rebuild occurred.
+## 7. Decisions already made (do not re-ask)
 
-The read-only Supabase audit found 70 topic-matched query/response rows, 30 citations, zero `retrieval_events`, and **zero local `public.source_releases` rows**; citation video/span identities had no local release joins. This does not prove any material is licensed. Do not create rights rows or reindex without separate approval.
+| ID | Decision | Source | Status |
+|---|---|---|---|
+| D-16 | Taken as recommended. Recommended text (register): record a dated price entry for the relevance scorer, consider the consolidated judge. The evidence judge stays **default off** until the frozen-bank comparison. Exact model chosen: UNKNOWN. | Coordinator relay 2026-11-07 | Applied: judge default off (`3e2882f`) |
+| D-DQ1 | Yes: the legacy store's `points_servable` compares text and hash. | Spec text "Recommendation: yes" | Code exists, flag default **off** (`087af0a`). Turning it on is a live behaviour change. Measure first. |
+| D-PG16 | Taken as recommended. The spec lists the question; I found no stated recommendation. Code default today: flag for review, drop mode exists and is off. Exact choice: UNKNOWN. | Relay | Confirm with Harsha before enabling drop mode |
+| D-PQ7 | Yes: put a clip reference on the wire as `clip_ref` (uuid5 over hash and offsets; holds no secret). | Spec text | Not built. `test_citation_contract.py` forbids `point_id`; update it deliberately. |
+| D-PQ9 | Yes: a system failure (for example a scorer timeout) shows "try again" copy, not "no recording found". | Register text | Not built |
+| D-03 | Yes, behind a flag, owner-only review first, teachers' organisation consent before public. **Conflicts with `CLAUDE.md` invariants 1, 15, 21** (no generated text). Keep it default off; keep Engine 3 off while `FIRST_PERSON_LLM_FALLBACK_ENABLED=false`. | Register text | Not built |
+| Outside-India crisis line | Taken as recommended. **Conflict:** Harsha decided on 2026-11-06 that the distress answer keeps **call-verified lines only** (Tele-MANAS today, no 112 and no non-India line until call dates are recorded). `test_helplines_verified_everywhere.py` enforces this. Do not ship an unverified number. Exact recommended line: UNKNOWN. | Relay vs Pending List | Needs Harsha to confirm which wins |
+| D-26 | External `QDRANT_URL`; no Qdrant service on Railway | `b119aa9` | Repo change done. Live URL UNPROVEN |
+| D-14 | v10-only | `b119aa9` | Clean-Docker start UNPROVEN |
+| D-29 | Faculty access code is the only staging gate (`FACULTY_ACCESS_CODE` set in the dashboard) | `b119aa9` | UNPROVEN |
+| D-30 | Celery worker and beat on; `INCLUDE_CELERY` is the one switch | `b119aa9` | UNPROVEN on Railway |
+| D-24 | Lovable by PR only | guards `78ac150` to `5ce3bc9` | Needs required checks |
+| D-PK8S1 | Kubernetes files are reference only | `9e0eb4b`, `49f9e85` | Done |
+| D-PA11Y6 | No new dependency; axe only. (The register's proposal said approve `eslint-plugin-jsx-a11y`. Harsha chose axe only.) | Relay | Done |
+| D-PG13 | Graded scorer timeout 12 s; default stays 25 s | `32c12c4`, `dea7b44` | Applied |
+| D-PE7 | **Approved: USD 25 hard cap for the staging load run; the harness stops at USD 20.** Harsha removed the earlier condition that he must type "yes, USD 25" in the project chat (relay 2026-11-07 01:06Z). | Relay; `backend/benchmarks/fp_staging_load.py` | Run not started (no staging exists) |
+| Indexes | Create the 16 live indexes | Register; relay | **Done** (REPORTED: 16 indexes, 4,226 points). I did not see the output. |
+| Live v10 data fixes | Approved: the 2 bad points (C-L3, C-L5) and `domain_rights_status` on 2,758 children. Backup first. No edits to quote text, `transcript_hash` or `source_text_hash`. | Harsha, relay 2026-11-07 01:06Z ("its ok, you can do those") | Not started. Delete of a point still needs Harsha's word (section 4.4) |
+| Graded-run go-ahead | After both threads report work pushed, the coordinator sends the exact Docker commands. Harsha runs them. One thread grades. | Harsha, relay 2026-11-07 01:06Z | Waiting for both pushes |
+| Required checks | `release-invariants` and `lovable-pr-guard` approved. Use the job name `lovable-guard`. | Register | Not set |
 
-The read-only Supabase audit found 70 topic-matched query/response rows, 30 citations, zero `retrieval_events`, and **zero local `public.source_releases` rows**; citation video/span identities had no local release joins. This does not prove any material is licensed. Do not create rights rows or reindex without separate approval.
+Earlier decisions (REPORTED, memory index): v10-only; graded run uses v10; pass bar approved; p95 stays 10 s; do not drop the 732 clips; do not use `FIRST_PERSON_REQUIRE_VOICE_METHOD` as a workaround; the 116 questions are a tuning set; rights are settled by Harsha (said twice; do not raise the register); pre-public items deferred (clinician sign-off, rights message, helpline call dates); key rotation after the graded run; crisis threshold 0.72; Railway stays stopped until the local sweep passes and the PR is merged.
 
-## 3. Files actively changed
-Core backend: `backend/services/qdrant/indexer.py`; new `backend/services/first_person_rights.py`; `backend/services/first_person_store.py`; `backend/services/first_person_context_store.py`; `backend/services/first_person_context_harness.py`; `backend/services/first_person_pipeline.py`; `backend/domain/first_person_context.py`; `backend/app/pipeline/stages/first_person_bridge.py`; `backend/app/api/first_person.py`; `backend/app/config.py`; safety/evidence/selector modules; new `backend/services/first_person_public_projection.py`.
+---
 
-Frontend: `src/components/chat/ChatMessage.tsx`, `src/lib/chat/teachingPreview.ts`, `src/lib/chat/types.ts`, `src/lib/firstPersonService.ts`, `src/pages/TeacherWords.tsx`.
+## 8. What Harsha may have missed (my judgment)
 
-Tests and isolation: `backend/tests/conftest.py`, new `backend/tests/redis_url_safety.py`, plus X40/serving/pipeline/bridge/context, safety, payload, attribution and wiring tests including `test_rights_register_lookup.py`, `test_first_person_store.py`, `test_first_person_context_store.py`, `test_first_person_context_serving.py`, `test_first_person_pipeline.py`, `test_first_person_bridge.py`, `test_citation_contract.py`, `test_unverified_clip_serving_gate.py`, and related modules. Docs: `lessons.md`, `docs/PRODUCT_OPPORTUNITIES.md`, this handoff, and `.claude/tasks/first_person_trace_audit_budget_guard_and_delivery_2026-11-04.md`. Full inventory: `git status --short`.
+1. **Section 0 items 1 to 4.** The merged-PR confusion, the 4 commits on `main`, the failing CI, and the wrong check name.
+2. **The pass bar and the pin disagree.** Hard gate H2 allows 0 served clips with an unverified speaker. The graded compose pins `FIRST_PERSON_REQUIRE_VOICE_METHOD: "false"` (O3, "do not use it as a workaround"). Stage A served 13 of 33 with an unverified speaker. As configured, the run is likely to fail H2 by design. Decide before the run: either the run reports H2 as "measured, owner-accepted" or it does not. The backfill changed which spans count as verified, so the number will differ. ASSUMPTION: it will not drop to 0.
+3. **The graded run does not test what Railway will run.** It sets `CELERY_TASK_ALWAYS_EAGER=true`, uses local Qdrant, no faculty code, and Redis without Railway's policy. Plan a short Railway staging smoke test after deploy: health, one served clip, one abstain, one crisis route, worker alive, `GIT_SHA` set.
+4. **The Opus review flagged a Redis risk.** Railway Redis on `noeviction` holds cache and quota. When 512 MB fills, all writes fail (REPORTED, register 11.2).
+5. **One copy of everything.** Live Qdrant, the audio archive and `~/mukthiguru_attribution_data/` live on one Mac. See step 1.
+6. **The public-repo P0 is separate from the rights register.** Register rows X-06 and IP-001 (P0, "Needs owner decision", decision D-01): the repository is described as public and tracks verbatim text for 2,737 served spans. This is about repository visibility, not about permission to ingest videos. I am not reopening rights. Harsha should still choose private repo or purge before anything goes public. REPORTED; I did not check the repo's current visibility.
+7. **"Amma Bhagavan" is not started in code, as far as I could see.** ASSUMPTION. Stage A already served a wrong clip for an Amma Bhagavan "Golden City" question (ua74). Adding a teacher touches 590 hard-coded teacher-name lines in 129 files (the ratchet counts them; nobody replaced any). Plan this as its own phase after the first graded result.
+8. **The Stage A safety gaps may still be open.** I found no commit for them (section 5, Opus step 2). Do not run the graded run until they are closed or Harsha accepts them in writing.
+9. **Local spend guard is off in `backend/.env`** (`OPENROUTER_BUDGET_GUARD_ENABLED=false`, REPORTED). This caused 13 local test failures. The graded compose forces it on. Do not rely on `.env` for the run.
+10. **Add a lesson.** Suggested: `L-REQUIRED-CHECK-NAME-IS-JOB-NAME-1` (search `lessons.md` for an existing one first). I did not add it, because other threads write to that file.
+11. **Mac permission prompts cannot be approved from chat.** Plan all commit, push and delete steps as commands Harsha runs.
+12. **Hidden-cost reminder.** The Stage A grader uses OpenRouter calls (Haiku, then Opus on 25 rows). A re-run of 202 rows plus grading has a real cost. Check the headroom first (the preflight does).
 
-## 4. What was tried and what failed
-- Prior Love live smoke hit OpenRouter daily/monthly reservation limit. Answerability became indeterminate; retrieval candidates were withheld before reranking/relevance and zero citations were emitted. No spend-limit bypass/reset/raise was attempted. No new dedicated $0.25 provider hard-cap key plus `READY` was supplied, so no paid query was sent in this session.
-- Before X40 code, full backend quality was **12,577 passed, 11 failed, 22 skipped, 3 deselected, 1 xfailed; 70.39% coverage**. Ten bridge fixtures failed the legacy boolean rights gate; one rhetorical-tail fixture was actually a complete question. Adding only the canonical field did not fix the legacy gate, confirming `rights_cleared` alone is separate from X40.
-- First X40-focused attempt: **528 passed, 41 failed**. Main issue was old synthetic fixtures missing explicit lineage; context typed citations also lacked derived `first_person_eligible`. Corrected the context projection and test-local resolver stubs/fixtures. A later focused attempt had two failures (cached legacy fixture missing full lineage; teacher-diversity fixture missing evidence); both fixtures were corrected.
-- Final focused backend run: **610 passed, 1 live-Qdrant integration deselected**. Python compile, Ruff lint/format, and `git diff --check` passed.
-- Full `make quality`: **12,507 passed, 85 failed, 36 skipped, 3 deselected, 1 xfailed; 70.04% coverage**; 59% coverage floor met, but suite is not green. Ruff, format, Bandit, and JWT/backdoor guard advanced to pytest. Failures span 21 modules; multiple first-person failures log the stricter integrity gate rejecting old synthetic clips without canonical status/register test setup. Answerability/thread failures returned indeterminate under deliberate provider-egress blocking and need separate test-double diagnosis. The run took 8m17s. Do not describe it as a passing full suite.
-- Frontend run: **164 files passed, 1 skipped; 1,052 tests passed, 6 skipped**; TypeScript, ESLint and production build exited successfully; 29 prerendered routes.
-- Direct read-only Docker inspection failed with local permission denial to the Docker socket. No `make docker-rebuild-web`, no container health/log verification, no post-rebuild Love/anxiety request, and no commit/push. Docker rebuild remains gated on a green full suite and usable safe-wrapper access.
+---
 
-## 5. Next step
-Triage the 85 failures by exact module and cause. Update synthetic test records to explicitly carry `domain_rights_status="licensed"`, `rights_cleared=True`, and the other required evidence only where a test intends a compliant source; install test-local current-register stubs for those synthetic sources. Preserve tests for missing, revoked, conflicting and forged status; never weaken runtime gates to make fixtures pass. Separately repair provider/async test doubles so tests remain deterministic with egress blocked. Run focused tests, then full `make quality` again.
+## 9. Verified, assumed, unknown (summary)
 
-Only after the full backend and frontend gates are green, attempt `make docker-rebuild-web` through `scripts/docker-safe.sh` (frontend/backend only; no data services or volumes). Verify health, logs, and flags. Do not enable public context/terminal/graph flags: X5/X6 and open rights/evidence gates prohibit that. If live answer quality is needed, first require the new isolated provider key with a hard $0.25 cap and the user's explicit `READY`; do not use the existing key. Commit and push only after green tests and staged-scope review.
+**Verified (this session):** branch head `5e23438`; 188 ahead, 4 behind `main`; PR #86 merged 2026-11-03; PR #97 open; 30 of 32 check runs failed in seconds at head; job names `release-invariants` and `lovable-guard`; `backend/docker-compose.graded.yml` pins 12 s; `32c12c4` and `dea7b44` content; the Stage A table (from the review document); two index scripts exist and the span one is correct for v10; register "Decisions recorded 2026-11-07" block.
 
-## 6. Learnings and results
-`rights_cleared=True` is a legacy boolean, not a license record. `setdefault` permits caller-supplied stale/forged status to survive; register-derived status must overwrite it. Every retrieval, hydration, citation, bridge and cache path needs the same fail-closed rights lineage. Focused suites can miss older test factories, so the full suite is essential after contract hardening. Typed context passed its own harness but previously failed shared pipeline eligibility; derive that metadata from the actual verified typed evidence rather than adding prose or weakening gates. The local release registry is empty, so abstention is the honest current-data outcome.
+**Assumptions:** the cause of the 4 live-data failures (section 4.4); the CI failures are an environment problem, not a code problem; H2 will fail as configured; Amma Bhagavan work not started; 12 s timeout does not guarantee p95 under 10 s.
 
-Public harness is disabled because first-person public release remains NO-GO (B5/B7/X40, plus provenance/review closure), not because the advanced code is discarded. `FIRST_PERSON_LOCAL_REVIEW_ENABLED=true` is an isolated owner review control; it is not public release. Terminal/graph expansion are additive experimental features and remain default-off until evidence/rights, held-out quality and release gates close.
+**Unknown:** the CI failure cause; whether the Stage A safety gaps are closed; the exact recommended values for D-16, D-PG16 and the outside-India line; the file for the test sheet; the location of the 11 demoted point ids; whether the repo is public today; who wrote to v11 on 2026-10-31; why q077 took 98 s in Stage A.
 
-## 7. Additional decision record
-**Editorial one-liner:** Not yet end-to-end; the code can keep relevant multi-video evidence in separate, attributed verbatim cards, but current rights data is empty locally, the public harness is off, the full backend suite is red, and no successful live answer/A-B comparison has been demonstrated. Release remains NO-GO. Code-review-graph MCP was not available in the active server list; final review used focused tests and local diffs instead.
+**Unproven:** everything live. No Docker, Qdrant, Supabase, Railway or OpenRouter use was made in writing this handoff. Verdict stays **NO-GO**.
 
+---
 
-**Audit-scope clarification:** References above to “empty locally” mean zero rows in audited Supabase `public.source_releases` and no joins for those 30 recorded citations. They do **not** assert that the separate curated manifest contains no assets; each served source still needs an authoritative resolver match.
+## Checks you can run
 
-**Execution-policy note:** The background runner also reported a denied file-create attempt under `/app`; the saved `make-quality.log` nevertheless contains the complete pytest summary and coverage. Treat the `/app` denial as a separate environment-policy warning, not as evidence that the suite passed or as the sole explanation for its 85 failed tests.
+1. `git fetch origin && git log --oneline -1 origin/feature/audit-strengthen-rag-qdrant` shows the head. `git rev-list --count origin/main..origin/feature/audit-strengthen-rag-qdrant` shows 188 or more. `git rev-list --count origin/feature/audit-strengthen-rag-qdrant..origin/main` shows 4.
+2. Open PR #97 and PR #86 on GitHub. #86 says Merged. #97 says Open.
+3. Open one failed check on #97 (for example `release-invariants`). Read the first error line. Write it into the Pending List.
+4. `grep -n "name:\|lovable-guard" .github/workflows/lovable-pr-guard.yml` shows workflow `lovable-pr-guard` and job `lovable-guard`.
+5. `grep -n RELEVANCE_TIMEOUT backend/docker-compose.graded.yml` shows `"12"`.
+6. `backend/.venv/bin/python scripts/ops/ensure_fp_span_indexes.py` (dry run) lists no missing index, and `fp_live_audit.py` C-L8 passes. Point count reads 4,226.
+7. `python3 scripts/guards/lesson_guards.py claims` exits 0 on this file.
