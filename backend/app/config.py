@@ -1566,6 +1566,8 @@ class Settings(BaseSettings):
     # stamp. Defaults False: flipping this on today would block ~100% of the live
     # corpus, a production-affecting call this agent will not make unilaterally.
     serve_only_registered_sources: bool = False
+    # Video streaming rights gate (SEC-002 / T1-08). Only allow streaming videos with 'licensed' rights status.
+    video_stream_rights_gate_enabled: bool = True
     # Governed source publication is opt-in until approval/rollback staging drills pass.
     corpus_release_registry_enabled: bool = False
     corpus_release_fallback_version: int = 1

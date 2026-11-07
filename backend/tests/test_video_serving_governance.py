@@ -96,6 +96,10 @@ def media_client(tmp_path, monkeypatch, decisions_dir):
     video = tmp_path / f"{VID}.mp4"
     video.write_bytes(bytes(range(256)) * 4)  # 1024 bytes
     monkeypatch.setattr(ingest_api, "_resolve_video_file_path", lambda _vid: str(video))
+    monkeypatch.setattr(
+        "services.qdrant.indexer.resolve_source_rights_status",
+        lambda source_url="", video_id="": "licensed",
+    )
     app = FastAPI()
     app.include_router(ingest_api.router, prefix="/api")
     return TestClient(app)

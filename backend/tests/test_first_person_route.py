@@ -27,10 +27,12 @@ class _PassRail:
 def _enable_route(monkeypatch):
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
     monkeypatch.setattr(settings, "first_person_route_enabled", True)
+    client.headers["X-Session-Id"] = "anon:test-session"
     from app.api.first_person import _pipeline
 
     _pipeline.cache_clear()  # a pipeline cached by one test must not leak into the next
     yield
+    client.headers.pop("X-Session-Id", None)
     _pipeline.cache_clear()
 
 

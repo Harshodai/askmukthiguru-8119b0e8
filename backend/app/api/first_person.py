@@ -14,6 +14,7 @@ from typing import Any, Literal, Optional
 
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -21,7 +22,13 @@ from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container_async
 from app.language_utils import guardrail_text_for
 from app.orchestrator_utils import _translate_cached
-from services.auth_service import require_aal2, require_admin
+from services.auth_service import (
+    get_optional_user,
+    require_aal2,
+    require_admin,
+    resolve_anon_identity,
+)
+from services.cost_tracker import get_cost_tracker
 from services.first_person_pipeline import FirstPersonPipeline, serve_first_person
 from services.first_person_public_projection import public_editorial_set_metadata
 from services.first_person_store import FirstPersonStore
@@ -50,6 +57,12 @@ class FirstPersonQueryRequest(BaseModel):
         False,
         description="Evaluation control: skip the exact-answer cache read and write for "
         "this request (same meaning as ChatRequest.cache_bypass).",
+    )
+    session_id: Optional[str] = Field(
+        None,
+        max_length=128,
+        description="Anonymous session token from POST /api/auth/anon-session. "
+        "Required for anonymous callers; authenticated callers may omit it.",
     )
 
 
@@ -297,8 +310,9 @@ async def _add_glosses(
 async def query_first_person_teaching(
     req: FirstPersonQueryRequest,
     request: Request,
+    user: Optional[dict] = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container_async),
-) -> FirstPersonQueryResponse:
+) -> FirstPersonQueryResponse | JSONResponse:
     """
     Query first-person verbatim recordings of Sri Preethaji and Sri Krishnaji.
     Returns exact timestamped pointers to authentic teacher discourse.
@@ -310,6 +324,48 @@ async def query_first_person_teaching(
         raise HTTPException(
             status_code=404,
             detail="First-person verbatim mode is currently disabled.",
+        )
+
+    # Auth & anonymous quota protection (SEC-001 / D-07 / T1-08)
+    session_id = req.session_id or request.headers.get("X-Session-Id")
+    if not user or user.get("is_anonymous"):
+        if not session_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Authentication token or anonymous session token required.",
+            )
+        user = resolve_anon_identity(user or {"id": "anonymous", "is_anonymous": True}, session_id)
+
+        # Enforce anonymous turn quota
+        anon_quota_service = getattr(container, "anon_quota_service", None)
+        if anon_quota_service is not None:
+            quota = await anon_quota_service.check_and_record(user)
+            if quota.quota_exceeded:
+                headers = {}
+                if quota.retry_after_seconds:
+                    headers["Retry-After"] = str(quota.retry_after_seconds)
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": "Anonymous quota exceeded",
+                        "detail": "Sign in to continue the conversation.",
+                        "quota_exceeded": True,
+                        "remaining": quota.remaining,
+                        "total_limit": quota.total_limit,
+                        "retry_after_seconds": quota.retry_after_seconds,
+                    },
+                    headers=headers,
+                )
+
+    # Per-user daily spend cap
+    check_user_id = user.get("id", "anonymous") if user else "anonymous"
+    if get_cost_tracker().is_user_over_budget(check_user_id):
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": "User daily budget exceeded",
+                "detail": "You have reached your daily usage limit. Please try again tomorrow.",
+            },
         )
 
     llm_service = (

@@ -580,6 +580,17 @@ async def stream_video_endpoint(
     if video_is_blocked(os.path.splitext(os.path.basename(file_path))[0]):
         raise HTTPException(status_code=404, detail=f"Video '{video_id}' not found")
 
+    # Rights gate (SEC-002 / T1-08): stream only if video rights status is cleared ("licensed")
+    if getattr(settings, "video_stream_rights_gate_enabled", True):
+        from services.qdrant.indexer import resolve_source_rights_status
+
+        rights_status = resolve_source_rights_status(source_url="", video_id=video_id)
+        if rights_status != "licensed":
+            raise HTTPException(
+                status_code=403,
+                detail=f"Video '{video_id}' is not cleared for streaming (rights status: '{rights_status}')",
+            )
+
     file_size = os.path.getsize(file_path)
     content_type = "video/mp4"
     if file_path.endswith(".webm"):
