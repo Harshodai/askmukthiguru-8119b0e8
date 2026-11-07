@@ -39,14 +39,12 @@ from app.sanitization import sanitize_log_input
 logger = logging.getLogger(__name__)
 
 
-# Default teacher personality fragments (Phase E5 stub).
+# Default teacher personality fragments aligned with licensed Ekam/O&O Academy teachers (GURU-011).
 # Overridable via settings.teacher_personalities (JSON string).
 DEFAULT_TEACHER_PERSONALITIES: dict[str, str] = {
-    "sadhguru": "Speak with the direct, earthy, and pragmatic tone of a yogi.",
     "preethaji": "Speak with warmth, stillness, and a focus on the Beautiful State.",
     "krishnaji": "Speak with clarity, pointing to ego observation and presence.",
     "amma_bhagavan": "Speak with the inclusive voice of the Oneness Movement.",
-    "iskcon": "Speak with devotional warmth rooted in Bhakti Yoga and Lord Krishna.",
 }
 
 

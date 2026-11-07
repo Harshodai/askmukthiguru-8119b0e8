@@ -741,6 +741,7 @@ def _stream_done_metadata(result) -> dict:
         "release_manifest": getattr(result, "release_manifest", None)
         or get_release_manifest().to_dict(),
         "provenance_manifest": _provenance_manifest_for_result(result),
+        "route_metadata": getattr(result, "route_metadata", {}) or {},
     }
 
 
