@@ -80,3 +80,11 @@ def test_policy_rejects_invalid_latency_preferences():
         OpenRouterModelPolicy.from_settings(_settings(openrouter_provider_sort="random"))
     with pytest.raises(ModelPolicyError, match="thresholds"):
         OpenRouterModelPolicy.from_settings(_settings(openrouter_preferred_max_latency_p90=3.0))
+
+
+def test_policy_permits_first_person_relevance_model():
+    policy = OpenRouterModelPolicy.from_settings(
+        _settings(first_person_relevance_model="anthropic/claude-haiku-5.5")
+    )
+    policy.assert_model_allowed("anthropic/claude-haiku-5.5")
+

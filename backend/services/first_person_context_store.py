@@ -527,6 +527,8 @@ class FirstPersonContextStore:
                 ):
                     continue
                 contexts.append(context)
+                if len(contexts) >= limit_parents:
+                    break
             except FirstPersonContextStoreError:
                 logger.warning("[ContextStore] dropping invalid parent context")
         return contexts
@@ -595,7 +597,7 @@ class FirstPersonContextStore:
                     out.append((str(group.id), span_ids, score))
                 if out:
                     out.sort(key=lambda item: item[2], reverse=True)
-                    return out[:limit_parents]
+                    return out
             except Exception as exc:  # pragma: no cover - API/version dependent
                 logger.debug("[ContextStore] grouped query unavailable: %s", exc)
 
@@ -683,7 +685,7 @@ class FirstPersonContextStore:
             for parent_id, bucket in grouped.items()
         ]
         out.sort(key=lambda item: item[2], reverse=True)
-        return out[:limit_parents]
+        return out
 
     def fetch_parent_context(
         self,

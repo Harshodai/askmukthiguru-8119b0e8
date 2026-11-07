@@ -178,3 +178,23 @@ def test_context_standalone_rejects_dangling_enumeration():
     decision = first_person_evidence_policy.assess_context_standalone((text,))
     assert decision.action is EvidenceAction.EXCLUDE
     assert "orphan_opener" in decision.reason_codes
+
+
+def test_context_standalone_rejects_pronoun_orphan_openers():
+    text = (
+        "Their kindness can transform an entire community. When attention is quiet, "
+        "understanding arises naturally in the heart."
+    )
+    decision = first_person_evidence_policy.assess_context_standalone((text,))
+    assert decision.action is EvidenceAction.EXCLUDE
+    assert "orphan_opener" in decision.reason_codes
+
+
+def test_context_standalone_rejects_dangling_affirmation_tail():
+    text = (
+        "Suffering is when you obsess about yourself instead of connecting to life. "
+        "Bring attention to the thought process and intelligence flows. Yes."
+    )
+    decision = first_person_evidence_policy.assess_context_standalone((text,))
+    assert decision.action is EvidenceAction.EXCLUDE
+    assert "dangling_affirmation_tail" in decision.reason_codes

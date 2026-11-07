@@ -58,7 +58,7 @@ _RHETORICAL_OPENER_RE = re.compile(
 _ORPHAN_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:yes(?:,|[^\w\s])\s*|(?:this|these|those|that)\s+(?:is|are|was|were)\b|these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
     r"|and\b|but\b|or\b|then\b|which\b|that\s+is\s+why\b"
-    r"|(?:it\b(?!\s*(?:is|was|['\u2019]s)\b)|(?:they|them|he|him|she|her)\b)|we\s+need\s+them\b|definitely\b"
+    r"|(?:it\b(?!\s*(?:is|was|['\u2019]s)\b)|(?:they|them|their|theirs|he|him|his|she|her|hers)\b)|we\s+need\s+them\b|definitely\b"
     r"|i\s+(?:led|told|asked|gave|showed|took)\s+(?:him|her|them)\b"
     r"|i\s+(?:cannot|can't|couldn't)\s+help\s+(?:this|that|him|her|them)\b"
     r"|he\s+or\s+she\s+will\b"
@@ -121,6 +121,10 @@ _DANGLING_QUESTION_TAIL_RE = re.compile(
     r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you|when\s+[^?]{3,80},\s*what\s+do\s+you\s+do)\s*\?\s*$",
     re.IGNORECASE,
 )
+_DANGLING_AFFIRMATION_TAIL_RE = re.compile(
+    r"(?:[.!?]\s+)(?:yes|okay|alright)\s*[.?!]?\s*$",
+    re.IGNORECASE,
+)
 
 _TARGET_PERSON_PHRASE = (
     r"(?:her|him|them|me|you|(?:(?:a|an|the|his|her|their|my|your|our)\s+)?"
@@ -177,6 +181,8 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "ends_mid_sentence"
     if _DANGLING_QUESTION_TAIL_RE.search(stripped):
         return "dangling_question_tail"
+    if _DANGLING_AFFIRMATION_TAIL_RE.search(stripped):
+        return "dangling_affirmation_tail"
     if _DISCOURSE_OPENER_RE.match(text) or _LATE_ORDINAL_OPENER_RE.match(text):
         return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(text):
@@ -217,6 +223,8 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
     # that still ends in a dangling rhetorical question.
     if _DANGLING_QUESTION_TAIL_RE.search(whole.rstrip()):
         return "dangling_question_tail"
+    if _DANGLING_AFFIRMATION_TAIL_RE.search(whole.rstrip()):
+        return "dangling_affirmation_tail"
     return None
 
 
