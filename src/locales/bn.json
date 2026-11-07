@@ -359,8 +359,8 @@
     "thanks": "শেয়ার করার জন্য ধন্যবাদ। 🙏",
     "listening": "শুনছে",
     "speak": "বলুন",
-    "streakRooting_one": "{{count}} দিনের ধারাবাহিকতা — আপনার সুন্দর অবস্থা রূপ নিচ্ছে!",
-    "streakRooting_other": "{{count}} দিনের ধারাবাহিকতা — আপনার সুন্দর অবস্থা রূপ নিচ্ছে!",
+    "streakRooting_one": "{{count}} দিনের ধারাবাহিক অনুশীলন নথিভুক্ত",
+    "streakRooting_other": "{{count}} দিনের ধারাবাহিক অনুশীলন নথিভুক্ত",
     "streakKeepGoing_one": "{{count}} দিনের ধারাবাহিকতা — চালিয়ে যান!",
     "streakKeepGoing_other": "{{count}} দিনের ধারাবাহিকতা — চালিয়ে যান!"
   },

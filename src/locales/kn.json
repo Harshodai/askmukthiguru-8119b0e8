@@ -359,8 +359,8 @@
     "thanks": "ಧನ್ಯವಾದಗಳು ನಿಮ್ಮ ಹೇಳಿಕೆಗೆ. 🙏",
     "listening": "ಆಲಿಸುತ್ತಿದೆ",
     "speak": "ಮಾತನಾಡಿ",
-    "streakRooting_one": "{{count}} ದಿನದ ಸರಣಿ — ನಿಮ್ಮ ಸುಂದರ ಸ್ಥಿತಿ ನೆಲೆಗೊಳ್ಳುತ್ತಿದೆ!",
-    "streakRooting_other": "{{count}} ದಿನಗಳ ಸರಣಿ — ನಿಮ್ಮ ಸುಂದರ ಸ್ಥಿತಿ ನೆಲೆಗೊಳ್ಳುತ್ತಿದೆ!",
+    "streakRooting_one": "{{count}} ದಿನದ ನಿರಂತರ ಅಭ್ಯಾಸ ದಾಖಲು",
+    "streakRooting_other": "{{count}} ದಿನಗಳ ನಿರಂತರ ಅಭ್ಯಾಸ ದಾಖಲು",
     "streakKeepGoing_one": "{{count}} ದಿನದ ಸರಣಿ — ಮುಂದುವರಿಸಿ!",
     "streakKeepGoing_other": "{{count}} ದಿನಗಳ ಸರಣಿ — ಮುಂದುವರಿಸಿ!"
   },

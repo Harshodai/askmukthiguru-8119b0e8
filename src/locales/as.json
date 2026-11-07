@@ -359,8 +359,8 @@
     "thanks": "ভাগ-বতৰা কৰাৰ বাবে ধন্যবাদ। 🙏",
     "listening": "শুনি থকা হৈছে",
     "speak": "কওক",
-    "streakRooting_one": "{{count}} দিনৰ ধাৰাবাহিকতা — আপোনাৰ সুন্দৰ অৱস্থা শিপাইছে!",
-    "streakRooting_other": "{{count}} দিনৰ ধাৰাবাহিকতা — আপোনাৰ সুন্দৰ অৱস্থা শিপাইছে!",
+    "streakRooting_one": "{{count}} দিনৰ নিৰন্তৰ অনুশীলন লিপিবদ্ধ",
+    "streakRooting_other": "{{count}} দিনৰ নিৰন্তৰ অনুশীলন লিপিবদ্ধ",
     "streakKeepGoing_one": "{{count}} দিনৰ ধাৰাবাহিকতা — চলাই যাওক!",
     "streakKeepGoing_other": "{{count}} দিনৰ ধাৰাবাহিকতা — চলাই যাওক!"
   },

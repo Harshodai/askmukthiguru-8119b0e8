@@ -359,8 +359,8 @@
     "thanks": "பகிர்ந்தமைக்கு நன்றி. 🙏",
     "listening": "கேட்கிறது",
     "speak": "பேசுங்கள்",
-    "streakRooting_one": "{{count}} நாள் தொடர்ச்சி — உங்கள் அழகான நிலை வேரூன்றுகிறது!",
-    "streakRooting_other": "{{count}} நாட்கள் தொடர்ச்சி — உங்கள் அழகான நிலை வேரூன்றுகிறது!",
+    "streakRooting_one": "{{count}} நாள் தொடர் பயிற்சி பதிவு",
+    "streakRooting_other": "{{count}} நாட்கள் தொடர் பயிற்சி பதிவு",
     "streakKeepGoing_one": "{{count}} நாள் தொடர்ச்சி — தொடர்ந்து செல்லுங்கள்!",
     "streakKeepGoing_other": "{{count}} நாட்கள் தொடர்ச்சி — தொடர்ந்து செல்லுங்கள்!"
   },

@@ -359,8 +359,8 @@
     "thanks": "ਸਾਂਝਾ ਕਰਨ ਲਈ ਧੰਨਵਾਦ। 🙏",
     "listening": "ਸੁਣ ਰਿਹਾ ਹੈ",
     "speak": "ਬੋਲੋ",
-    "streakRooting_one": "{{count}} ਦਿਨ ਦਾ ਸਿਲਸਿਲਾ — ਤੁਹਾਡੀ ਸੁੰਦਰ ਅਵਸਥਾ ਜੜ੍ਹ ਫੜ ਰਹੀ ਹੈ!",
-    "streakRooting_other": "{{count}} ਦਿਨਾਂ ਦਾ ਸਿਲਸਿਲਾ — ਤੁਹਾਡੀ ਸੁੰਦਰ ਅਵਸਥਾ ਜੜ੍ਹ ਫੜ ਰਹੀ ਹੈ!",
+    "streakRooting_one": "{{count}} ਦਿਨ ਦਾ ਨਿਰੰਤਰ ਅਭਿਆਸ ਦਰਜ",
+    "streakRooting_other": "{{count}} ਦਿਨਾਂ ਦਾ ਨਿਰੰਤਰ ਅਭਿਆਸ ਦਰਜ",
     "streakKeepGoing_one": "{{count}} ਦਿਨ ਦਾ ਸਿਲਸਿਲਾ — ਇਸਨੂੰ ਜਾਰੀ ਰੱਖੋ!",
     "streakKeepGoing_other": "{{count}} ਦਿਨਾਂ ਦਾ ਸਿਲਸਿਲਾ — ਇਸਨੂੰ ਜਾਰੀ ਰੱਖੋ!"
   },

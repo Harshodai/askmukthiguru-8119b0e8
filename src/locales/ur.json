@@ -359,8 +359,8 @@
     "thanks": "شیئر کرنے کا شکریہ۔ 🙏",
     "listening": "سن رہا ہے",
     "speak": "بولیں",
-    "streakRooting_one": "{{count}} دن کا تسلسل — آپ کی خوبصورت کیفیت جڑ پکڑ رہی ہے!",
-    "streakRooting_other": "{{count}} دنوں کا تسلسل — آپ کی خوبصورت کیفیت جڑ پکڑ رہی ہے!",
+    "streakRooting_one": "{{count}} دن کی مسلسل مشق کا اندراج",
+    "streakRooting_other": "{{count}} دنوں کی مسلسل مشق کا اندراج",
     "streakKeepGoing_one": "{{count}} دن کا تسلسل — اسے جاری رکھیں!",
     "streakKeepGoing_other": "{{count}} دنوں کا تسلسل — اسے جاری رکھیں!"
   },

@@ -359,8 +359,8 @@
     "thanks": "प्रकटीकरणार्थं धन्यवादाः। 🙏",
     "listening": "शृणोति",
     "speak": "वदतु",
-    "streakRooting_one": "{{count}} दिवसस्य सातत्यम् — भवतः सुन्दरी स्थितिः दृढा भवति!",
-    "streakRooting_other": "{{count}} दिवसानां सातत्यम् — भवतः सुन्दरी स्थितिः दृढा भवति!",
+    "streakRooting_one": "{{count}} दिवसस्य निरन्तराभ्यासः अभिलिखितः",
+    "streakRooting_other": "{{count}} दिवसानां निरन्तराभ्यासः अभिलिखितः",
     "streakKeepGoing_one": "{{count}} दिवसस्य सातत्यम् — अग्रे चालयतु!",
     "streakKeepGoing_other": "{{count}} दिवसानां सातत्यम् — अग्रे चालयतु!"
   },

@@ -188,7 +188,7 @@ export const derivePrePracticeInsights = (
   if (totalAsked === 0) {
     encouragement = 'Welcome, dear seeker. A short practice before we talk deepens every word.';
   } else if (streakPrepared >= 5) {
-    encouragement = `Your beautiful state is taking root — ${streakPrepared} sessions prepared in a row.`;
+    encouragement = `Consistent practice log — ${streakPrepared} sessions recorded in a row.`;
   } else if (preparedRate >= 0.6) {
     encouragement = 'You arrive ready. Let us begin where you are.';
   } else if (preparedRate > 0 && preparedRate < 0.3) {
