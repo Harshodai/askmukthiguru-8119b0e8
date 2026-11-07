@@ -1540,8 +1540,8 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
             tmpl = serene_mind.get_response(assessment)
             if isinstance(tmpl, str) and tmpl.strip():
                 base_template = tmpl
-        except Exception:
-            pass
+        except Exception as serene_exc:
+            logger.warning("Serene mind response generation failed: %s", serene_exc)
     if not base_template:
         base_template = get_distress_response()
 

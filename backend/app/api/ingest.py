@@ -832,8 +832,8 @@ async def ingest_upload_video_endpoint(
                 container.supabase_client.table("ingest_jobs").update(
                     {"status": "completed", "progress_pct": 100}
                 ).eq("id", job_id).execute()
-            except Exception:
-                pass
+            except Exception as job_exc:
+                logger.warning("Failed to update ingest_jobs status for %s: %s", job_id, job_exc)
 
         return IngestResponse(
             status="success",

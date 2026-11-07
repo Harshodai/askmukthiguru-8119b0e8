@@ -83,12 +83,15 @@ def read_points(cfg, names: list[str], *, reader: Callable | None = None) -> dic
         url=cfg.qdrant_url, api_key=key or None, timeout=2, check_compatibility=False
     )
     out: dict[str, int | None] = {}
-    for name in names:
-        try:
-            out[name] = int(client.get_collection(name).points_count or 0)
-        except (UnexpectedResponse, ResponseHandlingException, OSError, ValueError) as exc:
-            logger.debug("qdrant point count unavailable for %s: %s", name, exc)
-            out[name] = None
+    try:
+        for name in names:
+            try:
+                out[name] = int(client.get_collection(name).points_count or 0)
+            except (UnexpectedResponse, ResponseHandlingException, OSError, ValueError) as exc:
+                logger.debug("qdrant point count unavailable for %s: %s", name, exc)
+                out[name] = None
+    finally:
+        client.close()
     return out
 
 
@@ -98,13 +101,16 @@ def _fetch_snapshot(cfg) -> OpsSnapshot:
 
     try:
         client = redis.Redis.from_url(CELERY_BROKER_URL, socket_timeout=1, socket_connect_timeout=1)
-        snap.queues = {q: int(client.llen(q)) for q in CELERY_QUEUES}
-        raw = client.get(BEAT_KEY)
-        snap.beat_ts = float(raw) if raw else None
-        for field_name, count in (client.hgetall(RESULT_HASH) or {}).items():
-            task, _, result = field_name.decode().rpartition("|")
-            snap.task_results[(task, result)] = int(count)
-    except (redis.RedisError, ValueError) as exc:
+        try:
+            snap.queues = {q: int(client.llen(q)) for q in CELERY_QUEUES}
+            raw = client.get(BEAT_KEY)
+            snap.beat_ts = float(raw) if raw else None
+            for field_name, count in (client.hgetall(RESULT_HASH) or {}).items():
+                task, _, result = field_name.decode().rpartition("|")
+                snap.task_results[(task, result)] = int(count)
+        finally:
+            client.close()
+    except (redis.RedisError, ValueError, OSError) as exc:
         logger.debug("celery metrics unavailable: %s", exc)
         snap.queues = None
     return snap
@@ -156,7 +162,15 @@ async def refresh_ops_gauges(
             snap = await asyncio.wait_for(
                 asyncio.to_thread(fetch or _fetch_snapshot, cfg), FETCH_TIMEOUT_S
             )
-        except (TimeoutError, OSError, ValueError, RuntimeError) as exc:
+        except (
+            TimeoutError,
+            OSError,
+            ValueError,
+            RuntimeError,
+            redis.RedisError,
+            ResponseHandlingException,
+            UnexpectedResponse,
+        ) as exc:
             logger.warning("ops gauges not refreshed: %s", exc or type(exc).__name__)
             return False
         _apply(snap)

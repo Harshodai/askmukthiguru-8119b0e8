@@ -110,9 +110,9 @@ async def emit_teaching_preview(config: Optional[dict], documents: list[dict] | 
 
         if previews:
             await q.put({"event": "teaching_preview", "data": {"items": previews}})
-    except Exception:
+    except Exception as preview_exc:
         # Evidence preview is strictly best-effort and must never block retrieval.
-        pass
+        logger.debug("Evidence preview emission failed: %s", preview_exc)
 
 
 # ---------------------------------------------------------------------------
@@ -300,8 +300,8 @@ async def emit_stage(
             "strategy": strategy,
         }
         await q.put({"event": "stage", "data": payload})
-    except Exception:
-        pass
+    except Exception as stage_exc:
+        logger.debug("Stage emission failed: %s", stage_exc)
 
 
 async def emit_status(config: Optional[dict], message: str, node: Optional[str] = None) -> None:
@@ -340,9 +340,9 @@ async def emit_status(config: Optional[dict], message: str, node: Optional[str] 
                 total_steps=stage_meta["total_steps"],
                 strategy=stage_meta["strategy"],
             )
-    except Exception:
+    except Exception as status_exc:
         # Status emission must never break the pipeline.
-        pass
+        logger.debug("Status emission failed: %s", status_exc)
 
 
 # -----------------------------------------------------------------------

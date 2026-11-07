@@ -270,8 +270,8 @@ def _crisis_bypass_requested(chat_body: Any) -> bool:
             from app.metrics import CRISIS_BYPASS_TOTAL
 
             CRISIS_BYPASS_TOTAL.inc()
-        except Exception:  # noqa: BLE001 - observability must not shed crisis
-            pass
+        except Exception as metric_exc:  # noqa: BLE001 - observability must not shed crisis
+            logger.debug("CRISIS_BYPASS_TOTAL increment failed: %s", metric_exc)
         return True
 
 

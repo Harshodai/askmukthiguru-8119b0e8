@@ -1369,8 +1369,8 @@ def _screen_prompt_injection(docs: list[dict]) -> list[dict]:
             )
             try:
                 GUARDRAILS_BLOCKED.labels(rail="retrieval").inc()
-            except Exception:  # noqa: BLE001 — metric must never break retrieval
-                pass
+            except Exception as metric_exc:  # noqa: BLE001 — metric must never break retrieval
+                logger.debug("GUARDRAILS_BLOCKED metric increment failed: %s", metric_exc)
             continue
         kept.append(doc)
     return kept

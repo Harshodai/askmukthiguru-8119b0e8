@@ -2353,8 +2353,8 @@ def _load_speaker_decisions(decisions_path: Path) -> dict[str, str]:
                 data = json.loads("\n".join(body))
                 if data.get("decision_id") == "b5_speaker_conflict_rows":
                     decisions.update(data.get("rows") or {})
-            except Exception:
-                pass
+            except (json.JSONDecodeError, ValueError) as exc:
+                logger.debug("Non-JSON decision block skipped: %s", exc)
         i += 1
     return decisions
 
@@ -2402,8 +2402,8 @@ def _save_speaker_decision(decisions_path: Path, span_id: str, decision_value: s
                         end_idx = j
                         data = parsed
                         break
-                except Exception:
-                    pass
+                except (json.JSONDecodeError, ValueError) as exc:
+                    logger.debug("Non-JSON block skipped during speaker decision save: %s", exc)
                 i = j
             i += 1
 
