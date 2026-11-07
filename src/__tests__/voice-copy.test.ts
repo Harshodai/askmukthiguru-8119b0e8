@@ -34,8 +34,6 @@ const PROMISE = /\bAI companion\b|\bconversational (?:companion|guide|AI)\b/i;
 /** Locale key paths that still promise a companion. Shrink only; never add. */
 const KNOWN_PROMO_CLAIMS = new Set<string>([
   'en.json:guides.aiSpiritualCompanion.breathwork.heading',
-  'en.json:landing.footer.tagline',
-  'en.json:onboarding.welcomeDesc',
 ]);
 
 function flatten(node: unknown, prefix = ''): Array<[string, string]> {

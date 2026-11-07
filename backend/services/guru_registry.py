@@ -152,6 +152,45 @@ def requested_gurus(query: str) -> list[str]:
     return [g.id for g in get_gurus() if g.pattern.search(text)]
 
 
+# Unregistered external spiritual teachers, traditions, and non-corpus doctrines.
+# Queries asking specifically about their teachings must never be answered with
+# misattributed quotes from Sri Preethaji or Sri Krishnaji.
+_UNREGISTERED_TEACHER_OR_TRADITION_PATTERNS = [
+    r"\bthich\s+nhat\s+hanh\b",
+    r"\bsadhguru\b|\bjaggi\s+vasudev\b|\bisha\s+(?:kriya|foundation|yoga)\b",
+    r"\beckhart\s+tolle\b",
+    r"\b(?:sri\s+sri\s+)?ravi\s+shankar\b|\bart\s+of\s+living\b|\bsudarshan\s+kriya\b",
+    r"\bosho\b|\bbhagwan\s+(?:shree\s+)?rajneesh\b",
+    r"\bramana\s+maharshi\b",
+    r"\bnisargadatta(?:\s+maharaj)?\b",
+    r"\b(?:jiddu\s+krishnamurti|j\.?\s*krishnamurti)\b",
+    r"\badi\s+shankaracharya\b|\bshankaracharya\b|\badvaita\s+vedanta\b",
+    r"\b(?:gautama\s+)?buddha\b|\bpali\s+canon\b|\bfour\s+noble\s+truths\b|\beightfold\s+path\b",
+    r"\blord'?s\s+prayer\b",
+    r"\b(?:ten\s+)?sefirot\b|\bkabbalah\b|\bzohar\b",
+    r"\bmarcus\s+aurelius\b|\bmeditations\s+of\s+marcus\b",
+    r"\bparamahansa\s+yogananda\b|\byogananda\b|\bself[\s-]realization\s+fellowship\b",
+    r"\b(?:swami\s+)?vivekananda\b|\bramakrishna(?:\s+paramahamsa)?\b",
+    r"\bswami\s+sivananda\b|\bneem\s+karoli\s+baba\b|\banandamayi\s+ma\b",
+    r"\bmooji\b|\bpapaji\b|\bh\.?\s*w\.?\s*l\.?\s*poonja\b",
+    r"\bmaharishi\s+mahesh\s+yogi\b|\btranscendental\s+meditation\b",
+    r"\balan\s+watts\b|\bdeepak\s+chopra\b|\bbyron\s+katie\b|\bgurdjieff\b|\bouspensky\b|\bram\s+dass\b",
+    r"\b(?:the\s+)?dalai\s+lama\b|\bzen\s+master\b",
+]
+
+_UNREGISTERED_TEACHER_RE = re.compile(
+    "|".join(_UNREGISTERED_TEACHER_OR_TRADITION_PATTERNS),
+    re.IGNORECASE,
+)
+
+
+def requested_unregistered_teacher_or_tradition(query: str) -> str | None:
+    """Return the name/pattern of an unregistered teacher or external tradition named in query, if any."""
+    text = unicodedata.normalize("NFKC", query or "")
+    m = _UNREGISTERED_TEACHER_RE.search(text)
+    return m.group(0) if m else None
+
+
 def resolve_guru_id(value: str | None) -> str | None:
     """Resolve a configured teacher ID, label, or registered alias to its ID.
 

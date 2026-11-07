@@ -22,6 +22,7 @@ Distress Levels:
 import asyncio
 import logging
 import re
+from functools import lru_cache
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Optional
@@ -920,26 +921,42 @@ def get_non_english_crisis_patterns() -> list[re.Pattern]:
 # to end it all", "I am having panic attacks").
 # ---------------------------------------------------------------------------
 
-_DOCTRINAL_INQUIRY_PATTERNS = [
-    re.compile(
-        r"\b(according\s+to|in\s+the\s+teachings|what\s+did\s+(the\s+)?(teacher|guru|bhagavan|krishnaji|preethaji|ammasri|buddha|sri\s+bhagavan)\s+say|"
-        r"what\s+does\s+(the\s+)?(teacher|guru|bhagavan|krishnaji|preethaji|ammasri|buddha|sri\s+bhagavan)\s+(teach|say)|"
-        r"teachings?\s+on|teachings?\s+about|perspective\s+on)\b",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"^\s*(what\s+(is|are|does|causes?|creates?)|why\s+(do|does|is|are|we)|how\s+(does|do|can\s+one|to)|"
-        r"explain|can\s+you\s+explain|tell\s+me\s+about|teach\s+me\s+about|"
-        r"what\s+is\s+the\s+(root\s+cause|nature|origin|definition|meaning|source)\s+of|"
-        r"understanding\s+(of\s+)?|the\s+relationship\s+between)\b",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        r"\b(how\s+(to|can\s+one|do\s+we)\s+(transcend|overcome|handle|deal\s+with|dissolve|understand|be\s+free\s+from|heal)|"
-        r"meaning\s+of|nature\s+of|root\s+cause\s+of|freedom\s+from)\b",
-        re.IGNORECASE,
-    ),
-]
+@lru_cache(maxsize=1)
+def _get_doctrinal_inquiry_patterns() -> tuple[re.Pattern, ...]:
+    try:
+        from services.guru_registry import get_gurus
+
+        teacher_aliases = [
+            alias for g in get_gurus() for alias in getattr(g, "aliases", ())
+        ]
+    except Exception:
+        teacher_aliases = []
+
+    all_teachers = "|".join(
+        ["teacher", "guru", "bhagavan", "ammasri", "buddha", "sri\\s+bhagavan"]
+        + teacher_aliases
+    )
+    return (
+        re.compile(
+            rf"\b(according\s+to|in\s+the\s+teachings|what\s+did\s+(the\s+)?({all_teachers})\s+say|"
+            rf"what\s+does\s+(the\s+)?({all_teachers})\s+(teach|say)|"
+            r"teachings?\s+on|teachings?\s+about|perspective\s+on)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"^\s*(what\s+(is|are|does|causes?|creates?)|why\s+(do|does|is|are|we)|how\s+(does|do|can\s+one|to)|"
+            r"explain|can\s+you\s+explain|tell\s+me\s+about|teach\s+me\s+about|"
+            r"what\s+is\s+the\s+(root\s+cause|nature|origin|definition|meaning|source)\s+of|"
+            r"understanding\s+(of\s+)?|the\s+relationship\s+between)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"\b(how\s+(to|can\s+one|do\s+we)\s+(transcend|overcome|handle|deal\s+with|dissolve|understand|be\s+free\s+from|heal)|"
+            r"meaning\s+of|nature\s+of|root\s+cause\s+of|freedom\s+from)\b",
+            re.IGNORECASE,
+        ),
+    )
+
 
 _ACUTE_PERSONAL_SUFFERING_RE = re.compile(
     r"\b(i\s*(am|'?m|feel|felt)\s*(so\s*|too\s*|deeply\s*|completely\s*|really\s*)?"
@@ -974,7 +991,7 @@ def is_doctrinal_topic_inquiry(text: str) -> bool:
             return False
 
     # Check if text matches doctrinal inquiry patterns
-    for pattern in _DOCTRINAL_INQUIRY_PATTERNS:
+    for pattern in _get_doctrinal_inquiry_patterns():
         if pattern.search(text):
             return True
     return False

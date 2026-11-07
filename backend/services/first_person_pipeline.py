@@ -6039,6 +6039,36 @@ class FirstPersonPipeline:
         if crisis_result is not None:
             return crisis_result
 
+        # Step 1a: external / unregistered teacher or tradition inquiry check
+        from services.guru_registry import (
+            requested_gurus,
+            requested_unregistered_teacher_or_tradition,
+        )
+
+        unreg_teacher = requested_unregistered_teacher_or_tradition(
+            query
+        ) or (
+            requested_unregistered_teacher_or_tradition(retrieval_query)
+            if retrieval_query
+            else None
+        )
+        if unreg_teacher and not requested_gurus(query):
+            logger.info(
+                "[FirstPersonPipeline] Abstaining on external teacher/tradition inquiry (%s): %s",
+                unreg_teacher,
+                query,
+            )
+            latency = (time.monotonic() - start_time) * 1000.0
+            self._log_and_count("abstained", latency, 0.0, 0, 0, "no_verified_clips", 0)
+            return FirstPersonPipelineResult(
+                answer_text="No verified first-person discourse found for this question.",
+                citations=[],
+                status="abstained",
+                is_direct_answer=False,
+                latency_ms=latency,
+                abstain_reason="no_verified_clips",
+            )
+
         topic_result = self._topic_rail_block(safety_texts, start_time)
         if topic_result is not None:
             return topic_result

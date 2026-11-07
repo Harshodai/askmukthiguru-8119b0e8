@@ -14,7 +14,7 @@ Helpline numbers and digits are enforced identical to English by the sync valida
 | `crisisDialog.unitedStates` | United States |
 | `crisisDialog.usLifeline` | Suicide & Crisis Lifeline |
 | `landing.hero.disclaimer` | An AI companion for spiritual reflection—not medical, mental-health, or crisis care. |
-| `landing.footer.disclaimer` | This is an AI companion trained on spiritual teachings. It is not a replacement for medical or clinical therapy. If you are experiencing a mental health crisis, please seek professional help. |
+| `landing.footer.disclaimer` | This is an AI wisdom portal based on authentic spiritual teachings. It is not a replacement for medical or clinical therapy. If you are experiencing a mental health crisis, please seek professional help. |
 | `landing.safety.privacyTitle` | Privacy you can review |
 | `landing.safety.privacyDesc` | Read how conversations and account information are handled before you decide what to share. |
 | `landing.safety.viewPrivacy` | Review privacy practices |
