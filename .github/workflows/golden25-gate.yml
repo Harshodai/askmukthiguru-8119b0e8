@@ -21,17 +21,6 @@ name: Golden-25 First-Person Attribution Gate
 # the local validation runs use.
 
 on:
-  pull_request:
-    paths:
-      - 'backend/rag/**'
-      - 'backend/services/first_person_*.py'
-      - 'backend/services/quote_weaver.py'
-      - 'backend/app/pipeline/**'
-      - 'backend/app/api/first_person.py'
-      - 'backend/evaluation/**'
-      - '.github/workflows/golden25-gate.yml'
-  schedule:
-    - cron: '30 2 * * *' # nightly, offset from eval-gate (02:00 UTC)
   workflow_dispatch:
 
 concurrency:

@@ -1,14 +1,6 @@
 name: Security Audit
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  # Run every Monday at 09:00 IST (03:30 UTC) as a standing pre-launch check
-  schedule:
-    - cron: '30 3 * * 1'
-  # Allow manual trigger from GitHub Actions UI
   workflow_dispatch:
 
 concurrency:

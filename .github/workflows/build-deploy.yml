@@ -7,11 +7,6 @@
 name: Build & Deploy
 
 on:
-  workflow_run:
-    workflows: ["Lint & Test"]
-    branches: [main]
-    types: [completed]
-  # Manual trigger for hot-fixes or re-runs
   workflow_dispatch:
 
 concurrency:

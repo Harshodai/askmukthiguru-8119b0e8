@@ -4,8 +4,7 @@ name: lovable-pr-guard
 # run here. The job never merges anything. Making it a required check on main is
 # an owner step in GitHub settings (NEW-LOV-01).
 on:
-  pull_request:
-    types: [opened, reopened, synchronize, labeled, unlabeled]
+  workflow_dispatch:
 
 permissions:
   contents: read

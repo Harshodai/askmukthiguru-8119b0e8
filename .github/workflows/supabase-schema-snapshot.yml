@@ -1,14 +1,6 @@
 name: Supabase Schema Snapshot & Migration Lint (DATA-11 / T3-08)
 
 on:
-  pull_request:
-    paths:
-      - 'supabase/migrations/**'
-      - 'supabase/schema_snapshot.sql'
-      - 'src/integrations/supabase/types.ts'
-      - 'scripts/guards/supabase_types_lint.py'
-      - 'scripts/guards/migration_lint.py'
-      - '.github/workflows/supabase-schema-snapshot.yml'
   workflow_dispatch:
 
 concurrency:

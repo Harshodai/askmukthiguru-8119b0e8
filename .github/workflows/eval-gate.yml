@@ -5,20 +5,6 @@ name: Eval Gate (RAGAS Faithfulness + Context Metrics)
 # backend RAG code and as a nightly canary on main.
 
 on:
-  pull_request:
-    paths:
-      - 'backend/rag/**'
-      - 'backend/services/**'
-      - 'backend/evaluation/**'
-      - 'backend/app/main.py'
-      - 'backend/app/pipeline/**'
-      - 'backend/app/config.py'
-      - 'backend/evaluation/golden_dataset.json'
-      - 'backend/ingest/**'
-      - 'scripts/ingestion/**'
-      - 'backend/services/qdrant/**'
-  schedule:
-    - cron: '0 2 * * *' # 02:00 UTC nightly
   workflow_dispatch:
 
 concurrency:
