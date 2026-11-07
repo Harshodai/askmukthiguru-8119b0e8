@@ -17,6 +17,12 @@ Usage:
     cd backend && python -m benchmarks.comprehensive_benchmark
 """
 
+# EVAL-003/004: this script scores generated answer prose. Under the owner's live setting
+# (FIRST_PERSON_LLM_FALLBACK_ENABLED=false) answers are a verbatim clip or a static abstain,
+# so these numbers describe the dormant generating path, not the serving lane. The
+# serving-lane gate is evals/pr_suite (tests/test_offline_pr_suite.py).
+LEGACY_GENERATION_PATH = True
+
 import sys
 from dataclasses import dataclass
 from enum import Enum
