@@ -2630,10 +2630,12 @@ class Settings(BaseSettings):
     # injection screen matches. Off: flag for review only (served, counted).
     first_person_injection_screen_drop_enabled: bool = False
     # T4-06 (ADR-009): one evidence-judge call replaces the relevance scorer.
-    # Active only with the flag on AND a model set; the model stays "" until
-    # D-16 (model and price) is decided, so the flag cannot turn on by accident.
+    # Active only with the flag on AND a model set. D-16 (owner decision
+    # 2026-11-07): the model is the relevance scorer's own model, priced in
+    # services/openrouter_service.py (read 2026-11-07). The flag stays off until
+    # the frozen-bank comparison shows the judge is not worse.
     first_person_judge_enabled: bool = False
-    first_person_judge_model: str = ""
+    first_person_judge_model: str = "anthropic/claude-haiku-5.5"
 
 
 @lru_cache

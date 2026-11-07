@@ -26,12 +26,8 @@ BACKEND = Path(__file__).resolve().parent.parent
 REPO_ROOT = BACKEND.parent
 
 # Allowed by repo configuration, no price in the fallback table. Shrink only.
-KNOWN_MISSING_PRICE: frozenset[str] = frozenset(
-    {
-        # First-person relevance scorer (CLAUDE.md invariant 24, docker-compose.graded.yml).
-        "anthropic/claude-haiku-5.5",
-    }
-)
+# D-16 (2026-11-07): anthropic/claude-haiku-5.5 gained a dated price and left the set.
+KNOWN_MISSING_PRICE: frozenset[str] = frozenset()
 
 
 def _compose_models() -> set[str]:

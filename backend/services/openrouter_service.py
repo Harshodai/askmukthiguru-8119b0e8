@@ -122,6 +122,12 @@ _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
     # usage.cost always takes precedence over these accounting fallbacks.
     "google/gemini-2.5-flash": (0.30, 2.50),
     "google/gemini-3.6-flash": (0.75, 3.75),
+    # D-16 (owner decision 2026-11-07): first-person relevance scorer and the
+    # evidence judge. Read 2026-11-07 from OpenRouter's public model list
+    # (GET https://openrouter.ai/api/v1/models): prompt $0.0000001/token,
+    # completion $0.0000005/token, cache read $0.00000001/token. Prompts above
+    # 100k tokens cost 5x; not modelled here (scorer prompts are far smaller).
+    "anthropic/claude-haiku-5.5": (0.10, 0.50),
 }
 
 # OpenRouter Prompt Caching discount rates for prompt prefixes ($/1M tokens).
@@ -134,6 +140,7 @@ _OPENROUTER_CACHED_INPUT_RATES_PER_MILLION: dict[str, float] = {
     "google/gemini-2.5-flash": 0.075,
     "google/gemini-3.6-flash": 0.1875,
     "sarvamai/sarvam-m": 0.02,
+    "anthropic/claude-haiku-5.5": 0.01,  # D-16, read 2026-11-07 (see above)
 }
 
 if TYPE_CHECKING:

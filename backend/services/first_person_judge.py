@@ -10,8 +10,9 @@ relevance that is at least ``first_person_relevance_min_score`` and has
 refusal, timeout, wrong shape or missing index is ``relevance_indeterminate``.
 
 Activation needs both ``first_person_judge_enabled`` (default False) and a
-non-empty ``first_person_judge_model`` (default "" until decision D-16), so
-the flag alone cannot turn it on. When active it replaces the relevance scorer
+non-empty ``first_person_judge_model``. D-16 (owner decision 2026-11-07) named
+the model: the relevance scorer's own, ``anthropic/claude-haiku-5.5``, so the
+flag is now the only switch, and it stays off until the comparison below. When active it replaces the relevance scorer
 call (L4). The rerank (L3) and answerability (L2) calls stay until the frozen
 bank comparison shows the judge is not worse (T4-06 exit criterion).
 """
@@ -85,6 +86,24 @@ def judge_model() -> str:
 def judge_active() -> bool:
     """True only with the flag on and a model chosen (D-16)."""
     return judge_enabled() and bool(judge_model())
+
+
+def judge_call_kwargs(model: str) -> dict[str, Any]:
+    """Model-specific call shape, the same as the relevance scorer's (D-16).
+
+    An Anthropic model reasons before it answers: it needs room for the
+    reasoning (max_tokens 2048, the "verify" ceiling, low effort). A model in
+    the scorer's no-temperature set rejects a non-default temperature (CA-1),
+    so ``None`` tells the provider service to omit the key.
+    """
+    from services.first_person_pipeline import _SCORER_NO_TEMPERATURE_MODELS
+
+    kwargs: dict[str, Any] = {"model": model, "max_tokens": JUDGE_MAX_TOKENS, "temperature": 0.0}
+    if model.startswith("anthropic/"):
+        kwargs.update(max_tokens=2048, operation="verify", reasoning_effort="low")
+    if model in _SCORER_NO_TEMPERATURE_MODELS:
+        kwargs["temperature"] = None
+    return kwargs
 
 
 def build_judge_prompt(question: str, clips: list[dict[str, Any]]) -> str:
@@ -163,10 +182,8 @@ async def judge_select_async(
         res = llm_service.generate(
             system_prompt=JUDGE_SYSTEM_PROMPT,
             user_prompt=user_prompt,
-            model=judge_model(),
-            max_tokens=JUDGE_MAX_TOKENS,
-            temperature=0.0,
             response_format=JUDGE_JSON_SCHEMA,
+            **judge_call_kwargs(judge_model()),
         )
         if inspect.isawaitable(res):
             res = await res

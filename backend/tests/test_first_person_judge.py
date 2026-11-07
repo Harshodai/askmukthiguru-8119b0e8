@@ -1,6 +1,6 @@
 """T4-06 (ADR-009): evidence judge behind first_person_judge_enabled, default off.
 
-Both flag states are tested. Off (default), or on without a model (D-16 open),
+Both flag states are tested. Off (default), or on without a model,
 the existing scorer decides. On with a model, one judge call decides with the
 serve rule of RETRIEVAL_AND_RAG_SPEC.md §3.4; any malformed reply abstains as
 relevance_indeterminate.
@@ -52,7 +52,8 @@ def judge_on(monkeypatch):
 def test_defaults_keep_judge_off():
     fields = type(settings).model_fields
     assert fields["first_person_judge_enabled"].default is False
-    assert fields["first_person_judge_model"].default == ""
+    # D-16 (2026-11-07): the model is named; the flag alone keeps the judge off.
+    assert fields["first_person_judge_model"].default == "anthropic/claude-haiku-5.5"
     assert judge.judge_active() is False
 
 
@@ -82,6 +83,30 @@ def test_flag_on_uses_one_judge_call(judge_on):
     assert call["response_format"] == judge.JUDGE_JSON_SCHEMA
     assert call["user_prompt"].count("</clip>") == len(CLIPS)
     assert scores == [2, 3, 3]
+
+
+@pytest.mark.relevance_real
+def test_named_model_gets_the_scorer_call_shape(monkeypatch):
+    """D-16 (2026-11-07): the judge model is anthropic/claude-haiku-5.5.
+
+    That model rejects a non-default temperature (CA-1) and reasons before it
+    answers, so the judge must send the same shape as the relevance scorer:
+    no temperature, max_tokens 2048, operation "verify", reasoning_effort "low".
+    """
+    monkeypatch.setattr(settings, "first_person_judge_enabled", True, raising=False)
+    monkeypatch.setattr(
+        settings, "first_person_judge_model", "anthropic/claude-haiku-5.5", raising=False
+    )
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 3, raising=False)
+    llm = _LLM(_reply([(3, True), (1, False), (0, False)]))
+    assert fpp._relevance_select("q", CLIPS, llm) == 0
+    call = llm.calls[0]
+    assert call["model"] == "anthropic/claude-haiku-5.5"
+    assert call.get("temperature") is None
+    assert call["max_tokens"] == 2048
+    assert call["operation"] == "verify"
+    assert call["reasoning_effort"] == "low"
+    assert call["response_format"] == judge.JUDGE_JSON_SCHEMA
 
 
 @pytest.mark.relevance_real
