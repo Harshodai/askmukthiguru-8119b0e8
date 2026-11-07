@@ -403,7 +403,7 @@ def _openrouter_asker(model: str) -> Callable[[str, str], str]:
         raise SystemExit("OPENROUTER_API_KEY is not set; refusing to grade without it")
 
     def ask(system: str, user: str) -> str:
-        current_max_tokens = 256
+        current_max_tokens = 1024
         for attempt in range(8):
             resp = httpx.post(
                 "https://openrouter.ai/api/v1/chat/completions",
