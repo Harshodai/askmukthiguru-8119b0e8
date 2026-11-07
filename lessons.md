@@ -1,6 +1,12 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 7, 2026 - Sonnet platform thread
+
+### L-PLAYWRIGHT-REDUCEDMOTION-BEFORE-EVIDENCE-1. A "before" run proves nothing until the setting is shown to take effect.
+- **What:** `test.use({ reducedMotion: "reduce" })` did not change `matchMedia("(prefers-reduced-motion: reduce)")` in this setup, so the first "before the fix" run of the reduced-motion test measured a normal-motion page and could not have shown the defect.
+- **Rule:** When a test depends on a browser setting, assert the setting inside the test (`page.evaluate(() => matchMedia(...).matches)`) and use `page.emulateMedia({ reducedMotion: "reduce" })`. Take the failing "before" run against the real unfixed code with that assertion in place.
+
 
 ## Nov 6, 2026 — Opus final review of the audit branch
 
