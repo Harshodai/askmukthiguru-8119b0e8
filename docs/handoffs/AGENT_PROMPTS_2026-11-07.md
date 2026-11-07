@@ -4,6 +4,8 @@ Three prompts to paste into a new agent session, and the final checklist.
 Context for all of them: `handoff.md` at the repo root (read it first; it holds the verified facts and the labels VERIFIED, REPORTED, ASSUMPTION, UNKNOWN, UNPROVEN).
 Verdict while you work: **NO-GO**. Only a graded clean-Docker run on the final branch head, graded against the approved bar, can change that.
 
+Latest heads: branch head before the 05:25Z doc commit was `c42ab14` (ops thread); last Opus-lane commit `1723b16`. Read `handoff.md` section 0b for the full latest state and the list of what still blocks a merge to `main`.
+
 | Prompt | Model | Lane |
 |---|---|---|
 | 1 | Opus (`claude-opus-5-5`, set it explicitly) | Safety, honesty, data integrity, review, live-data fixes |
@@ -44,8 +46,8 @@ RULES.
 9. When your work changes what is done, unproven or needed, publish a new version of the Pending List artifact. Keep NO-GO.
 10. Mark every claim VERIFIED, REPORTED, ASSUMPTION, UNKNOWN or UNPROVEN. Unproven means UNPROVEN.
 
-DECISIONS ALREADY MADE (do not re-ask): D-16 (judge stays default off until the frozen-bank comparison); D-DQ1 yes; D-PG16 as recommended (code default is flag-for-review; ask Harsha before enabling drop mode); D-PQ7 yes (`clip_ref` on the wire); D-PQ9 yes ("try again" copy for system failures); D-03 yes behind a flag, default off, owner-only review, teachers' organisation consent before public, never with `FIRST_PERSON_LLM_FALLBACK_ENABLED=false`; D-PG13 (graded scorer timeout 12 s, default 25 s); v10-only; the 116 questions are a tuning set; do not drop the 732 clips; do not use `FIRST_PERSON_REQUIRE_VOICE_METHOD` as a workaround; crisis threshold stays 0.72.
-**Conflict to settle with Harsha before you change any crisis text:** the outside-India crisis line "taken as recommended" versus the 2026-11-06 decision that distress answers keep call-verified lines only (`test_helplines_verified_everywhere.py`). Do not ship a number nobody has called.
+DECISIONS ALREADY MADE (do not re-ask; source: register section 11.3): D-16 (the evidence judge uses `anthropic/claude-haiku-5.5`, flag off until the frozen-bank comparison runs); D-DQ1 (hash compare stays behind its flag, default off); D-PG16 (the injection screen flags for review and never drops at ingest); D-PQ7 **no** (`point_id` stays off the wire; do not build `clip_ref`); D-PQ9 done ("please try again" abstain for system failures); D-03 **not now** (no explanation layer); outside-India crisis line done (no phone number); D-PG13 (graded scorer timeout 12 s, default 25 s); v10-only; the 116 questions are a tuning set; do not drop the 732 clips; do not use `FIRST_PERSON_REQUIRE_VOICE_METHOD` as a workaround; crisis threshold stays 0.72.
+Crisis text rule: the outside-India line shows no phone number, so it keeps the call-verified-only rule (`test_helplines_verified_everywhere.py`, `test_outside_india_line.py`). Do not add a number nobody has called.
 
 ORDER OF WORK.
 1. **Orient.** Re-read the head SHA. Report `git log --oneline -5`, ahead/behind versus `origin/main`, and the full backend test result in your worktree (counts; any failure named). The last full run was at `024a881`; nothing after the D-PG13 fix has had a full run.
@@ -58,9 +60,9 @@ ORDER OF WORK.
    e. Who added the 2 points that took 4,224 to 4,226? The two moved points are probably those. Check the Qdrant log and say.
    f. The C-L11 digest does not cover `domain_rights_status`. Tell the Sonnet lane through the coordinator (the digest code is theirs).
    g. The backups sit in `/tmp` on the Mac and one holds quote text. Ask Harsha to move them out of `/tmp`. Never commit or paste them.
-4. **D-PQ7.** Add `clip_ref` (uuid5 over hash and offsets) to the wire, update `test_citation_contract.py` on purpose, and keep `point_id` off the wire. The TypeScript types are Sonnet-lane: send the field name and shape to the coordinator.
-5. **D-PQ9.** A system failure (scorer timeout, spend limit) shows "try again" copy, not "no recording found". Failing test first. New enum values go into every bounded vocabulary that reads them (L-NEW-ENUM-VALUE-EVERY-VOCABULARY-1).
-6. **D-DQ1.** Decide how `first_person_points_servable_hash_check_enabled` turns on. Measure its latency and abstain effect with fakes. Give Harsha the one-line flag change for `backend/docker-compose.graded.yml`; do not edit it.
+4. **Owner decisions already applied (verify, do not rebuild):** D-PQ9 (`43bdf7a`), outside-India line (`bb8285a`), D-16 judge model and price (`c662ae0`), D-DQ1 and D-PG16 (`29253c8`). D-PQ7 is no and D-03 is not now. Read each commit and its test. Report anything the test does not cover. The register cites some pre-rebase SHAs (`7ad76a7`, `144d854`, `eac1b03`, `03d49e2`); use the current ones.
+5. **D-16 follow-up:** the frozen-bank comparison (T4-06) before the judge flag is ever turned on; and whether OpenRouter returns `usage.cost` for `anthropic/claude-haiku-5.5` (UNPROVEN, needs one live call that Harsha approves).
+6. **Native-speaker review** of the new English lines ("please try again", "outside India") stays with Harsha's reviewers (D-22). Do not call them reviewed.
 7. **Listen list.** Build a one-page list of the 11 demoted clips (video id, start ms, end ms, teacher, audio link). No quote text. Harsha listens. A listen counts only if the reviewer picks the span's own teacher and the clip is 2 s or longer.
 8. **Human label sheet.** Draw 50 served clips from the last valid run for Harsha or faculty to label. Seeded draw, key kept apart.
 9. **Remaining rows:** SYS-003 staging c20 (needs live infrastructure; list what it needs), MEM-002 (D-PM4), dead `_context_sufficient` routing (keep or remove: recommend), personas written before `1c5f3f2` (purge or keep: recommend), Opus-owned silent exception handlers.
@@ -168,6 +170,7 @@ Order matters. Items marked **H** are Harsha's. Items marked **A** are an agent'
 5. **H** Turn on required checks in GitHub for `main`: `release-invariants` and `lovable-guard` (the job name, not `lovable-pr-guard`), plus "require a pull request". Do it after step 1, so a check that always fails does not block every merge.
 6. **A** Live v10 indexes: done (REPORTED: 16 indexes, 4,226 points, audit shows no failed check). Re-confirm with the read-only audit.
 7. **A/H** Live v10 data fixes: done on 2026-11-07 (REPORTED: `domain_rights_status` stamped on 2,758 children; 2 hashless test-looking points moved). **Quarantine of those 2 points: approved by Harsha; `quarantine_fp_points.py` is a reversible flag; UNPROVEN until applied and audited.** **H** Move the rollback backups out of `/tmp` (one holds quote text; never commit it). **A** Opus: independent review of the three data scripts; list the 22 children without `speaker_verified`.
+7a. **H** Move the `/tmp` rollback files into `.work/backups_2026-11-07/` (ignored by git; `chmod 700` the folder). `.gitignore` and `backend/tests/test_gitignore_backups.py` now guard it.
 7b. **H/A** Check `backend/.env`: `FIRST_PERSON_COLLECTION` and `FIRST_PERSON_CONTEXT_COLLECTION` both `first_person_v10`.
 8. **A** Opus and Sonnet: report "pushed" with the head SHA. Merge or rebase the 4 commits that `main` has and the branch lacks.
 9. **H** Decide the H2 question (zero unverified-speaker clips: fail the run, or report as owner-accepted).

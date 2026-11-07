@@ -48,6 +48,32 @@ What this changes, in plain words:
 
 ---
 
+### Update 05:25Z (Harsha's terminal output, git history, relays)
+
+| Item | State |
+|---|---|
+| Branch head before this commit | `c42ab14` ("OPS: pin `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED` in the compose environment block so the root `.env` cannot split the v10-only flags"), VERIFIED in `git log`. Last Opus-lane commits are the 2026-11-07 decision commits `c662ae0`, `43bdf7a`, `bb8285a`, `29253c8`, `1723b16` (01:02 to 01:08). Nothing newer from Opus. |
+| Root `.env` edit by Harsha | He set `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` and `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=true` with `sed`, after `cp .env .env.bak_pre_v10only_20261107`. His `docker compose config` output afterwards (VERIFIED, pasted): `FIRST_PERSON_ACTIVE_COLLECTION: first_person_v10`, `FIRST_PERSON_COLLECTION: ""`, `FIRST_PERSON_CONTEXT_COLLECTION: first_person_v10`, harness `"true"`, terminal `"true"`. Before the edit, terminal was `"false"`. |
+| Is the empty `FIRST_PERSON_COLLECTION: ""` a problem? | **No, it is correct.** VERIFIED in `backend/app/config.py` (`resolve_first_person_active_collection`): an empty slot is filled from the active name when harness is on and terminal is exactly `True`; otherwise the legacy slot falls back to the v8 clip store. That is why the old `"false"` terminal value was dangerous: it would have put the legacy slot on v8. Commit `c42ab14` now pins terminal in the compose file so the root `.env` cannot split the flags again. |
+| `.env` backups | `.env.bak_pre_v10only_20261107` is ignored (VERIFIED with `git check-ignore`; the pattern is `.env.*`). It holds secrets. Keep it out of git and out of chat. |
+| `.gitignore` | Extended in this commit with patterns for rollback files (`rights_backup*.json`, `fp_*backup*.json`, `*_v10_backup*.json`, `quarantine_backup*.json`, `*.bak_*`, `.env.bak*`, `*.snapshot`). The folder `.work/` was already ignored. A new test, `backend/tests/test_gitignore_backups.py`, pins this (9 tests pass in the cloud). `git ls-files` shows none of today's rollback files tracked (VERIFIED). **Not new, not mine:** 9 older files named `*backup*.json` under `data/` are tracked (Neo4j and Qdrant backups from 2026-09). I did not touch them; whether they should be purged belongs to the public-repo decision D-01 (register rows X-06, IP-001). |
+| Where Harsha puts the `/tmp` backups | I cannot reach the Mac's `/tmp` from the cloud. Run this in a Mac terminal (check the names first; I know only `rights_backup_v10.json`): `cd ~/Public/askmukthiguru-8119b0e8 && mkdir -p .work/backups_2026-11-07 && chmod 700 .work/backups_2026-11-07 && ls -la /tmp \| grep -i -E "backup\|rollback"`, then `mv /tmp/<file> .work/backups_2026-11-07/` for each, `chmod 600` on the one with quote text, then `git status --short` (nothing new) and `git check-ignore -v .work/backups_2026-11-07/rights_backup_v10.json` (prints a rule). **Caution:** on macOS the `~/Public` folder can be readable by other accounts on the machine. `chmod 700` on the folder limits that. A repo-folder copy is still not an off-Mac copy. |
+| Stage A and the rights gate (Harsha asked me to check) | **VERIFIED:** the check `domain_rights_status == "licensed"` entered `first_person_context_store.py` in commit `9e17370` on **2026-11-04** (`git log -S`). Stage A ran on 2026-10-31. So Stage A ran **before** the rights gate existed. With the gate and no stamp on the data, the filter passed 2 of 2,760 children; after the 2026-11-07 stamp it passes 2,738. Stage A's 33 served clips therefore came from code without the gate. Conclusion: Stage A is not a forecast of the next run. The graded run must be the first measure on the shipped code and data. |
+| CI | 30 of 32 checks failed in seconds on the head I read (cause UNKNOWN). Relayed 05:21Z: Harsha removes the CodeQL checks, and the real name of the Lovable check is `lovable-guard`. Required checks to set: `release-invariants`, `lovable-guard`. Whether CI has run again since: UNKNOWN. |
+
+### What still blocks a merge to `main` (plain list)
+1. **The graded clean-Docker run on the final head has not happened or been graded.** Verdict stays NO-GO until it is.
+2. **Hard gate H2** (zero unverified-speaker clips) versus the pinned `FIRST_PERSON_REQUIRE_VOICE_METHOD=false`: Harsha has not decided.
+3. **CI cause unknown.** Read one failed job. Set the two required checks only after that.
+4. **`main` has 4 commits the branch lacks.** Merge or rebase them first.
+5. **Quarantine of the 2 moved test-looking points** is approved, but not yet applied and audited (`quarantine_fp_points.py`, reversible).
+6. **Stage A safety gaps** (health gate, support-line trigger, grader rubric): no closing commit found. UNKNOWN.
+7. **Human steps:** copy the Qdrant snapshot off the Mac; set the provider spend limit and the Railway usage limit; listen to the 11 demoted clips; add the Telugu crisis row (native speaker); label 50 served clips.
+8. **Keys are rotated only after the graded run is graded.**
+9. **Not blockers today:** the deferred pre-public items (clinician sign-off, rights message, helpline call dates) and the rights register. Do not raise them.
+
+---
+
 ## 1. The goal
 
 Make AskMukthiGuru the best product for disciples and seekers of Sri Preethaji and Sri Krishnaji. A person asks, and gets the apt teaching, in the teacher's own words, fast, with a source. Then onboard the Sri Amma Bhagavan teachings end to end.
@@ -82,6 +108,7 @@ Approved pass bar (REPORTED, `research/final-pass-bar-2026-10-30.md` and the mem
 
 ### Tests (REPORTED, none re-run by me)
 - Cloud container, fakes only, at `024a881`: 13,031 passed, 1 failed, 58 skipped, 1 collection error (`soundfile` missing). The 1 failure was the 12 s versus 25 s scorer-timeout conflict. It was fixed later by the D-PG13 decision (section 4.5). The full suite was **not** re-run after that fix. UNPROVEN.
+- **Mac run on `32c12c4`** (Remote Control, read-only worktree, 2026-11-07; REPORTED in register section 11.3): backend 13,215 passed, 45 skipped, 2 failed (two builder tests broken by `f87c0de`; fixed in the Opus lane, cloud-proven only); guards exit 0 (exception ratchet 724/724); `ruff check` 0; `ruff format` flagged 1 file (fixed); safety scenarios 226 pass, 4 expected, 0 fail; distress recall 106/110 with 0/49 false positives. Not run: Docker, live LLM, e2e.
 - Mac check at `dea7b44`, read-only, no Docker: 126 backend tests pass (17 files); four guards exit 0 (exception ratchet 724/9, seeker-text log budget 0, teacher-literal ratchet 590 lines in 129 files, stage-order guard); `ruff check` 0; vitest 1,139 passed; `helm template` renders with `redis.auth.password` and `neo4j.auth.password`.
 - Found by that Mac check, then fixed on the branch: `ruff format` on `test_openrouter_price_table.py` (`ebe5ceb`), 2 `tsc` errors (`815fd17`). These two fixes are proven only by cloud runs. Re-verify on the Mac.
 - Not run anywhere: `promtool check rules`, Playwright `a11y-journey.spec.ts` (needs the app and Supabase), real GitHub workflow results (see section 0, item 3), the Mac Remote Control run on 2026-11-06 (the Mac did not pick up the session).
@@ -110,7 +137,7 @@ The rule since 2026-11-06: one owner per file. A thread that needs a change in t
 ### Opus lane (safety, honesty, data integrity, review)
 - `backend/services/first_person_*.py` (pipeline, store, context store, harness, judge, bridge helpers)
 - `backend/rag/nodes/first_person.py`, `backend/rag/states.py`, `backend/rag/nodes/generation.py`, `backend/app/pipeline/stages/graph_stage.py`, `backend/app/pipeline/stages/first_person_bridge.py`
-- `backend/app/answer_outcome.py`, `backend/app/answer_contract.py` (planned for `clip_ref`)
+- `backend/app/answer_outcome.py`, `backend/app/answer_contract.py`
 - `backend/services/serene_mind_engine.py`, `backend/services/crisis_helplines.py`, `config/helplines.yaml`
 - Memory and persona code (`MEM-*`), `backend/app/api/teachings.py`
 - Corpus builders and speaker provenance: `backend/scripts/ops/build_*`, `backfill_v10_voice_method.py`, `domain/speaker_provenance.py`, `domain/speaker_audit.py` (root copies in `scripts/ops/` must stay byte-identical)
@@ -232,7 +259,7 @@ Ratchets (exception 724/9, seeker-text 0, teacher-literal 590/129), image pins, 
 ### For the Opus agent (after the Mac check and CI cause are known)
 1. Re-run the Mac check at the head and report counts (shared with Sonnet; Opus reads the safety tests).
 2. Close the **Stage A safety gaps** (REPORTED in the memory index, 2026-11-01; I found no commit that closes them, so status is UNKNOWN): add heal / psychiatric / addiction to the health gate; add a clip-text support-line trigger; fix the grader rubric (q057 both showable and harmful; unverified speaker must count).
-3. Apply the decisions in section 7: D-PQ7 (`clip_ref` on the wire, update `test_citation_contract.py` on purpose), D-PQ9 (a system failure shows "try again", not "no recording found"), D-DQ1 (decide how to turn on `first_person_points_servable_hash_check_enabled`, and measure it before the graded run), D-PG16, D-16, D-03.
+3. The owner decisions are applied in code (section 7): D-16, D-DQ1 (flag stays off), D-PG16 (flag only), D-PQ9, outside-India line. D-PQ7 is **no** and D-03 is **not now**: build nothing for them. Remaining under D-16: run the frozen-bank comparison before the judge flag is ever turned on.
 4. Build the 11-clip listen list and the 50-clip human label sheet (section 6).
 5. Remaining Opus rows: SYS-003 staging c20 test, MEM-002 (D-PM4), dead `_context_sufficient` routing, purge or keep personas written before `1c5f3f2`, the Opus-owned silent exception handlers.
 
@@ -260,13 +287,13 @@ Follow `/mnt/project-files/prompts/agent-prompt-railway-and-ops-2026-11-07.md`, 
 
 | ID | Decision | Source | Status |
 |---|---|---|---|
-| D-16 | Taken as recommended. Recommended text (register): record a dated price entry for the relevance scorer, consider the consolidated judge. The evidence judge stays **default off** until the frozen-bank comparison. Exact model chosen: UNKNOWN. | Coordinator relay 2026-11-07 | Applied: judge default off (`3e2882f`) |
-| D-DQ1 | Yes: the legacy store's `points_servable` compares text and hash. | Spec text "Recommendation: yes" | Code exists, flag default **off** (`087af0a`). Turning it on is a live behaviour change. Measure first. |
-| D-PG16 | Taken as recommended. The spec lists the question; I found no stated recommendation. Code default today: flag for review, drop mode exists and is off. Exact choice: UNKNOWN. | Relay | Confirm with Harsha before enabling drop mode |
-| D-PQ7 | Yes: put a clip reference on the wire as `clip_ref` (uuid5 over hash and offsets; holds no secret). | Spec text | Not built. `test_citation_contract.py` forbids `point_id`; update it deliberately. |
-| D-PQ9 | Yes: a system failure (for example a scorer timeout) shows "try again" copy, not "no recording found". | Register text | Not built |
-| D-03 | Yes, behind a flag, owner-only review first, teachers' organisation consent before public. **Conflicts with `CLAUDE.md` invariants 1, 15, 21** (no generated text). Keep it default off; keep Engine 3 off while `FIRST_PERSON_LLM_FALLBACK_ENABLED=false`. | Register text | Not built |
-| Outside-India crisis line | Taken as recommended. **Conflict:** Harsha decided on 2026-11-06 that the distress answer keeps **call-verified lines only** (Tele-MANAS today, no 112 and no non-India line until call dates are recorded). `test_helplines_verified_everywhere.py` enforces this. Do not ship an unverified number. Exact recommended line: UNKNOWN. | Relay vs Pending List | Needs Harsha to confirm which wins |
+| D-16 | Taken as recommended. **The evidence judge uses the relevance scorer's own model, `anthropic/claude-haiku-5.5`.** Price recorded: USD 0.10 in / 0.50 out per million tokens (read 2026-11-07 from the OpenRouter models list; the 5x rate above 100k prompt tokens is not modelled). The judge flag stays **off** until the frozen-bank comparison runs. A bug fixed on the way: the judge sent `temperature=0.0`, which this model rejects, so turning it on would have abstained on every question. Whether OpenRouter returns `usage.cost` for this model is UNPROVEN (no live call). | Commit `c662ae0` message; register 11.3 | Applied in code; flag off |
+| D-DQ1 | Decided: the legacy store's `points_servable` text-and-hash compare **stays behind `first_person_points_servable_hash_check_enabled`, default off**. (My earlier text said "turn it on". That was wrong.) | Commit `29253c8`; register 11.3 | Applied; off by default |
+| D-PG16 | Decided: the injection screen **flags a span for review and never drops it at ingest**. The serve-time drop switch stays off. A regression test guards it. | Commit `29253c8`; register 11.3 | Applied |
+| D-PQ7 | **Decided: no.** `point_id` stays off the wire; `test_citation_contract.py` keeps forbidding it; an opaque signed id is later work. **My earlier line ("Yes, add `clip_ref`") copied the spec's recommendation and was wrong; the register records "Decided (no)".** Do not build `clip_ref`. | Register 11.3 (VERIFIED I read it) | Nothing to build now |
+| D-PQ9 | Decided yes and **done**: when a system failure blocks the check, the abstain reads "I couldn't finish checking the teachings for this question just now. Please try again in a moment." instead of "no verified teaching". English; native-speaker review of this line is open (D-22). | Commit `43bdf7a` (register cites pre-rebase `7ad76a7`) | Closed in code; `test_abstain_cause.py` |
+| D-03 | **Decided: not now.** The explanation layer is not built. ANS-004, ANS-006, ANS-007, PRD-007, RET-03, RET-04, RET-06 stay blocked. (My earlier "yes, behind a flag" was the spec's recommendation, not the decision.) | Register 11.3 | Nothing to build |
+| Outside-India crisis line | Decided and **done**: every verified-only crisis block now ends with "If you are outside India, call your local emergency number now." **No phone number is shown**, so it does not conflict with the call-verified-only rule. English only; native review open (D-22). Crisis threshold unchanged. | Commit `bb8285a` (register cites pre-rebase `144d854`); `test_outside_india_line.py` | Closed in code |
 | D-26 | External `QDRANT_URL`; no Qdrant service on Railway | `b119aa9` | Repo change done. Live URL UNPROVEN |
 | D-14 | v10-only | `b119aa9` | Clean-Docker start UNPROVEN |
 | D-29 | Faculty access code is the only staging gate (`FACULTY_ACCESS_CODE` set in the dashboard) | `b119aa9` | UNPROVEN |
