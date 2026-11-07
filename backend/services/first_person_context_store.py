@@ -463,7 +463,7 @@ class FirstPersonContextStore:
         *,
         query_sparse: Optional[dict[str, Any]] = None,
         guru_id: Optional[str] = None,
-        limit_parents: int = 5,
+        limit_parents: int = 16,
         spans_per_parent: int = 8,
         concept_ids: Optional[Sequence[str]] = None,
         span_ids: Optional[Sequence[str]] = None,

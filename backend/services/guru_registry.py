@@ -315,7 +315,23 @@ def extract_target_authority(query: str) -> dict[str, Any] | None:
             raw_target = m.group(1).strip()
             clean_target = _CLEAN_PREFIX_RE.sub("", raw_target).strip()
             if len(clean_target) >= 2:
-                gid = resolve_guru_id(clean_target)
+                gid = resolve_guru_id(clean_target) or canonical_guru_id(clean_target)
+                if not gid:
+                    # Check if compound targets multiple registered gurus (e.g. "Krishnaji and Preethaji")
+                    parts = [p.strip() for p in re.split(r"\s+(?:and|&|\+|or)\s+", clean_target, flags=re.I) if p.strip()]
+                    if len(parts) >= 2:
+                        part_gids = [
+                            resolve_guru_id(_CLEAN_PREFIX_RE.sub("", p).strip())
+                            or canonical_guru_id(_CLEAN_PREFIX_RE.sub("", p).strip())
+                            for p in parts
+                        ]
+                        if all(part_gids):
+                            return {
+                                "target": clean_target,
+                                "is_registered": True,
+                                "guru_id": None,
+                                "source": "syntactic_authority",
+                            }
                 return {
                     "target": clean_target,
                     "is_registered": bool(gid),

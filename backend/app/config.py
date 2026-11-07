@@ -319,7 +319,7 @@ class Settings(BaseSettings):
     # never turn into a wall of text on the chat surface.
     first_person_context_max_spans: int = 3
     # Candidate parent units retrieved for harness evaluation (0 = use max_clips default)
-    first_person_context_candidate_limit: int = 0
+    first_person_context_candidate_limit: int = 16
     # Enable sparse RRF fusion in context retrieval. Default False (dense cosine vector search
     # delivers superior candidate recall on conversational questions without sparse keyword penalty).
     first_person_context_use_sparse: bool = False
