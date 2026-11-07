@@ -54,3 +54,16 @@ def test_datastore_ports_bound_to_loopback_only():
                 f"service {name!r} publishes {port!r} on all interfaces"
             )
     assert checked >= 4, "expected datastore port mappings to be checked"
+
+
+def test_compose_pins_both_v10_only_flags_in_the_environment_block():
+    """Both flags sit in `environment:`, which beats env_file, so the root .env cannot split them."""
+    text = (Path(__file__).resolve().parents[1] / "docker-compose.yml").read_text(encoding="utf-8")
+    assert (
+        "- FIRST_PERSON_CONTEXT_HARNESS_ENABLED=${FIRST_PERSON_CONTEXT_HARNESS_ENABLED:-false}"
+        in text
+    )
+    assert (
+        "- FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=${FIRST_PERSON_CONTEXT_TERMINAL_ENABLED:-false}"
+        in text
+    )

@@ -311,6 +311,9 @@ services:
       - FIRST_PERSON_ACTIVE_COLLECTION=${FIRST_PERSON_ACTIVE_COLLECTION:-first_person_v10}
       - FIRST_PERSON_COLLECTION=${FIRST_PERSON_COLLECTION:-}
       - FIRST_PERSON_CONTEXT_HARNESS_ENABLED=${FIRST_PERSON_CONTEXT_HARNESS_ENABLED:-false}
+      # Pinned here like the harness flag: the root .env is read after backend/.env and
+      # would otherwise shadow it (found 2026-11-07: harness true, terminal false = not v10-only).
+      - FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=${FIRST_PERSON_CONTEXT_TERMINAL_ENABLED:-false}
       - FIRST_PERSON_CONTEXT_COLLECTION=${FIRST_PERSON_CONTEXT_COLLECTION:-}
       # Owner-only, file-backed first-person review preview (2026-10-22).
       # LOCAL ONLY: the route refuses to run when IS_PRODUCTION is true, and it
