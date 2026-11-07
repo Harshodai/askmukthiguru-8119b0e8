@@ -173,6 +173,30 @@ async function invokeEdgeFn<T>(
  * runtime, which makes `memory-embed` unreachable and broke every add.
  */
 async function addViaBackend(text: string, accessToken: string, cause: unknown): Promise<GuruMemory> {
+  // PROD-MEM-01: First try canonical memory REST endpoint
+  try {
+    const canonicalEndpoint = resolveMemoryEndpoint('/api/memory/canonical');
+    const canonRes = await fetch(canonicalEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ statement: text, memory_type: 'USER_EXPLICIT' }),
+    });
+    if (canonRes.ok) {
+      const saved = await canonRes.json();
+      return {
+        id: saved.id,
+        content: saved.statement ?? text,
+        source: 'explicit',
+        created_at: saved.created_at || new Date().toISOString(),
+      } as GuruMemory;
+    }
+  } catch {
+    // Fall back to /api/memory/add
+  }
+
   const endpoint = resolveMemoryEndpoint('/api/memory/add');
   const res = await fetch(endpoint, {
     method: 'POST',
