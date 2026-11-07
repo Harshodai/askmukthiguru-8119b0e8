@@ -59,6 +59,30 @@ from services.text_quality_filter import find_artifact
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_sparse_query(query_sparse: Any) -> Optional[tuple[list[int], list[float]]]:
+    """Normalize sparse vector input to (indices, values) regardless of dict format."""
+    if not query_sparse:
+        return None
+    if isinstance(query_sparse, dict):
+        if "indices" in query_sparse and "values" in query_sparse:
+            try:
+                indices = [int(i) for i in query_sparse["indices"]]
+                values = [float(v) for v in query_sparse["values"]]
+                if indices and values:
+                    return indices, values
+            except (ValueError, TypeError):
+                return None
+        else:
+            try:
+                indices = [int(k) for k in query_sparse.keys()]
+                values = [float(v) for v in query_sparse.values()]
+                if indices and values:
+                    return indices, values
+            except (ValueError, TypeError):
+                return None
+    return None
+
 RECORD_TYPE_CHILD = "retrieval_child"
 RECORD_TYPE_PARENT = "parent_unit"
 
@@ -538,7 +562,7 @@ class FirstPersonContextStore:
         )
         seen_parent_ids = {g[0] for g in groups_dense}
         groups = list(groups_dense)
-        if query_sparse and query_sparse.get("indices"):
+        if _normalize_sparse_query(query_sparse):
             groups_sparse = self._query_groups(
                 query_dense,
                 query_sparse=query_sparse,
@@ -590,14 +614,16 @@ class FirstPersonContextStore:
         limit_parents: int,
         spans_per_parent: int,
     ) -> list[tuple[str, tuple[str, ...], float]]:
-        has_sparse = bool(query_sparse and query_sparse.get("indices"))
+        parsed_sparse = _normalize_sparse_query(query_sparse)
+        has_sparse = parsed_sparse is not None
         if hasattr(self._client, "query_points_groups"):
             try:
                 if has_sparse:
                     prefetch_limit = max(limit_parents * spans_per_parent * 3, 40)
+                    indices, values = parsed_sparse
                     sp_vector = SparseVector(
-                        indices=query_sparse["indices"],
-                        values=query_sparse["values"],
+                        indices=indices,
+                        values=values,
                     )
                     prefetch_queries = [
                         Prefetch(
@@ -666,12 +692,14 @@ class FirstPersonContextStore:
         limit_parents: int,
         spans_per_parent: int,
     ) -> list[tuple[str, tuple[str, ...], float]]:
-        has_sparse = bool(query_sparse and query_sparse.get("indices"))
+        parsed_sparse = _normalize_sparse_query(query_sparse)
+        has_sparse = parsed_sparse is not None
         if has_sparse:
             prefetch_limit = max(limit_parents * spans_per_parent * 3, 40)
+            indices, values = parsed_sparse
             sp_vector = SparseVector(
-                indices=query_sparse["indices"],
-                values=query_sparse["values"],
+                indices=indices,
+                values=values,
             )
             prefetch_queries = [
                 Prefetch(

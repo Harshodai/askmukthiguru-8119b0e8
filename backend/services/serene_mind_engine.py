@@ -369,7 +369,7 @@ _EN_PATTERNS = {
         r"\b(stressed|anxious|anxiety|panic|overwhelm\w*|can'?t\s*sleep|insomnia)\b",
         r"\b(depressed|sad|unhappy|miserable|frustrated|angry|furious)\b",
         r"\b(scared|afraid|terrified|worried|fear|nervous)\b",
-        r"\b(lonely|isolated|alone|abandoned|rejected)\b",
+        r"\b(lonely|isolated|abandoned|rejected)\b|(?<!that )(?<!this )(?<!it )(?<!let )\balone\b",
         r"\b(burn\s*out|burned\s*out|pointless|crying|don'?t\s*feel\s*like\s*myself)\b",
         # Directional/existential stuckness
         r"\bstuck\s+(in|with|on)\b",
@@ -953,6 +953,12 @@ def _get_doctrinal_inquiry_patterns() -> tuple[re.Pattern, ...]:
         re.compile(
             r"\b(how\s+(to|can\s+one|do\s+we)\s+(transcend|overcome|handle|deal\s+with|dissolve|understand|be\s+free\s+from|heal)|"
             r"meaning\s+of|nature\s+of|root\s+cause\s+of|freedom\s+from)\b",
+            re.IGNORECASE,
+        ),
+        re.compile(
+            r"^\s*(?:does|is|can|could|would)\s+(?:feeling|being|\w+)\s+(?:\w+\s+){0,6}(?:count\s+as|considered|defined\s+as|suffering|valid|normal)\b|"
+            r"^\s*once\s+i\s+(?:\w+\s+){0,8}does\s+(?:that|it)\s+(?:alone\s+)?(?:change|help|matter|work)\b|"
+            r"\b(?:count\s+as\s+suffering|is\s+that\s+only\s+for|does\s+that\s+alone\s+change)\b",
             re.IGNORECASE,
         ),
     )

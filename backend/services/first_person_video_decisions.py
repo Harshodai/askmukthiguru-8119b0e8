@@ -172,6 +172,54 @@ class VideoDecisionStore:
         self._lock_path = self.directory / LOCK_FILENAME
 
     # ------------------------------------------------------------------ read
+    def load_from_db(self, client: Any) -> dict[str, VideoDecision]:
+        """Load decisions from PostgreSQL public.video_serving_decisions table (PROD-DATA-03).
+        Falls back to local file if the DB read fails or returns empty.
+        """
+        try:
+            res = client.table("video_serving_decisions").select("*").execute()
+            rows = getattr(res, "data", None) or []
+            if not rows:
+                return self.load()
+            out: dict[str, VideoDecision] = {}
+            for r in rows:
+                vid = str(r.get("video_id") or "").strip()
+                if vid:
+                    out[vid] = _record_to_decision(vid, r)
+            return out
+        except Exception as exc:
+            logger.warning("[VideoDecisionStore] DB read failed: %s; falling back to file store", exc)
+            return self.load()
+
+    def sync_to_db(self, client: Any, video_id: str, decision: VideoDecision, actor: str, reason: str = "") -> bool:
+        """Persist human decision and audit entry to PostgreSQL (PROD-DATA-03)."""
+        try:
+            payload = {
+                "video_id": video_id,
+                "admin_approved": decision.admin_approved,
+                "human_speaker_check": decision.human_speaker_check,
+                "grade": decision.grade,
+                "notes": decision.notes,
+                "updated_by": actor,
+                "updated_at": decision.updated_at or datetime.now(UTC).isoformat(),
+                "reason": reason or decision.reason,
+            }
+            client.table("video_serving_decisions").upsert(payload).execute()
+            audit_entry = {
+                "video_id": video_id,
+                "admin_approved": decision.admin_approved,
+                "human_speaker_check": decision.human_speaker_check,
+                "grade": decision.grade,
+                "notes": decision.notes,
+                "actor": actor,
+                "reason": reason or decision.reason,
+            }
+            client.table("video_serving_decision_audit").insert(audit_entry).execute()
+            return True
+        except Exception as exc:
+            logger.warning("[VideoDecisionStore] DB sync failed: %s", exc)
+            return False
+
     def load(self) -> dict[str, VideoDecision]:
         """All stored decisions. Missing file -> empty. Invalid file -> VideoDecisionError."""
         try:

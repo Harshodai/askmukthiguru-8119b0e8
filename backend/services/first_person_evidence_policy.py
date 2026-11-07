@@ -87,7 +87,11 @@ _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r"possibility\s+(?:one|two|three|four)\b|"
     r"it\s+is\s+to\s+live\b|"
     r"you\s+could\s+be\s+a\s+(?:beggar|couple|monk)\b|"
-    r"if\s+all\s+that\s+happens\b"
+    r"if\s+all\s+that\s+happens\b|"
+    r"leave\s+alone\b|"
+    r"you(?:'re|\s+are)\s+also\s+thinking\b|"
+    r"the\s+first\s+is\b|"
+    r"think\s+about\s+it\b"
     r")",
     re.IGNORECASE,
 )
@@ -119,7 +123,14 @@ _HEALTH_CLAIM_RE = re.compile(
     r"|\b100\s*%\s*(?:you\s*can\s*)?heal\b"
     r"|\bthere\s+is\s+no\s+hope\s+at\s+all\b"
     r"|\bthese\s+diseases\s+are\s+(?:actually\s+)?caused\s+by\b"
-    r"|\b(?:love|state)\s+has\s+(?:tremendous\s+)?power\s+to\s+heal\b"
+    r"|\b(?:love|state|energy|it|this)\s+(?:itself\s+)?has\s+(?:tremendous\s+)?power\s+to\s+heal\b"
+    r"|\bhas\s+(?:tremendous\s+)?power\s+to\s+heal\b"
+    r"|\b40\s*,?\s*000\s+neurons\b"
+    r"|\bwrong\s+signals?\s+(?:to|into)\s+the\s+universe\b"
+    r"|\bcomes\s+as\s+health\s+issues\b"
+    r"|\babundance\s+in\s+health\b"
+    r"|\bwhy\s+is\s+someone\s+abusing\b"
+    r"|\bcompletely\s+free\s+of\s+anxiety\b"
     r"|\bheal\s+the\s+person\b"
     r"|\bso\s+that\s+is\s+how\s+you\s+heal\s+the\s+person\b"
     r"|\bdestroys?\s+(?:your\s+)?(?:body|heart|consciousness)\b|\binternally\s+i\s+can\s+say\s+you\s+are\s+dead\b",
