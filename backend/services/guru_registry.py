@@ -103,7 +103,7 @@ def allowed_speaker_labels() -> frozenset[str]:
 
 def label_for(guru_id: str | None) -> str | None:
     gid = (guru_id or "").strip().lower()
-    return next((g.label for g in get_gurus() if g.id == gid), None)
+    return next((g.label for g in get_gurus() if g.id == gid or g.label.lower() == gid), None)
 
 
 def attribution_tag_for(guru_id: str) -> str | None:

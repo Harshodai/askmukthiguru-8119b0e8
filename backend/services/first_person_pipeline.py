@@ -2894,7 +2894,9 @@ class FirstPersonPipeline:
         playback_end = span.end_ms / 1000.0 + CITATION_PLAYBACK_PAD_S
         clip_url = span.source_url or f"https://www.youtube.com/watch?v={video_id}&t={start_sec}s"
         speaker_name = (
-            label_for(span.speaker_id) if span.speaker_verified is True else "unverified clip"
+            (label_for(span.guru_id) or label_for(span.speaker_id))
+            if span.speaker_verified is True
+            else "unverified clip"
         ) or "unverified clip"
         title = f"Discourse by {speaker_name}"
         label = cite_span.label if cite_span else None
