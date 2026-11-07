@@ -4289,7 +4289,7 @@ class FirstPersonPipeline:
                 def _retrieve_contexts() -> list[ParentContext]:
                     found = ctx_store.retrieve(
                         query_dense=query_dense_vector,
-                        query_sparse=query_sparse_vector if bool(getattr(settings, "first_person_context_use_sparse", False)) else None,
+                        query_sparse=query_sparse_vector,
                         guru_id=editorial_teacher_id,
                         limit_parents=harness_candidate_limit,
                         spans_per_parent=max_spans,

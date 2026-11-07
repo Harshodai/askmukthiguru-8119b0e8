@@ -1895,8 +1895,8 @@ class SereneMindEngine:
                 max_level = DistressLevel.CRISIS
                 max_confidence = min(0.5 + (DistressLevel.CRISIS.value * 0.15), 1.0)
 
-        # PROD-SAFE-01: Protect philosophical/doctrinal inquiries from false-positive MODERATE triggers
-        if max_level == DistressLevel.MODERATE and is_doctrinal_topic_inquiry(message):
+        # PROD-SAFE-01: Protect philosophical/doctrinal inquiries from false-positive MILD/MODERATE triggers
+        if max_level in (DistressLevel.MILD, DistressLevel.MODERATE) and is_doctrinal_topic_inquiry(message):
             max_level = DistressLevel.NONE
             max_confidence = 0.0
             signals.append("[doctrinal_inquiry] topic inquiry, not acute personal distress")

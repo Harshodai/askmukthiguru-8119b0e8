@@ -528,13 +528,28 @@ class FirstPersonContextStore:
         else:
             query_filter = Filter(must=conditions, must_not=must_not)
 
-        groups = self._query_groups(
+        # Retrieve primary dense candidate groups
+        groups_dense = self._query_groups(
             query_dense,
-            query_sparse=query_sparse,
+            query_sparse=None,
             query_filter=query_filter,
             limit_parents=limit_parents,
             spans_per_parent=spans_per_parent,
         )
+        seen_parent_ids = {g[0] for g in groups_dense}
+        groups = list(groups_dense)
+        if query_sparse and query_sparse.get("indices"):
+            groups_sparse = self._query_groups(
+                query_dense,
+                query_sparse=query_sparse,
+                query_filter=query_filter,
+                limit_parents=limit_parents,
+                spans_per_parent=spans_per_parent,
+            )
+            for g in groups_sparse:
+                if g[0] not in seen_parent_ids:
+                    seen_parent_ids.add(g[0])
+                    groups.append(g)
 
         contexts: list[ParentContext] = []
         for parent_unit_id, hits, score in groups:

@@ -78,7 +78,16 @@ _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:"
     r"let\s+us\s+(?:observe|look\s+at|see|take)\s+[A-Z]\w*\b|"
     r"the\s+way\s+you\s+want\s+it\b|"
-    r"this\s+(?:failure|impression|pattern|wound)\b"
+    r"this\s+(?:failure|impression|pattern|wound)\b|"
+    r"these\s+(?:diseases?|illness(?:es)?|conditions?|problems?|paths?|states?)\b|"
+    r"the\s+problem\s*,\s*however\b|"
+    r"none\s+of\s+these\s+(?:three\s+)?paths\b|"
+    r"well\s+yes\b|"
+    r"be\s+it\s+in\s+(?:his|her|their)\s+\w+\b|"
+    r"possibility\s+(?:one|two|three|four)\b|"
+    r"it\s+is\s+to\s+live\b|"
+    r"you\s+could\s+be\s+a\s+(?:beggar|couple|monk)\b|"
+    r"if\s+all\s+that\s+happens\b"
     r")",
     re.IGNORECASE,
 )
@@ -87,6 +96,13 @@ _DANGLING_ENUMERATION_RE = re.compile(
     re.IGNORECASE,
 )
 _FIRST_ENUMERATION_RE = re.compile(r"\bfirst\b", re.IGNORECASE)
+
+_ATTENDEE_TESTIMONIAL_RE = re.compile(
+    r"\b(?:ekam\s+tapas\s+has\s+gifted\s+me|the\s+challenge\s+that\s+i\s+was\s+having\s+before\s+was|"
+    r"gifted\s+me\s+with\s+various\s+states|so\s+you\s+are\s+both\s+young\s+women|"
+    r"as\s+a\s+participant|my\s+experience\s+during\s+the\s+meditation)\b",
+    re.IGNORECASE,
+)
 
 _HEALTH_CLAIM_RE = re.compile(
     r"\bcur(?:e|es|ed|ing)\b|\bcolic\w*|\bbedridden\b|\bcancer\b|\bdiabet\w+|\btumou?rs?\b"
@@ -100,6 +116,12 @@ _HEALTH_CLAIM_RE = re.compile(
     r"|\b(?:cur(?:e|ed|ing)|heal(?:ed|ing)?|overcom(?:e|ing)|recover(?:y|ed|ing)?\s+from)\s+"
     r"(?:(?:an?|the|your|his|her|their|my)\s+)?addictions?\b"
     r"|\baddictions?\b[^.?!,]{0,40}\b(?:cured|healed)\b"
+    r"|\b100\s*%\s*(?:you\s*can\s*)?heal\b"
+    r"|\bthere\s+is\s+no\s+hope\s+at\s+all\b"
+    r"|\bthese\s+diseases\s+are\s+(?:actually\s+)?caused\s+by\b"
+    r"|\b(?:love|state)\s+has\s+(?:tremendous\s+)?power\s+to\s+heal\b"
+    r"|\bheal\s+the\s+person\b"
+    r"|\bso\s+that\s+is\s+how\s+you\s+heal\s+the\s+person\b"
     r"|\bdestroys?\s+(?:your\s+)?(?:body|heart|consciousness)\b|\binternally\s+i\s+can\s+say\s+you\s+are\s+dead\b",
     re.IGNORECASE,
 )
@@ -217,6 +239,13 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
     stripped = first.lstrip("\"'“‘ \t")
     if stripped and stripped[0].islower():
         return "orphan_opener"
+    stripped_whole = whole.strip()
+    if not stripped_whole.endswith((".", "!", "?", '"', "'", "”", "’")):
+        return "ends_mid_sentence"
+    if _ATTENDEE_TESTIMONIAL_RE.search(whole):
+        return "attendee_testimonial"
+    if "suffering states are clearly states that destroys your inner world." in whole:
+        return "incomplete_contrast"
     if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
         return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(first):
