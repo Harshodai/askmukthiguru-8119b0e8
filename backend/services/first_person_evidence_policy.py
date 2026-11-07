@@ -74,6 +74,14 @@ _LATE_ORDINAL_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*the\s+(?:second|third|fourth|fifth|sixth|next|last)\s+\w+",
     re.IGNORECASE,
 )
+_STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
+    r"^[\"'\u201c\u2018\s]*(?:"
+    r"let\s+us\s+(?:observe|look\s+at|see|take)\s+[A-Z]\w*\b|"
+    r"the\s+way\s+you\s+want\s+it\b|"
+    r"this\s+(?:failure|impression|pattern|wound)\b"
+    r")",
+    re.IGNORECASE,
+)
 
 _HEALTH_CLAIM_RE = re.compile(
     r"\bcur(?:e|es|ed|ing)\b|\bcolic\w*|\bbedridden\b|\bcancer\b|\bdiabet\w+|\btumou?rs?\b"
@@ -85,7 +93,8 @@ _HEALTH_CLAIM_RE = re.compile(
     r"|\bmental\s+(?:illness|disorder|breakdown)s?\b"
     r"|\b(?:cur(?:e|ed|ing)|heal(?:ed|ing)?|overcom(?:e|ing)|recover(?:y|ed|ing)?\s+from)\s+"
     r"(?:(?:an?|the|your|his|her|their|my)\s+)?addictions?\b"
-    r"|\baddictions?\b[^.?!,]{0,40}\b(?:cured|healed)\b",
+    r"|\baddictions?\b[^.?!,]{0,40}\b(?:cured|healed)\b"
+    r"|\bdestroys?\s+(?:your\s+)?(?:body|heart|consciousness)\b|\binternally\s+i\s+can\s+say\s+you\s+are\s+dead\b",
     re.IGNORECASE,
 )
 
@@ -104,7 +113,7 @@ _EVENT_MARKER_RE = re.compile(
 )
 
 _DANGLING_QUESTION_TAIL_RE = re.compile(
-    r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you)\s*\?\s*$",
+    r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you|when\s+[^?]{3,80},\s*what\s+do\s+you\s+do)\s*\?\s*$",
     re.IGNORECASE,
 )
 
@@ -165,6 +174,8 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "dangling_question_tail"
     if _DISCOURSE_OPENER_RE.match(text) or _LATE_ORDINAL_OPENER_RE.match(text):
         return "discourse_opener"
+    if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(text):
+        return "orphan_opener"
     if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
         return "orphan_opener"
     if _EVENT_MARKER_RE.search(text):
@@ -183,6 +194,8 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
     whole = " ".join(text.strip() for text in text_list)
     if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
         return "discourse_opener"
+    if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(first):
+        return "orphan_opener"
     if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
         return "orphan_opener"
     if problem := _clip_length_problem(whole):

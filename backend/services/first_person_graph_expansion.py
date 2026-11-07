@@ -192,8 +192,8 @@ def expand_teaching_units(
     # Load query templates from the config JSON.  Fall back to a baked-in
     # string if the config file is unavailable (test / offline environments).
     _FALLBACK_ONE_HOP = (
-        "MATCH (seed:TUTeachingUnit {span_id: $span_id})"
-        "-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-"
+        "MATCH (seed:TUTeachingUnit) WHERE seed.span_id = $span_id "
+        "MATCH (seed)-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-"
         "(neighbor:TUTeachingUnit) "
         "WHERE neighbor.span_id <> $span_id "
         "AND neighbor.rights_status = 'licensed' "
@@ -203,8 +203,8 @@ def expand_teaching_units(
     _FALLBACK_TWO_HOP = _FALLBACK_ONE_HOP.replace("*1..1", "*1..2")
     _FALLBACK_MULTI_ONE_HOP = (
         "UNWIND $span_ids AS sid "
-        "MATCH (seed:TUTeachingUnit {span_id: sid})"
-        "-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-"
+        "MATCH (seed:TUTeachingUnit) WHERE seed.span_id = sid "
+        "MATCH (seed)-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-"
         "(neighbor:TUTeachingUnit) "
         "WHERE neighbor.rights_status = 'licensed' "
         "AND NOT neighbor.span_id IN $span_ids "

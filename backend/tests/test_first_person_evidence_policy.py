@@ -134,3 +134,36 @@ def test_context_standalone_policy_rejects_a_dangling_question_tail():
 
     assert decision.action is EvidenceAction.EXCLUDE
     assert decision.reason_codes == ("dangling_question_tail",)
+
+
+def test_context_standalone_rejects_extreme_health_destruction_claims():
+    text = (
+        "Your suffering state destroys your body. it fills your body with stress hormones "
+        "destroys your heart makes you totally disconnected from your loved ones. "
+        "Internally i can say you are dead."
+    )
+    decision = first_person_evidence_policy.assess_context_standalone((text,))
+    assert decision.action is EvidenceAction.EXCLUDE
+    assert "health_claim" in decision.reason_codes
+
+
+def test_context_standalone_rejects_conditional_dangling_question_tail():
+    text = (
+        "Only connection can heal. Because love and connection is an energy that has "
+        "this tremendous power to heal. When you are deeply hurt, what do you do?"
+    )
+    decision = first_person_evidence_policy.assess_context_standalone((text,))
+    assert decision.action is EvidenceAction.EXCLUDE
+    assert "dangling_question_tail" in decision.reason_codes
+
+
+def test_context_standalone_rejects_story_and_demonstrative_openers():
+    clips = [
+        "Let us observe Nomi a little longer. Anger and confusion have mounted over his ideals.",
+        "The way you want it to happen. You want money tomorrow. You want name and fame.",
+        "This failure can cause an impression. This failure can become like a samskara.",
+    ]
+    for clip in clips:
+        decision = first_person_evidence_policy.assess_context_standalone((clip,))
+        assert decision.action is EvidenceAction.EXCLUDE
+        assert "orphan_opener" in decision.reason_codes

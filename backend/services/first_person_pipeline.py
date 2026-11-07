@@ -2666,7 +2666,7 @@ class FirstPersonPipeline:
                             guru_id=teacher_id,
                             limit_parents=max_clips,
                             spans_per_parent=max_spans,
-                            concept_ids=tu_neighbors,
+                            span_ids=tu_neighbors,
                         )
                     except Exception as exc:
                         logger.debug(

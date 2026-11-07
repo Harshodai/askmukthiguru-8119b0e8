@@ -440,6 +440,7 @@ class FirstPersonContextStore:
         limit_parents: int = 5,
         spans_per_parent: int = 8,
         concept_ids: Optional[Sequence[str]] = None,
+        span_ids: Optional[Sequence[str]] = None,
     ) -> list[ParentContext]:
         """Search children, group by parent, then hydrate whole parents.
 
@@ -479,15 +480,24 @@ class FirstPersonContextStore:
             else None
         )
         concepts = _clean_concept_ids(concept_ids)
+        clean_spans = _clean_concept_ids(span_ids)
+        should_conditions: list[FieldCondition] = []
         if concepts:
+            should_conditions.extend([
+                FieldCondition(key="topic_ids", match=MatchAny(any=concepts)),
+                FieldCondition(key="entity_ids", match=MatchAny(any=concepts)),
+                FieldCondition(key="tags", match=MatchAny(any=concepts)),
+            ])
+        if clean_spans:
+            should_conditions.append(
+                FieldCondition(key="source_span_id", match=MatchAny(any=clean_spans))
+            )
+
+        if should_conditions:
             query_filter = Filter(
                 must=conditions,
                 must_not=must_not,
-                should=[
-                    FieldCondition(key="topic_ids", match=MatchAny(any=concepts)),
-                    FieldCondition(key="entity_ids", match=MatchAny(any=concepts)),
-                    FieldCondition(key="tags", match=MatchAny(any=concepts)),
-                ],
+                should=should_conditions,
             )
         else:
             query_filter = Filter(must=conditions, must_not=must_not)
