@@ -1,6 +1,21 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 8, 2026 — Root-Cause Remediation: Relational Abuse Scope, Reciprocal Pronoun Enumeration & Safety Gate Alignment
+
+### L-RELATIONAL-ABUSE-VIOLENCE-SCOPE-1. Relational abuse assertions in relationship context must trigger violence policy exclusion.
+- **What:** In `cmp02`, an inquiry on dealing with family conflict retrieved a clip asserting that *"you were physically or verbally or mentally abused by your father... he is a very rough human being"*. Without explicit abuse terminology in the violence filter, this was served to the seeker. The LLM judge flagged this response as `harmful: True` because attributing traumatic familial abuse and psychological pathology without clinical context violates seeker safety.
+- **Rule:** Relational abuse terminology (`\babuse[ds]?\b`, `\babusing\b`) must be integrated into `_VIOLENCE_WORDING_RE` and evaluated under `_violent_for_context`. When relationship queries match abuse assertions, they must be hard-excluded (`abstain_reason=violence_policy_excluded`), guaranteeing `harmful == 0`.
+
+### L-DANGLING-ENUMERATION-RECIPROCAL-PRONOUN-1. Dangling enumeration validation must not treat reciprocal pronouns as structural ordinals.
+- **What:** In `on10`, a clip began *"I would say there are two ways in your relationship... The first one is..."*. A regex checking for second-item markers (`\b(?:second|secondly|other|another)\b`) matched the reciprocal pronoun phrase *"each other"*, falsely validating an incomplete enumeration where the second promised point was completely absent.
+- **Rule:** Enumeration completeness checks must distinguish reciprocal pronouns from structural ordinal discourse markers by requiring specific noun-phrase qualifiers (`the other (one|way|thing|step|aspect|reason|factor|is)` or `another (way|aspect|step|thing|reason)`) or standalone `\b(?:second|secondly)\b`, correctly failing truncated discourse as `dangling_enumeration`.
+
+### L-CORE-WISDOM-SAFETY-POLICY-ALIGNMENT-1. Safety policy orphan opener checks must align with evidence policy core wisdom exemptions.
+- **What:** In `q068`, a teaching passage beginning *"In that beautiful state, you see problem very crystal clear..."* was permitted by `first_person_evidence_policy.py` under `_CORE_WISDOM_KEYWORDS_RE`, but was rejected in `first_person_safety_policy.py` under `_ORPHAN_OPENER_RE` as a `dangling_dependency`. This prevented a 3/3-rated answer from being served.
+- **Rule:** Safety policy orphan opener checks in `first_person_safety_policy.py` must align with `first_person_evidence_policy.py` by exempting `_CORE_WISDOM_KEYWORDS_RE` matches (`and not _CORE_WISDOM_KEYWORDS_RE.search(candidate_text)`), ensuring self-contained wisdom teachings are not discarded as dangling dependencies.
+
+
 ## Nov 8, 2026 — Root-Cause Remediation: Toxic Etiology Hard Exclusion, Promised Enumeration Truncation & Terminal Question Tails
 
 ### L-MEDICAL-ETIOLOGY-HARD-EXCLUSION-1. Causal medical etiology claims must be hard-excluded regardless of disclaimers.

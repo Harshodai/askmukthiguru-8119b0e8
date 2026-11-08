@@ -311,3 +311,54 @@ def test_orphan_opener_not_from_that_space():
     assert _context_standalone_problem([text]) == "orphan_opener"
 
 
+def test_relational_abuse_violence_policy_excluded():
+    decision = first_person_evidence_policy.assess_contextual_safety(
+        "How does past emotional hurt damage relationships, and how can forgiveness bring deep connection?",
+        "your children will not be good with your wife because you have been physically or verbally or mentally abused by your father. You will be a very rough human being because of that wound.",
+    )
+    assert decision.action is EvidenceAction.EXCLUDE
+    assert "violent_relationship_context" in decision.reason_codes
+
+
+def test_promised_enumeration_with_each_other_is_dangling():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = (
+        "I would say there are two ways in your relationship with your partner where you do not feel separate. "
+        "The first one is you need to get out of hurt as and when it arises. "
+        "Not that we do not get hurt, we do not get angry with each other, we do, but every time we dissolve it."
+    )
+    assert _context_standalone_problem([text]) == "dangling_enumeration"
+
+
+def test_orphan_opener_you_will_be():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "you will be a heart leader to whom enduring wealth flows in abundance."
+    assert _context_standalone_problem([text]) == "orphan_opener"
+
+
+def test_truncated_chemicals_flooding_body_excluded():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "you are living in it unconsciously you are wiring your brain your heart your being the chemicals that is flooding your body"
+    assert _context_standalone_problem([text]) == "ends_mid_sentence"
+
+
+def test_unexplained_samskara_and_garbled_asr_excluded():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "Otherwise, this samskara will continue to flow into your next life and will continue to haunt you."
+    assert _context_standalone_problem([text]) == "unexplained_cultural_reference"
+
+
+def test_repetitive_suffering_sadness_loop_excluded():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "suffering makes you sad when you're sad you perpetuate sadness when you're anxious you create anxiety around you when you're stressed you build more stress around you."
+    assert _context_standalone_problem([text]) == "thin_repetitive_loop"
+
+
+def test_core_wisdom_conjunction_opener_allowed_in_safety_policy():
+    from services.first_person_safety_policy import FirstPersonSafetyPolicy
+    text = "And when you see the truth, automatically beautiful state comes in. And in that beautiful state, you see problem very crystal clear."
+    decision = FirstPersonSafetyPolicy().evaluate(query="What is a beautiful state?", candidate_text=text)
+    assert "dangling_dependency" not in decision.reason_codes
+
+
+

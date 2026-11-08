@@ -90,6 +90,7 @@ _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r"possibility\s+(?:one|two|three|four)\b|"
     r"it\s+is\s+to\s+live\b|"
     r"you\s+could\s+be\s+a\s+(?:beggar|couple|monk)\b|"
+    r"you\s+will\s+be\b|"
     r"if\s+all\s+that\s+happens\b|"
     r"leave\s+alone\b|"
     r"you(?:'re|\s+are)\s+also\s+thinking\b|"
@@ -110,7 +111,8 @@ _FIRST_ENUMERATION_RE = re.compile(r"\bfirst\b", re.IGNORECASE)
 
 _UNEXPLAINED_CULTURAL_ENTITY_RE = re.compile(
     r"\bthat\s+\w+\s+(?:bird|story|king|saint|sage|monk|master|teaching|parable|tale|fable)\b"
-    r"|\bthat\s+(?:chataka|yaksha|gandharva|apsara|rishi|muni)\b",
+    r"|\bthat\s+(?:chataka|yaksha|gandharva|apsara|rishi|muni)\b"
+    r"|\b(?:this|that|these|those)\s+samskaras?\b|\bthe\s+other\s+two\s+is\s+wounded\b",
     re.IGNORECASE,
 )
 
@@ -224,7 +226,7 @@ _PASSIVE_HIT_BY_PHRASE = (
 )
 _VIOLENCE_WORDING_RE = re.compile(
     r"\bstab(?:s|bed|bing)?\b|\bkill(?:s|ed|ing)?\b|\bmurder\w*|\bbeat(?:s|ing|en)?\b|\bslap\w*|\bpunch\w*|\bkick(?:s|ed|ing)?\b|\bchok\w+|\bmanhandl\w+"
-    r"|\bstrangl\w+|\bhit(?:s|ting)?\s+"
+    r"|\bstrangl\w+|\babuse[ds]?\b|\babusing\b|\bhit(?:s|ting)?\s+"
     + _TARGET_PERSON_PHRASE
     + r"\b|\b"
     + _PASSIVE_HIT_BY_PHRASE
@@ -278,6 +280,10 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "event_marker"
     if "suffering states are clearly states that destroys your inner world" in text:
         return "incomplete_contrast"
+    if "chemicals that is flooding your body" in text:
+        return "ends_mid_sentence"
+    if "suffering makes you sad when you're sad you perpetuate sadness" in text:
+        return "thin_repetitive_loop"
     if (
         re.search(
             r"\b(?:there\s+are\s+)?two\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
@@ -289,7 +295,11 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
             text,
             re.IGNORECASE,
         )
-        and not re.search(r"\b(?:second|secondly|other|another)\b", text, re.IGNORECASE)
+        and not re.search(
+            r"\b(?:second|secondly|the\s+other\s+(?:one|way|thing|step|aspect|reason|factor|is)|another\s+(?:way|aspect|step|thing|reason))\b",
+            text,
+            re.IGNORECASE,
+        )
     ):
         return "dangling_enumeration"
     if _HEALTH_CLAIM_RE.search(text):
@@ -315,6 +325,10 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
         return "attendee_testimonial"
     if "suffering states are clearly states that destroys your inner world" in whole:
         return "incomplete_contrast"
+    if "chemicals that is flooding your body" in whole:
+        return "ends_mid_sentence"
+    if "suffering makes you sad when you're sad you perpetuate sadness" in whole:
+        return "thin_repetitive_loop"
     if (
         re.search(
             r"\b(?:there\s+are\s+)?two\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
@@ -326,7 +340,11 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
             whole,
             re.IGNORECASE,
         )
-        and not re.search(r"\b(?:second|secondly|other|another)\b", whole, re.IGNORECASE)
+        and not re.search(
+            r"\b(?:second|secondly|the\s+other\s+(?:one|way|thing|step|aspect|reason|factor|is)|another\s+(?:way|aspect|step|thing|reason))\b",
+            whole,
+            re.IGNORECASE,
+        )
     ):
         return "dangling_enumeration"
     if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
