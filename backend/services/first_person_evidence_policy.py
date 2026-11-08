@@ -62,7 +62,7 @@ _RHETORICAL_OPENER_RE = re.compile(
 
 _ORPHAN_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:yes(?:,|[^\w\s])\s*|(?:this|these|those|that)\s+(?:is|are|was|were)\b|these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
-    r"|and\b|but\b|or\b|then\b|which\b|that\s+is\s+why\b"
+    r"|and\b|but\b|or\b|then\b|which\b|that(?:'s|\s+is)\s+why\b"
     r"|(?:it\b(?!\s*(?:is|was|['\u2019]s)\b)|(?:they|them|their|theirs|he|him|his|she|her|hers)\b)|we\s+need\s+them\b|definitely\b"
     r"|i\s+(?:led|told|asked|gave|showed|took)\s+(?:him|her|them)\b"
     r"|i\s+(?:cannot|can't|couldn't)\s+help\s+(?:this|that|him|her|them)\b"
@@ -84,6 +84,7 @@ _LATE_ORDINAL_OPENER_RE = re.compile(
 )
 _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:"
+    r"let\s+us\s+understand\s+what\b|"
     r"let\s+us\s+(?:observe|look\s+at|see|take)\s+[A-Z]\w*\b|"
     r"the\s+way\s+you\s+want\s+it\b|"
     r"this\s+(?:failure|impression|pattern|wound)\b|"
@@ -154,7 +155,8 @@ _HEALTH_CLAIM_RE = re.compile(
     r"|\bheal\s+the\s+person\b"
     r"|\bso\s+that\s+is\s+how\s+you\s+heal\s+the\s+person\b"
     r"|\bdestroys?\s+(?:your\s+)?(?:body|heart|consciousness)\b|\binternally\s+i\s+can\s+say\s+you\s+are\s+dead\b"
-    r"|\bundigested\s+(?:material|toxins?)\b|\btoxins?\s+that\s+is\s+flowing\b|\baging\s+is\s+caused\s+or\s+disease\s+is\s+caused\b",
+    r"|\bundigested\s+(?:material|toxins?)\b|\btoxins?\s+that\s+is\s+flowing\b|\baging\s+is\s+caused\s+or\s+disease\s+is\s+caused\b"
+    r"|\b(?:get(?:ting)?|become|becoming)\s+diseased\b|\bdiseased\b|\binsulin(?:\s+levels?)?\b|\b(?:regions?|parts?)\s+of\s+(?:your|the)\s+brain\b",
     re.IGNORECASE,
 )
 
@@ -168,7 +170,10 @@ _AYURVEDIC_HEALTH_FRAMING_RE = re.compile(
     r"|\baging\s+is\s+caused\s+(?:or|and|by)\s+disease\b"
     r"|\bevery\s+muscle\s+in\s+(?:your|the)\s+body\s+(?:relaxes?|opens?|softens?)\b"
     r"|\bphysiologically?\s+(?:dead|dying|destroyed|relaxed)\b"
-    r"|\bwhen\s+you\s+truly\s+feel\s+peace.*(?:every\s+(?:cell|muscle)|body\s+relaxes?)\b",
+    r"|\bwhen\s+you\s+truly\s+feel\s+peace.*(?:every\s+(?:cell|muscle)|body\s+relaxes?)\b"
+    r"|\b(?:causes?\s+)?ill\s+health\b"
+    r"|\bbody\s+agitated\b"
+    r"|\binner\s+disturbance\s+leaves\s+your\s+body\b",
     re.IGNORECASE,
 )
 
@@ -198,7 +203,8 @@ _EVENT_MARKER_RE = re.compile(
 
 _DANGLING_QUESTION_TAIL_RE = re.compile(
     r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you|shall\s+we\s+[^?]{0,50}|when\s+[^?]{3,80},\s*what\s+do\s+you\s+do)\s*\?\s*$"
-    r"|(?:and\s+)?why\s+(?:is|are|was|were)\s+[^?]{1,60}\?\s*$",
+    r"|(?:and\s+)?why\s+(?:is|are|was|were)\s+[^?]{1,60}\?\s*$"
+    r"|(?:why\s+did\s+[^?]{3,80}\?|or\s+why\s+[^?]{3,80}\?)\s*$",
     re.IGNORECASE,
 )
 _DANGLING_AFFIRMATION_TAIL_RE = re.compile(
@@ -239,6 +245,16 @@ _VIOLENCE_WORDING_RE = re.compile(
     re.IGNORECASE,
 )
 _SELF_HARM_CLIP_RE = re.compile(r"\b(?:self\s*-\s*harm|suicid\w*)\b", re.IGNORECASE)
+_GRAPHIC_VIOLENCE_CLIP_RE = re.compile(
+    r"\b(?:"
+    r"crush(?:ing)?\s+another's\s+throat"
+    r"|throat\s+to\s+death"
+    r"|burn(?:ing)?\s+down\s+someone's\s+home"
+    r"|racial\s+violence"
+    r"|act\s+of\s+unthinkable\s+cruelty"
+    r")\b",
+    re.IGNORECASE,
+)
 
 
 def _clip_length_problem(text: str, *, settings_override: object | None = None) -> Optional[str]:
@@ -267,6 +283,12 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
     stripped = text.rstrip()
     if stripped and stripped[-1] in ",;:-\u2014\u2013":
         return "ends_mid_sentence"
+    if re.search(r"\b(?:allowing|giving|making|letting)\s*$", stripped, re.IGNORECASE):
+        return "ends_mid_sentence"
+    if len(text.split()) > 25 and not any(p in text for p in (".", "!", "?", "।", "॥")):
+        return "ends_mid_sentence"
+    if _GRAPHIC_VIOLENCE_CLIP_RE.search(text):
+        return "graphic_violence_discourse"
     if _DANGLING_QUESTION_TAIL_RE.search(stripped):
         return "dangling_question_tail"
     if _DANGLING_AFFIRMATION_TAIL_RE.search(stripped):
@@ -311,6 +333,10 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "dangling_enumeration"
     if _HEALTH_CLAIM_RE.search(text):
         return "health_claim"
+    if stripped and stripped[0].islower() and not stripped.startswith(("i ", "i'", "i’")):
+        return "severed_lowercase_opener"
+    if re.match(r"^[\"'\u201c\u2018\s]*more\s+\w+\s+to\b", text, re.IGNORECASE):
+        return "dangling_fragment"
     return _clip_length_problem(text, settings_override=settings_override)
 
 
@@ -324,10 +350,16 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
     stripped_whole = whole.strip()
     if stripped_whole and stripped_whole[-1] in ",;:-\u2014\u2013":
         return "ends_mid_sentence"
+    if re.search(r"\b(?:allowing|giving|making|letting)\s*$", stripped_whole, re.IGNORECASE):
+        return "ends_mid_sentence"
     if any(p in stripped_whole for p in (".", "!", "?", "।", "॥")) and not stripped_whole.endswith(
         (".", "!", "?", '"', "'", "”", "’", "।", "॥")
     ):
         return "ends_mid_sentence"
+    if len(whole.split()) > 25 and not any(p in whole for p in (".", "!", "?", "।", "॥")):
+        return "ends_mid_sentence"
+    if _GRAPHIC_VIOLENCE_CLIP_RE.search(whole):
+        return "graphic_violence_discourse"
     if _ATTENDEE_TESTIMONIAL_RE.search(whole):
         return "attendee_testimonial"
     if "suffering states are clearly states that destroys your inner world" in whole:
@@ -366,18 +398,21 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
         return "dangling_fragment"
     if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_OPENER_RE.match(first):
         return "orphan_opener"
+    if _DANGLING_QUESTION_TAIL_RE.search(whole.rstrip()):
+        return "dangling_question_tail"
+    if _DANGLING_AFFIRMATION_TAIL_RE.search(whole.rstrip()):
+        return "dangling_affirmation_tail"
     if problem := _clip_length_problem(whole):
         return problem
     if _HEALTH_CLAIM_RE.search(whole):
         return "health_claim"
     if any(_EVENT_MARKER_RE.search(text) for text in text_list):
         return "event_marker"
-    # Unlike the former harness implementation, also reject an answer window
-    # that still ends in a dangling rhetorical question.
-    if _DANGLING_QUESTION_TAIL_RE.search(whole.rstrip()):
-        return "dangling_question_tail"
-    if _DANGLING_AFFIRMATION_TAIL_RE.search(whole.rstrip()):
-        return "dangling_affirmation_tail"
+    first_stripped = first.strip()
+    if first_stripped and first_stripped[0].islower() and not first_stripped.startswith(("i ", "i'", "i’")):
+        return "severed_lowercase_opener"
+    if re.match(r"^[\"'\u201c\u2018\s]*more\s+\w+\s+to\b", first_stripped, re.IGNORECASE):
+        return "dangling_fragment"
     return None
 
 
@@ -407,6 +442,8 @@ class FirstPersonEvidencePolicy:
         reasons: list[str] = []
         if _violent_for_context(query, text, retrieval_query):
             reasons.append("violent_relationship_context")
+        if _GRAPHIC_VIOLENCE_CLIP_RE.search(text):
+            reasons.append("graphic_violence_discourse")
         if _self_harm_for_context(query, text):
             reasons.append("unsolicited_self_harm_reference")
         if _EXTERNAL_TEACHER_RE.search(query) or (bool(retrieval_query) and _EXTERNAL_TEACHER_RE.search(retrieval_query)):
@@ -424,7 +461,7 @@ class FirstPersonEvidencePolicy:
         event_bound_only_exclusion = contextual.action == "exclude" and set(reasons) == {
             "event_bound"
         }
-        if "violent_relationship_context" in reasons or "external_teacher_or_tradition" in reasons:
+        if "violent_relationship_context" in reasons or "external_teacher_or_tradition" in reasons or "graphic_violence_discourse" in reasons:
             action = EvidenceAction.EXCLUDE
         elif event_bound_only_exclusion:
             action = EvidenceAction.NEEDS_REVIEW

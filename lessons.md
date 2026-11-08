@@ -1,6 +1,21 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 8, 2026 — Root-Cause Remediation: Compound Weak Match Suppression, Structural Transcript Integrity & Ayurvedic Safety Notices
+
+### L-COMPOUND-WEAK-MATCH-ABSTAIN-1. Verbatim retrieval on multi-part compound queries must abstain on weak matches.
+- **What:** In `retrieval_only` mode (Invariant X24), LLMs may not author connective or synthesizing text. When compound questions (`cmp01`, `cmp02`, `cmp04`) matched only weakly, the pipeline served a single clip that addressed one concept while leaving the others unanswered. This led to `harmful: True` ratings (e.g. `cmp02` was rated harmful for absolutist shaming on letting go without addressing relationship damage; `cmp04` promised anxiety cure without medical care).
+- **Rule:** Multi-part compound questions must only be served when they have direct complete answers (`status == "success"` and `is_direct == True`). When only a weak match exists, `serve_weak` must enforce `and not is_compound`, cleanly falling back to general RAG or honest abstention.
+
+### L-UNPUNCTUATED-ASR-TRANSCRIPT-GATING-1. Punctuation-blind ASR transcripts require multi-layer grammatical and structural density gating.
+- **What:** In `q051`, an unpunctuated 50-word transcript slipped past sentence-boundary checks because it contained zero periods or sentence terminators. It opened with a lowercase comparative fragment (`"more disharmony to happen in your life"`), asserted an alarming medical claim (`"you're getting diseased"`), and ended on a severed transitive verb (`"it is not allowing"`), resulting in a `harmful: True` verdict.
+- **Rule:** Standalone detectors must check punctuation density (>25 words with zero sentence terminators `.` / `!` / `?` / `।` / `॥`), trailing transitive verbs (`allowing`, `giving`, `making`, `letting`), comparative fragments (`more <noun> to`), and severed lowercase openers, preventing unpunctuated ASR slices from ever reaching seekers.
+
+### L-AYURVEDIC-HEALTH-SAFETY-DISCLAIMER-1. Spiritual-physiology teachings require automated platform medical notices.
+- **What:** In `q064` and `q074`, high-relevance direct answers discussing how emotional stress leaves the body agitated and causes ill health were graded `unsure` by judges solely due to lack of a healthcare disclaimer.
+- **Rule:** Widen `_AYURVEDIC_HEALTH_FRAMING_RE` to match general spiritual-physiology terms (`causes ill health`, `body agitated`, `inner disturbance leaves your body`) and automatically append `MEDICAL_CLAIM_NOTICE`. This converts valid spiritual teachings to showable without violating Invariant X24.
+
+
 ## Nov 8, 2026 — Root-Cause Remediation: Compound Weak Suppression Recovery, Core Wisdom Opener Precision & Opening Minute Scoring
 
 ### L-COMPOUND-WEAK-SUPPRESSION-COVERAGE-1. Weak match serving must not be suppressed wholesale on compound queries.

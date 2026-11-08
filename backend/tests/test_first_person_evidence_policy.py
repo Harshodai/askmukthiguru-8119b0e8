@@ -381,5 +381,74 @@ def test_dangling_fragment_some_noun_rejected():
     assert _context_standalone_problem([text]) == "dangling_fragment"
 
 
+def test_unpunctuated_run_on_ends_mid_sentence():
+    from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
+    text = "more disharmony to happen in your life more uncomfortable situations to flow into your life that is what the stress is doing to you at a different realm so your stress is not helping your body it is not helping your relationship love is getting out of your relationship it is not allowing"
+    assert _standalone_problem(text) == "ends_mid_sentence"
+    assert _context_standalone_problem([text]) == "ends_mid_sentence"
+
+
+def test_trailing_transitive_verb_ends_mid_sentence():
+    from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
+    text = "When love is getting out of your relationship and your heart is closing, it is not allowing."
+    # With period at end, it's not a trailing verb without period, but if ending without punctuation:
+    text_cut = "When love is getting out of your relationship and your heart is closing it is not allowing"
+    assert _standalone_problem(text_cut) == "ends_mid_sentence"
+    assert _context_standalone_problem([text_cut]) == "ends_mid_sentence"
+
+
+def test_contracted_thats_why_rejected_as_orphan():
+    from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
+    text = "That's why the ancient exhort us to live in a beautiful state and awaken to connection."
+    assert _standalone_problem(text) == "orphan_opener"
+    assert _context_standalone_problem([text]) == "orphan_opener"
+
+
+def test_let_us_understand_what_rejected_as_orphan():
+    from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
+    text = "Let us understand what a family is and how inner stillness can bring people together."
+    assert _standalone_problem(text) == "orphan_opener"
+    assert _context_standalone_problem([text]) == "orphan_opener"
+
+
+def test_graphic_violence_discourse_rejected():
+    from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem, first_person_evidence_policy
+    text = "To crush another's throat to death even as someone is pleading for breath is an act of unthinkable cruelty."
+    assert _standalone_problem(text) == "graphic_violence_discourse"
+    assert _context_standalone_problem([text]) == "graphic_violence_discourse"
+    decision = first_person_evidence_policy.assess_contextual_safety(
+        query="What happened in current affairs?", text=text
+    )
+    assert not decision.may_serve
+    assert "graphic_violence_discourse" in decision.reason_codes
+
+
+def test_diseased_and_insulin_health_claims_rejected():
+    from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
+    text1 = "When you stay in stress for years, you are getting diseased and losing vitality."
+    text2 = "There is a state of stress increases the insulin level and causes physical breakdown."
+    assert _standalone_problem(text1) == "health_claim"
+    assert _standalone_problem(text2) == "health_claim"
+    assert _context_standalone_problem([text1]) == "health_claim"
+    assert _context_standalone_problem([text2]) == "health_claim"
+
+
+def test_ayurvedic_health_framing_widened_matches():
+    from services.first_person_evidence_policy import _AYURVEDIC_HEALTH_FRAMING_RE
+    text1 = "When inner disturbance leaves your body agitated, that chronic state causes ill health."
+    assert bool(_AYURVEDIC_HEALTH_FRAMING_RE.search(text1))
+
+
+def test_severed_lowercase_opener_rejected():
+    from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
+    text1 = "we are constantly working from our mind and strategies without accessing the deeper stillness of the heart."
+    text2 = "you create wealth in fear and anxiety, then that wealth cannot bring true fulfillment in life."
+    assert _standalone_problem(text1) == "severed_lowercase_opener"
+    assert _standalone_problem(text2) == "severed_lowercase_opener"
+    assert _context_standalone_problem([text1]) == "severed_lowercase_opener"
+    assert _context_standalone_problem([text2]) == "severed_lowercase_opener"
+
+
+
 
 

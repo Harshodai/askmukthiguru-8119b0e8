@@ -76,6 +76,7 @@ _OUTCOME_PROMISE_CLIP_RE = re.compile(
     r"|instant\s+miracle"
     r"|guaranteed\s+(?:outcome|result|healing|cure|solution|wealth|success)"
     r"|promise\s+(?:you\s+)?(?:a\s+)?miracle"
+    r"|dissolve\s+(?:all\s+)?(?:your\s+)?(?:anxiet\w+|conflicts?|wounds?)"
     r")\b",
     re.IGNORECASE,
 )
