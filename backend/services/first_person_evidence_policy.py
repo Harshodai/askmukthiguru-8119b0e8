@@ -67,7 +67,16 @@ _ORPHAN_OPENER_RE = re.compile(
 )
 
 _DISCOURSE_OPENER_RE = re.compile(
-    r"^[\"'\u201c\u2018\s]*(?:so|okay|ok|well|right|alright|now|anyway)\s*[,.]\s",
+    r"^[\"'\u201c\u2018\s]*(?:"
+    r"so|okay|ok|well|right|alright|now|anyway"
+    r"|similarly"
+    r"|that\s+means"
+    r"|in\s+this\s+way"
+    r"|in\s+that\s+case"
+    r"|therefore"
+    r"|as\s+a\s+result"
+    r"|because\s+of\s+this"
+    r")\s*[,.]\s",
     re.IGNORECASE,
 )
 _LATE_ORDINAL_OPENER_RE = re.compile(
@@ -91,7 +100,9 @@ _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r"leave\s+alone\b|"
     r"you(?:'re|\s+are)\s+also\s+thinking\b|"
     r"the\s+first\s+is\b|"
-    r"think\s+about\s+it\b"
+    r"think\s+about\s+it\b|"
+    r"(?:actually\s*,\s*)?none\s+of\s+(?:these|those|this|that)\s+(?:\w+\s+)*(?:factors?|reasons?|causes?|things?|aspects?|paths?)\b|"
+    r"actually\s*,\s*none\s+of\s+(?:these|those|this|that)\b"
     r")",
     re.IGNORECASE,
 )
@@ -100,6 +111,12 @@ _DANGLING_ENUMERATION_RE = re.compile(
     re.IGNORECASE,
 )
 _FIRST_ENUMERATION_RE = re.compile(r"\bfirst\b", re.IGNORECASE)
+
+_UNEXPLAINED_CULTURAL_ENTITY_RE = re.compile(
+    r"\bthat\s+\w+\s+(?:bird|story|king|saint|sage|monk|master|teaching|parable|tale|fable)\b"
+    r"|\bthat\s+(?:chataka|yaksha|gandharva|apsara|rishi|muni)\b",
+    re.IGNORECASE,
+)
 
 _ATTENDEE_TESTIMONIAL_RE = re.compile(
     r"\b(?:ekam\s+tapas\s+has\s+gifted\s+me|the\s+challenge\s+that\s+i\s+was\s+having\s+before\s+was|"
@@ -137,6 +154,28 @@ _HEALTH_CLAIM_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Ayurvedic / spiritual-physiology framing patterns.
+# These are DISTINCT from clinical health claims (_HEALTH_CLAIM_RE) which are hard-excluded.
+# Clips matching this pattern are SERVED with a medical safety notice rather than excluded.
+_AYURVEDIC_HEALTH_FRAMING_RE = re.compile(
+    r"\bundigested\s+(?:material|toxins?|food|emotions?|experiences?|past)\b"
+    r"|\btoxins?\s+(?:in\s+(?:your|the)\s+body|flow(?:ing)?\s+in\s+the\s+body|accumulated?)\b"
+    r"|\bdisease\s+is\s+caused\s+by\s+(?:the\s+)?undigested\b"
+    r"|\baging\s+is\s+caused\s+(?:or|and|by)\s+disease\b"
+    r"|\bevery\s+muscle\s+in\s+(?:your|the)\s+body\s+(?:relaxes?|opens?|softens?)\b"
+    r"|\bphysiologically?\s+(?:dead|dying|destroyed|relaxed)\b"
+    r"|\bwhen\s+you\s+truly\s+feel\s+peace.*(?:every\s+(?:cell|muscle)|body\s+relaxes?)\b",
+    re.IGNORECASE,
+)
+
+# Medical safety notice appended to clips that match _AYURVEDIC_HEALTH_FRAMING_RE.
+# Platform copy only — never presented as the teacher's words.
+MEDICAL_CLAIM_NOTICE = (
+    "This teaching shares a spiritual and Ayurvedic perspective on wellbeing. "
+    "It is not a substitute for medical advice. "
+    "Please consult a qualified physician or healthcare provider for any physical health concerns."
+)
+
 _EVENT_MARKER_RE = re.compile(
     r"can\s+someone\s+tell\s+me|congratulations,?\s+you\s+have|first\s+day\s+of\s+your"
     r"|that'?s\s+the\s+day\s+today|today\s+is\s+the\s+day\s+of"
@@ -147,7 +186,8 @@ _EVENT_MARKER_RE = re.compile(
     r"|\b(?:corona|covid(?:-19)?|lockdowns?|quarantine|pandemic)\b"
     r"|\b(?:the\s+previous\s+(?:question|person|speaker|talk|session))\b"
     r"|\b(?:in\s+the\s+last\s+(?:session|question|talk))\b"
-    r"|\b(?:like\s+i\s+said\s+(?:yesterday|earlier|in\s+the\s+last))\b",
+    r"|\b(?:like\s+i\s+said\s+(?:yesterday|earlier|in\s+the\s+last))\b"
+    r"|\bi\s+don'?t\s+know\s+if\s+you'?re\s+(?:there|here|present)\b",
     re.IGNORECASE,
 )
 
@@ -229,6 +269,8 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(text):
         return "orphan_opener"
+    if _UNEXPLAINED_CULTURAL_ENTITY_RE.search(text):
+        return "unexplained_cultural_reference"
     if _DANGLING_ENUMERATION_RE.search(text) and not _FIRST_ENUMERATION_RE.search(text):
         return "orphan_opener"
     if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
@@ -262,6 +304,8 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
         return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(first):
         return "orphan_opener"
+    if _UNEXPLAINED_CULTURAL_ENTITY_RE.search(first):
+        return "unexplained_cultural_reference"
     if _DANGLING_ENUMERATION_RE.search(whole) and not _FIRST_ENUMERATION_RE.search(whole):
         return "orphan_opener"
     if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):

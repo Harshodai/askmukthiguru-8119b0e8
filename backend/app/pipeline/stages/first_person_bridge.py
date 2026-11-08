@@ -93,6 +93,34 @@ _SYNTHESIS_SHAPE_RE = re.compile(
 )
 
 
+_COMPOUND_QUESTION_RE = re.compile(
+    r"\bboth\s+\w[\w\s]*and\s+\w"
+    r"|\w[\w\s]*\s+as\s+well\s+as\s+\w"
+    r"|—[^—]{3,80}(?:and|&)[^—]{3,80}—"
+    r"|\btwo\s+(?:things?|states?|aspects?|parts?|sides?|concepts?|ideas?|questions?)\b"
+    r"|\w[\w\s]*,?\s+and\s+(?:also|why|how|what)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_compound_question(text: str) -> bool:
+    """Detect multi-part questions that likely require more than one clip or concept.
+
+    Heuristic: compound questions have structural markers like:
+    - Multiple question marks (e.g., 'What is X? And how does Y work?')
+    - 'both X and Y' framing
+    - 'X as well as Y' structure
+    - Em-dash separating concepts ('X — A and B — why?')
+    - Explicit enumeration ('two states', 'two aspects')
+    - Coordinated question clauses ('..., and (also|why|how|what)')
+    """
+    if not text or not text.strip():
+        return False
+    if text.count("?") >= 2:
+        return True
+    return bool(_COMPOUND_QUESTION_RE.search(text))
+
+
 # Strong references to in-flight memory writes to prevent garbage collection before execution
 _FP_MEMORY_WRITE_TASKS: set[asyncio.Task] = set()
 
@@ -917,6 +945,7 @@ class FirstPersonBridgeStage(Stage):
         pipeline = _fp_pipeline(container)
         from services.first_person_pipeline import serve_first_person
 
+        is_compound = _is_compound_question(query)
         result = await serve_first_person(
             pipeline,
             query=query,
@@ -929,7 +958,7 @@ class FirstPersonBridgeStage(Stage):
             query_dense_vector=retrieval_dense,
             query_sparse_vector=sparse,
             teacher_id="both",
-            max_clips=3,
+            max_clips=4 if is_compound else 3,
             retrieval_query=retrieval_query,
             language=user_lang,
             # The chat cache stages honour both flags; the first-person exact
@@ -1178,6 +1207,19 @@ class FirstPersonBridgeStage(Stage):
             if _add_bound not in safety_notices:
                 safety_notices.append(_add_bound)
 
+        # Ayurvedic / spiritual-physiology claims → attach medical disclaimer notice.
+        # The clip is NOT excluded; it carries a platform notice so the seeker knows
+        # to consult a physician for physical health concerns. This is distinct from
+        # clinical health claims (_HEALTH_CLAIM_RE) which are hard-excluded at the
+        # evidence-policy gate.
+        from services.first_person_evidence_policy import (
+            MEDICAL_CLAIM_NOTICE,
+            _AYURVEDIC_HEALTH_FRAMING_RE,
+        )
+
+        if _AYURVEDIC_HEALTH_FRAMING_RE.search(answer) and MEDICAL_CLAIM_NOTICE not in safety_notices:
+            safety_notices.append(MEDICAL_CLAIM_NOTICE)
+
         if distress_compassion and has_self_harm_risk:
             # Emergency helpline is appended when acute distress / self-harm risk is detected.
             # Benign pedagogical/spiritual inquiries receive compassion framing & practice without helpline numbers.
@@ -1345,6 +1387,8 @@ class FirstPersonBridgeStage(Stage):
                 "first_person_primary_mode": primary_mode,
                 "first_person_collection": str(getattr(settings, "first_person_collection", "")),
                 "clips_served": len(citations),
+                "is_compound_query": is_compound,
+                "partial_compound": bool(is_compound and len(verbatim_quotes) == 1),
                 "pipeline_latency_ms": round(float(getattr(result, "latency_ms", 0.0) or 0.0), 2),
                 "pipeline_cached": bool(getattr(result, "cached", False)),
                 "stage_timings": getattr(result, "stage_timings", {}) or {},

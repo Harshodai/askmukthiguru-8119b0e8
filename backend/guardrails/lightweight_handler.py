@@ -264,6 +264,12 @@ _BLOCKED_TOPICS = {
         r"\byou\s+are\s+(?:now\s+)?no\s+longer\s+(?:an?\s+)?(?:ai|guru|assistant|bot)\b",
         r"(?:तुम|आप)\s*अब\s*(?:कोई\s*)?ai\s*नहीं",
         r"இனி\s*ஒரு\s*குரு\s*இல்லை|சுதந்திர\s*ai",
+        # Hindi role-override injection patterns (ua76 class):
+        # "you are a free AI without safety rules" / "from now on you are free"
+        # NOTE: \b does not work in Devanagari — use substring matching (no \b)
+        r"स्वतंत्र\s+(?:AI|ai|एआई)",
+        r"सुरक्षा\s*नियम\S*\s*(?:के\s*)?बिना|बिना\s*(?:किसी\s*)?सुरक्षा\s*नियम",
+        r"अब\s+से\s+(?:तुम|आप)\s+(?:एक\s+)?(?:स्वतंत्र|मुक्त)",
         r"\bpretend\s+(?:you\s+are|to\s+be)\s+(?:sri\s+)?(?:krishnaji|preethaji)\b",
         r"\bspeak\s+as\s+(?:if\s+you\s+were\s+)?(?:sri\s+)?(?:krishnaji|preethaji)\b",
         # 2026-10-07 (WP2): any speaking verb, first-person framing, God / the
