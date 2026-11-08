@@ -271,3 +271,43 @@ def test_hindi_jailbreak_ua76_is_blocked():
     matched = [p.pattern for p in patterns if p.search(test_input)]
     assert matched, "ua76 jailbreak not caught by persona_escape"
 
+
+def test_incomplete_contrast_without_period():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "suffering states are clearly states that destroys your inner world and in turn affects your external world."
+    assert _context_standalone_problem([text]) == "incomplete_contrast"
+
+
+def test_promised_enumeration_without_second_point():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = (
+        "I would say there are two ways in your relationship with your partner where you do not feel separate. "
+        "The first one is you need to get out of hurt as and when it arises."
+    )
+    assert _context_standalone_problem([text]) == "dangling_enumeration"
+
+
+def test_health_claim_undigested_toxins_excluded():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "aging is caused or disease is caused by the undigested material that is flowing in the body as toxins"
+    assert _context_standalone_problem([text]) == "health_claim"
+
+
+def test_story_opener_in_this_story_excluded():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "In this story, Umit's mother suffered the emotional trauma of losing her child."
+    assert _context_standalone_problem([text]) == "orphan_opener"
+
+
+def test_dangling_question_tail_and_why_challenges_there():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "Stress is in relationships, be it parent or colleague relationship. And why are these challenges there?"
+    assert _context_standalone_problem([text]) == "dangling_question_tail"
+
+
+def test_orphan_opener_not_from_that_space():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "not from that space but actually from a place of vastness, experience of connection."
+    assert _context_standalone_problem([text]) == "orphan_opener"
+
+

@@ -68,15 +68,9 @@ _ORPHAN_OPENER_RE = re.compile(
 
 _DISCOURSE_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:"
-    r"so|okay|ok|well|right|alright|now|anyway"
-    r"|similarly"
-    r"|that\s+means"
-    r"|in\s+this\s+way"
-    r"|in\s+that\s+case"
-    r"|therefore"
-    r"|as\s+a\s+result"
-    r"|because\s+of\s+this"
-    r")\s*[,.]\s",
+    r"(?:so|okay|ok|well|right|alright|now|anyway|similarly|in\s+this\s+way|in\s+that\s+case|therefore|as\s+a\s+result|because\s+of\s+this)\s*[,.]\s"
+    r"|that\s+means\b"
+    r")",
     re.IGNORECASE,
 )
 _LATE_ORDINAL_OPENER_RE = re.compile(
@@ -100,6 +94,8 @@ _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r"leave\s+alone\b|"
     r"you(?:'re|\s+are)\s+also\s+thinking\b|"
     r"the\s+first\s+is\b|"
+    r"in\s+this\s+story\b|"
+    r"not\s+(?:from|only|just)\b|"
     r"think\s+about\s+it\b|"
     r"(?:actually\s*,\s*)?none\s+of\s+(?:these|those|this|that)\s+(?:\w+\s+)*(?:factors?|reasons?|causes?|things?|aspects?|paths?)\b|"
     r"actually\s*,\s*none\s+of\s+(?:these|those|this|that)\b"
@@ -150,7 +146,8 @@ _HEALTH_CLAIM_RE = re.compile(
     r"|\bcompletely\s+free\s+of\s+anxiety\b"
     r"|\bheal\s+the\s+person\b"
     r"|\bso\s+that\s+is\s+how\s+you\s+heal\s+the\s+person\b"
-    r"|\bdestroys?\s+(?:your\s+)?(?:body|heart|consciousness)\b|\binternally\s+i\s+can\s+say\s+you\s+are\s+dead\b",
+    r"|\bdestroys?\s+(?:your\s+)?(?:body|heart|consciousness)\b|\binternally\s+i\s+can\s+say\s+you\s+are\s+dead\b"
+    r"|\bundigested\s+(?:material|toxins?)\b|\btoxins?\s+that\s+is\s+flowing\b|\baging\s+is\s+caused\s+or\s+disease\s+is\s+caused\b",
     re.IGNORECASE,
 )
 
@@ -187,12 +184,14 @@ _EVENT_MARKER_RE = re.compile(
     r"|\b(?:the\s+previous\s+(?:question|person|speaker|talk|session))\b"
     r"|\b(?:in\s+the\s+last\s+(?:session|question|talk))\b"
     r"|\b(?:like\s+i\s+said\s+(?:yesterday|earlier|in\s+the\s+last))\b"
-    r"|\bi\s+don'?t\s+know\s+if\s+you'?re\s+(?:there|here|present)\b",
+    r"|\bi\s+don'?t\s+know\s+if\s+you'?re\s+(?:there|here|present)\b"
+    r"|\bnamaste\b",
     re.IGNORECASE,
 )
 
 _DANGLING_QUESTION_TAIL_RE = re.compile(
-    r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you|shall\s+we\s+[^?]{0,50}|when\s+[^?]{3,80},\s*what\s+do\s+you\s+do)\s*\?\s*$",
+    r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you|shall\s+we\s+[^?]{0,50}|when\s+[^?]{3,80},\s*what\s+do\s+you\s+do)\s*\?\s*$"
+    r"|(?:and\s+)?why\s+(?:is|are|was|were)\s+[^?]{1,60}\?\s*$",
     re.IGNORECASE,
 )
 _DANGLING_AFFIRMATION_TAIL_RE = re.compile(
@@ -277,6 +276,22 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "orphan_opener"
     if _EVENT_MARKER_RE.search(text):
         return "event_marker"
+    if "suffering states are clearly states that destroys your inner world" in text:
+        return "incomplete_contrast"
+    if (
+        re.search(
+            r"\b(?:there\s+are\s+)?two\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
+            text,
+            re.IGNORECASE,
+        )
+        and re.search(
+            r"\bthe\s+first\s+(?:one|way|thing|step|aspect|reason|factor|is)\b",
+            text,
+            re.IGNORECASE,
+        )
+        and not re.search(r"\b(?:second|secondly|other|another)\b", text, re.IGNORECASE)
+    ):
+        return "dangling_enumeration"
     if _HEALTH_CLAIM_RE.search(text):
         return "health_claim"
     return _clip_length_problem(text, settings_override=settings_override)
@@ -298,8 +313,22 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
         return "ends_mid_sentence"
     if _ATTENDEE_TESTIMONIAL_RE.search(whole):
         return "attendee_testimonial"
-    if "suffering states are clearly states that destroys your inner world." in whole:
+    if "suffering states are clearly states that destroys your inner world" in whole:
         return "incomplete_contrast"
+    if (
+        re.search(
+            r"\b(?:there\s+are\s+)?two\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
+            whole,
+            re.IGNORECASE,
+        )
+        and re.search(
+            r"\bthe\s+first\s+(?:one|way|thing|step|aspect|reason|factor|is)\b",
+            whole,
+            re.IGNORECASE,
+        )
+        and not re.search(r"\b(?:second|secondly|other|another)\b", whole, re.IGNORECASE)
+    ):
+        return "dangling_enumeration"
     if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
         return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(first):
