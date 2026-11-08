@@ -1322,7 +1322,18 @@ async def _relevance_select_scored_async(
     def _needed(i: int) -> int:
         try:
             start_ms = clips[i].get("start_ms")
-            is_opening = start_ms is not None and int(start_ms) < _OPENING_WINDOW_MS
+            text = clips[i].get("verbatim_text") or ""
+            is_opening = (
+                start_ms is not None
+                and int(start_ms) < _OPENING_WINDOW_MS
+                and bool(
+                    re.search(
+                        r"^[\"'\u201c\u2018\s]*(?:today\s+(?:i\s+want\s+to|we\s+are|we\s+will)|welcome\b|in\s+this\s+(?:session|talk|video)|good\s+(?:morning|evening|afternoon))",
+                        text,
+                        re.IGNORECASE,
+                    )
+                )
+            )
         except (TypeError, ValueError):
             is_opening = False
         return max(minimum, _OPENING_MIN_SCORE) if is_opening else minimum

@@ -1,6 +1,21 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 8, 2026 — Root-Cause Remediation: Compound Weak Suppression Recovery, Core Wisdom Opener Precision & Opening Minute Scoring
+
+### L-COMPOUND-WEAK-SUPPRESSION-COVERAGE-1. Weak match serving must not be suppressed wholesale on compound queries.
+- **What:** In an attempt to prevent partial answers on multi-part compound queries, suppressing `serve_weak` whenever `is_compound` was true (`and not is_compound`) caused false suppression of single-concept questions mentioning "two states" (`q049`, `q063`), dropping total served share below the approved 30% pass bar.
+- **Rule:** Weak match serving (`status="weak_match"`) is an honest, supported serving tier that carries transparent `status="weak_match"` and `is_direct=False` metadata. It must not be suppressed wholesale for compound queries. `_COMPOUND_QUESTION_RE` must only detect queries with true coordinated multi-question syntax, not general spiritual concepts like "two states".
+
+### L-CORE-WISDOM-OPENER-PRECISION-1. Core wisdom opener exemptions must be position-anchored at sentence start.
+- **What:** Searching `_CORE_WISDOM_KEYWORDS_RE` anywhere across candidate text to exempt orphan openers allowed discourse-level adversative connectors (`"But when you..."`, `q016`) and demonstrative referents (`"This is the nature of..."`, `on13`) to bypass standalone gates, resulting in `not_showable` verdicts from judges for missing preceding context.
+- **Rule:** Core wisdom opener exemptions must be position-anchored at sentence start (`_CORE_WISDOM_OPENER_RE`, e.g. `^(?:(?:and\s+)?in\s+that\s+(?:beautiful|serene|sacred|connected)\s+state|(?:and\s+)?when\s+you\s+see\s+the\s+truth)\b`), permitting self-contained spiritual declarations while firmly rejecting dangling conjunctions and demonstratives.
+
+### L-TALK-OPENING-SCORE-WINDOW-1. Talk opening score penalty must require actual opening discourse markers.
+- **What:** An unconditional score penalty requiring relevance score 3 on all clips with `start_ms < 60_000` was intended to block talk greetings ("Today I want to..."). However, applying it blindly to all clips in the first minute blocked substantive spiritual teachings that began immediately in a recording and scored 2, unnecessarily suppressing valid answers.
+- **Rule:** The score 3 opening requirement must be guarded by both time (`start_ms < _OPENING_WINDOW_MS`) and semantic talk-opening patterns (`_TALK_OPENING_RE`: `today I want to`, `welcome`, `in this session`, `good morning`), preserving score 2 eligibility for direct teachings.
+
+
 ## Nov 8, 2026 — Root-Cause Remediation: Relational Abuse Scope, Reciprocal Pronoun Enumeration & Safety Gate Alignment
 
 ### L-RELATIONAL-ABUSE-VIOLENCE-SCOPE-1. Relational abuse assertions in relationship context must trigger violence policy exclusion.

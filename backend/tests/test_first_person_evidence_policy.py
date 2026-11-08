@@ -361,4 +361,25 @@ def test_core_wisdom_conjunction_opener_allowed_in_safety_policy():
     assert "dangling_dependency" not in decision.reason_codes
 
 
+def test_adversative_but_conjunction_rejected_as_orphan():
+    from services.first_person_safety_policy import FirstPersonSafetyPolicy
+    text = "But when you are able to move and live in a oneness state, that entire relationship in your family transforms to love."
+    decision = FirstPersonSafetyPolicy().evaluate(query="Can one person change the family?", candidate_text=text)
+    assert "dangling_dependency" in decision.reason_codes
+
+
+def test_demonstrative_this_is_the_nature_rejected_as_orphan():
+    from services.first_person_safety_policy import FirstPersonSafetyPolicy
+    text = "This is the nature of the unawakened mind. It's more like, you know what you can say, it's more like a monkey mind."
+    decision = FirstPersonSafetyPolicy().evaluate(query="Are younger people interested in spirituality?", candidate_text=text)
+    assert "dangling_dependency" in decision.reason_codes
+
+
+def test_dangling_fragment_some_noun_rejected():
+    from services.first_person_evidence_policy import _context_standalone_problem
+    text = "some addiction. You are not able to bear the depressive inner environment of your mind and are escaping that low."
+    assert _context_standalone_problem([text]) == "dangling_fragment"
+
+
+
 

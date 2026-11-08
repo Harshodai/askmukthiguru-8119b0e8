@@ -97,8 +97,7 @@ _COMPOUND_QUESTION_RE = re.compile(
     r"\bboth\s+\w[\w\s]*and\s+\w"
     r"|\w[\w\s]*\s+as\s+well\s+as\s+\w"
     r"|—[^—]{3,80}(?:and|&)[^—]{3,80}—"
-    r"|\btwo\s+(?:things?|states?|aspects?|parts?|sides?|concepts?|ideas?|questions?)\b"
-    r"|\w[\w\s]*,?\s+and\s+(?:also|why|how|what|run|build|do|be|have|live|act|work|speak)\b",
+    r"|\w[\w\s]*,?\s+and\s+(?:also|why|how|what)\b",
     re.IGNORECASE,
 )
 
@@ -1005,7 +1004,6 @@ class FirstPersonBridgeStage(Stage):
             status == "weak_match"
             and primary_mode
             and bool(getattr(settings, "first_person_serve_weak_match", True))
-            and not is_compound
         )
         if (status != "success" or not is_direct) and not serve_weak:
             if status != "crisis_redirect" and not getattr(

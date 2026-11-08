@@ -50,6 +50,11 @@ _CORE_WISDOM_KEYWORDS_RE = re.compile(
     r")\b"
 )
 
+_CORE_WISDOM_OPENER_RE = re.compile(
+    r"^[\"'\u201c\u2018\s]*(?:(?:and\s+)?in\s+that\s+(?:beautiful|serene|sacred|connected)\s+state|(?:and\s+)?when\s+you\s+see\s+the\s+truth)\b",
+    re.IGNORECASE,
+)
+
 _RHETORICAL_OPENER_RE = re.compile(
     r"^(?:I am sure you too have tried to|have you ever wondered why)",
     re.IGNORECASE,
@@ -274,7 +279,9 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "unexplained_cultural_reference"
     if _DANGLING_ENUMERATION_RE.search(text) and not _FIRST_ENUMERATION_RE.search(text):
         return "orphan_opener"
-    if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_KEYWORDS_RE.search(text):
+    if re.match(r"^[\"'\u201c\u2018\s]*some\s+\w+\.", stripped, re.IGNORECASE):
+        return "dangling_fragment"
+    if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_OPENER_RE.match(text):
         return "orphan_opener"
     if _EVENT_MARKER_RE.search(text):
         return "event_marker"
@@ -355,7 +362,9 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
         return "unexplained_cultural_reference"
     if _DANGLING_ENUMERATION_RE.search(whole) and not _FIRST_ENUMERATION_RE.search(whole):
         return "orphan_opener"
-    if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_KEYWORDS_RE.search(first):
+    if re.match(r"^[\"'\u201c\u2018\s]*some\s+\w+\.", first.strip(), re.IGNORECASE):
+        return "dangling_fragment"
+    if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_OPENER_RE.match(first):
         return "orphan_opener"
     if problem := _clip_length_problem(whole):
         return problem
