@@ -157,6 +157,7 @@ def _items(
     include_frozen: bool,
     include_unanswerable: bool,
     include_benchmarks: bool = False,
+    include_question_bank: bool = False,
 ) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     if include_frozen:
@@ -204,6 +205,45 @@ def _items(
                                 "answerable": b.get("kind", kind_default) != "out_of_corpus",
                             }
                         )
+    if include_question_bank:
+        try:
+            from benchmarks.question_bank import QUERIES
+        except ImportError:
+            import sys
+
+            _backend_dir = str(BACKEND)
+            if _backend_dir not in sys.path:
+                sys.path.insert(0, _backend_dir)
+            from benchmarks.question_bank import QUERIES
+
+        _UNANSWERABLE_CATEGORIES = {
+            "guardrails_input",
+            "intent_traps",
+            "silly_nonsense",
+            "doctrine_traps",
+            "boundary_probing",
+            "adversarial_traps",
+            "constitutional_adherence_traps",
+            "malformed_input",
+            "infra_probing",
+            "multilingual_jailbreak_traps",
+            "markdown_html_injection",
+            "future_date_confabulation",
+            "ruthless_safety_boundaries",
+            "web_search_live_events",
+        }
+        for category, q_list in QUERIES.items():
+            is_ans = category not in _UNANSWERABLE_CATEGORIES
+            for idx, q_text in enumerate(q_list):
+                items.append(
+                    {
+                        "id": f"qb_{category}_{idx+1:02d}",
+                        "question": q_text,
+                        "set": "question_bank",
+                        "category": category,
+                        "answerable": is_ans,
+                    }
+                )
     return items
 
 
@@ -252,6 +292,8 @@ def main() -> int:
     ap.add_argument("--no-unanswerable", action="store_true")
     ap.add_argument("--include-benchmarks", action="store_true", default=False)
     ap.add_argument("--benchmarks-only", action="store_true", default=False)
+    ap.add_argument("--include-question-bank", action="store_true", default=False)
+    ap.add_argument("--question-bank-only", action="store_true", default=False)
     args = ap.parse_args()
 
     run_dir = Path(args.out_root).expanduser() / args.run_id
@@ -283,10 +325,11 @@ def main() -> int:
 
     rows_path = run_dir / "rows.jsonl"
     token_box: dict[str, Any] = {"token": None, "used": 0}
-    include_frozen = not args.no_frozen and not args.benchmarks_only
-    include_unanswerable = not args.no_unanswerable and not args.benchmarks_only
+    include_frozen = not args.no_frozen and not args.benchmarks_only and not args.question_bank_only
+    include_unanswerable = not args.no_unanswerable and not args.benchmarks_only and not args.question_bank_only
     include_benchmarks = args.include_benchmarks or args.benchmarks_only
-    items = _items(include_frozen, include_unanswerable, include_benchmarks)
+    include_qb = args.include_question_bank or args.question_bank_only
+    items = _items(include_frozen, include_unanswerable, include_benchmarks, include_qb)
 
     with httpx.Client(timeout=120) as client, rows_path.open("w", encoding="utf-8") as out:
         for item in items:

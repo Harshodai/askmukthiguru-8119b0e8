@@ -1721,3 +1721,31 @@ async def test_bridge_refuses_citation_without_authoritative_rights_stamp(fp_pip
     assert result is not None
     assert result.route_decision == "first_person_abstain"
     assert result.citations == []
+
+
+@pytest.mark.asyncio
+async def test_bridge_serves_spiritual_metaphor_with_medical_claim_notice(fp_pipeline):
+    """Spiritual metaphor with content_safety='clean' retains MEDICAL_CLAIM_NOTICE in safety_notices."""
+    from services.first_person_content_assessment import MEDICAL_CLAIM_NOTICE
+
+    clip_text = "Love itself has tremendous power to heal the heart and bring peace."
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=clip_text,
+        citations=[_clip_citation(verbatim_text=clip_text, speaker_verified=True)],
+        status="success",
+        is_direct=True,
+        editorial_set={
+            "content_safety": "clean",
+            "covered_facets": ["suffering", "peace"],
+            "status": "supported",
+        },
+    )
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="What causes suffering?"))
+
+    assert result is not None
+    assert result.route_decision == "first_person_bridge"
+    assert result.citations != []
+    assert "safety_notices" in result.route_metadata
+    assert MEDICAL_CLAIM_NOTICE in result.route_metadata["safety_notices"]
+

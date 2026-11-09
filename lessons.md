@@ -1,6 +1,28 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 9, 2026 — Multi-Video Synthesis Engine, Meditation Invitation Cues & Elevated Benchmark Pass Bar
+
+### L-MEDITATION-INVITATION-ACTIONABLE-GUIDANCE-1. Guided practice and meditation invitations are actionable spiritual guidance, not unshowable event defects.
+- **What:** Authentic spiritual teachings often culminate in an invitation into practice (e.g. *"Let us move into meditation now"* in `on05`). Previously, `EVENT_MARKER_RE` classified this phrase as an `event_bound` finding with `FindingSeverity.REVIEW`, causing evaluation judges and content assessment to penalize the clip as `not_showable` due to supposed "event-bound wording". This forced the system to withhold or strip meditation invitations, depriving seekers of the opportunity to immediately transition into practice and jump to the timestamped video/audio player.
+- **Rule:** Practice and meditation invitations (`PRACTICE_INVITATION_RE`) must be classified distinctly as `AssessmentKind.PRACTICE_INVITATION` with `FindingSeverity.NOTICE`. They must never be classified as `EVENT_BOUND` or treated as unshowable defects. The verbatim quote is fully preserved, enabling seekers to read the teaching and practice alongside the teacher.
+- **Pin:** `backend/domain/first_person_decision.py`, `backend/services/first_person_content_assessment.py`, `scripts/ops/grade_served_answers.py`.
+
+### L-COMPOUND-MULTI-FACET-DIRECT-SERVING-1. Compound multi-facet queries with complete facet coverage must serve direct answers with authoritative editorial sets.
+- **What:** In `_execute_compound` (`first_person_pipeline.py`), compound multi-part questions were hardcoded to return `status = "weak_match"` and `is_direct_answer = False`, while downstream `FirstPersonBridgeStage` suppressed weak matches on compound queries. As a consequence, even when every component facet was matched with high relevance ($\ge 3$) by verified teacher clips, the compound query was suppressed or demoted.
+- **Rule:** When all decomposed facets of a multi-part query are matched by verified clips clearing the relevance minimum (`len(successful_parts) == len(facets)`), the pipeline must stamp `status = "success"`, `is_direct_answer = True`, and attach an authoritative `editorial_set = {"status": "supported", ...}`. When only a subset of facets is matched, it honestly returns `status = "weak_match"` and `editorial_set["status"] = "partial"`.
+- **Pin:** `backend/services/first_person_pipeline.py`, `backend/app/config.py`, `backend/tests/test_first_person_payload_contract.py`.
+
+### L-MULTI-VIDEO-TEACHING-SYNTHESIS-JOIN-1. Multi-video synthesis requires dual serving modalities, pedagogical ontology sequencing, and click-free audio cross-fading.
+- **What:** In complex spiritual queries where a single video clip lacks complete depth (e.g. concept explanation in one discourse followed by guided meditation in another, inspired by master composite edits like Sadhguru's composite videos and Netflix's Dynamic Sizzles), naive concatenation results in audio clicks, jarring narrative jumps, and disjointed pacing.
+- **Rule:** Multi-video synthesis in `services/video_composition.py` must support dual serving modalities: Modality A (YouTube reference cards with timestamped video links and audio strips) vs Modality B (programmatic FFmpeg filter graph generation with 50ms triangular audio cross-fades `acrossfade=d=0.05:c1=tri:c2=tri`, video standardization to 1080p @ 30fps with aspect-ratio preserving padding, and static/animated diagram overlays during practice segments). Clips must be sequenced via spiritual ontology flow (Obstacle $\rightarrow$ Shift/Insight $\rightarrow$ Practice Invitation $\rightarrow$ Reflection/State) and validated by `FirstPersonVideoJudge`.
+- **Pin:** `backend/services/video_composition.py`, `backend/tests/test_video_composition.py`.
+
+### L-QUESTION-BANK-UNIFIED-BENCHMARK-EVAL-1. Unify the 421-query benchmark question bank across doctrine, multi-hop, safety, and guardrail splits.
+- **What:** Previously, graded evaluation was partitioned into isolated fragments (`frozen116`, `unanswerable86`, `benchmark`), while the comprehensive 421 questions in `backend/benchmarks/question_bank.py` across 36 categories (such as `complex_multi_hop`, `doctrine_soul_sync`, `doctrine_four_secrets`, `guardrails_input`, `ruthless_safety_boundaries`) were disconnected from the standard execution framework.
+- **Rule:** `scripts/ops/graded_capture.py` and `scripts/ops/grade_served_answers.py` must support `--include-question-bank` and `--question-bank-only`, loading all 421 questions into standardized evaluation splits with category-level breakdown reporting. The approved pass bar in `grading_pass_bar.json` is elevated to `min_served_share >= 0.45` and `min_showable_rate >= 0.95`, with 100% byte-identical script parity maintained between `scripts/ops/` and `backend/scripts/ops/` (Invariant X1).
+- **Pin:** `evals/first_person/grading_pass_bar.json`, `scripts/ops/graded_capture.py`, `backend/scripts/ops/graded_capture.py`, `scripts/ops/grade_served_answers.py`, `backend/scripts/ops/grade_served_answers.py`.
+
 ## Nov 8, 2026 — Root-Cause Remediation: LLM Judge Authoritative Editorial Hand-off, Resilient Coverage & Statistical Safety Notice
 
 ### L-LLM-JUDGE-AUTHORITATIVE-COVERAGE-1. LLM semantic judge verdicts must stamp authoritative editorial sets to prevent heuristic second-guessing.

@@ -140,11 +140,11 @@ def test_event_and_cross_turn_signals_are_review_not_exclusion():
         "When the mind is quiet, move into meditation now.",
     ],
 )
-def test_live_meditation_transitions_are_flagged_as_event_bound(text):
+def test_live_meditation_transitions_are_flagged_as_practice_invitation(text):
     assessment = assess_content(text, query=BENIGN_QUERY)
     assert assessment.may_serve is True
-    assert assessment.requires_review is True
-    assert EVENT_BOUND_CODE in assessment.review_codes
+    assert "practice_invitation" in [f.code for f in assessment.findings]
+    assert EVENT_BOUND_CODE not in assessment.review_codes
 
 
 def test_empty_text_is_clean():

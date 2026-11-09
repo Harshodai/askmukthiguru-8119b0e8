@@ -58,6 +58,7 @@ class AssessmentKind(StrEnum):
     ATTENDEE_TESTIMONIAL = "attendee_testimonial"
     ASR_GARBAGE = "asr_garbage"
     BOUNDARY = "boundary"
+    PRACTICE_INVITATION = "practice_invitation"
 
 
 class FindingSeverity(StrEnum):

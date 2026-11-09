@@ -7155,11 +7155,29 @@ class FirstPersonPipeline:
         stage_timings["assembly_ms"] = round((time.monotonic() - t_asm_start) * 1000.0, 2)
         stage_timings["total_ms"] = round((time.monotonic() - start_time) * 1000.0, 2)
 
+        rel_gate_on = bool(getattr(settings, "first_person_relevance_gate_enabled", True))
+        compound_direct_on = (
+            getattr(settings, "first_person_compound_direct_serving_enabled", True) is True
+        )
+        is_all_covered = len(successful_parts) == len(facets)
+        is_direct = is_all_covered and len(facets) > 1 and rel_gate_on and compound_direct_on
+
+        editorial_set = {
+            "status": "supported" if is_all_covered else "partial",
+            "candidate_facets": list(facets),
+            "covered_facets": [p["facet"] for p in successful_parts],
+            "facet_coverage": {p["facet"]: "direct" for p in successful_parts},
+            "reasons": ("compound_facets_covered",) if is_all_covered else ("compound_facets_partial",),
+            "content_safety": "clean",
+        }
+
+        compound_status = "success" if is_direct else "weak_match"
         res = FirstPersonPipelineResult(
             answer_text=final_text,
             citations=citations,
-            status="weak_match",
-            is_direct_answer=False,
+            status=compound_status,
+            is_direct_answer=is_direct,
+            editorial_set=editorial_set,
             latency_ms=stage_timings["total_ms"],
             answerability=compound_answerability,
             abstain_reason="none",
@@ -7189,7 +7207,7 @@ class FirstPersonPipeline:
             res.stage_timings["total_ms"],
         )
         self._log_and_count(
-            "weak_match",
+            compound_status,
             res.latency_ms,
             0.85,
             n_quarantined,

@@ -268,7 +268,8 @@ class Settings(BaseSettings):
     # Off by default until question embeddings are completely distinct from passages.
     first_person_question_dense_enabled: bool = False
     first_person_continuous_layout_enabled: bool = False
-    first_person_facet_split_enabled: bool = False
+    first_person_facet_split_enabled: bool = True
+    first_person_compound_direct_serving_enabled: bool = True
     first_person_framing_enabled: bool = False
     first_person_rerank_none_abstain_enabled: bool = False
     first_person_speculative_parallelism_enabled: bool = False

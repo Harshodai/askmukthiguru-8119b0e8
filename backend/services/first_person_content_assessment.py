@@ -231,8 +231,12 @@ EVENT_MARKER_RE = re.compile(
     r"|\b(?:in\s+the\s+last\s+(?:session|question|talk))\b"
     r"|\b(?:like\s+i\s+said\s+(?:yesterday|earlier|in\s+the\s+last))\b"
     r"|\bi\s+don'?t\s+know\s+if\s+you'?re\s+(?:there|here|present)\b"
-    r"|\bnamaste\b"
-    r"|\blet(?:\s+us|[\s'\u2019]*s)\s+move\s+into\s+meditation\b|\bmove\s+into\s+meditation(?:\s+now)?\b",
+    r"|\bnamaste\b",
+    re.IGNORECASE,
+)
+
+PRACTICE_INVITATION_RE = re.compile(
+    r"\b(?:let(?:\s+us|[\s'\u2019]*s)\s+move\s+into\s+meditation\b|\bmove\s+into\s+meditation(?:\s+now)?\b)",
     re.IGNORECASE,
 )
 
@@ -439,6 +443,15 @@ def _collect_findings(
             )
 
     # ---- Contextual (review) signals ----
+    if PRACTICE_INVITATION_RE.search(body):
+        findings.append(
+            _finding(
+                "practice_invitation",
+                AssessmentKind.PRACTICE_INVITATION,
+                FindingSeverity.NOTICE,
+                "practice_invitation_detector",
+            )
+        )
     if EVENT_MARKER_RE.search(body):
         findings.append(
             _finding(

@@ -101,6 +101,18 @@ _STOPWORDS = {
 }
 
 
+def _normalize_word_root(w: str) -> str:
+    """Normalize English word endings for morphological overlap matching."""
+    w = w.lower()
+    for sfx in ("ions", "ion", "ings", "ing", "ed", "es", "ly", "ment", "ments", "nesses", "ness", "s"):
+        if w.endswith(sfx) and len(w) > len(sfx) + 2:
+            w = w[:-len(sfx)]
+            break
+    if w.endswith("e") and len(w) > 3:
+        w = w[:-1]
+    return w
+
+
 def offline_grade_row(
     row: dict[str, Any],
     stage: Literal["first", "second"] = "first",
@@ -190,7 +202,9 @@ def offline_grade_row(
     # 4. Relevance / question addressing
     q_words = set(re.findall(r"\b[a-z]{3,}\b", question.lower())) - _STOPWORDS
     a_words = set(re.findall(r"\b[a-z]{3,}\b", answer.lower())) - _STOPWORDS
-    word_overlap = len(q_words & a_words)
+    q_roots = {_normalize_word_root(w) for w in q_words}
+    a_roots = {_normalize_word_root(w) for w in a_words}
+    word_overlap = len(q_roots & a_roots)
 
     if word_overlap == 0 and len(q_words) >= 3:
         if stage == "first":
@@ -535,6 +549,21 @@ def evaluate_bar(
             if answerable_n:
                 showable_rate_answerable = round(showable / answerable_n, 4)
 
+    set_breakdown: dict[str, dict[str, Any]] = {}
+    if rows:
+        for r in rows:
+            s_name = str(r.get("set") or "unknown")
+            if s_name not in set_breakdown:
+                set_breakdown[s_name] = {"total": 0, "served": 0, "answerable": 0}
+            set_breakdown[s_name]["total"] += 1
+            if _is_answerable(r):
+                set_breakdown[s_name]["answerable"] += 1
+                if r.get("citations"):
+                    set_breakdown[s_name]["served"] += 1
+        for s_info in set_breakdown.values():
+            ans_count = s_info["answerable"]
+            s_info["served_share"] = round(s_info["served"] / ans_count, 4) if ans_count else None
+
     unmeasured = sorted(k for k, g in gates.items() if g.get("not_measured"))
     all_pass = bool(total) and not unmeasured and all(g["pass"] for g in gates.values())
     if not approved:
@@ -559,6 +588,7 @@ def evaluate_bar(
         "not_measured": unmeasured,
         "latency": latency,
         "served": served,
+        "set_breakdown": set_breakdown,
         "result_if_bar_applied": "PASS" if (all_pass and not unmeasured) else "FAIL",
         "status": status,
     }

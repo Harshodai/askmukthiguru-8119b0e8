@@ -1288,7 +1288,7 @@ class FirstPersonBridgeStage(Stage):
         # excluded — it carries a notice so the seeker knows to consult a
         # physician. Clinical claims and causal-etiology claims never reach here:
         # the assessment excluded them before serving.
-        from services.first_person_content_assessment import assess_content
+        from services.first_person_content_assessment import assess_content, notice_copy
         from services.first_person_evidence_policy import first_person_evidence_policy
         _ed_set = getattr(result, "editorial_set", None)
         _cs = (
@@ -1310,7 +1310,12 @@ class FirstPersonBridgeStage(Stage):
                 compassion=distress_compassion,
                 reason="content_assessment_failed",
             )
-        for _notice in first_person_evidence_policy.notices_for(answer, query=query):
+        for _notice in notice_copy(served_assessment):
+            if _notice not in safety_notices:
+                safety_notices.append(_notice)
+        for _notice in first_person_evidence_policy.notices_for(
+            answer, query=query, content_safety=_cs or None
+        ):
             if _notice not in safety_notices:
                 safety_notices.append(_notice)
 

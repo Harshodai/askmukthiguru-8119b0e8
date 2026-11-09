@@ -82,6 +82,23 @@
       }
     ],
     "detected_concepts": [],
+    "editorial_set": {
+      "candidate_facets": [
+        "what causes suffering",
+        "what ends it"
+      ],
+      "content_safety": "clean",
+      "covered_facets": [
+        "what causes suffering"
+      ],
+      "facet_coverage": {
+        "what causes suffering": "direct"
+      },
+      "reasons": [
+        "compound_facets_partial"
+      ],
+      "status": "partial"
+    },
     "error": null,
     "is_direct_answer": false,
     "practice_recommendation": null,

@@ -473,9 +473,18 @@ class FirstPersonEvidencePolicy:
             policy_version=self.policy_version,
         )
 
-    def notices_for(self, text: str, *, query: str | None = None) -> tuple[str, ...]:
+    def notices_for(
+        self,
+        text: str,
+        *,
+        query: str | None = None,
+        content_safety: str | None = None,
+    ) -> tuple[str, ...]:
         """Platform copy required for a clip that passed the gate (never teacher words)."""
-        return notice_copy(assess_content(text, query=query))
+        return notice_copy(
+            assess_content(text, query=query, content_safety=content_safety)
+        )
+
 
 
 first_person_evidence_policy = FirstPersonEvidencePolicy()

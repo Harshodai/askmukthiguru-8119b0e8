@@ -407,17 +407,17 @@ def test_contracted_thats_why_rejected_as_discourse_opener():
     assert _context_standalone_problem([text2]) == "discourse_opener"
 
 
-def test_live_session_meditation_transition_rejected_as_event_marker():
+def test_live_session_meditation_transition_accepted_as_practice_invitation():
     from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
     text1 = "We become instruments of peace. Individual transformation leads to world transformation. Let us move into meditation now."
     text2 = "Close your eyes and breathe gently. Let's move into meditation."
     text3 = "When the mind is still, awareness deepens. Move into meditation now."
-    assert _standalone_problem(text1) == "event_marker"
-    assert _standalone_problem(text2) == "event_marker"
-    assert _standalone_problem(text3) == "event_marker"
-    assert _context_standalone_problem([text1]) == "event_marker"
-    assert _context_standalone_problem([text2]) == "event_marker"
-    assert _context_standalone_problem([text3]) == "event_marker"
+    assert _standalone_problem(text1) is None
+    assert _standalone_problem(text2) is None
+    assert _standalone_problem(text3) is None
+    assert _context_standalone_problem([text1]) is None
+    assert _context_standalone_problem([text2]) is None
+    assert _context_standalone_problem([text3]) is None
 
 
 def test_setup_sentence_without_delivering_mechanism_is_dangling():
