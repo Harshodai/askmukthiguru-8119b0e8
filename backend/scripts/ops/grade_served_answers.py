@@ -305,7 +305,7 @@ When the evidence is thin, answer unsure, never guess."""
 def build_prompt(row: dict[str, Any]) -> str:
     cites = "\n".join(
         f"- speaker={c.get('speaker') or 'none'} verified={c.get('speaker_verified')} "
-        f"at={c.get('t')}s preview: {c.get('text', '')[:200]}"
+        f"at={c.get('t')}s preview: {(c.get('text') or '')[:200]}"
         for c in row.get("citations") or []
     )
     return (
