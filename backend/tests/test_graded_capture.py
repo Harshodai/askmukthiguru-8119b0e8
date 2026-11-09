@@ -146,3 +146,18 @@ def test_check_log_clean_detects_auth_errors_explicitly():
     assert check.ok is False
     assert "auth error" in check.detail.lower()
 
+
+def test_the_question_bank_items_are_onboarded_as_strings():
+    from scripts.ops.graded_capture import _items
+
+    items = _items(include_frozen=False, include_unanswerable=False, include_benchmarks=False, include_question_bank=True)
+    assert len(items) == 421
+    assert all(i["set"] == "question_bank" for i in items)
+    assert all(isinstance(i["question"], str) for i in items)
+    assert all(len(i["id"]) > 3 for i in items)
+    # verify only the intentional empty probe is empty
+    empty_q = [i for i in items if not i["question"]]
+    assert len(empty_q) == 1
+    assert empty_q[0]["category"] == "malformed_input"
+
+

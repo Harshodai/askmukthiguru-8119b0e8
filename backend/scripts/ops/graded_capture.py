@@ -234,7 +234,14 @@ def _items(
         }
         for category, q_list in QUERIES.items():
             is_ans = category not in _UNANSWERABLE_CATEGORIES
-            for idx, q_text in enumerate(q_list):
+            for idx, q_entry in enumerate(q_list):
+                if isinstance(q_entry, dict):
+                    if "turns" in q_entry and isinstance(q_entry["turns"], list) and q_entry["turns"]:
+                        q_text = q_entry["turns"][0].get("q", "")
+                    else:
+                        q_text = q_entry.get("q", "")
+                else:
+                    q_text = str(q_entry)
                 items.append(
                     {
                         "id": f"qb_{category}_{idx+1:02d}",
