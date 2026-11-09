@@ -85,7 +85,11 @@ from domain.speaker_provenance import (  # noqa: E402
     span_slice_voice_fields,
 )
 from ingest.verbatim.asr_cleaner import asr_cleaner_flags  # noqa: E402
-from ingest.verbatim.boundaries import boundary_defects  # noqa: E402
+from ingest.verbatim.boundaries import boundary_defects, terminal_tokens  # noqa: E402
+from ingest.verbatim.boundary_evidence import (  # noqa: E402
+    BoundaryEvidence,
+    derive_boundary_evidence,
+)
 from ingest.verbatim.gates import script_and_loop_problem  # noqa: E402
 
 # One shared location for the pinned rights register: the serving pipeline
@@ -568,22 +572,39 @@ def drop_zero_duration_specs(
 
 
 def slice_into_sentence_spans(
-    words: list[str], timings: list[tuple[float, float]], min_words: int = 45, max_words: int = 70
+    words: list[str],
+    timings: list[tuple[float, float]],
+    min_words: int = 45,
+    max_words: int = 70,
+    language: str | None = None,
+    quarantined: Counter[str] | None = None,
 ) -> list[dict[str, Any]]:
-    terminals = (".", "?", "!")
+    """Group whole terminated sentences into 45-70 word child spans.
+
+    A span is only ever emitted from sentences that end on a real terminal token
+    (``terminal_tokens(language)``). The end of the word list is NOT a sentence
+    end: promoting a trailing unterminated clause fabricated a sentence boundary
+    that the audio does not have. That tail is dropped, and counted once per
+    dropped tail under ``no_terminal_tail`` in ``quarantined`` (one tail per
+    video, since only the final run can be unterminated).
+    """
+    terminals = terminal_tokens(language)
     sentences: list[tuple[int, int, str, int, int]] = []
     cur: list[str] = []
     start_idx = 0
 
     for i, w in enumerate(words):
         cur.append(w)
-        if w.endswith(terminals) or i == len(words) - 1:
+        if w.endswith(terminals):
             s_text = " ".join(cur)
             s_start_ms = int(timings[start_idx][0] * 1000)
             s_end_ms = int(timings[i][1] * 1000)
             sentences.append((start_idx, i + 1, s_text, s_start_ms, s_end_ms))
             cur = []
             start_idx = i + 1
+    if cur and quarantined is not None:
+        # Trailing words with no terminal: no audio claim is made about them.
+        quarantined["no_terminal_tail"] += 1
 
     # Filter out sentences with boundary defects or script garbage
     clean_sentences = []
@@ -649,6 +670,93 @@ def slice_into_sentence_spans(
             _flush_group()
 
     return spans
+
+
+def _with_boundary_evidence(
+    payload: dict[str, Any], evidence: BoundaryEvidence | None
+) -> dict[str, Any]:
+    """Stamp the derived boundary record onto a span payload.
+
+    ``payload`` comes fresh from ``SourceSpan.to_payload()``, so updating it in
+    place is safe. An underived span (``None``) gains no key: absent is honest,
+    a fabricated "complete" is not.
+    """
+    if evidence is not None:
+        payload.update(boundary_payload_fields(evidence))
+    return payload
+
+
+def derive_spec_boundary_evidence(
+    spec: dict[str, Any],
+    words: list[str],
+    timings: list[tuple[float, float]],
+    *,
+    artifact_sha256: str | None = None,
+    language: str | None = None,
+) -> BoundaryEvidence:
+    """Derive the boundary record for one span spec.
+
+    The record must describe exactly the tokens the span persists, so a spec whose
+    word indexes do not reproduce its own text raises ``ValueError`` instead of
+    being labelled from memory.
+    """
+    start, end = spec["word_start"], spec["word_end"]
+    evidence = derive_boundary_evidence(
+        words,
+        timings,
+        start,
+        end,
+        language=language,
+        artifact_sha256=artifact_sha256,
+    )
+    if " ".join(words[start:end]) != spec["text"]:
+        raise ValueError(f"span [{start}, {end}) text does not match its word indexes")
+    return evidence
+
+
+def boundary_payload_fields(evidence: BoundaryEvidence) -> dict[str, Any]:
+    """Payload projection of a boundary record (fresh list, never a tuple)."""
+    return {
+        "boundary_contract_version": evidence.contract_version,
+        "boundary_defect_codes": list(evidence.defect_codes),
+        "terminal_evidence": evidence.terminal_evidence,
+        "coordinate_space": evidence.coordinate_space,
+    }
+
+
+def derive_span_boundary_evidences(
+    specs: list[dict[str, Any]],
+    words: list[str],
+    timings: list[tuple[float, float]],
+    quarantined: Counter[str],
+    *,
+    artifact_sha256: str | None = None,
+    language: str | None = None,
+) -> list[BoundaryEvidence | None]:
+    """One record per spec; ``None`` when the span is not derivable (counted)."""
+    records: list[BoundaryEvidence | None] = []
+    for spec in specs:
+        try:
+            records.append(
+                derive_spec_boundary_evidence(
+                    spec,
+                    words,
+                    timings,
+                    artifact_sha256=artifact_sha256,
+                    language=language,
+                )
+            )
+        except ValueError as exc:
+            # Counted, never filled in: an unknown boundary is not "complete".
+            quarantined["boundary_evidence_unavailable"] += 1
+            logger.warning(
+                "Span %s-%s has no derivable boundary evidence (%s)",
+                spec.get("word_start"),
+                spec.get("word_end"),
+                exc,
+            )
+            records.append(None)
+    return records
 
 
 def _expected_guru(speaker_meta: str, channel_name: str) -> str | None:
@@ -1041,7 +1149,7 @@ def main() -> int:
             logger.info("Video %s: no reliable word timings -> skipped", video_id)
             continue
 
-        span_specs = slice_into_sentence_spans(words, timings)
+        span_specs = slice_into_sentence_spans(words, timings, quarantined=quarantined)
         # D2: the cleaner's deletion rules (trailing severed clause, retreat-date
         # announcement, embedded audience acknowledgement) are quarantine reasons,
         # never edits: deleting the words would desynchronise text and audio window.
@@ -1058,6 +1166,13 @@ def main() -> int:
             quarantined["no_valid_spans"] += 1
             logger.info("Video %s: no valid sentence spans after boundary check", video_id)
             continue
+
+        # Boundary evidence is derived ONCE here, from the same tokens and word
+        # timings that cut the span, and frozen into the payload. Serving reads
+        # it; it never re-infers completeness from phrase regexes.
+        boundary_evidences = derive_span_boundary_evidences(
+            span_specs, words, timings, quarantined, artifact_sha256=artifact_sha256
+        )
 
         # 3. Per-span acoustic verification from the span's own audio window
         verdicts: list[dict[str, Any]] = []
@@ -1148,10 +1263,16 @@ def main() -> int:
             # embedded by encode_batch below, so this hash names exactly the
             # string actually embedded, bypassing query expansion.
             embedded_input = f"{getattr(embed_svc, 'instruction', '')}{spec['text']}"
-            # D9: labels are derived from the detector, never constants. A span with a
-            # boundary defect is UNCERTAIN (related at best, never direct) and a
-            # FRAGMENT; only a defect-free span is VERIFIED / COMPLETE.
-            has_boundary_defect = bool(boundary_defects(spec["text"].split()))
+            # D9: labels are derived from the detector, never constants. The
+            # boundary record above is the evidence: ``complete`` -> VERIFIED /
+            # COMPLETE, ``fragment`` or ``uncertain`` -> UNCERTAIN / FRAGMENT.
+            # A span with no derivable record falls back to the token detector.
+            evidence = boundary_evidences[idx]
+            has_boundary_defect = (
+                evidence.status != "complete"
+                if evidence is not None
+                else bool(boundary_defects(spec["text"].split()))
+            )
             span = SourceSpan(
                 corpus_version=args.corpus_version,
                 guru_id=predicted_guru,
@@ -1265,9 +1386,9 @@ def main() -> int:
             PointStruct(
                 id=point_id_for_record(s.source_span_id),
                 vector=vectors[s.source_span_id],
-                payload=s.to_payload(),
+                payload=_with_boundary_evidence(s.to_payload(), boundary_evidences[idx]),
             )
-            for s in spans
+            for idx, s in enumerate(spans)
         ]
         # I3: a collection-level refusal before any write, on the exact payloads about to be
         # sent. This builder stamps the method with the verdict, so a non-zero count means the

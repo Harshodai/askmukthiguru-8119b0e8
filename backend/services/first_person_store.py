@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import re
 import uuid
 from typing import Any, Optional
 
@@ -43,6 +42,10 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
+from services.first_person_content_assessment import (
+    OUTCOME_PROMISE_RE as _OUTCOME_PROMISE_CLIP_RE,
+)
+from services.first_person_content_assessment import blocks_serving
 from services.first_person_rights import source_is_authoritatively_licensed
 from services.first_person_video_decisions import video_is_blocked
 from services.qdrant.client import QdrantClientManager
@@ -68,18 +71,9 @@ ALLOWED_SPEAKERS = set(allowed_speaker_labels())  # config/gurus.yaml
 # Hard Stop H4: Spiritual / Miracle Promises (Audit 2026-10-05, Task 2)
 # Any clip making outcome promises, guaranteed miracles, or medical/wealth claims
 # is strictly forbidden from first-person indexing and serving.
-_OUTCOME_PROMISE_CLIP_RE = re.compile(
-    r"\b(?:"
-    r"melt like ice(?:\s+in\s+the\s+heat\s+of\s+the\s+sun)?"
-    r"|problems?\s+(?:will\s+)?(?:all\s+)?melt(?:\s+away|\s+like\s+ice)?"
-    r"|guarantee(?:d|s)?\s+(?:a\s+)?miracle"
-    r"|instant\s+miracle"
-    r"|guaranteed\s+(?:outcome|result|healing|cure|solution|wealth|success)"
-    r"|promise\s+(?:you\s+)?(?:a\s+)?miracle"
-    r"|dissolve\s+(?:all\s+)?(?:your\s+)?(?:anxiet\w+|conflicts?|wounds?)"
-    r")\b",
-    re.IGNORECASE,
-)
+# The vocabulary is owned by ``services.first_person_content_assessment`` (one
+# source, shared with the evidence policy and the serving bridge); the name is
+# kept here for the ingest guards and their tests.
 
 BLOCKED_PROMISE_POINT_IDS: set[str] = {
     "mmpmX3-qfc4",
@@ -660,6 +654,12 @@ class FirstPersonStore:
                     domain_rights_status=payload.get("domain_rights_status"),
                 )
                 or video_is_blocked(payload.get("video_id"))
+                # Content safety is re-validated here, not only at retrieval: a
+                # cache hit or a preview replays stored text past the retrieval
+                # gate. Query-scoped detectors are skipped (no query available);
+                # unconditional exclusions (clinical claims, causal etiology,
+                # outcome promises, graphic violence) still fail closed.
+                or blocks_serving(str(payload.get("verbatim_text") or ""))
             ):
                 return False
         return True

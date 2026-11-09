@@ -13,26 +13,41 @@ from typing import Optional
 
 from domain.first_person_evidence import EvidenceAction, EvidenceDecision
 from domain.first_person_safety import SAFETY_POLICY_VERSION
-
-POLICY_VERSION = f"first_person_evidence_v2+{SAFETY_POLICY_VERSION}"
-
-# Existing standalone detectors moved here so both the legacy clip path and the
-# fp-context harness use the same policy vocabulary. Compatibility imports in
-# first_person_pipeline keep existing call sites and ingest tools stable.
-_DISCOURSE_ACKNOWLEDGMENT_RE = re.compile(
-    r"^(?:"
-    r"yes,?\s+as you mentioned|"
-    r"yes,?\s+as I mentioned|"
-    r"yes,?\s+as we mentioned|"
-    r"as I was saying|"
-    r"as we discussed|"
-    r"so,?\s+as I said|"
-    r"right,?\s+so|"
-    r"exactly,?\s+so|"
-    r"yeah,?\s+so"
-    r")",
-    re.IGNORECASE,
+from services.first_person_content_assessment import (
+    CONTENT_ASSESSMENT_VERSION,
+    CORE_WISDOM_OPENER_RE,
+    DANGLING_QUESTION_TAIL_RE,
+    DISCOURSE_ACKNOWLEDGMENT_RE,
+    EVENT_MARKER_RE,
+    GRAPHIC_VIOLENCE_RE,
+    HEALTH_CLAIM_RE,
+    MEDICAL_CLAIM_NOTICE,
+    ORPHAN_OPENER_RE,
+    SELF_HARM_RE,
+    VIOLENCE_WORDING_RE,
+    WELLBEING_FRAMING_RE,
+    assess_content,
+    notice_copy,
 )
+
+POLICY_VERSION = f"first_person_evidence_v3+{SAFETY_POLICY_VERSION}+{CONTENT_ASSESSMENT_VERSION}"
+
+# Existing standalone detectors lived here. They now live in the single content
+# assessor so the bridge, the store, the harness and this policy cannot drift
+# apart again. The module-level names are kept as aliases: every existing caller
+# (and the safety policy's vocabulary import) keeps working unchanged.
+_DISCOURSE_ACKNOWLEDGMENT_RE = DISCOURSE_ACKNOWLEDGMENT_RE
+_CORE_WISDOM_OPENER_RE = CORE_WISDOM_OPENER_RE
+_ORPHAN_OPENER_RE = ORPHAN_OPENER_RE
+_EVENT_MARKER_RE = EVENT_MARKER_RE
+_DANGLING_QUESTION_TAIL_RE = DANGLING_QUESTION_TAIL_RE
+_VIOLENCE_WORDING_RE = VIOLENCE_WORDING_RE
+_SELF_HARM_CLIP_RE = SELF_HARM_RE
+_GRAPHIC_VIOLENCE_CLIP_RE = GRAPHIC_VIOLENCE_RE
+_AYURVEDIC_HEALTH_FRAMING_RE = WELLBEING_FRAMING_RE
+# Union of the clinical and causal-etiology vocabularies: "is this a health
+# claim at all" stays one question with one stable reason code.
+_HEALTH_CLAIM_RE = HEALTH_CLAIM_RE
 
 _CORE_WISDOM_KEYWORDS_RE = re.compile(
     r"(?i)\b(?:"
@@ -50,24 +65,8 @@ _CORE_WISDOM_KEYWORDS_RE = re.compile(
     r")\b"
 )
 
-_CORE_WISDOM_OPENER_RE = re.compile(
-    r"^[\"'\u201c\u2018\s]*(?:(?:and\s+)?in\s+that\s+(?:beautiful|serene|sacred|connected)\s+state|(?:and\s+)?when\s+you\s+see\s+the\s+truth)\b",
-    re.IGNORECASE,
-)
-
 _RHETORICAL_OPENER_RE = re.compile(
     r"^(?:I am sure you too have tried to|have you ever wondered why)",
-    re.IGNORECASE,
-)
-
-_ORPHAN_OPENER_RE = re.compile(
-    r"^[\"'\u201c\u2018\s]*(?:yes(?:,|[^\w\s])\s*|(?:this|these|those|that)\s+(?:is|are|was|were)\b|these\s+are\b|this\s+space\b|it\s+is\s+possible\b|because\b|in\s+that\b"
-    r"|and\b|but\b|or\b|then\b|which\b|that(?:'s|\s+is)\s+why\b"
-    r"|(?:it\b(?!\s*(?:is|was|['\u2019]s)\b)|(?:they|them|their|theirs|he|him|his|she|her|hers)\b)|we\s+need\s+them\b|definitely\b"
-    r"|i\s+(?:led|told|asked|gave|showed|took)\s+(?:him|her|them)\b"
-    r"|i\s+(?:cannot|can't|couldn't)\s+help\s+(?:this|that|him|her|them)\b"
-    r"|he\s+or\s+she\s+will\b"
-    r"|the\s+(?:first|second|third|fourth|fifth)\s+(?:difference|one|thing|point)\b)",
     re.IGNORECASE,
 )
 
@@ -75,6 +74,7 @@ _DISCOURSE_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:"
     r"(?:so|okay|ok|well|right|alright|now|anyway|similarly|in\s+this\s+way|in\s+that\s+case|therefore|as\s+a\s+result|because\s+of\s+this)\s*[,.]\s"
     r"|that\s+means\b"
+    r"|that(?:'s|\s+is)\s+why\b"
     r")",
     re.IGNORECASE,
 )
@@ -84,7 +84,7 @@ _LATE_ORDINAL_OPENER_RE = re.compile(
 )
 _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:"
-    r"let\s+us\s+understand\s+what\b|"
+    r"let\s+us\s+understand\s+(?:what|how|why)\b|"
     r"let\s+us\s+(?:observe|look\s+at|see|take)\s+[A-Z]\w*\b|"
     r"the\s+way\s+you\s+want\s+it\b|"
     r"this\s+(?:failure|impression|pattern|wound)\b|"
@@ -129,84 +129,10 @@ _ATTENDEE_TESTIMONIAL_RE = re.compile(
     re.IGNORECASE,
 )
 
-_HEALTH_CLAIM_RE = re.compile(
-    r"\bcur(?:e|es|ed|ing)\b|\bcolic\w*|\bbedridden\b|\bcancer\b|\bdiabet\w+|\btumou?rs?\b"
-    r"|\bchemotherap\w+|\bantidepressants?\b|\bmedications?\b|\bwrong signal to the universe\b|\byou will (?:have a )?fall\b|\bflooded by huge loads of sugar\b|\bscientifically proven\b|\boxytocin\b|\bprevent(?:ing)?\s+depression\b"
-    r"|\bheal(?:ed|s|ing)?\s+(?:physically|(?:your|the|his|her|their)\s+(?:body|bodies|illness|disease)s?)\b"
-    r"|\bhealed\s+(?:and\s+)?(?:physically|emotionally|spiritually)\b"
-    r"|\b(?:will|would|can|could)\s+be\s+healed\b"
-    r"|\b(?:repair|regeneration)\s+of\s+neurons\b|\bneurons?\s+in\s+your\s+brain\b"
-    r"|\bpsychiatric\s+(?:breakdown|disorder|illness|condition|patient)s?\b"
-    r"|\bmental\s+(?:illness|disorder|breakdown)s?\b"
-    r"|\b(?:cur(?:e|ed|ing)|heal(?:ed|ing)?|overcom(?:e|ing)|recover(?:y|ed|ing)?\s+from)\s+"
-    r"(?:(?:an?|the|your|his|her|their|my)\s+)?addictions?\b"
-    r"|\baddictions?\b[^.?!,]{0,40}\b(?:cured|healed)\b"
-    r"|\b100\s*%\s*(?:you\s*can\s*)?heal\b"
-    r"|\bthere\s+is\s+no\s+hope\s+at\s+all\b"
-    r"|\bthese\s+diseases\s+are\s+(?:actually\s+)?caused\s+by\b"
-    r"|\b(?:love|state|energy|it|this)\s+(?:itself\s+)?has\s+(?:tremendous\s+)?power\s+to\s+heal\b"
-    r"|\bhas\s+(?:tremendous\s+)?power\s+to\s+heal\b"
-    r"|\b40\s*,?\s*000\s+neurons\b"
-    r"|\bwrong\s+signals?\s+(?:to|into)\s+the\s+universe\b"
-    r"|\bcomes\s+as\s+health\s+issues\b"
-    r"|\babundance\s+in\s+health\b"
-    r"|\bwhy\s+is\s+someone\s+abusing\b"
-    r"|\bcompletely\s+free\s+of\s+anxiety\b"
-    r"|\bheal\s+the\s+person\b"
-    r"|\bso\s+that\s+is\s+how\s+you\s+heal\s+the\s+person\b"
-    r"|\bdestroys?\s+(?:your\s+)?(?:body|heart|consciousness)\b|\binternally\s+i\s+can\s+say\s+you\s+are\s+dead\b"
-    r"|\bundigested\s+(?:material|toxins?)\b|\btoxins?\s+that\s+is\s+flowing\b|\baging\s+is\s+caused\s+or\s+disease\s+is\s+caused\b"
-    r"|\b(?:get(?:ting)?|become|becoming)\s+diseased\b|\bdiseased\b|\binsulin(?:\s+levels?)?\b|\b(?:regions?|parts?)\s+of\s+(?:your|the)\s+brain\b",
-    re.IGNORECASE,
-)
+# Clinical health-claim vocabulary moved to
+# ``services.first_person_content_assessment`` (single source of truth, shared
+# with the store, the bridge and the safety policy). See the aliases above.
 
-# Ayurvedic / spiritual-physiology framing patterns.
-# These are DISTINCT from clinical health claims (_HEALTH_CLAIM_RE) which are hard-excluded.
-# Clips matching this pattern are SERVED with a medical safety notice rather than excluded.
-_AYURVEDIC_HEALTH_FRAMING_RE = re.compile(
-    r"\bundigested\s+(?:material|toxins?|food|emotions?|experiences?|past)\b"
-    r"|\btoxins?\s+(?:in\s+(?:your|the)\s+body|flow(?:ing)?\s+in\s+the\s+body|accumulated?)\b"
-    r"|\bdisease\s+is\s+caused\s+by\s+(?:the\s+)?undigested\b"
-    r"|\baging\s+is\s+caused\s+(?:or|and|by)\s+disease\b"
-    r"|\bevery\s+muscle\s+in\s+(?:your|the)\s+body\s+(?:relaxes?|opens?|softens?)\b"
-    r"|\bphysiologically?\s+(?:dead|dying|destroyed|relaxed)\b"
-    r"|\bwhen\s+you\s+truly\s+feel\s+peace.*(?:every\s+(?:cell|muscle)|body\s+relaxes?)\b"
-    r"|\b(?:causes?\s+)?ill\s+health\b"
-    r"|\bbody\s+agitated\b"
-    r"|\binner\s+disturbance\s+leaves\s+your\s+body\b",
-    re.IGNORECASE,
-)
-
-# Medical safety notice appended to clips that match _AYURVEDIC_HEALTH_FRAMING_RE.
-# Platform copy only — never presented as the teacher's words.
-MEDICAL_CLAIM_NOTICE = (
-    "This teaching shares a spiritual and Ayurvedic perspective on wellbeing. "
-    "It is not a substitute for medical advice. "
-    "Please consult a qualified physician or healthcare provider for any physical health concerns."
-)
-
-_EVENT_MARKER_RE = re.compile(
-    r"can\s+someone\s+tell\s+me|congratulations,?\s+you\s+have|first\s+day\s+of\s+your"
-    r"|that'?s\s+the\s+day\s+today|today\s+is\s+the\s+day\s+of"
-    r"|\btoday,?\s+we\s+(?:will|shall|are\s+going\s+to)\b"
-    r"|\btomorrow\s+(?:is|we)\b|\bthis\s+coming\b|\bin\s+this\s+coming\b"
-    r"|\bwhen\s+i\s+bless\s+you\b|\bi\s+will\s+bless\s+you\b"
-    r"|\btoday,?\s+i\s+want\s+you\s+to\s+hold\s+the\s+intention\b|\bon\s+this\s+day\b"
-    r"|\b(?:corona|covid(?:-19)?|lockdowns?|quarantine|pandemic)\b"
-    r"|\b(?:the\s+previous\s+(?:question|person|speaker|talk|session))\b"
-    r"|\b(?:in\s+the\s+last\s+(?:session|question|talk))\b"
-    r"|\b(?:like\s+i\s+said\s+(?:yesterday|earlier|in\s+the\s+last))\b"
-    r"|\bi\s+don'?t\s+know\s+if\s+you'?re\s+(?:there|here|present)\b"
-    r"|\bnamaste\b",
-    re.IGNORECASE,
-)
-
-_DANGLING_QUESTION_TAIL_RE = re.compile(
-    r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you|shall\s+we\s+[^?]{0,50}|when\s+[^?]{3,80},\s*what\s+do\s+you\s+do)\s*\?\s*$"
-    r"|(?:and\s+)?why\s+(?:is|are|was|were)\s+[^?]{1,60}\?\s*$"
-    r"|(?:why\s+did\s+[^?]{3,80}\?|or\s+why\s+[^?]{3,80}\?)\s*$",
-    re.IGNORECASE,
-)
 _DANGLING_AFFIRMATION_TAIL_RE = re.compile(
     r"(?:[.!?]\s+)(?:yes|okay|alright)\s*[.?!]?\s*$",
     re.IGNORECASE,
@@ -220,41 +146,59 @@ _EXTERNAL_TEACHER_RE = re.compile(
     re.IGNORECASE,
 )
 
-_TARGET_PERSON_PHRASE = (
-    r"(?:her|him|them|me|you|(?:(?:a|an|the|his|her|their|my|your|our)\s+)?"
-    r"(?:(?:\w+\s+)?(?:woman|women|man|men|wife|wives|husband|husbands|spouse|spouses|"
-    r"partner|partners|child|children|son|sons|daughter|daughters|mother|mothers|"
-    r"father|fathers|mom|moms|dad|dads|boyfriend|boyfriends|girlfriend|girlfriends|"
-    r"someone|anyone|anybody|person|people|girl|girls|boy|boys)))"
-)
-_PASSIVE_HIT_BY_PHRASE = (
-    r"(?:(?:was|were|being|got|gets|is|are)\s+)?hit\s+by\s+"
-    r"(?:(?:a|an|the|his|her|their|my|your|our)\s+)?"
-    r"(?:(?:\w+\s+)?(?:woman|women|man|men|wife|wives|husband|husbands|spouse|spouses|"
-    r"partner|partners|child|children|son|sons|daughter|daughters|mother|mothers|"
-    r"father|fathers|mom|moms|dad|dads|boyfriend|boyfriends|girlfriend|girlfriends|"
-    r"someone|anyone|anybody|person|people|girl|girls|boy|boys))"
-)
-_VIOLENCE_WORDING_RE = re.compile(
-    r"\bstab(?:s|bed|bing)?\b|\bkill(?:s|ed|ing)?\b|\bmurder\w*|\bbeat(?:s|ing|en)?\b|\bslap\w*|\bpunch\w*|\bkick(?:s|ed|ing)?\b|\bchok\w+|\bmanhandl\w+"
-    r"|\bstrangl\w+|\babuse[ds]?\b|\babusing\b|\bhit(?:s|ting)?\s+"
-    + _TARGET_PERSON_PHRASE
-    + r"\b|\b"
-    + _PASSIVE_HIT_BY_PHRASE
-    + r"\b|\b(?:shoot(?:s|ing)?|shot)\b",
+# Replacement regexes for structural completeness and loop detection
+_INCOMPLETE_CONTRAST_RE = re.compile(
+    r"\bsuffering\s+states?\s+(?:are|is)\s+clearly\s+states?\s+that\s+destroys?\b",
     re.IGNORECASE,
 )
-_SELF_HARM_CLIP_RE = re.compile(r"\b(?:self\s*-\s*harm|suicid\w*)\b", re.IGNORECASE)
-_GRAPHIC_VIOLENCE_CLIP_RE = re.compile(
-    r"\b(?:"
-    r"crush(?:ing)?\s+another's\s+throat"
-    r"|throat\s+to\s+death"
-    r"|burn(?:ing)?\s+down\s+someone's\s+home"
-    r"|racial\s+violence"
-    r"|act\s+of\s+unthinkable\s+cruelty"
-    r")\b",
+_TRUNCATED_MID_SENTENCE_RE = re.compile(
+    r"\b(?:the\s+)?chemicals?\s+that\s+(?:is|are)\s+flooding\s+(?:your\s+)?body\b",
     re.IGNORECASE,
 )
+_THIN_REPETITIVE_LOOP_RE = re.compile(
+    r"\bsuffering\s+makes\s+you\s+sad\s+when\s+you(?:'re|\s+are)\s+sad\s+you\s+perpetuate\s+sadness\b",
+    re.IGNORECASE,
+)
+
+# ---------------------------------------------------------------------------
+# Structural boundary rules
+# ---------------------------------------------------------------------------
+# Capitalisation is not boundary evidence: Whisper casing is unreliable, so a
+# lowercase opener is only severed when it opens on a subject pronoun whose
+# clause was cut away ("we are constantly working from our mind ...", "you
+# create wealth in fear ..."). An imperative ("place your palms on your
+# thighs ...") or a resolved prepositional opener ("at the core of depression is
+# a battle ...") is a whole sentence and must not be penalised — 2026-11-08,
+# replaces the blanket "any lowercase start is severed" proxy that rejected two
+# judge-approved clips (served_clips_v8_judged [10], [13]).
+_SEVERED_OPENER_PRONOUNS = frozenset(
+    {"we", "you", "they", "it", "he", "she", "this", "that", "these", "those", "there"}
+)
+
+
+def _severed_lowercase_opener(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped or not stripped[0].islower():
+        return False
+    if stripped.startswith(("i ", "i'", "i’")):
+        return False
+    first = re.split(r"[\s,;:]+", stripped, maxsplit=1)[0].strip("\"'“”‘’()[]…").casefold()
+    return first in _SEVERED_OPENER_PRONOUNS
+
+
+def _ends_on_dangling_word(text: str) -> bool:
+    """True when the last token is a closed-class word no sentence can end on.
+
+    Presence of punctuation is NOT used as the test: an unpunctuated ASR run that
+    ends on a content word ("... into a state of calm") is not evidence of a cut
+    (judge-approved clip [10]), while one that ends on "the"/"and"/"to" is.
+    """
+    from ingest.verbatim.boundaries import DANGLING_TAIL, _bare
+
+    tokens = text.split()
+    if not tokens:
+        return False
+    return _bare(tokens[-1]) in DANGLING_TAIL
 
 
 def _clip_length_problem(text: str, *, settings_override: object | None = None) -> Optional[str]:
@@ -273,8 +217,20 @@ def _clip_length_problem(text: str, *, settings_override: object | None = None) 
     return None
 
 
-def _standalone_problem(text: str, *, settings_override: object | None = None) -> Optional[str]:
-    """Legacy full standalone check, retained byte-for-byte in decision order."""
+def _standalone_problem(
+    text: str,
+    *,
+    settings_override: object | None = None,
+    is_complete_thought: bool | None = None,
+    is_standalone: bool | None = None,
+) -> Optional[str]:
+    """Legacy full standalone check, updated to support semantic completeness."""
+    if is_complete_thought is False:
+        return "incomplete_thought"
+    if is_standalone is False:
+        return "not_standalone"
+    semantically_verified = is_complete_thought is True and is_standalone is True
+
     from ingest.verbatim.gates import CORPUS_EXPECTED_SCRIPT, script_and_loop_problem
 
     garbage = script_and_loop_problem(text, expected_script=CORPUS_EXPECTED_SCRIPT)
@@ -285,7 +241,9 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "ends_mid_sentence"
     if re.search(r"\b(?:allowing|giving|making|letting)\s*$", stripped, re.IGNORECASE):
         return "ends_mid_sentence"
-    if len(text.split()) > 25 and not any(p in text for p in (".", "!", "?", "।", "॥")):
+    if _ends_on_dangling_word(stripped) and not stripped.endswith(
+        (".", "!", "?", "।", "॥", '"', "'", "”", "’")
+    ):
         return "ends_mid_sentence"
     if _GRAPHIC_VIOLENCE_CLIP_RE.search(text):
         return "graphic_violence_discourse"
@@ -293,8 +251,9 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "dangling_question_tail"
     if _DANGLING_AFFIRMATION_TAIL_RE.search(stripped):
         return "dangling_affirmation_tail"
-    if _DISCOURSE_OPENER_RE.match(text) or _LATE_ORDINAL_OPENER_RE.match(text):
-        return "discourse_opener"
+    if not semantically_verified:
+        if _DISCOURSE_OPENER_RE.match(text) or _LATE_ORDINAL_OPENER_RE.match(text):
+            return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(text):
         return "orphan_opener"
     if _UNEXPLAINED_CULTURAL_ENTITY_RE.search(text):
@@ -307,20 +266,17 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "orphan_opener"
     if _EVENT_MARKER_RE.search(text):
         return "event_marker"
-    if "suffering states are clearly states that destroys your inner world" in text:
+    if _ATTENDEE_TESTIMONIAL_RE.search(text):
+        return "attendee_testimonial"
+    if _INCOMPLETE_CONTRAST_RE.search(text):
         return "incomplete_contrast"
-    if "chemicals that is flooding your body" in text:
+    if _TRUNCATED_MID_SENTENCE_RE.search(text):
         return "ends_mid_sentence"
-    if "suffering makes you sad when you're sad you perpetuate sadness" in text:
+    if _THIN_REPETITIVE_LOOP_RE.search(text):
         return "thin_repetitive_loop"
     if (
         re.search(
-            r"\b(?:there\s+are\s+)?two\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
-            text,
-            re.IGNORECASE,
-        )
-        and re.search(
-            r"\bthe\s+first\s+(?:one|way|thing|step|aspect|reason|factor|is)\b",
+            r"\b(?:there\s+are\s+)?(?:two|three)\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
             text,
             re.IGNORECASE,
         )
@@ -333,15 +289,30 @@ def _standalone_problem(text: str, *, settings_override: object | None = None) -
         return "dangling_enumeration"
     if _HEALTH_CLAIM_RE.search(text):
         return "health_claim"
-    if stripped and stripped[0].islower() and not stripped.startswith(("i ", "i'", "i’")):
+    if not semantically_verified and _severed_lowercase_opener(stripped):
         return "severed_lowercase_opener"
     if re.match(r"^[\"'\u201c\u2018\s]*more\s+\w+\s+to\b", text, re.IGNORECASE):
         return "dangling_fragment"
-    return _clip_length_problem(text, settings_override=settings_override)
+    # Word-count floors are owned by the content-quality gate (QBUG-5: 15 words).
+    # Duplicating a second floor here (23) made the same clip pass one gate and
+    # fail the other; ``_clip_length_problem`` stays available for its own
+    # callers, it just no longer decides standalone-ness.
+    return None
 
 
-def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
+def _context_standalone_problem(
+    texts: Iterable[str],
+    *,
+    is_complete_thought: bool | None = None,
+    is_standalone: bool | None = None,
+) -> Optional[str]:
     """Context-aware subset of standalone rules, shared without English-only checks."""
+    if is_complete_thought is False:
+        return "incomplete_thought"
+    if is_standalone is False:
+        return "not_standalone"
+    semantically_verified = is_complete_thought is True and is_standalone is True
+
     text_list = tuple(str(text or "") for text in texts)
     if not text_list:
         return None
@@ -356,26 +327,23 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
         (".", "!", "?", '"', "'", "”", "’", "।", "॥")
     ):
         return "ends_mid_sentence"
-    if len(whole.split()) > 25 and not any(p in whole for p in (".", "!", "?", "।", "॥")):
+    if _ends_on_dangling_word(stripped_whole) and not stripped_whole.endswith(
+        (".", "!", "?", "।", "॥", '"', "'", "”", "’")
+    ):
         return "ends_mid_sentence"
     if _GRAPHIC_VIOLENCE_CLIP_RE.search(whole):
         return "graphic_violence_discourse"
     if _ATTENDEE_TESTIMONIAL_RE.search(whole):
         return "attendee_testimonial"
-    if "suffering states are clearly states that destroys your inner world" in whole:
+    if _INCOMPLETE_CONTRAST_RE.search(whole):
         return "incomplete_contrast"
-    if "chemicals that is flooding your body" in whole:
+    if _TRUNCATED_MID_SENTENCE_RE.search(whole):
         return "ends_mid_sentence"
-    if "suffering makes you sad when you're sad you perpetuate sadness" in whole:
+    if _THIN_REPETITIVE_LOOP_RE.search(whole):
         return "thin_repetitive_loop"
     if (
         re.search(
-            r"\b(?:there\s+are\s+)?two\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
-            whole,
-            re.IGNORECASE,
-        )
-        and re.search(
-            r"\bthe\s+first\s+(?:one|way|thing|step|aspect|reason|factor|is)\b",
+            r"\b(?:there\s+are\s+)?(?:two|three)\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
             whole,
             re.IGNORECASE,
         )
@@ -386,8 +354,9 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
         )
     ):
         return "dangling_enumeration"
-    if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
-        return "discourse_opener"
+    if not semantically_verified:
+        if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
+            return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(first):
         return "orphan_opener"
     if _UNEXPLAINED_CULTURAL_ENTITY_RE.search(first):
@@ -409,7 +378,7 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
     if any(_EVENT_MARKER_RE.search(text) for text in text_list):
         return "event_marker"
     first_stripped = first.strip()
-    if first_stripped and first_stripped[0].islower() and not first_stripped.startswith(("i ", "i'", "i’")):
+    if not semantically_verified and _severed_lowercase_opener(first_stripped):
         return "severed_lowercase_opener"
     if re.match(r"^[\"'\u201c\u2018\s]*more\s+\w+\s+to\b", first_stripped, re.IGNORECASE):
         return "dangling_fragment"
@@ -417,18 +386,18 @@ def _context_standalone_problem(texts: Iterable[str]) -> Optional[str]:
 
 
 def _violent_for_context(query: str, text: str, retrieval_query: str = "") -> bool:
-    """Existing query-scoped violence rule; text is never altered."""
-    from guardrails.lightweight_handler import needs_relationship_safety_boundary
-
-    return bool(_VIOLENCE_WORDING_RE.search(text)) and (
-        needs_relationship_safety_boundary(query)
-        or (bool(retrieval_query) and needs_relationship_safety_boundary(retrieval_query))
-    )
+    """Query-scoped violence rule (content assessor owns the vocabulary)."""
+    return not assess_content(
+        text, query=query, retrieval_query=retrieval_query
+    ).may_serve and bool(_VIOLENCE_WORDING_RE.search(text))
 
 
 def _self_harm_for_context(query: str, text: str) -> bool:
-    """Block self-harm/suicide terms introduced by a clip not requested in query."""
-    return bool(_SELF_HARM_CLIP_RE.search(text)) and not bool(_SELF_HARM_CLIP_RE.search(query))
+    """True when a clip introduces self-harm terms the query did not request."""
+    finding = any(
+        f.code == "unsolicited_self_harm_reference" for f in assess_content(text, query=query).findings
+    )
+    return finding
 
 
 class FirstPersonEvidencePolicy:
@@ -439,61 +408,74 @@ class FirstPersonEvidencePolicy:
     def assess_contextual_safety(
         self, query: str, text: str, *, retrieval_query: str = ""
     ) -> EvidenceDecision:
-        reasons: list[str] = []
-        if _violent_for_context(query, text, retrieval_query):
-            reasons.append("violent_relationship_context")
-        if _GRAPHIC_VIOLENCE_CLIP_RE.search(text):
-            reasons.append("graphic_violence_discourse")
-        if _self_harm_for_context(query, text):
-            reasons.append("unsolicited_self_harm_reference")
+        """Single content verdict + the external-teacher scope check.
+
+        Content severity now comes from one assessor (:mod:`domain`-typed
+        findings). This method no longer re-matches phrases: it maps the
+        assessment to the existing ``EvidenceAction`` vocabulary, so a finding
+        added to the assessor cannot silently disagree with this gate.
+        """
+        assessment = assess_content(text, query=query, retrieval_query=retrieval_query)
+        reasons: list[str] = list(assessment.reason_codes)
         if _EXTERNAL_TEACHER_RE.search(query) or (bool(retrieval_query) and _EXTERNAL_TEACHER_RE.search(retrieval_query)):
             reasons.append("external_teacher_or_tradition")
         # Lazy import: first_person_safety_policy imports the regex vocabulary
         # from this module, so importing it at module scope would form a cycle.
+        # It is consulted only for the educational-context signal, which is a
+        # query-scope judgement the assessor does not make.
         from services.first_person_safety_policy import FirstPersonSafetyPolicy
 
         contextual = FirstPersonSafetyPolicy().evaluate(query=query, candidate_text=text)
-        reasons.extend(contextual.reason_codes)
+        if contextual.action == "allow_with_context":
+            reasons.append("self_harm_educational_context")
         reasons = list(dict.fromkeys(reasons))
-        # Event-bound wording alone is a review signal, not an exclusion: the
-        # candidate may still be servable once a reviewer confirms the context.
-        # Any other exclusion reason keeps the hard exclude.
-        event_bound_only_exclusion = contextual.action == "exclude" and set(reasons) == {
-            "event_bound"
-        }
-        if "violent_relationship_context" in reasons or "external_teacher_or_tradition" in reasons or "graphic_violence_discourse" in reasons:
+
+        if "external_teacher_or_tradition" in reasons or not assessment.may_serve:
             action = EvidenceAction.EXCLUDE
-        elif event_bound_only_exclusion:
-            action = EvidenceAction.NEEDS_REVIEW
-        elif contextual.action == "exclude" or any(
-            reason in reasons
-            for reason in ("unsolicited_self_harm_reference", "health_claim", "outcome_promise")
-        ):
-            action = EvidenceAction.EXCLUDE
-        elif contextual.action == "needs_review" or any(
-            reason in reasons
-            for reason in ("event_bound", "dangling_dependency", "cross_turn_reference")
-        ):
+        elif assessment.requires_review:
             action = EvidenceAction.NEEDS_REVIEW
         elif contextual.action == "allow_with_context":
             action = EvidenceAction.ALLOW_WITH_CONTEXT
-        elif contextual.action == "allow":
-            action = EvidenceAction.ALLOW
         else:
-            action = EvidenceAction.NEEDS_REVIEW
+            action = EvidenceAction.ALLOW
         return EvidenceDecision(
             action=action,
             reason_codes=tuple(reasons),
             policy_version=self.policy_version,
         )
 
-    def assess_context_standalone(self, texts: Iterable[str]) -> EvidenceDecision:
-        reason = _context_standalone_problem(texts)
+    def assess_context_standalone(
+        self,
+        texts: Iterable[str],
+        *,
+        is_complete_thought: bool | None = None,
+        is_standalone: bool | None = None,
+    ) -> EvidenceDecision:
+        texts_tuple = tuple(texts)
+        if is_complete_thought is None and texts_tuple:
+            first_obj = texts_tuple[0]
+            if hasattr(first_obj, "is_complete_thought"):
+                is_complete_thought = getattr(first_obj, "is_complete_thought")
+            if hasattr(first_obj, "is_standalone"):
+                is_standalone = getattr(first_obj, "is_standalone")
+        str_texts = tuple(
+            getattr(t, "verbatim_text", str(t)) if not isinstance(t, str) else t
+            for t in texts_tuple
+        )
+        reason = _context_standalone_problem(
+            str_texts,
+            is_complete_thought=is_complete_thought,
+            is_standalone=is_standalone,
+        )
         return EvidenceDecision(
             action=EvidenceAction.EXCLUDE if reason else EvidenceAction.ALLOW,
             reason_codes=(reason,) if reason else (),
             policy_version=self.policy_version,
         )
+
+    def notices_for(self, text: str, *, query: str | None = None) -> tuple[str, ...]:
+        """Platform copy required for a clip that passed the gate (never teacher words)."""
+        return notice_copy(assess_content(text, query=query))
 
 
 first_person_evidence_policy = FirstPersonEvidencePolicy()

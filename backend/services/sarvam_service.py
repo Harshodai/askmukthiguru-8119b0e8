@@ -943,49 +943,12 @@ class SarvamCloudService:
         prompt = f"Question: {query}\n\n{numbered_docs}"
         result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt, **kwargs)
 
-        # Parse "1: [yes/no] - reason\n2: [yes/no] - reason" format
-        relevance_results = [
-            {"relevant": False, "reason": "No response from LLM"} for _ in documents
-        ]
+        # One typed parser for every provider (services.llm_verdict): strict
+        # tokens or JSON fields, never a substring. An unparseable reply keeps
+        # the documented top-document fallback and marks itself indeterminate.
+        from services.llm_verdict import grade_documents
 
-        # Regex to handle various formats like "1: yes - The document discusses..."
-        # or "1: yes (Reason: ...)"
-        parsed_any = False
-        for line in result.strip().splitlines():
-            line = line.strip()
-            if not line:
-                continue
-
-            # Match pattern: index, then yes/no, then optional reason
-            match = re.match(r"(\d+)[:.]\s*(yes|no)(?:\s*[:-]\s*(.*))?", line, re.IGNORECASE)
-            if match:
-                try:
-                    idx = int(match.group(1)) - 1
-                    if 0 <= idx < len(documents):
-                        is_relevant = match.group(2).lower() == "yes"
-                        reason = (
-                            match.group(3).strip()
-                            if match.group(3)
-                            else ("Relevant teaching" if is_relevant else "Irrelevant content")
-                        )
-                        relevance_results[idx] = {"relevant": is_relevant, "reason": reason}
-                        parsed_any = True
-                except (ValueError, IndexError):
-                    continue
-
-        # An explicit "no" to every document is a verdict: return it, so CRAG can
-        # rewrite or abstain. Only an unparseable grader reply (grading failed)
-        # keeps the top document, and it says so.
-        if not parsed_any and documents:
-            logger.warning(
-                "Batch relevance grader output unparseable; keeping the top retrieval result."
-            )
-            relevance_results[0] = {
-                "relevant": True,
-                "reason": "Grader output unparseable: kept top retrieval result.",
-            }
-
-        return relevance_results
+        return grade_documents(result, len(documents))
 
     async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
         """
@@ -993,9 +956,11 @@ class SarvamCloudService:
 
         Returns True if EVERY claim in the answer is supported by the context.
         """
+        from services.llm_verdict import parse_faithfulness
+
         prompt = f"Context:\n{context}\n\nAnswer:\n{answer}"
         result = await self._generate_fast(FAITHFULNESS_CHECK_PROMPT, prompt, **kwargs)
-        return "faithful" in result.lower()
+        return parse_faithfulness(result) is True
 
     async def extract_hints(self, query: str, documents: list[str]) -> list[str]:
         """

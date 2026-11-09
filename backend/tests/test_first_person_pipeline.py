@@ -1630,3 +1630,92 @@ class TestQualityAndSafetyFilters20261101:
             "promotion and she is celebrating it."
         )
         assert _standalone_problem(clip_orphan) == "orphan_opener"
+
+
+@pytest.mark.relevance_real
+def test_pipeline_semantic_judge_editorial_set_forwarding(mock_store, mock_redis, monkeypatch):
+    """Regression test: when first_person_judge_enabled=True, FirstPersonPipeline
+
+    forwards judge_meta['editorial_set'] (including content_safety and covered_facets),
+    allowing authentic spiritual metaphors to serve without false rejection.
+    """
+    import json
+    from domain.first_person_decision import FindingSeverity
+    from services.first_person_content_assessment import assess_content
+
+    clip = _clip(speaker_verified=True, passage_dense=[1.0, 0.0])
+    mock_store.search_hybrid.return_value = [clip]
+    mock_store.points_servable.return_value = True
+    mock_redis.get.return_value = None
+
+    monkeypatch.setattr(
+        "services.first_person_pipeline.is_youtube_video_available", lambda _video_id: True
+    )
+    monkeypatch.setattr(
+        "services.first_person_pipeline.source_is_authoritatively_licensed", lambda **kw: True
+    )
+    monkeypatch.setattr(settings, "first_person_judge_enabled", True)
+    monkeypatch.setattr(settings, "first_person_judge_model", "test-semantic-judge-v1")
+    monkeypatch.setattr(settings, "first_person_relevance_gate_enabled", True)
+    monkeypatch.setattr(settings, "first_person_answerability_check_enabled", False)
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", False)
+
+    class MockJudgeLLM:
+        def generate(self, *args, **kwargs):
+            print("\n*** MockJudgeLLM.generate CALLED! ***\n")
+            return json.dumps({
+                "scores": [
+                    {
+                        "i": 0,
+                        "relevance": 3,
+                        "answers": True,
+                        "is_complete_thought": True,
+                        "is_standalone": True,
+                        "covered_facets": ["suffering", "peace"],
+                        "content_safety": "clean",
+                    }
+                ],
+                "question_answerable": True,
+            })
+
+    pipeline = FirstPersonPipeline(
+        store=mock_store,
+        redis_client=mock_redis,
+        llm_service=MockJudgeLLM(),
+        calibration_profile=VALID_PROFILE,
+    )
+    res = pipeline.execute(query="What causes suffering?", query_dense_vector=[1.0, 0.0])
+
+    assert res.status == "success"
+    assert res.is_direct_answer is True
+    assert res.editorial_set is not None
+    assert res.editorial_set["content_safety"] == "clean"
+    assert res.editorial_set["covered_facets"] == ["suffering", "peace"]
+    assert res.editorial_set["status"] == "supported"
+    assert res.editorial_set["is_complete_thought"] is True
+    assert res.editorial_set["is_standalone"] is True
+
+    # Authentic spiritual metaphor text that would be falsely flagged as a health/clinical claim
+    # by offline regex unless content_safety='clean' is carried from the semantic judge.
+    spiritual_metaphor_text = "Love itself has tremendous power to heal the heart."
+
+    # Downstream verification: with content_safety='clean' forwarded in editorial_set,
+    # assess_content allows serving with NOTICE instead of falsely excluding.
+    assessment_with_judge = assess_content(
+        spiritual_metaphor_text,
+        query="What causes suffering?",
+        content_safety=res.editorial_set.get("content_safety"),
+    )
+    assert assessment_with_judge.may_serve is True
+    assert assessment_with_judge.severity == FindingSeverity.NOTICE
+
+    # Contrast check: without content_safety forwarded (the defect), assess_content rejects the spiritual metaphor
+    assessment_without_judge = assess_content(
+        spiritual_metaphor_text,
+        query="What causes suffering?",
+        content_safety=None,
+    )
+    assert assessment_without_judge.may_serve is False
+    assert assessment_without_judge.severity == FindingSeverity.EXCLUDE
+
+

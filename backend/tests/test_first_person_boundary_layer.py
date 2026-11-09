@@ -14,6 +14,8 @@ import hashlib
 
 import pytest
 
+from ingest.verbatim.boundaries import TERMINAL_ASCII, boundary_defects, terminal_tokens
+from ingest.verbatim.boundary_evidence import derive_boundary_evidence
 from services.first_person_pipeline import _passes_integrity_gate
 
 
@@ -93,3 +95,46 @@ def test_hash_is_still_checked_on_verbatim_not_display():
     clip = _clip(v, "Like a pendulum, you keep moving.")
     clip["transcript_hash"] = hashlib.sha256(clip["display_text"].encode()).hexdigest()
     assert not _ok(clip)
+
+
+# --- Terminal vocabulary and the derived boundary record -------------------
+# The danda pair ("।" U+0964, "॥" U+0965) terminates Indic sentences. It never
+# occurs in English text, so the default vocabulary stays ASCII-only while the
+# module-level TERMINAL still accepts both.
+
+
+def test_danda_terminated_sentence_is_clean():
+    assert boundary_defects("सत्यं वद\u0964".split()) == []
+    assert boundary_defects(["रामः", "गच्छति", "\u0965"]) == []
+
+
+def test_default_vocabulary_is_ascii_only_but_terminal_accepts_both():
+    assert terminal_tokens() == TERMINAL_ASCII
+    assert terminal_tokens("en") == TERMINAL_ASCII
+    assert "\u0964" in terminal_tokens("hi")
+
+
+def test_sentence_without_terminal_is_a_defect():
+    assert "tail_no_terminal" in boundary_defects("You are awareness".split())
+    assert "tail_no_terminal" in boundary_defects("सत्यं वद".split())
+
+
+def _timings(n: int) -> list[tuple[float, float]]:
+    return [(float(i), float(i) + 0.5) for i in range(n)]
+
+
+def test_no_eof_promotion_through_derived_evidence():
+    # The last word carries no terminal: the derived record must NOT call the
+    # span complete just because it sits at the end of the word list.
+    words = "You are awareness and you are".split()
+    ev = derive_boundary_evidence(words, _timings(len(words)), 0, len(words))
+    assert ev.terminal_evidence is None
+    assert ev.status == "uncertain"
+    assert "tail_no_terminal" in ev.defect_codes
+
+
+def test_danda_terminated_derived_span_is_complete():
+    words = "रामः गच्छति सत्यं वद\u0964".split()
+    ev = derive_boundary_evidence(words, _timings(len(words)), 0, len(words))
+    assert ev.status == "complete"
+    assert ev.terminal_evidence == "वद\u0964"

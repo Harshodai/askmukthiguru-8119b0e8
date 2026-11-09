@@ -127,6 +127,7 @@ Thumbs.db
 .claude/*
 !.claude/settings.json
 .agent/
+.agents/teamwork/
 .worktrees/
 .code-review-graph/
 .codegraph/

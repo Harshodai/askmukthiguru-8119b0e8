@@ -348,22 +348,16 @@ class _HarnessRelevanceIndeterminate(Exception):
 
 # B4 (plan rev 2): a clip that stops mid-sentence or opens on stray punctuation is
 # a severed thought, not a teaching. Gated by first_person_boundary_guard_enabled.
-_SERVE_BLOCKING_BOUNDARY_DEFECTS = frozenset(
-    {
-        # Head defects: clip starts mid-clause, genuinely broken text
-        "head_orphan_punctuation",
-        "head_headless_predicate",
-        "head_conjunction",
-        "head_fragment",
-        # Tail: dangling preposition/conjunction/article at the very end
-        "tail_dangling_word",
-        "tail_severed_relative_clause",
-        # REMOVED tail_no_terminal (2026-10-10): v7 corpus has 25% non-terminal
-        # clips from ASR mid-sentence cuts. Hard-blocking them causes 100%
-        # abstention on many common queries (Beautiful State, anxiety, two
-        # states). QuoteWeaver's assertion gate validates completeness;
-        # a trailing comma is ugly but answerable, a headless predicate is not.
-    }
+# The policy lives in ``services.first_person_boundary_gate`` (one owner); the
+# name is re-exported here for the existing call sites and tests.
+from services.first_person_boundary_gate import (  # noqa: E402
+    INCOMPLETE as _BOUNDARY_INCOMPLETE,
+)
+from services.first_person_boundary_gate import (
+    SERVE_BLOCKING_BOUNDARY_DEFECTS as _SERVE_BLOCKING_BOUNDARY_DEFECTS,
+)
+from services.first_person_boundary_gate import (
+    boundary_verdict as _boundary_verdict,
 )
 _SEVERED_PREPOSITION_OPENER_RE = re.compile(
     r"^(?:for|in|of|to|with|as|if|at|on|by|from|into|onto|about|than|through)\s+",
@@ -456,6 +450,19 @@ def _passes_integrity_gate(
         if boundary_guard_enabled is not None
         else getattr(settings, "first_person_boundary_guard_enabled", False)
     )
+    # Persisted boundary evidence (2026-11-08): the builder derives the record
+    # once from the exact word window the span was cut from. Serving reads and
+    # checks that record instead of re-guessing completeness from phrases. A
+    # legacy point carries no record and falls through to the text-derived gate
+    # below — an unknown boundary is never treated as verified.
+    verdict, verdict_codes = _boundary_verdict(clip)
+    if verdict == "block":
+        logger.warning(
+            "[FirstPersonPipeline] Clip %s rejected by persisted boundary evidence: %s",
+            point_id_str,
+            ",".join(verdict_codes),
+        )
+        return False
     if guard_active:
         # Judged on verbatim_text only. display_text is NOT evidence of a whole
         # sentence: its punctuation restorer ends every clip with a period, so
@@ -777,7 +784,11 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
 
     if getattr(settings, "first_person_standalone_gate_enabled", True):
         problem = _standalone_problem(text)
-        if problem:
+        # A guided-practice clip legitimately carries session/greeting markers
+        # ("... in the Namaste pose ...") and is already exempt from the live-event
+        # pattern above; the same exemption applies to the event-marker reason so a
+        # practice instruction is not rejected as an event-bound announcement.
+        if problem and not (is_practice and problem == "event_marker"):
             logger.info(
                 "[FirstPersonPipeline] Clip %s rejected by content quality gate: not standalone (%s)",
                 clip.get("point_id") or clip.get("video_id"),
@@ -1082,12 +1093,13 @@ def _relevance_select(
     request_loop: Optional[Any] = None,
     token_sink: Optional[list[int]] = None,
     scores_out: Optional[list[int]] = None,
+    judge_meta_out: Optional[dict[str, Any]] = None,
 ) -> Optional[int]:
     """Sync bridge over ``_relevance_select_async`` for offline callers (T7-02)."""
     try:
         return run_llm_coroutine(
             lambda: _relevance_select_async(
-                query, clips, llm_service, None, token_sink=token_sink, scores_out=scores_out
+                query, clips, llm_service, None, token_sink=token_sink, scores_out=scores_out, judge_meta_out=judge_meta_out
             ),
             _FACADE_TIMEOUT_S,
             request_loop,
@@ -1104,6 +1116,7 @@ async def _relevance_select_async(
     request_loop: Optional[Any] = None,
     token_sink: Optional[list[int]] = None,
     scores_out: Optional[list[int]] = None,
+    judge_meta_out: Optional[dict[str, Any]] = None,
 ) -> Optional[int]:
     """Scorer entry point. The optional Jev picker only reorders candidates (its pick is
     scored first); the min-score scorer still decides and its real scores are kept.
@@ -1122,6 +1135,7 @@ async def _relevance_select_async(
             minimum=int(getattr(settings, "first_person_relevance_min_score", 3)),
             timeout_s=_relevance_timeout_s(),
             scores_out=scores_out,
+            judge_meta_out=judge_meta_out,
         )
     order = list(range(len(clips)))
     if (
@@ -1776,14 +1790,19 @@ async def _async_answerability_check(
         token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query, raw))
     if raw is None:
         return None
-    token = str(raw).strip().rstrip(".!").strip().casefold()
-    if token == "yes":
-        return True
-    if token == "no":
-        return False
+    # Typed verdict: an exact token or a JSON field. "YES, because ..." is yes,
+    # "not sure, yes" is not a verdict, and a provider degradation string is
+    # never a yes.
+    from services.llm_verdict import parse_verdict
+
+    verdict = parse_verdict(raw)
+    if verdict.value is not None:
+        return verdict.value
     logger.info(
-        "[FirstPersonPipeline] Answerability check unparseable output (len=%d); treating as indeterminate",
-        len(str(raw)),
+        "[FirstPersonPipeline] Answerability check unparseable output (source=%s, len=%d); "
+        "treating as indeterminate",
+        verdict.source,
+        verdict.raw_length,
     )
     return None
 
@@ -2317,6 +2336,7 @@ class _ConfidenceOutcome:
     confidence: float = 0.0
     is_direct: bool = False
     answerability: Optional[str] = None
+    editorial_set: Optional[dict[str, Any]] = None
 
 
 def _apply_memory_reranking(
@@ -5760,10 +5780,23 @@ class FirstPersonPipeline:
         t_scorer_start = time.monotonic()
         second_clip: Optional[dict[str, Any]] = None
         second_score = 0.0
+        judge_meta: dict[str, Any] = {}
         if getattr(settings, "first_person_relevance_gate_enabled", True):
             candidates = verified_clips[:3]
             rel_scores: list[int] = []
-            if speculative_enabled and candidates:
+            from services import first_person_judge
+
+            if first_person_judge.judge_active():
+                pick = _relevance_select(
+                    retrieval_query or query,
+                    candidates,
+                    self._llm_service,
+                    self._llm_loop,
+                    token_sink=fp_llm_tokens,
+                    scores_out=rel_scores,
+                    judge_meta_out=judge_meta,
+                )
+            elif speculative_enabled and candidates:
                 min_rel = int(getattr(settings, "first_person_relevance_min_score", 3))
                 # Cascade Reranker-to-Scorer Filtering (Track 1):
                 # Only score candidate #1 first. If candidate #1 passes with score >= min_rel,
@@ -5887,6 +5920,43 @@ class FirstPersonPipeline:
         confidence = clip_scores[0]
         is_direct = self._profile is not None and confidence >= self._profile["threshold"]
 
+        judge_editorial_set: Optional[dict[str, Any]] = None
+        if judge_meta and judge_meta.get("editorial_set"):
+            judge_editorial_set = dict(judge_meta["editorial_set"])
+            if judge_editorial_set.get("status") == "supported":
+                is_direct = True
+        elif judge_meta and judge_meta.get("selected") is not None:
+            _j_scores = judge_meta.get("scores", [])
+            _j_sel = judge_meta.get("selected")
+            if isinstance(_j_sel, int) and 0 <= _j_sel < len(_j_scores):
+                _j_item = _j_scores[_j_sel]
+                _min_rel = int(getattr(settings, "first_person_relevance_min_score", 3))
+                _answers = bool(_j_item.get("answers", False))
+                _rel = int(_j_item.get("relevance", 0))
+                _is_direct_judge = _answers and _rel >= _min_rel
+                judge_editorial_set = {
+                    "status": "supported" if _is_direct_judge else "partial",
+                    "primary_intent": "general",
+                    "candidate_facets": ["general"],
+                    "facet_coverage": {"general": "direct" if _is_direct_judge else "indirect"},
+                    "reasons": ["judge_verified_direct" if _is_direct_judge else "judge_related_only"],
+                }
+                if _is_direct_judge:
+                    is_direct = True
+
+        # A clip whose persisted evidence says it does not terminate on real
+        # terminal punctuation is answerable but not a whole-thought teaching:
+        # serve it as related, never as a direct answer. (Owner decision
+        # 2026-10-10 kept these clips in the corpus; it did not call them direct.)
+        if is_direct and any(
+            _boundary_verdict(clip)[0] == _BOUNDARY_INCOMPLETE for clip in verified_clips
+        ):
+            logger.info(
+                "[FirstPersonPipeline] Top clip has incomplete persisted boundary evidence; "
+                "serving as related, not direct."
+            )
+            is_direct = False
+
         # Phase 2 (2026-09-30): answerability gate. Audit B served 3/3
         # out-of-corpus questions as direct answers (top-1 cosine 0.48-0.65 vs the
         # 0.45 threshold), so cosine alone cannot enforce the abstention contract.
@@ -5957,6 +6027,7 @@ class FirstPersonPipeline:
             confidence=confidence,
             is_direct=is_direct,
             answerability=answerability,
+            editorial_set=judge_editorial_set,
         )
 
     def execute(
@@ -6360,6 +6431,7 @@ class FirstPersonPipeline:
         confidence = confidence_outcome.confidence
         is_direct = confidence_outcome.is_direct
         answerability = confidence_outcome.answerability
+        editorial_set = confidence_outcome.editorial_set
 
         # Assembly: citations, clip metadata, the exact-cache write and the metrics.
         return self._assemble_result(
@@ -6387,6 +6459,7 @@ class FirstPersonPipeline:
             t_rerank_ms=t_rerank_ms,
             t_scorer_ms=t_scorer_ms,
             start_time=start_time,
+            editorial_set=editorial_set,
         )
 
     def _assemble_result(
@@ -6416,6 +6489,7 @@ class FirstPersonPipeline:
         t_rerank_ms: float,
         t_scorer_ms: float,
         start_time: float,
+        editorial_set: Optional[dict[str, Any]] = None,
     ) -> FirstPersonPipelineResult:
         """Assemble the served answer: citations, clip metadata, cache write, metrics.
 
@@ -6739,6 +6813,7 @@ class FirstPersonPipeline:
             practice_recommendation=practice_recommendation,
             stage_timings=stage_timings,
             fp_served=bool(citations),
+            editorial_set=editorial_set,
         )
         self._store_exact_cache(
             query=query,

@@ -757,25 +757,12 @@ class OllamaService:
         prompt = f"Question: {query}\n\n{numbered_docs}"
         result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt, **kwargs)
 
-        # Parse "1: yes - [reason]\n2: no - [reason]" format
-        relevance_data = [
-            {"relevant": False, "reason": "No reason provided"} for _ in range(len(documents))
-        ]
-        for line in result.strip().splitlines():
-            line = line.strip()
-            if ":" in line:
-                parts = line.split(":", 1)
-                try:
-                    idx = int(parts[0].strip()) - 1  # 1-indexed → 0-indexed
-                    if 0 <= idx < len(documents):
-                        content = parts[1].strip()
-                        is_relevant = "yes" in content.lower().split("-")[0]
-                        reason = content.split("-", 1)[1].strip() if "-" in content else content
-                        relevance_data[idx] = {"relevant": is_relevant, "reason": reason}
-                except (ValueError, IndexError):
-                    continue
+        # Verdicts are parsed strictly ("yesterday" is not "yes") by the shared
+        # typed parser; an unparseable reply keeps the documented top-document
+        # fallback and marks itself indeterminate.
+        from services.llm_verdict import grade_documents
 
-        return relevance_data
+        return grade_documents(result, len(documents))
 
     async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
         """
@@ -784,11 +771,14 @@ class OllamaService:
         Returns True if EVERY claim in the answer is supported by the context.
         Returns False if ANY unsupported claim is detected.
 
-        Uses the fast model for speed.
+        Uses the fast model for speed. "not faithful" is a negation, and an
+        unparseable reply is not faithfulness (typed parser, no substrings).
         """
+        from services.llm_verdict import parse_faithfulness
+
         prompt = f"Context:\n{context}\n\nAnswer:\n{answer}"
         result = await self._generate_fast(FAITHFULNESS_CHECK_PROMPT, prompt, **kwargs)
-        return "faithful" in result.lower()
+        return parse_faithfulness(result) is True
 
     async def extract_hints(self, query: str, documents: list[str]) -> list[str]:
         """

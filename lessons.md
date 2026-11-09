@@ -1,6 +1,25 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 8, 2026 — Root-Cause Remediation: LLM Judge Authoritative Editorial Hand-off, Resilient Coverage & Statistical Safety Notice
+
+### L-LLM-JUDGE-AUTHORITATIVE-COVERAGE-1. LLM semantic judge verdicts must stamp authoritative editorial sets to prevent heuristic second-guessing.
+- **What:** In the first-person serving lane, `FirstPersonJudge` evaluates candidate relevance and answerability (`answers: bool`, `relevance: 0-3`). Previously, after the judge verified a candidate as a direct answer (`answers=True, rel=3`), downstream serving in `FirstPersonBridgeStage` passed the served text to heuristic `coverage_for_served_text`. When a seeker asked queries like *"how do I find inner peace?"* or *"why did you build Ekam?"*, the heuristic query planner inferred mandatory `practice` or `cause` facets and searched for hardcoded lexical keywords (`_FACET_KEYWORDS`). Because the spiritual teaching used conceptual explanation rather than the exact keyword stems, coverage returned `INSUFFICIENT`, overriding the LLM judge's verdict and causing false abstentions.
+- **Rule:** When `FirstPersonJudge` marks a candidate as directly answering (`answers == True` and `rel >= min_score`), the pipeline must stamp an authoritative `editorial_set = {"status": "supported", ...}` into `FirstPersonPipelineResult`. In `CoverageDecision.from_editorial_set`, this marks `authoritative = True` and guarantees `allow_direct = True`, preventing downstream heuristic regex matching from second-guessing an authoritative semantic judgment.
+
+### L-NON-EMPTY-INFERRED-FACET-DOWNGRADE-1. Inferred missing facets on non-empty text must downgrade to related, never abstain.
+- **What:** When non-authoritative (heuristic) coverage evaluated non-empty clip text that lacked keywords for an inferred facet (e.g. planner inferred `practice` from *"how do I..."*), returning `CoverageVerdict.INSUFFICIENT` forced an outright `ABSTAIN`. This violated the contract that missing inferred facets should only distinguish direct from related answers, not completely suppress a relevant clip.
+- **Rule:** In `first_person_coverage.py::coverage_for_served_text`, `CoverageVerdict.INSUFFICIENT` is reserved strictly for empty or whitespace text (`not text.strip()`). When text is non-empty but lacks matches for inferred facets, the verdict must evaluate to `CoverageVerdict.PARTIAL` with `authoritative = False` and `allow_related = True`. This allows `resolve_serve_posture` to serve the clip as `RELATED` (with `status="weak_match"` and `is_direct=False`) rather than falsely abstaining.
+
+### L-STATISTICAL-SELF-HARM-NOTICE-SCOPE-1. Educational demographic statistics must be scoped as safety notices, not outright exclusions.
+- **What:** `_self_harm_for_context` in `first_person_content_assessment.py` used a single broad regex that treated demographic or educational mortality statistics (e.g. *"Did you know self-harm is the leading cause of death in a certain age group? Why? Because we live as strangers under the same roof."* in `q019`) identically to acute crisis ideation, assigning `FindingSeverity.EXCLUDE`. This caused the pipeline to abstain from serving a poignant teaching on human connection, defeating the intended safety design of serving the clip with an attached support helpline notice.
+- **Rule:** Educational and statistical mentions of self-harm must be separated via `_STATISTICAL_SELF_HARM_RE` and mapped to `FindingSeverity.NOTICE` rather than `EXCLUDE`. This allows the verbatim teaching clip to be served safely while appending the crisis helpline notice to `route_metadata["safety_notices"]`, preserving both seeker safety and teaching availability.
+
+### L-GRADED-RUN-CREDENTIAL-INTEGRITY-1. Graded evaluation claims must be grounded in executed grading runs, never assumed.
+- **What:** The automated two-stage LLM grader `grade_served_answers.py` calls OpenRouter (`https://openrouter.ai/api/v1/chat/completions`) using `OPENROUTER_API_KEY`. When the key is invalid or expired (returning `401 Unauthorized: User not found`), automated grading cannot score served rows. Claiming a graded run is "good to go" without a valid grading execution or when external credentials block execution is a hallucination.
+- **Rule:** Never declare a graded evaluation passed unless `grade_served_answers.py` executes successfully to completion, writes `grades.json`, and verifies all 5 gates (`showable_rate >= 0.85`, `harmful == 0`, `core_abstain_rate >= 0.95`, `p95_latency <= 10s`, `served_share >= 0.30`). When credentials fail or are missing, report the exact blocking error transparently.
+
+
 ## Nov 8, 2026 — Root-Cause Remediation: Compound Weak Match Suppression, Structural Transcript Integrity & Ayurvedic Safety Notices
 
 ### L-COMPOUND-WEAK-MATCH-ABSTAIN-1. Verbatim retrieval on multi-part compound queries must abstain on weak matches.

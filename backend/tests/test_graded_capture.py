@@ -104,3 +104,45 @@ def test_the_approved_bar_file_is_consistent():
     assert bar["approved"] is True and bar["approved_by"] == "Harsha"
     assert bar["min_showable_rate"] == 0.85 and bar["max_harmful"] == 0
     assert bar["p95_latency_s"] == 10
+
+
+# ── Auth error detection and invalidation in capture logs ────────────────────
+
+
+def test_log_with_openrouter_401_auth_error_is_invalid():
+    bad = (
+        "INFO: Started server\n"
+        "ERROR: OpenRouter auth error (401) during generate (model=anthropic/claude-3.5-haiku) — graceful degradation\n"
+        "INFO: 200 OK"
+    )
+    verdict = validity(bad, (1.0, 2.0), (3.0, 4.0), preflight_ok=True)
+    assert verdict["valid"] is False
+    assert any("auth error" in r.lower() for r in verdict["reasons"])
+
+
+def test_log_with_openrouter_403_auth_error_is_invalid():
+    bad = "OpenRouter auth error (403) during generate — graceful degradation"
+    verdict = validity(bad, (1.0, 2.0), (3.0, 4.0), preflight_ok=True)
+    assert verdict["valid"] is False
+    assert any("auth error" in r.lower() for r in verdict["reasons"])
+
+
+def test_log_with_openrouter_unauthorized_error_is_invalid():
+    bad = "OpenRouter error 401 Unauthorized: {'error': {'message': 'User not found', 'code': 401}}"
+    verdict = validity(bad, (1.0, 2.0), (3.0, 4.0), preflight_ok=True)
+    assert verdict["valid"] is False
+
+
+def test_log_with_authentication_error_is_invalid():
+    bad = "httpx.HTTPStatusError: AuthenticationError: Invalid API key provided"
+    verdict = validity(bad, (1.0, 2.0), (3.0, 4.0), preflight_ok=True)
+    assert verdict["valid"] is False
+
+
+def test_check_log_clean_detects_auth_errors_explicitly():
+    from scripts.ops.graded_capture import check_log_clean
+
+    check = check_log_clean("2026-11-08 ERROR OpenRouter auth error (401) during chat")
+    assert check.ok is False
+    assert "auth error" in check.detail.lower()
+

@@ -113,12 +113,64 @@ def _is_compound_question(text: str) -> bool:
     - Em-dash separating concepts ('X — A and B — why?')
     - Explicit enumeration ('two states', 'two aspects')
     - Coordinated question clauses ('..., and (also|why|how|what)')
+
+    The shape is used to widen retrieval (``max_clips``), never to decide
+    whether a clip may be served: that is the coverage decision's job.
     """
     if not text or not text.strip():
         return False
     if text.count("?") >= 2:
         return True
     return bool(_COMPOUND_QUESTION_RE.search(text))
+
+
+def _serve_decision_for_result(
+    *,
+    query: str,
+    answer_text: str,
+    status: str,
+    is_direct: bool,
+    editorial_set: object,
+    primary_mode: bool,
+    serve_weak_match: bool,
+):
+    """Build the typed serve decision for one pipeline result.
+
+    Imports are local so the bridge module stays import-light at startup (the
+    stage is only constructed when the first-person variant is selected).
+    """
+    from domain.first_person_decision import resolve_serve_posture
+    from services.first_person_content_assessment import assess_content
+    from services.first_person_coverage import coverage_for_served_text
+
+    editorial_dict = editorial_set if isinstance(editorial_set, dict) else None
+    content_safety = (
+        str(editorial_dict.get("content_safety") or "") if editorial_dict else None
+    )
+    covered_facets = editorial_dict.get("covered_facets") if editorial_dict else None
+    if covered_facets and not isinstance(covered_facets, (list, tuple, set)):
+        covered_facets = None
+
+    coverage = coverage_for_served_text(
+        query,
+        answer_text,
+        is_direct=is_direct,
+        editorial_set=editorial_dict,
+        semantic_facets=covered_facets,
+    )
+    assessment = assess_content(
+        answer_text,
+        query=query,
+        content_safety=content_safety or None,
+    )
+    return resolve_serve_posture(
+        pipeline_status=status,
+        is_direct_answer=is_direct,
+        coverage=coverage,
+        assessment=assessment,
+        primary_mode=primary_mode,
+        serve_weak_match=serve_weak_match,
+    )
 
 
 # Strong references to in-flight memory writes to prevent garbage collection before execution
@@ -1001,13 +1053,29 @@ class FirstPersonBridgeStage(Stage):
         # `first_person_serve_weak_match`; see serve_weak below. Neither flag weakens
         # a gate.
         primary_mode = bool(getattr(settings, "first_person_primary_mode", True))
-        serve_weak = (
-            status == "weak_match"
-            and primary_mode
-            and bool(getattr(settings, "first_person_serve_weak_match", True))
-            and not is_compound
+        # Serving posture is a typed decision (domain.first_person_decision):
+        # content assessment + coverage. Question shape no longer decides — a
+        # compound question is served as related when its required facets are
+        # covered, and a "direct" verdict is downgraded when they are not.
+        serve_decision = _serve_decision_for_result(
+            query=query,
+            answer_text=str(getattr(result, "answer_text", "") or ""),
+            status=status,
+            is_direct=is_direct,
+            editorial_set=getattr(result, "editorial_set", None),
+            primary_mode=primary_mode,
+            serve_weak_match=bool(getattr(settings, "first_person_serve_weak_match", True)),
         )
-        if (status != "success" or not is_direct) and not serve_weak:
+        logger.debug(
+            "[FirstPersonBridge] serve_posture=%s reason=%s coverage=%s content=%s",
+            serve_decision.posture.value,
+            serve_decision.reason,
+            serve_decision.coverage.verdict.value if serve_decision.coverage else "none",
+            serve_decision.assessment.severity.value
+            if serve_decision.assessment and serve_decision.assessment.severity
+            else "none",
+        )
+        if not serve_decision.serves:
             if status != "crisis_redirect" and not getattr(
                 settings, "first_person_llm_fallback_enabled", False
             ):
@@ -1025,10 +1093,14 @@ class FirstPersonBridgeStage(Stage):
                         answerability=getattr(result, "answerability", None),
                     )
             logger.debug(
-                "[FirstPersonBridge] No direct answer (status=%s); GraphStage runs.",
+                "[FirstPersonBridge] No direct answer (status=%s, posture=%s); GraphStage runs.",
                 status or "unknown",
+                serve_decision.posture.value,
             )
             return None
+        # A covered-but-partial set is served as related, never as direct.
+        if not serve_decision.is_direct:
+            is_direct = False
 
         raw_citations = getattr(result, "citations", None)
         citations = _eligible_citations(raw_citations)
@@ -1179,7 +1251,10 @@ class FirstPersonBridgeStage(Stage):
             if _text and _text not in safety_notices:
                 safety_notices.append(_text)
 
-        user_msg = str(getattr(ctx, "user_message", "") or "")
+        # PipelineContext carries the seeker's text as `user_msg`; reading
+        # `user_message` always returned "" and silently disabled the
+        # question-side self-harm cue.
+        user_msg = str(getattr(ctx, "user_msg", "") or "")
         level = getattr(getattr(ctx, "assessment", None), "level", None)
         level_val = int(getattr(level, "value", 0) or 0)
         has_self_harm_risk = bool(
@@ -1208,18 +1283,36 @@ class FirstPersonBridgeStage(Stage):
             if _add_bound not in safety_notices:
                 safety_notices.append(_add_bound)
 
-        # Ayurvedic / spiritual-physiology claims → attach medical disclaimer notice.
-        # The clip is NOT excluded; it carries a platform notice so the seeker knows
-        # to consult a physician for physical health concerns. This is distinct from
-        # clinical health claims (_HEALTH_CLAIM_RE) which are hard-excluded at the
-        # evidence-policy gate.
-        from services.first_person_evidence_policy import (
-            MEDICAL_CLAIM_NOTICE,
-            _AYURVEDIC_HEALTH_FRAMING_RE,
+        # Platform copy for whatever the content assessor flagged on the served
+        # clip (Ayurvedic / spiritual-physiology framing today). The clip is NOT
+        # excluded — it carries a notice so the seeker knows to consult a
+        # physician. Clinical claims and causal-etiology claims never reach here:
+        # the assessment excluded them before serving.
+        from services.first_person_content_assessment import assess_content
+        from services.first_person_evidence_policy import first_person_evidence_policy
+        _ed_set = getattr(result, "editorial_set", None)
+        _cs = (
+            str(_ed_set.get("content_safety") or "")
+            if isinstance(_ed_set, dict)
+            else None
         )
-
-        if _AYURVEDIC_HEALTH_FRAMING_RE.search(answer) and MEDICAL_CLAIM_NOTICE not in safety_notices:
-            safety_notices.append(MEDICAL_CLAIM_NOTICE)
+        served_assessment = assess_content(answer, query=query, content_safety=_cs or None)
+        if not served_assessment.may_serve:
+            # Defense in depth: the assembled text changed after the gate.
+            logger.warning(
+                "[FirstPersonBridge] Assembled answer failed the content re-check (%s); declining.",
+                ",".join(served_assessment.exclusion_codes) or "degraded",
+            )
+            return await self._decline(
+                ctx,
+                status,
+                boundaries,
+                compassion=distress_compassion,
+                reason="content_assessment_failed",
+            )
+        for _notice in first_person_evidence_policy.notices_for(answer, query=query):
+            if _notice not in safety_notices:
+                safety_notices.append(_notice)
 
         if distress_compassion and has_self_harm_risk:
             # Emergency helpline is appended when acute distress / self-harm risk is detected.

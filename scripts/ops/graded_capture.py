@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from scripts.ops.graded_run_preflight import (
+    AUTH_ERROR_PATTERNS,
     BACKEND,
     REPO,
     Check,
@@ -113,7 +114,7 @@ def _run_cache_proof() -> Check:
 def validity(
     log_text: str, spend_before: tuple[Any, Any], spend_after: tuple[Any, Any], preflight_ok: bool
 ) -> dict[str, Any]:
-    """A run is valid only if the preflight passed and the log shows no blocked LLM calls."""
+    """A run is valid only if the preflight passed and the log shows no blocked LLM calls or auth errors."""
     log = check_log_clean(log_text)
     reasons = []
     if not preflight_ok:

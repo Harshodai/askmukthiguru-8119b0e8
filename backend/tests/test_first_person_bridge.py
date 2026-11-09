@@ -167,7 +167,7 @@ def _container(*, block_output: bool = False) -> MagicMock:
 def _ctx(
     container,
     *,
-    msg: str = "how do I find inner peace?",
+    msg: str = "What is suffering?",
     lang: str = "en",
     is_indic: bool = False,
 ) -> PipelineContext:

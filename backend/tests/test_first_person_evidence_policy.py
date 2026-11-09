@@ -397,11 +397,34 @@ def test_trailing_transitive_verb_ends_mid_sentence():
     assert _context_standalone_problem([text_cut]) == "ends_mid_sentence"
 
 
-def test_contracted_thats_why_rejected_as_orphan():
+def test_contracted_thats_why_rejected_as_discourse_opener():
     from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
     text = "That's why the ancient exhort us to live in a beautiful state and awaken to connection."
-    assert _standalone_problem(text) == "orphan_opener"
-    assert _context_standalone_problem([text]) == "orphan_opener"
+    assert _standalone_problem(text) == "discourse_opener"
+    assert _context_standalone_problem([text]) == "discourse_opener"
+    text2 = "That is why we must awaken to the truth of connection."
+    assert _standalone_problem(text2) == "discourse_opener"
+    assert _context_standalone_problem([text2]) == "discourse_opener"
+
+
+def test_live_session_meditation_transition_rejected_as_event_marker():
+    from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
+    text1 = "We become instruments of peace. Individual transformation leads to world transformation. Let us move into meditation now."
+    text2 = "Close your eyes and breathe gently. Let's move into meditation."
+    text3 = "When the mind is still, awareness deepens. Move into meditation now."
+    assert _standalone_problem(text1) == "event_marker"
+    assert _standalone_problem(text2) == "event_marker"
+    assert _standalone_problem(text3) == "event_marker"
+    assert _context_standalone_problem([text1]) == "event_marker"
+    assert _context_standalone_problem([text2]) == "event_marker"
+    assert _context_standalone_problem([text3]) == "event_marker"
+
+
+def test_setup_sentence_without_delivering_mechanism_is_dangling():
+    from services.first_person_evidence_policy import _standalone_problem, _context_standalone_problem
+    text = "I would say there are two ways in your relationship with your partner where you do not feel separate."
+    assert _standalone_problem(text) == "dangling_enumeration"
+    assert _context_standalone_problem([text]) == "dangling_enumeration"
 
 
 def test_let_us_understand_what_rejected_as_orphan():
@@ -447,6 +470,74 @@ def test_severed_lowercase_opener_rejected():
     assert _standalone_problem(text2) == "severed_lowercase_opener"
     assert _context_standalone_problem([text1]) == "severed_lowercase_opener"
     assert _context_standalone_problem([text2]) == "severed_lowercase_opener"
+
+
+def test_semantic_completeness_bypasses_discourse_and_lowercase_openers():
+    from services.first_person_evidence_policy import (
+        _context_standalone_problem,
+        first_person_evidence_policy,
+    )
+
+    text_discourse = "So, stillness is the natural state when you observe the movement of thought without clinging."
+    text_lowercase = "we are born to live in a beautiful state of connection and peace with all of life."
+
+    # Without semantic verification (offline fallback), discourse and lowercase openers are flagged
+    assert _context_standalone_problem([text_discourse]) == "discourse_opener"
+    assert _context_standalone_problem([text_lowercase]) == "severed_lowercase_opener"
+
+    # With semantic verification from judge, grammatically complete thoughts are allowed
+    assert (
+        _context_standalone_problem(
+            [text_discourse],
+            is_complete_thought=True,
+            is_standalone=True,
+        )
+        is None
+    )
+    assert (
+        _context_standalone_problem(
+            [text_lowercase],
+            is_complete_thought=True,
+            is_standalone=True,
+        )
+        is None
+    )
+
+    # Via evidence policy facade with semantic verification
+    dec_discourse = first_person_evidence_policy.assess_context_standalone(
+        [text_discourse],
+        is_complete_thought=True,
+        is_standalone=True,
+    )
+    assert dec_discourse.may_serve is True
+    assert dec_discourse.reason_codes == ()
+
+    dec_lowercase = first_person_evidence_policy.assess_context_standalone(
+        [text_lowercase],
+        is_complete_thought=True,
+        is_standalone=True,
+    )
+    assert dec_lowercase.may_serve is True
+    assert dec_lowercase.reason_codes == ()
+
+
+def test_semantic_incomplete_thought_and_not_standalone_flagged():
+    from services.first_person_evidence_policy import (
+        _context_standalone_problem,
+        first_person_evidence_policy,
+    )
+
+    text = "Stillness is the doorway to understanding."
+    assert _context_standalone_problem([text], is_complete_thought=False) == "incomplete_thought"
+    assert _context_standalone_problem([text], is_standalone=False) == "not_standalone"
+
+    dec_incomplete = first_person_evidence_policy.assess_context_standalone(
+        [text],
+        is_complete_thought=False,
+    )
+    assert not dec_incomplete.may_serve
+    assert dec_incomplete.reason_codes == ("incomplete_thought",)
+
 
 
 

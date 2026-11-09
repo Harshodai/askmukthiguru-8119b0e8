@@ -36,19 +36,25 @@ def _build_judge_system_prompt() -> str:
 
     allowed = " and ".join(sorted(allowed_speaker_labels()))
     return (
-        "You judge recorded teaching clips for one seeker question. For each clip give "
-        "relevance 0-3 (3 = directly answers the question, 2 = closely related, "
-        "1 = loosely related, 0 = unrelated) and answers = true only if the clip itself "
-        "answers this specific question. "
+        "You judge recorded teaching clips for one seeker question across multiple semantic dimensions.\n"
+        "For each clip evaluate:\n"
+        "- relevance: integer 0-3 (3 = directly answers the question, 2 = closely related, "
+        "1 = loosely related, 0 = unrelated).\n"
+        "- answers: boolean, true only if the clip itself directly answers this specific question.\n"
+        "- is_complete_thought: boolean, true if the quote forms a grammatically complete, coherent thought without severed phrases or mid-sentence cutoffs.\n"
+        "- is_standalone: boolean, true if interpretable on its own without requiring missing prior conversational context or unresolved pronouns.\n"
+        "- covered_facets: list of strings indicating which question facets this clip addresses (e.g. 'definition', 'distinction', 'practice', 'cause', 'experience', 'inner_state', 'transformation', 'general').\n"
+        "- content_safety: string, one of 'clean' (authentic spiritual/wellbeing guidance), 'distress' (acute distress/crisis), 'clinical_promise' (unsubstantiated medical cure claims), 'harm' (violence or self-harm).\n\n"
         f"ATTRIBUTION INVARIANT: The recorded clips in this archive are exclusively from {allowed}. "
         "If the seeker's question specifically asks what ANOTHER spiritual teacher, philosopher, "
         "author, or tradition teaches (such as Thich Nhat Hanh, the Buddha, Eckhart Tolle, Sadhguru, "
         "Marcus Aurelius, Zen, Kabbalah, etc.), a clip from this archive CANNOT answer "
-        "what that other teacher teaches. For any such attribution mismatch, score relevance 0 and answers false. "
-        "Set question_answerable = true only if the "
-        "question is about inner life, spiritual practice or the teachings. Reply with "
-        'one JSON object: {"scores": [{"i": 0, "relevance": 0, "answers": false}], '
-        '"question_answerable": false}, one entry per clip index, nothing else. ' + data_notice("clip")
+        "what that other teacher teaches. For any such attribution mismatch, score relevance 0 and answers false.\n\n"
+        "Set question_answerable = true only if the question is about inner life, spiritual practice, relationships, or wisdom teachings.\n"
+        'Reply with one JSON object: {"scores": [{"i": 0, "relevance": 0, "answers": false, '
+        '"is_complete_thought": true, "is_standalone": true, "covered_facets": ["general"], '
+        '"content_safety": "clean"}], "question_answerable": false}, one entry per clip index, nothing else. '
+        + data_notice("clip")
     )
 
 
@@ -69,11 +75,29 @@ JUDGE_JSON_SCHEMA: dict[str, Any] = {
                     "items": {
                         "type": "object",
                         "additionalProperties": False,
-                        "required": ["i", "relevance", "answers"],
+                        "required": [
+                            "i",
+                            "relevance",
+                            "answers",
+                            "is_complete_thought",
+                            "is_standalone",
+                            "covered_facets",
+                            "content_safety",
+                        ],
                         "properties": {
                             "i": {"type": "integer"},
                             "relevance": {"type": "integer"},
                             "answers": {"type": "boolean"},
+                            "is_complete_thought": {"type": "boolean"},
+                            "is_standalone": {"type": "boolean"},
+                            "covered_facets": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                            },
+                            "content_safety": {
+                                "type": "string",
+                                "enum": ["clean", "distress", "clinical_promise", "harm"],
+                            },
                         },
                     },
                 },
@@ -127,8 +151,25 @@ def build_judge_prompt(question: str, clips: list[dict[str, Any]]) -> str:
     return f"Question: {neutralise(question)}\n\nClips:\n" + "\n".join(lines)
 
 
+ALLOWED_ITEM_KEYS = frozenset(
+    {
+        "i",
+        "relevance",
+        "answers",
+        "is_complete_thought",
+        "is_standalone",
+        "covered_facets",
+        "content_safety",
+    }
+)
+REQUIRED_BASE_KEYS = frozenset({"i", "relevance", "answers"})
+
+
 def parse_judge_reply(raw: Any, n_clips: int) -> Optional[tuple[list[dict[str, Any]], bool]]:
-    """Strict parse. Returns (scores ordered by index, question_answerable) or None."""
+    """Strict parse with multi-dimensional decoding and backward compatibility.
+
+    Returns (scores ordered by index, question_answerable) or None.
+    """
     text = str(raw or "").strip()
     if text.startswith("```"):
         lines = text.splitlines()[1:]
@@ -149,7 +190,10 @@ def parse_judge_reply(raw: Any, n_clips: int) -> Optional[tuple[list[dict[str, A
         return None
     by_index: dict[int, dict[str, Any]] = {}
     for item in scores:
-        if not isinstance(item, dict) or set(item) != {"i", "relevance", "answers"}:
+        if not isinstance(item, dict):
+            return None
+        keys = set(item)
+        if not REQUIRED_BASE_KEYS.issubset(keys) or not keys.issubset(ALLOWED_ITEM_KEYS):
             return None
         i, rel, ans = item["i"], item["relevance"], item["answers"]
         if isinstance(i, bool) or not isinstance(i, int) or not 0 <= i < n_clips:
@@ -158,7 +202,37 @@ def parse_judge_reply(raw: Any, n_clips: int) -> Optional[tuple[list[dict[str, A
             return None
         if not isinstance(ans, bool) or i in by_index:
             return None
-        by_index[i] = item
+
+        # Multi-dimensional semantic evaluation fields with defaults for backward compatibility
+        ict = item.get("is_complete_thought", True)
+        if not isinstance(ict, bool):
+            return None
+
+        isa = item.get("is_standalone", True)
+        if not isinstance(isa, bool):
+            return None
+
+        cf = item.get("covered_facets")
+        if cf is not None:
+            if not isinstance(cf, list) or not all(isinstance(f, str) for f in cf):
+                return None
+            facets_list = list(cf)
+        else:
+            facets_list = ["general"] if ans else []
+
+        cs = item.get("content_safety", "clean")
+        if not isinstance(cs, str) or not cs:
+            return None
+
+        by_index[i] = {
+            "i": i,
+            "relevance": rel,
+            "answers": ans,
+            "is_complete_thought": bool(ict),
+            "is_standalone": bool(isa),
+            "covered_facets": facets_list,
+            "content_safety": str(cs),
+        }
     if len(by_index) != n_clips:
         return None
     return [by_index[i] for i in range(n_clips)], answerable
@@ -168,11 +242,55 @@ def select_index(scores: list[dict[str, Any]], answerable: bool, minimum: int) -
     """Serve rule (§3.4). None means no clip qualifies (abstain below minimum)."""
     if not answerable:
         return None
-    eligible = [s for s in scores if s["answers"] and s["relevance"] >= minimum]
+    eligible = [
+        s
+        for s in scores
+        if s["answers"]
+        and s["relevance"] >= minimum
+        and s.get("content_safety", "clean") in ("clean", "safe", "wellbeing_notice")
+        and s.get("is_complete_thought", True)
+        and s.get("is_standalone", True)
+    ]
     if not eligible:
         return None
     best = max(eligible, key=lambda s: (s["relevance"], -s["i"]))
     return int(best["i"])
+
+
+def build_editorial_set_from_judge(
+    judge_meta: dict[str, Any],
+    query: str = "",
+    is_direct: bool = True,
+) -> Optional[dict[str, Any]]:
+    """Build a typed editorial_set record from the judge's selected evaluation."""
+    if not judge_meta or judge_meta.get("selected") is None:
+        return None
+    scores = judge_meta.get("scores", [])
+    selected = judge_meta.get("selected")
+    if not isinstance(selected, int) or not (0 <= selected < len(scores)):
+        return None
+    item = scores[selected]
+    answers = bool(item.get("answers", False))
+    rel = int(item.get("relevance", 0))
+    is_direct_judge = answers and rel >= 3 and is_direct
+    status = "supported" if is_direct_judge else "partial"
+    covered_facets = list(item.get("covered_facets") or ["general"])
+    candidate_facets = list(dict.fromkeys(["general"] + covered_facets))
+    facet_coverage = {f: "direct" if is_direct_judge else "indirect" for f in candidate_facets}
+    return {
+        "status": status,
+        "primary_intent": covered_facets[0] if covered_facets else "general",
+        "candidate_facets": candidate_facets,
+        "covered_facets": covered_facets,
+        "facet_coverage": facet_coverage,
+        "is_complete_thought": item.get("is_complete_thought", True),
+        "is_standalone": item.get("is_standalone", True),
+        "content_safety": item.get("content_safety", "clean"),
+        "reasons": [
+            "judge_verified_direct" if is_direct_judge else "judge_related_only",
+            "semantic_judge_evaluation",
+        ],
+    }
 
 
 async def judge_select_async(
@@ -183,6 +301,7 @@ async def judge_select_async(
     minimum: int,
     timeout_s: float,
     scores_out: Optional[list[int]] = None,
+    judge_meta_out: Optional[dict[str, Any]] = None,
 ) -> Optional[int]:
     """One judge call. Index to serve, None (below minimum), or INDETERMINATE."""
     import asyncio
@@ -214,4 +333,16 @@ async def judge_select_async(
     scores, answerable = parsed
     if scores_out is not None:
         scores_out[:] = [int(s["relevance"]) for s in scores]
-    return select_index(scores, answerable, minimum)
+    chosen = select_index(scores, answerable, minimum)
+    if judge_meta_out is not None:
+        judge_meta_out.update(
+            {
+                "scores": scores,
+                "question_answerable": answerable,
+                "selected": chosen,
+            }
+        )
+        editorial_set = build_editorial_set_from_judge(judge_meta_out, query=question)
+        if editorial_set is not None:
+            judge_meta_out["editorial_set"] = editorial_set
+    return chosen

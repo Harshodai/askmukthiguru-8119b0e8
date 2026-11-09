@@ -406,10 +406,32 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
             is_cross_lingual = (lang != "en") or has_indic_script
 
             if isinstance(all_results, list):
-                for doc, res in zip(ambiguous_docs, all_results):
-                    # A non-dict result means the grader could not judge this doc; keep the
-                    # pre-existing behaviour of accepting it rather than silently changing it.
-                    is_rel = res.get("relevant") if isinstance(res, dict) else True
+                # ``zip`` truncates to the shorter list, so a grader that returns fewer
+                # verdicts than documents used to make the tail documents vanish without
+                # a reason. Every document is now accounted for exactly once, and a
+                # document the grader did not judge is KEPT as indeterminate (the
+                # pre-existing fail-open behaviour) with a reason that says so.
+                for position, doc in enumerate(ambiguous_docs):
+                    res = all_results[position] if position < len(all_results) else None
+                    if not isinstance(res, dict):
+                        # No verdict for this document (missing entry, None, or a
+                        # non-dict reply). Keep it; never treat silence as "no".
+                        relevant_from_ambiguous.append(doc)
+                        ambiguous_reasons.append("Ambiguous doc kept: grader returned no verdict")
+                        continue
+
+                    raw_verdict = res.get("relevant")
+                    if res.get("indeterminate") is True or raw_verdict is None:
+                        # The grader failed to produce a parseable verdict. Keeping the
+                        # doc is the documented contract, but it is not evidence: say so
+                        # in the reason so a caller can tell a real grade from a failure.
+                        relevant_from_ambiguous.append(doc)
+                        ambiguous_reasons.append(
+                            str(res.get("reason") or "Ambiguous doc kept: grader indeterminate")
+                        )
+                        continue
+
+                    is_rel = bool(raw_verdict)
                     if not is_rel and is_cross_lingual:
                         # The small grader LLM says "no" to Indic queries against English docs.
                         # Overrule it only on the multilingual reranker's own evidence. A doctrine
@@ -425,12 +447,9 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
 
                     if is_rel:
                         relevant_from_ambiguous.append(doc)
-                        reason = (
-                            res.get("reason", "Ambiguous doc verified by LLM")
-                            if isinstance(res, dict)
-                            else "Ambiguous doc verified"
+                        ambiguous_reasons.append(
+                            str(res.get("reason") or "Ambiguous doc verified by LLM")
                         )
-                        ambiguous_reasons.append(reason)
             else:
                 relevant_from_ambiguous.extend(ambiguous_docs[:3])
                 ambiguous_reasons.extend(["Ambiguous doc fallback" for _ in ambiguous_docs[:3]])

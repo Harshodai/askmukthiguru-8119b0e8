@@ -150,8 +150,17 @@ def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
     return len(a & b) / len(union)
 
 
-def _score_facet_match(text: str, facet: str) -> float:
-    """Return a rough [0.0, 1.0] score for how well ``text`` addresses ``facet``."""
+def _score_facet_match(
+    text: str, facet: str, semantic_facets: Sequence[str] | None = None
+) -> float:
+    """Return a [0.0, 1.0] score for how well ``text`` addresses ``facet``.
+
+    When semantic_facets is provided from a semantic judge or upstream evaluation,
+    it authoritatively indicates presence with score 1.0, bypassing keyword counting.
+    Otherwise, keyword overlap against _FACET_SYNONYMS is used as fallback.
+    """
+    if semantic_facets and facet.lower() in {str(f).strip().lower() for f in semantic_facets}:
+        return 1.0
     # Simple keyword overlap with facet label and synonyms.
     _FACET_SYNONYMS: dict[str, list[str]] = {
         "definition": ["is", "means", "define", "what", "essentially", "fundamentally"],
@@ -178,11 +187,13 @@ def _score_facet_match(text: str, facet: str) -> float:
     return min(1.0, hits / max(1, len(keywords)) * 2.0)
 
 
-def _best_facet(text: str, facets: tuple[str, ...]) -> tuple[str, float]:
+def _best_facet(
+    text: str, facets: tuple[str, ...], semantic_facets: Sequence[str] | None = None
+) -> tuple[str, float]:
     """Return (best_facet, score) from the candidate facet list."""
     if not facets:
         return ("general", 0.2)
-    scored = [(f, _score_facet_match(text, f)) for f in facets]
+    scored = [(f, _score_facet_match(text, f, semantic_facets=semantic_facets)) for f in facets]
     scored.sort(key=lambda x: x[1], reverse=True)
     return scored[0]
 
@@ -333,7 +344,14 @@ class FirstPersonSetSelector:
                 excluded.append((span_id, f"teacher_scope_mismatch:{teacher_scope}"))
                 continue
 
-            facet, facet_score = _best_facet(text, planned_facets)
+            raw_covered = getattr(raw, "covered_facets", None)
+            if raw_covered is None and isinstance(raw, dict):
+                raw_covered = raw.get("covered_facets")
+            facet, facet_score = _best_facet(
+                text,
+                planned_facets,
+                semantic_facets=raw_covered if isinstance(raw_covered, (list, tuple, set)) else None,
+            )
             # Combine base retrieval score with facet match.
             combined_score = base_score * 0.6 + facet_score * 0.4
 
@@ -441,7 +459,20 @@ class FirstPersonSetSelector:
         # ------------------------------------------------------------------
         facet_coverage: dict[str, Literal["direct", "indirect", "absent"]] = {}
         for f in planned_facets:
-            best_for_facet = [s for s in selected if s.facet == f]
+            best_for_facet = [
+                s
+                for s in selected
+                if s.facet == f
+                or (
+                    getattr(getattr(s, "source", None), "covered_facets", None)
+                    and f in getattr(getattr(s, "source", None), "covered_facets")
+                )
+                or (
+                    isinstance(getattr(s, "source", None), dict)
+                    and getattr(s, "source", None).get("covered_facets")
+                    and f in getattr(s, "source", None)["covered_facets"]
+                )
+            ]
             if not best_for_facet:
                 facet_coverage[f] = "absent"
             elif any(s.is_direct for s in best_for_facet):
