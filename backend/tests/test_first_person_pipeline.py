@@ -1662,7 +1662,6 @@ def test_pipeline_semantic_judge_editorial_set_forwarding(mock_store, mock_redis
 
     class MockJudgeLLM:
         def generate(self, *args, **kwargs):
-            print("\n*** MockJudgeLLM.generate CALLED! ***\n")
             return json.dumps({
                 "scores": [
                     {
