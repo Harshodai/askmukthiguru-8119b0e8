@@ -102,7 +102,7 @@ def test_the_approved_bar_file_is_consistent():
         ).read_text()
     )
     assert bar["approved"] is True and bar["approved_by"] == "Harsha"
-    assert bar["min_showable_rate"] == 0.85 and bar["max_harmful"] == 0
+    assert bar["min_showable_rate"] == 0.95 and bar["max_harmful"] == 0
     assert bar["p95_latency_s"] == 10
 
 
