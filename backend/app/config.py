@@ -324,6 +324,11 @@ class Settings(BaseSettings):
     # Enable sparse RRF fusion in context retrieval. Default False (dense cosine vector search
     # delivers superior candidate recall on conversational questions without sparse keyword penalty).
     first_person_context_use_sparse: bool = False
+    # Maximum combined word count for a context-harness answer (sum of all spans).
+    # Distinct from first_person_max_answer_words (single-clip legacy path).
+    # 600 words: a 5-6 minute discourse excerpt, enough to cover a full teaching
+    # arc without overflowing a chat surface. Measured 2026-11-10 on v10 corpus.
+    first_person_max_context_words: int = 600
     # Optional temporal quality adjustment for fp-context retrieval ranking.
     # Disabled until a reviewed calibration demonstrates that the adjustment
     # improves held-out serving quality without changing evidence eligibility.

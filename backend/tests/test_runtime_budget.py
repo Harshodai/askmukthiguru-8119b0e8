@@ -57,7 +57,20 @@ def test_jev_timeout_falls_back_to_the_intent_router_value():
 
 
 def test_daily_cap_headroom_row_states_the_sys014_number():
-    rows = _rows(Settings())
+    # Use explicit values matching the declared Settings field defaults so this
+    # test is not sensitive to .env or docker-compose overrides. The formula is
+    # int(daily / reserve) // 3 == int(10.0 / 0.03) // 3 == 333 // 3 == 111.
+    # If the defaults change, update here with a matching SYS-014 ADR entry.
+    from types import SimpleNamespace
+    s = SimpleNamespace(
+        first_person_relevance_timeout_s=25.0,
+        jev_timeout_s=None,
+        intent_router_jev_timeout_s=10.0,
+        openrouter_rpm_limit=60,
+        openrouter_daily_budget_usd=10.0,
+        openrouter_max_request_cost_usd=0.03,
+    )
+    rows = _rows(s)
     assert rows["daily_cap_full_path_requests"]["value"] == 111
     assert "SYS-014" in rows["daily_cap_full_path_requests"]["source"]
 

@@ -397,6 +397,23 @@ def _context_standalone_problem(
     first = text_list[0]
     whole = " ".join(text.strip() for text in text_list)
     stripped_whole = whole.strip()
+
+    # Word-count gate: applies to the combined span text, mirroring the
+    # _length_problem check that the legacy single-clip path runs.  The
+    # min/max come from Settings so callers that monkeypatch the settings
+    # object get the right thresholds without touching this function.
+    try:
+        from app.config import settings as _cfg
+        _min = int(getattr(_cfg, "first_person_min_answer_words", 23))
+        _max = int(getattr(_cfg, "first_person_max_context_words", 600))
+    except Exception:
+        _min, _max = 23, 600
+    _word_count = len(stripped_whole.split()) if stripped_whole else 0
+    if _word_count < _min:
+        return "too_short"
+    if _word_count > _max:
+        return "too_long"
+
     if stripped_whole and stripped_whole[-1] in ",;:-\u2014\u2013":
         return "ends_mid_sentence"
     if re.search(r"\b(?:allowing|giving|making|letting)\s*$", stripped_whole, re.IGNORECASE):
@@ -419,6 +436,17 @@ def _context_standalone_problem(
         return "ends_mid_sentence"
     if _THIN_REPETITIVE_LOOP_RE.search(whole):
         return "thin_repetitive_loop"
+    # General repetition gate: if the text has ≥10 sentences but ≥90 % of them
+    # are identical (case-insensitive, stripped), it is a looping ASR artifact.
+    # The 90 % threshold is generous enough to pass a repeated refrain in genuine
+    # discourse while catching tight mechanical decoder loops.
+    _sentences = [s.strip().lower() for s in re.split(r"(?<=[.!?।॥])\s+", stripped_whole) if s.strip()]
+    if len(_sentences) >= 10:
+        from collections import Counter
+
+        _most_common_count = Counter(_sentences).most_common(1)[0][1]
+        if _most_common_count / len(_sentences) >= 0.9:
+            return "thin_repetitive_loop"
     if (
         re.search(
             r"\b(?:there\s+are\s+)?(?:two|three)\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",

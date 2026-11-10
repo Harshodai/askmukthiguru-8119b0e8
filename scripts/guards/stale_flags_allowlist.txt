@@ -1,2 +1,7 @@
 # UNUSED boolean flags that must stay declared in backend/app/config.py, one per line, with a reason
 # on the line above. Empty on purpose: 2026-10-23 scan found no UNUSED flag.
+# first_person_context_use_sparse: read via getattr(settings, "first_person_context_use_sparse", False)
+# in services/first_person_pipeline.py::_retrieve_contexts. The grep-based stale_flags.py scanner
+# cannot see through getattr indirection. Declared 2026-11-10; gates sparse RRF fusion in harness
+# retrieval. Keep here until the scanner is upgraded to resolve getattr names.
+first_person_context_use_sparse

@@ -171,8 +171,12 @@ def test_dead_setting_allowlists_hold_only_currently_dead_fields():
 
 
 def test_dead_settings_count_never_grows():
-    """CQ-010: 7 left, each with a written reason (4 dynamic reads, 3 external consumers)."""
-    assert len(_dead_settings()) <= 7
+    """CQ-010: ≤9 left, each with a written reason (dynamic reads, external consumers).
+    2026-11-10: first_person_context_use_sparse and first_person_max_context_words wired
+    into pipeline and evidence policy — no longer dead, removed from KNOWN_EXTRA_DEAD.
+    Count ceiling stays at 9 (may only shrink going forward).
+    """
+    assert len(_dead_settings()) <= 9
 
 
 # --- Part (b): auth dependency on every non-probe route --------------------

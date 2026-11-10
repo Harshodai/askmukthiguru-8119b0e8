@@ -4320,9 +4320,14 @@ class FirstPersonPipeline:
                 )
 
                 def _retrieve_contexts() -> list[ParentContext]:
+                    # Gate sparse RRF fusion on the feature flag (FIRST_PERSON_CONTEXT_USE_SPARSE).
+                    # Dense-only retrieval is the default; sparse adds keyword recall at the cost
+                    # of an extra Qdrant round-trip and BM25 index maintenance.
+                    _use_sparse = getattr(settings, "first_person_context_use_sparse", False)
+                    _sparse = query_sparse_vector if _use_sparse else None
                     found = ctx_store.retrieve(
                         query_dense=query_dense_vector,
-                        query_sparse=query_sparse_vector,
+                        query_sparse=_sparse,
                         guru_id=editorial_teacher_id,
                         limit_parents=harness_candidate_limit,
                         spans_per_parent=max_spans,

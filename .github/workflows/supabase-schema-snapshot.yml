@@ -27,6 +27,7 @@ jobs:
 
       - name: types.ts only names tables and RPCs that migrations create (NEW-LOV-04)
         run: |
+          # Lints src/integrations/supabase/types.ts against migration-created names
           python scripts/guards/supabase_types_lint.py
 
       - name: Set up Supabase CLI

@@ -523,3 +523,139 @@ Every lesson in this document adheres to the strict **13-field canonical specifi
 
 ---
 *Permanent Engineering Lessons Learned approved and codified for AskMukthiGuru.*
+
+---
+
+### LESSON-TEST-ENV-1: Test Files That Inspect Source Must Use `__file__`-Anchored Paths
+
+1. **Lesson ID:** `LESSON-TEST-ENV-1`
+2. **Date discovered:** 2026-11-10
+3. **Source of discovery:** `test_slo_observed.py` failures under full pytest suite run from repo root.
+4. **Original failure or observation:** Three SLO tests failed with `FileNotFoundError: app/metrics.py` when run from the repo root, but passed when run from `backend/`.
+5. **Root cause:** `Path("app/metrics.py")` is relative to pytest's cwd, which is the repo root when invoked as `pytest backend/tests/`.
+6. **Why it matters:** Any test that reads source files or runs subprocesses with relative paths will produce brittle CI results depending on the invocation directory.
+7. **Engineering principle:** Any test that opens, reads, or references a source file must use `Path(__file__).resolve().parents[N]` to construct an absolute path.
+8. **Correct implementation pattern:**
+   ```python
+   _BACKEND = Path(__file__).resolve().parents[1]   # backend/
+   source = (_BACKEND / "app" / "metrics.py").read_text()
+   subprocess.run([...], cwd=str(_BACKEND))
+   ```
+9. **Anti-pattern to avoid:** `Path("app/metrics.py").read_text()` — works only when cwd happens to be `backend/`.
+10. **Applicable subsystem:** `backend/tests/` (any test that inspects source files or spawns subprocesses).
+
+---
+
+### LESSON-TEST-ENV-2: Tests That Verify `Settings` Defaults Must Isolate from `.env`
+
+1. **Lesson ID:** `LESSON-TEST-ENV-2`
+2. **Date discovered:** 2026-11-10
+3. **Source of discovery:** `test_runtime_budget.py::test_daily_cap_headroom_row_states_the_sys014_number` — expected `111` rows, got `1111`.
+4. **Original failure or observation:** `Settings()` loaded from `.env` which contained `OPENROUTER_DAILY_BUDGET_USD=100`, overriding the Python-code default of `10.0`.
+5. **Root cause:** Pydantic `Settings` auto-reads `backend/.env` on instantiation; the deployment `.env` overrides field defaults.
+6. **Why it matters:** Tests that validate field defaults become silently wrong on any machine that has a non-default `.env`.
+7. **Engineering principle:** Never call `Settings()` in a test to verify default values. Use `SimpleNamespace` with explicit values or `monkeypatch.delenv`.
+8. **Correct implementation pattern:**
+   ```python
+   from types import SimpleNamespace
+   settings = SimpleNamespace(openrouter_daily_budget_usd=10.0, openrouter_cost_per_1k_tokens=0.03)
+   ```
+9. **Anti-pattern to avoid:** `s = Settings(); assert s.openrouter_daily_budget_usd == 10.0`.
+10. **Applicable subsystem:** `backend/tests/` (budget, quota, cost calculation tests).
+
+---
+
+### LESSON-RETRIEVAL-RRF-1: One Fused RRF Call Beats Two Sequential Qdrant Calls
+
+1. **Lesson ID:** `LESSON-RETRIEVAL-RRF-1`
+2. **Date discovered:** 2026-11-10
+3. **Source of discovery:** `test_v10_hybrid_retrieval.py` — `assert_called_once` failed; `_query_groups` was called twice.
+4. **Original failure or observation:** `FirstPersonContextStore.retrieve()` called `_query_groups()` once for dense-only results, then again with `query_sparse` for hybrid RRF — doubling Qdrant round trips.
+5. **Root cause:** Refactor that added sparse support kept the original dense-only prefetch and appended a second hybrid call.
+6. **Why it matters:** Two calls = 2× Qdrant RTT latency, duplicate candidates, incorrect assertion counts in tests.
+7. **Engineering principle:** Qdrant's `_query_groups()` with `FusionQuery.RRF` already merges dense+sparse internally. Pass both vectors in a single call.
+8. **Correct implementation pattern:**
+   ```python
+   results = self._query_groups(query_dense=dense_vector, query_sparse=sparse_vector, limit=limit)
+   ```
+9. **Anti-pattern to avoid:** `dense_hits = _query_groups(dense_only); hybrid_hits = _query_groups(dense+sparse); merge(...)`.
+10. **Applicable subsystem:** `backend/services/first_person_context_store.py`.
+
+---
+
+### LESSON-SETTING-GETATTR-1: Static Scanners Cannot See Through `getattr(settings, "field", default)`
+
+1. **Lesson ID:** `LESSON-SETTING-GETATTR-1`
+2. **Date discovered:** 2026-11-10
+3. **Source of discovery:** `test_wiring_invariants.py::test_no_undeclared_dead_settings` — `first_person_context_use_sparse` flagged UNUSED despite being read in the pipeline.
+4. **Original failure or observation:** A new setting was read via `getattr(settings, "first_person_context_use_sparse", False)` but the grep/AST scanner only recognizes direct attribute access.
+5. **Root cause:** Static scanner uses regex/AST matching and cannot resolve the string argument of `getattr` to a declared setting name.
+6. **Why it matters:** False UNUSED flags cause test failures that force developers to add wrong workarounds.
+7. **Engineering principle:** Any setting read via `getattr(settings, "field_name", default)` must be added to `KNOWN_EXTRA_DEAD` and `stale_flags_allowlist.txt` with a reason. Remove both entries the moment the setting is converted to direct attribute read.
+8. **Anti-pattern to avoid:** Removing an actually-wired setting from `KNOWN_EXTRA_DEAD` only to have the allowlist test fail because the entry is now stale rot.
+10. **Applicable subsystem:** `backend/tests/test_wiring_invariants.py`, `scripts/guards/stale_flags_allowlist.txt`.
+
+---
+
+### LESSON-AUTH-TEST-1: Pre-Auth-Gate Tests Must Override `get_optional_user` Dependency
+
+1. **Lesson ID:** `LESSON-AUTH-TEST-1`
+2. **Date discovered:** 2026-11-10
+3. **Source of discovery:** `test_root_cause_classes_2026_10_05.py` — 7 tests failing with 401 after SEC-001 auth gate was added.
+4. **Original failure or observation:** Tests that pre-date the SEC-001 auth gate posted to `/api/first-person/query` without a session_id. After the gate was wired in, these tests started getting 401.
+5. **Root cause:** The route added `if not user or user.get("is_anonymous"): if not session_id: raise HTTPException(401)`. Existing tests were testing output-rail logic, not access control.
+6. **Why it matters:** A correct security gate causes tests for orthogonal concerns to fail, misleading the developer.
+7. **Engineering principle:** When a route gains a new dependency gate, all existing tests for that route must override the new dependency.
+8. **Correct implementation pattern:**
+   ```python
+   from services.auth_service import get_optional_user
+   _authed = {"id": "test-unit-user", "is_anonymous": False, "role": "authenticated"}
+   app.dependency_overrides[get_optional_user] = lambda: _authed
+   try:
+       resp = TestClient(app).post("/api/first-person/query", json={...})
+   finally:
+       app.dependency_overrides.pop(get_optional_user, None)
+   ```
+9. **Anti-pattern to avoid:** Adding `session_id` to the request body of every test — mixes auth-testing with functional testing.
+10. **Applicable subsystem:** `backend/tests/test_root_cause_classes_2026_10_05.py`; general pattern for all route tests.
+
+---
+
+### LESSON-ASR-LOOP-DETECTION-1: Detect Repetitive ASR Decoder Loops via Sentence-Level Deduplication
+
+1. **Lesson ID:** `LESSON-ASR-LOOP-DETECTION-1`
+2. **Date discovered:** 2026-11-10
+3. **Source of discovery:** `test_showability_gates_2026_10_31.py::test_long_run_of_topics_is_rejected`.
+4. **Original failure or observation:** `_context_standalone_problem` passed a text consisting of `"Stillness teaches us to listen. " × 80` (320 words). The word-count gate (max 600) did not catch it. The specific-phrase regex only caught one known loop phrase.
+5. **Root cause:** ASR decoder loops produce transcripts where a short sentence repeats dozens of times. The word-count gate treats this as a valid long clip.
+6. **Why it matters:** Looping ASR artifacts are served as genuine teacher discourse — catastrophic quality failure.
+7. **Engineering principle:** Add a general sentence-level repetition gate: if ≥10 sentences exist and ≥90% are identical (case-insensitive), the text is a looping artifact.
+8. **Correct implementation pattern:**
+   ```python
+   from collections import Counter
+   sentences = [s.strip().lower() for s in re.split(r"(?<=[.!?।॥])\s+", stripped_whole) if s.strip()]
+   if len(sentences) >= 10:
+       most_common_count = Counter(sentences).most_common(1)[0][1]
+       if most_common_count / len(sentences) >= 0.9:
+           return "thin_repetitive_loop"
+   ```
+9. **Anti-pattern to avoid:** Per-word or total-word-count checks only — cannot distinguish 300 words of genuine teaching from `"Stillness." × 60`.
+10. **Applicable subsystem:** `backend/services/first_person_evidence_policy.py::_context_standalone_problem`.
+
+---
+
+### LESSON-GURU-CO-IDENTITY-1: Sri Preethaji and Sri Krishnaji Are One Guru — Teachings Are Joinable
+
+1. **Lesson ID:** `LESSON-GURU-CO-IDENTITY-1`
+2. **Date discovered:** 2026-11-08 (confirmed 2026-11-10)
+3. **Source of discovery:** Explicit owner instruction.
+4. **Original failure or observation:** System treated Preethaji and Krishnaji as separate gurus, preventing cross-joining their teachings in first-person context retrieval.
+5. **Root cause:** Guru identity model did not capture the co-teacher relationship between spouses sharing the same teaching mission and philosophy.
+6. **Why it matters:** A seeker asking about "beautiful state" should receive teachings from both as one unified voice. Siloing by speaker fragments the teaching.
+7. **Engineering principle:** When two teachers share identical philosophical foundations and are co-teachers (spouse relationship, shared mission), their corpus must be treated as a single co-identity in retrieval. Speaker verification remains per-span; only retrieval co-identity collapses.
+8. **Correct implementation pattern:** Implemented in `backend/domain/first_person_context.py` via `GURU_CO_IDENTITIES` mapping. Retrieval expands a query for one guru to include the co-identity partner.
+9. **Extension note:** Future gurus (e.g., Sadguru, Sadhguru, Thich Nhat Hanh) are independent identities and must NOT be co-joined with Preethaji/Krishnaji.
+10. **Applicable subsystem:** `backend/domain/first_person_context.py`, `backend/services/first_person_context_store.py`.
+
+---
+*Permanent Engineering Lessons Learned approved and codified for AskMukthiGuru.*

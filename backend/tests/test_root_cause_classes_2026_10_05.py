@@ -192,12 +192,18 @@ def test_fp_route_cache_hit_cannot_skip_the_topic_rail(monkeypatch):
     _C.embedding.encode_single_full_async.return_value = {"dense": [1.0, 0.0], "sparse": {}}
     _C.guardrails.check_output.return_value = {"blocked": False}
     _C.translation = None
+
+    from services.auth_service import get_optional_user
+
+    _authed_user = {"id": "test-unit-user", "is_anonymous": False, "role": "authenticated"}
     app.dependency_overrides[get_container_async] = lambda: _C()
+    app.dependency_overrides[get_optional_user] = lambda: _authed_user
     try:
         with patch.object(fp_api, "_pipeline", lambda *a, **k: pipe):
             resp = TestClient(app).post("/api/first-person/query", json={"query": q})
     finally:
         app.dependency_overrides.pop(get_container_async, None)
+        app.dependency_overrides.pop(get_optional_user, None)
     data = resp.json()
     assert data["status"] == "crisis_redirect"
     assert data["citations"] == []
@@ -213,6 +219,7 @@ def _route_with_rail(monkeypatch, rail):
     from app.api import first_person as fp_api
     from app.dependencies import get_container_async
     from app.main import app
+    from services.auth_service import get_optional_user
 
     # Patch the settings object the route module actually reads.
     monkeypatch.setattr(fp_api.settings, "first_person_mode", "retrieval_only")
@@ -226,7 +233,13 @@ def _route_with_rail(monkeypatch, rail):
 
     _C.embedding.encode_single_full_async.return_value = {"dense": [1.0, 0.0], "sparse": {}}
     _C.translation = None
+
+    # Override auth (SEC-001): supply an authenticated user so the route's
+    # session_id gate is bypassed.  These tests pre-date the auth gate and
+    # exercise only the output-rail logic, not access control.
+    _authed_user = {"id": "test-unit-user", "is_anonymous": False, "role": "authenticated"}
     app.dependency_overrides[get_container_async] = lambda: _C()
+    app.dependency_overrides[get_optional_user] = lambda: _authed_user
     try:
         with patch.object(fp_api, "_pipeline", lambda *a, **k: pipe):
             resp = TestClient(app).post(
@@ -236,6 +249,7 @@ def _route_with_rail(monkeypatch, rail):
             return resp.json()
     finally:
         app.dependency_overrides.pop(get_container_async, None)
+        app.dependency_overrides.pop(get_optional_user, None)
 
 
 class _Rail:
