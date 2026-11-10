@@ -715,7 +715,7 @@ class FirstPersonContextHarness:
                 )
             spans = (predecessor,) + spans
 
-        from services.guru_registry import shared_attribution
+        from services.guru_registry import is_shared_guru_scope, shared_attribution
 
         primary, shared_ids = shared_attribution()
         shared_set = {str(gid).lower() for gid in (shared_ids or [])}
@@ -724,7 +724,7 @@ class FirstPersonContextHarness:
         span_gurus = {span.guru_id.lower() for span in spans if span.guru_id}
 
         # Cross-guru contamination check:
-        # Preethaji & Krishnaji are husband and wife / co-teachers (one common Guru).
+        # Founders are co-teachers (one common Guru).
         # Spans across both are explicitly permitted; foreign/unregistered teachers are refused.
         if len(span_gurus) > 1 and not span_gurus.issubset(shared_set):
             return self._abstain(
@@ -736,10 +736,10 @@ class FirstPersonContextHarness:
             )
 
         # Explicit teacher request filter:
-        # If the seeker explicitly requested one specific teacher (e.g. "preethaji"),
+        # If the seeker explicitly requested one specific teacher,
         # respect that specific teacher filter.
         req_teacher = (requested_teacher or "").strip().lower()
-        if req_teacher and req_teacher not in ("", "both", "all", "shared", "preethaji_krishnaji"):
+        if req_teacher and not is_shared_guru_scope(req_teacher):
             if any(s.guru_id.lower() != req_teacher for s in spans):
                 return self._abstain(
                     context,

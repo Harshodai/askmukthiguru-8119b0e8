@@ -36,13 +36,21 @@ POLICY_VERSION = f"first_person_evidence_v3+{SAFETY_POLICY_VERSION}+{CONTENT_ASS
 # ---------------------------------------------------------------------------
 # Guru Co-Identity (User Directive 1)
 # ---------------------------------------------------------------------------
-# Sri Preethaji and Sri Krishnaji are husband and wife, co-teachers of Ekam.
-# In this system, they are ONE COMMON GURU. Co-occurrence of Sri Preethaji
-# and Sri Krishnaji is recognized as valid Ekam lineage and is NEVER flagged
-# as cross_guru_contamination. External gurus remain distinct.
-EKAM_COIDENTITY_GURU_IDS: frozenset[str] = frozenset(
-    {"preethaji", "krishnaji", "preethaji_krishnaji", "krishnaji_preethaji", "krishnaji-preethaji", "ekam"}
-)
+# Ekam founders and co-teachers share one common mission and philosophy.
+# In this system, they are ONE COMMON GURU. Co-occurrence of co-teachers
+# is recognized as valid Ekam lineage and is NEVER flagged as
+# cross_guru_contamination. External gurus remain distinct.
+
+
+def _shared_lineage_ids() -> frozenset[str]:
+    from services.guru_registry import shared_attribution
+
+    primary, ids = shared_attribution()
+    out = set(ids or [])
+    if primary:
+        out.add(primary)
+    out.add("ekam")
+    return frozenset(out)
 
 
 def is_ekam_coidentity(guru_a: str | None, guru_b: str | None) -> bool:
@@ -53,7 +61,8 @@ def is_ekam_coidentity(guru_a: str | None, guru_b: str | None) -> bool:
         return False
     if ga == gb:
         return True
-    return ga in EKAM_COIDENTITY_GURU_IDS and gb in EKAM_COIDENTITY_GURU_IDS
+    shared = _shared_lineage_ids()
+    return ga in shared and gb in shared
 
 
 def assess_guru_lineage(
@@ -63,31 +72,24 @@ def assess_guru_lineage(
 ) -> tuple[bool, Optional[str]]:
     """Validate guru lineage for first-person serving.
 
-    Sri Preethaji and Sri Krishnaji are husband and wife, co-teachers of Ekam.
-    Their co-occurrence is recognized as valid Ekam lineage and is NEVER flagged
-    as cross_guru_contamination. External gurus remain distinct.
+    Founders are co-teachers of Ekam. Their co-occurrence is recognized as valid
+    Ekam lineage and is NEVER flagged as cross_guru_contamination. External gurus remain distinct.
     """
+    from services.guru_registry import is_shared_guru_scope
+
     gurus = {str(gid).strip().lower() for gid in guru_ids if gid}
     req = (requested_teacher or "").strip().lower()
-    if req and req not in (
-        "",
-        "both",
-        "all",
-        "shared",
-        "preethaji_krishnaji",
-        "krishnaji_preethaji",
-        "krishnaji-preethaji",
-        "ekam",
-    ):
+    shared = _shared_lineage_ids()
+    if req and not is_shared_guru_scope(req):
         if any(
             gid != req
-            and not (req in EKAM_COIDENTITY_GURU_IDS and gid in EKAM_COIDENTITY_GURU_IDS)
+            and not (req in shared and gid in shared)
             for gid in gurus
         ):
             return False, "cross_guru_contamination"
     if len(gurus) <= 1:
         return True, None
-    if gurus.issubset(EKAM_COIDENTITY_GURU_IDS):
+    if gurus.issubset(shared):
         return True, None
     return False, "cross_guru_contamination"
 
@@ -406,7 +408,7 @@ def _context_standalone_problem(
         from app.config import settings as _cfg
         _min = int(getattr(_cfg, "first_person_min_answer_words", 23))
         _max = int(getattr(_cfg, "first_person_max_context_words", 600))
-    except Exception:
+    except (ImportError, AttributeError, ValueError, TypeError):
         _min, _max = 23, 600
     _word_count = len(stripped_whole.split()) if stripped_whole else 0
     if _word_count < _min:
@@ -557,7 +559,7 @@ class FirstPersonEvidencePolicy:
         *,
         requested_teacher: str | None = None,
     ) -> EvidenceDecision:
-        """Validate guru co-identity according to Ekam lineage (Sri Preethaji & Sri Krishnaji)."""
+        """Validate guru co-identity according to Ekam lineage."""
         valid, reason = assess_guru_lineage(guru_ids, requested_teacher=requested_teacher)
         return EvidenceDecision(
             action=EvidenceAction.ALLOW if valid else EvidenceAction.EXCLUDE,

@@ -30,14 +30,17 @@ def test_middleware_timeout_must_exceed_pipeline_timeout():
         Settings(middleware_timeout=50, pipeline_timeout=105)
 
 
+_BACKEND = pathlib.Path(__file__).resolve().parents[1]
+
+
 def test_middleware_uses_separate_setting():
-    src = " ".join(pathlib.Path("app/main.py").read_text().split())
+    src = " ".join((_BACKEND / "app" / "main.py").read_text().split())
     assert 'getattr( settings, "middleware_timeout"' in src
 
 
 def test_redis_pool_caps_mirror_cost_tracker():
-    adapter = pathlib.Path("services/cache/redis_adapter.py").read_text()
-    queue = pathlib.Path("app/services/job_queue.py").read_text()
+    adapter = (_BACKEND / "services" / "cache" / "redis_adapter.py").read_text()
+    queue = (_BACKEND / "app" / "services" / "job_queue.py").read_text()
     # S1: hot-path pools sized for 20 pilot + headroom (32), not bare 5.
     assert max(int(m) for m in re.findall(r"max_connections=(\d+)", adapter)) >= 32, (
         "redis_adapter pool undersized for 20 pilot"

@@ -778,13 +778,26 @@ def probe_collection_payload_fields(
 # ---------------------------------------------------------------------------
 # Guru Co-Identity & Lineage (User Directive 1)
 # ---------------------------------------------------------------------------
-# Sri Preethaji and Sri Krishnaji are husband and wife, co-teachers of Ekam.
-# In this system, they are ONE COMMON GURU. Co-occurrence of Sri Preethaji
-# and Sri Krishnaji is recognized as valid Ekam lineage and is NEVER flagged
-# as cross_guru_contamination. External gurus remain distinct.
-EKAM_COIDENTITY_GURU_IDS: frozenset[str] = frozenset(
-    {"preethaji", "krishnaji", "preethaji_krishnaji", "krishnaji_preethaji", "krishnaji-preethaji", "ekam"}
-)
+# Guru Co-Identity (User Directive 1)
+# ---------------------------------------------------------------------------
+# Ekam founders and co-teachers share one common mission and philosophy.
+# In this system, they are ONE COMMON GURU. Co-occurrence of co-teachers
+# is recognized as valid Ekam lineage and is NEVER flagged as
+# cross_guru_contamination. External gurus remain distinct.
+
+
+def _shared_lineage_ids() -> frozenset[str]:
+    from services.guru_registry import shared_attribution
+
+    primary, ids = shared_attribution()
+    out = set(ids or [])
+    if primary:
+        out.add(primary)
+    out.add("ekam")
+    return frozenset(out)
+
+
+EKAM_COIDENTITY_GURU_IDS: frozenset[str] = _shared_lineage_ids()
 
 
 def is_ekam_coidentity(guru_a: str | None, guru_b: str | None) -> bool:
@@ -795,14 +808,15 @@ def is_ekam_coidentity(guru_a: str | None, guru_b: str | None) -> bool:
         return False
     if ga == gb:
         return True
-    return ga in EKAM_COIDENTITY_GURU_IDS and gb in EKAM_COIDENTITY_GURU_IDS
+    shared = _shared_lineage_ids()
+    return ga in shared and gb in shared
 
 
 def validate_guru_lineage(guru_ids: Iterable[str]) -> Optional[str]:
     """Validate guru IDs within a serving unit.
 
-    Sri Preethaji and Sri Krishnaji are co-teachers of Ekam and are recognized
-    as one common guru. Spans across both are never flagged as cross_guru_contamination.
+    Founders are co-teachers of Ekam and are recognized as one common guru.
+    Spans across both are never flagged as cross_guru_contamination.
     External or cross-tradition teachers return 'cross_guru_contamination'.
     """
     gurus = {str(gid).strip().lower() for gid in guru_ids if gid}
@@ -810,7 +824,8 @@ def validate_guru_lineage(guru_ids: Iterable[str]) -> Optional[str]:
         return None
     if len(gurus) == 1:
         return None
-    if gurus.issubset(EKAM_COIDENTITY_GURU_IDS):
+    shared = _shared_lineage_ids()
+    if gurus.issubset(shared):
         return None
     return "cross_guru_contamination"
 

@@ -1790,19 +1790,17 @@ async def _async_answerability_check(
         token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query, raw))
     if raw is None:
         return None
-    # Typed verdict: an exact token or a JSON field. "YES, because ..." is yes,
-    # "not sure, yes" is not a verdict, and a provider degradation string is
-    # never a yes.
-    from services.llm_verdict import parse_verdict
-
-    verdict = parse_verdict(raw)
-    if verdict.value is not None:
-        return verdict.value
+    # Strict parse: exact token only. "YES, because ..." is NOT a verdict
+    # (Phase 2 gate contract: strip -> casefold -> exact token).
+    token = str(raw).strip().rstrip(".!").strip().casefold()
+    if token == "yes":
+        return True
+    if token == "no":
+        return False
     logger.info(
-        "[FirstPersonPipeline] Answerability check unparseable output (source=%s, len=%d); "
+        "[FirstPersonPipeline] Answerability check unparseable output (len=%d); "
         "treating as indeterminate",
-        verdict.source,
-        verdict.raw_length,
+        len(str(raw)),
     )
     return None
 

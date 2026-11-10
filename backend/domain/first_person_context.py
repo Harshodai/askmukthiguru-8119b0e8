@@ -23,16 +23,32 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 from hashlib import sha256
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 SCHEMA_VERSION = "fp-context-v1"
 SCHEMA_VERSION_V2 = "fp-context-v2"
-# Versioned independently of the record schema so a boundary/annotation revision
-# can invalidate caches without renaming the collection.
 PARENT_VERSION = "parent-v1"
 EDGE_ANNOTATION_VERSION = "annotation-v1"
+_GURUS_CONFIG = Path(__file__).resolve().parents[1] / "config" / "gurus.yaml"
+
+
+def _shared_guru_scope() -> frozenset[str]:
+    try:
+        import yaml
+
+        if _GURUS_CONFIG.is_file():
+            data = yaml.safe_load(_GURUS_CONFIG.read_text(encoding="utf-8")) or {}
+            ids = set(str(x).lower() for x in (data.get("shared_attribution_ids") or []))
+            primary = str(data.get("shared_primary_teacher_id") or "").strip().lower()
+            if primary:
+                ids.add(primary)
+            return frozenset(ids)
+    except (OSError, ValueError, ImportError):
+        pass
+    return frozenset()
 
 
 class SpeakerRole(StrEnum):
@@ -476,14 +492,14 @@ class ParentContext(BaseModel):
             raise ValueError("hit_span_ids must all be present in spans")
         if any(s.parent_unit_id != self.parent.parent_unit_id for s in self.spans):
             raise ValueError("every span must belong to the parent unit")
-        from services.guru_registry import shared_attribution
-        _, shared_ids = shared_attribution()
-        shared_set = {str(gid).lower() for gid in (shared_ids or [])}
+        # Co-guru founders belong to the shared parent context.
+        # Derived dynamically from gurus.yaml to avoid hardcoding teacher names.
+        shared_set = _shared_guru_scope()
         for s in self.spans:
             if s.guru_id != self.parent.guru_id:
                 if not (
                     s.guru_id.lower() in shared_set
-                    and self.parent.guru_id.lower() in (shared_set | {"preethaji_krishnaji"})
+                    and self.parent.guru_id.lower() in shared_set
                 ):
                     raise ValueError("every span must belong to the parent guru")
         if any(s.video_id != self.parent.video_id for s in self.spans):

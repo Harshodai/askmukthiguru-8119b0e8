@@ -667,8 +667,8 @@ def test_phase3_policy_gates_actual_context_pipeline_before_selection(
         observed.append(decision)
         return decision
 
-    def _observe_standalone(texts):
-        decision = original_standalone(texts)
+    def _observe_standalone(texts, *args, **kwargs):
+        decision = original_standalone(texts, *args, **kwargs)
         observed.append(decision)
         return decision
 

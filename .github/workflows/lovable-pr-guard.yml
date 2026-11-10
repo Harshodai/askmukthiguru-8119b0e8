@@ -5,6 +5,8 @@ name: lovable-pr-guard
 # an owner step in GitHub settings (NEW-LOV-01).
 on:
   workflow_dispatch:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
 
 permissions:
   contents: read

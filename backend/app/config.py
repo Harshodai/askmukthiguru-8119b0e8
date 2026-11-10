@@ -361,7 +361,7 @@ class Settings(BaseSettings):
     # Without it a single-span window can only serve text already inside the
     # truncated retrieval window. Costs one extra scroll per parent per request;
     # OFF by default until measured (master plan RAG-2).
-    first_person_enrichment_window_enabled: bool = True
+    first_person_enrichment_window_enabled: bool = False
     # Hard timeout (seconds) for one enrichment-window re-hydration. Fail-open:
     # a slow parent read keeps the retrieved span instead of delaying the answer
     # (the window is an addition, never a reason to wait — same policy as the

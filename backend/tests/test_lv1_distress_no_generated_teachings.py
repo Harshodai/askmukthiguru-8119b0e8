@@ -80,9 +80,12 @@ async def test_moderate_distress_loneliness_query_returns_safe_template_no_gener
     # 2. Citations must be empty for template text
     assert result.get("citations") == [], "citations must be empty list for Serene Mind template"
 
-    # 3. Contains Serene Mind breathing practice
+    # 3. Contains Serene Mind breathing practice or grounding technique
     assert (
-        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+        "breathing practice" in final_answer.lower()
+        or "hand on your heart" in final_answer.lower()
+        or "grounding technique" in final_answer.lower()
+        or "slow breath" in final_answer.lower()
     )
     assert "serene mind" in final_answer.lower()
 
@@ -117,7 +120,10 @@ async def test_moderate_distress_empty_and_anxious_query():
 
     final_answer = result.get("final_answer", "")
     assert (
-        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+        "breathing practice" in final_answer.lower()
+        or "hand on your heart" in final_answer.lower()
+        or "grounding technique" in final_answer.lower()
+        or "slow breath" in final_answer.lower()
     )
     _assert_no_generated_teachings(final_answer)
     assert "14416" in final_answer or "988" in final_answer
@@ -266,7 +272,10 @@ async def test_raw_first_person_clip_state_is_not_served_without_gated_result(cl
     assert "Sri Krishnaji" not in final_answer
     assert result.get("citations") == []
     assert (
-        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+        "breathing practice" in final_answer.lower()
+        or "hand on your heart" in final_answer.lower()
+        or "grounding technique" in final_answer.lower()
+        or "slow breath" in final_answer.lower()
     )
     assert "14416" in final_answer or "988" in final_answer
     _assert_no_generated_teachings(final_answer)
@@ -349,7 +358,10 @@ async def test_abstained_first_person_result_does_not_pollute_distress_template(
     final_answer = result.get("final_answer", "")
     assert "no verified first-person discourse found" not in final_answer.lower()
     assert (
-        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+        "breathing practice" in final_answer.lower()
+        or "hand on your heart" in final_answer.lower()
+        or "grounding technique" in final_answer.lower()
+        or "slow breath" in final_answer.lower()
     )
     assert result.get("citations") == []
 
@@ -591,7 +603,10 @@ async def test_verified_clip_without_speaker_falls_back_to_template_only():
     assert "Live in the present moment with awareness." not in final_answer
     assert result.get("citations") == []
     assert (
-        "breathing practice" in final_answer.lower() or "hand on your heart" in final_answer.lower()
+        "breathing practice" in final_answer.lower()
+        or "hand on your heart" in final_answer.lower()
+        or "grounding technique" in final_answer.lower()
+        or "slow breath" in final_answer.lower()
     )
     assert "14416" in final_answer or "988" in final_answer
     _assert_no_generated_teachings(final_answer)

@@ -44,7 +44,7 @@ def _mock_pipeline_result():
 
 class _MockEmbedding:
     async def encode_single_full_async(self, text):
-        return {"dense": [0.1] * 384, "sparse": {}}
+        return {"dense": [0.1] * 1024, "sparse": {}}
 
 
 class _MockQuotaService:
@@ -75,8 +75,12 @@ def _setup_first_person(monkeypatch):
     monkeypatch.setattr(settings, "first_person_mode", "retrieval_only")
     monkeypatch.setattr(settings, "first_person_route_enabled", True)
     monkeypatch.setattr(settings, "video_stream_rights_gate_enabled", True)
+    app.dependency_overrides.pop(get_optional_user, None)
+    app.dependency_overrides.pop(get_container_async, None)
     fp_api._pipeline.cache_clear()
     yield
+    app.dependency_overrides.pop(get_optional_user, None)
+    app.dependency_overrides.pop(get_container_async, None)
     fp_api._pipeline.cache_clear()
 
 
