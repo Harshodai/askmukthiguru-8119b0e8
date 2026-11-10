@@ -263,6 +263,21 @@ CORE_WISDOM_OPENER_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Authentic oral discourse openings: teachers naturally open oral discourses with
+# demonstrative, equational, or causal connective framings ("This is...", "It is...",
+# "Because..."). When part of a verified parent unit, these are genuine teacher
+# discourse beginnings rather than severed orphaned clauses.
+AUTHENTIC_ORAL_OPENER_RE = re.compile(
+    r"^[\"'\u201c\u2018\s]*(?:"
+    r"(?:this|these|that|those)\s+(?:is|are|was|were)\b|"
+    r"this\s+space\b|"
+    r"it\s+(?:is|was|['\u2019]s)\b|"
+    r"because\b"
+    r")",
+    re.IGNORECASE,
+)
+
+
 DISCOURSE_ACKNOWLEDGMENT_RE = re.compile(
     r"^(?:"
     r"yes,?\s+as you mentioned|"
@@ -305,6 +320,7 @@ def assess_content(
     query: str | None = None,
     retrieval_query: str = "",
     content_safety: str | None = None,
+    is_verified_parent: bool = False,
 ) -> ContentAssessment:
     """Assess one text (or one joined context window).
 
@@ -316,6 +332,10 @@ def assess_content(
     ``content_safety`` is an optional semantic classification from FirstPersonJudge
     ('clean', 'distress', 'clinical_promise', 'harm'). When 'clean', authentic
     spiritual/wellbeing metaphors are distinguished from literal clinical promises.
+
+    ``is_verified_parent`` indicates the text originates from or includes the opening
+    of a verified parent unit, allowing authentic oral discourse openings ("This is...",
+    "It is...", "Because...") without false orphan rejection.
     """
     body = str(text or "")
     if not body.strip():
@@ -326,6 +346,7 @@ def assess_content(
             query=query,
             retrieval_query=retrieval_query,
             content_safety=content_safety,
+            is_verified_parent=is_verified_parent,
         )
     except Exception:  # noqa: BLE001 - a detector failure must fail closed
         return ContentAssessment(
@@ -344,7 +365,9 @@ def _collect_findings(
     query: str | None,
     retrieval_query: str,
     content_safety: str | None = None,
+    is_verified_parent: bool = False,
 ) -> list[ContentFinding]:
+
     findings: list[ContentFinding] = []
 
     has_clinical = bool(CLINICAL_CLAIM_RE.search(body))
@@ -471,7 +494,11 @@ def _collect_findings(
                 "dangling_question_tail_detector",
             )
         )
-    if ORPHAN_OPENER_RE.match(body) and not CORE_WISDOM_OPENER_RE.match(body):
+    if (
+        ORPHAN_OPENER_RE.match(body)
+        and not CORE_WISDOM_OPENER_RE.match(body)
+        and not (is_verified_parent and AUTHENTIC_ORAL_OPENER_RE.match(body))
+    ):
         findings.append(
             _finding(
                 DANGLING_DEPENDENCY_CODE,

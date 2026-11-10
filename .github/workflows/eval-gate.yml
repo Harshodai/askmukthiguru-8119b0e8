@@ -5,6 +5,16 @@ name: Eval Gate (RAGAS Faithfulness + Context Metrics)
 # backend RAG code and as a nightly canary on main.
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/eval-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/eval-gate.yml'
   workflow_dispatch:
 
 concurrency:
@@ -74,12 +84,27 @@ jobs:
             --context-recall-min "$CONTEXT_RECALL_THRESHOLD" \
             --min-distinct-sources "$DIVERSITY_MIN_DISTINCT_SOURCES"
 
+      - name: Run deterministic clean simulation fallback
+        if: steps.target.outputs.available != 'true'
+        # Documented Fallback Execution:
+        # When BACKEND_URL is not configured (e.g. PR runs without live deployment secrets),
+        # execute the targeted clean Docker simulation suite (test_clean_docker_sim.py).
+        # This provides active, deterministic quality gating across the 5 representative
+        # benchmark queries (crisis preemption, authority parsing, fail-closed retrieval-only,
+        # valid clip serving, and guru co-identity).
+        run: |
+          echo "Executing documented fallback evaluation: offline deterministic clean Docker simulation suite..."
+          cd backend && PYTHONPATH=. pytest --noconftest tests/test_clean_docker_sim.py -v --tb=short
+          echo "### 🛡️ Clean Simulation Fallback Passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "No \`BACKEND_URL\` secret was configured for live RAGAS eval. Fallback execution ran \`test_clean_docker_sim.py\` and verified all 5 representative benchmark queries deterministically." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload report
-        if: always()
+        if: always() && steps.target.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: eval-report
           path: eval_report.json
+          if-no-files-found: ignore
 
       - name: Write results to job summary
         if: steps.target.outputs.available == 'true' && always()

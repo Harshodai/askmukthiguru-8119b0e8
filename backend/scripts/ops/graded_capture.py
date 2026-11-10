@@ -149,7 +149,15 @@ def _container_facts(container: str) -> dict[str, Any]:
         "container_id": info["Id"][:12],
         "image": info.get("Image"),
         "started_at": (info.get("State") or {}).get("StartedAt"),
-        "flags": {k: v for k, v in sorted(env.items()) if k.startswith(ENV_PREFIXES)},
+        "flags": {
+            k: (
+                "***REDACTED***"
+                if any(s in k.lower() for s in ("key", "secret", "token", "password"))
+                else v
+            )
+            for k, v in sorted(env.items())
+            if k.startswith(ENV_PREFIXES)
+        },
     }
 
 

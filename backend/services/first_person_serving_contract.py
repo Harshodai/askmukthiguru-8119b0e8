@@ -775,12 +775,53 @@ def probe_collection_payload_fields(
     }
 
 
+# ---------------------------------------------------------------------------
+# Guru Co-Identity & Lineage (User Directive 1)
+# ---------------------------------------------------------------------------
+# Sri Preethaji and Sri Krishnaji are husband and wife, co-teachers of Ekam.
+# In this system, they are ONE COMMON GURU. Co-occurrence of Sri Preethaji
+# and Sri Krishnaji is recognized as valid Ekam lineage and is NEVER flagged
+# as cross_guru_contamination. External gurus remain distinct.
+EKAM_COIDENTITY_GURU_IDS: frozenset[str] = frozenset(
+    {"preethaji", "krishnaji", "preethaji_krishnaji", "krishnaji_preethaji", "krishnaji-preethaji", "ekam"}
+)
+
+
+def is_ekam_coidentity(guru_a: str | None, guru_b: str | None) -> bool:
+    """Return True if both gurus belong to the shared Ekam lineage (co-teachers)."""
+    ga = (guru_a or "").strip().lower()
+    gb = (guru_b or "").strip().lower()
+    if not ga or not gb:
+        return False
+    if ga == gb:
+        return True
+    return ga in EKAM_COIDENTITY_GURU_IDS and gb in EKAM_COIDENTITY_GURU_IDS
+
+
+def validate_guru_lineage(guru_ids: Iterable[str]) -> Optional[str]:
+    """Validate guru IDs within a serving unit.
+
+    Sri Preethaji and Sri Krishnaji are co-teachers of Ekam and are recognized
+    as one common guru. Spans across both are never flagged as cross_guru_contamination.
+    External or cross-tradition teachers return 'cross_guru_contamination'.
+    """
+    gurus = {str(gid).strip().lower() for gid in guru_ids if gid}
+    if not gurus:
+        return None
+    if len(gurus) == 1:
+        return None
+    if gurus.issubset(EKAM_COIDENTITY_GURU_IDS):
+        return None
+    return "cross_guru_contamination"
+
+
 __all__ = [
     "CONTEXT_REQUIRED_PAYLOAD_FIELDS",
     "CONTEXT_SCHEMA",
     "CollectionContract",
     "ContractReport",
     "DEFAULT_CONTRACT_PATH",
+    "EKAM_COIDENTITY_GURU_IDS",
     "FirstPersonServingContractError",
     "LEGACY_REQUIRED_PAYLOAD_FIELDS",
     "LEGACY_SCHEMA",
@@ -791,10 +832,13 @@ __all__ = [
     "collection_digest_mismatch_errors",
     "compute_collection_digest",
     "fingerprint_components",
+    "is_ekam_coidentity",
     "legacy_slot_aliases_context",
     "legacy_store_preflight",
     "load_contract",
     "probe_collection_payload_fields",
     "v10_only_mode_active",
+    "validate_guru_lineage",
     "validate_serving_contract",
 ]
+

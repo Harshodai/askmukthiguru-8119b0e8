@@ -50,13 +50,14 @@ def span(n=0, text=None, **overrides):
     word_start = overrides.pop("word_start", n * 10)
     word_end = overrides.pop("word_end", word_start + 6)
     parent_unit_id = overrides.pop("parent_unit_id", "parentA")
+    gid = overrides.get("guru_id", "krishnaji")
     data = {
         "corpus_version": "ctx-v1",
-        "guru_id": "krishnaji",
+        "guru_id": gid,
         "video_id": "vidA",
         "source_asset_id": "vidA",
         "source_span_id": make_source_span_id(
-            guru_id="krishnaji",
+            guru_id=gid,
             video_id="vidA",
             corpus_version="ctx-v1",
             word_start=word_start,
@@ -71,7 +72,7 @@ def span(n=0, text=None, **overrides):
         "end_ms": 1000 * n + 900,
         "word_start": word_start,
         "word_end": word_end,
-        "speaker_id": "krishnaji",
+        "speaker_id": overrides.get("speaker_id", gid),
         "speaker_role": SpeakerRole.GURU,
         "speaker_verified": True,
         "voice_verification_method": "ecapa_voxceleb_span_slice_v2",
@@ -1012,3 +1013,37 @@ def test_ordinary_when_that_it_they_openers_do_not_activate_cross_parent_recover
     ):
         candidate = span(1, text=text, parent_unit_id="current-parent", previous_span_id="missing")
         assert not _span_starts_with_antecedent(candidate)
+
+
+def test_preethaji_krishnaji_shared_guru_identity_allows_joint_spans():
+    """Sri Preethaji and Sri Krishnaji are husband and wife, co-teachers of Ekam.
+    Their teachings are unified and joint spans are permitted without cross_guru_contamination.
+    """
+    harness = FirstPersonContextHarness()
+    span_preetha = span(0, text="When you are in a beautiful state, your inner world is connected and quiet.", guru_id="preethaji")
+    span_krishna = span(1, text="And in that connection, intelligence arises to solve any life situation.", guru_id="krishnaji")
+    
+    ctx = context([span_preetha, span_krishna], guru_id="preethaji_krishnaji")
+    decision = harness.decide(ctx, answerability="yes")
+    assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
+    assert decision.abstain_reason is None
+
+
+def test_external_guru_contamination_abstains():
+    """An external spiritual teacher (e.g. Sadhguru) outside the shared archive must abstain."""
+    harness = FirstPersonContextHarness()
+    span_preetha = span(0, text="When you are in a beautiful state, your inner world is connected and quiet.", guru_id="preethaji")
+    
+    # When seeker explicitly requests an external teacher (Sadhguru), archive clip must abstain
+    ctx = context([span_preetha], guru_id="preethaji")
+    decision = harness.decide(ctx, requested_teacher="sadhguru", answerability="yes")
+    assert decision.decision is HarnessDecision.ABSTAIN
+    assert decision.abstain_reason == "cross_guru_contamination"
+
+    # Schema-level enforcement: external guru cannot be added into parent context
+    import pytest
+    from domain.first_person_context import ParentContext
+    span_sadhguru = span(1, text="And in that connection, intelligence arises to solve any life situation.", guru_id="sadhguru")
+    with pytest.raises(ValueError, match="every span must belong to the parent guru"):
+        context([span_preetha, span_sadhguru], guru_id="preethaji")
+

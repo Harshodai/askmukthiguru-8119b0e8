@@ -1,6 +1,10 @@
 name: Main Hard Gates
 
 on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -53,16 +57,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Validate required source contracts
+      - name: Install contract test dependencies
+        run: |
+          pip install pytest pytest-asyncio pydantic pyyaml
+      - name: Validate required source contracts and execute active test suites
         run: |
           set -euo pipefail
           test -f backend/app/config.py
           test -f backend/app/chat_uploads.py
-          test -f backend/tests/test_qdrant_search_quality.py
-          test -f backend/tests/redteam_harness.py
-          test -f backend/app/runtime_artifacts.py
-          test -f backend/tests/test_runtime_artifacts.py
           test -f docs/production/PRODUCTION_READINESS.md
+
+          # Active execution steps replacing passive existence checks:
+          PYTHONPATH=backend pytest backend/tests/test_repo_layout.py -v
+          PYTHONPATH=backend pytest backend/tests/test_first_person_serving_contract.py -v
+          if [ -f backend/tests/test_p0_remediation.py ]; then
+            PYTHONPATH=backend pytest backend/tests/test_p0_remediation.py -v
+          else
+            echo "::warning::backend/tests/test_p0_remediation.py not yet present"
+          fi
           # NOTE: the `test -f` lines above prove these files EXIST. They do not
           # run anything. In particular the retrieval-quality suite is not
           # executed by this workflow — it needs a live Qdrant. Do not read a

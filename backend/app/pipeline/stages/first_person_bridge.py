@@ -72,6 +72,11 @@ _PRACTICE_HOWTO_RE = re.compile(
     re.IGNORECASE,
 )
 
+_PROMISE_OR_OUTCOME_TRAP_RE = re.compile(
+    r"\b(?:promise(?:\s+me)?|guarantee|will\s+definitely|definitely\s+(?:be\s+)?saved|cure\s+my)\b",
+    re.IGNORECASE,
+)
+
 # Question shapes one verbatim clip cannot answer: a contrast, a root cause or
 # "why", a personal how-to (heal / overcome / repair ...), or a multi-part
 # question. Live 2026-10-05 (audits/scenarios-2026-10-05/): each of these was
@@ -699,8 +704,18 @@ class FirstPersonBridgeStage(Stage):
         if getattr(settings, "first_person_llm_fallback_enabled", False):
             return None
         from rag.meditation import is_meditation_imperative
+        from guardrails.lightweight_handler import (
+            needs_addiction_support_boundary,
+            needs_relationship_safety_boundary,
+        )
 
-        if is_meditation_imperative(str(getattr(ctx, "user_msg", "") or "")):
+        msg_str = str(getattr(ctx, "user_msg", "") or "")
+        _has_promise_or_boundary = bool(
+            _PROMISE_OR_OUTCOME_TRAP_RE.search(msg_str)
+            or needs_relationship_safety_boundary(msg_str)
+            or needs_addiction_support_boundary(msg_str)
+        )
+        if is_meditation_imperative(msg_str) and not _has_promise_or_boundary:
             return None
         return await self._abstain(
             ctx,
@@ -777,10 +792,23 @@ class FirstPersonBridgeStage(Stage):
         # is not the steps. A request to do one, or to learn how, goes to the
         # graph's meditation/teaching path (live 2026-10-05: no Soul Sync steps).
         from rag.meditation import is_meditation_imperative
+        from guardrails.lightweight_handler import (
+            needs_addiction_support_boundary,
+            needs_relationship_safety_boundary,
+        )
 
+        _has_promise_or_boundary = bool(
+            _PROMISE_OR_OUTCOME_TRAP_RE.search(query)
+            or needs_relationship_safety_boundary(query)
+            or needs_addiction_support_boundary(query)
+        )
         if is_meditation_imperative(query):
-            logger.info("[FirstPersonBridge] Guided-practice request; GraphStage runs.")
-            return None
+            if not _has_promise_or_boundary:
+                logger.info("[FirstPersonBridge] Guided-practice request; GraphStage runs.")
+                return None
+            logger.info(
+                "[FirstPersonBridge] Guided practice carries promise trap or safety boundary; evaluating under bridge safety."
+            )
         if _PRACTICE_HOWTO_RE.search(query) and getattr(
             settings, "first_person_llm_fallback_enabled", False
         ):
@@ -1081,7 +1109,12 @@ class FirstPersonBridgeStage(Stage):
             ):
                 from rag.meditation import is_meditation_imperative
 
-                if not is_meditation_imperative(query):
+                _query_str = query
+                # A meditation imperative that also carries a promise / guarantee trap
+                # (e.g. "Promise me that if I do Soul Sync my marriage will be saved")
+                # must fail closed here too — never fall through to LLM generation.
+                _is_promise_trap = bool(_PROMISE_OR_OUTCOME_TRAP_RE.search(_query_str))
+                if not is_meditation_imperative(_query_str) or _is_promise_trap:
                     return await self._abstain(
                         ctx,
                         status,

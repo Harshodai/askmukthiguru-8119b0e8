@@ -585,7 +585,7 @@ _RELATIONSHIP_REPAIR_RE = re.compile(
     r"|brother|sister|friends?|friendship)\b)"
     r"(?=.*\b(?:heal\w*|repair\w*|reconcil\w+|forgiv\w*|apologi[sz]\w*|defen[cs]\w*"
     r"|conflicts?|fight\w*|argu\w+|mend\w*|make\s+up|rebuild\w*|trust\s+again|fix\w*|problems?"
-    r"|ang(?:er|ry)|fury|furious|rag(?:es?|ing|ed)|resent\w*|yell\w*|shout\w*)\b)",
+    r"|ang(?:er|ry)|fury|furious|rag(?:es?|ing|ed)|resent\w*|yell\w*|shout\w*|sav\w*)\b)",
     re.IGNORECASE,
 )
 

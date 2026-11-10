@@ -476,8 +476,16 @@ class ParentContext(BaseModel):
             raise ValueError("hit_span_ids must all be present in spans")
         if any(s.parent_unit_id != self.parent.parent_unit_id for s in self.spans):
             raise ValueError("every span must belong to the parent unit")
-        if any(s.guru_id != self.parent.guru_id for s in self.spans):
-            raise ValueError("every span must belong to the parent guru")
+        from services.guru_registry import shared_attribution
+        _, shared_ids = shared_attribution()
+        shared_set = {str(gid).lower() for gid in (shared_ids or [])}
+        for s in self.spans:
+            if s.guru_id != self.parent.guru_id:
+                if not (
+                    s.guru_id.lower() in shared_set
+                    and self.parent.guru_id.lower() in (shared_set | {"preethaji_krishnaji"})
+                ):
+                    raise ValueError("every span must belong to the parent guru")
         if any(s.video_id != self.parent.video_id for s in self.spans):
             raise ValueError("every span must belong to the parent video")
         if any(s.corpus_version != self.parent.corpus_version for s in self.spans):

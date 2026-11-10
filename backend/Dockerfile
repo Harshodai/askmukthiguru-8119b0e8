@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user
 RUN useradd -m -s /bin/bash appuser
 
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
@@ -152,4 +153,5 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]
 # glibc per-thread malloc arenas reserve virtual memory that RLIMIT_DATA counts;
 # cap them so the virtual footprint tracks RSS (2026-09-26).
 ENV MALLOC_ARENA_MAX=2
+ENV PYTHONUNBUFFERED=1
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

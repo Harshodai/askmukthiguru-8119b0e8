@@ -282,8 +282,8 @@ def test_cross_guru_spans_cannot_be_assembled_by_the_retriever_contract():
     b = _span(
         1,
         "A beautiful state is a choice.",
-        guru_id="preethaji",
-        video_id="vidB",
+        guru_id="sadhguru",
+        video_id="vidA",
         parent_unit_id="parentA",
     )
     base = _context([a])
@@ -302,7 +302,7 @@ def test_cross_guru_contamination_is_refused_by_the_harness_gate():
     b = _span(
         1,
         "A beautiful state is a choice.",
-        guru_id="preethaji",
+        guru_id="sadhguru",
         video_id="vidB",
         parent_unit_id="parentA",
     )

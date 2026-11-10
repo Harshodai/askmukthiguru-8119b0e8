@@ -17,6 +17,7 @@ from services.first_person_content_assessment import (
     CONTENT_ASSESSMENT_VERSION,
     CORE_WISDOM_OPENER_RE,
     DANGLING_QUESTION_TAIL_RE,
+    AUTHENTIC_ORAL_OPENER_RE,
     DISCOURSE_ACKNOWLEDGMENT_RE,
     EVENT_MARKER_RE,
     GRAPHIC_VIOLENCE_RE,
@@ -32,12 +33,72 @@ from services.first_person_content_assessment import (
 
 POLICY_VERSION = f"first_person_evidence_v3+{SAFETY_POLICY_VERSION}+{CONTENT_ASSESSMENT_VERSION}"
 
+# ---------------------------------------------------------------------------
+# Guru Co-Identity (User Directive 1)
+# ---------------------------------------------------------------------------
+# Sri Preethaji and Sri Krishnaji are husband and wife, co-teachers of Ekam.
+# In this system, they are ONE COMMON GURU. Co-occurrence of Sri Preethaji
+# and Sri Krishnaji is recognized as valid Ekam lineage and is NEVER flagged
+# as cross_guru_contamination. External gurus remain distinct.
+EKAM_COIDENTITY_GURU_IDS: frozenset[str] = frozenset(
+    {"preethaji", "krishnaji", "preethaji_krishnaji", "krishnaji_preethaji", "krishnaji-preethaji", "ekam"}
+)
+
+
+def is_ekam_coidentity(guru_a: str | None, guru_b: str | None) -> bool:
+    """Return True if both gurus belong to the shared Ekam lineage."""
+    ga = (guru_a or "").strip().lower()
+    gb = (guru_b or "").strip().lower()
+    if not ga or not gb:
+        return False
+    if ga == gb:
+        return True
+    return ga in EKAM_COIDENTITY_GURU_IDS and gb in EKAM_COIDENTITY_GURU_IDS
+
+
+def assess_guru_lineage(
+    guru_ids: Iterable[str],
+    *,
+    requested_teacher: str | None = None,
+) -> tuple[bool, Optional[str]]:
+    """Validate guru lineage for first-person serving.
+
+    Sri Preethaji and Sri Krishnaji are husband and wife, co-teachers of Ekam.
+    Their co-occurrence is recognized as valid Ekam lineage and is NEVER flagged
+    as cross_guru_contamination. External gurus remain distinct.
+    """
+    gurus = {str(gid).strip().lower() for gid in guru_ids if gid}
+    req = (requested_teacher or "").strip().lower()
+    if req and req not in (
+        "",
+        "both",
+        "all",
+        "shared",
+        "preethaji_krishnaji",
+        "krishnaji_preethaji",
+        "krishnaji-preethaji",
+        "ekam",
+    ):
+        if any(
+            gid != req
+            and not (req in EKAM_COIDENTITY_GURU_IDS and gid in EKAM_COIDENTITY_GURU_IDS)
+            for gid in gurus
+        ):
+            return False, "cross_guru_contamination"
+    if len(gurus) <= 1:
+        return True, None
+    if gurus.issubset(EKAM_COIDENTITY_GURU_IDS):
+        return True, None
+    return False, "cross_guru_contamination"
+
+
 # Existing standalone detectors lived here. They now live in the single content
 # assessor so the bridge, the store, the harness and this policy cannot drift
 # apart again. The module-level names are kept as aliases: every existing caller
 # (and the safety policy's vocabulary import) keeps working unchanged.
 _DISCOURSE_ACKNOWLEDGMENT_RE = DISCOURSE_ACKNOWLEDGMENT_RE
 _CORE_WISDOM_OPENER_RE = CORE_WISDOM_OPENER_RE
+_AUTHENTIC_ORAL_OPENER_RE = AUTHENTIC_ORAL_OPENER_RE
 _ORPHAN_OPENER_RE = ORPHAN_OPENER_RE
 _EVENT_MARKER_RE = EVENT_MARKER_RE
 _DANGLING_QUESTION_TAIL_RE = DANGLING_QUESTION_TAIL_RE
@@ -48,6 +109,7 @@ _AYURVEDIC_HEALTH_FRAMING_RE = WELLBEING_FRAMING_RE
 # Union of the clinical and causal-etiology vocabularies: "is this a health
 # claim at all" stays one question with one stable reason code.
 _HEALTH_CLAIM_RE = HEALTH_CLAIM_RE
+
 
 _CORE_WISDOM_KEYWORDS_RE = re.compile(
     r"(?i)\b(?:"
@@ -201,7 +263,12 @@ def _ends_on_dangling_word(text: str) -> bool:
     return _bare(tokens[-1]) in DANGLING_TAIL
 
 
-def _clip_length_problem(text: str, *, settings_override: object | None = None) -> Optional[str]:
+def _clip_length_problem(
+    text: str,
+    *,
+    settings_override: object | None = None,
+    is_context: bool = False,
+) -> Optional[str]:
     """Return the existing length reason, using validated settings only."""
     if settings_override is None:
         from app.config import settings as settings_override
@@ -210,9 +277,15 @@ def _clip_length_problem(text: str, *, settings_override: object | None = None) 
         return value if isinstance(value, int) and not isinstance(value, bool) else default
 
     words = len(text.split())
-    if words < _real_int(getattr(settings_override, "first_person_min_answer_words", 23), 23):
+    min_limit = 18 if is_context else _real_int(getattr(settings_override, "first_person_min_answer_words", 23), 23)
+    max_limit = (
+        _real_int(getattr(settings_override, "first_person_max_context_words", 600), 600)
+        if is_context
+        else _real_int(getattr(settings_override, "first_person_max_answer_words", 300), 300)
+    )
+    if words < min_limit:
         return "too_short"
-    if words > _real_int(getattr(settings_override, "first_person_max_answer_words", 300), 300):
+    if words > max_limit:
         return "too_long"
     return None
 
@@ -223,6 +296,7 @@ def _standalone_problem(
     settings_override: object | None = None,
     is_complete_thought: bool | None = None,
     is_standalone: bool | None = None,
+    is_verified_parent: bool | None = None,
 ) -> Optional[str]:
     """Legacy full standalone check, updated to support semantic completeness."""
     if is_complete_thought is False:
@@ -253,9 +327,11 @@ def _standalone_problem(
         return "dangling_affirmation_tail"
     if not semantically_verified:
         if _DISCOURSE_OPENER_RE.match(text) or _LATE_ORDINAL_OPENER_RE.match(text):
-            return "discourse_opener"
+            if not (is_verified_parent and _AUTHENTIC_ORAL_OPENER_RE.match(text)):
+                return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(text):
-        return "orphan_opener"
+        if not (is_verified_parent and _AUTHENTIC_ORAL_OPENER_RE.match(text)):
+            return "orphan_opener"
     if _UNEXPLAINED_CULTURAL_ENTITY_RE.search(text):
         return "unexplained_cultural_reference"
     if _DANGLING_ENUMERATION_RE.search(text) and not _FIRST_ENUMERATION_RE.search(text):
@@ -263,7 +339,8 @@ def _standalone_problem(
     if re.match(r"^[\"'\u201c\u2018\s]*some\s+\w+\.", stripped, re.IGNORECASE):
         return "dangling_fragment"
     if _ORPHAN_OPENER_RE.match(text) and not _CORE_WISDOM_OPENER_RE.match(text):
-        return "orphan_opener"
+        if not (is_verified_parent and _AUTHENTIC_ORAL_OPENER_RE.match(text)):
+            return "orphan_opener"
     if _EVENT_MARKER_RE.search(text):
         return "event_marker"
     if _ATTENDEE_TESTIMONIAL_RE.search(text):
@@ -305,6 +382,7 @@ def _context_standalone_problem(
     *,
     is_complete_thought: bool | None = None,
     is_standalone: bool | None = None,
+    is_verified_parent: bool | None = None,
 ) -> Optional[str]:
     """Context-aware subset of standalone rules, shared without English-only checks."""
     if is_complete_thought is False:
@@ -356,9 +434,11 @@ def _context_standalone_problem(
         return "dangling_enumeration"
     if not semantically_verified:
         if _DISCOURSE_OPENER_RE.match(first) or _LATE_ORDINAL_OPENER_RE.match(first):
-            return "discourse_opener"
+            if not (is_verified_parent and _AUTHENTIC_ORAL_OPENER_RE.match(first)):
+                return "discourse_opener"
     if _STORY_OR_DEMONSTRATIVE_OPENER_RE.match(first):
-        return "orphan_opener"
+        if not (is_verified_parent and _AUTHENTIC_ORAL_OPENER_RE.match(first)):
+            return "orphan_opener"
     if _UNEXPLAINED_CULTURAL_ENTITY_RE.search(first):
         return "unexplained_cultural_reference"
     if _DANGLING_ENUMERATION_RE.search(whole) and not _FIRST_ENUMERATION_RE.search(whole):
@@ -366,13 +446,12 @@ def _context_standalone_problem(
     if re.match(r"^[\"'\u201c\u2018\s]*some\s+\w+\.", first.strip(), re.IGNORECASE):
         return "dangling_fragment"
     if _ORPHAN_OPENER_RE.match(first) and not _CORE_WISDOM_OPENER_RE.match(first):
-        return "orphan_opener"
+        if not (is_verified_parent and _AUTHENTIC_ORAL_OPENER_RE.match(first)):
+            return "orphan_opener"
     if _DANGLING_QUESTION_TAIL_RE.search(whole.rstrip()):
         return "dangling_question_tail"
     if _DANGLING_AFFIRMATION_TAIL_RE.search(whole.rstrip()):
         return "dangling_affirmation_tail"
-    if problem := _clip_length_problem(whole):
-        return problem
     if _HEALTH_CLAIM_RE.search(whole):
         return "health_claim"
     if any(_EVENT_MARKER_RE.search(text) for text in text_list):
@@ -444,20 +523,42 @@ class FirstPersonEvidencePolicy:
             policy_version=self.policy_version,
         )
 
+    def assess_guru_coidentity(
+        self,
+        guru_ids: Iterable[str],
+        *,
+        requested_teacher: str | None = None,
+    ) -> EvidenceDecision:
+        """Validate guru co-identity according to Ekam lineage (Sri Preethaji & Sri Krishnaji)."""
+        valid, reason = assess_guru_lineage(guru_ids, requested_teacher=requested_teacher)
+        return EvidenceDecision(
+            action=EvidenceAction.ALLOW if valid else EvidenceAction.EXCLUDE,
+            reason_codes=(reason,) if reason else (),
+            policy_version=self.policy_version,
+        )
+
     def assess_context_standalone(
         self,
         texts: Iterable[str],
         *,
         is_complete_thought: bool | None = None,
         is_standalone: bool | None = None,
+        is_verified_parent: bool | None = None,
     ) -> EvidenceDecision:
         texts_tuple = tuple(texts)
-        if is_complete_thought is None and texts_tuple:
+        if texts_tuple:
             first_obj = texts_tuple[0]
-            if hasattr(first_obj, "is_complete_thought"):
+            if is_complete_thought is None and hasattr(first_obj, "is_complete_thought"):
                 is_complete_thought = getattr(first_obj, "is_complete_thought")
-            if hasattr(first_obj, "is_standalone"):
+            if is_standalone is None and hasattr(first_obj, "is_standalone"):
                 is_standalone = getattr(first_obj, "is_standalone")
+            if is_verified_parent is None and (
+                hasattr(first_obj, "parent_unit_id")
+                or getattr(first_obj, "parent_unit_id", None) is not None
+                or getattr(first_obj, "parent_index", None) == 0
+                or getattr(first_obj, "span_index", None) == 0
+            ):
+                is_verified_parent = True
         str_texts = tuple(
             getattr(t, "verbatim_text", str(t)) if not isinstance(t, str) else t
             for t in texts_tuple
@@ -466,6 +567,7 @@ class FirstPersonEvidencePolicy:
             str_texts,
             is_complete_thought=is_complete_thought,
             is_standalone=is_standalone,
+            is_verified_parent=is_verified_parent,
         )
         return EvidenceDecision(
             action=EvidenceAction.EXCLUDE if reason else EvidenceAction.ALLOW,

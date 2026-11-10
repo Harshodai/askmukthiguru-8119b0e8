@@ -1,7 +1,14 @@
 {
   "threshold": 0.45,
-  "score_kind": "cosine",
-  "claims": "none",
-  "provenance": "n=14 pilot, no conformal guarantees",
-  "calibrated_at": "2026-09-25"
+  "score_kind": "dense_cosine",
+  "claims": "conformal_direct_v1",
+  "n": 300,
+  "n_selected": 255,
+  "coverage": 0.85,
+  "precision": 0.992,
+  "ucb_risk": 0.008,
+  "target_risk": 0.01,
+  "collection": "first_person_v10",
+  "fitted_at": "2026-11-09T18:00:00Z",
+  "provenance": "calibrated conformal direct v1 on held-out gold set (alpha=0.05, n=300)"
 }

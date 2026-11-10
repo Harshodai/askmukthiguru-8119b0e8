@@ -298,7 +298,7 @@ def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
     if not getattr(settings, "first_person_standalone_gate_enabled", True) or not spans:
         return False
     decision = first_person_evidence_policy.assess_context_standalone(
-        span.verbatim_text for span in spans
+        spans, is_verified_parent=True
     )
     return not decision.may_serve
 
@@ -429,13 +429,40 @@ class FirstPersonContextHarness:
         if hit_index is None:
             return self._apply_word_budget(ordered[:limit], hit_ids)
 
-        # Include one preceding span whenever the bound allows it, even for an
-        # even-sized window where exact centering would drop it.
-        offset = 0 if limit == 1 else max(1, (limit - 1) // 2)
-        start = max(0, hit_index - offset)
-        end = min(len(ordered), start + limit)
-        start = max(0, end - limit)
-        return self._apply_word_budget(ordered[start:end], hit_ids)
+        # Middle-Span Antecedent Anchoring (Task 2):
+        # When a middle span (Span 1 or 2, i.e. hit_index <= 2) hits, do not slice off Span 0;
+        # anchor the window to include the opening anchor span so antecedent pronouns have clear discourse context.
+        if hit_index <= 2 and limit >= 2:
+            start = 0
+            end = min(len(ordered), max(limit, hit_index + 1))
+        else:
+            # Include one preceding span whenever the bound allows it, even for an
+            # even-sized window where exact centering would drop it.
+            offset = 0 if limit == 1 else max(1, (limit - 1) // 2)
+            start = max(0, hit_index - offset)
+            end = min(len(ordered), start + limit)
+            start = max(0, end - limit)
+        candidate = self._apply_word_budget(ordered[start:end], hit_ids)
+
+        # Head-Anchor Fallback:
+        # If the centered window starts mid-discourse (start > 0) and triggers an orphan opener
+        # or antecedent missing error, check if anchoring from the parent head (ordered[0])
+        # establishes the topic noun and passes standalone checks cleanly.
+        if start > 0 and ordered:
+            from services.first_person_evidence_policy import _context_standalone_problem
+            prob = _context_standalone_problem(
+                (s.verbatim_text for s in candidate),
+                is_verified_parent=False,
+            )
+            if prob in ("orphan_opener", "antecedent_missing", "discourse_opener", "severed_lowercase_opener"):
+                head_candidate = self._apply_word_budget(ordered[:max(limit, hit_index + 1)], hit_ids)
+                if not _context_standalone_problem(
+                    (s.verbatim_text for s in head_candidate),
+                    is_verified_parent=True,
+                ):
+                    return head_candidate
+
+        return candidate
 
     def _apply_word_budget(
         self, spans: tuple[SourceSpan, ...], hit_ids: set[str]
@@ -688,15 +715,18 @@ class FirstPersonContextHarness:
                 )
             spans = (predecessor,) + spans
 
-        if len({span.guru_id for span in spans}) != 1:
-            return self._abstain(
-                context,
-                "cross_guru_contamination",
-                gates={"guru_isolation": False},
-                state=state,
-                state_path=tuple(states),
-            )
-        if spans[0].guru_id != context.parent.guru_id:
+        from services.guru_registry import shared_attribution
+
+        primary, shared_ids = shared_attribution()
+        shared_set = {str(gid).lower() for gid in (shared_ids or [])}
+        if primary:
+            shared_set.add(primary.lower())
+        span_gurus = {span.guru_id.lower() for span in spans if span.guru_id}
+
+        # Cross-guru contamination check:
+        # Preethaji & Krishnaji are husband and wife / co-teachers (one common Guru).
+        # Spans across both are explicitly permitted; foreign/unregistered teachers are refused.
+        if len(span_gurus) > 1 and not span_gurus.issubset(shared_set):
             return self._abstain(
                 context,
                 "cross_guru_contamination",
@@ -705,9 +735,12 @@ class FirstPersonContextHarness:
                 state_path=tuple(states),
             )
 
-        teacher = (requested_teacher or context.parent.guru_id).lower()
-        if teacher not in ("", "both", "all"):
-            if any(s.guru_id.lower() != teacher for s in spans):
+        # Explicit teacher request filter:
+        # If the seeker explicitly requested one specific teacher (e.g. "preethaji"),
+        # respect that specific teacher filter.
+        req_teacher = (requested_teacher or "").strip().lower()
+        if req_teacher and req_teacher not in ("", "both", "all", "shared", "preethaji_krishnaji"):
+            if any(s.guru_id.lower() != req_teacher for s in spans):
                 return self._abstain(
                     context,
                     "cross_guru_contamination",
@@ -715,6 +748,18 @@ class FirstPersonContextHarness:
                     state=state,
                     state_path=tuple(states),
                 )
+        else:
+            parent_gid = (context.parent.guru_id or "").lower()
+            first_gid = (spans[0].guru_id or "").lower()
+            if first_gid != parent_gid and not (first_gid in shared_set and parent_gid in shared_set):
+                return self._abstain(
+                    context,
+                    "cross_guru_contamination",
+                    gates={"guru_isolation": False},
+                    state=state,
+                    state_path=tuple(states),
+                )
+
         gates["guru_isolation"] = True
 
         gates["speaker"] = self._speaker_gate(spans, self._policy)

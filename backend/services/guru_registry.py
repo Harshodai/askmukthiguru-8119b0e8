@@ -322,7 +322,10 @@ def extract_target_authority(query: str) -> dict[str, Any] | None:
     for pat in _TARGET_AUTHORITY_PATTERNS:
         m = pat.search(text)
         if m:
-            raw_target = m.group(1).strip()
+            # Safely handle disjoint alternation capture groups (e.g. branch 2 of pattern 8)
+            raw_target = (m.group(1) or m.group(2) or "").strip()
+            if not raw_target:
+                continue
             clean_target = _CLEAN_PREFIX_RE.sub("", raw_target).strip()
             if len(clean_target) >= 2:
                 gid = resolve_guru_id(clean_target) or canonical_guru_id(clean_target)
