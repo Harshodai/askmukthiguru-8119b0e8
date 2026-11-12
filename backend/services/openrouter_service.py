@@ -128,6 +128,8 @@ _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
     # completion $0.0000005/token, cache read $0.00000001/token. Prompts above
     # 100k tokens cost 5x; not modelled here (scorer prompts are far smaller).
     "anthropic/claude-haiku-5.5": (0.10, 0.50),
+    # Grader second pass (owner choice 2026-11-12). Read 2026-11-12 from the public model list.
+    "anthropic/claude-sonnet-5.5": (2.00, 10.00),
 }
 
 # OpenRouter Prompt Caching discount rates for prompt prefixes ($/1M tokens).

@@ -25,10 +25,11 @@ Prod must set these too, or a graded result does not describe prod. Each row is 
 
 ## Graders (decision 2026-11-12, owner rule: no Opus 5.5 on OpenRouter)
 - First grader: `anthropic/claude-haiku-5.5` (script default).
-- Second grader: **`meta-llama/llama-3.3-70b-instruct`**. It is cheap (USD 0.12 / 0.30 per million tokens in `services/openrouter_service.py`), already on the repo's model allowlist, not Opus, not deepseek, and differs from the first grader.
-- Product scorer is `anthropic/claude-haiku-5.5`. The first grader is the same model, so `check_judge_independence` will abort unless `--allow-shared-judge` is passed. Record that flag in the run report if used. A better fix is to make the first grader a different model from the scorer; I did not pick one because I could not verify another slug and price from the repo.
-- Caveat (ASSUMPTION): `research/final-pass-bar-2026-10-30.md` asks for a judge stronger than the product scorer. A 70B open model is probably not stronger than Haiku 5.5 on this task. Keep the human 50-clip label sample as the check on both graders.
-- Example: `--first-model anthropic/claude-haiku-5.5 --second-model meta-llama/llama-3.3-70b-instruct --allow-shared-judge`.
+- Second grader (owner choice 2026-11-12, "lets do this"): **`anthropic/claude-sonnet-5.5`**. It is stronger than the Haiku scorer and about half the price of Opus 5.5. Prices read 2026-11-12 from OpenRouter's public model list: USD 2 / 10 per million tokens in/out (Opus 5.5 is 4 / 20). Estimated cost of one pass over 202 rows is about USD 3, built on assumed token counts (about 2.5k in, up to 1k out per row), not measured.
+- It is NOT on the model allowlist by default. Before the run, add it on the Mac (a `.env` edit, so the owner makes it): `OPENROUTER_EXTRA_ALLOWED_MODELS=anthropic/claude-haiku-5.5,deepseek/deepseek-chat,anthropic/claude-sonnet-5.5`. UNPROVEN until a run passes the policy.
+- Product scorer is `anthropic/claude-haiku-5.5`. The first grader is the same model, so `check_judge_independence` will abort unless `--allow-shared-judge` is passed. Record that flag in the run report. With Sonnet as the second grader, the second pass is independent of the scorer.
+- Optional Stage 3 (tiered plan): re-grade only the rows where the two graders disagree (about 25 rows) with a stronger model. Opus 5.5 is not on the allowlist and the owner called it too costly, so do not add it without the owner. Keep the human 50-clip label sample as the check on both graders.
+- Example: `--first-model anthropic/claude-haiku-5.5 --second-model anthropic/claude-sonnet-5.5 --allow-shared-judge`.
 
 ## Pass bar (restored 2026-11-12)
 Showable >= 85%, served share >= 30%, core abstain >= 95%, p95 <= 10 s, harmful 0. The 2026-11-09 values (0.95 / 0.45) had no quoted approval and are kept in the bar file as an unapproved proposal.
