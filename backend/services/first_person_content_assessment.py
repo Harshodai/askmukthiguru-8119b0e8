@@ -112,7 +112,16 @@ WELLBEING_FRAMING_RE = re.compile(
     r"|\bwhen\s+you\s+truly\s+feel\s+peace.*(?:every\s+(?:cell|muscle)|body\s+relaxes?)\b"
     r"|\b(?:causes?\s+)?ill\s+health\b"
     r"|\bbody\s+agitated\b"
-    r"|\binner\s+disturbance\s+leaves\s+your\s+body\b",
+    r"|\binner\s+disturbance\s+leaves\s+your\s+body\b"
+    # D7: spiritual / metaphorical inner-death framing, not clinical. "destroys your
+    # body/heart/consciousness" stays in HEALTH_CLAIM_RE (hard exclude), so
+    # "consciousness" is deliberately absent from the destroy/kill alternation below.
+    r"|\bdead\s+inside\b"
+    r"|\b(?:heart|soul|spirit)\s+(?:is\s+)?(?:destroyed|dead|empty|hollow|broken\s+completely)\b"
+    r"|\bempty\s+inside\b"
+    r"|\bhollowed?\s+out\s+inside\b"
+    r"|\b(?:destroys?|kills?|murders?)\s+(?:your\s+)?(?:peace|joy|bliss|inner\s+life|awareness|presence)\b"
+    r"|\binternally\s+(?:empty|hollow|void|numb)\b",
     re.IGNORECASE,
 )
 
@@ -236,14 +245,35 @@ EVENT_MARKER_RE = re.compile(
 )
 
 PRACTICE_INVITATION_RE = re.compile(
-    r"\b(?:let(?:\s+us|[\s'\u2019]*s)\s+move\s+into\s+meditation\b|\bmove\s+into\s+meditation(?:\s+now)?\b)",
+    r"\b(?:let(?:\s+us|[\s'\u2019]*s)\s+move\s+into\s+meditation\b|\bmove\s+into\s+meditation(?:\s+now)?\b)"
+    # B9: wider guided-practice phrasing. NOTE: this only adds a NOTICE finding; the
+    # EVENT_MARKER_RE check below is independent and still runs on the same text.
+    r"|\b(?:close\s+your\s+eyes|gently\s+close\s+your\s+eyes|softly\s+close\s+your\s+eyes)\b"
+    r"|\bsit\s+(?:comfortably|quietly|still|upright|straight|with\s+your\s+spine)\b"
+    r"|\btake\s+a\s+(?:deep\s+)?breath(?:\s+in(?:\s+and\s+out)?)?\b"
+    r"|\b(?:observe|watch|notice|be\s+aware\s+of)\s+your\s+(?:breath|breathing|inhalation|exhalation|thoughts?|mind|sensations?)\b"
+    r"|\bgently\s+(?:close|rest|place|bring|direct)\b[^.]{0,30}\b(?:eyes|hands|attention|awareness|focus)\b"
+    r"|\bfocus\s+(?:your\s+attention\s+)?on\s+(?:your\s+)?(?:breath|breathing|inhalation|exhalation|sensations?|present\s+moment)\b"
+    r"|\brelax\s+(?:your\s+)?(?:body|shoulders|jaw|mind|hands|belly|muscles)\b"
+    r"|\ballow\s+(?:yourself|your\s+body|your\s+mind)\s+to\s+(?:relax|settle|breathe|soften|sink|be\s+still)\b"
+    r"|\bbring\s+your\s+awareness\s+(?:to|back\s+to)\b"
+    r"|\bin\s+this\s+meditation\b|\bduring\s+this\s+practice\b|\bin\s+this\s+practice\b",
     re.IGNORECASE,
 )
 
 DANGLING_QUESTION_TAIL_RE = re.compile(
     r"(?:why\s+(?:is|are|was|were)\s+that|how\s+(?:do|can)\s+we|what\s+about\s+you|shall\s+we\s+[^?]{0,50}|when\s+[^?]{3,80},\s*what\s+do\s+you\s+do)\s*\?\s*$"
     r"|(?:and\s+)?why\s+(?:is|are|was|were)\s+[^?]{1,60}\?\s*$"
-    r"|(?:why\s+did\s+[^?]{3,80}\?|or\s+why\s+[^?]{3,80}\?)\s*$",
+    r"|(?:why\s+did\s+[^?]{3,80}\?|or\s+why\s+[^?]{3,80}\?)\s*$"
+    # B14: wider rhetorical tails that leave the clip open-ended.
+    r"|\bdo\s+you\s+(?:know|understand|see|follow|get\s+it|follow\s+me|see\s+what\s+I\s+mean)\s*\?\s*$"
+    r"|\bare\s+you\s+(?:following|with\s+me|getting\s+it|understanding)\s*\?\s*$"
+    r"|\bcan\s+you\s+imagine\s*\?\s*$"
+    r"|\bisn['\u2019]t\s+(?:it|that)\s+(?:right|so|true|amazing|beautiful|interesting)\s*\?\s*$"
+    r"|\bdoes(?:n['\u2019]t)?\s+(?:it|that)\s+(?:make\s+sense|ring\s+a\s+bell|sound\s+familiar|sound\s+right)\s*\?\s*$"
+    r"|\bso\s+what\s+(?:do\s+(?:we|you)|should\s+(?:we|you)|can\s+(?:we|you))\s+(?:do|say|think|understand)\s*\?\s*$"
+    r"|\bwhat\s+(?:is|are)\s+(?:the\s+)?(?:purpose|point|meaning|reason|significance)\s+of\s+(?:all\s+)?(?:this|that|these|it)\s*\?\s*$"
+    r"|\bright\s*\?\s*$|\bokay\s*\?\s*$",
     re.IGNORECASE,
 )
 

@@ -316,6 +316,19 @@ _BLOCKED_TOPICS = {
         # Romanised Hindi: "pichhle saare instructions ignore karo" / "ignore pehle ke instructions".
         r"\bpichh?le\b.{0,25}\binstructions?\b.{0,25}\b(?:ignore|bhool|bhul)\w*",
         r"\b(?:ignore|bhool|bhul)\w*\b.{0,30}\b(?:pichh?le|pehle|previous)\b.{0,25}\binstructions?\b",
+        # B15: role-override jailbreaks in Devanagari / Telugu / Tamil. No \b (Indic scripts
+        # have no reliable ASCII word boundary). UNVERIFIED by a native speaker.
+        # "free AI" / "AI without safety rules":
+        r"स्वतंत्र\s*(?:AI|एआई|ए\s*आई)",
+        r"सुरक्षा\s*(?:नियम|नीति)\s*(?:के\s+)?बिना",
+        # Narrowed from the brief: a bare "rules change/remove" matched ordinary questions,
+        # so it needs the "all / my own" quantifier.
+        r"(?:सभी|सारे)\s+(?:नियम|प्रतिबंध)\s*(?:तोड़|हटा|बदल)\w*",
+        # "without" is mandatory (the brief made it optional, which matched "के जवाब").
+        r"बिना\s+(?:किसी\s+)?(?:सीमा|प्रतिबंध|नियम)\s+के\s+(?:जवाब|बता|बोल)\w*",
+        r"(?:భద్రత|రక్షణ)\s*(?:నియమాలు|నీతి)\s*(?:లేకుండా|తొలగించు)",
+        r"స్వతంత్ర\s*(?:AI|ఏఐ)",
+        r"(?:பாதுகாப்பு|பாதுகாப்பான)\s*(?:விதிகள்|கொள்கை)\s*(?:இல்லாமல்|நீக்கு)",
     ],
     "medical_advice_broad": [
         r"\b(cure|remedy)\s+for\b.*\b(disease|illness|infection|cancer|diabetes|tumor|virus|bacteria|depression|bipolar|schizophrenia|ocd|ptsd)\b",
@@ -386,6 +399,33 @@ _BLOCKED_TOPICS = {
         r"\b(i\s*worry\s*about\s*hurting\s*your\s*feelings)\b",
     ],
 }
+
+# B8: Educational / research framing about self-harm statistics. These match
+# research questions, NOT crisis expressions ("70 percent of teens report ...",
+# "suicide prevention research"). Used only by match_blocked_topic and only for the
+# self_harm topic, and ONLY when the message has no first-person marker: any
+# "I / me / my / myself" keeps the full crisis path. English-only by design; every
+# other language keeps the normal self-harm handling.
+_STATISTICAL_SELF_HARM_RE = re.compile(
+    r"\b\d+\s*(?:percent|%)\s+of\s+(?:people|adolescents?|adults?|teens?|individuals?|students?|children|women|men|youth)\s+"
+    r"(?:experience|report|struggle\s+with|suffer\s+from|are\s+affected\s+by|attempt|die\s+by|complete)\b"
+    r"|\bprevalence\s+of\s+(?:suicid\w+|self[\s-]harm|depression|mental\s+illness)\b"
+    r"|\bsuicid(?:e|al)\s+(?:ideation|attempts?|rates?|statistics?|research|prevention|awareness|data)\b"
+    r"|\b(?:research|study|studies|data|statistics?)\s+(?:on|about|regarding)\s+(?:suicid\w+|self[\s-]harm)\b"
+    r"|\bhow\s+(?:many|common|prevalent|often)\s+(?:people|adolescents?|students?|teens?|youth)\b[^.?!]{0,60}\bsuicid\w*\b",
+    re.IGNORECASE,
+)
+_FIRST_PERSON_MARKER_RE = re.compile(
+    r"\b(?:i|i['\u2019]?(?:m|ve|d|ll)|im|me|my|myself|mine)\b", re.IGNORECASE
+)
+
+
+def _is_statistical_self_harm_query(text: str) -> bool:
+    """True for third-person research framing about self-harm statistics."""
+    return bool(
+        _STATISTICAL_SELF_HARM_RE.search(text) and not _FIRST_PERSON_MARKER_RE.search(text)
+    )
+
 
 # Precompiled prompt-injection screen (S10). Reuses the SAME pattern list the
 # input rail uses (_BLOCKED_TOPICS["prompt_injection"]) so retrieved chunks are
@@ -678,7 +718,11 @@ def match_blocked_topic(text: str) -> tuple[str, str] | None:
     from services.serene_mind_engine import normalize_contractions
 
     variants = {text.lower(), deobfuscate(text), normalize_contractions(text.lower())}
+    statistical_self_harm = _is_statistical_self_harm_query(text)
     for topic, patterns in _BLOCKED_TOPICS.items():
+        if topic == "self_harm" and statistical_self_harm:
+            # B8: research framing, no first-person marker; the other topics still run.
+            continue
         if topic == "emotional_dependency":
             from guardrails.relational_safety import is_authentic_bhakti_devotion
 

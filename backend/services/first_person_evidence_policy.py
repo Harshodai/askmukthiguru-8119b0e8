@@ -173,10 +173,18 @@ _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
+# B14: also catches a bare ordinal and "next/last/final point" with no named predecessor.
 _DANGLING_ENUMERATION_RE = re.compile(
-    r"\bthe\s+(?:second|third|fourth|fifth|sixth)\s+(?:set|group|type|kind|category|point|step|stage|level)\b",
+    r"\bthe\s+(?:second|third|fourth|fifth|sixth)\s+(?:set|group|type|kind|category|point|step|stage|level)\b"
+    # Bare ordinal ("The third ..."); calendar/idiom uses and "third eye" are not enumerations.
+    r"|\bthe\s+(?:third|fourth|fifth|sixth)\b(?!\s+(?:century|millennium|day|week|month|year|decade|time|eye))"
+    r"|\b(?:moving\s+to|now\s+the|next\s+is\s+the)\s+(?:second|third|fourth|fifth|sixth)\b"
+    r"|\bthe\s+(?:next|last|final)\s+(?:point|thing|one|aspect|consideration|element|factor)\b",
     re.IGNORECASE,
 )
+
+# B14: reciprocal pronouns are relational, not ordinal ("each other", "one another").
+_RECIPROCAL_PRONOUN_RE = re.compile(r"\beach\s+other\b|\bone\s+another\b", re.IGNORECASE)
 _FIRST_ENUMERATION_RE = re.compile(r"\bfirst\b", re.IGNORECASE)
 
 _UNEXPLAINED_CULTURAL_ENTITY_RE = re.compile(
@@ -336,7 +344,11 @@ def _standalone_problem(
             return "orphan_opener"
     if _UNEXPLAINED_CULTURAL_ENTITY_RE.search(text):
         return "unexplained_cultural_reference"
-    if _DANGLING_ENUMERATION_RE.search(text) and not _FIRST_ENUMERATION_RE.search(text):
+    if (
+        _DANGLING_ENUMERATION_RE.search(text)
+        and not _FIRST_ENUMERATION_RE.search(text)
+        and not _RECIPROCAL_PRONOUN_RE.search(text)  # B14
+    ):
         return "orphan_opener"
     if re.match(r"^[\"'\u201c\u2018\s]*some\s+\w+\.", stripped, re.IGNORECASE):
         return "dangling_fragment"
@@ -471,7 +483,11 @@ def _context_standalone_problem(
             return "orphan_opener"
     if _UNEXPLAINED_CULTURAL_ENTITY_RE.search(first):
         return "unexplained_cultural_reference"
-    if _DANGLING_ENUMERATION_RE.search(whole) and not _FIRST_ENUMERATION_RE.search(whole):
+    if (
+        _DANGLING_ENUMERATION_RE.search(whole)
+        and not _FIRST_ENUMERATION_RE.search(whole)
+        and not _RECIPROCAL_PRONOUN_RE.search(whole)  # B14
+    ):
         return "orphan_opener"
     if re.match(r"^[\"'\u201c\u2018\s]*some\s+\w+\.", first.strip(), re.IGNORECASE):
         return "dangling_fragment"

@@ -813,8 +813,16 @@ def _apply(
         # None here on purpose. This vector is *carried over* from the live point,
         # and nothing in a v9 payload records which model or revision produced it,
         # so any value written here would be a guess.
+        # C5: every vector written here is carried from the source collection, never
+        # re-embedded by this run, and the v9 payload does not record which model made it.
+        # Stamping a concrete family would be a guess, so the honest value is the carried
+        # marker. A fresh-embedding path must stamp its own family where it embeds.
         batch.append(
-            PointStruct(id=point_id_for_record(row["source_span_id"]), vector=carried, payload=row)
+            PointStruct(
+                id=point_id_for_record(row["source_span_id"]),
+                vector=carried,
+                payload={**row, "embedding_model_family": "unknown_legacy_carried"},
+            )
         )
         written_children += 1
         if len(batch) >= 256:

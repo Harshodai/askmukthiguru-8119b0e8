@@ -1518,6 +1518,13 @@ class FirstPersonBridgeStage(Stage):
                 "fp_served": True,
                 "first_person_primary_mode": primary_mode,
                 "first_person_collection": str(getattr(settings, "first_person_collection", "")),
+                # C8: corpus version for per-corpus abstain/serve analysis. Empty when
+                # neither the result nor Settings carries one (never guessed).
+                "corpus_version": str(
+                    getattr(result, "corpus_version", "")
+                    or getattr(settings, "first_person_corpus_version", "")
+                    or ""
+                ),
                 "clips_served": len(citations),
                 "is_compound_query": is_compound,
                 "partial_compound": bool(is_compound and len(verbatim_quotes) == 1),
@@ -1709,6 +1716,7 @@ class FirstPersonBridgeStage(Stage):
                 "decision_method": method,
                 "decline_status": status or "unknown",
                 "abstain_cause": cause,
+                "corpus_version": str(getattr(settings, "first_person_corpus_version", "") or ""),
                 "abstain_reason": str(reason) if reason else None,
                 "abstain_copy_key": abstain_copy_key(cause),
                 "llm_fallback_enabled": False,

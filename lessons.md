@@ -1,6 +1,22 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 12, 2026 — Phase B/C/D Brief Checked Against Code: A Pasted Prompt Is a Claim, Not a Spec
+
+### L-PROMPT-CAUSE-TAXONOMY-IS-A-CLAIM-1. A routing rule keyed on names the code never emits fails open; allowlist the one soft case instead of denylisting the hard ones.
+- **What:** the B4 brief routed every first-person abstain except a denylist (`out_of_domain`, `crisis_redirect`, `rights_blocked`, ...) to the general RAG graph. The bridge only ever emits four causes (`app/answer_contract.py::ABSTAIN_CAUSES`: `no_evidence`, `system_unavailable`, `topic_boundary`, `safety`). With the brief's denylist, `topic_boundary` and `safety` were not in it, so a safety abstain would have reached the generating graph; and in the owner's first-person-only posture (invariant 21) even `no_evidence` must not. `relevance_indeterminate` is a `reason` that maps to `system_unavailable`, not a cause.
+- **Rule:** before encoding a set of names in a router, grep where the values are produced. Allowlist the single case that may fall through (`no_evidence`) and gate it on `teaching_generation_allowed()`; every unknown or new cause ends the graph.
+- **Pin:** `backend/rag/graph_strategies.py::_route_after_first_person`, `backend/tests/test_phase_b_serving_fixes.py`.
+
+### L-RIGHTS-SWEEP-NEEDS-A-LOAD-GUARD-1. A revoke sweep that parses a prose file matches nothing, and "nothing is licensed" revokes everything.
+- **What:** the C6 brief parsed `docs/rights/CONTENT-RIGHTS.md` with `vid...licensed`. That file is a prose table of owner statements with no such strings, so the parser returns an empty set and `--owner-approve` would have marked every span revoked. The real register is the manifest behind `services.qdrant.indexer.resolve_source_rights_status` (also used by `backfill_fp_rights_status.py`).
+- **Rule:** a destructive sweep reads the same resolver serving uses, refuses to run when the register has no cleared entry, and refuses to write past a revoke-fraction limit. Points with no source identity are reported, never revoked.
+- **Pin:** `backend/scripts/ops/corpus_rights_sweep.py` (byte-identical in `scripts/ops/`).
+
+### L-CARRIED-VECTOR-HAS-NO-MODEL-FAMILY-1. Stamp the embedding family only where the run embeds.
+- **What:** C5 asked for `baai_bge_m3_v1` on freshly embedded spans. `_apply` in `build_fp_context_from_v9.py` only carries vectors from the source collection (D4 comment: nothing in a v9 payload records the model), so every child is `unknown_legacy_carried`; stamping a concrete family would be a guess.
+- **Also found:** B9 claimed widening `PRACTICE_INVITATION_RE` stops `EVENT_BOUND` misclassification. In `assess_content` both checks run independently and append separate findings, so the widening only adds a NOTICE. `corpus_version` has no producer (no `Settings.first_person_corpus_version`, no result attribute), so the new route_metadata key is `""` until one exists.
+
 ## Nov 9, 2026 — Multi-Video Synthesis Engine, Meditation Invitation Cues & Elevated Benchmark Pass Bar
 
 ### L-MEDITATION-INVITATION-ACTIONABLE-GUIDANCE-1. Guided practice and meditation invitations are actionable spiritual guidance, not unshowable event defects.

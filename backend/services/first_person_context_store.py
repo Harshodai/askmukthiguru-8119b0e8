@@ -173,6 +173,7 @@ SPAN_INDEXES: tuple[tuple[str, str], ...] = (
     ("speaker_verified", "bool"),
     ("rights_cleared", "bool"),
     ("domain_rights_status", "keyword"),
+    ("embedding_model_family", "keyword"),  # C5
     ("is_verbatim", "bool"),
     ("boundary_status", "keyword"),
     ("completeness_status", "keyword"),
@@ -375,9 +376,40 @@ def deduplicate_contained_contexts(contexts: list[ParentContext]) -> list[Parent
 
 
 class FirstPersonContextStore:
-    def __init__(self, client: QdrantClient, collection: str) -> None:
+    def __init__(
+        self, client: QdrantClient, collection: str, *, check_health: bool = False
+    ) -> None:
         self._client = client
         self._collection = collection
+        if check_health:
+            self._check_alias_health()
+
+    def _check_alias_health(self) -> None:
+        """Fail loudly if the (aliased) collection is empty or unreachable (C7).
+
+        Prevents silent "0 candidates" abstains that look like retrieval-quality
+        problems when an alias points at an empty or missing collection.
+
+        Raises:
+            FirstPersonContextStoreError: collection is empty or unreachable.
+        """
+        try:
+            info = self._client.get_collection(self._collection)
+            count = info.points_count or 0
+        except Exception as exc:
+            logger.error(
+                "[FP-ALIAS-HEALTH] Cannot reach collection '%s': %s", self._collection, exc
+            )
+            raise FirstPersonContextStoreError(
+                f"[FP-ALIAS-HEALTH] Cannot reach collection '{self._collection}': {exc}"
+            ) from exc
+        if count == 0:
+            logger.error("[FP-ALIAS-HEALTH] Collection '%s' is empty.", self._collection)
+            raise FirstPersonContextStoreError(
+                f"[FP-ALIAS-HEALTH] Collection '{self._collection}' is empty. "
+                "Check that the alias points to a live collection with data."
+            )
+        logger.info("[FP-ALIAS-HEALTH] Collection '%s' healthy: %d points.", self._collection, count)
 
     @property
     def collection(self) -> str:
