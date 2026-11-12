@@ -370,6 +370,7 @@
     "streakKeepGoing_other": "{{count}} days of practice"
   },
   "chat": {
+    "quotaLeft": "{{remaining}} of {{limit}} free questions left today",
     "pageTitle": "Chat — AskMukthiGuru",
     "pageDescription": "Have a private, AI-guided spiritual conversation rooted in the teachings of Sri Preethaji & Sri Krishnaji.",
     "loadingSession": "Loading your session…",

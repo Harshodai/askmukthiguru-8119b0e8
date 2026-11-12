@@ -130,6 +130,27 @@ def _anon_quota_response(quota: QuotaResult) -> JSONResponse:
     )
 
 
+def quota_public_fields(quota: QuotaResult) -> dict[str, int] | None:
+    """UX-011: what the client may show before the limit. ``None`` when no slot was taken
+    (signed-in user or disabled quota), so those callers never see a counter.
+
+    ``remaining`` is the number of free turns left after this one was reserved.
+    """
+    if quota.reservation_id is None:
+        return None
+    return {"remaining": max(int(quota.remaining), 0), "limit": int(quota.total_limit)}
+
+
+def quota_headers(quota: QuotaResult) -> dict[str, str]:
+    fields = quota_public_fields(quota)
+    if fields is None:
+        return {}
+    return {
+        "X-Quota-Remaining": str(fields["remaining"]),
+        "X-Quota-Limit": str(fields["limit"]),
+    }
+
+
 async def _enforce_anon_quota(
     user: dict,
     container: ServiceContainer,
@@ -925,15 +946,16 @@ async def chat_endpoint(
                 await asyncio.sleep(0.5)
             raise HTTPException(status_code=504, detail="Pipeline timeout")
 
-        return JSONResponse(
-            status_code=202,
-            content={
-                "job_id": job_id,
-                "status": "queued",
-                "queue_position": queue_pos,
-                "poll_url": f"/api/jobs/{job_id}",
-            },
-        )
+        content_202: dict[str, Any] = {
+            "job_id": job_id,
+            "status": "queued",
+            "queue_position": queue_pos,
+            "poll_url": f"/api/jobs/{job_id}",
+        }
+        quota_fields = quota_public_fields(quota)
+        if quota_fields is not None:
+            content_202["quota"] = quota_fields
+        return JSONResponse(status_code=202, content=content_202, headers=quota_headers(quota))
 
     from app.orchestrator import ChatRequestOrchestrator
 
@@ -1235,15 +1257,16 @@ async def chat_stream_endpoint(
                     headers={"Retry-After": str(backpressure_retry_after_seconds())},
                 )
 
-            return JSONResponse(
-                status_code=202,
-                content={
-                    "job_id": job_id,
-                    "status": "queued",
-                    "queue_position": queue_pos,
-                    "stream_url": f"/api/chat/stream/{job_id}",
-                },
-            )
+            stream_202: dict[str, Any] = {
+                "job_id": job_id,
+                "status": "queued",
+                "queue_position": queue_pos,
+                "stream_url": f"/api/chat/stream/{job_id}",
+            }
+            stream_quota = quota_public_fields(quota)
+            if stream_quota is not None:
+                stream_202["quota"] = stream_quota
+            return JSONResponse(status_code=202, content=stream_202, headers=quota_headers(quota))
 
         from app.stream_orchestrator import ChatStreamRequestOrchestrator
 
