@@ -632,8 +632,10 @@ class FirstPersonContextStore:
                 contexts.append(context)
                 if len(contexts) >= limit_parents:
                     break
-            except FirstPersonContextStoreError:
-                logger.warning("[ContextStore] dropping invalid parent context")
+            except FirstPersonContextStoreError as exc:
+                logger.warning(
+                    "[ContextStore] dropping invalid parent context %s: %s", parent_unit_id, exc
+                )
         return deduplicate_contained_contexts(contexts)
 
     def _query_groups(

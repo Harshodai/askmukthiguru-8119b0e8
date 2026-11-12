@@ -105,3 +105,11 @@ async def test_proactive_serene_mind_needs_consent():
         )
         assert out["triggered"] is expect
         assert serene.analyze_distress_trend.await_count == (1 if expect else 0)
+
+
+@pytest.mark.asyncio
+async def test_anonymous_identity_skips_the_uuid_consent_lookup():
+    """`anon:<payload>` ids cannot own a receipt; the uuid column must never see them."""
+    c = _container(consent={"granted": True})
+    assert await utils.has_active_memory_consent(c, "anon:eyJhbGciOi.payload") is False
+    c.memory_outbox.active_consent.assert_not_awaited()

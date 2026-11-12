@@ -374,7 +374,9 @@ async def select_graph_for_query(
                         f"(conf={semantic_confidence:.3f}), continuing to heuristic for actual routing"
                     )
                 else:
-                    logger.warning(
+                    # Expected branch of the router, not a fault: the default
+                    # classifier takes over on most low-confidence queries.
+                    logger.info(
                         f"SemanticModelRouter low confidence ({semantic_confidence:.3f} < {threshold}). "
                         f"Falling back to default 'standard'."
                     )
@@ -652,6 +654,11 @@ async def has_active_memory_consent(container: Any, user_id: str) -> bool:
     """
     outbox = getattr(container, "memory_outbox", None)
     if outbox is None or not user_id:
+        return False
+    # Anonymous ids (`anon:<payload>`) cannot own a consent receipt, and
+    # memory_consent_receipts.user_id is a uuid column, so the lookup could only
+    # fail. Short-circuit to the same fail-closed answer without a DB round trip.
+    if user_id.startswith("anon:"):
         return False
     try:
         from services.tenant_context import TenantContext

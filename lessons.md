@@ -1,6 +1,26 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 12, 2026 — Docker warnings: root causes of the 20261112-graded-3 backend log
+
+### L-ANON-CONSENT-UUID-MISMATCH-1. An anonymous id sent to a uuid column fails the lookup every time.
+- **What:** `has_active_memory_consent` queried `memory_consent_receipts` with `anon:<payload>` user ids. That column is `uuid`, so PostgREST returned `22P02 invalid input syntax for type uuid` (reproduced inside `mukthiguru-backend` against the local Supabase). The function caught it and logged "consent unverifiable (APIError)": 8 times per run. The outcome was already correct (fail closed), but the warning was noise and the lookup could never succeed.
+- **Fix:** anonymous ids return `False` before any DB call, because they cannot hold a receipt. Pinned by `tests/test_emotional_side_effect_consent.py::test_anonymous_identity_skips_the_uuid_consent_lookup`.
+- **Rule:** before passing a user id to a typed column, check that every identity class the app produces can be stored in that type.
+
+### L-DROPPED-PARENT-LOG-NEEDS-CAUSE-1. A warning that drops data must say which record and why.
+- **What:** `[ContextStore] dropping invalid parent context` logged no parent id and no reason. 40 drops per run were impossible to diagnose from the log.
+- **Fix:** the warning now carries `parent_unit_id` and the exception text (`services/first_person_context_store.py`).
+- **Open:** the cause of those 40 drops is not yet known. Next step: read the reasons from the next run's log.
+
+### L-EXPECTED-FALLBACK-IS-NOT-A-WARNING-1. A designed fallback that fires on most requests is logged at INFO.
+- **What:** `SemanticModelRouter low confidence ... Falling back to default 'standard'` fired 63 times per run as a WARNING. It is the normal classifier path.
+- **Fix:** INFO (`app/orchestrator_utils.py`). No test pinned the level.
+
+### Still open from the same log (not fixed in this change)
+- **Span gate rejections:** 16 "severed preposition opener" and many "span failed a serve-time gate". These are corpus defects from ingestion boundaries. The fix means rebuilding the v10 collection, which is a Qdrant write and needs dry-run, snapshot and owner approval first.
+- **Redis timeouts:** 48 `RedisBackedRateLimiter` degradations ("Timeout reading from redis:6379") with `socket_timeout=0.5`. Redis was healthy when checked later. Degrade-to-allow is by design. Raising the timeout is a guess until the latency is measured under load.
+
 ## Nov 12, 2026 — Graded run 20261112-graded-3: report labels and provenance
 
 ### L-GRADED-MIN-SCORE-2-OWNER-DECISION-1. The graded relevance minimum stays at 2; the legacy fallback enforces it too.
