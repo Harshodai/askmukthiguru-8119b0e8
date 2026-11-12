@@ -539,3 +539,29 @@ def test_unknown_verdict_method_is_not_promoted(tmp_path):
     )
     assert manifest == []
     assert report["quarantined"] == {"speaker_unverified": 1}
+
+
+def test_parent_window_contains_every_child_even_when_the_last_span_ends_earlier(tmp_path):
+    """Rolling spans overlap: the parent must span min(start) to max(end), not first-to-last."""
+    first = (
+        "When you observe the mind, the division between the observer and the observed dissolves."
+    )
+    second = "Namaste. Suffering is a call to awaken."
+    manifest, _report, _ = build(
+        [
+            _point(first, start_ms=20000, end_ms=59520),
+            _point(second, start_ms=21000, end_ms=30000),
+        ],
+        transcripts_dir=_transcripts_dir(tmp_path),
+        corpus_version=DEFAULT_CORPUS_VERSION,
+        min_alignment=0.90,
+    )
+    parents = [row for row in manifest if row["record_type"] == "parent_unit"]
+    children = [row for row in manifest if row["record_type"] == "retrieval_child"]
+    assert parents and children
+    for parent in parents:
+        mine = [c for c in children if c["parent_unit_id"] == parent["parent_unit_id"]]
+        for child in mine:
+            assert parent["start_ms"] <= child["start_ms"]
+            assert child["end_ms"] <= parent["end_ms"]
+

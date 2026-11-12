@@ -814,8 +814,11 @@ def build(
             video_id=video_id,
             parent_unit_id=parent_unit_id,
             ordered_source_span_ids=tuple(s.source_span_id for s in spans),
-            start_ms=spans[0].start_ms,
-            end_ms=spans[-1].end_ms,
+            # The parent window must contain every child: rolling spans overlap, so the
+            # last span is not always the latest to end (the store rejects a child that
+            # falls outside the parent's [start_ms, end_ms]).
+            start_ms=min(s.start_ms for s in spans),
+            end_ms=max(s.end_ms for s in spans),
             parent_text_hash=clip_text_hash(" ".join(s.verbatim_text for s in spans)),
             speaker_ids=tuple(sorted({s.speaker_id for s in spans})),
             speaker_continuity=len({s.speaker_id for s in spans}) == 1,

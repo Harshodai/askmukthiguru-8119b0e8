@@ -1,6 +1,17 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 12, 2026 — Dropped parents and span defects: measured on first_person_v10
+
+### L-PARENT-WINDOW-MUST-COVER-CHILDREN-1. A parent window is min(start) to max(end) of its children, not first-to-last.
+- **What:** the store rejects a child outside its parent's `[start_ms, end_ms]` ("falls outside parent bounds"). The builder set `end_ms = spans[-1].end_ms`. Rolling spans overlap, so the last span is not always the one that ends last. Measured read-only on `first_person_v10`: 25 of 1,467 parents fail when read through `fetch_parent_context` (one example: child ends at 243,600 ms, parent at 238,480 ms). Plus 1 orphan child ("parent record missing").
+- **Fix:** `min(s.start_ms)` and `max(s.end_ms)` in both builder copies (byte-identical). Pinned by `tests/test_fp_context_builder_from_v9.py::test_parent_window_contains_every_child_even_when_the_last_span_ends_earlier` (fails on the old builder, passes on the fix).
+- **Open:** the 25 existing v10 parents stay broken until a rebuild. The rebuild is a Qdrant write and needs a dry run, a snapshot and owner approval. The transcript source for that rebuild is not yet confirmed (`/app/transcripts` is not mounted in the backend container).
+
+### L-SPAN-DEFECTS-MEASURED-NOT-FIXED-1. Ingestion boundary defects on v10, counted before any fix.
+- **What:** read-only audit (`scripts/ops/audit_fp_context_span_boundaries.py`) on 2,760 children: 499 `head_lowercase`, 284 `tail_no_terminal`, 63 `head_conjunction`, 16 `head_fragment`, 11 `tail_dangling_word`; 127 orphan fragments; 120 fragment completeness; 0 hash mismatches; 0 bare speaker flags; all 2,760 `licensed`.
+- **Rule:** a boundary fix in ingestion needs a rebuild to reach the corpus. Count the defects before and after the rebuild, using the same audit.
+
 ## Nov 12, 2026 — Docker warnings: root causes of the 20261112-graded-3 backend log
 
 ### L-ANON-CONSENT-UUID-MISMATCH-1. An anonymous id sent to a uuid column fails the lookup every time.
