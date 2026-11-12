@@ -1937,6 +1937,8 @@
   "settings.voiceHint_priya": "2b5db6067f06",
   "settings.voiceHint_ishita": "165ded8ab418",
   "settings.voiceHint_mani": "fb2c51fc2058",
-  "settings.voiceHint_shubh": "2f004c903efe"
+  "settings.voiceHint_shubh": "2f004c903efe",
+  "chat.quotaLeft": "3882065091da",
+  "chat.quotaResetsIn": "5a395b0f3af8"
  }
 }
