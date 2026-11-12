@@ -1,6 +1,13 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 12, 2026 — Rebuild dry run: a full rebuild from v8 would shrink the corpus
+
+### L-REBUILD-FROM-V8-SHRINKS-CORPUS-1. A rebuild from first_person_v8 keeps 508 parents, not 1,466.
+- **What:** dry run of `build_fp_context_from_v9.py` (host, fixed builder, transcripts `transcripts/` = 382 of 383 v8 videos, speaker verdicts `.work/fp_context/speaker_verdicts.json`): 1,801 source points, 573 children, 508 parents. 1,087 quarantined as `speaker_unverified`; 1,062 of those refused as `speaker_legacy_centroid_refused`. The verdict file uses `ecapa_voxceleb_centroid_v1`, which the speaker policy does not accept on its own, so `speaker_verified_by_voice = 0`. Current v10 has 1,466 parents.
+- **Rule:** do not apply a rebuild whose dry run loses most of the corpus. The gate is working as designed; the fix belongs in the speaker method, not in the gate.
+- **What fixed the 25 parents instead:** a read-only plan computed the same window rule the fixed builder uses (min child start, max child end) for each v10 parent: 24 parents need a repair, plus 1 orphan child group. Plan saved outside the repo. Applying it is a Qdrant payload write to the serving collection and needs owner approval after the snapshot (`first_person_v10-1111874297854021-2026-11-12-16-27-32.snapshot`).
+
 ## Nov 12, 2026 — Dropped parents and span defects: measured on first_person_v10
 
 ### L-PARENT-WINDOW-MUST-COVER-CHILDREN-1. A parent window is min(start) to max(end) of its children, not first-to-last.
