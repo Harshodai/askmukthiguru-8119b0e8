@@ -31,7 +31,7 @@ services:
       FIRST_PERSON_COMPOUND_DIRECT_SERVING_ENABLED: "true"
       # 2026-11-12: FIRST_PERSON_UNCALIBRATED_DIRECT_ENABLED is no longer pinned on. The
       # Settings default (false) applies: a direct answer needs a calibration profile, and
-      # the profile on file is UNPROVEN (see docs/evidence/CALIBRATION_PROVENANCE_2026-11-12.md).
+      # the profile on file is UNPROVEN (see audits/evidence/CALIBRATION_PROVENANCE_2026-11-12.md).
       FIRST_PERSON_JUDGE_ENABLED: "true"
       # Relevance scorer: the single variable a stage may change.
       FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5
