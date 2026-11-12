@@ -7,6 +7,7 @@ import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { fetchWithRetry, BACKPRESSURE_ONLY_STATUSES, SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
+import { publishQuota } from './quotaEvents';
 import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
 import type { AIErrorCode, AIResponse, MessagePayload, ResponsePreferences } from './types';
@@ -207,6 +208,7 @@ export const sendMessage = async (
       // Queue integration: 202 Accepted → poll job endpoint until completed/failed
       if (response.status === 202) {
         const jobData = await response.json();
+        publishQuota(jobData.quota);
         const jobId = jobData.job_id;
         if (!jobId) {
           return { content: '', error: 'Queue returned 202 but no job_id', errorCode: 'unknown' };

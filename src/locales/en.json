@@ -851,7 +851,8 @@
     "noAnswerYet": "No answer yet",
     "askSomethingFirst": "Ask something first.",
     "languagePicker": "Language picker",
-    "languagePickerHint": "Use the globe icon below the input."
+    "languagePickerHint": "Use the globe icon below the input.",
+    "quotaResetsIn": "Resets in {{count}} hour(s)."
   },
   "notFound": {
     "message": "Oops! Page not found",

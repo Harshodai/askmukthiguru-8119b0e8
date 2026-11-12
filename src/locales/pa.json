@@ -845,7 +845,9 @@
       "eraseConfirmButton": "ਹਾਂ, ਸਾਰੀਆਂ ਯਾਦਾਂ ਨੂੰ ਮਿਟਾ ਦਿਓ",
       "erasing": "ਯਾਦਾਂ ਨੂੰ ਮਿਟਾਉਣਾ…",
       "close": "ਸਮਾਪਤੀ"
-    }
+    },
+    "quotaLeft": "ਅੱਜ {{limit}} ਵਿੱਚੋਂ {{remaining}} ਮੁਫ਼ਤ ਸਵਾਲ ਬਾਕੀ",
+    "quotaResetsIn": "{{count}} ਘੰਟਿਆਂ ਵਿੱਚ ਰੀਸੈੱਟ ਹੋਵੇਗਾ।"
   },
   "notFound": {
     "message": "ਓਹੋ! ਪੰਨਾ ਨਹੀਂ ਮਿਲਿਆ",

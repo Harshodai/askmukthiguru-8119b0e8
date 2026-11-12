@@ -23,3 +23,20 @@ describe('quota events (UX-011)', () => {
     window.removeEventListener(QUOTA_EVENT, seen);
   });
 });
+
+describe('UX-011 locale strings', () => {
+  const files = import.meta.glob('../locales/*.json', { eager: true }) as Record<
+    string,
+    { default: { chat?: Record<string, string> } }
+  >;
+  it('every locale has the counter and reset strings with their placeholders', () => {
+    const entries = Object.entries(files);
+    expect(entries.length).toBeGreaterThanOrEqual(13);
+    for (const [path, mod] of entries) {
+      const chat = mod.default.chat ?? {};
+      expect(chat.quotaLeft, path).toContain('{{remaining}}');
+      expect(chat.quotaLeft, path).toContain('{{limit}}');
+      expect(chat.quotaResetsIn, path).toContain('{{count}}');
+    }
+  });
+});

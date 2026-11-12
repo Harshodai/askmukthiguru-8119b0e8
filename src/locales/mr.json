@@ -845,7 +845,9 @@
       "eraseConfirmButton": "होय, सर्व आठवणी पुसून टाका",
       "erasing": "आठवणी पुसट होत आहेत…",
       "close": "बंद"
-    }
+    },
+    "quotaLeft": "आज {{limit}} पैकी {{remaining}} मोफत प्रश्न शिल्लक",
+    "quotaResetsIn": "{{count}} तासांत रीसेट होईल."
   },
   "notFound": {
     "message": "अरेरे! पृष्ठ सापडले नाही",

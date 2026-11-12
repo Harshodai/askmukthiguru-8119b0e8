@@ -845,7 +845,9 @@
       "eraseConfirmButton": "হয়, সকলো স্মৃতি মচি পেলাওক",
       "erasing": "স্মৃতি মচি থকা হৈছে…",
       "close": "বন্ধ কৰক"
-    }
+    },
+    "quotaLeft": "আজি {{limit}}টাৰ ভিতৰত {{remaining}}টা বিনামূলীয়া প্ৰশ্ন বাকী আছে",
+    "quotaResetsIn": "{{count}} ঘণ্টাত ৰিছেট হ'ব।"
   },
   "notFound": {
     "message": "পৃষ্ঠাখন বিচাৰি পোৱা নগ'ল",

@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Soft auth prompt shown above the composer when an anonymous session
@@ -17,9 +18,13 @@ export const QuotaAuthPrompt = ({
   retryAfterSeconds?: number;
 }) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const resetText =
     retryAfterSeconds && retryAfterSeconds > 0
-      ? ` Resets in ${Math.ceil(retryAfterSeconds / 3600)} hour${Math.ceil(retryAfterSeconds / 3600) > 1 ? 's' : ''}.`
+      ? ` ${t('chat.quotaResetsIn', {
+          defaultValue: 'Resets in {{count}} hour(s).',
+          count: Math.ceil(retryAfterSeconds / 3600),
+        })}`
       : '';
 
   return (

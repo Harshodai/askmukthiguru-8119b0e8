@@ -845,7 +845,9 @@
       "eraseConfirmButton": "ہاں، تمام یادداشتیں مٹائیں",
       "erasing": "یادداشتیں مٹائی جا رہی ہیں…",
       "close": "بند کریں"
-    }
+    },
+    "quotaLeft": "آج {{limit}} میں سے {{remaining}} مفت سوالات باقی ہیں",
+    "quotaResetsIn": "{{count}} گھنٹوں میں ری سیٹ ہو جائے گا۔"
   },
   "notFound": {
     "message": "اوہو! صفحہ نہیں ملا",

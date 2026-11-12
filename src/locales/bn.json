@@ -845,7 +845,9 @@
       "eraseConfirmButton": "হ্যাঁ, সমস্ত স্মৃতি মুছে ফেলো",
       "erasing": "স্মৃতি মুছে ফেলা…",
       "close": "বন্ধ"
-    }
+    },
+    "quotaLeft": "আজ {{limit}}টির মধ্যে {{remaining}}টি বিনামূল্যের প্রশ্ন বাকি",
+    "quotaResetsIn": "{{count}} ঘণ্টায় রিসেট হবে।"
   },
   "notFound": {
     "message": "ওহ! পৃষ্ঠাটি খুঁজে পাওয়া যায়নি",

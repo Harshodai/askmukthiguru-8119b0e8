@@ -845,7 +845,9 @@
       "eraseConfirmButton": "હા, બધી યાદો ભૂંસી નાખો",
       "erasing": "સ્મૃતિઓ ભૂંસી નાખવી…",
       "close": "બંધ"
-    }
+    },
+    "quotaLeft": "આજે {{limit}} માંથી {{remaining}} મફત પ્રશ્નો બાકી",
+    "quotaResetsIn": "{{count}} કલાકમાં રીસેટ થશે."
   },
   "notFound": {
     "message": "અરેરે! પૃષ્ઠ મળ્યું નથી",

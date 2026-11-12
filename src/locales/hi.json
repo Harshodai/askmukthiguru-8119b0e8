@@ -845,7 +845,9 @@
       "eraseConfirmButton": "जी हाँ, सभी यादें मिटा दो",
       "erasing": "यादों को मिटा देना…",
       "close": "बंद"
-    }
+    },
+    "quotaLeft": "आज {{limit}} में से {{remaining}} निःशुल्क प्रश्न शेष हैं",
+    "quotaResetsIn": "{{count}} घंटे में रीसेट होगा।"
   },
   "notFound": {
     "message": "अरे! पृष्ठ नहीं मिला",

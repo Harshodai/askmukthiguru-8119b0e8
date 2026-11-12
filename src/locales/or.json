@@ -845,7 +845,9 @@
       "eraseConfirmButton": "ହଁ, ସମସ୍ତ ସ୍ମୃତିକୁ ଲିଭାଇ ଦିଅ",
       "erasing": "ସ୍ମୃତିକୁ ଲିଭାଇବା…",
       "close": "ବନ୍ଦ"
-    }
+    },
+    "quotaLeft": "ଆଜି {{limit}} ମଧ୍ୟରୁ {{remaining}} ମାଗଣା ପ୍ରଶ୍ନ ବାକି",
+    "quotaResetsIn": "{{count}} ଘଣ୍ଟାରେ ରିସେଟ ହେବ।"
   },
   "notFound": {
     "message": "କ୍ଷମା କରିବେ! ପୃଷ୍ଠା ମିଳିଲା ନାହିଁ",
