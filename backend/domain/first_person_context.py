@@ -375,8 +375,8 @@ class SourceSpan(BaseModel):
         from ingest.verbatim.boundaries import boundary_defects
 
         b_defects = boundary_defects(self.verbatim_text.split())
-        if self.boundary_status == BoundaryStatus.VERIFIED and b_defects:
-            defects.append(f"boundary_status_verified_with_defects:{','.join(b_defects)}")
+        if self.boundary_status in (BoundaryStatus.VERIFIED, BoundaryStatus.REPAIRED) and b_defects:
+            defects.append(f"boundary_status_{self.boundary_status}_with_defects:{','.join(b_defects)}")
 
         if self.contextual_header_version is not None:
             defects.append("unverified_contextual_header_claimed")

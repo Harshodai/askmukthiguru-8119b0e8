@@ -309,6 +309,14 @@ class OpenRouterService:
         across every process/worker/replica, not just this one instance.
         """
         limiter = OpenRouterService._shared_rate_limiter
+        if limiter is None:
+            # ``reset_shared_rate_limiter()`` (the test-isolation hook) and a
+            # constructor failure both leave this None. The method's contract is
+            # fail-open -- "a stuck rate limiter must never wedge a chat
+            # request" -- so a missing limiter must not raise AttributeError out
+            # of the chat path either.
+            logger.debug("OpenRouter rate limiter not initialised — skipping limit check")
+            return
         for _ in range(self._MAX_RATE_LIMIT_WAIT_ROUNDS):
             allowed, retry_after = await limiter.is_allowed_async(self._rate_limit_key(model))
             if allowed:
@@ -346,6 +354,9 @@ class OpenRouterService:
         is Redis-backed.
         """
         limiter = OpenRouterService._shared_rate_limiter
+        if limiter is None:
+            logger.debug("OpenRouter rate limiter not initialised — 429 backoff not recorded")
+            return
         await limiter.record_attempt_async(self._rate_limit_key(model), success=False)
         logger.warning("OpenRouter returned 429 — recorded failure for exponential backoff")
 

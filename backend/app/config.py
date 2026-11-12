@@ -324,9 +324,18 @@ class Settings(BaseSettings):
     first_person_context_max_spans: int = 3
     # Candidate parent units retrieved for harness evaluation (0 = use max_clips default)
     first_person_context_candidate_limit: int = 16
-    # Enable sparse RRF fusion in context retrieval. Default False (dense cosine vector search
-    # delivers superior candidate recall on conversational questions without sparse keyword penalty).
-    first_person_context_use_sparse: bool = False
+    # Enable sparse RRF fusion in context retrieval. Default True (2026-11-10, SOTA plan WS2):
+    # the live fp-context collection carries a named ``passage_sparse`` vector, and named
+    # doctrinal terms ("Four Sacred Secrets", "Soul Sync", "Ananya") are lexical, not
+    # semantic, matches — dense-only retrieval scored 0/20 on those suites. The store
+    # degrades to dense-only by itself when a collection has no sparse vector or the
+    # query yields no sparse weights, so this remains fail-open.
+    first_person_context_use_sparse: bool = True
+    # Reported corpus version for a served/abstained first-person turn (C8): route
+    # metadata carries ``corpus_version`` so served-share can be attributed per corpus.
+    # Empty means "read it off the retrieval result"; this setting only overrides when
+    # the result carries none. Never guessed (X40: no synthesized provenance).
+    first_person_corpus_version: str = ""
     # Maximum combined word count for a context-harness answer (sum of all spans).
     # Distinct from first_person_max_answer_words (single-clip legacy path).
     # 600 words: a 5-6 minute discourse excerpt, enough to cover a full teaching
@@ -381,6 +390,30 @@ class Settings(BaseSettings):
     # Hard timeout (seconds) for the graph expansion lookup. Fail-open: a slow or
     # unavailable graph adds nothing rather than delaying the answer.
     first_person_graph_expansion_timeout_s: float = 1.5
+    # OKF concept expansion (2026-11-10, SOTA plan WS7 / Component 3). When True, the
+    # query dense vector is matched against the curated `memory/okf/compiled.json`
+    # doctrine matrix (mtime-cached ndarray, ~0.04 ms, zero network) and every matched
+    # entry's canonical tags/title becomes one ADDITIONAL filtered retrieval pass. The
+    # extra parents are appended AFTER the vector results and still pass every harness
+    # gate, so this is additive only and never LLM generation (serving invariant #3).
+    # OFF by default for the same reason the other two expansion features are.
+    first_person_okf_expansion_enabled: bool = False
+    # Ceiling on distinct concept terms one query may contribute.
+    first_person_okf_expansion_max_concepts: int = 8
+    # Cosine floor for an OKF entry to count as a concept match. 0.40 was measured on
+    # fp-context-v1 queries: below it, unrelated doctrine (e.g. event announcements) leaks in.
+    first_person_okf_expansion_min_similarity: float = 0.40
+    # Cross-video diversity cap for the harness candidate pool (2026-11-10, SOTA plan
+    # Component 4). When True, the retrieved pool is capped at
+    # `first_person_cross_video_max_per_video` parents per video_id with MMR ordering, so
+    # one long discourse cannot occupy every candidate slot. Candidates already retrieved
+    # for a new video are never dropped; only a duplicate beyond the cap is deferred to the
+    # tail. OFF by default; a no-op pass-through for the same list otherwise.
+    first_person_cross_video_diversity_enabled: bool = False
+    # Maximum parents one video may contribute inside the candidate pool (>=1).
+    first_person_cross_video_max_per_video: int = Field(default=2, ge=1)
+    # MMR trade-off: 1.0 = relevance only, 0.0 = maximum diversity.
+    first_person_cross_video_mmr_lambda: float = Field(default=0.7, ge=0.0, le=1.0)
     # --- Phase-5 TeachingUnit graph expansion (2026-11-03) ---
     # When True, span-level TU graph neighbours are appended AFTER the vector
     # and concept-expansion results. The TU graph must be built offline first
@@ -487,14 +520,28 @@ class Settings(BaseSettings):
     # clip scoring >= min_score or abstain (fail closed). Standalone: deterministic backstop
     # rejecting clips that end/start mid-thought or announce a one-off event.
     first_person_relevance_gate_enabled: bool = True
-    # RP-A4/QBUG-2 (2026-10-13): default 3, matching the served posture.
-    first_person_relevance_min_score: int = 3
+    # RP-A4/QBUG-2 (2026-10-13): was 3. Calibrated to 2 on 2026-11-10 (SOTA plan WS3):
+    # a spiritual teaching explains the root cause of an inner state rather than giving a
+    # transactional "how-to", and the strict 3-only floor discarded 95% of authentic
+    # discourse. Score 2 serves as ``weak_match`` (status + is_direct_answer=False +
+    # verification.direct=False), never as a direct answer.
+    first_person_relevance_min_score: int = 2
     # Optional stronger model for the relevance scorer ONLY (one ~24-token reply per query);
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
     first_person_relevance_model: str = ""
     # Timeout in seconds for the first-person LLM relevance scorer. 25s accommodates reasoning models and provider latency jitter.
     first_person_relevance_timeout_s: float = 25.0
+    # Attempts per context for the relevance scorer (1 = no retry). 2 (2026-11-10): a
+    # provider latency spike turned a whole turn into "I couldn't finish checking the
+    # teachings" because one context's scorer call crossed the deadline and an
+    # indeterminate verdict blocks every later context (sequential contract). The
+    # scorer is a read-only digit question, so one repeat is safe and cheap; the
+    # verdict stays fail-closed when both attempts fail. A repeat only happens when the
+    # failed attempt died fast (under half of first_person_relevance_timeout_s): a call
+    # that burned the whole deadline is congestion, and retrying it doubled a live 15 s
+    # stall to 31.4 s (2026-11-11).
+    first_person_relevance_max_attempts: int = Field(default=2, ge=1, le=3)
     # Retained as a compatibility setting only. Provider errors/refusals are
     # relevance-indeterminate in serving; no uncalibrated local fallback may
     # turn a budget denial or provider failure into an answer.

@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import math
+import os
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
@@ -144,9 +145,34 @@ from supabase.client import ClientOptions
 _cached_supabase_client: Optional[Client] = None
 
 
+def _telemetry_db_allowed() -> bool:
+    """False under pytest unless a test explicitly opts back in.
+
+    The backend suite loads ``backend/.env``, so ``SUPABASE_URL``/``SUPABASE_KEY``
+    are real and every test that reaches a telemetry persistence path wrote rows
+    into the **live** ``public.corpus_gate_rejections`` table: one suite run on
+    2026-11-12 took it from 3,088 to 3,112 rows, and 23 of them carry a pytest
+    ``MagicMock`` in ``gate_layer`` because a mocked verdict was formatted into the
+    column. Tests that assert persistence patch ``_get_client`` itself (21 do), so
+    this guard cannot weaken them: the patch replaces the function this gate lives in.
+
+    Set ``ALLOW_TELEMETRY_DB_IN_TESTS=1`` for a deliberate integration run against a
+    scratch database.
+    """
+    if str(os.environ.get("ALLOW_TELEMETRY_DB_IN_TESTS", "")).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
+        return True
+    return "PYTEST_CURRENT_TEST" not in os.environ
+
+
 def _get_client() -> Optional[Client]:
     """Initialize Supabase client with a fast 4s timeout and singleton caching."""
     global _cached_supabase_client
+    if not _telemetry_db_allowed():
+        return None
     if _cached_supabase_client is not None:
         return _cached_supabase_client
 

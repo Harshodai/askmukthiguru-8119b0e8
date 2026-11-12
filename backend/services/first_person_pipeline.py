@@ -84,7 +84,7 @@ from services.first_person_store import (
 from services.first_person_video_decisions import video_is_blocked
 from services.injection_screen import screen as screen_injection
 from services.memory.okf_store import match_okf_entries
-from services.openrouter_service import ProviderRefusalError
+from services.openrouter_service import ProviderConnectionError, ProviderRefusalError
 from services.quote_fidelity import (
     UNTITLED_LINK_LABEL,
     sources_from_payloads,
@@ -553,6 +553,30 @@ def _is_transient_connection_error(exc: BaseException) -> bool:
     )
 
 
+def _is_scorer_retryable(exc: BaseException) -> bool:
+    """True when a failed relevance-scorer call is *classed* as worth repeating once.
+
+    Only a deadline or a dropped connection qualifies: both are transport outcomes, not
+    verdicts about the clip. A rate-limit push-back, a policy refusal, a budget denial or
+    a malformed reply is never retried (the answer would be the same, or the provider just
+    asked us to slow down), and the verdict stays ``_RELEVANCE_INDETERMINATE`` when every
+    attempt fails.
+
+    The caller also applies an elapsed ceiling (``_SCORER_RETRY_ELAPSED_FRACTION``): a
+    failure that consumed most of the deadline is congestion, and repeating it only
+    doubles the seeker's wait.
+    """
+    from services.openrouter_service import ProviderRateLimitedError
+
+    if isinstance(exc, ProviderRateLimitedError):
+        return False
+    return (
+        isinstance(exc, (TimeoutError, ProviderConnectionError))
+        or isinstance(exc, ConnectionError)
+        or _is_transient_connection_error(exc)
+    )
+
+
 _ALLOWLIST_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
 _BLOCKLIST_CACHE: dict[str, tuple[float, frozenset[str]]] = {}
 # Negative cache for unreadable blocklist paths: path -> monotonic() of the
@@ -833,7 +857,44 @@ def transcript_label(verbatim_text: str, caption_status: Optional[str]) -> dict[
 # RP-A5: version of the relevance-scoring prompt. Bumped by hand whenever
 # _RELEVANCE_SYSTEM_PROMPT's rubric changes; the policy fingerprint below also
 # carries a hash of the prompt text, so an unbumped edit still re-keys.
-_RELEVANCE_PROMPT_VERSION = "v2"
+_RELEVANCE_PROMPT_VERSION = "v3"
+
+# Calibrated rubric core (2026-11-10, SOTA plan WS3). Shared by the comma-separated and the
+# JSON-schema reply grammars so the two paths cannot disagree about what a 2 means.
+# Score 2 is now an explicit *foundational / parabolic* answer band: a spiritual teaching
+# explains the root cause of an inner state ("why does grief hold me", "what is the state
+# behind anger") instead of restating the seeker's transactional question, and a parable that
+# resolves the enquiry is a teaching, not a theme match. Score 2 still never counts as a
+# direct answer — the harness reports it as `weak_match` (is_direct_answer=False,
+# verification.direct=False). Every disqualifier from the v2 rubric is preserved verbatim in
+# meaning so a calibration change cannot widen the serving surface to announcements,
+# fragments, event-bound clips, external teachers, or self-harm.
+_RELEVANCE_RUBRIC_CORE = (
+    "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
+    "clip on this fixed scale. "
+    "3 = directly answers the question in the teacher's own words: the clip names the specific "
+    "mechanism, practice, or realisation the seeker asked for and stands alone as a coherent "
+    "thought. "
+    "2 = foundational or parabolic answer: the clip does not restate the question but "
+    "illuminates its root cause, underlying spiritual law, or inner state (for example, "
+    "explaining attachment to answer grief, or inner stillness to answer anger). A parable, "
+    "metaphor, or story that resolves the seeker's enquiry scores 2, not 1. "
+    "1 = same broad theme but does not answer it: the clip touches the topic or shares a "
+    "keyword with the question and offers no teaching about what was asked. "
+    "0 = unrelated, an announcement, logistics or event notice, a fragment that cannot stand "
+    "alone, a clip that opens mid-thought, event-bound in time (e.g. corona/lockdown), one that "
+    "introduces unsolicited suicide/self-harm or graphic violence, or a question about what "
+    "another spiritual teacher or external tradition teaches. "
+    "Calibration: prefer 2 over 1 whenever the clip leaves the seeker with a real teaching about "
+    "the state behind their question; never score 3 for a clip that only describes the problem; "
+    "never score 0 for a clip that teaches through story rather than instruction. "
+)
+
+_RELEVANCE_SYSTEM_PROMPT = (
+    _RELEVANCE_RUBRIC_CORE
+    + "Reply ONLY with comma-separated integers, one per clip, in order, e.g. for 1 clip: 3  for "
+    "3 clips: 3,1,0. No other text."
+)
 
 # Version of the served-answer body shape. `evidence_only_v2` is the body that
 # carries nothing but the verbatim quote(s) and their attribution: the
@@ -843,21 +904,34 @@ _RELEVANCE_PROMPT_VERSION = "v2"
 # (pointer and questions concatenated into the answer) can never replay.
 _ANSWER_BODY_SCHEMA_VERSION = "evidence_only_v2"
 
-_RELEVANCE_SYSTEM_PROMPT = (
-    "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
-    "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
-    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
-    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, is event-bound (e.g. corona/lockdown), "
-    "or if the question asks what another spiritual teacher or external tradition teaches. "
-    "Be strict: if a clip only discusses the topic generally without answering the specific question, score 1. "
-    "Reply ONLY with comma-separated integers, one per clip, in order, e.g. for 1 clip: 3  for 3 clips: 3,1,0. No other text."
-)
-
 
 # 2026-10-27: Read at call time (not module load) so a container env-only restart picks up
 # the updated FIRST_PERSON_RELEVANCE_TIMEOUT_S without a code rebuild.
 def _relevance_timeout_s() -> float:
     return float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
+
+
+# How much of the scorer deadline an attempt may consume and still be retried. Under
+# half, the failure was a quick transport break (connection dropped, provider refused
+# the socket) and a repeat is cheap. Over half, the call simply ran out of deadline —
+# that is provider congestion, and repeating it doubles the seeker's wait for the same
+# outcome (measured 2026-11-11: 15 s + 15 s = 31.4 s, zero benefit).
+_SCORER_RETRY_ELAPSED_FRACTION = 0.5
+
+
+def _context_sparse_query(
+    query_sparse_vector: Optional[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    """Sparse payload for fp-context retrieval, or ``None`` when the flag is off.
+
+    Sparse RRF fusion is ON by default since 2026-11-10 (WS2): the live fp-context collection
+    carries a ``passage_sparse`` named vector, and named doctrinal terms are lexical matches a
+    dense vector scores poorly. The store degrades to dense-only when a collection has no
+    sparse vector or the query produced no sparse weights, so this stays fail-open.
+    """
+    if not bool(getattr(settings, "first_person_context_use_sparse", True)):
+        return None
+    return query_sparse_vector
 
 
 # CA-1 (2026-10-13): anthropic/claude-haiku-5.5 rejects non-default sampling
@@ -880,13 +954,9 @@ _SCORER_NO_TEMPERATURE_MODELS = frozenset({"anthropic/claude-haiku-5.5"})
 _SCORER_JSON_SCHEMA_MODELS = frozenset({"anthropic/claude-haiku-5.5"})
 
 _RELEVANCE_JSON_SYSTEM_PROMPT = (
-    "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
-    "clip: 3 = directly answers the question in the teacher's own words; 2 = partly answers "
-    "it; 1 = same broad theme but does not answer it; 0 = unrelated, an announcement, a fragment "
-    "that cannot stand alone, opens mid-thought, introduces unsolicited suicide/self-harm, is event-bound (e.g. corona/lockdown), "
-    "or if the question asks what another spiritual teacher or external tradition teaches. "
-    "Be strict: if a clip only discusses the topic generally without answering the specific question, score 1. "
-    'Reply ONLY with a JSON object of the form {"scores": [3, 1, 0]}, one integer per clip, in order. No other text.'
+    _RELEVANCE_RUBRIC_CORE
+    + 'Reply ONLY with a JSON object of the form {"scores": [3, 1, 0]}, one integer per clip, '
+    "in order. No other text."
 )
 
 _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
@@ -912,6 +982,29 @@ _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
 _RELEVANCE_INDETERMINATE = -1
 _OPENING_WINDOW_MS = 60_000
 _OPENING_MIN_SCORE = 3
+# A clip must reach the top of the rubric to be presented as a DIRECT answer. Score 2 is the
+# foundational/parabolic band (see _RELEVANCE_RUBRIC_CORE): real teaching, but about the state
+# behind the question rather than the question itself, so it is served as related (weak_match).
+_DIRECT_ANSWER_MIN_SCORE = 3
+
+
+def _resolve_served_directness(is_direct: bool, relevance_score: Optional[int]) -> bool:
+    """Downgrade a served answer to related when the scorer placed it in the 2 band.
+
+    ``is_direct`` is the calibration/decision verdict computed by the caller. This only ever
+    removes directness, never grants it: a clip that did not clear the calibration threshold
+    stays related, and a clip the relevance scorer placed at 2 (or lower, which cannot serve)
+    is reported as ``weak_match`` with ``is_direct_answer=False`` and
+    ``verification.direct=False`` — first-person serving invariant #1.
+    """
+    if not is_direct:
+        return False
+    if relevance_score is None:
+        return True
+    try:
+        return int(relevance_score) >= _DIRECT_ANSWER_MIN_SCORE
+    except (TypeError, ValueError):
+        return False
 
 
 def _estimate_fp_tokens(*texts: Any) -> int:
@@ -1139,7 +1232,7 @@ async def _relevance_select_async(
             query,
             clips,
             llm_service,
-            minimum=int(getattr(settings, "first_person_relevance_min_score", 3)),
+            minimum=int(getattr(settings, "first_person_relevance_min_score", 2)),
             timeout_s=_relevance_timeout_s(),
             scores_out=scores_out,
             judge_meta_out=judge_meta_out,
@@ -1228,12 +1321,13 @@ async def _relevance_select_scored_async(
     """
     if not clips or llm_service is None or not hasattr(llm_service, "generate"):
         return _RELEVANCE_INDETERMINATE
-    minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
+    minimum = int(getattr(settings, "first_person_relevance_min_score", 2))
     user_prompt = _build_relevance_user_prompt(query, clips)
     use_json_schema = False
     # Bound before the try: the except branches below estimate tokens from it.
     system_prompt = _RELEVANCE_SYSTEM_PROMPT
     try:
+        import asyncio
         import inspect
 
         gen_kwargs: dict[str, Any] = {"temperature": 0.0}
@@ -1271,7 +1365,55 @@ async def _relevance_select_scored_async(
                 res = await res
             return str(res)
 
-        raw = await _bounded(_call(), _relevance_timeout_s())
+        # A single dropped provider call used to make the WHOLE turn abstain as
+        # relevance_indeterminate ("I couldn't finish checking the teachings"), because
+        # the sequential contract blocks every context at or after the failed one. The
+        # scorer asks for a digit from a read-only clip, so a fast transport failure is
+        # repeated once; retrying cannot fabricate evidence and a second failure still
+        # returns _RELEVANCE_INDETERMINATE (fail closed).
+        #
+        # Elapsed guard (2026-11-11). A TimeoutError is only retried when the attempt
+        # died QUICKLY. A call that burned the whole deadline is congestion, not jitter:
+        # live run 02:48:54 retried exactly that case and the second attempt also burned
+        # 15 s, doubling the wait to 31.4 s for zero gain. Fast failures (a connection
+        # dropped in the first second) are cheap to repeat and are where the retry pays.
+        raw = ""
+        timeout_s = _relevance_timeout_s()
+        retry_elapsed_ceiling = timeout_s * _SCORER_RETRY_ELAPSED_FRACTION
+        attempts = max(1, int(getattr(settings, "first_person_relevance_max_attempts", 2) or 1))
+        for attempt in range(1, attempts + 1):
+            started = time.monotonic()
+            try:
+                raw = await _bounded(_call(), timeout_s)
+                break
+            except (ProviderRefusalError, asyncio.CancelledError):
+                raise
+            except (TimeoutError, ProviderConnectionError, ConnectionError) as exc:
+                # Narrow on purpose: only transport outcomes reach the retry. A bug in
+                # the scorer, a policy refusal or a budget denial must surface, not be
+                # silently re-asked.
+                elapsed = time.monotonic() - started
+                if attempt >= attempts or not _is_scorer_retryable(exc):
+                    raise
+                if elapsed > retry_elapsed_ceiling:
+                    logger.info(
+                        "[FirstPersonPipeline] Relevance check attempt %d/%d failed (%s) "
+                        "after %.2fs (> %.2fs); not retrying a full-deadline stall",
+                        attempt,
+                        attempts,
+                        type(exc).__name__,
+                        elapsed,
+                        retry_elapsed_ceiling,
+                    )
+                    raise
+                logger.info(
+                    "[FirstPersonPipeline] Relevance check attempt %d/%d failed (%s) after "
+                    "%.2fs; retrying",
+                    attempt,
+                    attempts,
+                    type(exc).__name__,
+                    elapsed,
+                )
     except ProviderRefusalError as e:  # noqa: BLE001 - CA-4: fail closed, distinct line
         logger.info("[FirstPersonPipeline] Relevance check refused by provider (%s); abstaining", e)
         if token_sink is not None:
@@ -2508,26 +2650,34 @@ class FirstPersonPipeline:
         max_clips: int,
         max_spans: int,
     ) -> list[ParentContext]:
-        """Widen and/or graph-expand the harness candidate contexts (plan T2b / T3).
+        """Widen and/or expand the harness candidate contexts (plan T2b / T3 / WS7).
 
         Selection-only: this adds stored spans and candidate contexts, never text,
-        and it never writes. Two independent stages, each behind its own flag:
+        and it never writes. Independent stages, each behind its own flag:
 
         * enrichment window (T2b) re-hydrates each candidate to its parent's full
           ordered span list, so explicit connective/coreference evidence keeps
           the predecessor that carries its antecedent;
+        * OKF concept expansion (WS7) matches the query vector against the curated
+          ``memory/okf/compiled.json`` doctrine matrix and runs ONE extra filtered
+          retrieval over the matched concept tags, appending new parents AFTER;
         * graph expansion (T3) asks the ontology for adjacent concepts and runs ONE
-          extra filtered retrieval, appending new parents AFTER the originals.
+          extra filtered retrieval, appending new parents AFTER the originals;
+        * TeachingUnit graph expansion (Phase 5) appends span-neighbour parents last.
 
         The primary list is never reordered or dropped: the first context is still
         the vector-search winner, so the harness's first-winner contract is
-        unchanged. With both flags off this is a pure pass-through of ``contexts``.
+        unchanged. With every flag off this is a pure pass-through of ``contexts``.
         """
         enrich_enabled = bool(getattr(settings, "first_person_enrichment_window_enabled", False))
         graph_enabled = bool(getattr(settings, "first_person_graph_expansion_enabled", False))
-        if not enrich_enabled and not graph_enabled:
+        okf_enabled = bool(getattr(settings, "first_person_okf_expansion_enabled", False))
+        tu_graph_enabled = bool(
+            getattr(settings, "first_person_teaching_unit_graph_enabled", False)
+        )
+        if not enrich_enabled and not graph_enabled and not okf_enabled and not tu_graph_enabled:
             # Today-behaviour guarantee: no store call, no extra retrieval, and no
-            # settings read beyond the two flags above.
+            # settings read beyond the flags above.
             return list(contexts)
 
         def _span_count(items: list[Any]) -> int:
@@ -2606,6 +2756,83 @@ class FirstPersonPipeline:
                 _span_count(primary),
                 _span_count(merged[: len(primary)]),
             )
+
+        # --- OKF concept expansion (Component 3, flag-gated, default OFF) ---
+        # The curated doctrine matrix is a mtime-cached ndarray (48x0.04 ms, no network,
+        # no daemon). Matched entry tags/titles become ONE extra payload-filtered
+        # retrieval pass. Appended AFTER the vector parents and still gated by the
+        # harness, so this is additive only: it can never reorder, drop or replace a
+        # primary context and it never generates text (serving invariant #3).
+        if okf_enabled and query_dense_vector:
+            from services.first_person_context_store import (  # noqa: PLC0415
+                FirstPersonContextStoreError,
+            )
+
+            okf_terms: list[str] = []
+            try:
+                from services.first_person_okf_expansion import expand_concepts_via_okf
+
+                okf_terms = expand_concepts_via_okf(
+                    query_dense_vector,
+                    teacher_id=teacher_id,
+                    max_concepts=int(
+                        getattr(settings, "first_person_okf_expansion_max_concepts", 8)
+                    ),
+                    min_similarity=float(
+                        getattr(settings, "first_person_okf_expansion_min_similarity", 0.40)
+                    ),
+                )
+            except (ImportError, OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+                # Additive: never delay or break serving. Concrete types only (exception
+                # ratchet): a missing compiled.json, a numpy import failure, or a shape
+                # mismatch. An unexpected programming error is NOT swallowed here.
+                logger.debug(
+                    "[FirstPersonPipeline] OKF concept expansion failed: %s; no concepts", exc
+                )
+                okf_terms = []
+
+            if okf_terms:
+                try:
+                    okf_contexts: list[ParentContext] = ctx_store.retrieve(
+                        query_dense=query_dense_vector,
+                        query_sparse=query_sparse_vector,
+                        guru_id=teacher_id,
+                        limit_parents=max_clips,
+                        spans_per_parent=max_spans,
+                        concept_ids=okf_terms,
+                    )
+                except (
+                    FirstPersonContextStoreError,
+                    OSError,
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    RuntimeError,
+                ) as exc:
+                    logger.debug(
+                        "[FirstPersonPipeline] OKF concept retrieval failed: %s; "
+                        "keeping primary contexts",
+                        exc,
+                    )
+                    okf_contexts = []
+
+                seen_okf_ids = {_parent_id(ctx) for ctx in merged if _parent_id(ctx)}
+                okf_appended: list[ParentContext] = []
+                for ctx in okf_contexts or []:
+                    parent_id = _parent_id(ctx)
+                    if parent_id and parent_id in seen_okf_ids:
+                        continue
+                    if parent_id:
+                        seen_okf_ids.add(parent_id)
+                    okf_appended.append(ctx)
+                logger.debug(
+                    "[FirstPersonPipeline] OKF expansion: %d concept(s) -> %d extra context(s)",
+                    len(okf_terms),
+                    len(okf_appended),
+                )
+                if okf_appended:
+                    bounded_okf = okf_appended[:bounded_limit]
+                    merged = merged + (_widen(bounded_okf) if enrich_enabled else bounded_okf)
 
         if not graph_enabled:
             return merged
@@ -2732,6 +2959,67 @@ class FirstPersonPipeline:
                         merged = merged + (_widen(bounded_tu) if enrich_enabled else bounded_tu)
 
         return merged
+
+    def _diversify_candidate_pool(self, contexts: list[Any]) -> list[Any]:
+        """Cap how many candidates one video may contribute, MMR-ordered.
+
+        Flag-gated (``first_person_cross_video_diversity_enabled``, OFF by default) and
+        additive: every retrieved context is returned exactly once, so nothing is dropped.
+        A candidate deferred by the per-video cap moves to the tail, where the harness still
+        evaluates it after the primary and expanded contexts. Pure reordering — no text is
+        read for output, edited, or generated.
+        """
+        if not bool(getattr(settings, "first_person_cross_video_diversity_enabled", False)):
+            return list(contexts)
+        if len(contexts) < 2:
+            return list(contexts)
+
+        records: list[dict[str, Any]] = []
+        for idx, ctx in enumerate(contexts):
+            parent = getattr(ctx, "parent", None)
+            spans = getattr(ctx, "spans", None) or ()
+            try:
+                score = float(getattr(ctx, "score", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                score = 0.0
+            records.append(
+                {
+                    "_idx": idx,
+                    "video_id": str(getattr(parent, "video_id", "") or ""),
+                    "score": score,
+                    "text": " ".join(
+                        str(getattr(span, "verbatim_text", "") or "") for span in spans
+                    ),
+                }
+            )
+
+        try:
+            from services.cross_video_diversity import (  # noqa: PLC0415
+                apply_cross_video_diversity,
+            )
+
+            ordered, deferred = apply_cross_video_diversity(
+                records,
+                max_per_video=int(getattr(settings, "first_person_cross_video_max_per_video", 2)),
+                mmr_lambda=float(getattr(settings, "first_person_cross_video_mmr_lambda", 0.7)),
+            )
+        except (ImportError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+            # A diversity defect must never lose a candidate. Concrete types only
+            # (exception ratchet): a bad record shape or a missing module.
+            logger.warning(
+                "[FirstPersonPipeline] cross-video diversity failed: %s; keeping retrieval order",
+                exc,
+            )
+            return list(contexts)
+
+        if deferred:
+            logger.debug(
+                "[FirstPersonPipeline] cross-video diversity deferred %d/%d candidate(s) past "
+                "the per-video cap",
+                deferred,
+                len(records),
+            )
+        return [contexts[record["_idx"]] for record in ordered]
 
     def _build_editorial_set_result(
         self,
@@ -4327,11 +4615,11 @@ class FirstPersonPipeline:
                 )
 
                 def _retrieve_contexts() -> list[ParentContext]:
-                    # Gate sparse RRF fusion on the feature flag (FIRST_PERSON_CONTEXT_USE_SPARSE).
-                    # Dense-only retrieval is the default; sparse adds keyword recall at the cost
-                    # of an extra Qdrant round-trip and BM25 index maintenance.
-                    _use_sparse = getattr(settings, "first_person_context_use_sparse", False)
-                    _sparse = query_sparse_vector if _use_sparse else None
+                    # Sparse RRF fusion is gated on FIRST_PERSON_CONTEXT_USE_SPARSE
+                    # (ON by default since 2026-11-10). Without it, named doctrinal terms
+                    # ("Four Sacred Secrets", "Soul Sync") never reach the candidate pool,
+                    # because a dense vector has no lexical anchor for a coined name.
+                    _sparse = _context_sparse_query(query_sparse_vector)
                     found = ctx_store.retrieve(
                         query_dense=query_dense_vector,
                         query_sparse=_sparse,
@@ -4340,8 +4628,8 @@ class FirstPersonPipeline:
                         spans_per_parent=max_spans,
                     )
                     # Plan T2b + T3: flag-gated enrichment window and graph-guided
-                    # candidate expansion. Pure pass-through when both flags are off.
-                    return self._expand_context_candidates(
+                    # candidate expansion. Pure pass-through when all flags are off.
+                    expanded = self._expand_context_candidates(
                         found,
                         ctx_store=ctx_store,
                         query_dense_vector=query_dense_vector,
@@ -4351,6 +4639,8 @@ class FirstPersonPipeline:
                         max_clips=harness_candidate_limit,
                         max_spans=max_spans,
                     )
+                    # Component 4: optional cross-video diversity cap (no-op when off).
+                    return self._diversify_candidate_pool(expanded)
 
                 # T7-02: the sync Qdrant client must not block the event loop.
                 contexts = await _io_thread(_retrieve_contexts)
@@ -4712,8 +5002,9 @@ class FirstPersonPipeline:
                     if decision.decision == HarnessDecision.SERVE_RELATED_NOT_DIRECT:
                         is_direct = False
                     else:
-                        is_direct = (
-                            self._profile is not None and confidence >= self._profile["threshold"]
+                        is_direct = _resolve_served_directness(
+                            self._profile is not None and confidence >= self._profile["threshold"],
+                            _h_rel_score,
                         )
                     stage_timings: dict[str, Any] = {
                         "answerability_ms": round(float(t_ans_ms), 2),
@@ -5793,6 +6084,9 @@ class FirstPersonPipeline:
         second_clip: Optional[dict[str, Any]] = None
         second_score = 0.0
         judge_meta: dict[str, Any] = {}
+        # Relevance score of the clip that will actually be served. None when the gate is
+        # off/indeterminate; a 2 then keeps the answer related, never direct.
+        _pick_relevance_score: Optional[int] = None
         if getattr(settings, "first_person_relevance_gate_enabled", True):
             candidates = verified_clips[:3]
             rel_scores: list[int] = []
@@ -5809,7 +6103,7 @@ class FirstPersonPipeline:
                     judge_meta_out=judge_meta,
                 )
             elif speculative_enabled and candidates:
-                min_rel = int(getattr(settings, "first_person_relevance_min_score", 3))
+                min_rel = int(getattr(settings, "first_person_relevance_min_score", 2))
                 # Cascade Reranker-to-Scorer Filtering (Track 1):
                 # Only score candidate #1 first. If candidate #1 passes with score >= min_rel,
                 # serve it immediately. Only evaluate candidate #2 on tie/rejection.
@@ -5908,7 +6202,7 @@ class FirstPersonPipeline:
             if getattr(settings, "first_person_second_quote_enabled", False) and len(
                 rel_scores
             ) == len(candidates):
-                minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
+                minimum = int(getattr(settings, "first_person_relevance_min_score", 2))
                 others = [
                     i
                     for i in range(len(candidates))
@@ -5926,6 +6220,8 @@ class FirstPersonPipeline:
                 clip_scores = [clip_scores[pick]] + [
                     s for i, s in enumerate(clip_scores) if i != pick
                 ]
+            if isinstance(pick, int) and 0 <= pick < len(rel_scores):
+                _pick_relevance_score = int(rel_scores[pick])
         t_scorer_ms = (time.monotonic() - t_scorer_start) * 1000.0
 
         top_clip = verified_clips[0]
@@ -5942,7 +6238,7 @@ class FirstPersonPipeline:
             _j_sel = judge_meta.get("selected")
             if isinstance(_j_sel, int) and 0 <= _j_sel < len(_j_scores):
                 _j_item = _j_scores[_j_sel]
-                _min_rel = int(getattr(settings, "first_person_relevance_min_score", 3))
+                _min_rel = int(getattr(settings, "first_person_relevance_min_score", 2))
                 _answers = bool(_j_item.get("answers", False))
                 _rel = int(_j_item.get("relevance", 0))
                 _is_direct_judge = _answers and _rel >= _min_rel
@@ -5962,6 +6258,9 @@ class FirstPersonPipeline:
         # terminal punctuation is answerable but not a whole-thought teaching:
         # serve it as related, never as a direct answer. (Owner decision
         # 2026-10-10 kept these clips in the corpus; it did not call them direct.)
+        # Before that, honour the relevance band: the judge/calibration may only grant
+        # directness for a clip the scorer placed at 3 (serving invariant #1 / WS3).
+        is_direct = _resolve_served_directness(is_direct, _pick_relevance_score)
         if is_direct and any(
             _boundary_verdict(clip)[0] == _BOUNDARY_INCOMPLETE for clip in verified_clips
         ):
@@ -7020,7 +7319,7 @@ class FirstPersonPipeline:
 
         # Per-part Scoring & Selection (Task F2)
         t_scorer_start = time.monotonic()
-        minimum_score = int(getattr(settings, "first_person_relevance_min_score", 3))
+        minimum_score = int(getattr(settings, "first_person_relevance_min_score", 2))
         used_video_ids: set[str] = set()
         part_results: list[dict[str, Any]] = []
 

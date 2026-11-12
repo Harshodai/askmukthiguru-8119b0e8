@@ -508,3 +508,53 @@ def test_quality_gate_reads_settings_defaults(monkeypatch):
     gate = DataQualityGate()
     assert gate._threshold == 65
     assert gate._enabled is True
+
+
+@pytest.mark.asyncio
+async def test_run_chunks_refuses_a_non_integer_tier_reached(monkeypatch):
+    """A mocked verdict must never reach the live rejection ledger.
+
+    ``tier_reached`` is an int (0-3). Before 2026-11-12 it was formatted straight
+    into ``gate_layer``, so a run whose result was a test double wrote 23
+    ``quality_gate_tier_<MagicMock ...>`` rows into the live
+    ``public.corpus_gate_rejections`` table (measured 2026-11-12). X40 requires
+    rejections to be durable; it never licenses persisting corrupt provenance.
+    """
+    from ingest.quality_gate import DataQualityGate, QualityResult
+
+    checker = DataQualityGate(enabled=True)
+    bogus = QualityResult(passed=False, score=10, tier_reached=MagicMock(), reasons=["junk"])
+
+    async def fake_run(text, source_url="", speaker=""):
+        return bogus
+
+    monkeypatch.setattr(checker, "run", fake_run)
+    client = MagicMock()
+    with patch("app.telemetry_db._get_client", return_value=client):
+        passed, results = await checker.run_chunks(["bad text"], "https://x/watch?v=a")
+
+    assert passed == []
+    assert results == [bogus]
+    client.table.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_run_chunks_persists_a_rejection_with_a_real_tier(monkeypatch):
+    """The guard must not silence a genuine rejection (X40)."""
+    from ingest.quality_gate import DataQualityGate, QualityResult
+
+    checker = DataQualityGate(enabled=True)
+    real = QualityResult(passed=False, score=10, tier_reached=2, reasons=["junk"])
+
+    async def fake_run(text, source_url="", speaker=""):
+        return real
+
+    monkeypatch.setattr(checker, "run", fake_run)
+    client = MagicMock()
+    with patch("app.telemetry_db._get_client", return_value=client):
+        await checker.run_chunks(["bad text"], "https://x/watch?v=a")
+
+    client.table.assert_called_with("corpus_gate_rejections")
+    rows = client.table.return_value.insert.call_args[0][0]
+    assert rows[0]["gate_layer"] == "quality_gate_tier_2"
+    assert rows[0]["gate_verdict"] == "rejected"

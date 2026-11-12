@@ -100,7 +100,20 @@ _ANTECEDENT_CONNECTIVE_RE = re.compile(
     r"^(?:"
     r"imagine\s+what\s+will\s+be\s+the\s+outcome\s+of\s+(?:it|this|that)\b|"
     r"(?:because|as\s+a\s+result)\s+of\s+(?:it|this|that)\b|"
-    r"in\s+response\s+to\s+(?:it|this|that)\b"
+    r"in\s+response\s+to\s+(?:it|this|that)\b|"
+    # 2026-11-10 (SOTA WS4): a span that opens mid-coordination or mid-relative-clause
+    # cannot stand alone, so it needs its predecessor. Measured on the live
+    # first_person_v10 collection: the rejected openers were "or the states of being
+    # that are within the grasp of every human being" and "tilted towards a worship of
+    # the I", neither of which the old three-phrase regex matched, so
+    # FirstPersonPipeline never attempted the cross-parent predecessor fetch and the
+    # harness abstained `fragment_without_antecedent` on a genuine teaching.
+    # Deliberately narrow: coordinating conjunctions, relative pronouns (excluding
+    # "that", which is a common demonstrative sentence opener), and bare
+    # non-finite past-participle openers ("tilted", "bound", "rooted"). Over-triggering
+    # is fail-closed: a lookup that returns no validated predecessor abstains.
+    r"(?:or|and|but|because|which|who|whose|whereas|whilst)\b|"
+    r"(?:tilted|bound|rooted|anchored|shaped|driven|caught|trapped)\b"
     r")",
     re.IGNORECASE,
 )

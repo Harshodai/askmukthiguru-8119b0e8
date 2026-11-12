@@ -111,3 +111,33 @@ async def test_429_on_one_model_does_not_throttle_another():
     assert allowed_slow is False and wait_slow > 0
     assert allowed_fast is True
     OpenRouterService.reset_shared_rate_limiter()
+
+
+@pytest.mark.asyncio
+async def test_enforce_rate_limit_fails_open_with_no_shared_limiter(monkeypatch):
+    """A missing limiter must not raise out of the chat path.
+
+    ``reset_shared_rate_limiter()`` is the test-isolation hook and sets the
+    class attribute to None; a constructor failure leaves it None too. Both
+    use sites used to dereference it unguarded, so ``AttributeError: 'NoneType'
+    object has no attribute 'is_allowed_async'`` propagated into
+    ``generate_answer`` and the node failed. The method's own contract is
+    fail-open ("a stuck rate limiter must never wedge a chat request").
+    """
+    svc = OpenRouterService()
+    monkeypatch.setattr(OpenRouterService, "_shared_rate_limiter", None)
+    await svc._enforce_rate_limit()
+    await svc._record_rate_limit_response()
+
+
+@pytest.mark.asyncio
+async def test_enforce_rate_limit_still_limits_when_the_limiter_exists(monkeypatch):
+    """The guard must not weaken a real limiter (no silent pass-through)."""
+    svc = OpenRouterService()
+
+    async def throttled(key):
+        return False, 115.0
+
+    monkeypatch.setattr(OpenRouterService._shared_rate_limiter, "is_allowed_async", throttled)
+    with pytest.raises(ProviderRateLimitedError):
+        await svc._enforce_rate_limit(strict_gateway=True)

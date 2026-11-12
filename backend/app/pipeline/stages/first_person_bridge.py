@@ -66,6 +66,29 @@ logger = logging.getLogger(__name__)
 # DistressLevel.MODERATE; an int so this module stays import-light.
 _DISTRESS_DECLINE_LEVEL = 2
 
+# One-shot flag so "no provider can write a HyDE passage" is said once, not per request.
+# A mutable cell, so the note needs no ``global`` statement.
+_HYDE_PROVIDER_WARNED: dict[str, bool] = {"said": False}
+
+
+def _hyde_provider(container: Any) -> Any:
+    """The container service that can write a HyDE passage, or ``None``.
+
+    2026-11-11: this used to read ``container.ollama`` only. That attribute is a
+    *deprecated alias for* ``container.llm`` on the real container, so it happened to
+    work — but the signal was invisible and any container built without it (mocks, a
+    provider wired under a different name) skipped HyDE in silence. Prefer the canonical
+    provider, then the legacy aliases, and only accept an object that actually
+    implements ``generate_hyde``. ``OpenRouterService`` does not, which is why a name
+    check alone is not enough.
+    """
+    for attribute in ("llm", "ollama", "openrouter", "nim"):
+        candidate = getattr(container, attribute, None)
+        if candidate is not None and hasattr(candidate, "generate_hyde"):
+            return candidate
+    return None
+
+
 _PRACTICE_HOWTO_RE = re.compile(
     r"\b(how|steps?|guide|teach me|instructions?)\b.{0,40}"
     r"\b(soul\s*sync|serene\s*mind|meditat\w*|breath\w*)",
@@ -930,8 +953,18 @@ class FirstPersonBridgeStage(Stage):
             try:
                 import asyncio as _asyncio
 
-                _llm = getattr(container, "ollama", None)
-                if _llm is not None and hasattr(_llm, "generate_hyde"):
+                _llm = _hyde_provider(container)
+                if _llm is None:
+                    # Not silent: the old code checked one attribute and skipped HyDE
+                    # without a trace when it was absent.
+                    if not _HYDE_PROVIDER_WARNED["said"]:
+                        _HYDE_PROVIDER_WARNED["said"] = True
+                        logger.info(
+                            "[FirstPersonBridge] No container provider implements "
+                            "generate_hyde (checked llm, ollama, openrouter, nim); "
+                            "HyDE is skipped for this deployment."
+                        )
+                if _llm is not None:
                     hyde_text = await _asyncio.wait_for(
                         _llm.generate_hyde(question=retrieval_query),
                         timeout=2.5,
