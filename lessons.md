@@ -47,6 +47,13 @@
 - **Span gate rejections:** 16 "severed preposition opener" and many "span failed a serve-time gate". These are corpus defects from ingestion boundaries. The fix means rebuilding the v10 collection, which is a Qdrant write and needs dry-run, snapshot and owner approval first.
 - **Redis timeouts:** 48 `RedisBackedRateLimiter` degradations ("Timeout reading from redis:6379") with `socket_timeout=0.5`. Redis was healthy when checked later. Degrade-to-allow is by design. Raising the timeout is a guess until the latency is measured under load.
 
+## Nov 12, 2026 — CORRECTION: the segfaults came from our asyncio debug flag, not the middleware
+
+### L-CORRECTION-DEBUG-FLAG-SEGFAULT-1. Withdraw L-BASEHTTP-BODY-READ-SEGFAULT-1's root-cause claim.
+- **What:** graded-6 ran with `PYTHONASYNCIODEBUG=1` (my diagnostic override). Asyncio debug mode records a stack trace for every task it creates. Under Starlette's nested `receive` wrappers that stack walk overflowed the C stack. The fatal traces show `traceback.walk_stack` at the top. With the flag removed, 300 POSTs to `/api/chat` produced 0 restarts and 0 segfaults. The graded-3 base has the same BaseHTTPMiddleware stack and ran clean.
+- **Consequence:** the middleware rewrite (`AuthRateLimitMiddleware`, `a69f42f2`) was not the root cause. It stays because it is a valid cleanup, but it did not stop the crashes. The "300 posts crash" reproduction was run with debug mode on. Do not use asyncio debug mode on the live backend.
+- **Rule:** before blaming app code for a native crash, list every env flag you have set on the container, and remove diagnostics that change interpreter behaviour (debug mode, tracemalloc, faulthandler) before reproducing.
+
 ## Nov 12, 2026 — The backend "killer" was a segfault in our own auth middleware
 
 ### L-BASEHTTP-BODY-READ-SEGFAULT-1. Reading the request body inside a BaseHTTPMiddleware can crash the process.
