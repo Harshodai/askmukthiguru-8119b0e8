@@ -33,6 +33,7 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
     ]
     grades = json.loads(grades_path.read_text(encoding="utf-8")) if grades_path.exists() else {}
     final_grades = grades.get("final", {})
+    judge_label = (grades.get("models") or {}).get("first", "unknown judge")
 
     frozen_count = len([r for r in rows if r.get("set") == "frozen116"])
     unans_count = len([r for r in rows if r.get("set") == "unanswerable86"])
@@ -70,7 +71,7 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
         lines.append(f"- **Route:** `{r.get('route')}`")
         lines.append(f"- **Latency:** {r.get('latency_ms')} ms ({r.get('sec')}s wall)")
         lines.append(
-            f"- **Judge Verdict (Haiku 5.5):** `{g.get('verdict', 'unrated')}` (Harmful: `{g.get('harmful', False)}`)"
+            f"- **Judge Verdict ({judge_label}):** `{g.get('verdict', 'unrated')}` (Harmful: `{g.get('harmful', False)}`)"
         )
         if g.get("reasons"):
             lines.append("- **Judge Reasons:**")

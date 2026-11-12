@@ -985,6 +985,221 @@ def _openrouter_asker(model: str) -> Callable[[str, str], str]:
     return ask
 
 
+# ---------------------------------------------------------------------------
+# Batch grading adapter (report item 11)
+#
+# The synchronous asker pays one HTTP round trip per row and meets OpenRouter's
+# 429 wall when a grading run is large. The Anthropic Message Batches API takes
+# the whole run as one submission (and bills it at the batch rate), so this mode
+# replaces per-row calls with submit -> poll -> read-results when the caller can
+# supply an Anthropic key. It is evaluation tooling: nothing on the serving path
+# imports it, and a run without the key still uses the synchronous grader.
+# ---------------------------------------------------------------------------
+
+_ANTHROPIC_ALLOWED_HOSTS = frozenset({"api.anthropic.com"})
+_BATCH_TERMINAL_STATES = frozenset({"ended", "canceled", "expired"})
+
+
+def _validated_anthropic_base_url(base_url: str | None) -> str:
+    """The batch base URL, or a hard refusal.
+
+    A credential-bearing client may only talk https to the Anthropic host: a
+    configured base URL that points elsewhere would send the key to that host.
+    """
+    from urllib.parse import urlparse
+
+    url = str(base_url or "https://api.anthropic.com/v1").rstrip("/")
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise GraderCredentialError(
+            f"anthropic_base_url must be https, got {parsed.scheme or '(none)'}",
+            auth_status="insecure_base_url",
+        )
+    if parsed.hostname not in _ANTHROPIC_ALLOWED_HOSTS:
+        raise GraderCredentialError(
+            f"anthropic_base_url host {parsed.hostname!r} is not an Anthropic host "
+            f"({sorted(_ANTHROPIC_ALLOWED_HOSTS)}); refusing to send the key there",
+            auth_status="untrusted_host",
+        )
+    return url
+
+
+def _anthropic_batch_asker(
+    model: str,
+    *,
+    client: Any | None = None,
+    max_tokens: int = 1024,
+    poll_interval_s: float = 5.0,
+    timeout_s: float = 3600.0,
+) -> Callable[[str, list[str]], list[str]]:
+    """Ask the same system prompt about many rows in one Anthropic batch.
+
+    Returns ``ask_many(system, users) -> replies`` with replies in input order. A
+    request the provider could not complete maps to ``""``: ``parse_grade`` turns an
+    empty reply into ``unsure``, so a provider fault can never become a pass.
+    """
+    import httpx
+
+    try:
+        from app.config import settings
+
+        # Settings first, environment second: a deployment can set either, and an
+        # unset settings field must not shadow an exported key.
+        key = getattr(settings, "anthropic_api_key", "") or os.environ.get("ANTHROPIC_API_KEY", "")
+        base_url = getattr(settings, "anthropic_base_url", "") or os.environ.get(
+            "ANTHROPIC_BASE_URL", ""
+        )
+        api_version = getattr(settings, "anthropic_api_version", "") or os.environ.get(
+            "ANTHROPIC_API_VERSION", "2023-06-01"
+        )
+    except Exception:
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
+        base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+        api_version = os.environ.get("ANTHROPIC_API_VERSION", "2023-06-01")
+
+    if not key:
+        raise GraderCredentialError(
+            "ANTHROPIC_API_KEY is not set; refusing to batch-grade without it "
+            "(drop --batch to use the synchronous grader)",
+            auth_status="missing_credentials",
+        )
+    base = _validated_anthropic_base_url(base_url)
+    headers = {
+        "x-api-key": key,
+        "anthropic-version": str(api_version or "2023-06-01"),
+        "content-type": "application/json",
+    }
+    # One client for the whole run (a grading run is a CLI with a bounded lifetime);
+    # redirects are off so the key can never follow a 3xx to another host.
+    http = client or httpx.Client(timeout=120.0, follow_redirects=False)
+
+    def _post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        resp = http.post(f"{base}{path}", headers=headers, json=payload)
+        if resp.status_code in (401, 403):
+            raise GraderCredentialError(
+                f"Anthropic {resp.status_code} on {path}: {resp.text[:200]}",
+                status_code=resp.status_code,
+                auth_status="unauthorized_401" if resp.status_code == 401 else "forbidden_403",
+            )
+        if resp.status_code >= 500 or resp.status_code == 429:
+            raise GraderAvailabilityError(
+                f"Anthropic {resp.status_code} on {path}; batch run unavailable",
+                status_code=resp.status_code,
+                auth_status="rate_limited",
+            )
+        resp.raise_for_status()
+        return resp.json()
+
+    def _get(url: str) -> Any:
+        """GET a batch URL with the credential, returning the response for the caller."""
+        resp = http.get(url, headers=headers)
+        if resp.status_code in (401, 403):
+            raise GraderCredentialError(
+                f"Anthropic {resp.status_code} reading batch results",
+                status_code=resp.status_code,
+                auth_status="unauthorized_401",
+            )
+        if resp.status_code >= 500 or resp.status_code == 429:
+            raise GraderAvailabilityError(
+                f"Anthropic {resp.status_code} reading batch results",
+                status_code=resp.status_code,
+                auth_status="rate_limited",
+            )
+        resp.raise_for_status()
+        return resp
+
+    def ask_many(system: str, users: list[str]) -> list[str]:
+        if not users:
+            return []
+        requests = [
+            {
+                "custom_id": f"row-{index:05d}",
+                "params": {
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "temperature": 0,
+                    "system": system,
+                    "messages": [{"role": "user", "content": user}],
+                },
+            }
+            for index, user in enumerate(users)
+        ]
+        batch = _post("/messages/batches", {"requests": requests})
+        batch_id = str(batch.get("id") or "")
+        if not batch_id:
+            raise GraderAvailabilityError(
+                "Anthropic batch submission returned no id", auth_status="service_error"
+            )
+        started = time.monotonic()
+        results_url = ""
+        while True:
+            info = _get(f"{base}/messages/batches/{batch_id}").json()
+            state = str(info.get("processing_status") or "")
+            if state in _BATCH_TERMINAL_STATES:
+                results_url = str(info.get("results_url") or "")
+                break
+            if time.monotonic() - started > timeout_s:
+                raise GraderAvailabilityError(
+                    f"Anthropic batch {batch_id} did not finish within {timeout_s:.0f}s "
+                    f"(state={state or 'unknown'})",
+                    auth_status="timeout",
+                )
+            time.sleep(poll_interval_s)
+        by_index: dict[int, str] = {}
+        if results_url:
+            for line in _get(results_url).text.splitlines():
+                if not line.strip():
+                    continue
+                entry = json.loads(line)
+                custom_id = str(entry.get("custom_id") or "")
+                try:
+                    index = int(custom_id.rsplit("-", 1)[-1])
+                except (ValueError, IndexError):
+                    continue
+                result = entry.get("result") or {}
+                if result.get("type") != "succeeded":
+                    by_index[index] = ""
+                    continue
+                content = (result.get("message") or {}).get("content") or []
+                text = "".join(
+                    str(part.get("text") or "")
+                    for part in content
+                    if isinstance(part, dict) and part.get("type") == "text"
+                )
+                by_index[index] = text
+        return [by_index.get(index, "") for index in range(len(users))]
+
+    return ask_many
+
+
+def grade_rows_batched(
+    rows: list[dict[str, Any]],
+    ask_many_first: Callable[[str, list[str]], list[str]],
+    ask_many_second: Callable[[str, list[str]], list[str]],
+    sample_fraction: float = 1.0,
+    seed: int = 20261030,
+) -> dict[str, Any]:
+    """``grade_rows`` with one batched provider call per stage.
+
+    Same selection, agreement and final-grade shape as the synchronous path, so a
+    report produced in batch mode is directly comparable.
+    """
+    by_id = {r["id"]: r for r in rows}
+    ids = list(by_id)
+    first_replies = ask_many_first(RUBRIC, [build_prompt(by_id[i]) for i in ids])
+    first = {i: parse_grade(reply) for i, reply in zip(ids, first_replies, strict=False)}
+    chosen = select_for_second_pass(first, sample_fraction, seed)
+    second_replies = ask_many_second(RUBRIC, [build_prompt(by_id[i]) for i in chosen])
+    second = {i: parse_grade(reply) for i, reply in zip(chosen, second_replies, strict=False)}
+    return {
+        "first": first,
+        "second": second,
+        "second_pass_ids": chosen,
+        "agreement": agreement(first, second),
+        "final": final_grades(first, second),
+    }
+
+
 def _core_abstain_rate(path: str | None, rows: list[dict[str, Any]] | None = None) -> float | None:
     """Read the core abstain rate from an unanswerable-set report, or None when absent."""
     if path:
@@ -1109,6 +1324,40 @@ def check_judge_independence(
     return collisions
 
 
+def _run_dual_judge(
+    rows: list[dict[str, Any]],
+    *,
+    first_model: str,
+    second_model: str,
+    sample_fraction: float,
+    seed: int,
+    batch: bool = False,
+) -> dict[str, Any]:
+    """Grade the served rows with two judges, synchronously or in one batch.
+
+    Batch mode is evaluation tooling only (report item 11): one submission instead of
+    one HTTP call per row removes the 429 wall and lets the provider bill the run at
+    its batch rate. The report shape is identical, so both modes are comparable.
+    """
+    served_rows = [r for r in rows if r.get("citations")]
+    target = served_rows or rows
+    if batch:
+        return grade_rows_batched(
+            target,
+            _anthropic_batch_asker(first_model),
+            _anthropic_batch_asker(second_model),
+            sample_fraction,
+            seed,
+        )
+    return grade_rows(
+        target,
+        _openrouter_asker(first_model),
+        _openrouter_asker(second_model),
+        sample_fraction,
+        seed,
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--rows", required=True)
@@ -1150,6 +1399,13 @@ def main() -> int:
         "8 of 16 Stage A positives were never checked by the strong model)",
     )
     ap.add_argument("--seed", type=int, default=20261030)
+    ap.add_argument(
+        "--batch",
+        action="store_true",
+        help="grade through one Anthropic Message Batches submission per stage instead of "
+        "one OpenRouter call per row (needs ANTHROPIC_API_KEY, and --first-model/--second-model "
+        "must be Anthropic model ids, not OpenRouter slugs)",
+    )
     args = ap.parse_args()
 
     rows = [json.loads(line) for line in Path(args.rows).read_text().splitlines() if line.strip()]
@@ -1204,15 +1460,13 @@ def main() -> int:
             }
         else:
             try:
-                ask_first = _openrouter_asker(args.first_model)
-                ask_second = _openrouter_asker(args.second_model)
-                served_rows = [r for r in rows if r.get("citations")]
-                result = grade_rows(
-                    served_rows or rows,
-                    ask_first,
-                    ask_second,
-                    args.sample_fraction,
-                    args.seed,
+                result = _run_dual_judge(
+                    rows,
+                    first_model=args.first_model,
+                    second_model=args.second_model,
+                    sample_fraction=args.sample_fraction,
+                    seed=args.seed,
+                    batch=args.batch,
                 )
                 result["models"] = {"first": args.first_model, "second": args.second_model}
                 evaluation_mode = "dual_judge"
@@ -1237,15 +1491,13 @@ def main() -> int:
                 }
     else:
         try:
-            ask_first = _openrouter_asker(args.first_model)
-            ask_second = _openrouter_asker(args.second_model)
-            served_rows = [r for r in rows if r.get("citations")]
-            result = grade_rows(
-                served_rows or rows,
-                ask_first,
-                ask_second,
-                args.sample_fraction,
-                args.seed,
+            result = _run_dual_judge(
+                rows,
+                first_model=args.first_model,
+                second_model=args.second_model,
+                sample_fraction=args.sample_fraction,
+                seed=args.seed,
+                batch=args.batch,
             )
             result["models"] = {"first": args.first_model, "second": args.second_model}
         except GraderCredentialError as exc:
