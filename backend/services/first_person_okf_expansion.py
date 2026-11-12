@@ -34,7 +34,7 @@ def expand_concepts_via_okf(
 
     Args:
         query_dense_vector: 1024-dim BGE-M3 query vector.
-        teacher_id: Optional filter ('sri-preethaji', 'sri-krishnaji', or None).
+        teacher_id: Optional filter (a `guru_registry` teacher id, or None).
         max_concepts: Ceiling on unique returned concept terms.
         min_similarity: Cosine similarity threshold for doctrine entry matching.
         compiled_path: Path override for tests.
