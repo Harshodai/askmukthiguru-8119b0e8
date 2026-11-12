@@ -47,6 +47,14 @@
 - **Span gate rejections:** 16 "severed preposition opener" and many "span failed a serve-time gate". These are corpus defects from ingestion boundaries. The fix means rebuilding the v10 collection, which is a Qdrant write and needs dry-run, snapshot and owner approval first.
 - **Redis timeouts:** 48 `RedisBackedRateLimiter` degradations ("Timeout reading from redis:6379") with `socket_timeout=0.5`. Redis was healthy when checked later. Degrade-to-allow is by design. Raising the timeout is a guess until the latency is measured under load.
 
+## Nov 12, 2026 — CORRECTION: the graded minimum was 3, not 2
+
+### L-CORRECTION-GRADED-MIN-IS-3-1. My earlier "min score 2" finding was a misreading. Withdraw L-GRADED-MIN-SCORE-2-OWNER-DECISION-1.
+- **What:** I earlier wrote that graded-3 served at `FIRST_PERSON_RELEVANCE_MIN_SCORE=2`. The raw log says `min_score=3` (`Serving posture` line, 2 occurrences). Graded-3's manifest records `3`. The graded override has pinned `"3"` since commit `8b3aae6c`, before the graded-3 base `b349f809`. I had hidden the digits with a regex when I read the log, then matched a message that actually says the score 2 is below the minimum, which means the minimum is above 2.
+- **Consequence:** the owner decision "keep 2" was taken on that wrong premise. Ask the owner again before relying on it.
+- **Real regression:** the 2026-11-12 arm run at min 2 served 25 frozen clips, against 35 for graded-3 at min 3. A lower minimum cannot serve fewer clips on the same code. The code changed in `331dcdcd`, which set `first_person_context_use_sparse` to True by default (it was False at `b349f809`). Test pending: graded-5 (current code, min 3) against a sparse-off run.
+- **Rule:** quote the value from the raw artifact, never from a regex-normalised line. Check each claim against the manifest before it becomes a decision.
+
 ## Nov 12, 2026 — Graded run 20261112-graded-3: report labels and provenance
 
 ### L-GRADED-MIN-SCORE-2-OWNER-DECISION-1. The graded relevance minimum stays at 2; the legacy fallback enforces it too.
