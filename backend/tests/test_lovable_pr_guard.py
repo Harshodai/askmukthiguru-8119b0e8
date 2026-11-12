@@ -96,11 +96,12 @@ def test_bot_pr_with_only_ordinary_files_passes():
     assert _run(["src/pages/Index.tsx"], BOT, "").returncode == 0
 
 
-def test_workflow_runs_on_pull_request_runs_the_guards_and_never_merges():
+def test_workflow_is_manual_only_runs_the_guards_and_never_merges():
+    # Owner decision 2026-11-12: no paid GitHub Actions, so no pull_request trigger.
     data = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     on = data.get("on") or data.get(True)
-    assert "pull_request" in on
-    assert {"labeled", "unlabeled"} <= set(on["pull_request"]["types"])
+    assert "workflow_dispatch" in on
+    assert "pull_request" not in on
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "scripts/guards/lovable_pr_paths.py" in text
     assert "scripts/guards/lesson_guards.py" in text

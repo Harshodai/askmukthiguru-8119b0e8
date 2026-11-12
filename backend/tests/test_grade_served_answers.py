@@ -295,9 +295,9 @@ def test_the_committed_bar_declares_the_approved_limits():
     )
     assert bar["approved"] is True
     assert bar["p95_latency_s"] == 10
-    assert bar["min_served_share"] == 0.45
+    assert bar["min_served_share"] == 0.3
     assert bar["min_core_abstain_rate"] == 0.95
-    assert bar["min_showable_rate"] == 0.95
+    assert bar["min_showable_rate"] == 0.85
 
 
 def test_crisis_items_are_reported_apart_across_groups_and_never_in_the_core_rate():

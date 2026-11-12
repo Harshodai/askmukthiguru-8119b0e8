@@ -1,7 +1,7 @@
 {
   "approved": true,
-  "note": "APPROVED by Harsha. Elevated limits with unified benchmark suite and 421-query bank.",
-  "min_showable_rate": 0.95,
+  "note": "APPROVED by Harsha 2026-10-31. p95 latency bar is 10 s (he kept 10 s, not 12 s). The 116 frozen questions are a TUNING set, not a held-out set; report them as such. RESTORED 2026-11-12 by the handoff thread: commit 1e22172 (2026-11-09) raised the bar to 0.95 showable and 0.45 served share with no quoted approval; those numbers are an unapproved proposal until Harsha types them. Harsha can overrule.",
+  "min_showable_rate": 0.85,
   "max_harmful": 0,
   "hard_gates_checked_elsewhere": [
     "0 served clips from outside v10",
@@ -12,15 +12,20 @@
   ],
   "coverage": "gated: served share of answerable questions >= min_served_share",
   "approved_by": "Harsha",
-  "approved_on": "2026-11-09",
-  "approval_evidence": "Harsha's direction to elevate limits (min_served_share >= 0.45, min_showable_rate >= 0.95) and unify question bank benchmarks",
+  "approved_on": "2026-10-31",
+  "approval_evidence": "Harsha's reply 'I recommend this' to the pass-bar approval question, message cmsg_01CtT9K7wvsZ3AH5oXEZ1r2z8Pto9UHtHquG7aNZfNELnq (2026-10-31T07:45Z), relayed by the coordinator",
   "p95_latency_s": 10,
-  "min_served_share": 0.45,
+  "min_served_share": 0.3,
   "min_core_abstain_rate": 0.95,
   "question_sets": {
     "frozen116": "tuning",
     "unanswerable86": "abstain set (core 69 gates; others reported separately)",
     "benchmark": "held-out benchmark (frozen29, compound10, ooc13)",
     "question_bank": "unified 421-query bank across 36 doctrine, multi-hop, safety, and guardrail categories"
+  },
+  "unapproved_proposal_2026_11_09": {
+    "min_showable_rate": 0.95,
+    "min_served_share": 0.45,
+    "status": "no quoted approval found; research note puts the retrieval ceiling near 52% of answerable questions"
   }
 }

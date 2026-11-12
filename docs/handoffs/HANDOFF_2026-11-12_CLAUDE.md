@@ -25,6 +25,14 @@
 - **Pass bar:** see the chat reply; the 85/30 figures are the ones with a quoted approval (2026-10-31).
 - **Graders:** do not use Opus 5.5 on OpenRouter (cost). The script default is `anthropic/claude-haiku-5.5` for stage 1. Pass a cheaper-than-Opus second model explicitly, and it must differ from the first and from the product scorer.
 
+### Update 2026-11-12 05:25Z: end-to-end defaults applied (Harsha: "check all and complete end to end")
+- **Pass bar restored** to the approved 2026-10-31 values (85% showable, 30% served share) in `evals/first_person/grading_pass_bar.json`; tests updated. The 0.95 / 0.45 values stay in the file as an unapproved proposal. Harsha can overrule with one line.
+- **`lovable-guard`** no longer triggers on `pull_request` (no paid Actions). Run the guards locally. Do not require any GitHub check.
+- **Graders:** first `anthropic/claude-haiku-5.5`, second `meta-llama/llama-3.3-70b-instruct`. Details and the shared-judge caveat: `docs/operations/graded-run-flags-and-graders-2026-11-12.md`.
+- **Prod flag list** (what the graded run pins above the defaults) is in the same file. No prod default was changed.
+- **ECAPA verdicts:** the runbook thread reports `/tmp/v8_speaker_verdicts.json` on the Mac. It sits in `/tmp`, so copy it into the repo's gitignored folder before the Mac reboots. I did not see the file (UNPROVEN).
+- **Tests:** the bar, lovable and required-check tests pass in the cloud. 12 tests in `test_grade_served_answers.py` and `test_graded_capture.py` fail here because `Settings` needs the backend env, and fail the same way without my edits. Run them on the Mac.
+
 ### Things I found that you must not trust or must fix (ruthless list)
 1. **The pass bar was changed after the runs began.** `evals/first_person/grading_pass_bar.json` now says showable >= 0.95 and served share >= 0.45 ("elevated", approved_on 2026-11-09). The approval evidence is "Harsha's direction", not a quoted message. The bar is stricter than before, so this is not a loosening. But the register of record still says 85% and 30%. Ask Harsha to confirm the numbers in one line.
 2. **The calibration profile is not trustworthy.** `config/first_person_calibration.json` (and the `backend/config` copy) was rewritten in commit `ebff4b5` (2026-11-10). It now claims `conformal_direct_v1`, n=300, precision 0.992, UCB risk 0.008, "held-out gold set". The commit message does not mention it. The only gold report in the repo (`audits/evidence/public_release_gold_label_report_2026-10-22.json`) says `independent_review: false`, method `curated_consensus_alignment`, and "external double-blind human rating remains pending". CLAUDE.md invariant 3 says never fit on AI-authored labels and needs >=299 human items. Treat the profile as UNPROVEN and possibly invalid until Harsha says who labelled the 300 items. Do not quote 0.992.
