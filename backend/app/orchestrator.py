@@ -29,7 +29,7 @@ from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest, ChatResponse
 from app.schemas.compliance_provenance import AIProvenanceManifest
 from app.security_utils import is_benchmark_request
-from app.telemetry_sink import QueryTrace, SupabaseTelemetrySink
+from app.telemetry_sink import QueryTrace
 from rag.memory import normalize_session_id
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,9 @@ class ChatRequestOrchestrator:
     def __init__(self, container: ServiceContainer) -> None:
         self.container = container
         self.coordinator = PipelineCoordinator(container)
-        self.telemetry_sink = SupabaseTelemetrySink()
+        # Reuse the container's sink: a new one per request re-created its Redis client
+        # (~100 times/min in the 2026-11-12 graded run).
+        self.telemetry_sink = container.telemetry_sink
 
     async def orchestrate(
         self,

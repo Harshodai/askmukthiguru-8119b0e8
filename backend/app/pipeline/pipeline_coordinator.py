@@ -42,7 +42,7 @@ from app.pipeline.result import PipelineResult
 from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipeline
 from app.release_manifest import get_release_manifest
 from app.routing_primitives import is_deterministic_greeting
-from app.sanitization import sanitize_log_input
+from app.sanitization import pseudonymize_identity, sanitize_log_input
 from rag.memory import normalize_session_id
 from services.health_monitor import HealthMonitor
 from services.tenant_context import TenantContext
@@ -326,7 +326,7 @@ class PipelineCoordinator:
         # no way to tell that from a legitimate cache hit.
         logger.info(
             "PERSONALIZATION_PROBE user=%s incognito=%s eligible=%s",
-            sanitize_log_input(str(user_id)),
+            pseudonymize_identity(str(user_id)),
             ctx.incognito,
             ctx.personalization_eligible,
         )
@@ -343,7 +343,7 @@ class PipelineCoordinator:
         except TimeoutError:
             logger.error(
                 "Pipeline timed out for user %s: query_token='%s' trace='%s'",
-                sanitize_log_input(str(user_id)),
+                pseudonymize_identity(str(user_id)),
                 _query_token(user_msg),
                 sanitize_log_input(str(trace_id)),
             )
@@ -361,7 +361,7 @@ class PipelineCoordinator:
         except Exception:
             logger.exception(
                 "Pipeline crashed for user %s: query_token='%s' trace='%s'",
-                sanitize_log_input(str(user_id)),
+                pseudonymize_identity(str(user_id)),
                 _query_token(user_msg),
                 sanitize_log_input(str(trace_id)),
             )
@@ -435,7 +435,7 @@ class PipelineCoordinator:
             # failure must stay visible in logs.
             logger.debug(
                 "Personalization probe failed for user %s, returning conservative True: %s",
-                sanitize_log_input(str(user_id)),
+                pseudonymize_identity(str(user_id)),
                 exc,
             )
             return True
@@ -464,7 +464,7 @@ class PipelineCoordinator:
                 logger.debug(
                     "user_profile.get_recent_memories probe failed for user %s, "
                     "treating as has-memory: %s",
-                    sanitize_log_input(str(user_id)),
+                    pseudonymize_identity(str(user_id)),
                     exc,
                 )
                 return True
@@ -483,7 +483,7 @@ class PipelineCoordinator:
             except Exception as exc:
                 logger.debug(
                     "memory_service.get_core probe failed for user %s, treating as has-memory: %s",
-                    sanitize_log_input(str(user_id)),
+                    pseudonymize_identity(str(user_id)),
                     exc,
                 )
                 return None
@@ -509,7 +509,7 @@ class PipelineCoordinator:
             except Exception as exc:
                 logger.debug(
                     "canonical_memories probe failed for user %s, treating as has-memory: %s",
-                    sanitize_log_input(str(user_id)),
+                    pseudonymize_identity(str(user_id)),
                     exc,
                 )
                 return None

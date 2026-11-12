@@ -163,6 +163,11 @@ _STORY_OR_DEMONSTRATIVE_OPENER_RE = re.compile(
     r"you\s+will\s+be\b|"
     r"if\s+all\s+that\s+happens\b|"
     r"leave\s+alone\b|"
+    # Anaphoric openers: the clip leans on context the seeker never saw. Clip-specific
+    # phrases were removed (overfit to the graded-6 tuning set, 2026-11-13).
+    r"here\s+you\s+receive\b|"
+    r"since\s+your\s+\w+\s+is\b|"
+    r"when\s+this\s+\w+\s+breaks?\s+down\b|"
     r"you(?:'re|\s+are)\s+also\s+thinking\b|"
     r"the\s+first\s+is\b|"
     r"in\s+this\s+story\b|"

@@ -1,6 +1,52 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 13, 2026 — Graded-7 preparation: fixes that were claimed before they were measured
+
+### L-OVERFIT-REGEX-TO-TUNING-SET-1. A pattern written for named graded clips is overfit, even when the tests pass.
+- **What:** the standalone-gate opener regex gained five phrases, each written from one graded-6 clip. The tuning set is frozen116, so the tests only proved the regex matched clips it was built from. Blast radius on the 2,758 v10 children was 8 matches, which said nothing about whether the phrases were defects.
+- **Fix:** kept only the three anaphoric openers ("here you receive", "since your X is", "when this X breaks down"). Removed the rest; the gate test table now covers only those three.
+- **Rule:** a rule written for named clips must be justified by a class of defect (for example anaphora), and its blast radius measured on the whole corpus, not on the clips it came from.
+
+### L-JUDGE-SERVE-RULE-NOT-MINIMUM-1. The "(< min)" log was a wrong diagnosis, not a minimum problem.
+- **What:** the harness logged "scored [3] (< min)" 27 times. With the judge enabled, the serve rule also needs `answers`, `is_standalone`, `is_complete_thought` and safe content. A clip scored 3 was rejected by those flags, and the log blamed the minimum.
+- **Fix:** `first_person_judge.rejection_reason` reports the failing flags per clip; the harness logs them. Pinned by `tests/test_fp_judge_rejection_reason.py`.
+- **Rule:** an abstain log must name the rule that fired. Read the serve rule before reading the counts.
+
+### L-SPARSE-PIN-OUTSIDE-REPO-1. A graded run's key setting lived only in a file outside the repo.
+- **What:** graded-6's sparse-off setting came from an override in `~/mukthiguru_attribution_data/`. The code default is `True` (`app/config.py:333`) and no compose file set it. A rerun from committed files would have silently run sparse on. The judge model rode on its default too.
+- **Fix:** `backend/docker-compose.graded.yml` now pins `FIRST_PERSON_CONTEXT_USE_SPARSE` and `FIRST_PERSON_JUDGE_MODEL`.
+- **Rule:** every value a graded run depends on must be in committed config, and the manifest must record the resolved value, not the default.
+
+### L-N43-CANNOT-PROVE-85-1. At 43 rows, a point estimate of 85% proves nothing.
+- **What:** the 95% Wilson interval for 35/43 (81.4%) is roughly 67% to 91%. A bar of 85% on 43 rows can pass with a true rate well below it.
+- **Rule:** a bar applies to the lower confidence bound, and a run too small to show that bound is INCONCLUSIVE, not a pass.
+
+### L-SECOND-GRADER-AT-1-PERCENT-IS-NOT-A-CHECK-1. A second grader that checks 1% of rows is not an independent grade.
+- **What:** graded-6 used `--sample-fraction 0.01` for the second grader, which left 1 of ~43 rows checked by it. Its agreement number was not evidence.
+- **Rule:** a second grader must grade every row it is compared on, from a different model family, with the slug verified live before the run.
+
+### L-CONNECTION-URL-SECRET-IN-LOG-1. Connection strings leak through both the log line and the exception text.
+- **What:** `Using Redis coalescer at redis://:password@host` logged the password on every boot. The failure-path warning logged `str(exception)`, which can carry the same URL.
+- **Fix:** `redact_url_credentials` on both the success and failure paths, pinned by `tests/test_log_redaction.py`.
+- **Rule:** any log that prints a URL, or an exception raised from one, must pass the URL through the redactor.
+
+### L-V11-EXISTED-UNRECORDED-1. A Qdrant collection existed that no note in the repo described.
+- **What:** `first_person_v11` (4,360 points) was listed in `config/first_person_serving_contract.json`. 2,885 of its 2,887 children lack `domain_rights_status`, so the harness would refuse them. Its parents have no verbatim text.
+- **Rule:** inventory the live Qdrant collections before proposing a build. A proposed "v11" may already exist, unservable.
+
+### L-MOCK-SPEC-HIDES-INSTANCE-ATTRIBUTES-1. `MagicMock(spec=Class)` does not know attributes set in `__init__`.
+- **What:** after the orchestrators began reading `container.telemetry_sink`, six streaming tests failed with "Mock object has no attribute 'telemetry_sink'". The real container sets the attribute; the spec mock did not.
+- **Rule:** when a fixture uses `spec=`, add every instance attribute the code now reads, and say why in a comment.
+
+### L-CLAIM-A-CONFIG-ONLY-AFTER-READING-IT-1. Do not state what a past run used from memory of its config.
+- **What:** a review said graded-6 ran with the answerability gate off. Config defaults it on, and the graded compose does not pin it. The claim was never checked, and a docs edit was made on the strength of it.
+- **Rule:** before recording what a past run ran with, read its manifest or logs. Until then the claim stays unverified.
+
+### L-MEDIUM-QDRANT-ARTICLE-VS-OUR-SPARSE-1. Native BM25 does not replace our learned sparse vectors.
+- **What:** Qdrant 1.20's BM25 on the full-text index applies to BM25 statistics. Our sparse channel stores BGE-M3 learned weights, so the "no re-upload" switch does not apply. The article is vendor material with no benchmark on this corpus.
+- **Rule:** evaluate a new retrieval mode on our labelled queries before adopting it.
+
 ## Nov 12, 2026 — The backend was killed mid-capture by its own healthcheck
 
 ### L-HEALTHCHECK-TIMEOUT-BELOW-HANDLER-BOUND-1. A healthcheck timeout shorter than the handler's own bound kills a slow, healthy backend.

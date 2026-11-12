@@ -1180,6 +1180,19 @@ def _build_relevance_user_prompt(query: str, clips: list[dict]) -> str:
     )
 
 
+def _harness_rejection_reasons(judge_meta: dict[str, Any]) -> str:
+    """Log text for a harness abstain: the judge's per-clip reasons, or the scorer path."""
+    if not judge_meta or "scores" not in judge_meta:
+        return "min_score_scorer"
+    from services import first_person_judge
+
+    return first_person_judge.rejection_reason(
+        judge_meta["scores"],
+        bool(judge_meta.get("question_answerable")),
+        int(getattr(settings, "first_person_relevance_min_score", 2)),
+    )
+
+
 def _relevance_select(
     query: str,
     clips: list[dict[str, Any]],
@@ -4962,6 +4975,7 @@ class FirstPersonPipeline:
                             if served_spans
                             else None
                         )
+                        _h_judge_meta: dict[str, Any] = {}
                         _h_pick = await _acall(
                             _relevance_select,
                             retrieval_query or query,
@@ -4975,6 +4989,7 @@ class FirstPersonPipeline:
                             self._llm_loop,
                             token_sink=_local_tokens,
                             scores_out=_h_scores,
+                            judge_meta_out=_h_judge_meta,
                         )
                         if _h_pick == _RELEVANCE_INDETERMINATE:
                             # Propagate indeterminate via a sentinel so the main
@@ -4982,8 +4997,9 @@ class FirstPersonPipeline:
                             raise _HarnessRelevanceIndeterminate(_local_tokens)
                         if _h_pick is None:
                             logger.info(
-                                "[FirstPersonPipeline] Harness answer scored %s (< min); falling back to legacy",
+                                "[FirstPersonPipeline] Harness answer rejected (scores=%s, reasons=%s); no clip from this context",
                                 _h_scores,
+                                _harness_rejection_reasons(_h_judge_meta),
                             )
                             return None, _local_tokens
                         _h_rel_score = _h_scores[0] if _h_scores else None

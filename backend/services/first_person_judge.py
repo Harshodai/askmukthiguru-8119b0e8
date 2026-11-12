@@ -239,6 +239,27 @@ def parse_judge_reply(raw: Any, n_clips: int) -> Optional[tuple[list[dict[str, A
     return [by_index[i] for i in range(n_clips)], answerable
 
 
+def rejection_reason(scores: list[dict[str, Any]], answerable: bool, minimum: int) -> str:
+    """Why ``select_index`` returned None, per clip, for logs (never a verdict on its own)."""
+    if not answerable:
+        return "question_not_answerable"
+    parts = []
+    for s in scores:
+        failed = []
+        if not s["answers"]:
+            failed.append("answers=false")
+        if s["relevance"] < minimum:
+            failed.append(f"relevance={s['relevance']}<min{minimum}")
+        if s.get("content_safety", "clean") not in ("clean", "safe", "wellbeing_notice"):
+            failed.append(f"safety={s.get('content_safety')}")
+        if not s.get("is_complete_thought", True):
+            failed.append("incomplete_thought")
+        if not s.get("is_standalone", True):
+            failed.append("not_standalone")
+        parts.append(f"clip{s['i']}[{','.join(failed) or 'passed'}]")
+    return " ".join(parts) or "no_scores"
+
+
 def select_index(scores: list[dict[str, Any]], answerable: bool, minimum: int) -> Optional[int]:
     """Serve rule (§3.4). None means no clip qualifies (abstain below minimum)."""
     if not answerable:
