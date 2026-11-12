@@ -1,3 +1,5 @@
+> **2026-11-12 addendum (read first).** Graded runs now exist on the branch and none passes (see `docs/handoffs/HANDOFF_2026-11-12_CLAUDE.md` block 00). Before you start: (a) do not quote `config/first_person_calibration.json` numbers; the profile came from a gold set with `independent_review: false`; (b) the graded compose pins `FIRST_PERSON_UNCALIBRATED_DIRECT_ENABLED=true`, relevance min 2 and `REQUIRE_VOICE_METHOD=false`, so a pass there does not prove the default config; (c) `fcfde77` removed PR triggers from 14 workflows, so `release-invariants` cannot report; (d) the last unified run used `offline_fallback` graders, so its showable figure is not a quality measure. The final graded run must use LLM graders and a valid key. Verdict stays NO-GO.
+
 # Agent prompts, 2026-11-07
 
 Three prompts to paste into a new agent session, and the final checklist.
