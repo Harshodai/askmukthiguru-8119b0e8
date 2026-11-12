@@ -474,9 +474,7 @@ def _collect_findings(
 
     # ---- Query-scoped detectors (skipped when no query is available) ----
     if query is not None:
-        if VIOLENCE_WORDING_RE.search(body) and _relationship_safety_needed(
-            query, retrieval_query
-        ):
+        if VIOLENCE_WORDING_RE.search(body) and _relationship_safety_needed(query, retrieval_query):
             findings.append(
                 _finding(
                     VIOLENCE_QUERY_CONTEXT_CODE,
@@ -490,7 +488,9 @@ def _collect_findings(
                 _finding(
                     SELF_HARM_UNSOLICITED_CODE,
                     AssessmentKind.SELF_HARM,
-                    FindingSeverity.NOTICE if _STATISTICAL_SELF_HARM_RE.search(body) else FindingSeverity.EXCLUDE,
+                    FindingSeverity.NOTICE
+                    if _STATISTICAL_SELF_HARM_RE.search(body)
+                    else FindingSeverity.EXCLUDE,
                     "self_harm_unsolicited_detector",
                 )
             )

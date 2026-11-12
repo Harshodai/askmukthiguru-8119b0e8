@@ -8,6 +8,7 @@ guaranteeing that acute crisis/self-harm ideation is 100% intercepted.
 """
 
 import pytest
+
 from services.serene_mind_engine import (
     DistressLevel,
     SereneMindEngine,

@@ -217,5 +217,11 @@ def emit_answer_outcome(record: dict[str, Any], *, first_person_only: bool) -> N
             INTEGRITY_BREACH_TOTAL.labels(lane=lane).inc()
             logger.error("integrity_breach: generated answer in first-person-only mode")
         logger.info("answer_outcome %s", record)
-    except (RuntimeError, ValueError, TypeError, AttributeError, KeyError) as exc:  # telemetry must never break a response
+    except (
+        RuntimeError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        KeyError,
+    ) as exc:  # telemetry must never break a response
         logger.debug("answer_outcome not emitted: %s", exc)

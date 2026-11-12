@@ -62,6 +62,7 @@ def test_daily_cap_headroom_row_states_the_sys014_number():
     # int(daily / reserve) // 3 == int(10.0 / 0.03) // 3 == 333 // 3 == 111.
     # If the defaults change, update here with a matching SYS-014 ADR entry.
     from types import SimpleNamespace
+
     s = SimpleNamespace(
         first_person_relevance_timeout_s=25.0,
         jev_timeout_s=None,

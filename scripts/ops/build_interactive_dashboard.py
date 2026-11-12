@@ -3,64 +3,73 @@ Full Interactive Human Action & Governance Workspace Generator.
 Embeds all 50 audited served clips, 11 demoted clips, 15 helplines,
 clinician memorandum, copyright license letter, and decision forms.
 """
+
 import json
-import yaml
 import re
-import os
+
+import yaml
+
 
 def load_data():
-    with open('config/helplines.yaml') as f:
+    with open("config/helplines.yaml") as f:
         helplines_data = yaml.safe_load(f)
 
-    with open('audits/evidence/human_review_results.json') as f:
+    with open("audits/evidence/human_review_results.json") as f:
         hr = json.load(f)
 
-    with open('audits/evidence/50_served_clips_human_label_sheet.md') as f:
+    with open("audits/evidence/50_served_clips_human_label_sheet.md") as f:
         sheet_text = f.read()
 
     clips_50 = []
     for line in sheet_text.splitlines():
-        if line.startswith('|') and not line.startswith('| #') and not line.startswith('|---'):
-            parts = [p.strip() for p in line.split('|')[1:-1]]
+        if line.startswith("|") and not line.startswith("| #") and not line.startswith("|---"):
+            parts = [p.strip() for p in line.split("|")[1:-1]]
             if len(parts) >= 8 and parts[0].isdigit():
                 idx = int(parts[0])
-                pid = parts[1].replace('`', '')
-                vid = parts[2].replace('`', '')
+                pid = parts[1].replace("`", "")
+                vid = parts[2].replace("`", "")
                 s_ms = parts[3]
                 e_ms = parts[4]
                 window = parts[5]
-                teacher = parts[6].replace('`', '')
-                link_match = re.search(r'\((https://[^\)]+)\)', parts[7])
-                yt_link = link_match.group(1) if link_match else f'https://www.youtube.com/watch?v={vid}'
-                
-                hr_data = hr['served_clips'].get(pid, {})
-                voice = hr_data.get('voice', parts[8].replace('`', '') if len(parts) > 8 else 'PASS')
-                boundary = hr_data.get('boundary', parts[9].replace('`', '') if len(parts) > 9 else 'PASS')
-                notes = hr_data.get('notes', parts[10] if len(parts) > 10 else '')
-                
-                clips_50.append({
-                    'idx': idx,
-                    'point_id': pid,
-                    'video_id': vid,
-                    'start_ms': s_ms,
-                    'end_ms': e_ms,
-                    'window': window,
-                    'teacher': teacher,
-                    'yt_link': yt_link,
-                    'voice': voice,
-                    'boundary': boundary,
-                    'notes': notes
-                })
+                teacher = parts[6].replace("`", "")
+                link_match = re.search(r"\((https://[^\)]+)\)", parts[7])
+                yt_link = (
+                    link_match.group(1) if link_match else f"https://www.youtube.com/watch?v={vid}"
+                )
+
+                hr_data = hr["served_clips"].get(pid, {})
+                voice = hr_data.get(
+                    "voice", parts[8].replace("`", "") if len(parts) > 8 else "PASS"
+                )
+                boundary = hr_data.get(
+                    "boundary", parts[9].replace("`", "") if len(parts) > 9 else "PASS"
+                )
+                notes = hr_data.get("notes", parts[10] if len(parts) > 10 else "")
+
+                clips_50.append(
+                    {
+                        "idx": idx,
+                        "point_id": pid,
+                        "video_id": vid,
+                        "start_ms": s_ms,
+                        "end_ms": e_ms,
+                        "window": window,
+                        "teacher": teacher,
+                        "yt_link": yt_link,
+                        "voice": voice,
+                        "boundary": boundary,
+                        "notes": notes,
+                    }
+                )
 
     demoted_clips = []
-    for pid, data in hr['demoted_clips'].items():
-        demoted_clips.append({
-            'point_id': pid,
-            'verdict': data.get('verdict', ''),
-            'notes': data.get('notes', '')
-        })
+    for pid, data in hr["demoted_clips"].items():
+        demoted_clips.append(
+            {"point_id": pid, "verdict": data.get("verdict", ""), "notes": data.get("notes", "")}
+        )
 
     return helplines_data, hr, clips_50, demoted_clips
+
 
 def build_html():
     helplines_data, hr, clips_50, demoted_clips = load_data()
@@ -68,30 +77,51 @@ def build_html():
     # Pre-render table rows for 50 clips
     clips_rows = []
     for c in clips_50:
-        v_class = "text-emerald-400 font-bold" if c['voice'] == "PASS" else "text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded"
-        b_class = "text-emerald-400 font-bold" if c['boundary'] == "PASS" else ("text-amber-400 font-semibold" if c['boundary'] == "FAIL_BOUNDARY" else "text-purple-400")
+        v_class = (
+            "text-emerald-400 font-bold"
+            if c["voice"] == "PASS"
+            else "text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded"
+        )
+        b_class = (
+            "text-emerald-400 font-bold"
+            if c["boundary"] == "PASS"
+            else (
+                "text-amber-400 font-semibold"
+                if c["boundary"] == "FAIL_BOUNDARY"
+                else "text-purple-400"
+            )
+        )
         notes_badge = ""
-        if "devotee" in c['notes'].lower():
+        if "devotee" in c["notes"].lower():
             notes_badge = "<span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-rose-900/60 text-rose-300 border border-rose-500/30 mr-1.5'>Devotee Impostor</span>"
-        elif "manifest" in c['notes'].lower() or "program" in c['notes'].lower() or "course" in c['notes'].lower() or "field of awakening" in c['notes'].lower():
+        elif (
+            "manifest" in c["notes"].lower()
+            or "program" in c["notes"].lower()
+            or "course" in c["notes"].lower()
+            or "field of awakening" in c["notes"].lower()
+        ):
             notes_badge = "<span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-amber-900/60 text-amber-300 border border-amber-500/30 mr-1.5'>Course / Promo</span>"
-        elif "continuation" in c['notes'].lower() or "story" in c['notes'].lower() or "continuity" in c['notes'].lower():
+        elif (
+            "continuation" in c["notes"].lower()
+            or "story" in c["notes"].lower()
+            or "continuity" in c["notes"].lower()
+        ):
             notes_badge = "<span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-500/30 mr-1.5'>Needs Rehydration</span>"
 
         clips_rows.append(f"""
         <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
-          <td class="py-2.5 px-3 font-mono text-slate-400">{c['idx']}</td>
-          <td class="py-2.5 px-3 font-mono text-gold-400" title="{c['point_id']}">{c['point_id'][:8]}...</td>
-          <td class="py-2.5 px-3 font-mono text-slate-300">{c['teacher']}</td>
-          <td class="py-2.5 px-3 font-mono text-slate-400">{c['window']}</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">{c["idx"]}</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="{c["point_id"]}">{c["point_id"][:8]}...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">{c["teacher"]}</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">{c["window"]}</td>
           <td class="py-2.5 px-3">
-            <a href="{c['yt_link']}" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
-              ▶ Listen <span class="text-[10px] text-slate-400">({c['video_id']})</span>
+            <a href="{c["yt_link"]}" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">({c["video_id"]})</span>
             </a>
           </td>
-          <td class="py-2.5 px-3"><span class="{v_class}">{c['voice']}</span></td>
-          <td class="py-2.5 px-3"><span class="{b_class}">{c['boundary']}</span></td>
-          <td class="py-2.5 px-3 text-slate-300 max-w-md">{notes_badge}{c['notes'] or '<span class="text-slate-500 italic">Clean</span>'}</td>
+          <td class="py-2.5 px-3"><span class="{v_class}">{c["voice"]}</span></td>
+          <td class="py-2.5 px-3"><span class="{b_class}">{c["boundary"]}</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">{notes_badge}{c["notes"] or '<span class="text-slate-500 italic">Clean</span>'}</td>
         </tr>
         """)
     clips_table_html = "\n".join(clips_rows)
@@ -99,40 +129,52 @@ def build_html():
     # Pre-render table rows for 11 demoted clips
     demoted_rows = []
     for d in demoted_clips:
-        is_quarantined = d['verdict'] == "REJECTED_IMPOSTOR"
-        v_class = "text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded" if is_quarantined else "text-emerald-400 font-bold"
-        status_text = "QUARANTINED in Qdrant v10 (79b14025)" if is_quarantined else "CONFIRMED TEACHER (Kept)"
+        is_quarantined = d["verdict"] == "REJECTED_IMPOSTOR"
+        v_class = (
+            "text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded"
+            if is_quarantined
+            else "text-emerald-400 font-bold"
+        )
+        status_text = (
+            "QUARANTINED in Qdrant v10 (79b14025)" if is_quarantined else "CONFIRMED TEACHER (Kept)"
+        )
         demoted_rows.append(f"""
         <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
-          <td class="py-2.5 px-3 font-mono text-gold-400">{d['point_id']}</td>
-          <td class="py-2.5 px-3"><span class="{v_class}">{d['verdict']}</span></td>
-          <td class="py-2.5 px-3 font-mono text-xs {'text-rose-300 font-semibold' if is_quarantined else 'text-emerald-300'}">{status_text}</td>
-          <td class="py-2.5 px-3 text-slate-300">{d['notes'] or 'Teacher audio confirmed.'}</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400">{d["point_id"]}</td>
+          <td class="py-2.5 px-3"><span class="{v_class}">{d["verdict"]}</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs {"text-rose-300 font-semibold" if is_quarantined else "text-emerald-300"}">{status_text}</td>
+          <td class="py-2.5 px-3 text-slate-300">{d["notes"] or "Teacher audio confirmed."}</td>
         </tr>
         """)
     demoted_table_html = "\n".join(demoted_rows)
 
     # Pre-render Helplines calling rows
     all_helplines = []
-    for h in helplines_data.get('crisis_helplines', []):
-        all_helplines.append(('Crisis Support', h))
-    for h in helplines_data.get('domestic_violence_helplines', []):
-        all_helplines.append(('Domestic Violence', h))
+    for h in helplines_data.get("crisis_helplines", []):
+        all_helplines.append(("Crisis Support", h))
+    for h in helplines_data.get("domestic_violence_helplines", []):
+        all_helplines.append(("Domestic Violence", h))
 
     helpline_rows = []
     for idx, (category, h) in enumerate(all_helplines):
-        name = h.get('name', 'Helpline')
+        name = h.get("name", "Helpline")
         clean_name = name.replace("'", "")
-        contact = h.get('contact', '')
+        contact = h.get("contact", "")
         # extract primary telephone
-        tel_match = re.search(r'[\d\-]{3,}', contact)
+        tel_match = re.search(r"[\d\-]{3,}", contact)
         tel_link = f"tel:{tel_match.group(0)}" if tel_match else "#"
-        region = h.get('region', '')
-        hours = h.get('hours', '')
-        call_verified = h.get('last_verified_by_call')
+        region = h.get("region", "")
+        hours = h.get("hours", "")
+        call_verified = h.get("last_verified_by_call")
         is_verified = bool(call_verified and call_verified != "None")
-        badge = "<span class='badge-done text-[11px] px-2 py-0.5 rounded font-bold'>&check; VERIFIED (" + str(call_verified) + ")</span>" if is_verified else "<span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span>"
-        
+        badge = (
+            "<span class='badge-done text-[11px] px-2 py-0.5 rounded font-bold'>&check; VERIFIED ("
+            + str(call_verified)
+            + ")</span>"
+            if is_verified
+            else "<span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span>"
+        )
+
         helpline_rows.append(f"""
         <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-{idx}">
           <td class="py-3 px-3">
@@ -847,9 +889,12 @@ AskMukthiGuru Project</textarea>
 </html>
 """
 
-    with open('audits/human_action_items_dashboard.html', 'w') as f:
+    with open("audits/human_action_items_dashboard.html", "w") as f:
         f.write(html_content)
-    print('Successfully generated rich interactive dashboard at audits/human_action_items_dashboard.html')
+    print(
+        "Successfully generated rich interactive dashboard at audits/human_action_items_dashboard.html"
+    )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     build_html()

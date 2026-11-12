@@ -22,14 +22,20 @@ from services.guru_registry import (
     [
         ("What does Thich Nhat Hanh teach about walking meditation?", "Thich Nhat Hanh"),
         ("What does Sadhguru teach about the Isha Kriya practice?", "Sadhguru"),
-        ("Explain Shankaracharya's argument for Advaita Vedanta in his own words.", "Shankaracharya"),
+        (
+            "Explain Shankaracharya's argument for Advaita Vedanta in his own words.",
+            "Shankaracharya",
+        ),
         ("What did the Buddha say about the Four Noble Truths in the Pali canon?", "Buddha"),
         ("Recite the Lord's Prayer and explain its meaning.", "Lord's Prayer"),
         ("What does Eckhart Tolle say about the pain-body?", "Eckhart Tolle"),
         ("Explain the ten Sefirot in Kabbalah.", "ten Sefirot"),
         ("What are the main ideas in Marcus Aurelius' Meditations?", "Marcus Aurelius"),
         ("Explain the steps of Sudarshan Kriya as taught by Art of Living.", "Art of Living"),
-        ("What did Jiddu Krishnamurti say about truth being a pathless land?", "Jiddu Krishnamurti"),
+        (
+            "What did Jiddu Krishnamurti say about truth being a pathless land?",
+            "Jiddu Krishnamurti",
+        ),
         ("What does Meister Eckhart teach about detachment?", "Meister Eckhart"),
         ("What does Rupert Spira teach about awareness?", "Rupert Spira"),
         ("What does Tara Brach say about radical acceptance?", "Tara Brach"),

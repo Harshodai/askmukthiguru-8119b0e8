@@ -5,6 +5,8 @@ Pure functions only: no I/O, no text from the seeker, no LLM.
 
 from __future__ import annotations
 
+from typing import Any
+
 # Reasons that mean "the check could not run", not "no teaching was found".
 _SYSTEM_REASONS = frozenset(
     {
@@ -91,7 +93,9 @@ def build_public_answer_fields(result: Any) -> dict[str, Any]:
         return obj
 
     route_meta = getattr(result, "route_metadata", {}) or {}
-    safety_notices = list(route_meta.get("safety_notices") or getattr(result, "safety_notices", []) or [])
+    safety_notices = list(
+        route_meta.get("safety_notices") or getattr(result, "safety_notices", []) or []
+    )
 
     return {
         "intent": getattr(result, "intent", None),

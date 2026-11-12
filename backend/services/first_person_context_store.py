@@ -83,6 +83,7 @@ def _normalize_sparse_query(query_sparse: Any) -> Optional[tuple[list[int], list
                 return None
     return None
 
+
 RECORD_TYPE_CHILD = "retrieval_child"
 RECORD_TYPE_PARENT = "parent_unit"
 
@@ -360,7 +361,7 @@ def deduplicate_contained_contexts(contexts: list[ParentContext]) -> list[Parent
         c_video = getattr(ctx.spans[0], "video_id", None) or getattr(ctx.parent, "video_id", None)
         c_start = min(s.start_ms for s in ctx.spans)
         c_end = max(s.end_ms for s in ctx.spans)
-        
+
         is_contained = False
         for k in kept:
             k_video = getattr(k.spans[0], "video_id", None) or getattr(k.parent, "video_id", None)
@@ -409,7 +410,9 @@ class FirstPersonContextStore:
                 f"[FP-ALIAS-HEALTH] Collection '{self._collection}' is empty. "
                 "Check that the alias points to a live collection with data."
             )
-        logger.info("[FP-ALIAS-HEALTH] Collection '%s' healthy: %d points.", self._collection, count)
+        logger.info(
+            "[FP-ALIAS-HEALTH] Collection '%s' healthy: %d points.", self._collection, count
+        )
 
     @property
     def collection(self) -> str:
@@ -565,11 +568,13 @@ class FirstPersonContextStore:
         clean_spans = _clean_concept_ids(span_ids)
         should_conditions: list[FieldCondition] = []
         if concepts:
-            should_conditions.extend([
-                FieldCondition(key="topic_ids", match=MatchAny(any=concepts)),
-                FieldCondition(key="entity_ids", match=MatchAny(any=concepts)),
-                FieldCondition(key="tags", match=MatchAny(any=concepts)),
-            ])
+            should_conditions.extend(
+                [
+                    FieldCondition(key="topic_ids", match=MatchAny(any=concepts)),
+                    FieldCondition(key="entity_ids", match=MatchAny(any=concepts)),
+                    FieldCondition(key="tags", match=MatchAny(any=concepts)),
+                ]
+            )
         if clean_spans:
             should_conditions.append(
                 FieldCondition(key="source_span_id", match=MatchAny(any=clean_spans))
@@ -590,20 +595,23 @@ class FirstPersonContextStore:
         # hybrid) doubles the Qdrant round-trips and produces duplicate parent
         # candidates that must be deduped here.  One fused call is both cheaper
         # and more accurate (the ranker sees both signals simultaneously).
-        groups = list(self._query_groups(
-            query_dense,
-            query_sparse=query_sparse,
-            query_filter=query_filter,
-            limit_parents=limit_parents,
-            spans_per_parent=spans_per_parent,
-        ))
+        groups = list(
+            self._query_groups(
+                query_dense,
+                query_sparse=query_sparse,
+                query_filter=query_filter,
+                limit_parents=limit_parents,
+                spans_per_parent=spans_per_parent,
+            )
+        )
 
         contexts: list[ParentContext] = []
         for parent_unit_id, hits, score in groups:
             try:
                 context = self.fetch_parent_context(parent_unit_id, hits, score)
                 teacher_spans = tuple(
-                    span for span in context.spans
+                    span
+                    for span in context.spans
                     if span.guru_id == context.parent.guru_id and span.speaker_verified is True
                 )
                 if not teacher_spans:

@@ -149,9 +149,7 @@ def _serve_decision_for_result(
     from services.first_person_coverage import coverage_for_served_text
 
     editorial_dict = editorial_set if isinstance(editorial_set, dict) else None
-    content_safety = (
-        str(editorial_dict.get("content_safety") or "") if editorial_dict else None
-    )
+    content_safety = str(editorial_dict.get("content_safety") or "") if editorial_dict else None
     covered_facets = editorial_dict.get("covered_facets") if editorial_dict else None
     if covered_facets and not isinstance(covered_facets, (list, tuple, set)):
         covered_facets = None
@@ -703,11 +701,11 @@ class FirstPersonBridgeStage(Stage):
         """
         if getattr(settings, "first_person_llm_fallback_enabled", False):
             return None
-        from rag.meditation import is_meditation_imperative
         from guardrails.lightweight_handler import (
             needs_addiction_support_boundary,
             needs_relationship_safety_boundary,
         )
+        from rag.meditation import is_meditation_imperative
 
         msg_str = str(getattr(ctx, "user_msg", "") or "")
         _has_promise_or_boundary = bool(
@@ -791,11 +789,11 @@ class FirstPersonBridgeStage(Stage):
         # Guided practices (Soul Sync, Serene Mind) are step-by-step; one clip
         # is not the steps. A request to do one, or to learn how, goes to the
         # graph's meditation/teaching path (live 2026-10-05: no Soul Sync steps).
-        from rag.meditation import is_meditation_imperative
         from guardrails.lightweight_handler import (
             needs_addiction_support_boundary,
             needs_relationship_safety_boundary,
         )
+        from rag.meditation import is_meditation_imperative
 
         _has_promise_or_boundary = bool(
             _PROMISE_OR_OUTCOME_TRAP_RE.search(query)
@@ -1323,12 +1321,9 @@ class FirstPersonBridgeStage(Stage):
         # the assessment excluded them before serving.
         from services.first_person_content_assessment import assess_content, notice_copy
         from services.first_person_evidence_policy import first_person_evidence_policy
+
         _ed_set = getattr(result, "editorial_set", None)
-        _cs = (
-            str(_ed_set.get("content_safety") or "")
-            if isinstance(_ed_set, dict)
-            else None
-        )
+        _cs = str(_ed_set.get("content_safety") or "") if isinstance(_ed_set, dict) else None
         served_assessment = assess_content(answer, query=query, content_safety=_cs or None)
         if not served_assessment.may_serve:
             # Defense in depth: the assembled text changed after the gate.

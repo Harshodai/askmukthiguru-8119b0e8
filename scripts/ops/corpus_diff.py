@@ -12,6 +12,7 @@ Exit codes:
 
 X22: read-only. No Qdrant access.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -52,7 +53,7 @@ def diff(old_path: str, new_path: str, allow_shrink: bool, allow_model_change: b
     print(f"Total points  : {delta:+d}  ({old_total} → {new_total})")
     if not allow_shrink and new_total < old_total * 0.95:
         regressions.append(
-            f"total_points dropped by >{(1 - new_total/max(old_total,1))*100:.1f}% "
+            f"total_points dropped by >{(1 - new_total / max(old_total, 1)) * 100:.1f}% "
             f"({old_total} → {new_total}). Use --allow-shrink to override."
         )
 

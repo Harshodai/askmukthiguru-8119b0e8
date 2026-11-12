@@ -350,7 +350,9 @@ class FirstPersonSetSelector:
             facet, facet_score = _best_facet(
                 text,
                 planned_facets,
-                semantic_facets=raw_covered if isinstance(raw_covered, (list, tuple, set)) else None,
+                semantic_facets=raw_covered
+                if isinstance(raw_covered, (list, tuple, set))
+                else None,
             )
             # Combine base retrieval score with facet match.
             combined_score = base_score * 0.6 + facet_score * 0.4
@@ -465,7 +467,7 @@ class FirstPersonSetSelector:
                 if s.facet == f
                 or (
                     getattr(getattr(s, "source", None), "covered_facets", None)
-                    and f in getattr(getattr(s, "source", None), "covered_facets")
+                    and f in getattr(s, "source", None).covered_facets
                 )
                 or (
                     isinstance(getattr(s, "source", None), dict)

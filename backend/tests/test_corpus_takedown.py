@@ -4,7 +4,7 @@ Tests atomic cross-store revocation across Qdrant, Redis, Supabase, and audit lo
 """
 
 from unittest.mock import MagicMock
-import pytest
+
 from services.corpus_takedown import CorpusTakedownEngine
 
 
@@ -59,7 +59,7 @@ def test_takedown_apply(tmp_path):
 
     mock_redis = MagicMock()
     mock_redis.scan.side_effect = [(0, ["mukthiguru:cache:hit"]), (0, [])]
-    mock_redis.get.return_value = 'Teaching quote from video_test_456'
+    mock_redis.get.return_value = "Teaching quote from video_test_456"
 
     mock_supabase = MagicMock()
     table_mock = MagicMock()

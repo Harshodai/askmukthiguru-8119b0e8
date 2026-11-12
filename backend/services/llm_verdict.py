@@ -286,7 +286,7 @@ if __name__ == "__main__":
     assert parse_verdict("").value is None
     assert parse_verdict(None).value is None
     assert parse_verdict("I'm currently experiencing a temporary connection issue").value is None
-    assert parse_verdict("```json\n{\"verdict\": \"no\"}\n```").value is False
+    assert parse_verdict('```json\n{"verdict": "no"}\n```').value is False
     assert parse_verdict("<think>maybe</think>yes").value is True
 
     _v = parse_numbered_verdicts("1: yes - on topic\n2: no - off topic")

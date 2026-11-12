@@ -77,7 +77,6 @@ def test_coordinator_path_counts_violation_when_over_threshold():
     """PipelineCoordinator routes through observe_slo_latency, so an
     over-threshold coordinator-path request increments the P2 violation
     counter (R3/S2: direct-histogram bypass closed)."""
-    import pathlib
 
     src = (_BACKEND / "app" / "pipeline" / "pipeline_coordinator.py").read_text()
     assert "observe_slo_latency(" in src, "coordinator must call observe_slo_latency"

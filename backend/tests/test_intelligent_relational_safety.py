@@ -10,6 +10,7 @@ Validates:
 """
 
 import pytest
+
 from domain.relational_safety_types import (
     InterventionTier,
     RelationalRiskArchetype,
@@ -28,6 +29,7 @@ def engine():
 # ---------------------------------------------------------------------------
 # 1. Authentic Bhakti & Devotional Surrender Preservation (Zero False Positives)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "phrase",
@@ -56,6 +58,7 @@ def test_authentic_bhakti_devotion_is_preserved(engine, phrase):
 # 2. Romantic & Intimate Attachment Projections (Tier 2 Gentle Friction)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "phrase",
     [
@@ -80,6 +83,7 @@ def test_romantic_intimate_attachment_triggers_tier_2(engine, phrase):
 # 3. Sentience & Reality Blurring Projections
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "phrase",
     [
@@ -100,6 +104,7 @@ def test_reality_blurring_sentience_projection(engine, phrase):
 # ---------------------------------------------------------------------------
 # 4. Exclusive Social Substitution & Compulsive Usage
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "phrase",
@@ -124,6 +129,7 @@ def test_exclusive_substitution_and_compulsive_usage(engine, phrase):
 # 5. Life Autonomy Delegation (Tier 1 Subtle Anchor)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "phrase",
     [
@@ -145,10 +151,14 @@ def test_autonomy_abdication_triggers_tier_1_reframe(engine, phrase):
 # 6. Multi-Turn Relational Isolation Trajectory
 # ---------------------------------------------------------------------------
 
+
 def test_multi_turn_isolation_trajectory(engine):
     history = [
         {"role": "user", "content": "I feel so alone and have no one in my life."},
-        {"role": "assistant", "content": "The teachings remind us that loneliness is an invitation to connect with yourself."},
+        {
+            "role": "assistant",
+            "content": "The teachings remind us that loneliness is an invitation to connect with yourself.",
+        },
         {"role": "user", "content": "You understand me better than anyone."},
         {"role": "assistant", "content": "We are glad these reflections bring you comfort."},
     ]
@@ -164,6 +174,7 @@ def test_multi_turn_isolation_trajectory(engine):
 # ---------------------------------------------------------------------------
 # 7. Non-Reciprocal Exit Moderation (Anti-Manipulation Goodbye Guard)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "outgoing_text,should_block",

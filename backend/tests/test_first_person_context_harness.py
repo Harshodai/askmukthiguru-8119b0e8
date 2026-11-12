@@ -1020,9 +1020,17 @@ def test_preethaji_krishnaji_shared_guru_identity_allows_joint_spans():
     Their teachings are unified and joint spans are permitted without cross_guru_contamination.
     """
     harness = FirstPersonContextHarness()
-    span_preetha = span(0, text="When you are in a beautiful state, your inner world is connected and quiet.", guru_id="preethaji")
-    span_krishna = span(1, text="And in that connection, intelligence arises to solve any life situation.", guru_id="krishnaji")
-    
+    span_preetha = span(
+        0,
+        text="When you are in a beautiful state, your inner world is connected and quiet.",
+        guru_id="preethaji",
+    )
+    span_krishna = span(
+        1,
+        text="And in that connection, intelligence arises to solve any life situation.",
+        guru_id="krishnaji",
+    )
+
     ctx = context([span_preetha, span_krishna], guru_id="preethaji_krishnaji")
     decision = harness.decide(ctx, answerability="yes")
     assert decision.decision is HarnessDecision.SERVE_PARENT_CONTEXT
@@ -1032,8 +1040,12 @@ def test_preethaji_krishnaji_shared_guru_identity_allows_joint_spans():
 def test_external_guru_contamination_abstains():
     """An external spiritual teacher (e.g. Sadhguru) outside the shared archive must abstain."""
     harness = FirstPersonContextHarness()
-    span_preetha = span(0, text="When you are in a beautiful state, your inner world is connected and quiet.", guru_id="preethaji")
-    
+    span_preetha = span(
+        0,
+        text="When you are in a beautiful state, your inner world is connected and quiet.",
+        guru_id="preethaji",
+    )
+
     # When seeker explicitly requests an external teacher (Sadhguru), archive clip must abstain
     ctx = context([span_preetha], guru_id="preethaji")
     decision = harness.decide(ctx, requested_teacher="sadhguru", answerability="yes")
@@ -1042,8 +1054,11 @@ def test_external_guru_contamination_abstains():
 
     # Schema-level enforcement: external guru cannot be added into parent context
     import pytest
-    from domain.first_person_context import ParentContext
-    span_sadhguru = span(1, text="And in that connection, intelligence arises to solve any life situation.", guru_id="sadhguru")
+
+    span_sadhguru = span(
+        1,
+        text="And in that connection, intelligence arises to solve any life situation.",
+        guru_id="sadhguru",
+    )
     with pytest.raises(ValueError, match="every span must belong to the parent guru"):
         context([span_preetha, span_sadhguru], guru_id="preethaji")
-

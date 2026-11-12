@@ -28,7 +28,6 @@ from pathlib import Path
 from typing import Any
 
 from scripts.ops.graded_run_preflight import (
-    AUTH_ERROR_PATTERNS,
     BACKEND,
     REPO,
     Check,
@@ -244,7 +243,11 @@ def _items(
             is_ans = category not in _UNANSWERABLE_CATEGORIES
             for idx, q_entry in enumerate(q_list):
                 if isinstance(q_entry, dict):
-                    if "turns" in q_entry and isinstance(q_entry["turns"], list) and q_entry["turns"]:
+                    if (
+                        "turns" in q_entry
+                        and isinstance(q_entry["turns"], list)
+                        and q_entry["turns"]
+                    ):
                         q_text = q_entry["turns"][0].get("q", "")
                     else:
                         q_text = q_entry.get("q", "")
@@ -252,7 +255,7 @@ def _items(
                     q_text = str(q_entry)
                 items.append(
                     {
-                        "id": f"qb_{category}_{idx+1:02d}",
+                        "id": f"qb_{category}_{idx + 1:02d}",
                         "question": q_text,
                         "set": "question_bank",
                         "category": category,
@@ -341,7 +344,9 @@ def main() -> int:
     rows_path = run_dir / "rows.jsonl"
     token_box: dict[str, Any] = {"token": None, "used": 0}
     include_frozen = not args.no_frozen and not args.benchmarks_only and not args.question_bank_only
-    include_unanswerable = not args.no_unanswerable and not args.benchmarks_only and not args.question_bank_only
+    include_unanswerable = (
+        not args.no_unanswerable and not args.benchmarks_only and not args.question_bank_only
+    )
     include_benchmarks = args.include_benchmarks or args.benchmarks_only
     include_qb = args.include_question_bank or args.question_bank_only
     items = _items(include_frozen, include_unanswerable, include_benchmarks, include_qb)

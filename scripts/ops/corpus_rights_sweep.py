@@ -20,6 +20,7 @@ Refuses to write when the register is empty or when it would revoke more than
 --max-revoke-fraction of the collection (a register that failed to load must not revoke
 the whole corpus).
 """
+
 from __future__ import annotations
 
 import argparse

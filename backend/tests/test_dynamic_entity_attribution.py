@@ -11,6 +11,7 @@ Validates:
 """
 
 import pytest
+
 from services.guru_registry import (
     extract_target_authority,
     format_external_teacher_boundary,
@@ -18,10 +19,10 @@ from services.guru_registry import (
     requested_unregistered_teacher_or_tradition,
 )
 
-
 # ---------------------------------------------------------------------------
 # 1. Zero-Shot Dynamic External Teacher Extraction (25+ Diverse Figures)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "query,expected_entity",
@@ -70,6 +71,7 @@ def test_zero_shot_external_teacher_extraction(query, expected_entity):
 # 2. In-Domain Registered Teachers Are Never Flagged as External
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "query",
     [
@@ -94,6 +96,7 @@ def test_in_domain_teachers_are_registered_and_not_unregistered(query):
 # ---------------------------------------------------------------------------
 # 3. Comparative Queries (In-Domain vs External)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "query",
@@ -121,6 +124,7 @@ def test_comparative_queries_allow_in_domain_retrieval(query):
 # ---------------------------------------------------------------------------
 # 4. Transparent Dynamic Boundary Formulation
 # ---------------------------------------------------------------------------
+
 
 def test_dynamic_boundary_formatting():
     boundary = format_external_teacher_boundary("Alan Watts", "the illusion of ego")

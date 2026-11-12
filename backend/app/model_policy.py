@@ -133,9 +133,14 @@ class OpenRouterModelPolicy:
                         if item.strip()
                     ]
                     + (
-                        [_model_id(str(getattr(settings, "first_person_relevance_model")), "first_person_relevance_model")]
+                        [
+                            _model_id(
+                                str(settings.first_person_relevance_model),
+                                "first_person_relevance_model",
+                            )
+                        ]
                         if getattr(settings, "first_person_relevance_model", None)
-                        and str(getattr(settings, "first_person_relevance_model")).strip()
+                        and str(settings.first_person_relevance_model).strip()
                         else []
                     )
                 )

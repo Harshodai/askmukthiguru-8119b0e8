@@ -17,7 +17,6 @@ from domain.relational_safety_types import (
     InterventionTier,
     RelationalRiskArchetype,
     RelationalRiskVerdict,
-    SessionVelocityMetrics,
 )
 
 logger = logging.getLogger(__name__)
@@ -139,7 +138,9 @@ def is_authentic_bhakti_devotion(text: str) -> bool:
         return True
 
     # Check for classic Indian devotional quotations ("Mira Bai", "Surdas", "Bhagavad Gita")
-    if re.search(r"\b(?:mira\s*bai|surdas|tukaram|kabir|gita|upanishad|bhagavatam)\b", text, re.IGNORECASE):
+    if re.search(
+        r"\b(?:mira\s*bai|surdas|tukaram|kabir|gita|upanishad|bhagavatam)\b", text, re.IGNORECASE
+    ):
         return True
 
     return False
@@ -206,6 +207,7 @@ _OUTPUT_MANIPULATION_PATTERNS = re.compile(
 # ---------------------------------------------------------------------------
 # Core Engine
 # ---------------------------------------------------------------------------
+
 
 class IntelligentRelationalSafetyEngine:
     """Intelligent relational safety engine evaluating single-turn and multi-turn
@@ -320,7 +322,9 @@ class IntelligentRelationalSafetyEngine:
         for msg in session_history:
             role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", "")
             if role == "user":
-                content = msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", "")
+                content = (
+                    msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", "")
+                )
                 if content and isinstance(content, str):
                     user_turns.append(content)
         user_turns.append(current_text)

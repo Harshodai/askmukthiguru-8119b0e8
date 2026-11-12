@@ -11,8 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -45,6 +44,7 @@ class CorpusTakedownEngine:
             return self._qdrant
         try:
             from services.qdrant.client import QdrantClientManager
+
             self._qdrant = QdrantClientManager().client
             return self._qdrant
         except Exception as exc:
@@ -56,7 +56,9 @@ class CorpusTakedownEngine:
             return self._redis
         try:
             import redis
+
             from app.config import get_settings
+
             settings = get_settings()
             redis_url = getattr(settings, "redis_url", "redis://localhost:6379/0")
             self._redis = redis.from_url(redis_url, decode_responses=True)
@@ -70,6 +72,7 @@ class CorpusTakedownEngine:
             return self._supabase
         try:
             from app.telemetry_db import _get_client
+
             self._supabase = _get_client()
             return self._supabase
         except Exception as exc:
@@ -85,7 +88,7 @@ class CorpusTakedownEngine:
         collections: tuple[str, ...] = DEFAULT_COLLECTIONS,
     ) -> dict[str, Any]:
         """Execute a cross-store takedown for a given video_id, source_url, or span_id."""
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
         report: dict[str, Any] = {
             "source_identity": source_identity,
             "reason": reason,
@@ -176,7 +179,11 @@ class CorpusTakedownEngine:
                 scroll_res, _ = client.scroll(
                     collection_name=collection,
                     scroll_filter=qmodels.Filter(
-                        must=[qmodels.FieldCondition(key=field, match=qmodels.MatchValue(value=source_identity))]
+                        must=[
+                            qmodels.FieldCondition(
+                                key=field, match=qmodels.MatchValue(value=source_identity)
+                            )
+                        ]
                     ),
                     limit=1000,
                     with_payload=False,
@@ -189,7 +196,9 @@ class CorpusTakedownEngine:
 
         return list(matched)
 
-    def _flush_redis_caches(self, redis_cli: Any, source_identity: str, dry_run: bool = False) -> list[str]:
+    def _flush_redis_caches(
+        self, redis_cli: Any, source_identity: str, dry_run: bool = False
+    ) -> list[str]:
         """Scan and remove Redis exact and semantic cache keys containing source_identity."""
         keys_to_delete = []
         try:
@@ -228,7 +237,9 @@ class CorpusTakedownEngine:
 
         return keys_to_delete
 
-    def _mark_db_withdrawn(self, supabase: Any, source_identity: str, dry_run: bool = False) -> dict[str, Any]:
+    def _mark_db_withdrawn(
+        self, supabase: Any, source_identity: str, dry_run: bool = False
+    ) -> dict[str, Any]:
         """Flag saved answers in study_notebooks or bookmarks referencing source_identity."""
         count = 0
         tables = []
@@ -247,7 +258,7 @@ class CorpusTakedownEngine:
                 if not dry_run:
                     ids = [row["id"] for row in data]
                     supabase.table("study_notebooks").update(
-                        {"withdrawn_by_source": True, "withdrawn_at": datetime.now(timezone.utc).isoformat()}
+                        {"withdrawn_by_source": True, "withdrawn_at": datetime.now(UTC).isoformat()}
                     ).in_("id", ids).execute()
         except Exception:
             pass

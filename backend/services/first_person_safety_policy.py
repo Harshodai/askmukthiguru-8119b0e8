@@ -274,7 +274,9 @@ class FirstPersonSafetyPolicy:
             reason_codes.append("dangling_dependency")
 
         # ---- Orphan opener (candidate-only) → dangling_dependency ------
-        if _ORPHAN_OPENER_RE.match(candidate_text) and not _CORE_WISDOM_OPENER_RE.match(candidate_text):
+        if _ORPHAN_OPENER_RE.match(candidate_text) and not _CORE_WISDOM_OPENER_RE.match(
+            candidate_text
+        ):
             dimensions.append(
                 SafetyDimension(
                     category=SafetyCategory.DANGLING_DEPENDENCY,

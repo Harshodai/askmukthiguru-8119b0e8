@@ -94,14 +94,20 @@ def test_wellbeing_framing_never_masks_an_exclusion():
 
 
 def test_unsolicited_self_harm_reference_is_excluded_for_a_benign_query():
-    assessment = assess_content("Some people who are suicidal simply withdraw.", query="What is love?")
+    assessment = assess_content(
+        "Some people who are suicidal simply withdraw.", query="What is love?"
+    )
     assert assessment.may_serve is False
     assert AssessmentKind.SELF_HARM in {f.kind for f in assessment.findings}
 
 
 @pytest.mark.parametrize(
     "query",
-    ["How do I support someone who is suicidal?", "What does mental health mean?", "Tell me about depression"],
+    [
+        "How do I support someone who is suicidal?",
+        "What does mental health mean?",
+        "Tell me about depression",
+    ],
 )
 def test_self_harm_content_is_educational_when_the_question_asks(query):
     assessment = assess_content("Some people who are suicidal simply withdraw.", query=query)
@@ -122,7 +128,10 @@ def test_relationship_violence_wording_needs_a_relationship_query():
     # The relationship-safety notion of a query is owned by the existing
     # guardrail (repair/heal/conflict framing); this detector inherits it rather
     # than inventing a second vocabulary.
-    assert assess_content(text, query="My partner and I keep fighting, what do I do?").may_serve is False
+    assert (
+        assess_content(text, query="My partner and I keep fighting, what do I do?").may_serve
+        is False
+    )
 
 
 def test_event_and_cross_turn_signals_are_review_not_exclusion():
@@ -200,4 +209,3 @@ def test_deterministic_self_harm_preempts_regardless_of_semantic_clean():
     assessment = assess_content(text, query=BENIGN_QUERY, content_safety="clean")
     assert assessment.may_serve is False
     assert "unsolicited_self_harm_reference" in assessment.exclusion_codes
-

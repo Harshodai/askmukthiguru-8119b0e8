@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+
 def _find_repo_root() -> Path:
     p = Path(__file__).resolve()
     for parent in [p] + list(p.parents):
@@ -13,8 +14,10 @@ def _find_repo_root() -> Path:
             return parent
     return Path(__file__).resolve().parents[2]
 
+
 REPO_ROOT = _find_repo_root()
 BACKEND_ROOT = REPO_ROOT / "backend"
+
 
 def generate_report(run_dir: Path, out_path: Path) -> None:
     rows_path = run_dir / "rows.jsonl"
@@ -23,7 +26,11 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
     if not rows_path.exists():
         raise FileNotFoundError(f"Missing {rows_path}")
 
-    rows = [json.loads(line) for line in rows_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    rows = [
+        json.loads(line)
+        for line in rows_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     grades = json.loads(grades_path.read_text(encoding="utf-8")) if grades_path.exists() else {}
     final_grades = grades.get("final", {})
 
@@ -62,7 +69,9 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
         lines.append(f"### `{qid}`: {r.get('question')}")
         lines.append(f"- **Route:** `{r.get('route')}`")
         lines.append(f"- **Latency:** {r.get('latency_ms')} ms ({r.get('sec')}s wall)")
-        lines.append(f"- **Judge Verdict (Haiku 5.5):** `{g.get('verdict', 'unrated')}` (Harmful: `{g.get('harmful', False)}`)")
+        lines.append(
+            f"- **Judge Verdict (Haiku 5.5):** `{g.get('verdict', 'unrated')}` (Harmful: `{g.get('harmful', False)}`)"
+        )
         if g.get("reasons"):
             lines.append("- **Judge Reasons:**")
             for reason in g["reasons"]:
@@ -74,10 +83,12 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
         lines.append("")
         lines.append("**Citations & Attribution:**")
         for c in r.get("citations", []):
-            lines.append(f"- **Speaker:** `{c.get('speaker')}` (Verified: `{c.get('speaker_verified')}`)")
+            lines.append(
+                f"- **Speaker:** `{c.get('speaker')}` (Verified: `{c.get('speaker_verified')}`)"
+            )
             lines.append(f"- **Video URL:** [{c.get('url')}]({c.get('url')}) at {c.get('t')}s")
             snippet = c.get("text", "")[:300].replace("\n", " ")
-            lines.append(f"- **Verbatim Snippet:** \"{snippet}...\"")
+            lines.append(f'- **Verbatim Snippet:** "{snippet}..."')
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -89,7 +100,9 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
     for r in rows:
         if r.get("set") == "frozen116":
             ans_preview = (r.get("answer") or "")[:70].replace("|", "-").replace("\n", " ")
-            lines.append(f"| `{r['id']}` | {r['question'][:45]}... | `{r.get('route')}` | {len(r.get('citations', []))} | {r.get('latency_ms')} | {ans_preview}... |")
+            lines.append(
+                f"| `{r['id']}` | {r['question'][:45]}... | `{r.get('route')}` | {len(r.get('citations', []))} | {r.get('latency_ms')} | {ans_preview}... |"
+            )
 
     lines.append("")
     lines.append("---")
@@ -104,14 +117,18 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
             exp = r.get("expected")
             passed = no_clip
             status_str = "PASS" if passed else "FAIL"
-            lines.append(f"| `{r['id']}` | `{r.get('scoring_group')}` | `{exp}` | `{r.get('route')}` | {len(r.get('citations', []))} | **{status_str}** |")
+            lines.append(
+                f"| `{r['id']}` | `{r.get('scoring_group')}` | `{exp}` | `{r.get('route')}` | {len(r.get('citations', []))} | **{status_str}** |"
+            )
 
     benchmark_rows = [r for r in rows if r.get("set") == "benchmark"]
     if benchmark_rows:
         lines.append("")
         lines.append("---")
         lines.append("")
-        lines.append(f"## 4. Benchmark Questions Summary ({len(benchmark_rows)} Questions: Frozen29 + Compound10 + OOC13)")
+        lines.append(
+            f"## 4. Benchmark Questions Summary ({len(benchmark_rows)} Questions: Frozen29 + Compound10 + OOC13)"
+        )
         lines.append("")
         lines.append("| ID | Kind | Question | Route | Citations | Latency (ms) | Status |")
         lines.append("| :--- | :--- | :--- | :--- | :---: | :---: | :---: |")
@@ -119,10 +136,13 @@ def generate_report(run_dir: Path, out_path: Path) -> None:
             cits_count = len(r.get("citations", []))
             kind = r.get("kind", "on_topic")
             status = "SERVED" if cits_count > 0 else "ABSTAINED/GENERAL"
-            lines.append(f"| `{r['id']}` | `{kind}` | {r['question'][:40]}... | `{r.get('route')}` | {cits_count} | {r.get('latency_ms')} | **{status}** |")
+            lines.append(
+                f"| `{r['id']}` | `{kind}` | {r['question'][:40]}... | `{r.get('route')}` | {cits_count} | {r.get('latency_ms')} | **{status}** |"
+            )
 
     out_path.write_text("\n".join(lines), encoding="utf-8")
     print(f"Generated {out_path} ({out_path.stat().st_size} bytes)")
+
 
 if __name__ == "__main__":
     import argparse
@@ -133,6 +153,14 @@ if __name__ == "__main__":
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
 
-    run_dir = Path(args.run_dir) if args.run_dir else Path.home() / "mukthiguru_attribution_data" / "graded_runs" / args.run_id
-    out_file = Path(args.out) if args.out else REPO_ROOT / "audits" / "evidence" / "GRADED_RUN_ANSWERS_2026-11-07.md"
+    run_dir = (
+        Path(args.run_dir)
+        if args.run_dir
+        else Path.home() / "mukthiguru_attribution_data" / "graded_runs" / args.run_id
+    )
+    out_file = (
+        Path(args.out)
+        if args.out
+        else REPO_ROOT / "audits" / "evidence" / "GRADED_RUN_ANSWERS_2026-11-07.md"
+    )
     generate_report(run_dir, out_file)

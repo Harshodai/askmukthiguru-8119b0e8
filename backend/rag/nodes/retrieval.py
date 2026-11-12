@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
 import re
 import time
+from pathlib import Path
 from typing import Any, Optional
 
 from langchain_core.runnables import RunnableConfig
@@ -372,9 +372,11 @@ def traverse_okf_wikilinks(
                         "knowledge_source": "okf_wikilink_traversal",
                         "chunk_provenance": "polished_speech",
                         "title": target_entry["title"],
-                        "source_url": target_entry.get("resource") or target_entry.get("source", ""),
+                        "source_url": target_entry.get("resource")
+                        or target_entry.get("source", ""),
                         "metadata": {
-                            "source": target_entry.get("resource") or target_entry.get("source", "OKF"),
+                            "source": target_entry.get("resource")
+                            or target_entry.get("source", "OKF"),
                             "title": target_entry["title"],
                             "type": target_entry.get("type", "okf"),
                             "teacher": target_entry.get("teacher", "both"),
@@ -2386,7 +2388,9 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
                 # Anthropic Knowledge Wiki pattern: traverse 1-hop [[wikilinks]] for multi-concept queries
                 wikilink_docs = traverse_okf_wikilinks(okf_docs, base_question, max_expanded_docs=2)
                 if wikilink_docs:
-                    logger.info("OKF wikilink traversal: expanded %d multi-hop concepts", len(wikilink_docs))
+                    logger.info(
+                        "OKF wikilink traversal: expanded %d multi-hop concepts", len(wikilink_docs)
+                    )
                     lane_trace["okf_wikilinks_traversed"] = len(wikilink_docs)
                     okf_docs.extend(wikilink_docs)
 

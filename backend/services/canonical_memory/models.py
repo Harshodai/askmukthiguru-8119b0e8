@@ -241,7 +241,9 @@ class SeekerCoreDashboard(BaseModel):
         if self.key_goals:
             lines.append("## Goals\n" + "\n".join(f"- {g}" for g in self.key_goals[:5]))
         if self.active_practices:
-            lines.append("## Core Practices\n" + "\n".join(f"- {p}" for p in self.active_practices[:5]))
+            lines.append(
+                "## Core Practices\n" + "\n".join(f"- {p}" for p in self.active_practices[:5])
+            )
         if self.preferences:
             lines.append("## Preferences\n" + "\n".join(f"- {p}" for p in self.preferences[:5]))
         if self.dominant_themes:
@@ -272,10 +274,7 @@ class SeekerCoreDashboard(BaseModel):
             text = ""
             if isinstance(item, dict):
                 text = str(
-                    item.get("content")
-                    or item.get("claim")
-                    or item.get("statement")
-                    or ""
+                    item.get("content") or item.get("claim") or item.get("statement") or ""
                 ).strip()
                 fact_key = str(item.get("fact_key") or "").strip().lower()
                 if fact_key == "user:prefers_language" and text:
@@ -303,10 +302,15 @@ class SeekerCoreDashboard(BaseModel):
                     p_clean = p.strip()
                     if p_clean and p_clean not in practices:
                         practices.append(p_clean)
-            elif any(k in lower for k in ("meditat", "breathwork", "pranayama", "yoga", "vipassana", "sadhana")):
+            elif any(
+                k in lower
+                for k in ("meditat", "breathwork", "pranayama", "yoga", "vipassana", "sadhana")
+            ):
                 if len(text) < 40 and text not in practices:
                     practices.append(text)
-            elif inquiry is None and any(k in lower for k in ("inquiry", "seeking", "question", "struggl")):
+            elif inquiry is None and any(
+                k in lower for k in ("inquiry", "seeking", "question", "struggl")
+            ):
                 inquiry = text
 
         return cls(

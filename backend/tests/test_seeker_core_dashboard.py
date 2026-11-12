@@ -8,15 +8,11 @@ Anthropic research ("The Components of Agent Memory", Nov 2026):
 
 from __future__ import annotations
 
-import asyncio
-import re
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from rag.memory import (
-    _SEEKER_DASHBOARD_TOKEN_BUDGET,
     _is_personal_recall_request,
     inject_memory_context,
 )
@@ -98,9 +94,15 @@ def test_is_personal_recall_detection():
     assert _is_personal_recall_request("anything", intent="recall") is True
 
     # Pure spiritual/doctrine queries DO NOT trigger episodic search
-    assert _is_personal_recall_request("What is the Beautiful State according to Sri Preethaji?") is False
+    assert (
+        _is_personal_recall_request("What is the Beautiful State according to Sri Preethaji?")
+        is False
+    )
     assert _is_personal_recall_request("How does Ahankara create suffering?") is False
-    assert _is_personal_recall_request("Tell me about the four sacred secrets", intent="knowledge") is False
+    assert (
+        _is_personal_recall_request("Tell me about the four sacred secrets", intent="knowledge")
+        is False
+    )
     assert _is_personal_recall_request("Namaste", intent="casual") is False
 
 
@@ -115,8 +117,12 @@ async def test_inject_memory_context_doctrine_query_uses_only_layer_4_dashboard(
             {"content": "inquiry: finding inner stillness"},
         ]
     )
-    mock_svc.search_semantic = AsyncMock(return_value=[{"claim": "Episodic detail from 2 weeks ago"}])
-    mock_svc.recent_summaries = AsyncMock(return_value=[{"summary": "Earlier session about work stress"}])
+    mock_svc.search_semantic = AsyncMock(
+        return_value=[{"claim": "Episodic detail from 2 weeks ago"}]
+    )
+    mock_svc.recent_summaries = AsyncMock(
+        return_value=[{"summary": "Earlier session about work stress"}]
+    )
 
     state = {
         "user_id": "11111111-1111-4111-8111-111111111111",

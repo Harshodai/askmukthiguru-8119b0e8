@@ -15,6 +15,7 @@ Environment:
 X22: read-only by design. No alias changes, no collection writes.
 X40: no rights decisions made here — this is observation only.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,12 +43,18 @@ _BATCH = 250
 def _git_info() -> tuple[str, str]:
     """Return (short_sha, full_sha). Falls back to 'unknown' on failure."""
     try:
-        short = subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
-        ).decode().strip()
-        full = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
-        ).decode().strip()
+        short = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+            )
+            .decode()
+            .strip()
+        )
+        full = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL)
+            .decode()
+            .strip()
+        )
         return short, full
     except (OSError, subprocess.CalledProcessError) as exc:
         logger.error("git metadata unavailable: %s", exc)

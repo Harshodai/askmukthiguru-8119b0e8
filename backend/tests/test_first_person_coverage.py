@@ -161,4 +161,3 @@ def test_editorial_set_covered_facets_authoritative():
     assert decision.verdict is CoverageVerdict.SUPPORTED
     assert decision.allow_direct is True
     assert decision.authoritative is True
-

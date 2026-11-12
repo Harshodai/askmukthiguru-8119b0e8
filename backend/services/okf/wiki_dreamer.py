@@ -19,16 +19,17 @@ production teacher subdirectories:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import re
 from dataclasses import asdict, dataclass, field
+
 try:
     from datetime import UTC, datetime
 except ImportError:
-    from datetime import datetime, timezone
-    UTC = timezone.utc
+    from datetime import datetime
+
+    UTC = UTC
 from pathlib import Path
 from typing import Any, Optional
 
@@ -36,25 +37,21 @@ import yaml
 
 from services.memory.compiler import _body_word_set, _content_hash, compile_okf
 from services.memory.okf_store import (
-    DOCTRINE_TYPES,
     NON_CONCEPT_FILENAMES,
     OKF_DIR,
     RESERVED_FILENAMES,
     STAGING_DIR,
-    _parse_frontmatter,
 )
 from services.okf_quality_filter import (
-    OKFQualityFilter,
     _MIN_COMPLETE_QUOTE_CHARS,
     _QUOTE_TERMINATORS,
+    OKFQualityFilter,
 )
 from services.text_quality_filter import find_artifact
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_AUDIT_REPORT = (
-    OKF_DIR.parent.parent / "audits" / "okf" / "dreaming_report_2026-11-08.json"
-)
+_DEFAULT_AUDIT_REPORT = OKF_DIR.parent.parent / "audits" / "okf" / "dreaming_report_2026-11-08.json"
 
 # Extraction artifacts regex (aligned with test_okf_doctrine_only.py)
 _ARTIFACT_RE = re.compile(
@@ -282,7 +279,9 @@ class OKFWikiDreamer:
                         prefix = m.group(1).rstrip()
                         if not prefix.endswith("**"):
                             prefix = f"{prefix}**"
-                        line = f"{prefix}{concept_name}** ([[{wiki_id}]]): {m.group(3).lstrip(':* ')}"
+                        line = (
+                            f"{prefix}{concept_name}** ([[{wiki_id}]]): {m.group(3).lstrip(':* ')}"
+                        )
                         links_added.append(wiki_id)
             else:
                 # Wikify bold keywords in body
@@ -307,7 +306,9 @@ class OKFWikiDreamer:
 
         # If no Related Concepts section exists, synthesize one with 2-4 relevant concepts
         if not re.search(r"^##\s*(Related Concepts|See Also|Cross-References)", updated_body, re.M):
-            related_candidates = self._find_related_concepts(title, meta, body, wiki_index, current_wiki_id)
+            related_candidates = self._find_related_concepts(
+                title, meta, body, wiki_index, current_wiki_id
+            )
             if related_candidates:
                 rc_section = ["\n## Related Concepts"]
                 for rel_title, rel_id, rel_desc in related_candidates[:4]:
@@ -332,12 +333,36 @@ class OKFWikiDreamer:
 
         # Check core seed concepts first
         core_seeds = [
-            ("Beautiful State", f"{_G_P_DIR}/beautiful_state", "The serene, non-reactive state of inner calm and compassion."),
-            ("Serene Mind", f"{_G_K_DIR}/serene_mind_practice", "Quiet observation of thoughts leading to mental clarity."),
-            ("Universal Intelligence", "shared/universal_intelligence", "The underlying intelligence connecting all life forms."),
-            ("Truth of Suffering", "shared/the_truth_of_suffering", "Understanding how self-centric thinking generates inner suffering."),
-            ("Oneness", f"{_G_K_DIR}/oneness_the_ultimate_enlightened_state", "Experiencing interconnectedness and dissolution of division."),
-            ("Observation", f"{_G_P_DIR}/observation_and_self_awareness", "Witnessing thoughts and emotional states without reaction."),
+            (
+                "Beautiful State",
+                f"{_G_P_DIR}/beautiful_state",
+                "The serene, non-reactive state of inner calm and compassion.",
+            ),
+            (
+                "Serene Mind",
+                f"{_G_K_DIR}/serene_mind_practice",
+                "Quiet observation of thoughts leading to mental clarity.",
+            ),
+            (
+                "Universal Intelligence",
+                "shared/universal_intelligence",
+                "The underlying intelligence connecting all life forms.",
+            ),
+            (
+                "Truth of Suffering",
+                "shared/the_truth_of_suffering",
+                "Understanding how self-centric thinking generates inner suffering.",
+            ),
+            (
+                "Oneness",
+                f"{_G_K_DIR}/oneness_the_ultimate_enlightened_state",
+                "Experiencing interconnectedness and dissolution of division.",
+            ),
+            (
+                "Observation",
+                f"{_G_P_DIR}/observation_and_self_awareness",
+                "Witnessing thoughts and emotional states without reaction.",
+            ),
         ]
         for c_title, c_id, c_desc in core_seeds:
             if c_id == current_wiki_id:
@@ -347,7 +372,9 @@ class OKFWikiDreamer:
                 candidates.append((c_title, c_id, c_desc))
 
         # Check existing wiki_index concepts
-        _teachers_label = " and ".join(g.label for g in _gurus if g.label) or "the spiritual teachers"
+        _teachers_label = (
+            " and ".join(g.label for g in _gurus if g.label) or "the spiritual teachers"
+        )
         for c_title, c_id in wiki_index.items():
             if c_id == current_wiki_id or any(c_id == item[1] for item in candidates):
                 continue
@@ -388,11 +415,8 @@ class OKFWikiDreamer:
                     inserted = False
                     for line in lines:
                         new_lines.append(line)
-                        if (
-                            not inserted
-                            and re.match(
-                                r"^##\s*(Related Concepts|See Also|Cross-References)", line, re.I
-                            )
+                        if not inserted and re.match(
+                            r"^##\s*(Related Concepts|See Also|Cross-References)", line, re.I
                         ):
                             new_lines.append(backlink_item)
                             inserted = True
@@ -437,10 +461,7 @@ class OKFWikiDreamer:
                     and quote_text[-1] not in _QUOTE_TERMINATORS
                 ):
                     # Subtractive repair: find last sentence terminator . ? !
-                    term_matches = [
-                        tm.end()
-                        for tm in re.finditer(r"[\.\?!](?=\s|\Z)", quote_text)
-                    ]
+                    term_matches = [tm.end() for tm in re.finditer(r"[\.\?!](?=\s|\Z)", quote_text)]
                     if term_matches:
                         last_idx = term_matches[-1]
                         trimmed = quote_text[:last_idx].strip()
@@ -465,7 +486,11 @@ class OKFWikiDreamer:
     ) -> DreamingReport:
         """Execute autonomous OKF triage, deduplication, wikification, and graduation."""
         staged_files = sorted(self.staging_dir.glob("*.md"))
-        logger.info("Dreamer starting: %d staging files discovered in %s", len(staged_files), self.staging_dir)
+        logger.info(
+            "Dreamer starting: %d staging files discovered in %s",
+            len(staged_files),
+            self.staging_dir,
+        )
 
         prod_entries = self.load_production_entries()
         logger.info("Loaded %d production entries from %s", len(prod_entries), self.okf_dir)
@@ -552,7 +577,12 @@ class OKFWikiDreamer:
             ok, reason = OKFQualityFilter.validate_entry(entry_dict)
             if not ok and "Truncated quote" in reason:
                 repaired_body = self.repair_truncated_quotes(body)
-                rep_entry_dict = {"type": type_, "title": title, "body": repaired_body, "source": source}
+                rep_entry_dict = {
+                    "type": type_,
+                    "title": title,
+                    "body": repaired_body,
+                    "source": source,
+                }
                 rep_ok, rep_reason = OKFQualityFilter.validate_entry(rep_entry_dict)
                 if rep_ok:
                     body = repaired_body
@@ -643,7 +673,7 @@ class OKFWikiDreamer:
                     inter = len(b_words & pe["body_words"])
                     union = len(b_words | pe["body_words"])
                     if union > 0 and (inter / union) >= 0.9:
-                        matched_prod = (pe["rel_path"], f"jaccard_{inter/union:.2f}")
+                        matched_prod = (pe["rel_path"], f"jaccard_{inter / union:.2f}")
                         break
 
             if matched_prod:
@@ -688,7 +718,7 @@ class OKFWikiDreamer:
                     inter = len(cand["body_words"] & surv["body_words"])
                     union = len(cand["body_words"] | surv["body_words"])
                     if union > 0 and (inter / union) >= 0.9:
-                        matched_survivor = (surv, f"jaccard_{inter/union:.2f}")
+                        matched_survivor = (surv, f"jaccard_{inter / union:.2f}")
                         break
 
             if matched_survivor:
@@ -783,7 +813,9 @@ class OKFWikiDreamer:
                 frontmatter_yaml = yaml.dump(
                     meta, sort_keys=False, allow_unicode=True, default_flow_style=False
                 ).strip()
-                target_path.write_text(f"---\n{frontmatter_yaml}\n---\n\n{wikified_body.lstrip()}", encoding="utf-8")
+                target_path.write_text(
+                    f"---\n{frontmatter_yaml}\n---\n\n{wikified_body.lstrip()}", encoding="utf-8"
+                )
 
                 # Remove original from staging
                 cand["path"].unlink(missing_ok=True)

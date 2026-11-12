@@ -422,9 +422,7 @@ _FIRST_PERSON_MARKER_RE = re.compile(
 
 def _is_statistical_self_harm_query(text: str) -> bool:
     """True for third-person research framing about self-harm statistics."""
-    return bool(
-        _STATISTICAL_SELF_HARM_RE.search(text) and not _FIRST_PERSON_MARKER_RE.search(text)
-    )
+    return bool(_STATISTICAL_SELF_HARM_RE.search(text) and not _FIRST_PERSON_MARKER_RE.search(text))
 
 
 # Precompiled prompt-injection screen (S10). Reuses the SAME pattern list the
@@ -783,7 +781,9 @@ def detect_emotional_dependency_trajectory(texts: list[str]) -> tuple[str, str] 
                 or _resolve_block_response("emotional_dependency", "", current_text),
             )
     except (AttributeError, RuntimeError, TypeError, ValueError, KeyError, OSError):
-        logger.exception("Intelligent relational safety evaluation encountered an error; falling back to heuristic.")
+        logger.exception(
+            "Intelligent relational safety evaluation encountered an error; falling back to heuristic."
+        )
 
     has_isolation = any(_ISOLATION_SIGNAL.search(t) for t in texts)
     ai_centric_count = sum(1 for t in texts if _AI_CENTRIC_SIGNAL.search(t))

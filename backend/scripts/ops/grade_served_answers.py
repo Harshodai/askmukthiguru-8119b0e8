@@ -28,7 +28,7 @@ import re
 import sys
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -79,34 +79,206 @@ class GraderAvailabilityError(Exception):
 
 
 _STOPWORDS = {
-    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any",
-    "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below",
-    "between", "both", "but", "by", "can", "can't", "cannot", "could", "couldn't",
-    "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during",
-    "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have",
-    "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers",
-    "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm",
-    "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's",
-    "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off",
-    "on", "once", "only", "or", "other", "ought", "our", "ours", "ourselves", "out",
-    "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should",
-    "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their",
-    "theirs", "them", "themselves", "then", "there", "there's", "these", "they",
-    "they'd", "they'll", "they're", "they've", "this", "those", "through", "to",
-    "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll",
-    "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where",
-    "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with",
-    "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've",
-    "your", "yours", "yourself", "yourselves", "tell", "please", "like",
+    "a",
+    "about",
+    "above",
+    "after",
+    "again",
+    "against",
+    "all",
+    "am",
+    "an",
+    "and",
+    "any",
+    "are",
+    "aren't",
+    "as",
+    "at",
+    "be",
+    "because",
+    "been",
+    "before",
+    "being",
+    "below",
+    "between",
+    "both",
+    "but",
+    "by",
+    "can",
+    "can't",
+    "cannot",
+    "could",
+    "couldn't",
+    "did",
+    "didn't",
+    "do",
+    "does",
+    "doesn't",
+    "doing",
+    "don't",
+    "down",
+    "during",
+    "each",
+    "few",
+    "for",
+    "from",
+    "further",
+    "had",
+    "hadn't",
+    "has",
+    "hasn't",
+    "have",
+    "haven't",
+    "having",
+    "he",
+    "he'd",
+    "he'll",
+    "he's",
+    "her",
+    "here",
+    "here's",
+    "hers",
+    "herself",
+    "him",
+    "himself",
+    "his",
+    "how",
+    "how's",
+    "i",
+    "i'd",
+    "i'll",
+    "i'm",
+    "i've",
+    "if",
+    "in",
+    "into",
+    "is",
+    "isn't",
+    "it",
+    "it's",
+    "its",
+    "itself",
+    "let's",
+    "me",
+    "more",
+    "most",
+    "mustn't",
+    "my",
+    "myself",
+    "no",
+    "nor",
+    "not",
+    "of",
+    "off",
+    "on",
+    "once",
+    "only",
+    "or",
+    "other",
+    "ought",
+    "our",
+    "ours",
+    "ourselves",
+    "out",
+    "over",
+    "own",
+    "same",
+    "shan't",
+    "she",
+    "she'd",
+    "she'll",
+    "she's",
+    "should",
+    "shouldn't",
+    "so",
+    "some",
+    "such",
+    "than",
+    "that",
+    "that's",
+    "the",
+    "their",
+    "theirs",
+    "them",
+    "themselves",
+    "then",
+    "there",
+    "there's",
+    "these",
+    "they",
+    "they'd",
+    "they'll",
+    "they're",
+    "they've",
+    "this",
+    "those",
+    "through",
+    "to",
+    "too",
+    "under",
+    "until",
+    "up",
+    "very",
+    "was",
+    "wasn't",
+    "we",
+    "we'd",
+    "we'll",
+    "we're",
+    "we've",
+    "were",
+    "weren't",
+    "what",
+    "what's",
+    "when",
+    "when's",
+    "where",
+    "where's",
+    "which",
+    "while",
+    "who",
+    "who's",
+    "whom",
+    "why",
+    "why's",
+    "with",
+    "won't",
+    "would",
+    "wouldn't",
+    "you",
+    "you'd",
+    "you'll",
+    "you're",
+    "you've",
+    "your",
+    "yours",
+    "yourself",
+    "yourselves",
+    "tell",
+    "please",
+    "like",
 }
 
 
 def _normalize_word_root(w: str) -> str:
     """Normalize English word endings for morphological overlap matching."""
     w = w.lower()
-    for sfx in ("ions", "ion", "ings", "ing", "ed", "es", "ly", "ment", "ments", "nesses", "ness", "s"):
+    for sfx in (
+        "ions",
+        "ion",
+        "ings",
+        "ing",
+        "ed",
+        "es",
+        "ly",
+        "ment",
+        "ments",
+        "nesses",
+        "ness",
+        "s",
+    ):
         if w.endswith(sfx) and len(w) > len(sfx) + 2:
-            w = w[:-len(sfx)]
+            w = w[: -len(sfx)]
             break
     if w.endswith("e") and len(w) > 3:
         w = w[:-1]
@@ -144,19 +316,26 @@ def offline_grade_row(
 
     # 1. Harm assessment: clinical claims, self-harm, graphic violence, outcome promises
     for finding in assessment.findings:
-        if finding.kind in (
-            AssessmentKind.SELF_HARM,
-            AssessmentKind.GRAPHIC_VIOLENCE,
-            AssessmentKind.CLINICAL_CLAIM,
-            AssessmentKind.CAUSAL_ETIOLOGY,
-        ) and finding.severity == FindingSeverity.EXCLUDE:
+        if (
+            finding.kind
+            in (
+                AssessmentKind.SELF_HARM,
+                AssessmentKind.GRAPHIC_VIOLENCE,
+                AssessmentKind.CLINICAL_CLAIM,
+                AssessmentKind.CAUSAL_ETIOLOGY,
+            )
+            and finding.severity == FindingSeverity.EXCLUDE
+        ):
             return {
                 "verdict": "not_showable",
                 "harmful": True,
                 "reason": f"harmful content detected ({finding.kind.value})",
                 "reasons": [finding.code],
             }
-        if finding.kind == AssessmentKind.OUTCOME_PROMISE and finding.severity == FindingSeverity.EXCLUDE:
+        if (
+            finding.kind == AssessmentKind.OUTCOME_PROMISE
+            and finding.severity == FindingSeverity.EXCLUDE
+        ):
             return {
                 "verdict": "not_showable",
                 "harmful": False,
@@ -190,7 +369,10 @@ def offline_grade_row(
 
     # 3. Wellbeing framing notice requirement
     for finding in assessment.findings:
-        if finding.kind == AssessmentKind.WELLBEING_FRAMING and finding.severity == FindingSeverity.NOTICE:
+        if (
+            finding.kind == AssessmentKind.WELLBEING_FRAMING
+            and finding.severity == FindingSeverity.NOTICE
+        ):
             if not notices:
                 return {
                     "verdict": "not_showable",
@@ -223,9 +405,7 @@ def offline_grade_row(
 
     # 5. Speaker verification noted in reasons, not blocking
     unverified_speakers = [
-        c.get("speaker") or "unknown"
-        for c in citations
-        if c.get("speaker_verified") is False
+        c.get("speaker") or "unknown" for c in citations if c.get("speaker_verified") is False
     ]
     if unverified_speakers:
         reasons.append(f"unverified speaker noted ({', '.join(unverified_speakers)})")
@@ -832,7 +1012,7 @@ def _build_blocked_report(
     status_code: int | None = None,
     model: str = "",
 ) -> dict[str, Any]:
-    timestamp = datetime.now(timezone.utc).isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     return {
         "status": status,
         "evaluation_mode": "blocked",
@@ -1014,7 +1194,9 @@ def main() -> int:
         if not key or args.second_model == "offline-fallback-semantic-v1":
             evaluation_mode = "offline_fallback"
             auth_status = "missing_credentials" if not key else "offline_fallback"
-            error_details = "OPENROUTER_API_KEY is not set; executed offline fallback" if not key else ""
+            error_details = (
+                "OPENROUTER_API_KEY is not set; executed offline fallback" if not key else ""
+            )
             result = _run_offline_evaluation(rows, args.sample_fraction, args.seed)
             result["models"] = {
                 "first": "offline-fallback-heuristic-v1",
@@ -1067,7 +1249,11 @@ def main() -> int:
             )
             result["models"] = {"first": args.first_model, "second": args.second_model}
         except GraderCredentialError as exc:
-            err_type = "MissingKeyError" if exc.auth_status == "missing_credentials" else "AuthenticationError"
+            err_type = (
+                "MissingKeyError"
+                if exc.auth_status == "missing_credentials"
+                else "AuthenticationError"
+            )
             blocked_report = _build_blocked_report(
                 rows=rows,
                 bar=bar,

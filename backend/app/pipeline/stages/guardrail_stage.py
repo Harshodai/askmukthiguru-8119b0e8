@@ -214,7 +214,9 @@ class InputGuardrailStage(Stage):
                 rel_verdict = rel_engine.evaluate(guardrail_text, session_history=chat_history)
 
                 if rel_verdict.is_bhakti_devotion:
-                    logger.info("[InputGuardrailStage] Authentic Bhakti devotion recognized; passing through.")
+                    logger.info(
+                        "[InputGuardrailStage] Authentic Bhakti devotion recognized; passing through."
+                    )
                 elif rel_verdict.is_flagged:
                     if rel_verdict.tier in (
                         InterventionTier.TIER_2_GENTLE_FRICTION,
@@ -229,7 +231,9 @@ class InputGuardrailStage(Stage):
                     elif rel_verdict.tier == InterventionTier.TIER_1_SUBTLE_ANCHOR:
                         ctx.state["relational_subtle_anchor"] = rel_verdict.guidance_message
             except (AttributeError, RuntimeError, TypeError, ValueError, KeyError, OSError):
-                logger.exception("[InputGuardrailStage] Relational safety evaluation failed; falling back to trajectory check.")
+                logger.exception(
+                    "[InputGuardrailStage] Relational safety evaluation failed; falling back to trajectory check."
+                )
 
         if not input_check["blocked"]:
             from guardrails.lightweight_handler import detect_emotional_dependency_trajectory

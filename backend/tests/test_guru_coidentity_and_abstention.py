@@ -34,7 +34,6 @@ from domain.first_person_context import (
 from domain.first_person_evidence import EvidenceAction
 from services.first_person_content_assessment import (
     AUTHENTIC_ORAL_OPENER_RE,
-    assess_content,
 )
 from services.first_person_context_harness import (
     FirstPersonContextHarness,
@@ -43,15 +42,15 @@ from services.first_person_context_harness import (
 from services.first_person_evidence_policy import (
     FirstPersonEvidencePolicy,
     _context_standalone_problem,
-    _standalone_problem,
-    assess_guru_lineage,
-    first_person_evidence_policy,
-    is_ekam_coidentity,
 )
 from services.first_person_pipeline import load_calibration_profile
 from services.first_person_serving_contract import (
     EKAM_COIDENTITY_GURU_IDS,
+)
+from services.first_person_serving_contract import (
     is_ekam_coidentity as contract_is_ekam_coidentity,
+)
+from services.first_person_serving_contract import (
     validate_guru_lineage as contract_validate_guru_lineage,
 )
 
@@ -164,6 +163,7 @@ def _context(
 # 1. Guru Co-Identity Tests (Sri Preethaji & Sri Krishnaji as ONE COMMON GURU)
 # ==============================================================================
 
+
 class TestGuruCoIdentity:
     """Sri Preethaji and Sri Krishnaji are husband and wife, co-teachers of Ekam.
     Their joint occurrence must never be flagged as cross_guru_contamination."""
@@ -192,8 +192,13 @@ class TestGuruCoIdentity:
         assert contract_validate_guru_lineage(["preethaji", "krishnaji", "ekam"]) is None
 
         # validate_guru_lineage flags external gurus as cross_guru_contamination
-        assert contract_validate_guru_lineage(["preethaji", "sadhguru"]) == "cross_guru_contamination"
-        assert contract_validate_guru_lineage(["krishnaji", "eckhart tolle"]) == "cross_guru_contamination"
+        assert (
+            contract_validate_guru_lineage(["preethaji", "sadhguru"]) == "cross_guru_contamination"
+        )
+        assert (
+            contract_validate_guru_lineage(["krishnaji", "eckhart tolle"])
+            == "cross_guru_contamination"
+        )
 
     def test_evidence_policy_guru_coidentity_decision(self):
         policy = FirstPersonEvidencePolicy()
@@ -240,7 +245,9 @@ class TestGuruCoIdentity:
 
     def test_harness_abstains_on_unregistered_external_guru(self):
         harness = FirstPersonContextHarness()
-        span_preetha = _span(0, text="A beautiful state brings profound clarity.", guru_id="preethaji")
+        span_preetha = _span(
+            0, text="A beautiful state brings profound clarity.", guru_id="preethaji"
+        )
         ctx = _context([span_preetha], guru_id="preethaji")
 
         # Explicit request for foreign guru must abstain
@@ -253,6 +260,7 @@ class TestGuruCoIdentity:
 # 2. Antecedent Slicing & Windowing Tests
 # ==============================================================================
 
+
 class TestAntecedentSlicingAndWindowing:
     """When a middle span (Span 1 or 2) hits, Span 0 must be included so opening
     premise and antecedent pronouns are never severed."""
@@ -260,8 +268,14 @@ class TestAntecedentSlicingAndWindowing:
     def test_window_anchors_span_0_when_span_1_hits(self):
         harness = FirstPersonContextHarness(HarnessPolicy(max_context_spans=3))
         spans = [
-            _span(0, text="Sri Krishnaji teaches that wealth creation begins with inner consciousness."),
-            _span(1, text="When the inner state is troubled, ambition turns into suffering and anxiety."),
+            _span(
+                0,
+                text="Sri Krishnaji teaches that wealth creation begins with inner consciousness.",
+            ),
+            _span(
+                1,
+                text="When the inner state is troubled, ambition turns into suffering and anxiety.",
+            ),
             _span(2, text="True spiritual abundance is living with a peaceful and generous heart."),
             _span(3, text="Let this understanding guide all your daily actions and relationships."),
             _span(4, text="Stillness in the heart reveals the path forward in life."),
@@ -280,8 +294,13 @@ class TestAntecedentSlicingAndWindowing:
         harness = FirstPersonContextHarness(HarnessPolicy(max_context_spans=3))
         spans = [
             _span(0, text="In Ekam teachings, we speak of two primary states of being."),
-            _span(1, text="The first is the suffering state, where the self is contracted and fearful."),
-            _span(2, text="The second is the beautiful state, where there is connection and oneness."),
+            _span(
+                1,
+                text="The first is the suffering state, where the self is contracted and fearful.",
+            ),
+            _span(
+                2, text="The second is the beautiful state, where there is connection and oneness."
+            ),
             _span(3, text="From this beautiful state, every problem dissolves naturally."),
             _span(4, text="This is why inner transformation is the highest human priority."),
         ]
@@ -298,9 +317,17 @@ class TestAntecedentSlicingAndWindowing:
     def test_window_head_anchor_fallback_on_orphan_opener(self):
         harness = FirstPersonContextHarness(HarnessPolicy(max_context_spans=3))
         spans = [
-            _span(0, text="Understanding the nature of fear allows true courage to awaken in the human heart."),
-            _span(1, text="Fear is a reaction of memory projecting itself into the unknown future."),
-            _span(2, text="This is why so many seekers feel an immediate sense of relief in meditation."),
+            _span(
+                0,
+                text="Understanding the nature of fear allows true courage to awaken in the human heart.",
+            ),
+            _span(
+                1, text="Fear is a reaction of memory projecting itself into the unknown future."
+            ),
+            _span(
+                2,
+                text="This is why so many seekers feel an immediate sense of relief in meditation.",
+            ),
             _span(3, text="When you observe fear without running away, it loses its grip on you."),
             _span(4, text="And peace settles deep within the core of your consciousness."),
         ]
@@ -316,17 +343,24 @@ class TestAntecedentSlicingAndWindowing:
 # 3. Standalone Check & Authentic Oral Openers Tests
 # ==============================================================================
 
+
 class TestStandaloneAuthenticOralOpeners:
     """Authentic teacher discourse openings ("This is...", "It is...", "Because...")
     must not be discarded as orphans when part of a verified parent unit."""
 
     def test_authentic_oral_openers_regex_patterns(self):
         assert AUTHENTIC_ORAL_OPENER_RE.match("This is the truth about desire and attachment.")
-        assert AUTHENTIC_ORAL_OPENER_RE.match("These are the sacred principles of living in oneness.")
+        assert AUTHENTIC_ORAL_OPENER_RE.match(
+            "These are the sacred principles of living in oneness."
+        )
         assert AUTHENTIC_ORAL_OPENER_RE.match("That is the doorway to inner stillness and peace.")
-        assert AUTHENTIC_ORAL_OPENER_RE.match("It is possible to live without inner conflict and fear.")
+        assert AUTHENTIC_ORAL_OPENER_RE.match(
+            "It is possible to live without inner conflict and fear."
+        )
         assert AUTHENTIC_ORAL_OPENER_RE.match("It was in that state of quiet that insight arose.")
-        assert AUTHENTIC_ORAL_OPENER_RE.match("Because when the mind is agitated, perception is distorted.")
+        assert AUTHENTIC_ORAL_OPENER_RE.match(
+            "Because when the mind is agitated, perception is distorted."
+        )
 
     def test_verified_parent_allows_authentic_discourse_openings(self):
         # When part of a verified parent unit, "This is..." is valid oral opening
@@ -338,7 +372,9 @@ class TestStandaloneAuthenticOralOpeners:
         assert _context_standalone_problem([text_it], is_verified_parent=True) is None
 
         # "Because..." opening allowed in verified parent context
-        text_because = "Because when awareness is awake, you are no longer a victim of old conditioning."
+        text_because = (
+            "Because when awareness is awake, you are no longer a victim of old conditioning."
+        )
         assert _context_standalone_problem([text_because], is_verified_parent=True) is None
 
     def test_assess_context_standalone_auto_detects_verified_parent(self):
@@ -351,17 +387,27 @@ class TestStandaloneAuthenticOralOpeners:
     def test_unverified_unanchored_clip_still_flagged(self):
         # Without verified parent context, a raw standalone clip starting with "This is..." remains flagged
         text_isolated = "This is the nature of the unawakened mind. It's more like a monkey mind."
-        assert _context_standalone_problem([text_isolated], is_verified_parent=False) == "orphan_opener"
+        assert (
+            _context_standalone_problem([text_isolated], is_verified_parent=False)
+            == "orphan_opener"
+        )
 
     def test_true_grammatical_orphans_remain_rejected(self):
         # Truly dangling fragments must always fail, even in parent context
-        assert _context_standalone_problem(["some addiction."], is_verified_parent=True) == "dangling_fragment"
-        assert _context_standalone_problem(["When we look at life and,"], is_verified_parent=True) == "ends_mid_sentence"
+        assert (
+            _context_standalone_problem(["some addiction."], is_verified_parent=True)
+            == "dangling_fragment"
+        )
+        assert (
+            _context_standalone_problem(["When we look at life and,"], is_verified_parent=True)
+            == "ends_mid_sentence"
+        )
 
 
 # ==============================================================================
 # 4. Calibration Profile Loading & Direct Answer Evaluation Tests
 # ==============================================================================
+
 
 class TestCalibrationProfileLoading:
     """The conformal_direct_v1 calibration profile must load successfully and unblock

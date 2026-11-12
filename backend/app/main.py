@@ -1495,7 +1495,9 @@ async def global_exception_handler(request: Request, exc: Exception):
         or request.headers.get("x-request-id")
         or ""
     )
-    request_id = getattr(request.state, "request_id", None) or request.headers.get("x-request-id") or ""
+    request_id = (
+        getattr(request.state, "request_id", None) or request.headers.get("x-request-id") or ""
+    )
     user_id = getattr(request.state, "user_id", None) or ""
     logger.error(
         f"Unhandled server error on {request.url.path} (error_id: {error_id}, correlation_id: {correlation_id}): {exc}",

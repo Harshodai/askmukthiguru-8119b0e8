@@ -580,7 +580,9 @@ def _write_full_run(tmp_path, **row_overrides):
         "id": "r1",
         "question": "How do I attain inner peace and meditation?",
         "answer": "True meditation is the quiet observation of what is without conflict or inner resistance.",
-        "citations": [{"text": "True meditation...", "speaker": "Sri Krishnaji", "speaker_verified": True}],
+        "citations": [
+            {"text": "True meditation...", "speaker": "Sri Krishnaji", "speaker_verified": True}
+        ],
         "sha": "abc1234",
         "latency_ms": 1500,
         "answerable": True,
@@ -617,6 +619,7 @@ def _write_full_run(tmp_path, **row_overrides):
 
 def test_missing_key_records_blocked_credentials_report(tmp_path, monkeypatch):
     import sys as _sys
+
     from app.config import settings
     from scripts.ops import grade_served_answers as mod
 
@@ -654,8 +657,10 @@ def test_missing_key_records_blocked_credentials_report(tmp_path, monkeypatch):
 
 
 def test_openrouter_401_records_blocked_credentials_report(tmp_path, monkeypatch):
-    import httpx
     import sys as _sys
+
+    import httpx
+
     from app.config import settings
     from scripts.ops import grade_served_answers as mod
 
@@ -701,8 +706,10 @@ def test_openrouter_401_records_blocked_credentials_report(tmp_path, monkeypatch
 
 
 def test_openrouter_connection_error_records_unavailable_report(tmp_path, monkeypatch):
-    import httpx
     import sys as _sys
+
+    import httpx
+
     from app.config import settings
     from scripts.ops import grade_served_answers as mod
 
@@ -743,6 +750,7 @@ def test_openrouter_connection_error_records_unavailable_report(tmp_path, monkey
 
 def test_offline_fallback_flag_runs_deterministic_evaluation(tmp_path, monkeypatch):
     import sys as _sys
+
     from app.config import settings
     from scripts.ops import grade_served_answers as mod
 
@@ -773,7 +781,13 @@ def test_offline_fallback_flag_runs_deterministic_evaluation(tmp_path, monkeypat
     assert report["status"] == "PASS"
     assert report["pass"] is True
     # Verify all 5 gates computed without external network
-    for gate_name in ("showable_rate", "harmful", "p95_latency", "served_share", "core_abstain_rate"):
+    for gate_name in (
+        "showable_rate",
+        "harmful",
+        "p95_latency",
+        "served_share",
+        "core_abstain_rate",
+    ):
         assert gate_name in report["gates"], f"Missing gate: {gate_name}"
         assert report["gates"][gate_name] is True
     assert "first" in report
@@ -782,8 +796,10 @@ def test_offline_fallback_flag_runs_deterministic_evaluation(tmp_path, monkeypat
 
 
 def test_openrouter_401_triggers_offline_fallback_when_flag_present(tmp_path, monkeypatch):
-    import httpx
     import sys as _sys
+
+    import httpx
+
     from app.config import settings
     from scripts.ops import grade_served_answers as mod
 
@@ -793,7 +809,11 @@ def test_openrouter_401_triggers_offline_fallback_when_flag_present(tmp_path, mo
 
     def mock_post(*args, **kwargs):
         request = httpx.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
-        return httpx.Response(401, request=request, text=json.dumps({"error": {"message": "Invalid key", "code": 401}}))
+        return httpx.Response(
+            401,
+            request=request,
+            text=json.dumps({"error": {"message": "Invalid key", "code": 401}}),
+        )
 
     monkeypatch.setattr(httpx, "post", mock_post)
     monkeypatch.setattr(
@@ -929,7 +949,9 @@ def test_subprocess_missing_key_blocked_report_and_offline_fallback(tmp_path):
         capture_output=True,
         text=True,
     )
-    assert res_blocked.returncode == 1, f"Expected 1, got {res_blocked.returncode}. Stderr: {res_blocked.stderr}"
+    assert res_blocked.returncode == 1, (
+        f"Expected 1, got {res_blocked.returncode}. Stderr: {res_blocked.stderr}"
+    )
     assert out_blocked.exists(), f"File {out_blocked} was not created. Stderr: {res_blocked.stderr}"
     blocked_data = json.loads(out_blocked.read_text(encoding="utf-8"))
     assert blocked_data["status"] == "BLOCKED_CREDENTIALS"
@@ -954,7 +976,9 @@ def test_subprocess_missing_key_blocked_report_and_offline_fallback(tmp_path):
         capture_output=True,
         text=True,
     )
-    assert res_offline.returncode == 0, f"Expected 0, got {res_offline.returncode}. Stderr: {res_offline.stderr}"
+    assert res_offline.returncode == 0, (
+        f"Expected 0, got {res_offline.returncode}. Stderr: {res_offline.stderr}"
+    )
     assert out_offline.exists(), f"File {out_offline} was not created. Stderr: {res_offline.stderr}"
     offline_data = json.loads(out_offline.read_text(encoding="utf-8"))
     assert offline_data["evaluation_mode"] == "offline_fallback"
@@ -1001,11 +1025,11 @@ def test_subprocess_offline_fallback_with_key_present(tmp_path):
         capture_output=True,
         text=True,
     )
-    assert res_offline.returncode == 0, f"Expected 0, got {res_offline.returncode}. Stderr: {res_offline.stderr}"
+    assert res_offline.returncode == 0, (
+        f"Expected 0, got {res_offline.returncode}. Stderr: {res_offline.stderr}"
+    )
     assert out_offline.exists(), f"File {out_offline} was not created. Stderr: {res_offline.stderr}"
     offline_data = json.loads(out_offline.read_text(encoding="utf-8"))
     assert offline_data["evaluation_mode"] == "offline_fallback"
     assert offline_data["status"] == "PASS"
     assert offline_data["pass"] is True
-
-

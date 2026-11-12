@@ -450,12 +450,20 @@ class FirstPersonContextHarness:
         # establishes the topic noun and passes standalone checks cleanly.
         if start > 0 and ordered:
             from services.first_person_evidence_policy import _context_standalone_problem
+
             prob = _context_standalone_problem(
                 (s.verbatim_text for s in candidate),
                 is_verified_parent=False,
             )
-            if prob in ("orphan_opener", "antecedent_missing", "discourse_opener", "severed_lowercase_opener"):
-                head_candidate = self._apply_word_budget(ordered[:max(limit, hit_index + 1)], hit_ids)
+            if prob in (
+                "orphan_opener",
+                "antecedent_missing",
+                "discourse_opener",
+                "severed_lowercase_opener",
+            ):
+                head_candidate = self._apply_word_budget(
+                    ordered[: max(limit, hit_index + 1)], hit_ids
+                )
                 if not _context_standalone_problem(
                     (s.verbatim_text for s in head_candidate),
                     is_verified_parent=True,
@@ -751,7 +759,9 @@ class FirstPersonContextHarness:
         else:
             parent_gid = (context.parent.guru_id or "").lower()
             first_gid = (spans[0].guru_id or "").lower()
-            if first_gid != parent_gid and not (first_gid in shared_set and parent_gid in shared_set):
+            if first_gid != parent_gid and not (
+                first_gid in shared_set and parent_gid in shared_set
+            ):
                 return self._abstain(
                     context,
                     "cross_guru_contamination",

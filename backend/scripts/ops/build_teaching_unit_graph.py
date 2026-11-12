@@ -159,7 +159,9 @@ def _scroll_qdrant(qdrant_client: Any, collection: str, batch_size: int) -> list
 
     rights_filter = Filter(
         should=[
-            FieldCondition(key="domain_rights_status", match=MatchValue(value=_RIGHTS_FILTER_VALUE)),
+            FieldCondition(
+                key="domain_rights_status", match=MatchValue(value=_RIGHTS_FILTER_VALUE)
+            ),
             FieldCondition(key="rights_status", match=MatchValue(value=_RIGHTS_FILTER_VALUE)),
         ]
     )
@@ -258,6 +260,7 @@ def build_graph(
     # --- Connect to Memgraph ---
     try:
         from neo4j import GraphDatabase  # type: ignore[import]
+
         from app.config import settings
 
         user = (

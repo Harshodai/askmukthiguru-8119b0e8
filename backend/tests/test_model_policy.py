@@ -87,4 +87,3 @@ def test_policy_permits_first_person_relevance_model():
         _settings(first_person_relevance_model="anthropic/claude-haiku-5.5")
     )
     policy.assert_model_allowed("anthropic/claude-haiku-5.5")
-

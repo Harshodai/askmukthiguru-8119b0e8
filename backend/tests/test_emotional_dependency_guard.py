@@ -7,6 +7,7 @@ encouraging connection with real people, mentors, and counselors.
 """
 
 import pytest
+
 from guardrails.lightweight_handler import match_blocked_topic
 
 
@@ -81,7 +82,9 @@ async def test_output_moderation_anti_manipulation_exit_hooks():
     from guardrails.lightweight_handler import LightweightGuardrailHandler
 
     handler = LightweightGuardrailHandler()
-    res1 = await handler.check_output("Goodbye! Please don't leave me, I'll be so lonely without you.")
+    res1 = await handler.check_output(
+        "Goodbye! Please don't leave me, I'll be so lonely without you."
+    )
     assert res1["blocked"] is True
     assert "parasocial_manipulation" in res1["reason"]
 

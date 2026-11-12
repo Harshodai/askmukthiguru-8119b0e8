@@ -498,8 +498,7 @@ class ParentContext(BaseModel):
         for s in self.spans:
             if s.guru_id != self.parent.guru_id:
                 if not (
-                    s.guru_id.lower() in shared_set
-                    and self.parent.guru_id.lower() in shared_set
+                    s.guru_id.lower() in shared_set and self.parent.guru_id.lower() in shared_set
                 ):
                     raise ValueError("every span must belong to the parent guru")
         if any(s.video_id != self.parent.video_id for s in self.spans):

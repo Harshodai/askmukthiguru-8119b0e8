@@ -23,9 +23,9 @@ All records are pure data. No I/O, no LLM calls, no regexes here.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Iterable, Mapping, Sequence
 
 DECISION_CONTRACT_VERSION = "first_person_decision_v1"
 
@@ -132,9 +132,7 @@ class ContentAssessment:
 
     @property
     def exclusion_codes(self) -> tuple[str, ...]:
-        return _dedupe(
-            f.code for f in self.findings if f.severity is FindingSeverity.EXCLUDE
-        )
+        return _dedupe(f.code for f in self.findings if f.severity is FindingSeverity.EXCLUDE)
 
     @property
     def review_codes(self) -> tuple[str, ...]:
@@ -274,9 +272,7 @@ class CoverageDecision:
         }
 
     @classmethod
-    def from_editorial_set(
-        cls, record: Mapping[str, object] | None
-    ) -> "CoverageDecision | None":
+    def from_editorial_set(cls, record: Mapping[str, object] | None) -> CoverageDecision | None:
         """Adapt the pipeline's ``editorial_set`` record to the contract.
 
         Returns None when the record is absent (the editorial selector did not
@@ -290,9 +286,7 @@ class CoverageDecision:
             verdict = CoverageVerdict(raw_status)
         except ValueError:
             return None
-        planned = [
-            str(f) for f in (record.get("candidate_facets") or []) if isinstance(f, str)
-        ]
+        planned = [str(f) for f in (record.get("candidate_facets") or []) if isinstance(f, str)]
         raw_coverage = record.get("facet_coverage")
         coverage_map = raw_coverage if isinstance(raw_coverage, Mapping) else {}
         required = set(required_facets_for(planned))

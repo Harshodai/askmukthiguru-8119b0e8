@@ -186,8 +186,12 @@ class SeekerCoreResponse(BaseModel):
 class MemoryDreamRequest(BaseModel):
     """Payload for POST /memory/dream."""
 
-    dry_run: bool = Field(default=False, description="Simulate dreaming without persisting changes.")
-    limit_conversations: int = Field(default=50, ge=1, le=200, description="Max recent conversations to process.")
+    dry_run: bool = Field(
+        default=False, description="Simulate dreaming without persisting changes."
+    )
+    limit_conversations: int = Field(
+        default=50, ge=1, le=200, description="Max recent conversations to process."
+    )
 
 
 class MemoryDreamResponse(BaseModel):
@@ -1150,7 +1154,9 @@ async def get_seeker_dashboard(
         growth_goals=dashboard.growth_goals,
         active_challenges=dashboard.active_challenges,
         last_session_topic=dashboard.last_session_topic,
-        last_discussed_at=dashboard.last_discussed_at.isoformat() if dashboard.last_discussed_at else None,
+        last_discussed_at=dashboard.last_discussed_at.isoformat()
+        if dashboard.last_discussed_at
+        else None,
         session_count=dashboard.session_count,
         xml_prompt_block=xml_block,
         char_length=len(xml_block),

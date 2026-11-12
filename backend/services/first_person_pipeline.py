@@ -359,6 +359,7 @@ from services.first_person_boundary_gate import (
 from services.first_person_boundary_gate import (
     boundary_verdict as _boundary_verdict,
 )
+
 _SEVERED_PREPOSITION_OPENER_RE = re.compile(
     r"^(?:for|in|of|to|with|as|if|at|on|by|from|into|onto|about|than|through)\s+",
     re.IGNORECASE,
@@ -1099,7 +1100,13 @@ def _relevance_select(
     try:
         return run_llm_coroutine(
             lambda: _relevance_select_async(
-                query, clips, llm_service, None, token_sink=token_sink, scores_out=scores_out, judge_meta_out=judge_meta_out
+                query,
+                clips,
+                llm_service,
+                None,
+                token_sink=token_sink,
+                scores_out=scores_out,
+                judge_meta_out=judge_meta_out,
             ),
             _FACADE_TIMEOUT_S,
             request_loop,
@@ -4305,7 +4312,9 @@ class FirstPersonPipeline:
             harness_candidate_limit = candidate_pool
         else:
             harness_candidate_limit = (
-                min(16, max(0, int(max_clips)) * 2) if editorial_set_enabled else (candidate_pool or max_clips)
+                min(16, max(0, int(max_clips)) * 2)
+                if editorial_set_enabled
+                else (candidate_pool or max_clips)
             )
         ctx_store = self._get_context_store() if harness_enabled else None
         if ctx_store is not None and query_dense_vector:
@@ -5942,7 +5951,9 @@ class FirstPersonPipeline:
                     "primary_intent": "general",
                     "candidate_facets": ["general"],
                     "facet_coverage": {"general": "direct" if _is_direct_judge else "indirect"},
-                    "reasons": ["judge_verified_direct" if _is_direct_judge else "judge_related_only"],
+                    "reasons": [
+                        "judge_verified_direct" if _is_direct_judge else "judge_related_only"
+                    ],
                 }
                 if _is_direct_judge:
                     is_direct = True
@@ -6119,7 +6130,6 @@ class FirstPersonPipeline:
         from services.guru_registry import (
             extract_target_authority,
             is_comparative_authority_query,
-            requested_gurus,
             requested_unregistered_teacher_or_tradition,
         )
 
@@ -7170,7 +7180,9 @@ class FirstPersonPipeline:
             "candidate_facets": list(facets),
             "covered_facets": [p["facet"] for p in successful_parts],
             "facet_coverage": {p["facet"]: "direct" for p in successful_parts},
-            "reasons": ("compound_facets_covered",) if is_all_covered else ("compound_facets_partial",),
+            "reasons": ("compound_facets_covered",)
+            if is_all_covered
+            else ("compound_facets_partial",),
             "content_safety": "clean",
         }
 

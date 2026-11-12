@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 INDETERMINATE = -1  # same value as first_person_pipeline._RELEVANCE_INDETERMINATE
 JUDGE_MAX_TOKENS = 1024
 
+
 def _build_judge_system_prompt() -> str:
     from services.guru_registry import allowed_speaker_labels
 

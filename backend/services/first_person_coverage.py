@@ -63,7 +63,10 @@ def coverage_for_served_text(
                 )
                 norm_editorial.setdefault(
                     "facet_coverage",
-                    {f: "direct" if is_supp else "indirect" for f in norm_editorial["candidate_facets"]},
+                    {
+                        f: "direct" if is_supp else "indirect"
+                        for f in norm_editorial["candidate_facets"]
+                    },
                 )
                 editorial_set = norm_editorial
 
@@ -112,9 +115,7 @@ def coverage_for_served_text(
         if isinstance(ef, (list, tuple, set)):
             semantic_facets = [str(x) for x in ef if isinstance(x, str)]
 
-    semantic_set = (
-        {str(f).strip().lower() for f in semantic_facets} if semantic_facets else set()
-    )
+    semantic_set = {str(f).strip().lower() for f in semantic_facets} if semantic_facets else set()
 
     required = set(required_facets_for(tuple(explicit_facets)))
     facets: list[FacetCoverage] = []
@@ -151,9 +152,7 @@ def coverage_for_served_text(
     else:
         verdict = CoverageVerdict.PARTIAL
 
-    reasons_list = [
-        f"{f.facet}_absent" for f in facets if f.state is FacetCoverageState.ABSENT
-    ]
+    reasons_list = [f"{f.facet}_absent" for f in facets if f.state is FacetCoverageState.ABSENT]
     if used_semantic:
         reasons_list.append("semantic_facet_coverage")
     reasons = tuple(reasons_list)

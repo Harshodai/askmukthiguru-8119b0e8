@@ -22,9 +22,9 @@ Distress Levels:
 import asyncio
 import logging
 import re
-from functools import lru_cache
 from dataclasses import dataclass, field
 from enum import IntEnum
+from functools import lru_cache
 from typing import Optional
 
 import numpy as np
@@ -921,20 +921,18 @@ def get_non_english_crisis_patterns() -> list[re.Pattern]:
 # to end it all", "I am having panic attacks").
 # ---------------------------------------------------------------------------
 
+
 @lru_cache(maxsize=1)
 def _get_doctrinal_inquiry_patterns() -> tuple[re.Pattern, ...]:
     try:
         from services.guru_registry import get_gurus
 
-        teacher_aliases = [
-            alias for g in get_gurus() for alias in getattr(g, "aliases", ())
-        ]
+        teacher_aliases = [alias for g in get_gurus() for alias in getattr(g, "aliases", ())]
     except Exception:
         teacher_aliases = []
 
     all_teachers = "|".join(
-        ["teacher", "guru", "bhagavan", "ammasri", "buddha", "sri\\s+bhagavan"]
-        + teacher_aliases
+        ["teacher", "guru", "bhagavan", "ammasri", "buddha", "sri\\s+bhagavan"] + teacher_aliases
     )
     return (
         re.compile(
@@ -1902,7 +1900,9 @@ class SereneMindEngine:
                 max_confidence = min(0.5 + (DistressLevel.CRISIS.value * 0.15), 1.0)
 
         # PROD-SAFE-01: Protect philosophical/doctrinal inquiries from false-positive MILD/MODERATE triggers
-        if max_level in (DistressLevel.MILD, DistressLevel.MODERATE) and is_doctrinal_topic_inquiry(message):
+        if max_level in (DistressLevel.MILD, DistressLevel.MODERATE) and is_doctrinal_topic_inquiry(
+            message
+        ):
             max_level = DistressLevel.NONE
             max_confidence = 0.0
             signals.append("[doctrinal_inquiry] topic inquiry, not acute personal distress")

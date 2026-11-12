@@ -1640,6 +1640,7 @@ def test_pipeline_semantic_judge_editorial_set_forwarding(mock_store, mock_redis
     allowing authentic spiritual metaphors to serve without false rejection.
     """
     import json
+
     from domain.first_person_decision import FindingSeverity
     from services.first_person_content_assessment import assess_content
 
@@ -1662,20 +1663,22 @@ def test_pipeline_semantic_judge_editorial_set_forwarding(mock_store, mock_redis
 
     class MockJudgeLLM:
         def generate(self, *args, **kwargs):
-            return json.dumps({
-                "scores": [
-                    {
-                        "i": 0,
-                        "relevance": 3,
-                        "answers": True,
-                        "is_complete_thought": True,
-                        "is_standalone": True,
-                        "covered_facets": ["suffering", "peace"],
-                        "content_safety": "clean",
-                    }
-                ],
-                "question_answerable": True,
-            })
+            return json.dumps(
+                {
+                    "scores": [
+                        {
+                            "i": 0,
+                            "relevance": 3,
+                            "answers": True,
+                            "is_complete_thought": True,
+                            "is_standalone": True,
+                            "covered_facets": ["suffering", "peace"],
+                            "content_safety": "clean",
+                        }
+                    ],
+                    "question_answerable": True,
+                }
+            )
 
     pipeline = FirstPersonPipeline(
         store=mock_store,
@@ -1716,5 +1719,3 @@ def test_pipeline_semantic_judge_editorial_set_forwarding(mock_store, mock_redis
     )
     assert assessment_without_judge.may_serve is False
     assert assessment_without_judge.severity == FindingSeverity.EXCLUDE
-
-

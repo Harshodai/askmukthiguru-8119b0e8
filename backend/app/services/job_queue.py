@@ -938,10 +938,13 @@ class JobQueueService:
             # AMK-F-004 / PROD-OPS-05: Record per-node stage latency on completion
             if isinstance(result, dict) and "node_timings" in result:
                 from app.metrics import PIPELINE_STAGE_LATENCY
+
                 for stage_name, timing_ms in (result.get("node_timings") or {}).items():
                     if timing_ms is not None:
                         try:
-                            PIPELINE_STAGE_LATENCY.labels(stage=str(stage_name)).observe(float(timing_ms) / 1000.0)
+                            PIPELINE_STAGE_LATENCY.labels(stage=str(stage_name)).observe(
+                                float(timing_ms) / 1000.0
+                            )
                         except (ValueError, TypeError):
                             pass
             if not is_stream:

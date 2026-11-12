@@ -5,13 +5,12 @@ Unit tests for Video Composition Engine & Multi-Video Synthesis (backend/service
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
 from services.video_composition import (
     CompositionManifest,
-    CompositionVerdict,
     FirstPersonVideoJudge,
     MediaSegment,
     VisualOverlay,
@@ -25,16 +24,33 @@ from services.video_composition import (
 
 def test_classify_segment_role() -> None:
     assert classify_segment_role("Suffering is the mind's resistance to what is.") == "obstacle"
-    assert classify_segment_role("When you understand the observer, you enter the beautiful state.") == "insight_shift"
-    assert classify_segment_role("Let us move into meditation now. Close your eyes and inhale deeply.") == "practice_invitation"
-    assert classify_segment_role("Contemplate this truth and ask yourself what is real.") == "reflection"
+    assert (
+        classify_segment_role("When you understand the observer, you enter the beautiful state.")
+        == "insight_shift"
+    )
+    assert (
+        classify_segment_role("Let us move into meditation now. Close your eyes and inhale deeply.")
+        == "practice_invitation"
+    )
+    assert (
+        classify_segment_role("Contemplate this truth and ask yourself what is real.")
+        == "reflection"
+    )
 
 
 def test_sequence_clips_by_ontology() -> None:
     clips = [
         {"point_id": "p1", "verbatim_text": "Let us move into meditation now.", "score": 3},
-        {"point_id": "p2", "verbatim_text": "Anxiety is caused by division in the mind.", "score": 3},
-        {"point_id": "p3", "verbatim_text": "When you witness the thought without judging, freedom happens.", "score": 3},
+        {
+            "point_id": "p2",
+            "verbatim_text": "Anxiety is caused by division in the mind.",
+            "score": 3,
+        },
+        {
+            "point_id": "p3",
+            "verbatim_text": "When you witness the thought without judging, freedom happens.",
+            "score": 3,
+        },
     ]
     sequenced = sequence_clips_by_ontology(clips)
     roles = [classify_segment_role(c["verbatim_text"]) for c in sequenced]
@@ -239,9 +255,7 @@ async def test_video_judge_llm_approved() -> None:
 
 
 def test_recommend_next_teachings() -> None:
-    current = [
-        {"video_id": "vid_current_1", "verbatim_text": "Suffering is an inner state."}
-    ]
+    current = [{"video_id": "vid_current_1", "verbatim_text": "Suffering is an inner state."}]
     pool = [
         {
             "video_id": "vid_current_1",

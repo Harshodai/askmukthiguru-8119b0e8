@@ -17,11 +17,11 @@ from typing import Optional
 
 from fastapi import BackgroundTasks, HTTPException, Request
 
+from app.answer_contract import build_public_answer_fields
 from app.coalescer import build_coalescer
 from app.config import settings
 from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
-from app.answer_contract import build_public_answer_fields
 from app.log_safe import q_tag
 from app.pipeline import PipelineCoordinator
 from app.release_manifest import get_release_manifest, to_public_manifest_dict

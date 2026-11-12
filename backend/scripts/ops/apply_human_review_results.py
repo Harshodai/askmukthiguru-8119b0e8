@@ -84,7 +84,9 @@ def update_served_sheet(sheet_path: Path, results: dict) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", "-i", type=str, required=True, help="Path to exported JSON file from portal")
+    parser.add_argument(
+        "--input", "-i", type=str, required=True, help="Path to exported JSON file from portal"
+    )
     args = parser.parse_args()
 
     input_path = Path(args.input)

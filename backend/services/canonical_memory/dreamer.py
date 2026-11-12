@@ -32,18 +32,20 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass, field
+
 try:
     from datetime import UTC, datetime
 except ImportError:
-    from datetime import datetime, timezone
-    UTC = timezone.utc
+    from datetime import datetime
+
+    UTC = UTC
 from typing import Any, Optional
 
 from services.canonical_memory.consolidator import (
     SNAPSHOT_TABLE,
     _decode_snapshot_memories,
 )
-from services.canonical_memory.models import SINGLE_VALUED_FACT_KEYS, SeekerCoreDashboard
+from services.canonical_memory.models import SeekerCoreDashboard
 from services.tenant_context import TenantContext
 
 logger = logging.getLogger(__name__)
@@ -51,20 +53,143 @@ logger = logging.getLogger(__name__)
 # Standard stop words to ignore during keyword extraction for grounding audit
 _STOPWORDS = frozenset(
     {
-        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and",
-        "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being",
-        "below", "between", "both", "but", "by", "can", "cannot", "could", "did",
-        "do", "does", "doing", "don't", "down", "during", "each", "few", "for", "from",
-        "further", "had", "has", "have", "having", "he", "her", "here", "hers", "herself",
-        "him", "himself", "his", "how", "i", "if", "in", "into", "is", "isn't", "it",
-        "its", "itself", "just", "me", "more", "most", "my", "myself", "no", "nor",
-        "not", "now", "of", "off", "on", "once", "only", "or", "other", "ought", "our",
-        "ours", "ourselves", "out", "over", "own", "same", "she", "should", "so", "some",
-        "such", "than", "that", "the", "their", "theirs", "them", "themselves", "then",
-        "there", "these", "they", "this", "those", "through", "to", "too", "under", "until",
-        "up", "very", "was", "wasn't", "we", "were", "weren't", "what", "when", "where",
-        "which", "while", "who", "whom", "why", "with", "would", "you", "your", "yours",
-        "yourself", "yourselves", "user", "user's", "prefers", "likes", "really",
+        "a",
+        "about",
+        "above",
+        "after",
+        "again",
+        "against",
+        "all",
+        "am",
+        "an",
+        "and",
+        "any",
+        "are",
+        "aren't",
+        "as",
+        "at",
+        "be",
+        "because",
+        "been",
+        "before",
+        "being",
+        "below",
+        "between",
+        "both",
+        "but",
+        "by",
+        "can",
+        "cannot",
+        "could",
+        "did",
+        "do",
+        "does",
+        "doing",
+        "don't",
+        "down",
+        "during",
+        "each",
+        "few",
+        "for",
+        "from",
+        "further",
+        "had",
+        "has",
+        "have",
+        "having",
+        "he",
+        "her",
+        "here",
+        "hers",
+        "herself",
+        "him",
+        "himself",
+        "his",
+        "how",
+        "i",
+        "if",
+        "in",
+        "into",
+        "is",
+        "isn't",
+        "it",
+        "its",
+        "itself",
+        "just",
+        "me",
+        "more",
+        "most",
+        "my",
+        "myself",
+        "no",
+        "nor",
+        "not",
+        "now",
+        "of",
+        "off",
+        "on",
+        "once",
+        "only",
+        "or",
+        "other",
+        "ought",
+        "our",
+        "ours",
+        "ourselves",
+        "out",
+        "over",
+        "own",
+        "same",
+        "she",
+        "should",
+        "so",
+        "some",
+        "such",
+        "than",
+        "that",
+        "the",
+        "their",
+        "theirs",
+        "them",
+        "themselves",
+        "then",
+        "there",
+        "these",
+        "they",
+        "this",
+        "those",
+        "through",
+        "to",
+        "too",
+        "under",
+        "until",
+        "up",
+        "very",
+        "was",
+        "wasn't",
+        "we",
+        "were",
+        "weren't",
+        "what",
+        "when",
+        "where",
+        "which",
+        "while",
+        "who",
+        "whom",
+        "why",
+        "with",
+        "would",
+        "you",
+        "your",
+        "yours",
+        "yourself",
+        "yourselves",
+        "user",
+        "user's",
+        "prefers",
+        "likes",
+        "really",
     }
 )
 
@@ -218,9 +343,7 @@ class MemoryDreamer:
                 if new_decay < 0.15 and importance < 0.6 and mem_type != "USER_EXPLICIT":
                     decayed_ids.add(mem["id"])
                     report.decayed_count += 1
-                    reason = (
-                        f"Decayed below threshold (decay_score={new_decay:.4f}, importance={importance})"
-                    )
+                    reason = f"Decayed below threshold (decay_score={new_decay:.4f}, importance={importance})"
                     if not dry_run:
                         await self._update_memory_status(
                             mem,
@@ -243,9 +366,7 @@ class MemoryDreamer:
                     if not dry_run:
                         await self._update_decay_score(mem, new_decay)
 
-            surviving_final = [
-                m for m in surviving_after_stage3 if m["id"] not in decayed_ids
-            ]
+            surviving_final = [m for m in surviving_after_stage3 if m["id"] not in decayed_ids]
             report.active_remaining = len(surviving_final)
 
             # Stage 5: Re-synthesize SeekerCoreDashboard
@@ -391,9 +512,7 @@ class MemoryDreamer:
     ) -> dict[str, list[dict]]:
         """Load conversation transcripts for all referenced conversation/message IDs."""
         conversation_ids = {
-            m.get("source_conversation_id")
-            for m in memories
-            if m.get("source_conversation_id")
+            m.get("source_conversation_id") for m in memories if m.get("source_conversation_id")
         }
         message_ids = {
             m.get("source_message_id")
@@ -492,9 +611,7 @@ class MemoryDreamer:
             return False, "dreamer_evicted_no_transcript_grounding"
 
         user_utterances = [
-            m.get("content", "")
-            for m in transcript_messages
-            if m.get("role") in ("user", "seeker")
+            m.get("content", "") for m in transcript_messages if m.get("role") in ("user", "seeker")
         ]
         all_utterances = [m.get("content", "") for m in transcript_messages]
         user_text = " ".join(user_utterances).lower()
@@ -509,9 +626,7 @@ class MemoryDreamer:
         # 1. Contradiction Detection against user messages:
         # Check for explicit negation of the stated claim in user utterances
         for kw in keywords:
-            neg_pattern = (
-                rf"\b(not|never|no|don't|dont|do not|stopped|quit|cannot|can't)\s+(?:[\w']+\s+){{0,3}}\b{re.escape(kw)}\b"
-            )
+            neg_pattern = rf"\b(not|never|no|don't|dont|do not|stopped|quit|cannot|can't)\s+(?:[\w']+\s+){{0,3}}\b{re.escape(kw)}\b"
             if re.search(neg_pattern, user_text):
                 return False, "dreamer_evicted_no_transcript_grounding"
 
@@ -586,9 +701,7 @@ class MemoryDreamer:
 
         return conflicts
 
-    def _get_memory_timestamp(
-        self, mem: dict, transcripts: dict[str, list[dict]]
-    ) -> float:
+    def _get_memory_timestamp(self, mem: dict, transcripts: dict[str, list[dict]]) -> float:
         """Derive the chronological timestamp of a memory from transcript or timestamps."""
         conv_id = mem.get("source_conversation_id")
         msg_id = mem.get("source_message_id")
@@ -603,9 +716,7 @@ class MemoryDreamer:
                             return ts
             if msgs:
                 msg_ts = [
-                    self._parse_iso_to_ts(m.get("created_at"))
-                    for m in msgs
-                    if m.get("created_at")
+                    self._parse_iso_to_ts(m.get("created_at")) for m in msgs if m.get("created_at")
                 ]
                 if msg_ts:
                     return max(msg_ts)
@@ -725,7 +836,9 @@ class MemoryDreamer:
             summary_parts.append(f"Focus: {goals[0]}")
         if practices:
             summary_parts.append(f"Practice: {practices[0]}")
-        summary = "; ".join(summary_parts) if summary_parts else "Active seeker on the spiritual path."
+        summary = (
+            "; ".join(summary_parts) if summary_parts else "Active seeker on the spiritual path."
+        )
 
         return SeekerCoreDashboard(
             user_id=user_id,

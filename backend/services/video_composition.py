@@ -24,10 +24,9 @@ import inspect
 import json
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional, Sequence
-
-from app.config import settings
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +34,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Data Models
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class MediaSegment:
@@ -169,9 +169,7 @@ _ROLE_KEYWORDS = {
         r"\b(?:let\s+us|let's|close\s+your\s+eyes|breathe|inhale|exhale|sit\s+comfortably|"
         r"move\s+into\s+meditation|observe\s+the\s+breath|step\s+\d|soul\s+sync|ekam\s+meditation)\b"
     ),
-    "reflection": (
-        r"\b(?:ask\s+yourself|reflect|contemplate|inward\s+journey|wonder|ponder)\b"
-    ),
+    "reflection": (r"\b(?:ask\s+yourself|reflect|contemplate|inward\s+journey|wonder|ponder)\b"),
     "guided_action": (
         r"\b(?:practice|chant|focus|visualize|connect|open\s+your\s+heart|deeksha|blessing)\b"
     ),
@@ -231,6 +229,7 @@ def sequence_clips_by_ontology(
 # Composition Manifest Builder
 # ---------------------------------------------------------------------------
 
+
 def build_composition_manifest(
     query: str,
     clips: Sequence[dict[str, Any]],
@@ -241,7 +240,9 @@ def build_composition_manifest(
     audio_crossfade_ms: int = 50,
 ) -> CompositionManifest:
     """Construct an authoritative CompositionManifest from retrieved and gated clips."""
-    manifest_id = f"comp_{hashlib.sha256((query + str(len(clips))).encode('utf-8')).hexdigest()[:12]}"
+    manifest_id = (
+        f"comp_{hashlib.sha256((query + str(len(clips))).encode('utf-8')).hexdigest()[:12]}"
+    )
     comp_title = title or f"Teaching on {query[:40].strip()}..."
 
     # Ensure pedagogical ordering
@@ -308,6 +309,7 @@ def build_composition_manifest(
 # Native Video Stitching (FFmpeg Filter Graph Generation)
 # ---------------------------------------------------------------------------
 
+
 def generate_ffmpeg_concat_filter(
     manifest: CompositionManifest,
     output_path: str = "output.mp4",
@@ -363,9 +365,7 @@ def generate_ffmpeg_concat_filter(
         last_a = "[a0]"
         for idx in range(1, len(manifest.segments)):
             next_mix = f"[amix_{idx}]" if idx < len(manifest.segments) - 1 else "[outa]"
-            a_filters.append(
-                f"{last_a}[a{idx}]acrossfade=d={cf_s}:c1=tri:c2=tri{next_mix};"
-            )
+            a_filters.append(f"{last_a}[a{idx}]acrossfade=d={cf_s}:c1=tri:c2=tri{next_mix};")
             last_a = next_mix
 
     # 3. Visual overlays
@@ -419,6 +419,7 @@ def generate_ffmpeg_concat_filter(
 # ---------------------------------------------------------------------------
 # Multimodal / LLM-as-a-Judge for Video Continuity (FirstPersonVideoJudge)
 # ---------------------------------------------------------------------------
+
 
 class FirstPersonVideoJudge:
     """Evaluates narrative continuity, transition cleanliness, and attribution integrity
@@ -479,11 +480,11 @@ class FirstPersonVideoJudge:
                 "- narrative_continuity: Does the sequence flow logically as a coherent teaching?\n"
                 "- transition_cleanliness: Are cut points natural without mid-sentence chops?\n"
                 "- verbatim_integrity: Does each segment maintain authentic teacher voice?\n"
-                "Reply with a JSON object: {\"narrative_continuity\": 4.5, \"transition_cleanliness\": 4.0, "
-                "\"verbatim_integrity\": 5.0, \"status\": \"COMPOSITE_APPROVED\", \"reason\": \"...\"}"
+                'Reply with a JSON object: {"narrative_continuity": 4.5, "transition_cleanliness": 4.0, '
+                '"verbatim_integrity": 5.0, "status": "COMPOSITE_APPROVED", "reason": "..."}'
             )
             segments_summary = "\n".join(
-                f"[{i+1}] ({s.speaker} - {s.role}): \"{s.verbatim_text[:120]}...\""
+                f'[{i + 1}] ({s.speaker} - {s.role}): "{s.verbatim_text[:120]}..."'
                 for i, s in enumerate(manifest.segments)
             )
             user_prompt = f"Query: {manifest.query}\nClips:\n{segments_summary}"
@@ -557,6 +558,7 @@ class FirstPersonVideoJudge:
 # Content-Based Next Teachings Recommendations (Netflix-style)
 # ---------------------------------------------------------------------------
 
+
 def recommend_next_teachings(
     current_clips: Sequence[dict[str, Any]],
     available_pool: Optional[Sequence[dict[str, Any]]] = None,
@@ -570,9 +572,7 @@ def recommend_next_teachings(
         return []
 
     used_video_ids = {str(c.get("video_id")) for c in current_clips}
-    candidates = [
-        c for c in available_pool if str(c.get("video_id")) not in used_video_ids
-    ]
+    candidates = [c for c in available_pool if str(c.get("video_id")) not in used_video_ids]
     if not candidates:
         return []
 

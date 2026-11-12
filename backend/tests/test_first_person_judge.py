@@ -287,5 +287,3 @@ def test_build_editorial_set_from_judge():
     assert ed_set["facet_coverage"]["practice"] == "direct"
     assert ed_set["is_complete_thought"] is True
     assert ed_set["content_safety"] == "clean"
-
-

@@ -25,13 +25,14 @@ from services.llm_verdict import (
     strip_model_noise,
 )
 
-
 # ---------------------------------------------------------------------------
 # Single verdict
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("raw", ["yes", "Yes", "YES.", "yes, because the clip names it", "true", "1"])
+@pytest.mark.parametrize(
+    "raw", ["yes", "Yes", "YES.", "yes, because the clip names it", "true", "1"]
+)
 def test_affirmative_verdicts(raw):
     assert parse_verdict(raw).value is True
 
@@ -145,7 +146,9 @@ def test_grade_documents_zero_documents():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("raw", ["Faithful", "true", "The answer is fully supported by the context."])
+@pytest.mark.parametrize(
+    "raw", ["Faithful", "true", "The answer is fully supported by the context."]
+)
 def test_faithfulness_affirmative(raw):
     assert parse_faithfulness(raw) is True
 

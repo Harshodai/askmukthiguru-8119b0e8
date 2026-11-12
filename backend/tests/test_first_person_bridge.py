@@ -1748,4 +1748,3 @@ async def test_bridge_serves_spiritual_metaphor_with_medical_claim_notice(fp_pip
     assert result.citations != []
     assert "safety_notices" in result.route_metadata
     assert MEDICAL_CLAIM_NOTICE in result.route_metadata["safety_notices"]
-

@@ -18,7 +18,6 @@ if _BACKEND not in sys.path:
 from app.config import settings
 from services.canonical_memory.dreamer import (
     DreamingReport,
-    MemoryDreamer,
     create_dreamer,
 )
 from supabase import create_client

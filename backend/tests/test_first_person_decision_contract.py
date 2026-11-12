@@ -213,7 +213,12 @@ def test_from_editorial_set_adapts_the_pipeline_record():
 )
 def test_from_editorial_set_never_invents_a_verdict(record):
     decision = CoverageDecision.from_editorial_set(record)
-    if record is None or record.get("status") not in {"supported", "partial", "conflicted", "insufficient"}:
+    if record is None or record.get("status") not in {
+        "supported",
+        "partial",
+        "conflicted",
+        "insufficient",
+    }:
         assert decision is None
     else:
         assert decision is not None

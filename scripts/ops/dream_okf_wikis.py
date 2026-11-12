@@ -28,11 +28,7 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 _HERE = Path(__file__).resolve()
-_BACKEND = (
-    _HERE.parents[2]
-    if (_HERE.parents[2] / "app").is_dir()
-    else _HERE.parents[2] / "backend"
-)
+_BACKEND = _HERE.parents[2] if (_HERE.parents[2] / "app").is_dir() else _HERE.parents[2] / "backend"
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
@@ -40,9 +36,7 @@ from services.okf.wiki_dreamer import OKFWikiDreamer  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Autonomous OKF Wiki Dreamer and Staging Triage."
-    )
+    parser = argparse.ArgumentParser(description="Autonomous OKF Wiki Dreamer and Staging Triage.")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -80,9 +74,7 @@ def main() -> int:
     logging.basicConfig(level=log_level, format="%(levelname)s: %(message)s")
 
     dreamer = OKFWikiDreamer(audit_path=args.report_path)
-    report = dreamer.triage_and_graduate(
-        dry_run=args.dry_run, auto_compile=not args.no_compile
-    )
+    report = dreamer.triage_and_graduate(dry_run=args.dry_run, auto_compile=not args.no_compile)
 
     if args.output_json:
         summary = {

@@ -331,7 +331,11 @@ def extract_target_authority(query: str) -> dict[str, Any] | None:
                 gid = resolve_guru_id(clean_target) or canonical_guru_id(clean_target)
                 if not gid:
                     # Check if compound targets multiple registered gurus (e.g. "Krishnaji and Preethaji")
-                    parts = [p.strip() for p in re.split(r"\s+(?:and|&|\+|or)\s+", clean_target, flags=re.I) if p.strip()]
+                    parts = [
+                        p.strip()
+                        for p in re.split(r"\s+(?:and|&|\+|or)\s+", clean_target, flags=re.I)
+                        if p.strip()
+                    ]
                     if len(parts) >= 2:
                         part_gids = [
                             resolve_guru_id(_CLEAN_PREFIX_RE.sub("", p).strip())
@@ -403,7 +407,9 @@ def is_comparative_authority_query(query: str) -> tuple[bool, list[str], list[st
 def format_external_teacher_boundary(target_entity: str, topic: str | None = None) -> str:
     """Generate an honest, respectful domain boundary response for external teachers and traditions."""
     topic_clause = f" on {topic.strip()}" if topic and topic.strip() else ""
-    teachers_label = " and ".join(g.label for g in get_gurus() if g.label) or "our spiritual teachers"
+    teachers_label = (
+        " and ".join(g.label for g in get_gurus() if g.label) or "our spiritual teachers"
+    )
     return (
         f"I am dedicated exclusively to sharing the sacred teachings of {teachers_label}. "
         f"While {target_entity} offers valued insights in their tradition, I do not have verified "

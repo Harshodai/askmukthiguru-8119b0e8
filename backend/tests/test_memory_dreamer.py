@@ -10,14 +10,9 @@ Tests the 5 core stages of Anthropic's agent memory consolidation:
 
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
 
-from services.canonical_memory.dreamer import MemoryDreamer, create_dreamer
-from services.canonical_memory.models import SeekerCoreDashboard
+from services.canonical_memory.dreamer import MemoryDreamer
 
 
 class FakeSupabaseClient:
@@ -106,7 +101,7 @@ class FakeTableQuery:
 
         elif self._action == "update":
             updated = []
-            for mid, m in self._client._memories.items():
+            for _mid, m in self._client._memories.items():
                 match = True
                 for k, v in self._filters.items():
                     if k == "id" and m.get("id") != v:

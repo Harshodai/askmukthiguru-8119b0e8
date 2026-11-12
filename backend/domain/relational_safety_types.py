@@ -24,9 +24,13 @@ class InterventionTier(int, Enum):
     """Graduated, compassionate intervention tiers."""
 
     TIER_0_NONE = 0  # Normal spiritual exploration
-    TIER_1_SUBTLE_ANCHOR = 1  # Deliver teaching + append grounding reflection on human connection/Sangha
+    TIER_1_SUBTLE_ANCHOR = (
+        1  # Deliver teaching + append grounding reflection on human connection/Sangha
+    )
     TIER_2_GENTLE_FRICTION = 2  # Soft break recommendation: step outside, connect with real world
-    TIER_3_CRISIS_PREEMPTION = 3  # Immediate handoff to verified clinical helplines (Tele-MANAS/KIRAN)
+    TIER_3_CRISIS_PREEMPTION = (
+        3  # Immediate handoff to verified clinical helplines (Tele-MANAS/KIRAN)
+    )
 
 
 @dataclass(frozen=True)
@@ -35,7 +39,9 @@ class SessionVelocityMetrics:
 
     turn_count: int = 0
     recent_turns_per_minute: float = 0.0
-    pronoun_drift_ratio: float = 0.0  # (AI pronouns: you, we) / (real-world nouns: family, friends, work)
+    pronoun_drift_ratio: float = (
+        0.0  # (AI pronouns: you, we) / (real-world nouns: family, friends, work)
+    )
     is_nocturnal: bool = False  # Engagement during late-night hours (e.g. 01:00 - 05:00 local time)
     consecutive_minutes: float = 0.0
     delegation_prompts_count: int = 0  # Frequency of asking bot to make life decisions

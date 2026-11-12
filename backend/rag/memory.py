@@ -560,14 +560,19 @@ def _is_personal_recall_request(question: str, intent: Optional[str] = None) -> 
     """Return True if the intent or query indicates personal recall/history/explicit memory."""
     if intent:
         norm_intent = str(intent).strip().casefold()
-        if norm_intent in {
-            "personal",
-            "personal_history",
-            "recall",
-            "memory",
-            "user_explicit",
-            "preference",
-        } or norm_intent.startswith("personal") or norm_intent.startswith("memory"):
+        if (
+            norm_intent
+            in {
+                "personal",
+                "personal_history",
+                "recall",
+                "memory",
+                "user_explicit",
+                "preference",
+            }
+            or norm_intent.startswith("personal")
+            or norm_intent.startswith("memory")
+        ):
             return True
 
     if not question:
