@@ -161,3 +161,23 @@ def test_the_question_bank_items_are_onboarded_as_strings():
     assert empty_q[0]["category"] == "malformed_input"
 
 
+
+
+def test_manifest_flags_never_carry_a_secret_value(monkeypatch):
+    """The manifest is evidence that gets shared. A key must not reach it (graded-run handoff, 2026-11-12)."""
+    import json
+
+    from scripts.ops import graded_capture
+
+    secret = "sk-or-v1-NOT-A-REAL-KEY"
+
+    def fake_run(cmd, *a, **k):
+        if cmd[:2] == ["docker", "inspect"]:
+            return json.dumps([{"Id": "abc123def456789", "Image": "sha256:x", "State": {"StartedAt": "t"}}])
+        return f"OPENROUTER_API_KEY={secret}\nOPENROUTER_BASE_URL=https://example.test\nFIRST_PERSON_ACTIVE_COLLECTION=first_person_v10\n"
+
+    monkeypatch.setattr(graded_capture, "_run", fake_run)
+    facts = graded_capture._container_facts("backend")
+    assert secret not in json.dumps(facts)
+    assert facts["flags"]["OPENROUTER_API_KEY"] == "***REDACTED***"
+    assert facts["flags"]["FIRST_PERSON_ACTIVE_COLLECTION"] == "first_person_v10"
