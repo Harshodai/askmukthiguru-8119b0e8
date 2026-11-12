@@ -22,3 +22,15 @@ Status: **UNPROVEN.** This file records what is known and what is missing. It do
 3. Re-run `evals/gold_set_v1/fit_threshold.py` on v10 pairs and commit its output, or confirm the v8 pairs were mapped to v10.
 
 Until 1 to 3 are done: do not quote 0.992 or 0.008, and do not describe any answer as a calibrated direct answer.
+
+## Evidence added 2026-11-12 05:14Z (REPORTED: output Harsha pasted from his Mac; I did not run it)
+- sha256 of `annotator_A.csv` and `annotator_B.csv` match the two hashes in the gold report. Hash list committed in `audits/evidence/gold_set_v1_and_v8_verdicts_sha256_2026-11-12.txt` (`1f3df424`). The sheets themselves stay off-repo because they hold clip text.
+- Both sheets have 303 rows, and all four label columns are filled on every row.
+- Both files have the same modified time (23 Oct 00:41).
+- On the 101 pairs present in both sheets, all four label columns are **identical on 101 of 101**.
+
+## What this means
+- The two sheets are not two independent ratings. Either one person labelled both (or copied one into the other), or the labels were produced in bulk. Agreement and kappa figures computed from these two sheets prove nothing about rater reliability.
+- The report's wording "two annotators" is not supported by the data. `independent_review: false` is consistent with it.
+- Whether the labels are human-authored is still only the owner's statement ("I had done it"). Nothing in the files shows the author. CLAUDE.md invariant 3 forbids fitting on AI-authored labels, so the profile stays UNPROVEN until the owner confirms in one line who authored the labels (for example "one rater, Harsha, all rows").
+- The gold pairs were built on `first_person_v8`; the profile says `first_person_v10`. That gap is still open.
