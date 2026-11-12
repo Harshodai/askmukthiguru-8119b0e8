@@ -97,6 +97,7 @@ import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
 import { QuotaAuthPrompt } from './QuotaAuthPrompt';
+import { QuotaCounter } from './QuotaCounter';
 import { HealingPathCard, type HealingCourseRecommendation, type UserTurn } from './HealingPathCard';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
@@ -2764,6 +2765,7 @@ return (
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
         >
+          {!quotaExceeded && <QuotaCounter />}
           {quotaExceeded && (
             <QuotaAuthPrompt
               remaining={quotaMeta.remaining}

@@ -1,4 +1,5 @@
 import { getCurrentConfig } from './config';
+import { publishQuota } from './quotaEvents';
 import { getAccessToken, refreshAccessToken } from './auth';
 import { getAnonSessionToken, refreshAnonSessionToken } from './anonSession';
 import { buildAssistantContext } from './assistant';
@@ -164,6 +165,7 @@ export async function* sendMessageStreaming(
       throw err;
     }
     const pos = jobData.queue_position;
+    publishQuota(jobData.quota);
     yield {
       type: 'status' as const,
       text: pos && pos > 1
