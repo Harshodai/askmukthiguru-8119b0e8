@@ -417,6 +417,20 @@ Use `.venv/bin/python` or `backend/.venv/bin/python` for local verification. The
 
 **`backend/scripts/ops/regenerate_v10_span_ecapa_verdicts.py`** — read-only regeneration of per-span ECAPA speaker evidence for the Phase-3 exact candidate. Slices audio **only** from `~/mukthiguru_attribution_data/audio_archive/wavs/{video_id}.wav` (the ASR-root `audio/` directories hold header-only stubs) and uses the candidate's rebuilt `[audio_start_ms, audio_end_ms]`. The guru references are built from the two human-confirmed anchor moments in `backend/scripts/ops/speaker_attribution.py::ANCHORS`, recomputed with a **pinned** ECAPA revision; the decision floors come from a held-out impostor set on a video-disjoint split. Output: one verdict row per span **keyed by `source_span_id`**, a calibration record and a summary — all new versioned files under `audits/evidence/public_release_phase2_*_2026-10-22.*`. It has **no Qdrant client and no write mode** (`--write-to-qdrant` exits 2) and never touches `speaker_verified`. Audio is read with the **standard library** `wave` module (every archived WAV is 16-bit PCM / mono / 16 kHz), so `soundfile` is **not** required; `torch` / `speechbrain` / `scikit-learn` are imported lazily, so the tool runs host-side (it needs the attribution archive and the HF model cache) and the app import graph never depends on them. Run `backend/scripts/ops/run_public_release_phase2_verification.sh` for the full command/exit-code transcript.
 
+### First-person corpus reingestion & span-boundary tooling (2026-11-12)
+
+Full command chain, stop conditions and the gated alias flip: `docs/REINGESTION_RUNBOOK_2026-11-12.md`.
+
+**`backend/scripts/ops/build_fp_context_from_v9.py`** (byte-identical copy in `scripts/ops/`) — builds an fp-context-v1 candidate (parents + retrieval children) from a **legacy clip** collection. Three behaviours matter when you run it:
+
+- **Span boundaries are repaired at ingest, not relaxed at serve time.** A span whose text has a boundary defect (`ingest/verbatim/boundaries.py::boundary_defects`) is snapped to whole sentences and written with `boundary_status=repaired` and linking `previous_span_id`/`next_span_id`; when no sentence boundary can be recovered it is quarantined as `incomplete_span_no_sentence_boundary` and recorded via `persist_corpus_gate_rejection` (X40). `validate_release_grade` flags `boundary_status_repaired_with_defects` — a repair that did not actually repair anything is a defect, never a pass.
+- **`--dry-run` writes nothing.** Every rejection goes through one `record_rejection()` closure gated on `persist_rejections=apply_mode`; a preview reports what it *would* have written under `report["rejections_not_persisted"]`. Before 2026-11-12 the four quarantine paths inserted into `public.corpus_gate_rejections` regardless of the flag (3,088 unattributable rows from local previews).
+- **`--transcripts-dir` resolves against the filesystem.** The default is `_default_transcripts_dir()`: `<repo>/transcripts`, then `<backend>/transcripts` (`/app/transcripts` in the image, where compose mounts `../transcripts`). A source-tree-relative default resolved to `/transcripts` inside the image and quarantined 665 of 1,801 points as `transcript_missing`.
+
+**`backend/scripts/ops/audit_fp_context_span_boundaries.py`** (byte-identical copy in `scripts/ops/`) — read-only residue audit over a live collection or an exported points JSON: parent/child boundary status, fragment children, null boundaries, single-child parents, neighbour-link coverage, and a rights check. `--check` exits 1 on a blocker, so it can gate a promotion.
+
+`FIRST_PERSON_CORPUS_VERSION` is reporting-only (`route_metadata.corpus_version`); the retrieval result stays the primary source, so leaving it empty is correct unless an environment's payloads carry no version.
+
 ---
 
 ## 12. Troubleshooting

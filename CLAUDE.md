@@ -214,6 +214,7 @@ cd backend && .venv/bin/pytest [tests/test_x.py]  # backend tests
 cd backend && docker compose up -d --build        # full stack; logs -f backend; down
 cd backend && uvicorn app.main:app --port 8000 --reload   # host run, see Gotchas
 scripts/ops/backend_py.sh script.py [args] | -c 'code'    # python in the backend container (cwd /app); loop it for sweeps
+cd backend && docker compose exec -T backend python /app/scripts/ops/build_fp_context_from_v9.py --source-collection <legacy> --target-collection <new> --dry-run   # corpus rebuild preview; writes nothing (docs/REINGESTION_RUNBOOK_2026-11-12.md)
 ```
 
 Services: frontend :8080, API docs :8000/docs, health :8000/api/health, Qdrant :6333/dashboard, Jaeger :16686, Neo4j :7474, Ingest portal :8000/ingest/.

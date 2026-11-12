@@ -27,7 +27,16 @@ The repository enforces strict first-person serving invariants. Any violation is
 ### Invariant 3: Additive Context Expansion (Zero LLM Generation)
 * `first_person_enrichment_window_enabled`: Rehydrates a retrieved child span to its full parent discourse window so that antecedent pronouns and conversational context are clear.
 * `first_person_graph_expansion_enabled`: Appends concept-filtered graph retrieval *after* vector matches.
-* Neither feature may reorder, drop, or replace a primary context, and `retrieval_only` mode strictly forbids LLM-authored teaching prose.
+* `first_person_okf_expansion_enabled`: Appends one payload-filtered retrieval keyed on curated `memory/okf/compiled.json` doctrine concepts (added 2026-11-10, default `False`).
+* `first_person_cross_video_diversity_enabled`: Re-orders the candidate pool with MMR + a per-video cap, **deferring** (never dropping) capped candidates (added 2026-11-10, default `False`).
+* None of these features may reorder, drop, or replace a primary context, and `retrieval_only` mode strictly forbids LLM-authored teaching prose.
+
+---
+
+### Invariant 4: Fail-Closed Grading With One Transport Retry
+* `first_person_relevance_max_attempts` (default `2`, bounded `1..3`): the relevance scorer asks the provider for a digit score on a **read-only** clip, so a timeout or a dropped connection is repeated once. Under the sequential contract an indeterminate context blocks every later context, so without this a single slow provider call turned the whole turn into *"I couldn't finish checking the teachings"*.
+* Only transport outcomes are retried, and only when the failed attempt died **fast** (under half of `FIRST_PERSON_RELEVANCE_TIMEOUT_S`). A call that consumed the whole deadline is provider congestion: repeating it doubled a live 15 s stall to 31.4 s for the same abstain, so it abstains after one deadline. A provider refusal, a rate-limit push-back, a budget denial or a malformed/wrong-length reply is answered **once** and stays `relevance_indeterminate`; when every attempt fails the turn still abstains with `verification.passed = False`. A retry never relaxes a gate and never authors text.
+* Measured 2026-11-10/11: 16 concurrent scorer calls completed in 5.03 s (max 5.03 s) while a 4-way semaphore made it slower, so the retry — not a concurrency limit — is the correct fix.
 
 ---
 
