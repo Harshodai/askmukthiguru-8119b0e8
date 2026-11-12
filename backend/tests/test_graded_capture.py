@@ -78,6 +78,20 @@ def test_the_frozen_116_are_labelled_a_tuning_set():
     assert items and all(i["split"] == "tuning" for i in items)
 
 
+def test_the_benchmark_items_are_onboarded():
+    from scripts.ops.graded_capture import _items
+
+    items = _items(include_frozen=False, include_unanswerable=False, include_benchmarks=True)
+    assert len(items) == 52
+    assert all(i["set"] == "benchmark" for i in items)
+    on_topic = [i for i in items if i["kind"] == "on_topic"]
+    compound = [i for i in items if i["kind"] == "compound"]
+    ooc = [i for i in items if i["kind"] == "out_of_corpus"]
+    assert len(on_topic) == 29
+    assert len(compound) == 10
+    assert len(ooc) == 13
+
+
 def test_the_approved_bar_file_is_consistent():
     import json
     from pathlib import Path
@@ -90,3 +104,85 @@ def test_the_approved_bar_file_is_consistent():
     assert bar["approved"] is True and bar["approved_by"] == "Harsha"
     assert bar["min_showable_rate"] == 0.85 and bar["max_harmful"] == 0
     assert bar["p95_latency_s"] == 10
+
+
+# ── Auth error detection and invalidation in capture logs ────────────────────
+
+
+def test_log_with_openrouter_401_auth_error_is_invalid():
+    bad = (
+        "INFO: Started server\n"
+        "ERROR: OpenRouter auth error (401) during generate (model=anthropic/claude-3.5-haiku) — graceful degradation\n"
+        "INFO: 200 OK"
+    )
+    verdict = validity(bad, (1.0, 2.0), (3.0, 4.0), preflight_ok=True)
+    assert verdict["valid"] is False
+    assert any("auth error" in r.lower() for r in verdict["reasons"])
+
+
+def test_log_with_openrouter_403_auth_error_is_invalid():
+    bad = "OpenRouter auth error (403) during generate — graceful degradation"
+    verdict = validity(bad, (1.0, 2.0), (3.0, 4.0), preflight_ok=True)
+    assert verdict["valid"] is False
+    assert any("auth error" in r.lower() for r in verdict["reasons"])
+
+
+def test_log_with_openrouter_unauthorized_error_is_invalid():
+    bad = "OpenRouter error 401 Unauthorized: {'error': {'message': 'User not found', 'code': 401}}"
+    verdict = validity(bad, (1.0, 2.0), (3.0, 4.0), preflight_ok=True)
+    assert verdict["valid"] is False
+
+
+def test_log_with_authentication_error_is_invalid():
+    bad = "httpx.HTTPStatusError: AuthenticationError: Invalid API key provided"
+    verdict = validity(bad, (1.0, 2.0), (3.0, 4.0), preflight_ok=True)
+    assert verdict["valid"] is False
+
+
+def test_check_log_clean_detects_auth_errors_explicitly():
+    from scripts.ops.graded_capture import check_log_clean
+
+    check = check_log_clean("2026-11-08 ERROR OpenRouter auth error (401) during chat")
+    assert check.ok is False
+    assert "auth error" in check.detail.lower()
+
+
+def test_the_question_bank_items_are_onboarded_as_strings():
+    from scripts.ops.graded_capture import _items
+
+    items = _items(
+        include_frozen=False,
+        include_unanswerable=False,
+        include_benchmarks=False,
+        include_question_bank=True,
+    )
+    assert len(items) == 421
+    assert all(i["set"] == "question_bank" for i in items)
+    assert all(isinstance(i["question"], str) for i in items)
+    assert all(len(i["id"]) > 3 for i in items)
+    # verify only the intentional empty probe is empty
+    empty_q = [i for i in items if not i["question"]]
+    assert len(empty_q) == 1
+    assert empty_q[0]["category"] == "malformed_input"
+
+
+def test_manifest_flags_never_carry_a_secret_value(monkeypatch):
+    """The manifest is evidence that gets shared. A key must not reach it (graded-run handoff, 2026-11-12)."""
+    import json
+
+    from scripts.ops import graded_capture
+
+    secret = "sk-or-v1-NOT-A-REAL-KEY"
+
+    def fake_run(cmd, *a, **k):
+        if cmd[:2] == ["docker", "inspect"]:
+            return json.dumps(
+                [{"Id": "abc123def456789", "Image": "sha256:x", "State": {"StartedAt": "t"}}]
+            )
+        return f"OPENROUTER_API_KEY={secret}\nOPENROUTER_BASE_URL=https://example.test\nFIRST_PERSON_ACTIVE_COLLECTION=first_person_v10\n"
+
+    monkeypatch.setattr(graded_capture, "_run", fake_run)
+    facts = graded_capture._container_facts("backend")
+    assert secret not in json.dumps(facts)
+    assert facts["flags"]["OPENROUTER_API_KEY"] == "***REDACTED***"
+    assert facts["flags"]["FIRST_PERSON_ACTIVE_COLLECTION"] == "first_person_v10"

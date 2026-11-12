@@ -16,6 +16,7 @@ Examples:
   Resolved: "How do I meditate specifically for anxiety?"
 """
 
+import hashlib
 import logging
 import re
 from typing import Optional
@@ -25,6 +26,14 @@ from langchain_core.runnables import RunnableConfig
 from app.config import settings
 from rag.states import GraphState
 from rag.timeout_utils import get_node_timeout
+
+
+def _q_tag(text: str) -> str:
+    """Length + short sha256 prefix; never the seeker's words (SEC-003)."""
+    return (
+        f"len={len(text or '')} sha={hashlib.sha256((text or '').encode('utf-8')).hexdigest()[:8]}"
+    )
+
 
 logger = logging.getLogger(__name__)
 
@@ -189,10 +198,12 @@ async def resolve_followup(state: GraphState, config: Optional[RunnableConfig] =
             if last_user:
                 contextualized = f"{last_user} - {question}"
                 logger.info(
-                    f"Follow-up resolved (heuristic): '{question[:60]}' → '{contextualized[:60]}'"
+                    "Follow-up resolved (heuristic): %s -> %s",
+                    _q_tag(question),
+                    _q_tag(contextualized),
                 )
                 return {"question": contextualized}
-        logger.info(f"Follow-up resolution (heuristic): no change needed for '{question[:60]}'")
+        logger.info("Follow-up resolution (heuristic): no change needed for %s", _q_tag(question))
         return {}
 
     # --- LLM path (legacy) ---
@@ -252,10 +263,10 @@ async def resolve_followup(state: GraphState, config: Optional[RunnableConfig] =
 
         # Only update if the LLM actually changed the question
         if resolved and resolved != question and len(resolved) > 3:
-            logger.info(f"Follow-up resolved: '{question[:60]}' → '{resolved[:60]}'")
+            logger.info("Follow-up resolved: %s -> %s", _q_tag(question), _q_tag(resolved))
             return {"question": resolved}
         else:
-            logger.info(f"Follow-up resolution: no change needed for '{question[:60]}'")
+            logger.info("Follow-up resolution: no change needed for %s", _q_tag(question))
             return {}
 
     except Exception as e:

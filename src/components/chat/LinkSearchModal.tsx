@@ -13,6 +13,7 @@ import {
   X,
   Youtube,
 } from 'lucide-react';
+import { BACKEND_URL } from '@/lib/backendUrl';
 import type { Citation } from '@/lib/chat/types';
 import { resolveAttributionLabel } from '@/lib/chat/types';
 
@@ -89,7 +90,7 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
     const fetchSource = async () => {
       try {
         const res = await fetch(
-          `/api/search/inspect-source?url=${encodeURIComponent(citation.url)}`
+          `${BACKEND_URL}/api/search/inspect-source?url=${encodeURIComponent(citation.url)}`
         );
         if (res.ok) {
           const data = await res.json();
@@ -117,7 +118,7 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
     if (!webQuery.trim()) return;
     setWebSearching(true);
     try {
-      const res = await fetch('/api/search/web-discourse', {
+      const res = await fetch(`${BACKEND_URL}/api/search/web-discourse`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: webQuery.trim(), max_results: 5 }),

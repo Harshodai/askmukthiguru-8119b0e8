@@ -7,6 +7,7 @@ import { buildAssistantContext } from './assistant';
 import { httpStatusToErrorCode } from './errors';
 import { fetchWithRetry, BACKPRESSURE_ONLY_STATUSES, SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
+import { publishQuota } from './quotaEvents';
 import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
 import type { AIErrorCode, AIResponse, MessagePayload, ResponsePreferences } from './types';
@@ -207,6 +208,7 @@ export const sendMessage = async (
       // Queue integration: 202 Accepted → poll job endpoint until completed/failed
       if (response.status === 202) {
         const jobData = await response.json();
+        publishQuota(jobData.quota);
         const jobId = jobData.job_id;
         if (!jobId) {
           return { content: '', error: 'Queue returned 202 but no job_id', errorCode: 'unknown' };
@@ -428,40 +430,6 @@ export const sendMessage = async (
   // Final fallback: no provider matched or unreachable code path.
   // Return empty content so ChatInterface renders the error state.
   return { content: '', errorCode: 'unknown' as AIErrorCode };
-};
-
-export const generateSummary = async (messages: MessagePayload[]): Promise<string> => {
-  const { provider, endpoint } = getCurrentConfig();
-  if (provider !== 'custom' || !endpoint) return '';
-
-  try {
-    const token = await getAccessToken();
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a summarizer. Provide a concise 2-3 sentence summary of the key spiritual insights and user concerns discussed in this conversation history. Focus on maintaining teaching continuity.'
-          },
-          ...messages.slice(-10),
-        ],
-        user_message: 'Summarize our conversation so far.',
-      }),
-    });
-
-    if (!response.ok) return '';
-    const data = await response.json();
-    return data.response || data.choices?.[0]?.message?.content || data.content || '';
-  } catch (error) {
-    console.error('Failed to generate summary:', error);
-    return '';
-  }
 };
 
 export const generateConversationTitle = async (

@@ -47,19 +47,92 @@ async def first_person_node(
     state: GraphState,
     config: Optional[RunnableConfig] = None,
 ) -> dict:
-    """Run the first-person bridge inside the graph; claim or fall through."""
+    """Run the first-person bridge inside the graph; claim or fall through.
+
+    T1-05: a teaching-lane turn FP cannot serve (kill switch off, node fault)
+    gets the static abstain unless generation is deliberately allowed.
+    """
+    ctx = ((config or {}).get("configurable") or {}).get("pipeline_ctx")
     try:
-        ctx = ((config or {}).get("configurable") or {}).get("pipeline_ctx")
         if ctx is None:
+            from services.fp_fail_closed import fail_closed_active
+
+            if fail_closed_active():
+                # SYS-001 remainder: an out-of-band graph call (Gradio UI, wiring
+                # check, evals) has no pipeline context, so the bridge cannot run.
+                # It must not reach generated teaching either: static abstain.
+                return _context_free_abstain()
             logger.debug("[FirstPersonNode] No pipeline_ctx in config; falling through to general.")
             return {}
 
-        from app.pipeline.stages.first_person_bridge import run_first_person_bridge
+        from app.pipeline.stages.first_person_bridge import (
+            fail_closed_result,
+            first_person_bridge_enabled,
+            run_first_person_bridge,
+        )
+        from services.fp_fail_closed import fail_closed_active
+
+        if not first_person_bridge_enabled():
+            from rag.meditation import is_meditation_imperative
+
+            if fail_closed_active() and not is_meditation_imperative(
+                str(getattr(ctx, "user_msg", "") or "")
+            ):
+                return {"first_person_result": await fail_closed_result(ctx, "fp_disabled")}
+            return {}
 
         result: Any = await run_first_person_bridge(ctx)
         if result is None:
             return {}
         return {"first_person_result": result}
-    except Exception:  # noqa: BLE001 — fail-open: bridge infra never fails chat
-        logger.exception("[FirstPersonNode] Bridge failed; falling through to general.")
+    except Exception:  # noqa: BLE001 - bridge infra never fails chat
+        logger.exception("[FirstPersonNode] Bridge failed.")
+        try:
+            from services.fp_fail_closed import fail_closed_active
+
+            if ctx is not None and fail_closed_active():
+                from app.pipeline.stages.first_person_bridge import fail_closed_result
+
+                return {"first_person_result": await fail_closed_result(ctx, "fp_node_error")}
+        except Exception:  # noqa: BLE001
+            logger.exception("[FirstPersonNode] Fail-closed abstain failed.")
         return {}
+
+
+def _context_free_abstain() -> dict:
+    """Static abstain for a graph call with no ``PipelineContext`` (SYS-001).
+
+    Carries ``final_answer`` and ``verification`` too, so a caller that reads the
+    graph state (not ``first_person_result``) gets the abstain, never an empty answer.
+    """
+    from app.pipeline.result import PipelineResult
+    from app.release_manifest import get_release_manifest
+    from services.fp_fail_closed import STATIC_ABSTAIN_TEXT, record_fail_closed
+
+    record_fail_closed("no_pipeline_ctx")
+    verification = {
+        "passed": False,
+        "method": "fp_no_pipeline_ctx",
+        "citations_verified": False,
+        "abstain_cause": "system_unavailable",
+    }
+    result = PipelineResult(
+        final_answer=STATIC_ABSTAIN_TEXT,
+        intent="QUERY",
+        model_used=None,
+        model_provider=None,
+        route_decision="first_person_abstain",
+        query_tier="fast",
+        citations=[],
+        faithfulness_score=None,
+        hallucination_flag=False,
+        citations_verified=False,
+        verification=verification,
+        release_manifest=get_release_manifest().to_dict(),
+        route_metadata={"decision_method": "fp_no_pipeline_ctx"},
+    )
+    return {
+        "first_person_result": result,
+        "final_answer": STATIC_ABSTAIN_TEXT,
+        "verification": dict(verification),
+    }

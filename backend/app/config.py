@@ -55,6 +55,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # --- Version & Provenance (CQ-010 / T2-06) ---
+    git_sha: str = "unknown-sha"
+    schema_version: str = "1.0.0"
+
     # --- LLM Provider ---
     # Set LLM_PROVIDER to switch between backends:
     #   "openrouter"   → OpenRouter (deepseek/deepseek-chat generation,
@@ -75,6 +79,7 @@ class Settings(BaseSettings):
 
     # --- Sarvam Cloud API ---
     sarvam_api_key: str = ""  # API subscription key from dashboard.sarvam.ai
+    sarvam_rpm_limit: int = 60
     sarvam_cloud_model: str = "sarvam-30b"  # Main generation model — any Sarvam model works (sarvam-30b, sarvam-105b, sarvam-m)
     sarvam_cloud_classify_model: str = (
         "sarvam-30b"  # Classification model — can be same or different from generation model
@@ -179,18 +184,9 @@ class Settings(BaseSettings):
     # retrieval_only, so an unconfigured deployment ran LLM scaffolding against
     # an invariant that forbids LLM-authored teachings. The production release
     # contract (services/first_person_release.py) accepts only retrieval_only;
-    # the default now matches it. Set FIRST_PERSON_MODE=hybrid explicitly (and
-    # expect the LLM opening/connective/questions branch) to opt back in.
+    # the default now matches it. "hybrid" is still a declared value but the quote
+    # weaver no longer has an LLM branch (T1-02): it behaves like retrieval_only.
     first_person_mode: str = "retrieval_only"
-    # Hybrid mode (opt-in): the LLM writes only OPENING/CONNECTIVE/QUESTIONS and code
-    # assembles the quotes verbatim. Letting it rewrite the whole chapter (ASR
-    # "proofreading", pronoun "anchoring") can change the teacher's words, so it
-    # needs an explicit owner opt-in.
-    first_person_editorial_rewrite_enabled: bool = False
-    first_person_scaffold_max_tokens: int = 160
-    # "" = the LLM service's default model. Set to a small OpenRouter model for cheap framing,
-    # e.g. "meta-llama/llama-3.1-8b-instruct" (already on the model allowlist).
-    first_person_scaffold_model: str = ""
     # Updated 2026-10-04: v7 is the active production collection (1,589 clips,
     # 306 videos, 100% rights_cleared). Old default "first_person_v1" was a
     # 580-clip pilot predating the bake-off pipeline — any env without explicit
@@ -203,6 +199,9 @@ class Settings(BaseSettings):
     # v10-only posture (context harness + terminal both on) an unset slot is the
     # active collection; otherwise the legacy slot keeps this rollback default.
     first_person_collection: str = ""
+    # C8: optional corpus version label stamped on first-person serve/abstain logs. Empty = unset
+    # (never guessed). Read by first_person_bridge via getattr, so it must be declared here.
+    first_person_corpus_version: str = ""
     # THE one name of the collection a deployment serves (owner request 2026-11-01:
     # the two slots held the same literal and drifted). FIRST_PERSON_COLLECTION and
     # FIRST_PERSON_CONTEXT_COLLECTION are optional overrides of it, kept for rollback.
@@ -212,9 +211,6 @@ class Settings(BaseSettings):
     # (empty = no path source is accepted).
     federated_ingest_enabled: bool = False
     federated_ingest_allowed_dir: str = ""
-    # Comma-separated first_person_* collections the ingest pipeline may dual-index into
-    # after a video ingest. EMPTY (default) = ingest writes to no first_person_* collection.
-    fp_dual_index_collections: str = ""
     # Gate for the /api/first-person/query route itself (separate from
     # first_person_mode, which the route also still checks).
     # Updated 2026-10-04: enabled by default — route was silently off for all
@@ -275,7 +271,8 @@ class Settings(BaseSettings):
     # Off by default until question embeddings are completely distinct from passages.
     first_person_question_dense_enabled: bool = False
     first_person_continuous_layout_enabled: bool = False
-    first_person_facet_split_enabled: bool = False
+    first_person_facet_split_enabled: bool = True
+    first_person_compound_direct_serving_enabled: bool = True
     first_person_framing_enabled: bool = False
     first_person_rerank_none_abstain_enabled: bool = False
     first_person_speculative_parallelism_enabled: bool = False
@@ -325,6 +322,25 @@ class Settings(BaseSettings):
     # (harness policy max_context_spans). Bounded so a long parent unit can
     # never turn into a wall of text on the chat surface.
     first_person_context_max_spans: int = 3
+    # Candidate parent units retrieved for harness evaluation (0 = use max_clips default)
+    first_person_context_candidate_limit: int = 16
+    # Enable sparse RRF fusion in context retrieval. Default True (2026-11-10, SOTA plan WS2):
+    # the live fp-context collection carries a named ``passage_sparse`` vector, and named
+    # doctrinal terms ("Four Sacred Secrets", "Soul Sync", "Ananya") are lexical, not
+    # semantic, matches — dense-only retrieval scored 0/20 on those suites. The store
+    # degrades to dense-only by itself when a collection has no sparse vector or the
+    # query yields no sparse weights, so this remains fail-open.
+    first_person_context_use_sparse: bool = True
+    # Reported corpus version for a served/abstained first-person turn (C8): route
+    # metadata carries ``corpus_version`` so served-share can be attributed per corpus.
+    # Empty means "read it off the retrieval result"; this setting only overrides when
+    # the result carries none. Never guessed (X40: no synthesized provenance).
+    first_person_corpus_version: str = ""
+    # Maximum combined word count for a context-harness answer (sum of all spans).
+    # Distinct from first_person_max_answer_words (single-clip legacy path).
+    # 600 words: a 5-6 minute discourse excerpt, enough to cover a full teaching
+    # arc without overflowing a chat surface. Measured 2026-11-10 on v10 corpus.
+    first_person_max_context_words: int = 600
     # Optional temporal quality adjustment for fp-context retrieval ranking.
     # Disabled until a reviewed calibration demonstrates that the adjustment
     # improves held-out serving quality without changing evidence eligibility.
@@ -374,6 +390,30 @@ class Settings(BaseSettings):
     # Hard timeout (seconds) for the graph expansion lookup. Fail-open: a slow or
     # unavailable graph adds nothing rather than delaying the answer.
     first_person_graph_expansion_timeout_s: float = 1.5
+    # OKF concept expansion (2026-11-10, SOTA plan WS7 / Component 3). When True, the
+    # query dense vector is matched against the curated `memory/okf/compiled.json`
+    # doctrine matrix (mtime-cached ndarray, ~0.04 ms, zero network) and every matched
+    # entry's canonical tags/title becomes one ADDITIONAL filtered retrieval pass. The
+    # extra parents are appended AFTER the vector results and still pass every harness
+    # gate, so this is additive only and never LLM generation (serving invariant #3).
+    # OFF by default for the same reason the other two expansion features are.
+    first_person_okf_expansion_enabled: bool = False
+    # Ceiling on distinct concept terms one query may contribute.
+    first_person_okf_expansion_max_concepts: int = 8
+    # Cosine floor for an OKF entry to count as a concept match. 0.40 was measured on
+    # fp-context-v1 queries: below it, unrelated doctrine (e.g. event announcements) leaks in.
+    first_person_okf_expansion_min_similarity: float = 0.40
+    # Cross-video diversity cap for the harness candidate pool (2026-11-10, SOTA plan
+    # Component 4). When True, the retrieved pool is capped at
+    # `first_person_cross_video_max_per_video` parents per video_id with MMR ordering, so
+    # one long discourse cannot occupy every candidate slot. Candidates already retrieved
+    # for a new video are never dropped; only a duplicate beyond the cap is deferred to the
+    # tail. OFF by default; a no-op pass-through for the same list otherwise.
+    first_person_cross_video_diversity_enabled: bool = False
+    # Maximum parents one video may contribute inside the candidate pool (>=1).
+    first_person_cross_video_max_per_video: int = Field(default=2, ge=1)
+    # MMR trade-off: 1.0 = relevance only, 0.0 = maximum diversity.
+    first_person_cross_video_mmr_lambda: float = Field(default=0.7, ge=0.0, le=1.0)
     # --- Phase-5 TeachingUnit graph expansion (2026-11-03) ---
     # When True, span-level TU graph neighbours are appended AFTER the vector
     # and concept-expansion results. The TU graph must be built offline first
@@ -435,6 +475,16 @@ class Settings(BaseSettings):
     # Env: SPECULATIVE_GENERATION_ENABLED.
     speculative_generation_enabled: bool = False
     first_person_llm_fallback_enabled: bool = False
+    # T6-02 / MEM-002 / D-PM4: Server-side authoritative seen-clip tracking.
+    # When False (default), first-person retrieval does not query server-side seen-clip
+    # state, preserving byte-for-byte legacy behavior. When True, queries namespaced
+    # server-side store to avoid serving recently seen clips to returning seekers.
+    first_person_server_seen_clips_enabled: bool = False
+    # T1-05 rollback flag (env FP_FAIL_CLOSED_ENABLED, default True): when on, a
+    # teaching-lane turn that cannot be served by first person (bridge off, node
+    # fault) gets the static abstain instead of the generating graph, unless
+    # first_person_llm_fallback_enabled is deliberately True.
+    fp_fail_closed_enabled: bool = True
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
     # labelled "Related, not a direct answer", instead of declining. RP-A4/QBUG-2
@@ -470,14 +520,28 @@ class Settings(BaseSettings):
     # clip scoring >= min_score or abstain (fail closed). Standalone: deterministic backstop
     # rejecting clips that end/start mid-thought or announce a one-off event.
     first_person_relevance_gate_enabled: bool = True
-    # RP-A4/QBUG-2 (2026-10-13): default 3, matching the served posture.
-    first_person_relevance_min_score: int = 3
+    # RP-A4/QBUG-2 (2026-10-13): was 3. Calibrated to 2 on 2026-11-10 (SOTA plan WS3):
+    # a spiritual teaching explains the root cause of an inner state rather than giving a
+    # transactional "how-to", and the strict 3-only floor discarded 95% of authentic
+    # discourse. Score 2 serves as ``weak_match`` (status + is_direct_answer=False +
+    # verification.direct=False), never as a direct answer.
+    first_person_relevance_min_score: int = 2
     # Optional stronger model for the relevance scorer ONLY (one ~24-token reply per query);
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
     first_person_relevance_model: str = ""
     # Timeout in seconds for the first-person LLM relevance scorer. 25s accommodates reasoning models and provider latency jitter.
     first_person_relevance_timeout_s: float = 25.0
+    # Attempts per context for the relevance scorer (1 = no retry). 2 (2026-11-10): a
+    # provider latency spike turned a whole turn into "I couldn't finish checking the
+    # teachings" because one context's scorer call crossed the deadline and an
+    # indeterminate verdict blocks every later context (sequential contract). The
+    # scorer is a read-only digit question, so one repeat is safe and cheap; the
+    # verdict stays fail-closed when both attempts fail. A repeat only happens when the
+    # failed attempt died fast (under half of first_person_relevance_timeout_s): a call
+    # that burned the whole deadline is congestion, and retrying it doubled a live 15 s
+    # stall to 31.4 s (2026-11-11).
+    first_person_relevance_max_attempts: int = Field(default=2, ge=1, le=3)
     # Retained as a compatibility setting only. Provider errors/refusals are
     # relevance-indeterminate in serving; no uncalibrated local fallback may
     # turn a budget denial or provider failure into an answer.
@@ -547,12 +611,6 @@ class Settings(BaseSettings):
     feature_regex_prerouter: bool = True
 
     # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
-    # Unwired: nothing in the codebase reads semantic_router_enabled or
-    # semantic_router_top_k. The routing behavior these names imply is
-    # actually gated by semantic_router_confidence_threshold /
-    # semantic_router_shadow_mode below (see orchestrator_utils.py).
-    semantic_router_enabled: bool = True
-    semantic_router_top_k: int = 3
     # Trust the semantic router's tier when its confidence exceeds this; below it,
     # routing defaults to the expensive "standard" path (orchestrator_utils.py:254).
     # Lowered 0.65→0.55 so borderline queries use the router's (often "fast") tier
@@ -588,7 +646,6 @@ class Settings(BaseSettings):
     ollama_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
     ollama_classify_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
     ollama_cloud_only: bool = True  # When True, refuse local-only models (no :cloud tag)
-    sarvam_model_name: str = "sarvam-30b:latest"  # Explicit Sarvam reference for scripts
 
     # --- OpenRouter (free tier for simple queries) ---
     openrouter_api_key: str = ""
@@ -641,10 +698,13 @@ class Settings(BaseSettings):
     openrouter_enforce_model_policy: bool = True
     openrouter_daily_budget_usd: float = Field(default=10.0, gt=0)
     openrouter_monthly_budget_usd: float = Field(default=40.0, gt=0)
-    # Redis-backed cross-replica reservation guard. Default enabled with $10 daily / $40 monthly ceilings.
-    openrouter_budget_guard_enabled: bool = False
+    # Redis-backed cross-replica reservation guard. Default enabled with $10 daily / $40 monthly ceilings (T1-07).
+    openrouter_budget_guard_enabled: bool = True
     openrouter_max_request_cost_usd: float = Field(default=0.03, gt=0)
-    openrouter_budget_fail_closed: bool = False
+    openrouter_budget_fail_closed: bool = True
+    # Explicit, recorded owner decision to run production with no OpenRouter spend cap (T1-07).
+    # Without it, production refuses to start when the guard is disabled or fail-open.
+    allow_uncapped_llm_spend: bool = False
     # Generic LLM budget guard defaults read by services/llm_budget_guard.py
     # via from_settings(provider). Matches the openrouter twin so the generic
     # path is fail-closed, not silently fail-open.
@@ -665,12 +725,6 @@ class Settings(BaseSettings):
     reingest_late_chunking: bool = True
     late_chunk_window_tokens: int = Field(default=2048, gt=2)
     late_chunk_window_batch_size: int = Field(default=4, ge=1)
-    SERVICE_ORCID_MAP: dict[str, str] = {
-        # Maps service names to ORCID iDs for academic attribution.
-        # Populate before production if contributors have registered ORCIDs.
-        # Format: "service_name": "0000-0001-2345-6789"
-        # Look up ORCIDs at https://orcid.org/search
-    }
     # In-flight contextualizer LLM calls. 8 suits a hosted endpoint (calls are
     # network-bound); _contextualize() clamps it back to 3 for local Ollama,
     # where extra concurrency only queues behind one model.
@@ -708,6 +762,13 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "spiritual_wisdom_contextual"
     qdrant_api_key: str = ""  # empty = no auth (current default); set to require API-key auth
+    # T3-02 / DATA-06: Read-only Qdrant key for backend serving path.
+    # Falls back to qdrant_api_key when unset.
+    qdrant_read_only_api_key: str = ""
+    # T3-02 / DATA-06: Write-only Qdrant key for offline builder/ingest scripts.
+    # The running backend container never receives this key.
+    qdrant_write_api_key: str = ""
+    qdrant_timeout: float = 30.0
     # Quantization strategy for the Qdrant dense vector index.
     # Quantization strategy for the Qdrant dense vector index.
     # Options: scalar_int8 (default, current production behavior), binary,
@@ -787,6 +848,7 @@ class Settings(BaseSettings):
     # Distinct service-role key for worker/admin paths (no RLS). Falls back
     # to supabase_key when unset, matching auth_service.get_current_user_from_supabase.
     supabase_service_key: Optional[str] = None
+    supabase_service_role_key: Optional[str] = None
     # Public anon/publishable key. `SUPABASE_ANON_KEY` is set in .env, but until
     # now no Settings field declared it -- and pydantic-settings runs with
     # extra="ignore", so it was silently dropped. Anything reaching for it via
@@ -832,6 +894,8 @@ class Settings(BaseSettings):
     kg_max_query_len: int = Field(default=4_000, gt=0)
     kg_query_timeout_s: float = Field(default=5.0, gt=0)
     kg_subgraph_max_edges: int = Field(default=200, ge=1, le=2_000)
+    kg_max_concurrent_queries: int = 10
+    lightrag_query_timeout_seconds: float = 30.0
     lightrag_graph_storage: str = Field(
         default="MemgraphStorage",
         description="LightRAG graph backend: 'MemgraphStorage' (default, C++) or 'Neo4JStorage' (legacy, JVM)",
@@ -951,7 +1015,6 @@ class Settings(BaseSettings):
     transcript_languages: str = (
         "en,hi,bn,te,mr,ta,ur,gu,kn,ml,or,pa,as,mai,sa,ks,ne,sd,kok,doi,mni,sat,brx"
     )
-    transcript_max_retries: int = 3  # Retry per tier before falling to next
     transcript_concurrent_workers: int = 1  # Kept at 1 to avoid YouTube 429 rate limits
 
     # --- Scheduled external-content synchronization ---
@@ -970,21 +1033,21 @@ class Settings(BaseSettings):
     # --- Transcript Council (Dual-STT Quality Check) ---
     # When enabled: fetches captions AND runs Sarvam STT on audio, then picks best result.
     enable_transcript_council: bool = True  # Run both YouTube captions + Sarvam STT per video
-    sarvam_stt_model: str = "saaras:v3"  # Sarvam Batch STT model
-    sarvam_stt_mode: str = "transcribe"  # Options: transcribe, codemix, translate
-    sarvam_stt_language: str = "en-IN"  # Language hint (en-IN for English w/ Indian accent)
-    stt_chunk_minutes: int = 55  # Chunk long audio into N-minute pieces (Batch API max 1hr)
-    stt_max_audio_mb: int = 200  # Skip STT if audio file exceeds this size (MB)
 
     # --- OCR ---
     ocr_languages: str = "en,hi"
 
     # --- Data Quality ---
     data_audit_enabled: bool = True
+    data_quality_gate_enabled: bool = True
+    quality_gate_threshold: Optional[float] = None
+    upload_dir: Optional[str] = None
+    llm_generate_timeout: float = 60.0
 
     # --- Redis ---
     # Default uses 'redis' resolving inside Docker Compose. For local non-docker dev, override with REDIS_URL=redis://localhost:6379/0 via .env
     redis_url: str = "redis://redis:6379/0"
+    redis_password: Optional[str] = None
     # Exact-query cache only; queue/session/quota/telemetry/Second Brain namespaces
     # are intentionally outside this ceiling.
     redis_cache_max_keys: int = Field(default=10_000, ge=0, le=1_000_000)
@@ -1087,7 +1150,6 @@ class Settings(BaseSettings):
     # Required in production; Mode-B (session-unlock) vaults derive KEK from
     # the user's passphrase, but the default Mode-A wrap still needs this.
     brain_kek: Optional[str] = None
-    correlation_id_max_length: int = 64  # Max length for X-Correlation-ID header
     allowed_hosts: str = "localhost,127.0.0.1"  # Trusted hosts for Origin/Referer validation
 
     # --- Auth & Rate Limiting ---
@@ -1114,6 +1176,9 @@ class Settings(BaseSettings):
     # Optional override for the single-source crisis/DV helpline registry.
     # Empty uses the bundled repo-root config/helplines.yaml.
     helplines_config_path: Optional[str] = None
+    # Maximum age in days for a helpline's last_verified_by_call before it is
+    # considered stale and excluded from user-facing crisis templates (SAFE-004, T4-07).
+    helpline_max_verified_age_days: int = 180
     # Benchmarks (ragas_eval.py) default their live --endpoint to this value
     # instead of reading the env directly, so the endpoint is validated the same
     # way as every other settings-sourced URL.
@@ -1521,8 +1586,6 @@ class Settings(BaseSettings):
     ingestion_relation_model: str = ""
     # Max entity pairs classified in a single batched LLM call (reduces call count).
     ingestion_relation_batch_size: int = 5
-    # LRU cache size for (entity_a, entity_b) -> relation lookups.
-    ingestion_relation_cache_size: int = 256
 
     # --- Quality gate (Tier 1+) density / fact-check / bias stubs ---
     quality_min_information_density: float = (
@@ -1569,6 +1632,8 @@ class Settings(BaseSettings):
     # stamp. Defaults False: flipping this on today would block ~100% of the live
     # corpus, a production-affecting call this agent will not make unilaterally.
     serve_only_registered_sources: bool = False
+    # Video streaming rights gate (SEC-002 / T1-08). Only allow streaming videos with 'licensed' rights status.
+    video_stream_rights_gate_enabled: bool = True
     # Governed source publication is opt-in until approval/rollback staging drills pass.
     corpus_release_registry_enabled: bool = False
     corpus_release_fallback_version: int = 1
@@ -1586,6 +1651,9 @@ class Settings(BaseSettings):
 
     # --- Semantic Cache ---
     semantic_cache_enabled: bool = True  # Embedding-based semantic caching
+    # Cache key versioning and invalidation (CQ-003 / T7-04)
+    cache_key_version: str = "v2"
+    prompt_version: str = "v1"
     # Local measurement control: when enabled, all application cache reads and
     # writes are bypassed so latency samples represent the uncached path.
     latency_benchmark_cache_disabled: bool = False
@@ -1596,7 +1664,6 @@ class Settings(BaseSettings):
 
     # Qdrant-backed semantic cache (Phase 1.2). The live collection name is
     # built by the adapter (mukthi_semantic_cache_{dim}d); no name setting.
-    semantic_cache_hnsw_ef: int = 128  # HNSW ef parameter for cache lookups
 
     # --- P90/P99 Hybrid Search (Phase 1.1) ---
     faiss_cache_size: int = 500  # Number of top docs mirrored in local FAISS index
@@ -1851,15 +1918,9 @@ class Settings(BaseSettings):
 
     # --- LLM Gateway (Phase A7 — unified provider chain via emergentintegrations) ---
     # When llm_provider == "emergent", the LLMGateway uses the emergentintegrations
-    # library and picks a model from the comma-separated chain in
-    # `llm_provider_chain`. Format: "provider:model,provider:model,..."
-    # Example: "anthropic:claude-sonnet-4-6,anthropic:claude-haiku-4-5-20251001,openai:gpt-5.4"
-    # The gateway tries each in order on transient failure. NEVER hardcode model names
-    # in service code; always read from settings.
+    # library. The unread `llm_provider_chain` setting was removed 2026-11-06 (CQ-010).
+    # NEVER hardcode model names in service code; always read from settings.
     emergent_llm_key: str = ""  # Universal key, prefix sk-emergent-...
-    llm_provider_chain: str = (
-        "anthropic:claude-sonnet-4-6,anthropic:claude-haiku-4-5-20251001,openai:gpt-5.4"
-    )
 
     # --- LLM Gateway cross-provider fallback (services/llm_gateway.py — the
     # actual LLMGateway class; distinct from the emergentintegrations concept
@@ -1873,10 +1934,6 @@ class Settings(BaseSettings):
     # footer that was breaking immersion. The context-aware close is generated dynamically
     # from the intent + citation count instead.
     strip_canned_footer: bool = True
-    # Maximum paragraphs in a single answer (cadence control).
-    persona_max_paragraphs: int = 4
-    # Maximum words in a single sentence (cadence control). Trips a soft warning in logs.
-    persona_max_sentence_words: int = 35
     # Maximum age (days) of a stored persona before prepare_user_memory stops
     # injecting it into prompts; a stale persona is skipped, not served.
     persona_max_age_days: int = 30
@@ -2012,7 +2069,6 @@ class Settings(BaseSettings):
     # floor). Do not raise without re-measuring the score distribution.
     faithfulness_floor: float = 0.6
     confidence_gating_floor: float = 6.5
-    verifier_pass_ratio: float = 0.5
     rerank_threshold_complex: float = 0.01
     rerank_threshold_simple: float = 0.05
     rerank_floor: float = 0.3
@@ -2024,6 +2080,8 @@ class Settings(BaseSettings):
     # (sigmoid-normalized [0,1]), skip the LLM grading and sufficiency calls for
     # complex queries — saves 2 serial LLM round-trips. 0 disables.
     crag_skip_confidence: float = 0.75
+    crag_score_delta_ratio: float = 0.5
+    citation_by_sentence: bool = True
     # The deep graph adds a second verifier after standard verification. Skip
     # only when the first verifier already returned a strict faithful pass;
     # disable this flag to restore the duplicate contradiction check.
@@ -2470,6 +2528,17 @@ class Settings(BaseSettings):
                 "or set faculty_gate_disabled=true as a recorded owner decision "
                 "that this launch is intentionally ungated."
             )
+        # T1-07: an uncapped paid-LLM path must be a recorded decision, never an env typo.
+        if (
+            self.is_production
+            and not self.allow_uncapped_llm_spend
+            and not (self.openrouter_budget_guard_enabled and self.openrouter_budget_fail_closed)
+        ):
+            raise ValueError(
+                "openrouter_budget_guard_enabled and openrouter_budget_fail_closed must both be "
+                "true in production (spend cap). Set allow_uncapped_llm_spend=true only as a "
+                "recorded owner decision."
+            )
         return self
 
     @model_validator(mode="after")
@@ -2619,6 +2688,25 @@ class Settings(BaseSettings):
                 "deployment environment is added."
             )
         return self
+
+    # --- Opus thread 2026-11-06 (append-only block; each flag has a reader and
+    # tests for both states, per the CLAUDE.md "Dormant modules" rule) ---
+    # NEW-ING-6 (DATA-15/D-DQ1 proposal): the legacy store's points_servable also
+    # requires sha256(verbatim_text) to equal the stored hash. D-DQ1 (owner
+    # decision 2026-11-07): keep the compare behind this flag, off by default.
+    first_person_points_servable_hash_check_enabled: bool = False
+    # NEW-AI-5 (AI-010): the first-person lanes drop a clip the injection
+    # screen matches. Off: flag for review only (served, counted). D-PG16 (owner
+    # decision 2026-11-07): flag only, never drop a span at ingest; this
+    # serve-time switch stays off.
+    first_person_injection_screen_drop_enabled: bool = False
+    # T4-06 (ADR-009): one evidence-judge call replaces the relevance scorer.
+    # Active only with the flag on AND a model set. D-16 (owner decision
+    # 2026-11-07): the model is the relevance scorer's own model, priced in
+    # services/openrouter_service.py (read 2026-11-07). The flag stays off until
+    # the frozen-bank comparison shows the judge is not worse.
+    first_person_judge_enabled: bool = False
+    first_person_judge_model: str = "anthropic/claude-haiku-5.5"
 
 
 @lru_cache

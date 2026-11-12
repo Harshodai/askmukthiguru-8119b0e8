@@ -1,0 +1,268 @@
+/**
+ * Accessibility checks for states the route-level smoke test never reaches
+ * (NEW-A11Y-1 to 9). Each test maps to an AC-A11Y row in
+ * audits/audit-output-2026-11-04/specifications/ACCESSIBILITY_AUDIT_AND_REQUIREMENTS.md.
+ *
+ * Network is blocked, so these run against the built frontend alone. Anything
+ * that needs a real backend or Supabase session is out of scope here.
+ */
+import AxeBuilder from '@axe-core/playwright';
+import { test, expect, type Page } from '@playwright/test';
+import { dismissSafetyDisclaimer } from './support';
+
+async function openChat(page: Page, opts: { consent?: 'rejected' | null } = {}) {
+  await page.addInitScript((consent) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('askmukthiguru_tour_completed', '1');
+    if (consent) localStorage.setItem('askmukthiguru_consent_v1', consent);
+  }, opts.consent ?? null);
+  await page.route('**/api/**', (r) => r.abort());
+  await page.route('**/realtime/v1/**', (r) => r.abort());
+  await page.route('**/supabase.co/**', (r) => r.abort());
+  await page.goto('/chat', { waitUntil: 'domcontentloaded' });
+  await dismissSafetyDisclaimer(page);
+}
+
+test('AC-A11Y-10: the cookie banner does not cover Send at 390 px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await openChat(page);
+  const banner = page.locator('[role="dialog"][aria-label*="cookies" i]');
+  await expect(banner).toBeVisible({ timeout: 10_000 });
+  // Let the entrance animation finish so the geometry is the resting one.
+  await page.waitForTimeout(600);
+
+  await page.getByRole('textbox', { name: /your message/i }).fill('hello');
+  const send = page.getByRole('button', { name: /^send message$/i });
+  await expect(send).toBeVisible();
+  const box = (await send.boundingBox())!;
+  const topmost = await page.evaluate(
+    ([x, y]) => {
+      const el = document.elementFromPoint(x, y);
+      return !!el?.closest('button[aria-label="Send message"]');
+    },
+    [box.x + box.width / 2, box.y + box.height / 2],
+  );
+  expect(topmost, 'the cookie banner sits on top of the Send button').toBe(true);
+});
+
+// --- AC-A11Y-2: axe on states the empty page never shows -----------------------
+
+async function auditStates(page: Page, label: string) {
+  await page
+    .waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'), undefined, {
+      timeout: 5_000,
+    })
+    .catch(() => undefined);
+  await page.waitForTimeout(500); // framer-motion entrances are not always in getAnimations()
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .disableRules(['frame-title', 'color-contrast-enhanced'])
+    .exclude('iframe')
+    .analyze();
+  const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+  const text = blocking
+    .map((v) => `[${v.impact}] ${v.id}: ${v.nodes.slice(0, 3).map((n) => JSON.stringify(n.target)).join(' ')}`)
+    .join('\n');
+  expect(blocking, `${label}: serious/critical axe violations\n${text}`).toHaveLength(0);
+}
+
+async function sendQuestion(page: Page, text: string) {
+  const box = page.getByRole('textbox', { name: /your message/i });
+  await box.fill(text);
+  await box.press('Enter');
+}
+
+test('AC-A11Y-2d: the error card has no serious or critical violations', async ({ page }) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"boom"}' }),
+  );
+  await sendQuestion(page, 'What is the nature of attention?');
+  await expect(page.getByTestId('error-care-line').first()).toBeVisible({ timeout: 15_000 });
+  await auditStates(page, 'error card');
+});
+
+test('AC-A11Y-2b: the abstain answer has no serious or critical violations', async ({ page }) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: [
+        'event: message\n',
+        'data: {"content": "I could not find a teaching that answers this directly."}\n\n',
+        'event: done\n',
+        'data: {"intent": "FACTUAL", "citations": [], "meditation_step": 0, "grounding_state": "abstained"}\n\n',
+        'data: [DONE]\n\n',
+      ].join(''),
+    }),
+  );
+  await sendQuestion(page, 'What is the capital of France?');
+  await expect(page.getByText(/could not find a teaching/i).first()).toBeVisible({ timeout: 15_000 });
+  await auditStates(page, 'abstain answer');
+});
+
+// --- AC-A11Y-8 / AC-A11Y-9: focus and the polite live region -------------------
+
+const ABSTAIN_SSE = [
+  'event: message\n',
+  'data: {"content": "I could not find a teaching that answers this directly."}\n\n',
+  'event: done\n',
+  'data: {"intent": "FACTUAL", "citations": [], "meditation_step": 0, "grounding_state": "abstained"}\n\n',
+  'data: [DONE]\n\n',
+].join('');
+
+test('AC-A11Y-9: an arrived answer is announced once, and never reads the answer text', async ({ page }) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({ status: 200, contentType: 'text/event-stream', body: ABSTAIN_SSE }),
+  );
+  const region = page.getByTestId('chat-live-region');
+  await expect(region).toHaveText('');
+  await sendQuestion(page, 'What is the capital of France?');
+  await expect(region).toContainText(/no close match/i, { timeout: 15_000 });
+  await expect(region).not.toContainText(/could not find a teaching/i);
+  await expect(region).toHaveAttribute('aria-live', 'polite');
+});
+
+test('AC-A11Y-8: focus is on the composer after a send, whether by Enter or by the Send button', async ({
+  page,
+}) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({ status: 200, contentType: 'text/event-stream', body: ABSTAIN_SSE }),
+  );
+  const box = page.getByRole('textbox', { name: /your message/i });
+  await box.fill('What is the capital of France?');
+  await page.getByRole('button', { name: /^send message$/i }).click();
+  await expect(page.getByText(/could not find a teaching/i).first()).toBeVisible({ timeout: 15_000 });
+  await expect(
+    box,
+    `active element: ${await page.evaluate(() => (document.activeElement as HTMLElement | null)?.outerHTML.slice(0, 200))}`,
+  ).toBeFocused();
+});
+
+test('AC-A11Y-8: closing the first-run notice leaves focus on the composer or main, not <body>', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('askmukthiguru_tour_completed', '1');
+  });
+  await page.route('**/api/**', (r) => r.abort());
+  await page.route('**/supabase.co/**', (r) => r.abort());
+  await page.goto('/chat', { waitUntil: 'domcontentloaded' });
+  const notice = page.locator('[role="dialog"][aria-labelledby="safety-disclaimer-title"]');
+  await expect(notice).toBeVisible({ timeout: 15_000 });
+  // Escape is handled once the notice has taken focus; under load it can arrive earlier.
+  await expect(notice.locator('button:focus')).toHaveCount(1, { timeout: 10_000 });
+  await page.keyboard.press('Escape');
+  await expect(notice).toBeHidden();
+  await expect
+    .poll(() => page.evaluate(() => document.activeElement?.tagName ?? 'NONE'), { timeout: 5_000 })
+    .toMatch(/^(TEXTAREA|MAIN)$/);
+});
+
+// --- AC-A11Y-11: persistent help control ---------------------------------------
+
+for (const route of ['/', '/auth', '/chat']) {
+  test(`AC-A11Y-11: "Get help now" is on ${route} and opens the helpline list`, async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.clear();
+      localStorage.setItem('askmukthiguru_tour_completed', '1');
+      localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
+    });
+    await page.route('**/api/**', (r) => r.abort());
+    await page.route('**/supabase.co/**', (r) => r.abort());
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    await dismissSafetyDisclaimer(page);
+    const help = page.getByTestId('get-help-now');
+    await expect(help).toBeVisible({ timeout: 15_000 });
+    await expect(help).toHaveAccessibleName(/get help now/i);
+    await help.click();
+    const dialog = page.getByRole('dialog', { name: /get help now/i });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('a[href^="tel:"]').first()).toBeVisible();
+  });
+}
+
+// --- AC-A11Y-12: reduced motion ------------------------------------------------
+
+test.describe('AC-A11Y-12: reduced motion', () => {
+  for (const route of ['/', '/auth', '/chat']) {
+    test(`no infinite animation runs on ${route}`, async ({ page }) => {
+      // test.use({ reducedMotion }) is not honoured by this config; emulate directly.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.addInitScript(() => {
+        localStorage.clear();
+        localStorage.setItem('askmukthiguru_tour_completed', '1');
+        localStorage.setItem('askmukthiguru_consent_v1', 'rejected');
+      });
+      await page.route('**/api/**', (r) => r.abort());
+      await page.route('**/supabase.co/**', (r) => r.abort());
+      await page.goto(route, { waitUntil: 'domcontentloaded' });
+      await dismissSafetyDisclaimer(page);
+      await page.waitForTimeout(1500);
+      const infinite = await page.evaluate(() =>
+        document
+          .getAnimations()
+          .filter((a) => {
+            const t = a.effect?.getComputedTiming();
+            return t && t.iterations === Infinity && a.playState === 'running';
+          })
+          .map((a) => {
+            const el = (a.effect as KeyframeEffect | null)?.target as HTMLElement | null;
+            return `${el?.tagName}.${(a as CSSAnimation).animationName ?? ''} class="${(el?.className ?? '').toString().slice(0, 80)}" keyframes=${JSON.stringify((a.effect as KeyframeEffect).getKeyframes().map((k) => Object.keys(k).filter((x) => !['offset', 'computedOffset', 'easing', 'composite'].includes(x)))).slice(0, 80)}`;
+          }),
+      );
+      expect(infinite, `infinite animations still running on ${route}`).toEqual([]);
+    });
+  }
+});
+
+// --- AC-A11Y-2 (Sources dialog) --------------------------------------
+
+test('AC-A11Y-2c: the Sources dialog opened by Play clip has no serious or critical violations', async ({ page }) => {
+  await openChat(page, { consent: 'rejected' });
+  await page.unroute('**/api/**');
+  const citation = {
+    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    video_id: 'dQw4w9WgXcQ',
+    title: 'On Stillness',
+    speaker: 'Sri Krishnaji',
+    speaker_verified: true,
+    is_verbatim: true,
+    rights_cleared: true,
+    verbatim_text: 'Be still, and the truth reveals itself in that stillness.',
+    start_ms: 76000,
+    end_ms: 165000,
+    playback_start_seconds: 75.75,
+    playback_end_seconds: 165.25,
+    caption_status: 'auto',
+  };
+  await page.route(/\/api\/chat/, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: [
+        'event: message\n',
+        'data: {"content": "Here is a recorded teaching on stillness."}\n\n',
+        'event: done\n',
+        `data: ${JSON.stringify({ intent: 'FACTUAL', citations: [citation], meditation_step: 0, grounding_state: 'grounded' })}\n\n`,
+        'data: [DONE]\n\n',
+      ].join(''),
+    }),
+  );
+  await sendQuestion(page, 'How do I find stillness?');
+  const play = page.getByRole('button', { name: /play clip/i }).first();
+  await expect(play).toBeVisible({ timeout: 15_000 });
+  await play.click();
+  // "Play clip" opens the Sources panel, a dialog with its own clip player.
+  const dialog = page.getByRole('dialog', { name: /sources/i });
+  await expect(dialog).toBeVisible();
+  await auditStates(page, 'sources dialog');
+});

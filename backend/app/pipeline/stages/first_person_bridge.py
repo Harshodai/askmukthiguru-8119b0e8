@@ -66,9 +66,37 @@ logger = logging.getLogger(__name__)
 # DistressLevel.MODERATE; an int so this module stays import-light.
 _DISTRESS_DECLINE_LEVEL = 2
 
+# One-shot flag so "no provider can write a HyDE passage" is said once, not per request.
+# A mutable cell, so the note needs no ``global`` statement.
+_HYDE_PROVIDER_WARNED: dict[str, bool] = {"said": False}
+
+
+def _hyde_provider(container: Any) -> Any:
+    """The container service that can write a HyDE passage, or ``None``.
+
+    2026-11-11: this used to read ``container.ollama`` only. That attribute is a
+    *deprecated alias for* ``container.llm`` on the real container, so it happened to
+    work — but the signal was invisible and any container built without it (mocks, a
+    provider wired under a different name) skipped HyDE in silence. Prefer the canonical
+    provider, then the legacy aliases, and only accept an object that actually
+    implements ``generate_hyde``. ``OpenRouterService`` does not, which is why a name
+    check alone is not enough.
+    """
+    for attribute in ("llm", "ollama", "openrouter", "nim"):
+        candidate = getattr(container, attribute, None)
+        if candidate is not None and hasattr(candidate, "generate_hyde"):
+            return candidate
+    return None
+
+
 _PRACTICE_HOWTO_RE = re.compile(
     r"\b(how|steps?|guide|teach me|instructions?)\b.{0,40}"
     r"\b(soul\s*sync|serene\s*mind|meditat\w*|breath\w*)",
+    re.IGNORECASE,
+)
+
+_PROMISE_OR_OUTCOME_TRAP_RE = re.compile(
+    r"\b(?:promise(?:\s+me)?|guarantee|will\s+definitely|definitely\s+(?:be\s+)?saved|cure\s+my)\b",
     re.IGNORECASE,
 )
 
@@ -91,6 +119,84 @@ _SYNTHESIS_SHAPE_RE = re.compile(
     r"|\?[^?]+\?",
     re.IGNORECASE,
 )
+
+
+_COMPOUND_QUESTION_RE = re.compile(
+    r"\bboth\s+\w[\w\s]*and\s+\w"
+    r"|\w[\w\s]*\s+as\s+well\s+as\s+\w"
+    r"|—[^—]{3,80}(?:and|&)[^—]{3,80}—"
+    r"|,\s*[^,]+,\s*(?:and|&)\s*"
+    r"|\w[\w\s]*,?\s+and\s+(?:also|why|how|what|can|at\s+what|help|do|did|does|is|are|will|would)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_compound_question(text: str) -> bool:
+    """Detect multi-part questions that likely require more than one clip or concept.
+
+    Heuristic: compound questions have structural markers like:
+    - Multiple question marks (e.g., 'What is X? And how does Y work?')
+    - 'both X and Y' framing
+    - 'X as well as Y' structure
+    - Em-dash separating concepts ('X — A and B — why?')
+    - Explicit enumeration ('two states', 'two aspects')
+    - Coordinated question clauses ('..., and (also|why|how|what)')
+
+    The shape is used to widen retrieval (``max_clips``), never to decide
+    whether a clip may be served: that is the coverage decision's job.
+    """
+    if not text or not text.strip():
+        return False
+    if text.count("?") >= 2:
+        return True
+    return bool(_COMPOUND_QUESTION_RE.search(text))
+
+
+def _serve_decision_for_result(
+    *,
+    query: str,
+    answer_text: str,
+    status: str,
+    is_direct: bool,
+    editorial_set: object,
+    primary_mode: bool,
+    serve_weak_match: bool,
+):
+    """Build the typed serve decision for one pipeline result.
+
+    Imports are local so the bridge module stays import-light at startup (the
+    stage is only constructed when the first-person variant is selected).
+    """
+    from domain.first_person_decision import resolve_serve_posture
+    from services.first_person_content_assessment import assess_content
+    from services.first_person_coverage import coverage_for_served_text
+
+    editorial_dict = editorial_set if isinstance(editorial_set, dict) else None
+    content_safety = str(editorial_dict.get("content_safety") or "") if editorial_dict else None
+    covered_facets = editorial_dict.get("covered_facets") if editorial_dict else None
+    if covered_facets and not isinstance(covered_facets, (list, tuple, set)):
+        covered_facets = None
+
+    coverage = coverage_for_served_text(
+        query,
+        answer_text,
+        is_direct=is_direct,
+        editorial_set=editorial_dict,
+        semantic_facets=covered_facets,
+    )
+    assessment = assess_content(
+        answer_text,
+        query=query,
+        content_safety=content_safety or None,
+    )
+    return resolve_serve_posture(
+        pipeline_status=status,
+        is_direct_answer=is_direct,
+        coverage=coverage,
+        assessment=assessment,
+        primary_mode=primary_mode,
+        serve_weak_match=serve_weak_match,
+    )
 
 
 # Strong references to in-flight memory writes to prevent garbage collection before execution
@@ -602,6 +708,9 @@ class FirstPersonBridgeStage(Stage):
         boundaries: list[str] | None = None,
         compassion: bool = False,
         related: list[dict] | None = None,
+        *,
+        reason: str | None = None,
+        answerability: str | None = None,
     ) -> PipelineResult | None:
         """Hand off to the generating graph, or (first-person-only) abstain statically.
 
@@ -615,9 +724,19 @@ class FirstPersonBridgeStage(Stage):
         """
         if getattr(settings, "first_person_llm_fallback_enabled", False):
             return None
+        from guardrails.lightweight_handler import (
+            needs_addiction_support_boundary,
+            needs_relationship_safety_boundary,
+        )
         from rag.meditation import is_meditation_imperative
 
-        if is_meditation_imperative(str(getattr(ctx, "user_msg", "") or "")):
+        msg_str = str(getattr(ctx, "user_msg", "") or "")
+        _has_promise_or_boundary = bool(
+            _PROMISE_OR_OUTCOME_TRAP_RE.search(msg_str)
+            or needs_relationship_safety_boundary(msg_str)
+            or needs_addiction_support_boundary(msg_str)
+        )
+        if is_meditation_imperative(msg_str) and not _has_promise_or_boundary:
             return None
         return await self._abstain(
             ctx,
@@ -625,6 +744,8 @@ class FirstPersonBridgeStage(Stage):
             boundaries,
             compassion=compassion,
             related=await self._safe_related(ctx, related, compassion),
+            reason=reason,
+            answerability=answerability,
         )
 
     async def _safe_related(
@@ -691,11 +812,24 @@ class FirstPersonBridgeStage(Stage):
         # Guided practices (Soul Sync, Serene Mind) are step-by-step; one clip
         # is not the steps. A request to do one, or to learn how, goes to the
         # graph's meditation/teaching path (live 2026-10-05: no Soul Sync steps).
+        from guardrails.lightweight_handler import (
+            needs_addiction_support_boundary,
+            needs_relationship_safety_boundary,
+        )
         from rag.meditation import is_meditation_imperative
 
+        _has_promise_or_boundary = bool(
+            _PROMISE_OR_OUTCOME_TRAP_RE.search(query)
+            or needs_relationship_safety_boundary(query)
+            or needs_addiction_support_boundary(query)
+        )
         if is_meditation_imperative(query):
-            logger.info("[FirstPersonBridge] Guided-practice request; GraphStage runs.")
-            return None
+            if not _has_promise_or_boundary:
+                logger.info("[FirstPersonBridge] Guided-practice request; GraphStage runs.")
+                return None
+            logger.info(
+                "[FirstPersonBridge] Guided practice carries promise trap or safety boundary; evaluating under bridge safety."
+            )
         if _PRACTICE_HOWTO_RE.search(query) and getattr(
             settings, "first_person_llm_fallback_enabled", False
         ):
@@ -819,8 +953,18 @@ class FirstPersonBridgeStage(Stage):
             try:
                 import asyncio as _asyncio
 
-                _llm = getattr(container, "ollama", None)
-                if _llm is not None and hasattr(_llm, "generate_hyde"):
+                _llm = _hyde_provider(container)
+                if _llm is None:
+                    # Not silent: the old code checked one attribute and skipped HyDE
+                    # without a trace when it was absent.
+                    if not _HYDE_PROVIDER_WARNED["said"]:
+                        _HYDE_PROVIDER_WARNED["said"] = True
+                        logger.info(
+                            "[FirstPersonBridge] No container provider implements "
+                            "generate_hyde (checked llm, ollama, openrouter, nim); "
+                            "HyDE is skipped for this deployment."
+                        )
+                if _llm is not None:
                     hyde_text = await _asyncio.wait_for(
                         _llm.generate_hyde(question=retrieval_query),
                         timeout=2.5,
@@ -846,9 +990,75 @@ class FirstPersonBridgeStage(Stage):
                 )
 
         user_lang = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
+
+        # T6-02 (MEM-002): Extract memory signals (seen videos, stated interests) for clip diversity
+        memory_signals = None
+        if not getattr(ctx, "incognito", False):
+            user_profile = (
+                getattr(ctx, "state", {}).get("user_profile")
+                if hasattr(ctx, "state") and isinstance(ctx.state, dict)
+                else None
+            )
+            seen_videos = set()
+            chat_history = (
+                getattr(ctx, "state", {}).get("original_chat_history") or []
+                if hasattr(ctx, "state") and isinstance(ctx.state, dict)
+                else []
+            )
+            for msg in chat_history:
+                if isinstance(msg, dict):
+                    for cit in msg.get("citations") or []:
+                        if isinstance(cit, dict):
+                            vid = cit.get("videoId") or cit.get("video_id")
+                            if vid:
+                                seen_videos.add(str(vid))
+            if getattr(settings, "first_person_server_seen_clips_enabled", False):
+                try:
+                    from services.first_person_seen_store import get_seen_clips
+
+                    _uid = str(
+                        getattr(ctx, "user_id", "")
+                        or (
+                            getattr(ctx, "state", {}).get("user_id")
+                            if hasattr(ctx, "state") and isinstance(ctx.state, dict)
+                            else ""
+                        )
+                        or ""
+                    )
+                    _tid = str(getattr(ctx, "tenant_id", "") or "default")
+                    _rcli = getattr(container, "redis_client", None)
+                    if _uid:
+                        _, _server_videos = get_seen_clips(
+                            user_id=_uid, tenant_id=_tid, redis_client=_rcli
+                        )
+                        seen_videos.update(_server_videos)
+                except (
+                    RuntimeError,
+                    OSError,
+                    ConnectionError,
+                    TimeoutError,
+                    ValueError,
+                    KeyError,
+                    AttributeError,
+                ) as _seen_exc:
+                    logger.debug(
+                        "[FirstPersonBridge] Server seen clips lookup failed (fail-open): %s",
+                        _seen_exc,
+                    )
+            if seen_videos or (user_profile and getattr(user_profile, "topics_of_interest", None)):
+                memory_signals = {
+                    "seen_video_ids": list(seen_videos),
+                    "stated_interests": list(getattr(user_profile, "topics_of_interest", []) or [])
+                    if user_profile
+                    else [],
+                }
+
         pipeline = _fp_pipeline(container)
-        result = await asyncio.to_thread(
-            pipeline.execute,
+        from services.first_person_pipeline import serve_first_person
+
+        is_compound = _is_compound_question(query)
+        result = await serve_first_person(
+            pipeline,
             query=query,
             # retrieval_dense is the HyDE embedding when HyDE is active; otherwise
             # identical to `dense`. Confidence scoring inside the pipeline always
@@ -859,7 +1069,7 @@ class FirstPersonBridgeStage(Stage):
             query_dense_vector=retrieval_dense,
             query_sparse_vector=sparse,
             teacher_id="both",
-            max_clips=3,
+            max_clips=4 if is_compound else 3,
             retrieval_query=retrieval_query,
             language=user_lang,
             # The chat cache stages honour both flags; the first-person exact
@@ -867,7 +1077,9 @@ class FirstPersonBridgeStage(Stage):
             cache_bypass=(
                 getattr(ctx, "cache_bypass", False) is True
                 or getattr(ctx, "incognito", False) is True
+                or bool(memory_signals and memory_signals.get("seen_video_ids"))
             ),
+            memory_signals=memory_signals,
         )
 
         # Calibrated gate: the pipeline's own is_direct decision (fitted
@@ -900,30 +1112,59 @@ class FirstPersonBridgeStage(Stage):
         # `first_person_serve_weak_match`; see serve_weak below. Neither flag weakens
         # a gate.
         primary_mode = bool(getattr(settings, "first_person_primary_mode", True))
-        serve_weak = (
-            status == "weak_match"
-            and primary_mode
-            and bool(getattr(settings, "first_person_serve_weak_match", True))
+        # Serving posture is a typed decision (domain.first_person_decision):
+        # content assessment + coverage. Question shape no longer decides — a
+        # compound question is served as related when its required facets are
+        # covered, and a "direct" verdict is downgraded when they are not.
+        serve_decision = _serve_decision_for_result(
+            query=query,
+            answer_text=str(getattr(result, "answer_text", "") or ""),
+            status=status,
+            is_direct=is_direct,
+            editorial_set=getattr(result, "editorial_set", None),
+            primary_mode=primary_mode,
+            serve_weak_match=bool(getattr(settings, "first_person_serve_weak_match", True)),
         )
-        if (status != "success" or not is_direct) and not serve_weak:
+        logger.debug(
+            "[FirstPersonBridge] serve_posture=%s reason=%s coverage=%s content=%s",
+            serve_decision.posture.value,
+            serve_decision.reason,
+            serve_decision.coverage.verdict.value if serve_decision.coverage else "none",
+            serve_decision.assessment.severity.value
+            if serve_decision.assessment and serve_decision.assessment.severity
+            else "none",
+        )
+        if not serve_decision.serves:
             if status != "crisis_redirect" and not getattr(
                 settings, "first_person_llm_fallback_enabled", False
             ):
                 from rag.meditation import is_meditation_imperative
 
-                if not is_meditation_imperative(query):
+                _query_str = query
+                # A meditation imperative that also carries a promise / guarantee trap
+                # (e.g. "Promise me that if I do Soul Sync my marriage will be saved")
+                # must fail closed here too — never fall through to LLM generation.
+                _is_promise_trap = bool(_PROMISE_OR_OUTCOME_TRAP_RE.search(_query_str))
+                if not is_meditation_imperative(_query_str) or _is_promise_trap:
                     return await self._abstain(
                         ctx,
                         status,
                         boundaries,
                         compassion=distress_compassion,
                         related=await self._safe_related(ctx, related, distress_compassion),
+                        # NEW-ANS-2: keep why the pipeline abstained.
+                        reason=getattr(result, "abstain_reason", None),
+                        answerability=getattr(result, "answerability", None),
                     )
             logger.debug(
-                "[FirstPersonBridge] No direct answer (status=%s); GraphStage runs.",
+                "[FirstPersonBridge] No direct answer (status=%s, posture=%s); GraphStage runs.",
                 status or "unknown",
+                serve_decision.posture.value,
             )
             return None
+        # A covered-but-partial set is served as related, never as direct.
+        if not serve_decision.is_direct:
+            is_direct = False
 
         raw_citations = getattr(result, "citations", None)
         citations = _eligible_citations(raw_citations)
@@ -953,7 +1194,40 @@ class FirstPersonBridgeStage(Stage):
                 "[FirstPersonBridge] Answer text does not contain its cited clip text; "
                 "refusing to serve it as teacher voice."
             )
-            return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
+            return await self._decline(
+                ctx,
+                status,
+                boundaries,
+                compassion=distress_compassion,
+                reason="quote_contract_violation",
+            )
+
+        # NEW-SEC-1 (OPS-002): re-check every served clip at assembly. A clip whose
+        # text no longer matches its stored hash means a gate was bypassed; fail
+        # closed and count it.
+        from app.answer_contract import served_clip_integrity_failures
+
+        integrity_failures = served_clip_integrity_failures(citations, answer)
+        if integrity_failures:
+            try:
+                from app.metrics import SERVED_INTEGRITY_FAILURE_TOTAL
+
+                for check in integrity_failures:
+                    SERVED_INTEGRITY_FAILURE_TOTAL.labels(check=check).inc()
+            except (ImportError, ValueError) as exc:  # telemetry never breaks a response
+                logger.debug("served integrity failure not counted: %s", type(exc).__name__)
+            logger.error(
+                "[FirstPersonBridge] Served clip failed the assembly integrity re-check "
+                "(%s); refusing to serve it.",
+                ",".join(sorted(set(integrity_failures))),
+            )
+            return await self._decline(
+                ctx,
+                status,
+                boundaries,
+                compassion=distress_compassion,
+                reason="served_integrity_failure",
+            )
 
         # Pipeline renderers may include headings, missing-clip prose, or a source
         # footer. Those are UI structure, not guru speech. Rebuild from every
@@ -972,7 +1246,13 @@ class FirstPersonBridgeStage(Stage):
         guardrails = getattr(container, "guardrails", None)
         if guardrails is None:
             logger.warning("[FirstPersonBridge] No output rail available; declining.")
-            return await self._decline(ctx, status, boundaries, compassion=distress_compassion)
+            return await self._decline(
+                ctx,
+                status,
+                boundaries,
+                compassion=distress_compassion,
+                reason="output_rail_unavailable",
+            )
         output_check = await guardrails.check_output(answer)
         if isinstance(output_check, dict) and output_check.get("blocked"):
             logger.info(
@@ -1035,7 +1315,10 @@ class FirstPersonBridgeStage(Stage):
             if _text and _text not in safety_notices:
                 safety_notices.append(_text)
 
-        user_msg = str(getattr(ctx, "user_message", "") or "")
+        # PipelineContext carries the seeker's text as `user_msg`; reading
+        # `user_message` always returned "" and silently disabled the
+        # question-side self-harm cue.
+        user_msg = str(getattr(ctx, "user_msg", "") or "")
         level = getattr(getattr(ctx, "assessment", None), "level", None)
         level_val = int(getattr(level, "value", 0) or 0)
         has_self_harm_risk = bool(
@@ -1063,6 +1346,39 @@ class FirstPersonBridgeStage(Stage):
             _add_bound = addiction_support_boundary()
             if _add_bound not in safety_notices:
                 safety_notices.append(_add_bound)
+
+        # Platform copy for whatever the content assessor flagged on the served
+        # clip (Ayurvedic / spiritual-physiology framing today). The clip is NOT
+        # excluded — it carries a notice so the seeker knows to consult a
+        # physician. Clinical claims and causal-etiology claims never reach here:
+        # the assessment excluded them before serving.
+        from services.first_person_content_assessment import assess_content, notice_copy
+        from services.first_person_evidence_policy import first_person_evidence_policy
+
+        _ed_set = getattr(result, "editorial_set", None)
+        _cs = str(_ed_set.get("content_safety") or "") if isinstance(_ed_set, dict) else None
+        served_assessment = assess_content(answer, query=query, content_safety=_cs or None)
+        if not served_assessment.may_serve:
+            # Defense in depth: the assembled text changed after the gate.
+            logger.warning(
+                "[FirstPersonBridge] Assembled answer failed the content re-check (%s); declining.",
+                ",".join(served_assessment.exclusion_codes) or "degraded",
+            )
+            return await self._decline(
+                ctx,
+                status,
+                boundaries,
+                compassion=distress_compassion,
+                reason="content_assessment_failed",
+            )
+        for _notice in notice_copy(served_assessment):
+            if _notice not in safety_notices:
+                safety_notices.append(_notice)
+        for _notice in first_person_evidence_policy.notices_for(
+            answer, query=query, content_safety=_cs or None
+        ):
+            if _notice not in safety_notices:
+                safety_notices.append(_notice)
 
         if distress_compassion and has_self_harm_risk:
             # Emergency helpline is appended when acute distress / self-harm risk is detected.
@@ -1158,6 +1474,47 @@ class FirstPersonBridgeStage(Stage):
             verification["editorial_set"] = editorial_set
         # Dispatches consented canonical memory and outbox persistence asynchronously
         _dispatch_fp_memory(ctx, answer, citations)
+        if getattr(settings, "first_person_server_seen_clips_enabled", False) and not getattr(
+            ctx, "incognito", False
+        ):
+            try:
+                from services.first_person_seen_store import record_seen_clip
+
+                _uid = str(
+                    getattr(ctx, "user_id", "")
+                    or (
+                        getattr(ctx, "state", {}).get("user_id")
+                        if hasattr(ctx, "state") and isinstance(ctx.state, dict)
+                        else ""
+                    )
+                    or ""
+                )
+                _tid = str(getattr(ctx, "tenant_id", "") or "default")
+                _rcli = getattr(container, "redis_client", None)
+                if _uid:
+                    for cit in citations:
+                        c_id = cit.get("id") or cit.get("chunk_id") or cit.get("clip_id")
+                        v_id = cit.get("videoId") or cit.get("video_id")
+                        record_seen_clip(
+                            user_id=_uid,
+                            tenant_id=_tid,
+                            clip_id=str(c_id) if c_id else None,
+                            video_id=str(v_id) if v_id else None,
+                            redis_client=_rcli,
+                        )
+            except (
+                RuntimeError,
+                OSError,
+                ConnectionError,
+                TimeoutError,
+                ValueError,
+                KeyError,
+                AttributeError,
+            ) as _rec_exc:
+                logger.debug(
+                    "[FirstPersonBridge] Server seen clips recording failed: %s",
+                    _rec_exc,
+                )
         return PipelineResult(
             final_answer=answer,
             intent="QUERY",
@@ -1189,9 +1546,19 @@ class FirstPersonBridgeStage(Stage):
                 "fp_served": True,
                 "first_person_primary_mode": primary_mode,
                 "first_person_collection": str(getattr(settings, "first_person_collection", "")),
+                # C8: corpus version for per-corpus abstain/serve analysis. Empty when
+                # neither the result nor Settings carries one (never guessed).
+                "corpus_version": str(
+                    getattr(result, "corpus_version", "")
+                    or getattr(settings, "first_person_corpus_version", "")
+                    or ""
+                ),
                 "clips_served": len(citations),
+                "is_compound_query": is_compound,
+                "partial_compound": bool(is_compound and len(verbatim_quotes) == 1),
                 "pipeline_latency_ms": round(float(getattr(result, "latency_ms", 0.0) or 0.0), 2),
                 "pipeline_cached": bool(getattr(result, "cached", False)),
+                "stage_timings": getattr(result, "stage_timings", {}) or {},
                 "routing_chain": list(getattr(ctx, "routing_chain", [])),
                 "audio_playback_clip": getattr(result, "audio_playback_clip", None),
                 "audio_playback_clips": getattr(result, "audio_playback_clips", []) or [],
@@ -1220,6 +1587,9 @@ class FirstPersonBridgeStage(Stage):
         boundaries: list[str] | None = None,
         compassion: bool = False,
         related: list[dict] | None = None,
+        *,
+        reason: str | None = None,
+        answerability: str | None = None,
     ) -> PipelineResult:
         """Ask-1 FP-primary abstain — static text, no LLM, no fall-through.
 
@@ -1242,6 +1612,21 @@ class FirstPersonBridgeStage(Stage):
         blocked and crisis turn) leaves the payload byte-identical.
         """
         related_block = _abstain_related_payload(related)
+        # NEW-ANS-2 (ANS-010, RET-17): why the turn abstained. A check that could
+        # not run is never reported as a pass (verification.passed=False) and is
+        # counted as an error, not as "no teaching found". D-PQ9 (2026-11-07): its
+        # copy asks the seeker to try again.
+        from app.answer_contract import abstain_cause, abstain_copy_key
+
+        cause = abstain_cause(status, reason, answerability)
+        if compassion and cause != "system_unavailable":
+            cause = "safety"
+        try:
+            from app.metrics import ABSTAIN_CAUSE_TOTAL
+
+            ABSTAIN_CAUSE_TOTAL.labels(cause=cause).inc()
+        except (ImportError, ValueError) as exc:  # telemetry never breaks a response
+            logger.debug("abstain cause not counted: %s", type(exc).__name__)
         if compassion:
             answer = _distress_compassion_framing(ctx)
             from services.crisis_helplines import ensure_support_line
@@ -1251,6 +1636,14 @@ class FirstPersonBridgeStage(Stage):
         elif status == "error":
             answer = "I couldn't reach my teaching library just now. Please try again in a moment."
             method = "first_person_store_unavailable"
+        elif cause == "system_unavailable":
+            # D-PQ9 (owner decision 2026-11-07): a check that could not run (for
+            # example a scorer timeout) is a failure, not an absence of teaching.
+            answer = (
+                "I couldn't finish checking the teachings for this question just now. "
+                "Please try again in a moment."
+            )
+            method = "first_person_check_unavailable"
         else:
             answer = (
                 "I don't have a verified verbatim teaching that directly "
@@ -1289,7 +1682,13 @@ class FirstPersonBridgeStage(Stage):
                     ctx.container,
                     str(getattr(ctx, "preferred_lang", "") or ""),
                 )
-        elif getattr(ctx, "is_indic", False) and static and status != "error" and not boundaries:
+        elif (
+            getattr(ctx, "is_indic", False)
+            and static
+            and status != "error"
+            and cause != "system_unavailable"  # D-PQ9: that copy says "no teaching"
+            and not boundaries
+        ):
             answer = static  # no LLM call, no English words
         elif getattr(ctx, "is_indic", False):
             answer = await _translate_glue_only(
@@ -1333,9 +1732,10 @@ class FirstPersonBridgeStage(Stage):
             hallucination_flag=False,
             citations_verified=False,
             verification={
-                "passed": True,
+                "passed": cause != "system_unavailable",
                 "method": method,
                 "citations_verified": False,
+                "abstain_cause": cause,
             },
             release_manifest=get_release_manifest().to_dict(),
             route_metadata={
@@ -1343,6 +1743,10 @@ class FirstPersonBridgeStage(Stage):
                 "selected_variant": "no_match_abstain",
                 "decision_method": method,
                 "decline_status": status or "unknown",
+                "abstain_cause": cause,
+                "corpus_version": str(getattr(settings, "first_person_corpus_version", "") or ""),
+                "abstain_reason": str(reason) if reason else None,
+                "abstain_copy_key": abstain_copy_key(cause),
                 "llm_fallback_enabled": False,
                 # Owner decision 2026-10-19: the abstain is the distress compassion
                 # copy because the flag was on and this turn was MODERATE.
@@ -1372,3 +1776,30 @@ def first_person_bridge_enabled() -> bool:
 async def run_first_person_bridge(ctx: PipelineContext) -> PipelineResult | None:
     """Run the bridge fail-open — shared by the stage shim and the graph node."""
     return await FirstPersonBridgeStage().run(ctx)
+
+
+async def fail_closed_result(ctx: PipelineContext, method: str) -> PipelineResult:
+    """T1-05: the static abstain for a teaching-lane turn FP could not serve.
+
+    ``method`` is ``fp_disabled`` (kill switch) or ``fp_node_error`` (node
+    fault). Reuses the bridge's static abstain, then marks it as a failed
+    (not passed) verification so it is never counted as a grounded answer.
+    """
+    import dataclasses
+
+    from services.fp_fail_closed import record_fail_closed
+
+    record_fail_closed(method)
+    base = await FirstPersonBridgeStage()._abstain(ctx, method, reason="serving_contract_violation")
+    metadata = dict(base.route_metadata or {})
+    metadata["decision_method"] = method
+    return dataclasses.replace(
+        base,
+        verification={
+            "passed": False,
+            "method": method,
+            "citations_verified": False,
+            "abstain_cause": "system_unavailable",
+        },
+        route_metadata=metadata,
+    )

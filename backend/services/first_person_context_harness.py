@@ -32,6 +32,7 @@ from domain.first_person_context import (
 from domain.speaker_provenance import speaker_write_violations
 from services.first_person_evidence_policy import first_person_evidence_policy
 from services.first_person_rights import source_is_authoritatively_licensed
+from services.injection_screen import screen as screen_injection
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "not_standalone",
         "violent_relationship_context",
         "unsolicited_self_harm_reference",
+        "injection_screen",  # NEW-AI-5 drop mode (default off, D-PG16)
     }
 )
 _SHADOW_OUTCOMES = frozenset({"evaluated", "no_candidate", "not_configured", "timeout", "error"})
@@ -98,7 +100,20 @@ _ANTECEDENT_CONNECTIVE_RE = re.compile(
     r"^(?:"
     r"imagine\s+what\s+will\s+be\s+the\s+outcome\s+of\s+(?:it|this|that)\b|"
     r"(?:because|as\s+a\s+result)\s+of\s+(?:it|this|that)\b|"
-    r"in\s+response\s+to\s+(?:it|this|that)\b"
+    r"in\s+response\s+to\s+(?:it|this|that)\b|"
+    # 2026-11-10 (SOTA WS4): a span that opens mid-coordination or mid-relative-clause
+    # cannot stand alone, so it needs its predecessor. Measured on the live
+    # first_person_v10 collection: the rejected openers were "or the states of being
+    # that are within the grasp of every human being" and "tilted towards a worship of
+    # the I", neither of which the old three-phrase regex matched, so
+    # FirstPersonPipeline never attempted the cross-parent predecessor fetch and the
+    # harness abstained `fragment_without_antecedent` on a genuine teaching.
+    # Deliberately narrow: coordinating conjunctions, relative pronouns (excluding
+    # "that", which is a common demonstrative sentence opener), and bare
+    # non-finite past-participle openers ("tilted", "bound", "rooted"). Over-triggering
+    # is fail-closed: a lookup that returns no validated predecessor abstains.
+    r"(?:or|and|but|because|which|who|whose|whereas|whilst)\b|"
+    r"(?:tilted|bound|rooted|anchored|shaped|driven|caught|trapped)\b"
     r")",
     re.IGNORECASE,
 )
@@ -111,6 +126,24 @@ def _span_starts_with_antecedent(span: SourceSpan) -> bool:
     if span.coreference_chain_ids:
         return bool(span.previous_span_id)
     return bool(_ANTECEDENT_CONNECTIVE_RE.match(span.verbatim_text.strip()))
+
+
+def _injection_screen_refuses(spans: tuple[SourceSpan, ...]) -> bool:
+    """Count spans the injection screen matches; True only in drop mode."""
+    from services.first_person_pipeline import (
+        injection_screen_drop_enabled,
+        record_injection_screen,
+    )
+
+    flagged = [s.source_span_id for s in spans if screen_injection(s.verbatim_text)]
+    if not flagged:
+        return False
+    drop = injection_screen_drop_enabled()
+    action = "dropped" if drop else "flagged"
+    for span_id in flagged:
+        record_injection_screen("harness", action)
+        logger.warning("[FPHarness] injection screen %s span %s", action, span_id)
+    return drop
 
 
 def _is_question_only(text: str) -> bool:
@@ -278,7 +311,7 @@ def _not_standalone(spans: tuple[SourceSpan, ...]) -> bool:
     if not getattr(settings, "first_person_standalone_gate_enabled", True) or not spans:
         return False
     decision = first_person_evidence_policy.assess_context_standalone(
-        span.verbatim_text for span in spans
+        spans, is_verified_parent=True
     )
     return not decision.may_serve
 
@@ -299,7 +332,10 @@ class FirstPersonContextHarness:
             # when the compatibility setting is left at its old value.
             if not span.speaker_verified:
                 return False
-            if speaker_write_violations(span.to_payload()):
+            if speaker_write_violations(
+                span.to_payload(),
+                allow_legacy_centroid=not policy.require_voice_method,
+            ):
                 return False
         return True
 
@@ -406,13 +442,48 @@ class FirstPersonContextHarness:
         if hit_index is None:
             return self._apply_word_budget(ordered[:limit], hit_ids)
 
-        # Include one preceding span whenever the bound allows it, even for an
-        # even-sized window where exact centering would drop it.
-        offset = 0 if limit == 1 else max(1, (limit - 1) // 2)
-        start = max(0, hit_index - offset)
-        end = min(len(ordered), start + limit)
-        start = max(0, end - limit)
-        return self._apply_word_budget(ordered[start:end], hit_ids)
+        # Middle-Span Antecedent Anchoring (Task 2):
+        # When a middle span (Span 1 or 2, i.e. hit_index <= 2) hits, do not slice off Span 0;
+        # anchor the window to include the opening anchor span so antecedent pronouns have clear discourse context.
+        if hit_index <= 2 and limit >= 2:
+            start = 0
+            end = min(len(ordered), max(limit, hit_index + 1))
+        else:
+            # Include one preceding span whenever the bound allows it, even for an
+            # even-sized window where exact centering would drop it.
+            offset = 0 if limit == 1 else max(1, (limit - 1) // 2)
+            start = max(0, hit_index - offset)
+            end = min(len(ordered), start + limit)
+            start = max(0, end - limit)
+        candidate = self._apply_word_budget(ordered[start:end], hit_ids)
+
+        # Head-Anchor Fallback:
+        # If the centered window starts mid-discourse (start > 0) and triggers an orphan opener
+        # or antecedent missing error, check if anchoring from the parent head (ordered[0])
+        # establishes the topic noun and passes standalone checks cleanly.
+        if start > 0 and ordered:
+            from services.first_person_evidence_policy import _context_standalone_problem
+
+            prob = _context_standalone_problem(
+                (s.verbatim_text for s in candidate),
+                is_verified_parent=False,
+            )
+            if prob in (
+                "orphan_opener",
+                "antecedent_missing",
+                "discourse_opener",
+                "severed_lowercase_opener",
+            ):
+                head_candidate = self._apply_word_budget(
+                    ordered[: max(limit, hit_index + 1)], hit_ids
+                )
+                if not _context_standalone_problem(
+                    (s.verbatim_text for s in head_candidate),
+                    is_verified_parent=True,
+                ):
+                    return head_candidate
+
+        return candidate
 
     def _apply_word_budget(
         self, spans: tuple[SourceSpan, ...], hit_ids: set[str]
@@ -665,15 +736,18 @@ class FirstPersonContextHarness:
                 )
             spans = (predecessor,) + spans
 
-        if len({span.guru_id for span in spans}) != 1:
-            return self._abstain(
-                context,
-                "cross_guru_contamination",
-                gates={"guru_isolation": False},
-                state=state,
-                state_path=tuple(states),
-            )
-        if spans[0].guru_id != context.parent.guru_id:
+        from services.guru_registry import is_shared_guru_scope, shared_attribution
+
+        primary, shared_ids = shared_attribution()
+        shared_set = {str(gid).lower() for gid in (shared_ids or [])}
+        if primary:
+            shared_set.add(primary.lower())
+        span_gurus = {span.guru_id.lower() for span in spans if span.guru_id}
+
+        # Cross-guru contamination check:
+        # Founders are co-teachers (one common Guru).
+        # Spans across both are explicitly permitted; foreign/unregistered teachers are refused.
+        if len(span_gurus) > 1 and not span_gurus.issubset(shared_set):
             return self._abstain(
                 context,
                 "cross_guru_contamination",
@@ -682,9 +756,12 @@ class FirstPersonContextHarness:
                 state_path=tuple(states),
             )
 
-        teacher = (requested_teacher or context.parent.guru_id).lower()
-        if teacher not in ("", "both", "all"):
-            if any(s.guru_id.lower() != teacher for s in spans):
+        # Explicit teacher request filter:
+        # If the seeker explicitly requested one specific teacher,
+        # respect that specific teacher filter.
+        req_teacher = (requested_teacher or "").strip().lower()
+        if req_teacher and not is_shared_guru_scope(req_teacher):
+            if any(s.guru_id.lower() != req_teacher for s in spans):
                 return self._abstain(
                     context,
                     "cross_guru_contamination",
@@ -692,6 +769,20 @@ class FirstPersonContextHarness:
                     state=state,
                     state_path=tuple(states),
                 )
+        else:
+            parent_gid = (context.parent.guru_id or "").lower()
+            first_gid = (spans[0].guru_id or "").lower()
+            if first_gid != parent_gid and not (
+                first_gid in shared_set and parent_gid in shared_set
+            ):
+                return self._abstain(
+                    context,
+                    "cross_guru_contamination",
+                    gates={"guru_isolation": False},
+                    state=state,
+                    state_path=tuple(states),
+                )
+
         gates["guru_isolation"] = True
 
         gates["speaker"] = self._speaker_gate(spans, self._policy)
@@ -733,6 +824,17 @@ class FirstPersonContextHarness:
                 context,
                 "asr_script_garbage",
                 gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        # NEW-AI-5 (AI-010): text addressed to a model is flagged for review;
+        # it refuses the answer only when the drop flag is on (D-PG16 open).
+        if _injection_screen_refuses(spans):
+            return self._abstain(
+                context,
+                "injection_screen",
+                gates={**gates, "injection_screen": False},
                 state=state,
                 state_path=tuple(states),
             )

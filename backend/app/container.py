@@ -54,6 +54,21 @@ from services.web_search_service import WebSearchService
 
 logger = logging.getLogger(__name__)
 
+
+def get_llm_provider(container: Any) -> Any:
+    """Retrieve the active LLM provider from ServiceContainer or test mock (CQ-014 / T7-03)."""
+    if hasattr(container, "_mock_children"):
+        c_dict = getattr(container, "__dict__", {})
+        if "llm" in c_dict:
+            return container.llm
+        if "ollama" in c_dict:
+            return container.ollama
+        if "ollama" in container._mock_children and "llm" not in container._mock_children:
+            return container.ollama
+        return getattr(container, "llm", container.ollama)
+    return getattr(container, "llm", None) or getattr(container, "ollama", None)
+
+
 # Upper bound on how long process exit waits for the background graph build.
 GRAPH_WARMUP_EXIT_JOIN_TIMEOUT_S = 300.0
 
@@ -88,6 +103,7 @@ _REQUIRED_SINGLETONS = frozenset(
         "ingestion_tracker",
         "qdrant",
         "embedding",
+        "llm",
         "ollama",
         "guardrails",
         "exact_cache",
@@ -121,6 +137,15 @@ class ServiceContainer:
             "ServiceContainer must be constructed via ContainerBuilder().build(). "
             "Direct instantiation is not supported."
         )
+
+    @property
+    def ollama(self):
+        """Deprecated alias for self.llm (CQ-014 / T7-03)."""
+        return getattr(self, "llm", None)
+
+    @ollama.setter
+    def ollama(self, value):
+        self.llm = value
 
     # === Builder stages =======================================================
 
@@ -188,7 +213,9 @@ class ServiceContainer:
         from services.openrouter_service import OpenRouterService
         from services.translation import TranslationProviderFactory
 
-        self.ollama = _create_llm_service()  # LLMProvider strategy wrapping Sarvam OR Ollama
+        self.llm = (
+            _create_llm_service()
+        )  # Canonical LLMProvider strategy (wrapping Sarvam, OpenRouter, or Ollama)
 
         # Wire TranslationProvider using TranslationProviderFactory
         if settings.is_sarvam_cloud:
@@ -201,11 +228,11 @@ class ServiceContainer:
             self.sarvam_cloud = None
             from services.llm.openrouter_provider import OpenRouterProvider
 
-            if isinstance(self.ollama, OllamaProvider):
+            if isinstance(self.llm, OllamaProvider):
                 from services.translation import OllamaTranslationProvider
 
-                self.translation = OllamaTranslationProvider(self.ollama._service)
-            elif isinstance(self.ollama, OpenRouterProvider):
+                self.translation = OllamaTranslationProvider(self.llm._service)
+            elif isinstance(self.llm, OpenRouterProvider):
                 # 2026-09-28: the live provider fell to the no-op branch below, so every
                 # "translate to English / back to the seeker's language" call silently
                 # returned its input. Gemini-via-OpenRouter first (gemini_translation_enabled,
@@ -218,7 +245,7 @@ class ServiceContainer:
                 from services.translation.gemini_provider import GeminiTranslationProvider
                 from services.translation.routing_provider import RoutingTranslationProvider
 
-                openrouter = self.ollama._service
+                openrouter = self.llm._service
                 self.translation = RoutingTranslationProvider(
                     gemini_provider=GeminiTranslationProvider(openrouter)
                     if settings.gemini_translation_enabled
@@ -231,7 +258,7 @@ class ServiceContainer:
 
         # Cross-provider failover via NIM was removed per security audit:
         # external API calls must not be introduced as a silent fallback.
-        # self.ollama stays unwrapped so isinstance checks below work directly.
+        # self.llm stays unwrapped so isinstance checks below work directly.
 
         # OpenRouter free-tier service for fast/simple queries
         self.openrouter = OpenRouterService()
@@ -345,7 +372,7 @@ class ServiceContainer:
 
         _primary_provider_name = settings.llm_provider.lower()
         self.llm_gateway = LLMGateway(
-            primary=self.ollama,
+            primary=self.llm,
             coalescer=self.coalescer,
             secondary=self.openrouter,
             primary_name=_primary_provider_name,
@@ -605,7 +632,7 @@ class ServiceContainer:
             self.memory_service = MemoryServiceV2(
                 supabase_client=self.supabase_client,
                 embedding_service=self.embedding,
-                llm_service=self.ollama,
+                llm_service=self.llm,
                 neo4j_driver_accessor=lambda: self.neo4j_driver,
             )
             # Fix: global_memory collection was never created — every
@@ -623,7 +650,7 @@ class ServiceContainer:
 
             self.srs_service = SRSService(
                 supabase_client=self.supabase_client,
-                ollama_service=self.ollama,
+                ollama_service=self.llm,
                 guardrails_service=self.guardrails,
                 translation_service=self.translation,
             )
@@ -773,7 +800,7 @@ class ServiceContainer:
         self.ingestion = IngestionPipeline(
             qdrant_service=self.qdrant,
             embedding_service=self.embedding,
-            ollama_service=self.ollama,
+            ollama_service=self.llm,
             lightrag_service=self.lightrag,
             ocr_service=self.ocr,
             semantic_cache_service=self.semantic_cache,
@@ -791,7 +818,7 @@ class ServiceContainer:
         """
         logger.info("ContainerBuilder: building FAST graph...")
         self.fast_graph = build_fast_graph(
-            ollama_service=self.ollama,
+            ollama_service=self.llm,
             embedding_service=self.embedding,
             qdrant_service=self.qdrant,
             lightrag_service=self.lightrag,
@@ -825,7 +852,7 @@ class ServiceContainer:
         try:
             logger.info("ContainerBuilder: background building STANDARD graph...")
             self.standard_graph = build_rag_graph(
-                ollama_service=self.ollama,
+                ollama_service=self.llm,
                 embedding_service=self.embedding,
                 qdrant_service=self.qdrant,
                 lightrag_service=self.lightrag,
@@ -845,7 +872,7 @@ class ServiceContainer:
         try:
             logger.info("ContainerBuilder: background building DEEP graph...")
             self.deep_graph = build_deep_graph(
-                ollama_service=self.ollama,
+                ollama_service=self.llm,
                 embedding_service=self.embedding,
                 qdrant_service=self.qdrant,
                 lightrag_service=self.lightrag,

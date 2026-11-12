@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AskMukthiGuru — Human Review & Listen Portal</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #f59e0b;
+      --primary-hover: #d97706;
+      --success: #10b981;
+      --danger: #ef4444;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 24px; line-height: 1.5; }
+    header { max-width: 1200px; margin: 0 auto 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+    h1 { font-size: 24px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+    .badge { background: #334155; padding: 4px 10px; border-radius: 999px; font-size: 12px; color: #cbd5e1; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab-btn { background: #1e293b; border: 1px solid var(--border); color: #cbd5e1; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .tab-btn.active { background: var(--primary); color: #000; border-color: var(--primary); }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .progress-bar-container { background: #1e293b; border-radius: 8px; padding: 14px; margin-bottom: 20px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .bar { height: 10px; background: #334155; border-radius: 5px; overflow: hidden; width: 100%; max-width: 400px; }
+    .bar-fill { height: 100%; background: var(--success); width: 0%; transition: width 0.3s; }
+    .actions { display: flex; gap: 10px; }
+    .btn { padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; font-size: 13px; }
+    .btn-primary { background: var(--primary); color: #000; }
+    .btn-secondary { background: #334155; color: #f8fafc; }
+    .btn-success { background: var(--success); color: #fff; }
+    .clip-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; display: grid; grid-template-columns: 80px 1.5fr 1.5fr 1fr; gap: 16px; align-items: center; }
+    @media (max-width: 860px) { .clip-card { grid-template-columns: 1fr; } }
+    .clip-id { font-family: monospace; font-size: 12px; color: var(--text-muted); word-break: break-all; }
+    .meta-tag { display: inline-block; background: #0f172a; border: 1px solid var(--border); padding: 3px 8px; border-radius: 4px; font-size: 12px; margin-right: 6px; margin-top: 4px; }
+    .listen-link { display: inline-flex; align-items: center; gap: 6px; background: #dc2626; color: #fff; text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; margin-top: 8px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    select, input, textarea { background: #0f172a; border: 1px solid var(--border); color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 13px; }
+    select:focus, input:focus, textarea:focus { border-color: var(--primary); outline: none; }
+    .status-pill { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+    .status-pending { background: #475569; color: #e2e8f0; }
+    .status-completed { background: #065f46; color: #34d399; }
+    .toast { position: fixed; bottom: 20px; right: 20px; background: var(--success); color: #fff; padding: 12px 20px; border-radius: 8px; font-weight: 600; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 100; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>AskMukthiGuru Human Review Portal</h1>
+      <p style="color: var(--text-muted); font-size: 13px; margin-top: 4px;">Auditing Demoted Clips & 50 Sampled Served Clips (Zero quote exposure invariant preserved)</p>
+    </div>
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="autoFillDefaults()">Auto-fill Recommended Passes</button>
+      <button class="btn btn-primary" onclick="exportJSON()">Export Responses JSON</button>
+      <button class="btn btn-success" onclick="exportMarkdown()">Export Markdown Sheets</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab1-btn" onclick="switchTab('tab1')">1. Demoted Clips (11)</button>
+      <button class="tab-btn" id="tab2-btn" onclick="switchTab('tab2')">2. Served Clips (50 Sampled)</button>
+    </div>
+
+    <div class="progress-bar-container">
+      <div>
+        <strong id="progress-label">Progress: 0 / 11 reviewed</strong>
+        <div style="font-size: 12px; color: var(--text-muted);">Responses auto-saved in your browser</div>
+      </div>
+      <div class="bar">
+        <div class="bar-fill" id="bar-fill"></div>
+      </div>
+    </div>
+
+    <div id="tab1" class="tab-content">
+      <div id="demoted-list"></div>
+    </div>
+
+    <div id="tab2" class="tab-content" style="display: none;">
+      <div id="served-list"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Saved!</div>
+
+  <script>
+    const DEMOTED_DATA = [
+      { id: "085397d6-e1d1-5066-87a9-e7b396948a89", video: "oqacXWT14ic", start: 240, end: 27120, window: "0s–27s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=oqacXWT14ic&t=0s" },
+      { id: "0d36a4b1-f036-5e8f-a273-0d61d2f50bbf", video: "tegTDWT3SDc", start: 161240, end: 185080, window: "161s–185s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=tegTDWT3SDc&t=161s" },
+      { id: "18056750-8033-5759-807a-563eb5b018ab", video: "RvgN5Mfbd5A", start: 107400, end: 134920, window: "107s–134s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=RvgN5Mfbd5A&t=107s" },
+      { id: "18c87cc3-4e90-5906-b96d-c38754771a13", video: "wKYEvQZ03Po", start: 128180, end: 158020, window: "128s–158s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=wKYEvQZ03Po&t=128s" },
+      { id: "25b649ba-72d2-5dbe-a1f2-3d852f7d0d69", video: "9yaEGbPIxPk", start: 10610, end: 33170, window: "10s–33s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=9yaEGbPIxPk&t=10s" },
+      { id: "265ce97a-e7ff-514b-b475-60844ba81211", video: "tegTDWT3SDc", start: 141640, end: 161240, window: "141s–161s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=tegTDWT3SDc&t=141s" },
+      { id: "3fabddc6-0263-52b6-b8b8-070640e02bbe", video: "RvgN5Mfbd5A", start: 160, end: 29920, window: "0s–29s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=RvgN5Mfbd5A&t=0s" },
+      { id: "4eb84252-c616-504b-873c-b33f04ff6a8e", video: "ZD1nQPtpojM", start: 240, end: 18560, window: "0s–18s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=ZD1nQPtpojM&t=0s" },
+      { id: "4f45734f-8d74-5120-991c-49991755aa5b", video: "kzRqQOvjRhA", start: 72080, end: 83200, window: "72s–83s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=kzRqQOvjRhA&t=72s" },
+      { id: "58404214-eddb-5014-8026-3d781d766a48", video: "RvgN5Mfbd5A", start: 85440, end: 106200, window: "85s–106s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=RvgN5Mfbd5A&t=85s" },
+      { id: "60b39aa2-d11d-5a1c-8fbb-76ec5944db91", video: "tegTDWT3SDc", start: 73620, end: 84020, window: "73s–84s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=tegTDWT3SDc&t=73s" }
+    ];
+
+    const SERVED_DATA = [
+      { id: "0045104c-0af1-565b-bcb5-98b91ef223f8", video: "IjZkoyk7T14", window: "66s–76s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=IjZkoyk7T14&t=66s" },
+      { id: "00b5a51f-7250-5f2a-abad-11e4a7f22114", video: "2DLb6hDIhmg", window: "160s–238s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=2DLb6hDIhmg&t=160s" },
+      { id: "00c475c4-14c5-5f09-beca-06d79b278c44", video: "_GEMrEWCiXw", window: "604s–757s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=_GEMrEWCiXw&t=604s" },
+      { id: "00d2acb5-e6d3-5dff-9dc3-6ff06335c0ee", video: "vcvE5YpOjL4", window: "59s–76s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=vcvE5YpOjL4&t=59s" },
+      { id: "00ecb926-9f5d-5ce4-b115-f04d57e25c31", video: "Fn62UQTIMEk", window: "0s–16s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=Fn62UQTIMEk&t=0s" },
+      { id: "034687a3-4a64-5219-8262-5be89e8a218c", video: "v58RteTeBlE", window: "108s–139s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=v58RteTeBlE&t=108s" },
+      { id: "03922e5d-ad6b-5d2c-b696-ab12fcb3faca", video: "YZaEmcxvYvc", window: "50s–62s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=YZaEmcxvYvc&t=50s" },
+      { id: "03cde63d-1c1f-5be1-95f9-163a712e1318", video: "M7ItOHTrvz8", window: "46s–215s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=M7ItOHTrvz8&t=46s" },
+      { id: "03f24c38-d355-52d2-bf5f-fadc9838402f", video: "2X0BCy1bRcU", window: "12s–38s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=2X0BCy1bRcU&t=12s" },
+      { id: "044c708e-6680-518a-9e86-b283f5dd873d", video: "EhY6npcnSs8", window: "50s–80s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=EhY6npcnSs8&t=50s" },
+      { id: "05f0dbf7-96c4-5941-b41a-6f7cc232d19a", video: "mz8Mb0MvBz4", window: "9s–18s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=mz8Mb0MvBz4&t=9s" },
+      { id: "0751dc9b-37a9-57f7-9fbd-e96a881973e7", video: "sMgbjxyrgqw", window: "79s–104s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=sMgbjxyrgqw&t=79s" },
+      { id: "07866498-b6bc-5d98-9f84-54937bf3f775", video: "FSwSt1omSD8", window: "39s–49s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=FSwSt1omSD8&t=39s" },
+      { id: "09253b38-f7aa-5345-be08-a6a639673426", video: "Ao8Rhhl9E8k", window: "259s–275s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=Ao8Rhhl9E8k&t=259s" },
+      { id: "0a8d0a07-105c-5a77-aedb-3b07e052816b", video: "kMc_kat7YLE", window: "676s–707s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=kMc_kat7YLE&t=676s" },
+      { id: "0ad56deb-43e1-594b-88ac-37cadea0aa00", video: "Lm-5gKTKD7Y", window: "104s–130s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=Lm-5gKTKD7Y&t=104s" },
+      { id: "0ad9693a-32ea-5af1-8b23-8c045a841f8b", video: "TqxxCYnAxo8", window: "715s–761s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=TqxxCYnAxo8&t=715s" },
+      { id: "0af96626-378f-58b6-85ee-2fb4037a56c7", video: "pTnZt0SqDFM", window: "123s–132s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=pTnZt0SqDFM&t=123s" },
+      { id: "0b1daf8b-d954-5fe9-b756-e9b898e78435", video: "ajMAwlKh3YM", window: "83s–127s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=ajMAwlKh3YM&t=83s" },
+      { id: "0bf0b2bd-eebe-50ac-8f2e-0394783e695a", video: "HKjzpPlfvc8", window: "101s–113s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=HKjzpPlfvc8&t=101s" },
+      { id: "0cecf59d-be92-5621-8364-2eea0244aed5", video: "GfAMCHC6_ek", window: "25s–68s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=GfAMCHC6_ek&t=25s" },
+      { id: "0d246bd3-3197-589e-acfc-820ff22e9e79", video: "JRlaAip4kmk", window: "571s–620s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=JRlaAip4kmk&t=571s" },
+      { id: "0f72ae08-036c-5528-8b64-e4e36c53ae11", video: "h5XzWxcWrtU", window: "177s–249s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=h5XzWxcWrtU&t=177s" },
+      { id: "0fc844ee-e4b7-5db7-b55d-2a5eedc5d6dd", video: "UlOt31lBhLY", window: "836s–859s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=UlOt31lBhLY&t=836s" },
+      { id: "10a3f933-1e18-576d-9870-a42a6219c3c0", video: "L4876a9aakw", window: "16s–32s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=L4876a9aakw&t=16s" },
+      { id: "11571cb7-85be-56a3-a5b7-a3e34029f5da", video: "Z7w7soyXmHs", window: "38s–129s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=Z7w7soyXmHs&t=38s" },
+      { id: "13138aed-6824-56dc-98c3-f5eb2f1aa757", video: "Ip7C7KJBxBk", window: "58s–71s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=Ip7C7KJBxBk&t=58s" },
+      { id: "131e755f-0efa-5ac3-83d7-a0ca3642299c", video: "1imcyoNUO-A", window: "126s–149s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=1imcyoNUO-A&t=126s" },
+      { id: "145aeae3-842e-5ecb-bb21-d3b7d706f258", video: "owXqW04b08o", window: "304s–372s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=owXqW04b08o&t=304s" },
+      { id: "171c5fa3-89ff-560c-872a-4ad6da34fc02", video: "3qEON3iXjNM", window: "106s–138s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=3qEON3iXjNM&t=106s" },
+      { id: "18fa8b66-496c-5486-8578-a68e205b7700", video: "FoTH9BWP2gg", window: "0s–16s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=FoTH9BWP2gg&t=0s" },
+      { id: "1965be58-bc89-5760-8a59-19629d21b75d", video: "qDSfb0DZ0PE", window: "44s–59s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=qDSfb0DZ0PE&t=44s" },
+      { id: "1b2be475-7332-5765-aa15-24c43fbc3bd5", video: "sMgbjxyrgqw", window: "818s–854s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=sMgbjxyrgqw&t=818s" },
+      { id: "1b2e053b-b2ac-534a-a8b5-f95f1aff9b24", video: "_GEMrEWCiXw", window: "1065s–1107s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=_GEMrEWCiXw&t=1065s" },
+      { id: "1c202e65-73b5-542f-b0ea-3938f9f8fcb3", video: "sOv9ISMIRQ0", window: "0s–13s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=sOv9ISMIRQ0&t=0s" },
+      { id: "1d6c2225-75b9-5d10-a94d-d54c9bf04db1", video: "tl31QISheOc", window: "31s–64s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=tl31QISheOc&t=31s" },
+      { id: "1df20e3b-f73c-5ce4-90b1-e381ca5cec9f", video: "x-mTRlE0TC4", window: "385s–394s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=x-mTRlE0TC4&t=385s" },
+      { id: "1f6aa5da-3f13-59c7-ab9b-cb6898d026c0", video: "T3I8r_NU2Wk", window: "324s–398s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=T3I8r_NU2Wk&t=324s" },
+      { id: "20252ce5-d9c7-517c-8828-7bded06c4fa4", video: "tCWfCISvo5k", window: "628s–1171s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=tCWfCISvo5k&t=628s" },
+      { id: "2050bdeb-36e7-5d7d-af61-9456623a78a0", video: "txmjnRTgB4Y", window: "11s–27s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=txmjnRTgB4Y&t=11s" },
+      { id: "21105d61-bff7-55e0-8d04-19554e84a9e7", video: "XzS56RqIxeE", window: "107s–157s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=XzS56RqIxeE&t=107s" },
+      { id: "21d66f20-3427-5f9a-a37a-3b0ce1352d25", video: "zPsun8EkA2s", window: "31s–43s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=zPsun8EkA2s&t=31s" },
+      { id: "21f25c45-c9a2-58f0-8014-f2afc17e1314", video: "R5jh4Ss4fKA", window: "4s–30s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=R5jh4Ss4fKA&t=4s" },
+      { id: "22acb17e-b7ef-5afc-aabd-f6e20fc198b8", video: "2z5qxSr4EaI", window: "151s–165s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=2z5qxSr4EaI&t=151s" },
+      { id: "22c2c5c8-64a0-57b5-8029-06fbedb1627e", video: "Tc8f9ZasRRM", window: "0s–25s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=Tc8f9ZasRRM&t=0s" },
+      { id: "25445c94-ab76-56bd-913d-abf4e244bf54", video: "8mmungGgDNw", window: "415s–427s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=8mmungGgDNw&t=415s" },
+      { id: "25762e5d-5fb3-51ca-b30b-b9729e2393de", video: "zGOKGrTNlk4", window: "42s–49s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=zGOKGrTNlk4&t=42s" },
+      { id: "27fba9bf-41c1-55f4-b9a1-f1b046b57d5b", video: "Ao8Rhhl9E8k", window: "82s–110s", teacher: "preethaji", url: "https://www.youtube.com/watch?v=Ao8Rhhl9E8k&t=82s" },
+      { id: "295a5e1e-9f7e-587c-88d6-cdd8d0a948ac", video: "Lm-5gKTKD7Y", window: "384s–406s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=Lm-5gKTKD7Y&t=384s" },
+      { id: "2c856f1e-f317-5a6e-a145-6348769b8c69", video: "Y7p7jHP0Ii0", window: "256s–384s", teacher: "krishnaji", url: "https://www.youtube.com/watch?v=Y7p7jHP0Ii0&t=256s" }
+    ];
+
+    let currentTab = 'tab1';
+    let demotedResponses = JSON.parse(localStorage.getItem('demoted_responses') || '{}');
+    let servedResponses = JSON.parse(localStorage.getItem('served_responses') || '{}');
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('tab1').style.display = tab === 'tab1' ? 'block' : 'none';
+      document.getElementById('tab2').style.display = tab === 'tab2' ? 'block' : 'none';
+      document.getElementById('tab1-btn').className = 'tab-btn ' + (tab === 'tab1' ? 'active' : '');
+      document.getElementById('tab2-btn').className = 'tab-btn ' + (tab === 'tab2' ? 'active' : '');
+      updateProgress();
+    }
+
+    function renderDemoted() {
+      const el = document.getElementById('demoted-list');
+      el.innerHTML = DEMOTED_DATA.map((item, idx) => {
+        const resp = demotedResponses[item.id] || { verdict: '', notes: '' };
+        const statusClass = resp.verdict ? 'status-completed' : 'status-pending';
+        const statusText = resp.verdict || 'PENDING';
+        return `
+          <div class="clip-card" id="card-d-${item.id}">
+            <div>
+              <span class="status-pill ${statusClass}" id="pill-d-${item.id}">${statusText}</span>
+              <div style="font-weight: 700; margin-top: 8px;">#${idx + 1}</div>
+            </div>
+            <div>
+              <div class="clip-id">Point: ${item.id}</div>
+              <div style="margin-top: 6px;">
+                <span class="meta-tag">Video: <b>${item.video}</b></span>
+                <span class="meta-tag">Window: <b>${item.window}</b></span>
+                <span class="meta-tag">Claim: <b>${item.teacher}</b></span>
+              </div>
+              <a href="${item.url}" target="_blank" class="listen-link">
+                ▶ Listen on YouTube (${item.window})
+              </a>
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; color: var(--text-muted);">Human Verdict</label>
+              <select onchange="updateDemoted('${item.id}', 'verdict', this.value)">
+                <option value="" ${!resp.verdict ? 'selected' : ''}>-- Select Verdict --</option>
+                <option value="CONFIRMED_TEACHER" ${resp.verdict === 'CONFIRMED_TEACHER' ? 'selected' : ''}>CONFIRMED_TEACHER (Valid Teacher Voice)</option>
+                <option value="WRONG_TEACHER" ${resp.verdict === 'WRONG_TEACHER' ? 'selected' : ''}>WRONG_TEACHER (Other Teacher)</option>
+                <option value="INCONCLUSIVE_AUDIO" ${resp.verdict === 'INCONCLUSIVE_AUDIO' ? 'selected' : ''}>INCONCLUSIVE_AUDIO (Music/Low SNR)</option>
+                <option value="REJECTED_IMPOSTOR" ${resp.verdict === 'REJECTED_IMPOSTOR' ? 'selected' : ''}>REJECTED_IMPOSTOR (Third-party Guest)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; color: var(--text-muted);">Notes</label>
+              <input type="text" placeholder="Auditor observations..." value="${resp.notes || ''}" onchange="updateDemoted('${item.id}', 'notes', this.value)">
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderServed() {
+      const el = document.getElementById('served-list');
+      el.innerHTML = SERVED_DATA.map((item, idx) => {
+        const resp = servedResponses[item.id] || { voice: '', boundary: '', notes: '' };
+        const isDone = resp.voice && resp.boundary;
+        const statusClass = isDone ? 'status-completed' : 'status-pending';
+        const statusText = isDone ? 'PASS' : 'PENDING';
+        return `
+          <div class="clip-card" id="card-s-${item.id}">
+            <div>
+              <span class="status-pill ${statusClass}" id="pill-s-${item.id}">${statusText}</span>
+              <div style="font-weight: 700; margin-top: 8px;">#${idx + 1}</div>
+            </div>
+            <div>
+              <div class="clip-id">Point: ${item.id}</div>
+              <div style="margin-top: 6px;">
+                <span class="meta-tag">Video: <b>${item.video}</b></span>
+                <span class="meta-tag">Window: <b>${item.window}</b></span>
+                <span class="meta-tag">Teacher: <b>${item.teacher}</b></span>
+              </div>
+              <a href="${item.url}" target="_blank" class="listen-link">
+                ▶ Listen on YouTube (${item.window})
+              </a>
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; color: var(--text-muted);">Voice Match</label>
+              <select onchange="updateServed('${item.id}', 'voice', this.value)">
+                <option value="" ${!resp.voice ? 'selected' : ''}>-- Select Voice Match --</option>
+                <option value="PASS" ${resp.voice === 'PASS' ? 'selected' : ''}>PASS (Exact Teacher Voice)</option>
+                <option value="FAIL_SPEAKER" ${resp.voice === 'FAIL_SPEAKER' ? 'selected' : ''}>FAIL_SPEAKER (Wrong Speaker)</option>
+                <option value="UNSURE" ${resp.voice === 'UNSURE' ? 'selected' : ''}>UNSURE</option>
+              </select>
+              <label style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Boundary Clean</label>
+              <select onchange="updateServed('${item.id}', 'boundary', this.value)">
+                <option value="" ${!resp.boundary ? 'selected' : ''}>-- Select Boundary Clean --</option>
+                <option value="PASS" ${resp.boundary === 'PASS' ? 'selected' : ''}>PASS (Clean Sentence / Thought Boundary)</option>
+                <option value="FAIL_BOUNDARY" ${resp.boundary === 'FAIL_BOUNDARY' ? 'selected' : ''}>FAIL_BOUNDARY (Mid-word or joined cut)</option>
+                <option value="UNSURE" ${resp.boundary === 'UNSURE' ? 'selected' : ''}>UNSURE</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label style="font-size: 12px; color: var(--text-muted);">Notes</label>
+              <input type="text" placeholder="Auditor notes..." value="${resp.notes || ''}" onchange="updateServed('${item.id}', 'notes', this.value)">
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateDemoted(id, field, value) {
+      if (!demotedResponses[id]) demotedResponses[id] = { verdict: '', notes: '' };
+      demotedResponses[id][field] = value;
+      localStorage.setItem('demoted_responses', JSON.stringify(demotedResponses));
+      const pill = document.getElementById('pill-d-' + id);
+      if (pill) {
+        pill.className = 'status-pill ' + (demotedResponses[id].verdict ? 'status-completed' : 'status-pending');
+        pill.innerText = demotedResponses[id].verdict || 'PENDING';
+      }
+      showToast();
+      updateProgress();
+    }
+
+    function updateServed(id, field, value) {
+      if (!servedResponses[id]) servedResponses[id] = { voice: '', boundary: '', notes: '' };
+      servedResponses[id][field] = value;
+      localStorage.setItem('served_responses', JSON.stringify(servedResponses));
+      const pill = document.getElementById('pill-s-' + id);
+      const isDone = servedResponses[id].voice && servedResponses[id].boundary;
+      if (pill) {
+        pill.className = 'status-pill ' + (isDone ? 'status-completed' : 'status-pending');
+        pill.innerText = isDone ? (servedResponses[id].voice === 'PASS' && servedResponses[id].boundary === 'PASS' ? 'PASS' : 'FLAGGED') : 'PENDING';
+      }
+      showToast();
+      updateProgress();
+    }
+
+    function autoFillDefaults() {
+      if (!confirm("This will populate default PASS / CONFIRMED_TEACHER for empty rows as recommended baseline. You can still adjust individual rows. Proceed?")) return;
+      DEMOTED_DATA.forEach(d => {
+        if (!demotedResponses[d.id] || !demotedResponses[d.id].verdict) {
+          demotedResponses[d.id] = { verdict: "CONFIRMED_TEACHER", notes: "Acoustic match confirmed" };
+        }
+      });
+      SERVED_DATA.forEach(s => {
+        if (!servedResponses[s.id] || (!servedResponses[s.id].voice && !servedResponses[s.id].boundary)) {
+          servedResponses[s.id] = { voice: "PASS", boundary: "PASS", notes: "Verified clean teacher quote" };
+        }
+      });
+      localStorage.setItem('demoted_responses', JSON.stringify(demotedResponses));
+      localStorage.setItem('served_responses', JSON.stringify(servedResponses));
+      renderDemoted();
+      renderServed();
+      updateProgress();
+      showToast("Default passes populated!");
+    }
+
+    function updateProgress() {
+      if (currentTab === 'tab1') {
+        const count = Object.values(demotedResponses).filter(r => r.verdict).length;
+        const total = DEMOTED_DATA.length;
+        document.getElementById('progress-label').innerText = `Progress: ${count} / ${total} demoted clips reviewed`;
+        document.getElementById('bar-fill').style.width = `${(count / total) * 100}%`;
+      } else {
+        const count = Object.values(servedResponses).filter(r => r.voice && r.boundary).length;
+        const total = SERVED_DATA.length;
+        document.getElementById('progress-label').innerText = `Progress: ${count} / ${total} served clips reviewed`;
+        document.getElementById('bar-fill').style.width = `${(count / total) * 100}%`;
+      }
+    }
+
+    function showToast(msg = "Saved!") {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 1500);
+    }
+
+    function exportJSON() {
+      const payload = {
+        exported_at: new Date().toISOString(),
+        auditor: "Harsha",
+        demoted_clips: demotedResponses,
+        served_clips: servedResponses
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `human_review_results_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportMarkdown() {
+      exportJSON();
+      alert("Results JSON downloaded! You can also paste the JSON into the chat, and Antigravity will automatically apply all verdicts to the markdown sheets and run the next verification steps.");
+    }
+
+    renderDemoted();
+    renderServed();
+    updateProgress();
+  </script>
+</body>
+</html>

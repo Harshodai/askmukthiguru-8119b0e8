@@ -110,7 +110,8 @@ def test_spend_guard_defaults():
     trap as the first-person collection pin in ``tests/conftest.py``.
     """
     s = Settings(_env_file=None)
-    assert s.openrouter_budget_guard_enabled is False
+    assert s.openrouter_budget_guard_enabled is True  # T1-07
+    assert s.openrouter_budget_fail_closed is True
     defaults = Settings.model_fields
     assert defaults["openrouter_daily_budget_usd"].default == 10.0
     assert defaults["openrouter_monthly_budget_usd"].default == 40.0
@@ -326,9 +327,13 @@ def test_first_person_only_posture_is_the_default():
     assert Settings.model_fields["first_person_active_collection"].default == "first_person_v10"
     assert s.first_person_llm_fallback_enabled is False
     assert s.first_person_serve_weak_match is True
-    # Same idiom: the local `backend/.env` overrides this to 2, so assert the
-    # declared default (3) rather than the env-resolved value.
-    assert Settings.model_fields["first_person_relevance_min_score"].default == 3
+    # Same idiom: assert the declared default rather than the env-resolved value.
+    # 2026-11-10 (SOTA plan WS3): the declared default moved 3 -> 2. A score-2 context is
+    # served as ``weak_match`` (status + is_direct_answer=False + verification.direct=False),
+    # never as a direct answer, because directness is now resolved separately by
+    # ``_DIRECT_ANSWER_MIN_SCORE = 3``. Asserting 3 here would pin the old guillotine that
+    # discarded 95% of authentic discourse.
+    assert Settings.model_fields["first_person_relevance_min_score"].default == 2
 
 
 def test_production_refuses_missing_faculty_code():
@@ -429,3 +434,28 @@ def test_first_person_mode_rejects_undeclared_values():
 def test_first_person_mode_normalizes_case_and_whitespace():
     assert Settings(first_person_mode="  Hybrid ").first_person_mode == "hybrid"
     assert Settings(first_person_mode="DISABLED").first_person_mode == "disabled"
+
+
+def test_uncapped_spend_refused_in_production_unless_recorded():
+    """T1-07: production refuses a disabled/fail-open OpenRouter spend guard."""
+    import pytest
+
+    base = dict(
+        _env_file=None,
+        is_production=True,
+        environment="production",
+        anon_session_hmac_secret="a" * 40,
+        openrouter_api_key="k",
+        enable_test_auth=False,
+        brain_kek="k" * 44,
+        faculty_access_code="x",
+    )
+    for kw in (
+        {"openrouter_budget_guard_enabled": False},
+        {"openrouter_budget_fail_closed": False},
+    ):
+        with pytest.raises(ValueError, match="spend cap"):
+            Settings(**base, **kw)
+    ok = Settings(**base, openrouter_budget_guard_enabled=False, allow_uncapped_llm_spend=True)
+    assert ok.allow_uncapped_llm_spend is True
+    assert Settings.model_fields["allow_uncapped_llm_spend"].default is False

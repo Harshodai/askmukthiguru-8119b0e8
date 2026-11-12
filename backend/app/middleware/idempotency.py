@@ -76,6 +76,11 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             "/api/ingest",
             "/api/ritual",
             "/api/memory",
+            "/api/brain",
+            "/api/healing-course",
+            "/api/chat",
+            "/api/profile",
+            "/api/user",
         ]
 
     async def _get_redis(self):
@@ -90,7 +95,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                     socket_timeout=5,
                 )
                 await self._redis.ping()
-            except Exception as e:
+            except (OSError, ConnectionError, ValueError, TimeoutError) as e:
                 logger.warning(f"Idempotency Redis unavailable: {e}. Idempotency disabled.")
                 self._redis = None
         return self._redis
@@ -179,7 +184,7 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 try:
                     await redis_conn.delete(lock_key)
                 except Exception:
-                    pass
+                    logger.warning("idempotency lock release failed", exc_info=True)
 
         if 200 <= response.status_code < 500:
             body = await self._extract_body(response)

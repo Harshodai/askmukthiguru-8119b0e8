@@ -192,12 +192,18 @@ def test_fp_route_cache_hit_cannot_skip_the_topic_rail(monkeypatch):
     _C.embedding.encode_single_full_async.return_value = {"dense": [1.0, 0.0], "sparse": {}}
     _C.guardrails.check_output.return_value = {"blocked": False}
     _C.translation = None
+
+    from services.auth_service import get_optional_user
+
+    _authed_user = {"id": "test-unit-user", "is_anonymous": False, "role": "authenticated"}
     app.dependency_overrides[get_container_async] = lambda: _C()
+    app.dependency_overrides[get_optional_user] = lambda: _authed_user
     try:
         with patch.object(fp_api, "_pipeline", lambda *a, **k: pipe):
             resp = TestClient(app).post("/api/first-person/query", json={"query": q})
     finally:
         app.dependency_overrides.pop(get_container_async, None)
+        app.dependency_overrides.pop(get_optional_user, None)
     data = resp.json()
     assert data["status"] == "crisis_redirect"
     assert data["citations"] == []
@@ -213,6 +219,7 @@ def _route_with_rail(monkeypatch, rail):
     from app.api import first_person as fp_api
     from app.dependencies import get_container_async
     from app.main import app
+    from services.auth_service import get_optional_user
 
     # Patch the settings object the route module actually reads.
     monkeypatch.setattr(fp_api.settings, "first_person_mode", "retrieval_only")
@@ -226,7 +233,13 @@ def _route_with_rail(monkeypatch, rail):
 
     _C.embedding.encode_single_full_async.return_value = {"dense": [1.0, 0.0], "sparse": {}}
     _C.translation = None
+
+    # Override auth (SEC-001): supply an authenticated user so the route's
+    # session_id gate is bypassed.  These tests pre-date the auth gate and
+    # exercise only the output-rail logic, not access control.
+    _authed_user = {"id": "test-unit-user", "is_anonymous": False, "role": "authenticated"}
     app.dependency_overrides[get_container_async] = lambda: _C()
+    app.dependency_overrides[get_optional_user] = lambda: _authed_user
     try:
         with patch.object(fp_api, "_pipeline", lambda *a, **k: pipe):
             resp = TestClient(app).post(
@@ -236,6 +249,7 @@ def _route_with_rail(monkeypatch, rail):
             return resp.json()
     finally:
         app.dependency_overrides.pop(get_container_async, None)
+        app.dependency_overrides.pop(get_optional_user, None)
 
 
 class _Rail:
@@ -400,9 +414,13 @@ from services.serene_mind_engine import DistressAssessment  # noqa: E402
 
 
 def test_support_line_is_india_first_and_from_yaml():
+    # T4-07 (SAFE-004): only call-verified lines are shown, so the verified
+    # India line comes first and the 112 fallback follows. Unverified lines
+    # (988, 116 123 until a call date is recorded) are excluded; that contract
+    # is pinned in tests/test_verified_helplines_only.py.
     line = format_support_line()
-    assert "14416" in line and "988" in line and "116 123" in line
-    assert line.index("14416") < line.index("988") < line.index("116 123")
+    assert "14416" in line and "112" in line
+    assert line.index("14416") < line.index("112")
 
 
 def test_ensure_support_line_appends_once():
@@ -448,7 +466,14 @@ async def test_handle_distress_strips_hazard_and_carries_support_line():
         result = await handle_distress(state, config={})
     answer = result["final_answer"]
     assert "life itself" not in answer
-    assert "14416" in answer and "988" in answer
+    # Owner decision 2026-11-06 (Harsha, thread "accept as it is"): since T4-07
+    # (SAFE-004) the distress answer carries only call-verified lines, which
+    # today is Tele-MANAS alone. Pin the verified block, not a list of numbers,
+    # so a line with a newly recorded call date appears without a test edit.
+    from services.crisis_helplines import format_helplines_block
+
+    assert "14416" in answer
+    assert format_helplines_block(style="compact_two_line", verified_only=True) in answer
 
 
 @pytest.mark.asyncio

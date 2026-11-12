@@ -40,6 +40,7 @@ from typing import Optional
 import numpy as np
 
 from app.config import settings
+from app.log_safe import q_tag
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +200,7 @@ class SemanticCacheService:
             return None
 
         except Exception as e:
-            logger.warning(f"Semantic cache lookup failed for query={query}: {e}")
+            logger.warning(f"Semantic cache lookup failed for query={q_tag(query)}: {e}")
             self._misses += 1
             return None
 
@@ -272,7 +273,7 @@ class SemanticCacheService:
             logger.debug(f"Semantic cache: stored entry {entry_id} ({len(entry_ids)} total)")
 
         except Exception as e:
-            logger.warning(f"Semantic cache store failed for query={query}: {e}")
+            logger.warning(f"Semantic cache store failed for query={q_tag(query)}: {e}")
 
     def invalidate_all(self) -> None:
         """Clear all semantic cache entries."""

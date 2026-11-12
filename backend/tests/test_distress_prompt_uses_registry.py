@@ -24,13 +24,22 @@ def test_helpline_from_registry():
 
     assert "{helplines_block}" not in rendered, "placeholder was not substituted"
 
+    # SAFE-004 (T4-07, owner decision 2026-11-06): the prompt carries the
+    # registry's call-verified lines only; unverified contacts stay out.
+    from services.crisis_helplines import _is_call_verified_and_fresh
+
     helplines = get_helplines() or _FALLBACK_HELPLINES
     for helpline in helplines:
-        assert helpline.contact in rendered, (
-            f"registry contact {helpline.contact!r} missing from rendered prompt"
-        )
+        if _is_call_verified_and_fresh(helpline):
+            assert helpline.contact in rendered, (
+                f"verified contact {helpline.contact!r} missing from rendered prompt"
+            )
+        else:
+            assert helpline.contact not in rendered, (
+                f"unverified contact {helpline.contact!r} in rendered prompt"
+            )
 
-    rendered_block = format_helplines_block(style="bullet", intro="")
+    rendered_block = format_helplines_block(style="bullet", intro="", verified_only=True)
     assert rendered_block in rendered, "registry-formatted block must appear verbatim"
 
 

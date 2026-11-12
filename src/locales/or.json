@@ -359,8 +359,8 @@
     "thanks": "ବାଣ୍ଟିଥିବାରୁ ଧନ୍ୟବାଦ। 🙏",
     "listening": "ଶୁଣୁଛି",
     "speak": "କୁହନ୍ତୁ",
-    "streakRooting_one": "{{count}} ଦିନର ଧାରାବାହିକତା — ଆପଣଙ୍କ ସୁନ୍ଦର ଅବସ୍ଥା ମୂଳ ବାନ୍ଧୁଛି!",
-    "streakRooting_other": "{{count}} ଦିନର ଧାରାବାହିକତା — ଆପଣଙ୍କ ସୁନ୍ଦର ଅବସ୍ଥା ମୂଳ ବାନ୍ଧୁଛି!",
+    "streakRooting_one": "{{count}} ଦିନର ନିରନ୍ତର ଅଭ୍ୟାସ ପଞ୍ଜୀକୃତ",
+    "streakRooting_other": "{{count}} ଦିନର ନିରନ୍ତର ଅଭ୍ୟାସ ପଞ୍ଜୀକୃତ",
     "streakKeepGoing_one": "{{count}} ଦିନର ଧାରାବାହିକତା — ଜାରି ରଖନ୍ତୁ!",
     "streakKeepGoing_other": "{{count}} ଦିନର ଧାରାବାହିକତା — ଜାରି ରଖନ୍ତୁ!"
   },
@@ -845,7 +845,9 @@
       "eraseConfirmButton": "ହଁ, ସମସ୍ତ ସ୍ମୃତିକୁ ଲିଭାଇ ଦିଅ",
       "erasing": "ସ୍ମୃତିକୁ ଲିଭାଇବା…",
       "close": "ବନ୍ଦ"
-    }
+    },
+    "quotaLeft": "ଆଜି {{limit}} ମଧ୍ୟରୁ {{remaining}} ମାଗଣା ପ୍ରଶ୍ନ ବାକି",
+    "quotaResetsIn": "{{count}} ଘଣ୍ଟାରେ ରିସେଟ ହେବ।"
   },
   "notFound": {
     "message": "କ୍ଷମା କରିବେ! ପୃଷ୍ଠା ମିଳିଲା ନାହିଁ",

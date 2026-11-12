@@ -1,4 +1,5 @@
 #!/bin/bash
+# REFERENCE ONLY. Not deployed. Source of truth: .railway/railway.ts and docker-compose.prod.yml. Last reviewed (static, no cluster): 2026-11-06. Keep, fix or retire: decision D-PK8S1.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -6,20 +6,7 @@
 name: Dependency Check
 
 on:
-  schedule:
-    # Every Monday at 03:00 UTC
-    - cron: '0 3 * * 1'
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - 'backend/requirements.lock'
-      - 'backend/requirements.txt'
-      - 'backend/pyproject.toml'
-      - 'LICENSE-EXCEPTIONS.md'
-      - '.github/workflows/dependency-check.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

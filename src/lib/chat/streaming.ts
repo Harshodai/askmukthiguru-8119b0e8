@@ -1,4 +1,5 @@
 import { getCurrentConfig } from './config';
+import { publishQuota } from './quotaEvents';
 import { getAccessToken, refreshAccessToken } from './auth';
 import { getAnonSessionToken, refreshAnonSessionToken } from './anonSession';
 import { buildAssistantContext } from './assistant';
@@ -16,6 +17,7 @@ type RichError = Error & {
   errorCode?: string;
   quotaRemaining?: number;
   quotaTotalLimit?: number;
+  retryAfterSeconds?: number;
 };
 
 /**
@@ -26,6 +28,27 @@ type RichError = Error & {
 export function splitSseLines(buffer: string): { lines: string[]; remainder: string } {
   const lines = buffer.split(/\r?\n/);
   return { lines: lines.slice(0, -1), remainder: lines[lines.length - 1] ?? '' };
+}
+
+export const DEFAULT_STREAM_TIMEOUT_MS = 30_000;
+
+async function readWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const error = new Error('Stream timed out waiting for server response.');
+        (error as RichError).errorCode = 'timeout';
+        reject(error);
+      }, timeoutMs);
+    });
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /**
@@ -55,6 +78,7 @@ export async function* sendMessageStreaming(
   attachmentContext?: string,
   languageOverride?: string,
   personalizeTeaching?: PersonalizeTeachingRef,
+  streamTimeoutMs: number = DEFAULT_STREAM_TIMEOUT_MS,
 ): AsyncGenerator<StreamChunk> {
   const { provider, endpoint, systemPrompt } = getCurrentConfig();
 
@@ -141,6 +165,7 @@ export async function* sendMessageStreaming(
       throw err;
     }
     const pos = jobData.queue_position;
+    publishQuota(jobData.quota);
     yield {
       type: 'status' as const,
       text: pos && pos > 1
@@ -183,6 +208,7 @@ export async function* sendMessageStreaming(
       (err as RichError).errorCode = errorCode;
       if (typeof errorData?.remaining === 'number') (err as RichError).quotaRemaining = errorData.remaining;
       if (typeof errorData?.total_limit === 'number') (err as RichError).quotaTotalLimit = errorData.total_limit;
+      if (typeof errorData?.retry_after_seconds === 'number') (err as RichError).retryAfterSeconds = errorData.retry_after_seconds;
       throw err;
     }
   }
@@ -210,6 +236,7 @@ export async function* sendMessageStreaming(
     (error as RichError).errorCode = errorCode;
     if (typeof errorData?.remaining === 'number') (error as RichError).quotaRemaining = errorData.remaining;
     if (typeof errorData?.total_limit === 'number') (error as RichError).quotaTotalLimit = errorData.total_limit;
+    if (typeof errorData?.retry_after_seconds === 'number') (error as RichError).retryAfterSeconds = errorData.retry_after_seconds;
     throw error;
   }
 
@@ -235,7 +262,7 @@ export async function* sendMessageStreaming(
   try {
     while (true) {
       if (signal?.aborted) break;
-      const { done, value } = await reader.read();
+      const { done, value } = await readWithTimeout(reader.read(), streamTimeoutMs);
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const { lines: sseLines, remainder } = splitSseLines(buffer);
@@ -401,7 +428,9 @@ export async function* sendMessageStreaming(
       }
     }
     if (!signal?.aborted && !doneSeen) {
-      throw new Error('The response stream ended before completion metadata was received.');
+      const err = new Error('The response stream ended before completion metadata was received.');
+      (err as RichError).errorCode = 'stream_interrupted';
+      throw err;
     }
     await recordMetric({ type: 'ai_response_time', value: Date.now() - startMs, userMessageId, lastMessageId, sessionId: effectiveSessionId, tags: { provider: 'custom', endpoint: 'stream' } });
   } finally {

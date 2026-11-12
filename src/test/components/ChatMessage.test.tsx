@@ -477,7 +477,7 @@ describe('ChatMessage guidance plan', () => {
         />,
         { wrapper },
       );
-      expect(screen.getByText('Related teaching — not a direct answer')).toBeInTheDocument();
+      expect(screen.getByText('Related, not a direct answer')).toBeInTheDocument();
       expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
     });
 
@@ -574,7 +574,7 @@ describe('ChatMessage guidance plan', () => {
       expect(quoteCards[1]).toHaveTextContent(third);
       const firstSourceSegments = within(quoteCards[0]).getAllByTestId('guru-teaching-quote-span');
       expect(firstSourceSegments.map((segment) => segment.textContent)).toEqual([first, second]);
-      expect(screen.getAllByText('Related — not a direct answer')).toHaveLength(2);
+      expect(screen.getAllByText('Related, not a direct answer')).toHaveLength(2);
       expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
       expect((container.textContent?.match(/Love is not possession\./g) ?? [])).toHaveLength(1);
     });

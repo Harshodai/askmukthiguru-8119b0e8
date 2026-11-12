@@ -6,7 +6,7 @@ Production-ready single-file Flask bridge: WhatsApp (Twilio + Meta Cloud API)
 ## What you get
 
 - `wa_bot.py` — the service (~200 lines, single file, no framework magic)
-- `requirements.txt` — flask, requests, twilio, pyjwt
+- `requirements.txt` — flask, requests, twilio
 - `.env.example` — every config knob, all required values explained
 - `Dockerfile` — optional, ~10 lines
 
@@ -80,7 +80,6 @@ session` (rotated server secret) re-issues once and retries.
 | Env var | Required | Notes |
 |---|---|---|
 | `ASKMUKTHIGURU_API_URL` | yes | e.g. `https://api.askmukthiguru.com` (no trailing slash) |
-| `JWT_SECRET` | no | Legacy only (`mint_jwt` kept for tooling). Live turns use per-phone anon tokens; no backend JWT is sent. |
 | `TWILIO_AUTH_TOKEN` | yes | Twilio console → Account → Auth Token. Used to validate webhook signatures. |
 | `TWILIO_FROM` | yes | `whatsapp:+14155238886` for sandbox; your WA number for prod |
 | `WA_DB_PATH` | no | Default `./wa_state.db`. Use a persistent volume in production. |
@@ -144,7 +143,7 @@ restart wipes meditation state mid-session.
 ## Security checklist (pre-launch)
 
 ```
-[ ] No JWT_SECRET needed for live turns (per-phone anon tokens). `mint_jwt` is legacy tooling only
+[ ] No JWT is minted or sent (per-phone anon tokens); JWT_SECRET is not used by the bot
 [ ] TWILIO_AUTH_TOKEN set (not the Account SID) so signature validation works
 [ ] WA_DB_PATH points to a persistent volume (not /tmp)
 [ ] Bot host has correct NTP — JWT clock skew >5min causes 401s
@@ -163,30 +162,22 @@ restart wipes meditation state mid-session.
 Quick smoke without going through Twilio:
 
 ```bash
-# Generate a JWT
-JWT=$(python -c "
-import jwt, time, os
-print(jwt.encode({'sub':'wa-test','role':'authenticated',
-                  'iat':int(time.time()),'exp':int(time.time())+3600,
-                  'iss':'askmukthiguru-wa-bot'},
-                 os.environ['JWT_SECRET'], algorithm='HS256'))
-")
+# Get an anonymous session token (what the bot does per phone)
+TOKEN=$(curl -s -X POST "$ASKMUKTHIGURU_API_URL/api/auth/anon-session" | python -c "import sys,json; d=json.load(sys.stdin); print(d.get('token') or d.get('session_id') or '')")
 
-# Hit the backend directly with that JWT
+# Hit the backend directly with that session id
 curl -sw "\n%{http_code}\n" -X POST "$ASKMUKTHIGURU_API_URL/api/chat" \
-  -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
-  -d '{
-    "messages": [],
-    "user_message": "What is the Beautiful State?",
-    "session_id": "wa-test",
-    "meditation_step": 0,
-    "language": "en"
-  }' | python -m json.tool
+  -d "{
+    \"messages\": [],
+    \"user_message\": \"What is the Beautiful State?\",
+    \"session_id\": \"$TOKEN\",
+    \"meditation_step\": 0,
+    \"language\": \"en\"
+  }" | python -m json.tool
 ```
 
-If that returns 200 with a real spiritual response, your bot will work.
-If it returns 401, the JWT_SECRET mismatch is your problem.
+If that returns 200 with a real response, your bot will work.
 
 ## Failure modes & user-visible fallbacks
 

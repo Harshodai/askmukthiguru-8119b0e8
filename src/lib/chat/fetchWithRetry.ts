@@ -38,6 +38,12 @@ export const SERVER_BUSY_HELPLINE_MESSAGE =
     (line) => `${line.label} ${line.display} (${line.hours})`,
   ).join(', ')}.`;
 
+export const UNIVERSAL_HELPLINE_MESSAGE =
+  'This answer could not be completed right now. Please retry. ' +
+  `If you are in distress, help is available now: ${SHEDDING_LINES.map(
+    (line) => `${line.label} ${line.display} (${line.hours})`,
+  ).join(', ')}.`;
+
 export async function fetchWithRetry(
   url: string,
   options: RequestInit,

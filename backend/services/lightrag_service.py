@@ -15,6 +15,7 @@ from lightrag.utils import EmbeddingFunc
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.log_safe import q_tag
 from services.circuit_breaker import (
     CircuitBreakerConfig,
     DefaultCircuitBreaker,
@@ -525,7 +526,10 @@ class LightRAGService:
             if history_messages is None:
                 history_messages = []
             container = get_container()
-            if container.ollama is None:
+            from app.container import get_llm_provider
+
+            _llm = get_llm_provider(container)
+            if _llm is None:
                 logger.warning("LLM service not ready in container")
                 return ""
 
@@ -703,7 +707,7 @@ class LightRAGService:
                 else:
                     # Force the fast classification model for ALL LightRAG internals.
                     # timeout=25 gives 3× headroom over typical 5-8s fast-model calls.
-                    response = await container.ollama._generate_fast(
+                    response = await _llm._generate_fast(
                         system_prompt=system_prompt or "You are a helpful assistant.",
                         user_prompt=prompt,
                         context=context,
@@ -898,7 +902,7 @@ class LightRAGService:
         if actual_mode == "auto":
             actual_mode = determine_retrieval_mode(query, default="hybrid")
             logger.info(
-                f"LightRAG dual-level routing: query '{query[:60]}...' routed to mode='{actual_mode}'"
+                f"LightRAG dual-level routing: query {q_tag(query)} routed to mode='{actual_mode}'"
             )
 
         # Query Entity Canonicalization:

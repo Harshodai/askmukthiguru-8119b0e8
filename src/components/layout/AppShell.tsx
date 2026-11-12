@@ -40,6 +40,7 @@ import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
 import { checkConnection, resetHealthCache } from '@/lib/aiService';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
+import { GetHelpNow } from '@/components/common/GetHelpNow';
 
 interface AppShellProps {
   children: ReactNode;
@@ -319,6 +320,7 @@ export const AppShell = ({ children, title }: AppShellProps) => {
             </div>
             <ConnectionPill />
             <HeaderSereneButton />
+            <GetHelpNow />
             <UserMenu />
           </header>
 

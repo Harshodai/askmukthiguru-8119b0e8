@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hmac
 import inspect
+import json
 import logging
 import threading
 import time
@@ -16,8 +17,10 @@ from fastapi.responses import JSONResponse, Response
 
 import app.dependencies as _app_deps
 from app.config import settings
+from app.container import get_llm_provider
 from app.dependencies import ServiceContainer, get_container, get_container_async
 from app.metrics import HEALTH_CHECK_TOTAL, metrics_endpoint
+from app.ops_gauges import refresh_ops_gauges
 from app.runtime_artifacts import inspect_runtime_artifacts
 from app.runtime_metrics import observe_queue_depths
 from app.sanitization import sanitize_log_input
@@ -169,8 +172,29 @@ async def healthz() -> JSONResponse:
     )
 
 
+def _has_internal_health_token(request: Request) -> bool:
+    """True when the caller presents the METRICS_SCRAPE_TOKEN bearer (fail closed)."""
+    expected = getattr(settings, "metrics_scrape_token", None)
+    if not expected:
+        return False
+    header = request.headers.get("Authorization", "")
+    presented = header[7:] if header.startswith("Bearer ") else ""
+    return bool(presented) and hmac.compare_digest(presented, str(expected))
+
+
+def _redact_health_body(response: JSONResponse) -> JSONResponse:
+    """Shallow public view: ready/status only, same status code (SEC-010)."""
+    try:
+        body = json.loads(response.body)
+    except Exception:
+        return response
+    shallow = {"ready": body.get("ready", False), "status": body.get("status", "unknown")}
+    return JSONResponse(shallow, status_code=response.status_code)
+
+
 @router.get("/api/health")
 async def health_endpoint(
+    request: Request,
     container: ServiceContainer = Depends(get_container_async),
 ) -> JSONResponse:
     """Comprehensive service health with go/no-go status for each service.
@@ -180,9 +204,12 @@ async def health_endpoint(
     downstream checks behave -- see that constant's docstring.
     """
     try:
-        return await asyncio.wait_for(
+        response = await asyncio.wait_for(
             _build_health_response(container), timeout=_HEALTH_HARD_BOUND_SECONDS
         )
+        if _has_internal_health_token(request):
+            return response
+        return _redact_health_body(response)
     except TimeoutError:
         HEALTH_CHECK_TOTAL.labels(result="not_ready").inc()
         logger.error(
@@ -198,6 +225,16 @@ async def health_endpoint(
             },
             status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+
+def _rights_register_health() -> dict:
+    """T3-01: digest prefix and asset count only; never a filesystem path."""
+    try:
+        from services.first_person_serving_contract import rights_register_status
+
+        return rights_register_status()
+    except Exception:  # noqa: BLE001 - health must not fail on this probe
+        return {"present": False, "asset_count": 0, "sha256_prefix": None}
 
 
 async def _build_health_response(container: ServiceContainer) -> JSONResponse:
@@ -257,10 +294,11 @@ async def _build_health_response(container: ServiceContainer) -> JSONResponse:
     # that incident on the request-gating path in PipelineCoordinator) must
     # also gate this status signal, or the signal stays unfalsifiable by the
     # exact failure it exists to catch.
-    await check("llm", container.ollama.health_check(), critical=True)
-    if results["llm"]["ok"] and getattr(container.ollama, "is_circuit_open", None):
+    _llm = get_llm_provider(container)
+    await check("llm", _llm.health_check(), critical=True)
+    if results["llm"]["ok"] and getattr(_llm, "is_circuit_open", None):
         try:
-            if container.ollama.is_circuit_open():
+            if _llm.is_circuit_open():
                 results["llm"]["ok"] = False
                 results["llm"]["error"] = "circuit_open"
         except Exception as exc:
@@ -498,6 +536,7 @@ async def _build_health_response(container: ServiceContainer) -> JSONResponse:
             "ready": critical_ok,
             "status": "healthy" if all_ok else ("degraded" if critical_ok else "unhealthy"),
             "services": results,
+            "rights_register": _rights_register_health(),
         }
     )
 
@@ -545,10 +584,11 @@ async def _check_neo4j(container) -> bool:
 
 @router.get("/api/health/services")
 async def services_health_endpoint(
+    request: Request,
     container: ServiceContainer = Depends(get_container_async),
 ) -> JSONResponse:
     """Alias for /api/health — comprehensive service health with go/no-go per service."""
-    return await health_endpoint(container)
+    return await health_endpoint(request, container)
 
 
 @router.get("/api/health/mfa")
@@ -586,7 +626,8 @@ async def readiness_endpoint(
     circuit_breaker_ok = True
     circuit_state = "unknown"
     try:
-        _is_open_fn = getattr(container.ollama, "is_circuit_open", None)
+        _llm_inst = get_llm_provider(container)
+        _is_open_fn = getattr(_llm_inst, "is_circuit_open", None)
         if callable(_is_open_fn):
             if _is_open_fn():
                 circuit_breaker_ok = False
@@ -646,8 +687,9 @@ async def circuit_breaker_status(
         active_provider = registry.get_active_provider()
 
         sarvam_circuit = None
-        if hasattr(container.ollama, "_service"):
-            svc = container.ollama._service
+        _llm_inst = get_llm_provider(container)
+        if hasattr(_llm_inst, "_service"):
+            svc = _llm_inst._service
             if hasattr(svc, "_circuit"):
                 sarvam_circuit = svc._circuit.get_stats()
 
@@ -656,7 +698,7 @@ async def circuit_breaker_status(
             "active_provider": active_provider,
             "registry_breakers": all_stats,
             "sarvam_service_circuit": sarvam_circuit,
-            "llm_provider_config": container.ollama.__class__.__name__,
+            "llm_provider_config": _llm_inst.__class__.__name__,
         }
     except Exception as e:
         logger.error(f"Circuit breaker status failed: {e}")
@@ -741,6 +783,7 @@ async def debug_headers(
 async def get_metrics(user: dict = Depends(require_aal2)) -> Response:
     """Prometheus metrics endpoint. Admin only — may expose system internals."""
     _require_admin(user)
+    await refresh_ops_gauges()
     data, content_type = metrics_endpoint()
     return Response(content=data, media_type=content_type)
 
@@ -780,5 +823,6 @@ async def scrape_metrics(request: Request) -> Response:
     if not presented or not hmac.compare_digest(presented, str(expected)):
         raise HTTPException(status_code=401, detail="Invalid scrape credentials")
 
+    await refresh_ops_gauges()
     data, content_type = metrics_endpoint()
     return Response(content=data, media_type=content_type)

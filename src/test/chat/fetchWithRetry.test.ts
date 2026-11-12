@@ -77,9 +77,9 @@ describe('final-503 helpline copy (RP-A2)', () => {
     expect(err.retryable).toBe(true);
   });
 
-  it('leaves non-503 server errors on the generic copy', () => {
+  it('renders universal helpline on non-503 server errors (PROD-SAFE-02)', () => {
     const err = buildMessageError('server_error', 'boom', 500);
     expect(err.title).toBe('Something went wrong');
-    expect(err.description).not.toContain('14416');
+    expect(err.description).toContain('14416');
   });
 });

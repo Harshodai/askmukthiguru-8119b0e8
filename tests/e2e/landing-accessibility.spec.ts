@@ -11,7 +11,7 @@ async function waitForSettledLanding(page: import('@playwright/test').Page) {
 
 async function expectNoSeriousA11yViolations(page: import('@playwright/test').Page) {
   const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa'])
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze();
 
   const blocking = results.violations.filter((violation) =>

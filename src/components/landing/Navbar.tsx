@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { UserMenu } from '@/components/common/UserMenu';
+import { GetHelpNow } from '@/components/common/GetHelpNow';
 
 export const Navbar = () => {
   const { t } = useTranslation();
@@ -52,6 +53,9 @@ export const Navbar = () => {
               </Link>
               <UserMenu />
             </div>
+
+            {/* Always visible, including on phones (WCAG 3.2.6) */}
+            <GetHelpNow className="ml-auto mr-2 md:ml-4 md:mr-0" />
 
             {/* Mobile Menu Button */}
             <button

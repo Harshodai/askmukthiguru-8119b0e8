@@ -3,6 +3,8 @@ import os
 from datetime import UTC, datetime
 from typing import Optional
 
+from app.telemetry_db import PIIScrubber
+
 
 class FeedbackStore:
     """Collect and analyze user feedback for continuous RAG improvement."""
@@ -26,18 +28,23 @@ class FeedbackStore:
         reason: Optional[str] = None,
         chunks_used: list[str] = None,
         latency_ms: float = 0.0,
+        model_used: Optional[str] = None,
     ):
-        """Record user feedback for RAG quality analysis."""
+        """Record user feedback with PII scrubbing for RAG quality analysis."""
+        clean_query = PIIScrubber.scrub(query) if query else ""
+        clean_reason = PIIScrubber.scrub(reason) if reason else None
+        clean_response = PIIScrubber.scrub(response[:500]) if response else ""
+
         entry = {
             "timestamp": datetime.now(UTC).isoformat(),
             "session_id": session_id,
-            "query": query,
-            "response_preview": response[:500],
+            "query": clean_query,
+            "response_preview": clean_response,
             "feedback": feedback,
-            "reason": reason,
+            "reason": clean_reason,
             "chunks_count": len(chunks_used) if chunks_used else 0,
             "latency_ms": latency_ms,
-            "model_used": "sarvam-105b",
+            "model_used": model_used or "serving_model",
         }
         with open(self.db_path, "a") as f:
             f.write(json.dumps(entry) + "\n")

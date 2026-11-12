@@ -135,6 +135,9 @@ class _FakeQuery:
     def limit(self, *args, **kwargs):
         return self
 
+    def is_(self, *args, **kwargs):
+        return self
+
     def single(self):
         self._single = True
         return self
@@ -160,6 +163,9 @@ class _FakeMutation:
     def select(self, *args, **kwargs):
         return self
 
+    def is_(self, *args, **kwargs):
+        return self
+
     def single(self):
         return self
 
@@ -181,6 +187,10 @@ class _FakeTable:
         return _FakeQuery(self._rows, self._count)
 
     def insert(self, row: dict):
+        self._last_insert = row
+        return _FakeMutation([{**row, "id": row.get("id", _MEM_ID)}])
+
+    def upsert(self, row: dict, *args, **kwargs):
         self._last_insert = row
         return _FakeMutation([{**row, "id": row.get("id", _MEM_ID)}])
 
@@ -1157,6 +1167,129 @@ class TestCommittedWritePostCommitFailures:
         detail = resp.json()["detail"]
         assert detail["status"] == "committed_index_delete_failed"
         assert "forgotten" in detail["message"]
+
+
+class TestSeekerDashboardAndDreamingEndpoints:
+    """Tests for GET /memory/dashboard, GET /memory/core, and POST /memory/dream."""
+
+    def test_get_seeker_dashboard_success(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+
+        memories = [
+            _make_memory_row(
+                statement="Seeker feels acute anxiety about relationship conflict",
+                memory_type="REFLECTION",
+                importance=0.9,
+            ),
+            _make_memory_row(
+                memory_id=_MEM_ID_2,
+                statement="Practicing serene mind meditation daily",
+                memory_type="GOAL",
+                importance=0.8,
+            ),
+        ]
+        app = FastAPI()
+        app.include_router(router)
+        container = _FakeContainer(supabase=_FakeSupabase(memories=memories))
+
+        async def _auth():
+            return _make_user()
+
+        async def _container():
+            return container
+
+        app.dependency_overrides[get_current_user_from_supabase] = _auth
+        app.dependency_overrides[get_container] = _container
+
+        client = TestClient(app)
+        resp = client.get("/memory/dashboard")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["user_id"] == "test-user-001"
+        assert len(data["fingerprint"]) == 64
+        assert "<seeker_context>" in data["xml_prompt_block"]
+        assert "</seeker_context>" in data["xml_prompt_block"]
+        assert data["estimated_tokens"] <= 120
+        assert data["char_length"] > 0
+
+    def test_get_seeker_core_success(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+
+        memories = [
+            _make_memory_row(
+                statement="User prefers concise answers",
+                memory_type="PREFERENCE",
+                importance=0.8,
+            )
+        ]
+        app = FastAPI()
+        app.include_router(router)
+        container = _FakeContainer(supabase=_FakeSupabase(memories=memories))
+
+        async def _auth():
+            return _make_user()
+
+        async def _container():
+            return container
+
+        app.dependency_overrides[get_current_user_from_supabase] = _auth
+        app.dependency_overrides[get_container] = _container
+
+        client = TestClient(app)
+        resp = client.get("/memory/core")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == "test-user-001"
+        assert "content" in data
+        assert len(data["fingerprint"]) == 64
+
+        resp2 = client.get("/memory/dashboard/core")
+        assert resp2.status_code == 200
+        assert resp2.json()["fingerprint"] == data["fingerprint"]
+
+    def test_post_memory_dream_dry_run(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from app.api.canonical_memory import get_container, get_current_user_from_supabase, router
+
+        memories = [
+            _make_memory_row(
+                statement="User practices daily observation",
+                memory_type="GOAL",
+                importance=0.7,
+            )
+        ]
+        app = FastAPI()
+        app.include_router(router)
+        container = _FakeContainer(supabase=_FakeSupabase(memories=memories))
+
+        async def _auth():
+            return _make_user()
+
+        async def _container():
+            return container
+
+        app.dependency_overrides[get_current_user_from_supabase] = _auth
+        app.dependency_overrides[get_container] = _container
+
+        client = TestClient(app)
+        resp = client.post("/memory/dream", json={"dry_run": True, "limit_conversations": 10})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["user_id"] == "test-user-001"
+        assert data["dry_run"] is True
+        assert data["status"] == "success"
+        assert "snapshot_id" in data
+        assert "evicted_count" in data
+        assert "superseded_count" in data
+        assert "decayed_count" in data
 
 
 # ---------------------------------------------------------------------------

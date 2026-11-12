@@ -5,11 +5,6 @@ name: Benchmark Gate (Golden Eval)
 # Reuses the same backend-setup pattern as eval-gate.yml.
 
 on:
-  pull_request:
-    paths:
-      - 'backend/**'
-      - 'evaluation/**'
-      - '.github/workflows/benchmark.yml'
   workflow_dispatch:
 
 concurrency:

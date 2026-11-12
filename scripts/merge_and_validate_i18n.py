@@ -46,7 +46,7 @@ CURATED_TRANSLATIONS = {
         "chat.memorySettings.eraseConfirmDesc": "یہ تمام سرورز پر آپ کے نجی حکمت کے نقشے میں موجود تمام محفوظ خیالات، بنیادی حقائق اور روابط کو مستقل طور پر مٹا دے گا۔",
         "chat.memorySettings.eraseConfirmButton": "ہاں، تمام یادداشتیں مٹائیں",
         "chat.memorySettings.erasing": "یادداشتیں مٹائی جا رہی ہیں…",
-        "chat.memorySettings.close": "بند کریں"
+        "chat.memorySettings.close": "بند کریں",
     },
     "as": {
         "chat.memoryActive": "স্মৃতি সক্ৰিয়",
@@ -80,7 +80,7 @@ CURATED_TRANSLATIONS = {
         "chat.memorySettings.eraseConfirmDesc": "ই সকলো ছাৰ্ভাৰত আপোনাৰ ব্যক্তিগত জ্ঞানৰ মানচিত্ৰত সংৰক্ষিত সকলো চিন্তা, মূল তথ্য আৰু সংযোগ স্থায়ীভাৱে মচি পেলাব।",
         "chat.memorySettings.eraseConfirmButton": "হয়, সকলো স্মৃতি মচি পেলাওক",
         "chat.memorySettings.erasing": "স্মৃতি মচি থকা হৈছে…",
-        "chat.memorySettings.close": "বন্ধ কৰক"
+        "chat.memorySettings.close": "বন্ধ কৰক",
     },
     "sa": {
         "chat.memoryActive": "स्मृतिः सक्रिया",
@@ -114,8 +114,8 @@ CURATED_TRANSLATIONS = {
         "chat.memorySettings.eraseConfirmDesc": "एतेन सर्ववितरकेषु भवतः वैयक्तिक-ज्ञानमानचित्रे रक्षिताः सर्वे विचाराः, मूलतथ्यानि, सम्बन्धाश्च स्थायिरूपेण विलोपिताः भविष्यन्ति।",
         "chat.memorySettings.eraseConfirmButton": "आम्, सर्वाः स्मृतीः विलोपयतु",
         "chat.memorySettings.erasing": "स्मृतीनां विलोपनं क्रियते…",
-        "chat.memorySettings.close": "पिदधातु"
-    }
+        "chat.memorySettings.close": "पिदधातु",
+    },
 }
 
 

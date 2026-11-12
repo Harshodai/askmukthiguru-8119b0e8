@@ -21,6 +21,7 @@ logger = __import__("logging").getLogger(__name__)
 
 from rag.compressor import cap_to_token_budget
 from rag.prompts import COMPACT_SUMMARY_SYSTEM_PROMPT as _COMPACT_SUMMARY_SYSTEM
+from services.canonical_memory.models import SeekerCoreDashboard
 from services.text_quality_filter import find_artifact
 
 _SESSION_NAMESPACE = uuid.UUID("6ba7b811-9dad-11d1-80b4-00c04fd430c8")
@@ -532,10 +533,52 @@ async def extract_memory_insights(top_docs: list, k: int = 3) -> list[str]:
 
 _MEMORY_SKIP_INTENTS_DEFAULT = ("doctrine_lookup", "casual")
 _MEMORY_TOKEN_BUDGET_DEFAULT = 830
+_SEEKER_DASHBOARD_TOKEN_BUDGET = 120
 _MEMORY_FETCH_TIMEOUT_S = 4.0
 _MEMORY_CORE_LIMIT = 5
 _MEMORY_SEMANTIC_LIMIT = 3
 _MEMORY_SUMMARY_LIMIT = 2
+
+_PERSONAL_RECALL_PATTERNS = re.compile(
+    r"(?:"
+    r"what\s+(?:did\s+i|have\s+i)\s+(?:tell|say|ask|mention|share)"
+    r"|what\s+(?:do|did)\s+you\s+(?:know|remember|recall)\s+about\s+(?:me|my)"
+    r"|do\s+you\s+(?:remember|recall)"
+    r"|can\s+you\s+(?:remember|recall)"
+    r"|remember\s+(?:when|that|my)"
+    r"|recall\s+(?:when|that|my)"
+    r"|my\s+(?:preference|meditation|practice|routine|experience|goal|inquiry|past)"
+    r"|earlier\s+(?:session|conversation|turn|you\s+said|i\s+said)"
+    r"|previous\s+(?:session|conversation)"
+    r"|in\s+(?:our\s+)?(?:last|previous)\s+(?:chat|talk|session|conversation)"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _is_personal_recall_request(question: str, intent: Optional[str] = None) -> bool:
+    """Return True if the intent or query indicates personal recall/history/explicit memory."""
+    if intent:
+        norm_intent = str(intent).strip().casefold()
+        if (
+            norm_intent
+            in {
+                "personal",
+                "personal_history",
+                "recall",
+                "memory",
+                "user_explicit",
+                "preference",
+            }
+            or norm_intent.startswith("personal")
+            or norm_intent.startswith("memory")
+        ):
+            return True
+
+    if not question:
+        return False
+
+    return bool(_PERSONAL_RECALL_PATTERNS.search(question))
 
 
 def _memory_enabled() -> bool:
@@ -650,11 +693,11 @@ async def inject_memory_context(
 ) -> dict:
     """Graph-ready node: fan-out memory fetch → state["memory_context"].
 
-    Reads user_id/question from state, fetches get_core / search_semantic /
-    recent_summaries concurrently (each fail-open with its own timeout),
-    truncates to the memory token budget, PII-scrubs, and returns the
-    LangGraph state update. Never raises: without a service, a user, or
-    results it returns a no-op update with a traceable skip reason.
+    Decoupled Layer 4 minimal injection: default prompt context injects ONLY the
+    compact SeekerCoreDashboard (strictly <= 120 tokens / ~480 chars) to prevent
+    context poisoning per Anthropic agent memory findings. Deep episodic search
+    (search_semantic) is intent-gated and queried only when personal recall or
+    explicit memory is requested.
     """
     reason = _memory_skip_reason(state)
     if reason is not None:
@@ -676,6 +719,8 @@ async def inject_memory_context(
         return {"evaluation_trace": {"memory_injected": False, "memory_skip": "no_service"}}
 
     question = (state.get("question") or state.get("rewritten_query") or "").strip()
+    intent = state.get("intent")
+    is_personal_recall = _is_personal_recall_request(question, intent)
 
     async def _safe_fetch(coro_factory: Any, label: str) -> list:
         try:
@@ -685,23 +730,40 @@ async def inject_memory_context(
             logger.debug("inject_memory_context: %s fetch failed (fail-open): %s", label, exc)
             return []
 
+    fetch_semantic = bool(question and is_personal_recall)
+    fetch_summaries = bool(is_personal_recall or not question)
+
     core, semantic, summaries = await asyncio.gather(
         _safe_fetch(lambda: svc.get_core(user_id), "core"),
         _safe_fetch(
             lambda: svc.search_semantic(user_id, question, limit=3, min_similarity=0.6),
             "semantic",
         )
-        if question
+        if fetch_semantic
         else asyncio.sleep(0, result=[]),
-        _safe_fetch(lambda: svc.recent_summaries(user_id, limit=2), "summaries"),
+        _safe_fetch(lambda: svc.recent_summaries(user_id, limit=2), "summaries")
+        if fetch_summaries
+        else asyncio.sleep(0, result=[]),
     )
 
-    block = _shape_memory_block(core, semantic, summaries)
-    if not block:
-        return {"evaluation_trace": {"memory_injected": False, "memory_skip": "no_results"}}
-
     language = state.get("detected_language") or "en"
-    block = cap_to_token_budget(block, _memory_token_budget(), language)
+    dashboard = SeekerCoreDashboard.from_core_facts(
+        user_id=user_id,
+        facts=core,
+        preferred_language=language,
+    )
+
+    if is_personal_recall:
+        block = _shape_memory_block(core, semantic, summaries)
+        if not block:
+            return {"evaluation_trace": {"memory_injected": False, "memory_skip": "no_results"}}
+        block = cap_to_token_budget(block, _memory_token_budget(), language)
+    else:
+        if not core:
+            return {"evaluation_trace": {"memory_injected": False, "memory_skip": "no_results"}}
+        block = dashboard.to_system_prompt_block()
+        dash_budget = min(_SEEKER_DASHBOARD_TOKEN_BUDGET, _memory_token_budget())
+        block = cap_to_token_budget(block, dash_budget, language)
 
     try:
         from app.orchestrator_utils import _scrub_memory_context
@@ -717,10 +779,13 @@ async def inject_memory_context(
 
     return {
         "memory_context": scrubbed,
+        "seeker_dashboard": dashboard,
         "evaluation_trace": {
             "memory_injected": bool(scrubbed),
             "memory_chars": len(scrubbed),
             "memory_unscrubbed": not scrub_ok,
+            "episodic_retrieved": is_personal_recall,
+            "scd_fingerprint": dashboard.fingerprint,
         },
     }
 

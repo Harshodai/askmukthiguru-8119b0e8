@@ -39,3 +39,12 @@ jobs:
           # Same mock values as lint-test.yml: Settings refuses to load without them.
           JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
           OPENROUTER_API_KEY: mock-openrouter-key-for-ci
+
+      - name: Run Serving Collection & Data Quality Scorecard Audit (T3-05)
+        run: |
+          cd backend
+          python -m pytest tests/test_data_quality_audit.py tests/test_fp_data_quality_scorecard.py tests/test_data_quality_promotion_gate.py -v
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+          JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
+          OPENROUTER_API_KEY: mock-openrouter-key-for-ci

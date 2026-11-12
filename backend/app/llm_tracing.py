@@ -144,7 +144,7 @@ def traced_llm_call(provider: str):
             with cm as span:
                 try:
                     span.set_attribute("gen_ai.system", provider)
-                except Exception:  # pragma: no cover - defensive
+                except (AttributeError, TypeError, ValueError):  # pragma: no cover - defensive
                     pass
                 return await func(*args, **kwargs)
 
@@ -172,7 +172,7 @@ def llm_span(provider: str):
     with cm as span:
         try:
             span.set_attribute("gen_ai.system", provider)
-        except Exception:  # pragma: no cover - defensive
+        except (AttributeError, TypeError, ValueError):  # pragma: no cover - defensive
             pass
         yield span
 

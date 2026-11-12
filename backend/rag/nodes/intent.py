@@ -9,6 +9,7 @@ from typing import Any, Optional
 from langchain_core.runnables import RunnableConfig
 
 from app.constants import IntentType
+from app.log_safe import q_tag
 from app.tracing import trace_rag_node
 from rag.meditation import (
     format_meditation_response,
@@ -503,8 +504,8 @@ def _early_filter(
                 ),
             }
         logger.info(
-            "Intent Router: temporal query detected, routing to LIVE_LOGISTICS with web search: %s...",
-            question[:60],
+            "Intent Router: temporal query detected, routing to LIVE_LOGISTICS with web search: %s",
+            q_tag(question),
         )
         return {
             "intent": IntentType.LIVE_LOGISTICS.value,
@@ -717,7 +718,7 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
             }
         logger.info(
             "Intent Router: logistics/out-of-corpus query — honest pointer to ekam.org: %s",
-            question[:60],
+            q_tag(question),
         )
         return {
             "intent": IntentType.LIVE_LOGISTICS.value,
@@ -814,9 +815,9 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     if fast is not None:
         intent = fast["intent"]
         logger.info(
-            "Intent Router: fast-classify matched %s for '%s...' — skipping LLM",
+            "Intent Router: fast-classify matched %s for %s — skipping LLM",
             intent,
-            question[:60],
+            q_tag(question),
         )
         return {
             **fast,
@@ -1123,8 +1124,8 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
         if not is_meditation_imperative(question):
             logger.info(
                 "Intent Router: demoting LLM-classified MEDITATION to FACTUAL "
-                "(no active session, query is interrogative or non-imperative): '%s...'",
-                question[:80],
+                "(no active session, query is interrogative or non-imperative): %s",
+                q_tag(question),
             )
             intent = "FACTUAL"
             complexity = complexity or "simple"
@@ -1149,7 +1150,7 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
         _intent_classification_cache.popitem(last=False)  # FIFO eviction for OrderedDict
 
     logger.info(
-        f"Intent Router: classified '{question[:80]}...' -> {intent} | tier -> {query_tier} (question_len={len(question)})"
+        f"Intent Router: classified {q_tag(question)} -> {intent} | tier -> {query_tier} (question_len={len(question)})"
     )
     routing_reason = "jev_router" if jev_result else "classifier"
     res = {
@@ -1539,8 +1540,8 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
             tmpl = serene_mind.get_response(assessment)
             if isinstance(tmpl, str) and tmpl.strip():
                 base_template = tmpl
-        except Exception:
-            pass
+        except Exception as serene_exc:
+            logger.warning("Serene mind response generation failed: %s", serene_exc)
     if not base_template:
         base_template = get_distress_response()
 
@@ -1830,9 +1831,9 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
     # the pipeline coordinator can attribute the event to a routing failure.
     logger.warning(
         "Meditation handler reached with step<=0 and no script keyword. "
-        "Query='%s...'. Signalling _meditation_misroute=True. This indicates "
+        "Query=%s. Signalling _meditation_misroute=True. This indicates "
         "the intent-router demote layer missed a non-imperative query.",
-        question[:80],
+        q_tag(question),
     )
     if not safe_fallback:
         # Legacy behaviour gated behind a settings flag for backwards-compatibility.
@@ -1863,11 +1864,10 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
 
 
 def route_after_grading(state: GraphState) -> str:
-    """Route after CRAG grading (merged with context sufficiency check)."""
+    """Route after CRAG grading."""
     relevant = state.get("relevant_docs", [])
     rewrite_count = state.get("rewrite_count", 0)
     intent = state.get("intent", "FACTUAL")
-    context_sufficient = state.get("_context_sufficient", True)
 
     if intent == "DISTRESS":
         return "distress"
@@ -1877,8 +1877,6 @@ def route_after_grading(state: GraphState) -> str:
 
     max_rewrites = max_rewrites_for_state(state)
     if relevant:
-        if not context_sufficient and rewrite_count < max_rewrites:
-            return "rewrite"
         return "relevant"
     elif rewrite_count < max_rewrites:
         return "rewrite"

@@ -208,3 +208,12 @@ def test_new_registered_teacher_resolves_without_code_changes(monkeypatch, tmp_p
     finally:
         guru_registry._registry_document.cache_clear()
         guru_registry.get_gurus.cache_clear()
+
+
+def test_label_for_resolves_both_id_and_label():
+    assert guru_registry.label_for("preethaji") == "Sri Preethaji"
+    assert guru_registry.label_for("krishnaji") == "Sri Krishnaji"
+    assert guru_registry.label_for("Sri Preethaji") == "Sri Preethaji"
+    assert guru_registry.label_for("Sri Krishnaji") == "Sri Krishnaji"
+    assert guru_registry.label_for("sri preethaji") == "Sri Preethaji"
+    assert guru_registry.label_for("unknown") is None

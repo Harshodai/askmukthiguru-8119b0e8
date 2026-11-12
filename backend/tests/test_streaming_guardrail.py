@@ -73,6 +73,9 @@ def _make_container():
     quota_mock.claim = AsyncMock()
     quota_mock.release = AsyncMock()
     container.anon_quota_service = quota_mock
+    # telemetry_sink is set in ServiceContainer.__init__ (invisible to spec); the
+    # orchestrators reuse it instead of building one per request.
+    container.telemetry_sink = MagicMock()
     return container
 
 

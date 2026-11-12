@@ -359,8 +359,8 @@
     "thanks": "प्रकटीकरणार्थं धन्यवादाः। 🙏",
     "listening": "शृणोति",
     "speak": "वदतु",
-    "streakRooting_one": "{{count}} दिवसस्य सातत्यम् — भवतः सुन्दरी स्थितिः दृढा भवति!",
-    "streakRooting_other": "{{count}} दिवसानां सातत्यम् — भवतः सुन्दरी स्थितिः दृढा भवति!",
+    "streakRooting_one": "{{count}} दिवसस्य निरन्तराभ्यासः अभिलिखितः",
+    "streakRooting_other": "{{count}} दिवसानां निरन्तराभ्यासः अभिलिखितः",
     "streakKeepGoing_one": "{{count}} दिवसस्य सातत्यम् — अग्रे चालयतु!",
     "streakKeepGoing_other": "{{count}} दिवसानां सातत्यम् — अग्रे चालयतु!"
   },
@@ -845,7 +845,9 @@
       "eraseConfirmButton": "आम्, सर्वाः स्मृतीः विलोपयतु",
       "erasing": "स्मृतीनां विलोपनं क्रियते…",
       "close": "पिदधातु"
-    }
+    },
+    "quotaLeft": "अद्य {{limit}} मध्ये {{remaining}} निःशुल्काः प्रश्नाः अवशिष्टाः",
+    "quotaResetsIn": "{{count}} होरासु पुनः स्थापितं भविष्यति।"
   },
   "notFound": {
     "message": "अहो! पृष्ठं न लब्धम्",

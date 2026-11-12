@@ -15,12 +15,13 @@ import {
   getConversationPreview,
   getCurrentConversationId,
   setCurrentConversationId,
-  updateConversationSummary,
   setIncognitoMode,
   isIncognitoMode,
   deleteConversation,
 } from '@/lib/chatStorage';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
+import { useAnswerAnnouncement } from '@/lib/answerAnnouncement';
+import { focusWhenFree } from '@/lib/focusWhenFree';
 import { chatErrorBus } from '@/lib/chatErrorBus';
 import { buildGreeting, buildGreetingSubline } from '@/lib/greeting';
 import { useVisitContext } from '@/hooks/useVisitContext';
@@ -34,7 +35,9 @@ import {
 } from '@/lib/chat/attachmentLimits';
 import { telemetryEvents } from '@/lib/telemetryEvents';
 import { ChatErrorBanner } from './ChatErrorBanner';
+import { BACKEND_URL } from '@/lib/backendUrl';
 import { buildMessageError } from '@/lib/chat/errors';
+import { isPushPromptEligible } from '@/lib/chat/pushEligibility';
 import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBanner';
 import { MoodBanner } from '@/components/mood/MoodBanner';
 import { MemoryConsentBanner } from './MemoryConsentBanner';
@@ -44,7 +47,7 @@ import { hapticAudio } from '@/lib/audio/hapticAudio';
 
 
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
-import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateSummary, generateConversationTitle, queueMemoryExtraction, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
+import { sendMessage, sendMessageStreaming, uploadChatAttachment, MessagePayload, StreamChunk, generateConversationTitle, queueMemoryExtraction, setLanguage as setAILanguage, ProactiveSereneMindTrigger, RecommendedCourse, getAIConfig } from '@/lib/aiService';
 import {
   PERSONALIZE_TEACHING_PROMPT,
   personalizeTeachingEnabled,
@@ -94,6 +97,7 @@ import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { useAssistants } from '@/hooks/useAssistants';
 import { ChatComposer } from './ChatComposer';
 import { QuotaAuthPrompt } from './QuotaAuthPrompt';
+import { QuotaCounter } from './QuotaCounter';
 import { HealingPathCard, type HealingCourseRecommendation, type UserTurn } from './HealingPathCard';
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
@@ -172,7 +176,7 @@ export const ChatInterface = () => {
 
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [conversationContextExhausted, setConversationContextExhausted] = useState(false);
-  const [quotaMeta, setQuotaMeta] = useState<{ remaining?: number; totalLimit?: number }>({});
+  const [quotaMeta, setQuotaMeta] = useState<{ remaining?: number; totalLimit?: number; retryAfterSeconds?: number }>({});
   const [responsePreferences, setResponsePreferences] = useState<ResponsePreferences>(() => loadResponsePreferences());
   const updateResponsePreferences = useCallback((next: ResponsePreferences) => {
     setResponsePreferences(next);
@@ -307,6 +311,9 @@ export const ChatInterface = () => {
   const [streamingContent, setStreamingContent] = useState<string>('');
   const deferredStreamingContent = useDeferredValue(streamingContent);
   const rotatingThinkingLabel = useThinkingStatus(isStreaming, streamingContent.length > 0);
+  // NEW-A11Y-6 (A11Y-13): one polite announcement per arrived answer.
+  const answerAnnouncement = useAnswerAnnouncement(messages, isTyping || isStreaming);
+
   const { open: openSereneMind, setOnComplete: setSereneMindOnComplete } = useSereneMind();
   const [isAwaitingSereneMind, setIsAwaitingSereneMind] = useState(false);
   const [showMobileSheet, setShowMobileSheet] = useState(false);
@@ -1055,7 +1062,7 @@ export const ChatInterface = () => {
     if (decision === 'interrupt') {
       streamControllerRef.current?.abort();
       if (currentJobIdRef.current) {
-        fetch(`/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
+        fetch(`${BACKEND_URL}/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
       }
       setIsTyping(false);
       setIsStreaming(false);
@@ -1166,22 +1173,6 @@ export const ChatInterface = () => {
     const allMsgs = [...messageHistory, { role: 'user' as const, content: cacheInput }];
     const cacheKey = `${turnLanguage}:${hashMessages(allMsgs)}`;
 
-    // Summary helper — fire-and-forget after every ~6 user messages.
-    // Temporary Chat is a hard privacy boundary: it must never produce or
-    // update durable continuation summaries.
-    const maybeSummarize = () => {
-      if (isIncognito) return;
-      const userMsgCount = allMsgs.filter(m => m.role === 'user').length;
-      if (userMsgCount > 0 && userMsgCount % 6 === 0 && currentConversation?.id) {
-        generateSummary(allMsgs).then(async (summary) => {
-          if (summary) {
-            await updateConversationSummary(currentConversation.id, summary);
-            setCurrentConversation(prev => prev ? { ...prev, summary } : null);
-          }
-        }).catch(() => { /* non-fatal */ });
-      }
-    };
-
     const drainNextQueuedMessage = () => {
       const nextMsg = queuedMessagesRef.current[0];
       if (!nextMsg) return;
@@ -1217,7 +1208,6 @@ export const ChatInterface = () => {
       setIsTyping(false);
       // Cached completions are real completions too: continue draining the
       // queue so a cached first queued turn cannot strand the remaining turns.
-      if (!isIncognito) maybeSummarize();
       drainNextQueuedMessage();
       return;
     }
@@ -1257,6 +1247,7 @@ export const ChatInterface = () => {
     // stream dies, so it must live at try/catch scope, not in the nested
     // streaming-prep block (a `let` there is invisible to catch → TDZ error).
     let streamedFinalText: string | null = null;
+    let gotFirstToken = false;
 
 
     if (!isAwaitingSereneMind) {
@@ -1322,7 +1313,7 @@ export const ChatInterface = () => {
         }, 500);
         // ────────────────────────────────────────────────────────────────
 
-        let gotFirstToken = false;
+        gotFirstToken = false;
         streamCompleted = false;
         streamedFinalText = null;
         let streamedCitations: Citation[] = [];
@@ -1544,7 +1535,15 @@ export const ChatInterface = () => {
 
         if (fullContent) {
           streamingWorked = true;
-          if (streamCompleted && !streamedBlocked) {
+          // T1-10: engagement prompt only after a grounded teaching answer.
+          if (streamCompleted && isPushPromptEligible({
+            blocked: streamedBlocked,
+            groundingState: streamedGroundingState,
+            routeDecision: streamedRouteDecision,
+            isFirstPersonAbstain: streamedIsFirstPersonAbstain,
+            safetyNotices: streamedSafetyNotices,
+            proactiveSereneMind: streamedProactiveSereneMind,
+          })) {
             window.dispatchEvent(new CustomEvent('askmukthiguru:chat_response_success'));
           }
           // Commit the final streamed content to the message list
@@ -1717,37 +1716,29 @@ openSereneMind('audio');
             ),
           );
           streamingWorked = true;
-        } else if (fullContent || streamedFinalText) {
-          // Prefer the arrived `final` text: on a done-less disconnect the
-          // complete answer already arrived and must not be discarded for an
-          // error card. Partial tokens are the fallback, never nothing.
-          const recovered = streamedFinalText ?? fullContent;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === streamingGuruId ? { ...m, content: recovered } : m))
-          );
-          toast({ title: t('chat.connectionInterrupted', 'Connection interrupted'), description: t('chat.responseIncomplete', 'Response may be incomplete.') });
-          streamingWorked = true;
         } else {
+          // T1-18 (UX-005): Never persist or display unlabelled teacher text on an
+          // interrupted or incomplete stream. On any done-less disconnect or error,
+          // discard partial content and render the safe retryable error card.
           const streamDetail = err?.message ?? '';
           const streamOffline = !navigator.onLine || /network|fetch|failed to fetch|load failed/i.test(streamDetail);
           const streamErrorCode = err?.errorCode || (streamOffline ? 'network' : undefined);
           const canFallbackToJson =
             navigator.onLine &&
+            !gotFirstToken &&
             (streamErrorCode === 'network' || streamErrorCode === 'unknown');
 
-          // A proxy, static preview, or browser-specific fetch path can fail
-          // before the first token even though the JSON API is healthy. Leave
-          // streamingWorked false so the existing non-stream path below runs
-          // exactly once; do not render a terminal ERR_UNKNOWN for this case.
-          // Auth, quota, rate-limit, policy, and server errors remain terminal
-          // here because retrying them would duplicate a meaningful failure.
           if (canFallbackToJson) {
             streamingWorked = false;
           } else {
             const msgError = buildMessageError(streamErrorCode, err?.message, err?.status);
             if (msgError.kind === 'quota_exceeded') {
               setQuotaExceeded(true);
-              setQuotaMeta({ remaining: err?.quotaRemaining, totalLimit: err?.quotaTotalLimit });
+              setQuotaMeta({
+                remaining: err?.quotaRemaining,
+                totalLimit: err?.quotaTotalLimit,
+                retryAfterSeconds: (err as { retryAfterSeconds?: number })?.retryAfterSeconds,
+              });
             }
             if (msgError.kind === 'context_exhausted') {
               setConversationContextExhausted(true);
@@ -1809,7 +1800,6 @@ openSereneMind('audio');
           });
         }
         hapticAudio.playCompletionChime();
-        if (!isIncognito) maybeSummarize();
         drainNextQueuedMessage();
       }
       return;
@@ -1885,7 +1875,11 @@ openSereneMind('audio');
         }
         if (responseError?.kind === 'quota_exceeded') {
           setQuotaExceeded(true);
-          setQuotaMeta({ remaining: response.quotaRemaining, totalLimit: response.quotaTotalLimit });
+          setQuotaMeta({
+            remaining: response.quotaRemaining,
+            totalLimit: response.quotaTotalLimit,
+            retryAfterSeconds: (response as { retryAfterSeconds?: number }).retryAfterSeconds,
+          });
         }
         const guruMessageId = generateId();
         if (responseError) {
@@ -1937,7 +1931,14 @@ openSereneMind('audio');
         if (!responseError) {
           jsonCompletedSuccessfully = !response.blocked && Boolean(response.content);
           setCachedResponse(cacheKey, response.content, guruMessage.citations);
-          if (!response.blocked && response.content) {
+          if (response.content && isPushPromptEligible({
+            blocked: response.blocked,
+            groundingState: response.groundingState,
+            routeDecision: response.routeDecision,
+            isFirstPersonAbstain: response.isFirstPersonAbstain,
+            safetyNotices: response.safetyNotices,
+            proactiveSereneMind: response.proactiveSereneMind,
+          })) {
             window.dispatchEvent(new CustomEvent('askmukthiguru:chat_response_success'));
           }
         }
@@ -1996,6 +1997,7 @@ openSereneMind('audio');
       message?: string;
       quotaRemaining?: number;
       quotaTotalLimit?: number;
+      retryAfterSeconds?: number;
     };
     const isOffline = !navigator.onLine || String(error).toLowerCase().includes('network') || String(error).toLowerCase().includes('fetch');
     const msgError = buildMessageError(
@@ -2005,7 +2007,11 @@ openSereneMind('audio');
     );
     if (msgError.kind === 'quota_exceeded') {
       setQuotaExceeded(true);
-      setQuotaMeta({ remaining: errObj?.quotaRemaining, totalLimit: errObj?.quotaTotalLimit });
+      setQuotaMeta({
+        remaining: errObj?.quotaRemaining,
+        totalLimit: errObj?.quotaTotalLimit,
+        retryAfterSeconds: errObj?.retryAfterSeconds,
+      });
     }
 
     const fallbackId = generateId();
@@ -2023,7 +2029,6 @@ openSereneMind('audio');
     setIsTyping(false);
     setShowInstantPill(false);
     if (jsonCompletedSuccessfully) {
-      maybeSummarize();
       drainNextQueuedMessage();
     }
   }
@@ -2053,7 +2058,7 @@ const handleSendNowQueued = useCallback((id: string) => {
   setQueuedMessages((prev) => prev.filter((m) => m.id !== id));
   streamControllerRef.current?.abort();
   if (currentJobIdRef.current) {
-    fetch(`/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
+    fetch(`${BACKEND_URL}/api/jobs/${currentJobIdRef.current}`, { method: 'DELETE' }).catch(() => {});
   }
   setIsTyping(false);
   setIsStreaming(false);
@@ -2434,6 +2439,18 @@ useSwipeGesture({
 });
 
 const isLandingMode = messages.length <= 1 && messages[0]?.role === 'guru';
+
+// NEW-A11Y-6 (A11Y-08): sending swaps the landing composer for the chat composer
+// (the old one unmounts behind an exit animation), and a click on Send disables
+// the button; either leaves focus on <body>. When a send finishes and nothing
+// holds focus, return it to the new composer as soon as it is mounted (bounded
+// wait). A seeker who moved focus elsewhere on purpose keeps it.
+useEffect(() => {
+  if (isTyping || isStreaming || messages.length === 0) return;
+  // Query the DOM, not inputRef: the landing and chat composers share that ref, and
+  // the landing one unmounting late can null it after the new one has set it.
+  return focusWhenFree(() => document.querySelector<HTMLElement>('textarea[name="message"]'));
+}, [isTyping, isStreaming, isLandingMode, messages.length]);
 const thinkingVisible =
   showInstantPill ||
   showPipeline ||
@@ -2509,26 +2526,28 @@ return (
         const priorMessages = messages;
         let continuationSummary = currentConversation?.summary?.trim() || '';
         if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
-          try {
-            continuationSummary = await generateSummary(
-              priorMessages.map((m) => ({
-                role: m.role === 'guru' ? 'assistant' : 'user',
-                content: m.content,
-              }))
-            );
-          } catch {
-            continuationSummary = priorMessages
-              .filter((m) => m.role === 'user')
-              .slice(-5)
-              .map((m) => m.content.trim())
-              .filter(Boolean)
-              .join('\n');
-          }
+          // T1-19: no client summary call; local, user-text-only fallback.
+          continuationSummary = priorMessages
+            .filter((m) => m.role === 'user')
+            .slice(-5)
+            .map((m) => m.content.trim())
+            .filter(Boolean)
+            .join('\n');
         }
         await handleNewConversation(continuationSummary);
       }} />
 
       {/* EU AI Act Article 50(1) Transparency Banner */}
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        data-testid="chat-live-region"
+      >
+        {answerAnnouncement}
+      </div>
+
       <AiTransparencyBanner />
 
       {/* Daily Mood Check-In & Journey Banner (Landing Mode only) */}
@@ -2582,7 +2601,7 @@ return (
                 </div>
               </div>
 
-              <div className="mt-auto w-full max-w-2xl px-2 sm:mt-0 sm:px-4">
+              <div className="mt-auto w-full max-w-2xl px-2 pb-[var(--cookie-banner-h,0px)] sm:mt-0 sm:px-4">
                 <ChatComposer
                                   inputValue={inputValue}
                                   inputRef={inputRef}
@@ -2667,21 +2686,13 @@ return (
                     const priorMessages = messages;
                     let continuationSummary = currentConversation?.summary?.trim() || '';
                     if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
-                      try {
-                        continuationSummary = await generateSummary(
-                          priorMessages.map((m) => ({
-                            role: m.role === 'guru' ? 'assistant' : 'user',
-                            content: m.content,
-                          }))
-                        );
-                      } catch {
-                        continuationSummary = priorMessages
-                          .filter((m) => m.role === 'user')
-                          .slice(-5)
-                          .map((m) => m.content.trim())
-                          .filter(Boolean)
-                          .join('\n');
-                      }
+                      // T1-19: no client summary call; local, user-text-only fallback.
+                      continuationSummary = priorMessages
+                        .filter((m) => m.role === 'user')
+                        .slice(-5)
+                        .map((m) => m.content.trim())
+                        .filter(Boolean)
+                        .join('\n');
                     }
                     await handleNewConversation(continuationSummary);
                   }}
@@ -2752,9 +2763,16 @@ return (
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
+          className="relative z-20 shrink-0 px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
         >
-          {quotaExceeded && <QuotaAuthPrompt remaining={quotaMeta.remaining} totalLimit={quotaMeta.totalLimit} />}
+          {!quotaExceeded && <QuotaCounter />}
+          {quotaExceeded && (
+            <QuotaAuthPrompt
+              remaining={quotaMeta.remaining}
+              totalLimit={quotaMeta.totalLimit}
+              retryAfterSeconds={quotaMeta.retryAfterSeconds}
+            />
+          )}
           <HealingPathCard
             lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
             recommendedCourse={recommendedCourse}

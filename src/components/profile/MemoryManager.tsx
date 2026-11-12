@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { List, Loader2, Mic, MicOff, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, Pencil, Network, RotateCcw, Search, X } from 'lucide-react';
+import { List, Loader2, Mic, MicOff, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, Pencil, Network, RotateCcw, Search, X, Moon, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Card,
@@ -32,6 +32,7 @@ import {
   type SessionSummary,
   type ConversationContinuity,
   type UserSkill,
+  type SeekerDashboard,
 } from '@/lib/memoryApi';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { KGConceptMap } from '@/components/kg/KGConceptMap';
@@ -57,6 +58,8 @@ export const MemoryManager = () => {
   const [core, setCore] = useState<CoreMemory | null>(null);
   const [coreText, setCoreText] = useState('');
   const [coreSaving, setCoreSaving] = useState(false);
+  const [dashboard, setDashboard] = useState<SeekerDashboard | null>(null);
+  const [dreamingLoading, setDreamingLoading] = useState(false);
   const [summaries, setSummaries] = useState<SessionSummary[]>([]);
   const [conversations, setConversations] = useState<ConversationContinuity[]>([]);
   const [persona, setPersona] = useState<string>('');
@@ -95,14 +98,15 @@ export const MemoryManager = () => {
   const refresh = async () => {
     setLoading(true);
     setUnavailable(null);
-    const [listResult, coreResult, summariesResult, conversationsResult, personaResult, skillsResult, consentResult] = await Promise.allSettled([
-      memoryApi.list(1, 100),
+    const [listResult, coreResult, summariesResult, conversationsResult, personaResult, skillsResult, consentResult, dashboardResult] = await Promise.allSettled([
+      typeof memoryApi.listCanonical === 'function' ? memoryApi.listCanonical(1, 100) : memoryApi.list(1, 100),
       memoryApi.getCore(),
       memoryApi.getSummaries(10),
       memoryApi.getConversations(5),
       memoryApi.getPersona(),
       memoryApi.getSkills(),
       memoryApi.getConsent(),
+      typeof memoryApi.getDashboard === 'function' ? memoryApi.getDashboard() : Promise.resolve(null),
     ]);
     if (listResult.status === 'fulfilled') {
       setMemories(listResult.value.memories);
@@ -131,7 +135,34 @@ export const MemoryManager = () => {
     } else {
       setHasConsent(false);
     }
+    if (dashboardResult.status === 'fulfilled') {
+      setDashboard(dashboardResult.value);
+    }
     setLoading(false);
+  };
+
+  const handleConsolidateMemories = async () => {
+    setDreamingLoading(true);
+    try {
+      const report = await memoryApi.dream(false);
+      toast({
+        title: t('memory.consolidationComplete', 'Memory Consolidation Complete'),
+        description: t(
+          'memory.consolidationReport',
+          `Evaluated ${report.active_remaining} active memories. Evicted ${report.evicted_count} ungrounded claims, resolved ${report.superseded_count} updates, pruned ${report.decayed_count} expired.`
+        ),
+      });
+      await refresh();
+    } catch (err) {
+      const msg = err instanceof MemoryApiError ? err.message : 'Consolidation failed.';
+      toast({
+        title: t('memory.consolidationFailed', 'Consolidation Failed'),
+        description: msg,
+        variant: 'destructive',
+      });
+    } finally {
+      setDreamingLoading(false);
+    }
   };
 
   const regeneratePersona = async () => {
@@ -453,6 +484,93 @@ export const MemoryManager = () => {
             </Button>
           </div>
         </div>
+      )}
+
+      {/* ── Layer 4: Seeker Core Dashboard (Preemptively Loaded Context) ────── */}
+      {dashboard && (
+        <Card className="rounded-2xl border-hairline shadow-sm bg-gradient-to-br from-card via-card to-ojas/5">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-ojas" aria-hidden="true" />
+                  {t('memory.seekerDashboard', 'Seeker Core Dashboard')}
+                </CardTitle>
+                <CardDescription>
+                  {t('memory.seekerDashboardDesc', 'Layer 4 minimal context (≤120 tokens) safely preloaded on every turn.')}
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleConsolidateMemories}
+                disabled={dreamingLoading}
+                className="h-8 px-3 rounded-xl text-xs border-ojas/30 hover:bg-ojas/10 text-ojas self-start sm:self-center"
+              >
+                {dreamingLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Moon className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+                )}
+                {t('memory.consolidateNow', 'Consolidate Memories')}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3 rounded-xl bg-muted/40 border border-hairline">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t('memory.spiritualStage', 'Spiritual Stage')}
+                </span>
+                <p className="text-sm font-semibold capitalize text-foreground mt-0.5">
+                  {dashboard.spiritual_stage}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-hairline">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t('memory.preferredLanguage', 'Preferred Language')}
+                </span>
+                <p className="text-sm font-semibold text-foreground mt-0.5">
+                  {dashboard.preferred_language.toUpperCase()}
+                </p>
+              </div>
+              <div className="p-3 rounded-xl bg-muted/40 border border-hairline">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t('memory.lastConsolidated', 'Last Consolidated')}
+                </span>
+                <p className="text-sm font-semibold text-foreground mt-0.5">
+                  {formatDate(dashboard.last_consolidated_at)}
+                </p>
+              </div>
+            </div>
+
+            {dashboard.active_inquiry && (
+              <div className="p-3 rounded-xl bg-muted/40 border border-hairline">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t('memory.currentInquiry', 'Active Inquiry / Obstacle')}
+                </span>
+                <p className="text-sm text-foreground/90 mt-0.5">
+                  {dashboard.active_inquiry}
+                </p>
+              </div>
+            )}
+
+            {dashboard.active_practices && dashboard.active_practices.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t('memory.activePractices', 'Active Sadhana / Practices')}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {dashboard.active_practices.map((practice, idx) => (
+                    <Badge key={idx} variant="secondary" className="text-xs px-2.5 py-0.5 rounded-lg">
+                      {practice}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* ── What the guru remembers (persona + skills + reflections, merged) */}

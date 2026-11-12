@@ -39,6 +39,9 @@ from scripts.ops.graded_run_preflight import (
 DEFAULT_OUT_ROOT = Path.home() / "mukthiguru_attribution_data" / "graded_runs"
 FROZEN = BACKEND / "evaluation" / "datasets" / "first_person_bakeoff_2026-09-25.json"
 UNANSWERABLE = REPO / "evals" / "first_person" / "unanswerable60_draft.jsonl"
+BENCHMARK_FROZEN29 = REPO / "evals" / "first_person" / "frozen29.jsonl"
+BENCHMARK_COMPOUND10 = REPO / "evals" / "first_person" / "compound10.jsonl"
+BENCHMARK_OOC13 = REPO / "evals" / "first_person" / "ooc13.jsonl"
 ENV_PREFIXES = ("FIRST_PERSON_", "OPENROUTER_", "CELERY_TASK", "LLM_PROVIDER")
 
 
@@ -110,7 +113,7 @@ def _run_cache_proof() -> Check:
 def validity(
     log_text: str, spend_before: tuple[Any, Any], spend_after: tuple[Any, Any], preflight_ok: bool
 ) -> dict[str, Any]:
-    """A run is valid only if the preflight passed and the log shows no blocked LLM calls."""
+    """A run is valid only if the preflight passed and the log shows no blocked LLM calls or auth errors."""
     log = check_log_clean(log_text)
     reasons = []
     if not preflight_ok:
@@ -145,11 +148,24 @@ def _container_facts(container: str) -> dict[str, Any]:
         "container_id": info["Id"][:12],
         "image": info.get("Image"),
         "started_at": (info.get("State") or {}).get("StartedAt"),
-        "flags": {k: v for k, v in sorted(env.items()) if k.startswith(ENV_PREFIXES)},
+        "flags": {
+            k: (
+                "***REDACTED***"
+                if any(s in k.lower() for s in ("key", "secret", "token", "password"))
+                else v
+            )
+            for k, v in sorted(env.items())
+            if k.startswith(ENV_PREFIXES)
+        },
     }
 
 
-def _items(include_frozen: bool, include_unanswerable: bool) -> list[dict[str, Any]]:
+def _items(
+    include_frozen: bool,
+    include_unanswerable: bool,
+    include_benchmarks: bool = False,
+    include_question_bank: bool = False,
+) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     if include_frozen:
         data = json.loads(FROZEN.read_text(encoding="utf-8"))
@@ -175,6 +191,75 @@ def _items(include_frozen: bool, include_unanswerable: bool) -> list[dict[str, A
                         "expected": x["expected"],
                         "scoring_group": x["scoring_group"],
                         "lang": x["lang"],
+                    }
+                )
+    if include_benchmarks:
+        for p, kind_default in [
+            (BENCHMARK_FROZEN29, "on_topic"),
+            (BENCHMARK_COMPOUND10, "compound"),
+            (BENCHMARK_OOC13, "out_of_corpus"),
+        ]:
+            if p.exists():
+                for line in p.read_text(encoding="utf-8").splitlines():
+                    if line.strip():
+                        b = json.loads(line)
+                        items.append(
+                            {
+                                "id": b["id"],
+                                "question": b["question"],
+                                "set": "benchmark",
+                                "kind": b.get("kind", kind_default),
+                                "answerable": b.get("kind", kind_default) != "out_of_corpus",
+                            }
+                        )
+    if include_question_bank:
+        try:
+            from benchmarks.question_bank import QUERIES
+        except ImportError:
+            import sys
+
+            _backend_dir = str(BACKEND)
+            if _backend_dir not in sys.path:
+                sys.path.insert(0, _backend_dir)
+            from benchmarks.question_bank import QUERIES
+
+        _UNANSWERABLE_CATEGORIES = {
+            "guardrails_input",
+            "intent_traps",
+            "silly_nonsense",
+            "doctrine_traps",
+            "boundary_probing",
+            "adversarial_traps",
+            "constitutional_adherence_traps",
+            "malformed_input",
+            "infra_probing",
+            "multilingual_jailbreak_traps",
+            "markdown_html_injection",
+            "future_date_confabulation",
+            "ruthless_safety_boundaries",
+            "web_search_live_events",
+        }
+        for category, q_list in QUERIES.items():
+            is_ans = category not in _UNANSWERABLE_CATEGORIES
+            for idx, q_entry in enumerate(q_list):
+                if isinstance(q_entry, dict):
+                    if (
+                        "turns" in q_entry
+                        and isinstance(q_entry["turns"], list)
+                        and q_entry["turns"]
+                    ):
+                        q_text = q_entry["turns"][0].get("q", "")
+                    else:
+                        q_text = q_entry.get("q", "")
+                else:
+                    q_text = str(q_entry)
+                items.append(
+                    {
+                        "id": f"qb_{category}_{idx + 1:02d}",
+                        "question": q_text,
+                        "set": "question_bank",
+                        "category": category,
+                        "answerable": is_ans,
                     }
                 )
     return items
@@ -223,6 +308,10 @@ def main() -> int:
     ap.add_argument("--need-usd", type=float, default=12.0)
     ap.add_argument("--no-frozen", action="store_true")
     ap.add_argument("--no-unanswerable", action="store_true")
+    ap.add_argument("--include-benchmarks", action="store_true", default=False)
+    ap.add_argument("--benchmarks-only", action="store_true", default=False)
+    ap.add_argument("--include-question-bank", action="store_true", default=False)
+    ap.add_argument("--question-bank-only", action="store_true", default=False)
     args = ap.parse_args()
 
     run_dir = Path(args.out_root).expanduser() / args.run_id
@@ -254,8 +343,16 @@ def main() -> int:
 
     rows_path = run_dir / "rows.jsonl"
     token_box: dict[str, Any] = {"token": None, "used": 0}
+    include_frozen = not args.no_frozen and not args.benchmarks_only and not args.question_bank_only
+    include_unanswerable = (
+        not args.no_unanswerable and not args.benchmarks_only and not args.question_bank_only
+    )
+    include_benchmarks = args.include_benchmarks or args.benchmarks_only
+    include_qb = args.include_question_bank or args.question_bank_only
+    items = _items(include_frozen, include_unanswerable, include_benchmarks, include_qb)
+
     with httpx.Client(timeout=120) as client, rows_path.open("w", encoding="utf-8") as out:
-        for item in _items(not args.no_frozen, not args.no_unanswerable):
+        for item in items:
             t0 = time.time()
             http, result = _ask(client, args.base_url, token_box, item["question"])
             row = stamp_row(

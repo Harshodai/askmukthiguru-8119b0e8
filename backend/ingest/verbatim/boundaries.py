@@ -17,14 +17,24 @@ Sentence boundaries are read from token punctuation. Pass the punctuation
 display layer (``punct.json`` ``display_words``, 1:1 with the verbatim words
 under ``zero_change_assert_passed``) when the verbatim ASR is unpunctuated;
 the returned indices then apply to the verbatim words unchanged.
+
+Terminal punctuation is English ASCII by default; ``terminal_tokens(language)``
+widens it to the Indic danda pair for a declared non-English language, and the
+module-level ``TERMINAL`` accepts both (a danda never occurs in English text).
 """
 
 from __future__ import annotations
 
 from typing import Optional
 
-TERMINAL = (".", "?", "!")
-_STRIP = "\"'“”‘’()[]…,;:—–-.?!"
+# Sentence-terminating punctuation. The Indic danda ("।", U+0964) and double
+# danda ("॥", U+0965) never occur in English text, so the union is safe as the
+# default vocabulary; ``terminal_tokens(language=...)`` narrows it per language.
+TERMINAL_ASCII = (".", "?", "!")
+TERMINAL_INDIC = ("\u0964", "\u0965")
+TERMINAL = TERMINAL_ASCII + TERMINAL_INDIC
+# Danda is stripped with the rest so ``_bare`` compares bare words ("and।" -> "and").
+_STRIP = "\"'“”‘’()[]…,;:—–-.?!\u0964\u0965"
 
 CONJUNCTIONS = frozenset({"and", "or", "so", "but", "because", "nor", "yet"})
 # Closed-class words a complete English sentence cannot end on.
@@ -159,6 +169,18 @@ _SHORT_OPENERS = frozenset(
         "true",
     }
 )
+
+
+def terminal_tokens(language: str | None = None) -> tuple[str, ...]:
+    """Terminal punctuation for a declared language.
+
+    Undeclared (``None``) and ``en`` keep the ASCII-only vocabulary, so an
+    English span is never "terminated" by a character its ASR cannot emit.
+    Every other declared language also accepts the Indic danda pair.
+    """
+    if language is None or language.strip().lower() in {"", "en"}:
+        return TERMINAL_ASCII
+    return TERMINAL
 
 
 def _bare(token: str) -> str:
@@ -365,6 +387,13 @@ def grow_to_sentence_end(
 
 
 def _self_check() -> None:
+    assert terminal_tokens() == TERMINAL_ASCII
+    assert terminal_tokens("en") == TERMINAL_ASCII
+    assert "\u0964" in terminal_tokens("hi")
+    assert set(TERMINAL) == set(TERMINAL_ASCII) | set(TERMINAL_INDIC)
+    # A danda-terminated sentence is whole: neither head nor tail defect.
+    assert boundary_defects("सत्यं वद\u0964".split()) == []
+    assert boundary_defects("सत्यं वद".split()) == ["tail_no_terminal"]
     assert boundary_defects("Suffering is not a fact.".split()) == []
     assert boundary_defects("This is who you are.".split()) == []
     assert boundary_defects("and then you let go of".split()) == [

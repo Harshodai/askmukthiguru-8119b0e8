@@ -24,3 +24,7 @@ After the 42 times breath cycle is over, you will exhale and hold your breath an
 - Video: Ekam Health Practice
 - URL: https://www.youtube.com/watch?v=FSxiSEV1iPY
 - Speaker: Sri Preethaji & Sri Krishnaji
+
+## Related Concepts
+- **The Power of Observation** ([[shared/the_power_of_observation]]): The Power of Observation is a concept that emphasizes the importance of observing and understanding the world around us.
+- **Understanding Suffering** ([[sri-preethaji/understanding_suffering]]): The passage emphasizes the pervasive issue of comparison and judgment in aspirations, particularly in young men aspiring to be better than their fathers.

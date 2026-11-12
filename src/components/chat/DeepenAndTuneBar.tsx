@@ -274,9 +274,9 @@ export const DeepenAndTuneBar: React.FC<DeepenAndTuneBarProps> = ({
         type: 'microNode',
         position: { x: 120, y: 20 },
         data: {
-          label: selectedConcept.teacher,
+          label: 'Core teachings',
           category: 'Teacher',
-          subtext: 'Authentic Transmission',
+          subtext: 'Summary, not a quotation',
           accent: '#fb7185',
         },
       },
@@ -621,7 +621,7 @@ export const DeepenAndTuneBar: React.FC<DeepenAndTuneBarProps> = ({
 
           <div className="mt-3 flex items-center justify-between text-xs pt-1 border-t border-border/30">
             <span className="text-muted-foreground text-[11px]">
-              Transmitted by <strong>{selectedConcept?.teacher}</strong>
+              Summary in our own words, not a quotation
             </span>
           </div>
         </DialogContent>

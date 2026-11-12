@@ -49,7 +49,12 @@
        WCAG 2 AA minimum for body-size text. 31% lightness is the first value
        that clears it (4.59:1). Use this for gold text; keep the lighter tokens
        for fills, borders and large display type. */
-    --ojas-gold-ink: 40 90% 31%;
+    --ojas-gold-ink: 40 90% 27%;
+    /* NEW-A11Y-2: text-only inks for the trust labels. Each clears 4.5:1 on the
+       card, the page ground and a 10% tint of its own colour (see
+       src/test/contrastTokens.test.ts). Use them for text, never for fills. */
+    --destructive-ink: 0 72% 42%;
+    --amber-ink: 26 83% 31%;
 
     /* Palette Alias Layer */
     --sacred-sand: 40 30% 96%;
@@ -141,6 +146,11 @@
 
   /* Dark Sanctuary Theme — deep night with warm gold accents */
   .dark {
+    /* NEW-A11Y-2: on the dark ground the bright tokens read well; the light
+       theme's dark inks would not. Same token names, theme-aware values. */
+    --ojas-gold-ink: 43 96% 56%;
+    --destructive-ink: 0 85% 72%;
+    --amber-ink: 43 96% 56%;
     --spiritual-gradient-start: 25 20% 8%;
     --spiritual-gradient-mid: 30 25% 10%;
     --spiritual-gradient-end: 35 30% 12%;
@@ -817,4 +827,15 @@ nav,
    --cookie-banner-h and removes it once the seeker decides. */
 body {
   padding-bottom: var(--cookie-banner-h, 0px);
+}
+
+/* NEW-A11Y-8 (A11Y-12, WCAG 2.2.2): under "reduce motion" no decorative CSS
+   animation loops. Loading spinners stay because they are the only sign that
+   work is in progress (essential motion); the rest play once at most. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *:not(.animate-spin)::before,
+  *:not(.animate-spin)::after {
+    animation-iteration-count: 1 !important;
+  }
 }

@@ -210,7 +210,9 @@ def test_first_person_pipeline_checks_crisis_before_facet_split(monkeypatch):
     assert result.status == "crisis_redirect"
     assert result.is_direct_answer is False
     assert result.citations == []
-    assert result.answer_text == format_helplines_block()
+    # SAFE-004 (T4-07, owner decision 2026-11-06): crisis blocks carry
+    # call-verified lines only.
+    assert result.answer_text == format_helplines_block(verified_only=True)
     # No facet was ever formed, and no clip candidate was ever retrieved.
     assert calls["facet_decompose"] == 0
     store.search_hybrid.assert_not_called()

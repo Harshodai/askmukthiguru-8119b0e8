@@ -19,13 +19,14 @@ from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.dependencies import ServiceContainer
+from app.log_safe import q_tag
 from app.orchestrator import _stream_done_metadata
 from app.pipeline import PipelineCoordinator
 from app.release_manifest import get_release_manifest
 from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest
 from app.security_utils import is_benchmark_request
-from app.telemetry_sink import QueryTrace, SupabaseTelemetrySink
+from app.telemetry_sink import QueryTrace
 from guardrails.lightweight_handler import _HARMFUL_PATTERNS
 from rag.memory import normalize_session_id
 from services.anon_quota_port import QuotaResult
@@ -61,7 +62,9 @@ class ChatStreamRequestOrchestrator:
     def __init__(self, container: ServiceContainer) -> None:
         self.container = container
         self.coordinator = PipelineCoordinator(container)
-        self.telemetry_sink = SupabaseTelemetrySink()
+        # Reuse the container's sink: a new one per request re-created its Redis client
+        # (~100 times/min in the 2026-11-12 graded run).
+        self.telemetry_sink = container.telemetry_sink
 
     async def orchestrate_stream(
         self,
@@ -335,7 +338,7 @@ class ChatStreamRequestOrchestrator:
             except TimeoutError:
                 logger.error(
                     f"Pipeline timeout for user {sanitize_log_input(str(user_id))}: "
-                    f"message='{sanitize_log_input(user_msg[:60])}...'"
+                    f"query={q_tag(user_msg)}"
                 )
                 yield _sse_event("error", "The Guru took too long to respond. Please try again.")
                 return
@@ -412,6 +415,12 @@ class ChatStreamRequestOrchestrator:
                     yield _sse_event("token", escaped)
                     await asyncio.sleep(0.01)
 
+            # T1-18 (UX-005): Done event with metadata (citations, labels,
+            # safety notices) is emitted before final text so clients never
+            # receive final text without authoritative metadata.
+            meta = json.dumps(_stream_done_metadata(result))
+            yield _sse_event("done", meta)
+
             # The pipeline may have normalized the raw streamed model text after
             # generation (for example, an evidence-aware refusal or bounded
             # non-doctrinal fallback). Emit the authoritative final answer
@@ -429,10 +438,6 @@ class ChatStreamRequestOrchestrator:
                     TPOT_SECONDS.labels(provider="stream").observe(tpot)
                 except Exception as _e:
                     logger.debug("[stream cleanup] suppressed non-critical error: %s", _e)
-
-            # Done event with metadata
-            meta = json.dumps(_stream_done_metadata(result))
-            yield _sse_event("done", meta)
 
             if not chat_body.incognito:
                 # Content-bearing telemetry is disabled for ephemeral chats.

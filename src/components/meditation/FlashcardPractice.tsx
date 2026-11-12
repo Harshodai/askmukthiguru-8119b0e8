@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Brain, Check, RefreshCw } from 'lucide-react';
+import { BACKEND_URL } from '@/lib/backendUrl';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Flashcard {
@@ -40,7 +41,7 @@ export const FlashcardPractice = () => {
         return;
       }
 
-      const response = await fetch('/api/srs/due?limit=10', {
+      const response = await fetch(`${BACKEND_URL}/api/srs/due?limit=10`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -76,12 +77,12 @@ export const FlashcardPractice = () => {
     if (cards.length === 0 || submitting) return;
     setSubmitting(true);
     const card = cards[currentIndex];
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      const response = await fetch('/api/srs/review', {
+      const response = await fetch(`${BACKEND_URL}/api/srs/review`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -166,7 +167,7 @@ export const FlashcardPractice = () => {
           Card {currentIndex + 1} of {cards.length}
         </span>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* Flashcard container */}
         <div className="min-h-[140px] rounded-lg bg-zinc-900/60 border border-zinc-800/80 p-5 flex flex-col justify-between transition-all duration-300 hover:border-zinc-700/50">
@@ -190,8 +191,8 @@ export const FlashcardPractice = () => {
         {/* Buttons layout */}
         <div className="flex flex-col gap-3">
           {!showAnswer ? (
-            <Button 
-              onClick={() => setShowAnswer(true)} 
+            <Button
+              onClick={() => setShowAnswer(true)}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium shadow-lg shadow-emerald-950/20"
             >
               Reveal Answer

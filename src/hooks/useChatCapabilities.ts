@@ -18,6 +18,8 @@ export type ChatCapabilities = {
   voiceInput: boolean;
   googleSso: boolean;
   pushNotifications: boolean;
+  /** T1-16: WhatsApp channel is disabled_by_policy by default; hidden unless explicitly available. */
+  whatsapp: boolean;
 };
 
 export const LOCAL_CHAT_CAPABILITIES: ChatCapabilities = {
@@ -32,6 +34,7 @@ export const LOCAL_CHAT_CAPABILITIES: ChatCapabilities = {
   voiceInput: true,
   googleSso: true,
   pushNotifications: true,
+  whatsapp: false,
 };
 
 export function resolveChatCapabilities(manifest?: CapabilityManifest): ChatCapabilities {
@@ -51,6 +54,7 @@ export function resolveChatCapabilities(manifest?: CapabilityManifest): ChatCapa
     voiceInput: isAvailable('voice_input', LOCAL_CHAT_CAPABILITIES.voiceInput),
     googleSso: isAvailable('google_sso', LOCAL_CHAT_CAPABILITIES.googleSso),
     pushNotifications: isAvailable('push_notifications', LOCAL_CHAT_CAPABILITIES.pushNotifications),
+    whatsapp: isAvailable('whatsapp', LOCAL_CHAT_CAPABILITIES.whatsapp),
   };
 }
 

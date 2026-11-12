@@ -5,7 +5,6 @@ import pytest
 from services.guru_voice_langhanam import (
     LANGHANAM_ELIGIBLE_INTENTS,
     LANGHANAM_VOICE_BLOCK,
-    REFERENCE_VOICE,
     contains_sanskrit_terms,
     count_fillers,
     detect_combined_teachings,
@@ -16,28 +15,6 @@ from services.guru_voice_langhanam import (
     split_sentences,
     strip_fillers,
 )
-
-# --- Reference voice -------------------------------------------------------
-
-
-def test_reference_voice_has_five_to_seven_paragraphs():
-    paragraphs = [p.strip() for p in REFERENCE_VOICE.split("\n\n") if p.strip()]
-    assert 5 <= len(paragraphs) <= 7
-
-
-def test_reference_voice_keeps_sanskrit_terms():
-    assert "langhanam" in REFERENCE_VOICE.lower()
-    assert "vaak shakti" in REFERENCE_VOICE.lower()
-
-
-def test_reference_voice_has_no_transcription_errors():
-    assert "shittim" not in REFERENCE_VOICE.lower()
-    assert "love venoms" not in REFERENCE_VOICE.lower()
-
-
-def test_reference_voice_has_no_fillers():
-    assert count_fillers(REFERENCE_VOICE) == 0
-
 
 # --- No-filler detection ---------------------------------------------------
 

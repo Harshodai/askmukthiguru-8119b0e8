@@ -1,0 +1,39 @@
+{
+  "events": [
+    {
+      "confidence": 0.95,
+      "llm_tokens": 384,
+      "n_citations": 0,
+      "n_quarantined": 0,
+      "reason": "relevance_indeterminate",
+      "status": "abstained"
+    }
+  ],
+  "llm_calls": [
+    "scorer"
+  ],
+  "result": {
+    "abstain_reason": "relevance_indeterminate",
+    "answer_text": {
+      "chars": 59,
+      "sha256": "3158308a49fe845727b0e8955e889fde19e305ba829fef873d5c2ca3b9ea26be"
+    },
+    "answerability": "relevance_indeterminate",
+    "atma_vichara_inquiry": null,
+    "audio_playback_clip": null,
+    "audio_playback_clips": [],
+    "cached": false,
+    "citations": [],
+    "detected_concepts": [],
+    "error": null,
+    "is_direct_answer": false,
+    "practice_recommendation": null,
+    "related_clips_heading": null,
+    "second_quote_note": null,
+    "status": "abstained"
+  },
+  "store": {
+    "points_servable_calls": 0,
+    "search_hybrid_calls": 0
+  }
+}

@@ -245,7 +245,7 @@ export const DesktopSidebar = ({
             {groups.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <BookOpen className="w-6 h-6 text-muted-foreground/60" />
-                <p className="text-sm text-muted-foreground/75 text-center whitespace-pre-line">
+                <p className="text-sm text-muted-foreground text-center whitespace-pre-line">
                   {search ? t('desktopSidebar.noResults') : t('desktopSidebar.noConversations')}
                 </p>
               </div>
@@ -291,7 +291,7 @@ export const DesktopSidebar = ({
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                           <button
                             onClick={e => handleRename(conv, e)}
-                            className="p-1 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                            className="flex h-6 w-6 items-center justify-center rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground"
                             title={t('desktopSidebar.rename')}
                             aria-label={t('desktopSidebar.renameConv') === 'desktopSidebar.renameConv' ? 'Rename conversation' : t('desktopSidebar.renameConv')}
                           >
@@ -302,7 +302,7 @@ export const DesktopSidebar = ({
                               e.stopPropagation();
                               setDeleteConfirmId(conv.id);
                             }}
-                            className="p-1 rounded hover:bg-destructive/15 text-muted-foreground hover:text-destructive"
+                            className="flex h-6 w-6 items-center justify-center rounded hover:bg-destructive/15 text-muted-foreground hover:text-destructive"
                             title={t('common.delete')}
                             aria-label={t('desktopSidebar.deleteConv') === 'desktopSidebar.deleteConv' ? 'Delete conversation' : t('desktopSidebar.deleteConv')}
                           >

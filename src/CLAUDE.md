@@ -42,3 +42,13 @@ This build is also what ships inside the `android/` and `ios/` Capacitor wrapper
 - **Backend Polling & Railway Sleep Caution**: `useChatCapabilities` and `useMetrics` hit `/api/capabilities` and `/api/metrics`. In hosted/staging environments, avoid high-frequency polling intervals, as incoming HTTP traffic resets Railway's 10-minute Serverless inactivity timer and keeps backend containers continuously active.
 - **Backend Status (Sep 20, 2026)**: All services (Backend, Memgraph, Qdrant) are currently **SCALED DOWN / OFFLINE** on Railway (Redis `● Sleeping`) to eliminate idle compute costs ($0/hr). To wake up: spin up databases first (`railway redeploy --service qdrant`, `railway redeploy --service memgraph`), then backend (`railway up` or `railway redeploy --service askmukthiguru-8119b0e8`).
 - **18+ signup gate (Sep 22, 2026, PLAN.md Phase G)**: `AuthPage.tsx`'s sign-up form requires a checked `ageConfirmed` checkbox before the email/password submit button or the Google/Apple OAuth buttons become interactive — enforced both via `disabled`/`pointer-events-none` and independently inside `handleEmailAuth`. Email-path confirmations land in Supabase `user_metadata` (`age_confirmed`/`age_confirmed_at`); OAuth confirmations are UI-gated only (no pre-redirect metadata hook exists for Google/Apple sign-in). Don't remove or bypass this without a replacement compliance control — see root `CLAUDE.md`'s "Open work" section and `lessons.md` `L-AGE-GATE-1`.
+
+## Lovable edits
+
+Lovable (`gpt-engineer-app[bot]`) can write to this tree. Keep these when it edits (NEW-LOV-06):
+
+- Storage contracts: `chatStorage`, `profileStorage` and the `askmukthiguru_stream_checkpoint` sessionStorage key keep their shapes. Do not rename keys or change record fields without a migration.
+- Audit work that must not be reverted: T1-16 (API calls use `BACKEND_URL` from `@/lib/backendUrl`, never a relative `/api`), T1-17, T1-19 and T6-10 (honest product copy: clip, honest abstain, safety; no "conversational companion" promise).
+- Teacher words stay verbatim and labelled; UI copy never speaks in a teacher's first person.
+- `src/integrations/supabase/` is generated: do not edit it by hand. `package.json`, lock files, `.env*`, `supabase/migrations/` and `supabase/functions/` need a human review label on the PR (`lovable-reviewed`).
+- Owner step, not done here: put the same text into the Lovable project's "Project knowledge".

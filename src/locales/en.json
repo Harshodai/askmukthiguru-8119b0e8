@@ -86,7 +86,7 @@
     "pushPromptTitle": "Receive a daily teaching from Sri Krishnaji?",
     "pushPromptDesc": "One short message a day. No spam.",
     "welcomeSeeker": "Welcome, Dear Seeker",
-    "disclaimerDesc": "AskMukthiGuru is an AI spiritual companion inspired by the teachings of Sri Preethaji & Sri Krishnaji. It offers wisdom and guidance on your journey toward inner peace.",
+    "disclaimerDesc": "AskMukthiGuru is an AI inquiry portal and archive of teachings from Sri Preethaji & Sri Krishnaji. It offers verbatim video teachings, contemplative practices, and guidance toward inner peace.",
     "importantNotice": "Important Notice",
     "disclaimerWarning": "This is not a replacement for professional mental health support, medical advice, or therapy. If you're experiencing a crisis, please reach out to a qualified professional or crisis helpline.",
     "crisisSupport": "Crisis Support (India):",
@@ -241,8 +241,8 @@
       "cta": "Practice"
     },
     "footer": {
-      "tagline": "Your spiritual AI companion for discovering inner peace and the beautiful state.",
-      "disclaimer": "This is an AI companion trained on spiritual teachings. It is not a replacement for medical or clinical therapy. If you are experiencing a mental health crisis, please seek professional help.",
+      "tagline": "Explore authentic video teachings and contemplative practices for inner peace and the beautiful state.",
+      "disclaimer": "This is an AI wisdom portal based on authentic spiritual teachings. It is not a replacement for medical or clinical therapy. If you are experiencing a mental health crisis, please seek professional help.",
       "madeWith": "Made with",
       "forSeekers": "for seekers everywhere"
     },
@@ -364,12 +364,13 @@
     "thanks": "Thanks for sharing. 🙏",
     "listening": "Listening",
     "speak": "Speak",
-    "streakRooting_one": "{{count}} day streak — your beautiful state is taking root!",
-    "streakRooting_other": "{{count}} days streak — your beautiful state is taking root!",
-    "streakKeepGoing_one": "{{count}} day streak — keep it going!",
-    "streakKeepGoing_other": "{{count}} days streak — keep it going!"
+    "streakRooting_one": "{{count}} day of consistent reflection",
+    "streakRooting_other": "{{count}} days of consistent reflection",
+    "streakKeepGoing_one": "{{count}} day of practice",
+    "streakKeepGoing_other": "{{count}} days of practice"
   },
   "chat": {
+    "quotaLeft": "{{remaining}} of {{limit}} free questions left today",
     "pageTitle": "Chat — AskMukthiGuru",
     "pageDescription": "Have a private, AI-guided spiritual conversation rooted in the teachings of Sri Preethaji & Sri Krishnaji.",
     "loadingSession": "Loading your session…",
@@ -850,7 +851,8 @@
     "noAnswerYet": "No answer yet",
     "askSomethingFirst": "Ask something first.",
     "languagePicker": "Language picker",
-    "languagePickerHint": "Use the globe icon below the input."
+    "languagePickerHint": "Use the globe icon below the input.",
+    "quotaResetsIn": "Resets in {{count}} hour(s)."
   },
   "notFound": {
     "message": "Oops! Page not found",
@@ -1134,7 +1136,7 @@
   },
   "onboarding": {
     "welcome": "Welcome to AskMukthiGuru",
-    "welcomeDesc": "Your spiritual AI companion for inner peace and transformation.",
+    "welcomeDesc": "Your spiritual inquiry portal for authentic teachings, meditation, and inner transformation.",
     "step1": "Start a conversation by typing or speaking your question.",
     "step2": "Receive wisdom from the teachings of Sri Preethaji & Sri Krishnaji.",
     "step3": "Practice Serene Mind meditation whenever you need calm.",

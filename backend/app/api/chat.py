@@ -130,6 +130,27 @@ def _anon_quota_response(quota: QuotaResult) -> JSONResponse:
     )
 
 
+def quota_public_fields(quota: QuotaResult) -> dict[str, int] | None:
+    """UX-011: what the client may show before the limit. ``None`` when no slot was taken
+    (signed-in user or disabled quota), so those callers never see a counter.
+
+    ``remaining`` is the number of free turns left after this one was reserved.
+    """
+    if quota.reservation_id is None:
+        return None
+    return {"remaining": max(int(quota.remaining), 0), "limit": int(quota.total_limit)}
+
+
+def quota_headers(quota: QuotaResult) -> dict[str, str]:
+    fields = quota_public_fields(quota)
+    if fields is None:
+        return {}
+    return {
+        "X-Quota-Remaining": str(fields["remaining"]),
+        "X-Quota-Limit": str(fields["limit"]),
+    }
+
+
 async def _enforce_anon_quota(
     user: dict,
     container: ServiceContainer,
@@ -270,8 +291,8 @@ def _crisis_bypass_requested(chat_body: Any) -> bool:
             from app.metrics import CRISIS_BYPASS_TOTAL
 
             CRISIS_BYPASS_TOTAL.inc()
-        except Exception:  # noqa: BLE001 - observability must not shed crisis
-            pass
+        except Exception as metric_exc:  # noqa: BLE001 - observability must not shed crisis
+            logger.debug("CRISIS_BYPASS_TOTAL increment failed: %s", metric_exc)
         return True
 
 
@@ -660,7 +681,9 @@ async def generate_title_endpoint(
         system_prompt = "Create a concise, meaningful chat title. Return ONLY the title, no quotes, no punctuation, and keep it under 6 words."
         user_prompt = f"Title this conversation: {first_message}"
 
-        raw_title = await container.ollama.generate(
+        from app.container import get_llm_provider
+
+        raw_title = await get_llm_provider(container).generate(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
@@ -923,15 +946,16 @@ async def chat_endpoint(
                 await asyncio.sleep(0.5)
             raise HTTPException(status_code=504, detail="Pipeline timeout")
 
-        return JSONResponse(
-            status_code=202,
-            content={
-                "job_id": job_id,
-                "status": "queued",
-                "queue_position": queue_pos,
-                "poll_url": f"/api/jobs/{job_id}",
-            },
-        )
+        content_202: dict[str, Any] = {
+            "job_id": job_id,
+            "status": "queued",
+            "queue_position": queue_pos,
+            "poll_url": f"/api/jobs/{job_id}",
+        }
+        quota_fields = quota_public_fields(quota)
+        if quota_fields is not None:
+            content_202["quota"] = quota_fields
+        return JSONResponse(status_code=202, content=content_202, headers=quota_headers(quota))
 
     from app.orchestrator import ChatRequestOrchestrator
 
@@ -1040,6 +1064,9 @@ async def chat_v2_endpoint(
         faithfulness_score=result.faithfulness_score,
         hallucination_flag=result.hallucination_flag,
         verification=result.verification,
+        relevancy_score=getattr(result, "relevancy_score", None),
+        confidence_score=getattr(result, "confidence_score", None),
+        follow_up_suggestions=getattr(result, "follow_up_suggestions", []) or [],
         citations_verified=result.citations_verified,
         orphan_citations_stripped=result.orphan_citations_stripped,
         node_timings=result.node_timings or None,
@@ -1230,15 +1257,16 @@ async def chat_stream_endpoint(
                     headers={"Retry-After": str(backpressure_retry_after_seconds())},
                 )
 
-            return JSONResponse(
-                status_code=202,
-                content={
-                    "job_id": job_id,
-                    "status": "queued",
-                    "queue_position": queue_pos,
-                    "stream_url": f"/api/chat/stream/{job_id}",
-                },
-            )
+            stream_202: dict[str, Any] = {
+                "job_id": job_id,
+                "status": "queued",
+                "queue_position": queue_pos,
+                "stream_url": f"/api/chat/stream/{job_id}",
+            }
+            stream_quota = quota_public_fields(quota)
+            if stream_quota is not None:
+                stream_202["quota"] = stream_quota
+            return JSONResponse(status_code=202, content=stream_202, headers=quota_headers(quota))
 
         from app.stream_orchestrator import ChatStreamRequestOrchestrator
 
@@ -1453,9 +1481,11 @@ async def get_breath_teaching(
             else None
         )
 
+        from services.first_person_pipeline import serve_first_person
+
         result = await asyncio.wait_for(
-            asyncio.to_thread(
-                pipeline.execute,
+            serve_first_person(
+                pipeline,
                 query=query,
                 query_dense_vector=dense_vec,
                 query_sparse_vector=sparse_vec,

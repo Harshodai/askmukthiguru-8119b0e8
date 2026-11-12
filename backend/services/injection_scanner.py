@@ -65,7 +65,11 @@ def scan_chunks_for_injection(chunks: list[str]) -> tuple[list[str], list[tuple[
     clean = []
     risky = []
     for i, chunk in enumerate(chunks):
-        result = InjectionScanner.scan_chunk(chunk)
+        try:
+            result = InjectionScanner.scan_chunk(chunk)
+        except Exception as exc:
+            logger.warning("InjectionScanner scan_chunk error on chunk %d: %s", i, exc)
+            result = {"injection_detected": False, "patterns": [], "severity": "scan_error"}
         if not result["injection_detected"]:
             clean.append(chunk)
         else:

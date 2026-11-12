@@ -95,7 +95,7 @@ async function analyze(page: Page) {
     { timeout: 8_000 },
   );
   return new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .disableRules(DISABLED_RULES)
     .exclude('iframe')
     .analyze();

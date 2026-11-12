@@ -36,6 +36,7 @@ them so the pipeline and the tests cannot drift apart.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -101,6 +102,16 @@ class CollectionContract:
     required_payload_fields: tuple[str, ...]
     evidence_policy: str
     source: str = ""
+    # RET-07 / T3-12: optional encoder fingerprint of the index. Empty / 0 means
+    # "not declared" and the serve-time encoder check is a no-op for it.
+    embedding_model: str = ""
+    embedding_dimension: int = 0
+    # DATA-06 / T3-02: optional signed collection digest. Empty string means
+    # "not declared" and the startup digest check is a no-op for it.
+    collection_digest: str = ""
+    # DATA-16 / T3-05: optional approved corpus version. When declared, must match
+    # corpus_version to guarantee approved version == served version.
+    approved_corpus_version: str = ""
 
     @property
     def is_legacy(self) -> bool:
@@ -187,6 +198,33 @@ def rights_manifest_path() -> Path:
     return p
 
 
+def rights_register_status() -> dict:
+    """Presence, sha256 prefix and asset count of the pinned rights register.
+
+    T3-01 (DATA-02): a missing register makes every clip unlicensed, so callers
+    (startup check, health payload) need a path-free summary. Never includes the
+    filesystem path.
+    """
+    import hashlib
+
+    candidates = [Path(RIGHTS_MANIFEST_RELPATH), rights_manifest_path()]
+    path = next((c for c in candidates if c.is_file()), None)
+    if path is None:
+        return {"present": False, "asset_count": 0, "sha256_prefix": None}
+    try:
+        raw = path.read_bytes()
+        data = json.loads(raw.decode("utf-8"))
+        assets = data.get("assets", []) if isinstance(data, dict) else []
+        count = len(assets) if isinstance(assets, list) else 0
+    except (OSError, ValueError):
+        return {"present": False, "asset_count": 0, "sha256_prefix": None}
+    return {
+        "present": True,
+        "asset_count": count,
+        "sha256_prefix": hashlib.sha256(raw).hexdigest()[:12],
+    }
+
+
 def load_contract(path: str | Path) -> dict[str, CollectionContract]:
     """Load and validate the contract file. Fails closed."""
     contract_path = Path(path)
@@ -238,6 +276,26 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
             raise FirstPersonServingContractError(
                 f"contract entry for {name!r} omits required payload fields: {missing}"
             )
+        enc_model = entry.get("embedding_model", "")
+        enc_dim = entry.get("embedding_dimension", 0)
+        if not isinstance(enc_model, str):
+            raise FirstPersonServingContractError(
+                f"contract entry for {name!r} has a non-string embedding_model"
+            )
+        if isinstance(enc_dim, bool) or not isinstance(enc_dim, int) or enc_dim < 0:
+            raise FirstPersonServingContractError(
+                f"contract entry for {name!r} has an invalid embedding_dimension {enc_dim!r}"
+            )
+        col_digest = entry.get("collection_digest", "")
+        if not isinstance(col_digest, str):
+            raise FirstPersonServingContractError(
+                f"contract entry for {name!r} has a non-string collection_digest"
+            )
+        appr_corpus = entry.get("approved_corpus_version", "")
+        if not isinstance(appr_corpus, str):
+            raise FirstPersonServingContractError(
+                f"contract entry for {name!r} has a non-string approved_corpus_version"
+            )
         out[str(name)] = CollectionContract(
             name=str(name),
             schema=schema,
@@ -246,6 +304,10 @@ def load_contract(path: str | Path) -> dict[str, CollectionContract]:
             required_payload_fields=tuple(str(f) for f in fields),
             evidence_policy=str(entry.get("evidence_policy") or ""),
             source=str(contract_path),
+            embedding_model=enc_model.strip(),
+            embedding_dimension=enc_dim,
+            collection_digest=col_digest.strip(),
+            approved_corpus_version=appr_corpus.strip(),
         )
     return out
 
@@ -290,6 +352,95 @@ def v10_only_mode_active(
 # ---------------------------------------------------------------------------
 # validation
 # ---------------------------------------------------------------------------
+def encoder_mismatch_errors(
+    entries: Iterable[CollectionContract],
+    *,
+    embedding_model: str,
+    embedding_dimension: int,
+) -> list[str]:
+    """Compare the serve-time encoder with what each entry declares (RET-07)."""
+    errors: list[str] = []
+    serve_model = str(embedding_model or "").strip()
+    for entry in entries:
+        if entry.embedding_model and serve_model and entry.embedding_model != serve_model:
+            errors.append(
+                f"encoder mismatch: collection {entry.name!r} was indexed with "
+                f"{entry.embedding_model!r} but the serving encoder is {serve_model!r}"
+            )
+        if (
+            entry.embedding_dimension
+            and embedding_dimension
+            and entry.embedding_dimension != int(embedding_dimension)
+        ):
+            errors.append(
+                f"encoder mismatch: collection {entry.name!r} has dimension "
+                f"{entry.embedding_dimension} but the serving encoder produces "
+                f"{int(embedding_dimension)}"
+            )
+    return errors
+
+
+def compute_collection_digest(points: Iterable[Any]) -> str:
+    """Compute deterministic SHA256 digest of collection points (DATA-06 / T3-02).
+
+    Hash is computed over sorted tuples:
+    `{point_id}:{source_text_hash or span_text_sha256 or transcript_hash}`
+    prefixed by `count={N};`.
+    """
+    elements: list[str] = []
+    for p in points:
+        if isinstance(p, dict):
+            pid = str(p.get("id", ""))
+            payload = p.get("payload", {}) or {}
+        else:
+            pid = str(getattr(p, "id", ""))
+            payload = getattr(p, "payload", {}) or {}
+        thash = str(
+            payload.get("span_text_sha256")
+            or payload.get("source_text_hash")
+            or payload.get("transcript_hash")
+            or ""
+        )
+        elements.append(f"{pid}:{thash}")
+    elements.sort()
+    header = f"count={len(elements)};"
+    body = ",".join(elements)
+    return hashlib.sha256((header + body).encode("utf-8")).hexdigest()
+
+
+def collection_digest_mismatch_errors(
+    entries: Iterable[CollectionContract],
+    *,
+    active_collection_digest: str,
+) -> list[str]:
+    """Compare active collection digest against declared collection_digest (DATA-06 / T3-02)."""
+    errors: list[str] = []
+    active_digest = str(active_collection_digest or "").strip()
+    if not active_digest:
+        return errors
+    for entry in entries:
+        if entry.collection_digest and entry.collection_digest != active_digest:
+            errors.append(
+                f"collection digest mismatch: collection {entry.name!r} has signed digest "
+                f"{entry.collection_digest!r} but active digest is {active_digest!r}"
+            )
+    return errors
+
+
+def approved_corpus_version_mismatch_errors(
+    entries: Iterable[CollectionContract],
+) -> list[str]:
+    """Flag any served collection whose declared corpus_version != approved_corpus_version (DATA-16)."""
+    errors: list[str] = []
+    for entry in entries:
+        if entry.approved_corpus_version and entry.approved_corpus_version != entry.corpus_version:
+            errors.append(
+                f"Collection {entry.name!r} declared corpus_version '{entry.corpus_version}' "
+                f"does not match approved_corpus_version '{entry.approved_corpus_version}' (DATA-16)"
+            )
+    return errors
+
+
 def validate_serving_contract(
     *,
     contract: Mapping[str, CollectionContract],
@@ -299,8 +450,17 @@ def validate_serving_contract(
     legacy_route_enabled: bool = True,
     context_terminal_enabled: bool = False,
     active_collection: str = "",
+    embedding_model: str = "",
+    embedding_dimension: int = 0,
+    active_collection_digest: str = "",
+    scd_fingerprint: Optional[str] = None,
 ) -> ContractReport:
     """Check a configuration against the declared contract. Never raises.
+
+    ``embedding_model`` / ``embedding_dimension`` are the serve-time encoder. When
+    a served collection declares its index encoder in the contract, a different
+    serve-time encoder is an error (RET-07): query vectors from another model or
+    size cannot be compared with the index. Undeclared fields are not checked.
 
     ``active_collection`` is the single name the deployment says it serves
     (``FIRST_PERSON_ACTIVE_COLLECTION``). When given it must be declared in the
@@ -433,7 +593,27 @@ def validate_serving_contract(
             f"{legacy_name!r}; it will refuse to serve"
         )
 
-    fingerprint = fingerprint_components(legacy_entry)
+    served_names = {n for n in (legacy_name, context_name, active_name) if n}
+    errors.extend(
+        encoder_mismatch_errors(
+            [contract[n] for n in sorted(served_names) if n in contract],
+            embedding_model=embedding_model,
+            embedding_dimension=embedding_dimension,
+        )
+    )
+    errors.extend(
+        collection_digest_mismatch_errors(
+            [contract[n] for n in sorted(served_names) if n in contract],
+            active_collection_digest=active_collection_digest,
+        )
+    )
+    errors.extend(
+        approved_corpus_version_mismatch_errors(
+            [contract[n] for n in sorted(served_names) if n in contract]
+        )
+    )
+
+    fingerprint = fingerprint_components(legacy_entry, scd_fingerprint=scd_fingerprint)
     missing_fingerprint = [
         key for key in REQUIRED_FINGERPRINT_COMPONENTS if not fingerprint.get(key)
     ]
@@ -454,7 +634,9 @@ def validate_serving_contract(
 
 
 def fingerprint_components(
-    entry: Optional[CollectionContract], release_version: Optional[int | str] = None
+    entry: Optional[CollectionContract],
+    release_version: Optional[int | str] = None,
+    scd_fingerprint: Optional[str] = None,
 ) -> dict[str, str]:
     """The cache-fingerprint inputs for a collection contract."""
     rel_ver = str(
@@ -463,20 +645,24 @@ def fingerprint_components(
         else (getattr(entry, "release_version", "") or "")
     )
     if entry is None:
-        return {
+        res = {
             "collection": "",
             "schema": "",
             "corpus_version": "",
             "evidence_policy": "",
             "release_version": rel_ver,
         }
-    return {
-        "collection": entry.name,
-        "schema": entry.schema,
-        "corpus_version": entry.corpus_version,
-        "evidence_policy": entry.evidence_policy,
-        "release_version": rel_ver,
-    }
+    else:
+        res = {
+            "collection": entry.name,
+            "schema": entry.schema,
+            "corpus_version": entry.corpus_version,
+            "evidence_policy": entry.evidence_policy,
+            "release_version": rel_ver,
+        }
+    if scd_fingerprint:
+        res["scd_fingerprint"] = str(scd_fingerprint)
+    return res
 
 
 def assert_startup_safe(
@@ -589,12 +775,68 @@ def probe_collection_payload_fields(
     }
 
 
+# ---------------------------------------------------------------------------
+# Guru Co-Identity & Lineage (User Directive 1)
+# ---------------------------------------------------------------------------
+# Guru Co-Identity (User Directive 1)
+# ---------------------------------------------------------------------------
+# Ekam founders and co-teachers share one common mission and philosophy.
+# In this system, they are ONE COMMON GURU. Co-occurrence of co-teachers
+# is recognized as valid Ekam lineage and is NEVER flagged as
+# cross_guru_contamination. External gurus remain distinct.
+
+
+def _shared_lineage_ids() -> frozenset[str]:
+    from services.guru_registry import shared_attribution
+
+    primary, ids = shared_attribution()
+    out = set(ids or [])
+    if primary:
+        out.add(primary)
+    out.add("ekam")
+    return frozenset(out)
+
+
+EKAM_COIDENTITY_GURU_IDS: frozenset[str] = _shared_lineage_ids()
+
+
+def is_ekam_coidentity(guru_a: str | None, guru_b: str | None) -> bool:
+    """Return True if both gurus belong to the shared Ekam lineage (co-teachers)."""
+    ga = (guru_a or "").strip().lower()
+    gb = (guru_b or "").strip().lower()
+    if not ga or not gb:
+        return False
+    if ga == gb:
+        return True
+    shared = _shared_lineage_ids()
+    return ga in shared and gb in shared
+
+
+def validate_guru_lineage(guru_ids: Iterable[str]) -> Optional[str]:
+    """Validate guru IDs within a serving unit.
+
+    Founders are co-teachers of Ekam and are recognized as one common guru.
+    Spans across both are never flagged as cross_guru_contamination.
+    External or cross-tradition teachers return 'cross_guru_contamination'.
+    """
+    gurus = {str(gid).strip().lower() for gid in guru_ids if gid}
+    if not gurus:
+        return None
+    if len(gurus) == 1:
+        return None
+    shared = _shared_lineage_ids()
+    if gurus.issubset(shared):
+        return None
+    return "cross_guru_contamination"
+
+
 __all__ = [
     "CONTEXT_REQUIRED_PAYLOAD_FIELDS",
     "CONTEXT_SCHEMA",
     "CollectionContract",
     "ContractReport",
     "DEFAULT_CONTRACT_PATH",
+    "EKAM_COIDENTITY_GURU_IDS",
     "FirstPersonServingContractError",
     "LEGACY_REQUIRED_PAYLOAD_FIELDS",
     "LEGACY_SCHEMA",
@@ -602,11 +844,15 @@ __all__ = [
     "ROLE_CONTEXT",
     "ROLE_LEGACY",
     "assert_startup_safe",
+    "collection_digest_mismatch_errors",
+    "compute_collection_digest",
     "fingerprint_components",
+    "is_ekam_coidentity",
     "legacy_slot_aliases_context",
     "legacy_store_preflight",
     "load_contract",
     "probe_collection_payload_fields",
     "v10_only_mode_active",
+    "validate_guru_lineage",
     "validate_serving_contract",
 ]

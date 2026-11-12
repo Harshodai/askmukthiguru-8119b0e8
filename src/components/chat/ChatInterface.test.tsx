@@ -76,7 +76,6 @@ vi.mock('@/lib/chatStorage', () => ({
   getConversationPreview: vi.fn().mockReturnValue('preview'),
   getCurrentConversationId: vi.fn().mockReturnValue(null),
   setCurrentConversationId: vi.fn(),
-  updateConversationSummary: vi.fn(),
 }));
 
 // Mock the AI service
@@ -87,7 +86,6 @@ vi.mock('@/lib/aiService', () => ({
       yield { type: 'message', text: 'Mocked guru response' };
     }
   })),
-  generateSummary: vi.fn().mockResolvedValue('Mock summary'),
   generateConversationTitle: vi.fn().mockResolvedValue('Finding Peace'),
   queueMemoryExtraction: vi.fn().mockResolvedValue(undefined),
   setLanguage: vi.fn(),

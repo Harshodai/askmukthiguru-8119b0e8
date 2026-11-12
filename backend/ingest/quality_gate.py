@@ -866,22 +866,45 @@ class DataQualityGate:
 
                 client = _get_client()
                 if client is not None:
-                    rows = [
-                        {
-                            "source_url": source_url or "unknown",
-                            "chunk_index": idx,
-                            "gate_layer": f"quality_gate_tier_{results[idx].tier_reached}",
-                            "gate_verdict": "rejected",
-                            "reason": r,
-                            "gate_reason": r,
-                            "matched_span": span[:500],
-                            "point_id": str(
-                                uuid.uuid5(uuid.NAMESPACE_URL, f"{source_url}_{idx}_0")
-                            ),
-                        }
-                        for idx, r, span in rejected_payloads
-                    ]
-                    client.table("corpus_gate_rejections").insert(rows).execute()
+                    rows = []
+                    for idx, r, span in rejected_payloads:
+                        tier = results[idx].tier_reached
+                        # ``tier_reached`` is an int (0-3). A double or any other object means the
+                        # verdict is unverified evidence, not a gate decision: X40 requires every
+                        # rejection to be durable, it never licenses persisting corrupt provenance.
+                        # Until 2026-11-12 this formatted the object straight into ``gate_layer``,
+                        # so a mocked run wrote ``quality_gate_tier_<MagicMock ...>`` rows into the
+                        # live ``corpus_gate_rejections`` table.
+                        if (
+                            isinstance(tier, bool)
+                            or not isinstance(tier, int)
+                            or tier not in (0, 1, 2, 3)
+                        ):
+                            logger.error(
+                                "quality_gate refusing to persist a rejection with a "
+                                "non-integer tier_reached=%r (source_url=%s index=%s reason=%s)",
+                                tier,
+                                source_url,
+                                idx,
+                                r,
+                            )
+                            continue
+                        rows.append(
+                            {
+                                "source_url": source_url or "unknown",
+                                "chunk_index": idx,
+                                "gate_layer": f"quality_gate_tier_{tier}",
+                                "gate_verdict": "rejected",
+                                "reason": r,
+                                "gate_reason": r,
+                                "matched_span": span[:500],
+                                "point_id": str(
+                                    uuid.uuid5(uuid.NAMESPACE_URL, f"{source_url}_{idx}_0")
+                                ),
+                            }
+                        )
+                    if rows:
+                        client.table("corpus_gate_rejections").insert(rows).execute()
             except Exception as db_err:
                 logger.error(f"Failed to persist corpus_gate_rejections in quality_gate: {db_err}")
 

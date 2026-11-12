@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, AlertTriangle, CheckCircle2, Heart, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { BACKEND_URL } from '@/lib/backendUrl';
 
@@ -108,9 +107,23 @@ async function cancelApi<TReq, TResp>(path: string, body: TReq): Promise<TResp> 
 
 export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
   const { t } = useTranslation();
-  const { toast } = useToast();
 
   const [stage, setStage] = useState<Stage>('intent');
+  // NEW-A11Y-9 (A11Y-14): a failed step is shown in the page (role="alert"), not
+  // only in a toast that disappears; the error clears when the stage changes.
+  const [error, setError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const firstStage = useRef(true);
+  useEffect(() => {
+    setError(null);
+    if (firstStage.current) {
+      firstStage.current = false;
+      return;
+    }
+    // Move focus to the new stage's heading so keyboard and screen-reader users
+    // land on the new content instead of a button that is no longer there.
+    containerRef.current?.querySelector<HTMLElement>('[data-stage-heading]')?.focus();
+  }, [stage]);
   const [loading, setLoading] = useState(false);
   const [reason, setReason] = useState<Reason | ''>('');
   const [details, setDetails] = useState('');
@@ -122,7 +135,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
   const [deletionDate, setDeletionDate] = useState<string | undefined>(undefined);
 
   const guard = (ok: boolean, msg: string): boolean => {
-    if (!ok) toast({ title: 'Please complete this step', description: msg, variant: 'destructive' });
+    if (!ok) setError(msg);
     return ok;
   };
 
@@ -133,7 +146,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
       void resp; // next_stage is always exit_survey per backend
       setStage('survey');
     } catch (e) {
-      toast({ title: 'Could not start', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+      setError(`Could not start: ${e instanceof Error ? e.message : 'something went wrong'}`);
     } finally {
       setLoading(false);
     }
@@ -151,7 +164,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
       setOffer(resp.save_offer);
       setStage('offer');
     } catch (e) {
-      toast({ title: 'Survey failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+      setError(`Survey failed: ${e instanceof Error ? e.message : 'something went wrong'}`);
     } finally {
       setLoading(false);
     }
@@ -171,7 +184,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
         setStage('confirm');
       }
     } catch (e) {
-      toast({ title: 'Offer failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+      setError(`Offer failed: ${e instanceof Error ? e.message : 'something went wrong'}`);
     } finally {
       setLoading(false);
     }
@@ -190,7 +203,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
       setSaved(false);
       setStage('done');
     } catch (e) {
-      toast({ title: 'Cancel failed', description: e instanceof Error ? e.message : 'unknown', variant: 'destructive' });
+      setError(`Cancel failed: ${e instanceof Error ? e.message : 'something went wrong'}`);
     } finally {
       setLoading(false);
     }
@@ -199,7 +212,16 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
   const finish = () => onComplete({ saved, deletionDate, retention: retention as Retention | undefined });
 
   return (
-    <div className="space-y-5">
+    <div ref={containerRef} className="space-y-5">
+      {error && (
+        <p
+          role="alert"
+          data-testid="cancel-flow-error"
+          className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive-ink"
+        >
+          {error}
+        </p>
+      )}
       {/* Stage progress dots */}
       <div className="flex items-center justify-center gap-1.5">
         {(['intent', 'survey', 'offer', 'confirm', 'done'] as Stage[]).map((s, i) => {
@@ -222,7 +244,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
             <Heart className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-lg font-serif text-foreground">
+            <h3 data-stage-heading tabIndex={-1} className="focus:outline-none text-lg font-serif text-foreground">
               {t('cancelFlow.intent.title', 'Pause or leave your journey')}
             </h3>
             <p className="text-sm text-muted-foreground mt-1.5">
@@ -264,7 +286,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
             <ArrowLeft className="w-3.5 h-3.5" /> {t('cancelFlow.back', 'Back')}
           </button>
           <div>
-            <h3 className="text-lg font-serif text-foreground">
+            <h3 data-stage-heading tabIndex={-1} className="focus:outline-none text-lg font-serif text-foreground">
               {t('cancelFlow.survey.title', "What's the main reason you're leaving?")}
             </h3>
             <p className="text-xs text-muted-foreground mt-1">
@@ -333,7 +355,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
                 {offer.value}
               </Badge>
             </div>
-            <h3 className="text-lg font-serif text-foreground leading-snug">{offer.headline}</h3>
+            <h3 data-stage-heading tabIndex={-1} className="focus:outline-none text-lg font-serif text-foreground leading-snug">{offer.headline}</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">{offer.description}</p>
           </div>
           <div className="flex flex-col gap-2">
@@ -362,7 +384,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
           <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-3">
             <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
             <div>
-              <h3 className="text-base font-medium text-destructive">
+              <h3 data-stage-heading tabIndex={-1} className="focus:outline-none text-base font-medium text-destructive-ink">
                 {t('cancelFlow.confirm.title', 'Permanently delete your account?')}
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
@@ -443,7 +465,7 @@ export const CancelFlow = ({ onComplete, onClose }: CancelFlowProps) => {
             {saved ? <CheckCircle2 className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
           </div>
           <div>
-            <h3 className="text-lg font-serif text-foreground">
+            <h3 data-stage-heading tabIndex={-1} className="focus:outline-none text-lg font-serif text-foreground">
               {saved
                 ? t('cancelFlow.done.savedTitle', "We're so glad you're staying.")
                 : t('cancelFlow.done.cancelledTitle', 'Your account is scheduled for deletion')}

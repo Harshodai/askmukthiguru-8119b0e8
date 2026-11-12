@@ -299,7 +299,7 @@ def build_distress_prompt() -> str:
     """
     from services.crisis_helplines import format_helplines_block
 
-    helplines_block = format_helplines_block(style="bullet", intro="")
+    helplines_block = format_helplines_block(style="bullet", intro="", verified_only=True)
     return DISTRESS_PROMPT.format(helplines_block=helplines_block)
 
 

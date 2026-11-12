@@ -359,8 +359,8 @@
     "thanks": "साझा करने के लिए धन्यवाद। 🙏",
     "listening": "सुन रहे हैं",
     "speak": "बोलें",
-    "streakRooting_one": "{{count}} दिन की लगातारता — आपकी सुंदर अवस्था जड़ पकड़ रही है!",
-    "streakRooting_other": "{{count}} दिनों की लगातारता — आपकी सुंदर अवस्था जड़ पकड़ रही है!",
+    "streakRooting_one": "{{count}} दिन का निरंतर अभ्यास दर्ज",
+    "streakRooting_other": "{{count}} दिनों का निरंतर अभ्यास दर्ज",
     "streakKeepGoing_one": "{{count}} दिन की लगातारता — जारी रखें!",
     "streakKeepGoing_other": "{{count}} दिनों की लगातारता — जारी रखें!"
   },
@@ -845,7 +845,9 @@
       "eraseConfirmButton": "जी हाँ, सभी यादें मिटा दो",
       "erasing": "यादों को मिटा देना…",
       "close": "बंद"
-    }
+    },
+    "quotaLeft": "आज {{limit}} में से {{remaining}} निःशुल्क प्रश्न शेष हैं",
+    "quotaResetsIn": "{{count}} घंटे में रीसेट होगा।"
   },
   "notFound": {
     "message": "अरे! पृष्ठ नहीं मिला",

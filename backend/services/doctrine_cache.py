@@ -25,6 +25,8 @@ import string
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from app.log_safe import q_tag
+
 logger = logging.getLogger(__name__)
 
 
@@ -83,7 +85,8 @@ def _coerce_entry(question: object, raw: object) -> tuple[str, DoctrineAnswer] |
         # Legacy flat-string format predates the citation requirement — it is
         # inherently uncitable, so it is skipped rather than served.
         logger.warning(
-            "DoctrineCache: skipping %r — legacy string entry has no structured citations", question
+            "DoctrineCache: skipping %s — legacy string entry has no structured citations",
+            q_tag(question),
         )
         return None
     if not isinstance(raw, dict):
@@ -93,7 +96,7 @@ def _coerce_entry(question: object, raw: object) -> tuple[str, DoctrineAnswer] |
     if not isinstance(answer, str) or not answer.strip():
         return None
     if not isinstance(citations, list) or not citations:
-        logger.warning("DoctrineCache: skipping %r — no citations", question)
+        logger.warning("DoctrineCache: skipping %s — no citations", q_tag(question))
         return None
     return question, DoctrineAnswer(answer=answer, citations=citations)
 

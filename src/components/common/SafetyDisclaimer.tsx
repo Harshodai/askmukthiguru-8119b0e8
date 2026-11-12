@@ -5,6 +5,7 @@ import { Heart, AlertCircle, X } from 'lucide-react';
 import { CrisisLines } from '@/components/common/CrisisLines';
 import { INDIA_CRISIS_LINES } from '@/lib/crisisHelplines';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
+import { focusWhenFree } from '@/lib/focusWhenFree';
 
 const DISCLAIMER_KEY = 'askmukthiguru_disclaimer_accepted';
 /** Fired once the seeker accepts, so later first-run prompts can follow it
@@ -35,6 +36,15 @@ export const SafetyDisclaimer = () => {
     } catch { /* private mode — still let them in */ }
     setIsVisible(false);
     window.dispatchEvent(new Event(DISCLAIMER_ACCEPTED_EVENT));
+    // The focused button unmounts with the notice; without this focus falls to
+    // <body> (A11Y-08). Prefer the chat composer, else the main landmark.
+    focusWhenFree(() => {
+      const composer = document.querySelector<HTMLElement>('textarea[name="message"]');
+      if (composer) return composer;
+      const main = document.querySelector<HTMLElement>('main');
+      if (main && !main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
+      return main;
+    }, { waitForFree: true }); // the notice animates out; focus is free once it is gone
   };
 
   // Keyboard and screen-reader users land on the notice's action, Tab stays

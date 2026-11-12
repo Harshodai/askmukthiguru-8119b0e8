@@ -22,6 +22,7 @@ from scripts.ops.build_fp_context_from_v9 import (
     DEFAULT_CORPUS_VERSION,
     _best_window,
     _completeness_status,
+    _default_transcripts_dir,
     build,
     transcript_words,
 )
@@ -59,6 +60,27 @@ def _transcripts_dir(tmp_path: Path) -> Path:
     body = f"# Test\n\n**Video ID:** `{VIDEO}`\n\n## Transcript\n\n{TRANSCRIPT}\n\n## Notes\n\nignored tail\n"
     (tmp_path / f"{VIDEO}.md").write_text(body, encoding="utf-8")
     return tmp_path
+
+
+def test_default_transcripts_dir_prefers_an_existing_directory(tmp_path, monkeypatch):
+    """The container default must not be the bare host repo path.
+
+    A real container dry-run on 2026-11-12 defaulted to ``/transcripts`` (repo
+    root is ``/`` when the backend is ``/app``) and quarantined 665 of 1,801
+    spans as ``transcript_missing``. The resolver must pick the directory that
+    actually exists, host or image.
+    """
+    import scripts.ops.build_fp_context_from_v9 as builder
+
+    host = tmp_path / "host"
+    image = tmp_path / "image"
+    (image / "transcripts").mkdir(parents=True)
+    monkeypatch.setattr(builder, "_REPO_ROOT", host)
+    monkeypatch.setattr(builder, "_BACKEND_ROOT", image)
+    assert _default_transcripts_dir() == image / "transcripts"
+
+    (host / "transcripts").mkdir(parents=True)
+    assert _default_transcripts_dir() == host / "transcripts"
 
 
 def test_transcript_words_reads_body_and_stops_at_next_heading(tmp_path):
@@ -122,6 +144,44 @@ def test_build_produces_parent_and_child_payloads(tmp_path):
     assert report["quality_counters"]["speaker_label_only"] == 1
     assert report["derived_span_ids"] == 1
     assert report["quarantined"] == {}
+
+
+def test_dry_run_does_not_write_gate_rejections(tmp_path, monkeypatch):
+    """A preview run must not mutate public.corpus_gate_rejections.
+
+    Until 2026-11-12 every rejection was written even with ``--dry-run``; two local
+    preview runs left 1,000 rows tagged ``fp_context_builder_v9`` with no way to tell
+    them apart from an apply (live count, 2026-11-12).
+    """
+    import scripts.ops.build_fp_context_from_v9 as builder
+
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        builder, "persist_corpus_gate_rejection", lambda **kw: calls.append(kw) or True
+    )
+    transcripts = _transcripts_dir(tmp_path)
+    unverified = _point(TRANSCRIPT, speaker_verified=False)
+
+    _, preview, _ = build(
+        [unverified],
+        transcripts_dir=transcripts,
+        corpus_version=DEFAULT_CORPUS_VERSION,
+        min_alignment=0.90,
+        persist_rejections=False,
+    )
+    assert calls == []
+    assert preview["rejections_persisted"] is False
+    assert preview["rejections_not_persisted"]["speaker_unverified"] == 1
+
+    _, applied, _ = build(
+        [unverified],
+        transcripts_dir=transcripts,
+        corpus_version=DEFAULT_CORPUS_VERSION,
+        min_alignment=0.90,
+    )
+    assert [c["reason"] for c in calls] == ["speaker_unverified"]
+    assert applied["rejections_persisted"] is True
+    assert applied["rejections_not_persisted"] == {}
 
 
 def test_build_quarantines_unverified_speaker_and_unlocatable_text(tmp_path):
@@ -479,3 +539,29 @@ def test_unknown_verdict_method_is_not_promoted(tmp_path):
     )
     assert manifest == []
     assert report["quarantined"] == {"speaker_unverified": 1}
+
+
+def test_parent_window_contains_every_child_even_when_the_last_span_ends_earlier(tmp_path):
+    """Rolling spans overlap: the parent must span min(start) to max(end), not first-to-last."""
+    first = (
+        "When you observe the mind, the division between the observer and the observed dissolves."
+    )
+    second = "Namaste. Suffering is a call to awaken."
+    manifest, _report, _ = build(
+        [
+            _point(first, start_ms=20000, end_ms=59520),
+            _point(second, start_ms=21000, end_ms=30000),
+        ],
+        transcripts_dir=_transcripts_dir(tmp_path),
+        corpus_version=DEFAULT_CORPUS_VERSION,
+        min_alignment=0.90,
+    )
+    parents = [row for row in manifest if row["record_type"] == "parent_unit"]
+    children = [row for row in manifest if row["record_type"] == "retrieval_child"]
+    assert parents and children
+    for parent in parents:
+        mine = [c for c in children if c["parent_unit_id"] == parent["parent_unit_id"]]
+        for child in mine:
+            assert parent["start_ms"] <= child["start_ms"]
+            assert child["end_ms"] <= parent["end_ms"]
+

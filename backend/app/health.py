@@ -52,7 +52,10 @@ class ContainerHealthChecker:
             ocr_ok = False
 
         try:
-            ollama_ok = await container.ollama.health_check()
+            from app.container import get_llm_provider
+
+            llm_inst = get_llm_provider(container)
+            ollama_ok = await llm_inst.health_check()
         except Exception:
             ollama_ok = False
 

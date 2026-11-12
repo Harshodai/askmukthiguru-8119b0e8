@@ -244,7 +244,7 @@ Rotate secrets in the following strict dependency order. **Stage 1 stores do not
 - [ ] **E5.** Auth smoke test: User sign-in with email/password and Google OAuth.
 - [ ] **E6.** RAG chat query smoke test: Send a question to `/api/chat` and verify 200 OK with citations.
 - [ ] **E7.** Prometheus metrics check:
-      `curl -f https://<prod>/api/metrics` → verify metrics scraped with 0 authentication errors.
+      `curl -f -H "Authorization: Bearer $METRICS_SCRAPE_TOKEN" https://<prod>/internal/metrics` → verify metrics scraped with 0 authentication errors.
 - [ ] **E8.** Confirm encrypted backups decrypt: decrypt to a temporary file
       **first** so a decryption failure fails the check (`age -d` exit code is
       propagated, unlike the piped version):

@@ -20,6 +20,8 @@ import abc
 import logging
 from typing import Any, Optional
 
+from app.log_safe import q_tag
+
 logger = logging.getLogger(__name__)
 
 
@@ -60,7 +62,7 @@ class QdrantSearchTool(Tool):
         self, *, query: str, top_k: int = 5, filter: Optional[dict] = None
     ) -> list[dict]:
         """Embed the query and search Qdrant for matching documents."""
-        logger.debug(f"[QdrantSearchTool] query={query!r}, top_k={top_k}")
+        logger.debug(f"[QdrantSearchTool] query={q_tag(query)}, top_k={top_k}")
         query_embedding = self._embedding.embed_query(query)
         return self._qdrant.search(query_embedding, top_k=top_k, filter=filter)
 

@@ -18,7 +18,7 @@ H-FALSE-5: the embedding probe must exercise the async path live chat uses
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -81,7 +81,10 @@ def _get_health(mock_container):
 
     app.dependency_overrides[_app_deps.get_container] = mock_get_container
     try:
-        response = client.get("/api/health")
+        # SEC-010: /api/health is a shallow {ready, status} view unless the caller presents
+        # the METRICS_SCRAPE_TOKEN bearer; these tests inspect the full per-service body.
+        with patch.object(health_module.settings, "metrics_scrape_token", "tok-123", create=True):
+            response = client.get("/api/health", headers={"Authorization": "Bearer tok-123"})
         assert response.status_code == 200
         return response.json()
     finally:

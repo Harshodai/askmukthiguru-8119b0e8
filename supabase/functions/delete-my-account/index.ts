@@ -25,7 +25,9 @@ type DeleteTable =
   | 'save_offers'
   | 'cancellations'
   | 'user_profiles'
-  | 'conversation_memories';
+  | 'conversation_memories'
+  | 'canonical_memories'
+  | 'guru_memories';
 
 async function deleteUserRows(
   admin: SupabaseClient,
@@ -158,6 +160,8 @@ Deno.serve(async (req) => {
       'cancellations',
       'user_profiles',
       'conversation_memories',
+      'canonical_memories',
+      'guru_memories',
     ] as DeleteTable[]) {
       await deleteUserRows(admin, table, userId);
     }

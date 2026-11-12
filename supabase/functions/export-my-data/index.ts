@@ -35,12 +35,14 @@ Deno.serve(async (req) => {
     }
     const userId = userRes.user.id;
 
-    const [profile, conversations, messages, sessions, roles] = await Promise.all([
+    const [profile, conversations, messages, sessions, roles, canonicalMemories, guruMemories] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
       supabase.from('conversations').select('*').eq('user_id', userId),
       supabase.from('chat_messages').select('*, conversations!inner(user_id)').eq('conversations.user_id', userId),
       supabase.from('meditation_sessions').select('*').eq('user_id', userId),
       supabase.from('user_roles').select('role').eq('user_id', userId),
+      supabase.from('canonical_memories').select('*').eq('user_id', userId),
+      supabase.from('guru_memories').select('*').eq('user_id', userId),
     ]);
 
     const payload = {
@@ -50,6 +52,8 @@ Deno.serve(async (req) => {
       roles: roles.data ?? [],
       conversations: conversations.data ?? [],
       chat_messages: messages.data ?? [],
+      canonical_memories: canonicalMemories.data ?? [],
+      guru_memories: guruMemories.data ?? [],
       meditation_sessions: sessions.data ?? [],
     };
 

@@ -144,7 +144,7 @@ groups:
           increase(first_person_quarantined_total[15m]) > 0
         for: 0m
         labels:
-          severity: warning
+          severity: warn
           team: oncall
         annotations:
           summary: "First-person clip(s) quarantined by the integrity gate"
@@ -156,7 +156,7 @@ groups:
           histogram_quantile(0.95, sum(rate(first_person_latency_seconds_bucket[10m])) by (le)) > 1
         for: 10m
         labels:
-          severity: warning
+          severity: warn
           team: oncall
         annotations:
           summary: "First-person verbatim route p95 latency above 1s"
@@ -175,7 +175,7 @@ groups:
         annotations:
           summary: "First-person verbatim route error rate above 5%"
           description: "More than 5% of /api/first-person/query requests are erroring over a 10m window."
-          runbook: "docs/runbooks/ALERTING.md#firstpersonerrateratehigh"
+          runbook: "docs/runbooks/ALERTING.md#firstpersonerrorratehigh"
 
       # First-Person Corpus Health Alerts (D22)
       - alert: BackupStale
@@ -186,7 +186,7 @@ groups:
         expr: absent(backup_last_success_timestamp_seconds) or (time() - backup_last_success_timestamp_seconds) > 86400 * 2
         for: 1h
         labels:
-          severity: warning
+          severity: warn
           team: oncall
         annotations:
           summary: "First-person corpus backup is older than 48 hours or not reporting"
@@ -200,30 +200,51 @@ groups:
           * 100 > 50
         for: 15m
         labels:
-          severity: warning
+          severity: warn
           team: oncall
         annotations:
           summary: "First-person abstain rate spiked above 50%"
           description: "More than 50% of first-person queries abstained over a 15m window. Check calibration and collection health."
           runbook: "docs/runbooks/ALERTING.md#firstpersonabstainrateelevated"
 
+      # OPS-003: this rule used to read fp_relevance_scorer_total, a metric no
+      # code emits, so it could never fire. The scorer failing (timeout, error,
+      # unparseable reply) abstains with reason "relevance_indeterminate" and is
+      # counted on first_person_requests_total (services/first_person_pipeline.py
+      # _log_and_count), so the rule reads that counter.
       - alert: FirstPersonRelevanceIndeterminateSpike
         expr: |
-          sum(rate(fp_relevance_scorer_total{verdict="indeterminate"}[15m]))
-            / (sum(rate(fp_relevance_scorer_total[15m])) + 1e-9)
+          sum(rate(first_person_requests_total{reason="relevance_indeterminate"}[15m]))
+            / (sum(rate(first_person_requests_total[15m])) + 1e-9)
           * 100 > 25
         for: 15m
         labels:
-          severity: warning
+          severity: warn
           team: oncall
         annotations:
-          summary: "First-person relevance scorer indeterminate verdicts above 25%"
-          description: "LLM relevance scorer is returning indeterminate verdicts for >25% of candidates. Check prompt and model stability."
+          summary: "More than 25% of first-person requests abstained because the relevance scorer failed"
+          description: "The relevance scorer timed out, errored or returned an unparseable reply for over 25% of first-person requests in 15m. Seekers get an abstain, not a wrong clip. Check the scorer model, OpenRouter status and FIRST_PERSON_RELEVANCE_TIMEOUT_S."
           runbook: "docs/runbooks/ALERTING.md#firstpersonrelevanceindeterminatespike"
+
+      # NEW-OPS-1: the answer-honesty invariant (root CLAUDE.md invariants 1, 15,
+      # 21). guru_integrity_breach_total counts a teaching-lane turn that returned
+      # generated text while first-person-only mode was on (app/answer_outcome.py).
+      # The expected value is zero, so any increase pages.
+      - alert: FirstPersonIntegrityBreach
+        expr: |
+          increase(guru_integrity_breach_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: page
+          team: oncall
+        annotations:
+          summary: "A turn returned generated teaching text in first-person-only mode"
+          description: "guru_integrity_breach_total rose by {{ $value }} in 15m (lane {{ $labels.lane }}). The expected value is zero. Treat as a safety incident: set GENERATION_KILL_SWITCH_ENABLED=true if it repeats."
+          runbook: "docs/runbooks/ALERTING.md#firstpersonintegritybreach"
 
       - alert: CollectionPointCountShift
         expr: |
-          abs(delta(qdrant_collection_points_count{collection=~"first_person.*"}[1h])) > 100
+          abs(delta(qdrant_collection_points_count{collection=~"first_person.*|fp_context.*"}[1h])) > 100
         for: 15m
         labels:
           severity: critical
@@ -232,3 +253,31 @@ groups:
           summary: "Unexpected shift in first-person Qdrant collection point count"
           description: "First-person collection {{ $labels.collection }} changed point count by >100 in 1 hour."
           runbook: "docs/runbooks/ALERTING.md#collectionpointcountshift"
+
+      # NEW-OPS-7 (OPS-006): worker and beat expose no metrics path, so these read
+      # what the backend exports at scrape time (app/ops_gauges.py).
+      # celery_beat_last_tick_timestamp_seconds is written by the beat_heartbeat
+      # task (every 30 s). It goes stale when beat is down OR no worker consumes
+      # the memory queue, and either one silently stops consent and memory work.
+      # absent() makes a never-reported series fire too.
+      - alert: CeleryBeatOrWorkerSilent
+        expr: absent(celery_beat_last_tick_timestamp_seconds) or (time() - celery_beat_last_tick_timestamp_seconds) > 180
+        for: 5m
+        labels:
+          severity: warn
+          team: oncall
+        annotations:
+          summary: "Celery beat heartbeat has not run for 3 minutes"
+          description: "celery_beat_last_tick_timestamp_seconds is older than 180s or absent. Beat is down, no worker consumes the memory queue, or Redis is unreachable. The memory outbox and ingestion are not running."
+          runbook: "docs/runbooks/ALERTING.md#celerybeatorworkersilent"
+
+      - alert: CeleryQueueBacklog
+        expr: max by (queue) (celery_queue_length) > 100
+        for: 15m
+        labels:
+          severity: warn
+          team: oncall
+        annotations:
+          summary: "Celery queue {{ $labels.queue }} holds more than 100 messages for 15 minutes"
+          description: "Queue {{ $labels.queue }} length is {{ $value }}. The worker is down, stuck, or slower than the arrival rate. The threshold is a proposed starting value, not a measurement."
+          runbook: "docs/runbooks/ALERTING.md#celeryqueuebacklog"

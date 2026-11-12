@@ -1,0 +1,25 @@
+# Grandfathered cross-layer imports (CQ-007 / T7-05).
+# Layer architecture: domain -> services -> rag -> app.pipeline -> app.api
+# Upward imports are forbidden. The 21 entries below are grandfathered lazy imports (<= 25 allowed).
+# Any new upward layer import fails CI.
+backend/app/pipeline/stages/first_person_bridge.py -> app.api.first_person
+backend/services/base_llm_service.py -> rag.compressor
+backend/services/cache/semantic_adapter.py -> rag.corpus_scope
+backend/services/chat_context_budget.py -> rag.compressor
+backend/services/config_watcher.py -> rag.prompts
+backend/services/first_person_graph_expansion.py -> rag.kg_expansion
+backend/services/first_person_pipeline.py -> rag.compressor
+backend/services/graphrag_fusion.py -> rag.nodes
+backend/services/llm/base.py -> rag.compressor
+backend/services/nim_service.py -> rag.compressor
+backend/services/nim_service.py -> rag.prompts
+backend/services/ollama_service.py -> rag.compressor
+backend/services/ollama_service.py -> rag.prompts
+backend/services/openrouter_service.py -> rag.compressor
+backend/services/openrouter_service.py -> rag.prompts
+backend/services/provenance_context.py -> rag.doc_utils
+backend/services/qdrant/raptor.py -> rag.corpus_scope
+backend/services/qdrant/searcher.py -> rag.corpus_scope
+backend/services/sarvam_service.py -> rag.compressor
+backend/services/sarvam_service.py -> rag.prompts
+backend/services/second_brain/context_adapter.py -> rag.kg_expansion

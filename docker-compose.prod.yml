@@ -31,7 +31,7 @@ networks:
 services:
   # --- Frontend (React + Nginx) ---
   frontend:
-    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-frontend:${IMAGE_TAG:?set IMAGE_TAG (required in production)}
     container_name: mukthiguru-frontend-prod
     ports:
       - "80:80"
@@ -59,7 +59,7 @@ services:
 
   # --- Backend (FastAPI) ---
   backend:
-    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:?set IMAGE_TAG (required in production)}
     container_name: mukthiguru-backend-prod
     environment: &backend-env
       - ENV=production
@@ -165,7 +165,7 @@ services:
 
   # --- Cache (Redis) ---
   redis:
-    image: redis:7-alpine
+    image: redis:7.2.5-alpine
     container_name: mukthiguru-redis-prod
     # F-PROD-1 2026-09-16: was --maxmemory-policy allkeys-lru. This one Redis
     # serves two workloads with different durability requirements: evictable
@@ -244,7 +244,7 @@ services:
   # Beat publishes retention/cache/win-back/sweeper tasks to the default
   # `celery` queue; without a worker on it they were never executed.
   celery-worker:
-    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:?set IMAGE_TAG (required in production)}
     container_name: mukthiguru-celery-worker-prod
     command: >
       celery -A celery_config worker
@@ -270,7 +270,7 @@ services:
 
   # --- Celery Beat (scheduled periodic tasks) ---
   celery-beat:
-    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_ORG:-your-org}/askmukthiguru-backend:${IMAGE_TAG:?set IMAGE_TAG (required in production)}
     container_name: mukthiguru-celery-beat-prod
     command: celery -A celery_config beat --loglevel=info
     # Beat imports the task modules, which load app.config; with only four env

@@ -207,14 +207,23 @@ def audit_okf(corpus_root: Path, okf_dir: Path | None = None) -> dict:
 # ── Qdrant ───────────────────────────────────────────────────────────────
 
 
-def audit_qdrant(base_url: str, collection: str, cap: int | None) -> dict:
+def audit_qdrant(
+    base_url: str,
+    collection: str,
+    cap: int | None,
+    expected_digest: str | None = None,
+    expected_corpus_version: str | None = None,
+) -> dict:
     total = 0
     with_video_id = 0
     summary_points = 0
     with_timestamps = 0
     external_teacher_tags = 0
     speaker_known = 0
+    verified_without_method = 0
+    corpus_versions: set[str] = set()
     video_ids: set[str] = set()
+    points_for_digest: list[dict[str, Any]] = []
 
     try:
         base_url = _validate_qdrant_base_url(base_url)
@@ -234,6 +243,19 @@ def audit_qdrant(base_url: str, collection: str, cap: int | None) -> dict:
             speaker = payload.get("speaker")
             if speaker and speaker not in ("Unknown", "Unknown Channel"):
                 speaker_known += 1
+            if payload.get("speaker_verified") is True and not payload.get(
+                "voice_verification_method"
+            ):
+                verified_without_method += 1
+            cv = payload.get("corpus_version")
+            if cv:
+                corpus_versions.add(str(cv))
+            pid = str(payload.get("point_id") or payload.get("source_span_id") or total)
+            points_for_digest.append({"id": pid, "payload": payload})
+
+        from services.first_person_serving_contract import compute_collection_digest
+
+        computed_digest = compute_collection_digest(points_for_digest) if points_for_digest else ""
     except Exception as exc:
         logger.warning("Qdrant audit could not complete: %s", exc)
         return {"skipped": True, "reason": str(exc)}
@@ -249,6 +271,17 @@ def audit_qdrant(base_url: str, collection: str, cap: int | None) -> dict:
         "external_teacher_tag_count": external_teacher_tags,
         "speaker_known_rate": round(speaker_known / total, 4) if total else 0.0,
         "distinct_video_ids": sorted(video_ids),
+        "verified_without_method_count": verified_without_method,
+        "corpus_versions": sorted(corpus_versions),
+        "computed_digest": computed_digest,
+        "expected_digest": expected_digest,
+        "digest_matches": (computed_digest == expected_digest) if expected_digest else True,
+        "expected_corpus_version": expected_corpus_version,
+        "corpus_version_matches": (
+            (corpus_versions == {expected_corpus_version})
+            if (expected_corpus_version and corpus_versions)
+            else True
+        ),
     }
 
 
@@ -290,6 +323,8 @@ def run_audit(
     skip_qdrant: bool,
     qdrant_cap: int | None,
     okf_dir: Path | None = None,
+    expected_digest: str | None = None,
+    expected_corpus_version: str | None = None,
 ) -> AuditReport:
     report = AuditReport(generated_at=datetime.now(UTC).isoformat())
 
@@ -305,6 +340,8 @@ def run_audit(
             qdrant_url or settings.qdrant_url,
             qdrant_collection or settings.qdrant_collection,
             qdrant_cap,
+            expected_digest=expected_digest,
+            expected_corpus_version=expected_corpus_version,
         )
 
     report.coverage = audit_coverage(
@@ -374,6 +411,39 @@ def run_audit(
                 report.qdrant["without_video_id"] <= thresholds.max_qdrant_missing_video_id,
             )
         )
+        if report.qdrant.get("verified_without_method_count", 0) > 0:
+            checks.append(
+                _check(
+                    "fp_verified_without_method",
+                    "hard",
+                    report.qdrant["verified_without_method_count"],
+                    0,
+                    False,
+                    "Points with speaker_verified=True but no voice_verification_method (GURU-012 / DATA-06)",
+                )
+            )
+        if expected_digest:
+            checks.append(
+                _check(
+                    "fp_collection_digest",
+                    "hard",
+                    report.qdrant.get("computed_digest", ""),
+                    expected_digest,
+                    bool(report.qdrant.get("digest_matches", False)),
+                    "Collection digest must match signed release digest (DATA-06 / T3-02)",
+                )
+            )
+        if expected_corpus_version:
+            checks.append(
+                _check(
+                    "fp_approved_corpus_version",
+                    "hard",
+                    report.qdrant.get("corpus_versions", []),
+                    [expected_corpus_version],
+                    bool(report.qdrant.get("corpus_version_matches", False)),
+                    "Collection points must match approved corpus version (DATA-16 / T3-05)",
+                )
+            )
         if not report.coverage.get("skipped"):
             checks.append(
                 _check(
@@ -457,6 +527,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--qdrant-url", default=None)
     parser.add_argument("--qdrant-collection", default=None)
     parser.add_argument(
+        "--expected-digest",
+        default=None,
+        help="expected signed sha256 digest of collection points (DATA-06 / T3-02)",
+    )
+    parser.add_argument(
+        "--expected-corpus-version",
+        default=None,
+        help="expected approved corpus version (DATA-16 / T3-05)",
+    )
+    parser.add_argument(
         "--qdrant-cap", type=int, default=None, help="cap points scrolled (testing only)"
     )
     parser.add_argument("--skip-qdrant", action="store_true")
@@ -489,6 +569,8 @@ def main(argv: list[str] | None = None) -> int:
         skip_qdrant=args.skip_qdrant,
         qdrant_cap=args.qdrant_cap,
         okf_dir=args.okf_dir,
+        expected_digest=args.expected_digest,
+        expected_corpus_version=args.expected_corpus_version,
     )
     print_summary(report)
 

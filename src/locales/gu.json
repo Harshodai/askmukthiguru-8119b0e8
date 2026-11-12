@@ -359,8 +359,8 @@
     "thanks": "શેર કરવા બદલ આભાર. 🙏",
     "listening": "સાંભળી રહ્યું છે",
     "speak": "બોલો",
-    "streakRooting_one": "{{count}} દિવસની શ્રેણી — તમારી સુંદર સ્થિતિ મૂળ પકડી રહી છે!",
-    "streakRooting_other": "{{count}} દિવસોની શ્રેણી — તમારી સુંદર સ્થિતિ મૂળ પકડી રહી છે!",
+    "streakRooting_one": "{{count}} દિવસનો નિયમિત અભ્યાસ નોંધાયો",
+    "streakRooting_other": "{{count}} દિવસોનો નિયમિત અભ્યાસ નોંધાયો",
     "streakKeepGoing_one": "{{count}} દિવસની શ્રેણી — ચાલુ રાખો!",
     "streakKeepGoing_other": "{{count}} દિવસોની શ્રેણી — ચાલુ રાખો!"
   },
@@ -845,7 +845,9 @@
       "eraseConfirmButton": "હા, બધી યાદો ભૂંસી નાખો",
       "erasing": "સ્મૃતિઓ ભૂંસી નાખવી…",
       "close": "બંધ"
-    }
+    },
+    "quotaLeft": "આજે {{limit}} માંથી {{remaining}} મફત પ્રશ્નો બાકી",
+    "quotaResetsIn": "{{count}} કલાકમાં રીસેટ થશે."
   },
   "notFound": {
     "message": "અરેરે! પૃષ્ઠ મળ્યું નથી",

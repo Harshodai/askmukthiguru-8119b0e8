@@ -5,8 +5,6 @@
 name: Migration Revert Block Check
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:

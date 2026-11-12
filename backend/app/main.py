@@ -61,7 +61,7 @@ try:
             logger_tmp.info("Python memory limit set to %dMB via RLIMIT_DATA", _mb)
         elif hasattr(_resource, "RLIMIT_AS"):  # Fallback only
             _resource.setrlimit(_resource.RLIMIT_AS, (_limit_bytes, _limit_bytes))
-except Exception:
+except (ImportError, ValueError, OSError, AttributeError):
     pass  # Non-fatal: Docker itself provides hard memory limits
 
 
@@ -70,12 +70,14 @@ except Exception:
 # There is deliberately no module-level tenant init here — a bare module-level
 # call would run without a request and set the wrong tenant.
 # Backward-compatible module-level coalescer (tests patch app.main.coalescer).
+from app.boot_timing import BootTimer
 from app.coalescer import build_coalescer as _build_coalescer
 from app.config import settings
 from app.context import correlation_id_var, set_request_id
 from app.dependencies import async_shutdown, get_container, startup
 from app.metrics import REQUEST_COUNT
 from app.observability import init_observability
+from app.runtime_budget import log_runtime_budget
 from app.security_utils import (
     ExponentialBackoffRateLimiter,
     RedisBackedRateLimiter,
@@ -132,7 +134,12 @@ from services.pii_scanner import PIIScanner
 
 # === Graceful shutdown in-flight request tracker (R3) ===
 _INFLIGHT = 0  # simple int — GIL protects single reads/writes in CPython
-_DRAIN_TIMEOUT_S = 45  # max seconds to wait for in-flight requests during shutdown; 15s margin under Railway drainingSeconds:60 (P1-OPS-5)
+# Max seconds to wait for in-flight requests during shutdown. Railway's drain time
+# (RAILWAY_DEPLOYMENT_DRAINING_SECONDS) defaults to 0 s, so it must be set per
+# service: .railway/railway.ts sets 60 for the backend, a 15 s margin over this
+# value (NEW-RW-1, runbook section 8 G-3). If that variable is missing, the old
+# deploy is killed before this loop can finish.
+_DRAIN_TIMEOUT_S = 45
 
 
 class JSONFormatter(logging.Formatter):
@@ -748,8 +755,8 @@ async def _background_startup_body(container, fastapi_app) -> None:
         if hasattr(_libc, "malloc_trim"):
             _libc.malloc_trim(0)
         logger.info("Lifespan: post-warmup memory trim complete (released to OS)")
-    except Exception:
-        pass
+    except (OSError, AttributeError):  # no libc.so.6 (non-glibc host): skip the trim
+        logger.debug("Lifespan: malloc_trim unavailable", exc_info=True)
 
     _app_deps.startup_complete = True
     logger.info("=== Mukthi Guru Backend Ready ===")
@@ -780,11 +787,42 @@ def check_startup_posture(s: Any) -> list[str]:
         problems.append(
             "preview gate is neither FACULTY_ACCESS_CODE nor FACULTY_GATE_DISABLED=true."
         )
+    # NEW-AI-3 (AI-013): an empty scorer model silently uses the provider's default
+    # generation model, which is not the measured relevance scorer. Named in
+    # production, or startup stops.
+    if (
+        getattr(s, "first_person_route_enabled", False)
+        and getattr(s, "first_person_relevance_gate_enabled", False)
+        and not str(getattr(s, "first_person_relevance_model", "") or "").strip()
+    ):
+        problems.append(
+            "FIRST_PERSON_RELEVANCE_MODEL is empty: set the relevance scorer model "
+            "(it must also be allowed by OPENROUTER_EXTRA_ALLOWED_MODELS)."
+        )
     return problems
+
+
+def check_rights_register_startup(s: Any) -> list[str]:
+    """T3-01 (DATA-02): in production a missing/empty rights register is fatal.
+
+    Without it every clip resolves to "unverified" and the system abstains
+    silently. Pure function so it has a fast unit test.
+    """
+    if not getattr(s, "is_production", False):
+        return []
+    from services.first_person_serving_contract import rights_register_status
+
+    status = rights_register_status()
+    if not status["present"]:
+        return ["rights register is missing or unreadable in the serving image."]
+    if status["asset_count"] <= 0:
+        return ["rights register is empty (0 assets)."]
+    return []
 
 
 def _raise_if_startup_posture_unsafe() -> None:
     problems = check_startup_posture(settings)
+    problems += check_rights_register_startup(settings)
     if problems:
         raise RuntimeError("Refusing to start unsafe posture: " + "; ".join(problems))
 
@@ -792,6 +830,10 @@ def _raise_if_startup_posture_unsafe() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=== Starting Mukthi Guru Backend ===")
+    # NEW-RW-8: measure each boot phase and log one "Boot timing:" line, so the
+    # first Railway deploy shows how much of the 330 s healthcheck is used (R-5).
+    timer = BootTimer()
+    timer.start()
 
     # DS-12: fail-closed startup checks run FIRST, as small named functions —
     # never buried in the 400-line background body below. Each unsafe
@@ -850,6 +892,8 @@ async def lifespan(app: FastAPI):
                 getattr(settings, "first_person_context_terminal_enabled", False) is True
             ),
             active_collection=str(getattr(settings, "first_person_active_collection", "") or ""),
+            embedding_model=str(getattr(settings, "embedding_model", "") or ""),
+            embedding_dimension=int(getattr(settings, "embedding_dimension", 0) or 0),
         )
     except Exception as exc:  # noqa: BLE001 - a broken contract must fail closed
         logger.error("Lifespan: first-person serving contract unreadable: %s", exc)
@@ -897,11 +941,14 @@ async def lifespan(app: FastAPI):
         return None
 
     # 3. Initialize LightRAG inline with timeout (critical for answer quality)
+    timer.record("pre_lightrag", timer.total_seconds())
     try:
         logger.info("Lifespan: initializing LightRAG (timeout 120s)...")
-        await asyncio.wait_for(container.lightrag.initialize(), timeout=120)
+        with timer.phase("lightrag_init", budget_s=120):
+            await asyncio.wait_for(container.lightrag.initialize(), timeout=120)
         logger.info("Lifespan: LightRAG initialized")
     except TimeoutError:
+        timer.mark_last("timeout")
         logger.warning("Lifespan: LightRAG init timed out — degraded mode")
     except Exception as e:
         logger.warning(f"Lifespan: LightRAG init failed — {e}")
@@ -910,12 +957,15 @@ async def lifespan(app: FastAPI):
     _register_node_observers()
 
     # 4. Run remaining background init inline with timeout
-    # The start_railway.py wrapper returns 200 for /api/healthz for 90s
-    # so Railway won't kill us during init. The /api/health endpoint returns
+    # The start_railway.py wrapper returns 200 for /api/healthz for _GRACE_SECONDS
+    # (180 s, then real state until the 330 s deploy healthcheckTimeout in
+    # .railway/railway.ts) so Railway won't kill us during init. The /api/health endpoint returns
     # ready:false until startup_complete=True at the end of this block.
     try:
-        await asyncio.wait_for(_background_startup_body(container, app), timeout=180)
+        with timer.phase("background_init", budget_s=180):
+            await asyncio.wait_for(_background_startup_body(container, app), timeout=180)
     except TimeoutError:
+        timer.mark_last("timeout")
         logger.warning("Background init timed out after 180s")
         app_dependencies.startup_error = "Background init timed out"
     except Exception as e:
@@ -923,6 +973,9 @@ async def lifespan(app: FastAPI):
         app_dependencies.startup_error = str(e)
 
     # YIELD NOW — Railway health check can reach /api/health
+    timer.log(logger, healthcheck_timeout_s=330)
+    # NEW-OPS-8 / NEW-LOAD-4 / NEW-LOAD-5: one budget table and one capacity line.
+    log_runtime_budget(logger, settings)
     logger.info("=== Server accepting requests ===")
     yield
 
@@ -1038,7 +1091,18 @@ def _build_origin_regex(origins: list[str]) -> str | None:
     return "|".join(wildcard_patterns) if wildcard_patterns else None
 
 
+def _assert_no_bare_wildcard_origin(origins: list[str]) -> None:
+    """SEC-008: a bare "*" would become a credentialed match-anything regex."""
+    if any(o.strip() == "*" for o in origins):
+        raise RuntimeError(
+            "CORS_ORIGINS contains a bare '*' wildcard, which is refused in production "
+            "(it would be served as a credentialed match-anything origin). "
+            "List explicit origins or scoped patterns such as 'https://*.example.com'."
+        )
+
+
 if settings.is_production:
+    _assert_no_bare_wildcard_origin(cors_origins)
     # In production, strictly enforce explicit origins (no wildcard origins with credentials)
     cors_origins_exact = [o for o in cors_origins if o != "*" and "*" not in o]
     cors_origins_regex = _build_origin_regex(cors_origins)
@@ -1256,17 +1320,37 @@ _AUTH_LIMIT_PATHS: frozenset[str] = frozenset(
 )
 
 
-@app.middleware("http")
-async def auth_rate_limit_middleware(
-    request: Request, call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    if request.method == "POST" and request.url.path in _AUTH_LIMIT_PATHS:
-        client_ip = request.client.host if request.client else "unknown"
-        ip_key = f"auth_rl:ip:{request.url.path}:{client_ip}"
+class AuthRateLimitMiddleware:
+    """Rate-limit auth POSTs as pure ASGI middleware.
+
+    The earlier ``@app.middleware("http")`` version (BaseHTTPMiddleware) read the
+    JSON body with ``await request.json()``. Each body read nests Starlette's
+    ``receive`` wrappers; under load that recursion overflowed the C stack and
+    segfaulted the whole backend (2026-11-12: reproduced with 300 POSTs to
+    /api/auth/anon-session, and the crash killed graded-4/-5/-6 captures). This
+    version buffers the body once and replays it to the handler.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if (
+            scope["type"] != "http"
+            or scope.get("method") != "POST"
+            or scope.get("path") not in _AUTH_LIMIT_PATHS
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        path = scope["path"]
+        client = scope.get("client")
+        client_ip = client[0] if client else "unknown"
+        ip_key = f"auth_rl:ip:{path}:{client_ip}"
 
         ip_allowed, ip_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(ip_key)
         if not ip_allowed:
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=429,
                 content={
                     "error": "Too Many Requests",
@@ -1274,35 +1358,78 @@ async def auth_rate_limit_middleware(
                 },
                 headers={"Retry-After": str(int(ip_retry_after))},
             )
+            await response(scope, receive, send)
+            return
 
+        body, disconnected = await _buffer_request_body(receive)
         acct_key = None
         try:
-            body = await request.json()
-            email = body.get("email") or body.get("username") or ""
-            if email:
-                acct_key = f"auth_rl:acct:{email}"
-                acct_allowed, acct_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(acct_key)
-                if not acct_allowed:
-                    await _AUTH_RATE_LIMITER.record_attempt_async(ip_key, success=False)
-                    return JSONResponse(
-                        status_code=429,
-                        content={
-                            "error": "Too Many Requests",
-                            "message": "Too many login attempts for this account. Try again later.",
-                        },
-                        headers={"Retry-After": str(int(acct_retry_after))},
-                    )
-        except (json.JSONDecodeError, RuntimeError):
-            pass
+            parsed = json.loads(body) if body else None
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            parsed = None
+        email = ""
+        if isinstance(parsed, dict):
+            email = parsed.get("email") or parsed.get("username") or ""
+        if email:
+            acct_key = f"auth_rl:acct:{email}"
+            acct_allowed, acct_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(acct_key)
+            if not acct_allowed:
+                await _AUTH_RATE_LIMITER.record_attempt_async(ip_key, success=False)
+                response = JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": "Too Many Requests",
+                        "message": "Too many login attempts for this account. Try again later.",
+                    },
+                    headers={"Retry-After": str(int(acct_retry_after))},
+                )
+                await response(scope, receive, send)
+                return
 
-        resp = await call_next(request)
+        status_holder: dict[str, int] = {}
 
-        success = resp.status_code < 400
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_holder["status"] = message["status"]
+            await send(message)
+
+        await self.app(scope, _replay_receive(body, disconnected, receive), send_wrapper)
+
+        success = status_holder.get("status", 500) < 400
         await _AUTH_RATE_LIMITER.record_attempt_async(ip_key, success=success)
         if acct_key is not None:
             await _AUTH_RATE_LIMITER.record_attempt_async(acct_key, success=success)
-        return resp
-    return await call_next(request)
+
+
+async def _buffer_request_body(receive) -> tuple[bytes, bool]:
+    """Read the whole request body once. Returns (body, client_disconnected)."""
+    chunks: list[bytes] = []
+    while True:
+        message = await receive()
+        if message["type"] == "http.disconnect":
+            return b"".join(chunks), True
+        chunks.append(message.get("body", b""))
+        if not message.get("more_body", False):
+            return b"".join(chunks), False
+
+
+def _replay_receive(body: bytes, disconnected: bool, receive):
+    """Hand the buffered body to the handler, then defer to the real channel."""
+    delivered = False
+
+    async def replay():
+        nonlocal delivered
+        if not delivered:
+            delivered = True
+            return {"type": "http.request", "body": body, "more_body": False}
+        if disconnected:
+            return {"type": "http.disconnect"}
+        return await receive()
+
+    return replay
+
+
+app.add_middleware(AuthRateLimitMiddleware)
 
 
 # Admin endpoint rate limiter — tighter limits to prevent admin API abuse
@@ -1423,10 +1550,28 @@ app.add_exception_handler(
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Global error boundary catching all unhandled exceptions."""
+    """Global error boundary catching all unhandled exceptions (PROD-OPS-04)."""
     error_id = f"err_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+    correlation_id = (
+        getattr(request.state, "correlation_id", None)
+        or request.headers.get("x-correlation-id")
+        or request.headers.get("x-request-id")
+        or ""
+    )
+    request_id = (
+        getattr(request.state, "request_id", None) or request.headers.get("x-request-id") or ""
+    )
+    user_id = getattr(request.state, "user_id", None) or ""
     logger.error(
-        f"Unhandled server error on {request.url.path} (error_id: {error_id}): {exc}", exc_info=True
+        f"Unhandled server error on {request.url.path} (error_id: {error_id}, correlation_id: {correlation_id}): {exc}",
+        exc_info=True,
+        extra={
+            "error_id": error_id,
+            "correlation_id": correlation_id,
+            "request_id": request_id,
+            "path": request.url.path,
+            "user_id": user_id,
+        },
     )
     return JSONResponse(
         status_code=500,
@@ -1434,6 +1579,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "error": "An internal error occurred",
             "message": "We encountered an issue processing your request. Please try again.",
             "error_id": error_id,
+            "correlation_id": correlation_id,
         },
     )
 

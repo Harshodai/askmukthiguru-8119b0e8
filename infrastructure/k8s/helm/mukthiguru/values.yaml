@@ -1,3 +1,4 @@
+# REFERENCE ONLY. Not deployed. Source of truth: .railway/railway.ts and docker-compose.prod.yml. Last reviewed (static, no cluster): 2026-11-06. Keep, fix or retire: decision D-PK8S1.
 nameOverride: ""
 fullnameOverride: ""
 
@@ -150,7 +151,8 @@ redis:
   enabled: true
   auth:
     enabled: true
-    password: mukthiguru-redis-pass
+    # REQUIRED: no default. Set with --set redis.auth.password=... or a values file kept outside Git.
+    password: ""
   master:
     persistence:
       enabled: true
@@ -186,7 +188,8 @@ neo4j:
     tag: "5.17"
   auth:
     enabled: true
-    password: mukthiguru-neo4j-pass
+    # REQUIRED: no default. Set with --set neo4j.auth.password=... or a values file kept outside Git.
+    password: ""
   persistence:
     enabled: true
     size: 10Gi

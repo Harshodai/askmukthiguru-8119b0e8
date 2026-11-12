@@ -23,6 +23,10 @@ DO_CLEAN=false
 DO_REBUILD=false
 WITH_WORKER=false
 DRY_RUN=false
+# ENVIRONMENT is read by backend/app/config.py: production startup refuses
+# "local" (P7-14, X-A1). Staging is the default so a script run is never a
+# silent production deploy.
+DEPLOY_ENVIRONMENT="${DEPLOY_ENVIRONMENT:-staging}"
 
 show_help() {
     echo "Usage: ./deploy_railway.sh [OPTIONS]"
@@ -36,6 +40,7 @@ show_help() {
     echo "  --prune-deployments  Clean up dead/failed deployments in Railway history"
     echo "  --check-budget       Run Railway budget burn-rate check against the \$25 hard limit"
     echo "  --dry-run            Simulate operations without making changes"
+    echo "  --environment NAME   staging (default) or production; sets ENVIRONMENT on the service"
     echo "  --help               Show this help message"
     echo ""
     exit 0
@@ -76,6 +81,10 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        --environment)
+            DEPLOY_ENVIRONMENT="${2:-}"
+            shift 2 || { error "--environment needs a value (staging|production)"; exit 1; }
+            ;;
         -h|--help)
             show_help
             ;;
@@ -85,6 +94,14 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+case "$DEPLOY_ENVIRONMENT" in
+    staging|production) ;;
+    *)
+        error "DEPLOY_ENVIRONMENT must be 'staging' or 'production', got '$DEPLOY_ENVIRONMENT'"
+        exit 1
+        ;;
+esac
 
 # Check Railway CLI
 if ! command -v railway &> /dev/null; then
@@ -216,16 +233,23 @@ set_var() {
     fi
 }
 
-# Generate strong secrets
-JWT_SECRET=$(openssl rand -hex 32)
+# JWT_SECRET is NOT generated here (P7-18). The backend verifies HS256 tokens
+# with it, and the config comment says it is shared with Supabase
+# (backend/app/config.py), so a random value can reject real Supabase tokens.
+# The owner sets it in the Railway dashboard; the required-variable check
+# below stops the deploy when it is missing.
 
-set_var JWT_SECRET "$JWT_SECRET"
+# METRICS_SCRAPE_TOKEN is a secret only this project defines (Prometheus scrapes
+# /internal/metrics with it), so a random value is correct. It is set once; read
+# it from the Railway dashboard to configure the scraper. It is never printed.
+set_var METRICS_SCRAPE_TOKEN "$(openssl rand -hex 32)"
+set_var ENVIRONMENT "$DEPLOY_ENVIRONMENT"
 set_var CORS_ORIGINS "https://askmukthiguru.lovable.app"
 set_var LLM_PROVIDER "openrouter"
 set_var GUARDRAILS_PROVIDER "lightweight"
 set_var WEB_CONCURRENCY "1"
 set_var PYTHON_MEMORY_LIMIT_MB "0"
-set_var FORWARDED_ALLOW_IPS "10.0.0.0/8,127.0.0.1"
+set_var FORWARDED_ALLOW_IPS "10.0.0.0/8"
 
 # Quantized Models (ONNX INT8)
 set_var EMBEDDING_BACKEND "onnx_int8"
@@ -272,7 +296,7 @@ done
 # Settings refuses to start in production without these (backend/app/config.py
 # validators), so a missing one is a crash loop, not a degraded boot.
 MISSING_REQUIRED=0
-for key in OPENROUTER_API_KEY SUPABASE_URL SUPABASE_KEY ANON_SESSION_HMAC_SECRET BRAIN_KEK; do
+for key in OPENROUTER_API_KEY SUPABASE_URL SUPABASE_KEY ANON_SESSION_HMAC_SECRET BRAIN_KEK JWT_SECRET FACULTY_ACCESS_CODE FIRST_PERSON_RELEVANCE_MODEL; do
     if ! railway variables get "$key" &>/dev/null; then
         warn "$key is REQUIRED in production and is not set"
         MISSING_REQUIRED=1
@@ -283,16 +307,44 @@ if [ "$MISSING_REQUIRED" = "1" ] && [ "${DRY_RUN:-false}" != "true" ]; then
     exit 1
 fi
 
-# Auto-tune Redis memory policy to avoid OOM or expensive database tier upgrades
-log "Tuning Redis memory policy (256MB maxmemory, volatile-lru eviction)..."
-python3 scripts/ops/railway_cleanup.py --tune-redis 2>/dev/null || true
+# Redis memory policy: noeviction (P7-19). This Redis holds cache AND quota and
+# rate-limit counters. Quota keys carry TTLs, so volatile-lru could still evict
+# them. docker-compose.prod.yml makes the same choice; see its comment.
+log "Tuning Redis memory policy (512MB maxmemory, noeviction)..."
+if [[ "$DRY_RUN" == true ]]; then
+    log "[DRY RUN] Would run: railway_cleanup.py --tune-redis"
+else
+    python3 scripts/ops/railway_cleanup.py --tune-redis || warn "Redis tuning failed. Check 'CONFIG GET maxmemory-policy' by hand; it must be noeviction (Gate A14)."
+fi
 
 # 4. Deploy Backend
-log "Deploying backend..."
+# Release identity (P7-05, X-A2). Railway sets RAILWAY_GIT_COMMIT_SHA only for
+# GitHub-triggered deploys; `railway up` is not one. Without a concrete git SHA
+# the first-person production contract aborts startup
+# (backend/services/first_person_release.py). Set GIT_SHA from HEAD on EVERY run
+# (set_var would skip an old value) and refuse a dirty tree, because `railway up`
+# uploads the working tree and the SHA would not describe it.
+GIT_SHA_VALUE="$(git rev-parse HEAD 2>/dev/null || true)"
+if [[ -z "$GIT_SHA_VALUE" || ! "$GIT_SHA_VALUE" =~ ^[0-9a-f]{40}$ ]]; then
+    error "Failed to resolve valid 40-character git SHA from HEAD. Cannot deploy without verified release identity."
+    exit 1
+fi
+if [[ -n "$(git status --porcelain)" && "$DRY_RUN" != true ]]; then
+    error "Working tree is not clean. Commit or stash first: GIT_SHA must describe the code that is uploaded."
+    exit 1
+fi
 if [[ "$DRY_RUN" == true ]]; then
-    log "[DRY RUN] Would trigger: railway up --detach"
+    log "[DRY RUN] Would set GIT_SHA=$GIT_SHA_VALUE and trigger: railway up --detach"
 else
-    railway up --detach > /dev/null 2>&1
+    if ! railway variables set "GIT_SHA=$GIT_SHA_VALUE"; then
+        error "Failed to set GIT_SHA on Railway. Aborting deployment."
+        exit 1
+    fi
+    success "Set GIT_SHA=${GIT_SHA_VALUE:0:12}"
+    if ! railway up --detach; then
+        error "Railway deployment failed."
+        exit 1
+    fi
     success "Backend deployment triggered"
 fi
 
@@ -327,9 +379,9 @@ railway domain > /dev/null 2>&1
 BACKEND_URL=$(railway domain --service askmukthiguru-8119b0e8 2>/dev/null | grep -oE 'https://[^ ]+' | head -1)
 HEALTHY=false
 if [[ -n "$BACKEND_URL" ]]; then
-    log "Testing health endpoint: $BACKEND_URL/api/health"
+    log "Testing health endpoint: $BACKEND_URL/api/healthz"
     for i in {1..10}; do
-        if curl -sf "$BACKEND_URL/api/health" > /dev/null; then
+        if curl -sf "$BACKEND_URL/api/healthz" > /dev/null; then
             success "Backend healthy!"
             HEALTHY=true
             break

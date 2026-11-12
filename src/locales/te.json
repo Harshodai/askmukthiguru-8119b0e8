@@ -359,8 +359,8 @@
     "thanks": "పంచుకున్నందుకు చాలా సంతోషం. 🙏",
     "listening": "వింటోంది",
     "speak": "మాట్లాడండి",
-    "streakRooting_one": "{{count}} రోజు వరుస — మీ అందమైన స్థితి వేళ్ళూనుకుంటోంది!",
-    "streakRooting_other": "{{count}} రోజుల వరుస — మీ అందమైన స్థితి వేళ్ళూనుకుంటోంది!",
+    "streakRooting_one": "{{count}} రోజు స్థిరమైన సాధన నమోదు",
+    "streakRooting_other": "{{count}} రోజుల స్థిరమైన సాధన నమోదు",
     "streakKeepGoing_one": "{{count}} రోజు వరుస — కొనసాగించండి!",
     "streakKeepGoing_other": "{{count}} రోజుల వరుస — కొనసాగించండి!"
   },
@@ -845,7 +845,9 @@
       "eraseConfirmButton": "అవును, జ్ఞాపకాలన్నీ తుడిచివేయండి",
       "erasing": "జ్ఞాపకాలను తుడిచివేస్తున్నట్టు…",
       "close": "ముగింపు"
-    }
+    },
+    "quotaLeft": "ఈరోజు {{limit}}లో {{remaining}} ఉచిత ప్రశ్నలు మిగిలి ఉన్నాయి",
+    "quotaResetsIn": "{{count}} గంటల్లో రీసెట్ అవుతుంది."
   },
   "notFound": {
     "message": "అప్పుడు! పేజీ కనుగొనబడలేదు",

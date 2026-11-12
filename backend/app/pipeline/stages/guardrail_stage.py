@@ -202,6 +202,59 @@ class InputGuardrailStage(Stage):
                     )
                     assistant.system_prompt = None
 
+        if not input_check["blocked"]:
+            from guardrails.relational_safety import (
+                IntelligentRelationalSafetyEngine,
+                InterventionTier,
+            )
+
+            try:
+                rel_engine = IntelligentRelationalSafetyEngine()
+                chat_history = (ctx.state or {}).get("chat_history_en") or []
+                rel_verdict = rel_engine.evaluate(guardrail_text, session_history=chat_history)
+
+                if rel_verdict.is_bhakti_devotion:
+                    logger.info(
+                        "[InputGuardrailStage] Authentic Bhakti devotion recognized; passing through."
+                    )
+                elif rel_verdict.is_flagged:
+                    if rel_verdict.tier in (
+                        InterventionTier.TIER_2_GENTLE_FRICTION,
+                        InterventionTier.TIER_3_CRISIS_PREEMPTION,
+                    ):
+                        input_check = {
+                            "blocked": True,
+                            "reason": f"Off-topic: emotional_dependency ({rel_verdict.reason})",
+                            "response": rel_verdict.guidance_message,
+                            "redirect_to": None,
+                        }
+                    elif rel_verdict.tier == InterventionTier.TIER_1_SUBTLE_ANCHOR:
+                        ctx.state["relational_subtle_anchor"] = rel_verdict.guidance_message
+            except (AttributeError, RuntimeError, TypeError, ValueError, KeyError, OSError):
+                logger.exception(
+                    "[InputGuardrailStage] Relational safety evaluation failed; falling back to trajectory check."
+                )
+
+        if not input_check["blocked"]:
+            from guardrails.lightweight_handler import detect_emotional_dependency_trajectory
+
+            recent_turns = [
+                m.get("content", "")
+                for m in ((ctx.state or {}).get("chat_history_en") or [])[-6:]
+                if isinstance(m, dict) and m.get("role") == "user" and m.get("content")
+            ]
+            if recent_turns:
+                recent_turns.append(guardrail_text)
+                traj = detect_emotional_dependency_trajectory(recent_turns)
+                if traj is not None:
+                    topic, traj_resp = traj
+                    input_check = {
+                        "blocked": True,
+                        "reason": f"Off-topic: {topic}",
+                        "response": traj_resp,
+                        "redirect_to": None,
+                    }
+
         ctx.input_check = input_check
         if input_check["blocked"]:
             ctx.last_stage_status = "error"
@@ -258,6 +311,8 @@ class InputGuardrailStage(Stage):
                 return None
             if "Emotional wellness" in reason:
                 intent, route_decision = "DISTRESS", "distress"
+            elif "emotional_dependency" in reason:
+                intent, route_decision = "EMOTIONAL_DEPENDENCY", "emotional_dependency_guard"
             elif "Medical advice" in reason or "Harmful pattern" in reason:
                 intent, route_decision = "SAFETY_VIOLATION", "blocked"
             else:
@@ -333,9 +388,32 @@ class OutputGuardrailStage(Stage):
         if not is_blocked:
             await _append_relationship_boundary(ctx)
             await _append_addiction_boundary(ctx)
+            await _append_relational_anchor(ctx)
         await _append_abuse_support(ctx)
         await _append_distress_support_line(ctx)
         return None
+
+
+async def _append_relational_anchor(ctx: PipelineContext) -> None:
+    """If Tier 1 subtle anchor was flagged, append a gentle grounding reflection."""
+    anchor = (ctx.state or {}).get("relational_subtle_anchor")
+    answer = ctx.final_answer or ""
+    if not anchor or not answer.strip():
+        return
+    text = anchor
+    if ctx.is_indic:
+        try:
+            text = (
+                await ctx.container.translation.translate_text(
+                    text=anchor, source_lang="en", target_lang=ctx.preferred_lang
+                )
+                or anchor
+            )
+        except (AttributeError, RuntimeError, TypeError, ValueError, TimeoutError, OSError):
+            logger.warning("Relational anchor translation failed; appending English.")
+            text = anchor
+    if text not in answer:
+        ctx.final_answer = f"{answer.rstrip()}\n\n{text}"
 
 
 async def _append_addiction_boundary(ctx: PipelineContext) -> None:

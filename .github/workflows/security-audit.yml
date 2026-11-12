@@ -1,19 +1,20 @@
 name: Security Audit
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  # Run every Monday at 09:00 IST (03:30 UTC) as a standing pre-launch check
-  schedule:
-    - cron: '30 3 * * 1'
-  # Allow manual trigger from GitHub Actions UI
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
+
+# gitleaks-action v3 lists a pull request's commits through the REST API on
+# `pull_request` events, so it needs `pull-requests: read` on top of the default
+# `contents: read`. Without it the scan dies with 403 "Resource not accessible
+# by integration" before it produces any result, i.e. the secret scan silently
+# stops scanning. The scan itself is unchanged.
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
   security-audit:

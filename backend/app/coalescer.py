@@ -20,7 +20,7 @@ except ImportError:
 
 from prometheus_client import Counter, Histogram
 
-from app.sanitization import sanitize_log_input
+from app.sanitization import redact_url_credentials, sanitize_log_input
 
 COLLAPSED_REQUESTS = Counter("request_collapsed_total", "In-flight requests collapsed")
 COALESCER_LATENCY = Histogram("coalescer_wait_seconds", "Time spent waiting for shared result")
@@ -360,8 +360,11 @@ def build_coalescer(redis_url: Optional[str] = None, ttl: float = 60.0):
     if redis_url and Redis is not None:
         try:
             coalescer = RedisCoalescer(redis_url, ttl=ttl)
-            logger.info(f"Using Redis coalescer at {redis_url}")
+            logger.info("Using Redis coalescer at %s", redact_url_credentials(redis_url))
             return coalescer
         except Exception as e:
-            logger.warning(f"Failed to create Redis coalescer: {e}, falling back to in-memory")
+            logger.warning(
+                "Failed to create Redis coalescer: %s, falling back to in-memory",
+                redact_url_credentials(str(e)),
+            )
     return _InMemoryCoalescer(ttl=ttl)

@@ -6,19 +6,15 @@ name: Eval Gate (RAGAS Faithfulness + Context Metrics)
 
 on:
   pull_request:
+    branches: [main]
     paths:
-      - 'backend/rag/**'
-      - 'backend/services/**'
-      - 'backend/evaluation/**'
-      - 'backend/app/main.py'
-      - 'backend/app/pipeline/**'
-      - 'backend/app/config.py'
-      - 'backend/evaluation/golden_dataset.json'
-      - 'backend/ingest/**'
-      - 'scripts/ingestion/**'
-      - 'backend/services/qdrant/**'
-  schedule:
-    - cron: '0 2 * * *' # 02:00 UTC nightly
+      - 'backend/**'
+      - '.github/workflows/eval-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/eval-gate.yml'
   workflow_dispatch:
 
 concurrency:
@@ -53,7 +49,12 @@ jobs:
 
       - name: Install eval deps
         run: |
-          pip install ragas==0.2.6 datasets pandas httpx pydantic
+          pip install ragas==0.2.6 datasets pandas httpx pydantic pytest
+
+      - name: Run offline PR eval suite (T2-01)
+        # Runs on every PR in-process without live secrets (routing, distress benign/crisis, quote integrity, voice lint)
+        run: |
+          cd backend && PYTHONPATH=. pytest --noconftest tests/test_offline_pr_suite.py -v --tb=short
 
       - name: Check live evaluation target
         id: target
@@ -73,7 +74,6 @@ jobs:
         env:
           BACKEND_URL: ${{ secrets.BACKEND_URL }}
           BACKEND_TOKEN: ${{ secrets.BACKEND_TOKEN }}
-          LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
         run: |
           python backend/evaluation/run_golden_eval.py \
             --dataset backend/evaluation/golden_dataset.json \
@@ -84,12 +84,27 @@ jobs:
             --context-recall-min "$CONTEXT_RECALL_THRESHOLD" \
             --min-distinct-sources "$DIVERSITY_MIN_DISTINCT_SOURCES"
 
+      - name: Run deterministic clean simulation fallback
+        if: steps.target.outputs.available != 'true'
+        # Documented Fallback Execution:
+        # When BACKEND_URL is not configured (e.g. PR runs without live deployment secrets),
+        # execute the targeted clean Docker simulation suite (test_clean_docker_sim.py).
+        # This provides active, deterministic quality gating across the 5 representative
+        # benchmark queries (crisis preemption, authority parsing, fail-closed retrieval-only,
+        # valid clip serving, and guru co-identity).
+        run: |
+          echo "Executing documented fallback evaluation: offline deterministic clean Docker simulation suite..."
+          cd backend && PYTHONPATH=. pytest --noconftest tests/test_clean_docker_sim.py -v --tb=short
+          echo "### 🛡️ Clean Simulation Fallback Passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "No \`BACKEND_URL\` secret was configured for live RAGAS eval. Fallback execution ran \`test_clean_docker_sim.py\` and verified all 5 representative benchmark queries deterministically." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload report
-        if: always()
+        if: always() && steps.target.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: eval-report
           path: eval_report.json
+          if-no-files-found: ignore
 
       - name: Write results to job summary
         if: steps.target.outputs.available == 'true' && always()

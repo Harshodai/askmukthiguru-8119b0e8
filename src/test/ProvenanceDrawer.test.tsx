@@ -240,6 +240,6 @@ describe('createProvenanceManifestFromMessage grounding status', () => {
       citations: [{ url: 'https://www.youtube.com/watch?v=abcdefghijk' }],
       verification: { passed: true, direct: false },
     } as Message);
-    expect(manifest.grounding.evidenceSupportLabel).toBe('Related Teaching (not a direct answer)');
+    expect(manifest.grounding.evidenceSupportLabel).toBe('Related, not a direct answer');
   });
 });

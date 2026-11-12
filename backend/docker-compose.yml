@@ -42,12 +42,12 @@ services:
 
   # --- Memgraph (Primary Graph Database, port 7687, C++, ~80MB RAM) ---
   memgraph:
-    image: memgraph/memgraph-mage:latest
+    image: memgraph/memgraph-mage:2.20.1
     container_name: mukthiguru-memgraph
     logging: *default-logging
     ports:
-      - "7687:7687" # Bolt Protocol (Primary)
-      - "7444:7444" # WebSocket / Memgraph Lab
+      - "127.0.0.1:7687:7687" # Bolt Protocol (Primary)
+      - "127.0.0.1:7444:7444" # WebSocket / Memgraph Lab
     environment:
       - MEMGRAPH_USER=${NEO4J_USER:-neo4j}
       - MEMGRAPH_PASSWORD=${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set}
@@ -69,11 +69,11 @@ services:
 
   # --- Redis Cache ---
   redis:
-    image: redis:7-alpine
+    image: redis:7.2.5-alpine
     container_name: mukthiguru-redis
     logging: *default-logging
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     # DS-1 (2026-10-14, evidence in §23): noeviction, matching
     # docker-compose.prod.yml. One instance holds cache AND rate limits,
     # quotas, job queue and ingestion checkpoints; allkeys-lru lets cache
@@ -153,12 +153,14 @@ services:
     container_name: mukthiguru-qdrant
     logging: *default-logging
     ports:
-      - "6333:6333" # REST API
-      - "6334:6334" # gRPC
+      - "127.0.0.1:6333:6333" # REST API
+      - "127.0.0.1:6334:6334" # gRPC
     volumes:
       - qdrant_data:/qdrant/storage
     environment:
       - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__SERVICE__API_KEY=${QDRANT_WRITE_API_KEY:-${QDRANT_API_KEY:-}}
+      - QDRANT__SERVICE__READ_ONLY_API_KEY=${QDRANT_READ_ONLY_API_KEY:-}
     healthcheck:
       test: [ "CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/localhost/6333'" ]
       interval: 30s
@@ -297,6 +299,8 @@ services:
       # Qdrant runs as a sibling container
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom_contextual}
+      - QDRANT_API_KEY=${QDRANT_READ_ONLY_API_KEY:-${QDRANT_API_KEY:-}}
+      - QDRANT_READ_ONLY_API_KEY=${QDRANT_READ_ONLY_API_KEY:-}
       - QDRANT_LOCAL_PATH=
       # 2026-10-20: pin the safe mode so a code-default regression cannot
       # reach a running stack. Override with FIRST_PERSON_MODE=hybrid only for
@@ -307,6 +311,9 @@ services:
       - FIRST_PERSON_ACTIVE_COLLECTION=${FIRST_PERSON_ACTIVE_COLLECTION:-first_person_v10}
       - FIRST_PERSON_COLLECTION=${FIRST_PERSON_COLLECTION:-}
       - FIRST_PERSON_CONTEXT_HARNESS_ENABLED=${FIRST_PERSON_CONTEXT_HARNESS_ENABLED:-false}
+      # Pinned here like the harness flag: the root .env is read after backend/.env and
+      # would otherwise shadow it (found 2026-11-07: harness true, terminal false = not v10-only).
+      - FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=${FIRST_PERSON_CONTEXT_TERMINAL_ENABLED:-false}
       - FIRST_PERSON_CONTEXT_COLLECTION=${FIRST_PERSON_CONTEXT_COLLECTION:-}
       # Owner-only, file-backed first-person review preview (2026-10-22).
       # LOCAL ONLY: the route refuses to run when IS_PRODUCTION is true, and it
@@ -318,7 +325,7 @@ services:
       # /app rather than from the derived host path.
       - FIRST_PERSON_LOCAL_REVIEW_ROOT=${FIRST_PERSON_LOCAL_REVIEW_ROOT:-/app}
       - FIRST_PERSON_RELEVANCE_MIN_SCORE=${FIRST_PERSON_RELEVANCE_MIN_SCORE:-3}
-      - FIRST_PERSON_RELEVANCE_TIMEOUT_S=${FIRST_PERSON_RELEVANCE_TIMEOUT_S:-15.0}
+      - FIRST_PERSON_RELEVANCE_TIMEOUT_S=${FIRST_PERSON_RELEVANCE_TIMEOUT_S:-25.0}
       - FIRST_PERSON_MAX_CLIP_SECONDS=${FIRST_PERSON_MAX_CLIP_SECONDS:-300}
       - FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED=${FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED:-true}
       # Supabase
@@ -394,9 +401,12 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
+      # timeout must exceed _HEALTH_HARD_BOUND_SECONDS (app/api/health.py, 12s):
+      # a 10s timeout turned a slow-but-alive deep check into an autoheal kill
+      # during the 20261112-graded-4 capture. Pinned by tests/test_health_timeout_contract.py.
       test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 10
       start_period: 420s
     deploy:
@@ -597,7 +607,7 @@ services:
     container_name: mukthiguru-gptcache-server
     profiles: [cache]
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     environment:
       - GPTCACHE_CONFIG=/config/gptcache_config.yml
     command: >
@@ -873,7 +883,7 @@ services:
   # (railway.json's healthcheckPath=/api/healthz + restartPolicyType) is
   # independent of this sidecar and of the deep /api/health check.
   autoheal:
-    image: willfarrell/autoheal:latest
+    image: willfarrell/autoheal:1.2.0
     container_name: mukthiguru-autoheal
     restart: unless-stopped
     environment:

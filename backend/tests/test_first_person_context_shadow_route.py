@@ -78,6 +78,7 @@ def _post():
     return client.post(
         "/api/first-person/query",
         json={"query": "What is suffering?", "teacher_id": "preethaji"},
+        headers={"X-Session-Id": "anon:shadow-test-session"},
     )
 
 

@@ -7,10 +7,7 @@
 name: Lint & Test
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -208,6 +205,40 @@ jobs:
         run: python3 evals/grounding/verify_quote.py
 
   # --- Pre-commit validation ---
+  # NEW-ANS-8: the release invariants (AC-ANS-01 to 09) as their own job, so the
+  # result shows as a separate check. Fakes only: no LLM, no Qdrant, no network.
+  # Making this job a REQUIRED check for main is a branch-protection setting and
+  # needs Harsha's agreement; this file does not set it.
+  release-invariants:
+    name: release-invariants
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.lock
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.lock
+
+      - name: Run release invariants
+        run: pytest tests/test_release_invariants.py -v --tb=short -o faulthandler_timeout=300
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+          JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
+          OPENROUTER_API_KEY: mock-openrouter-key-for-ci
+          MALLOC_ARENA_MAX: "2"
+
   pre-commit-check:
     name: Validate Pre-commit Hooks
     runs-on: ubuntu-latest

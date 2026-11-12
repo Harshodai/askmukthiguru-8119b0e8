@@ -42,7 +42,7 @@ from app.pipeline.result import PipelineResult
 from app.pipeline.stages import PipelineContext, StageRunner, build_default_pipeline
 from app.release_manifest import get_release_manifest
 from app.routing_primitives import is_deterministic_greeting
-from app.sanitization import sanitize_log_input
+from app.sanitization import pseudonymize_identity, sanitize_log_input
 from rag.memory import normalize_session_id
 from services.health_monitor import HealthMonitor
 from services.tenant_context import TenantContext
@@ -126,7 +126,56 @@ class PipelineCoordinator:
     # Public API
     # ------------------------------------------------------------------
 
-    async def execute(
+    async def execute(self, **kwargs: Any) -> PipelineResult:
+        """Run the stage chain, then emit exactly one ``answer_outcome``.
+
+        Every terminal path (stage early return, exact/doctrine cache hit,
+        timeout, crash) funnels through here, so the census is complete.
+        Emission is failure-tolerant and carries no text or identity.
+        """
+        result = await self._execute_stages(**kwargs)
+        self._emit_answer_outcome(result)
+        return result
+
+    @staticmethod
+    def _emit_answer_outcome(result: PipelineResult) -> None:
+        try:
+            from app.answer_outcome import build_answer_outcome, emit_answer_outcome
+            from app.grounding import grounding_state_for
+            from services.cost_tracker import token_accumulator_var
+            from services.fp_fail_closed import fail_closed_active
+
+            trace = result.evaluation_trace if isinstance(result.evaluation_trace, dict) else {}
+            acc = token_accumulator_var.get()
+            llm_calls = list(acc.llm_calls) if acc is not None else []
+            route_meta = result.route_metadata if isinstance(result.route_metadata, dict) else {}
+            stage_timings = route_meta.get("stage_timings") or result.node_timings or {}
+
+            emit_answer_outcome(
+                build_answer_outcome(
+                    request_id=result.trace_id or None,
+                    route_decision=result.route_decision,
+                    route_reason=trace.get("routing_reason"),
+                    grounding_state=grounding_state_for(result),
+                    citations=result.citations,
+                    verification=result.verification,
+                    cache_hit=bool(result.cache_hit),
+                    latency_ms=result.latency_ms,
+                    model_used=result.model_used,
+                    blocked=bool(result.blocked),
+                    errored=result.route_decision in ("error", "timeout"),
+                    stage_latencies_ms=stage_timings,
+                    llm_calls=llm_calls,
+                ),
+                # NEW-SEC-1 (OPS-001): keyed to the posture (generated teaching
+                # not allowed), not to the bridge flag. With the bridge switched
+                # off the detector must still see generated teaching.
+                first_person_only=fail_closed_active(),
+            )
+        except Exception as exc:  # never let telemetry break a response
+            logger.debug("answer outcome not recorded: %s", type(exc).__name__)
+
+    async def _execute_stages(
         self,
         *,
         user_msg: str,
@@ -277,7 +326,7 @@ class PipelineCoordinator:
         # no way to tell that from a legitimate cache hit.
         logger.info(
             "PERSONALIZATION_PROBE user=%s incognito=%s eligible=%s",
-            sanitize_log_input(str(user_id)),
+            pseudonymize_identity(str(user_id)),
             ctx.incognito,
             ctx.personalization_eligible,
         )
@@ -294,7 +343,7 @@ class PipelineCoordinator:
         except TimeoutError:
             logger.error(
                 "Pipeline timed out for user %s: query_token='%s' trace='%s'",
-                sanitize_log_input(str(user_id)),
+                pseudonymize_identity(str(user_id)),
                 _query_token(user_msg),
                 sanitize_log_input(str(trace_id)),
             )
@@ -312,7 +361,7 @@ class PipelineCoordinator:
         except Exception:
             logger.exception(
                 "Pipeline crashed for user %s: query_token='%s' trace='%s'",
-                sanitize_log_input(str(user_id)),
+                pseudonymize_identity(str(user_id)),
                 _query_token(user_msg),
                 sanitize_log_input(str(trace_id)),
             )
@@ -386,7 +435,7 @@ class PipelineCoordinator:
             # failure must stay visible in logs.
             logger.debug(
                 "Personalization probe failed for user %s, returning conservative True: %s",
-                sanitize_log_input(str(user_id)),
+                pseudonymize_identity(str(user_id)),
                 exc,
             )
             return True
@@ -415,7 +464,7 @@ class PipelineCoordinator:
                 logger.debug(
                     "user_profile.get_recent_memories probe failed for user %s, "
                     "treating as has-memory: %s",
-                    sanitize_log_input(str(user_id)),
+                    pseudonymize_identity(str(user_id)),
                     exc,
                 )
                 return True
@@ -434,7 +483,7 @@ class PipelineCoordinator:
             except Exception as exc:
                 logger.debug(
                     "memory_service.get_core probe failed for user %s, treating as has-memory: %s",
-                    sanitize_log_input(str(user_id)),
+                    pseudonymize_identity(str(user_id)),
                     exc,
                 )
                 return None
@@ -460,7 +509,7 @@ class PipelineCoordinator:
             except Exception as exc:
                 logger.debug(
                     "canonical_memories probe failed for user %s, treating as has-memory: %s",
-                    sanitize_log_input(str(user_id)),
+                    pseudonymize_identity(str(user_id)),
                     exc,
                 )
                 return None
@@ -594,13 +643,29 @@ class PipelineCoordinator:
         # personalize_cache_scope — never clip text). Absent turns keep the
         # legacy key unchanged.
         personalize_scope = personalize_scope or ""
-        if ":" in manifest.release_id or ":" in manifest.policy_version:
-            scope_digest = hashlib.sha256(
-                f":rel:{manifest.release_id}:pol:{manifest.policy_version}".encode()
-            ).hexdigest()[:16]
+        collection = (
+            getattr(settings, "first_person_collection", "")
+            or getattr(settings, "qdrant_collection", "")
+            or getattr(manifest, "corpus_version", "")
+            or "v10"
+        )
+        prompt_version = getattr(settings, "prompt_version", "v1")
+        cache_version = getattr(settings, "cache_key_version", "v2")
+        version_scope_str = (
+            f":rel:{manifest.release_id}:pol:{manifest.policy_version}"
+            f":col:{collection}:pv:{prompt_version}:cv:{cache_version}"
+        )
+        if (
+            ":" in manifest.release_id
+            or ":" in manifest.policy_version
+            or ":" in collection
+            or ":" in prompt_version
+            or ":" in cache_version
+        ):
+            scope_digest = hashlib.sha256(version_scope_str.encode()).hexdigest()[:16]
             release_scope = f":rel:{scope_digest}"
         else:
-            release_scope = f":rel:{manifest.release_id}:pol:{manifest.policy_version}"
+            release_scope = version_scope_str
         base_key = f"tenant:{tenant}{release_scope}{persona}{preference_scope}{personalize_scope}:{cache_language_key(user_msg, preferred_lang)}"
 
         is_standalone = self._is_standalone_question(user_msg)
@@ -672,7 +737,9 @@ class PipelineCoordinator:
         ``_service._circuit``, which breaks silently on refactors. Providers
         without a circuit report False (never open) by default.
         """
-        provider = self.container.ollama
+        from app.container import get_llm_provider
+
+        provider = get_llm_provider(self.container)
         if not hasattr(provider, "is_circuit_open"):
             # Unknown/legacy provider shape — treat as not open (fail-open,
             # same behavior as a provider without a breaker).

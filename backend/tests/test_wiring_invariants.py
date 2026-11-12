@@ -39,15 +39,6 @@ import pytest
 # Each entry carries its justification; if C5 deletes the field, it stops
 # appearing in ``dead`` and the test keeps passing.
 ALLOWED_DEAD_SETTINGS: set[str] = {
-    "csrf_secret": "C5: dead, deletion owned by C5 (comment in config.py marks it kept as signing secret)",
-    "csrf_token_ttl": "C5: dead, deletion owned by C5 (already removed from config.py 2026-08-11)",
-    "auth_rate_limit_per_ip": "C5: dead, deletion owned by C5",
-    "auth_rate_limit_per_account": "C5: dead, deletion owned by C5",
-    "auth_rate_limit_burst": "C5: dead, deletion owned by C5",
-    "memory_write_rate_limit": "C5: dead, deletion owned by C5",
-    "notebook_rate_limit": "C5: dead, deletion owned by C5",
-    "profile_rate_limit": "C5: dead, deletion owned by C5",
-    "guardrails_audit_enabled": "C5: dead, deletion owned by C5",
     # Not actually dead -- read dynamically via getattr(settings, f"{provider}_x", ...)
     # in LLMBudgetGuard.from_settings (services/llm_budget_guard.py), constructed by
     # sarvam_http.py:117. The static detector below can't see through the f-string
@@ -68,30 +59,17 @@ ALLOWED_DEAD_SETTINGS: set[str] = {
 # in ingestion/web_ingest_pipeline.py:130-160). The scan regexes were widened
 # and they no longer appear dead.
 KNOWN_EXTRA_DEAD: dict[str, str] = {
-    "context_budget_enabled": "Declared context-budget toggle; no runtime read",
-    "correlation_id_max_length": "Declared header-length cap; no runtime read",
-    "ingestion_relation_cache_size": "Declared relation-cache size; no runtime read",
-    "llm_provider_chain": "Declared provider chain; provider selection reads only LLM_PROVIDER",
-    "openrouter_fast_model": "openrouter_generation_model/classify_model are read; fast_model is not",
-    "persona_max_paragraphs": "Declared persona format cap; no runtime read",
-    "persona_max_sentence_words": "Declared persona format cap; no runtime read",
-    "sarvam_model_name": "Legacy explicit Sarvam model name; gateway reads sarvam_cloud_model",
-    "sarvam_stt_language": "STT family (sarvam_stt_* + stt_*) — no runtime read",
-    "sarvam_stt_mode": "STT family — no runtime read",
-    "sarvam_stt_model": "STT family — no runtime read",
-    "semantic_cache_hnsw_ef": "Semantic-cache family — no runtime read (qdrant client uses embedding_dimension)",
-    "semantic_router_enabled": "Semantic-router family (enabled/top_k/fallback_llm/llm_fallback) — no runtime read",
-    "semantic_router_top_k": "Semantic-router family — no runtime read",
-    "stt_chunk_minutes": "STT family — no runtime read",
-    "stt_max_audio_mb": "STT family — no runtime read",
-    "transcript_max_retries": "Declared transcript retry cap; no runtime read",
     "first_person_relevance_fallback_enabled": (
         "Compatibility-only switch; deliberately ignored because the uncalibrated fallback is "
         "retired and provider failure must remain relevance-indeterminate."
     ),
-    "use_contextual_chunking": "Declared chunking toggle; contextual chunking read via reingest_late_chunking",
-    "verifier_pass_ratio": "Verifier pass ratio threshold config",
-    "SERVICE_ORCID_MAP": "Declared ORCID mapping; no runtime read",
+    "qdrant_write_api_key": (
+        "T3-02: consumed by docker-compose (QDRANT__SERVICE__API_KEY) only; no Python "
+        "write path reads it yet (open: wire the builders to the write key)"
+    ),
+    "redis_password": (
+        "T2-06 declaration; Redis auth reaches Python inside REDIS_URL, the field is unread"
+    ),
 }
 
 # Newly-added settings that must NEVER be flagged dead. If any of these shows
@@ -176,6 +154,29 @@ def test_no_undeclared_dead_settings():
         "REGRESSION: Settings fields are declared but never read (unowned):\n  - "
         + "\n  - ".join(sorted(missing))
     )
+
+
+def test_dead_setting_allowlists_hold_only_currently_dead_fields():
+    """CQ-010 ratchet: an allowlist entry for a field that is gone or now read is rot.
+
+    The lists may only shrink. A listed name must still be declared and still
+    unread, otherwise remove it from the list.
+    """
+    dead = _dead_settings()
+    listed = set(ALLOWED_DEAD_SETTINGS) | set(KNOWN_EXTRA_DEAD)
+    stale = sorted(listed - dead)
+    assert not stale, "Remove from the dead-setting allowlists (no longer dead): " + ", ".join(
+        stale
+    )
+
+
+def test_dead_settings_count_never_grows():
+    """CQ-010: ≤9 left, each with a written reason (dynamic reads, external consumers).
+    2026-11-10: first_person_context_use_sparse and first_person_max_context_words wired
+    into pipeline and evidence policy — no longer dead, removed from KNOWN_EXTRA_DEAD.
+    Count ceiling stays at 9 (may only shrink going forward).
+    """
+    assert len(_dead_settings()) <= 9
 
 
 # --- Part (b): auth dependency on every non-probe route --------------------

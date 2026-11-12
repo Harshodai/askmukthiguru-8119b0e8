@@ -179,9 +179,14 @@ def purge_celery_queues(
 
 
 def configure_redis_memory_policy(
-    client: Any, maxmemory: str = "256mb", policy: str = "volatile-lru"
+    client: Any, maxmemory: str = "512mb", policy: str = "noeviction"
 ) -> bool:
-    """Set Redis maxmemory and eviction policy to prevent memory exhaustion and upgrade fees."""
+    """Set Redis maxmemory and eviction policy.
+
+    Default policy is noeviction (P7-19): the same Redis holds cache entries and
+    quota/rate-limit counters, and the counters carry TTLs, so volatile-lru can
+    evict them. This matches docker-compose.prod.yml.
+    """
     if client is None:
         return False
     try:
@@ -515,7 +520,7 @@ def main() -> int:
     parser.add_argument(
         "--tune-redis",
         action="store_true",
-        help="Apply 256MB maxmemory and volatile-lru policy to Redis",
+        help="Apply 512MB maxmemory and the noeviction policy to Redis",
     )
     parser.add_argument(
         "--worker-action",

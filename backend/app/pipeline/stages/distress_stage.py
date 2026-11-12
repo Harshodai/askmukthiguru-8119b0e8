@@ -648,6 +648,14 @@ class DistressStage(Stage):
             if not (ctx.container.serene_mind and ctx.container.user_profile):
                 return {"triggered": False}
 
+            # T1-10 (MEM-003): the trend read pulls the seeker's emotional history,
+            # so it needs the active consent receipt. The current-turn distress
+            # path (helplines, SEVERE/CRISIS handling) never depends on this.
+            from app.orchestrator_utils import has_active_memory_consent
+
+            if not await has_active_memory_consent(ctx.container, user_id):
+                return {"triggered": False}
+
             current = assessment or DistressAssessment(
                 level=DistressLevel.NONE,
                 confidence=0.0,

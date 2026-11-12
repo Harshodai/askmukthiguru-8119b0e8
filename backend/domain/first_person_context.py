@@ -23,15 +23,32 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 from hashlib import sha256
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 SCHEMA_VERSION = "fp-context-v1"
-# Versioned independently of the record schema so a boundary/annotation revision
-# can invalidate caches without renaming the collection.
+SCHEMA_VERSION_V2 = "fp-context-v2"
 PARENT_VERSION = "parent-v1"
 EDGE_ANNOTATION_VERSION = "annotation-v1"
+_GURUS_CONFIG = Path(__file__).resolve().parents[1] / "config" / "gurus.yaml"
+
+
+def _shared_guru_scope() -> frozenset[str]:
+    try:
+        import yaml
+
+        if _GURUS_CONFIG.is_file():
+            data = yaml.safe_load(_GURUS_CONFIG.read_text(encoding="utf-8")) or {}
+            ids = set(str(x).lower() for x in (data.get("shared_attribution_ids") or []))
+            primary = str(data.get("shared_primary_teacher_id") or "").strip().lower()
+            if primary:
+                ids.add(primary)
+            return frozenset(ids)
+    except (OSError, ValueError, ImportError):
+        pass
+    return frozenset()
 
 
 class SpeakerRole(StrEnum):
@@ -140,9 +157,11 @@ def make_source_span_id(
     corpus_version: str,
     word_start: int,
     word_end: int,
-    transcript_hash: str,
+    transcript_hash: str = "",
+    video_transcript_sha256: str = "",
 ) -> str:
-    payload = f"{guru_id}|{video_id}|{corpus_version}|{word_start}|{word_end}|{transcript_hash}"
+    thash = video_transcript_sha256 or transcript_hash
+    payload = f"{guru_id}|{video_id}|{corpus_version}|{word_start}|{word_end}|{thash}"
     return sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -168,7 +187,7 @@ class SourceSpan(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal["fp-context-v1"] = SCHEMA_VERSION
+    schema_version: Literal["fp-context-v1", "fp-context-v2"] = SCHEMA_VERSION
     corpus_version: str = Field(min_length=1)
     guru_id: str = Field(min_length=1)
     video_id: str = Field(min_length=1)
@@ -187,8 +206,11 @@ class SourceSpan(BaseModel):
     speaker_verified: bool
     source_transcript_text: str = Field(min_length=1)
     verbatim_text: str = Field(min_length=1)
-    transcript_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
-    source_text_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    transcript_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    source_text_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    # DATA-03 / T3-03: unambiguous hash fields for vNext (fp-context-v2)
+    span_text_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    video_transcript_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     is_verbatim: Literal[True] = True
     boundary_status: BoundaryStatus
     completeness_status: CompletenessStatus
@@ -281,21 +303,45 @@ class SourceSpan(BaseModel):
 
     @field_validator("source_text_hash")
     @classmethod
-    def _hash_matches_verbatim(cls, value: str, info: Any) -> str:
+    def _hash_matches_verbatim(cls, value: str | None, info: Any) -> str | None:
+        if value is None:
+            return None
         text = info.data.get("verbatim_text")
         if text is not None and clip_text_hash(text) != value:
             raise ValueError("source_text_hash must match verbatim_text exactly")
         return value
 
+    @field_validator("span_text_sha256")
+    @classmethod
+    def _span_hash_matches_verbatim(cls, value: str | None, info: Any) -> str | None:
+        if value is None:
+            return None
+        text = info.data.get("verbatim_text")
+        if text is not None and clip_text_hash(text) != value:
+            raise ValueError("span_text_sha256 must match verbatim_text exactly")
+        return value
+
     @model_validator(mode="after")
     def _identity_is_deterministic(self) -> SourceSpan:
+        if self.schema_version == SCHEMA_VERSION_V2:
+            if not self.span_text_sha256:
+                raise ValueError("fp-context-v2 requires span_text_sha256")
+            if not self.video_transcript_sha256:
+                raise ValueError("fp-context-v2 requires video_transcript_sha256")
+        else:
+            if not self.transcript_hash:
+                raise ValueError("fp-context-v1 requires transcript_hash")
+            if not self.source_text_hash:
+                raise ValueError("fp-context-v1 requires source_text_hash")
+
+        thash = self.video_transcript_sha256 or self.transcript_hash or ""
         expected = make_source_span_id(
             guru_id=self.guru_id,
             video_id=self.video_id,
             corpus_version=self.corpus_version,
             word_start=self.word_start,
             word_end=self.word_end,
-            transcript_hash=self.transcript_hash,
+            transcript_hash=thash,
         )
         if self.source_span_id != expected:
             raise ValueError("source_span_id is not the deterministic id for this span")
@@ -304,6 +350,11 @@ class SourceSpan(BaseModel):
     def to_payload(self) -> dict[str, Any]:
         payload = self.model_dump(mode="json")
         payload["record_type"] = "retrieval_child"
+        if self.schema_version == SCHEMA_VERSION_V2:
+            if not payload.get("span_text_sha256") and self.source_text_hash:
+                payload["span_text_sha256"] = self.source_text_hash
+            if not payload.get("video_transcript_sha256") and self.transcript_hash:
+                payload["video_transcript_sha256"] = self.transcript_hash
         return payload
 
     def retrieval_text(self, contextual_header: str = "") -> str:
@@ -324,8 +375,8 @@ class SourceSpan(BaseModel):
         from ingest.verbatim.boundaries import boundary_defects
 
         b_defects = boundary_defects(self.verbatim_text.split())
-        if self.boundary_status == BoundaryStatus.VERIFIED and b_defects:
-            defects.append(f"boundary_status_verified_with_defects:{','.join(b_defects)}")
+        if self.boundary_status in (BoundaryStatus.VERIFIED, BoundaryStatus.REPAIRED) and b_defects:
+            defects.append(f"boundary_status_{self.boundary_status}_with_defects:{','.join(b_defects)}")
 
         if self.contextual_header_version is not None:
             defects.append("unverified_contextual_header_claimed")
@@ -441,8 +492,15 @@ class ParentContext(BaseModel):
             raise ValueError("hit_span_ids must all be present in spans")
         if any(s.parent_unit_id != self.parent.parent_unit_id for s in self.spans):
             raise ValueError("every span must belong to the parent unit")
-        if any(s.guru_id != self.parent.guru_id for s in self.spans):
-            raise ValueError("every span must belong to the parent guru")
+        # Co-guru founders belong to the shared parent context.
+        # Derived dynamically from gurus.yaml to avoid hardcoding teacher names.
+        shared_set = _shared_guru_scope()
+        for s in self.spans:
+            if s.guru_id != self.parent.guru_id:
+                if not (
+                    s.guru_id.lower() in shared_set and self.parent.guru_id.lower() in shared_set
+                ):
+                    raise ValueError("every span must belong to the parent guru")
         if any(s.video_id != self.parent.video_id for s in self.spans):
             raise ValueError("every span must belong to the parent video")
         if any(s.corpus_version != self.parent.corpus_version for s in self.spans):

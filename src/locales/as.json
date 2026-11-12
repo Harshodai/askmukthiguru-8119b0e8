@@ -359,8 +359,8 @@
     "thanks": "ভাগ-বতৰা কৰাৰ বাবে ধন্যবাদ। 🙏",
     "listening": "শুনি থকা হৈছে",
     "speak": "কওক",
-    "streakRooting_one": "{{count}} দিনৰ ধাৰাবাহিকতা — আপোনাৰ সুন্দৰ অৱস্থা শিপাইছে!",
-    "streakRooting_other": "{{count}} দিনৰ ধাৰাবাহিকতা — আপোনাৰ সুন্দৰ অৱস্থা শিপাইছে!",
+    "streakRooting_one": "{{count}} দিনৰ নিৰন্তৰ অনুশীলন লিপিবদ্ধ",
+    "streakRooting_other": "{{count}} দিনৰ নিৰন্তৰ অনুশীলন লিপিবদ্ধ",
     "streakKeepGoing_one": "{{count}} দিনৰ ধাৰাবাহিকতা — চলাই যাওক!",
     "streakKeepGoing_other": "{{count}} দিনৰ ধাৰাবাহিকতা — চলাই যাওক!"
   },
@@ -845,7 +845,9 @@
       "eraseConfirmButton": "হয়, সকলো স্মৃতি মচি পেলাওক",
       "erasing": "স্মৃতি মচি থকা হৈছে…",
       "close": "বন্ধ কৰক"
-    }
+    },
+    "quotaLeft": "আজি {{limit}}টাৰ ভিতৰত {{remaining}}টা বিনামূলীয়া প্ৰশ্ন বাকী আছে",
+    "quotaResetsIn": "{{count}} ঘণ্টাত ৰিছেট হ'ব।"
   },
   "notFound": {
     "message": "পৃষ্ঠাখন বিচাৰি পোৱা নগ'ল",

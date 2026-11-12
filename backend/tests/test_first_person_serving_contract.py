@@ -357,3 +357,88 @@ class TestManifestDigestCoversTheEnforcedContract:
         path = rights_manifest_path()
         assert path.is_file(), path
         assert path.as_posix().endswith(RIGHTS_MANIFEST_RELPATH)
+
+
+# --- RET-07 / T3-12: serving encoder vs index encoder ---------------------
+
+
+def _declared(contract, name, model="BAAI/bge-m3", dim=1024):
+    import dataclasses
+
+    patched = dict(contract)
+    patched[name] = dataclasses.replace(
+        contract[name], embedding_model=model, embedding_dimension=dim
+    )
+    return patched
+
+
+def _encoder_errors(contract, **kw):
+    report = validate_serving_contract(
+        contract=contract,
+        legacy_collection="first_person_v8",
+        **kw,
+    )
+    return [e for e in report.errors if e.startswith("encoder mismatch")]
+
+
+def test_encoder_match_passes(contract):
+    c = _declared(contract, "first_person_v8")
+    assert _encoder_errors(c, embedding_model="BAAI/bge-m3", embedding_dimension=1024) == []
+
+
+def test_encoder_model_mismatch_is_error(contract):
+    c = _declared(contract, "first_person_v8")
+    errs = _encoder_errors(
+        c, embedding_model="intfloat/multilingual-e5-large", embedding_dimension=1024
+    )
+    assert len(errs) == 1 and "first_person_v8" in errs[0]
+
+
+def test_encoder_dimension_mismatch_is_error(contract):
+    c = _declared(contract, "first_person_v8")
+    errs = _encoder_errors(c, embedding_model="BAAI/bge-m3", embedding_dimension=384)
+    assert len(errs) == 1 and "dimension" in errs[0]
+
+
+def test_encoder_check_is_noop_when_undeclared(contract):
+    # The shipped contract declares no encoder: nothing to compare.
+    assert _encoder_errors(contract, embedding_model="anything", embedding_dimension=7) == []
+
+
+def test_encoder_mismatch_stops_production_only(contract):
+    c = _declared(contract, "first_person_v8")
+    report = validate_serving_contract(
+        contract=c,
+        legacy_collection="first_person_v8",
+        embedding_model="other/model",
+        embedding_dimension=1024,
+    )
+    with pytest.raises(FirstPersonServingContractError):
+        assert_startup_safe(
+            report,
+            is_production=True,
+            legacy_route_enabled=True,
+            context_harness_enabled=False,
+        )
+    assert_startup_safe(
+        report,
+        is_production=False,
+        legacy_route_enabled=True,
+        context_harness_enabled=False,
+    )
+
+
+def test_load_contract_parses_and_validates_encoder_fields(tmp_path):
+    raw = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+    raw["collections"]["first_person_v8"]["embedding_model"] = "BAAI/bge-m3"
+    raw["collections"]["first_person_v8"]["embedding_dimension"] = 1024
+    good = tmp_path / "good.json"
+    good.write_text(json.dumps(raw), encoding="utf-8")
+    entry = load_contract(good)["first_person_v8"]
+    assert (entry.embedding_model, entry.embedding_dimension) == ("BAAI/bge-m3", 1024)
+
+    raw["collections"]["first_person_v8"]["embedding_dimension"] = "1024"
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(FirstPersonServingContractError):
+        load_contract(bad)

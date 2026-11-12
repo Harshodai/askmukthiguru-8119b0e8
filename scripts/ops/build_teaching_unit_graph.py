@@ -158,7 +158,12 @@ def _scroll_qdrant(qdrant_client: Any, collection: str, batch_size: int) -> list
     from qdrant_client.models import FieldCondition, Filter, MatchValue  # type: ignore[import]
 
     rights_filter = Filter(
-        must=[FieldCondition(key="rights_status", match=MatchValue(value=_RIGHTS_FILTER_VALUE))]
+        should=[
+            FieldCondition(
+                key="domain_rights_status", match=MatchValue(value=_RIGHTS_FILTER_VALUE)
+            ),
+            FieldCondition(key="rights_status", match=MatchValue(value=_RIGHTS_FILTER_VALUE)),
+        ]
     )
     all_points: list[dict[str, Any]] = []
     offset = None
@@ -183,7 +188,7 @@ def _scroll_qdrant(qdrant_client: Any, collection: str, batch_size: int) -> list
 
 def build_graph(
     *,
-    collection: str = "fp_context_v1",
+    collection: str = "first_person_v10",
     batch_size: int = 200,
     dry_run: bool = False,
     memgraph_uri: str = "bolt://localhost:7687",
@@ -256,7 +261,23 @@ def build_graph(
     try:
         from neo4j import GraphDatabase  # type: ignore[import]
 
-        driver = GraphDatabase.driver(memgraph_uri)
+        from app.config import settings
+
+        user = (
+            os.environ.get("MEMGRAPH_USER")
+            or os.environ.get("NEO4J_USER")
+            or settings.memgraph_username
+            or settings.neo4j_user
+            or "neo4j"
+        )
+        password = (
+            os.environ.get("MEMGRAPH_PASSWORD")
+            or os.environ.get("NEO4J_PASSWORD")
+            or settings.memgraph_password
+            or settings.neo4j_password
+        )
+        auth = (user, password) if password else None
+        driver = GraphDatabase.driver(memgraph_uri, auth=auth)
         driver.verify_connectivity()
         logger.info("Connected to Memgraph at %s", memgraph_uri)
     except Exception as exc:
@@ -277,9 +298,13 @@ def build_graph(
             guru_id: str = payload["guru_id"]
             parent_id: str = payload.get("parent_unit_id") or ""
             corpus_version = payload.get("corpus_version") or "unknown"
-            rights_status: str = payload.get("rights_status") or _RIGHTS_FILTER_VALUE
-            topics: list[str] = list(payload.get("topics") or [])
-            concepts: list[str] = list(payload.get("concepts") or [])
+            rights_status: str = (
+                payload.get("domain_rights_status")
+                or payload.get("rights_status")
+                or _RIGHTS_FILTER_VALUE
+            )
+            topics: list[str] = list(payload.get("topics") or payload.get("topic_ids") or [])
+            concepts: list[str] = list(payload.get("concepts") or payload.get("entity_ids") or [])
             next_span_id: str | None = payload.get("next_span_id")
             previous_span_id: str | None = payload.get("previous_span_id")
 
@@ -423,8 +448,8 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--collection",
-        default="fp_context_v1",
-        help="Qdrant collection name (default: fp_context_v1)",
+        default="first_person_v10",
+        help="Qdrant collection name (default: first_person_v10)",
     )
     parser.add_argument(
         "--batch-size",

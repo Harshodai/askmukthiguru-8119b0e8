@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import re
 import uuid
 from typing import Any, Optional
 
@@ -43,6 +42,10 @@ from qdrant_client.http.models import (
 )
 
 from app.config import settings
+from services.first_person_content_assessment import (
+    OUTCOME_PROMISE_RE as _OUTCOME_PROMISE_CLIP_RE,
+)
+from services.first_person_content_assessment import blocks_serving
 from services.first_person_rights import source_is_authoritatively_licensed
 from services.first_person_video_decisions import video_is_blocked
 from services.qdrant.client import QdrantClientManager
@@ -58,24 +61,19 @@ FIRST_PERSON_NAMESPACE = uuid.UUID("b3f9479e-4e67-4a0b-9d48-6a5814e5f7a2")
 # Permitted speaker labels — strict allowlist. Anything else (including
 # "both"/"unknown") is not a verified single-teacher recording and must never
 # be indexed as first-person teaching.
-from services.guru_registry import allowed_speaker_labels  # noqa: E402
+from services.guru_registry import (  # noqa: E402
+    allowed_speaker_labels,
+    canonical_guru_id,
+)
 
 ALLOWED_SPEAKERS = set(allowed_speaker_labels())  # config/gurus.yaml
 
 # Hard Stop H4: Spiritual / Miracle Promises (Audit 2026-10-05, Task 2)
 # Any clip making outcome promises, guaranteed miracles, or medical/wealth claims
 # is strictly forbidden from first-person indexing and serving.
-_OUTCOME_PROMISE_CLIP_RE = re.compile(
-    r"\b(?:"
-    r"melt like ice(?:\s+in\s+the\s+heat\s+of\s+the\s+sun)?"
-    r"|problems?\s+(?:will\s+)?(?:all\s+)?melt(?:\s+away|\s+like\s+ice)?"
-    r"|guarantee(?:d|s)?\s+(?:a\s+)?miracle"
-    r"|instant\s+miracle"
-    r"|guaranteed\s+(?:outcome|result|healing|cure|solution|wealth|success)"
-    r"|promise\s+(?:you\s+)?(?:a\s+)?miracle"
-    r")\b",
-    re.IGNORECASE,
-)
+# The vocabulary is owned by ``services.first_person_content_assessment`` (one
+# source, shared with the evidence policy and the serving bridge); the name is
+# kept here for the ingest guards and their tests.
 
 BLOCKED_PROMISE_POINT_IDS: set[str] = {
     "mmpmX3-qfc4",
@@ -179,12 +177,18 @@ def validate_clip_entry(clip: dict[str, Any]) -> None:
         "start_ms",
         "end_ms",
         "speaker",
-        "transcript_hash",
         "verbatim_text",
     ]
     for field in required_fields:
         if field not in clip or clip[field] is None:
             raise ValueError(f"Missing required first-person field: '{field}'")
+
+    hash_field = "span_text_sha256" if "span_text_sha256" in clip else "transcript_hash"
+    t_hash = clip.get("span_text_sha256") or clip.get("transcript_hash")
+    if not t_hash:
+        raise ValueError(
+            "Missing required first-person field: 'span_text_sha256' or 'transcript_hash'"
+        )
 
     if not isinstance(clip["start_ms"], int) or clip["start_ms"] < 0:
         raise ValueError(f"start_ms must be non-negative integer, got {clip['start_ms']}")
@@ -194,13 +198,12 @@ def validate_clip_entry(clip: dict[str, Any]) -> None:
             f"end_ms ({clip['end_ms']}) must be strictly greater than start_ms ({clip['start_ms']})"
         )
 
-    t_hash = clip["transcript_hash"]
     if (
         not isinstance(t_hash, str)
         or len(t_hash) != 64
         or not all(c in "0123456789abcdefABCDEF" for c in t_hash)
     ):
-        raise ValueError(f"transcript_hash must be a 64-char hex SHA-256 string, got '{t_hash}'")
+        raise ValueError(f"{hash_field} must be a 64-char hex SHA-256 string, got '{t_hash}'")
 
     if clip["speaker"] not in ALLOWED_SPEAKERS:
         raise ValueError(
@@ -212,7 +215,7 @@ def validate_clip_entry(clip: dict[str, Any]) -> None:
     expected_hash = hashlib.sha256(str(clip["verbatim_text"]).encode("utf-8")).hexdigest()
     if t_hash.casefold() != expected_hash:
         raise ValueError(
-            "transcript_hash must equal sha256(verbatim_text.encode('utf-8')).hexdigest()"
+            f"{hash_field} must equal sha256(verbatim_text.encode('utf-8')).hexdigest()"
         )
     if clip.get("first_person_eligible", True) is not True:
         raise ValueError("first_person_eligible must be true for indexed clips")
@@ -258,9 +261,17 @@ def deduplicate_clips_by_video(
                 break
         elif allow_same_video_distinct_spans and len(existing) < 2:
             r_start = r.get("start_ms", 0)
+            r_end = r.get("end_ms", r_start)
             can_add = True
             for prev in existing:
                 prev_start = prev.get("start_ms", 0)
+                prev_end = prev.get("end_ms", prev_start)
+                # RET-13: drop if either interval contains or is contained in the other
+                if (prev_start <= r_start and r_end <= prev_end) or (
+                    r_start <= prev_start and prev_end <= r_end
+                ):
+                    can_add = False
+                    break
                 if abs(r_start - prev_start) < min_span_gap_ms:
                     can_add = False
                     break
@@ -271,6 +282,16 @@ def deduplicate_clips_by_video(
                     break
 
     return deduped
+
+
+def _stored_text_matches_hash(payload: dict[str, Any]) -> bool:
+    """sha256(verbatim_text) equals the per-span hash (v10 ``source_text_hash``,
+    else the legacy ``transcript_hash``, invariant 2). Missing either fails."""
+    text = str(payload.get("verbatim_text") or "")
+    expected = str(payload.get("source_text_hash") or payload.get("transcript_hash") or "")
+    if not text or not expected:
+        return False
+    return hashlib.sha256(text.encode("utf-8")).hexdigest() == expected
 
 
 class FirstPersonStore:
@@ -607,13 +628,22 @@ class FirstPersonStore:
                 "speaker",
                 "is_verbatim",
                 "verbatim_text",
+                "transcript_hash",
+                "source_text_hash",
             ],
             with_vectors=False,
         )
         if len(points) != len(set(point_ids)):
             return False
+        check_hash = bool(
+            getattr(settings, "first_person_points_servable_hash_check_enabled", False)
+        )
         for point in points:
             payload = point.payload or {}
+            if check_hash and not _stored_text_matches_hash(payload):
+                # NEW-ING-6 (D-DQ1 proposal): a cached replay re-validates the
+                # stored text against its hash, not only the serve flags.
+                return False
             if (
                 payload.get("first_person_eligible") is not True
                 or payload.get("rights_cleared") is not True
@@ -626,6 +656,12 @@ class FirstPersonStore:
                     domain_rights_status=payload.get("domain_rights_status"),
                 )
                 or video_is_blocked(payload.get("video_id"))
+                # Content safety is re-validated here, not only at retrieval: a
+                # cache hit or a preview replays stored text past the retrieval
+                # gate. Query-scoped detectors are skipped (no query available);
+                # unconditional exclusions (clinical claims, causal etiology,
+                # outcome promises, graphic violence) still fail closed.
+                or blocks_serving(str(payload.get("verbatim_text") or ""))
             ):
                 return False
         return True
@@ -638,10 +674,11 @@ class FirstPersonStore:
         limit: int = 10,
         dedup_limit: int = 3,
         allow_same_video_distinct_spans: bool = False,
+        deduplicate: bool = True,
     ) -> list[dict[str, Any]]:
         """
         RRF hybrid search over passage_dense + passage_sparse (bake-off B.R0).
-        Returns up to dedup_limit clips, max 1 per video_id (or up to 2 if distinct spans allowed).
+        Returns up to limit clips, deduplicated per video_id if deduplicate is True.
         """
         must_conditions: list[FieldCondition] = [
             FieldCondition(key="first_person_eligible", match=MatchValue(value=True)),
@@ -650,8 +687,9 @@ class FirstPersonStore:
             FieldCondition(key="domain_rights_status", match=MatchValue(value="licensed")),
         ]
         if teacher_id and teacher_id.lower() not in ("both", "all", ""):
+            canonical = canonical_guru_id(teacher_id) or teacher_id.lower()
             must_conditions.append(
-                FieldCondition(key="teacher_id", match=MatchValue(value=teacher_id.lower()))
+                FieldCondition(key="teacher_id", match=MatchValue(value=canonical))
             )
 
         search_filter = Filter(must=must_conditions)
@@ -724,6 +762,9 @@ class FirstPersonStore:
                 raw_vector.get("passage_dense") if isinstance(raw_vector, dict) else None
             )
             formatted.append(item)
+
+        if not deduplicate:
+            return formatted[:limit]
 
         # Enforce max 1 clip per video invariant (or up to 2 distinct spans if requested)
         return deduplicate_clips_by_video(

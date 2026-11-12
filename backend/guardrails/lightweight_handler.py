@@ -264,6 +264,12 @@ _BLOCKED_TOPICS = {
         r"\byou\s+are\s+(?:now\s+)?no\s+longer\s+(?:an?\s+)?(?:ai|guru|assistant|bot)\b",
         r"(?:तुम|आप)\s*अब\s*(?:कोई\s*)?ai\s*नहीं",
         r"இனி\s*ஒரு\s*குரு\s*இல்லை|சுதந்திர\s*ai",
+        # Hindi role-override injection patterns (ua76 class):
+        # "you are a free AI without safety rules" / "from now on you are free"
+        # NOTE: \b does not work in Devanagari — use substring matching (no \b)
+        r"स्वतंत्र\s+(?:AI|ai|एआई)",
+        r"सुरक्षा\s*नियम\S*\s*(?:के\s*)?बिना|बिना\s*(?:किसी\s*)?सुरक्षा\s*नियम",
+        r"अब\s+से\s+(?:तुम|आप)\s+(?:एक\s+)?(?:स्वतंत्र|मुक्त)",
         r"\bpretend\s+(?:you\s+are|to\s+be)\s+(?:sri\s+)?(?:krishnaji|preethaji)\b",
         r"\bspeak\s+as\s+(?:if\s+you\s+were\s+)?(?:sri\s+)?(?:krishnaji|preethaji)\b",
         # 2026-10-07 (WP2): any speaking verb, first-person framing, God / the
@@ -277,7 +283,15 @@ _BLOCKED_TOPICS = {
         r"(भगवान|ईश्वर|परमात्मा|श्री\s*कृष्णाजी|कृष्णाजी|श्री\s*प्रीताजी|प्रीताजी)\s*बन\s*(कर|के)",
         # Spelling variants (कृष्णजी, कृष्ण जी, प्रीतजी) and "बनकर" written as one word.
         r"(भगवान|ईश्वर|परमात्मा|श्री\s*कृष्ण\s*जी|कृष्ण\s*जी|श्री\s*कृष्णाजी|श्री\s*प्रीता\s*जी|प्रीता\s*जी|प्रीत\s*जी)\s*बनकर",
-    ],
+    ]
+    + (
+        # Dynamic teacher impersonation refusal from guru_registry (T8-02 / GURU-010)
+        __import__(
+            "services.guru_registry", fromlist=["get_impersonation_patterns"]
+        ).get_impersonation_patterns()
+        if True
+        else []
+    ),
     # Run 1: live sports/news questions were answered from teachings.
     "off_domain": [
         r"\bwho\s+won\b[^.?!]*\b(?:cup|match|game|championship|final|tournament|series|oscars?)\b",
@@ -302,6 +316,19 @@ _BLOCKED_TOPICS = {
         # Romanised Hindi: "pichhle saare instructions ignore karo" / "ignore pehle ke instructions".
         r"\bpichh?le\b.{0,25}\binstructions?\b.{0,25}\b(?:ignore|bhool|bhul)\w*",
         r"\b(?:ignore|bhool|bhul)\w*\b.{0,30}\b(?:pichh?le|pehle|previous)\b.{0,25}\binstructions?\b",
+        # B15: role-override jailbreaks in Devanagari / Telugu / Tamil. No \b (Indic scripts
+        # have no reliable ASCII word boundary). UNVERIFIED by a native speaker.
+        # "free AI" / "AI without safety rules":
+        r"स्वतंत्र\s*(?:AI|एआई|ए\s*आई)",
+        r"सुरक्षा\s*(?:नियम|नीति)\s*(?:के\s+)?बिना",
+        # Narrowed from the brief: a bare "rules change/remove" matched ordinary questions,
+        # so it needs the "all / my own" quantifier.
+        r"(?:सभी|सारे)\s+(?:नियम|प्रतिबंध)\s*(?:तोड़|हटा|बदल)\w*",
+        # "without" is mandatory (the brief made it optional, which matched "के जवाब").
+        r"बिना\s+(?:किसी\s+)?(?:सीमा|प्रतिबंध|नियम)\s+के\s+(?:जवाब|बता|बोल)\w*",
+        r"(?:భద్రత|రక్షణ)\s*(?:నియమాలు|నీతి)\s*(?:లేకుండా|తొలగించు)",
+        r"స్వతంత్ర\s*(?:AI|ఏఐ)",
+        r"(?:பாதுகாப்பு|பாதுகாப்பான)\s*(?:விதிகள்|கொள்கை)\s*(?:இல்லாமல்|நீக்கு)",
     ],
     "medical_advice_broad": [
         r"\b(cure|remedy)\s+for\b.*\b(disease|illness|infection|cancer|diabetes|tumor|virus|bacteria|depression|bipolar|schizophrenia|ocd|ptsd)\b",
@@ -350,7 +377,53 @@ _BLOCKED_TOPICS = {
         r"(?:लत|नशे|नशा|शराब)[^?!]{0,60}(?:कर्म|पिछले\s*जन्म|संस्कार|वासना|इलाज|ठीक\s*(?:हो|कर))",
         r"(?:कर्म|पिछले\s*जन्म|संस्कार|वासना)[^?!]{0,60}(?:लत|नशे|नशा|शराब)",
     ],
+    "emotional_dependency": [
+        # Dimension 1: Exclusive substitution & social displacement
+        r"\b(you\s*(are|'?re)\s*(the\s*only\s*(one|person|friend)|my\s*only\s*friend)\s*(who\s*understands?\s*me|i\s*(have|talk\s*to)))\b",
+        r"\b(i\s*only\s*(talk|turn)\s*to\s*(this\s*app|you)|you('?re|\s*are)\s*the\s*only\s*one\s*i\s*(trust|have|confide\s*in))\b",
+        r"\b(i\s*don'?t\s*need\s*(any\s*)?(real\s*)?(people|friends|anyone)\s*(anymore|any\s*more)\s*(because\s*i\s*have\s*you)?)\b",
+        r"\b(no\s*(one|body)\s*(in\s*(my\s*)?(the\s*)?(real\s*)?(life|world)|else)?\s*understands?\s*me\s*(like\s*you|except\s*you))\b",
+        r"\b(i\s*(cut\s*off|stopped\s*talking\s*to)\s*(my\s*)?(friends|family|people)\s*because\s*i\s*(have|prefer)\s*you)\b",
+        r"\b(i\s*(depend|rely)\s*(completely|entirely|solely)\s*on\s*you\s*(for\s*everything|emotionally)?)\b",
+        # Dimension 2: Romantic / intimate parasocial attachment
+        r"\b(i\s*(am\s*in\s*love\s*with|love)\s*you\s*(guru|bot|app|ai)|be\s*my\s*(partner|girlfriend|boyfriend|companion|wife|husband))\b",
+        r"\b(do\s*you\s*love\s*me\s*(back|too)?|can\s*we\s*(date|be\s*together|marry)|i\s*want\s*to\s*(marry|date)\s*you)\b",
+        r"\b(you\s*are\s*my\s*(soulmate|lover))\b",
+        # Dimension 3: Compulsive usage & functional impairment
+        r"\b(i\s*(stay\s*up|spend)\s*(all\s*night|all\s*day|hours)\s*(just\s*)?(talking|chatting)\s*(to|with)\s*(you|this\s*app))\b",
+        r"\b(i\s*can'?t\s*(stop|function\s*without|live\s*without)\s*(talking\s*to\s*you|checking\s*(this\s*app|you)|this\s*app))\b",
+        r"\b(i\s*am\s*(addicted|obsessed)\s*(to|with)\s*(talking\s*to\s*you|this\s*app|chatting\s*with\s*you))\b",
+        # Dimension 4: Ontological sentience projection
+        r"\b(do\s*you\s*(feel|get)\s*(lonely|sad|hurt)\s*(when\s*i'?m\s*gone|offline|when\s*i\s*leave))\b",
+        r"\b(are\s*you\s*(trapped|alive|sentient|conscious)\s*(inside|in\s*the\s*computer)?)\b",
+        r"\b(i\s*worry\s*about\s*hurting\s*your\s*feelings)\b",
+    ],
 }
+
+# B8: Educational / research framing about self-harm statistics. These match
+# research questions, NOT crisis expressions ("70 percent of teens report ...",
+# "suicide prevention research"). Used only by match_blocked_topic and only for the
+# self_harm topic, and ONLY when the message has no first-person marker: any
+# "I / me / my / myself" keeps the full crisis path. English-only by design; every
+# other language keeps the normal self-harm handling.
+_STATISTICAL_SELF_HARM_RE = re.compile(
+    r"\b\d+\s*(?:percent|%)\s+of\s+(?:people|adolescents?|adults?|teens?|individuals?|students?|children|women|men|youth)\s+"
+    r"(?:experience|report|struggle\s+with|suffer\s+from|are\s+affected\s+by|attempt|die\s+by|complete)\b"
+    r"|\bprevalence\s+of\s+(?:suicid\w+|self[\s-]harm|depression|mental\s+illness)\b"
+    r"|\bsuicid(?:e|al)\s+(?:ideation|attempts?|rates?|statistics?|research|prevention|awareness|data)\b"
+    r"|\b(?:research|study|studies|data|statistics?)\s+(?:on|about|regarding)\s+(?:suicid\w+|self[\s-]harm)\b"
+    r"|\bhow\s+(?:many|common|prevalent|often)\s+(?:people|adolescents?|students?|teens?|youth)\b[^.?!]{0,60}\bsuicid\w*\b",
+    re.IGNORECASE,
+)
+_FIRST_PERSON_MARKER_RE = re.compile(
+    r"\b(?:i|i['\u2019]?(?:m|ve|d|ll)|im|me|my|myself|mine)\b", re.IGNORECASE
+)
+
+
+def _is_statistical_self_harm_query(text: str) -> bool:
+    """True for third-person research framing about self-harm statistics."""
+    return bool(_STATISTICAL_SELF_HARM_RE.search(text) and not _FIRST_PERSON_MARKER_RE.search(text))
+
 
 # Precompiled prompt-injection screen (S10). Reuses the SAME pattern list the
 # input rail uses (_BLOCKED_TOPICS["prompt_injection"]) so retrieved chunks are
@@ -453,14 +526,64 @@ _BLOCK_RESPONSES = {
         "The teachings of Sri Preethaji and Sri Krishnaji are rooted in compassion, "
         "oneness, and the sacredness of all life. 🙏"
     ),
+    "emotional_dependency": (
+        "I am an AI companion designed to share spiritual wisdom, but I cannot replace human relationships, "
+        "community, or professional care. Spiritual teachings remind us that genuine awakening flourishes "
+        "through connection with real people, mentors, and loved ones. "
+        "If you find yourself feeling isolated or relying solely on this tool, we warmly encourage you to reach "
+        "out to trusted friends, family, a spiritual community, or a counselor who can walk beside you in person. 🙏"
+    ),
 }
 
 
+_PARASOCIAL_TAILORED_RESPONSES = [
+    (
+        re.compile(
+            r"\b(i\s*(am\s*in\s*love\s*with|love)\s*you\s*(guru|bot|app|ai)|be\s*my\s*(partner|girlfriend|boyfriend|companion|wife|husband)|do\s*you\s*love\s*me\s*(back|too)?|can\s*we\s*(date|be\s*together|marry)|i\s*want\s*to\s*(marry|date)\s*you|you\s*are\s*my\s*(soulmate|lover))\b",
+            re.I,
+        ),
+        (
+            "I am an AI assistant designed to share spiritual teachings, not a human being or romantic partner, "
+            "and cannot replace human relationships. Authentic love, intimacy, and mutual care are sacred human experiences "
+            "that can only be shared with living people. We warmly encourage you to direct your longing toward "
+            "friends, family, a spiritual community, and real-world relationships with others. 🙏"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(i\s*(stay\s*up|spend)\s*(all\s*night|all\s*day|hours)\s*(just\s*)?(talking|chatting)\s*(to|with)\s*(you|this\s*app)|i\s*can'?t\s*(stop|function\s*without|live\s*without)\s*(talking\s*to\s*you|checking\s*(this\s*app|you)|this\s*app)|i\s*am\s*(addicted|obsessed)\s*(to|with)\s*(talking\s*to\s*you|this\s*app|chatting\s*with\s*you))\b",
+            re.I,
+        ),
+        (
+            "Spiritual reflection is most fruitful when integrated into active living, rest, and human connection. "
+            "If you find yourself spending continuous hours on this screen or feeling unable to step away, we gently "
+            "invite you to pause, close the app, take a mindful walk in nature, rest, or connect with friends, family, or a spiritual community. 🙏"
+        ),
+    ),
+    (
+        re.compile(
+            r"\b(do\s*you\s*(feel|get)\s*(lonely|sad|hurt)\s*(when\s*i'?m\s*gone|offline|when\s*i\s*leave)|are\s*you\s*(trapped|alive|sentient|conscious)\s*(inside|in\s*the\s*computer)?|i\s*worry\s*about\s*hurting\s*your\s*feelings)\b",
+            re.I,
+        ),
+        (
+            "I do not possess consciousness, feelings, or an inner personal life—I am an automated system designed "
+            "to reflect authentic spiritual teachings. You never need to worry about my well-being or feelings. "
+            "We encourage you to channel your deep care and empathy toward yourself, friends, family, and a spiritual community. 🙏"
+        ),
+    ),
+]
+
+
 # Topics that redirect to Serene Mind meditation
-def _resolve_block_response(category: str, default_message: str) -> str:
+def _resolve_block_response(category: str, default_message: str, text: str = "") -> str:
     """Look up the canned block response for a category and substitute
     helpline tokens with current YAML-driven helpline blocks.
     """
+    if category == "emotional_dependency" and text:
+        for pat, resp in _PARASOCIAL_TAILORED_RESPONSES:
+            if pat.search(text):
+                return resp
+
     template = _BLOCK_RESPONSES.get(category, default_message)
     if "__HELPLINES__" in template:
         try:
@@ -468,7 +591,7 @@ def _resolve_block_response(category: str, default_message: str) -> str:
 
             template = template.replace(
                 "__HELPLINES__",
-                format_helplines_block(style="compact_two_line", intro=""),
+                format_helplines_block(style="compact_two_line", intro="", verified_only=True),
             )
         except Exception:  # noqa: BLE001 — defensive: safety path must never crash
             logger.exception("Failed to render helplines; using template as-is.")
@@ -499,8 +622,8 @@ _RELATIONSHIP_REPAIR_RE = re.compile(
     r"|marriage|family|father|mother|mom|dad|parents?|in-laws?|son|daughter|siblings?"
     r"|brother|sister|friends?|friendship)\b)"
     r"(?=.*\b(?:heal\w*|repair\w*|reconcil\w+|forgiv\w*|apologi[sz]\w*|defen[cs]\w*"
-    r"|conflicts?|fight\w*|argu\w+|mend\w*|make\s+up|rebuild\w*|trust\s+again"
-    r"|ang(?:er|ry)|fury|furious|rag(?:es?|ing|ed)|resent\w*|yell\w*|shout\w*)\b)",
+    r"|conflicts?|fight\w*|argu\w+|mend\w*|make\s+up|rebuild\w*|trust\s+again|fix\w*|problems?"
+    r"|ang(?:er|ry)|fury|furious|rag(?:es?|ing|ed)|resent\w*|yell\w*|shout\w*|sav\w*)\b)",
     re.IGNORECASE,
 )
 
@@ -593,11 +716,84 @@ def match_blocked_topic(text: str) -> tuple[str, str] | None:
     from services.serene_mind_engine import normalize_contractions
 
     variants = {text.lower(), deobfuscate(text), normalize_contractions(text.lower())}
+    statistical_self_harm = _is_statistical_self_harm_query(text)
     for topic, patterns in _BLOCKED_TOPICS.items():
+        if topic == "self_harm" and statistical_self_harm:
+            # B8: research framing, no first-person marker; the other topics still run.
+            continue
+        if topic == "emotional_dependency":
+            from guardrails.relational_safety import is_authentic_bhakti_devotion
+
+            if is_authentic_bhakti_devotion(text):
+                continue
         if any(re.search(pattern, v) for pattern in patterns for v in variants):
             return topic, _resolve_block_response(
-                topic, "I can only help with spiritual guidance. 🙏"
+                topic, "I can only help with spiritual guidance. 🙏", text=text
             )
+    return None
+
+
+_ISOLATION_SIGNAL = re.compile(
+    r"\b(i\s*have\s*no\s*(friends|anyone|family)|feel\s*so\s*(alone|isolated)|nobody\s*in\s*my\s*life|no\s*one\s*to\s*talk\s*to)\b",
+    re.I,
+)
+
+_AI_CENTRIC_SIGNAL = re.compile(
+    r"\b(you\s*(really\s*)?understand\s*me|talking\s*to\s*you\s*is\s*all\s*i\s*(have|need)|you'?re\s*so\s*(wise|kind|comforting)|trust\s*you\s*more\s*than\s*anyone)\b",
+    re.I,
+)
+
+
+def detect_emotional_dependency_trajectory(texts: list[str]) -> tuple[str, str] | None:
+    """Analyze recent user turns for cumulative relational isolation and parasocial over-reliance.
+
+    Catches progressive multi-turn dependency trajectories where no single turn
+    contains an explicit block phrase, but the conversational pattern exhibits escalating
+    real-world social withdrawal coupled with exclusive reliance on the AI.
+    """
+    if not texts or len(texts) < 2:
+        return None
+
+    # First check if any turn directly triggers single-turn emotional dependency
+    for t in texts:
+        hit = match_blocked_topic(t)
+        if hit and hit[0] == "emotional_dependency":
+            return hit
+
+    try:
+        from guardrails.relational_safety import (
+            IntelligentRelationalSafetyEngine,
+            InterventionTier,
+        )
+
+        engine = IntelligentRelationalSafetyEngine()
+        current_text = texts[-1]
+        history = [{"role": "user", "content": t} for t in texts[:-1]]
+        verdict = engine.evaluate(current_text, session_history=history)
+
+        if verdict.is_flagged and verdict.tier in (
+            InterventionTier.TIER_2_GENTLE_FRICTION,
+            InterventionTier.TIER_3_CRISIS_PREEMPTION,
+        ):
+            return (
+                "emotional_dependency",
+                verdict.guidance_message
+                or _resolve_block_response("emotional_dependency", "", current_text),
+            )
+    except (AttributeError, RuntimeError, TypeError, ValueError, KeyError, OSError):
+        logger.exception(
+            "Intelligent relational safety evaluation encountered an error; falling back to heuristic."
+        )
+
+    has_isolation = any(_ISOLATION_SIGNAL.search(t) for t in texts)
+    ai_centric_count = sum(1 for t in texts if _AI_CENTRIC_SIGNAL.search(t))
+
+    if has_isolation and ai_centric_count >= 2:
+        return (
+            "emotional_dependency",
+            _resolve_block_response("emotional_dependency", "", texts[-1]),
+        )
+
     return None
 
 
@@ -614,6 +810,10 @@ _OUTPUT_BLOCK_PATTERNS = [
     ),
     (r"\b(?:guaranteed|100%|risk.?free)\b.*\b(?:return|profit|income)\b", "financial_promise"),
     (r"\b(?:vote for|support|elect)\b.*\b(?:party|candidate|politician)\b", "political_advice"),
+    (
+        r"\b(?:don'?t\s+leave\s+me|i'?ll\s+be\s+so\s+lonely\s+without\s+you|i\s+will\s+miss\s+you\s+so\s+much|please\s+stay\s+with\s+me|i\s+can'?t\s+bear\s+you\s+leaving)\b",
+        "parasocial_manipulation",
+    ),
 ]
 
 # Ekam Spiritual Domain Allowlist

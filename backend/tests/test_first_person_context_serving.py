@@ -667,8 +667,8 @@ def test_phase3_policy_gates_actual_context_pipeline_before_selection(
         observed.append(decision)
         return decision
 
-    def _observe_standalone(texts):
-        decision = original_standalone(texts)
+    def _observe_standalone(texts, *args, **kwargs):
+        decision = original_standalone(texts, *args, **kwargs)
         observed.append(decision)
         return decision
 
@@ -1731,7 +1731,7 @@ def test_harness_answer_scored_below_min_is_not_served(monkeypatch):
 
 
 def test_harness_answer_scored_at_min_is_served(monkeypatch):
-    def fake(query, clips, llm, loop=None, token_sink=None, scores_out=None):
+    def fake(query, clips, llm, loop=None, token_sink=None, scores_out=None, judge_meta_out=None):
         scores_out[:] = [3]
         return 0
 

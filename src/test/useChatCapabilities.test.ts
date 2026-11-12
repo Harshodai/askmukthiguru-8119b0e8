@@ -40,6 +40,7 @@ describe('resolveChatCapabilities', () => {
       voiceInput: true,
       googleSso: true,
       pushNotifications: true,
+      whatsapp: false, // T1-16: hidden unless the manifest says available
     });
   });
 });

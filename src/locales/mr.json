@@ -359,8 +359,8 @@
     "thanks": "सामायिक केल्याबद्दल धन्यवाद. 🙏",
     "listening": "ऐकत आहे",
     "speak": "बोला",
-    "streakRooting_one": "{{count}} दिवसाची मालिका — तुमची सुंदर स्थिती रुजत आहे!",
-    "streakRooting_other": "{{count}} दिवसांची मालिका — तुमची सुंदर स्थिती रुजत आहे!",
+    "streakRooting_one": "{{count}} दिवसाचा सातत्यपूर्ण सराव नोंदवला",
+    "streakRooting_other": "{{count}} दिवसांचा सातत्यपूर्ण सराव नोंदवला",
     "streakKeepGoing_one": "{{count}} दिवसाची मालिका — चालू ठेवा!",
     "streakKeepGoing_other": "{{count}} दिवसांची मालिका — चालू ठेवा!"
   },
@@ -845,7 +845,9 @@
       "eraseConfirmButton": "होय, सर्व आठवणी पुसून टाका",
       "erasing": "आठवणी पुसट होत आहेत…",
       "close": "बंद"
-    }
+    },
+    "quotaLeft": "आज {{limit}} पैकी {{remaining}} मोफत प्रश्न शिल्लक",
+    "quotaResetsIn": "{{count}} तासांत रीसेट होईल."
   },
   "notFound": {
     "message": "अरेरे! पृष्ठ सापडले नाही",

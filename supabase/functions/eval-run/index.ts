@@ -1,5 +1,10 @@
 // Eval runner — executes active golden_questions via Lovable AI, judges faithfulness,
 // writes eval_runs + eval_results. Admin only.
+//
+// ADV-04: this is NOT the product. The answerer is google/gemini-2.5-flash behind the Lovable
+// gateway and the judge is the same model. It never calls the Mukthi Guru backend, so it does
+// not test the verbatim-clip lane, abstention, safety or citations. Treat its numbers as a
+// model-only smoke check. The product gate is evals/pr_suite (backend/tests/test_offline_pr_suite.py).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { resolveAllowOrigin } from "../_shared/cors.ts";
 
@@ -120,6 +125,9 @@ Deno.serve(async (req) => {
 
     const n = questions.length;
     const summary = {
+      scope: "model_only_not_product",
+      answerer: "google/gemini-2.5-flash via Lovable gateway",
+      judge_is_answerer: true,
       total: n,
       passed,
       avg_faithfulness: sumF / n,

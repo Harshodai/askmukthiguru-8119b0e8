@@ -58,7 +58,7 @@ export default function EvalsPage() {
       const res = await runEval();
       const passed = res?.summary?.passed ?? 0;
       const total = res?.summary?.total ?? 0;
-      toast.success(`Eval complete — ${passed}/${total} passed`);
+      toast.success(`Model-only eval complete — ${passed}/${total} passed`);
       qc.invalidateQueries({ queryKey: ["admin", "eval-runs"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Eval failed");
@@ -75,10 +75,14 @@ export default function EvalsPage() {
           <p className="text-sm text-muted-foreground">
             Golden dataset and regression history. See <code>docs/admin/evals.md</code>.
           </p>
+          <p className="text-sm text-muted-foreground mt-1" data-testid="eval-scope-note">
+            Scope: this run asks a general AI model and is judged by the same model. It does not test
+            the product (clip answers, abstention, safety). Use it as a model-only smoke check.
+          </p>
         </div>
         <Button onClick={handleRunEval} disabled={running} size="sm">
           {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-          {running ? "Running…" : "Run eval"}
+          {running ? "Running…" : "Run model-only eval"}
         </Button>
       </div>
 
@@ -100,7 +104,7 @@ export default function EvalsPage() {
             </div>
           ) : runsList.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              No eval runs recorded yet. Click "Run eval" to trigger an evaluation.
+              No eval runs recorded yet. Click "Run model-only eval" to trigger one.
             </div>
           ) : (
             <div className="overflow-x-auto">

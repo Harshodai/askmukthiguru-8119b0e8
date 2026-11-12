@@ -92,7 +92,13 @@ def test_production_warns_when_exact_origins_empty(monkeypatch, caplog):
     with caplog.at_level(logging.WARNING, logger="app.main"):
         _reload_cors_state(
             monkeypatch,
-            origins="https://*.example.com,*",
+            origins="https://*.example.com",
             is_production=True,
         )
     assert any("empty in production" in rec.message for rec in caplog.records)
+
+
+def test_production_rejects_bare_wildcard_origin_at_startup(monkeypatch):
+    """SEC-008: bare '*' must abort startup in production."""
+    with pytest.raises(RuntimeError, match="bare '\\*'"):
+        _reload_cors_state(monkeypatch, origins="https://a.example,*", is_production=True)

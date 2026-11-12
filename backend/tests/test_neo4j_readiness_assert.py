@@ -94,7 +94,8 @@ def test_required_set_matches_seed_migrations():
 
     from app.main import REQUIRED_NEO4J_CONSTRAINTS
 
-    seed = pathlib.Path("app/db/seed_ontology.py").read_text()
+    backend_dir = pathlib.Path(__file__).resolve().parents[1]
+    seed = (backend_dir / "app" / "db" / "seed_ontology.py").read_text()
     seed_names = set(re.findall(r"CREATE CONSTRAINT (\w+)", seed))
     assert set(REQUIRED_NEO4J_CONSTRAINTS) == seed_names, (
         "assert set drifted from seed_ontology._migrations: "

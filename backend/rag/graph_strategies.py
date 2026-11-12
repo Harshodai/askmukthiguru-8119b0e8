@@ -95,13 +95,13 @@ def route_after_intent_fast(state: GraphState) -> str:
 def route_after_intent(state: GraphState) -> str:
     """Route after intent classification, checking for web search needs.
 
-    Standard strategy routes DISTRESS to the retrieval chain ('query') so we can ground
-    our response in spiritual teachings, rather than bypassing it immediately.
+    T4-05 (AI-002): DISTRESS routes directly to 'distress' (handle_distress),
+    avoiding wasted retrieval, HyDE expansion, and document grading.
     """
     intent = state.get("intent", "CASUAL")
     needs_web_search = state.get("needs_web_search", False)
     if intent == "DISTRESS":
-        return "query"
+        return "distress"
     elif intent in ["MEDITATION", "MEDITATION_CONTINUE"]:
         return "meditation"
     elif intent == IntentType.LIVE_LOGISTICS.value:
@@ -165,17 +165,43 @@ def parallel_start(state: GraphState):
     return [Send("intent_router", state), Send("handle_distress_check", state)]
 
 
-def _route_after_first_person(state: GraphState):
-    """first_person node → END on a claimed serve, else the general entry.
+# B4: abstain causes the bridge can produce (app/answer_contract.py ABSTAIN_CAUSES:
+# no_evidence, system_unavailable, topic_boundary, safety). Only "no_evidence" is a soft
+# abstain; every other cause is a boundary the bridge already answered, so it ends the graph.
+# The brief's cause names (out_of_domain, crisis_redirect, rights_blocked, ...) are not
+# emitted anywhere, so an allowlist of the one soft cause is used instead of a denylist:
+# an unknown or new cause fails closed (END) rather than open (generating graph).
+_SOFT_ABSTAIN_CAUSES: frozenset[str] = frozenset({"no_evidence"})
 
-    Fall-through re-runs the normal parallel entry (Send fan-out), so a
-    request the bridge declined sees byte-identical general routing. Returning
-    END (no path_map) stops the graph with the ``first_person_result`` state
-    update, which GraphStage extracts as the short-circuit PipelineResult.
+
+def _route_after_first_person(state: GraphState):
+    """first_person node: END on a serve or a hard abstain, else the general entry.
+
+    - Real serve (``fp_served``) -> END.
+    - No ``first_person_result`` -> general entry (the node declined).
+    - Soft abstain (``no_evidence``) -> general entry ONLY when generation is allowed
+      (``first_person_llm_fallback_enabled``). With the owner's first-person-only posture
+      (invariant 21) the static abstain is the answer and the generating graph must not
+      improvise a teaching, so it stays END.
+    - Any other abstain cause (system_unavailable, topic_boundary, safety, unknown) -> END.
+
+    Fall-through re-runs the normal parallel entry (Send fan-out). Returning END (no
+    path_map) stops the graph with the ``first_person_result`` state update, which
+    GraphStage extracts as the short-circuit PipelineResult.
     """
-    if state.get("first_person_result") is not None:
+    result = state.get("first_person_result")
+    if result is None:
+        return parallel_start(state)
+    metadata = getattr(result, "route_metadata", None) or {}
+    if metadata.get("fp_served"):
         return END
-    return parallel_start(state)
+    cause = str(metadata.get("abstain_cause", "") or "")
+    if cause in _SOFT_ABSTAIN_CAUSES:
+        from services.fp_fail_closed import teaching_generation_allowed
+
+        if teaching_generation_allowed():
+            return parallel_start(state)
+    return END
 
 
 async def resolve_parallel(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:

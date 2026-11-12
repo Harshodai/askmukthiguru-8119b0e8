@@ -38,6 +38,8 @@ import asyncio
 import logging
 from typing import Optional
 
+from app.log_safe import q_tag
+
 logger = logging.getLogger(__name__)
 
 # Minimum result count before triggering fallback
@@ -137,7 +139,7 @@ async def neo4j_fulltext_search(
         )
         logger.info(
             f"SemanticRouterFallback: Neo4j full-text search returned "
-            f"{len(results)} results for query: {query[:60]!r}"
+            f"{len(results)} results for query: {q_tag(query)}"
         )
         return results
     except TimeoutError:

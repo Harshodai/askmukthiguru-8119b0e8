@@ -17,17 +17,19 @@ from typing import Optional
 
 from fastapi import BackgroundTasks, HTTPException, Request
 
+from app.answer_contract import build_public_answer_fields
 from app.coalescer import build_coalescer
 from app.config import settings
 from app.dependencies import ServiceContainer
 from app.grounding import grounding_state_for
+from app.log_safe import q_tag
 from app.pipeline import PipelineCoordinator
 from app.release_manifest import get_release_manifest, to_public_manifest_dict
 from app.sanitization import sanitize_log_input
 from app.schemas import ChatRequest, ChatResponse
 from app.schemas.compliance_provenance import AIProvenanceManifest
 from app.security_utils import is_benchmark_request
-from app.telemetry_sink import QueryTrace, SupabaseTelemetrySink
+from app.telemetry_sink import QueryTrace
 from rag.memory import normalize_session_id
 
 logger = logging.getLogger(__name__)
@@ -42,7 +44,9 @@ class ChatRequestOrchestrator:
     def __init__(self, container: ServiceContainer) -> None:
         self.container = container
         self.coordinator = PipelineCoordinator(container)
-        self.telemetry_sink = SupabaseTelemetrySink()
+        # Reuse the container's sink: a new one per request re-created its Redis client
+        # (~100 times/min in the 2026-11-12 graded run).
+        self.telemetry_sink = container.telemetry_sink
 
     async def orchestrate(
         self,
@@ -99,9 +103,9 @@ class ChatRequestOrchestrator:
             )
         except TimeoutError:
             logger.error(
-                "Pipeline timeout for user %s: message='%s...'",
+                "Pipeline timeout for user %s: query=%s",
                 sanitize_log_input(user_id),
-                sanitize_log_input(user_msg[:60]),
+                q_tag(user_msg),
             )
             raise HTTPException(
                 status_code=504,
@@ -439,11 +443,31 @@ async def _drain_stream_to_redis(
                     logger.debug("Pipeline task failed in queue worker: %s", e)
                     completion_payload = "__ERROR__"
                 else:
+                    completion_payload = None
                     # Queued workers drain raw generation chunks directly and
                     # therefore do not pass through ChatStreamRequestOrchestrator
                     # (which emits the authoritative normalized final event).
                     # Always persist that final event here, including cache hits
                     # where the queue contains no text chunks at all.
+                    # T1-18 (UX-005): Done event with metadata (citations, labels,
+                    # safety notices) is published before final text so clients never
+                    # receive final text without authoritative metadata.
+                    done_payload = json.dumps(
+                        {
+                            "event": "done",
+                            "data": json.dumps(_stream_done_metadata(pipeline_result)),
+                        },
+                        ensure_ascii=False,
+                    )
+                    done_published_at = time.time()
+                    await r.xadd(stream_key, {"data": done_payload}, maxlen=1000)
+                    await _record_queue_milestone(
+                        r,
+                        job_id,
+                        done_published_at=str(done_published_at),
+                        trace_id=str(getattr(pipeline_result, "trace_id", "")),
+                    )
+
                     final_payload = json.dumps(
                         {
                             "event": "final",
@@ -462,20 +486,15 @@ async def _drain_stream_to_redis(
                         final_published_at=str(final_published_at),
                         trace_id=str(getattr(pipeline_result, "trace_id", "")),
                     )
-                    completion_payload = json.dumps(
-                        {
-                            "event": "done",
-                            "data": json.dumps(_stream_done_metadata(pipeline_result)),
-                        },
-                        ensure_ascii=False,
+
+                if completion_payload == "__ERROR__":
+                    done_published_at = time.time()
+                    await r.xadd(stream_key, {"data": completion_payload}, maxlen=1000)
+                    await _record_queue_milestone(
+                        r,
+                        job_id,
+                        done_published_at=str(done_published_at),
                     )
-                done_published_at = time.time()
-                await r.xadd(stream_key, {"data": completion_payload}, maxlen=1000)
-                await _record_queue_milestone(
-                    r,
-                    job_id,
-                    done_published_at=str(done_published_at),
-                )
                 final_timestamp = locals().get("final_published_at")
                 trace_id = str(getattr(locals().get("pipeline_result"), "trace_id", "")) or "-"
                 logger.info(
@@ -692,40 +711,17 @@ def _strict_provenance_manifest(result) -> AIProvenanceManifest | None:
 
 def _stream_done_metadata(result) -> dict:
     """Return the JSON-safe completion metadata shared by direct and queued SSE."""
-    answer_evidence = getattr(result, "answer_evidence", None)
-    guidance_plan = getattr(result, "guidance_plan", None)
-    return {
-        "intent": result.intent,
-        "citations": _coerce_citations(result.citations),
-        "meditation_step": result.meditation_step,
-        "proactive_serene_mind": result.proactive_serene_mind,
-        "trace_id": result.trace_id,
-        "latency_ms": result.latency_ms,
-        "model_used": result.model_used,
-        "model_provider": result.model_provider,
-        "route_decision": result.route_decision,
-        "query_tier": result.query_tier,
-        "cache_hit": result.cache_hit,
-        "faithfulness_score": result.faithfulness_score,
-        "hallucination_flag": result.hallucination_flag,
-        "follow_up_suggestions": result.follow_up_suggestions,
-        "confidence_score": result.confidence_score,
-        "citations_verified": result.citations_verified,
-        "orphan_citations_stripped": result.orphan_citations_stripped,
-        "live_logistics_events": getattr(result, "live_logistics_events", []),
-        "answer_evidence": None if answer_evidence is None else asdict(answer_evidence),
-        # Invariant 1: platform copy (compassion framing, safety boundaries,
-        # support line) rides beside the answer, never inside it.
-        "safety_notices": list(
-            (getattr(result, "route_metadata", None) or {}).get("safety_notices") or []
-        ),
-        "guidance_plan": None if guidance_plan is None else asdict(guidance_plan),
-        "grounding_state": grounding_state_for(result),
-        "verification": getattr(result, "verification", None),
-        "release_manifest": getattr(result, "release_manifest", None)
-        or get_release_manifest().to_dict(),
-        "provenance_manifest": _provenance_manifest_for_result(result),
-    }
+    fields = build_public_answer_fields(result)
+    fields.update(
+        {
+            "citations": _coerce_citations(result.citations),
+            "grounding_state": grounding_state_for(result),
+            "release_manifest": getattr(result, "release_manifest", None)
+            or get_release_manifest().to_dict(),
+            "provenance_manifest": _provenance_manifest_for_result(result),
+        }
+    )
+    return fields
 
 
 async def _increment_turn_counter(user_id: str) -> None:

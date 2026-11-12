@@ -24,9 +24,9 @@ wins**. Known examples:
 
 ## Scope of this repo
 
-This repository contains **only the React frontend**. The vast majority of the
-recommendations in these reports concern the Python FastAPI backend (in the
-sibling `backend/` directory). Those items are tracked in
+This repository contains the React frontend and the Python FastAPI backend (the
+`backend/` directory). The vast majority of the recommendations in these reports
+concern the backend. Those items are tracked in
 `backend-roadmap.md` as backend tickets and are **not** implemented here.
 
 A small subset of recommendations is frontend-implementable; those are listed

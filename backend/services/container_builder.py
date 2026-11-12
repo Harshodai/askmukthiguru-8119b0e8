@@ -85,9 +85,7 @@ class ContainerBuilder:
         if getattr(settings, "llm_queue_enabled", True) and self._container.llm_queue is not None:
             from app.services.llm_queue import QueuedLLMProvider
 
-            self._container.ollama = QueuedLLMProvider(
-                self._container.ollama, self._container.llm_queue
-            )
+            self._container.llm = QueuedLLMProvider(self._container.llm, self._container.llm_queue)
             logger.info(
                 "LLM provider wrapped with QueuedLLMProvider (max_concurrent=%d)",
                 settings.llm_queue_max_concurrent,

@@ -14,6 +14,16 @@ interface InlineActionsProps {
 export function InlineActions({ messageContent, onAction }: InlineActionsProps) {
   const { t } = useTranslation();
 
+  // PROD-CQ-08 / AMK-B-003: Truncate message excerpt to <= 120 chars to prevent prompt-stuffing
+  // and downstream distress classifier false-positives on follow-up quick-actions.
+  const truncateExcerpt = (text: string, maxLen: number = 120): string => {
+    const cleaned = text.replace(/\s+/g, ' ').trim();
+    if (cleaned.length <= maxLen) return cleaned;
+    return cleaned.slice(0, maxLen).trim() + '...';
+  };
+
+  const excerpt = truncateExcerpt(messageContent, 120);
+
   const ACTIONS = [
     { label: t('chat.tellMeMore'), icon: Sparkles, getQuery: (content: string) => t('chat.tellMeMoreQuery', { content }) },
     { label: t('chat.explainSimply'), icon: Lightbulb, getQuery: (content: string) => t('chat.explainSimplyQuery', { content }) },
@@ -28,7 +38,7 @@ export function InlineActions({ messageContent, onAction }: InlineActionsProps) 
           variant="outline"
           size="sm"
           className="text-xs h-7 px-2 rounded-full border-muted-foreground/20"
-          onClick={() => onAction(action.getQuery(messageContent))}
+          onClick={() => onAction(action.getQuery(excerpt))}
         >
           <action.icon className="w-3 h-3 mr-1" />
           {action.label}

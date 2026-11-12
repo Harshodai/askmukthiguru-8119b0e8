@@ -91,12 +91,13 @@ async def test_stream_drain_awaits_terminal_result_instead_of_calling_unset_resu
     assert warning.call_count == 0
     assert redis.closed is True
     assert len(redis.xadds) == 2
-    final_payload = json.loads(redis.xadds[0][1]["data"])
-    assert final_payload["event"] == "final"
-    assert json.loads(final_payload["data"]) == "The normalized answer."
-    payload = json.loads(redis.xadds[1][1]["data"])
+    # T1-18 (UX-005): done event with citations/metadata is published before final event
+    payload = json.loads(redis.xadds[0][1]["data"])
     assert payload["event"] == "done"
     assert json.loads(payload["data"])["trace_id"] == "trace-1"
+    final_payload = json.loads(redis.xadds[1][1]["data"])
+    assert final_payload["event"] == "final"
+    assert json.loads(final_payload["data"]) == "The normalized answer."
 
 
 @pytest.mark.asyncio

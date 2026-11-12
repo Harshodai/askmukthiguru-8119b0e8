@@ -115,7 +115,7 @@ function SourceRow({
       <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="flex-shrink-0 w-6 h-6 rounded-full bg-ojas/10 text-ojas text-[11px] font-semibold flex items-center justify-center tabular-nums"
+          className="flex-shrink-0 w-6 h-6 rounded-full bg-ojas/10 text-ojas-ink text-[11px] font-semibold flex items-center justify-center tabular-nums"
         >
           {index + 1}
         </span>
@@ -125,7 +125,7 @@ function SourceRow({
               href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground hover:text-ojas focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas rounded max-w-full"
+              className="inline-flex items-center gap-1.5 text-[13px] font-medium text-foreground hover:text-ojas-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas rounded max-w-full"
               aria-label={t('chat.openSourceAria', { number: index + 1, domain: source.domain })}
             >
               {source.ytId ? (
@@ -180,7 +180,7 @@ function SourceRow({
                 key={p.messageId}
                 type="button"
                 onClick={() => onJump(p.messageId)}
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-ojas/10 text-ojas hover:bg-ojas/20 border border-ojas/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-ojas/10 text-ojas-ink hover:bg-ojas/20 border border-ojas/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
                 aria-label={t('chat.scrollToAnswerAria', { number: p.answerNumber })}
               >
                 {t('chat.answerHash', { number: p.answerNumber })}
@@ -255,7 +255,7 @@ export function ConversationSourcesPanel({
           <button
             type="button"
             onClick={() => onClearFilter?.()}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-ojas hover:text-ojas/80 border border-ojas/30 rounded-md px-2 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-ojas-ink hover:text-ojas-ink/80 border border-ojas/30 rounded-md px-2 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-ojas"
           >
             <Filter className="w-3 h-3" aria-hidden />
             {t('chat.showingOneAnswer')}

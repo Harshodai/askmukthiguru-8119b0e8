@@ -13,6 +13,7 @@ import asyncio
 import logging
 
 from celery_config import celery_app
+from tasks.worker_loop import run_in_worker_loop
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,7 @@ def extract_okf_entries(
             with _cf.ThreadPoolExecutor(max_workers=1) as _pool:
                 paths = _pool.submit(asyncio.run, _coro).result(timeout=120)
         else:
-            paths = asyncio.run(_coro)
+            paths = run_in_worker_loop(_coro)
 
         mode = "approved" if auto_approve else "staging"
         logger.info(

@@ -74,3 +74,29 @@ def test_chokepoint_reject_persists_row_and_increments_metric():
     assert row["reason"] == "artifact_detected"
     assert "My task is to" in row["matched_span"]
     assert "point_id" in row and row["point_id"]
+
+
+def test_telemetry_db_is_disabled_under_pytest(monkeypatch):
+    """The suite must not write to the live telemetry database.
+
+    ``backend/.env`` carries real Supabase credentials, so any test that reached a
+    persistence path inserted rows into the live ``public.corpus_gate_rejections``
+    table. A suite run on 2026-11-12 moved it from 3,088 to 3,112 rows; 23 rows
+    carry a ``MagicMock`` in ``gate_layer`` because a mocked verdict was formatted
+    into the column. Tests that assert persistence patch ``_get_client`` itself,
+    which replaces the function the guard lives in.
+    """
+    import app.telemetry_db as telemetry_db
+
+    monkeypatch.delenv("ALLOW_TELEMETRY_DB_IN_TESTS", raising=False)
+    monkeypatch.setitem(__import__("os").environ, "PYTEST_CURRENT_TEST", "tests/x.py::t (call)")
+    monkeypatch.setattr(telemetry_db, "_cached_supabase_client", None)
+    assert telemetry_db._telemetry_db_allowed() is False
+    assert telemetry_db._get_client() is None
+
+
+def test_telemetry_db_guard_can_be_opted_into(monkeypatch):
+    import app.telemetry_db as telemetry_db
+
+    monkeypatch.setenv("ALLOW_TELEMETRY_DB_IN_TESTS", "1")
+    assert telemetry_db._telemetry_db_allowed() is True

@@ -45,8 +45,6 @@ def setup_test_environment(tmp_path, monkeypatch):
     test_db = tmp_path / "test_wa_journey.db"
     monkeypatch.setenv("WA_DB_PATH", str(test_db))
     monkeypatch.setattr(wa_bot, "WA_DB_PATH", str(test_db))
-    monkeypatch.setenv("JWT_SECRET", "test-secret-key-999")
-    monkeypatch.setattr(wa_bot, "JWT_SECRET", "test-secret-key-999")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "test_twilio_auth_token_xyz")
     monkeypatch.setattr(wa_bot, "TWILIO_AUTH_TOKEN", "test_twilio_auth_token_xyz")
     monkeypatch.setenv("META_APP_SECRET", "test_meta_app_secret_abc123")

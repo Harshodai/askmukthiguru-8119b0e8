@@ -27,12 +27,26 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-BACKEND = Path(__file__).resolve().parents[2]
-REPO = BACKEND.parent
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = UTC
+
+
+def _find_repo_root() -> Path:
+    p = Path(__file__).resolve()
+    for parent in [p] + list(p.parents):
+        if (parent / ".git").exists() or (parent / "audits").is_dir():
+            return parent
+    return Path(__file__).resolve().parents[2]
+
+
+REPO = _find_repo_root()
+BACKEND = REPO / "backend"
 
 # Container paths that hold application code. A bind mount over any of them means the
 # container runs the host's working tree, not the image.
@@ -57,6 +71,11 @@ CODE_DESTINATIONS = frozenset(
 SPEND_LIMIT_PATTERNS = (
     re.compile(r"spend limit", re.IGNORECASE),
     re.compile(r"indeterminate \(timeout/error\)", re.IGNORECASE),
+)
+AUTH_ERROR_PATTERNS = (
+    re.compile(r"OpenRouter auth error \((?:401|403)\)", re.IGNORECASE),
+    re.compile(r"OpenRouter.*(?:401 Unauthorized|Invalid API key|User not found)", re.IGNORECASE),
+    re.compile(r"AuthenticationError", re.IGNORECASE),
 )
 # The two Redis keys of app/openrouter_budget.py (per UTC day / month).
 DAY_KEY = "askmukthiguru:openrouter-spend:day:{date}"
@@ -147,6 +166,17 @@ def check_spend_headroom(
 
 
 def check_log_clean(log_text: str) -> Check:
+    auth_hits = [
+        ln.strip()[:140]
+        for ln in log_text.splitlines()
+        if any(p.search(ln) for p in AUTH_ERROR_PATTERNS)
+    ]
+    if auth_hits:
+        return Check(
+            "log has no spend-limit/indeterminate lines",
+            False,
+            f"auth error: {auth_hits[0]}",
+        )
     hits = [
         ln.strip()[:140]
         for ln in log_text.splitlines()

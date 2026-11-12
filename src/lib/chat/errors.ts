@@ -1,6 +1,6 @@
 import type { MessageError } from '@/lib/chatStorage';
 import type { AIErrorCode } from './types';
-import { SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
+import { SERVER_BUSY_HELPLINE_MESSAGE, UNIVERSAL_HELPLINE_MESSAGE } from './fetchWithRetry';
 
 export function httpStatusToErrorCode(
   status: number,
@@ -19,7 +19,12 @@ export function httpStatusToErrorCode(
 
 export type BuiltChatError = MessageError;
 
-export function buildMessageError(
+/**
+ * T1-17 (UX-007): developer-facing text (stack-ish messages, "Set
+ * VITE_BACKEND_URL ...", raw HTTP statuses) must never reach a seeker. It is
+ * logged to the console only and `detail` is never populated on the card.
+ */
+function buildMessageErrorInner(
   code: AIErrorCode | string | undefined,
   message?: string,
   status?: number,
@@ -66,7 +71,7 @@ export function buildMessageError(
       return {
         kind: 'timeout',
         title: 'The response took too long',
-        description: 'Please retry your message.',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
         retryable: true,
         actionLabel: 'retry',
         detail: message,
@@ -89,7 +94,7 @@ export function buildMessageError(
       return {
         kind: 'server_error',
         title: 'Something went wrong',
-        description: 'This answer could not be completed. Please retry.',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
         retryable: true,
         actionLabel: 'retry',
         detail: message,
@@ -98,7 +103,16 @@ export function buildMessageError(
       return {
         kind: 'network',
         title: 'Connection problem',
-        description: 'AskMukthiGuru could not be reached. Check your connection and retry.',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
+        retryable: true,
+        actionLabel: 'retry',
+        detail: message,
+      };
+    case 'stream_interrupted':
+      return {
+        kind: 'network',
+        title: 'Connection interrupted',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
         retryable: true,
         actionLabel: 'retry',
         detail: message,
@@ -107,10 +121,24 @@ export function buildMessageError(
       return {
         kind: 'unknown',
         title: 'Something went wrong',
-        description: 'The response could not be completed. Please retry.',
+        description: UNIVERSAL_HELPLINE_MESSAGE,
         retryable: true,
         actionLabel: 'retry',
         detail: status ? `HTTP ${status}` : message,
       };
   }
+}
+
+export function buildMessageError(
+  code: AIErrorCode | string | undefined,
+  message?: string,
+  status?: number,
+): MessageError {
+  const built = buildMessageErrorInner(code, message, status);
+  if (built.detail || message || status) {
+    console.debug('[chat-error]', { code, status, message });
+  }
+  // Seeker-safe: developer detail stays in the console.
+  const { detail: _detail, ...safe } = built;
+  return safe as MessageError;
 }

@@ -52,6 +52,12 @@ REQUEST_COUNT = Counter(
     ["status"],
 )
 
+FP_FAIL_CLOSED_TOTAL = Counter(
+    "guru_fp_fail_closed_total",
+    "Teaching-lane turns answered with the static abstain instead of generated prose (T1-05)",
+    ["reason"],
+)
+
 CRISIS_BYPASS_TOTAL = Counter(
     "guru_crisis_bypass_total",
     "Chat admissions that bypassed the concurrency cap on crisis keywords (RP-A2)",
@@ -149,6 +155,29 @@ ANSWER_ROUTE_TOTAL = Counter(
     "answer_route_total",
     "Final answers by route and grounding outcome",
     ["route", "grounding_state"],
+)
+
+# T2-03: one outcome per turn. Lane/outcome are small closed sets.
+ANSWER_OUTCOME_TOTAL = Counter(
+    "guru_answer_outcome_total",
+    "Chat turns by lane and outcome (served|abstained|crisis|boundary|error)",
+    ["lane", "outcome"],
+)
+ANSWER_LATENCY_SECONDS = Histogram(
+    "guru_answer_latency_seconds",
+    "End-to-end chat turn latency by lane and outcome",
+    ["lane", "outcome"],
+    buckets=(0.1, 0.5, 1, 2, 4, 6, 10, 20, 40, 90),
+)
+INTEGRITY_BREACH_TOTAL = Counter(
+    "guru_integrity_breach_total",
+    "Teaching-lane turns that returned generated text in first-person-only mode",
+    ["lane"],
+)
+USEFUL_ANSWER_TOTAL = Counter(
+    "guru_useful_answer_total",
+    "Useful answers determined from explicit and engagement signals",
+    ["lane", "signal"],
 )
 
 TELEMETRY_SINK_WRITES = Counter(
@@ -787,6 +816,64 @@ FIRST_PERSON_LLM_TOKENS_TOTAL = Counter(
     "first_person_llm_tokens_total",
     "Estimated first-person LLM tokens by request outcome",
     ["outcome"],  # answered | abstained
+)
+
+
+# --- Opus thread 2026-11-06 (append-only block; NEW-ANS-2, NEW-SEC-1) ---
+# Why a first-person turn abstained. Bounded label set
+# (app.answer_contract.ABSTAIN_CAUSES); separates "no teaching found" from
+# "the check could not run".
+ABSTAIN_CAUSE_TOTAL = Counter(
+    "guru_abstain_cause_total",
+    "First-person abstains by cause",
+    ["cause"],  # no_evidence | system_unavailable | topic_boundary | safety
+)
+# A served clip failed the assembly re-check (hash or substring); the bridge
+# refused it. Any increment means a serve gate was bypassed: page (SLO-1).
+SERVED_INTEGRITY_FAILURE_TOTAL = Counter(
+    "guru_served_integrity_failure_total",
+    "Served first-person clips that failed the assembly integrity re-check",
+    ["check"],  # hash | substring
+)
+# NEW-AI-5 (AI-010): first-person text that looks addressed to a model.
+# action=flagged (default, served and logged for review) or dropped (only when
+# FIRST_PERSON_INJECTION_SCREEN_DROP_ENABLED=true). lane: legacy | harness.
+INJECTION_SCREEN_TOTAL = Counter(
+    "guru_injection_screen_total",
+    "First-person clips matched by the injection screen",
+    ["lane", "action"],
+)
+
+# NEW-OPS-8 / NEW-LOAD-4 (SYS-014): spend-guard visibility.
+# A call refused before it is sent: reason "limit" (daily or monthly cap) or
+# "ledger_unavailable" (Redis down and the in-process fallback cap reached).
+BUDGET_DENIED_TOTAL = Counter(
+    "guru_budget_denied_total",
+    "LLM calls refused by the OpenRouter spend guard before being sent",
+    ["reason"],  # limit | ledger_unavailable
+)
+# Dollars held against the cap with no actual cost to settle them: the provider
+# reported no usage.cost ("cost_unreported"), or the request was sent and no
+# reply arrived ("no_response"). At the default $0.03 reservation, the $10 daily
+# cap allows about 333 such calls, about 111 full-path requests.
+BUDGET_RESERVATION_KEPT_USD_TOTAL = Counter(
+    "guru_budget_reservation_kept_usd_total",
+    "USD kept reserved because no actual call cost was reported",
+    ["reason"],  # cost_unreported | no_response
+)
+
+# NEW-OPS-3 / NEW-OPS-7 (OPS-005, OPS-006): gauges set at scrape time by
+# app/ops_gauges.py, because Prometheus scrapes only the backend process.
+# The beat tick and task results are custom collectors there (they can be absent).
+QDRANT_COLLECTION_POINTS_COUNT = Gauge(
+    "qdrant_collection_points_count",
+    "Points in a watched Qdrant collection, read at scrape time with the read key",
+    ["collection"],
+)
+CELERY_QUEUE_LENGTH = Gauge(
+    "celery_queue_length",
+    "Messages waiting in a Celery queue (Redis LLEN), read at scrape time",
+    ["queue"],
 )
 
 

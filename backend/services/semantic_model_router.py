@@ -37,6 +37,8 @@ import numpy as np
 if TYPE_CHECKING:
     from services.embedding_service import EmbeddingService
 
+from app.log_safe import q_tag
+
 logger = logging.getLogger(__name__)
 
 TIER = Literal["fast", "standard", "deep"]
@@ -165,7 +167,7 @@ class SemanticModelRouter:
         tier = self._majority_vote(top_tiers)
         logger.debug(
             f"SemanticModelRouter: classified as '{tier}' "
-            f"(max_sim={max_similarity:.3f}, query: {query[:60]}...)"
+            f"(max_sim={max_similarity:.3f}, query: {q_tag(query)})"
         )
         return tier, max_similarity
 

@@ -101,7 +101,7 @@ def test_purge_celery_queues():
 
 
 def test_configure_redis_memory_policy():
-    """Verify maxmemory and volatile-lru eviction configuration."""
+    """Verify maxmemory and eviction policy are applied as given."""
     mock_client = MagicMock()
 
     success = configure_redis_memory_policy(mock_client, maxmemory="256mb", policy="volatile-lru")
@@ -109,6 +109,15 @@ def test_configure_redis_memory_policy():
     assert success is True
     mock_client.config_set.assert_any_call("maxmemory", "256mb")
     mock_client.config_set.assert_any_call("maxmemory-policy", "volatile-lru")
+
+
+def test_configure_redis_memory_policy_default_is_noeviction():
+    """P7-19: the default must not evict quota counters (docker-compose.prod.yml)."""
+    mock_client = MagicMock()
+
+    assert configure_redis_memory_policy(mock_client) is True
+    mock_client.config_set.assert_any_call("maxmemory-policy", "noeviction")
+    mock_client.config_set.assert_any_call("maxmemory", "512mb")
 
 
 def test_check_railway_budget_calculations():

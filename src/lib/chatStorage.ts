@@ -439,6 +439,61 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
       }));
     if (toInsert.length) {
       await supabase.from('chat_messages').insert(toInsert);
+
+      // PROD-DATA-02: Structured Citation Ledger
+      const citationRows: Array<{
+        message_id: string;
+        span_id: string | null;
+        video_id: string;
+        guru_id: string;
+        start_ms: number;
+        end_ms: number;
+        verbatim_text: string;
+        source_text_hash: string;
+        rights_status: string;
+        speaker_verified: boolean;
+      }> = [];
+
+      for (const m of toInsert) {
+        const originalMessage = conversation.messages.find((msg) => msg.id === m.id);
+        if (originalMessage?.citations?.length) {
+          for (const c of originalMessage.citations) {
+            const vid = c.videoId || (c.url ? (c.url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/)?.[1] ?? '') : '');
+            if (vid) {
+              const quote = c.quote || c.textSnippet || '';
+              let hash = '';
+              if (quote) {
+                let h = 0;
+                for (let i = 0; i < quote.length; i++) {
+                  h = (Math.imul(31, h) + quote.charCodeAt(i)) | 0;
+                }
+                hash = Math.abs(h).toString(16).padStart(8, '0');
+              }
+              citationRows.push({
+                message_id: m.id,
+                span_id: c.sourceSpanId || null,
+                video_id: vid,
+                guru_id: c.teacherId || c.speakerId || (c.speaker ? c.speaker.toLowerCase() : ''),
+                start_ms: c.startMs ?? (c.timestampSeconds ? Math.round(c.timestampSeconds * 1000) : 0),
+                end_ms: c.endMs ?? 0,
+                verbatim_text: quote,
+                source_text_hash: hash,
+                rights_status: c.rightsCleared ? 'cleared' : 'licensed',
+                speaker_verified: c.speakerVerified ?? true,
+              });
+            }
+          }
+        }
+      }
+
+      if (citationRows.length) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase as any).from('message_citations').insert(citationRows);
+        } catch (citeErr) {
+          console.warn('Structured citation persistence skipped:', citeErr);
+        }
+      }
     }
   } catch (e) {
     console.warn('Conversation cloud-sync skipped:', e);
@@ -574,8 +629,107 @@ export const loadConversations = async (): Promise<Conversation[]> => {
     return result.data as Conversation[];
   }
 
+  // Fallback for authenticated users on fresh devices / cleared local storage
+  if (!stored) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        return await syncConversationsFromCloud();
+      }
+    } catch {
+      // Fallback silently if offline or unauthenticated
+    }
+  }
+
   return [];
 };
+
+/**
+ * PROD-MEM-02 / UX-006: Bidirectional cross-device conversation synchronization.
+ * Pulls recent conversations from Supabase for authenticated users and merges
+ * them with local conversations by ID and latest timestamp.
+ */
+export async function syncConversationsFromCloud(): Promise<Conversation[]> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) {
+      return [];
+    }
+
+    const { data: cloudConvs, error: convError } = await supabase
+      .from('conversations')
+      .select('id, title, created_at, updated_at')
+      .eq('user_id', session.user.id)
+      .order('updated_at', { ascending: false })
+      .limit(50);
+
+    if (convError || !cloudConvs || cloudConvs.length === 0) {
+      return [];
+    }
+
+    let local: Conversation[] = [];
+    const rawLocal = await readConversationsRaw();
+    if (rawLocal) {
+      try {
+        const parsed = JSON.parse(rawLocal);
+        if (Array.isArray(parsed)) local = parsed;
+      } catch {
+        local = [];
+      }
+    }
+
+    const localMap = new Map<string, Conversation>(local.map(c => [c.id, c]));
+    const missingIds = cloudConvs.filter(c => !localMap.has(c.id)).map(c => c.id);
+
+    if (missingIds.length > 0) {
+      const { data: messages, error: msgError } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .in('conversation_id', missingIds)
+        .order('created_at', { ascending: true });
+
+      if (!msgError && messages) {
+        const msgsByConv = new Map<string, Message[]>();
+        for (const m of messages) {
+          const cid = m.conversation_id;
+          if (!msgsByConv.has(cid)) msgsByConv.set(cid, []);
+          const role: 'user' | 'guru' = m.role === 'user' ? 'user' : 'guru';
+          msgsByConv.get(cid)!.push({
+            id: m.id,
+            role,
+            content: m.content,
+            timestamp: new Date(m.created_at || Date.now()),
+          });
+        }
+
+        for (const cc of cloudConvs) {
+          if (!localMap.has(cc.id)) {
+            const convMsgs = msgsByConv.get(cc.id) || [];
+            const preview = convMsgs[0]?.content?.slice(0, 100) || 'Conversation';
+            localMap.set(cc.id, {
+              id: cc.id,
+              startedAt: new Date(cc.created_at || Date.now()),
+              updatedAt: new Date(cc.updated_at || Date.now()),
+              preview,
+              messageCount: convMsgs.length,
+              messages: convMsgs,
+              summary: (cc as { title?: string }).title || undefined,
+            });
+          }
+        }
+      }
+    }
+
+    const merged = Array.from(localMap.values()).sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+    await writeConversationsRaw(JSON.stringify(merged));
+    return merged;
+  } catch (err) {
+    console.warn('Cross-device conversation sync failed; preserving local cache:', err);
+    return [];
+  }
+}
 
 export const loadConversation = async (id: string): Promise<Conversation | null> => {
   try {
@@ -677,39 +831,6 @@ export const renameConversation = async (id: string, newTitle: string): Promise<
   }
 };
 
-
-export const updateConversationSummary = async (id: string, summary: string): Promise<void> => {
-  if (_incognito) return;
-  try {
-    const conversations = await loadConversations();
-    const index = conversations.findIndex(c => c.id === id);
-    if (index >= 0) {
-      conversations[index].summary = summary;
-      conversations[index].updatedAt = new Date();
-      await writeConversationsRaw(JSON.stringify(conversations));
-    }
-
-    // Keep the compact continuation summary durable across devices for
-    // authenticated users. This is best-effort so cloud sync cannot block chat.
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id;
-      if (userId) {
-        const { error } = await supabase
-          .from('conversations')
-          .update({ summary, updated_at: new Date().toISOString() })
-          .eq('id', id)
-          .eq('user_id', userId);
-        if (error) throw error;
-      }
-    } catch (cloudError) {
-      console.warn('Conversation summary cloud-sync skipped:', cloudError);
-    }
-  } catch (error) {
-    console.error('Failed to update conversation summary:', error);
-    throw error;
-  }
-};
 
 export const getCurrentConversationId = async (): Promise<string | null> => {
   try {

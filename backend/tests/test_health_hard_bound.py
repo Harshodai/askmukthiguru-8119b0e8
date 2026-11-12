@@ -82,7 +82,7 @@ def test_health_endpoint_returns_within_hard_bound_even_if_a_check_hangs(monkeyp
 
     async def _drive():
         start = time.monotonic()
-        resp = await health_module.health_endpoint(container=object())
+        resp = await health_module.health_endpoint(request=object(), container=object())
         elapsed = time.monotonic() - start
         return resp, elapsed
 

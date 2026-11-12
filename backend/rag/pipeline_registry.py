@@ -73,7 +73,16 @@ def _first_person_enabled() -> bool:
         from app.pipeline.stages.first_person_bridge import first_person_bridge_enabled
     except Exception:  # noqa: BLE001 — fail-open toward general, never toward FP
         return False
-    return bool(first_person_bridge_enabled())
+    if first_person_bridge_enabled():
+        return True
+    # T1-05: with the bridge off and generation not deliberately allowed, the
+    # module stays routable so the node can return the static abstain.
+    try:
+        from services.fp_fail_closed import fail_closed_active
+
+        return bool(fail_closed_active())
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _first_person_claims(state: GraphState) -> bool:
@@ -99,9 +108,16 @@ def _first_person_claims(state: GraphState) -> bool:
 
         return is_spiritual_domain_query(question)
     except Exception:
-        # Fail toward general synthesis rather than inventing teacher speech if
-        # the route classifier cannot be loaded.
-        return False
+        # SYS-001 remainder: with generated teaching not deliberately allowed,
+        # claim the turn so the answer is a verbatim clip or the static abstain.
+        # The bridge never invents teacher speech. With generation allowed,
+        # fall to general synthesis as before.
+        try:
+            from services.fp_fail_closed import fail_closed_active
+
+            return bool(fail_closed_active())
+        except ImportError:
+            return False
 
 
 PIPELINE_MODULES: tuple[PipelineModule, ...] = (

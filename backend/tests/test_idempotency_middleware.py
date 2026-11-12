@@ -142,3 +142,23 @@ async def test_idempotency_key_is_scoped_per_caller():
         assert "x-idempotent-replayed" not in res_b.headers
         res_a = client.post("/api/feedback", json=payload, headers=a)
         assert res_a.headers.get("x-idempotent-replayed") == "true"
+
+
+def test_idempotency_default_paths_cover_all_mutating_routes():
+    """PROD-CQ-09 / AMK-D-003: Verify all mutating endpoints are covered by default."""
+    from starlette.applications import Starlette
+
+    dummy_app = Starlette()
+    middleware = IdempotencyMiddleware(dummy_app)
+    expected_paths = {
+        "/api/feedback",
+        "/api/ingest",
+        "/api/ritual",
+        "/api/memory",
+        "/api/brain",
+        "/api/healing-course",
+        "/api/chat",
+        "/api/profile",
+        "/api/user",
+    }
+    assert expected_paths.issubset(set(middleware._idempotent_paths))

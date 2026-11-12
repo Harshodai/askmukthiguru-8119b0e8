@@ -51,116 +51,148 @@ SEED_TOPICS = [
 
 DEFAULT_TEACHER = "Sri Preethaji & Sri Krishnaji"
 
+# GURU-012 (H27): a tip credits a teacher only when it carries a locator that
+# points back to the recording: a span/point id, or a YouTube video id plus a
+# start time. Without one the tip is served with teacher "" (no credit).
+_YOUTUBE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+
+def _has_locator(tip: dict) -> bool:
+    for key in ("span_id", "point_id"):
+        value = tip.get(key)
+        if isinstance(value, str) and value.strip():
+            return True
+    video_id = tip.get("video_id")
+    start_ms = tip.get("start_ms")
+    return (
+        isinstance(video_id, str)
+        and bool(_YOUTUBE_ID_RE.match(video_id))
+        and isinstance(start_ms, int)
+        and not isinstance(start_ms, bool)
+        and start_ms >= 0
+    )
+
+
+def _credited(tip: dict) -> dict:
+    """The tip as served: teacher credit kept only with a locator (GURU-012)."""
+    if tip.get("teacher") and not _has_locator(tip):
+        return {**tip, "teacher": ""}
+    return tip
+
+
 _NARRATIVE_STORY_RE = re.compile(
     r"\b(CEO|company|corporation|firm|business executive|colleague|coworker|"
     r"he said|she said|they said|one day|at work|boardroom|office|client|manager)\b",
     re.IGNORECASE,
 )
 
+# T1-03: these are assistant paraphrases, NOT recorded teacher words. They carry no
+# teacher credit and no video id/timestamp locator, so a renderer must never present
+# them as a quotation. Any text attributed to a teacher needs a verifiable locator.
 CURATED_FALLBACK_TIPS = [
     {
         "id": "tip-1",
         "text": "For every day spent in suffering is a wasted day; every day lived in a beautiful state is life truly lived.",
-        "source": "The Four Sacred Secrets",
-        "teacher": "Sri Preethaji & Sri Krishnaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Beautiful State",
     },
     {
         "id": "tip-2",
         "text": "Let us have a spiritual vision for our inner state of being that becomes the very foundation on which you can build a beautiful life.",
-        "source": "Ekam Discourses",
-        "teacher": "Sri Preethaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Vision & Purpose",
     },
     {
         "id": "tip-3",
         "text": "Every moment you are either in a beautiful state or a suffering state. Awareness of which state you are in is the first step of your awakening.",
-        "source": "The Four Sacred Secrets",
-        "teacher": "Sri Preethaji & Sri Krishnaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Awareness",
     },
     {
         "id": "tip-4",
         "text": "Suffering is born from division — division from oneself, from others, and from the universe. Healing and abundance are born from oneness.",
-        "source": "Oneness Teachings",
-        "teacher": "Sri Krishnaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Oneness",
     },
     {
         "id": "tip-5",
         "text": "Recognize that you are not just an isolated individual, but connected to a universal intelligence. When you live from that connection, life flows with grace and ease.",
-        "source": "Universal Intelligence Teachings",
-        "teacher": "Sri Krishnaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Universal Intelligence",
     },
     {
         "id": "tip-6",
         "text": "Do not fight your inner state. When you observe your feelings without judgment, suffering begins to dissolve on its own.",
-        "source": "Inner Truth Discourse",
-        "teacher": "Sri Preethaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Inner Truth",
     },
     {
         "id": "tip-7",
         "text": "Suffering is not caused by what happens around you, but by your obsessive preoccupation with yourself. Shift attention from the self to connection, and your state shifts instantly.",
-        "source": "The Four Sacred Secrets",
-        "teacher": "Sri Preethaji & Sri Krishnaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Dissolving Suffering",
     },
     {
         "id": "tip-8",
         "text": "You do not need external circumstances to change before you can be happy. You have the power within you to meet every situation from a beautiful state.",
-        "source": "World Tour Teachings",
-        "teacher": "Sri Preethaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Inner Freedom",
     },
     {
         "id": "tip-9",
         "text": "True leadership and love do not arise from a frantic, stressed mind, but flow naturally when you lead from deep connection with all life.",
-        "source": "Ekam World Center",
-        "teacher": "Sri Krishnaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Connection",
     },
     {
         "id": "tip-10",
         "text": "With gentle attention to your breath and a softening of your heart, you can shift your entire inner experience in a single moment.",
-        "source": "Serene Mind Meditation",
-        "teacher": "Sri Preethaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Meditation",
     },
     {
         "id": "tip-11",
         "text": "We often carry past grievances, hurts, and anxieties for decades. True freedom is the wisdom to drop the burden and arrive fully in the present.",
-        "source": "Healing Hearts",
-        "teacher": "Sri Preethaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Presence",
     },
     {
         "id": "tip-12",
         "text": "Our journey is to move from a suffering state to a beautiful state, from disconnection to connection, and from separation to Oneness.",
-        "source": "The Four Sacred Secrets",
-        "teacher": "Sri Krishnaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Transformation",
     },
     {
         "id": "tip-13",
         "text": "The enlightened trust universal intelligence, knowing that all storms pass. Instead of reacting with panic, they remain anchored in stillness.",
-        "source": "Master Discourses",
-        "teacher": "Sri Krishnaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Stillness & Peace",
     },
     {
         "id": "tip-14",
         "text": "Like gold that mends broken pottery to make it even more precious, when you embrace your heartbreak with courage and compassion, your heart opens to even greater love.",
-        "source": "Kintsugi of the Heart",
-        "teacher": "Sri Preethaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Compassion",
     },
     {
         "id": "tip-15",
         "text": "A calm mind is not a silent mind; it is a mind that is no longer at war with what is.",
-        "source": "The Four Sacred Secrets",
-        "teacher": "Sri Preethaji & Sri Krishnaji",
+        "source": "paraphrase",
+        "teacher": "",
         "category": "Calm Mind",
     },
 ]
@@ -264,21 +296,35 @@ def _harvest_tip_pool(qdrant) -> list[dict]:
             if not _looks_like_complete_thought(text) or fingerprint in seen:
                 continue
             seen.add(fingerprint)
-            pool.append(
-                {
-                    "text": text,
-                    "source": row.get("source_url") or row.get("title") or "the teachings",
-                    "teacher": row.get("teacher") or DEFAULT_TEACHER,
-                    "category": topic.title(),
-                }
+            meta = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            tip = {
+                "text": text,
+                "source": row.get("source_url")
+                or meta.get("source_url")
+                or row.get("title")
+                or meta.get("title")
+                or "the teachings",
+                "category": topic.title(),
+            }
+            locator = {k: meta[k] for k in ("video_id", "start_ms") if k in meta}
+            tip.update(locator)
+            # GURU-012: credit only with a locator; never a default teacher.
+            tip["teacher"] = (
+                (meta.get("teacher") or row.get("teacher") or DEFAULT_TEACHER)
+                if _has_locator(locator)
+                else ""
             )
+            if not _has_locator(locator):
+                for key in locator:
+                    tip.pop(key, None)
+            pool.append(tip)
     return pool
 
 
 def _build_payload(tips: list[dict]) -> dict:
     now = datetime.now(UTC)
     return {
-        "tips": [{"id": tip.get("id") or str(uuid.uuid4()), **tip} for tip in tips],
+        "tips": [{"id": tip.get("id") or str(uuid.uuid4()), **_credited(tip)} for tip in tips],
         "generated_at": now.isoformat(),
         "expires_at": (now + timedelta(seconds=TIPS_TTL_SECONDS)).isoformat(),
     }
@@ -322,7 +368,10 @@ async def get_wisdom_tips(container: ServiceContainer = Depends(get_container_as
         try:
             cached = redis_client.get(TIPS_CACHE_KEY)
             if cached:
-                return json.loads(cached)
+                payload = json.loads(cached)
+                # GURU-012: a cache written before the locator rule is re-checked.
+                payload["tips"] = [_credited(tip) for tip in payload.get("tips") or []]
+                return payload
         except Exception as exc:
             logger.warning("Tips cache read failed: %s", exc)
     return await _generate_tips(container)
@@ -350,9 +399,13 @@ async def add_curated_teaching(
     text = (item.get("text") or "").strip()
     if not text:
         raise HTTPException(status_code=400, detail="Teaching text is required")
-    teacher = (item.get("teacher") or DEFAULT_TEACHER).strip()
     source = (item.get("source") or "Master Discourse").strip()
     category = (item.get("category") or "Wisdom").strip()
+    locator = {k: item[k] for k in ("span_id", "point_id", "video_id", "start_ms") if k in item}
+    if not _has_locator(locator):
+        locator = {}
+    # GURU-012: an admin tip credits a teacher only with a locator.
+    teacher = (item.get("teacher") or DEFAULT_TEACHER).strip() if locator else ""
 
     library = _get_curated_library()
     new_entry = {
@@ -361,6 +414,7 @@ async def add_curated_teaching(
         "teacher": teacher,
         "source": source,
         "category": category,
+        **locator,
     }
     library.insert(0, new_entry)
     _save_curated_library(library)

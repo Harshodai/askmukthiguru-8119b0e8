@@ -903,7 +903,7 @@ async def ask_admin_question(
 ):
 
     container = get_container()
-    llm_service = container.ollama
+    llm_service = getattr(container, "llm", None) or container.ollama
 
     # Fetch rich context dynamically to support complex queries.
     # Note: get_kpis/get_node_latencies are already imported at module top.
@@ -2353,8 +2353,8 @@ def _load_speaker_decisions(decisions_path: Path) -> dict[str, str]:
                 data = json.loads("\n".join(body))
                 if data.get("decision_id") == "b5_speaker_conflict_rows":
                     decisions.update(data.get("rows") or {})
-            except Exception:
-                pass
+            except (json.JSONDecodeError, ValueError) as exc:
+                logger.debug("Non-JSON decision block skipped: %s", exc)
         i += 1
     return decisions
 
@@ -2402,8 +2402,8 @@ def _save_speaker_decision(decisions_path: Path, span_id: str, decision_value: s
                         end_idx = j
                         data = parsed
                         break
-                except Exception:
-                    pass
+                except (json.JSONDecodeError, ValueError) as exc:
+                    logger.debug("Non-JSON block skipped during speaker decision save: %s", exc)
                 i = j
             i += 1
 

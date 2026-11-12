@@ -5,6 +5,7 @@
  * Article 50 transparency obligations and W3C PROV-O JSON-LD machine-readable specification.
  */
 
+import { RELATED_NOT_DIRECT_LABEL } from '@/lib/relatedLabel';
 import type { Message } from '@/lib/chatStorage';
 
 export type OriginType = 'human_generated' | 'ai_assisted' | 'ai_generated';
@@ -258,7 +259,7 @@ export function createProvenanceManifestFromMessage(
       evidenceSupportLabel: verificationFailed
         ? (sources.length > 0 ? 'Source Excerpts (not verified)' : 'Reflective Guidance')
         : message.verification?.direct === false
-        ? 'Related Teaching (not a direct answer)'
+        ? RELATED_NOT_DIRECT_LABEL
         : message.answerEvidence?.evidence_support_label || (sources.length > 0 ? 'Verified Corpus Grounding' : 'Reflective Guidance'),
       corpusId: message.answerEvidence?.corpus_id || 'spiritual_wisdom',
       corpusVersion: message.answerEvidence?.release_version ? `v${message.answerEvidence.release_version}` : undefined,

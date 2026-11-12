@@ -9,6 +9,7 @@ from typing import Any, Optional
 from celery import Task
 
 from celery_config import celery_app, update_job_progress
+from tasks.worker_loop import run_in_worker_loop, worker_loop
 
 logger = logging.getLogger(__name__)
 
@@ -26,13 +27,13 @@ class AsyncTask(Task):
 
     @property
     def loop(self) -> asyncio.AbstractEventLoop:
-        if self._loop is None or self._loop.is_closed():
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-        return self._loop
+        # T7-02 (CQ-011): one loop per worker process, shared by every task class.
+        loop = worker_loop()
+        asyncio.set_event_loop(loop)
+        return loop
 
     def run_async(self, coro):
-        return self.loop.run_until_complete(coro)
+        return run_in_worker_loop(coro)
 
 
 @celery_app.task(

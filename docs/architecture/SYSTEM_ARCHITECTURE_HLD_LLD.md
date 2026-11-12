@@ -156,7 +156,7 @@ sequenceDiagram
     participant WebClient as Web / Mobile UI
     participant Gateway as FastAPI Router (/api/chat)
     participant Coord as PipelineCoordinator
-    participant Safety as Safety Spine (Stages 1-8)
+    participant Safety as Safety Spine (Stages 1-5)
     participant Graph as GraphStage (LangGraph)
     participant Qdrant as Qdrant Vector DB
     participant Neo4j as Memgraph Knowledge Graph
@@ -168,19 +168,19 @@ sequenceDiagram
 
     Seeker->>WebClient: Enters question ("How do I overcome anxiety?")
     WebClient->>Gateway: POST /api/chat (SSE stream connection)
-    Gateway->>Coord: Execute pipeline chain (17 stages)
+    Gateway->>Coord: Execute pipeline chain (19 stages)
     
     rect rgb(255, 240, 240)
-        Note over Coord,Safety: Stages 1-8: Pre-Inference Safety Verification
+        Note over Coord,Safety: Stages 1-5: Pre-Inference Safety Verification
         Coord->>Safety: Stage 1: KillSwitchStage (check global & route flags)
         Coord->>Safety: Stage 2: CacheCheckStage (exact query hash in Redis)
         Coord->>Safety: Stage 4: InputGuardrailStage (prompt injection / toxicity)
-        Coord->>Safety: Stage 8: DistressStage (C-SSRS Regex & Classifier)
+        Coord->>Safety: Stage 5: DistressStage (C-SSRS Regex & Classifier)
         Safety-->>Coord: Verdict: NORMAL (non-distress, Proceed)
     end
 
     rect rgb(240, 248, 255)
-        Note over Coord,Graph: Stage 10: GraphStage (Reasoning & Retrieval)
+        Note over Coord,Graph: Stage 12: GraphStage (Reasoning & Retrieval)
         Coord->>Graph: Execute LangGraph workflow
         Graph->>Qdrant: Hybrid Dense (BGE-M3 1024d) + Sparse BM25 Search
         Qdrant-->>Graph: Return top-k contextual discourse chunks
@@ -206,7 +206,7 @@ sequenceDiagram
 
     rect rgb(255, 255, 240)
         Note over Coord,Guard: Stages 14-17: Post-Processing & Emission
-        Weaver->>Guard: Stage 14: OutputGuardrailStage (find_artifact, CoT strip)
+        Weaver->>Guard: Stage 16: OutputGuardrailStage (find_artifact, CoT strip)
         Guard-->>Coord: Verified Clean Tokens
         Coord->>WebClient: Stream SSE Tokens ('token', 'citation', 'final')
         Coord->>Memory: Stage 15-16: Save Chat Turn & Update Scoped Cache

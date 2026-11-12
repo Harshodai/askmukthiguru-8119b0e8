@@ -41,8 +41,13 @@ DEAD = [
 ]
 
 
+def _metrics_src() -> str:
+    backend_dir = pathlib.Path(__file__).resolve().parent.parent
+    return (backend_dir / "app" / "metrics.py").read_text()
+
+
 def test_declared_collectors_have_callsites():
-    src = pathlib.Path("app/metrics.py").read_text()
+    src = _metrics_src()
     for name in LIVE:
         assert name in src, name
     for helper in HELPERS:
@@ -57,7 +62,7 @@ def test_declared_collectors_have_callsites():
 def test_dead_collectors_absent():
     import re
 
-    src = pathlib.Path("app/metrics.py").read_text()
+    src = _metrics_src()
     for name in DEAD:
         assert not re.search(rf"^{name}\s*=", src, re.M), f"dead collector {name} still declared"
 

@@ -1,0 +1,106 @@
+# ============================================================
+# Mukthi Guru — Fixture-store behaviour tests (T2-05)
+#
+# Runs the store contracts against real service containers instead of
+# mocks: Qdrant for the retrieval rights filter and the serve-time
+# re-check, Redis for the exact-cache replay. A mocked client cannot
+# prove either (a filter is only a filter when the engine applies it).
+#
+# Locally the tests skip when a store is unreachable, so an ordinary
+# `pytest` run on a machine without docker still passes. Here
+# FIXTURE_STORES_REQUIRED=1 turns that skip into a failure, because in
+# this job an unreachable store means the job proves nothing.
+# ============================================================
+
+name: Fixture Stores
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-stores:
+    name: Fixture Qdrant + Redis contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      # Pinned to the same tag as backend/docker-compose.yml: a fixture test
+      # against a different engine version proves nothing about production.
+      qdrant:
+        image: qdrant/qdrant:v1.18.0
+        ports:
+          - 6333:6333
+        options: >-
+          --health-cmd "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      redis:
+        image: redis:7.2.5-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.lock
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.lock
+
+      - name: Wait for the fixture stores
+        working-directory: .
+        run: |
+          for i in $(seq 1 30); do
+            qdrant_ok=no
+            redis_ok=no
+            curl -fsS -m 2 http://localhost:6333/healthz >/dev/null 2>&1 && qdrant_ok=yes
+            (exec 3<>/dev/tcp/127.0.0.1/6379) >/dev/null 2>&1 && redis_ok=yes
+            if [ "$qdrant_ok" = "yes" ] && [ "$redis_ok" = "yes" ]; then
+              echo "both fixture stores are up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::fixture stores did not become reachable"
+          exit 1
+
+      - name: Run fixture-store contracts
+        # No `|| true`, and FIXTURE_STORES_REQUIRED makes a skip fatal: this job
+        # exists to prove the contracts against real engines, so "nothing ran"
+        # must never read as "everything passed".
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+          JWT_SECRET: dummy-jwt-secret-key-for-ci-runs
+          OPENROUTER_API_KEY: mock-openrouter-key-for-ci
+          MALLOC_ARENA_MAX: "2"
+          FIXTURE_QDRANT_URL: http://localhost:6333
+          FIXTURE_REDIS_URL: redis://localhost:6379/15
+          FIXTURE_STORES_REQUIRED: "1"
+        run: pytest tests/test_fixture_stores.py -m fixture_store -v --tb=short

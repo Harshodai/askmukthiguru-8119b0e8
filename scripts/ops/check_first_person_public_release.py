@@ -49,7 +49,10 @@ import argparse
 import csv
 import hashlib
 import json
+import re
+import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -164,6 +167,155 @@ def _approval_state(value: Any) -> str:
 
 def _pending(value: Any) -> bool:
     return _approval_state(value) == "pending"
+
+
+# ---------------------------------------------------------------------------
+# T1-11 evidence-integrity helpers
+# ---------------------------------------------------------------------------
+_NON_HUMAN_ID = re.compile(r"subagent|agent|bot|claude", re.IGNORECASE)
+_MIN_ITEMS_FOR_PERFECT_AGREEMENT = 50
+
+
+def _non_human_ids(ids: Any) -> list[str]:
+    """Certifier ids that name an agent, bot or model are never human certifiers."""
+    return sorted(str(i) for i in (ids or []) if _NON_HUMAN_ID.search(str(i)))
+
+
+def _is_ancestor(root: Path, sha: str) -> bool:
+    """True only when ``sha`` is a real commit that is an ancestor of HEAD."""
+    if not re.fullmatch(r"[0-9a-fA-F]{7,64}", sha or ""):
+        return False
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "merge-base", "--is-ancestor", sha, "HEAD"],
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
+def _gold_evidence_problems(root: Path, config: dict[str, Any]) -> list[str]:
+    """Independence, distinct-human and suspicious-agreement checks (GURU-001..003, EVAL-001)."""
+    expected = config.get("expected_evidence") or {}
+    problems: list[str] = []
+    for key in ("gold_label_report", "agreement_calibration_report"):
+        path = root / str(expected.get(key) or "")
+        if not path.is_file():
+            continue
+        try:
+            doc = _read_json(path)
+        except (OSError, ValueError):
+            problems.append(f"{key} is not readable JSON")
+            continue
+        prov = doc.get("provenance") or {}
+        if prov.get("independent_review") is not True:
+            problems.append(f"{key}: independent_review is not true")
+        annotators = prov.get("reviewer_ids") or doc.get("annotators") or []
+        distinct = {str(a).strip().lower() for a in annotators if str(a).strip()}
+        if len(distinct) < 2:
+            problems.append(f"{key}: fewer than two distinct annotators")
+        bots = _non_human_ids(annotators)
+        if bots:
+            problems.append(f"{key}: non-human annotator ids {', '.join(bots)}")
+        agreement = doc.get("agreement_rate")
+        items = (
+            doc.get("total_comparisons") or doc.get("total_pairs_reviewed") or doc.get("rows") or 0
+        )
+        adjudicated = bool(doc.get("adjudication") or prov.get("adjudication"))
+        if (
+            agreement == 1.0
+            and isinstance(items, int)
+            and items > _MIN_ITEMS_FOR_PERFECT_AGREEMENT
+            and not adjudicated
+        ):
+            problems.append(
+                f"{key}: agreement exactly 1.0 over {items} items with no adjudication record"
+            )
+    return problems
+
+
+def _check_helplines(root: Path, config: dict[str, Any], report: GateReport) -> None:
+    """Every displayed helpline needs a recent call verification."""
+    rel = str(config.get("helplines_path") or "config/helplines.yaml")
+    max_age = int(config.get("helpline_max_age_days") or 365)
+    path = root / rel
+    if not path.is_file():
+        report.add(
+            "helpline_call_verification",
+            "every displayed helpline was verified by a live call within the allowed age",
+            passed=False,
+            status="fail",
+            detail=f"missing helpline registry: {rel}",
+            blocker=BLOCKER_OWNER,
+        )
+        return
+    import yaml  # PyYAML is a backend dependency; imported lazily
+
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    entries = [e for value in data.values() if isinstance(value, list) for e in value]
+    today = date.today()
+    stale: list[str] = []
+    for entry in entries:
+        verified = entry.get("last_verified_by_call")
+        ok = False
+        if verified:
+            try:
+                ok = (today - date.fromisoformat(str(verified))).days <= max_age
+            except ValueError:
+                ok = False
+        if not ok:
+            stale.append(str(entry.get("name")))
+    passed = not stale and bool(entries)
+    report.add(
+        "helpline_call_verification",
+        "every displayed helpline was verified by a live call within the allowed age",
+        passed=passed,
+        status="pass" if passed else "fail",
+        detail=(
+            f"all {len(entries)} helplines call-verified within {max_age} days"
+            if passed
+            else f"{len(stale)} of {len(entries)} helplines lack a call verification "
+            f"within {max_age} days"
+        ),
+        blocker="" if passed else BLOCKER_OWNER,
+    )
+
+
+def _check_scope_note_contradiction(
+    config: dict[str, Any],
+    decisions: dict[str, dict[str, Any]],
+    form_text: str,
+    report: GateReport,
+) -> None:
+    """Machine scopes may not authorise public/production while the human note says NO-GO."""
+    record = decisions.get("b7_release_authorization") or {}
+    scopes = record.get("scopes") or {}
+    public = [
+        scope
+        for scope in (config.get("authorization_stage_2") or [])
+        if _approval_state(scopes.get(scope)) == "approved"
+    ]
+    note = str(record.get("notes") or "")
+    verdict = "\n".join(
+        line for line in form_text.splitlines() if "public-release verdict" in line.lower()
+    )
+    contradictory = bool(re.search(r"NO-GO|owner[- ]only", note + "\n" + verdict, re.IGNORECASE))
+    problems = bool(public) and contradictory
+    report.add(
+        "authorization_note_consistency",
+        "approved public/production scopes do not contradict the human NO-GO or owner-only note",
+        passed=not problems,
+        status="fail" if problems else "pass",
+        detail=(
+            f"scopes {', '.join(public)} are approved but the human note says NO-GO or owner-only"
+            if problems
+            else "no contradiction between machine scopes and the human note"
+        ),
+        blocker=BLOCKER_OWNER if problems else "",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -776,12 +928,22 @@ def _check_speaker_certification(root: Path, config: dict[str, Any], report: Gat
             blocker=BLOCKER_OWNER,
         )
         return
+    problems: list[str] = []
+    try:
+        cert = _read_json(path)
+    except (OSError, ValueError):
+        cert = {}
+        problems.append("speaker certification is not readable JSON")
+    bots = _non_human_ids(cert.get("reviewers"))
+    if bots:
+        problems.append(f"non-human certifier ids: {', '.join(bots)}")
     report.add(
         "speaker_certification_evidence",
         "the human speaker-label certification artifact exists",
-        passed=True,
-        status="pass",
-        detail=str(expected.get("speaker_certification")),
+        passed=not problems,
+        status="fail" if problems else "pass",
+        detail="; ".join(problems) if problems else str(expected.get("speaker_certification")),
+        blocker=BLOCKER_OWNER if problems else "",
     )
 
 
@@ -818,6 +980,7 @@ def _check_gold_label_artifacts(root: Path, config: dict[str, Any], report: Gate
     problems: list[str] = []
     if missing:
         problems.append(f"missing evidence: {', '.join(missing)}")
+    problems.extend(_gold_evidence_problems(root, config))
     if blank_sheets:
         problems.append(f"annotator sheets incomplete: {', '.join(blank_sheets)}")
 
@@ -1064,6 +1227,13 @@ def _check_staging_readiness(root: Path, config: dict[str, Any], report: GateRep
     missing_metadata = [field for field in metadata_required if not document.get(field)]
     if missing_metadata:
         failed.append("metadata:" + ",".join(missing_metadata))
+    if not _is_ancestor(root, str(document.get("commit_sha") or "")):
+        failed.append("commit_sha is not a real ancestor of HEAD")
+    if str(document.get("environment_id") or "").lower().startswith("local"):
+        failed.append("environment_id is local, not a staging environment")
+    bots = _non_human_ids([document.get("auditor_id")] if document.get("auditor_id") else [])
+    if bots:
+        failed.append("non-human auditor id: " + ", ".join(bots))
     passed = not failed
     report.add(
         "staging_readiness_review",
@@ -1157,6 +1327,10 @@ def evaluate(root: Path, config: dict[str, Any]) -> dict[str, Any]:
     _check_speaker_certification(root, config, report)
     _check_gold_label_artifacts(root, config, report)
     _check_authorization_scopes(config, decisions, report)
+    _check_scope_note_contradiction(
+        config, decisions, decisions_path.read_text(encoding="utf-8"), report
+    )
+    _check_helplines(root, config, report)
     _check_packet_mirrors(root, config, decisions, report)
     _check_no_implicit_deployment(root, config, decisions, report)
     _check_staging_readiness(root, config, report)

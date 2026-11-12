@@ -672,6 +672,94 @@ def test_compound_below_min_facet_keeps_honest_gap_and_does_not_reuse_clip(
     assert mock_llm.generate.call_count == 2
 
 
+def test_compound_path_serves_direct_success_when_all_facets_cleared(
+    sample_verified_clip: dict[str, Any],
+) -> None:
+    """When all facets of a multi-part query are matched with score >= 3, result is direct success."""
+    import time
+
+    text1 = "Meditation is the art of being aware of your inner state without resistance."
+    text2 = "Suffering ends when you observe the observer and dissolve psychological division."
+    clip1 = {
+        **sample_verified_clip,
+        "point_id": "pt_med_1",
+        "video_id": "vid_med_01",
+        "verbatim_text": text1,
+        "transcript_hash": hashlib.sha256(text1.encode("utf-8")).hexdigest(),
+        "speaker": "Sri Preethaji",
+        "speaker_verified": True,
+    }
+    clip2 = {
+        **sample_verified_clip,
+        "point_id": "pt_suf_2",
+        "video_id": "vid_suf_02",
+        "verbatim_text": text2,
+        "transcript_hash": hashlib.sha256(text2.encode("utf-8")).hexdigest(),
+        "speaker": "Sri Krishnaji",
+        "speaker_verified": True,
+    }
+
+    mock_store = MagicMock()
+    mock_store.search_hybrid.return_value = [clip1, clip2]
+    mock_llm = MagicMock()
+    mock_llm.generate.side_effect = ["3", "3"]
+
+    with (
+        patch("services.first_person_pipeline.settings") as mock_settings,
+        patch("services.first_person_pipeline.is_youtube_video_available", return_value=True),
+        patch("services.first_person_pipeline.video_is_blocked", return_value=False),
+    ):
+        mock_settings.first_person_require_speaker_verified = True
+        mock_settings.first_person_content_quality_gate_enabled = False
+        mock_settings.first_person_boundary_guard_enabled = False
+        mock_settings.first_person_quality_allowlist_path = ""
+        mock_settings.first_person_quality_blocklist_path = ""
+        mock_settings.first_person_answerability_check_enabled = False
+        mock_settings.first_person_relevance_gate_enabled = True
+        mock_settings.first_person_relevance_min_score = 3
+        mock_settings.first_person_relevance_model = ""
+        mock_settings.first_person_compound_direct_serving_enabled = True
+        mock_settings.jev_enabled = False
+        mock_settings.first_person_relevance_jev_enabled = False
+        mock_settings.first_person_speculative_parallelism_enabled = False
+        mock_settings.first_person_llm_rerank_enabled = False
+        mock_settings.first_person_rerank_none_abstain_enabled = False
+        mock_settings.first_person_context_harness_enabled = False
+        mock_settings.first_person_context_terminal_enabled = False
+        mock_settings.first_person_harness_parallel_enabled = False
+        mock_settings.first_person_second_quote_enabled = False
+        mock_settings.first_person_mode = "retrieval_only"
+
+        pipeline = FirstPersonPipeline(store=mock_store, llm_service=mock_llm)
+        result = pipeline._execute_compound(
+            query="What is meditation and how does it relate to suffering?",
+            facets=["What is meditation?", "How does it relate to suffering?"],
+            query_dense_vector=[0.1] * 1024,
+            query_sparse_vector=None,
+            teacher_id="both",
+            max_clips=3,
+            start_time=time.monotonic(),
+            cache_bypass=True,
+            request_allow_state="off",
+            request_block_state="off",
+            fp_llm_tokens=[],
+        )
+
+    assert result.status == "success"
+    assert result.is_direct_answer is True
+    assert len(result.citations) == 2
+    assert result.citations[0]["point_id"] == "pt_med_1"
+    assert result.citations[1]["point_id"] == "pt_suf_2"
+    assert result.editorial_set is not None
+    assert result.editorial_set["status"] == "supported"
+    assert result.editorial_set["covered_facets"] == [
+        "What is meditation?",
+        "How does it relate to suffering?",
+    ]
+    assert text1 in result.answer_text
+    assert text2 in result.answer_text
+
+
 def test_compound_path_rejects_unverified_clip_when_setting_requires_verification(
     sample_verified_clip: dict[str, Any],
 ) -> None:

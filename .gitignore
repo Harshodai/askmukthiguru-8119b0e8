@@ -127,6 +127,7 @@ Thumbs.db
 .claude/*
 !.claude/settings.json
 .agent/
+.agents/teamwork/
 .worktrees/
 .code-review-graph/
 .codegraph/
@@ -386,6 +387,18 @@ backend/.claude/
 
 # Agent scratch (never commit; L-REPO-HYGIENE-1)
 .work/
+
+# Rollback files from live Qdrant fixes (2026-11-07). Some hold verbatim quote text.
+# Put them in .work/ (ignored above); these patterns are a second net if one lands elsewhere.
+rights_backup*.json
+fp_*backup*.json
+*_v10_backup*.json
+quarantine_backup*.json
+data/*backup*.json
+*_backup*.json
+*.bak_*
+*.snapshot
+.env.bak*
 
 # Gold-set sheets and scores contain verbatim clip text; the repo is public (owner decision 2026-10-12).
 evals/gold_set_v1/*.csv

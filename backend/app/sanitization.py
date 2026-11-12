@@ -5,6 +5,7 @@ Provides regex-based validators and cleaners for user-facing identifiers
 and free-form text to reduce injection and poisoning surfaces.
 """
 
+import hashlib
 import re
 from typing import Optional
 
@@ -111,6 +112,24 @@ def sanitize_log_input(text: Optional[str] = "") -> str:
     if text is None:
         return ""
     return str(text).replace("\r", "").replace("\n", " ")[:500]
+
+
+_URL_CREDENTIALS_RE = re.compile(r"(\b[A-Za-z][A-Za-z0-9+.-]*://)[^/\s@]*@")
+
+
+def redact_url_credentials(url: Optional[str]) -> str:
+    """Mask the userinfo part of a URL (``redis://:secret@host`` -> ``redis://***@host``)."""
+    if not url:
+        return ""
+    return _URL_CREDENTIALS_RE.sub(r"\1***@", str(url))
+
+
+def pseudonymize_identity(identity: Optional[str]) -> str:
+    """Stable, non-reversible tag for logging an anonymous or user id (never the raw id)."""
+    if not identity:
+        return "none"
+    digest = hashlib.sha256(str(identity).encode("utf-8")).hexdigest()
+    return f"id-{digest[:12]}"
 
 
 def sanitize_client_error(error: Optional[str]) -> str:

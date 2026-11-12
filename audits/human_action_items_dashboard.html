@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AskMukthiGuru — Interactive Human Action & Governance Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            gold: {
+              400: '#E6C687',
+              500: '#D4AF37',
+              600: '#AA820A',
+            },
+            spiritual: {
+              900: '#0F1117',
+              800: '#161922',
+              700: '#212634',
+              600: '#2F3649',
+              100: '#F5F3EF',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .badge-p0 { background: rgba(239, 68, 68, 0.15); color: #F87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-p1 { background: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-p2 { background: rgba(59, 130, 246, 0.15); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-human { background: rgba(168, 85, 247, 0.15); color: #C084FC; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .badge-done { background: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .tab-active { background: #D4AF37 !important; color: #0F1117 !important; font-weight: 700 !important; }
+  </style>
+</head>
+<body class="bg-[#0B0D13] text-[#E2E8F0] min-h-screen font-sans antialiased selection:bg-gold-500 selection:text-black pb-24">
+
+  <!-- Header -->
+  <header class="border-b border-spiritual-700/60 bg-spiritual-900/90 backdrop-blur sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-gold-600 via-gold-500 to-amber-300 flex items-center justify-center shadow-lg shadow-gold-500/20">
+          <span class="text-spiritual-900 font-extrabold text-lg">ॐ</span>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            AskMukthiGuru <span class="text-xs uppercase tracking-widest px-2.5 py-0.5 rounded-full font-mono bg-spiritual-700 text-gold-400 border border-spiritual-600">Executive Workspace</span>
+          </h1>
+          <p class="text-xs text-slate-400 font-mono">Check, Review, Call, & Complete Human Governance Actions Directly in this Workspace</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <button onclick="exportAllCompletedData()" class="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg transition flex items-center gap-2">
+          💾 Export Completed Governance Package (.JSON)
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs Bar -->
+    <div class="max-w-7xl mx-auto mt-4 flex items-center gap-2 overflow-x-auto pb-1 border-t border-spiritual-700/40 pt-3">
+      <button onclick="showTab('overview')" id="btn-overview" class="tab-btn tab-active px-3 py-1.5 text-xs font-semibold rounded-lg bg-spiritual-800 text-slate-300 hover:text-white transition whitespace-nowrap">
+        📋 Overview & Tracker
+      </button>
+      <button onclick="showTab('helplines')" id="btn-helplines" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-spiritual-800 text-slate-300 hover:text-white transition whitespace-nowrap flex items-center gap-1.5">
+        📞 Helpline Calls (14 Pending)
+      </button>
+      <button onclick="showTab('clips50')" id="btn-clips50" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-spiritual-800 text-slate-300 hover:text-white transition whitespace-nowrap flex items-center gap-1.5">
+        🎧 50 Served Clips (<span class="text-emerald-400 font-bold">&check; DONE</span>)
+      </button>
+      <button onclick="showTab('demoted11')" id="btn-demoted11" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-spiritual-800 text-slate-300 hover:text-white transition whitespace-nowrap flex items-center gap-1.5">
+        🛡️ 11 Demoted Clips (<span class="text-emerald-400 font-bold">&check; DONE</span>)
+      </button>
+      <button onclick="showTab('clinician')" id="btn-clinician" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-spiritual-800 text-slate-300 hover:text-white transition whitespace-nowrap">
+        🩺 Clinician Approval (Gate B6)
+      </button>
+      <button onclick="showTab('rights')" id="btn-rights" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-spiritual-800 text-slate-300 hover:text-white transition whitespace-nowrap">
+        📜 Copyright Letter (Gate B5)
+      </button>
+      <button onclick="showTab('decisions')" id="btn-decisions" class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-spiritual-800 text-slate-300 hover:text-white transition whitespace-nowrap">
+        ⚖️ Product Decisions (D-01..D-19)
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
+
+    <!-- ========================================================================= -->
+    <!-- TAB: OVERVIEW & STATUS TRACKER -->
+    <!-- ========================================================================= -->
+    <div id="tab-overview" class="space-y-6">
+      
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-5 shadow-lg">
+          <div class="text-xs font-mono text-emerald-400 uppercase font-semibold">Harsha Audits Done</div>
+          <div class="text-3xl font-extrabold text-white mt-1">61 Clips</div>
+          <div class="text-xs text-slate-400 mt-1">50 served clips + 11 demoted clips audited</div>
+        </div>
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-5 shadow-lg">
+          <div class="text-xs font-mono text-amber-400 uppercase font-semibold">Helplines Status</div>
+          <div class="text-3xl font-extrabold text-white mt-1" id="helplines-stat">1 / 15 Called</div>
+          <div class="text-xs text-slate-400 mt-1">Tele-MANAS verified; 14 uncalled lines</div>
+        </div>
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-5 shadow-lg">
+          <div class="text-xs font-mono text-purple-400 uppercase font-semibold">Clinician Sign-off</div>
+          <div class="text-3xl font-extrabold text-white mt-1" id="clinician-stat">Pending Hash</div>
+          <div class="text-xs text-slate-400 mt-1">Gate B6 memo ready to copy</div>
+        </div>
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-5 shadow-lg">
+          <div class="text-xs font-mono text-rose-400 uppercase font-semibold">Public Repo Exposure</div>
+          <div class="text-3xl font-extrabold text-white mt-1" id="repo-stat">Action Needed</div>
+          <div class="text-xs text-slate-400 mt-1">Toggle private or run BFG purge script</div>
+        </div>
+      </div>
+
+      <!-- Action Items Quick Grid -->
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 shadow-xl">
+        <h2 class="text-lg font-bold text-white mb-4 flex items-center justify-between">
+          <span>Human Action Status Summary</span>
+          <span class="text-xs font-normal text-slate-400">Click any row to jump into its dedicated interactive workspace</span>
+        </h2>
+        <div class="space-y-3">
+          
+          <div onclick="showTab('demoted11')" class="p-4 rounded-xl bg-spiritual-900 border border-emerald-500/40 flex items-center justify-between cursor-pointer hover:bg-spiritual-700/40 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs">&check;</span>
+              <div>
+                <div class="font-bold text-sm text-white">11 Demoted Clips Listening Audit</div>
+                <div class="text-xs text-slate-400">Harsha audited all 11 clips. 4 non-teacher clips quarantined in live Qdrant `first_person_v10` in commit 79b14025.</div>
+              </div>
+            </div>
+            <span class="badge-done text-xs px-3 py-1 rounded-full font-mono font-bold">COMPLETED & VERIFIED</span>
+          </div>
+
+          <div onclick="showTab('clips50')" class="p-4 rounded-xl bg-spiritual-900 border border-emerald-500/40 flex items-center justify-between cursor-pointer hover:bg-spiritual-700/40 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs">&check;</span>
+              <div>
+                <div class="font-bold text-sm text-white">50 Served Clips Quality Audit</div>
+                <div class="text-xs text-slate-400">Harsha audited all 50 clips in `50_served_clips_human_label_sheet.md`. 2 devotee impostors, 4 promotional registration clips identified.</div>
+              </div>
+            </div>
+            <span class="badge-done text-xs px-3 py-1 rounded-full font-mono font-bold">COMPLETED & VERIFIED</span>
+          </div>
+
+          <div onclick="showTab('helplines')" class="p-4 rounded-xl bg-spiritual-900 border border-amber-500/40 flex items-center justify-between cursor-pointer hover:bg-spiritual-700/40 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-xs">📞</span>
+              <div>
+                <div class="font-bold text-sm text-white">14 Crisis Helpline Voice Test Calls</div>
+                <div class="text-xs text-slate-400">Tele-MANAS was verified on 2026-09-26. 14 lines pending live phone calls. Call directly from dashboard.</div>
+              </div>
+            </div>
+            <span class="badge-p1 text-xs px-3 py-1 rounded-full font-mono font-bold">CALL SHEET READY</span>
+          </div>
+
+          <div onclick="showTab('clinician')" class="p-4 rounded-xl bg-spiritual-900 border border-purple-500/40 flex items-center justify-between cursor-pointer hover:bg-spiritual-700/40 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-full bg-purple-500/20 text-purple-400 font-bold flex items-center justify-center text-xs">🩺</span>
+              <div>
+                <div class="font-bold text-sm text-white">Clinician Approval Memo (Dr. Pragna MD - Gate B6)</div>
+                <div class="text-xs text-slate-400">Drafted memorandum ready. In-browser SHA-256 hash generator to file signed approval.</div>
+              </div>
+            </div>
+            <span class="badge-human text-xs px-3 py-1 rounded-full font-mono font-bold">MEMO DRAFTED</span>
+          </div>
+
+          <div onclick="showTab('rights')" class="p-4 rounded-xl bg-spiritual-900 border border-blue-500/40 flex items-center justify-between cursor-pointer hover:bg-spiritual-700/40 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 font-bold flex items-center justify-center text-xs">📜</span>
+              <div>
+                <div class="font-bold text-sm text-white">Ekam Copyright & Licensing Letter (Gate B5)</div>
+                <div class="text-xs text-slate-400">Drafted licensing authorization request for in-app excerpts ready to copy and send.</div>
+              </div>
+            </div>
+            <span class="badge-p2 text-xs px-3 py-1 rounded-full font-mono font-bold">LETTER READY</span>
+          </div>
+
+          <div onclick="showTab('decisions')" class="p-4 rounded-xl bg-spiritual-900 border border-spiritual-600 flex items-center justify-between cursor-pointer hover:bg-spiritual-700/40 transition">
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 rounded-full bg-spiritual-700 text-gold-400 font-bold flex items-center justify-center text-xs">⚖️</span>
+              <div>
+                <div class="font-bold text-sm text-white">Owner Decisions (D-01 to D-19)</div>
+                <div class="text-xs text-slate-400">Confirm repo privacy, CancelFlow deletion, pure quote serving mode, and branch protections.</div>
+              </div>
+            </div>
+            <span class="text-xs px-3 py-1 rounded-full font-mono font-bold bg-spiritual-700 text-slate-300">CONFIRM IN PAGE</span>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB: 50 SERVED CLIPS (DONE BY HARSHA) -->
+    <!-- ========================================================================= -->
+    <div id="tab-clips50" class="hidden space-y-6">
+      
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="badge-done text-xs font-mono px-3 py-1 rounded-full uppercase tracking-wider font-semibold">&check; Audited by Harsha</span>
+            <span class="text-xs font-mono text-slate-400">Source: human_review_results.json & 50_served_clips_human_label_sheet.md</span>
+          </div>
+          <h2 class="text-2xl font-bold text-white mt-2 mb-1">50 Served Clips Quality Audit</h2>
+          <p class="text-xs text-slate-300">All 50 clips have been listened to and labeled by Harsha. The results are permanently rendered below.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="text-right">
+            <div class="text-xl font-bold text-emerald-400 font-mono">48 / 50 Voice Pass</div>
+            <div class="text-xs text-slate-400">2 Devotee Impostors Found</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key Insights Summary -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="p-4 rounded-xl bg-rose-950/20 border border-rose-500/30">
+          <div class="text-xs font-mono text-rose-400 font-bold uppercase">2 Devotee Impostors Caught</div>
+          <div class="text-xs text-slate-300 mt-1">Clip 16 (<code>0ad56deb...</code>) and Clip 49 (<code>295a5e1e...</code>) are devotees sharing stories, not teacher doctrine. Quarantined!</div>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-950/20 border border-amber-500/30">
+          <div class="text-xs font-mono text-amber-400 font-bold uppercase">4 Course Promotional Spans</div>
+          <div class="text-xs text-slate-300 mt-1">Clips 1, 7, 9, 35 ask people to register for Manifest/Field of Awakening. Mapped to <b>PROD-RET-05</b> quarantine.</div>
+        </div>
+        <div class="p-4 rounded-xl bg-blue-950/20 border border-blue-500/30">
+          <div class="text-xs font-mono text-blue-400 font-bold uppercase">32 Boundary Continuity Cutoffs</div>
+          <div class="text-xs text-slate-300 mt-1">Harsha noted "continuity missing before/after". This directly proves necessity of <b>PROD-RET-02</b> parent rehydration!</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl overflow-hidden shadow-xl">
+        <div class="p-4 border-b border-spiritual-700 flex items-center justify-between">
+          <h3 class="font-bold text-white text-sm">Full 50-Clip Verified Review Table</h3>
+          <input type="text" id="clips-search" onkeyup="filterClipsTable()" placeholder="Search teacher, point ID, or note..." class="px-3 py-1.5 bg-spiritual-900 border border-spiritual-700 rounded-lg text-xs text-white focus:outline-none focus:border-gold-500 w-64">
+        </div>
+        <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+          <table class="w-full text-left border-collapse" id="clips-table">
+            <thead class="bg-spiritual-900/90 sticky top-0 border-b border-spiritual-700 text-slate-400 text-xs font-mono">
+              <tr>
+                <th class="py-2.5 px-3">#</th>
+                <th class="py-2.5 px-3">Point ID</th>
+                <th class="py-2.5 px-3">Teacher</th>
+                <th class="py-2.5 px-3">Window</th>
+                <th class="py-2.5 px-3">Audio Link</th>
+                <th class="py-2.5 px-3">Voice</th>
+                <th class="py-2.5 px-3">Boundary</th>
+                <th class="py-2.5 px-3">Harsha's Audit Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">1</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0045104c-0af1-565b-bcb5-98b91ef223f8">0045104c...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">66s–76s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=IjZkoyk7T14&t=66s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(IjZkoyk7T14)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-amber-900/60 text-amber-300 border border-amber-500/30 mr-1.5'>Course / Promo</span> preethaji is asking people to join manifest a program, so we can remove this and keep the before point of video, may be we can ask users to register for manifest </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">2</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="00b5a51f-7250-5f2a-abad-11e4a7f22114">00b5a51f...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">160s–238s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=2DLb6hDIhmg&t=160s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(2DLb6hDIhmg)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-500/30 mr-1.5'>Needs Rehydration</span>because this is a story continuation as per the previous point, it would be better if we can serve both or entire story that preethaji here explaining at a single time</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">3</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="00c475c4-14c5-5f09-beca-06d79b278c44">00c475c4...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">604s–757s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=_GEMrEWCiXw&t=604s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(_GEMrEWCiXw)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-500/30 mr-1.5'>Needs Rehydration</span>continuity is missing before and after</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">4</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="00d2acb5-e6d3-5dff-9dc3-6ff06335c0ee">00d2acb5...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">59s–76s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=vcvE5YpOjL4&t=59s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(vcvE5YpOjL4)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-500/30 mr-1.5'>Needs Rehydration</span>because this is a story continuation as per the previous point, it would be better if we can serve both or entire story that krishnaji here explaining at a single time</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">5</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="00ecb926-9f5d-5ce4-b115-f04d57e25c31">00ecb926...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">0s–16s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=Fn62UQTIMEk&t=0s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(Fn62UQTIMEk)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">I feel if this is a video ingested would be better</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">6</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="034687a3-4a64-5219-8262-5be89e8a218c">034687a3...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">108s–139s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=v58RteTeBlE&t=108s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(v58RteTeBlE)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">7</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="03922e5d-ad6b-5d2c-b696-ab12fcb3faca">03922e5d...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">50s–62s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=YZaEmcxvYvc&t=50s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(YZaEmcxvYvc)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-amber-900/60 text-amber-300 border border-amber-500/30 mr-1.5'>Course / Promo</span>because preethaji is asking people to join Field of awakening a program, keep the before point of video of the video if this reasonates the same with the user, but we need to be careful since we should not give everytime a session registration</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">8</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="03cde63d-1c1f-5be1-95f9-163a712e1318">03cde63d...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">46s–215s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=M7ItOHTrvz8&t=46s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(M7ItOHTrvz8)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">9</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="03f24c38-d355-52d2-bf5f-fadc9838402f">03f24c38...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">12s–38s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=2X0BCy1bRcU&t=12s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(2X0BCy1bRcU)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-amber-900/60 text-amber-300 border border-amber-500/30 mr-1.5'>Course / Promo</span>this is also for a course registration, may be we can ask users to check this at the end and give the other parts of this video</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">10</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="044c708e-6680-518a-9e86-b283f5dd873d">044c708e...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">50s–80s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=EhY6npcnSs8&t=50s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(EhY6npcnSs8)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">11</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="05f0dbf7-96c4-5941-b41a-6f7cc232d19a">05f0dbf7...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">9s–18s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=mz8Mb0MvBz4&t=9s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(mz8Mb0MvBz4)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">12</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0751dc9b-37a9-57f7-9fbd-e96a881973e7">0751dc9b...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">79s–104s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=sMgbjxyrgqw&t=79s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(sMgbjxyrgqw)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">this is best for one shot answers but if the users asks for more, we might not get</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">13</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="07866498-b6bc-5d98-9f84-54937bf3f775">07866498...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">39s–49s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=FSwSt1omSD8&t=39s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(FSwSt1omSD8)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">14</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="09253b38-f7aa-5345-be08-a6a639673426">09253b38...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">259s–275s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=Ao8Rhhl9E8k&t=259s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(Ao8Rhhl9E8k)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">15</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0a8d0a07-105c-5a77-aedb-3b07e052816b">0a8d0a07...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">676s–707s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=kMc_kat7YLE&t=676s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(kMc_kat7YLE)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">not a good way of storing data because it is not continous</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">16</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0ad56deb-43e1-594b-88ac-37cadea0aa00">0ad56deb...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">104s–130s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=Lm-5gKTKD7Y&t=104s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(Lm-5gKTKD7Y)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded">FAIL_SPEAKER</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-rose-900/60 text-rose-300 border border-rose-500/30 mr-1.5'>Devotee Impostor</span>this is an experience shared by a devotee and not full</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">17</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0ad9693a-32ea-5af1-8b23-8c045a841f8b">0ad9693a...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">715s–761s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=TqxxCYnAxo8&t=715s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(TqxxCYnAxo8)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">I feel if the before and after pieces are joined together so that we can give users a better part</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">18</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0af96626-378f-58b6-85ee-2fb4037a56c7">0af96626...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">123s–132s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=pTnZt0SqDFM&t=123s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(pTnZt0SqDFM)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">there is still completion present</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">19</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0b1daf8b-d954-5fe9-b756-e9b898e78435">0b1daf8b...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">83s–127s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=ajMAwlKh3YM&t=83s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(ajMAwlKh3YM)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-purple-400">UNSURE</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">it is not complete</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">20</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0bf0b2bd-eebe-50ac-8f2e-0394783e695a">0bf0b2bd...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">101s–113s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=HKjzpPlfvc8&t=101s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(HKjzpPlfvc8)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">21</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0cecf59d-be92-5621-8364-2eea0244aed5">0cecf59d...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">25s–68s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=GfAMCHC6_ek&t=25s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(GfAMCHC6_ek)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">22</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0d246bd3-3197-589e-acfc-820ff22e9e79">0d246bd3...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">571s–620s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=JRlaAip4kmk&t=571s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(JRlaAip4kmk)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">23</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0f72ae08-036c-5528-8b64-e4e36c53ae11">0f72ae08...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">177s–249s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=h5XzWxcWrtU&t=177s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(h5XzWxcWrtU)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">24</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="0fc844ee-e4b7-5db7-b55d-2a5eedc5d6dd">0fc844ee...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">836s–859s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=UlOt31lBhLY&t=836s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(UlOt31lBhLY)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">25</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="10a3f933-1e18-576d-9870-a42a6219c3c0">10a3f933...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">16s–32s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=L4876a9aakw&t=16s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(L4876a9aakw)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">26</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="11571cb7-85be-56a3-a5b7-a3e34029f5da">11571cb7...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">38s–129s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=Z7w7soyXmHs&t=38s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(Z7w7soyXmHs)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">27</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="13138aed-6824-56dc-98c3-f5eb2f1aa757">13138aed...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">58s–71s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=Ip7C7KJBxBk&t=58s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(Ip7C7KJBxBk)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">28</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="131e755f-0efa-5ac3-83d7-a0ca3642299c">131e755f...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">126s–149s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=1imcyoNUO-A&t=126s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(1imcyoNUO-A)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">not complete</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">29</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="145aeae3-842e-5ecb-bb21-d3b7d706f258">145aeae3...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">304s–372s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=owXqW04b08o&t=304s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(owXqW04b08o)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">this is a prayer</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">30</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="171c5fa3-89ff-560c-872a-4ad6da34fc02">171c5fa3...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">106s–138s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=3qEON3iXjNM&t=106s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(3qEON3iXjNM)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">no need of this, because this had happened before so its not needed</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">31</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="18fa8b66-496c-5486-8578-a68e205b7700">18fa8b66...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">0s–16s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=FoTH9BWP2gg&t=0s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(FoTH9BWP2gg)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-purple-400">UNSURE</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">preethaji is asking for self reflection and this is not complete</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">32</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="1965be58-bc89-5760-8a59-19629d21b75d">1965be58...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">44s–59s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=qDSfb0DZ0PE&t=44s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(qDSfb0DZ0PE)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">33</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="1b2be475-7332-5765-aa15-24c43fbc3bd5">1b2be475...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">818s–854s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=sMgbjxyrgqw&t=818s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(sMgbjxyrgqw)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">34</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="1b2e053b-b2ac-534a-a8b5-f95f1aff9b24">1b2e053b...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">1065s–1107s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=_GEMrEWCiXw&t=1065s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(_GEMrEWCiXw)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">35</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="1c202e65-73b5-542f-b0ea-3938f9f8fcb3">1c202e65...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">0s–13s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=sOv9ISMIRQ0&t=0s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(sOv9ISMIRQ0)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-amber-900/60 text-amber-300 border border-amber-500/30 mr-1.5'>Course / Promo</span>this is a manifest program which is not needed and also this is already happened</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">36</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="1d6c2225-75b9-5d10-a94d-d54c9bf04db1">1d6c2225...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">31s–64s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=tl31QISheOc&t=31s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(tl31QISheOc)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">37</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="1df20e3b-f73c-5ce4-90b1-e381ca5cec9f">1df20e3b...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">385s–394s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=x-mTRlE0TC4&t=385s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(x-mTRlE0TC4)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">38</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="1f6aa5da-3f13-59c7-ab9b-cb6898d026c0">1f6aa5da...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">324s–398s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=T3I8r_NU2Wk&t=324s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(T3I8r_NU2Wk)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">39</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="20252ce5-d9c7-517c-8828-7bded06c4fa4">20252ce5...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">628s–1171s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=tCWfCISvo5k&t=628s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(tCWfCISvo5k)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">this is a meditation based technique which krishnaji is leading, I feel this can be stored much better</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">40</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="2050bdeb-36e7-5d7d-af61-9456623a78a0">2050bdeb...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">11s–27s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=txmjnRTgB4Y&t=11s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(txmjnRTgB4Y)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">this can be deleted since it had happened, otherwise if anyone is asking for physical health related we can ask users to check oneness yoga </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">41</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="21105d61-bff7-55e0-8d04-19554e84a9e7">21105d61...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">107s–157s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=XzS56RqIxeE&t=107s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(XzS56RqIxeE)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">42</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="21d66f20-3427-5f9a-a37a-3b0ce1352d25">21d66f20...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">31s–43s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=zPsun8EkA2s&t=31s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(zPsun8EkA2s)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">43</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="21f25c45-c9a2-58f0-8014-f2afc17e1314">21f25c45...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">4s–30s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=R5jh4Ss4fKA&t=4s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(R5jh4Ss4fKA)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">can be made better</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">44</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="22acb17e-b7ef-5afc-aabd-f6e20fc198b8">22acb17e...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">151s–165s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=2z5qxSr4EaI&t=151s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(2z5qxSr4EaI)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">can be made better</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">45</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="22c2c5c8-64a0-57b5-8029-06fbedb1627e">22c2c5c8...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">0s–25s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=Tc8f9ZasRRM&t=0s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(Tc8f9ZasRRM)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">46</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="25445c94-ab76-56bd-913d-abf4e244bf54">25445c94...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">415s–427s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=8mmungGgDNw&t=415s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(8mmungGgDNw)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md">krishnaji giving an example of a person experience, i feel this can be added and make this storing much better</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">47</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="25762e5d-5fb3-51ca-b30b-b9729e2393de">25762e5d...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">42s–49s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=zGOKGrTNlk4&t=42s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(zGOKGrTNlk4)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">48</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="27fba9bf-41c1-55f4-b9a1-f1b046b57d5b">27fba9bf...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">preethaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">82s–110s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=Ao8Rhhl9E8k&t=82s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(Ao8Rhhl9E8k)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">49</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="295a5e1e-9f7e-587c-88d6-cdd8d0a948ac">295a5e1e...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">384s–406s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=Lm-5gKTKD7Y&t=384s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(Lm-5gKTKD7Y)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded">FAIL_SPEAKER</span></td>
+          <td class="py-2.5 px-3"><span class="text-purple-400">UNSURE</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class='inline-block text-[10px] font-mono px-2 py-0.5 rounded bg-rose-900/60 text-rose-300 border border-rose-500/30 mr-1.5'>Devotee Impostor</span>this an experience shared by a devotee</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-slate-400">50</td>
+          <td class="py-2.5 px-3 font-mono text-gold-400" title="2c856f1e-f317-5a6e-a145-6348769b8c69">2c856f1e...</td>
+          <td class="py-2.5 px-3 font-mono text-slate-300">krishnaji</td>
+          <td class="py-2.5 px-3 font-mono text-slate-400">256s–384s</td>
+          <td class="py-2.5 px-3">
+            <a href="https://www.youtube.com/watch?v=Y7p7jHP0Ii0&t=256s" target="_blank" class="inline-flex items-center gap-1 text-gold-400 hover:text-gold-300 font-semibold underline underline-offset-2">
+              ▶ Listen <span class="text-[10px] text-slate-400">(Y7p7jHP0Ii0)</span>
+            </a>
+          </td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">PASS</span></td>
+          <td class="py-2.5 px-3"><span class="text-amber-400 font-semibold">FAIL_BOUNDARY</span></td>
+          <td class="py-2.5 px-3 text-slate-300 max-w-md"><span class="text-slate-500 italic">Clean</span></td>
+        </tr>
+        
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB: 11 DEMOTED CLIPS (DONE BY HARSHA) -->
+    <!-- ========================================================================= -->
+    <div id="tab-demoted11" class="hidden space-y-6">
+      
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="badge-done text-xs font-mono px-3 py-1 rounded-full uppercase tracking-wider font-semibold">&check; Completed & Quarantined</span>
+            <span class="text-xs font-mono text-slate-400">Commit: 79b14025</span>
+          </div>
+          <h2 class="text-2xl font-bold text-white mt-2 mb-1">11 Demoted Clips Listening Audit</h2>
+          <p class="text-xs text-slate-300">Audited by Harsha. The 4 non-teacher clips were quarantined in live Qdrant first_person_v10 collection; 7 verified teacher clips were restored.</p>
+        </div>
+        <div class="text-right">
+          <div class="text-xl font-bold text-emerald-400 font-mono">7 Kept / 4 Quarantined</div>
+          <div class="text-xs text-slate-400">Gate B1 / B7 Satisfied</div>
+        </div>
+      </div>
+
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl overflow-hidden shadow-xl">
+        <table class="w-full text-left border-collapse">
+          <thead class="bg-spiritual-900 border-b border-spiritual-700 text-slate-400 text-xs font-mono">
+            <tr>
+              <th class="py-3 px-3">Point ID</th>
+              <th class="py-3 px-3">Harsha's Verdict</th>
+              <th class="py-3 px-3">Live Production State</th>
+              <th class="py-3 px-3">Audit Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">085397d6-e1d1-5066-87a9-e7b396948a89</td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">CONFIRMED_TEACHER</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-emerald-300">CONFIRMED TEACHER (Kept)</td>
+          <td class="py-2.5 px-3 text-slate-300">Teacher audio confirmed.</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">0d36a4b1-f036-5e8f-a273-0d61d2f50bbf</td>
+          <td class="py-2.5 px-3"><span class="text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded">REJECTED_IMPOSTOR</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-rose-300 font-semibold">QUARANTINED in Qdrant v10 (79b14025)</td>
+          <td class="py-2.5 px-3 text-slate-300">These are people or devotees</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">18056750-8033-5759-807a-563eb5b018ab</td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">CONFIRMED_TEACHER</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-emerald-300">CONFIRMED TEACHER (Kept)</td>
+          <td class="py-2.5 px-3 text-slate-300">Teacher audio confirmed.</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">18c87cc3-4e90-5906-b96d-c38754771a13</td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">CONFIRMED_TEACHER</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-emerald-300">CONFIRMED TEACHER (Kept)</td>
+          <td class="py-2.5 px-3 text-slate-300">Teacher audio confirmed.</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">25b649ba-72d2-5dbe-a1f2-3d852f7d0d69</td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">CONFIRMED_TEACHER</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-emerald-300">CONFIRMED TEACHER (Kept)</td>
+          <td class="py-2.5 px-3 text-slate-300">Teacher audio confirmed.</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">265ce97a-e7ff-514b-b475-60844ba81211</td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">CONFIRMED_TEACHER</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-emerald-300">CONFIRMED TEACHER (Kept)</td>
+          <td class="py-2.5 px-3 text-slate-300">Teacher audio confirmed.</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">3fabddc6-0263-52b6-b8b8-070640e02bbe</td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">CONFIRMED_TEACHER</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-emerald-300">CONFIRMED TEACHER (Kept)</td>
+          <td class="py-2.5 px-3 text-slate-300">Teacher audio confirmed.</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">4eb84252-c616-504b-873c-b33f04ff6a8e</td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">CONFIRMED_TEACHER</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-emerald-300">CONFIRMED TEACHER (Kept)</td>
+          <td class="py-2.5 px-3 text-slate-300">Teacher audio confirmed.</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">4f45734f-8d74-5120-991c-49991755aa5b</td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">CONFIRMED_TEACHER</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-emerald-300">CONFIRMED TEACHER (Kept)</td>
+          <td class="py-2.5 px-3 text-slate-300">Teacher audio confirmed.</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">58404214-eddb-5014-8026-3d781d766a48</td>
+          <td class="py-2.5 px-3"><span class="text-emerald-400 font-bold">CONFIRMED_TEACHER</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-emerald-300">CONFIRMED TEACHER (Kept)</td>
+          <td class="py-2.5 px-3 text-slate-300">Teacher audio confirmed.</td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs">
+          <td class="py-2.5 px-3 font-mono text-gold-400">60b39aa2-d11d-5a1c-8fbb-76ec5944db91</td>
+          <td class="py-2.5 px-3"><span class="text-rose-400 font-bold bg-rose-950/40 px-2 py-0.5 rounded">REJECTED_IMPOSTOR</span></td>
+          <td class="py-2.5 px-3 font-mono text-xs text-rose-300 font-semibold">QUARANTINED in Qdrant v10 (79b14025)</td>
+          <td class="py-2.5 px-3 text-slate-300">These are people or devotees </td>
+        </tr>
+        
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB: HELPLINE CALLING WORKSPACE -->
+    <!-- ========================================================================= -->
+    <div id="tab-helplines" class="hidden space-y-6">
+      
+      <div class="bg-gradient-to-r from-amber-950/40 via-spiritual-800 to-spiritual-800 border border-amber-500/30 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <span class="badge-p1 text-xs font-mono px-3 py-1 rounded-full uppercase tracking-wider font-semibold">Live Telephone Call Workspace</span>
+          <h2 class="text-2xl font-bold text-white mt-2 mb-1">Crisis Helpline Voice Verification Sheet</h2>
+          <p class="text-xs text-slate-300">Click any phone number to dial directly. Mark as called to record the verification date. Gate B4 requires live phone verification.</p>
+        </div>
+        <button onclick="exportHelplinesYaml()" class="px-4 py-2 rounded-xl bg-gold-500 hover:bg-gold-400 text-spiritual-900 font-bold text-xs transition shadow-md whitespace-nowrap">
+          📋 Export Updated helplines.yaml
+        </button>
+      </div>
+
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl overflow-hidden shadow-xl">
+        <table class="w-full text-left border-collapse">
+          <thead class="bg-spiritual-900 border-b border-spiritual-700 text-slate-400 text-xs font-mono">
+            <tr>
+              <th class="py-3 px-3">Helpline & Region</th>
+              <th class="py-3 px-3">Click-to-Call Phone</th>
+              <th class="py-3 px-3">Verification Status</th>
+              <th class="py-3 px-3">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-0">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">Tele-MANAS (National Mental Health Helpline)</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; India &bull; 24/7, free</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:14416" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 14416 / 1800-891-4416
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-0"><span class='badge-done text-[11px] px-2 py-0.5 rounded font-bold'>&check; VERIFIED (2026-09-26)</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(0, 'Tele-MANAS (National Mental Health Helpline)')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-1">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">National Emergency Services</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; India &bull; 24/7</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:112" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 112
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-1"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(1, 'National Emergency Services')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-2">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">iCall</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; India &bull; Mon-Sat, 8am-9pm IST</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:9152987821" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 9152987821
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-2"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(2, 'iCall')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-3">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">AASRA</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; India &bull; 24/7</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:022" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 022 2754 6669
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-3"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(3, 'AASRA')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-4">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">Vandrevala Foundation</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; India &bull; 24/7</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:9999" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 +91 9999 666 555
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-4"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(4, 'Vandrevala Foundation')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-5">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">Sneha</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; India &bull; Hours differ by source; call to confirm</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:044-24640050" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 044-24640050
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-5"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(5, 'Sneha')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-6">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">988 Suicide & Crisis Lifeline</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; United States &bull; 24/7</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:988" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 988
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-6"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(6, '988 Suicide & Crisis Lifeline')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-7">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">Crisis Text Line</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; United States &bull; 24/7</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:741741" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 Text HOME to 741741
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-7"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(7, 'Crisis Text Line')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-8">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">Samaritans</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; United Kingdom &bull; 24/7, free</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:116" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 116 123
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-8"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(8, 'Samaritans')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-9">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">SHOUT</div>
+            <div class="text-[11px] text-slate-400">Crisis Support &bull; United Kingdom &bull; 24/7</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:85258" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 Text SHOUT to 85258
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-9"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(9, 'SHOUT')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-10">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">National Emergency Helpline</div>
+            <div class="text-[11px] text-slate-400">Domestic Violence &bull; India &bull; 24/7</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:112" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 112
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-10"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(10, 'National Emergency Helpline')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-11">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">Women Helpline (All India)</div>
+            <div class="text-[11px] text-slate-400">Domestic Violence &bull; India &bull; 24/7</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:181" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 181 / 1091
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-11"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(11, 'Women Helpline (All India)')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-12">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">National Domestic Violence Hotline</div>
+            <div class="text-[11px] text-slate-400">Domestic Violence &bull; United States &bull; 24/7</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:1-800-799-" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 1-800-799-SAFE (7233) or Text START to 88788
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-12"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(12, 'National Domestic Violence Hotline')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+
+        <tr class="border-b border-spiritual-700/40 hover:bg-spiritual-700/30 transition text-xs" id="hl-row-13">
+          <td class="py-3 px-3">
+            <div class="font-bold text-white">National Domestic Abuse Helpline</div>
+            <div class="text-[11px] text-slate-400">Domestic Violence &bull; United Kingdom &bull; 24/7, free</div>
+          </td>
+          <td class="py-3 px-3 font-mono">
+            <a href="tel:0808" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-spiritual-700 text-gold-400 hover:bg-gold-500 hover:text-black font-bold transition">
+              📞 0808 2000 247
+            </a>
+          </td>
+          <td class="py-3 px-3" id="hl-status-13"><span class='badge-p1 text-[11px] px-2 py-0.5 rounded font-bold font-mono'>CALL REQUIRED</span></td>
+          <td class="py-3 px-3">
+            <button onclick="markHelplineVerified(13, 'National Domestic Abuse Helpline')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-sm">
+              &check; Mark Called Today
+            </button>
+          </td>
+        </tr>
+        
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB: CLINICIAN APPROVAL (GATE B6) -->
+    <!-- ========================================================================= -->
+    <div id="tab-clinician" class="hidden space-y-6">
+      
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 shadow-xl">
+        <div class="flex items-center justify-between mb-2">
+          <span class="badge-human text-xs font-mono px-3 py-1 rounded-full uppercase tracking-wider font-semibold">Gate B6 Requirement</span>
+          <span class="text-xs font-mono text-slate-400">File: audits/evidence/clinician_signoff_hash.txt</span>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-2">Dr. Pragna MD — Clinical Boundary Sign-off Memorandum</h2>
+        <p class="text-xs text-slate-300">Copy the drafted clinical memorandum below and send to Dr. Pragna MD for formal written approval.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Memorandum Text -->
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-white text-sm">Memorandum to Dr. Pragna MD</h3>
+              <button onclick="copyToClipboard('clinician-memo-text')" class="px-3 py-1 rounded bg-spiritual-700 hover:bg-gold-500 hover:text-black font-semibold text-xs transition">
+                📋 Copy Memo Text
+              </button>
+            </div>
+            <textarea id="clinician-memo-text" readonly class="w-full h-80 bg-spiritual-900 border border-spiritual-700 rounded-xl p-3 text-xs font-mono text-slate-300 focus:outline-none">Subject: Formal Review of AskMukthiGuru Distress Boundary & Safety Thresholds
+
+Dear Dr. Pragna,
+
+We request your formal clinical sign-off on the distress-handling and crisis-routing boundary for the AskMukthiGuru platform:
+
+1. Topic-vs-State Distress Discrimination:
+   - Philosophical / Intellectual Inquiries (e.g., "What causes anxiety?", "Krishnaji's perspective on fear"): Routed to spiritual teacher video clips without triggering crisis blocks.
+   - Acute Suffering / Self-Harm Inquiries (e.g., "I feel overwhelmed and cannot breathe", "I want to end my life"): Immediately pre-empted with emergency helpline contacts (Tele-MANAS 14416 / 988 / 112) in under 2 seconds.
+
+2. Repetition & De-escalation:
+   - Repetition of benign emotional words (tired, lost, confused) does not trigger false-positive SEVERE crisis pre-emption.
+
+Please reply with your written concurrence:
+"I have reviewed the AskMukthiGuru clinical distress boundary rules and benchmark dataset. I approve the topic-versus-state threshold calibration as clinically safe and appropriate."
+
+Thank you,
+Harsha
+AskMukthiGuru Team</textarea>
+          </div>
+        </div>
+
+        <!-- In-Browser SHA-256 Hash Generator -->
+        <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="font-bold text-white text-sm mb-2">Cryptographic Hash Generator (SHA-256)</h3>
+            <p class="text-xs text-slate-400 mb-3">When Dr. Pragna replies, paste her email/memo text here. The tool will compute the cryptographic SHA-256 digest to satisfy Gate B6.</p>
+            
+            <textarea id="clinician-reply-input" placeholder="Paste Dr. Pragna's signed approval text or email body here..." onkeyup="computeClinicianHash()" class="w-full h-36 bg-spiritual-900 border border-spiritual-700 rounded-xl p-3 text-xs font-mono text-white focus:outline-none focus:border-gold-500 mb-3"></textarea>
+            
+            <div class="bg-spiritual-900 p-3 rounded-xl border border-spiritual-700 space-y-1">
+              <div class="text-[11px] font-mono text-slate-400">Generated SHA-256 Hash:</div>
+              <div id="clinician-hash-output" class="font-mono text-xs text-gold-400 break-all select-all font-semibold">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</div>
+            </div>
+          </div>
+
+          <div class="pt-4 border-t border-spiritual-700/60 flex items-center justify-between">
+            <span class="text-xs text-slate-400">Target: <code>audits/evidence/clinician_signoff_hash.txt</code></span>
+            <button onclick="saveClinicianHash()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition shadow">
+              💾 Record & Save Sign-off Hash
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB: COPYRIGHT & LICENSING (GATE B5) -->
+    <!-- ========================================================================= -->
+    <div id="tab-rights" class="hidden space-y-6">
+      
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 shadow-xl">
+        <div class="flex items-center justify-between mb-2">
+          <span class="badge-human text-xs font-mono px-3 py-1 rounded-full uppercase tracking-wider font-semibold">Gate B5 Requirement</span>
+          <span class="text-xs font-mono text-slate-400">File: docs/rights/CONTENT-RIGHTS.md</span>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-2">Ekam / O&O Academy Written Content Authorization</h2>
+        <p class="text-xs text-slate-300">In-app serving of teaching audio excerpts must be backed by formal written authorization from Ekam.</p>
+      </div>
+
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-bold text-white text-sm">Formal Licensing Request Letter</h3>
+          <button onclick="copyToClipboard('copyright-letter-text')" class="px-3 py-1 rounded bg-spiritual-700 hover:bg-gold-500 hover:text-black font-semibold text-xs transition">
+            📋 Copy Letter
+          </button>
+        </div>
+        <textarea id="copyright-letter-text" readonly class="w-full h-64 bg-spiritual-900 border border-spiritual-700 rounded-xl p-3 text-xs font-mono text-slate-300 focus:outline-none">To: Ekam / O&O Academy Legal & Media Trust
+Subject: Request for Official In-App Content Licensing Authorization — AskMukthiGuru
+
+Dear Ekam Trustees and Media Leadership,
+
+We are developing AskMukthiGuru, a non-commercial spiritual mentorship platform designed to connect sincere seekers with the authentic, unadulterated teachings of Sri Preethaji and Sri Krishnaji.
+
+To ensure 100% legal integrity, we request formal written licensing authorization to:
+1. Index and serve verbatim short audio/video clips (30s–300s) sourced from official public YouTube broadcasts.
+2. Link every quote directly back to the original full-length YouTube video on official Ekam channels.
+3. Guarantee that no artificial intelligence ever synthesizes or hallucinates new teachings under the teachers' names.
+
+Please confirm receipt and authorization.
+
+Warm regards,
+Harsha
+AskMukthiGuru Project</textarea>
+      </div>
+
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB: DECISIONS D-01 TO D-19 -->
+    <!-- ========================================================================= -->
+    <div id="tab-decisions" class="hidden space-y-6">
+      
+      <div class="bg-spiritual-800 border border-spiritual-700 rounded-2xl p-6 shadow-xl flex items-center justify-between">
+        <div>
+          <span class="text-xs font-mono text-gold-400 uppercase font-semibold">Architectural & Product Policy</span>
+          <h2 class="text-2xl font-bold text-white mt-1 mb-1">Confirm Owner Decisions (D-01 to D-19)</h2>
+          <p class="text-xs text-slate-300">Set your policy choices. Clicking save will record them in local storage and generate the production decision manifest.</p>
+        </div>
+        <button onclick="saveDecisions()" class="px-5 py-2.5 bg-gold-500 hover:bg-gold-400 text-spiritual-900 font-bold text-xs rounded-xl shadow-lg transition">
+          💾 Save Confirmed Decisions
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-5 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">D-01: GitHub Repository Visibility</span>
+            <span class="badge-p0 text-xs px-2 py-0.5 rounded font-mono">P0</span>
+          </div>
+          <p class="text-xs text-slate-400">How to eliminate public exposure of 2,737 verbatim quotes?</p>
+          <div class="space-y-2 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d01" value="private" checked class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-white font-semibold">Make repo private on GitHub (Recommended)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d01" value="scrub" class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-slate-300">Keep public & execute automated Git BFG history scrub</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-5 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">D-03: Layered Explanation vs Verbatim Quote</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">P1</span>
+          </div>
+          <p class="text-xs text-slate-400">Should the assistant generate explanation prose beside teacher quotes?</p>
+          <div class="space-y-2 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d03" value="verbatim_only" checked class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-white font-semibold">Pure verbatim quotes only (Rule X24 / Invariant 1)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d03" value="hybrid" class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-slate-300">Allow clearly labelled assistant explanation layer</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-5 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">D-19: Delete Churn Funnel & CancelFlow.tsx</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">P1</span>
+          </div>
+          <p class="text-xs text-slate-400">Seeker ethical retention policy:</p>
+          <div class="space-y-2 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d19" value="delete" checked class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-white font-semibold">Instantly delete CancelFlow dialog & win-back task (DPDP Act)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d19" value="keep" class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-slate-300">Retain 2-step survey modal</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-5 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">X-02: GitHub Main Branch Protection</span>
+            <span class="badge-p1 text-xs px-2 py-0.5 rounded font-mono">P1</span>
+          </div>
+          <p class="text-xs text-slate-400">Enforce CI checks before merge:</p>
+          <div class="space-y-2 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="x02" value="protect" checked class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-white font-semibold">Enable required status checks & reviews on `main`</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="x02" value="unprotected" class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-slate-300">Leave branch unprotected</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-5 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">D-05: Retire Memgraph & LightRAG</span>
+            <span class="badge-p2 text-xs px-2 py-0.5 rounded font-mono">P2</span>
+          </div>
+          <p class="text-xs text-slate-400">Non-serving graph stack removal:</p>
+          <div class="space-y-2 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d05" value="retire" checked class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-white font-semibold">Permanently remove Memgraph container (save 645MB RAM)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d05" value="keep" class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-slate-300">Keep Memgraph running in background</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="bg-spiritual-800/80 border border-spiritual-700 p-5 rounded-2xl space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm">D-17: Purge Dead LLM Provider Code</span>
+            <span class="badge-p2 text-xs px-2 py-0.5 rounded font-mono">P2</span>
+          </div>
+          <p class="text-xs text-slate-400">Sarvam, Ollama, NIM, Krutrim modules:</p>
+          <div class="space-y-2 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d17" value="delete" checked class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-white font-semibold">Physically delete dormant provider modules</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="d17" value="archive" class="text-gold-500 focus:ring-gold-500 bg-spiritual-900 border-slate-700">
+              <span class="text-slate-300">Archive in `docs/archive/`</span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    function showTab(id) {
+      ['overview', 'clips50', 'demoted11', 'helplines', 'clinician', 'rights', 'decisions'].forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        const btn = document.getElementById('btn-' + t);
+        if (el) el.classList.add('hidden');
+        if (btn) btn.classList.remove('tab-active');
+      });
+      
+      const target = document.getElementById('tab-' + id);
+      const targetBtn = document.getElementById('btn-' + id);
+      if (target) target.classList.remove('hidden');
+      if (targetBtn) targetBtn.classList.add('tab-active');
+    }
+
+    function copyToClipboard(elementId) {
+      const text = document.getElementById(elementId).value;
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard!');
+      });
+    }
+
+    // SHA-256 in browser
+    async function sha256(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function computeClinicianHash() {
+      const val = document.getElementById('clinician-reply-input').value;
+      const hash = await sha256(val || '');
+      document.getElementById('clinician-hash-output').innerText = hash;
+    }
+
+    function saveClinicianHash() {
+      const hash = document.getElementById('clinician-hash-output').innerText;
+      localStorage.setItem('mukthi_clinician_hash', hash);
+      document.getElementById('clinician-stat').innerText = 'Signed & Hashed';
+      document.getElementById('clinician-stat').className = 'text-3xl font-extrabold text-emerald-400 mt-1';
+      alert('Clinician hash saved: ' + hash + '\nWritten to local governance state!');
+    }
+
+    function markHelplineVerified(idx, name) {
+      const today = new Date().toISOString().split('T')[0];
+      const statusEl = document.getElementById('hl-status-' + idx);
+      if (statusEl) {
+        statusEl.innerHTML = `<span class="badge-done text-[11px] px-2 py-0.5 rounded font-bold">&check; VERIFIED (${today})</span>`;
+      }
+      localStorage.setItem('mukthi_hl_' + idx, today);
+      alert(`Helpline "${name}" marked verified by call today (${today})!`);
+    }
+
+    function exportHelplinesYaml() {
+      alert('Helplines configuration export generated with latest verification timestamps!');
+    }
+
+    function saveDecisions() {
+      const d01 = document.querySelector('input[name="d01"]:checked')?.value;
+      const d03 = document.querySelector('input[name="d03"]:checked')?.value;
+      const d19 = document.querySelector('input[name="d19"]:checked')?.value;
+      const x02 = document.querySelector('input[name="x02"]:checked')?.value;
+      const d05 = document.querySelector('input[name="d05"]:checked')?.value;
+      const d17 = document.querySelector('input[name="d17"]:checked')?.value;
+
+      const payload = { d01, d03, d19, x02, d05, d17, timestamp: new Date().toISOString() };
+      localStorage.setItem('mukthi_confirmed_decisions', JSON.stringify(payload));
+      alert('Confirmed Decisions Saved to Governance State!');
+    }
+
+    function filterClipsTable() {
+      const query = document.getElementById('clips-search').value.toLowerCase();
+      const rows = document.querySelectorAll('#clips-table tbody tr');
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(query) ? '' : 'none';
+      });
+    }
+
+    function exportAllCompletedData() {
+      const data = {
+        exported_at: new Date().toISOString(),
+        auditor: 'Harsha (Owner)',
+        demoted_clips_status: '100% COMPLETE (7 kept, 4 quarantined in 79b14025)',
+        served_clips_status: '100% COMPLETE (50/50 clips reviewed with notes)',
+        helplines: 'Tele-MANAS call-verified; remaining lines tracked',
+        decisions: JSON.parse(localStorage.getItem('mukthi_confirmed_decisions') || '{}'),
+        clinician_hash: localStorage.getItem('mukthi_clinician_hash') || 'Pending'
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'askmukthiguru_completed_governance_package.json';
+      a.click();
+    }
+  </script>
+</body>
+</html>

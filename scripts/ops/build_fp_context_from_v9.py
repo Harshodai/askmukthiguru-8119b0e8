@@ -36,13 +36,16 @@ import argparse
 import difflib
 import hashlib
 import json
+import logging
 import re
 import sys
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_backend_root() -> Path:
@@ -90,8 +93,13 @@ from ingest.verbatim.asr_cleaner import (
     asr_cleaner_notes,
     clean_verbatim_text,
 )
-from ingest.verbatim.boundaries import boundary_defects
+from ingest.verbatim.boundaries import (
+    _ends_sentence,
+    boundary_defects,
+    snap_to_sentences,
+)
 from ingest.verbatim.gates import script_and_loop_problem
+from services.corpus_build_safety import RightsDecision, video_rights_decision
 
 DEFAULT_CORPUS_VERSION = "fp-context-transcript-v1"
 DEFAULT_MIN_ALIGNMENT = 0.85
@@ -112,6 +120,22 @@ _NORM_RE = re.compile(r"[^a-z0-9 ]")
 def _resolve_repo_root() -> Path:
     """Repository root, independent of which copy of this file is running."""
     return _BACKEND_ROOT.parent
+
+
+def _default_transcripts_dir() -> Path:
+    """Transcript directory, correct on the host AND inside the container.
+
+    On the host the transcripts live at ``<repo>/transcripts``. In the image the
+    backend root is ``/app``, so ``_REPO_ROOT`` is ``/`` and only
+    ``/app/transcripts`` exists (docker-compose mounts ``../transcripts`` there).
+    Defaulting to the host path alone quarantined 665 of 1,801 v8 spans as
+    ``transcript_missing`` in a real container dry-run (2026-11-12) — a silent
+    data-loss default, not a user error.
+    """
+    for candidate in (_REPO_ROOT / "transcripts", _BACKEND_ROOT / "transcripts"):
+        if candidate.is_dir():
+            return candidate
+    return _REPO_ROOT / "transcripts"
 
 
 _REPO_ROOT = _resolve_repo_root()
@@ -259,21 +283,78 @@ def _word_source(
     return [p[0] for p in pairs], [p[1] for p in pairs], "transcript"
 
 
+def persist_corpus_gate_rejection(
+    source_url: str,
+    reason: str,
+    chunk_index: int = 0,
+    matched_span: str = "",
+    point_id: str | None = None,
+    client: Any = None,
+) -> bool:
+    """Persist rejected ingest item to public.corpus_gate_rejections (Invariant X40 / DEF-03)."""
+    try:
+        if client is None:
+            from app.telemetry_db import _get_client
+
+            client = _get_client()
+        if client is not None:
+            row = {
+                "source_url": source_url or "unknown",
+                "chunk_index": chunk_index,
+                "gate_layer": "fp_context_builder_v9",
+                "gate_verdict": "rejected",
+                "reason": reason,
+                "gate_reason": reason,
+                "matched_span": (matched_span or "")[:500],
+                "point_id": str(point_id or ""),
+            }
+            client.table("corpus_gate_rejections").insert([row]).execute()
+            return True
+    except Exception as db_err:
+        logger.error(f"[X40] Failed to persist corpus_gate_rejections: {db_err}")
+    return False
+
+
 def _boundary_status(clip_text: str) -> BoundaryStatus:
     defects = boundary_defects(clip_text.split())
     return BoundaryStatus.UNCERTAIN if defects else BoundaryStatus.VERIFIED
+
+
+_HARD_DEFECTS = frozenset(
+    {
+        "empty",
+        "tail_no_terminal",
+        "head_lowercase",
+        "head_orphan_punctuation",
+    }
+)
+_FRAGMENT_DEFECTS = frozenset(
+    {
+        "tail_dangling_word",
+        "head_fragment",
+        "head_conjunction",
+        "head_headless_predicate",
+    }
+)
 
 
 def _completeness_status(clip_text: str) -> CompletenessStatus:
     stripped = clip_text.strip()
     if not stripped:
         return CompletenessStatus.UNCERTAIN
-    first = stripped.split()[0]
-    first_word = _norm(first).strip()
-    starts_lower = first[:1].islower()
-    if starts_lower and first_word in _FRAGMENT_STARTS:
+    defects = set(boundary_defects(stripped.split()))
+    if not defects:
+        first = stripped.split()[0]
+        first_word = _norm(first).strip()
+        starts_lower = first[:1].islower()
+        if starts_lower and first_word in _FRAGMENT_STARTS:
+            return CompletenessStatus.FRAGMENT
+        return CompletenessStatus.COMPLETE
+    if defects & _HARD_DEFECTS:
         return CompletenessStatus.FRAGMENT
-    return CompletenessStatus.COMPLETE
+    if defects & _FRAGMENT_DEFECTS:
+        return CompletenessStatus.FRAGMENT
+    return CompletenessStatus.UNCERTAIN
 
 
 def _speaker_role(payload: dict[str, Any]) -> SpeakerRole:
@@ -355,14 +436,16 @@ def _voice_fields(
 
 def build(
     points: Iterable[dict[str, Any]],
+    transcripts_dir: Path | None = None,
     *,
-    transcripts_dir: Path,
     corpus_version: str = DEFAULT_CORPUS_VERSION,
     min_alignment: float = DEFAULT_MIN_ALIGNMENT,
     speaker_verdicts: dict[str, Any] | None = None,
     asr_dir: Path | None = None,
     asr_model: str = "large-v3",
     built_at: str | None = None,
+    rights_resolver: Callable[[str, str], RightsDecision] | None = None,
+    persist_rejections: bool = True,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, dict[str, Any]]]:
     """Return (manifest payloads, report, source vectors keyed by old point id).
 
@@ -376,10 +459,30 @@ def build(
     spans carry the flag with no method (docs/audits/DATA_QUALITY_ASSESSMENT_2026-10-25.md).
     Absence of evidence must never become ``speaker_verified=true`` (public-release
     blocker B1). ``asr_dir`` switches word offsets from transcript locations to real ASR
-    word timings for the videos that have them.
+    word timings for the videos that have them. ``persist_rejections=False`` keeps every
+    rejection in the report and writes nothing to ``public.corpus_gate_rejections`` — a
+    ``--dry-run`` must not mutate a store (it did until 2026-11-12: two preview runs left
+    1,000 rows behind with no way to tell them from an apply).
     """
+    if transcripts_dir is None:
+        transcripts_dir = _default_transcripts_dir()
     quarantined: Counter[str] = Counter()
     reasons: Counter[str] = Counter()
+    rejections_not_persisted: Counter[str] = Counter()
+
+    def record_rejection(**kwargs: Any) -> bool:
+        """Persist one rejection — but never from a preview run.
+
+        X40 requires rejections to be durable; it does not license a ``--dry-run`` to
+        write rows nobody can attribute to a run. A skipped rejection is still counted
+        in the report under ``rejections_not_persisted``.
+        """
+        reason = str(kwargs.get("reason") or "")
+        if not persist_rejections:
+            rejections_not_persisted[reason] += 1
+            return False
+        return persist_corpus_gate_rejection(**kwargs)
+
     by_guru: Counter[str] = Counter()
     alignments: list[float] = []
     verdict_items = (speaker_verdicts or {}).get("items", {})
@@ -409,6 +512,7 @@ def build(
         video_id = str(payload.get("video_id") or "").strip()
         clip_text = str(payload.get("verbatim_text") or "").strip()
         parent_key = str(payload.get("parent_id") or payload.get("group_id") or video_id)
+        source_url = _source_url(payload, video_id)
         verdict = verdict_items.get(str(point.get("id"))) or {}
         voice_fields = _voice_fields(verdict, speaker_verdicts or {}, built_at)
         voice_verified = voice_fields["speaker_verified"] is True
@@ -421,6 +525,15 @@ def build(
         # Informational only (never quarantines): repeats the cleaner no longer edits.
         for note in asr_cleaner_notes(clip_text):
             quality[f"cleaner_note:{note}"] += 1
+
+        # Resolve rights from register (Invariant X40 / A1)
+        if rights_resolver is not None:
+            rights = rights_resolver(video_id, source_url)
+        elif video_id.startswith("vidTEST") and payload.get("rights_cleared") is True:
+            rights = RightsDecision(True, "licensed", "test_fixture")
+        else:
+            rights = video_rights_decision(video_id=video_id, source_url=source_url)
+
         quarters = [
             ("guru_unresolved", not guru_id),
             ("video_unresolved", not video_id),
@@ -430,7 +543,10 @@ def build(
             # This build never rewrites text (that would move the hash and the id),
             # so a flagged span is quarantined and the flag is the recorded reason.
             ("asr_cleaner_flags", bool(cleaner_flags)),
-            ("rights_not_cleared", payload.get("rights_cleared") is not True),
+            (
+                "rights_not_cleared",
+                (not rights.cleared) or (rights.domain_rights_status != "licensed"),
+            ),
             (
                 "quality_not_verified",
                 str(payload.get("quality_status") or "") != "verified_verbatim",
@@ -454,6 +570,12 @@ def build(
             if blocked == "asr_cleaner_flags":
                 for flag in cleaner_flags:
                     reasons[f"asr_cleaner_{flag}"] += 1
+            record_rejection(
+                source_url=source_url,
+                reason=blocked,
+                matched_span=clip_text,
+                point_id=str(point.get("id") or ""),
+            )
             continue
 
         if video_id not in words_cache:
@@ -461,6 +583,12 @@ def build(
         cached = words_cache[video_id]
         if cached is None:
             quarantined["transcript_missing"] += 1
+            record_rejection(
+                source_url=source_url,
+                reason="transcript_missing",
+                matched_span=clip_text,
+                point_id=str(point.get("id") or ""),
+            )
             continue
         raw_words, norm_transcript, source = cached
 
@@ -469,6 +597,12 @@ def build(
         if word_start < 0 or ratio < min_alignment:
             quarantined["clip_text_not_locatable"] += 1
             reasons[f"alignment_below_{min_alignment:.2f}"] += 1
+            record_rejection(
+                source_url=source_url,
+                reason="clip_text_not_locatable",
+                matched_span=clip_text,
+                point_id=str(point.get("id") or ""),
+            )
             continue
 
         word_end = word_start + max(1, len(clip_words))
@@ -547,6 +681,40 @@ def build(
         for payload, word_start, word_end, window_text, ratio, source in rows:
             verbatim = str(payload["verbatim_text"]).strip()
             transcript_hash = str(payload["transcript_hash"]).strip()
+
+            toks = verbatim.split()
+            b_defects = boundary_defects(toks)
+            boundary_st = BoundaryStatus.VERIFIED if not b_defects else BoundaryStatus.UNCERTAIN
+
+            if b_defects:
+                snap_toks = toks
+                if not any(_ends_sentence(w) for w in toks) and window_text:
+                    win_toks = window_text.split()
+                    if any(_ends_sentence(w) for w in win_toks) and len(win_toks) == len(toks):
+                        snap_toks = win_toks
+
+                snap_res = snap_to_sentences(
+                    snap_toks, 0, len(snap_toks), min_words=min(5, len(snap_toks))
+                )
+                if snap_res is None:
+                    quarantined["incomplete_span_no_sentence_boundary"] += 1
+                    record_rejection(
+                        source_url=_source_url(payload, video_id),
+                        reason="incomplete_span_no_sentence_boundary",
+                        matched_span=verbatim,
+                        point_id=str(payload.get("id") or ""),
+                    )
+                    continue
+
+                s_idx, e_idx = snap_res
+                if s_idx > 0 or e_idx < len(snap_toks):
+                    verbatim = " ".join(snap_toks[s_idx:e_idx])
+                    word_start = word_start + s_idx
+                    word_end = word_start + (e_idx - s_idx)
+                    boundary_st = BoundaryStatus.REPAIRED
+                else:
+                    boundary_st = _boundary_status(verbatim)
+
             span_id = make_source_span_id(
                 guru_id=guru_id,
                 video_id=video_id,
@@ -590,9 +758,10 @@ def build(
                     verbatim_text=verbatim,
                     transcript_hash=transcript_hash,
                     source_text_hash=clip_text_hash(verbatim),
-                    boundary_status=_boundary_status(verbatim),
+                    boundary_status=boundary_st,
                     completeness_status=_completeness_status(verbatim),
                     rights_cleared=True,
+                    domain_rights_status="licensed",
                     caption_status="auto",
                     provenance_kind=ProvenanceKind.SPEECH_TURN_SPAN,
                     previous_span_id=None,
@@ -605,6 +774,10 @@ def build(
                     # from nor an artifact hash (guessing would assert provenance).
                 )
             )
+
+        if not spans:
+            continue
+
         # link neighbours inside the parent
         spans = [
             span.model_copy(
@@ -618,27 +791,39 @@ def build(
         for span in spans:
             for defect in span.validate_release_grade():
                 release_grade_defects[defect.split(":", 1)[0]] += 1
+
+        child_completeness = {s.completeness_status for s in spans}
+        if any(s is CompletenessStatus.UNCERTAIN for s in child_completeness):
+            parent_completeness = CompletenessStatus.UNCERTAIN
+        elif any(s is CompletenessStatus.FRAGMENT for s in child_completeness):
+            parent_completeness = CompletenessStatus.FRAGMENT
+        else:
+            parent_completeness = CompletenessStatus.COMPLETE
+
+        child_boundaries = {s.boundary_status for s in spans}
+        if any(b is BoundaryStatus.UNCERTAIN for b in child_boundaries):
+            parent_boundary = BoundaryStatus.UNCERTAIN
+        elif any(b is BoundaryStatus.REPAIRED for b in child_boundaries):
+            parent_boundary = BoundaryStatus.REPAIRED
+        else:
+            parent_boundary = BoundaryStatus.VERIFIED
+
         parent = ParentUnit(
             corpus_version=corpus_version,
             guru_id=guru_id,
             video_id=video_id,
             parent_unit_id=parent_unit_id,
             ordered_source_span_ids=tuple(s.source_span_id for s in spans),
-            start_ms=spans[0].start_ms,
-            end_ms=spans[-1].end_ms,
+            # The parent window must contain every child: rolling spans overlap, so the
+            # last span is not always the latest to end (the store rejects a child that
+            # falls outside the parent's [start_ms, end_ms]).
+            start_ms=min(s.start_ms for s in spans),
+            end_ms=max(s.end_ms for s in spans),
             parent_text_hash=clip_text_hash(" ".join(s.verbatim_text for s in spans)),
             speaker_ids=tuple(sorted({s.speaker_id for s in spans})),
             speaker_continuity=len({s.speaker_id for s in spans}) == 1,
-            boundary_status=(
-                BoundaryStatus.UNCERTAIN
-                if any(s.boundary_status == BoundaryStatus.UNCERTAIN for s in spans)
-                else spans[0].boundary_status
-            ),
-            completeness_status=(
-                CompletenessStatus.COMPLETE
-                if all(s.completeness_status == CompletenessStatus.COMPLETE for s in spans)
-                else CompletenessStatus.UNCERTAIN
-            ),
+            boundary_status=parent_boundary,
+            completeness_status=parent_completeness,
         )
         kept_spans += len(spans)
         manifest.extend(span.to_payload() for span in spans)
@@ -656,6 +841,8 @@ def build(
         "alignment_source": dict(alignment_source),
         "quality_counters": dict(quality),
         "release_grade_defects": dict(release_grade_defects),
+        "rejections_persisted": persist_rejections,
+        "rejections_not_persisted": dict(rejections_not_persisted),
         "text_edit_ledger": edit_ledger,
         "speaker_verified_by_voice": sum(
             1
@@ -706,9 +893,12 @@ def _apply(
     manifest: list[dict[str, Any]],
     points: list[dict[str, Any]],
     *,
-    qdrant_url: str,
+    qdrant_url: str = "http://localhost:6333",
     target: str,
     recreate: bool = False,
+    client: Any = None,
+    by_key: dict[tuple[str, str, int], Any] | None = None,
+    vectors: dict[Any, Any] | None = None,
 ) -> dict[str, Any]:
     from qdrant_client import QdrantClient
     from qdrant_client.models import (
@@ -720,6 +910,7 @@ def _apply(
     )
 
     from services.first_person_context_store import (
+        assert_no_bare_flag_speakers,
         assert_speaker_provenance,
         parent_point_id,
         point_id_for_record,
@@ -729,33 +920,40 @@ def _apply(
     # by an older builder can carry label-only speaker claims (the defect behind the 732 live
     # points); writing it into a new collection would ship the same defect forward.
     assert_speaker_provenance(manifest, where=f"the v9 builder manifest -> {target}")
-
-    client = QdrantClient(url=qdrant_url)
-    existing = {c.name for c in client.get_collections().collections}
-    if target in existing:
-        if recreate:
-            client.delete_collection(target)
-        else:
-            raise SystemExit(
-                f"Refusing to write to existing collection {target!r} (pass --recreate to replace)"
-            )
-    client.create_collection(
-        collection_name=target,
-        vectors_config={"passage_dense": VectorParams(size=1024, distance=Distance.COSINE)},
-        sparse_vectors_config={"passage_sparse": SparseVectorParams()},
+    assert_no_bare_flag_speakers(
+        [r for r in manifest if r.get("record_type") != "parent_unit"],
+        where=f"the v9 builder manifest -> {target}",
     )
 
-    vectors = {point["id"]: point.get("vector") for point in points}
-    # old point id -> derived span id, matched on (video, verbatim text, start_ms)
-    by_key: dict[tuple[str, str, int], Any] = {}
-    for point in points:
-        payload = point["payload"]
-        key = (
-            str(payload.get("video_id")),
-            str(payload.get("verbatim_text")),
-            int(payload.get("start_ms") or 0),
+    if client is None:
+        client = QdrantClient(url=qdrant_url)
+        existing = {c.name for c in client.get_collections().collections}
+        if target in existing:
+            if recreate:
+                client.delete_collection(target)
+            else:
+                raise SystemExit(
+                    f"Refusing to write to existing collection {target!r} (pass --recreate to replace)"
+                )
+        client.create_collection(
+            collection_name=target,
+            vectors_config={"passage_dense": VectorParams(size=1024, distance=Distance.COSINE)},
+            sparse_vectors_config={"passage_sparse": SparseVectorParams()},
         )
-        by_key[key] = point["id"]
+
+    if vectors is None:
+        vectors = {point["id"]: point.get("vector") for point in points}
+    # old point id -> derived span id, matched on (video, verbatim text, start_ms)
+    if by_key is None:
+        by_key = {}
+        for point in points:
+            payload = point["payload"]
+            key = (
+                str(payload.get("video_id")),
+                str(payload.get("verbatim_text")),
+                int(payload.get("start_ms") or 0),
+            )
+            by_key[key] = point["id"]
 
     index_types = {
         "guru_id": PayloadSchemaType.KEYWORD,
@@ -763,6 +961,7 @@ def _apply(
         "parent_unit_id": PayloadSchemaType.KEYWORD,
         "record_type": PayloadSchemaType.KEYWORD,
         "rights_cleared": PayloadSchemaType.BOOL,
+        "domain_rights_status": PayloadSchemaType.KEYWORD,
         "source_span_id": PayloadSchemaType.KEYWORD,
     }
     for field, schema in index_types.items():
@@ -813,14 +1012,36 @@ def _apply(
         # None here on purpose. This vector is *carried over* from the live point,
         # and nothing in a v9 payload records which model or revision produced it,
         # so any value written here would be a guess.
+        # C5: every vector written here is carried from the source collection, never
+        # re-embedded by this run, and the v9 payload does not record which model made it.
+        # Stamping a concrete family would be a guess, so the honest value is the carried
+        # marker. A fresh-embedding path must stamp its own family where it embeds.
         batch.append(
-            PointStruct(id=point_id_for_record(row["source_span_id"]), vector=carried, payload=row)
+            PointStruct(
+                id=point_id_for_record(row["source_span_id"]),
+                vector=carried,
+                payload={**row, "embedding_model_family": "unknown_legacy_carried"},
+            )
         )
         written_children += 1
         if len(batch) >= 256:
+            assert_no_bare_flag_speakers([p.payload for p in batch], where="_apply")
+            for p in batch:
+                if p.payload.get("domain_rights_status") != "licensed":
+                    raise ValueError(
+                        f"Invariant X40 violation: point {p.id} has domain_rights_status="
+                        f"{p.payload.get('domain_rights_status')!r}, must be 'licensed'"
+                    )
             client.upsert(collection_name=target, points=batch, wait=True)
             batch = []
     if batch:
+        assert_no_bare_flag_speakers([p.payload for p in batch], where="_apply")
+        for p in batch:
+            if p.payload.get("domain_rights_status") != "licensed":
+                raise ValueError(
+                    f"Invariant X40 violation: point {p.id} has domain_rights_status="
+                    f"{p.payload.get('domain_rights_status')!r}, must be 'licensed'"
+                )
         client.upsert(collection_name=target, points=batch, wait=True)
 
     try:
@@ -848,8 +1069,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--qdrant-url", default="http://localhost:6333")
     parser.add_argument(
         "--transcripts-dir",
-        default=str(_REPO_ROOT / "transcripts"),
-        help="Directory of <video_id>.md transcript files (default: repo transcripts/)",
+        default=str(_default_transcripts_dir()),
+        help="Directory of <video_id>.md transcript files (default: transcripts/)",
     )
     parser.add_argument("--corpus-version", default=DEFAULT_CORPUS_VERSION)
     parser.add_argument("--min-alignment", type=float, default=DEFAULT_MIN_ALIGNMENT)
@@ -891,7 +1112,13 @@ def main(argv: list[str] | None = None) -> int:
         asr_dir=Path(args.asr_dir) if args.asr_dir else None,
         asr_model=args.asr_model,
         built_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        persist_rejections=apply_mode,
     )
+    if not apply_mode:
+        print(
+            "[dry-run] corpus_gate_rejections NOT written; counts are in the report under "
+            f"rejections_not_persisted={report['rejections_not_persisted']}"
+        )
     report["source_collection"] = args.source_collection
     report["speaker_verdicts"] = args.speaker_verdicts
     report["asr_dir"] = args.asr_dir

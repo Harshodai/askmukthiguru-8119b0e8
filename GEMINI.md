@@ -4,7 +4,7 @@
 - After get the plan, make sure you Write the plan to .claude/tasks/TASK_NAME.md.
 - The plan should be a detailed implementation plan and the reasoning behind them, as well as tasks broken down.
 - If the task require external knowledge or certain package, also research to get latest knowledge (Use Task tool for research)
-- Don't over plan it, always think MVP.
+- Always create production-ready, production-grade plans (NEVER MVP or shortcut plans). Plans must be thorough, enterprise-grade, and battle-tested: covering end-to-end architecture, edge cases, failure modes, rollback mechanisms, security/invariants compliance, telemetry/observability, performance SLAs, and exhaustive test coverage.
 - Once you write the plan, firstly ask me to review it. Do not continue until I approve the plan.
 ### While implementing
 - You should update the plan as you work.

@@ -39,6 +39,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 
@@ -240,11 +241,62 @@ def _filter_by_region(helplines: Iterable[Helpline], region: str | None) -> tupl
     return matched or tuple(helplines)
 
 
-def _only_call_verified(helplines: Iterable[Helpline]) -> tuple[Helpline, ...]:
-    """Call-verified lines plus 112; the input unchanged when none qualify."""
+def _is_call_verified_and_fresh(helpline: Helpline, max_age_days: int | None = None) -> bool:
+    """Return True if the helpline is call-verified and within the freshness window (or 112)."""
+    if helpline.contact.strip() == "112":
+        # National emergency services (112) is officially listed and must never be test-called
+        return True
+    if not helpline.last_verified_by_call:
+        return False
+    if max_age_days is None:
+        max_age_days = getattr(settings, "helpline_max_verified_age_days", 180)
+    try:
+        verified_date = date.fromisoformat(str(helpline.last_verified_by_call).strip())
+        age_days = (date.today() - verified_date).days
+        return age_days <= max_age_days
+    except (ValueError, TypeError):
+        return False
+
+
+def _only_call_verified(
+    helplines: Iterable[Helpline],
+    max_age_days: int | None = None,
+) -> tuple[Helpline, ...]:
+    """Call-verified lines within freshness window plus 112; fallback to Tele-MANAS/112 when none qualify."""
+    if max_age_days is None:
+        max_age_days = getattr(settings, "helpline_max_verified_age_days", 180)
     all_lines = tuple(helplines)
-    kept = tuple(h for h in all_lines if h.last_verified_by_call or h.contact.strip() == "112")
-    return kept or all_lines
+    kept = tuple(h for h in all_lines if _is_call_verified_and_fresh(h, max_age_days))
+    # SAFE-004: 112 always qualifies (official listing), so it alone used to
+    # count as "a verified line" and the block lost Tele-MANAS once its call
+    # date aged out. A crisis block needs a support line, not only the
+    # emergency number: fall back unless a call-verified non-112 line remains.
+    if any(h.contact.strip() != "112" for h in kept):
+        return kept
+    # Fallback strictly to verified national line (Tele-MANAS, 112); never leak unverified numbers
+    fallback_national = tuple(
+        h for h in all_lines if "tele-manas" in h.name.lower() or h.contact.strip() == "112"
+    )
+    if fallback_national:
+        return fallback_national
+    return tuple(
+        h
+        for h in _FALLBACK_HELPLINES
+        if "tele-manas" in h.name.lower() or h.contact.strip() == "112"
+    )
+
+
+# Owner decision 2026-11-07: the verified-only block lists India lines only
+# (SAFE-004), so a seeker in another country needs a route. No phone number:
+# an unverified foreign number is never shown (T4-07), and this is true anywhere.
+# English only; native-speaker review is D-22.
+OUTSIDE_INDIA_LINE = "If you are outside India, call your local emergency number now."
+
+
+def _with_outside_india_line(block: str) -> str:
+    if not block or OUTSIDE_INDIA_LINE in block:
+        return block
+    return f"{block}\n{OUTSIDE_INDIA_LINE}"
 
 
 def format_helplines_block(
@@ -253,6 +305,7 @@ def format_helplines_block(
     style: str = "bullet",
     intro: str = "🆘 If you're in immediate crisis, please reach out:",
     verified_only: bool = False,
+    max_age_days: int | None = None,
 ) -> str:
     """Render the helplines as a user-facing block.
 
@@ -265,15 +318,32 @@ def format_helplines_block(
                 * compact_two_line: 2-line maximum, India + International.
         intro:  Heading line. Pass "" to omit.
         verified_only: Keep only lines a human has confirmed by phone
-                (``last_verified_by_call``) plus the national emergency number
-                112, which is verified by its official listing and must never
-                be test-called. Use under a header that makes a promise such
-                as "available 24/7". If nothing qualifies the full list is
-                served: a crisis block must never be empty.
+                (``last_verified_by_call``) within ``max_age_days`` plus the
+                national emergency number 112, which is verified by its
+                official listing and must never be test-called. Use under a
+                header that makes a promise such as "available 24/7". If
+                nothing qualifies the verified national line is served: a
+                crisis block must never be empty or show unverified numbers.
+                The block ends with ``OUTSIDE_INDIA_LINE`` (owner decision
+                2026-11-07).
+        max_age_days: Freshness ceiling in days for ``last_verified_by_call``.
+                Defaults to settings.helpline_max_verified_age_days (180).
     """
-    helplines = _filter_by_region(get_helplines(), region)
+    block = _render_helplines(
+        _filter_by_region(get_helplines(), region), style, intro, verified_only, max_age_days
+    )
+    return _with_outside_india_line(block) if verified_only else block
+
+
+def _render_helplines(
+    helplines: tuple[Helpline, ...],
+    style: str,
+    intro: str,
+    verified_only: bool,
+    max_age_days: int | None,
+) -> str:
     if verified_only:
-        helplines = _only_call_verified(helplines)
+        helplines = _only_call_verified(helplines, max_age_days=max_age_days)
     if not helplines:
         return ""
 
@@ -308,15 +378,17 @@ def format_helplines_block(
     return "\n".join(lines)
 
 
-def format_support_line() -> str:
+def format_support_line(verified_only: bool = True) -> str:
     """One short, deterministic support line, India first (2026-10-05).
 
     Appended to every answer that ends in the DISTRESS intent, so a seeker who
     is struggling but below the crisis pre-emption tier still sees a human
-    number. Numbers come from helplines.yaml (Tele-MANAS, then 988 and
-    Samaritans when configured); nothing is hard-coded here.
+    number. Numbers come from helplines.yaml (Tele-MANAS, then verified regional
+    lines); unverified numbers are excluded when verified_only is True (T4-07).
     """
     helplines = get_helplines()
+    if verified_only:
+        helplines = _only_call_verified(helplines)
 
     def _pick(region: str, name_part: str) -> Helpline | None:
         return next(

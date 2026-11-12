@@ -23,7 +23,6 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import jwt
 import pytest
 
 # Ensure whatsapp_bot directory is importable
@@ -54,8 +53,6 @@ def setup_test_environment(tmp_path, monkeypatch):
     test_db = tmp_path / "test_wa.db"
     monkeypatch.setenv("WA_DB_PATH", str(test_db))
     monkeypatch.setattr(wa_bot, "WA_DB_PATH", str(test_db))
-    monkeypatch.setenv("JWT_SECRET", "test-secret-key-999")
-    monkeypatch.setattr(wa_bot, "JWT_SECRET", "test-secret-key-999")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "test_twilio_auth_token_xyz")
     monkeypatch.setattr(wa_bot, "TWILIO_AUTH_TOKEN", "test_twilio_auth_token_xyz")
     monkeypatch.setenv("META_APP_SECRET", "test_meta_app_secret_abc123")
@@ -276,19 +273,6 @@ def test_phone_sanitization():
     assert wa_bot.sanitize_phone("919876543210") == "919876543210"
 
 
-def test_jwt_minting_matches_wa_prefix():
-    """Verify JWT minting sets sub to wa-<phone> and is signed with JWT_SECRET."""
-    phone = "+919876543210"
-    token = wa_bot.mint_jwt(phone)
-    decoded = jwt.decode(token, "test-secret-key-999", algorithms=["HS256"])
-
-    assert decoded["sub"] == "wa-+919876543210"
-    assert decoded["email"] == "wa-919876543210@bot.local"
-    assert decoded["role"] == "authenticated"
-    assert decoded["iss"] == "askmukthiguru-wa-bot"
-    assert decoded["exp"] > time.time()
-
-
 def test_sqlite_message_persistence_and_isolation():
     """Verify conversation history is persisted and isolated between phones."""
     phone_a = "+919876543210"
@@ -371,7 +355,6 @@ def test_meta_immediate_acknowledgment(client, monkeypatch):
 def test_chat_turn_job_queue_polling():
     """Verify process_chat_turn polls job queue when backend returns 202 queued job_id."""
     phone = "+919876543210"
-    wa_bot.mint_jwt(phone)
 
     mock_chat_resp = {"job_id": "job_queue_test_123", "status": "queued"}
     mock_job_resp = MagicMock()

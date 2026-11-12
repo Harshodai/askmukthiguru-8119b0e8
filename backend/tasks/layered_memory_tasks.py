@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import time
 
 from celery_config import REDIS_URL, celery_app
+from tasks.worker_loop import run_in_worker_loop
 
 app = celery_app
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def process_batched_memories(self) -> dict:
             idle = now - last_ts
             if count >= TURN_THRESHOLD or (count > 0 and idle > IDLE_TIMEOUT):
                 try:
-                    asyncio.run(_refresh_persona_and_skills(user_id))
+                    run_in_worker_loop(_refresh_persona_and_skills(user_id))
                     r.set(key, json.dumps({"count": 0, "last_ts": now}))
                     processed += 1
                 except Exception as e:

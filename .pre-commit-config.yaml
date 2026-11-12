@@ -61,3 +61,9 @@ repos:
         entry: python3 scripts/guards/lesson_guards.py fp-writes
         language: system
         types: [python]
+      - id: guard-guru-literals
+        name: T8-02 teacher-name literals in runtime code only go down (guru_literal_baseline.txt)
+        entry: python3 scripts/guards/guru_literal_guard.py
+        language: system
+        pass_filenames: false
+        files: ^(backend/(app|rag|services|guardrails|domain|ingest)|src|scripts/guards)/|^backend/config/gurus\.yaml$

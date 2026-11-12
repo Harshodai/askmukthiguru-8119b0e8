@@ -351,7 +351,11 @@ def test_scorer_evaluates_candidate_2_on_candidate_1_rejection(monkeypatch) -> N
     monkeypatch.setattr(settings, "first_person_llm_rerank_enabled", False)
 
     clip1 = _make_clip("pt_1", "Some vague background anecdote.")
-    clip2 = _make_clip("pt_2", "Suffering is dissolved by awakening to oneness.")
+    # T4-01 dedups per video after the gates, so a fallback candidate must come
+    # from a second recording (as the real store always returned).
+    clip2 = _make_clip(
+        "pt_2", "Suffering is dissolved by awakening to oneness.", video_id="Vid2Sample0"
+    )
 
     mock_store = MagicMock()
     mock_store.search_hybrid.return_value = [clip1, clip2]
@@ -389,8 +393,11 @@ def test_scorer_reaches_candidate_3_after_candidate_1_rejection(monkeypatch) -> 
 
     clips = [
         _make_clip("pt_1", "Some vague background anecdote."),
-        _make_clip("pt_2", "Another tangentially related sentence."),
-        _make_clip("pt_3", "Suffering is dissolved by awakening to oneness."),
+        # One recording per candidate: T4-01 dedups per video after the gates.
+        _make_clip("pt_2", "Another tangentially related sentence.", video_id="Vid2Sample0"),
+        _make_clip(
+            "pt_3", "Suffering is dissolved by awakening to oneness.", video_id="Vid3Sample0"
+        ),
     ]
     mock_store = MagicMock()
     mock_store.search_hybrid.return_value = clips
@@ -467,7 +474,11 @@ def test_crisis_preemption_invariant_s4_executes_before_speculative_tasks(monkey
     )
 
     assert res.status == "crisis_redirect"
-    assert "988" in res.answer_text
+    # SAFE-004 (T4-07, owner decision 2026-11-06): the crisis block shows only
+    # call-verified lines. 988 has no recorded call date, so it is not shown;
+    # Tele-MANAS (call-verified 2026-09-26) is the support line.
+    assert "14416" in res.answer_text
+    assert "988" not in res.answer_text
     assert mock_store.search_hybrid.call_count == 0
     assert mock_llm.generate.call_count == 0
 

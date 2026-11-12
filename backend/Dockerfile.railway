@@ -13,7 +13,7 @@
 #   - Runtime uses malloc_trim + gc.collect to minimize resident memory (RSS)
 
 # ── Stage 1: Builder ─────────────────────────────────────────────────────────
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl gcc g++ make binutils && \
@@ -55,7 +55,7 @@ RUN find /opt/venv/lib -name "*.so*" -exec strip --strip-unneeded {} + 2>/dev/nu
     find /opt/venv -type f -name "*.a" -delete 2>/dev/null || true
 
 # ── Stage 2: Runtime ─────────────────────────────────────────────────────────
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1 AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ffmpeg libgomp1 && \
@@ -85,6 +85,11 @@ COPY --chown=appuser:appuser scripts/ops/rotate_brain_kek.py ./scripts/ops/rotat
 
 # OKF compiled index and memory files
 COPY --chown=appuser:appuser memory/ ./memory/
+
+# Pinned rights register (T3-01 / DATA-02). services/first_person_serving_contract.py
+# reads it at audits/evidence/... relative to /app; without it every clip is
+# unlicensed and the system abstains silently. Only this one file, not audits/.
+COPY --chown=appuser:appuser audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json ./audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json
 
 # Owner-approved crisis helplines (config/helplines.yaml at the repo root).
 # services/crisis_helplines.py resolves this to /config/helplines.yaml inside

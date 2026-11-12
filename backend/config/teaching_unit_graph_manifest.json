@@ -1,0 +1,13 @@
+{
+  "build_id": "build-efc1489ed387",
+  "built_at": "2026-11-07T11:08:57.307945+00:00",
+  "corpus_version": "fp-context-transcript-v1",
+  "qdrant_collection": "first_person_v10",
+  "qdrant_point_count": 4226,
+  "node_count": 2760,
+  "edge_count": 8110,
+  "rejection_count": 0,
+  "schema_version": "tu_graph_v1",
+  "rights_filter_applied": true,
+  "rejected_span_ids": []
+}

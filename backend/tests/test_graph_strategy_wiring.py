@@ -162,3 +162,16 @@ def test_graph_strategy_names():
     assert FastGraphStrategy().name == "fast"
     assert StandardGraphStrategy().name == "standard"
     assert DeepGraphStrategy().name == "deep"
+
+
+def test_distress_routes_directly_to_distress_node_in_all_strategies():
+    """T4-05 (AI-002): Standard and Fast strategies route DISTRESS directly to handle_distress.
+
+    Standard strategy must never route DISTRESS to 'query' (retrieval and grading),
+    which caused wasted LLM calls and retrieval before immediately discarding them.
+    """
+    from rag.graph_strategies import route_after_intent, route_after_intent_fast
+
+    state = {"intent": "DISTRESS"}
+    assert route_after_intent_fast(state) == "distress"
+    assert route_after_intent(state) == "distress"

@@ -9,9 +9,15 @@ comparative 14-65s. Per-tier SLOs required (Google SRE multi-tier practice).
 import pathlib
 import subprocess
 
+# Tests that inspect source-file content use absolute paths anchored to this
+# file's location so pytest can be invoked from any working directory
+# (repo root, backend/, or inside Docker) without FileNotFoundError.
+_BACKEND = pathlib.Path(__file__).resolve().parents[1]
+_REPO = _BACKEND.parent
+
 
 def test_slo_latency_observed():
-    src = pathlib.Path("app/metrics.py").read_text()
+    src = (_BACKEND / "app" / "metrics.py").read_text()
     assert "_SLO_CHAT_LATENCY" in src, "raw SLO histogram must be private to metrics.py"
     assert "slo_latency_seconds" in src
     assert "def observe_slo_latency" in src
@@ -19,7 +25,7 @@ def test_slo_latency_observed():
         ["grep", "-rn", "observe_slo_latency", "app", "rag", "--include=*.py"],
         capture_output=True,
         text=True,
-        cwd=".",
+        cwd=str(_BACKEND),
     )
     # At least one callsite outside metrics.py must route through the helper
     # at wall-time (so the P2 violation counter cannot be bypassed).
@@ -32,7 +38,7 @@ def test_slo_latency_observed():
         ["grep", "-rn", "SLO_CHAT_LATENCY", "app", "rag", "--include=*.py"],
         capture_output=True,
         text=True,
-        cwd=".",
+        cwd=str(_BACKEND),
     )
     raw_lines = [ln for ln in raw.stdout.splitlines() if "metrics.py" not in ln]
     assert not any(".observe(" in ln for ln in raw_lines), (
@@ -71,9 +77,8 @@ def test_coordinator_path_counts_violation_when_over_threshold():
     """PipelineCoordinator routes through observe_slo_latency, so an
     over-threshold coordinator-path request increments the P2 violation
     counter (R3/S2: direct-histogram bypass closed)."""
-    import pathlib
 
-    src = pathlib.Path("app/pipeline/pipeline_coordinator.py").read_text()
+    src = (_BACKEND / "app" / "pipeline" / "pipeline_coordinator.py").read_text()
     assert "observe_slo_latency(" in src, "coordinator must call observe_slo_latency"
     assert "SLO_CHAT_LATENCY" not in src, "coordinator must not touch the raw histogram"
 
@@ -90,11 +95,11 @@ def test_coordinator_path_counts_violation_when_over_threshold():
 
 
 def test_slo_per_tier_thresholds():
-    src = pathlib.Path("app/metrics.py").read_text()
+    src = (_BACKEND / "app" / "metrics.py").read_text()
     # Per-tier thresholds derived from isolated_latency_2026-09-06.json.
     for tier in ("fast", "standard", "hindi", "comparative"):
         assert tier in src, f"tier {tier} missing from metrics.py"
     assert "SLO_THRESHOLDS" in src, "SLO_THRESHOLDS dict missing"
-    slo = pathlib.Path("../docs/SLO.md").read_text()
+    slo = (_REPO / "docs" / "SLO.md").read_text()
     for tier in ("fast", "standard", "hindi", "comparative"):
         assert tier in slo.lower(), f"tier {tier} missing from docs/SLO.md"

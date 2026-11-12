@@ -172,7 +172,7 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
 
                   {streakDays > 0 && (
                     <Badge variant="outline" className="mt-3 gap-1.5 px-3 py-1 bg-ojas/10 border-ojas/25 text-ojas">
-                      🔥 {t('mood.streakRooting', '{{count}} day streak — your beautiful state is taking root!', { count: streakDays, defaultValue_other: '{{count}} days streak — your beautiful state is taking root!' })}
+                      {t('mood.streakRooting', '{{count}} day of consistent reflection', { count: streakDays, defaultValue_other: '{{count}} days of consistent reflection' })}
                     </Badge>
                   )}
 

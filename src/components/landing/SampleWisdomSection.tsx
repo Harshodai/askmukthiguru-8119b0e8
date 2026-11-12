@@ -153,18 +153,26 @@ export const SampleWisdomSection = () => {
           {/* Navigation Controls */}
           <div className="flex items-center justify-between mt-8 pt-4">
             {/* Dots */}
-            <div className="flex gap-1.5">
+            {/* NEW-A11Y-7 (WCAG 2.5.8): the button is a 24 px hit area; the dot is its child. */}
+            <div className="flex">
               {teachings.map((_, index) => (
                 <button
                   key={index}
+                  type="button"
                   onClick={() => setCurrentIndex(index)}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index === currentIndex
-                      ? 'bg-saffron-gold w-6'
-                      : 'bg-border hover:bg-muted-foreground/30'
-                  }`}
+                  className="group flex h-6 min-w-6 items-center justify-center rounded-full"
                   aria-label={t('wisdom.goToSlide', 'Go to slide {{index}}', { index: index + 1 })}
-                />
+                  aria-current={index === currentIndex ? 'true' : undefined}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`block h-2 rounded-full transition-all duration-300 ${
+                      index === currentIndex
+                        ? 'w-6 bg-saffron-gold'
+                        : 'w-2 bg-border group-hover:bg-muted-foreground/30'
+                    }`}
+                  />
+                </button>
               ))}
             </div>
 

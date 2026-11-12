@@ -1,3 +1,4 @@
+import { useChatCapabilities } from '@/hooks/useChatCapabilities';
 import '@/styles/mobile-chat-ux.css';
 import '@/styles/product-ux.css';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +8,7 @@ import { UserMenu } from '@/components/common/UserMenu';
 import { ResponsePreferencesMenu } from './ResponsePreferencesMenu';
 import type { ResponsePreferences } from '@/lib/chat/types';
 import { Button } from '@/components/ui/button';
+import { GetHelpNow } from '@/components/common/GetHelpNow';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -58,6 +60,7 @@ export const ChatHeader = ({
   memoryActive = false,
 }: ChatHeaderProps) => {
   const { t } = useTranslation();
+  const { capabilities } = useChatCapabilities();
   const rawWhatsApp = (import.meta.env.VITE_WHATSAPP_NUMBER || '').trim();
   const whatsappNumber = rawWhatsApp.replace(/[^0-9]/g, '');
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=Namaste%20Mukthi%20Guru`;
@@ -135,7 +138,7 @@ export const ChatHeader = ({
         {isIncognito && <span className="text-[10px] text-amber-600/70 hidden sm:block mr-1">{t('chat.incognitoScope', 'Not saved to history, personal memory, or your personal wisdom map.')}</span>}
         {hasMessages && onOpenSources && <Button size="icon" variant="ghost" onClick={onOpenSources} className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground relative flex items-center justify-center rounded-xl" aria-label={t('chat.openSources', { count: sourcesCount })} title={t('chat.viewSources')}><Library className="w-4 h-4" />{sourcesCount > 0 && <span className="absolute top-0 right-0 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-ojas/15 text-ojas text-[10px] font-semibold tabular-nums">{sourcesCount}</span>}</Button>}
         {hasMessages && onExport && <Button size="icon" variant="ghost" onClick={onExport} className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 hidden sm:flex text-muted-foreground items-center justify-center" aria-label={t('chat.exportMarkdown')} title={t('chat.exportMarkdown')}><Download className="w-4 h-4" /></Button>}
-        <a
+        {capabilities.whatsapp && whatsappNumber && <a
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
@@ -145,7 +148,8 @@ export const ChatHeader = ({
           data-testid="whatsapp-action-button"
         >
           <WhatsAppIcon className="w-4 h-4 fill-current" />
-        </a>
+        </a>}
+        <GetHelpNow />
         <div className={sidebarCollapsed ? '' : 'sm:hidden'} data-tour="profile"><UserMenu /></div>
       </div>
     </div>

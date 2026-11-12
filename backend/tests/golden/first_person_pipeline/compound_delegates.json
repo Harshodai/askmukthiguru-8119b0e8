@@ -1,0 +1,121 @@
+{
+  "compound_called": 1,
+  "events": [
+    {
+      "confidence": 0.85,
+      "llm_tokens": 0,
+      "n_citations": 1,
+      "n_quarantined": 0,
+      "reason": "none",
+      "status": "weak_match"
+    }
+  ],
+  "result": {
+    "abstain_reason": "none",
+    "answer_text": {
+      "chars": 152,
+      "sha256": "abc846117ce7e6bf150bfd1ddc8dd71a07e5cceeca7a028c54b70fdd0909116b"
+    },
+    "answerability": null,
+    "atma_vichara_inquiry": null,
+    "audio_playback_clip": {
+      "duration_sec": 10,
+      "end_sec": 75,
+      "speaker": "Sri Preethaji",
+      "start_sec": 65,
+      "title": null,
+      "url": "https://www.youtube.com/watch?v=vid_abc&t=65s",
+      "video_id": "vid_abc"
+    },
+    "audio_playback_clips": [
+      {
+        "duration_sec": 10,
+        "end_sec": 75,
+        "speaker": "Sri Preethaji",
+        "start_sec": 65,
+        "title": null,
+        "url": "https://www.youtube.com/watch?v=vid_abc&t=65s",
+        "video_id": "vid_abc"
+      }
+    ],
+    "cached": false,
+    "citations": [
+      {
+        "asr_artifacts": [],
+        "caption_status": "auto_transcript",
+        "channel": null,
+        "confidence": 0.85,
+        "domain_rights_status": "licensed",
+        "end_ms": 75000,
+        "end_sec": 75,
+        "first_person_eligible": true,
+        "guru_id": "preethaji",
+        "is_verbatim": true,
+        "playback_end_seconds": 75.25,
+        "playback_start_seconds": 64.75,
+        "playback_url": "https://www.youtube.com/watch?v=vid_abc&t=64s",
+        "point_id": "p1",
+        "provenance_kind": "compound_facet_clip",
+        "rights_cleared": true,
+        "source_url": "https://www.youtube.com/watch?v=vid_abc&t=65s",
+        "speaker": "Sri Preethaji",
+        "speaker_verified": false,
+        "start_ms": 65000,
+        "start_sec": 65,
+        "teacher_id": "preethaji",
+        "text_snippet": {
+          "chars": 152,
+          "sha256": "abc846117ce7e6bf150bfd1ddc8dd71a07e5cceeca7a028c54b70fdd0909116b"
+        },
+        "timestamp_seconds": 65,
+        "title": "Watch on YouTube",
+        "transcript_hash": "abc846117ce7e6bf150bfd1ddc8dd71a07e5cceeca7a028c54b70fdd0909116b",
+        "transcript_status": "auto_transcript",
+        "url": "https://www.youtube.com/watch?v=vid_abc&t=65s",
+        "verbatim_text": {
+          "chars": 152,
+          "sha256": "abc846117ce7e6bf150bfd1ddc8dd71a07e5cceeca7a028c54b70fdd0909116b"
+        },
+        "video_id": "vid_abc",
+        "video_url": "https://www.youtube.com/watch?v=vid_abc",
+        "voice_verification_method": null
+      }
+    ],
+    "detected_concepts": [],
+    "editorial_set": {
+      "candidate_facets": [
+        "what causes suffering",
+        "what ends it"
+      ],
+      "content_safety": "clean",
+      "covered_facets": [
+        "what causes suffering"
+      ],
+      "facet_coverage": {
+        "what causes suffering": "direct"
+      },
+      "reasons": [
+        "compound_facets_partial"
+      ],
+      "status": "partial"
+    },
+    "error": null,
+    "is_direct_answer": false,
+    "practice_recommendation": null,
+    "related_clips_heading": null,
+    "second_quote_note": null,
+    "status": "weak_match"
+  },
+  "store": {
+    "points_servable_calls": 0,
+    "search_hybrid_calls": 1,
+    "search_hybrid_kwargs": {
+      "dedup_limit": 40,
+      "deduplicate": false,
+      "limit": 80,
+      "query_dense_vector": "vector[2]",
+      "query_sparse_vector": null,
+      "teacher_id": null
+    }
+  }
+}

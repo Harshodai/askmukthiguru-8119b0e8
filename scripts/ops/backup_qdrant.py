@@ -13,6 +13,16 @@ Usage:
 Environment:
     QDRANT_URL        — Qdrant REST endpoint (default: http://localhost:6333)
     BACKUP_BASE_DIR   — Where snapshots are stored (default: ./backups/qdrant)
+    QDRANT_WRITE_API_KEY / QDRANT_API_KEY
+                      — Sent as the `api-key` header when set. The write key wins:
+                        creating a snapshot needs it, and the backend never holds it.
+    BACKUP_METRICS_DIR / PUSHGATEWAY_URL
+                      — Where `backup_last_success_timestamp_seconds` goes after a
+                        VERIFIED backup (see backup_metrics.py).
+
+Serving collections: `--serving` backs up the collections the backend serves, read
+from the same Settings the backend reads (first_person_collection and
+first_person_context_collection). Do not pin a versioned name in cron.
 """
 
 from __future__ import annotations
@@ -21,6 +31,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import sys
 import tarfile
 import time
@@ -28,6 +39,11 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from backup_metrics import record_backup_success  # noqa: E402
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -44,6 +60,20 @@ def _enforce_docker_path() -> None:
     docker_bin = "/Users/harshodaikolluru/.docker/bin"
     if os.path.isdir(docker_bin) and docker_bin not in os.environ.get("PATH", ""):
         os.environ["PATH"] = f"{docker_bin}:{os.environ.get('PATH', '')}"
+
+
+def _auth_headers() -> dict[str, str]:
+    """The Qdrant `api-key` header, when a key is set. Write key first."""
+    key = os.environ.get("QDRANT_WRITE_API_KEY") or os.environ.get("QDRANT_API_KEY") or ""
+    return {"api-key": key} if key else {}
+
+
+def _open(target: str | urllib.request.Request, timeout: float):
+    """The one place a request leaves this script, so every call carries the key."""
+    req = target if isinstance(target, urllib.request.Request) else urllib.request.Request(target)
+    for name, value in _auth_headers().items():
+        req.add_header(name, value)
+    return urllib.request.urlopen(req, timeout=timeout)  # nosec B310 -- operator backup tool, QDRANT_URL from env
 
 
 def _sha256_file(path: Path) -> str:
@@ -92,7 +122,7 @@ def _api_request(
             req.add_header(k, v)
     else:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=120) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
+    with _open(req, 120) as res:
         return json.loads(res.read().decode("utf-8"))
 
 
@@ -112,7 +142,8 @@ def download_snapshot(collection: str, snapshot_name: str, dest: Path) -> None:
     """Download a snapshot from Qdrant to local disk."""
     url = f"{QDRANT_URL}/collections/{collection}/snapshots/{snapshot_name}"
     print(f"  [*] Downloading {snapshot_name} ...")
-    urllib.request.urlretrieve(url, dest)  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed snapshot path
+    with _open(url, 600) as res, open(dest, "wb") as out:
+        shutil.copyfileobj(res, out)
     size_mb = dest.stat().st_size / (1024 * 1024)
     print(f"  [+] Saved {dest} ({size_mb:.2f} MB)")
 
@@ -230,7 +261,7 @@ def _create_temp_collection(name: str, source_collection: str | None = None) -> 
     if source_collection:
         try:
             src_url = f"{QDRANT_URL}/collections/{source_collection}"
-            with urllib.request.urlopen(src_url, timeout=30) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
+            with _open(src_url, 30) as res:
                 src = json.loads(res.read().decode()).get("result", {})
             params = src.get("config", {}).get("params", {})
             body = {
@@ -249,7 +280,7 @@ def _create_temp_collection(name: str, source_collection: str | None = None) -> 
         url, data=payload, headers={"Content-Type": "application/json"}, method="PUT"
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
+        with _open(req, 30):
             pass
     except urllib.error.HTTPError as e:
         if e.code == 409:
@@ -263,9 +294,9 @@ def _drop_collection(name: str) -> None:
     url = f"{QDRANT_URL}/collections/{name}"
     req = urllib.request.Request(url, method="DELETE")
     try:
-        with urllib.request.urlopen(req, timeout=30):  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
+        with _open(req, 30):
             pass
-    except Exception:
+    except (urllib.error.URLError, OSError):
         pass
 
 
@@ -298,7 +329,7 @@ def _restore_to_temp(path: Path, collection: str) -> bool:
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=300) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
+    with _open(req, 300) as res:
         resp = json.loads(res.read().decode())
         if not resp.get("result", False):
             print(f"  [-] FAIL: snapshot upload rejected: {resp}")
@@ -318,7 +349,7 @@ def _restore_to_temp(path: Path, collection: str) -> bool:
 def _collection_status(collection: str) -> str:
     """Return the status ('green'/'grey'/'yellow') of a collection."""
     url = f"{QDRANT_URL}/collections/{collection}"
-    with urllib.request.urlopen(url, timeout=30) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
+    with _open(url, 30) as res:
         resp = json.loads(res.read().decode())
         return resp.get("result", {}).get("status", "unknown")
 
@@ -326,7 +357,7 @@ def _collection_status(collection: str) -> str:
 def _collection_points(collection: str) -> int:
     """Return the number of points in a collection."""
     url = f"{QDRANT_URL}/collections/{collection}"
-    with urllib.request.urlopen(url, timeout=30) as res:  # nosec B310 -- operator backup tool, QDRANT_URL from env, fixed API path
+    with _open(url, 30) as res:
         resp = json.loads(res.read().decode())
         return int(resp.get("result", {}).get("points_count", 0))
 
@@ -334,8 +365,51 @@ def _collection_points(collection: str) -> int:
 # ─── Main Entry Point ─────────────────────────────────────────────────────────
 
 
+def resolve_serving_collections(cfg=None) -> list[str]:
+    """Collections the backend serves, from the Settings the backend reads.
+
+    NEW-OPS-4: cron used to pin `first_person_v7`, so a promotion to v10 left the
+    nightly job backing up a collection nobody serves. The names now come from
+    `first_person_collection` and `first_person_context_collection`. Fails closed
+    (SystemExit) when no name resolves, so a broken setup is loud, not a no-op.
+    """
+    if cfg is None:
+        sys.path.insert(0, str(REPO_ROOT / "backend"))
+        try:
+            from app.config import settings as cfg  # type: ignore[no-redef]
+        except ImportError as exc:
+            raise SystemExit(
+                f"--serving needs the backend environment (app.config): {exc}. "
+                "Run it from the backend virtualenv, or pass --collection NAME."
+            ) from exc
+    names: list[str] = []
+    for attr in ("first_person_collection", "first_person_context_collection"):
+        name = str(getattr(cfg, attr, "") or "").strip()
+        if name and name not in names:
+            names.append(name)
+    if not names:
+        raise SystemExit("No serving collection resolved from Settings; nothing to back up.")
+    return names
+
+
+def _quarantine_failed(path: Path) -> None:
+    """Keep a failed artefact for inspection, out of the retention glob."""
+    failed = path.with_name(path.name + ".failed")
+    try:
+        path.replace(failed)
+        sidecar = path.with_suffix(path.suffix + ".sha256")
+        if sidecar.exists():
+            sidecar.unlink()
+        print(f"  [!] Failed artefact kept as {failed.name}")
+    except OSError as exc:
+        print(f"  [!] Could not set the failed artefact aside: {exc}")
+
+
 def backup(collection: str, retention: int) -> bool:
-    """Run full backup pipeline for a Qdrant collection."""
+    """Run full backup pipeline for a Qdrant collection.
+
+    The success timestamp is written only after `verify_snapshot` passes.
+    """
     print("=" * 70)
     print(f"  Qdrant Backup — Collection: {collection}")
     print("=" * 70)
@@ -343,9 +417,9 @@ def backup(collection: str, retention: int) -> bool:
     BACKUP_BASE_DIR.mkdir(parents=True, exist_ok=True)
     ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     dest = BACKUP_BASE_DIR / f"{collection}_{ts}.snapshot"
-    source_points = _collection_points(collection)
 
     try:
+        source_points = _collection_points(collection)
         print(f"[*] Creating remote snapshot for '{collection}' ...")
         snapshot_name = create_snapshot(collection)
         print(f"[+] Remote snapshot created: {snapshot_name}")
@@ -356,26 +430,33 @@ def backup(collection: str, retention: int) -> bool:
         _write_checksum(dest, checksum)
 
         ok = verify_snapshot(dest, expected_points=source_points, source_collection=collection)
-        if ok:
-            print(f"\n[✅] Backup verified: {dest}")
-        else:
+        if not ok:
             print(f"\n[❌] Backup verification FAILED: {dest}")
+            _quarantine_failed(dest)
             return False
+        print(f"\n[✅] Backup verified: {dest}")
 
+        record_backup_success("qdrant", collection)
         cleanup_old_backups(collection, retention)
         return True
 
-    except urllib.error.URLError as e:
-        print(f"[-] Cannot connect to Qdrant at {QDRANT_URL}: {e}")
-        return False
-    except Exception as e:
+    except (RuntimeError, OSError, ValueError, tarfile.TarError) as e:
+        # URLError and HTTPError are OSError; a bad JSON reply is ValueError.
         print(f"[-] Backup failed: {e}")
+        if dest.exists():
+            _quarantine_failed(dest)
         return False
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Mukthi Guru — Qdrant Backup & Verification")
     parser.add_argument("--collection", default=DEFAULT_COLLECTION, help="Qdrant collection name")
+    parser.add_argument(
+        "--serving",
+        action="store_true",
+        help="Back up the collections the backend serves (read from Settings); "
+        "overrides --collection",
+    )
     parser.add_argument(
         "--retention",
         type=int,
@@ -411,8 +492,9 @@ def main() -> int:
         )
         return 0 if ok else 1
 
-    ok = backup(args.collection, args.retention)
-    return 0 if ok else 1
+    names = resolve_serving_collections() if args.serving else [args.collection]
+    results = [backup(name, args.retention) for name in names]
+    return 0 if all(results) else 1
 
 
 if __name__ == "__main__":

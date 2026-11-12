@@ -15,8 +15,8 @@ teacher: "sri-preethaji"
 The passage emphasizes the importance of changing the fuel for aspiration, suggesting that aspiration is possible when one aspires and falls in love with what they want to do, rather than comparing themselves to others. It highlights the negative effects of social media and judgment on aspiration, and suggests that a mind free from comparison and judgment can lead to a more beautiful state of aspiration.
 
 ## Key Teachings
-- **Teaching Point 1**: Changing the fuel for aspiration involves focusing on what one loves and aspires to do, rather than comparing oneself to others. This can lead to a more beautiful state of aspiration.
-- **Teaching Point 2**: The speaker addresses the fear of failure and the desire for validation, encouraging a mind free from comparison and judgment.
+- Teaching Point 1: Changing the fuel for aspiration involves focusing on what one loves and aspires to do, rather than comparing oneself to others. This can lead to a more beautiful state of aspiration.
+- Teaching Point 2: The speaker addresses the fear of failure and the desire for validation, encouraging a mind free from comparison and judgment.
 
 ## Quotes
 > "You need to aspire and really fall in love with what you want to do. Not by comparing yourself or judging yourself with what others are thinking of me."

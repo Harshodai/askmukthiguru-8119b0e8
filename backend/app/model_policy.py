@@ -124,11 +124,26 @@ class OpenRouterModelPolicy:
             daily_budget_usd=float(getattr(settings, "openrouter_daily_budget_usd", 10.0)),
             monthly_budget_usd=float(getattr(settings, "openrouter_monthly_budget_usd", 40.0)),
             extra_allowed_models=tuple(
-                _model_id(item, "openrouter_extra_allowed_models")
-                for item in str(
-                    getattr(settings, "openrouter_extra_allowed_models", "") or ""
-                ).split(",")
-                if item.strip()
+                dict.fromkeys(
+                    [
+                        _model_id(item, "openrouter_extra_allowed_models")
+                        for item in str(
+                            getattr(settings, "openrouter_extra_allowed_models", "") or ""
+                        ).split(",")
+                        if item.strip()
+                    ]
+                    + (
+                        [
+                            _model_id(
+                                str(settings.first_person_relevance_model),
+                                "first_person_relevance_model",
+                            )
+                        ]
+                        if getattr(settings, "first_person_relevance_model", None)
+                        and str(settings.first_person_relevance_model).strip()
+                        else []
+                    )
+                )
             ),
         )
         policy.validate()

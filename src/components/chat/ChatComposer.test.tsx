@@ -113,4 +113,13 @@ describe('ChatComposer keyboard behavior', () => {
     textarea.focus();
     expect(textarea).toHaveFocus();
   });
+
+  it('shows a 2px focus ring at full ojas strength (NEW-A11Y-8, A11Y-15, WCAG 1.4.11)', () => {
+    renderComposer();
+    const textarea = screen.getByRole('textbox', { name: /your message/i });
+    expect(textarea.className).toContain('focus-visible:ring-2');
+    expect(textarea.className).toContain('focus-visible:ring-ojas');
+    // the old 1px, 30%-opacity ring is under the 3:1 non-text contrast minimum
+    expect(textarea.className).not.toContain('focus:ring-ojas/30');
+  });
 });

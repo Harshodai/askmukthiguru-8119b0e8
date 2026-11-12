@@ -19,8 +19,8 @@ Capabilities:
      - One server-signed anon token per phone (`POST /api/auth/anon-session`),
        persisted in SQLite and sent as `session_id` (chat POST) /
        `X-Session-Id` (job poll), so backend quotas and job ownership work
-       exactly as they do for anonymous web seekers. The legacy HS256 JWT
-       (`mint_jwt`) is retained for compatibility but is no longer sent.
+       exactly as they do for anonymous web seekers. No JWT is minted or sent
+       (the legacy mint_jwt signer was removed, SEC-009).
   5. Robust Markdown -> WhatsApp Formatting:
      - **bold** -> *bold*
      - [Title](url) -> Title (url) clickable URLs
@@ -52,7 +52,6 @@ from contextlib import closing
 from pathlib import Path
 from typing import Any
 
-import jwt
 import requests
 from flask import Flask, abort, jsonify, request
 
@@ -69,7 +68,6 @@ except ImportError:
 API_URL = os.getenv(
     "ASKMUKTHIGURU_API_URL", os.getenv("BACKEND_URL", "http://localhost:8000")
 ).rstrip("/")
-JWT_SECRET = os.getenv("JWT_SECRET", "default-dev-jwt-secret")
 
 # Twilio Configuration
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
@@ -730,28 +728,6 @@ def sanitize_phone(phone: str) -> str:
     clean = str(phone or "").replace("whatsapp:", "").strip()
     clean = re.sub(r"[^\d+]", "", clean)
     return clean or str(phone).strip()
-
-
-def mint_jwt(phone: str) -> str:
-    """Mint an HS256 JWT (legacy).
-
-    Retained for compatibility: existing tooling and tests pin this shape
-    (sub=wa-<phone>). The live chat path no longer sends it — the backend
-    only trusts Supabase-issued tokens, so WhatsApp turns travel as signed
-    anonymous sessions (see ensure_anon_token) with per-phone quota parity.
-    """
-    clean = sanitize_phone(phone)
-    now = int(time.time())
-    secret = os.getenv("JWT_SECRET", JWT_SECRET)
-    payload = {
-        "sub": f"wa-{clean}",
-        "email": f"wa-{clean.replace('+', '')}@bot.local",
-        "role": "authenticated",
-        "iat": now,
-        "exp": now + 3600,
-        "iss": "askmukthiguru-wa-bot",
-    }
-    return jwt.encode(payload, secret, algorithm="HS256")
 
 
 # ---------------------------------------------------------------------------

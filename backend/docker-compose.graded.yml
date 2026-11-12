@@ -20,15 +20,39 @@ services:
       FIRST_PERSON_ACTIVE_COLLECTION: first_person_v10
       FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "true"
       FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true"
+      FIRST_PERSON_CONTEXT_CANDIDATE_LIMIT: "16"
       FIRST_PERSON_LLM_FALLBACK_ENABLED: "false"
+      FIRST_PERSON_ENRICHMENT_WINDOW_ENABLED: "true"
+      FIRST_PERSON_GRAPH_EXPANSION_ENABLED: "true"
+      FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED: "true"
+      FIRST_PERSON_HYDE_ENABLED: "true"
+      FIRST_PERSON_SERVE_WEAK_MATCH: "true"
+      FIRST_PERSON_FACET_SPLIT_ENABLED: "true"
+      FIRST_PERSON_COMPOUND_DIRECT_SERVING_ENABLED: "true"
+      # 2026-11-12: FIRST_PERSON_UNCALIBRATED_DIRECT_ENABLED is no longer pinned on. The
+      # Settings default (false) applies: a direct answer needs a calibration profile, and
+      # the profile on file is UNPROVEN (see audits/evidence/CALIBRATION_PROVENANCE_2026-11-12.md).
+      FIRST_PERSON_JUDGE_ENABLED: "true"
+      # Pinned so a graded run reproduces from committed files (2026-11-13; graded-6 ran on the
+      # Settings default, and its sparse setting lived only in an override outside the repo).
+      FIRST_PERSON_JUDGE_MODEL: anthropic/claude-haiku-5.5
+      # Graded-6 A/B setting (sparse retrieval OFF). The Settings default is still True and the
+      # owner decision on the default is open; this pin only makes the graded config explicit.
+      FIRST_PERSON_CONTEXT_USE_SPARSE: "false"
       # Relevance scorer: the single variable a stage may change.
       FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5
-      FIRST_PERSON_RELEVANCE_MIN_SCORE: "2"
+      FIRST_PERSON_RELEVANCE_MIN_SCORE: "3" # = base compose default and CLAUDE.md invariant 24; was 2
+      OPENROUTER_EXTRA_ALLOWED_MODELS: "anthropic/claude-haiku-5.5"
       # 5 s turned slow provider replies into relevance_indeterminate abstains; Haiku verify
-      # ran at a median of 1.8 s, max 2.6 s. 12 s matches CLAUDE.md invariant 24.
+      # ran at a median of 1.8 s, max 2.6 s. D-PG13 decided by Harsha 2026-11-07: the
+      # graded run is pinned at 12 s, so one stalled scorer cannot push a request past
+      # the 10 s p95 bar. Everywhere else the Settings default (25 s) is the one source.
       FIRST_PERSON_RELEVANCE_TIMEOUT_S: "12"
       # Owner decisions recorded as pins (Opus plan O3 / O5): change only on Harsha's word.
-      FIRST_PERSON_REQUIRE_VOICE_METHOD: "false" # O3: true withholds bare-flag speakers
+      # 2026-11-12: FIRST_PERSON_REQUIRE_VOICE_METHOD is no longer pinned here. The Settings
+      # default applies (false, owner decides). It is not a workaround: the pass bar's H2 gate
+      # (0 served clips with an unverified speaker) is still checked by the grader, so a bare
+      # flag that is served shows up as a failed gate instead of being hidden by a pin.
       FIRST_PERSON_SERVE_UNREGISTERED: "true" # O5: recorded pin; ingestion approvals are held by Harsha
       # The local file-review API must not exist in a graded stack.
       FIRST_PERSON_LOCAL_REVIEW_ENABLED: "false"

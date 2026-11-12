@@ -171,6 +171,45 @@ class LLMGateway:
         finally:
             self._inflight.discard(key)
 
+    async def generate_fast(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context: str = "",
+        *,
+        use_cache: bool = True,
+        **kwargs: Any,
+    ) -> str:
+        """Fast generation path for latency-critical tasks."""
+        if hasattr(self._primary, "generate_fast"):
+            try:
+                return await self._primary.generate_fast(
+                    system_prompt, user_prompt, context, **kwargs
+                )
+            except Exception as _exc:
+                logger.debug(
+                    "Primary generate_fast raised %s; falling back to standard generate", _exc
+                )
+        return await self.generate(
+            system_prompt, user_prompt, context, task="casual", use_cache=use_cache, **kwargs
+        )
+
+    async def stream(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context: str = "",
+        *,
+        task: TaskType = "standard",
+        use_cache: bool = False,
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
+        """Stream generated text chunks (alias for generate_stream)."""
+        async for chunk in self.generate_stream(
+            system_prompt, user_prompt, context, task=task, use_cache=use_cache, **kwargs
+        ):
+            yield chunk
+
     def _cache_key(
         self, system_prompt: str, user_prompt: str, context: str, task: str, kwargs: dict
     ) -> str:
@@ -377,8 +416,8 @@ class LLMGateway:
             override = getattr(settings, f"llm_task_timeout_{task}", None)
             if override:
                 return float(override)
-        except Exception:
-            pass
+        except Exception as _exc:
+            logger.debug("Failed reading llm_task_timeout_%s: %s", task, _exc)
         return _TASK_TIMEOUTS.get(task, 60.0)
 
     async def _soft_budget_throttled(self) -> bool:
@@ -421,8 +460,8 @@ class LLMGateway:
                 finally:
                     try:
                         await client.aclose()
-                    except Exception:
-                        pass
+                    except Exception as _exc:
+                        logger.debug("Redis client aclose raised: %s", _exc)
                 spent = float(raw or 0)
                 if spent >= 0.8 * daily_budget:
                     logger.warning(

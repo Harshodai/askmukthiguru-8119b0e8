@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Create a non-root user
 RUN useradd -m -s /bin/bash appuser
 
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
@@ -123,6 +124,11 @@ COPY --chmod=go+rX backend/ .
 # (rag_okf_injection_enabled, default True) contributes nothing.
 COPY --chmod=go+rX memory/ ./memory/
 
+# Pinned rights register (T3-01 / DATA-02). services/first_person_serving_contract.py
+# reads it at audits/evidence/... relative to /app; without it every clip is
+# unlicensed and the system abstains silently. Only this one file, not audits/.
+COPY --chmod=go+rX audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json ./audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json
+
 # Owner-approved crisis helplines (config/helplines.yaml at the repo root).
 # services/crisis_helplines.py resolves this to /config/helplines.yaml inside
 # the image (Path(__file__).resolve().parents[2] from /app/services/, i.e.
@@ -147,4 +153,5 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]
 # glibc per-thread malloc arenas reserve virtual memory that RLIMIT_DATA counts;
 # cap them so the virtual footprint tracks RSS (2026-09-26).
 ENV MALLOC_ARENA_MAX=2
+ENV PYTHONUNBUFFERED=1
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -2,6 +2,16 @@
 
 This directory contains the unified benchmarking suite for the **AskMukthiGuru** RAG and spiritual advisor agent.
 
+## Which path do these measure? (EVAL-003 / EVAL-004)
+
+The live setting is `FIRST_PERSON_LLM_FALLBACK_ENABLED=false`: `/api/chat` serves a verbatim clip or a static abstain. The serving-lane gate is `evals/pr_suite` (run by `backend/tests/test_offline_pr_suite.py` and `.github/workflows/eval-gate.yml`).
+
+Scripts that score generated answer prose (faithfulness, answer relevancy, voice closeness of prose, prose formatting) measure the dormant generating path. Each carries `LEGACY_GENERATION_PATH = True` and `backend/tests/test_benchmarks_lane_labels.py` enforces the list:
+
+`comprehensive_benchmark.py`, `generate_dashboard.py`, `golden_eval.py`, `guru_voice_benchmark.py`, `lightrag_answer_comparison.py`, `native_eval.py`, `ragas_eval.py`, `run_comprehensive_ragas.py`, `run_full_e2e_benchmark.py`, `ruthless_benchmark.py`.
+
+Do not cite their faithfulness or relevancy numbers as serving-lane quality. Caveat: `run_full_e2e_benchmark.py` assigns fixed faithfulness values (1.0 / 0.95) on some branches, so its faithfulness column is not a measurement. The label list comes from a static read; the other scripts were not re-audited.
+
 ## Directory Structure
 
 - `question_bank.py` — The ultimate collection of **250+ highly specialized queries** categorized into:

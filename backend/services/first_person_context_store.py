@@ -25,9 +25,13 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
     FieldCondition,
     Filter,
+    Fusion,
+    FusionQuery,
     MatchAny,
     MatchValue,
     PointStruct,
+    Prefetch,
+    SparseVector,
 )
 
 from app.config import settings
@@ -50,9 +54,35 @@ from domain.speaker_provenance import (
 from ingest.verbatim.boundaries import boundary_defects
 from services.first_person_rights import source_is_authoritatively_licensed
 from services.first_person_video_decisions import blocked_video_ids_or_none, video_is_blocked
+from services.guru_registry import canonical_guru_id
 from services.text_quality_filter import find_artifact
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_sparse_query(query_sparse: Any) -> Optional[tuple[list[int], list[float]]]:
+    """Normalize sparse vector input to (indices, values) regardless of dict format."""
+    if not query_sparse:
+        return None
+    if isinstance(query_sparse, dict):
+        if "indices" in query_sparse and "values" in query_sparse:
+            try:
+                indices = [int(i) for i in query_sparse["indices"]]
+                values = [float(v) for v in query_sparse["values"]]
+                if indices and values:
+                    return indices, values
+            except (ValueError, TypeError):
+                return None
+        else:
+            try:
+                indices = [int(k) for k in query_sparse.keys()]
+                values = [float(v) for v in query_sparse.values()]
+                if indices and values:
+                    return indices, values
+            except (ValueError, TypeError):
+                return None
+    return None
+
 
 RECORD_TYPE_CHILD = "retrieval_child"
 RECORD_TYPE_PARENT = "parent_unit"
@@ -144,6 +174,7 @@ SPAN_INDEXES: tuple[tuple[str, str], ...] = (
     ("speaker_verified", "bool"),
     ("rights_cleared", "bool"),
     ("domain_rights_status", "keyword"),
+    ("embedding_model_family", "keyword"),  # C5
     ("is_verbatim", "bool"),
     ("boundary_status", "keyword"),
     ("completeness_status", "keyword"),
@@ -319,10 +350,69 @@ def _ranking_score(hit: Any) -> float:
     return float(getattr(hit, "score", 0.0) or 0.0)
 
 
+def deduplicate_contained_contexts(contexts: list[ParentContext]) -> list[ParentContext]:
+    """Eliminate redundant contexts whose time intervals sit completely inside another context (RET-13)."""
+    if len(contexts) <= 1:
+        return contexts
+    kept: list[ParentContext] = []
+    for ctx in contexts:
+        if not ctx.spans:
+            continue
+        c_video = getattr(ctx.spans[0], "video_id", None) or getattr(ctx.parent, "video_id", None)
+        c_start = min(s.start_ms for s in ctx.spans)
+        c_end = max(s.end_ms for s in ctx.spans)
+
+        is_contained = False
+        for k in kept:
+            k_video = getattr(k.spans[0], "video_id", None) or getattr(k.parent, "video_id", None)
+            if k_video and c_video and k_video == c_video:
+                k_start = min(s.start_ms for s in k.spans)
+                k_end = max(s.end_ms for s in k.spans)
+                if k_start <= c_start and c_end <= k_end:
+                    is_contained = True
+                    break
+        if not is_contained:
+            kept.append(ctx)
+    return kept
+
+
 class FirstPersonContextStore:
-    def __init__(self, client: QdrantClient, collection: str) -> None:
+    def __init__(
+        self, client: QdrantClient, collection: str, *, check_health: bool = False
+    ) -> None:
         self._client = client
         self._collection = collection
+        if check_health:
+            self._check_alias_health()
+
+    def _check_alias_health(self) -> None:
+        """Fail loudly if the (aliased) collection is empty or unreachable (C7).
+
+        Prevents silent "0 candidates" abstains that look like retrieval-quality
+        problems when an alias points at an empty or missing collection.
+
+        Raises:
+            FirstPersonContextStoreError: collection is empty or unreachable.
+        """
+        try:
+            info = self._client.get_collection(self._collection)
+            count = info.points_count or 0
+        except Exception as exc:
+            logger.error(
+                "[FP-ALIAS-HEALTH] Cannot reach collection '%s': %s", self._collection, exc
+            )
+            raise FirstPersonContextStoreError(
+                f"[FP-ALIAS-HEALTH] Cannot reach collection '{self._collection}': {exc}"
+            ) from exc
+        if count == 0:
+            logger.error("[FP-ALIAS-HEALTH] Collection '%s' is empty.", self._collection)
+            raise FirstPersonContextStoreError(
+                f"[FP-ALIAS-HEALTH] Collection '{self._collection}' is empty. "
+                "Check that the alias points to a live collection with data."
+            )
+        logger.info(
+            "[FP-ALIAS-HEALTH] Collection '%s' healthy: %d points.", self._collection, count
+        )
 
     @property
     def collection(self) -> str:
@@ -432,9 +522,10 @@ class FirstPersonContextStore:
         *,
         query_sparse: Optional[dict[str, Any]] = None,
         guru_id: Optional[str] = None,
-        limit_parents: int = 5,
+        limit_parents: int = 16,
         spans_per_parent: int = 8,
         concept_ids: Optional[Sequence[str]] = None,
+        span_ids: Optional[Sequence[str]] = None,
     ) -> list[ParentContext]:
         """Search children, group by parent, then hydrate whole parents.
 
@@ -461,9 +552,8 @@ class FirstPersonContextStore:
             FieldCondition(key="speaker_verified", match=MatchValue(value=True)),
         ]
         if guru_id and guru_id.lower() not in ("both", "all", ""):
-            conditions.append(
-                FieldCondition(key="guru_id", match=MatchValue(value=guru_id.lower()))
-            )
+            canonical = canonical_guru_id(guru_id) or guru_id.lower()
+            conditions.append(FieldCondition(key="guru_id", match=MatchValue(value=canonical)))
         # Videos the owner rejected on the admin page are excluded here so they cannot crowd
         # real candidates out of the top-k. An invalid decisions file fails closed: no results.
         blocked_videos = blocked_video_ids_or_none()
@@ -475,30 +565,58 @@ class FirstPersonContextStore:
             else None
         )
         concepts = _clean_concept_ids(concept_ids)
+        clean_spans = _clean_concept_ids(span_ids)
+        should_conditions: list[FieldCondition] = []
         if concepts:
-            query_filter = Filter(
-                must=conditions,
-                must_not=must_not,
-                should=[
+            should_conditions.extend(
+                [
                     FieldCondition(key="topic_ids", match=MatchAny(any=concepts)),
                     FieldCondition(key="entity_ids", match=MatchAny(any=concepts)),
                     FieldCondition(key="tags", match=MatchAny(any=concepts)),
-                ],
+                ]
+            )
+        if clean_spans:
+            should_conditions.append(
+                FieldCondition(key="source_span_id", match=MatchAny(any=clean_spans))
+            )
+
+        if should_conditions:
+            query_filter = Filter(
+                must=conditions,
+                must_not=must_not,
+                should=should_conditions,
             )
         else:
             query_filter = Filter(must=conditions, must_not=must_not)
 
-        groups = self._query_groups(
-            query_dense,
-            query_filter=query_filter,
-            limit_parents=limit_parents,
-            spans_per_parent=spans_per_parent,
+        # Single RRF-fused retrieval pass: when query_sparse is provided, the
+        # _query_groups call already builds dense+sparse prefetches and applies
+        # Fusion.RRF internally.  Doing two separate passes (dense-only then
+        # hybrid) doubles the Qdrant round-trips and produces duplicate parent
+        # candidates that must be deduped here.  One fused call is both cheaper
+        # and more accurate (the ranker sees both signals simultaneously).
+        groups = list(
+            self._query_groups(
+                query_dense,
+                query_sparse=query_sparse,
+                query_filter=query_filter,
+                limit_parents=limit_parents,
+                spans_per_parent=spans_per_parent,
+            )
         )
 
         contexts: list[ParentContext] = []
         for parent_unit_id, hits, score in groups:
             try:
                 context = self.fetch_parent_context(parent_unit_id, hits, score)
+                teacher_spans = tuple(
+                    span
+                    for span in context.spans
+                    if span.guru_id == context.parent.guru_id and span.speaker_verified is True
+                )
+                if not teacher_spans:
+                    continue
+                context = context.model_copy(update={"spans": teacher_spans})
                 hit_ids = set(hits)
                 hit_spans = [span for span in context.spans if span.source_span_id in hit_ids]
                 if not hit_spans or any(
@@ -512,30 +630,68 @@ class FirstPersonContextStore:
                 ):
                     continue
                 contexts.append(context)
-            except FirstPersonContextStoreError:
-                logger.warning("[ContextStore] dropping invalid parent context")
-        return contexts
+                if len(contexts) >= limit_parents:
+                    break
+            except FirstPersonContextStoreError as exc:
+                logger.warning(
+                    "[ContextStore] dropping invalid parent context %s: %s", parent_unit_id, exc
+                )
+        return deduplicate_contained_contexts(contexts)
 
     def _query_groups(
         self,
         query_dense: list[float],
         *,
+        query_sparse: Optional[dict[str, Any]] = None,
         query_filter: Filter,
         limit_parents: int,
         spans_per_parent: int,
     ) -> list[tuple[str, tuple[str, ...], float]]:
+        parsed_sparse = _normalize_sparse_query(query_sparse)
+        has_sparse = parsed_sparse is not None
         if hasattr(self._client, "query_points_groups"):
             try:
-                response = self._client.query_points_groups(
-                    collection_name=self._collection,
-                    query=query_dense,
-                    using="passage_dense",
-                    query_filter=query_filter,
-                    group_by="parent_unit_id",
-                    limit=limit_parents * 3,
-                    group_size=spans_per_parent,
-                    with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
-                )
+                if has_sparse:
+                    prefetch_limit = max(limit_parents * spans_per_parent * 3, 40)
+                    indices, values = parsed_sparse
+                    sp_vector = SparseVector(
+                        indices=indices,
+                        values=values,
+                    )
+                    prefetch_queries = [
+                        Prefetch(
+                            query=query_dense,
+                            using="passage_dense",
+                            limit=prefetch_limit,
+                            filter=query_filter,
+                        ),
+                        Prefetch(
+                            query=sp_vector,
+                            using="passage_sparse",
+                            limit=prefetch_limit,
+                            filter=query_filter,
+                        ),
+                    ]
+                    response = self._client.query_points_groups(
+                        collection_name=self._collection,
+                        prefetch=prefetch_queries,
+                        query=FusionQuery(fusion=Fusion.RRF),
+                        group_by="parent_unit_id",
+                        limit=limit_parents * 3,
+                        group_size=spans_per_parent,
+                        with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
+                    )
+                else:
+                    response = self._client.query_points_groups(
+                        collection_name=self._collection,
+                        query=query_dense,
+                        using="passage_dense",
+                        query_filter=query_filter,
+                        group_by="parent_unit_id",
+                        limit=limit_parents * 3,
+                        group_size=spans_per_parent,
+                        with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
+                    )
                 out: list[tuple[str, tuple[str, ...], float]] = []
                 for group in getattr(response, "groups", []) or []:
                     hits = list(getattr(group, "hits", []) or [])
@@ -548,12 +704,13 @@ class FirstPersonContextStore:
                     out.append((str(group.id), span_ids, score))
                 if out:
                     out.sort(key=lambda item: item[2], reverse=True)
-                    return out[:limit_parents]
+                    return out
             except Exception as exc:  # pragma: no cover - API/version dependent
                 logger.debug("[ContextStore] grouped query unavailable: %s", exc)
 
         return self._group_in_python(
             query_dense,
+            query_sparse=query_sparse,
             query_filter=query_filter,
             limit_parents=limit_parents,
             spans_per_parent=spans_per_parent,
@@ -563,24 +720,62 @@ class FirstPersonContextStore:
         self,
         query_dense: list[float],
         *,
+        query_sparse: Optional[dict[str, Any]] = None,
         query_filter: Filter,
         limit_parents: int,
         spans_per_parent: int,
     ) -> list[tuple[str, tuple[str, ...], float]]:
-        response = self._client.query_points(
-            collection_name=self._collection,
-            query=query_dense,
-            using="passage_dense",
-            query_filter=query_filter,
-            limit=limit_parents * spans_per_parent * 3,
-            with_payload=[
-                "parent_unit_id",
-                "source_span_id",
-                "start_ms",
-                "end_ms",
-                "verbatim_text",
-            ],
-        )
+        parsed_sparse = _normalize_sparse_query(query_sparse)
+        has_sparse = parsed_sparse is not None
+        if has_sparse:
+            prefetch_limit = max(limit_parents * spans_per_parent * 3, 40)
+            indices, values = parsed_sparse
+            sp_vector = SparseVector(
+                indices=indices,
+                values=values,
+            )
+            prefetch_queries = [
+                Prefetch(
+                    query=query_dense,
+                    using="passage_dense",
+                    limit=prefetch_limit,
+                    filter=query_filter,
+                ),
+                Prefetch(
+                    query=sp_vector,
+                    using="passage_sparse",
+                    limit=prefetch_limit,
+                    filter=query_filter,
+                ),
+            ]
+            response = self._client.query_points(
+                collection_name=self._collection,
+                prefetch=prefetch_queries,
+                query=FusionQuery(fusion=Fusion.RRF),
+                limit=limit_parents * spans_per_parent * 3,
+                with_payload=[
+                    "parent_unit_id",
+                    "source_span_id",
+                    "start_ms",
+                    "end_ms",
+                    "verbatim_text",
+                ],
+            )
+        else:
+            response = self._client.query_points(
+                collection_name=self._collection,
+                query=query_dense,
+                using="passage_dense",
+                query_filter=query_filter,
+                limit=limit_parents * spans_per_parent * 3,
+                with_payload=[
+                    "parent_unit_id",
+                    "source_span_id",
+                    "start_ms",
+                    "end_ms",
+                    "verbatim_text",
+                ],
+            )
         hits = list(getattr(response, "points", []) or [])
         grouped: dict[str, list[Any]] = {}
         for hit in hits:
@@ -599,7 +794,7 @@ class FirstPersonContextStore:
             for parent_id, bucket in grouped.items()
         ]
         out.sort(key=lambda item: item[2], reverse=True)
-        return out[:limit_parents]
+        return out
 
     def fetch_parent_context(
         self,
@@ -655,7 +850,7 @@ class FirstPersonContextStore:
 
         for previous, current in zip(spans, spans[1:]):
             if (
-                current.start_ms <= previous.start_ms
+                current.start_ms < previous.start_ms
                 or current.source_span_index <= previous.source_span_index
             ):
                 raise FirstPersonContextStoreError(
@@ -1317,9 +1512,17 @@ class FirstPersonContextStore:
         for key, current_value in exact_fields:
             if key not in expected or expected.get(key) != current_value:
                 return False
-        if expected.get("transcript_hash") != span.source_text_hash:
+        # DATA-03 / T3-03: resolve both v2 (span_text_sha256 / video_transcript_sha256)
+        # and v1 (transcript_hash / source_text_hash).
+        exp_span_hash = expected.get("span_text_sha256") or expected.get("transcript_hash")
+        actual_span_hash = span.span_text_sha256 or span.source_text_hash
+        if exp_span_hash and exp_span_hash != actual_span_hash:
             return False
-        if expected.get("video_transcript_hash") != span.transcript_hash:
+        exp_vid_hash = expected.get("video_transcript_sha256") or expected.get(
+            "video_transcript_hash"
+        )
+        actual_vid_hash = span.video_transcript_sha256 or span.transcript_hash
+        if exp_vid_hash and exp_vid_hash != actual_vid_hash:
             return False
 
         # A verified citation must carry the complete provenance snapshot. This

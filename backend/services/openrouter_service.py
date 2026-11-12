@@ -122,6 +122,14 @@ _OPENROUTER_FALLBACK_RATES_PER_MILLION: dict[str, tuple[float, float]] = {
     # usage.cost always takes precedence over these accounting fallbacks.
     "google/gemini-2.5-flash": (0.30, 2.50),
     "google/gemini-3.6-flash": (0.75, 3.75),
+    # D-16 (owner decision 2026-11-07): first-person relevance scorer and the
+    # evidence judge. Read 2026-11-07 from OpenRouter's public model list
+    # (GET https://openrouter.ai/api/v1/models): prompt $0.0000001/token,
+    # completion $0.0000005/token, cache read $0.00000001/token. Prompts above
+    # 100k tokens cost 5x; not modelled here (scorer prompts are far smaller).
+    "anthropic/claude-haiku-5.5": (0.10, 0.50),
+    # Grader second pass (owner choice 2026-11-12). Read 2026-11-12 from the public model list.
+    "anthropic/claude-sonnet-5.5": (2.00, 10.00),
 }
 
 # OpenRouter Prompt Caching discount rates for prompt prefixes ($/1M tokens).
@@ -134,6 +142,7 @@ _OPENROUTER_CACHED_INPUT_RATES_PER_MILLION: dict[str, float] = {
     "google/gemini-2.5-flash": 0.075,
     "google/gemini-3.6-flash": 0.1875,
     "sarvamai/sarvam-m": 0.02,
+    "anthropic/claude-haiku-5.5": 0.01,  # D-16, read 2026-11-07 (see above)
 }
 
 if TYPE_CHECKING:
@@ -300,6 +309,14 @@ class OpenRouterService:
         across every process/worker/replica, not just this one instance.
         """
         limiter = OpenRouterService._shared_rate_limiter
+        if limiter is None:
+            # ``reset_shared_rate_limiter()`` (the test-isolation hook) and a
+            # constructor failure both leave this None. The method's contract is
+            # fail-open -- "a stuck rate limiter must never wedge a chat
+            # request" -- so a missing limiter must not raise AttributeError out
+            # of the chat path either.
+            logger.debug("OpenRouter rate limiter not initialised — skipping limit check")
+            return
         for _ in range(self._MAX_RATE_LIMIT_WAIT_ROUNDS):
             allowed, retry_after = await limiter.is_allowed_async(self._rate_limit_key(model))
             if allowed:
@@ -337,6 +354,9 @@ class OpenRouterService:
         is Redis-backed.
         """
         limiter = OpenRouterService._shared_rate_limiter
+        if limiter is None:
+            logger.debug("OpenRouter rate limiter not initialised — 429 backoff not recorded")
+            return
         await limiter.record_attempt_async(self._rate_limit_key(model), success=False)
         logger.warning("OpenRouter returned 429 — recorded failure for exponential backoff")
 
@@ -460,6 +480,13 @@ class OpenRouterService:
                     acc.cost_usd += max(0.0, cost_usd)
                 acc.model = model
                 acc.provider = "openrouter"
+                acc.record_call(
+                    prompt_id=operation,
+                    model=model,
+                    tokens_in=tokens_in,
+                    tokens_out=tokens_out,
+                    cost_usd=cost_usd if cost_usd is not None else estimated_cost,
+                )
             from app.runtime_metrics import (
                 observe_openrouter_accounting,
                 observe_provider_actual_cost,
@@ -741,7 +768,7 @@ class OpenRouterService:
             logger.info(
                 "OPENROUTER_CALL_TIMING operation=%s model=%s attempts=%d total_ms=%.1f "
                 "prompt_tokens=%s completion_tokens=%s cached_tokens=%s cache_write_tokens=%s "
-                "finish_reason=%s",
+                "cost=%s finish_reason=%s",
                 operation,
                 model,
                 attempt_count,
@@ -750,6 +777,7 @@ class OpenRouterService:
                 tokens_out,
                 cached_tokens,
                 cache_write_tokens,
+                f"{cost_usd:.6f}" if cost_usd is not None else "none",
                 str(data.get("choices", [{}])[0].get("finish_reason") or "unknown")[:32],
             )
 
@@ -1287,7 +1315,7 @@ class OpenRouterService:
                             "OPENROUTER_STREAM_TIMING operation=%s model=%s attempt=%d status_class=%s "
                             "headers_ms=%.1f first_event_ms=%s ttft_ms=%s total_ms=%.1f "
                             "prompt_tokens=%s completion_tokens=%s cached_tokens=%s "
-                            "finish_reason=%s",
+                            "cost=%s finish_reason=%s",
                             operation,
                             model,
                             attempt + 1,
@@ -1299,6 +1327,7 @@ class OpenRouterService:
                             prompt_tokens,
                             completion_tokens,
                             cached_tokens,
+                            f"{cost_usd:.6f}" if cost_usd is not None else "none",
                             finish_reason,
                         )
                         # Streamed incrementally above; nothing left to emit.
@@ -1633,7 +1662,13 @@ class OpenRouterService:
             }
 
     async def batch_grade_relevance(self, query: str, documents: list[str], **kwargs) -> list[dict]:
-        """CRAG: Grade documents batch-wise in one call."""
+        """CRAG: Grade documents batch-wise in one call.
+
+        Verdicts are parsed by ``services.llm_verdict`` (strict tokens or JSON
+        fields). An unparseable reply keeps the top document — the documented
+        contract — but is marked ``indeterminate`` so a caller can tell a real
+        grade from a grader failure.
+        """
         if not documents:
             return []
 
@@ -1643,52 +1678,21 @@ class OpenRouterService:
 
         prompt = f"Question: {query}\n\n{numbered_docs}"
         result = await self._generate_fast(BATCH_GRADE_PROMPT, prompt, **kwargs)
+        from services.llm_verdict import grade_documents
 
-        relevance_results = [
-            {"relevant": False, "reason": "No response from LLM"} for _ in documents
-        ]
-
-        parsed_any = False
-        for line in result.strip().splitlines():
-            line = line.strip()
-            if not line:
-                continue
-
-            match = re.match(r"(\d+)[:.]\s*(yes|no)(?:\s*[:-]\s*(.*))?", line, re.IGNORECASE)
-            if match:
-                try:
-                    idx = int(match.group(1)) - 1
-                    if 0 <= idx < len(documents):
-                        is_relevant = match.group(2).lower() == "yes"
-                        reason = (
-                            match.group(3).strip()
-                            if match.group(3)
-                            else ("Relevant teaching" if is_relevant else "Irrelevant content")
-                        )
-                        relevance_results[idx] = {"relevant": is_relevant, "reason": reason}
-                        parsed_any = True
-                except (ValueError, IndexError):
-                    continue
-
-        # An explicit "no" to every document is a verdict: return it, so CRAG can
-        # rewrite or abstain. Only an unparseable grader reply (grading failed)
-        # keeps the top document, and it says so.
-        if not parsed_any and documents:
-            logger.warning(
-                "Batch relevance grader output unparseable; keeping the top retrieval result."
-            )
-            relevance_results[0] = {
-                "relevant": True,
-                "reason": "Grader output unparseable: kept top retrieval result.",
-            }
-
-        return relevance_results
+        return grade_documents(result, len(documents))
 
     async def check_faithfulness(self, answer: str, context: str, **kwargs) -> bool:
-        """Self-RAG: Check if answer is faithful to the context."""
+        """Self-RAG: Check if answer is faithful to the context.
+
+        Uses the typed parser: "not faithful" / "unfaithful" are negations, not
+        a substring hit. An unparseable verdict is not faithfulness.
+        """
+        from services.llm_verdict import parse_faithfulness
+
         prompt = f"Context:\n{context}\n\nAnswer:\n{answer}"
         result = await self._generate_fast(FAITHFULNESS_CHECK_PROMPT, prompt, **kwargs)
-        return "faithful" in result.lower()
+        return parse_faithfulness(result) is True
 
     async def extract_hints(self, query: str, documents: list[str]) -> list[str]:
         """Stimulus RAG: Extract evidence hints."""

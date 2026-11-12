@@ -42,6 +42,12 @@ import time
 from pathlib import Path
 from typing import Any
 
+# NEW-ING-3 (DATA-24): the archive holds source audio; it does not decide rights.
+# Rights come from the rights register at build time
+# (services.corpus_build_safety.video_rights_decision). Writing "cleared" here
+# was a claim no one had checked.
+ARCHIVE_RIGHTS_STATUS = "not_determined_see_rights_register"
+
 try:
     from datetime import UTC, datetime, timedelta
 except ImportError:
@@ -241,7 +247,7 @@ class AudioArchive:
                     "sample_rate": None,
                     "channels": None,
                     "source_url": f"https://www.youtube.com/watch?v={tid}",
-                    "rights_status": "cleared",
+                    "rights_status": ARCHIVE_RIGHTS_STATUS,
                     "archived_at": None,
                 }
 
@@ -303,7 +309,7 @@ class AudioArchive:
                 "sample_rate": sample_rate,
                 "channels": channels,
                 "source_url": f"https://www.youtube.com/watch?v={vid}",
-                "rights_status": "cleared",
+                "rights_status": ARCHIVE_RIGHTS_STATUS,
                 "archived_at": archived_at,
             }
 
@@ -572,7 +578,7 @@ class AudioArchive:
                             "sample_rate": sample_rate,
                             "channels": channels,
                             "source_url": f"https://www.youtube.com/watch?v={vid}",
-                            "rights_status": "cleared",
+                            "rights_status": ARCHIVE_RIGHTS_STATUS,
                             "archived_at": datetime.now(UTC).isoformat(),
                             "error": None,
                             "retry_count": fresh_entry.get("retry_count", 0),
@@ -781,7 +787,7 @@ class AudioArchive:
                         "sample_rate": sample_rate,
                         "channels": channels,
                         "source_url": f"https://www.youtube.com/watch?v={vid}",
-                        "rights_status": "cleared",
+                        "rights_status": ARCHIVE_RIGHTS_STATUS,
                         "archived_at": datetime.now(UTC).isoformat(),
                         "error": None,
                         "retry_count": fresh_entry.get("retry_count", 0),

@@ -74,6 +74,7 @@ class KillSwitchStage(Stage):
 
         resources = format_helplines_block(
             intro="If you need to talk to someone now, these are always available:",
+            verified_only=True,  # SAFE-004 (T4-07)
         )
         response = f"{_STATIC_MESSAGE}\n\n{resources}"
 

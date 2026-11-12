@@ -26,6 +26,14 @@ Defined in `app/pipeline/stages/pipeline_builder.py:36-53`. The order documented
 in both `CLAUDE.md` files is wrong: `CircuitBreaker` runs **fourth**, not
 second, and `BoundedComparisonShortCircuit` is absent from the docs entirely.
 
+> **Correction 2026-11-05 (code at `c9b42d3e`).** The table below predates three changes.
+> `build_default_pipeline()` (`backend/app/pipeline/stages/pipeline_builder.py:53-92`) now runs:
+> KillSwitch, CacheCheck, RequestState, InputGuardrail, **Distress**, CircuitBreaker, DoctrineCache,
+> CasualShortCircuit, **OffTopic**, BoundedComparisonShortCircuit, **Personalize**, Graph, MeditationGen,
+> Translation, ToneAdapter, OutputGuardrail, Memory, CacheUpdate, ResultAssembly.
+> KillSwitch, OffTopic and Personalize are missing from the table, and Distress runs before
+> CircuitBreaker (comment at `pipeline_builder.py:57-58`). The `file:line` values below were not re-checked.
+
 | # | Stage | file:line | Runs when | LLM calls |
 |---|---|---|---|---|
 | 1 | CacheCheck | `cache_stage.py:137` | not benchmark-disabled, not incognito | 0-1 |

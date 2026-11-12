@@ -259,6 +259,9 @@ Populate key environment variables in `backend/.env`:
 | `LATENCY_BENCHMARK_CACHE_DISABLED` | Local-only benchmark switch that bypasses all application cache reads and writes; use only when measuring uncached latency | `false` |
 | `RAG_RETRIEVAL_EXPANSION_SOFT_WAIT_SECONDS` | Maximum post-primary-retrieval wait for optional LLM query expansion; slow planner work is cancelled and primary retrieval remains authoritative | `0.35` (maximum `5`) |
 | `FIRST_PERSON_CHAT_BRIDGE_ENABLED` | Kill-switch for `FirstPersonBridgeStage` (verbatim first-person answers inside `/api/chat`); code default is `true`, but root `.env` sets `false` for local production until an empirically-fitted abstention gate exists (2026-09-30 audit: zero-abstention threshold served out-of-corpus queries as teacher discourse) | `false` (root `.env`) / `true` (code default) |
+| `FIRST_PERSON_CORPUS_VERSION` | Reported in `route_metadata.corpus_version` for served and abstained first-person turns so served share can be attributed per corpus. The retrieval result is the primary source; set this only when an environment's payloads carry no version. Never guessed | *(empty — read from the result)* |
+| `FIRST_PERSON_CONTEXT_USE_SPARSE` | Fuse the named `passage_sparse` vector with `passage_dense` in fp-context retrieval. Doctrinal terms ("Four Sacred Secrets", "Soul Sync") are lexical matches dense retrieval scored 0/20 on; the store degrades to dense-only when a collection has no sparse vector | `true` |
+| `FIRST_PERSON_RELEVANCE_MIN_SCORE` | Admission floor for the first-person relevance scorer. Score 2 is served as `weak_match` (`is_direct_answer=False`, `verification.direct=False`); directness is governed separately by `_DIRECT_ANSWER_MIN_SCORE=3` | `2` |
 
 ---
 

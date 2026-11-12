@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search, Video } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search, Video, Flag, Check, AlertCircle } from 'lucide-react';
+import { quoteLang } from '@/lib/quoteLang';
+import { buildCaptionVtt } from '@/lib/captionVtt';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { resolveAttributionLabel } from '@/lib/chat/types';
 import { isUnreviewedTranscript } from '@/lib/transcriptStatus';
 import { useYouTubeEmbedError } from '@/hooks/useYouTubeEmbedError';
@@ -23,6 +25,8 @@ export interface DiscourseCitation {
   startTimestamp?: number; // in seconds; 0 is a valid, playable start
   endTimestamp?: number;
   quote?: string;
+  /** BCP-47 language of the quote when the clip record says so (NEW-A11Y-5). */
+  language?: string;
   /** Backend transcript provenance (`transcript_status`, or first-person `caption_status`).
    *  Absent => rendered as "Auto-transcript"; only an explicit reviewed status hides the label. */
   transcriptStatus?: string;
@@ -33,6 +37,9 @@ export interface DiscourseCitation {
   playbackStartSeconds?: number;
   /** Clip end plus the same pad, capped at the video duration. */
   playbackEndSeconds?: number;
+  pointId?: string;
+  sourceSpanId?: string;
+  videoId?: string;
 }
 
 interface CitationBadgeProps {
@@ -66,7 +73,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
             onOpenVideoModal(citation);
           }
         }}
-        className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-saffron-gold transition-all hover:scale-110 hover:bg-saffron-gold/20 focus:outline-none"
+        className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-ojas-ink transition-all hover:scale-110 hover:bg-saffron-gold/20 focus:outline-none"
       >
         {citation.index}
       </button>
@@ -90,7 +97,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
                   {citation.title || 'Sacred Discourse Teaching'}
                 </p>
                 <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span className="flex items-center gap-1 text-saffron-gold">
+                  <span className="flex items-center gap-1 text-ojas-ink">
                     {resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}
                     {citation.speakerVerified && (
                       <Sparkles className="h-2.5 w-2.5 text-saffron-gold" aria-label="Voice verified teacher" />
@@ -120,7 +127,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
               <button
                 type="button"
                 onClick={() => onOpenVideoModal(citation)}
-                className="flex items-center justify-center gap-1 rounded-xl bg-saffron-gold/15 py-1.5 text-xs font-medium text-saffron-gold hover:bg-saffron-gold/25 transition-colors"
+                className="flex items-center justify-center gap-1 rounded-xl bg-saffron-gold/15 py-1.5 text-xs font-medium text-ojas-ink hover:bg-saffron-gold/25 transition-colors"
               >
                 <Play className="h-3 w-3 fill-current" /> Video
               </button>
@@ -148,6 +155,10 @@ export const DiscourseVideoModal: React.FC<{
   citation: DiscourseCitation | null;
 }> = ({ isOpen, onClose, citation }) => {
   const { t } = useTranslation();
+  const [showReport, setShowReport] = useState(false);
+  const [reportCategory, setReportCategory] = useState<'wrong teacher' | 'wrong topic' | 'cut mid-thought' | 'other'>('wrong teacher');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportStatus, setReportStatus] = useState<'idle' | 'submitting' | 'submitted' | 'error'>('idle');
 
   const isDirectVideo = Boolean(
     citation?.url?.includes('/api/media/videos/') ||
@@ -188,6 +199,27 @@ export const DiscourseVideoModal: React.FC<{
     isOpen && !!citation && !isDirectVideo
   );
 
+  // NEW-A11Y-4 (A11Y-06): a captions track for direct video, built from the stored
+  // verbatim quote only. Cue times are source-video seconds, matching the #t= fragment.
+  const captionText = citation?.quote ?? '';
+  const captionStart = Math.max(0, citation?.playbackStartSeconds ?? citation?.startTimestamp ?? 0);
+  const captionEnd = citation?.playbackEndSeconds ?? citation?.endTimestamp ?? 0;
+  const [captionUrl, setCaptionUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isOpen || !isDirectVideo) {
+      setCaptionUrl(null);
+      return;
+    }
+    const vtt = buildCaptionVtt(captionText, captionStart, captionEnd);
+    if (!vtt) {
+      setCaptionUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }));
+    setCaptionUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [isOpen, isDirectVideo, captionText, captionStart, captionEnd]);
+
   if (!citation) return null;
   // YouTube's embed `start` takes whole seconds. Round UP (ceil) to prevent
   // starting up to 1.0s early into preceding host speech.
@@ -206,6 +238,32 @@ export const DiscourseVideoModal: React.FC<{
     exactEnd != null && exactEnd > exactStart ? `,${exactEnd.toFixed(3)}` : ''
   }`;
 
+  const handleReportClip = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (reportStatus === 'submitting') return;
+    setReportStatus('submitting');
+    try {
+      const pointId = citation.pointId || citation.sourceSpanId || citation.videoId || videoId || 'unknown';
+      const res = await fetch(`${BACKEND_URL}/api/feedback/clip-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          served_point_id: pointId,
+          question: citation.title || 'Discourse clip playback',
+          reason: reportDetails ? `${reportCategory}: ${reportDetails}` : reportCategory,
+          reason_category: reportCategory,
+        }),
+      });
+      if (res.ok) {
+        setReportStatus('submitted');
+      } else {
+        setReportStatus('error');
+      }
+    } catch {
+      setReportStatus('error');
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl overflow-hidden rounded-3xl border-border/50 bg-card/95 p-0 shadow-2xl backdrop-blur-2xl">
@@ -218,7 +276,11 @@ export const DiscourseVideoModal: React.FC<{
               className="h-full w-full object-contain"
               data-testid="direct-video-player"
               src={`${directStreamUrl}${directFragment}`}
-            />
+            >
+              {captionUrl && (
+                <track kind="captions" src={captionUrl} srcLang={quoteLang(citation.language) ?? 'en'} label="Spoken words" default />
+              )}
+            </video>
           </div>
         ) : embedError ? (
           <div className="flex aspect-video w-full flex-col items-center justify-center gap-1.5 bg-black/95 px-4 text-center">
@@ -229,7 +291,7 @@ export const DiscourseVideoModal: React.FC<{
               href={citation.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-saffron-gold/40 px-3 py-1 text-[11px] text-saffron-gold hover:bg-saffron-gold/15 transition-colors"
+              className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-saffron-gold/40 px-3 py-1 text-[11px] text-ojas-ink hover:bg-saffron-gold/15 transition-colors"
             >
               <ExternalLink className="h-3 w-3" />
               Watch on YouTube
@@ -240,7 +302,7 @@ export const DiscourseVideoModal: React.FC<{
             <iframe
               ref={iframeRef}
               className="h-full w-full"
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&start=${start}${endParam}&enablejsapi=1&origin=${encodeURIComponent(
+              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&cc_load_policy=1&start=${start}${endParam}&enablejsapi=1&origin=${encodeURIComponent(
                 typeof window !== 'undefined' ? window.location.origin : '',
               )}`}
               referrerPolicy="strict-origin-when-cross-origin"
@@ -254,13 +316,15 @@ export const DiscourseVideoModal: React.FC<{
         <div className="p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="font-serif text-base font-semibold text-foreground">
+              <DialogTitle className="font-serif text-base font-semibold leading-normal tracking-normal text-foreground">
                 {citation.title || 'Sacred Discourse'}
-              </h3>
-              <p className="text-xs text-saffron-gold">{resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}</p>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-ojas-ink">
+                {resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}
+              </DialogDescription>
             </div>
             {isDirectVideo ? (
-              <span className="flex items-center gap-1.5 text-xs font-medium text-ojas bg-ojas/10 px-2.5 py-1 rounded-full border border-ojas/20">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-ojas-ink bg-ojas/10 px-2.5 py-1 rounded-full border border-ojas/20">
                 <Video className="h-3.5 w-3.5" /> Direct Video Recording
               </span>
             ) : (
@@ -279,6 +343,92 @@ export const DiscourseVideoModal: React.FC<{
               "{citation.quote}"
               {isUnreviewedTranscript(citation.transcriptStatus) && (
                 <span className="ml-2 not-italic text-[10px]" data-testid="auto-transcript-note">(Auto-transcript)</span>
+              )}
+            </div>
+          )}
+
+          <div className="mt-3.5 pt-2.5 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
+            {!showReport ? (
+              <button
+                type="button"
+                onClick={() => setShowReport(true)}
+                className="inline-flex items-center gap-1.5 hover:text-foreground text-muted-foreground transition-colors"
+                data-testid="report-clip-trigger"
+              >
+                <Flag className="h-3 w-3" /> Report clip issue
+              </button>
+            ) : null}
+          </div>
+
+          {showReport && (
+            <div className="mt-2.5 rounded-2xl border border-border/50 bg-secondary/30 p-3 space-y-2.5" data-testid="report-clip-form">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-xs text-foreground">Report this clip</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowReport(false);
+                    setReportStatus('idle');
+                  }}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {reportStatus === 'submitted' ? (
+                <div className="flex items-center gap-2 text-xs text-green-500 py-1" data-testid="report-success-msg">
+                  <Check className="h-4 w-4" /> Thank you. Your report has been submitted for faculty review.
+                </div>
+              ) : (
+                <form onSubmit={handleReportClip} className="space-y-2.5">
+                  <div className="grid grid-cols-2 gap-1.5 text-xs">
+                    {(['wrong teacher', 'wrong topic', 'cut mid-thought', 'other'] as const).map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setReportCategory(cat)}
+                        className={`rounded-lg px-2.5 py-1.5 text-left capitalize transition-colors border ${
+                          reportCategory === cat
+                            ? 'bg-saffron-gold/15 border-saffron-gold text-foreground font-medium'
+                            : 'bg-card/50 border-border/50 text-muted-foreground hover:bg-card'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Optional details..."
+                    value={reportDetails}
+                    onChange={(e) => setReportDetails(e.target.value)}
+                    maxLength={500}
+                    className="w-full rounded-lg border border-border/50 bg-card/60 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-saffron-gold/50"
+                  />
+                  {reportStatus === 'error' && (
+                    <p className="text-[11px] text-destructive-ink flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> Could not submit report. Please try again.
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowReport(false)}
+                      className="px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={reportStatus === 'submitting'}
+                      className="rounded-lg bg-saffron-gold px-3 py-1 text-xs font-medium text-black hover:bg-saffron-gold/90 transition-colors disabled:opacity-50"
+                      data-testid="report-clip-submit"
+                    >
+                      {reportStatus === 'submitting' ? 'Submitting...' : 'Submit Report'}
+                    </button>
+                  </div>
+                </form>
               )}
             </div>
           )}

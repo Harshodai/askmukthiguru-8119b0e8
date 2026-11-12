@@ -21,6 +21,11 @@ Observation and self-awareness are crucial practices in spiritual awakening. Rec
 ## Quotes
 
 ## Related Concepts
+- **Mindfulness and Observation** ([[sri-preethaji/mindfulness_and_observation]]): Chanting the mantra "Shantir Bhavatu" can significantly reduce stress and anxiety in the immediate environment by bringing peace vibrations.
+- **Yoga and Spiritual Observation** ([[sri-preethaji/yoga_and_spiritual_observation]]): Yoga is a profound practice that transcends mere physical exercise.
+- **Observation and Peace** ([[sri-preethaji/observation_and_peace]]): The 28-day build-up phase of the peace festival is crucial for forming peace-neutral circuitry in the brain, making you a peaceful human being, and creating an atmosphere of peace at home and work.
+- **Observation and Enlightenment** ([[sri-krishnaji/observation_and_enlightenment]]): The Limitless Field Meditation led by Sri Krishnaji had a profound impact on the speaker's personal growth and sense of inner peace.
+- **Observation and Ego Relationship** ([[sri-preethaji/observation_and_ego_relationship]]): The text emphasizes the cyclical nature of war and its devastating effects, including the loss of innocent lives and the perpetuation of hatred, which ultimately leads to further conflict.
 - Deeksha: A spiritual practice that involves receiving energy and guidance from a spiritual teacher, facilitating an enlightened state.
 - Divine: The concept representing the ultimate reality or the source of all existence, encompassing multiple deities and the idea of a cosmic being.
 - Sri Krishnaji: A spiritual teacher recognized for his teachings on various aspects of spirituality, including karma, dharma, meditation, yoga, and the practice of "deeksha."

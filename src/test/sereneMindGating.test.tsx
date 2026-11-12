@@ -99,7 +99,6 @@ const chatMocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   sendMessage: vi.fn(),
   sendMessageStreaming: vi.fn(),
-  generateSummary: vi.fn(),
   generateConversationTitle: vi.fn(),
   setLanguage: vi.fn(),
   openSereneMind: vi.fn(),
@@ -141,7 +140,6 @@ vi.mock('@/hooks/useTextToSpeech', () => ({
 vi.mock('@/lib/aiService', () => ({
   sendMessage: chatMocks.sendMessage,
   sendMessageStreaming: chatMocks.sendMessageStreaming,
-  generateSummary: chatMocks.generateSummary,
   generateConversationTitle: chatMocks.generateConversationTitle,
   setLanguage: chatMocks.setLanguage,
   queueMemoryExtraction: vi.fn(),
@@ -156,7 +154,6 @@ vi.mock('@/lib/chatStorage', () => ({
   getConversationPreview: vi.fn().mockReturnValue('preview'),
   getCurrentConversationId: vi.fn(async () => null),
   setCurrentConversationId: vi.fn(async () => {}),
-  updateConversationSummary: vi.fn(async () => {}),
   hashMessages: vi.fn().mockReturnValue('mockhash'),
 }));
 
@@ -211,7 +208,6 @@ describe('ChatInterface blocked-path gating', () => {
   beforeEach(() => {
     window.HTMLElement.prototype.scrollIntoView = vi.fn();
     chatMocks.getSession.mockResolvedValue({ data: { session: null } });
-    chatMocks.generateSummary.mockResolvedValue('');
     chatMocks.generateConversationTitle.mockResolvedValue('T');
     chatMocks.sendMessageStreaming.mockImplementation(() => ({
       [Symbol.asyncIterator]: async function* () {},

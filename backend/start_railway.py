@@ -29,6 +29,9 @@ On shutdown, signals the real lifespan to exit, then waits for cleanup.
 import asyncio
 import logging
 import os
+import signal
+import subprocess
+import sys
 import threading
 import time
 
@@ -161,6 +164,144 @@ def get_web_concurrency(env=None) -> int:
             "refusing to start rather than guessing a worker count."
         )
     return workers
+
+
+# NEW-RW-3 (RW-04, 2026-11-06): graceful shutdown of the Celery child.
+# This wrapper is PID 1 in the container. Linux ignores SIGTERM for a PID 1
+# process that installed no handler, so before this change Railway's SIGTERM
+# never reached the Celery child and the later SIGKILL ended it mid-task
+# (runbook section 8, G-4). The supervisor below installs a handler, forwards
+# the first SIGTERM to the child (Celery warm shutdown for a worker, a normal
+# stop for beat), and waits for it to exit.
+#
+# The grace period must stay BELOW Railway's RAILWAY_DEPLOYMENT_DRAINING_SECONDS
+# for that service (worker 60, beat 30 in .railway/railway.ts), or Railway
+# SIGKILLs this wrapper before it can SIGKILL a stuck child itself. A task
+# that is killed is redelivered because task_acks_late=True (celery_config.py).
+_CELERY_SHUTDOWN_GRACE_DEFAULT_S = 25.0
+_CELERY_SHUTDOWN_GRACE_MAX_S = 3600.0
+
+
+def get_celery_shutdown_grace_s(env=None) -> float:
+    """Seconds the wrapper waits for the Celery child after SIGTERM.
+
+    Unset or blank uses the default. Garbage fails closed with SystemExit,
+    like WEB_CONCURRENCY above.
+    """
+    source = env if env is not None else os.environ
+    raw = source.get("CELERY_SHUTDOWN_GRACE_SECONDS", "")
+    if raw is None or str(raw).strip() == "":
+        return _CELERY_SHUTDOWN_GRACE_DEFAULT_S
+    try:
+        value = float(str(raw).strip())
+    except ValueError as exc:
+        raise SystemExit(
+            f"CELERY_SHUTDOWN_GRACE_SECONDS must be a number > 0 and <= "
+            f"{_CELERY_SHUTDOWN_GRACE_MAX_S:g}, got {raw!r}"
+        ) from exc
+    if not 0 < value <= _CELERY_SHUTDOWN_GRACE_MAX_S:
+        raise SystemExit(
+            f"CELERY_SHUTDOWN_GRACE_SECONDS must be a number > 0 and <= "
+            f"{_CELERY_SHUTDOWN_GRACE_MAX_S:g}, got {raw!r}"
+        )
+    return value
+
+
+def build_celery_beat_command() -> list[str]:
+    """Command for the dedicated Beat service.
+
+    The image runs as `appuser`, but `/app` is created root-owned by WORKDIR,
+    and Beat's default schedule file (`celerybeat-schedule`) is written to the
+    working directory. `/app/data` is chowned to appuser in Dockerfile.railway,
+    so the schedule file goes there. [INF]: not yet proven on a live Railway
+    run; the change is safe either way because the directory exists.
+    """
+    return [
+        sys.executable,
+        "-m",
+        "celery",
+        "-A",
+        "celery_config",
+        "beat",
+        "--loglevel=INFO",
+        "--schedule",
+        "/app/data/celerybeat-schedule",
+    ]
+
+
+def _exit_code_for(returncode: int) -> int:
+    """Map a subprocess return code to a process exit code (never negative)."""
+    return 128 - returncode if returncode < 0 else returncode
+
+
+def _supervise_celery_child(cmd, *, label: str, grace_s: float, on_started=None) -> int:
+    """Run `cmd` as a child, forward SIGTERM/SIGINT to it, and return its exit code.
+
+    - First SIGTERM or SIGINT: forwarded once as SIGTERM. A running Celery task
+      finishes (warm shutdown); the wrapper waits up to `grace_s`.
+    - Later signals during the drain are logged and ignored. They are not
+      forwarded again and do not shorten the grace period.
+    - If the child is still alive after `grace_s`, it gets SIGKILL and the
+      wrapper exits non-zero, so the platform does not read a forced kill as a
+      clean stop.
+    - The handler is installed BEFORE the child starts, so a signal that
+      arrives during start-up is not lost.
+
+    Must run on the main thread (Python only allows signal handlers there).
+    """
+    state: dict = {"child": None, "terminating": False, "term_at": None}
+
+    def _forward() -> None:
+        child = state["child"]
+        if child is None or child.poll() is not None:
+            return
+        try:
+            child.send_signal(signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+
+    def _handler(signum, _frame) -> None:
+        if state["terminating"]:
+            logger.warning(
+                "%s: signal %s received while already draining; ignoring (not forwarded again)",
+                label,
+                signum,
+            )
+            return
+        state["terminating"] = True
+        state["term_at"] = time.monotonic()
+        logger.info("%s: signal %s received; forwarding SIGTERM to the child", label, signum)
+        _forward()
+
+    previous = {sig: signal.signal(sig, _handler) for sig in (signal.SIGTERM, signal.SIGINT)}
+    try:
+        child = subprocess.Popen(cmd)
+        state["child"] = child
+        if state["terminating"]:
+            # The signal arrived between handler install and Popen returning.
+            _forward()
+        if on_started is not None:
+            on_started(child)
+        while True:
+            try:
+                returncode = child.wait(timeout=0.2)
+                break
+            except subprocess.TimeoutExpired:
+                term_at = state["term_at"]
+                if term_at is not None and (time.monotonic() - term_at) >= grace_s:
+                    logger.error(
+                        "%s: child still running %.0fs after SIGTERM; sending SIGKILL "
+                        "(an unacknowledged task is redelivered, task_acks_late=True)",
+                        label,
+                        grace_s,
+                    )
+                    child.kill()
+                    child.wait()
+                    return 1
+        return _exit_code_for(returncode)
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
 
 
 def _stale_exit_due(now: float, first_unhealthy_at: float | None) -> tuple[bool, float]:
@@ -514,28 +655,17 @@ def main() -> None:
     # A dedicated Beat service schedules durable-memory recovery.
     if os.environ.get("SERVICE_TYPE") == "celery-beat":
         logger.info("Starting Mukthi Guru Celery Beat scheduler")
-        import subprocess
-        import sys
-
-        proc = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "celery",
-                "-A",
-                "celery_config",
-                "beat",
-                "--loglevel=INFO",
-            ]
+        sys.exit(
+            _supervise_celery_child(
+                build_celery_beat_command(),
+                label="celery-beat",
+                grace_s=get_celery_shutdown_grace_s(),
+            )
         )
-        sys.exit(proc.returncode)
 
     # When SERVICE_TYPE=celery, start the Celery worker instead of the ASGI server.
     if os.environ.get("SERVICE_TYPE") == "celery":
         logger.info("Starting Mukthi Guru Celery worker")
-        import subprocess
-        import sys
-        import threading
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
         try:
@@ -564,7 +694,7 @@ def main() -> None:
             "-l",
             "info",
         ]
-        worker = subprocess.Popen(cmd)
+        worker_holder: dict = {}
 
         class _WorkerHealthHandler(BaseHTTPRequestHandler):
             """Small liveness endpoint for the non-HTTP Celery process."""
@@ -573,7 +703,7 @@ def main() -> None:
                 if self.path != "/api/healthz":
                     body = b'{"ok":false,"status":"not-found"}'
                     status = 404
-                elif worker.poll() is None:
+                elif worker_holder["child"].poll() is None:
                     body = b'{"ok":true,"status":"alive"}'
                     status = 200
                 else:
@@ -595,19 +725,29 @@ def main() -> None:
 
         health_server = ThreadingHTTPServer(("0.0.0.0", port), _WorkerHealthHandler)
         health_server.daemon_threads = True
-        health_thread = threading.Thread(
-            target=health_server.serve_forever,
-            name="celery-health-server",
-            daemon=True,
-        )
-        health_thread.start()
+
+        def _start_health(child) -> None:
+            worker_holder["child"] = child
+            threading.Thread(
+                target=health_server.serve_forever,
+                name="celery-health-server",
+                daemon=True,
+            ).start()
+
+        # NEW-RW-3: SIGTERM is forwarded to the Celery child (warm shutdown).
+        # Health stays "alive" while the child drains, then turns 503.
+        return_code = 1
         try:
-            return_code = worker.wait()
+            return_code = _supervise_celery_child(
+                cmd,
+                label="celery-worker",
+                grace_s=get_celery_shutdown_grace_s(),
+                on_started=_start_health,
+            )
         finally:
-            health_server.shutdown()
+            if worker_holder:
+                health_server.shutdown()
             health_server.server_close()
-            if worker.poll() is None:
-                worker.terminate()
         sys.exit(return_code)
 
     logger.info("Starting Mukthi Guru backend on port %s", port)

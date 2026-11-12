@@ -44,6 +44,7 @@ from domain.first_person_safety import (
 # heavier dependencies (app.config, ingest.*, guardrails.*).
 # ---------------------------------------------------------------------------
 from services.first_person_evidence_policy import (
+    _CORE_WISDOM_OPENER_RE,
     _DANGLING_QUESTION_TAIL_RE,
     _DISCOURSE_ACKNOWLEDGMENT_RE,
     _EVENT_MARKER_RE,
@@ -273,7 +274,9 @@ class FirstPersonSafetyPolicy:
             reason_codes.append("dangling_dependency")
 
         # ---- Orphan opener (candidate-only) → dangling_dependency ------
-        if _ORPHAN_OPENER_RE.match(candidate_text):
+        if _ORPHAN_OPENER_RE.match(candidate_text) and not _CORE_WISDOM_OPENER_RE.match(
+            candidate_text
+        ):
             dimensions.append(
                 SafetyDimension(
                     category=SafetyCategory.DANGLING_DEPENDENCY,

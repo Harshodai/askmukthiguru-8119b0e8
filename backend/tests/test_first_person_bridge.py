@@ -112,6 +112,14 @@ def _clip_citation(**overrides) -> dict:
         "caption_status": "auto_transcript",
     }
     citation.update(overrides)
+    if "transcript_hash" not in overrides and "source_text_hash" not in overrides:
+        # NEW-SEC-1: the bridge re-checks sha256(verbatim_text) at assembly, as
+        # the store's integrity gate does; a fixture clip carries its real hash.
+        import hashlib
+
+        citation["transcript_hash"] = hashlib.sha256(
+            str(citation["verbatim_text"]).encode("utf-8")
+        ).hexdigest()
     return citation
 
 
@@ -159,7 +167,7 @@ def _container(*, block_output: bool = False) -> MagicMock:
 def _ctx(
     container,
     *,
-    msg: str = "how do I find inner peace?",
+    msg: str = "What is suffering?",
     lang: str = "en",
     is_indic: bool = False,
 ) -> PipelineContext:
@@ -1713,3 +1721,96 @@ async def test_bridge_refuses_citation_without_authoritative_rights_stamp(fp_pip
     assert result is not None
     assert result.route_decision == "first_person_abstain"
     assert result.citations == []
+
+
+@pytest.mark.asyncio
+async def test_bridge_serves_spiritual_metaphor_with_medical_claim_notice(fp_pipeline):
+    """Spiritual metaphor with content_safety='clean' retains MEDICAL_CLAIM_NOTICE in safety_notices."""
+    from services.first_person_content_assessment import MEDICAL_CLAIM_NOTICE
+
+    clip_text = "Love itself has tremendous power to heal the heart and bring peace."
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=clip_text,
+        citations=[_clip_citation(verbatim_text=clip_text, speaker_verified=True)],
+        status="success",
+        is_direct=True,
+        editorial_set={
+            "content_safety": "clean",
+            "covered_facets": ["suffering", "peace"],
+            "status": "supported",
+        },
+    )
+
+    result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="What causes suffering?"))
+
+    assert result is not None
+    assert result.route_decision == "first_person_bridge"
+    assert result.citations != []
+    assert "safety_notices" in result.route_metadata
+    assert MEDICAL_CLAIM_NOTICE in result.route_metadata["safety_notices"]
+
+
+
+# --- HyDE provider resolution (2026-11-11) ---------------------------------
+# Finding 5 of the SOTA audit said HyDE only ever ran when `container.ollama` was
+# truthy. On the real container `ollama` is a deprecated alias for `llm`, and the
+# wrapper that answers in production (`QueuedLLMProvider`) does implement
+# `generate_hyde` — so the premise was stale in one direction and unsafe in the
+# other (any container without that exact attribute skipped HyDE silently). The
+# bridge now resolves through the canonical provider with a hasattr check.
+
+
+class _HydeCapable:
+    async def generate_hyde(self, *, question: str, **_kwargs: object) -> str:
+        return "a hypothetical teaching about " + question
+
+
+class _NoHyde:
+    pass
+
+
+def test_hyde_provider_prefers_the_canonical_llm_over_the_deprecated_alias():
+    canonical = _HydeCapable()
+    container = SimpleNamespace(llm=canonical, ollama=_NoHyde(), openrouter=_NoHyde())
+
+    assert bridge_module._hyde_provider(container) is canonical
+
+
+def test_hyde_provider_falls_back_to_any_provider_that_can_write():
+    nim = _HydeCapable()
+    container = SimpleNamespace(llm=None, ollama=None, openrouter=_NoHyde(), nim=nim)
+
+    assert bridge_module._hyde_provider(container) is nim
+
+
+def test_hyde_provider_requires_the_method_not_just_the_attribute():
+    """`OpenRouterService` exists on every container but cannot write a HyDE passage."""
+    container = SimpleNamespace(llm=_NoHyde(), ollama=_NoHyde(), openrouter=_NoHyde())
+    assert bridge_module._hyde_provider(container) is None
+
+    container.openrouter = _HydeCapable()
+    assert isinstance(bridge_module._hyde_provider(container), _HydeCapable)
+
+
+def test_hyde_provider_tolerates_a_container_without_the_attributes():
+    assert bridge_module._hyde_provider(SimpleNamespace()) is None
+
+
+def test_bridge_no_longer_hardcodes_the_ollama_alias_for_hyde():
+    """The resolver, not the deprecated alias, decides who writes the HyDE passage."""
+    resolver = inspect.getsource(bridge_module._hyde_provider)
+    for attribute in ('"llm"', '"ollama"', '"openrouter"', '"nim"'):
+        assert attribute in resolver
+    assert "generate_hyde" in resolver
+
+    stage_source = inspect.getsource(FirstPersonBridgeStage)
+    hyde_block = stage_source.split("_hyde_enabled and _is_en", 1)[1].split("user_lang = ", 1)[0]
+    assert "_hyde_provider(container)" in hyde_block
+    assert 'getattr(container, "ollama", None)' not in hyde_block
+
+
+def test_hyde_provider_helper_is_the_canonical_resolver_not_a_copy():
+    """A container whose ``llm`` is the production wrapper resolves through it."""
+    wrapper = _HydeCapable()
+    container = SimpleNamespace(llm=wrapper, ollama=wrapper, openrouter=_NoHyde())
+    assert bridge_module._hyde_provider(container) is wrapper

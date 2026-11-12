@@ -139,6 +139,7 @@ markers = [
     "unit: Unit tests",
     "integration: Requires live infra (Qdrant/embedding model) — skips gracefully if unavailable",
     "slow: Opt-in stress/benchmark tests, not run by default",
+    "fixture_store: Runs against real Qdrant and Redis service containers (T2-05); skips when a store is unreachable",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

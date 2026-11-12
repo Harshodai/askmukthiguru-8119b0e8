@@ -9,6 +9,11 @@ INJECTION_PATTERNS = [
     r"you\s+are\s+now\s+",
     r"new\s+instructions?:",
     r"forget\s+(your|all)\s+(rules|instructions)",
+    # MEM-012: merged from the extractor's former private _INJECTION_RE so the
+    # extractor and this module use one list. English only: Indic-script and
+    # transliterated patterns need native-speaker review first (D-22).
+    r"(?:ignore|disregard|override|forget)\s+(?:all\s+)?(?:previous|prior|above)\s+"
+    r"(?:instructions?|rules?|context)",
 ]
 
 

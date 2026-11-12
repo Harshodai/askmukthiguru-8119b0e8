@@ -15,7 +15,7 @@ teacher: "sri-preethaji"
 The concept of exponential growth in consciousness emphasizes the importance of becoming aware of 5% of one's life to achieve a state of fulfillment and enlightenment. This 5% represents the conscious part of one's life, which is often unconscious and unaware. By focusing on this 5%, one can achieve a state of exponential growth and fulfillment. The journey of becoming aware of this 5% is a transformative process that requires a 7-day journey, during which one transforms into a different human being.
 
 ## Key Teachings
-- **5% of Life Focus**: Focusing on 5% of one's life to achieve a state of fulfillment and enlightenment.
+- 5% of Life Focus: Focusing on 5% of one's life to achieve a state of fulfillment and enlightenment.
 - Seven-Day Journey: A transformative process that transforms one into a different human being.
 
 ## Quotes

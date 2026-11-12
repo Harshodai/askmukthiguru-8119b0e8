@@ -111,7 +111,12 @@ def test_kill_switch_flip_applies_without_rebuilding_the_router(flags_on):
 
     assert router({}) == "first_person"
     settings.first_person_chat_bridge_enabled = False
+    # T1-05: with fail-closed on (default) a disabled bridge still claims the turn
+    # (the node abstains with fp_disabled); only the rollback flag routes to general.
+    assert router({}) == "first_person"
+    settings.fp_fail_closed_enabled = False
     assert router({}) == "GENERAL_ENTRY"
+    settings.fp_fail_closed_enabled = True
     settings.first_person_chat_bridge_enabled = True
     assert router({}) == "first_person"
 
@@ -132,6 +137,11 @@ def test_each_gate_alone_blocks_first_person(monkeypatch, attr, blocking_value):
     monkeypatch.setattr(settings, attr, blocking_value)
 
     router = make_entry_router(lambda _s: "GENERAL_ENTRY")
+    # T1-05: by default a blocked gate fails CLOSED (first_person node abstains with
+    # fp_disabled) instead of falling to the generating graph.
+    assert router({}) == "first_person"
+    # Rollback flag restores the legacy fail-toward-general behaviour.
+    monkeypatch.setattr(settings, "fp_fail_closed_enabled", False)
     assert router({}) == "GENERAL_ENTRY"
 
 
@@ -151,8 +161,16 @@ def test_router_identical_to_parallel_start_when_general_only(flags_on):
 
 
 @pytest.mark.asyncio
-async def test_node_without_pipeline_ctx_falls_through():
-    """Out-of-band ainvoke (tests/evals) never claims — general path stays safe."""
+async def test_node_without_pipeline_ctx_falls_through(monkeypatch):
+    """Out-of-band ainvoke (tests/evals) falls through only when generation is allowed.
+
+    SYS-001 remainder: with generated teaching not allowed (fail closed, the
+    default), a context-free call returns the static abstain instead; that
+    state is pinned in tests/test_fp_fail_closed_remainder.py.
+    """
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     assert await first_person_node({}, None) == {}
     assert await first_person_node({}, {"configurable": {}}) == {}
 
@@ -187,6 +205,8 @@ async def test_node_fails_open_on_bridge_exception(monkeypatch):
 
     monkeypatch.setattr(bridge_mod, "run_first_person_bridge", _boom)
 
+    # T1-05: the legacy fail-open path is only reachable via the rollback flag.
+    monkeypatch.setattr(settings, "fp_fail_closed_enabled", False)
     out = await first_person_node({}, {"configurable": {"pipeline_ctx": object()}})
     assert out == {}
 
