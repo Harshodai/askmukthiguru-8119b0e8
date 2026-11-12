@@ -131,6 +131,8 @@ _ENV_READ_BASELINE = frozenset(
         "app/release_manifest.py::RAILWAY_GIT_COMMIT_SHA",
         "app/release_manifest.py::RELEASE_ID",
         "app/release_manifest.py::SCHEMA_VERSION",
+        # Test-only escape hatch read beside PYTEST_CURRENT_TEST; never app config.
+        "app/telemetry_db.py::ALLOW_TELEMETRY_DB_IN_TESTS",
         "app/telemetry_sink.py::SUPABASE_SERVICE_ROLE_KEY",
         "ingest/contextual_reingest.py::ALLOW_OPENROUTER_REINGEST",
         "ingest/contextual_reingest.py::OLLAMA_REINGEST_FALLBACK_MODEL",
