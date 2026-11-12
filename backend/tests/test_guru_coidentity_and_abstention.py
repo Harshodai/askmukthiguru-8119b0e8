@@ -409,13 +409,31 @@ class TestStandaloneAuthenticOralOpeners:
 # ==============================================================================
 
 
+# Loader-logic fixture only. The profile that used to ship at config/first_person_calibration.json
+# was withdrawn on 2026-11-12: one of its two label sheets was written by an AI agent (owner
+# statement), and CLAUDE.md invariant 3 forbids fitting on AI-authored labels. See
+# audits/evidence/CALIBRATION_PROVENANCE_2026-11-12.md.
+_EXAMPLE_PROFILE = str(
+    __import__("pathlib").Path(__file__).parent
+    / "fixtures"
+    / "calibration_profile_example_NOT_FOR_SERVING.json"
+)
+
+
 class TestCalibrationProfileLoading:
-    """The conformal_direct_v1 calibration profile must load successfully and unblock
-    is_direct evaluation for the serving pipeline."""
+    """The loader accepts a well-formed conformal profile. The shipped profile makes no
+    conformal claim (withdrawn 2026-11-12), so it must load as None."""
+
+    def test_shipped_profile_is_withdrawn_and_makes_no_direct_claim(self):
+        for path in (
+            "config/first_person_calibration.json",
+            "backend/config/first_person_calibration.json",
+        ):
+            assert load_calibration_profile(path, "first_person_v10") is None
 
     def test_calibration_profile_loads_successfully(self):
         profile = load_calibration_profile(
-            "backend/config/first_person_calibration.json",
+            _EXAMPLE_PROFILE,
             "first_person_v10",
         )
         assert profile is not None, "Profile must load successfully and not be demoted to None"
@@ -429,7 +447,7 @@ class TestCalibrationProfileLoading:
 
     def test_is_direct_evaluation_unblocked(self):
         profile = load_calibration_profile(
-            "backend/config/first_person_calibration.json",
+            _EXAMPLE_PROFILE,
             "first_person_v10",
         )
         assert profile is not None
