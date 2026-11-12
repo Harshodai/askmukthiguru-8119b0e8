@@ -47,6 +47,14 @@
 - **Span gate rejections:** 16 "severed preposition opener" and many "span failed a serve-time gate". These are corpus defects from ingestion boundaries. The fix means rebuilding the v10 collection, which is a Qdrant write and needs dry-run, snapshot and owner approval first.
 - **Redis timeouts:** 48 `RedisBackedRateLimiter` degradations ("Timeout reading from redis:6379") with `socket_timeout=0.5`. Redis was healthy when checked later. Degrade-to-allow is by design. Raising the timeout is a guess until the latency is measured under load.
 
+## Nov 12, 2026 — The backend "killer" was a segfault in our own auth middleware
+
+### L-BASEHTTP-BODY-READ-SEGFAULT-1. Reading the request body inside a BaseHTTPMiddleware can crash the process.
+- **What:** `@app.middleware("http")` auth rate limiter called `await request.json()` on every POST to `/api/auth/anon-session` and the other auth paths. Starlette's BaseHTTPMiddleware nests its `receive` wrappers on each body read. Under load the nesting overflowed the C stack: Python logged `Fatal Python error: Segmentation fault` with the stack inside `auth_rate_limit_middleware` → `receive_or_disconnect` → `stream`. Docker restarted the container (exit 0, restart policy). That is what killed graded-4, graded-5 and graded-6 (and what looked like "SIGKILL from outside the repo"). Reproduced on the live container: 300 posts to anon-session gave a restart and a segfault.
+- **Fix:** `AuthRateLimitMiddleware` is pure ASGI. It buffers the body once and replays it to the handler (`_buffer_request_body`, `_replay_receive`). Tests: `backend/tests/test_auth_rate_limit_asgi.py`.
+- **Same pattern, not fixed yet:** `app/middleware/idempotency.py` (`IdempotencyMiddleware`, a BaseHTTPMiddleware) calls `await request.body()`. It runs only when an `Idempotency-Key` header is sent, which our capture does not send.
+- **Rule:** never read the request body inside `@app.middleware("http")` or any BaseHTTPMiddleware. Use pure ASGI middleware, or read the body in a dependency. Check any segfault in `docker logs` for a `Fatal Python error` line before blaming the environment.
+
 ## Nov 12, 2026 — CORRECTION: the graded minimum was 3, not 2
 
 ### L-CORRECTION-GRADED-MIN-IS-3-1. My earlier "min score 2" finding was a misreading. Withdraw L-GRADED-MIN-SCORE-2-OWNER-DECISION-1.

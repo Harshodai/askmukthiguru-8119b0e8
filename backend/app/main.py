@@ -1320,17 +1320,37 @@ _AUTH_LIMIT_PATHS: frozenset[str] = frozenset(
 )
 
 
-@app.middleware("http")
-async def auth_rate_limit_middleware(
-    request: Request, call_next: Callable[[Request], Awaitable[Response]]
-) -> Response:
-    if request.method == "POST" and request.url.path in _AUTH_LIMIT_PATHS:
-        client_ip = request.client.host if request.client else "unknown"
-        ip_key = f"auth_rl:ip:{request.url.path}:{client_ip}"
+class AuthRateLimitMiddleware:
+    """Rate-limit auth POSTs as pure ASGI middleware.
+
+    The earlier ``@app.middleware("http")`` version (BaseHTTPMiddleware) read the
+    JSON body with ``await request.json()``. Each body read nests Starlette's
+    ``receive`` wrappers; under load that recursion overflowed the C stack and
+    segfaulted the whole backend (2026-11-12: reproduced with 300 POSTs to
+    /api/auth/anon-session, and the crash killed graded-4/-5/-6 captures). This
+    version buffers the body once and replays it to the handler.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if (
+            scope["type"] != "http"
+            or scope.get("method") != "POST"
+            or scope.get("path") not in _AUTH_LIMIT_PATHS
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        path = scope["path"]
+        client = scope.get("client")
+        client_ip = client[0] if client else "unknown"
+        ip_key = f"auth_rl:ip:{path}:{client_ip}"
 
         ip_allowed, ip_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(ip_key)
         if not ip_allowed:
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=429,
                 content={
                     "error": "Too Many Requests",
@@ -1338,35 +1358,78 @@ async def auth_rate_limit_middleware(
                 },
                 headers={"Retry-After": str(int(ip_retry_after))},
             )
+            await response(scope, receive, send)
+            return
 
+        body, disconnected = await _buffer_request_body(receive)
         acct_key = None
         try:
-            body = await request.json()
-            email = body.get("email") or body.get("username") or ""
-            if email:
-                acct_key = f"auth_rl:acct:{email}"
-                acct_allowed, acct_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(acct_key)
-                if not acct_allowed:
-                    await _AUTH_RATE_LIMITER.record_attempt_async(ip_key, success=False)
-                    return JSONResponse(
-                        status_code=429,
-                        content={
-                            "error": "Too Many Requests",
-                            "message": "Too many login attempts for this account. Try again later.",
-                        },
-                        headers={"Retry-After": str(int(acct_retry_after))},
-                    )
-        except (json.JSONDecodeError, RuntimeError):
-            pass
+            parsed = json.loads(body) if body else None
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            parsed = None
+        email = ""
+        if isinstance(parsed, dict):
+            email = parsed.get("email") or parsed.get("username") or ""
+        if email:
+            acct_key = f"auth_rl:acct:{email}"
+            acct_allowed, acct_retry_after = await _AUTH_RATE_LIMITER.is_allowed_async(acct_key)
+            if not acct_allowed:
+                await _AUTH_RATE_LIMITER.record_attempt_async(ip_key, success=False)
+                response = JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": "Too Many Requests",
+                        "message": "Too many login attempts for this account. Try again later.",
+                    },
+                    headers={"Retry-After": str(int(acct_retry_after))},
+                )
+                await response(scope, receive, send)
+                return
 
-        resp = await call_next(request)
+        status_holder: dict[str, int] = {}
 
-        success = resp.status_code < 400
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_holder["status"] = message["status"]
+            await send(message)
+
+        await self.app(scope, _replay_receive(body, disconnected, receive), send_wrapper)
+
+        success = status_holder.get("status", 500) < 400
         await _AUTH_RATE_LIMITER.record_attempt_async(ip_key, success=success)
         if acct_key is not None:
             await _AUTH_RATE_LIMITER.record_attempt_async(acct_key, success=success)
-        return resp
-    return await call_next(request)
+
+
+async def _buffer_request_body(receive) -> tuple[bytes, bool]:
+    """Read the whole request body once. Returns (body, client_disconnected)."""
+    chunks: list[bytes] = []
+    while True:
+        message = await receive()
+        if message["type"] == "http.disconnect":
+            return b"".join(chunks), True
+        chunks.append(message.get("body", b""))
+        if not message.get("more_body", False):
+            return b"".join(chunks), False
+
+
+def _replay_receive(body: bytes, disconnected: bool, receive):
+    """Hand the buffered body to the handler, then defer to the real channel."""
+    delivered = False
+
+    async def replay():
+        nonlocal delivered
+        if not delivered:
+            delivered = True
+            return {"type": "http.request", "body": body, "more_body": False}
+        if disconnected:
+            return {"type": "http.disconnect"}
+        return await receive()
+
+    return replay
+
+
+app.add_middleware(AuthRateLimitMiddleware)
 
 
 # Admin endpoint rate limiter — tighter limits to prevent admin API abuse
