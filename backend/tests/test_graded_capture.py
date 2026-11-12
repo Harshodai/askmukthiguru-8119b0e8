@@ -150,7 +150,12 @@ def test_check_log_clean_detects_auth_errors_explicitly():
 def test_the_question_bank_items_are_onboarded_as_strings():
     from scripts.ops.graded_capture import _items
 
-    items = _items(include_frozen=False, include_unanswerable=False, include_benchmarks=False, include_question_bank=True)
+    items = _items(
+        include_frozen=False,
+        include_unanswerable=False,
+        include_benchmarks=False,
+        include_question_bank=True,
+    )
     assert len(items) == 421
     assert all(i["set"] == "question_bank" for i in items)
     assert all(isinstance(i["question"], str) for i in items)
@@ -159,8 +164,6 @@ def test_the_question_bank_items_are_onboarded_as_strings():
     empty_q = [i for i in items if not i["question"]]
     assert len(empty_q) == 1
     assert empty_q[0]["category"] == "malformed_input"
-
-
 
 
 def test_manifest_flags_never_carry_a_secret_value(monkeypatch):
@@ -173,7 +176,9 @@ def test_manifest_flags_never_carry_a_secret_value(monkeypatch):
 
     def fake_run(cmd, *a, **k):
         if cmd[:2] == ["docker", "inspect"]:
-            return json.dumps([{"Id": "abc123def456789", "Image": "sha256:x", "State": {"StartedAt": "t"}}])
+            return json.dumps(
+                [{"Id": "abc123def456789", "Image": "sha256:x", "State": {"StartedAt": "t"}}]
+            )
         return f"OPENROUTER_API_KEY={secret}\nOPENROUTER_BASE_URL=https://example.test\nFIRST_PERSON_ACTIVE_COLLECTION=first_person_v10\n"
 
     monkeypatch.setattr(graded_capture, "_run", fake_run)
