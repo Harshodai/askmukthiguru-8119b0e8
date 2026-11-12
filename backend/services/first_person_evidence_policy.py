@@ -137,6 +137,9 @@ _RHETORICAL_OPENER_RE = re.compile(
 _DISCOURSE_OPENER_RE = re.compile(
     r"^[\"'\u201c\u2018\s]*(?:"
     r"(?:so|okay|ok|well|right|alright|now|anyway|similarly|in\s+this\s+way|in\s+that\s+case|therefore|as\s+a\s+result|because\s+of\s+this)\s*[,.]\s"
+    # Resumptive "So" (2026-11-13): refers back to talk the seeker never saw. "So both ..." stays
+    # valid (tests/test_relevance_standalone_gates.py::test_so_opener_is_a_fine_opener).
+    r"|so\s+(?:what|how|why|when|where|who|generally|basically|now|then|this|that|these|those)\b"
     r"|that\s+means\b"
     r"|that(?:'s|\s+is)\s+why\b"
     r")",

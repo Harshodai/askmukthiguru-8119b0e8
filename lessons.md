@@ -1,6 +1,29 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 13, 2026 — Agent-owned work round 2: negative controls, gate rule scope, runbook
+
+### L-SO-RULE-MUST-RESPECT-EXISTING-TEST-1. A new general rule that contradicts a deliberate test is a decision, not a fix.
+- **What:** the first "any sentence-initial So" rule broke `test_so_opener_is_a_fine_opener` ("So both Preethaji and I travel…"), a test that records an earlier decision that this opener is valid.
+- **Fix:** narrowed to resumptive "So" (what, how, why, when, where, who, generally, basically, now, then, this, that, these, those). Served impact unchanged (q004, q071, q084 refused). The "So both" test still passes.
+- **Rule:** before extending a rule, grep for the tests that pin its neighbours. A contradiction means either narrow the rule or change the test with a written reason. Do not silently override either.
+
+### L-XFAIL-PREMISE-CAN-CONFLICT-WITH-INVARIANT-1. A strict xfail can encode a premise the repo has already rejected.
+- **What:** the truncation xfail assumes a clip ending without punctuation is a cut. CLAUDE.md invariant text and the `_ends_on_dangling_word` docstring say the opposite: a judge-approved clip ends without punctuation. The two cannot both hold.
+- **Rule:** before converting an xfail to a pass, check the invariant it might contradict. If they conflict, keep the xfail and write the conflict into its reason. Do not force the gate to match the test.
+
+### L-NEGATIVE-CONTROL-IS-AN-ASSUMPTION-1. A control built by pairing unrelated questions assumes the pair should abstain.
+- **What:** `evals/first_person/negative_controls.jsonl` pairs each frozen question with a clip from another question. Some clips are on-topic for both (the wealth clip is served for wealth and relationship questions). A pair that a human would call relevant is not a failure.
+- **Rule:** a negative-control set measures the scorer against its own assumption. Report abstain rate per control and review a sample of the served pairs before trusting the rate.
+
+### L-RUNBOOK-IS-NOT-A-RUN-1. A prepared runbook with paid and write steps marked is not evidence.
+- **What:** `docs/runbooks/GRADED_7_RUNBOOK.md` is written but not executed. The three grader slugs were checked against the live model list (read only, no completions). A listed slug is not proof that the account can call it under the budget policy.
+- **Rule:** mark every paid and write step in a runbook. Verify slugs with a model listing, and say so. Do not treat a listed slug as a working call until the first graded call succeeds.
+
+### L-PROMPT-OPTIMIZER-IS-ADVISORY-1. The ECC prompt-optimizer skill produces a prompt; it does not do the work.
+- **What:** asking for the work "using /ecc:prompt-optimizer" produced an optimized prompt and no changes. The work was then done as a normal task.
+- **Rule:** when a user asks for work through an advisory skill, state that the skill only produces prompts, then do the work in a normal request.
+
 ## Nov 13, 2026 — Graded-7 preparation: fixes that were claimed before they were measured
 
 ### L-OVERFIT-REGEX-TO-TUNING-SET-1. A pattern written for named graded clips is overfit, even when the tests pass.
