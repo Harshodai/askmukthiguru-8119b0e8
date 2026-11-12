@@ -3,6 +3,10 @@
 
 ## Nov 12, 2026 — Graded run 20261112-graded-3: report labels and provenance
 
+### L-GRADED-MIN-SCORE-2-OWNER-DECISION-1. The graded relevance minimum stays at 2; the legacy fallback enforces it too.
+- **What:** the graded run served at `FIRST_PERSON_RELEVANCE_MIN_SCORE=2` (log `min_score=2`; graded compose pin `"2"`; the main compose and the project notes say 3 locally). Owner decision (2026-11-12): keep 2 for the graded run. The log shows 1,190 "Harness answer scored [2] (< min); falling back to legacy" lines. Checked in code: the legacy path reads the same setting at every relevance check (`first_person_pipeline.py` lines 6106, 6205, 6241, 7322), so the fallback does not bypass the minimum.
+- **Rule:** a served clip that a judge calls "not showable" is a scorer-quality or retrieval finding, not a missing gate. Do not move the minimum to change a pass rate; a threshold change is an owner decision and needs its own graded run.
+
 ### L-REPORT-LABEL-FROM-ARTIFACT-1. A typed label in a report is a claim the artifact never made.
 - **What:** `generate_answers_markdown.py` (both copies) printed `Judge Verdict (Haiku 5.5)` for every row. The run's `grades.json` records `anthropic/claude-sonnet-5.5` for both slots. Fixed to read `models.first` from the grades file (verified: regenerated rows now show `anthropic/claude-sonnet-5.5`).
 - **Rule:** every model, run id or score shown in a report is read from the run artifact, never typed into the template. Regenerate the report from the artifact after any change to the template.
