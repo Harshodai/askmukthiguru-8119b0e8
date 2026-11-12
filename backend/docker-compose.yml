@@ -401,9 +401,12 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
+      # timeout must exceed _HEALTH_HARD_BOUND_SECONDS (app/api/health.py, 12s):
+      # a 10s timeout turned a slow-but-alive deep check into an autoheal kill
+      # during the 20261112-graded-4 capture. Pinned by tests/test_health_timeout_contract.py.
       test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 10
       start_period: 420s
     deploy:

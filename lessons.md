@@ -1,6 +1,14 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 12, 2026 — The backend was killed mid-capture by its own healthcheck
+
+### L-HEALTHCHECK-TIMEOUT-BELOW-HANDLER-BOUND-1. A healthcheck timeout shorter than the handler's own bound kills a slow, healthy backend.
+- **What:** `/api/health` (deep check, kept on purpose per L-DOCKER-11) has a hard wall-time bound of 12 s (`app/api/health.py::_HEALTH_HARD_BOUND_SECONDS`). The backend healthcheck had `timeout: 10s`. Under graded-run load the deep check ran past 10 s, Docker marked the backend unhealthy, and autoheal restarted it after 10 misses. The run was killed after 78 rows (`20261112-graded-4-PARTIAL-autoheal-killed`, invalid).
+- **Fix:** healthcheck `timeout: 20s` (`backend/docker-compose.yml`). Deep check and autoheal unchanged. Pinned by `backend/tests/test_health_timeout_contract.py`, which fails if the timeout is not above the handler's bound.
+- **Rule:** a container healthcheck timeout must exceed every bound the probed endpoint can take. Put the number in one place and test the relation.
+- **Open:** the root cause of the long deep-check time under load is not yet measured. Sample `/api/health` latency during the next capture before calling the stall fixed.
+
 ## Nov 12, 2026 — Rebuild dry run: a full rebuild from v8 would shrink the corpus
 
 ### L-REBUILD-FROM-V8-SHRINKS-CORPUS-1. A rebuild from first_person_v8 keeps 508 parents, not 1,466.
