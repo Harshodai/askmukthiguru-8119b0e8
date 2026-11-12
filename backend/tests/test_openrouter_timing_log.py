@@ -5,7 +5,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.config import settings
 from services.openrouter_service import OpenRouterService
+
+
+@pytest.fixture(autouse=True)
+def _allow_haiku_scorer(monkeypatch):
+    # Hermetic: the policy allows this model only through the extra-allowed list, which a
+    # developer's .env sets and a clean checkout does not.
+    monkeypatch.setattr(settings, "openrouter_extra_allowed_models", "anthropic/claude-haiku-5.5")
 
 
 @pytest.mark.asyncio

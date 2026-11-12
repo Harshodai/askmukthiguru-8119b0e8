@@ -199,6 +199,9 @@ class Settings(BaseSettings):
     # v10-only posture (context harness + terminal both on) an unset slot is the
     # active collection; otherwise the legacy slot keeps this rollback default.
     first_person_collection: str = ""
+    # C8: optional corpus version label stamped on first-person serve/abstain logs. Empty = unset
+    # (never guessed). Read by first_person_bridge via getattr, so it must be declared here.
+    first_person_corpus_version: str = ""
     # THE one name of the collection a deployment serves (owner request 2026-11-01:
     # the two slots held the same literal and drifted). FIRST_PERSON_COLLECTION and
     # FIRST_PERSON_CONTEXT_COLLECTION are optional overrides of it, kept for rollback.
