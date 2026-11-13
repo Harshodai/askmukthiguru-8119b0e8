@@ -119,6 +119,22 @@ class QdrantService:
 
     # === Client / collection delegation ======================================
 
+    def get_client(self) -> Any:
+        """The underlying Qdrant client. Read-only accessor for callers that scroll directly.
+
+        ``app/api/search_routes.py`` has always called this name; the facade never
+        declared it, so every ``GET /api/search/inspect-source`` raised
+        ``AttributeError`` inside its try-block and silently fell back to local
+        transcript files (seen live 2026-11-13: "QdrantService object has no
+        attribute 'get_client'"). ``collection_name`` below is the matching pair.
+        """
+        return self._client
+
+    @property
+    def collection_name(self) -> str:
+        """Name of the collection this instance serves."""
+        return self._collection
+
     def init_collection(self) -> None:
         """Create collection with named dense + sparse vectors if it doesn't exist."""
         self._client_manager.init_collection()

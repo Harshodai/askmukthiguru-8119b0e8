@@ -16,6 +16,7 @@ Classes
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 
@@ -459,7 +460,7 @@ def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | Non
         and (second_label is None or margin >= _MARGIN_THRESHOLD)
     ):
         logger.debug(
-            f"On-device classifier (embedding): {text[:60]}... -> {best_label} ({best_score:.3f})"
+            f"On-device classifier (embedding): len={len(text)} sha={hashlib.sha256(text.encode()).hexdigest()[:12]} -> {best_label} ({best_score:.3f})"
         )
         return best_label
     if best_label and best_score < per_class_threshold:
@@ -495,13 +496,19 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
     ]
     if any(re.search(pat, lower) for pat in complex_patterns):
         logger.info(
-            f"On-device classifier bypass: query contains complex keywords: '{text[:50]}...'"
+            "On-device classifier bypass: query contains complex keywords (len=%d sha=%s)",
+            len(text),
+            hashlib.sha256(text.encode()).hexdigest()[:12],
         )
         return None
 
     # Bypass for multi-sentence or very long queries
     if len(text.split()) > 15 or len(re.split(r"[.!?]+", text)) > 2:
-        logger.info(f"On-device classifier bypass: query is long/multi-part: '{text[:50]}...'")
+        logger.info(
+            "On-device classifier bypass: query is long/multi-part (len=%d sha=%s)",
+            len(text),
+            hashlib.sha256(text.encode()).hexdigest()[:12],
+        )
         return None
 
     # Bypass: Manifest 2026 monthly power / temporal factual queries must NEVER be MEDITATION.
@@ -522,7 +529,9 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
     for signal in _MANIFEST_FACTUAL_SIGNALS:
         if re.search(signal, lower, re.I):
             logger.info(
-                f"On-device classifier FACTUAL bypass (manifest/temporal signal): '{text[:60]}...'"
+                "On-device classifier FACTUAL bypass (manifest/temporal signal) (len=%d sha=%s)",
+                len(text),
+                hashlib.sha256(text.encode()).hexdigest()[:12],
             )
             return "FACTUAL", "tier3_complex", "on_device_manifest_temporal_factual"
 
@@ -561,8 +570,9 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
     )
     if doctrine_suffering and not first_person_distress and not acute_distress:
         logger.info(
-            "On-device classifier FACTUAL bypass (doctrine-framed suffering): '%s...'",
-            text[:60],
+            "On-device classifier FACTUAL bypass (doctrine-framed suffering) (len=%d sha=%s)",
+            len(text),
+            hashlib.sha256(text.encode()).hexdigest()[:12],
         )
         return "FACTUAL", "tier2_simple", "on_device_doctrine_distress_disambiguation"
 

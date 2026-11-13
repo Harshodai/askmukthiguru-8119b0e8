@@ -13,13 +13,16 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import parse_qs, urlparse
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from qdrant_client.http import models as qmodels
 
+from app.config import settings
+from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container_async
 from app.sanitization import sanitize_log_input
 from services.auth_service import get_optional_user, resolve_anon_identity
+from services.qdrant.source_policy import is_blocked_source
 from services.web_search_service import WebSearchService
 
 logger = logging.getLogger(__name__)
@@ -30,6 +33,9 @@ router = APIRouter(prefix="/api/search", tags=["Search & Source Inspection"])
 class WebSearchRequest(BaseModel):
     query: str = Field(..., min_length=2, max_length=500, description="Search query")
     max_results: int = Field(default=5, ge=1, le=10, description="Max results to return")
+
+
+_YOUTUBE_HOSTS = ("youtube.com", "youtube-nocookie.com", "youtu.be")
 
 
 def _extract_video_id(url: str) -> Optional[str]:
@@ -48,12 +54,19 @@ def _extract_video_id(url: str) -> Optional[str]:
             vid = parsed.path.split("/v/")[1].split("?")[0]
     elif parsed.hostname in ("youtu.be", "www.youtu.be"):
         vid = parsed.path.lstrip("/").split("?")[0]
+    if not vid and (parsed.hostname or "").lower().endswith(_YOUTUBE_HOSTS):
+        # m. / music. / -nocookie hosts and /shorts/ or /live/ paths: without an
+        # id the blocked-video gate would be skipped for the same video.
+        from ingest.youtube_loader import extract_video_id
+
+        vid = extract_video_id(url)
     if vid and re.match(r"^[A-Za-z0-9_-]{1,64}$", vid):
         return vid
     return None
 
 
 @router.get("/inspect-source")
+@limiter.limit("30/minute")
 async def inspect_source(
     request: Request,
     url: str = Query(
@@ -71,6 +84,18 @@ async def inspect_source(
     """
     clean_url = url.strip()
     video_id = _extract_video_id(clean_url)
+
+    # Serving gates, same functions and order as GET /api/media/videos/{id} (ingest.py):
+    # an excluded video is a 404, a source whose rights are not cleared is a 403.
+    from services.first_person_video_decisions import video_is_blocked
+
+    if video_id and video_is_blocked(video_id):
+        raise HTTPException(status_code=404, detail="Source not found")
+    if getattr(settings, "video_stream_rights_gate_enabled", True):
+        from services.qdrant.indexer import resolve_source_rights_status
+
+        if resolve_source_rights_status(source_url=clean_url, video_id=video_id) != "licensed":
+            raise HTTPException(status_code=403, detail="Source is not cleared for display")
 
     # 1. Query Qdrant for all points with this source_url or video_id
     chunks = []
@@ -110,6 +135,14 @@ async def inspect_source(
 
             for point in scroll_result:
                 payload = point.payload or {}
+                # Same quarantine vocabulary as FirstPersonContextStore._span_is_quarantined.
+                if (
+                    is_blocked_source(payload)
+                    or str(payload.get("quality_status") or "").strip().casefold()
+                    in {"blocked", "quarantined"}
+                    or payload.get("quarantine_reason")
+                ):
+                    continue
                 chunk_text = payload.get("text") or payload.get("chunk_text") or ""
                 title = payload.get("title") or payload.get("source_title")
                 if title and source_title == clean_url:
