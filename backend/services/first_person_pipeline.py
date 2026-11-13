@@ -1930,7 +1930,7 @@ async def _async_answerability_check(
             call = llm_service.generate
         res = call(
             system_prompt=_ANSWERABILITY_SYSTEM_PROMPT,
-            user_prompt=query,
+            user_prompt=neutralise(query),
             temperature=0.0,
             max_tokens=16,
         )
@@ -2092,6 +2092,17 @@ class FirstPersonPipelineResult:
         # citations). Abstain / crisis / error results keep it False.
         self.fp_served = bool(fp_served)
         self.editorial_set = editorial_set
+        # Derived from the served children (fp-context citations carry it), so a
+        # cached replay re-derives the same value; "" when nothing is served.
+        self.corpus_version = ",".join(
+            sorted(
+                {
+                    str(c.get("corpus_version"))
+                    for c in citations or []
+                    if isinstance(c, dict) and c.get("corpus_version")
+                }
+            )
+        )
 
     def to_dict(self) -> dict[str, Any]:
         data = {
@@ -4618,6 +4629,9 @@ class FirstPersonPipeline:
                 else (candidate_pool or max_clips)
             )
         ctx_store = self._get_context_store() if harness_enabled else None
+        # Set when context retrieval raised, so a terminal abstain can say it was
+        # an outage and not an empty result.
+        _ctx_retrieval_error: Optional[str] = None
         if ctx_store is not None and query_dense_vector:
             t_ctx_start = time.monotonic()
             contexts: list[ParentContext] = []
@@ -4658,9 +4672,17 @@ class FirstPersonPipeline:
                 # T7-02: the sync Qdrant client must not block the event loop.
                 contexts = await _io_thread(_retrieve_contexts)
             except Exception as exc:
-                logger.warning(
-                    "[FirstPersonPipeline] Context store retrieval failed: %s; falling back to legacy",
+                _ctx_retrieval_error = f"context_retrieval_error:{type(exc).__name__}"
+                _terminal = (
+                    getattr(settings, "first_person_context_terminal_enabled", False) is True
+                )
+                logger.error(
+                    "[FirstPersonPipeline] Context store retrieval FAILED (%s: %s); %s",
+                    type(exc).__name__,
                     exc,
+                    "terminal mode: abstaining, no legacy fall-through"
+                    if _terminal
+                    else "falling back to legacy",
                 )
                 contexts = []
             t_ctx_ret_ms = (time.monotonic() - t_ctx_start) * 1000.0
@@ -4846,7 +4868,10 @@ class FirstPersonPipeline:
                     for span in served_spans:
                         c_span = cite_by_id.get(span.source_span_id)
                         cit_dict = self._build_context_citation(span, c_span, confidence=confidence)
-                        if not _passes_integrity_gate(
+                        # The gate's YouTube availability check is sync network + Redis
+                        # I/O; keep it off the request loop.
+                        if not await _io_thread(
+                            _passes_integrity_gate,
                             cit_dict,
                             boundary_guard_enabled=False
                             if is_multi_span
@@ -5286,6 +5311,7 @@ class FirstPersonPipeline:
                 latency_ms=latency,
                 answerability="no_verified_clips",
                 abstain_reason="no_verified_clips",
+                error=_ctx_retrieval_error,
                 stage_timings={"total_ms": round(latency, 2)},
             )
 

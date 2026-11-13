@@ -890,6 +890,9 @@ class FirstPersonBridgeStage(Stage):
 
         # Conversational Follow-Up Resolution (CQR / Anaphora):
         chat_history = getattr(ctx, "chat_body_messages", None) or []
+        # A history-resolved retrieval query depends on the conversation, but the
+        # exact cache key hashes only the bare question; such a turn must bypass it.
+        followup_resolved = False
         if (
             chat_history
             and _is_heuristic_followup(retrieval_query, chat_history)
@@ -898,6 +901,7 @@ class FirstPersonBridgeStage(Stage):
             last_user = _get_last_user_message(chat_history)
             if last_user:
                 retrieval_query = f"{last_user} — {retrieval_query}"
+                followup_resolved = True
                 logger.info(
                     "[FirstPersonBridge] Resolved follow-up query (len=%d sha=%s)",
                     len(retrieval_query),
@@ -1077,6 +1081,7 @@ class FirstPersonBridgeStage(Stage):
             cache_bypass=(
                 getattr(ctx, "cache_bypass", False) is True
                 or getattr(ctx, "incognito", False) is True
+                or followup_resolved
                 or bool(memory_signals and memory_signals.get("seen_video_ids"))
             ),
             memory_signals=memory_signals,
@@ -1099,9 +1104,11 @@ class FirstPersonBridgeStage(Stage):
         # or a served result), so an empty/absent value keeps the abstain payload
         # byte-identical and off-topic/safety turns carry nothing.
         related = getattr(result, "related_clips", None) or None
-        # Opt-in (first_person_serve_weak_match): the pipeline already ran the
-        # answerability gate on this clip, so a gated weak_match is servable under
-        # its honest "Related, not a direct answer" label. The getattr default
+        # Opt-in (first_person_serve_weak_match): a weak_match is servable under its
+        # honest "Related, not a direct answer" label. The pipeline runs the
+        # answerability gate only when first_person_answerability_check_enabled is
+        # on; when it is off the harness records answerability="permissive" and no
+        # gate ran. The getattr default
         # matches the declared default (True); real Settings always carries it.
         #
         # FP-primary posture (2026-10-27, plan Change 5): `first_person_primary_mode`
