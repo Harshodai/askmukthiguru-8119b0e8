@@ -199,9 +199,6 @@ class Settings(BaseSettings):
     # v10-only posture (context harness + terminal both on) an unset slot is the
     # active collection; otherwise the legacy slot keeps this rollback default.
     first_person_collection: str = ""
-    # C8: optional corpus version label stamped on first-person serve/abstain logs. Empty = unset
-    # (never guessed). Read by first_person_bridge via getattr, so it must be declared here.
-    first_person_corpus_version: str = ""
     # THE one name of the collection a deployment serves (owner request 2026-11-01:
     # the two slots held the same literal and drifted). FIRST_PERSON_COLLECTION and
     # FIRST_PERSON_CONTEXT_COLLECTION are optional overrides of it, kept for rollback.
@@ -335,6 +332,7 @@ class Settings(BaseSettings):
     # metadata carries ``corpus_version`` so served-share can be attributed per corpus.
     # Empty means "read it off the retrieval result"; this setting only overrides when
     # the result carries none. Never guessed (X40: no synthesized provenance).
+    # Read by first_person_bridge via getattr, so it must stay declared (once) here.
     first_person_corpus_version: str = ""
     # Maximum combined word count for a context-harness answer (sum of all spans).
     # Distinct from first_person_max_answer_words (single-clip legacy path).
@@ -2049,7 +2047,17 @@ class Settings(BaseSettings):
     # rules identify a spiritual/general ambiguity. Most requests stay on the
     # deterministic fast path; an unavailable/low-confidence router falls back
     # to the existing domain rule. This keeps the latency penalty bounded.
-    intent_router_ambiguous_domain_enabled: bool = True
+    #
+    # Default OFF (2026-11-13). Measured from the backend container: the router
+    # answers in 470-690 ms (9 calls, fresh and keep-alive connections), above the
+    # 0.45 s budget below, so in 12 h of local logs it timed out 27 of 27 times.
+    # Every ambiguous turn paid 0.45 s and then took the fallback (teaching lane),
+    # which is also what every graded run measured. Off keeps that exact routing
+    # without the wasted wait, and stops a faster network from silently switching
+    # the router on in production. To turn it on: raise the budget above the
+    # measured latency and compare a graded run first (only a `live_research`
+    # decision changes the route, and it leaves the verbatim lane).
+    intent_router_ambiguous_domain_enabled: bool = False
     intent_router_ambiguous_domain_timeout_s: float = Field(default=0.45, gt=0, le=1.5)
     off_topic_domain_boundary_enabled: bool = True
 

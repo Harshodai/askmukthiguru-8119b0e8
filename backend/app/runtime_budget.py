@@ -98,9 +98,32 @@ def capacity_snapshot(settings: Any) -> dict[str, int]:
     }
 
 
+def serving_gate_warnings(settings: Any) -> list[str]:
+    """Question-level gates that are off while first-person chat is serving.
+
+    Invariants 19 and 22 describe the YES/NO answerability gate as covering every
+    served clip. It is a flag: with it off the harness records
+    ``answerability="permissive"`` and the relevance scorer is the only
+    question-level gate left. That may be a deliberate choice, so this reports it
+    at startup instead of changing it (found off in the live env, 2026-11-13).
+    """
+    serving = bool(getattr(settings, "first_person_route_enabled", False)) and bool(
+        getattr(settings, "first_person_chat_bridge_enabled", False)
+    )
+    if serving and not bool(getattr(settings, "first_person_answerability_check_enabled", True)):
+        return [
+            "FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=false while first-person chat serves: "
+            "no YES/NO answerability gate runs (answers record answerability=permissive); "
+            "the relevance scorer is the only question-level gate"
+        ]
+    return []
+
+
 def log_runtime_budget(logger: logging.Logger, settings: Any) -> None:
     """Log the budget table and the capacity line. Never raises."""
     try:
+        for warning in serving_gate_warnings(settings):
+            logger.warning("Serving gate posture: %s", warning)
         table = " ".join(f"{row['name']}={row['value']}" for row in llm_budget_table(settings))
         logger.info("LLM budget table: %s", table)
         cap = capacity_snapshot(settings)

@@ -12,6 +12,10 @@ def _valid_env():
         "FORWARDED_ALLOW_IPS": "10.0.0.0/8",
         "LLM_PROVIDER": "openrouter",
         "OPENROUTER_API_KEY": "key-redacted",
+        # Required by Settings.validate_production_restrictions; the preflight
+        # mirrors them since 2026-11-13 so a pass cannot crash at boot.
+        "BRAIN_KEK": "kek-redacted",
+        "FACULTY_ACCESS_CODE": "code-redacted",
     }
 
 
