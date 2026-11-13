@@ -1,6 +1,40 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 13, 2026 — Engineering and readiness audit: what the running system showed that the docs did not
+
+Report: `audits/reports/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
+
+### L-ANSWERABILITY-GATE-WAS-OFF-LIVE-1. The running container had the answerability gate off; the invariants say it covers every clip.
+- **What:** `settings.first_person_answerability_check_enabled` read `False` in the live backend (set in `.env`; no compose file pins it). The harness then records `answerability="permissive"` and the relevance scorer is the only question-level gate. Invariants 19 and 22 and the bridge comment described the gate as always run. This also settles `L-CLAIM-A-CONFIG-ONLY-AFTER-READING-IT-1` below for the container that was running on 2026-11-13: the gate was off. What graded-6 itself ran with is still not read from its manifest.
+- **Fix:** startup logs `Serving gate posture: FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=false ...` at WARNING (`app/runtime_budget.serving_gate_warnings`). The env was not changed: on or off is the owner's decision (open-work row T-E1).
+- **Rule:** read a serving flag from the running process (`scripts/ops/backend_py.sh -c 'from app.config import settings; ...'`), not from the code default or a doc. A gate that can be switched off must announce it at startup.
+
+### L-TIMEOUT-BELOW-MEASURED-LATENCY-1. A budget set below the callee's real latency is a dead feature that still costs the wait.
+- **What:** the ambiguous-domain router had a 0.45 s budget. Measured from the container it answers in 470-690 ms (9 calls, fresh and reused connections). In 12 h of logs it timed out 27 times and completed 0 times. Each ambiguous turn paid 0.45 s and then took the fallback. The timeout was logged at INFO as a "fallback", so nothing looked wrong.
+- **Fix:** `intent_router_ambiguous_domain_enabled` defaults to `False` (same routing as every graded run, without the wait). Turning it on needs a budget above the measured latency and a graded comparison, because a `live_research` decision leaves the verbatim lane.
+- **Rule:** before trusting an optional call, count its successes, not only its failures. A fallback that fires 100% of the time is the real code path.
+
+### L-HISTORY-RESOLVED-QUERY-NEEDS-ITS-OWN-CACHE-RULE-1. A cache keyed on the bare question must not serve a turn whose retrieval query was built from history.
+- **What:** the bridge rewrites a follow-up to `"<previous user message> — <follow-up>"` for retrieval, but the first-person exact cache hashed only the bare text. "why does that happen?" asked after anger and after money shared one cache entry.
+- **Fix:** a history-resolved turn passes `cache_bypass=True` (read and write). The key was not widened with `retrieval_query`, because that is also the English translation of a non-English question and would stop those from caching.
+- **Rule:** when a stage rewrites the query from conversation state, every cache below it either keys on that state or is bypassed.
+
+### L-SUPABASE-JS-RETURNS-ERRORS-1. `supabase-js` does not throw; a `try/catch` around an insert catches nothing.
+- **What:** the browser wrote citation-ledger rows inside `try { await supabase.from('message_citations').insert(rows) } catch`. The local database does not have that table (migrations `20261107000000` and `20261107000001` were never applied locally), and the original migration granted INSERT with RLS on and no INSERT policy. Every insert failed and nothing was logged.
+- **Fix:** the insert reads `{ error }`; a new migration adds owner-scoped SELECT and INSERT policies. The migration was proven inside a transaction that was never committed (owner reads own rows only, own insert allowed, forged insert denied) and is applied nowhere.
+- **Rule:** read `{ error }` from every Supabase call. Check `supabase_migrations.schema_migrations` against `supabase/migrations/` before debugging a table. A GRANT without a matching policy is a denial.
+
+### L-UNKNOWN-IS-NOT-VERIFIED-1. A ledger row must not turn a missing flag into "licensed" or "voice verified".
+- **What:** the citation ledger wrote `rights_status: c.rightsCleared ? 'cleared' : 'licensed'` and `speaker_verified: c.speakerVerified ?? true`, and a 32-bit string hash in a column named `source_text_hash`.
+- **Fix:** only an explicit `true` counts (`citationLedgerFlags`); the hash is sha256 of the quote. The ledger is still written by the client, so it is self-attested: do not treat it as server truth until the backend writes it.
+- **Rule:** defaults for provenance fields are the unverified value. Same rule as invariant 23.
+
+### L-PREFLIGHT-MUST-MIRROR-STARTUP-VALIDATORS-1. A preflight that checks less than the app does passes environments that cannot boot.
+- **What:** `validate_production_env.py` did not check `BRAIN_KEK`, `FACULTY_ACCESS_CODE` (or `FACULTY_GATE_DISABLED`) or the OpenRouter budget guard, all of which `Settings.validate_production_restrictions` requires in production.
+- **Fix:** the three rules are mirrored in the preflight and its `backend/scripts/ops/` twin, with a test per rule.
+- **Rule:** when a `Settings` production validator is added, add the same rule to the preflight in the same change.
+
 ## Nov 13, 2026 — Agent-owned work round 2: negative controls, gate rule scope, runbook
 
 ### L-SO-RULE-MUST-RESPECT-EXISTING-TEST-1. A new general rule that contradicts a deliberate test is a decision, not a fix.
