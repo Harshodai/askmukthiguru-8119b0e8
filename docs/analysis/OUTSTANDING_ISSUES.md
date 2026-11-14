@@ -97,6 +97,11 @@ Comparing Graded-7 (gate OFF) to Graded-8 (gate ON) under identical models, coll
 | A-25 | P2 | Observability / Ops | Host probe `GET /health` returned 404 every 30s in Docker audit logs. | Added route aliases `@router.get("/health", include_in_schema=False)` and `/healthz` in `backend/app/api/health.py`. | `backend/tests/test_health.py::test_health_and_healthz_root_aliases_resolve` + live Docker 200 OK | FIXED |
 | A-26 | P3 | Observability | Misleading log `falling back to legacy` when `first_person_context_terminal_enabled` is True and no legacy clip is served. | Checked terminal mode setting in `services/first_person_pipeline.py` lines 5078 & 5400; logs `terminal mode: abstaining, no legacy fall-through`. | `backend/tests/test_terminal_mode_logging.py` (2 tests) | FIXED |
 | A-27 | P3 | Observability | Warning `Overriding of current TracerProvider is not allowed` at backend startup when TracerProvider already set. | Added global provider check in `app/observability.py` before calling `trace.set_tracer_provider()`. | Live Docker container startup verified cleanly | FIXED |
+| A-28 | P3 | Frontend build / Docker | Personalize button missing in Docker preview because `.dockerignore` excluded `.env.production`. | Declared `VITE_PERSONALIZE_TEACHING_ENABLED` as build arg in `frontend.Dockerfile` and `docker-compose.yml`. | Verified in production bundle build | FIXED (`8b0a63af`) |
+| A-29 | P2 | Test coverage | `test_terminal_mode_logging.py` tested a local mock string instead of production pipeline. | Rewritten to exercise real `FirstPersonPipeline._serve_from_context_harness` under terminal and non-terminal modes, testing context retrieval errors and direct answer abstention. | `backend/tests/test_terminal_mode_logging.py` (4 tests pass) | FIXED |
+| A-30 | P3 | E2E test reliability | E2E specs swallowed network-idle timeouts with `.catch(() => undefined)` in `a11y-smoke.spec.ts` and `i18n-coverage.spec.ts`. | Replaced fragile networkidle waits with deterministic `waitForLoadState('load')` and explicit landmark assertions. | `tests/e2e/a11y-smoke.spec.ts`, `tests/e2e/i18n-coverage.spec.ts` | FIXED |
+| A-31 | P3 | Container runtime | `docker-entrypoint.sh` silenced chown failure with `|| true`. | Restored diagnostic warning to stderr (`|| echo "Warning: Could not chown /app/model_cache ..." >&2`). | `backend/docker-entrypoint.sh` | FIXED |
+| A-23 | P2 | Ops / Container pins | Moving image tags (`memgraph:latest`, `redis:7-alpine`) caused drift and test pin failures. | Pinned both services by exact container image sha256 digests in `backend/docker-compose.yml`. | `backend/tests/test_image_pins.py` passed | FIXED (`8b0a63af`) |
 
 ---
 
@@ -112,7 +117,7 @@ Comparing Graded-7 (gate OFF) to Graded-8 (gate ON) under identical models, coll
 | T-E3 | P2 | Runtime | Backend image rebuild needed for live execution of recent fixes. | Recreated with `cd backend && bash ../scripts/docker-safe.sh docker compose up -d --build --no-deps backend`. Verified with `/api/health` and `/api/search/inspect-source`. | **FIXED / RECREATED** |
 | T-E8 | P3 | Reliability | Redis rate limiter fails open on `Connection closed by server`. | Idle measurement complete (0 errors, 0 fail-open events in ~3h). Architecture is deliberate fail-open for availability (`security_utils.py:596, 698`). Load test remains an ops item. | **PARTIAL**: idle rate 0; load rate OPEN |
 | A-20 | P3 | Gate precision | "severed preposition opener" rule rejects complete sentences starting lowercase with if/as/at. | Errs toward safety and abstention. Per AGENTS.md, gate rules change only through a registered run. | **OPEN** (conservative posture maintained) |
-| A-22 | P3 | Ops | Local ops stack: prometheus, grafana, alertmanager stopped; image pins differ (`memgraph:latest`, `redis:7-alpine`). | Scheduled for ops maintenance; core serving stack operational. | **OPEN** |
+| A-22 | P3 | Ops | Local ops stack: prometheus, grafana, alertmanager stopped (image pins for memgraph & redis aligned by digest in compose). | Scheduled for optional local ops stack maintenance; core serving stack operational. | **OPEN** |
 
 ---
 

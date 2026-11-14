@@ -1,5 +1,36 @@
 <!-- Archive of lessons.md sections older than the cut on 2026-11-07. Unchanged text. Newest-first order kept. -->
 
+## Oct 30, 2026 — WhatsApp receiver, check-in vs practice, refused sends
+
+### L-JOURNEY-PROOF-1. A journey step is done only when its own action is confirmed, never when the page opens.
+- **What:** the daily journey now covers teaching and reflection. Teaching is marked done when the seeker plays a served clip (`GuruTeachingCard` `onPlay`); reflection when a NEW note saves (`NotesPanel`, edits do not count); practice stays tied to `meditation_completed`. The banner only navigates (`/chat?q=…`, `/profile?tab=memory`) and marks nothing. `nextPendingStep` skips the practice step when the check-in offered none.
+- **Rule:** pin each proof with a test (`src/test/MoodBanner.journey.test.tsx`, `src/test/dailyJourney.test.ts`). Not browser-verified.
+
+### L-CHECKIN-NOT-PRACTICE-1. A mood check-in stored as a "completed session" leaks into every consumer that asks "did they practise?".
+- **What:** `recordMoodCheckIn` called `completeMeditationSession(..., completed=true)`. Stats already ignored zero-duration rows, but the call also stamped `askmukthiguru_last_serene_mind_at` (sent as `last_serene_mind_at`, read by `distress_stage.py` for the 15-minute proactive Serene Mind cooldown), inserted a completed row into `meditation_sessions` (read by `get_last_meditation_session`), and fired the practice reward event. A check-in could suppress the Serene Mind offer for a distressed seeker.
+- **Fix:** `completeMeditationSession(..., countsAsPractice=false)` for check-ins (no stamp, no DB row, separate `askmukthiguru:mood_checkin` event); `get_last_meditation_session` ignores `duration_seconds = 0`.
+- **Rule:** one record type per meaning. Pin it: `src/test/meditationStorage.checkin.test.ts` fails without the fix (2 of 4 tests). Not live-verified; the backend change has no test in this environment (pydantic stack not installed).
+
+### L-REFUSE-BEFORE-ABORT-1. Validate a send before cancelling the thing it would replace.
+- **What:** in `ChatInterface.submitImpl` the context-full and quota refusals ran after the active answer was aborted, so a refused forced send (voice, "send now") killed the answer being read. Queued turns also fell back to the composer's current files when they had none (`options.attachmentOverride ?? attachedFiles`).
+- **Fix:** `decideSubmit` / `resolveTurnFiles` in `src/lib/chat/submitGuard.ts` decide first; an explicit empty override wins. Pinned in `src/test/chat/submitGuard.test.ts`. A duplicate-send guard (800 ms) was added defensively; a real double send was NOT reproduced (React flushes discrete events), so treat it as unproven.
+
+### L-WA-AT-LEAST-ONCE-1. Webhook receivers are at-least-once; "accepted by the gateway" is not "delivered".
+- **What:** `whatsapp_bot/wa_bot.py` handled only `messages[0]` of one Meta change, ignored status callbacks, did not deduplicate retries and had no 24-hour-window rule. README said duplicates were re-processed.
+- **Fix:** `wa_inbound` (unique provider id), `wa_outbound` + `wa_status_events` (status only moves forward), `wa_window`, optional `META_TEMPLATE_NAME`, DB mode 0600. A phone number stays anonymous (no user or memory column). Pinned in `backend/tests/test_whatsapp_bot_webhook.py` (80 bot tests pass). A real phone round trip is UNPROVEN.
+- **Also:** the "TanStack migration" for WhatsApp was a plan line only (`.lovable/plan.md`, `roadmap.md`); the app only uses `@tanstack/react-query`, which stays.
+
+## Oct 27, 2026 — first-person answer body, harness gaps, and unverified "done" claims
+
+### L-UI-LABEL-IN-BODY-1. A UI affordance rendered by the backend becomes answer text for every non-UI consumer.
+- **What:** "Related, not a direct answer:" was prepended into the answer body at four sites. Two were fixed in `cd4d3e21` (`services/first_person_pipeline.py` weak-match assembly x2); the third and fourth survived into `app/api/chat.py` (the verified-practice endpoint's `teaching` field) and `services/quote_weaver.py::_format_assembled_answer` (the `first_person_continuous_layout_enabled` branch, currently unreachable — a landmine for the day it is enabled). The frontend already derives the label from `verification.direct === false` (`src/components/chat/ChatMessage.tsx:192` and `:1183`), so the injected text was duplicated: visible in the UI answer body (rendered by ChatMessage) and also shown as a related-answer badge — making the label appear twice — and additionally present in every API response, cache entry, and eval fixture.
+- **Fix:** body text is now the verbatim quote only. The endpoint returns additive `is_direct_answer` + `verification_method` fields; the pipeline's weak-match path signals `status="weak_match"` / `is_direct_answer=False` / `verification["direct"]=False`; the bridge abstain path keeps the heading in `route_metadata.related_clips_heading` (metadata, correct). Stale pins asserting the old body text were corrected in `tests/test_first_person_pipeline.py`, `tests/test_first_person_payload_contract.py`, `tests/test_breath_teaching_grounding.py`.
+- **Rule:** answer text is evidence; directness is metadata. Never prepend a heading to a verbatim quote — a quotation with editorial framing is no longer a quotation. Pin the JSON body, and where an import is too heavy for a unit test, a source-level pin is acceptable **only if the test says it is source-level**.
+
+### L-PLAN-DONE-IS-NOT-DONE-1. A checklist marking a task done without a pinning test is a claim, and re-review is the only way to test a claim.
+- **What:** `.claude/tasks/fp-primary-quality-harness-2026-10-27.md` marked T2a, T2c and T4 `[x]`. Re-review found T2a still injecting the heading at two more sites (above), and T2c/T4 present in code but **unpinned**: no test anywhere referenced `_span_starts_with_antecedent` or the chronological `_window` sort, so a future refactor of `_window` could have regressed both silently with a green suite. Three pins were added to `tests/test_first_person_context_harness.py`.
+- **Rule:** "done" means a test fails when the behaviour is removed. When re-reviewing an inherited checklist, ask "what breaks if I delete this line" — not "is the code there". A plan's progress section is a claim about the tree, and the tree is the only authority.
+
 ## Oct 26, 2026 — data-engineering audit close-out (D-series + review comments)
 
 ### L-STAGE-PIN-ENFORCED-1. A stage manifest nobody checked was documentation, not a control.

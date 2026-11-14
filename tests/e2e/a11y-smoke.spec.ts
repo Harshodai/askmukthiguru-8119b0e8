@@ -141,7 +141,7 @@ for (const route of CRITICAL_ROUTES) {
       await seedAuth(context);
     }
     await page.goto(route, { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
+    await page.waitForLoadState('load');
     await expect(page.locator('body')).toBeVisible();
     await dismissSafetyDisclaimer(page);
 
@@ -186,7 +186,7 @@ test('a11y: meditation flow (Serene Mind player) is accessible once opened', asy
 }, testInfo) => {
   await seedAuth(context);
   await page.goto('/practices/serene-mind', { waitUntil: 'domcontentloaded' });
-  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
+  await page.waitForLoadState('load');
   await dismissSafetyDisclaimer(page);
 
   // The start control (header "Serene Mind" button) must be present and

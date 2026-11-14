@@ -29,7 +29,7 @@ fi
 if [ -d /opt/model_cache_seed ] && [ -d /app/model_cache ]; then
     cp -an /opt/model_cache_seed/. /app/model_cache/ 2>/dev/null || echo "Warning: model cache seed copy incomplete"
     if [ "$(id -u)" -eq 0 ]; then
-        chown -R appuser:appuser /app/model_cache 2>/dev/null || true
+        chown -R appuser:appuser /app/model_cache 2>/dev/null || echo "Warning: Could not chown /app/model_cache" >&2
     fi
 fi
 

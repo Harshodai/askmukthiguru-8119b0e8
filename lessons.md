@@ -1,6 +1,27 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 14, 2026 — Review remediations: build args, test mocks, networkidle, and quote squashing
+
+### L-DOCKERIGNORE-BUILD-ARG-1. `.dockerignore` excluding `.env*` strips Vite build flags from the client bundle.
+- **What:** The Personalize button on served teaching cards failed to render in Docker even though `VITE_PERSONALIZE_TEACHING_ENABLED=true` was defined in `.env.production`. `.dockerignore` intentionally ignores `.env*` files, preventing Vite from embedding the variable during `npm run build`.
+- **Fix:** Explicitly declare `ARG VITE_PERSONALIZE_TEACHING_ENABLED` and `ENV VITE_PERSONALIZE_TEACHING_ENABLED=$VITE_PERSONALIZE_TEACHING_ENABLED` in `frontend.Dockerfile`, and pass `args: [VITE_PERSONALIZE_TEACHING_ENABLED]` from `docker-compose.yml`.
+- **Rule:** Client build flags must be declared as explicit Dockerfile build arguments when `.env` files are docker-ignored.
+
+### L-TEST-LOG-SELF-MOCK-1. A test asserting a log message formatted by its own local variable tests nothing.
+- **What:** `test_terminal_mode_logging.py` formatted its own local `msg` variable and logged it directly to `caplog` to assert text presence. It called no production code in `FirstPersonPipeline` or `services/`.
+- **Fix:** Rewrote `test_terminal_mode_logging.py` to exercise real `FirstPersonPipeline._serve_from_context_harness` execution paths under terminal and non-terminal modes, testing context retrieval failures and direct answer abstention.
+- **Rule:** Never assert logging against in-test formatted strings. Unit tests for logging must execute the production module's methods.
+
+### L-SWALLOWED-NETWORKIDLE-1. Swallowing networkidle timeouts hides real hangs and produces misleading downstream failures.
+- **What:** E2E specs used `page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined)` to silence timeouts on preview environments. If a network request hangs or fails, the swallowed rejection causes subsequent locators to fail with confusing timeouts.
+- **Fix:** Replaced fragile `networkidle` waits with deterministic `page.waitForLoadState('load')` and explicit landmark locators in `tests/e2e/a11y-smoke.spec.ts` and `tests/e2e/i18n-coverage.spec.ts`.
+- **Rule:** Do not swallow `networkidle` rejections. Wait on deterministic document lifecycle states (`load`, `domcontentloaded`) and explicit DOM landmarks.
+
+### L-SQUASH-QUOTE-EXPOSURE-1. Truncating copyrighted quotes in a later commit leaves full text in git commit history.
+- **What:** An audit trimmed verbatim teacher quotes down to short 12-word excerpts in commit `8b0a63af`. Because earlier commits in the branch history still contained the 170-word quotes, git history retained the un-truncated text.
+- **Rule:** When copyright or rights policy mandates removing text, evaluate whether branch history requires squashing prior to public merge.
+
 ## Nov 14, 2026 — E-series close-out: a cap must announce itself, a dataset needs a consumer
 
 ### L-CAP-STATE-AT-BOOT-1. A refusal that reads like the vendor's message will be blamed on the vendor.
@@ -1450,37 +1471,6 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Rule:** Lineage is not a passive schema definition; it is a measurable ratio that must be audited before and after any corpus reindex or alias promotion.
 - **Pin:** `scripts/ops/audit_lineage_completeness.py`, `backend/tests/test_repo_layout.py`.
 
-
-## Oct 30, 2026 — WhatsApp receiver, check-in vs practice, refused sends
-
-### L-JOURNEY-PROOF-1. A journey step is done only when its own action is confirmed, never when the page opens.
-- **What:** the daily journey now covers teaching and reflection. Teaching is marked done when the seeker plays a served clip (`GuruTeachingCard` `onPlay`); reflection when a NEW note saves (`NotesPanel`, edits do not count); practice stays tied to `meditation_completed`. The banner only navigates (`/chat?q=…`, `/profile?tab=memory`) and marks nothing. `nextPendingStep` skips the practice step when the check-in offered none.
-- **Rule:** pin each proof with a test (`src/test/MoodBanner.journey.test.tsx`, `src/test/dailyJourney.test.ts`). Not browser-verified.
-
-### L-CHECKIN-NOT-PRACTICE-1. A mood check-in stored as a "completed session" leaks into every consumer that asks "did they practise?".
-- **What:** `recordMoodCheckIn` called `completeMeditationSession(..., completed=true)`. Stats already ignored zero-duration rows, but the call also stamped `askmukthiguru_last_serene_mind_at` (sent as `last_serene_mind_at`, read by `distress_stage.py` for the 15-minute proactive Serene Mind cooldown), inserted a completed row into `meditation_sessions` (read by `get_last_meditation_session`), and fired the practice reward event. A check-in could suppress the Serene Mind offer for a distressed seeker.
-- **Fix:** `completeMeditationSession(..., countsAsPractice=false)` for check-ins (no stamp, no DB row, separate `askmukthiguru:mood_checkin` event); `get_last_meditation_session` ignores `duration_seconds = 0`.
-- **Rule:** one record type per meaning. Pin it: `src/test/meditationStorage.checkin.test.ts` fails without the fix (2 of 4 tests). Not live-verified; the backend change has no test in this environment (pydantic stack not installed).
-
-### L-REFUSE-BEFORE-ABORT-1. Validate a send before cancelling the thing it would replace.
-- **What:** in `ChatInterface.submitImpl` the context-full and quota refusals ran after the active answer was aborted, so a refused forced send (voice, "send now") killed the answer being read. Queued turns also fell back to the composer's current files when they had none (`options.attachmentOverride ?? attachedFiles`).
-- **Fix:** `decideSubmit` / `resolveTurnFiles` in `src/lib/chat/submitGuard.ts` decide first; an explicit empty override wins. Pinned in `src/test/chat/submitGuard.test.ts`. A duplicate-send guard (800 ms) was added defensively; a real double send was NOT reproduced (React flushes discrete events), so treat it as unproven.
-
-### L-WA-AT-LEAST-ONCE-1. Webhook receivers are at-least-once; "accepted by the gateway" is not "delivered".
-- **What:** `whatsapp_bot/wa_bot.py` handled only `messages[0]` of one Meta change, ignored status callbacks, did not deduplicate retries and had no 24-hour-window rule. README said duplicates were re-processed.
-- **Fix:** `wa_inbound` (unique provider id), `wa_outbound` + `wa_status_events` (status only moves forward), `wa_window`, optional `META_TEMPLATE_NAME`, DB mode 0600. A phone number stays anonymous (no user or memory column). Pinned in `backend/tests/test_whatsapp_bot_webhook.py` (80 bot tests pass). A real phone round trip is UNPROVEN.
-- **Also:** the "TanStack migration" for WhatsApp was a plan line only (`.lovable/plan.md`, `roadmap.md`); the app only uses `@tanstack/react-query`, which stays.
-
-## Oct 27, 2026 — first-person answer body, harness gaps, and unverified "done" claims
-
-### L-UI-LABEL-IN-BODY-1. A UI affordance rendered by the backend becomes answer text for every non-UI consumer.
-- **What:** "Related, not a direct answer:" was prepended into the answer body at four sites. Two were fixed in `cd4d3e21` (`services/first_person_pipeline.py` weak-match assembly x2); the third and fourth survived into `app/api/chat.py` (the verified-practice endpoint's `teaching` field) and `services/quote_weaver.py::_format_assembled_answer` (the `first_person_continuous_layout_enabled` branch, currently unreachable — a landmine for the day it is enabled). The frontend already derives the label from `verification.direct === false` (`src/components/chat/ChatMessage.tsx:192` and `:1183`), so the injected text was duplicated: visible in the UI answer body (rendered by ChatMessage) and also shown as a related-answer badge — making the label appear twice — and additionally present in every API response, cache entry, and eval fixture.
-- **Fix:** body text is now the verbatim quote only. The endpoint returns additive `is_direct_answer` + `verification_method` fields; the pipeline's weak-match path signals `status="weak_match"` / `is_direct_answer=False` / `verification["direct"]=False`; the bridge abstain path keeps the heading in `route_metadata.related_clips_heading` (metadata, correct). Stale pins asserting the old body text were corrected in `tests/test_first_person_pipeline.py`, `tests/test_first_person_payload_contract.py`, `tests/test_breath_teaching_grounding.py`.
-- **Rule:** answer text is evidence; directness is metadata. Never prepend a heading to a verbatim quote — a quotation with editorial framing is no longer a quotation. Pin the JSON body, and where an import is too heavy for a unit test, a source-level pin is acceptable **only if the test says it is source-level**.
-
-### L-PLAN-DONE-IS-NOT-DONE-1. A checklist marking a task done without a pinning test is a claim, and re-review is the only way to test a claim.
-- **What:** `.claude/tasks/fp-primary-quality-harness-2026-10-27.md` marked T2a, T2c and T4 `[x]`. Re-review found T2a still injecting the heading at two more sites (above), and T2c/T4 present in code but **unpinned**: no test anywhere referenced `_span_starts_with_antecedent` or the chronological `_window` sort, so a future refactor of `_window` could have regressed both silently with a green suite. Three pins were added to `tests/test_first_person_context_harness.py`.
-- **Rule:** "done" means a test fails when the behaviour is removed. When re-reviewing an inherited checklist, ask "what breaks if I delete this line" — not "is the code there". A plan's progress section is a claim about the tree, and the tree is the only authority.
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged,
 > to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md` (13519 lines). Look an ID up with
