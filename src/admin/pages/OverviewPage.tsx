@@ -48,7 +48,11 @@ export default function OverviewPage() {
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="text-muted-foreground hover:text-foreground">
+                  <button
+                    type="button"
+                    aria-label="Information"
+                    className="text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                  >
                     <Info className="h-4 w-4" />
                   </button>
                 </TooltipTrigger>

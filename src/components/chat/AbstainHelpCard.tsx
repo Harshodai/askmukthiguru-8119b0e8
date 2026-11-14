@@ -37,7 +37,7 @@ export const AbstainHelpCard: React.FC<AbstainHelpCardProps> = ({ onAction, clas
     >
       {/* Header */}
       <div className="space-y-1">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ojas">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ojas-ink dark:text-ojas">
           <Sparkles className="h-4 w-4 text-ojas flex-shrink-0" aria-hidden="true" />
           <span>{t('chat.abstainHelp.title', 'Explore Verified Teachings')}</span>
         </div>
@@ -62,7 +62,7 @@ export const AbstainHelpCard: React.FC<AbstainHelpCardProps> = ({ onAction, clas
               type="button"
               data-testid={`abstain-question-${idx}`}
               onClick={() => onAction?.(question)}
-              className="group flex items-center justify-between gap-3 text-left w-full p-2.5 rounded-xl border border-border/60 bg-background/60 hover:bg-ojas/[0.07] hover:border-ojas/40 transition-all duration-200 text-xs sm:text-[13px] text-foreground/90 hover:text-foreground shadow-2xs"
+              className="group flex items-center justify-between gap-3 text-left w-full p-2.5 rounded-xl border border-border/60 bg-background/60 hover:bg-ojas/[0.07] hover:border-ojas/40 transition-all duration-200 text-xs sm:text-[13px] text-foreground/90 hover:text-foreground shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             >
               <span className="leading-snug">{question}</span>
               <ArrowRight
@@ -87,7 +87,7 @@ export const AbstainHelpCard: React.FC<AbstainHelpCardProps> = ({ onAction, clas
               type="button"
               data-testid={`abstain-chip-${idx}`}
               onClick={() => onAction?.(concept)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-border/80 bg-background/70 hover:bg-ojas/10 hover:border-ojas/40 text-foreground/85 hover:text-foreground transition-all duration-150 shadow-2xs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-border/80 bg-background/70 hover:bg-ojas/10 hover:border-ojas/40 text-foreground/85 hover:text-foreground transition-all duration-150 shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             >
               <span>{concept}</span>
             </button>
@@ -113,7 +113,7 @@ export const AbstainHelpCard: React.FC<AbstainHelpCardProps> = ({ onAction, clas
           type="button"
           data-testid="abstain-serene-mind-btn"
           onClick={() => openSereneMind('audio', true)}
-          className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium bg-ojas text-white hover:bg-ojas/90 transition-colors shadow-sm flex-shrink-0 w-full sm:w-auto"
+          className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium bg-ojas text-white hover:bg-ojas/90 transition-colors shadow-sm flex-shrink-0 w-full sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
         >
           <Play className="h-3 w-3 fill-current" aria-hidden="true" />
           <span>{t('chat.abstainHelp.practiceButton', 'Practice 3-Minute Serene Mind Meditation')}</span>

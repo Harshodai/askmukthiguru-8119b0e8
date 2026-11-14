@@ -149,8 +149,6 @@ try:
         repo_id=_onnx_reranker_id,
         revision=_onnx_reranker_rev,
         local_dir=_onnx_reranker_cache,
-        local_dir_use_symlinks=False,
-        resume_download=True,
         ignore_patterns=["*.md", "*.py", "requirements.txt"],
     )
     print("onnx int8 reranker cache populated")
@@ -174,8 +172,6 @@ try:
         repo_id=_onnx_embed_id,
         revision=_onnx_embed_rev,
         local_dir=_onnx_embed_cache,
-        local_dir_use_symlinks=False,
-        resume_download=True,
         ignore_patterns=["*.md", "*.py", "requirements.txt"],
     )
     print("onnx int8 bge-m3 embedder cache populated")
@@ -203,7 +199,6 @@ try:
     _lettuce_path = snapshot_download(
         repo_id=_lettuce_id,
         revision=_lettuce_rev,
-        resume_download=True,
     )
     try:
         from lettucedetect.models.inference import HallucinationDetector  # noqa: E402

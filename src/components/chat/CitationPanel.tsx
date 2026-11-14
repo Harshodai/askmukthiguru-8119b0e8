@@ -93,7 +93,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                 return (
                   <div key={idx} className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
                     <div className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-ojas/10 text-ojas text-xs font-medium flex items-center justify-center">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-ojas/10 text-ojas-ink dark:text-ojas text-xs font-medium flex items-center justify-center">
                         {idx + 1}
                       </span>
                       <div className="flex-1 min-w-0">
@@ -101,7 +101,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                           href={c.playbackUrl || c.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm font-medium text-ojas hover:underline inline-flex items-center gap-1.5 min-h-[44px] py-1"
+                          className="text-sm font-medium text-ojas-ink dark:text-ojas hover:underline inline-flex items-center gap-1.5 min-h-[44px] py-1"
                         >
                           <span className="truncate">{c.title || getDomain(c.url)}</span>
                           <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
@@ -139,7 +139,7 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                                   </div>
                                 </div>
                                 <div className="p-2.5 bg-background border-t flex items-center min-h-[44px]">
-                                  <p className="text-xs font-medium text-ojas flex items-center gap-1.5">
+                                  <p className="text-xs font-medium text-ojas-ink dark:text-ojas flex items-center gap-1.5">
                                     <Youtube className="w-4 h-4 text-red-500" />
                                     Watch on YouTube
                                   </p>

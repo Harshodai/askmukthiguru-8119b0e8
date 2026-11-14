@@ -278,7 +278,7 @@ export const ThinkingPills = ({
           className="w-full max-w-xl rounded-xl border border-ojas/20 bg-gradient-to-r from-ojas/[0.06] via-background to-ojas/[0.03] px-3.5 py-3 shadow-xs"
           data-testid="thinking-pills-wisdom-tip"
         >
-          <div className="flex items-center gap-2 text-[13px] font-medium text-ojas">
+          <div className="flex items-center gap-2 text-[13px] font-medium text-ojas-ink dark:text-ojas">
             <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-ojas/15 text-[10px]">✨</span>
             <span>{t('chat.sacredTeaching', 'Sacred Teaching')}</span>
             <span className="text-xs font-normal text-muted-foreground/80">
@@ -294,7 +294,7 @@ export const ThinkingPills = ({
       {teachingPreview.length > 0 && (
         <div className="w-full max-w-xl rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2.5">
           <div className="flex items-center gap-2 text-[15px] leading-5 font-medium text-foreground">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-ojas/10 text-ojas">◈</span>
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-ojas/10 text-ojas-ink dark:text-ojas">◈</span>
             <span>{t('chat.teachingContext.title')}</span>
             <span className="text-[15px] leading-5 font-normal text-muted-foreground/70">
               {t('chat.teachingContext.sourceCount', { count: teachingPreview.length })}

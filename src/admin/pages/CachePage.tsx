@@ -232,8 +232,10 @@ function ConfirmModal({ onConfirm, onCancel, pending }: {
             style={{ background: 'rgba(10,10,14,0.95)' }}>
             {/* Close */}
             <button
+              type="button"
               onClick={onCancel}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white/70 transition-colors duration-300"
+              aria-label="Close"
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white/70 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/40"
             >
               <X className="w-4 h-4" />
             </button>

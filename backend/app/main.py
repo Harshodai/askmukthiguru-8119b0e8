@@ -10,6 +10,10 @@ import faulthandler
 import json
 import logging
 import re
+import warnings
+
+# Suppress QdrantClient UserWarning when API key is used over internal Docker bridge (http://)
+warnings.filterwarnings("ignore", category=UserWarning, message=".*Api key is used with an insecure connection.*")
 
 faulthandler.enable()
 import os
@@ -903,7 +907,10 @@ async def lifespan(app: FastAPI):
 
     if _fp_report is not None:
         for _warning in _fp_report.warnings:
-            logger.warning("Lifespan: first-person serving contract warning: %s", _warning)
+            if "v10-only mode" in _warning:
+                logger.info("Lifespan: first-person serving contract: %s", _warning)
+            else:
+                logger.warning("Lifespan: first-person serving contract warning: %s", _warning)
         for _error in _fp_report.errors:
             logger.error("Lifespan: first-person serving contract error: %s", _error)
         assert_startup_safe(

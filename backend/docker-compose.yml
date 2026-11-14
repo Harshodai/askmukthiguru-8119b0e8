@@ -199,6 +199,8 @@ services:
       - path: ../.env
         required: false
     environment: &backend-env
+      - TQDM_DISABLE=1
+      - HF_HUB_DISABLE_PROGRESS_BARS=1
       # Bound numeric-library thread pools (2026-09-06, fix for L-DOCKER-9:
       # RuntimeError: can't start new thread under load). MKL/OpenBLAS/OMP
       # each detect the HOST's full core count inside a container rather
@@ -586,6 +588,8 @@ services:
         # Keep the default same-origin; explicit staging/native overrides remain supported.
         VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}
     container_name: mukthiguru-frontend
+    environment:
+      - NGINX_ENTRYPOINT_QUIET_LOGS=1
     ports:
       - "80:80"
     volumes:

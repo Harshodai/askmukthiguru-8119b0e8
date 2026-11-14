@@ -877,8 +877,10 @@ export const MemoryManager = () => {
                   />
                   {listSearchQuery && (
                     <button
+                      type="button"
                       onClick={() => setListSearchQuery('')}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label="Clear search query"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
                     >
                       <X className="w-3 h-3" />
                     </button>

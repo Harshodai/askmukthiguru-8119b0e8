@@ -244,7 +244,7 @@ export const DailyTeachingCard = () => {
             />
           </button>
         </div>
-        <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/80">
+        <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
           {supportsNotifications()
             ? t(
                 'ritual.reminderNote',

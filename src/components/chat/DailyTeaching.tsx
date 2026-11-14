@@ -160,7 +160,7 @@ export const DailyTeaching = () => {
         >
           <button
             onClick={handleDismiss}
-            className="absolute top-4 right-4 z-20 p-2 rounded-full bg-background/60 hover:bg-background/90 text-foreground transition-all border border-border"
+            className="absolute top-4 right-4 z-20 min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-full bg-background/60 hover:bg-background/90 text-foreground active:scale-95 transition-all duration-200 ease-out border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
             aria-label={t('chat.closeTeachingModal')}
           >
             <X className="w-4 h-4" />

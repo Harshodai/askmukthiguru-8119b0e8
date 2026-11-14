@@ -27,8 +27,8 @@ export const GetHelpNow = ({ className }: { className?: string }) => {
           type="button"
           data-testid="get-help-now"
           className={cn(
-            'inline-flex min-h-6 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-destructive-ink',
-            'ring-1 ring-destructive/40 transition-colors hover:bg-destructive/10',
+            'inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium text-destructive-ink',
+            'ring-1 ring-destructive/40 active:scale-95 transition-all duration-200 ease-out hover:bg-destructive/10',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas',
             className,
           )}

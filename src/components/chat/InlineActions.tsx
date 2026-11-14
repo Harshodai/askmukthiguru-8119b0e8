@@ -37,7 +37,7 @@ export function InlineActions({ messageContent, onAction }: InlineActionsProps) 
           key={action.label}
           variant="outline"
           size="sm"
-          className="text-xs h-7 px-2 rounded-full border-muted-foreground/20"
+          className="text-xs min-h-[44px] sm:min-h-[32px] px-3 active:scale-[0.98] transition-all duration-200 ease-out rounded-full border-muted-foreground/20"
           onClick={() => onAction(action.getQuery(excerpt))}
         >
           <action.icon className="w-3 h-3 mr-1" />
@@ -150,7 +150,7 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
                 data-testid="engagement-yes"
                 disabled={disabled}
                 onClick={() => handleChoice('yes')}
-                className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2.5 py-1 hover:border-ojas/40 hover:text-ojas transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 min-h-[44px] sm:min-h-[32px] px-3 hover:border-ojas/40 hover:text-ojas active:scale-[0.98] transition-all duration-200 ease-out disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 🙏 {t('chat.engagement.yes')}
               </button>
@@ -159,7 +159,7 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
                 data-testid="engagement-not-quite"
                 disabled={disabled}
                 onClick={() => handleChoice('not_quite')}
-                className="inline-flex items-center gap-1 rounded-full border border-border/60 px-2.5 py-1 hover:border-ojas/40 hover:text-ojas transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 min-h-[44px] sm:min-h-[32px] px-3 hover:border-ojas/40 hover:text-ojas active:scale-[0.98] transition-all duration-200 ease-out disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 🤍 {t('chat.engagement.notQuite')}
               </button>
@@ -178,7 +178,12 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
           >
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-medium text-muted-foreground">{t('chat.engagement.whatWouldServe')}</p>
-              <button onClick={() => setShowRefine(false)} aria-label={t('chat.closeFeedbackPanel')} className="p-0.5 rounded hover:bg-muted">
+              <button
+                type="button"
+                onClick={() => setShowRefine(false)}
+                aria-label={t('chat.closeFeedbackPanel') || 'Close feedback panel'}
+                className="min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] p-2 rounded flex items-center justify-center hover:bg-muted active:scale-95 transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+              >
                 <X className="w-3 h-3 text-muted-foreground" />
               </button>
             </div>
@@ -190,9 +195,9 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
                   <button
                     key={key}
                     onClick={() => toggleTag(tag)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] border transition-all ${
+                    className={`min-h-[44px] sm:min-h-[28px] px-2.5 py-1 rounded-full text-[11px] border active:scale-[0.98] transition-all duration-200 ease-out ${
                       selectedTags.includes(tag)
-                        ? 'border-ojas/50 bg-ojas/10 text-ojas font-medium'
+                        ? 'border-ojas/50 bg-ojas/10 text-ojas-ink dark:text-ojas font-medium'
                         : 'border-border/60 text-muted-foreground hover:border-ojas/30'
                     }`}
                   >
@@ -209,8 +214,9 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
               className="w-full bg-transparent border-b border-border/30 text-[12px] py-1 outline-none focus:border-ojas/40 text-foreground placeholder:text-muted-foreground/75"
             />
             <button
+              type="button"
               onClick={() => submit('not_quite', selectedTags, comment)}
-              className="text-[11px] font-medium text-ojas hover:text-ojas-light transition-colors"
+              className="min-h-[44px] sm:min-h-[32px] px-3 py-1.5 flex items-center text-[11px] font-medium text-ojas-ink dark:text-ojas hover:text-ojas-light active:scale-[0.98] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-md"
             >
               {t('chat.submitFeedback')}
             </button>

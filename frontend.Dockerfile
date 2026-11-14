@@ -68,6 +68,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 # chown lchowns a symlink operand, so chown the real /run target, not
 # /var/run, or the pid dir stays root-owned and nginx exits with
 # 'open() "/run/nginx.pid" failed (13: Permission denied)'.
+RUN sed -i 's/^user /#user /' /etc/nginx/nginx.conf
 RUN chown -R nginx:nginx /var/cache/nginx /run /var/log/nginx
 
 USER nginx

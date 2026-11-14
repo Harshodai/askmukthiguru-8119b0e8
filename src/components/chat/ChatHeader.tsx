@@ -74,7 +74,7 @@ export const ChatHeader = ({
         {isIncognito ? (
           <div className="flex items-center gap-2 ml-1 min-w-0">
             <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-600/40 bg-amber-950/20 text-amber-600 text-[11px] font-medium whitespace-nowrap"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-600/40 bg-amber-950/20 text-amber-800 dark:text-amber-400 text-[11px] font-medium whitespace-nowrap"
               title={t('chat.temporaryChatTitle')}
               data-testid="temporary-chat-badge"
             >
@@ -100,7 +100,7 @@ export const ChatHeader = ({
                   onClick={onOpenMemorySettings}
                   className={`hidden sm:inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap transition-colors cursor-pointer hover:border-ojas/40 ${
                     memoryActive
-                      ? 'border-ojas/30 bg-ojas/10 text-ojas hover:bg-ojas/15'
+                      ? 'border-ojas/30 bg-ojas/10 text-ojas-ink dark:text-ojas hover:bg-ojas/15'
                       : 'border-border/60 bg-muted/40 text-muted-foreground hover:bg-muted/60'
                   }`}
                   title={t('chat.memorySettings.badgeTitle', 'Spiritual Memory Settings')}
@@ -112,7 +112,7 @@ export const ChatHeader = ({
                 </button>
               ) : (
                 <span
-                  className="hidden sm:inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 px-2 py-0.5 text-[10px] font-medium text-ojas whitespace-nowrap"
+                  className="hidden sm:inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 px-2 py-0.5 text-[10px] font-medium text-ojas-ink dark:text-ojas whitespace-nowrap"
                   title={t('chat.personalizedTitle')}
                   data-testid="personalization-badge"
                 >
@@ -123,7 +123,7 @@ export const ChatHeader = ({
             )}
             {isHandsFreeVoice && (
               <span
-                className="hidden sm:inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 px-2 py-0.5 text-[10px] font-medium text-ojas whitespace-nowrap"
+                className="hidden sm:inline-flex items-center gap-1 rounded-full border border-ojas/20 bg-ojas/5 px-2 py-0.5 text-[10px] font-medium text-ojas-ink dark:text-ojas whitespace-nowrap"
                 data-testid="voice-conversation-badge"
               >
                 <AudioLines className="w-3 h-3" />
@@ -136,7 +136,7 @@ export const ChatHeader = ({
       <div className="flex items-center gap-0.5 sm:gap-1.5">
         {responsePreferences && onResponsePreferencesChange && onResetResponsePreferences && <div className="hidden sm:block"><ResponsePreferencesMenu value={responsePreferences} onChange={onResponsePreferencesChange} onReset={onResetResponsePreferences} /></div>}
         {isIncognito && <span className="text-[10px] text-amber-600/70 hidden sm:block mr-1">{t('chat.incognitoScope', 'Not saved to history, personal memory, or your personal wisdom map.')}</span>}
-        {hasMessages && onOpenSources && <Button size="icon" variant="ghost" onClick={onOpenSources} className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground relative flex items-center justify-center rounded-xl" aria-label={t('chat.openSources', { count: sourcesCount })} title={t('chat.viewSources')}><Library className="w-4 h-4" />{sourcesCount > 0 && <span className="absolute top-0 right-0 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-ojas/15 text-ojas text-[10px] font-semibold tabular-nums">{sourcesCount}</span>}</Button>}
+        {hasMessages && onOpenSources && <Button size="icon" variant="ghost" onClick={onOpenSources} className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground relative flex items-center justify-center rounded-xl" aria-label={t('chat.openSources', { count: sourcesCount })} title={t('chat.viewSources')}><Library className="w-4 h-4" />{sourcesCount > 0 && <span className="absolute top-0 right-0 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-ojas/15 text-ojas-ink dark:text-ojas text-[10px] font-semibold tabular-nums">{sourcesCount}</span>}</Button>}
         {hasMessages && onExport && <Button size="icon" variant="ghost" onClick={onExport} className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 hidden sm:flex text-muted-foreground items-center justify-center" aria-label={t('chat.exportMarkdown')} title={t('chat.exportMarkdown')}><Download className="w-4 h-4" /></Button>}
         {capabilities.whatsapp && whatsappNumber && <a
           href={whatsappUrl}

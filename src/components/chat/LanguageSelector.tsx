@@ -316,7 +316,7 @@ export const LanguageSelector = ({
           >
             <div
               className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 transition-colors ${
-                isSelected ? 'bg-ojas/20 text-ojas' : 'bg-muted/60 text-muted-foreground'
+                isSelected ? 'bg-ojas/20 text-ojas-ink dark:text-ojas' : 'bg-muted/60 text-muted-foreground'
               }`}
             >
               <Globe className="w-3.5 h-3.5" />
@@ -324,7 +324,7 @@ export const LanguageSelector = ({
             <div className="flex-1 min-w-0">
               <span
                 className={`block font-medium truncate text-xs ${
-                  isSelected ? 'text-ojas font-semibold' : 'text-foreground'
+                  isSelected ? 'text-ojas-ink dark:text-ojas font-semibold' : 'text-foreground'
                 }`}
                 lang={lang.bcp47}
               >

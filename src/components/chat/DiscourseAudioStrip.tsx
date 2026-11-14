@@ -252,7 +252,8 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
                 }
               }}
               title="Watch discourse video"
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-saffron-gold/30 bg-background/50 text-saffron-gold hover:bg-saffron-gold/15 transition-colors"
+              aria-label="Open video on YouTube"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-saffron-gold/30 bg-background/50 text-saffron-gold hover:bg-saffron-gold/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 transition-colors"
             >
               <Youtube className="h-3.5 w-3.5" />
             </button>
@@ -264,7 +265,8 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               title="Open source video on YouTube"
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/40 bg-background/40 text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
+              aria-label="Open source material in new tab"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/40 bg-background/40 text-muted-foreground hover:text-foreground hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 transition-colors"
             >
               <ExternalLink className="h-3.5 w-3.5" />
             </a>

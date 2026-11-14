@@ -327,6 +327,7 @@ export default function TeachingTipsPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label="Delete tip"
                       className="h-6 w-6 text-muted-foreground hover:text-destructive"
                       onClick={() => handleDeleteTeaching(item.id)}
                     >

@@ -294,7 +294,7 @@ function ChatComposerInner({
       >
         {isAwaitingSereneMind && (
           <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-border/40 bg-ojas/5 rounded-t-3xl">
-            <span className="text-xs text-ojas font-medium">
+            <span className="text-xs text-ojas-ink dark:text-ojas font-medium">
               {t('chat.sereneMindRequired')}
             </span>
             <button
@@ -341,7 +341,7 @@ function ChatComposerInner({
                 key={file.id}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-muted/40 border border-border/60 text-[11px] text-foreground/80 select-none"
               >
-                <span className="font-medium text-ojas font-mono truncate max-w-[120px]">
+                <span className="font-medium text-ojas-ink dark:text-ojas font-mono truncate max-w-[120px]">
                   {file.name}
                 </span>
                 <span className="text-[9px] text-muted-foreground font-mono">
@@ -351,7 +351,7 @@ function ChatComposerInner({
                   type="button"
                   onClick={() => onRemoveFile(file.id)}
                   aria-label={`Remove file ${file.name}`}
-                  className="p-0.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  className="min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] p-2 rounded-full flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground active:scale-95 transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -401,7 +401,7 @@ function ChatComposerInner({
                 <button
                   type="button"
                   onClick={scrollToStart}
-                  className="pointer-events-auto p-1 mb-1 rounded-full bg-card/95 hover:bg-ojas text-ojas hover:text-white border border-ojas/40 shadow-sm transition-all hover:scale-110 active:scale-95 cursor-pointer"
+                  className="pointer-events-auto min-h-[44px] min-w-[44px] sm:min-h-[32px] sm:min-w-[32px] p-2 mb-1 rounded-full bg-card/95 hover:bg-ojas text-ojas-ink dark:text-ojas hover:text-white border border-ojas/40 shadow-sm flex items-center justify-center active:scale-95 transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 cursor-pointer"
                   title={t('chat.scrollToStart', 'Go to start')}
                   aria-label={t('chat.scrollToStart', 'Go to start')}
                 >
@@ -541,7 +541,7 @@ function ChatComposerInner({
                     type="button"
                     size="icon-sm"
                     onClick={onStop}
-                    className="min-h-[40px] min-w-[40px] sm:h-9 sm:w-9 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20 flex items-center justify-center transition-colors shadow-sm"
+                    className="min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] sm:h-9 sm:w-9 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20 flex items-center justify-center active:scale-95 transition-all duration-200 ease-out shadow-sm"
                     aria-label={t('chat.stop', 'Stop generating')}
                     title={t('chat.stopGenerating', 'Stop generating')}
                   >
@@ -554,7 +554,7 @@ function ChatComposerInner({
                     <PromptInputSubmit
                       type="submit"
                       size="icon-sm"
-                      className="min-h-[40px] min-w-[40px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-dark shadow-sm hover:shadow-md transition-all flex items-center justify-center"
+                      className="min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-dark shadow-sm hover:shadow-md active:scale-95 transition-all duration-200 ease-out flex items-center justify-center"
                       aria-label={t('chat.queueMessage', 'Queue follow-up message')}
                       title={t('chat.queueMessage', 'Queue follow-up (sends automatically after current response)')}
                     >

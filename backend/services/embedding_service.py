@@ -395,8 +395,6 @@ class EmbeddingService:
                 repo_id=onnx_model_id,
                 revision=revision,
                 local_dir=str(cache_dir),
-                local_dir_use_symlinks=False,
-                resume_download=True,
                 ignore_patterns=["*.md", "*.py", "requirements.txt"],
             )
             model_file = os.path.join(local_path, "model_quantized.onnx")

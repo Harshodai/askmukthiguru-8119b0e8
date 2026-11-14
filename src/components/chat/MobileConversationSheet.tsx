@@ -92,8 +92,8 @@ export const MobileConversationSheet = ({ isOpen, onClose, onNewConversation, on
             </div>
 
             <div className="flex gap-1 mx-3 mt-3 p-1 bg-muted/50 rounded-xl">
-              <button onClick={() => setActiveTab('chat')} className={`flex-1 min-h-[42px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'chat' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}><MessageSquare className="w-3.5 h-3.5" />{t('chat.tabChat', 'Chat')}</button>
-              <button onClick={() => setActiveTab('explore')} data-tour="mobile-explore-tab" className={`flex-1 min-h-[42px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'explore' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}><LayoutGrid className="w-3.5 h-3.5" />{t('chat.tabExplore', 'Explore')}</button>
+              <button onClick={() => setActiveTab('chat')} className={`flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium active:scale-95 transition-all duration-200 ease-out ${activeTab === 'chat' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}><MessageSquare className="w-3.5 h-3.5" />{t('chat.tabChat', 'Chat')}</button>
+              <button onClick={() => setActiveTab('explore')} data-tour="mobile-explore-tab" className={`flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-medium active:scale-95 transition-all duration-200 ease-out ${activeTab === 'explore' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}><LayoutGrid className="w-3.5 h-3.5" />{t('chat.tabExplore', 'Explore')}</button>
             </div>
 
             <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-spiritual px-3 py-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
@@ -112,7 +112,7 @@ export const MobileConversationSheet = ({ isOpen, onClose, onNewConversation, on
                                 <motion.div key={conv.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} role="button" tabIndex={0} aria-label={`Open conversation: ${conv.preview || 'New conversation'}`} className={`min-h-[52px] flex items-center gap-3 px-2.5 py-1.5 rounded-xl cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas ${conv.id === currentConversationId ? 'bg-ojas/12 border border-ojas/25' : 'border border-transparent hover:bg-muted/60'}`} onClick={() => handleSelectConversation(conv)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSelectConversation(conv); } }}>
                                   <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
                                   <div className="flex-1 min-w-0"><p className="text-sm text-foreground truncate">{conv.preview || t('chat.newConversation')}</p><p className="text-[11px] text-muted-foreground">{t('chat.messagesCount', { count: conv.messageCount })}</p></div>
-                                  <button onClick={(e) => handleDeleteConversation(conv.id, e)} aria-label={t('chat.mobile.deleteConversation')} className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg opacity-40 hover:opacity-100 active:opacity-100 hover:bg-destructive/10 transition-all"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+                                  <button onClick={(e) => handleDeleteConversation(conv.id, e)} aria-label={t('chat.mobile.deleteConversation')} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg opacity-40 hover:opacity-100 active:opacity-100 hover:bg-destructive/10 active:scale-95 transition-all duration-200 ease-out"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
                                 </motion.div>
                               ))}
                             </div>

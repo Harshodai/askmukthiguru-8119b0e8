@@ -231,7 +231,8 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                aria-label="Close search modal"
+                className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -283,7 +284,8 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                    aria-label="Clear search input"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>

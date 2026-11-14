@@ -89,7 +89,7 @@ describe('Serene Mind Audio & Timer Synchronization', () => {
     it('starts audio playback when play button is clicked', async () => {
       render(<GuidedMeditationFlow isOpen={true} onClose={vi.fn()} />);
       const audio = instances[0];
-      const playButton = screen.getByRole('button', { name: '' });
+      const playButton = screen.getByRole('button', { name: /play meditation/i });
 
       await act(async () => {
         fireEvent.click(playButton);

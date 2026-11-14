@@ -577,7 +577,7 @@ export const GuruTeachingCard = ({
             type="button"
             onClick={openPlayback}
             aria-label={playName}
-            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-ojas px-3 py-1.5 font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-ojas px-3 py-1.5 font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Play className="h-3 w-3 fill-current" aria-hidden="true" />
             {t('chat.guruTeaching.playClip', 'Play clip')}
@@ -588,7 +588,7 @@ export const GuruTeachingCard = ({
             target="_blank"
             rel="noopener noreferrer"
             aria-label={playName}
-            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-ojas px-3 py-1.5 font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-ojas px-3 py-1.5 font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Play className="h-3 w-3 fill-current" aria-hidden="true" />
             {t('chat.guruTeaching.playClip', 'Play clip')}
@@ -600,7 +600,7 @@ export const GuruTeachingCard = ({
           rel="noopener noreferrer"
           aria-label={t('chat.guruTeaching.openSourceAria', 'Open source teaching')}
           title={domain}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-border/40 bg-background/40 text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
+          className="min-h-[44px] min-w-[44px] sm:h-7 sm:w-7 inline-flex items-center justify-center rounded-lg border border-border/40 bg-background/40 text-muted-foreground transition-all duration-200 ease-out hover:bg-background/80 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
         </a>
@@ -673,7 +673,7 @@ const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMind
             <button
               type="button"
               onClick={() => open('audio', false, customMeditation?.steps, customMeditation?.source_teaching)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-ojas to-ojas-light px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <Play className="h-3.5 w-3.5" aria-hidden="true" />
               {t('chat.startSereneMind')}
@@ -1735,8 +1735,9 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 >
                   <span className="text-muted-foreground">{t('chat.practiceNudge.title')}</span>
                   <button
+                    type="button"
                     onClick={() => openSereneMind('audio', true)}
-                    className="flex-shrink-0 rounded-full border border-ojas/30 px-2.5 py-1 text-[11px] font-medium text-ojas-ink hover:bg-ojas/10 transition-colors whitespace-nowrap"
+                    className="min-h-[44px] sm:min-h-[32px] px-3 flex items-center flex-shrink-0 rounded-full border border-ojas/30 text-[11px] font-medium text-ojas-ink dark:text-ojas hover:bg-ojas/10 active:scale-[0.98] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 whitespace-nowrap"
                   >
                     {t('chat.practiceNudge.cta')}
                   </button>
@@ -1745,13 +1746,13 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
 
               {/* Guru hover actions and timestamp — zero-height when inactive on desktop to prevent dead-space gaps */}
               {isGuru && message.content && !message.error && !isStreaming && !message.content.includes('_Stopped by you._') && (
-                <div className="flex items-center justify-between gap-2 mt-1 md:mt-0 md:max-h-0 md:overflow-hidden md:opacity-0 md:group-hover:mt-1.5 md:group-hover:max-h-10 md:group-hover:overflow-visible md:group-hover:opacity-100 md:group-focus-within:mt-1.5 md:group-focus-within:max-h-10 md:group-focus-within:overflow-visible md:group-focus-within:opacity-100 max-md:opacity-100 max-md:mt-1.5 transition-all duration-200">
+                <div className="flex items-center justify-between gap-2 mt-1 md:mt-0 md:max-h-0 md:overflow-hidden md:opacity-0 md:group-hover:mt-1.5 md:group-hover:max-h-12 md:group-hover:overflow-visible md:group-hover:opacity-100 md:group-focus-within:mt-1.5 md:group-focus-within:max-h-12 md:group-focus-within:overflow-visible md:group-focus-within:opacity-100 max-md:opacity-100 max-md:mt-1.5 transition-all duration-200">
                   <div className="flex items-center gap-0.5 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100">
                     <button
                       onClick={handleCopy}
-                      className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
                       title={copied ? t('common.copied') : t('chat.copyResponse')}
-                      aria-label={copied ? t('common.copied') : t('chat.copyResponse')}
+                      aria-label={copied ? (t('common.copied') || 'Copied') : (t('chat.copyResponse') || 'Copy response')}
                     >
                       {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
@@ -1759,28 +1760,28 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                       <button
                         onClick={handleSpeak}
                         aria-pressed={isSpeaking}
-                        className={`p-1 rounded-full transition-colors ${isSpeaking
+                        className={`min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out ${isSpeaking
                             ? 'bg-ojas/15 text-ojas-ink'
                             : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
                           }`}
                         title={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
-                        aria-label={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
+                        aria-label={isSpeaking ? (t('chat.stopReading') || 'Stop reading') : (t('chat.readAloud') || 'Read aloud')}
                       >
                         {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                       </button>
                     )}
                     <button
                       onClick={() => setShowWisdomCard(true)}
-                      className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
                       title={t('chat.shareWisdomCard')}
-                      aria-label={t('chat.shareWisdomCard')}
+                      aria-label={t('chat.shareWisdomCard') || 'Share wisdom card'}
                     >
                       <Share2 className="w-4 h-4" />
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
-                          className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                          className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
                           title={t('common.more', 'More')}
                           aria-label={t('common.more', 'More')}
                         >
@@ -1845,7 +1846,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   <button
                     type="button"
                     onClick={() => setSourcesOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-full border border-hairline bg-card/80 hover:bg-card hover:border-ojas/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-all shadow-sm"
+                    className="inline-flex items-center gap-2 rounded-full border border-hairline bg-card/80 hover:bg-card hover:border-ojas/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-label={t('chat.viewSources')}
                     title={t('chat.references')}
                   >
@@ -1869,8 +1870,9 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               <div className="flex items-center justify-end gap-0.5 opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200 mt-1 mr-1">
                 <button
                   onClick={handleCopy}
-                  className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
                   title={copied ? t('common.copied') : t('chat.copyQuestion')}
+                  aria-label={copied ? (t('common.copied') || 'Copied') : (t('chat.copyQuestion') || t('chat.copyMessage') || 'Copy message')}
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
@@ -1884,8 +1886,9 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         onEditUserMessage(message);
                       }
                     }}
-                    className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
                     title={t('chat.editResend')}
+                    aria-label={t('chat.editResend') || 'Edit message'}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -1914,9 +1917,10 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 <div className="flex flex-wrap gap-1.5">
                   {message.followUpSuggestions.map((suggestion, i) => (
                     <button
+                      type="button"
                       key={i}
                       onClick={() => onAction(suggestion)}
-                      className="text-[11px] px-2.5 py-1 rounded-full border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 hover:border-ojas/40 text-foreground/80 hover:text-foreground transition-all"
+                      className="min-h-[44px] sm:min-h-[32px] px-3 flex items-center text-[11px] rounded-full border border-ojas/20 bg-ojas/5 hover:bg-ojas/10 hover:border-ojas/40 text-foreground/80 hover:text-foreground active:scale-[0.98] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                     >
                       {suggestion}
                     </button>
@@ -2115,8 +2119,9 @@ export const LanguageTranslateButton = ({ message }: { message: Message }) => {
       <button
         onClick={handleTranslate}
         disabled={loading}
-        className="p-1 rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-colors"
+        className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
         title={translated ? t('chat.showOriginal') : t('chat.translateTo', { lang: targetLanguage.split('-')[0] })}
+        aria-label={translated ? (t('chat.showOriginal') || 'Show original') : (t('chat.translateTo', { lang: targetLanguage.split('-')[0] }) || 'Translate response')}
       >
         {loading ? (
           <span className="w-3 h-3 block rounded-full border border-ojas border-t-transparent animate-spin" />

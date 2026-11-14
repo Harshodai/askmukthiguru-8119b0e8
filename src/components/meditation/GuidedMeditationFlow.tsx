@@ -370,7 +370,7 @@ export const GuidedMeditationFlow = ({
           type="button"
           onClick={requestClose}
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
-          aria-label={t('common.close')}
+          aria-label={t('common.close') || "Close modal"}
         >
           <X className="w-5 h-5 text-muted-foreground" />
         </button>
@@ -381,7 +381,7 @@ export const GuidedMeditationFlow = ({
             type="button"
             onClick={() => setReflectionStep(prev => (prev - 1) as 0 | 1 | 2 | 3)}
             className="absolute top-4 left-4 p-2 rounded-full hover:bg-muted transition-colors z-10"
-            aria-label={t('common.back')}
+            aria-label={t('common.back') || "Back"}
           >
             <ChevronLeft className="w-5 h-5 text-muted-foreground" />
           </button>
@@ -611,14 +611,16 @@ export const GuidedMeditationFlow = ({
               <button
                 type="button"
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="w-14 h-14 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground flex items-center justify-center shadow-lg"
+                aria-label={isPlaying ? "Pause meditation" : "Play meditation"}
+                className="w-14 h-14 rounded-full bg-gradient-to-br from-ojas to-ojas-light text-primary-foreground flex items-center justify-center shadow-lg active:scale-95 transition-all duration-200 ease-out"
               >
                 {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
               </button>
               <button
                 type="button"
                 onClick={skipStep}
-                className="p-3 rounded-full border border-border hover:border-ojas/40 transition-colors"
+                aria-label={t('meditation.skipStep') || "Skip meditation step"}
+                className="p-3 rounded-full border border-border hover:border-ojas/40 active:scale-95 transition-all duration-200 ease-out"
                 title={t('meditation.skipStep')}
               >
                 <SkipForward className="w-4 h-4 text-muted-foreground" />
