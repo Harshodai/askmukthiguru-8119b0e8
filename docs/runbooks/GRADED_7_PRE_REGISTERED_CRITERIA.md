@@ -89,3 +89,44 @@ Purpose: decide whether the current code is good enough for staging/demo. A run 
   (on or off for the product is owner decision T-E1).
 - **Source file sha256** (the scratchpad `pre_run_criteria.md` copied above):
   `b8a0504ee5bcf2f33284150e5adf4810e0700c840d89fa71ce9a690ce86baea2`.
+
+## Registration of graded-7 (written 2026-11-14, before the run; changes no criterion)
+
+- **Commit graded:** the `HEAD` of local `main` when the stack is built, recorded as `sha` in the
+  run manifest. It is this registration's commit or a docs-only commit on top of it (the planned
+  spend row); no code changes after the commit that adds this section. It is **not pushed**
+  (owner instruction of 2026-11-13: commit locally, never push), which replaces the runbook's
+  "committed and pushed" for this run only.
+- **Stack:** `backend/docker-compose.yml` + `backend/docker-compose.graded.yml` from that commit,
+  image built from the clean tree, no code bind mounts.
+- **Pinned serving values the manifest must show:** `FIRST_PERSON_ACTIVE_COLLECTION=first_person_v10`;
+  `FIRST_PERSON_CONTEXT_USE_SPARSE=false`; `FIRST_PERSON_JUDGE_ENABLED=true`;
+  `FIRST_PERSON_JUDGE_MODEL=anthropic/claude-haiku-5.5`; `FIRST_PERSON_RELEVANCE_MODEL=anthropic/claude-haiku-5.5`;
+  `FIRST_PERSON_RELEVANCE_MIN_SCORE=3`; `FIRST_PERSON_RELEVANCE_TIMEOUT_S=12`;
+  `FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=false` (as in graded-6);
+  `FIRST_PERSON_COMPARATIVE_JUDGE_ENABLED=false`; `INTENT_ROUTER_AMBIGUOUS_DOMAIN_ENABLED=false`.
+- **Data:** the frozen 116 and the 86-row unanswerable set, the same rows as graded-6. No benchmarks.
+- **Graders:** first `anthropic/claude-sonnet-5.5`, second `google/gemini-3.6-flash`, sample fraction 1.0,
+  `--allow-shared-judge` not set. If the second grader cannot grade, the run is INVALID; no substitute.
+- **Report:** `backend/scripts/ops/graded_registered_report.py` on the run directory. Each bar is
+  reported as met, failed or not measured with its point estimate and Wilson 95% interval.
+- **Collection fingerprint before the run:** `first_person_v10`, 4,224 points, status green,
+  sha256 over the sorted point ids `c96200d7d6104b5c86aaaac7a965813ad4ec6c56443161ec4080b07ad9231835`
+  (read 2026-11-13T18:29:08Z). The capture manifest cannot record it (no Qdrant client), so it is
+  read again by hand after the run and both values go in the report.
+- **What differs from graded-6 in served behaviour:** the standalone-gate changes already on `main`
+  (three anaphoric openers, the resumptive "So" rule). Everything added on 2026-11-13/14 is either
+  off (comparative judge), inert for single-turn questions (follow-up hint, follow-up cache bypass),
+  measurement only (call timing), or routing-neutral (the ambiguous router never completed before).
+- **What this run can show (stated before the run):** with about 40 served rows the 85% lower-bound
+  bar needs all but one row showable by both graders, so bar 1 is expected to come out FAILED or
+  INCONCLUSIVE, and bar 10 (strict reader) is NOT MEASURED because the harness has no such verdict.
+  The run is still worth its cost for three things graded-6 could not give: a valid two-family
+  grading of the current code, the hub rule after the gate changes, and where the slow judge calls
+  spend their time (the new timing line).
+- **Spend plan:** capture up to 12 (the preflight's estimate; graded-6 moved the ledger by 2.63),
+  grading up to 8. Stop if the run's total passes 25. Ledger rows: `docs/operations/SPEND_LOG_2026.md`.
+- **Not in this run:** the comparative judge. It needs its negative-control measurement
+  (`scripts/ops/run_negative_controls.py`, 232 calls, worst-case reservation 6.96) and, only if
+  that abstains on at least 0.95 of the pairs, a separate registered run.
+- **No re-run to pass.** Any change after the capture starts begins a new registered run.

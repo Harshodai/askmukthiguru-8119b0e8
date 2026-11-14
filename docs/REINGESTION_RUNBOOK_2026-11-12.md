@@ -102,15 +102,14 @@ for k in ('total_source_points','derived_span_ids','parents','quarantined',
 "
 ```
 
-Expected shape on the current data (measured 2026-11-12):
+Expected shape on the current data (**re-measured 2026-11-12 after B1 verdicts**):
 
 ```
 total_source_points = 1801
-derived_span_ids    = 573
-parents             = 508
-quarantined         = {"speaker_unverified": 1087, "rights_not_cleared": 49,
-                       "incomplete_span_no_sentence_boundary": 21,
-                       "clip_text_not_locatable": 18}
+derived_span_ids    = 1425
+parents             = 1204
+quarantined         = {"rights_not_cleared": 49, "incomplete_span_no_sentence_boundary": 51,
+                       "clip_text_not_locatable": 48, "speaker_unverified": 6}
 rejections_persisted= false        # dry run writes nothing
 ```
 
@@ -121,12 +120,16 @@ against the rebuilt backend: `derived_span_ids` 1,425, `parents` 1,204,
 + `rights_not_cleared` 49 + `speaker_unverified` 6, `rejections_persisted=false`,
 alias still `first_person -> first_person_v10`, no `fp_context_v1_2026*` collection created).
 
-- Verdicts file: `/tmp/v8_speaker_verdicts.json` on the host (1,116 items, method
-  `ecapa_voxceleb_span_slice_v2`, calibration `8daa5065…`), with the per-span rows
-  in `/tmp/v8_span_verdicts.jsonl` and the inputs in `/tmp/v8_spans.jsonl`. **These
-  live in `/tmp` and are volatile**; copy them somewhere durable before a real
-  `--apply`. `.work/` is not mounted in the container, so the dry run read a
-  `docker cp` copy at the container's `/tmp/v8_speaker_verdicts.json`.
+- Verdicts file: **durable copy at
+  `~/mukthiguru_attribution_data/evidence_2026-11-12/v8_speaker_verdicts.json`**
+  (1,116 items, method `ecapa_voxceleb_span_slice_v2`, calibration `8daa5065…`), with the
+  per-span rows in the same directory as `v8_span_verdicts.jsonl` (1,116 rows) and
+  `SHA256SUMS.txt` covering both. Verified `shasum -a 256 -c` on 2026-11-13. The
+  transient `/tmp` copies are gone (container recreate wipes `/tmp`), so **use the
+  durable path** and re-verify the checksums before a real `--apply`.
+- To regenerate: export the source collection read-only, emit `--spans-jsonl` rows for the
+  unverified clips, rebuild anchor references with the pinned revision, then re-run the
+  served-window command above. Never hand-edit a verdict row.
 - Not the old `.work/fp_context/speaker_verdicts.json` (6 entries, v9 build, October).
 - Release-grade defects still reported by this dry run: `duration_out_of_band`
   **401**, `boundary_status_repaired_with_defects` **6**. The builder refuses
@@ -167,12 +170,17 @@ Never hand-edit a verdict file to raise the verified count.
 
 ```bash
 # APPROVED-BY: <name> <date>   (record it in the task file before running)
+# 0. verify the durable B1 evidence, then copy it into the container
+(cd ~/mukthiguru_attribution_data/evidence_2026-11-12 && shasum -a 256 -c SHA256SUMS.txt)
+docker compose cp ~/mukthiguru_attribution_data/evidence_2026-11-12/v8_speaker_verdicts.json \
+  backend:/app/.work/fp_context/speaker_verdicts_v8_2026-11-12.json
+
 docker compose exec -T backend python /app/scripts/ops/build_fp_context_from_v9.py \
   --source-collection first_person_v8 \
   --target-collection fp_context_v1_20261112 \
   --qdrant-url http://qdrant:6333 \
   --transcripts-dir /app/transcripts \
-  --speaker-verdicts /app/.work/fp_context/speaker_verdicts.json \
+  --speaker-verdicts /app/.work/fp_context/speaker_verdicts_v8_2026-11-12.json \
   --asr-dir /app/asr \
   --apply
 ```

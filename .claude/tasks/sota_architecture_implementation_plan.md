@@ -1580,10 +1580,14 @@ Read-only work this session (no Qdrant write, no alias change, no payload edit):
   existing `--spans-jsonl` served-window mode, which accepts v8 clip rows unchanged.
   - Anchor references rebuilt from the two human-confirmed `ANCHORS` with the pinned
     revision `0f99f2d0ebe89ac095bcc5903c4dd8f72b367286` (Krishnaji 617 anchor windows,
-    Preethaji 241) → `/tmp/ecapa_refs.npz`.
+    Preethaji 241) — a transient `/tmp/ecapa_refs.npz`, reproducible from the two anchors.
   - 1,116 previously-unverified v8 clips scored against the pinned calibration
     (`8daa5065…`): **verified 1,081**, `missing_audio` 29, `refused_below_cosine_floor` 5,
     `refused_guru_mismatch` 1, 0 schema failures.
+  - **Durable evidence** (the `/tmp` working copies are gone after a container recreate):
+    `~/mukthiguru_attribution_data/evidence_2026-11-12/v8_speaker_verdicts.json` (the file
+    `--apply` consumes) + `v8_span_verdicts.jsonl` (1,116 rows) + `SHA256SUMS.txt`,
+    checksum-verified 2026-11-13. The runbook's apply block now copies from there.
   - Audio coverage is the exact blocker set: 382 of 383 v8 videos have a WAV in
     `~/mukthiguru_attribution_data/audio_archive/wavs`; **1,087 of the 1,116** unverified
     clips have audio.
@@ -1606,6 +1610,35 @@ Read-only work this session (no Qdrant write, no alias change, no payload edit):
   `OpenRouterService._enforce_rate_limit` / `_record_rate_limit_response` dereferenced a
   `None` shared limiter instead of failing open. All three have pinning tests; the suite-proof
   run left the ledger at **3,135 → 3,135** across 1,161 tests (it previously grew +24 per run).
+
+### Test-isolation pass — 2026-11-13
+
+Fixed and pinned (details in `lessons.md`: `L-MOCK-VERDICT-IS-NOT-GATE-EVIDENCE-1`,
+`L-TEST-SUITE-MUST-NOT-WRITE-LIVE-TELEMETRY-1`, `L-MISSING-LIMITER-MUST-FAIL-OPEN-1`):
+
+| Defect | Evidence | Fix |
+|---|---|---|
+| A mocked `tier_reached` was formatted into `gate_layer` | 23 live rows `quality_gate_tier_<MagicMock …>` | type+range check at the write site; skip + log instead of persisting corrupt provenance |
+| The suite wrote to the live telemetry DB | `corpus_gate_rejections` 3,088 → 3,112 (+24 per run), no test asserting it | `_get_client()` refuses under `PYTEST_CURRENT_TEST` unless `ALLOW_TELEMETRY_DB_IN_TESTS=1` |
+| `None` shared rate limiter raised on the chat path | `AttributeError: 'NoneType' object has no attribute 'is_allowed_async'` inside `generate_answer` | fail-open `None` guard in `_enforce_rate_limit` and `_record_rate_limit_response` |
+
+Why the third one was not the telemetry guard: the opt-in run
+(`ALLOW_TELEMETRY_DB_IN_TESTS=1`) reproduced the identical failure, which proved
+pre-existing cross-test pollution (the class-level limiter is reset by
+`reset_shared_rate_limiter()`), not a side effect of the new gate.
+
+Verification:
+
+```
+targeted pytest selection:  1162 passed, 4 skipped      EXIT=0   (ledger 3135 -> 3135)
+doc guards:                 18 passed
+ruff (touched files):       All checks passed
+git diff --check:           clean; nothing staged
+container:                  Up (healthy), /api/health ready=true status=healthy
+host <-> image sha256:      10/10 MATCH (telemetry_db, quality_gate, openrouter_service,
+                            config, first_person_bridge, context_harness, pipeline,
+                            domain/first_person_context, builder, grader)
+```
 
 ---
 

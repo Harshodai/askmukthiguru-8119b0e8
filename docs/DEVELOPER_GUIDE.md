@@ -365,6 +365,16 @@ cd backend && pytest -q        # backend unit tests
 
 Add a test next to the file you change. Match `src/**/*.{test,spec}.{ts,tsx}`.
 
+**The suite must never write to the live telemetry database.** `backend/.env` carries
+real `SUPABASE_URL`/`SUPABASE_KEY`, so until 2026-11-12 every run inserted rows into
+`public.corpus_gate_rejections` (one `-k` selection moved it 3,088 → 3,112; 23 rows carry
+a pytest `MagicMock` in `gate_layer`). `app/telemetry_db.py::_get_client()` now returns
+`None` under `PYTEST_CURRENT_TEST` unless `ALLOW_TELEMETRY_DB_IN_TESTS=1`. Tests that
+assert persistence patch `_get_client` itself, which replaces the function holding the
+guard, so a real assertion still works. A test that genuinely needs a database is an
+integration test: opt in explicitly with `ALLOW_TELEMETRY_DB_IN_TESTS=1`, point it at a
+scratch project, and prove the guard with a before/after row count around the run.
+
 ---
 
 ## 10. Deployment

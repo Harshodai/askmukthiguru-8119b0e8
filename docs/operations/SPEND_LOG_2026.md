@@ -17,6 +17,14 @@ Add a row before a paid step (planned) and complete it after (ledger before and 
 | 2026-11-12 | graded-6 capture (for reference; before this log and outside the cap) | graded-6 | 120.3734 | 123.0053 | 2.6319 | n/a |
 | 2026-11-13 | audit probes: 9 router calls (latency measurement), 7 chat turns sent by the continuity audit | none (diagnostic, unplanned, small) | not read before | 123.1291 (read 16:2x UTC) | at most 0.1238 (the whole day counter) | 0.12 |
 
+| 2026-11-14 | PLANNED: graded stack start (the entrypoint's cache warm-up answers about 20 FAQ questions) | graded-7 registration | to be read | to be read | plan: up to 2 | |
+| 2026-11-14 | PLANNED: graded-7 capture (frozen 116 + unanswerable 86) | graded-7 registration | to be read | to be read | plan: up to 12 | |
+| 2026-11-14 | PLANNED: graded-7 grading, two graders on every served row + unanswerable scoring | graded-7 registration | to be read | to be read | plan: up to 8 | |
+| 2026-11-14 | PLANNED: five-path chat probe after the run (6 turns) | Phase 4 verification | to be read | to be read | plan: up to 1 | |
+
+Stop rule for graded-7: if the run's total passes 25, stop and report. Rows above are filled in
+after each step with the ledger values; a planned row that did not run is marked NOT RUN.
+
 ## State on 2026-11-13 (read from the running container)
 
 - Month counter **123.13** against the caps the container was running with (**daily 100, monthly 100**).
