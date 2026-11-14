@@ -94,6 +94,9 @@ Comparing Graded-7 (gate OFF) to Graded-8 (gate ON) under identical models, coll
 | T-E10 | P1 | Eval harness | Graded-7 invalid because manifest lacked collection fingerprint (`AGENTS.md` X41). | Created `scripts/ops/collection_fingerprint.py` writing sorted IDs SHA256 and points count. Verified in Graded-8 (`valid: true`). | `backend/tests/test_collection_fingerprint_2026_11_14.py` (6 tests) | FIXED (`732e6403`) |
 | T-E11 | P3 | Config | Graded overlay omits `../transcripts` by design (`volumes: !override`). | Documented as intentional isolation in `backend/docker-compose.graded.yml:81`. | Inspection of compose overlay | FIXED / DOCUMENTED |
 | T-E12 | P3 | Data Lineage | Rights vocabulary split (`licensed` vs `cleared`). | Formalized as an intentional ladder: `unverified < licensed (ingest default) < cleared (human confirmed) < revoked`. | `supabase/migrations/20261114000000_message_citations_provenance_defaults.sql` | FIXED / DOCUMENTED |
+| A-25 | P2 | Observability / Ops | Host probe `GET /health` returned 404 every 30s in Docker audit logs. | Added route aliases `@router.get("/health", include_in_schema=False)` and `/healthz` in `backend/app/api/health.py`. | `backend/tests/test_health.py::test_health_and_healthz_root_aliases_resolve` + live Docker 200 OK | FIXED |
+| A-26 | P3 | Observability | Misleading log `falling back to legacy` when `first_person_context_terminal_enabled` is True and no legacy clip is served. | Checked terminal mode setting in `services/first_person_pipeline.py` lines 5078 & 5400; logs `terminal mode: abstaining, no legacy fall-through`. | `backend/tests/test_terminal_mode_logging.py` (2 tests) | FIXED |
+| A-27 | P3 | Observability | Warning `Overriding of current TracerProvider is not allowed` at backend startup when TracerProvider already set. | Added global provider check in `app/observability.py` before calling `trace.set_tracer_provider()`. | Live Docker container startup verified cleanly | FIXED |
 
 ---
 

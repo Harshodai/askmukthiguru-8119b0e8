@@ -161,6 +161,7 @@ async def _health_check(name: str, coro) -> dict:
         return {"name": name, "ok": False, "error": "unhealthy"}
 
 
+@router.get("/healthz", include_in_schema=False)
 @router.get("/api/healthz")
 async def healthz() -> JSONResponse:
     """Liveness probe for Railway. Returns 200 always — Railway needs a simple
@@ -192,6 +193,7 @@ def _redact_health_body(response: JSONResponse) -> JSONResponse:
     return JSONResponse(shallow, status_code=response.status_code)
 
 
+@router.get("/health", include_in_schema=False)
 @router.get("/api/health")
 async def health_endpoint(
     request: Request,

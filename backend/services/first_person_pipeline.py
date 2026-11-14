@@ -5074,9 +5074,15 @@ class FirstPersonPipeline:
                             _span_failed_gate = True
                     if _span_failed_gate:
                         FIRST_PERSON_QUARANTINED_TOTAL.inc()
+                        _terminal = (
+                            getattr(settings, "first_person_context_terminal_enabled", False) is True
+                        )
                         logger.warning(
-                            "[FirstPersonPipeline] Context harness span failed a serve-time gate for parent %s; falling back to legacy",
+                            "[FirstPersonPipeline] Context harness span failed a serve-time gate for parent %s; %s",
                             getattr(getattr(ctx, "parent", None), "parent_unit_id", "unknown"),
+                            "terminal mode: abstaining, no legacy fall-through"
+                            if _terminal
+                            else "falling back to legacy",
                         )
                         return None, _local_tokens
 
@@ -5390,9 +5396,16 @@ class FirstPersonPipeline:
                         )
                         return _editorial_res
 
+                _terminal = (
+                    harness_enabled
+                    and getattr(settings, "first_person_context_terminal_enabled", False) is True
+                )
                 logger.info(
-                    "[FirstPersonPipeline] Context harness evaluated %d contexts with no direct answer; falling back to legacy",
+                    "[FirstPersonPipeline] Context harness evaluated %d contexts with no direct answer; %s",
                     len(contexts),
+                    "terminal mode: abstaining, no legacy fall-through"
+                    if _terminal
+                    else "falling back to legacy",
                 )
 
         # v10-only serving (owner decision 2026-10-30): with the context harness on

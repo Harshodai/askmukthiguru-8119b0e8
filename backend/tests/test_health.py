@@ -175,3 +175,14 @@ def test_health_public_view_is_shallow_without_token(monkeypatch):
     assert not health_mod._has_internal_health_token(_Req({}))
     monkeypatch.setattr(health_mod.settings, "metrics_scrape_token", None, raising=False)
     assert not health_mod._has_internal_health_token(_Req({"Authorization": "Bearer "}))
+
+
+def test_health_and_healthz_root_aliases_resolve():
+    """Verify root-level /health and /healthz endpoints return 200 without requiring /api prefix."""
+    res_healthz = client.get("/healthz")
+    assert res_healthz.status_code == 200
+    assert res_healthz.json().get("ok") is True
+
+    # Verify /health route exists and responds (not 404)
+    res_health = client.get("/health")
+    assert res_health.status_code != 404
