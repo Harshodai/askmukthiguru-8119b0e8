@@ -130,3 +130,28 @@ Purpose: decide whether the current code is good enough for staging/demo. A run 
   (`scripts/ops/run_negative_controls.py`, 232 calls, worst-case reservation 6.96) and, only if
   that abstains on at least 0.95 of the pairs, a separate registered run.
 - **No re-run to pass.** Any change after the capture starts begins a new registered run.
+
+## Registration of graded-8 (written 2026-11-14, before the run; changes no criterion)
+
+- **Why:** graded-7 failed three bars and is also invalid as a registered run, because its manifest
+  has no collection fingerprint (the capture had no producer for it). The producer now exists
+  (`scripts/ops/collection_fingerprint.py`). Graded-8 is the first run that can be valid, and it
+  answers owner decision D1 with data.
+- **One value changed from graded-7:** `FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=true` (was false).
+  Every other pinned value, the data, the graders and the bars are the same as registered above.
+- **Commit graded:** `HEAD` of local `main` when the stack is built, recorded as `sha` in the manifest.
+  Not pushed before the run.
+- **Fingerprint:** written into the manifest with `collection_fingerprint.py --write` right after the
+  capture and before grading; it must equal the pre-run value
+  (4,224 points, `c96200d7d6104b5c86aaaac7a965813ad4ec6c56443161ec4080b07ad9231835`).
+- **Code since graded-7 that can touch a served answer:** none intended. The playback-end cap
+  (`SourceSpan.duration_ms`) changes citation metadata only; the follow-up hint is inert for
+  single-turn questions; the comparative judge stays pinned off.
+- **Stated before the run:** the answerability gate can only remove served answers, so served share
+  is expected to stay the same or fall; with about 40 served rows the 85% lower-bound bar still needs
+  all but one row showable. The purpose is a valid measurement and the on/off delta, not a pass.
+- **Negative-control result that preceded this registration (2026-11-14, 116 pairs, in the container):**
+  per-clip judge alone abstains on 113 (0.974); judge plus comparative call abstains on 114 (0.983).
+  One pair is not a difference, so the comparative judge is **not** part of graded-8 and stays off.
+- **Spend plan:** stack start up to 2, capture up to 12, grading up to 8; stop if the run passes 25.
+- **No re-run to pass.**

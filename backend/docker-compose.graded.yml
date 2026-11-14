@@ -47,7 +47,10 @@ services:
       # false, but the value came from .env: no committed file set it and the Settings
       # default is true. Pinned to the graded-6 value so graded-7 is comparable. Whether the
       # product should run with the YES/NO answerability gate on is owner decision T-E1.
-      FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED: "false"
+      # graded-8 (registered 2026-11-14): the ONE value changed from graded-7. The run measures
+      # what the YES/NO answerability gate does to served count, showable share and latency
+      # (owner decision D1 needs that delta). Whether the product runs with it on stays D1.
+      FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED: "true"
       # Pinned 2026-11-13 (harness audit H-14). The ambiguous-domain router never completed
       # inside its 0.45 s budget (measured 470-690 ms), so every graded run so far routed as
       # if it were off. Pinned off so a faster network cannot change routing mid-comparison.
