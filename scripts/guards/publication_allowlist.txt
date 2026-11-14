@@ -22,3 +22,4 @@ scripts/ingestion/corpus_end_to_end_audit_latest.csv
 public/media/askmukthiguru-product-demo-instrumental.mp3
 public/audio/meditation/preethaji-serene-mind.mp3
 evals/first_person/native_language_review_sheet.csv
+docs/reviews/2026-11-14-human-gates/02-native-speaker.csv
