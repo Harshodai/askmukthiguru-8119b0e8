@@ -402,6 +402,11 @@ data/*backup*.json
 
 # Gold-set sheets and scores contain verbatim clip text; the repo is public (owner decision 2026-10-12).
 evals/gold_set_v1/*.csv
+# Same rule for the human-review packets built from those sheets and from graded rows:
+# 05 carries `clip_text`, 06 carries the first 240 characters of each served answer.
+# Rebuild them locally with scripts/ops/build_human_review_packets.py (found by review 2026-11-14).
+docs/reviews/*/05-gold-labels.csv
+docs/reviews/*/06-answer-sample.csv
 .manus/
 projects/
 outputs

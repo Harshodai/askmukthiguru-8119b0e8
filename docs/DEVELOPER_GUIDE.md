@@ -439,6 +439,12 @@ Full command chain, stop conditions and the gated alias flip: `docs/REINGESTION_
 
 **`backend/scripts/ops/audit_fp_context_span_boundaries.py`** (byte-identical copy in `scripts/ops/`) — read-only residue audit over a live collection or an exported points JSON: parent/child boundary status, fragment children, null boundaries, single-child parents, neighbour-link coverage, and a rights check. `--check` exits 1 on a blocker, so it can gate a promotion.
 
+**`scripts/ops/collection_fingerprint.py`** — read-only fingerprint of the served Qdrant collection (`{points, ids_sha256}`) for a graded run's manifest. `graded_capture.py` hardcodes `collection_fingerprint: None`, and the report tool calls a null fingerprint an **invalid** run, so every capture was invalid by construction until this existed. `--write` refuses once a report exists (a fingerprint added after the fact proves nothing) and an unreachable collection exits **2** rather than writing `{points: 0}`. Runbook step and the pre/post equality check: `docs/runbooks/GRADED_7_RUNBOOK.md` §3.
+
+**`scripts/ops/run_conversation_cases.py`** — drives `evals/first_person/conversation_cases_draft.jsonl` (24 rows / 30 turns, both the multi-turn `turns` shape and single-turn `question`) through `/api/chat`, one anonymous session per case, polling the job and honouring `retry-after`. Records route, grounding, abstain cause, citation video ids and latency — never the seeker's or the teacher's text. Dry run is the default; executing requires `--execute --i-have-logged-the-spend`. Every output row is stamped `draft_needs_owner_review` and the summary says it is not a pass/fail verdict: only a human can score a draft row.
+
+**`scripts/ops/build_human_review_packets.py`** — assembles the five human-gate packets (clinician crisis copy, native-speaker sheet, helpline call verification, rights sign-off, gold labels, seeded served-answer sample) from repo data, with every decision column empty and source sha256s in `PROVENANCE.json`. Regenerate rather than hand-edit; a packet whose input columns changed no longer matches its recorded hash. Current packet set: `docs/reviews/2026-11-14-human-gates/README.md`.
+
 `FIRST_PERSON_CORPUS_VERSION` is reporting-only (`route_metadata.corpus_version`); the retrieval result stays the primary source, so leaving it empty is correct unless an environment's payloads carry no version.
 
 ---

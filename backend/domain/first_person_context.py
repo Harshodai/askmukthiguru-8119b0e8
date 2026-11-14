@@ -199,6 +199,13 @@ class SourceSpan(BaseModel):
     source_span_index: int = Field(ge=0)
     start_ms: int = Field(ge=0)
     end_ms: int = Field(gt=0)
+    # Duration of the SOURCE RECORDING, not of the span. Optional because every
+    # payload written so far omits it: the fp-context builders only store the
+    # span window, so ``None`` means "the producer did not know the media
+    # length", never "zero". Only used to cap the citation playback pad
+    # (A-19); a missing value must keep the uncapped, documented behaviour and
+    # must never be synthesised from ``end_ms``.
+    duration_ms: int | None = Field(default=None, ge=0)
     word_start: int = Field(ge=0)
     word_end: int = Field(gt=0)
     speaker_id: str = Field(min_length=1)
@@ -376,7 +383,9 @@ class SourceSpan(BaseModel):
 
         b_defects = boundary_defects(self.verbatim_text.split())
         if self.boundary_status in (BoundaryStatus.VERIFIED, BoundaryStatus.REPAIRED) and b_defects:
-            defects.append(f"boundary_status_{self.boundary_status}_with_defects:{','.join(b_defects)}")
+            defects.append(
+                f"boundary_status_{self.boundary_status}_with_defects:{','.join(b_defects)}"
+            )
 
         if self.contextual_header_version is not None:
             defects.append("unverified_contextual_header_claimed")

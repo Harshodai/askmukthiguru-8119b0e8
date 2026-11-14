@@ -1705,6 +1705,22 @@ CREATE TABLE IF NOT EXISTS "public"."corpus_sources" (
 ALTER TABLE "public"."corpus_sources" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."corpus_takedowns" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "source_identity" "text" NOT NULL,
+    "reason" "text" NOT NULL,
+    "dry_run" boolean DEFAULT false NOT NULL,
+    "qdrant_points_quarantined" integer DEFAULT 0 NOT NULL,
+    "redis_keys_flushed" integer DEFAULT 0 NOT NULL,
+    "db_records_marked" integer DEFAULT 0 NOT NULL,
+    "metadata" "jsonb" DEFAULT '{}'::"jsonb",
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."corpus_takedowns" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."daily_teachings" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "image_url" "text" NOT NULL,
@@ -2078,6 +2094,35 @@ CREATE TABLE IF NOT EXISTS "public"."memory_deletion_receipts" (
 
 
 ALTER TABLE "public"."memory_deletion_receipts" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."message_citations" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "message_id" "uuid" NOT NULL,
+    "span_id" "text",
+    "video_id" "text" NOT NULL,
+    "guru_id" "text" NOT NULL,
+    "start_ms" integer DEFAULT 0 NOT NULL,
+    "end_ms" integer DEFAULT 0 NOT NULL,
+    "verbatim_text" "text" NOT NULL,
+    "source_text_hash" "text" NOT NULL,
+    "rights_status" "text" NOT NULL,
+    "speaker_verified" boolean NOT NULL,
+    "withdrawn_by_source" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    CONSTRAINT "message_citations_rights_status_vocabulary" CHECK (("rights_status" = ANY (ARRAY['cleared'::"text", 'unverified'::"text", 'licensed'::"text", 'revoked'::"text"])))
+);
+
+
+ALTER TABLE "public"."message_citations" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."message_citations"."rights_status" IS 'Rights state for this cited span. No column default: an insert must state it. Client writes use cleared|unverified (citationLedgerFlags); licensed|revoked are for service_role backfills from the rights register. Never default a missing state to licensed.';
+
+
+
+COMMENT ON COLUMN "public"."message_citations"."speaker_verified" IS 'True only when the speaker attribution was verified, never defaulted. See services/first_person_serving_contract.py and X23.';
+
 
 
 CREATE TABLE IF NOT EXISTS "public"."model_pricing" (
@@ -2648,6 +2693,37 @@ CREATE OR REPLACE VIEW "public"."v_meditation_heatmap" WITH ("security_invoker"=
 ALTER VIEW "public"."v_meditation_heatmap" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."video_serving_decision_audit" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "video_id" "text" NOT NULL,
+    "admin_approved" boolean,
+    "human_speaker_check" "text",
+    "grade" "text",
+    "notes" "text",
+    "actor" "text" NOT NULL,
+    "reason" "text" DEFAULT ''::"text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."video_serving_decision_audit" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."video_serving_decisions" (
+    "video_id" "text" NOT NULL,
+    "admin_approved" boolean,
+    "human_speaker_check" "text",
+    "grade" "text",
+    "notes" "text",
+    "updated_by" "text" DEFAULT ''::"text" NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "reason" "text" DEFAULT ''::"text" NOT NULL
+);
+
+
+ALTER TABLE "public"."video_serving_decisions" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."waitlist_entries" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "email" "text" NOT NULL,
@@ -2803,6 +2879,11 @@ ALTER TABLE ONLY "public"."corpus_sources"
 
 
 
+ALTER TABLE ONLY "public"."corpus_takedowns"
+    ADD CONSTRAINT "corpus_takedowns_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."daily_teachings"
     ADD CONSTRAINT "daily_teachings_pkey" PRIMARY KEY ("id");
 
@@ -2930,6 +3011,11 @@ ALTER TABLE ONLY "public"."memory_deletion_receipts"
 
 ALTER TABLE ONLY "public"."memory_outbox"
     ADD CONSTRAINT "memory_outbox_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."message_citations"
+    ADD CONSTRAINT "message_citations_pkey" PRIMARY KEY ("id");
 
 
 
@@ -3160,6 +3246,16 @@ ALTER TABLE ONLY "public"."user_skills"
 
 ALTER TABLE ONLY "public"."user_streaks"
     ADD CONSTRAINT "user_streaks_pkey" PRIMARY KEY ("user_id");
+
+
+
+ALTER TABLE ONLY "public"."video_serving_decision_audit"
+    ADD CONSTRAINT "video_serving_decision_audit_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."video_serving_decisions"
+    ADD CONSTRAINT "video_serving_decisions_pkey" PRIMARY KEY ("video_id");
 
 
 
@@ -3405,6 +3501,14 @@ CREATE INDEX "idx_corpus_sources_status_last_ingested_at" ON "public"."corpus_so
 
 
 
+CREATE INDEX "idx_corpus_takedowns_created_at" ON "public"."corpus_takedowns" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_corpus_takedowns_source_identity" ON "public"."corpus_takedowns" USING "btree" ("source_identity");
+
+
+
 CREATE INDEX "idx_exit_surveys_reason" ON "public"."exit_surveys" USING "btree" ("reason");
 
 
@@ -3462,6 +3566,22 @@ CREATE INDEX "idx_memory_outbox_status_created" ON "public"."memory_outbox" USIN
 
 
 CREATE INDEX "idx_memory_outbox_user_tenant" ON "public"."memory_outbox" USING "btree" ("user_id", "tenant_id", "created_at" DESC);
+
+
+
+CREATE INDEX "idx_message_citations_message_id" ON "public"."message_citations" USING "btree" ("message_id");
+
+
+
+CREATE INDEX "idx_message_citations_rights_status" ON "public"."message_citations" USING "btree" ("rights_status");
+
+
+
+CREATE INDEX "idx_message_citations_span_id" ON "public"."message_citations" USING "btree" ("span_id");
+
+
+
+CREATE INDEX "idx_message_citations_video_id" ON "public"."message_citations" USING "btree" ("video_id");
 
 
 
@@ -3554,6 +3674,22 @@ CREATE INDEX "idx_user_scene_blocks_user" ON "public"."user_scene_blocks" USING 
 
 
 CREATE INDEX "idx_user_skills_user" ON "public"."user_skills" USING "btree" ("user_id", "tenant_id");
+
+
+
+CREATE INDEX "idx_video_decision_audit_created_at" ON "public"."video_serving_decision_audit" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_video_decision_audit_video_id" ON "public"."video_serving_decision_audit" USING "btree" ("video_id");
+
+
+
+CREATE INDEX "idx_video_serving_decisions_admin_approved" ON "public"."video_serving_decisions" USING "btree" ("admin_approved");
+
+
+
+CREATE INDEX "idx_video_serving_decisions_speaker_check" ON "public"."video_serving_decisions" USING "btree" ("human_speaker_check");
 
 
 
@@ -4717,6 +4853,13 @@ CREATE POLICY "corpus_sources_service_role_all" ON "public"."corpus_sources" TO 
 
 
 
+ALTER TABLE "public"."corpus_takedowns" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "corpus_takedowns_service_role_all" ON "public"."corpus_takedowns" TO "service_role" USING (true) WITH CHECK (true);
+
+
+
 ALTER TABLE "public"."daily_teachings" ENABLE ROW LEVEL SECURITY;
 
 
@@ -4856,6 +4999,27 @@ ALTER TABLE "public"."memory_deletion_receipts" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."memory_outbox" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."message_citations" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "message_citations_owner_insert" ON "public"."message_citations" FOR INSERT TO "authenticated" WITH CHECK (("message_id" IN ( SELECT "m"."id"
+   FROM ("public"."chat_messages" "m"
+     JOIN "public"."conversations" "c" ON (("c"."id" = "m"."conversation_id")))
+  WHERE ("c"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "message_citations_owner_read" ON "public"."message_citations" FOR SELECT TO "authenticated" USING (("message_id" IN ( SELECT "m"."id"
+   FROM ("public"."chat_messages" "m"
+     JOIN "public"."conversations" "c" ON (("c"."id" = "m"."conversation_id")))
+  WHERE ("c"."user_id" = "auth"."uid"()))));
+
+
+
+CREATE POLICY "message_citations_service_role_all" ON "public"."message_citations" TO "service_role" USING (true) WITH CHECK (true);
+
 
 
 ALTER TABLE "public"."model_pricing" ENABLE ROW LEVEL SECURITY;
@@ -5347,6 +5511,24 @@ CREATE POLICY "users_update_own" ON "public"."save_offers" FOR UPDATE USING (("a
 
 
 
+ALTER TABLE "public"."video_serving_decision_audit" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "video_serving_decision_audit_service_role_all" ON "public"."video_serving_decision_audit" TO "service_role" USING (true) WITH CHECK (true);
+
+
+
+ALTER TABLE "public"."video_serving_decisions" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "video_serving_decisions_authenticated_read" ON "public"."video_serving_decisions" FOR SELECT TO "authenticated" USING (true);
+
+
+
+CREATE POLICY "video_serving_decisions_service_role_all" ON "public"."video_serving_decisions" TO "service_role" USING (true) WITH CHECK (true);
+
+
+
 ALTER TABLE "public"."waitlist_entries" ENABLE ROW LEVEL SECURITY;
 
 
@@ -5655,6 +5837,10 @@ GRANT ALL ON TABLE "public"."corpus_sources" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."corpus_takedowns" TO "service_role";
+
+
+
 GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."daily_teachings" TO "anon";
 GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."daily_teachings" TO "authenticated";
 GRANT ALL ON TABLE "public"."daily_teachings" TO "service_role";
@@ -5790,6 +5976,11 @@ GRANT UPDATE ON SEQUENCE "public"."memory_consent_receipts_event_sequence_seq" T
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."memory_deletion_receipts" TO "anon";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."memory_deletion_receipts" TO "authenticated";
 GRANT SELECT,INSERT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."memory_deletion_receipts" TO "service_role";
+
+
+
+GRANT SELECT,INSERT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."message_citations" TO "authenticated";
+GRANT ALL ON TABLE "public"."message_citations" TO "service_role";
 
 
 
@@ -6014,6 +6205,15 @@ GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."v_chat_queries_by_
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."v_meditation_heatmap" TO "anon";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."v_meditation_heatmap" TO "authenticated";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."v_meditation_heatmap" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."video_serving_decision_audit" TO "service_role";
+
+
+
+GRANT SELECT,REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."video_serving_decisions" TO "authenticated";
+GRANT ALL ON TABLE "public"."video_serving_decisions" TO "service_role";
 
 
 

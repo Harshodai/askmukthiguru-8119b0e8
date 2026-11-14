@@ -78,6 +78,17 @@ services:
       OPENROUTER_BUDGET_FAIL_CLOSED: "true"
     # `!override` REPLACES the base list. Application code is not mounted: the container runs
     # the code that `--build` copied from a clean tree. Only caches and data stay mounted.
+    #
+    # What this deliberately REMOVES versus the dev stack (2026-11-14: named because a
+    # removed mount is invisible until a feature quietly reads it):
+    #   - `../transcripts`  -> no `/app/transcripts`. The `GET /api/search/inspect-source`
+    #     local-transcript fallback and any projected-transcript reader do not exist here.
+    #     A 0-chunk inspect result in a graded stack is NOT evidence that the Qdrant path
+    #     failed; check the collection for the video id before drawing a conclusion.
+    #   - `../scripts`      -> no `/app/scripts` (see L-OPS-MOUNT-1; ops code must run via
+    #     `app/backend_scripts` or a repo-root `scripts/ops/` wrapper).
+    #   - `./app ./services ./rag ./domain ./guardrails ./routers ...` -> no live code
+    #     reload. A graded run measures the image, which is the point.
     volumes: !override
       - hf_model_cache:/app/.cache
       - ./.model_cache:/app/model_cache

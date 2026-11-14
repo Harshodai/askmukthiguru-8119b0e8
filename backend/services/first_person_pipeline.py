@@ -3256,6 +3256,14 @@ class FirstPersonPipeline:
         end_sec = -(-span.end_ms // 1000)
         playback_start = max(0.0, span.start_ms / 1000.0 - CITATION_PLAYBACK_PAD_S)
         playback_end = span.end_ms / 1000.0 + CITATION_PLAYBACK_PAD_S
+        # A-19: parity with the legacy path (_build_citation_dict /
+        # _personalize_citation) — the +0.25 s pad must never point past the
+        # recording. ``duration_ms`` is optional on the span because the
+        # fp-context payloads do not carry it; when it is absent the pad stays
+        # uncapped (documented residual: at most 0.25 s of overrun, YouTube
+        # clamps playback itself).
+        if getattr(span, "duration_ms", None):
+            playback_end = min(playback_end, span.duration_ms / 1000.0)
         clip_url = span.source_url or f"https://www.youtube.com/watch?v={video_id}&t={start_sec}s"
         speaker_name = (
             (label_for(span.guru_id) or label_for(span.speaker_id))

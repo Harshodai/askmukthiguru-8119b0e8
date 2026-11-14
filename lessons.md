@@ -1,6 +1,40 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 14, 2026 — E-series close-out: a cap must announce itself, a dataset needs a consumer
+
+### L-CAP-STATE-AT-BOOT-1. A refusal that reads like the vendor's message will be blamed on the vendor.
+- **What:** every first-person turn abstained as `first_person_check_unavailable` because the app's own monthly cap (100) was below its ledger (123.13). The exception text is a provider-style sentence, so a review read it as an empty provider account and an owner-facing "top up the account" action followed. Nothing at startup said which cap, whose cap, or how full it was.
+- **Fix:** `log_budget_headroom` reads the ledger once at boot (`OpenRouterBudgetGuard._keys`, so reader and writer cannot disagree) and logs the cap state — over-cap, a 70 % warning, or the numbers — naming the setting and saying it is not a provider balance. An unreadable ledger is logged as unknown, never as a breach.
+- **Rule:** a guard that can refuse work must report its state at boot, in the same units as its own settings, and say whose limit it is. Never phrase an internal cap in the vendor's words.
+
+### L-SHRINK-ONLY-RATCHET-BITES-BEST-EFFORT-CODE-1. A blanket catch in "must never crash" code is still a blanket catch.
+- **What:** a new best-effort startup reader used `except Exception` and turned the full backend suite red on `test_exception_and_import_ratchets` (723 broad catches against a 722 shrink-only ceiling) — the only red in 14,276 tests.
+- **Why it looked safe:** "this must never stop startup" is exactly the justification that produces blanket catches, so the ratchet is designed to resist it.
+- **Fix:** name the tuple once (`_ledger_read_errors()`) — ImportError/OSError/ValueError/TypeError/AttributeError/TimeoutError plus `redis.exceptions.RedisError` when redis is importable (it does **not** subclass OSError, so `except OSError` alone would miss a dead Redis).
+- **Rule:** never raise the ratchet ceiling for new code. Enumerate the errors (adding a third-party base class where its exceptions do not inherit a builtin), or narrow the `try`.
+
+### L-DRAFT-ROWS-NEED-A-CONSUMER-1. A dataset no code executes is documentation, not a measurement.
+- **What:** `conversation_cases_draft.jsonl` (24 AI-authored rows) was schema-tested and nothing else, so it could not change any number while being cited as coverage for multi-turn behaviour. The inverse risk sits in the same file: a runner that scores draft rows silently turns AI-authored expectations into a metric.
+- **Fix:** `scripts/ops/run_conversation_cases.py` executes both row shapes, records route/grounding/citations/latency (never text), and stamps every output row `draft_needs_owner_review` with a note that it is not a verdict. Executing needs an explicit spend flag.
+- **Rule:** give every dataset a consumer in the same change that adds it; make the consumer refuse to treat a draft as a label.
+
+## Nov 14, 2026 — local migrations applied, provenance defaults, and a ledger that asserted rights
+
+### L-COLUMN-DEFAULT-IS-AN-ASSERTION-1. `DEFAULT 'licensed'` writes a rights claim nobody checked.
+- **What:** `supabase/migrations/20261107000000` created `message_citations` with `rights_status TEXT NOT NULL DEFAULT 'licensed'` and `speaker_verified BOOLEAN NOT NULL DEFAULT true`. A row inserted without those columns therefore claimed a cleared licence and a voice-verified speaker. The 2026-11-13 client fix had just removed exactly that default in `citationLedgerFlags()` (`src/lib/chatStorage.ts:403-411`); the table still asserted it, so the fix only covered the writer that used the helper. Migrations `20261107000000/1` had never been applied anywhere, so no data was wrong — the defect was latent, and only visible because the migrations were finally run.
+- **Fix:** `20261114000000_message_citations_provenance_defaults.sql` drops both defaults and adds `CHECK (rights_status IN ('cleared','unverified','licensed','revoked'))`. Proven rolled back: omission → `not_null_violation`, explicit → accepted, invented status → `check_violation`. The only writer already supplied both columns, so nothing working changed.
+- **Rule:** X40 applies to schema, not just code. When a provenance flag is fixed in a writer, grep the table definitions for a default on the same column in the same change. A default that is indistinguishable from a verified value is a false assertion with a SQL interface.
+
+### L-MIGRATION-ON-DISK-IS-NOT-A-SCHEMA-1. The snapshot said the tables did not exist; the tree said they did.
+- **What:** `supabase/migrations/20261107000000`, `…0001` and `20261113000000` were on disk, referenced by tests and by the new client code, and had never been applied. `supabase/schema_snapshot.sql` did not contain any of their four tables, so the committed snapshot described a schema that predates three merged migrations. `supabase_migrations.schema_migrations` stopped at `20261030140000`. A migration file is a draft wearing a filename until something applies it.
+- **Fix:** `npx supabase migration up` (local only) applied all four, then `supabase db dump --local --schema public` regenerated the snapshot: **+200 lines, 0 deletions**, `migration_lint.py --dump-file` → SUCCESS. RLS re-proven on the applied policy set with two real `auth.users` owners in a rolled-back transaction.
+- **Rule:** "applied" means a row in `schema_migrations` on a named target. Never infer it from the file existing, and never cite a policy as live until a role-scoped probe on the applied schema shows the allow **and** the deny.
+
+### L-INVALID-RUN-IS-NEITHER-VERDICT-1. The invalid-run rule protects the FAIL path too.
+- **What:** the same day `L-REPORT-TOOL-MUST-NOT-TURN-MISSING-INTO-PASS-1` fixed a tool that let a missing value read as PASS, `20261114-graded-7` was reported as a quality FAIL. Its own report says `run valid: False` (*"manifest lacks collection fingerprint"*). An invalid run cannot support a FAIL any more than a PASS: the 0.7561 showable rate and 10,015 ms p95 are diagnostic, not a verdict.
+- **Rule:** when a run tool prints `run valid`, that flag gates both directions. Report "no valid measurement" — not the failing numbers — until a valid run exists.
+
 ## Nov 14, 2026 — Phase 2 of the readiness engagement: what review and the guards caught
 
 ### L-APP-BUDGET-CAP-IS-NOT-THE-PROVIDER-1. "Spend limit reached" came from our own guard, not from the provider.
@@ -24,7 +58,7 @@
 
 ## Nov 13, 2026 — Engineering and readiness audit: what the running system showed that the docs did not
 
-Report: `audits/reports/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
+Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 
 ### L-ANSWERABILITY-GATE-WAS-OFF-LIVE-1. The running container had the answerability gate off; the invariants say it covers every clip.
 - **What:** `settings.first_person_answerability_check_enabled` read `False` in the live backend (set in `.env`; no compose file pins it). The harness then records `answerability="permissive"` and the relevance scorer is the only question-level gate. Invariants 19 and 22 and the bridge comment described the gate as always run. This also settles `L-CLAIM-A-CONFIG-ONLY-AFTER-READING-IT-1` below for the container that was running on 2026-11-13: the gate was off. What graded-6 itself ran with is still not read from its manifest.

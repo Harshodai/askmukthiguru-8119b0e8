@@ -1368,6 +1368,41 @@ def test_exact_cache_preserves_legacy_quote_plus_attribution_body():
     assert legacy_store.points_servable.call_count == 1
 
 
+def test_context_citation_playback_end_is_capped_by_media_duration():
+    """A-19: parity with the legacy citation path. When the span knows the
+    recording length, the +pad must not point past the end of the video."""
+    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S
+
+    pipeline = FirstPersonPipeline(store=Mock(), serene_mind_engine=Mock())
+    span = make_test_span(n=0, start_ms=50_000, end_ms=59_900, duration_ms=60_000)
+
+    citation = pipeline._build_context_citation(span)
+
+    assert citation["playback_end_seconds"] == 60.0
+    assert citation["playback_end_seconds"] <= span.duration_ms / 1000.0
+    # The window still covers the quoted words.
+    assert citation["playback_end_seconds"] >= citation["end_ms"] / 1000.0
+    assert citation["playback_start_seconds"] == round(50.0 - CITATION_PLAYBACK_PAD_S, 2)
+
+
+def test_context_citation_without_known_duration_keeps_the_documented_pad():
+    """The fp-context payloads carry no media duration, so the residual
+    (at most CITATION_PLAYBACK_PAD_S past the clip end) is the honest state —
+    it must not be invented from ``end_ms``."""
+    from services.first_person_pipeline import CITATION_PLAYBACK_PAD_S
+
+    pipeline = FirstPersonPipeline(store=Mock(), serene_mind_engine=Mock())
+    span = make_test_span(n=0, start_ms=50_000, end_ms=59_900)
+
+    assert span.duration_ms is None
+    citation = pipeline._build_context_citation(span)
+
+    assert citation["playback_end_seconds"] == round(59.9 + CITATION_PLAYBACK_PAD_S, 2)
+    assert citation["playback_end_seconds"] - citation["end_ms"] / 1000.0 == pytest.approx(
+        CITATION_PLAYBACK_PAD_S
+    )
+
+
 def test_hybrid_fp_context_result_is_not_written_to_exact_cache(monkeypatch):
     """Optional hybrid framing stays live when its body is not reconstructible."""
     monkeypatch.setattr(settings, "first_person_mode", "hybrid")

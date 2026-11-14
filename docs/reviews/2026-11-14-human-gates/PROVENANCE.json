@@ -1,0 +1,20 @@
+{
+  "generated_at_utc": "2026-11-14T07:02:45+00:00",
+  "generator": "scripts/ops/build_human_review_packets.py",
+  "inputs": {
+    "config/helplines.yaml": "a8cd1113f0b572987baef679e5e6ff2811a9f76a15975d8d644af57c38260174",
+    "audits/evidence/public_release_phase4_rights_manifest_2026-10-22.json": "f8920335b4ef88aca03a0ef419916b597c4cc82b8e1563597f9fe1f512841c9f",
+    "evals/gold_set_v1/annotator_A.csv": "a08f602c88fad94f53fe8e44ccabfc2fc2aec776746da7cb5ae207181281b782",
+    "evals/gold_set_v1/annotator_B.csv": "a7ee15b547969a8e09226727d11ddcf9c502b8c79f0606807d5cafca131a5a51",
+    "evals/first_person/native_language_review_sheet.csv": "afafb218e07c127222077b3d01d72d71a77e42879aab5a2ef7faf434345f8e49"
+  },
+  "counts": {
+    "helplines": 14,
+    "native": 11,
+    "rights": 751,
+    "gold": 303,
+    "crisis_copy": "written",
+    "answer_sample": 41
+  },
+  "every_decision_column": "empty by construction"
+}

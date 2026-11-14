@@ -10,7 +10,9 @@ Status words: **FIXED** (in tree or committed, test named), **OPEN**, **BLOCKED*
 Severity: P0 security/data-integrity failure; P1 core product or release blocker; P2 significant;
 P3 maintainability. Every FIXED row names its test. Nothing here is production evidence: one Mac, local Docker.
 
-Last updated: 2026-11-13, gate "Phase 2 fixes" (commits `8a3274cc` .. `34226440` plus the Phase 2 commit).
+Last updated: 2026-11-14, gate "E-series close-out + human packets". Owner decisions with a
+recommendation for each: `docs/analysis/OWNER_DECISIONS_2026-11-14.md`. Human-gate packets (decision
+columns blank): `docs/reviews/2026-11-14-human-gates/README.md`.
 
 ## 0. Baseline (Phase 0)
 
@@ -55,9 +57,9 @@ At about 43 served rows the 85% lower-bound bar needs 42 of 43 showable.
 | A-16 | P1 | Conversation continuity | **Anonymous users had no follow-up context** (`populate_server_side_history` empties client history). | The client's last prior USER turn (200 chars at most) travels on a separate attribute read only by the follow-up resolver; `messages` is still emptied; incognito and benchmark carry none; safety stages see what they saw before. Safety scenarios after the change: 226 pass, 4 known expected fail, 0 fail. | FIXED (`test_anon_followup_context_2026_11_13.py`). Limits: heuristic, last user turn only, no assistant turn; live check is Phase 4. |
 | A-17 | P2 | Runtime config | The backend container was recreated at 2026-11-13 06:18 UTC from `docker-compose.yml` alone. It runs a config no graded run measured: min score 2, sparse on, judge off, monthly cap 100. | Phase 4 rebuilds from the commit with the graded overlay and records resolved values. | OPEN |
 | A-18 | P2 | Eval harness | The harness could not evaluate the registered bars: no Wilson bound (H-1), two graders not enforced (H-2), no hub metric (H-4), crisis not a gate (H-5), unpinned flags (H-12, H-14), inputs not fingerprinted (H-16), missing latency could pass (H-18), no negative-control runner (H-8). | `graded_registered_report.py` reports every registered bar as met / failed / not measured with Wilson intervals and invalid-run reasons; graded compose pins the answerability flag (false, as in graded-6) and the router flag; capture manifest records `INTENT_ROUTER_` flags and the sha256 of each input file; `run_negative_controls.py`. | FIXED for H-1, 2, 4, 5, 8, 12, 14, 16, 18. OPEN: collection fingerprint in the manifest is `null` (capture has no Qdrant client; recorded by hand for the run), H-6 (no strict-reader verdict), H-7 (bar file and criteria differ: OWNER), H-19 (rubric hash). |
-| T-E7 | P3 | Evaluation | `conversation_cases_draft.jsonl` (24 AI-drafted rows: multi-turn, ambiguous, contradiction, plain fact) has no runner. | Small runner that drives `/api/chat` turn by turn and records route and grounding. Rows stay drafts until the owner reviews them. | OPEN |
+| T-E7 | P3 | Evaluation | `conversation_cases_draft.jsonl` (24 AI-drafted rows: multi-turn, ambiguous, contradiction, plain fact) has no runner. | **Built 2026-11-14:** `scripts/ops/run_conversation_cases.py` drives `/api/chat` turn by turn (one anonymous session per case, job polling, 429 retry-after honoured), records route/grounding/abstain cause/citation video ids/latency, and stores no seeker or teacher text. Both row shapes are covered (`turns` and `question`; 24 cases = 30 turns). Dry run is the default; executing needs `--execute --i-have-logged-the-spend`. Output stamps every row `draft_needs_owner_review` and prints that it is not a verdict. Test: `backend/tests/test_conversation_case_runner_2026_11_14.py`. | RUNNER READY; rows still **OWNER** review (D6), nothing executed yet |
 | T-E3 | P2 | Runtime | Image rebuild needed for A-15 and every fix above to be live. | Phase 4. | OPEN |
-| T-E8 | P3 | Reliability | Redis rate limiter fails open on `Connection closed by server` (2 events in 10 min, parallel review). | Measure under load; record the rate. | OPEN |
+| T-E8 | P3 | Reliability | Redis rate limiter fails open on `Connection closed by server` (2 events in 10 min, parallel review). | **Measured 2026-11-14 (no load):** the current container (started 03:46 UTC, restart count 0, ~3 h, 1,712 log lines) has **0** `degrading to allow` events and 0 Redis connection errors; the 8 Redis lines are all successful-connect INFO. The 2 earlier events came from a previous container. A load measurement is still unmeasured because nothing has been run under load. | PARTIAL: idle rate 0 over ~3 h; load rate still OPEN |
 | A-19 | P3 | Serving | Harness citation pads playback +0.25 s without the duration cap the legacy path has (`_build_context_citation`); `SourceSpan` carries no duration. At most 0.25 s past the end. | Carry `duration_ms` on the span at build time (ingest change). | OPEN (low value now) |
 | A-20 | P3 | Gate precision | "severed preposition opener" rule rejects complete sentences that start lowercase with if/as/at (about a third of a 14-clip sample of the 47 matches in v10). Errs toward abstaining. | Needs a class-of-defect rule and a corpus blast-radius count, then a registered run. | OPEN (not changed: gate rules change only through a registered run) |
 | A-21 | P3 | CI | `golden25-gate.yml` runs against `first_person_v7` (absent locally), is manual-only, and exits green when its secrets are missing, so it gates nothing. | Point at the served collection and fail when not run. Needs to know what the CI Qdrant holds. | OPEN |
@@ -69,7 +71,7 @@ At about 43 served rows the 85% lower-bound bar needs 42 of 43 showable.
 | ID | Decision | What is known |
 |---|---|---|
 | T-E1 | Answerability gate on or off | Off live and in graded-6. With it off a `weak_match` is served with the relevance scorer as the only question-level gate. Graded-6 result with it off: 0 clips on 69 unanswerable groups. |
-| T-E2 | Monthly model budget | **Corrected reading:** the refusal is the app's own guard (`openrouter_budget.py:217`): month ledger 123.13 against a 100 monthly cap in the running container. Not shown to be the provider account. The graded overlay raises the local cap to 300. Demo is blocked until the cap or the ledger is changed. |
+| T-E2 | Monthly model budget | **Corrected reading:** the refusal is the app's own guard (`openrouter_budget.py:217`): month ledger 123.13 against a 100 monthly cap in the running container. Not shown to be the provider account. The graded overlay raises the local cap to 300. **The refusal is no longer silent (2026-11-14):** `log_budget_headroom` reads the ledger once at startup (bounded 2 s so a dead Redis cannot hold boot) and logs the cap state, naming the setting and saying it is not a provider balance problem (`backend/tests/test_budget_headroom_2026_11_14.py`, 9 tests). Remaining decision: which caps a plain `docker compose up` should carry (D2). |
 | P2-b | What counts as a truncated clip | Xfail stays strict. A punctuation-free ending is a judge-approved valid ending today. |
 | P2-e | Budget reservation policy | A call with no provider response keeps its USD 0.03 reservation (`llm_budget_guard.settle()`); a stall can exhaust a cap. |
 | O-1 | Sparse retrieval default | Settings default True; graded config pins False. Graded-5 (sparse on) served 26, graded-6 (off) served 43. |
@@ -78,16 +80,28 @@ At about 43 served rows the 85% lower-bound bar needs 42 of 43 showable.
 | O-4 | Any Qdrant write; v11 status | `first_person_v11` exists (stale fork). No writes made. |
 | O-5 | Railway resume, production deploy | Untouched. |
 | T-D1 | 3,135 pre-fix `corpus_gate_rejections` rows | Purge or keep. |
-| T-E4 | Apply local migrations `20261107000000`, `20261107000001`, `20261113000000` | Additive; a database change, so not applied by an agent. |
+| T-E4 | ~~Apply local migrations~~ | **Done 2026-11-14 locally** (four applied, RLS re-proven, snapshot regenerated; see §1 and the audit §8.2). Still unapplied on every **hosted** project — that is the part that needs an owner release window (D7). |
 | A-23 | Compose image pins versus running images | Recreate from the file or update the file. |
 
 ## 4. Open: human-only gates (never closed by an agent)
 
-Native-speaker review of crisis detection; clinician review; helpline phone verification;
-rights sign-off; the 299-item gold label batch (0 human labels verifiable in the repo today;
-`evals/gold_set_v1/annotator_A.csv` and `_B.csv` are filled with identical notes and 101/101
-agreement, so treat them as machine-filled until shown otherwise); a human sample of 50 served
-answers (random, seed recorded). Any AI-only score is a diagnostic.
+**Packets built 2026-11-14** — `docs/reviews/2026-11-14-human-gates/README.md`, every decision
+column empty, source hashes in `PROVENANCE.json`, regenerable with
+`scripts/ops/build_human_review_packets.py` (pinned by
+`backend/tests/test_human_review_packets_2026_11_14.py`):
+
+| Gate | Packet | Rows | State |
+|---|---|---|---|
+| Clinician review of the copy actually served for crisis and moderate distress | `01-clinician-crisis-copy.md` | 2 live-captured blocks + 4 clinical questions | unsigned |
+| Native-speaker review of crisis detection and injection on Indic input | `02-native-speaker.csv` | 11 | partly signed earlier; new rows unsigned |
+| Helpline live-call verification | `03-helplines.csv` | 14 | 1 of 14 has a call date |
+| Rights sign-off | `04-rights-signoff.csv` | 751 assets | unsigned |
+| Gold labels | `05-gold-labels.csv` | 303 pairs | machine-filled only: `annotator_A`/`_B` share just **101** of the 303 pair ids, and those 101 agree identically (same score, same notes); the other **202 are `only_in_a`** — one label, not two |
+| Human sample of served answers | `06-answer-sample.csv` | 41 (every served row in graded-7, seeded) | unsigned |
+
+The clinician packet quotes the text a seeker actually received (captured from the local stack on
+2026-11-14, `crisis_copy_probe.json`), not a paraphrase from the code. Any AI-only score is a
+diagnostic and no unsigned packet is evidence.
 
 ## 5. Known limits of the evidence
 
