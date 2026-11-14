@@ -376,7 +376,7 @@ class SupabaseAuthStrategy(AuthStrategy):
         try:
             unverified_header = jwt.get_unverified_header(token)
         except jwt.DecodeError as e:
-            logger.info(f"Malformed JWT header: {e}")
+            logger.warning(f"Malformed JWT header: {e}")
             return None
 
         alg = unverified_header.get("alg", "")

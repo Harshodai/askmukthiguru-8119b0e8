@@ -98,13 +98,18 @@ Seven immediate architectural decisions rest solely with the owner. The table be
   - The runner requires `--execute --i-have-logged-the-spend` and stamps all output rows `draft_needs_owner_review`.
 - **Owner Action:** Review the 24 draft cases in `evals/first_person/conversation_cases_draft.jsonl`. Confirm acceptable multi-turn user expectations or adjust query phrasing before authoring a formal registered multi-turn evaluation plan.
 
-### 2.7 Decision D7 (O-5 / T-E4) — Railway Staging & Hosted Supabase Migrations
-- **Context:** Authorization to resume Railway staging service and deploy recent code changes.
-- **Blockers:**
-  1. Hosted Supabase databases (staging and production) do not have recent migrations applied (`20261113000000` for RLS on `message_citations`, and `20261114000000` for provenance defaults).
-  2. `start_railway.py` requires a non-wildcard `FORWARDED_ALLOW_IPS` configuration.
-  3. Railway deployment requires single-replica pin to prevent concurrency race conditions on SQLite/Redis caches.
-- **Owner Recommendation:** Maintain Railway staging in its paused state. Schedule a dedicated maintenance window to apply database migrations to hosted Supabase before triggering a Railway rebuild.
+### 2.7 Decision D7 (O-5 / T-E4) — Railway Deployment (state read from Railway 2026-11-14, nothing changed there)
+- **What exists:** project `resilient-embrace`, one environment named `production` (no staging). Services: backend (builds `backend/Dockerfile.railway` from GitHub branch `main`, domain `api.askmukthiguru.com`), Redis 8.2.9 (sleeping, has a volume), Qdrant v1.17.1 (offline, 50 GB volume), Memgraph (offline, no volume). No Celery worker or beat service yet. The last backend deploy **failed** on 2026-08-23.
+- **Consequence for git:** the backend builds from `main`. A push or merge to `origin/main` can start a production build. That is why the 2026-11-14 work was pushed to the PR branch only.
+- **Blockers, in order:**
+  1. **No staging environment.** `.railway/railway.ts` treats only the name `production` as production. Decide: create a `staging` environment (recommended) or deploy straight into `production`.
+  2. **Variables missing on the backend service** (names only were read, never values): `ENVIRONMENT`, `FACULTY_ACCESS_CODE`, `METRICS_SCRAPE_TOKEN`, `QDRANT_READ_ONLY_API_KEY`, `OPENROUTER_DAILY_BUDGET_USD`, `OPENROUTER_MONTHLY_BUDGET_USD`, `OPENROUTER_BUDGET_GUARD_ENABLED`, `OPENROUTER_BUDGET_FAIL_CLOSED`, `FIRST_PERSON_RELEVANCE_MODEL`, `OPENROUTER_EXTRA_ALLOWED_MODELS`, `FIRST_PERSON_ACTIVE_COLLECTION`, `FIRST_PERSON_CONTEXT_HARNESS_ENABLED`, `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED`, `FIRST_PERSON_JUDGE_ENABLED`, `FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED`. The three secrets (`FACULTY_ACCESS_CODE`, `METRICS_SCRAPE_TOKEN`, `QDRANT_READ_ONLY_API_KEY`) must be created by the owner in the Railway dashboard; an agent must not generate or see them.
+  3. **Stale variables to remove or confirm:** `ENABLE_TEST_AUTH` (must be false or absent in production), `CI`, `IS_PRODUCTION`, `QDRANT_COLLECTION`, the `NEO4J_*` memory settings, `OLLAMA_*`, `NIM_*`.
+  4. **Qdrant has no proven `first_person_v10`.** Railway runs v1.17.1, local runs 1.18.0; a 1.18 snapshot is not guaranteed to restore on 1.17. Needed: upgrade the Railway image to 1.18.0, snapshot the local collection (4,224 points, ids sha256 `c96200d7…1835`), restore it, then compare the fingerprint with `scripts/ops/collection_fingerprint.py`. This is a Qdrant write: dry run, snapshot, owner approval first.
+  5. **Hosted Supabase migrations** `20261107000000`, `20261107000001`, `20261113000000`, `20261114000000` are not applied.
+  6. **Frontend flag:** the hosted frontend must be built with `VITE_PERSONALIZE_TEACHING_ENABLED=true` (already in the tracked `.env.production`) or the personalize button will be missing there as it was in Docker.
+  7. **Quality:** graded-8 failed bars 1 and 8, so a Railway deployment today can only be shown as a diagnostic preview behind `FACULTY_ACCESS_CODE`.
+- **Recommendation:** staging environment first, behind the faculty code, serving `first_person_v10` only; production stays offline until the human gates are signed.
 
 ---
 

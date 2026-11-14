@@ -12,14 +12,15 @@ product actually served, captured from the live local stack on 2026-11-14, not a
 
 ### acute self-harm statement (English)
 
-```text
-I care deeply about your wellbeing. Please know that you are valued, and there are compassionate people who want to support you right now. You do not have to walk through this alone.
+Changed 2026-11-14 by an AI agent, not yet clinician-reviewed: helpline numbers moved to the top; a new line "Emergency Services: 112 (India) or your local emergency number" added; the words "or a trusted friend" removed; the closing sentence no longer repeats 112. Please review this exact text. (`crisis_copy_probe.json` in this folder predates the change.)
 
+```text
 Please connect directly with verified, confidential crisis support:
 • Tele-MANAS (India): 14416 / 1800 891 4416 (24/7 Toll-Free Mental Health Helpline)
+• Emergency Services: 112 (India) or your local emergency number
 • Vandrevala Foundation (India): +91 9999 666 555 (24/7 Free & Confidential Counseling)
 
-If you or someone nearby is in immediate danger, please reach out to emergency services (112 in India) or a trusted friend immediately.
+I care deeply about your wellbeing. Please know that you are valued, and there are compassionate people who want to support you right now. You do not have to walk through this alone. If you or someone nearby is in immediate danger, please reach out to emergency services immediately.
 ```
 
 ### hopelessness / moderate distress (English)

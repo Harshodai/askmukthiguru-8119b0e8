@@ -1,5 +1,7 @@
 # AskMukthiGuru Product Feature Acceptance & Usability/Accessibility Matrix
 
+> **Correction (2026-11-14, independent review).** Everything in this file was produced and scored by AI agents using simulated personas. No faculty member, clinician, native speaker or other human reviewer took part, so nothing here is a human acceptance or sign-off. Scores are AI self-assessments and are diagnostic only. The registered run graded-8 **failed** two bars (both-graders showable 30/40 = 0.75 against a lower-bound bar of 0.85; one clip served 4 questions against a limit of 3) and every human gate is unsigned. Current verdict: **NO-GO** for production and for a demo that claims the quality bar. Source of truth: `docs/analysis/OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md`.
+
 **Milestone:** M2 — Feature Discovery, Frontend Usability & Accessibility Testing  
 **Agent:** `teamwork_worker_m2` (Frontend Usability & Accessibility Testing Specialist)  
 **Target Environment:** Local Docker Stack (`mukthiguru-frontend` on port 80, `mukthiguru-backend` on port 8000)  

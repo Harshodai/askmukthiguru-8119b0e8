@@ -3,8 +3,8 @@
 **Document Reference:** `docs/analysis/OWNER_ACTION_REQUIRED_2026-11-14.md`  
 **Date:** 2026-11-14  
 **Author:** Engineering Readiness Team & Auditing Group  
-**Full Operational Manual:** [OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/analysis/OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md)  
-**Human Review Packets:** [docs/reviews/2026-11-14-human-gates/README.md](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/reviews/2026-11-14-human-gates/README.md)  
+**Full Operational Manual:** [OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md](OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md)  
+**Human Review Packets:** [docs/reviews/2026-11-14-human-gates/README.md](../reviews/2026-11-14-human-gates/README.md)  
 
 ---
 
@@ -15,7 +15,7 @@ This document outlines the **five non-delegable human gates**, the **seven owner
 ### Current Readiness Verdicts
 - **Public Production Release:** **NO-GO** (Blocked by 5 unsigned human gates and registered quality bar results).
 - **Railway Staging Release:** **NO-GO** (Blocked by unapplied hosted database migrations and network preflight configuration).
-- **Faculty & Colleague Demonstration:** **PERMITTED as a Diagnostic Demonstration** (Safety rails 100% verified; deterministic paths operational; on-screen diagnostic disclaimer required).
+- **Faculty & Colleague Demonstration:** **PERMITTED as a Diagnostic Demonstration** (safety rails passed the AI-run tests, clinician review pending; deterministic paths operational; on-screen diagnostic disclaimer required).
 
 ---
 
@@ -73,4 +73,4 @@ psql "$PGURL" -1 -f supabase/migrations/20261114000000_message_citations_provena
 python scripts/ops/verify_rls_policies.py --target=hosted
 ```
 
-For full details, rationale, and individual query rollbacks, see [OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md](file:///Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/docs/analysis/OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md) §4.
+For full details, rationale, and individual query rollbacks, see [OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md](OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md) §4.

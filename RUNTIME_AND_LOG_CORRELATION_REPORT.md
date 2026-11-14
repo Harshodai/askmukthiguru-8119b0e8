@@ -1,5 +1,7 @@
 # Runtime and Log Correlation Report: AskMukthiGuru Distributed Observability & Forensics
 
+> **Correction (2026-11-14, independent review).** Everything in this file was produced and scored by AI agents using simulated personas. No faculty member, clinician, native speaker or other human reviewer took part, so nothing here is a human acceptance or sign-off. Scores are AI self-assessments and are diagnostic only. The registered run graded-8 **failed** two bars (both-graders showable 30/40 = 0.75 against a lower-bound bar of 0.85; one clip served 4 questions against a limit of 3) and every human gate is unsigned. Current verdict: **NO-GO** for production and for a demo that claims the quality bar. Source of truth: `docs/analysis/OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md`.
+
 **Execution Date:** 2026-11-14T13:12:00Z  
 **Target Environment:** Local Docker Container Stack (18 Containers, FastAPI Backend `:8000`, Nginx Proxy Frontend `:80`, Qdrant `:6333`, Redis `:6379`, Memgraph `:7687`, Jaeger `:16686`, Supabase Local Stack `:54321-54327`)  
 **Executing Agent:** `teamwork_worker_m4` (Runtime Log Tracing & Concurrency/Isolation Worker)  
@@ -221,4 +223,4 @@ The distributed logging, tracing, and PII scrubbing subsystems of AskMukthiGuru 
 - PII scrubbing is comprehensive, catching emails, phone numbers, IP addresses, and tokens across all handlers.
 - Latencies and pipeline bottlenecks are transparently visible via structured events.
 
-**Observability Verdict: ACCEPTED & PRODUCTION READY.**
+**Observability verdict (AI self-assessment, local Docker only): logs and traces correlated in the sampled turns. Production is unmeasured.**

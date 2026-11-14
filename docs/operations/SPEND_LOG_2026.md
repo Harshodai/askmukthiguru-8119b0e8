@@ -24,11 +24,13 @@ Add a row before a paid step (planned) and complete it after (ledger before and 
 | 2026-11-14 | DONE, not planned as its own row: second stack start at `2f26bbbd` (warm-up) and second five-path probe, needed after the follow-up fix | Phase 4 verification | 126.5235 | 126.8994 (read 07:59 UTC; another session was also active in this window) | 0.3759 at most | about 4.9 |
 | 2026-11-14 | Attempted: 3 negative-control pairs from the host. All came back indeterminate (the host cannot reach the stack's Redis), so no provider call is believed to have been made | none | n/a | n/a | 0 expected | about 4.9 |
 | 2026-11-14 | DONE: negative-control measurement of the comparative judge, 116 pairs, inside the container, two arms plus a 3-pair smoke run | same-clip analysis, "measure candidate A before any graded spend" | 126.8994 | 126.9193 | 0.0198 (planned worst case 10.44 in reservations) | about 4.9 |
-| 2026-11-14 | PLANNED: graded-8 stack start (warm-up) | graded-8 registration | to be read | to be read | plan: up to 2 | |
-| 2026-11-14 | PLANNED: graded-8 capture (frozen 116 + unanswerable 86), answerability gate on | graded-8 registration | to be read | to be read | plan: up to 12 | |
-| 2026-11-14 | PLANNED: graded-8 grading, two graders on every served row; host-side, not on this ledger | graded-8 registration | n/a | n/a | plan: up to 8 (estimate under 1) | |
+| 2026-11-14 | DONE: graded-8 stack start at `4e1c2c4c` (warm-up); another session was active in the same window | graded-8 registration | 126.9193 | 127.3513 | 0.4320 at most (planned up to 2) | about 5.3 |
+| 2026-11-14 | DONE: graded-8 capture, 202 rows, answerability gate on (manifest `spend_before`/`spend_after`) | graded-8 registration | 127.3513 | 130.2055 | 2.8542 (planned up to 12) | about 8.2 |
+| 2026-11-14 | DONE: graded-8 grading, two graders on 40 served rows + unanswerable scoring; host-side, **not on this ledger** | graded-8 registration | n/a | n/a | estimated under 1 from list prices; not measured (planned up to 8) | about 9 |
+| 2026-11-14 | Other session's persona and acceptance probes after graded-8 (not planned in this log) | none | 130.2055 | 130.3711 (read 16:5x UTC) | 0.1656 | about 9.2 |
 
-Graded-7 total against its stop rule of 25: about 4.3. Engagement total against the cap of 90: about 4.9.
+Graded-7 total against its stop rule of 25: about 4.3. Graded-8 total against its stop rule of 25: about 4.3.
+Engagement total against the cap of 90: about 9.2 (ledger 123.0053 to 130.3711 is 7.37; the two grading passes are estimates on top).
 Result and evidence: `docs/audits/ENGINEERING_READINESS_REPORT_2026-11-14.md`.
 
 What the ledger showed about itself: in the first half of the capture 54 model calls were cancelled

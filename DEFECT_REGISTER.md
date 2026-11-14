@@ -1,5 +1,7 @@
 # AskMukthiGuru Defect Register & Remediation Report
 
+> **Correction (2026-11-14, independent review).** Everything in this file was produced and scored by AI agents using simulated personas. No faculty member, clinician, native speaker or other human reviewer took part, so nothing here is a human acceptance or sign-off. Scores are AI self-assessments and are diagnostic only. The registered run graded-8 **failed** two bars (both-graders showable 30/40 = 0.75 against a lower-bound bar of 0.85; one clip served 4 questions against a limit of 3) and every human gate is unsigned. Current verdict: **NO-GO** for production and for a demo that claims the quality bar. Source of truth: `docs/analysis/OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md`.
+
 **Date of Record:** 2026-11-14T13:25:00Z  
 **System Under Test:** AskMukthiGuru Local Docker Stack (18 Containers, FastAPI `:8000`, Nginx `:80`, Qdrant `:6333`, Redis `:6379`, Memgraph `:7687`, Jaeger `:16686`)  
 **Pipeline Invariant Baseline:** 19-Stage Pipeline, `first_person_v10` in `retrieval_only` (X24), Voice Governance (X5, X6, X11), Safety & Rights Invariants (X40, X41)  
