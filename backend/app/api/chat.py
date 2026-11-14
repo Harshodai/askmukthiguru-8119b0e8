@@ -895,6 +895,9 @@ async def chat_endpoint(
         )
         request_data = {
             "chat_body": chat_body_dict,
+            # A pydantic private attribute does not survive model_dump(), so the
+            # anonymous follow-up hint rides in the job payload (restored by the worker).
+            "followup_hint_user_turn": chat_body._followup_hint_user_turn,
             "user": user_dict,
             "is_benchmark": False,
             # Lets the queued worker release the reservation when the job
@@ -1233,6 +1236,8 @@ async def chat_stream_endpoint(
             )
             request_data = {
                 "chat_body": chat_body_dict,
+                # See the non-stream enqueue above: the hint is not part of model_dump().
+                "followup_hint_user_turn": chat_body._followup_hint_user_turn,
                 "user": user_dict,
                 "is_benchmark": False,
                 # Lets the queued worker release the reservation when the job

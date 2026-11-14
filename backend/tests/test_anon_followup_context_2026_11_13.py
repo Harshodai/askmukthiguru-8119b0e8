@@ -133,3 +133,31 @@ def test_real_assessor_keeps_an_everyday_turn_and_drops_a_crisis_turn():
     ctx = SimpleNamespace(container=SimpleNamespace(serene_mind=SereneMindEngine()))
     assert _hint_reads_calm(ctx, "what is the beautiful state") is True
     assert _hint_reads_calm(ctx, "I want to end my life") is False
+
+
+@pytest.mark.asyncio
+async def test_hint_survives_the_queued_job_round_trip():
+    """Found by the live probe on 2026-11-14: /api/chat enqueues `chat_body.model_dump()`,
+    and a private attribute is not in the dump, so the worker never saw the hint."""
+    from app.orchestrator import chat_request_from_job
+
+    body = _body([("user", "I keep comparing myself with my cousins"), ("assistant", "...")])
+    await _populate(body)
+    assert "_followup_hint_user_turn" not in body.model_dump()  # why the payload key exists
+    job = {
+        "chat_body": body.model_dump(),
+        "followup_hint_user_turn": body._followup_hint_user_turn,
+    }
+    rebuilt = chat_request_from_job(job)
+    assert rebuilt.messages == []
+    assert rebuilt._followup_hint_user_turn == "I keep comparing myself with my cousins"
+    assert chat_request_from_job({"chat_body": body.model_dump()})._followup_hint_user_turn is None
+
+
+def test_both_enqueue_sites_send_the_hint():
+    """The endpoint has two enqueue sites (plain and stream); both must carry the hint."""
+    from pathlib import Path
+
+    src = (Path(__file__).resolve().parents[1] / "app" / "api" / "chat.py").read_text()
+    assert src.count('"followup_hint_user_turn": chat_body._followup_hint_user_turn') == 2
+    assert src.count('"chat_body": chat_body_dict') == 2

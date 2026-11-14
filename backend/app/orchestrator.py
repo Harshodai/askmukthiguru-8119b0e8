@@ -272,6 +272,20 @@ async def _claim_anon_quota(container, user: dict, reservation_id: str | None) -
         logger.debug(f"anon quota claim failed (non-fatal): {exc}")
 
 
+def chat_request_from_job(request_data: dict) -> ChatRequest:
+    """Rebuild the queued job's ChatRequest, including what model_dump() drops.
+
+    The anonymous follow-up hint is a pydantic private attribute, so the endpoint
+    sends it beside ``chat_body`` and it is restored here. Found live on 2026-11-14:
+    without this the hint never reached the worker and follow-ups were not resolved.
+    """
+    from app.schemas import ChatRequest
+
+    chat_body = ChatRequest(**request_data.get("chat_body", {}))
+    chat_body._followup_hint_user_turn = request_data.get("followup_hint_user_turn")
+    return chat_body
+
+
 async def queue_worker_factory(
     request_data: dict,
     is_stream: bool,
@@ -282,11 +296,10 @@ async def queue_worker_factory(
     Reconstructs orchestrator state from serialized request_data.
     """
     from app.dependencies import get_container
-    from app.schemas import ChatRequest
 
     container = get_container()
     user = request_data.get("user", {})
-    chat_body = ChatRequest(**request_data.get("chat_body", {}))
+    chat_body = chat_request_from_job(request_data)
     # Reservation made atomically at the endpoint gate; committed on success
     # (claim) and released when the job fails or is cancelled.
     quota_reservation_id = request_data.get("quota_reservation_id")
