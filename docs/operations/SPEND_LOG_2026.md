@@ -17,13 +17,19 @@ Add a row before a paid step (planned) and complete it after (ledger before and 
 | 2026-11-12 | graded-6 capture (for reference; before this log and outside the cap) | graded-6 | 120.3734 | 123.0053 | 2.6319 | n/a |
 | 2026-11-13 | audit probes: 9 router calls (latency measurement), 7 chat turns sent by the continuity audit | none (diagnostic, unplanned, small) | not read before | 123.1291 (read 16:2x UTC) | at most 0.1238 (the whole day counter) | 0.12 |
 
-| 2026-11-14 | PLANNED: graded stack start (the entrypoint's cache warm-up answers about 20 FAQ questions) | graded-7 registration | to be read | to be read | plan: up to 2 | |
-| 2026-11-14 | PLANNED: graded-7 capture (frozen 116 + unanswerable 86) | graded-7 registration | to be read | to be read | plan: up to 12 | |
-| 2026-11-14 | PLANNED: graded-7 grading, two graders on every served row + unanswerable scoring | graded-7 registration | to be read | to be read | plan: up to 8 | |
-| 2026-11-14 | PLANNED: five-path chat probe after the run (6 turns) | Phase 4 verification | to be read | to be read | plan: up to 1 | |
+| 2026-11-14 | DONE: graded stack start at `d2f8e615` (warm-up, 20 FAQ questions) | graded-7 registration | 123.1291 | 123.4430 | 0.3139 (planned up to 2) | 0.43 |
+| 2026-11-14 | DONE: graded-7 capture, 202 rows, 03:11 to 03:31 UTC | graded-7 registration | 123.4430 | 126.4314 | 2.9885 (planned up to 12) | 3.42 |
+| 2026-11-14 | DONE: graded-7 grading, two graders on 41 served rows + unanswerable scoring. Runs host-side straight to the provider, so it is **not on this ledger** | graded-7 registration | n/a | n/a | estimated under 1 from list prices; not measured (planned up to 8) | about 4.4 |
+| 2026-11-14 | DONE: five-path chat probe (6 turns), first run | Phase 4 verification | 126.4314 | 126.5235 | 0.0921 (planned up to 1) | about 4.5 |
+| 2026-11-14 | DONE, not planned as its own row: second stack start at `2f26bbbd` (warm-up) and second five-path probe, needed after the follow-up fix | Phase 4 verification | 126.5235 | 126.8994 (read 07:59 UTC; another session was also active in this window) | 0.3759 at most | about 4.9 |
+| 2026-11-14 | Attempted: 3 negative-control pairs from the host. All came back indeterminate (the host cannot reach the stack's Redis), so no provider call is believed to have been made | none | n/a | n/a | 0 expected | about 4.9 |
 
-Stop rule for graded-7: if the run's total passes 25, stop and report. Rows above are filled in
-after each step with the ledger values; a planned row that did not run is marked NOT RUN.
+Graded-7 total against its stop rule of 25: about 4.3. Engagement total against the cap of 90: about 4.9.
+Result and evidence: `docs/audits/ENGINEERING_READINESS_REPORT_2026-11-14.md`.
+
+What the ledger showed about itself: in the first half of the capture 54 model calls were cancelled
+(caller timeout or a faster parallel candidate) and each kept its 0.03 reservation, so the ledger
+reads higher than the provider's bill (owner item P2-e).
 
 ## State on 2026-11-13 (read from the running container)
 
