@@ -907,6 +907,20 @@ _ANSWER_BODY_SCHEMA_VERSION = "evidence_only_v2"
 
 # 2026-10-27: Read at call time (not module load) so a container env-only restart picks up
 # the updated FIRST_PERSON_RELEVANCE_TIMEOUT_S without a code rebuild.
+def _comparative_fingerprint() -> str:
+    from services import first_person_judge
+
+    if not first_person_judge.comparative_enabled():
+        return "off"
+    digest = hashlib.sha256(
+        (
+            first_person_judge.COMPARATIVE_SYSTEM_PROMPT
+            + json.dumps(first_person_judge.COMPARATIVE_JSON_SCHEMA, sort_keys=True)
+        ).encode()
+    ).hexdigest()[:12]
+    return f"on:{digest}"
+
+
 def _relevance_timeout_s() -> float:
     return float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
 
@@ -3630,6 +3644,9 @@ class FirstPersonPipeline:
                 "relevance_gate": str(bool(settings.first_person_relevance_gate_enabled)),
                 "relevance_min": str(int(settings.first_person_relevance_min_score)),
                 "relevance_model": str(settings.first_person_relevance_model or ""),
+                # Candidate A: the comparative judge changes which context is served, so
+                # its flag and prompt re-key the exact cache (never replay across states).
+                "comparative_judge": _comparative_fingerprint(),
                 "relevance_fallback_policy": "provider_indeterminate_v2",
                 # Both scorer prompts and the JSON schema: which one runs
                 # depends on the scorer model, and an edit to either must re-key.
@@ -4205,6 +4222,71 @@ class FirstPersonPipeline:
         except Exception as e:
             logger.warning(f"[FirstPersonPipeline] Redis exact cache set failed: {e}")
 
+    async def _comparative_narrow(
+        self,
+        ctx_results: list[Optional[FirstPersonPipelineResult]],
+        lowest_indeterminate_idx: int,
+        question: str,
+        fp_llm_tokens: list[int],
+        start_time: float,
+        contexts: list[Any],
+    ) -> Optional[FirstPersonPipelineResult]:
+        """Candidate A: one comparative call over every context that passed all gates.
+
+        Keeps only the chosen result in ``ctx_results`` (in place). Returns an abstain
+        result for null / indeterminate (fail closed, never "first passing"); None when
+        nothing passed (the existing no-serve flow then applies) or a clip was chosen.
+        """
+        from services import first_person_judge
+
+        passed = [
+            i for i, r in enumerate(ctx_results) if r is not None and i < lowest_indeterminate_idx
+        ]
+        if not passed:
+            return None
+        t0 = time.monotonic()
+        # Candidates are the contexts already capped by retrieval / max_context_spans.
+        # comparative_select_async never raises: every failure of the call comes back as
+        # INDETERMINATE (first_person_judge._call_or_none), and that abstains below.
+        pick = await first_person_judge.comparative_select_async(
+            question,
+            [{"verbatim_text": ctx_results[i].answer_text} for i in passed],  # type: ignore[union-attr]
+            self._llm_service,
+            timeout_s=_relevance_timeout_s(),
+            token_sink=fp_llm_tokens,
+        )
+        cmp_ms = (time.monotonic() - t0) * 1000.0
+        if pick is not None and pick != _RELEVANCE_INDETERMINATE:
+            keep = passed[pick]
+            for i in passed:
+                if i != keep:
+                    ctx_results[i] = None
+            ctx_results[keep].stage_timings["comparative_ms"] = round(cmp_ms, 2)  # type: ignore[union-attr]
+            return None
+        reason = (
+            "relevance_indeterminate" if pick == _RELEVANCE_INDETERMINATE else "relevance_below_min"
+        )
+        latency = (time.monotonic() - start_time) * 1000.0
+        self._log_and_count(
+            "abstained",
+            latency,
+            float(getattr(contexts[0], "score", 1.0) or 1.0),
+            0,
+            0,
+            reason,
+            sum(fp_llm_tokens),
+        )
+        return FirstPersonPipelineResult(
+            answer_text="No verified first-person discourse found for this question.",
+            citations=[],
+            status="abstained",
+            is_direct_answer=False,
+            latency_ms=latency,
+            answerability=reason,
+            abstain_reason=reason,
+            stage_timings={"total_ms": round(latency, 2), "comparative_ms": round(cmp_ms, 2)},
+        )
+
     def _log_and_count(
         self,
         status: str,
@@ -4739,7 +4821,12 @@ class FirstPersonPipeline:
                 # ≈max(scorer_latency). The results list preserves the original
                 # ordering (highest-scoring context first), so the first non-None
                 # entry wins — identical to the sequential contract.
-                _harness_parallel = (
+                from services import first_person_judge as _fpj
+
+                # Candidate A: the comparative judge needs every context evaluated before
+                # one is served, which only the gather path does (also for one context).
+                _comparative_on = _fpj.judge_active() and _fpj.comparative_enabled()
+                _harness_parallel = _comparative_on or (
                     bool(getattr(settings, "first_person_harness_parallel_enabled", True))
                     and len(contexts) > 1
                 )
@@ -5119,6 +5206,17 @@ class FirstPersonPipeline:
                             # exit path (None, success, indeterminate) counts them.
                             fp_llm_tokens.extend(_ctx_tokens)
                             _ctx_results[idx] = _ctx_result
+                    if _comparative_on:
+                        _cmp_abstain = await self._comparative_narrow(
+                            _ctx_results,
+                            _lowest_indeterminate_idx,
+                            retrieval_query or query,
+                            fp_llm_tokens,
+                            start_time,
+                            contexts,
+                        )
+                        if _cmp_abstain is not None:
+                            return _cmp_abstain
                     # Honour original ordering: first context by score wins,
                     # but only if its index is strictly before the lowest
                     # indeterminate index (sequential contract).

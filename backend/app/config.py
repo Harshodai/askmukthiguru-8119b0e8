@@ -2715,6 +2715,11 @@ class Settings(BaseSettings):
     # the frozen-bank comparison shows the judge is not worse.
     first_person_judge_enabled: bool = False
     first_person_judge_model: str = "anthropic/claude-haiku-5.5"
+    # Candidate A (docs/analysis/SAME_CLIP_DEFECT_2026-11-13.md): after the
+    # per-clip judge, ONE comparative call picks the best of the passing
+    # contexts, or abstains. Needs the judge active. It changes served answers,
+    # so it may only be turned on through a registered graded run.
+    first_person_comparative_judge_enabled: bool = False
 
 
 @lru_cache

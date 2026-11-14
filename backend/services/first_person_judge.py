@@ -315,6 +315,21 @@ def build_editorial_set_from_judge(
     }
 
 
+async def _call_or_none(call: Any, timeout_s: float, label: str) -> Optional[str]:
+    """Run one judge-model call under its timeout; None on any failure.
+
+    The single fail-closed handler for both judge calls: a timeout, a provider
+    error or a cancelled budget all mean "indeterminate", and the caller abstains.
+    """
+    import asyncio
+
+    try:
+        return await asyncio.wait_for(call(), timeout=timeout_s)
+    except Exception as exc:  # noqa: BLE001 - any failure is indeterminate (fail closed)
+        logger.info("[FPJudge] %s call indeterminate: %s", label, type(exc).__name__)
+        return None
+
+
 async def judge_select_async(
     question: str,
     clips: list[dict[str, Any]],
@@ -326,7 +341,6 @@ async def judge_select_async(
     judge_meta_out: Optional[dict[str, Any]] = None,
 ) -> Optional[int]:
     """One judge call. Index to serve, None (below minimum), or INDETERMINATE."""
-    import asyncio
 
     if not clips or llm_service is None or not hasattr(llm_service, "generate"):
         return INDETERMINATE
@@ -343,10 +357,8 @@ async def judge_select_async(
             res = await res
         return str(res)
 
-    try:
-        raw = await asyncio.wait_for(_call(), timeout=timeout_s)
-    except Exception as exc:  # noqa: BLE001 - any failure is indeterminate (fail closed)
-        logger.info("[FPJudge] judge call indeterminate: %s", type(exc).__name__)
+    raw = await _call_or_none(_call, timeout_s, "judge")
+    if raw is None:
         return INDETERMINATE
     parsed = parse_judge_reply(raw, len(clips))
     if parsed is None:
@@ -367,4 +379,105 @@ async def judge_select_async(
         editorial_set = build_editorial_set_from_judge(judge_meta_out, query=question)
         if editorial_set is not None:
             judge_meta_out["editorial_set"] = editorial_set
+    return chosen
+
+
+# --- Comparative judge (Candidate A, SAME_CLIP_DEFECT_2026-11-13) -----------------------------
+# Default off (first_person_comparative_judge_enabled). Every candidate here already passed
+# the per-clip judge; this call only compares them. The model returns an INDEX or null, never
+# text (invariant 15). Any failure is INDETERMINATE and the caller abstains (fail closed).
+
+COMPARATIVE_SYSTEM_PROMPT = (
+    "You choose among recorded teaching clips for one seeker question. Every clip below "
+    "already passed an individual check. Pick the ONE clip that most directly answers THIS "
+    "specific question. Being on the same broad topic is not answering. If none of the clips "
+    "answers this specific question directly, choose none.\n"
+    'Reply with one JSON object: {"best": <clip index>} or {"best": null}, nothing else. '
+    + data_notice("clip")
+)
+
+COMPARATIVE_JSON_SCHEMA: dict[str, Any] = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "first_person_comparative_judge",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["best"],
+            "properties": {"best": {"type": ["integer", "null"]}},
+        },
+    },
+}
+
+
+def comparative_enabled() -> bool:
+    from app.config import settings
+
+    return bool(getattr(settings, "first_person_comparative_judge_enabled", False))
+
+
+def build_comparative_prompt(question: str, clips: list[dict[str, Any]]) -> str:
+    return build_judge_prompt(question, clips)
+
+
+def parse_comparative_reply(raw: Any, n_clips: int) -> Optional[int]:
+    """Strict parse of ``{"best": <int> | null}``. INDETERMINATE for anything else."""
+    text = str(raw or "").strip()
+    if text.startswith("```"):
+        lines = text.splitlines()[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    if not (text.startswith("{") and text.endswith("}")):
+        return INDETERMINATE
+    try:
+        decoded = json.loads(text)
+    except ValueError:
+        return INDETERMINATE
+    if not isinstance(decoded, dict) or set(decoded) != {"best"}:
+        return INDETERMINATE
+    best = decoded["best"]
+    if best is None:
+        return None
+    if isinstance(best, bool) or not isinstance(best, int) or not 0 <= best < n_clips:
+        return INDETERMINATE
+    return best
+
+
+async def comparative_select_async(
+    question: str,
+    clips: list[dict[str, Any]],
+    llm_service: Any,
+    *,
+    timeout_s: float,
+    token_sink: Optional[list[int]] = None,
+) -> Optional[int]:
+    """One comparative call. Index to serve, None (no clip answers), or INDETERMINATE."""
+
+    if not clips or llm_service is None or not hasattr(llm_service, "generate"):
+        return INDETERMINATE
+    user_prompt = build_comparative_prompt(question, clips)
+
+    async def _call() -> str:
+        res = llm_service.generate(
+            system_prompt=COMPARATIVE_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            response_format=COMPARATIVE_JSON_SCHEMA,
+            **judge_call_kwargs(judge_model()),
+        )
+        if inspect.isawaitable(res):
+            res = await res
+        return str(res)
+
+    raw = await _call_or_none(_call, timeout_s, "comparative")
+    if raw is None:
+        return INDETERMINATE
+    if token_sink is not None:
+        from services.first_person_pipeline import _estimate_fp_tokens
+
+        token_sink.append(_estimate_fp_tokens(COMPARATIVE_SYSTEM_PROMPT, user_prompt, raw))
+    chosen = parse_comparative_reply(raw, len(clips))
+    if chosen == INDETERMINATE:
+        logger.info("[FPJudge] comparative reply rejected by the strict parser; abstaining")
     return chosen
