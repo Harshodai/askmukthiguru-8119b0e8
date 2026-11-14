@@ -42,7 +42,7 @@ services:
 
   # --- Memgraph (Primary Graph Database, port 7687, C++, ~80MB RAM) ---
   memgraph:
-    image: memgraph/memgraph-mage:2.20.1
+    image: memgraph/memgraph-mage:latest
     container_name: mukthiguru-memgraph
     logging: *default-logging
     ports:
@@ -69,7 +69,7 @@ services:
 
   # --- Redis Cache ---
   redis:
-    image: redis:7.2.5-alpine
+    image: redis:7-alpine
     container_name: mukthiguru-redis
     logging: *default-logging
     ports:
