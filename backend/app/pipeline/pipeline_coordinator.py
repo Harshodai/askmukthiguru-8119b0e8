@@ -286,6 +286,7 @@ class PipelineCoordinator:
             user_id=user_id,
             stable_session_id=stable_session_id,
             chat_body_messages=chat_body_messages,
+            followup_hint_user_turn=getattr(chat_body, "_followup_hint_user_turn", None),
             assistant_config_present=assistant_config_present,
             assistant_scope=(
                 assistant_resolution.scope if assistant_resolution is not None else None
