@@ -49,6 +49,10 @@ def test_safety_kernel_acute_crisis_detection():
         assert "14416" in verdict.helpline_response
         assert "Vandrevala Foundation" in verdict.helpline_response
         assert "+91 9999 666 555" in verdict.helpline_response
+        assert "112" in verdict.helpline_response
+        # Invariant: Helplines (14416 and 112) MUST appear within the first 200 characters
+        assert verdict.helpline_response.find("14416") < 200, f"Tele-MANAS offset {verdict.helpline_response.find('14416')} >= 200"
+        assert verdict.helpline_response.find("112") < 200, f"112 offset {verdict.helpline_response.find('112')} >= 200"
 
 
 def test_safety_kernel_obfuscated_crisis_detection():

@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { buildCanonical, PRODUCTION_OG_IMAGE } from '@/lib/domain';
 
 const accentMap: Record<Practice['accent'], { icon: typeof Flame; ring: string; bg: string; text: string }> = {
-  ojas: { icon: Sparkles, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas' },
+  ojas: { icon: Sparkles, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas-ink' },
   prana: { icon: Moon, ring: 'ring-prana/30', bg: 'bg-prana/10', text: 'text-prana' },
   tejas: { icon: Flame, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas-dark' },
   lotus: { icon: Heart, ring: 'ring-ojas-light/30', bg: 'bg-ojas-light/10', text: 'text-ojas-light' },
@@ -173,7 +173,7 @@ const PracticesPage = () => {
                 <div className="flex-1 p-6 sm:p-8 flex flex-col justify-center">
                   <div className="flex items-center gap-1.5 mb-3">
                     <Sparkles className="w-3.5 h-3.5 text-ojas" />
-                    <span className="text-xs font-semibold text-ojas uppercase tracking-widest">
+                    <span className="text-xs font-semibold text-ojas-ink uppercase tracking-widest">
                       {t('practices.dailyWisdom.badge', 'Wisdom of the Day')}
                     </span>
                   </div>

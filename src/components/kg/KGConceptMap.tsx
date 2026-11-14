@@ -1144,7 +1144,7 @@ export const KGConceptMap = ({
                   >
                     <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
                     <span>{badge}</span>
-                    <span className="text-white/40">{count}</span>
+                    <span className="text-white/75">{count}</span>
                   </div>
                 ))}
               </div>
