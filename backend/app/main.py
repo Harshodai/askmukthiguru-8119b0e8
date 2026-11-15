@@ -13,7 +13,9 @@ import re
 import warnings
 
 # Suppress QdrantClient UserWarning when API key is used over internal Docker bridge (http://)
-warnings.filterwarnings("ignore", category=UserWarning, message=".*Api key is used with an insecure connection.*")
+warnings.filterwarnings(
+    "ignore", category=UserWarning, message=".*Api key is used with an insecure connection.*"
+)
 
 faulthandler.enable()
 import os

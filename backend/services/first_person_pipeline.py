@@ -5075,7 +5075,8 @@ class FirstPersonPipeline:
                     if _span_failed_gate:
                         FIRST_PERSON_QUARANTINED_TOTAL.inc()
                         _terminal = (
-                            getattr(settings, "first_person_context_terminal_enabled", False) is True
+                            getattr(settings, "first_person_context_terminal_enabled", False)
+                            is True
                         )
                         logger.warning(
                             "[FirstPersonPipeline] Context harness span failed a serve-time gate for parent %s; %s",

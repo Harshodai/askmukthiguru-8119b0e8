@@ -84,7 +84,6 @@ _DYNAMIC = "<dynamic>"
 
 _GETATTR_DEBT_BASELINE = frozenset(
     {
-        "citation_by_sentence",
         "crag_score_delta_ratio",
         "data_quality_gate_enabled",
         "git_sha",

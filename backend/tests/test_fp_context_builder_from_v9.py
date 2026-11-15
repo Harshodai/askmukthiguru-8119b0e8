@@ -564,4 +564,3 @@ def test_parent_window_contains_every_child_even_when_the_last_span_ends_earlier
         for child in mine:
             assert parent["start_ms"] <= child["start_ms"]
             assert child["end_ms"] <= parent["end_ms"]
-

@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from app.config import settings
 
-
-def test_no_teacher_register_in_general_mode(monkeypatch):
+def test_no_teacher_register_in_general_mode():
     from rag.nodes.generation import _maybe_apply_langhanam_voice
 
-    monkeypatch.setattr(settings, "langhanam_voice_enabled", True)
     base = "BASE PROMPT"
     general = {
         "intent": "FACTUAL",

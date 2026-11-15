@@ -965,9 +965,8 @@ def test_pipeline_rejects_context_when_any_selected_child_fails_a_gate():
     mock_legacy_store.search_hybrid.assert_called_once()
 
 
-def test_provider_relevance_failure_fails_closed_even_with_legacy_opt_in(monkeypatch):
+def test_provider_relevance_failure_fails_closed(monkeypatch):
     """A provider refusal/error cannot fall through to local uncalibrated scoring."""
-    monkeypatch.setattr(settings, "first_person_relevance_fallback_enabled", True)
     monkeypatch.setattr(settings, "first_person_relevance_min_score", 3)
     monkeypatch.setattr(settings, "first_person_relevance_model", "")
 

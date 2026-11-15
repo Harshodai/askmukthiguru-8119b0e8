@@ -67,7 +67,9 @@ async def test_context_retrieval_failure_logging_terminal_mode(mock_pipeline, mo
 
 
 @pytest.mark.asyncio
-async def test_context_retrieval_failure_logging_non_terminal_mode(mock_pipeline, monkeypatch, caplog):
+async def test_context_retrieval_failure_logging_non_terminal_mode(
+    mock_pipeline, monkeypatch, caplog
+):
     pipeline, ctx_store = mock_pipeline
     monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
     monkeypatch.setattr(settings, "first_person_context_terminal_enabled", False)
@@ -98,7 +100,9 @@ async def test_context_retrieval_failure_logging_non_terminal_mode(mock_pipeline
 
 
 @pytest.mark.asyncio
-async def test_context_evaluation_no_direct_answer_terminal_mode(mock_pipeline, monkeypatch, caplog):
+async def test_context_evaluation_no_direct_answer_terminal_mode(
+    mock_pipeline, monkeypatch, caplog
+):
     pipeline, ctx_store = mock_pipeline
     monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
     monkeypatch.setattr(settings, "first_person_context_terminal_enabled", True)
@@ -144,7 +148,9 @@ async def test_context_evaluation_no_direct_answer_terminal_mode(mock_pipeline, 
 
 
 @pytest.mark.asyncio
-async def test_context_evaluation_no_direct_answer_non_terminal_mode(mock_pipeline, monkeypatch, caplog):
+async def test_context_evaluation_no_direct_answer_non_terminal_mode(
+    mock_pipeline, monkeypatch, caplog
+):
     pipeline, ctx_store = mock_pipeline
     monkeypatch.setattr(settings, "first_person_context_harness_enabled", True)
     monkeypatch.setattr(settings, "first_person_context_terminal_enabled", False)
@@ -181,7 +187,6 @@ async def test_context_evaluation_no_direct_answer_non_terminal_mode(mock_pipeli
         )
 
     assert (
-        "Context harness evaluated 1 contexts with no direct answer; "
-        "falling back to legacy"
+        "Context harness evaluated 1 contexts with no direct answer; falling back to legacy"
     ) in caplog.text
     assert res is None

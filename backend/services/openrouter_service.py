@@ -700,13 +700,12 @@ class OpenRouterService:
         # app code controls. Kept because it is correct per the docs and costs
         # nothing. Do NOT re-derive this: re-measure cached_tokens first.
         session_id = kwargs.get("session_id")
-        if session_id and settings.openrouter_sticky_session_routing_enabled:
+        if session_id:
             payload["session_id"] = session_id
         headers = {}
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
-        if getattr(settings, "openrouter_cache_enabled", True):
-            headers["X-OpenRouter-Cache"] = "true"
+        headers["X-OpenRouter-Cache"] = "true"
 
         attempt_count = 0
         call_started = time.perf_counter()
@@ -1246,7 +1245,7 @@ class OpenRouterService:
         if temperature is not None:
             payload["temperature"] = temperature
         session_id = kwargs.get("session_id")
-        if session_id and settings.openrouter_sticky_session_routing_enabled:
+        if session_id:
             payload["session_id"] = session_id
 
         if not self._circuit.can_execute():
@@ -1537,15 +1536,14 @@ class OpenRouterService:
         if temperature is not None:
             payload["temperature"] = temperature
         session_id = kwargs.get("session_id")
-        if session_id and settings.openrouter_sticky_session_routing_enabled:
+        if session_id:
             payload["session_id"] = session_id
 
         is_anthropic = ("anthropic/" in model or "claude" in model) and self._prompt_caching_enabled
         headers = {}
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
-        if getattr(settings, "openrouter_cache_enabled", True):
-            headers["X-OpenRouter-Cache"] = "true"
+        headers["X-OpenRouter-Cache"] = "true"
 
         if not self._circuit.can_execute():
             # Circuit open means "stop contacting OpenRouter" — a fallback that

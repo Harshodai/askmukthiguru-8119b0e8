@@ -1,7 +1,5 @@
 """Regression guard: connection secrets and raw anonymous ids must never reach logs."""
 
-import logging
-
 from app.sanitization import pseudonymize_identity, redact_url_credentials
 
 
@@ -53,7 +51,9 @@ def test_coalescer_failure_message_is_masked(monkeypatch):
     monkeypatch.setattr(coalescer, "logger", fake_logger)
     monkeypatch.setattr(coalescer, "RedisCoalescer", boom)
     coalescer.build_coalescer("redis://:s3cr3t@localhost:6379/0")
-    logged = " ".join(str(part) for call in fake_logger.warning.call_args_list for part in call.args)
+    logged = " ".join(
+        str(part) for call in fake_logger.warning.call_args_list for part in call.args
+    )
     assert "s3cr3t" not in logged
     assert "redis://***@localhost:6379/0" in logged
 

@@ -14,15 +14,15 @@ from typing import Optional
 from domain.first_person_evidence import EvidenceAction, EvidenceDecision
 from domain.first_person_safety import SAFETY_POLICY_VERSION
 from services.first_person_content_assessment import (
+    AUTHENTIC_ORAL_OPENER_RE,
     CONTENT_ASSESSMENT_VERSION,
     CORE_WISDOM_OPENER_RE,
     DANGLING_QUESTION_TAIL_RE,
-    AUTHENTIC_ORAL_OPENER_RE,
     DISCOURSE_ACKNOWLEDGMENT_RE,
     EVENT_MARKER_RE,
     GRAPHIC_VIOLENCE_RE,
     HEALTH_CLAIM_RE,
-    MEDICAL_CLAIM_NOTICE,
+    MEDICAL_CLAIM_NOTICE,  # noqa: F401  re-exported; tests import it from this module
     ORPHAN_OPENER_RE,
     SELF_HARM_RE,
     VIOLENCE_WORDING_RE,
@@ -81,11 +81,7 @@ def assess_guru_lineage(
     req = (requested_teacher or "").strip().lower()
     shared = _shared_lineage_ids()
     if req and not is_shared_guru_scope(req):
-        if any(
-            gid != req
-            and not (req in shared and gid in shared)
-            for gid in gurus
-        ):
+        if any(gid != req and not (req in shared and gid in shared) for gid in gurus):
             return False, "cross_guru_contamination"
     if len(gurus) <= 1:
         return True, None
@@ -295,7 +291,11 @@ def _clip_length_problem(
         return value if isinstance(value, int) and not isinstance(value, bool) else default
 
     words = len(text.split())
-    min_limit = 18 if is_context else _real_int(getattr(settings_override, "first_person_min_answer_words", 23), 23)
+    min_limit = (
+        18
+        if is_context
+        else _real_int(getattr(settings_override, "first_person_min_answer_words", 23), 23)
+    )
     max_limit = (
         _real_int(getattr(settings_override, "first_person_max_context_words", 600), 600)
         if is_context
@@ -373,17 +373,14 @@ def _standalone_problem(
         return "ends_mid_sentence"
     if _THIN_REPETITIVE_LOOP_RE.search(text):
         return "thin_repetitive_loop"
-    if (
-        re.search(
-            r"\b(?:there\s+are\s+)?(?:two|three)\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
-            text,
-            re.IGNORECASE,
-        )
-        and not re.search(
-            r"\b(?:second|secondly|the\s+other\s+(?:one|way|thing|step|aspect|reason|factor|is)|another\s+(?:way|aspect|step|thing|reason))\b",
-            text,
-            re.IGNORECASE,
-        )
+    if re.search(
+        r"\b(?:there\s+are\s+)?(?:two|three)\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
+        text,
+        re.IGNORECASE,
+    ) and not re.search(
+        r"\b(?:second|secondly|the\s+other\s+(?:one|way|thing|step|aspect|reason|factor|is)|another\s+(?:way|aspect|step|thing|reason))\b",
+        text,
+        re.IGNORECASE,
     ):
         return "dangling_enumeration"
     if _HEALTH_CLAIM_RE.search(text):
@@ -426,6 +423,7 @@ def _context_standalone_problem(
     # object get the right thresholds without touching this function.
     try:
         from app.config import settings as _cfg
+
         _min = int(getattr(_cfg, "first_person_min_answer_words", 23))
         _max = int(getattr(_cfg, "first_person_max_context_words", 600))
     except (ImportError, AttributeError, ValueError, TypeError):
@@ -462,24 +460,23 @@ def _context_standalone_problem(
     # are identical (case-insensitive, stripped), it is a looping ASR artifact.
     # The 90 % threshold is generous enough to pass a repeated refrain in genuine
     # discourse while catching tight mechanical decoder loops.
-    _sentences = [s.strip().lower() for s in re.split(r"(?<=[.!?।॥])\s+", stripped_whole) if s.strip()]
+    _sentences = [
+        s.strip().lower() for s in re.split(r"(?<=[.!?।॥])\s+", stripped_whole) if s.strip()
+    ]
     if len(_sentences) >= 10:
         from collections import Counter
 
         _most_common_count = Counter(_sentences).most_common(1)[0][1]
         if _most_common_count / len(_sentences) >= 0.9:
             return "thin_repetitive_loop"
-    if (
-        re.search(
-            r"\b(?:there\s+are\s+)?(?:two|three)\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
-            whole,
-            re.IGNORECASE,
-        )
-        and not re.search(
-            r"\b(?:second|secondly|the\s+other\s+(?:one|way|thing|step|aspect|reason|factor|is)|another\s+(?:way|aspect|step|thing|reason))\b",
-            whole,
-            re.IGNORECASE,
-        )
+    if re.search(
+        r"\b(?:there\s+are\s+)?(?:two|three)\s+(?:ways|things|aspects|steps|reasons|factors|paths)\b",
+        whole,
+        re.IGNORECASE,
+    ) and not re.search(
+        r"\b(?:second|secondly|the\s+other\s+(?:one|way|thing|step|aspect|reason|factor|is)|another\s+(?:way|aspect|step|thing|reason))\b",
+        whole,
+        re.IGNORECASE,
     ):
         return "dangling_enumeration"
     if not semantically_verified:
@@ -528,7 +525,8 @@ def _violent_for_context(query: str, text: str, retrieval_query: str = "") -> bo
 def _self_harm_for_context(query: str, text: str) -> bool:
     """True when a clip introduces self-harm terms the query did not request."""
     finding = any(
-        f.code == "unsolicited_self_harm_reference" for f in assess_content(text, query=query).findings
+        f.code == "unsolicited_self_harm_reference"
+        for f in assess_content(text, query=query).findings
     )
     return finding
 
@@ -550,7 +548,9 @@ class FirstPersonEvidencePolicy:
         """
         assessment = assess_content(text, query=query, retrieval_query=retrieval_query)
         reasons: list[str] = list(assessment.reason_codes)
-        if _EXTERNAL_TEACHER_RE.search(query) or (bool(retrieval_query) and _EXTERNAL_TEACHER_RE.search(retrieval_query)):
+        if _EXTERNAL_TEACHER_RE.search(query) or (
+            bool(retrieval_query) and _EXTERNAL_TEACHER_RE.search(retrieval_query)
+        ):
             reasons.append("external_teacher_or_tradition")
         # Lazy import: first_person_safety_policy imports the regex vocabulary
         # from this module, so importing it at module scope would form a cycle.
@@ -603,9 +603,9 @@ class FirstPersonEvidencePolicy:
         if texts_tuple:
             first_obj = texts_tuple[0]
             if is_complete_thought is None and hasattr(first_obj, "is_complete_thought"):
-                is_complete_thought = getattr(first_obj, "is_complete_thought")
+                is_complete_thought = first_obj.is_complete_thought
             if is_standalone is None and hasattr(first_obj, "is_standalone"):
-                is_standalone = getattr(first_obj, "is_standalone")
+                is_standalone = first_obj.is_standalone
             if is_verified_parent is None and (
                 hasattr(first_obj, "parent_unit_id")
                 or getattr(first_obj, "parent_unit_id", None) is not None
@@ -637,10 +637,7 @@ class FirstPersonEvidencePolicy:
         content_safety: str | None = None,
     ) -> tuple[str, ...]:
         """Platform copy required for a clip that passed the gate (never teacher words)."""
-        return notice_copy(
-            assess_content(text, query=query, content_safety=content_safety)
-        )
-
+        return notice_copy(assess_content(text, query=query, content_safety=content_safety))
 
 
 first_person_evidence_policy = FirstPersonEvidencePolicy()

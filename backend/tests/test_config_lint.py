@@ -57,8 +57,6 @@ def test_newly_declared_settings_fields_exist():
     # RAG / CRAG
     assert hasattr(settings, "crag_score_delta_ratio")
     assert settings.crag_score_delta_ratio == 0.5
-    assert hasattr(settings, "citation_by_sentence")
-    assert settings.citation_by_sentence is True
 
     # Auth & Redis
     assert hasattr(settings, "supabase_service_role_key")

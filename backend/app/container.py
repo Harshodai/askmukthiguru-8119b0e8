@@ -627,39 +627,30 @@ class ServiceContainer:
             self.serene_mind = None
             logger.info("Serene Mind Engine disabled via config (SERENE_MIND_ENABLED=false)")
 
-        if settings.user_profile_enabled:
-            self.user_profile = UserProfileService(supabase_client=self.supabase_client)
-            self.memory_service = MemoryServiceV2(
-                supabase_client=self.supabase_client,
-                embedding_service=self.embedding,
-                llm_service=self.llm,
-                neo4j_driver_accessor=lambda: self.neo4j_driver,
-            )
-            # Fix: global_memory collection was never created — every
-            # set_global_memory/search_global call silently failed. Idempotent.
-            self.memory_service.ensure_global_memory_collection()
-            from services.memory import EpisodicMemoryService
-            from services.notebook_service import NotebookService
+        self.user_profile = UserProfileService(supabase_client=self.supabase_client)
+        self.memory_service = MemoryServiceV2(
+            supabase_client=self.supabase_client,
+            embedding_service=self.embedding,
+            llm_service=self.llm,
+            neo4j_driver_accessor=lambda: self.neo4j_driver,
+        )
+        # Fix: global_memory collection was never created — every
+        # set_global_memory/search_global call silently failed. Idempotent.
+        self.memory_service.ensure_global_memory_collection()
+        from services.memory import EpisodicMemoryService
+        from services.notebook_service import NotebookService
 
-            # ponytail: reuse the same supabase_client built above — no new connection.
-            self.episodic_memory_service = EpisodicMemoryService(
-                supabase_client=self.supabase_client
-            )
-            self.notebook_service = NotebookService(supabase_client=self.supabase_client)
-            from services.srs_service import SRSService
+        # ponytail: reuse the same supabase_client built above — no new connection.
+        self.episodic_memory_service = EpisodicMemoryService(supabase_client=self.supabase_client)
+        self.notebook_service = NotebookService(supabase_client=self.supabase_client)
+        from services.srs_service import SRSService
 
-            self.srs_service = SRSService(
-                supabase_client=self.supabase_client,
-                ollama_service=self.llm,
-                guardrails_service=self.guardrails,
-                translation_service=self.translation,
-            )
-        else:
-            self.user_profile = None
-            self.memory_service = None
-            self.episodic_memory_service = None
-            self.notebook_service = None
-            self.srs_service = None
+        self.srs_service = SRSService(
+            supabase_client=self.supabase_client,
+            ollama_service=self.llm,
+            guardrails_service=self.guardrails,
+            translation_service=self.translation,
+        )
 
         # --- Canonical memory: read path ---
         # The store, its API, audit trail and RLS all worked, but nothing in the

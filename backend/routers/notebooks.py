@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from app.dependencies import ServiceContainer, get_container
+from app.dependencies import ServiceContainer, get_container_async
 from services.auth_service import get_current_user_from_supabase
 
 router = APIRouter(tags=["Notebooks"])
@@ -48,7 +48,7 @@ class UpdateNotebookItemRequest(BaseModel):
 async def create_notebook(
     body: CreateNotebookRequest,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
@@ -62,7 +62,7 @@ async def create_notebook(
 @router.get("/notebooks")
 async def list_notebooks(
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
@@ -74,7 +74,7 @@ async def list_notebooks(
 async def delete_notebook(
     notebook_id: str,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
@@ -89,7 +89,7 @@ async def add_item(
     notebook_id: str,
     body: NotebookItemRequest,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
@@ -108,7 +108,7 @@ async def update_item(
     item_id: str,
     body: UpdateNotebookItemRequest,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:
@@ -124,7 +124,7 @@ async def list_items(
     notebook_id: str,
     limit: int = 50,
     user: dict = Depends(get_current_user_from_supabase),
-    container: ServiceContainer = Depends(get_container),
+    container: ServiceContainer = Depends(get_container_async),
 ):
     svc = getattr(container, "notebook_service", None)
     if not svc or not svc.available:

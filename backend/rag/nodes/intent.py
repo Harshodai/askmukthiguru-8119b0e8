@@ -101,15 +101,13 @@ def _fast_classify(question: str) -> dict | None:
 
 
 def _cache_hint(intent: str) -> dict:
-    """E3.1: emit cache_preferred hint for cache-friendly intents when enabled.
+    """E3.1: emit cache_preferred hint for cache-friendly intents.
 
     The pipeline cache stage (CacheCheckStage) already short-circuits on hit
     regardless of intent. This hint is informational — it lets downstream
     observability / future cache-tier logic know the router expected a
-    cacheable query. Minimal: only adds the key when the flag is on.
+    cacheable query.
     """
-    if not getattr(settings, "intent_prerouter_cache_hint_enabled", False):
-        return {}
     if intent in ("FACTUAL", "CASUAL"):
         return {"cache_preferred": True}
     return {}
@@ -1118,9 +1116,8 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     # "The meditation is complete. Thank you for practicing with me." This guard
     # demotes MEDITATION → FACTUAL when there is no active session AND the user
     # message is not imperative.
-    demote_enabled = getattr(settings, "intent_demote_meditation_on_interrogative", True)
     active_meditation = meditation_step > 0
-    if intent == "MEDITATION" and demote_enabled and not active_meditation:
+    if intent == "MEDITATION" and not active_meditation:
         if not is_meditation_imperative(question):
             logger.info(
                 "Intent Router: demoting LLM-classified MEDITATION to FACTUAL "

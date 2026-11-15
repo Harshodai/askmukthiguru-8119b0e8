@@ -118,12 +118,9 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
         rerank_top_k = _TIER_TOP_K.get(query_tier, getattr(settings, "rag_top_k_rerank", 10))
 
         # For complex queries: prefer cross-encoder (higher precision) over FlashRank
-        # when reranker_enabled_for_complex is True. FlashRank is ~5× faster but
-        # sacrifices recall for multi-hop / nuanced doctrinal queries.
-        force_cross_encoder = (
-            getattr(settings, "reranker_enabled_for_complex", True)
-            and query_tier == "tier3_complex"
-        )
+        # FlashRank is ~5× faster but sacrifices recall for multi-hop / nuanced
+        # doctrinal queries.
+        force_cross_encoder = query_tier == "tier3_complex"
 
         rerank_bypassed = False
         rerank_candidates = _limit_rerank_candidates(db_docs, query_tier)
@@ -138,9 +135,7 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
             default=0.0,
         )
         bypass_threshold = float(getattr(settings, "rerank_bypass_threshold", 0.85))
-        bypass_enabled = getattr(settings, "rerank_bypass_high_confidence_enabled", True)
-        if getattr(settings, "is_production", False):
-            bypass_enabled = False
+        bypass_enabled = not getattr(settings, "is_production", False)
 
         if (
             bypass_enabled

@@ -496,7 +496,9 @@ def init_observability(app: FastAPI) -> bool:
 
         current_provider = trace.get_tracer_provider()
         if isinstance(current_provider, TracerProvider):
-            logger.info("OpenTelemetry TracerProvider already registered globally; reusing existing provider.")
+            logger.info(
+                "OpenTelemetry TracerProvider already registered globally; reusing existing provider."
+            )
         else:
             trace.set_tracer_provider(provider)
 

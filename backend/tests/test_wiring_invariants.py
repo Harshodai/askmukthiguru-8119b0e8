@@ -59,10 +59,6 @@ ALLOWED_DEAD_SETTINGS: set[str] = {
 # in ingestion/web_ingest_pipeline.py:130-160). The scan regexes were widened
 # and they no longer appear dead.
 KNOWN_EXTRA_DEAD: dict[str, str] = {
-    "first_person_relevance_fallback_enabled": (
-        "Compatibility-only switch; deliberately ignored because the uncalibrated fallback is "
-        "retired and provider failure must remain relevance-indeterminate."
-    ),
     "qdrant_write_api_key": (
         "T3-02: consumed by docker-compose (QDRANT__SERVICE__API_KEY) only; no Python "
         "write path reads it yet (open: wire the builders to the write key)"
@@ -81,7 +77,6 @@ NEVER_FLAG_DEAD: set[str] = {
     "guru_voice_mode",
     "guru_voice_gate_score",
     "guru_voice_benchmark_output",
-    "langhanam_voice_enabled",
     "llm_judge_provider_model",
     "llm_judge_session_prefix",
     "embedding_dimension",

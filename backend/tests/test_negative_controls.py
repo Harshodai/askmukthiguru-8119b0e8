@@ -10,7 +10,9 @@ _FILE = Path(__file__).resolve().parents[2] / "evals" / "first_person" / "negati
 
 
 def _controls():
-    return [json.loads(line) for line in _FILE.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [
+        json.loads(line) for line in _FILE.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
 
 
 def test_file_exists_and_has_one_control_per_frozen_question():

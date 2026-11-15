@@ -1,10 +1,8 @@
 """Unit tests for OKF in-memory concept expansion (memory/okf/compiled.json)."""
 
-from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
-import pytest
 
 from services.first_person_okf_expansion import expand_concepts_via_okf
 

@@ -25,7 +25,9 @@ def test_score_below_minimum_names_the_minimum():
 
 
 def test_unanswerable_question_is_named():
-    assert rejection_reason([_score(0, 3)], answerable=False, minimum=3) == "question_not_answerable"
+    assert (
+        rejection_reason([_score(0, 3)], answerable=False, minimum=3) == "question_not_answerable"
+    )
 
 
 def test_passing_clip_is_marked_passed():

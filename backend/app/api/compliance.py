@@ -55,7 +55,7 @@ async def _get_container_safely() -> Optional[ServiceContainer]:
         return None
 
 
-def _require_admin(user: dict = Depends(require_aal2)) -> dict:
+async def _require_admin(user: dict = Depends(require_aal2)) -> dict:
     """Gate: only superusers can access compliance endpoints."""
     if not user.get("is_superuser"):
         raise HTTPException(status_code=403, detail="Admin access required")
