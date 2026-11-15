@@ -30,7 +30,7 @@ Add a row before a paid step (planned) and complete it after (ledger before and 
 | 2026-11-14 | Other session's persona and acceptance probes after graded-8 (not planned in this log) | none | 130.2055 | 130.3711 (read 16:5x UTC) | 0.1656 | about 9.2 |
 
 | 2026-11-15 | DONE: stack rebuild at `87d4af4d` (warm-up) and five-path probe after the flag removal and legacy-tail move; includes any use by other sessions since the last read | verification of a refactor of the serving file | 130.3711 | 130.6801 | 0.3090 | about 9.5 |
-| 2026-11-15 | PLANNED: graded-9 capture (202 rows) and dual grading across served answers | graded-9 registration | 130.6801 | [pending run] | planned up to 12.00 capture + 8.00 grading | about 9.5 (cap 90) |
+| 2026-11-15 | DONE: graded-9 capture (202 rows); marked invalid due to OpenRouter 401 User not found on API key; unanswerable set 86/86 pass, 7/7 crisis | graded-9 registration | 133.0501 | 143.6101 | 10.5600 (unreported reservations kept) | about 9.5 actual / 20.1 ledger (cap 90) |
 
 Graded-7 total against its stop rule of 25: about 4.3. Graded-8 total against its stop rule of 25: about 4.3.
 Engagement total against the cap of 90: about 9.2 (ledger 123.0053 to 130.3711 is 7.37; the two grading passes are estimates on top).
