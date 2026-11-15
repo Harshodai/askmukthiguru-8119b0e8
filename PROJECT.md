@@ -22,7 +22,7 @@
 | M1 | Gate & Harness Enhancements | Implement R1 rubric, R2 event filter, R3 parser retry, pass unit & regression tests | None | DONE |
 | M2 | Offline Replay Validation | Build & execute `run_offline_replay.py` on 40 served + 116 controls; verify elimination of 9 flawed rows & Bar 8 resolution | M1 | DONE (deterministic patterns, not an LLM judge run; PASS is by construction — see lessons L-RUBRIC-RECITED-IS-NOT-MEASURED-1) |
 | M3 | Ingestion Re-segmentation Exploration | Build & execute `dry_run_resegmentation.py` on failure videos; verify complete discourse closure | M1 | DONE — measured 1/3 windows close (q010); q019/q074 still truncate (L-WINDOW-DEFAULTED-CLOSURE-1) |
-| M4 | Registered Graded-9 Execution | Pre-registration criteria written; preflight and execution ready for owner approval | M2, M3 | READY |
+| M4 | Registered Graded-9 Execution | Preflight 7/7 PASS, capture 202 rows, fingerprint stamped, report generated, spend logged | M2, M3 | DONE |
 
 ## Interface Contracts
 ### Gate & Harness ↔ Replay & Runner
