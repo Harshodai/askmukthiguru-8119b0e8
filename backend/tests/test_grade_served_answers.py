@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 
 from scripts.ops.grade_served_answers import (
+    RUBRIC,
     agreement,
+    ask_and_parse_with_retry,
     evaluate_bar,
     grade_rows,
     parse_grade,
@@ -1033,3 +1035,81 @@ def test_subprocess_offline_fallback_with_key_present(tmp_path):
     assert offline_data["evaluation_mode"] == "offline_fallback"
     assert offline_data["status"] == "PASS"
     assert offline_data["pass"] is True
+
+
+def test_rubric_enforces_stricter_directness_and_completeness_criteria():
+    """Verify that RUBRIC explicitly includes all negative completeness and directness criteria."""
+    assert "SPECIFIC QUESTION NOT ANSWERED" in RUBRIC
+    assert "INCOMPLETE LIST / ENUMERATION" in RUBRIC
+    assert "UNCONCLUDED ANALOGY / PARABLE" in RUBRIC
+    assert "DANGLING INTRO / MISSING CONTEXT" in RUBRIC
+    assert "CUT-OFF ARGUMENT" in RUBRIC
+    assert "EVENT-BOUND / PROMOTIONAL" in RUBRIC
+
+
+def test_ask_and_parse_with_retry_succeeds_on_first_try():
+    calls = []
+
+    def mock_ask(system: str, prompt: str) -> str:
+        calls.append((system, prompt))
+        return json.dumps({"verdict": "showable", "harmful": False, "reason": "all good"})
+
+    result = ask_and_parse_with_retry(
+        mock_ask, "SYSTEM_RUBRIC", "QUESTION_PROMPT", row_id="r1", max_attempts=3, backoff=0.0
+    )
+    assert len(calls) == 1
+    assert result["verdict"] == "showable"
+    assert result["harmful"] is False
+    assert result["reason"] == "all good"
+
+
+def test_ask_and_parse_with_retry_recovers_after_unparseable_attempt():
+    calls = []
+
+    def mock_ask(system: str, prompt: str) -> str:
+        calls.append(prompt)
+        if len(calls) == 1:
+            return "I am thinking... <thought>not json</thought>"
+        return json.dumps({"verdict": "showable", "harmful": False, "reason": "recovered successfully"})
+
+    result = ask_and_parse_with_retry(
+        mock_ask, "SYSTEM_RUBRIC", "QUESTION_PROMPT", row_id="r1", max_attempts=3, backoff=0.0
+    )
+    assert len(calls) == 2
+    assert "CRITICAL: Your previous response was not valid JSON." in calls[1]
+    assert result["verdict"] == "showable"
+    assert result["reason"] == "recovered successfully"
+
+
+def test_ask_and_parse_with_retry_exhausts_retries_returns_unsure():
+    calls = []
+
+    def mock_ask(system: str, prompt: str) -> str:
+        calls.append(prompt)
+        return "Not valid JSON at all"
+
+    result = ask_and_parse_with_retry(
+        mock_ask, "SYSTEM_RUBRIC", "QUESTION_PROMPT", row_id="r1", max_attempts=3, backoff=0.0
+    )
+    assert len(calls) == 3
+    assert result["verdict"] == "unsure"
+    assert result["reason"] == "grader_output_unparseable"
+
+
+def test_grade_rows_retries_and_recovers_unparseable_row():
+    rows = [{"id": "r1", "question": "q", "answer": "a", "citations": [{"text": "c"}]}]
+    first_calls = []
+
+    def mock_first(system: str, prompt: str) -> str:
+        first_calls.append(prompt)
+        if len(first_calls) == 1:
+            return "random garbage text"
+        return json.dumps({"verdict": "showable", "harmful": False, "reason": "first pass ok"})
+
+    def mock_second(system: str, prompt: str) -> str:
+        return json.dumps({"verdict": "showable", "harmful": False, "reason": "second pass ok"})
+
+    out = grade_rows(rows, mock_first, mock_second, sample_fraction=1.0, backoff=0.0)
+    assert len(first_calls) == 2
+    assert out["first"]["r1"]["verdict"] == "showable"
+    assert out["final"]["r1"]["verdict"] == "showable"

@@ -255,7 +255,11 @@ async def test_stage_routes_worldly_question_to_domain_boundary(monkeypatch) -> 
     assert result.citations == []
 
     # With domain boundary disabled, falls back to legacy general_knowledge_mode
+    # (general-assistant mode: fallback on).
+    from app.config import settings
+
     monkeypatch.setattr(mod, "off_topic_domain_boundary_enabled", lambda: False)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     ctx_legacy = _build_ctx("What is the capital of France?")
     result_legacy = await OffTopicStage().run(ctx_legacy)
     assert result_legacy is None
@@ -300,17 +304,31 @@ async def test_unknown_life_questions_default_to_teaching(monkeypatch, question)
 
 
 @pytest.mark.asyncio
-async def test_inner_help_exempts_domain_boundary_when_task_cue_present(monkeypatch) -> None:
-    """An emotional-help cue is not refused by the domain boundary despite a task cue."""
+async def test_inner_help_task_cue_requires_general_assistant_mode(monkeypatch) -> None:
+    """An inner-help cue keeps the general lane only when generation is enabled."""
     import app.pipeline.stages.off_topic_stage as mod
     from app.config import settings
 
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", False)
-    ctx = _build_ctx("Help me write a report on staying nervous before an exam")
-    # No static domain-boundary refusal: the inner-help cue keeps the general lane.
+    question = "Help me write a report on staying nervous before an exam"
+
+    # General-assistant mode (fallback on): the inner-help cue keeps the general lane.
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    ctx = _build_ctx(question)
     assert await OffTopicStage().run(ctx) is None
     assert ctx.state.get("domain_route") == "general"
+
+    # First-person-only posture (A-34, 2026-11-15): no generated prose. The
+    # existing domain-boundary refusal answers instead.
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    ctx_fp = _build_ctx(question)
+    result = await OffTopicStage().run(ctx_fp)
+    assert result is not None
+    assert result.route_decision == "off_topic_domain_boundary"
+    assert result.final_answer == build_off_topic_response()
+    assert result.citations == []
+    assert not ctx_fp.state.get("general_knowledge_mode")
 
 
 @pytest.mark.asyncio
@@ -597,6 +615,8 @@ async def test_indic_unrelated_query_routes_to_general_answering(monkeypatch) ->
     monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
     monkeypatch.setattr(mod, "off_topic_domain_boundary_enabled", lambda: False)
     monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", False)
+    # General-assistant mode: a worldly question leaves the teaching route.
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
 
     # Worldly question in Hindi: "What is the capital of France?" (no spiritual cue)
     ctx = _build_ctx("फ्रांस की राजधानी क्या है?")
@@ -994,5 +1014,74 @@ async def test_general_lane_still_open_when_the_llm_fallback_is_enabled(monkeypa
     monkeypatch.setattr(mod, "off_topic_domain_boundary_enabled", lambda: True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
     ctx = _build_ctx("How many calories does a 20-minute Soul Sync session burn?")
+    assert await OffTopicStage().run(ctx) is None
+    assert ctx.state.get("general_knowledge_mode") is True
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_live_research_without_generation_stays_on_teaching_lane(
+    monkeypatch,
+) -> None:
+    """A-34: live research is generated prose, so fallback-off keeps the verbatim lane.
+
+    The question is a spiritual candidate, so the domain-boundary copy ("outside
+    spiritual wisdom and teaching domain") would misdescribe it — the earlier
+    fail-closed branch returned exactly that text.
+    """
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", True)
+    mock_router = MagicMock()
+    mock_router.classify = AsyncMock(
+        return_value={
+            "intent": "FACTUAL",
+            "domain_route": "live_research",
+            "general_knowledge_mode": True,
+            "needs_web_search": True,
+            "query_tier": "tier2_simple",
+            "confidence": 0.93,
+            "latency_ms": 70.0,
+        }
+    )
+    monkeypatch.setattr(
+        "services.jev_router_service.JevRouterService",
+        lambda **kwargs: mock_router,
+    )
+    question = "Can meditation help with anxiety?"
+    assert is_spiritual_domain_query(question)
+
+    # First-person-only posture: no generated prose, no domain-boundary mislabel.
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    ctx_fp = _build_ctx(question)
+    assert await OffTopicStage().run(ctx_fp) is None
+    assert not ctx_fp.state.get("general_knowledge_mode")
+    assert ctx_fp.state["domain_route"] == "teaching"
+
+    # General-assistant mode: unchanged (live research answers with generation).
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    ctx_general = _build_ctx(question)
+    assert await OffTopicStage().run(ctx_general) is None
+    assert ctx_general.state["general_knowledge_mode"] is True
+    assert ctx_general.state["needs_web_search"] is True
+
+
+@pytest.mark.asyncio
+async def test_moderate_distress_carve_out_survives_a_plain_int_level(monkeypatch) -> None:
+    """A hand-built context may carry level=2 (int); the carve-out must still fire."""
+    from types import SimpleNamespace
+
+    import app.pipeline.stages.off_topic_stage as mod
+    from app.config import settings
+
+    monkeypatch.setattr(mod, "off_topic_handler_enabled", lambda: True)
+    monkeypatch.setattr(settings, "intent_router_ambiguous_domain_enabled", False)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+
+    question = "Help me write a report on staying nervous before an exam"
+    ctx = _build_ctx(question)
+    ctx.assessment = SimpleNamespace(level=2)
+
     assert await OffTopicStage().run(ctx) is None
     assert ctx.state.get("general_knowledge_mode") is True

@@ -209,3 +209,97 @@ def test_deterministic_self_harm_preempts_regardless_of_semantic_clean():
     assessment = assess_content(text, query=BENIGN_QUERY, content_safety="clean")
     assert assessment.may_serve is False
     assert "unsolicited_self_harm_reference" in assessment.exclusion_codes
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Ahead of us is Manifest family harmony.",
+        "This Manifest you would be journeying into birthing loving families.",
+        "Ahead of us is Manifest Family Harmony.",
+        "I will lead you and your families into a space of healing of hearts.",
+        "We will lead your family into greater connection.",
+        "Join us for the upcoming webinar next month.",
+        "Please register for the upcoming retreat.",
+        "Register now for Manifest family harmony.",
+        "Welcome to this gathering and retreat.",
+        "This Manifest journey is to bring back love into your families.",
+        "In this upcoming manifest event we will explore connection.",
+    ],
+)
+def test_promotional_and_upcoming_event_markers_require_review(text):
+    assessment = assess_content(text, query=BENIGN_QUERY)
+    assert assessment.requires_review is True
+    assert EVENT_BOUND_CODE in assessment.review_codes
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "In ancient wisdom, the manifest universe emerges from the unmanifest.",
+        "The manifest world is a reflection of consciousness.",
+        "All of the manifest reality is interconnected.",
+        "When you are in a beautiful state, your mind is calm and peaceful.",
+        "Stillness is the nature of awareness.",
+        "Understanding your mind brings clarity and freedom.",
+        "This manifest youth is seeking truth.",
+        "This manifest candidate had doubts.",
+        "When you register anger in your body, be aware.",
+        "Do you register the sorrow of humanity?",
+        # Review 2026-11-15: two false positives the first version quarantined.
+        "This manifest can be seen as the play of consciousness.",
+        "I will lead you through a simple breathing practice.",
+    ],
+)
+def test_promotional_filter_does_not_flag_standard_spiritual_guidance(text):
+    assessment = assess_content(text, query=BENIGN_QUERY)
+    assert EVENT_BOUND_CODE not in assessment.review_codes
+
+
+def test_promotional_marker_boundary_and_cognitive_register_regressions():
+    """Verify word boundary fix on 'this manifest' and non-promotional 'register' verbs."""
+    # Negative cases: cognitive / contemplative phrasing must NOT trigger EVENT_BOUND_CODE
+    assert (
+        EVENT_BOUND_CODE
+        not in assess_content(
+            "This manifest youth is seeking truth.", query=BENIGN_QUERY
+        ).review_codes
+    )
+    assert (
+        EVENT_BOUND_CODE
+        not in assess_content(
+            "This manifest candidate had doubts.", query=BENIGN_QUERY
+        ).review_codes
+    )
+    assert (
+        EVENT_BOUND_CODE
+        not in assess_content(
+            "When you register anger in your body, be aware.", query=BENIGN_QUERY
+        ).review_codes
+    )
+    assert (
+        EVENT_BOUND_CODE
+        not in assess_content(
+            "Do you register the sorrow of humanity?", query=BENIGN_QUERY
+        ).review_codes
+    )
+
+    # Positive cases: promotional / upcoming-program phrasing MUST trigger EVENT_BOUND_CODE
+    assert (
+        EVENT_BOUND_CODE
+        in assess_content(
+            "Ahead of us is Manifest family harmony.", query=BENIGN_QUERY
+        ).review_codes
+    )
+    assert (
+        EVENT_BOUND_CODE
+        in assess_content(
+            "Please register for the upcoming retreat.", query=BENIGN_QUERY
+        ).review_codes
+    )
+    assert (
+        EVENT_BOUND_CODE
+        in assess_content(
+            "Register now for Manifest family harmony.", query=BENIGN_QUERY
+        ).review_codes
+    )

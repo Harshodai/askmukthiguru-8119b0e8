@@ -38,8 +38,7 @@ from neo4j import AsyncGraphDatabase  # noqa: E402
 
 from app.config import settings  # noqa: E402
 from services.embedding_service import EmbeddingService  # noqa: E402
-from services.gateways import SarvamHTTPGateway  # noqa: E402
-from services.sarvam_service import SarvamService  # noqa: E402
+from services.sarvam_service import SarvamCloudService  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -281,22 +280,20 @@ def find_merge_candidates(
 
 
 # ---------------------------------------------------------------------------
-# LLM confirmation via SarvamService
+# LLM confirmation via SarvamCloudService
 # ---------------------------------------------------------------------------
 # ponytail: global singleton, created once at startup, not per-pair.
 # Per-pair LLM calls are the configurable bottleneck; increase batch size
 # later if throughput matters.
-_llm_service: SarvamService | None = None
-_gateway: SarvamHTTPGateway | None = None
+_llm_service: SarvamCloudService | None = None
 
 
 def _init_llm() -> None:
-    """Instantiate SarvamService once (safe to call multiple times)."""
-    global _llm_service, _gateway
+    """Instantiate SarvamCloudService once (safe to call multiple times)."""
+    global _llm_service
     if _llm_service is not None:
         return
-    _gateway = SarvamHTTPGateway()
-    _llm_service = SarvamService(_gateway)
+    _llm_service = SarvamCloudService()
 
 
 def _llm_confirm(a_name: str, b_name: str) -> bool:

@@ -426,18 +426,73 @@ class OffTopicStage(Stage):
             },
         )
 
+    def _fail_closed_general_answer(self, ctx, question: str) -> PipelineResult | None:
+        """No generated prose for a non-carve-out turn on the first-person-only posture.
+
+        A-34 (2026-11-15): with ``FIRST_PERSON_LLM_FALLBACK_ENABLED`` off, a
+        general-task turn that reached the general lane got model-written prose
+        (``grounding_state="unverified"``), though invariant 21 lists only
+        crisis/blocked topics, MODERATE+ distress, meditation and greetings as
+        carve-outs. Reuse the existing domain-boundary refusal (same route,
+        reply text and provenance); when that refusal is switched off, keep the
+        turn on the teaching lane (a clip or the honest abstain) rather than
+        reopening the generating graph.
+        """
+        if off_topic_domain_boundary_enabled():
+            return self._static_boundary(
+                ctx,
+                _domain_boundary_answer(question),
+                "off_topic_domain_boundary",
+                "Query is outside spiritual wisdom and teaching domain; returning clean domain boundary",
+            )
+        ctx.state["general_knowledge_mode"] = False
+        ctx.state["domain_route"] = "teaching"
+        ctx.route_metadata.setdefault("domain_route", "teaching")
+        return None
+
     async def run(self, ctx: PipelineContext) -> None:
         if not off_topic_handler_enabled():
             return None
+
+        from app.config import settings
 
         question = str(ctx.state.get("user_msg_en") or ctx.user_msg or "").strip()
         explicit_teaching = has_explicit_teaching_intent(question)
         spiritual_candidate = is_spiritual_domain_query(question) and not is_off_topic(question)
 
+        # Documented carve-out (invariant 21): MODERATE+ distress keeps its own
+        # route. DistressStage runs before this stage and stores the assessment;
+        # a distressed turn must not be turned into a domain-boundary reply.
+        # DistressAssessment.level is a DistressLevel (IntEnum); a plain int from a
+        # hand-built context is accepted too, so the carve-out cannot vanish
+        # silently and re-refuse a distressed turn.
+        from services.serene_mind_engine import DistressLevel
+
+        _level_raw = getattr(getattr(ctx, "assessment", None), "level", None)
+        _level_value = getattr(_level_raw, "value", _level_raw)
+        distress_carve_out = (
+            isinstance(_level_value, int)
+            and not isinstance(_level_value, bool)
+            and _level_value >= DistressLevel.MODERATE.value
+        )
+
         # Explicit source/teacher requests must never be redirected by the
         # semantic router. Guided-practice imperatives belong to the dedicated
         # meditation stage, and crisis detection already preempts this stage.
         if explicit_teaching or _GUIDED_PRACTICE_RE.search(question):
+            # A guided-practice cue on a general-task request ("walk me through
+            # filing my tax return") is not a practice request. With generated
+            # answering switched off (first-person-only posture, invariant 21)
+            # falling through here left graph_stage free to select the generating
+            # general lane, which wrote prose (A-34, 2026-11-15).
+            if (
+                not explicit_teaching
+                and getattr(settings, "first_person_llm_fallback_enabled", False) is not True
+                and _is_general_task(question)
+                and not is_spiritual_domain_query(question)
+                and not distress_carve_out
+            ):
+                return self._fail_closed_general_answer(ctx, question)
             ctx.route_metadata.setdefault(
                 "domain_route", "teaching" if explicit_teaching else "guided_practice"
             )
@@ -447,8 +502,6 @@ class OffTopicStage(Stage):
         if ambiguous:
             decision = None
             try:
-                from app.config import settings
-
                 if getattr(settings, "jev_enabled", True) and getattr(
                     settings, "intent_router_ambiguous_domain_enabled", True
                 ):
@@ -514,6 +567,27 @@ class OffTopicStage(Stage):
             # An ambiguous spiritual-candidate question only goes general when
             # Jev says live_research.
             if route == "live_research":
+                if (
+                    getattr(settings, "first_person_llm_fallback_enabled", False) is not True
+                    and not distress_carve_out
+                ):
+                    # First-person-only posture (invariant 21): live research is
+                    # answered by generating prose, so with generation switched
+                    # off the turn must not leave the verbatim lane (A-34,
+                    # 2026-11-15). The question is a spiritual candidate, so the
+                    # domain-boundary copy ("outside spiritual wisdom") would
+                    # misdescribe it: keep the teaching lane and let the clip or
+                    # the honest abstain answer. Turning generation back on
+                    # requires the general assistant mode.
+                    logger.info(
+                        "Ambiguous-domain live_research kept on the teaching lane "
+                        "(generated answering disabled) trace_id=%s",
+                        ctx.trace_id,
+                    )
+                    ctx.state["general_knowledge_mode"] = False
+                    ctx.state["domain_route"] = "teaching"
+                    ctx.route_metadata.setdefault("domain_route", "teaching")
+                    return None
                 needs_web_search = bool((decision or {}).get("needs_web_search"))
                 ctx.state["general_knowledge_mode"] = True
                 ctx.state["domain_route"] = route
@@ -640,22 +714,28 @@ class OffTopicStage(Stage):
                 "Query is outside spiritual wisdom and teaching domain; returning clean domain boundary",
             )
 
-        from app.config import settings
-
-        if getattr(settings, "first_person_llm_fallback_enabled", False) is not True and (
-            is_spiritual_domain_query(question)
-            or is_spiritual_domain_query(eval_question)
-            or bool(_ON_TOPIC_RE.search(question))
-            or bool(_ON_TOPIC_RE.search(eval_question))
-        ):
-            # First-person-only mode (invariant 21): a question that mixes an off-topic ask with
-            # one of our own practices ("how many calories does a Soul Sync session burn")
-            # reached the general lane and got a model-written answer, 2026-10-31. The teaching
-            # lane serves a clip or the honest abstain instead; nothing is generated.
-            ctx.state["general_knowledge_mode"] = False
-            ctx.state["domain_route"] = "teaching"
-            ctx.route_metadata.setdefault("domain_route", "teaching")
-            return None
+        if getattr(settings, "first_person_llm_fallback_enabled", False) is not True:
+            if (
+                is_spiritual_domain_query(question)
+                or is_spiritual_domain_query(eval_question)
+                or bool(_ON_TOPIC_RE.search(question))
+                or bool(_ON_TOPIC_RE.search(eval_question))
+            ):
+                # First-person-only mode (invariant 21): a question that mixes an off-topic ask with
+                # one of our own practices ("how many calories does a Soul Sync session burn")
+                # reached the general lane and got a model-written answer, 2026-10-31. The teaching
+                # lane serves a clip or the honest abstain instead; nothing is generated.
+                ctx.state["general_knowledge_mode"] = False
+                ctx.state["domain_route"] = "teaching"
+                ctx.route_metadata.setdefault("domain_route", "teaching")
+                return None
+            if not distress_carve_out:
+                # First-person-only mode (invariant 21, A-34 2026-11-15): a general
+                # task that also carries an inner-help word ("debug my Python code",
+                # "write an email while my mind overthinks") is not a documented
+                # carve-out. It used to leave general_knowledge_mode=True and the
+                # general graph wrote prose; the shared refusal below is the answer.
+                return self._fail_closed_general_answer(ctx, eval_question)
 
         ctx.state["general_knowledge_mode"] = True
         ctx.state.setdefault("domain_route", "general")

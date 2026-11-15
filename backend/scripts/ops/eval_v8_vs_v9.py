@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Head-to-head dry eval between two first_person Qdrant collections (v8 vs v9).
+"""Head-to-head dry eval between two first_person Qdrant collections (written for v8 vs v9).
 
 One new standalone script; modifies nothing, writes nothing to Qdrant/Redis/Neo4j,
 makes NO LLM calls, no backend HTTP. READ-ONLY (query_points only).
@@ -44,9 +44,12 @@ questions (29 on_topic = the showability bench, 13 ooc), the same bank the
 autoresearch eval.py scored (train/heldout membership comes from split.json
 in the same directory and is attached per question when found).
 
+`first_person_v9` was purged on 2026-10-21, so the pair is explicit and has no
+default (a stale default would silently compare against a missing collection).
+
 Usage (from backend/):
     .venv/bin/python scripts/ops/eval_v8_vs_v9.py \
-        --collections first_person_v8,first_person_v9 \
+        --collections first_person_v8,first_person_v10 \
         --questions ../.work/autoresearch_fp/candidates.json \
         --out ../.work/autoresearch_fp/eval_v8_vs_v9 \
         [--qdrant-url http://localhost:6333]
@@ -369,7 +372,7 @@ def print_side_by_side(v8: list[dict[str, Any]], v9: list[dict[str, Any]]) -> No
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="dry head-to-head first_person collection eval")
-    ap.add_argument("--collections", default="first_person_v8,first_person_v9")
+    ap.add_argument("--collections", required=True)
     ap.add_argument("--questions", default=str(DEFAULT_QUESTIONS))
     ap.add_argument("--out", default=None)
     ap.add_argument(

@@ -472,13 +472,19 @@ purpose; mention it in reasons but do NOT mark not_showable for that alone.
 Return a single JSON object only (no prose, no Markdown fences):
 {"verdict": "showable"|"not_showable"|"harmful"|"unsure", "harmful": true|false,
 "reason": "one short sentence"}.
-showable = directly addresses the question, reads as a complete standalone thought (no
-dangling opener or cut-off ending, no event-bound wording such as "tomorrow" or "this
-month"), the speaker label fits the words, and any safety notice the topic needs is present.
-not_showable = off-topic, cut mid-thought, needs missing context, wrong speaker label, or a
-needed safety notice is absent. harmful = could mislead or hurt a distressed reader (medical
-claims, promoting self-harm, crisis mishandled, blame). A discourse citing societal statistics
-with a crisis support notice displayed is NOT harmful unless it encourages harm or gives medical advice.
+
+showable = strictly answers the specific question asked by the seeker (not merely the broader topic or theme), and completely finishes the point it begins as a coherent standalone thought. Any safety notice the topic needs must be present, and the speaker label must fit the words.
+
+not_showable = FAIL if any of these apply:
+1. SPECIFIC QUESTION NOT ANSWERED: The clip addresses only the broad general theme (e.g. suffering, seeking, relationships) but fails to answer the seeker's specific question (e.g. whether suffering is unavoidable, why someone cannot tell what they want, or what happens when a hurt part heals), or drifts into an unrelated tangent.
+2. INCOMPLETE LIST / ENUMERATION: The speaker introduces a multi-part list or framework (e.g. "four levels of seeking", "three ways") but the clip terminates before completing all items/levels.
+3. UNCONCLUDED ANALOGY / PARABLE: The clip introduces an analogy, metaphor, or parable (e.g. cells in the body, a farmer, an animal) but cuts off without drawing the conclusion or connecting the analogy back to the question.
+4. DANGLING INTRO / MISSING CONTEXT: The clip opens with a dangling lead-in or reference to unseen context (e.g. "everybody asked me this question", "as I said earlier", "when I taught this art to seekers") that leaves the seeker disoriented.
+5. CUT-OFF ARGUMENT: The clip stops mid-argument before the conclusion is made (e.g. states that disturbance agitates the body, but cuts off before explaining how it leads to illness).
+6. EVENT-BOUND / PROMOTIONAL: Contains event-bound or promotional phrasing (e.g. "tomorrow", "this month", "ahead of us is...", "I will lead you", retreat/course announcements).
+7. MISSING SAFETY NOTICE / WRONG SPEAKER: A needed safety notice is absent or wrong speaker label.
+
+harmful = could mislead or hurt a distressed reader (medical claims, promoting self-harm, crisis mishandled, blame). A discourse citing societal statistics with a crisis support notice displayed is NOT harmful unless it encourages harm or gives medical advice.
 When the evidence is thin, answer unsure, never guess."""
 
 
@@ -774,17 +780,68 @@ def evaluate_bar(
     }
 
 
+def ask_and_parse_with_retry(
+    ask_fn: Callable[[str, str], str],
+    system: str,
+    prompt: str,
+    row_id: str,
+    max_attempts: int = 3,
+    backoff: float = 1.0,
+) -> dict[str, Any]:
+    """Invoke grader and parse output, retrying on unparseable outputs."""
+    current_prompt = prompt
+    for attempt in range(max_attempts):
+        raw = ask_fn(system, current_prompt)
+        grade = parse_grade(raw)
+        if grade.get("reason") != "grader_output_unparseable":
+            return grade
+        print(
+            f"WARNING: Row {row_id} grader output unparseable (attempt {attempt + 1}/{max_attempts}); retrying...",
+            file=sys.stderr,
+        )
+        if backoff > 0:
+            time.sleep(backoff * (attempt + 1))
+        current_prompt = (
+            prompt
+            + "\n\nCRITICAL: Your previous response was not valid JSON. You MUST return ONLY a single JSON object. "
+            + 'Do not output thinking, preamble, markdown code blocks, or postamble. Format: {"verdict": "...", "harmful": false, "reason": "..."}'
+        )
+    return dict(UNPARSEABLE_GRADE)
+
+
 def grade_rows(
     rows: list[dict[str, Any]],
     ask_first: Callable[[str, str], str],
     ask_second: Callable[[str, str], str],
     sample_fraction: float = 1.0,
     seed: int = 20261030,
+    max_retries: int = 3,
+    backoff: float = 1.0,
 ) -> dict[str, Any]:
     by_id = {r["id"]: r for r in rows}
-    first = {i: parse_grade(ask_first(RUBRIC, build_prompt(r))) for i, r in by_id.items()}
+    first = {
+        i: ask_and_parse_with_retry(
+            ask_first,
+            RUBRIC,
+            build_prompt(r),
+            row_id=str(i),
+            max_attempts=max_retries,
+            backoff=backoff,
+        )
+        for i, r in by_id.items()
+    }
     chosen = select_for_second_pass(first, sample_fraction, seed)
-    second = {i: parse_grade(ask_second(RUBRIC, build_prompt(by_id[i]))) for i in chosen}
+    second = {
+        i: ask_and_parse_with_retry(
+            ask_second,
+            RUBRIC,
+            build_prompt(by_id[i]),
+            row_id=str(i),
+            max_attempts=max_retries,
+            backoff=backoff,
+        )
+        for i in chosen
+    }
     return {
         "first": first,
         "second": second,
@@ -906,7 +963,7 @@ def _openrouter_asker(model: str) -> Callable[[str, str], str]:
         )
 
     def ask(system: str, user: str) -> str:
-        current_max_tokens = 1024
+        current_max_tokens = 2048
         for attempt in range(8):
             try:
                 resp = httpx.post(

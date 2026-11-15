@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from scripts.ops.graded_capture import (
+    CITATION_IDENTITY_FIELDS,
     build_row,
     cache_proof,
     refuse_if_evidence_exists,
@@ -57,6 +58,56 @@ def test_row_keeps_server_latency_next_to_wall_clock():
     assert row["latency_ms"] == 5321 and row["sec"] == 6.2
     assert row["citations"][0]["speaker"] == "Sri Krishnaji"
     assert row["notices"] == ["n"]
+
+
+def test_a_served_row_records_the_identity_of_the_point_it_served():
+    """H-26: point/span identity is kept per citation, not only the URL."""
+    result = {
+        "response": "A clip.",
+        "route_decision": "first_person_bridge",
+        "citations": [
+            {
+                "text_snippet": "A clip.",
+                "url": "https://youtu.be/x?t=10",
+                "point_id": "5f0c1e9a-1d2b-4c3d-8e4f-000000000001",
+                "source_span_id": "span-7",
+                "start_ms": 10000,
+                "end_ms": 22000,
+                "completeness_status": "complete",
+                "boundary_status": "clean",
+            }
+        ],
+    }
+    row = build_row({"id": "q1", "question": "q"}, result, 200, 6.2)
+    citation = row["citations"][0]
+    assert citation["point_id"].endswith("0001")
+    assert citation["source_span_id"] == "span-7"
+    assert (citation["start_ms"], citation["end_ms"]) == (10000, 22000)
+    assert citation["completeness_status"] == "complete"
+    assert citation["boundary_status"] == "clean"
+    assert row["citation_fields_unavailable"] == []
+
+
+def test_missing_identity_fields_are_named_not_invented():
+    """The current public projection carries none of them; the row says so."""
+    result = {
+        "response": "A clip.",
+        "route_decision": "first_person_bridge",
+        "citations": [{"text_snippet": "A clip.", "url": "u", "start_ms": 10000}],
+    }
+    row = build_row({"id": "q1", "question": "q"}, result, 200, 6.2)
+    citation = row["citations"][0]
+    assert citation["start_ms"] == 10000
+    assert citation["point_id"] is None and citation["source_span_id"] is None
+    assert row["citation_fields_unavailable"] == sorted(
+        f for f in CITATION_IDENTITY_FIELDS if f != "start_ms"
+    )
+
+
+def test_an_abstained_row_claims_no_missing_citation_fields():
+    row = build_row({"id": "q1", "question": "q"}, {"response": "abstain"}, 200, 1.0)
+    assert row["citations"] == []
+    assert row["citation_fields_unavailable"] == []
 
 
 def test_a_run_whose_log_shows_a_blocked_llm_is_invalid():

@@ -15,9 +15,12 @@ Honest limits (state them with every number):
 - ``host_like`` is a text heuristic, not a human audit of who is speaking.
 
 Usage (inside the backend container, which has Qdrant + the embedding model):
-    python -m evaluation.first_person_harness run --collection first_person_v5 --out /tmp/v5.json
-    python -m evaluation.first_person_harness run --collection first_person_v5 --rerank --out /tmp/v5r.json
-    python -m evaluation.first_person_harness compare /tmp/v2.json /tmp/v5.json
+    python -m evaluation.first_person_harness run --collection first_person_v8 --out /tmp/v8.json
+    python -m evaluation.first_person_harness run --collection first_person_v8 --rerank --out /tmp/v8r.json
+    python -m evaluation.first_person_harness compare /tmp/v8.json /tmp/v8r.json
+
+(The collection is a required argument; earlier examples pinned the retired
+``first_person_v5`` build.)
 """
 
 from __future__ import annotations

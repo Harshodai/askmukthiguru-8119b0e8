@@ -240,7 +240,23 @@ EVENT_MARKER_RE = re.compile(
     r"|\b(?:in\s+the\s+last\s+(?:session|question|talk))\b"
     r"|\b(?:like\s+i\s+said\s+(?:yesterday|earlier|in\s+the\s+last))\b"
     r"|\bi\s+don'?t\s+know\s+if\s+you'?re\s+(?:there|here|present)\b"
-    r"|\bnamaste\b",
+    r"|\bnamaste\b"
+    # Promotional and upcoming-program phrasing (R2)
+    r"|\bahead\s+of\s+(?:us|you)\s+is\b"
+    # Promotional "lead you" needs an object that is not a practice: "I will lead
+    # you into a deep process" is an event pitch, "I will lead you through a
+    # breathing practice" is teaching (measured false positive 2026-11-15).
+    r"|\b(?:i|we)\s+will\s+lead\s+(?:you\s+and\s+your|your)\b"
+    r"|\b(?:this|the|upcoming|next)\s+manifest\s+(?:journey|process|festival|gathering|event|family\s+harmony|program|course)\b"
+    r"|\b(?:upcoming|next)\s+manifest\b"
+    # "can"/"is" are dropped: "this manifest can be seen as the play of
+    # consciousness" is philosophy, not a program announcement.
+    r"|\bthis\s+manifest\s+(?:you|would|will|shall)\b"
+    r"|\bmanifest\s+family\s+harmony\b"
+    r"|\bjourneying\s+into\s+birthing\b"
+    r"|\b(?:register\s+(?:for|now|here|today|online)|(?:to|please)\s+register|registration|enroll(?:ment)?|sign\s+up|join\s+(?:us|me)\s+for)\b"
+    r"|\b(?:upcoming|announcing)\s+(?:event|program|course|webinar|workshop|retreat|immersion|journey|festival|satsang)\b"
+    r"|\bwelcome\s+to\s+this\s+(?:program|gathering|retreat|immersion|workshop|webinar|event|manifest)\b",
     re.IGNORECASE,
 )
 

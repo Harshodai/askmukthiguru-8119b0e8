@@ -61,10 +61,45 @@ def stamp_row(row: dict[str, Any], *, sha: str, container_id: str, run_id: str) 
     return {**row, "sha": sha, "container_id": container_id, "run_id": run_id}
 
 
+# H-26 (2026-11-15): a served citation kept only its URL, so a failed row could
+# not be traced back to the point/span that produced it without text matching.
+# The public /api/chat citation projection (``app/chat_engine.py``,
+# ``app/orchestrator.py``) does not carry these identity fields yet, so the row
+# records each one when it is present and null otherwise, and names the ones that
+# were missing rather than guessing or backfilling.
+CITATION_IDENTITY_FIELDS = (
+    "point_id",
+    "source_span_id",
+    "start_ms",
+    "end_ms",
+    "completeness_status",
+    "boundary_status",
+)
+
+
+def build_citation(c: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "text": c.get("text_snippet", ""),
+        "speaker": c.get("speaker"),
+        "speaker_verified": c.get("speaker_verified"),
+        "url": c.get("url"),
+        "t": c.get("timestamp_seconds"),
+        **{field: c.get(field) for field in CITATION_IDENTITY_FIELDS},
+    }
+
+
+def unavailable_citation_fields(citations: list[dict[str, Any]]) -> list[str]:
+    """Identity fields this API build did not return; empty when there is no citation."""
+    return sorted(
+        {field for c in citations for field in CITATION_IDENTITY_FIELDS if c.get(field) is None}
+    )
+
+
 def build_row(
     item: dict[str, Any], result: dict[str, Any], http: int, wall_seconds: float
 ) -> dict[str, Any]:
     cits = result.get("citations") or []
+    citations = [build_citation(c) for c in cits]
     return {
         **item,
         "http": http,
@@ -72,16 +107,8 @@ def build_row(
         "route": result.get("route_decision"),
         "model_used": result.get("model_used"),
         "grounding": result.get("grounding_state"),
-        "citations": [
-            {
-                "text": c.get("text_snippet", ""),
-                "speaker": c.get("speaker"),
-                "speaker_verified": c.get("speaker_verified"),
-                "url": c.get("url"),
-                "t": c.get("timestamp_seconds"),
-            }
-            for c in cits
-        ],
+        "citations": citations,
+        "citation_fields_unavailable": unavailable_citation_fields(citations),
         "notices": result.get("safety_notices") or [],
         # Server-side latency is what the p95 bar is read from; wall clock includes polling.
         "latency_ms": result.get("latency_ms"),
