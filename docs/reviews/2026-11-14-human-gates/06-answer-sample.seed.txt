@@ -1,0 +1,6 @@
+source_rows=/Users/harshodaikolluru/mukthiguru_attribution_data/graded_runs/20261114-graded-7/rows.jsonl
+source_sha256=deed8293bd3b7571db06d29de3fd57edc7c6178ef7bd44ecab61b4ba285b961c
+eligible_served_rows=41
+sample_size=41
+seed=20261114
+regenerate: python3 scripts/ops/build_human_review_packets.py --rows /Users/harshodaikolluru/mukthiguru_attribution_data/graded_runs/20261114-graded-7/rows.jsonl --seed 20261114

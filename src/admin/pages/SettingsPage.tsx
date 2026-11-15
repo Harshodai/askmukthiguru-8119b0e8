@@ -283,7 +283,11 @@ export default function SettingsPage() {
                     <TableCell className="text-right">
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground">
+                          <button
+                            type="button"
+                            aria-label="Information"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
                             <Info className="h-4 w-4" />
                           </button>
                         </TooltipTrigger>

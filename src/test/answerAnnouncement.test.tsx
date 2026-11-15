@@ -27,6 +27,33 @@ describe('describeArrival', () => {
     expect(describeArrival(guru({ groundingState: 'abstained' }))).toMatch(/no close match/i);
   });
 
+  it('announces a served clip under an abstained grounding state as a clip, not as no match', () => {
+    const text = describeArrival(
+      guru({
+        groundingState: 'abstained',
+        citations: [{ quote: 'verbatim words' } as never],
+        verification: { passed: false, direct: false },
+      }),
+    );
+    expect(text).toMatch(/teaching clip/i);
+    expect(text).toContain('Related, not a direct answer');
+    expect(text).not.toMatch(/no close match/i);
+    expect(
+      describeArrival(
+        guru({ groundingState: 'abstained', citations: [{ textSnippet: 'x' } as never] }),
+      ),
+    ).not.toMatch(/no close match|not a direct/i);
+  });
+
+  it('keeps no close match for an abstain with no citation text', () => {
+    expect(describeArrival(guru({ groundingState: 'abstained', citations: [] }))).toMatch(
+      /no close match/i,
+    );
+    expect(
+      describeArrival(guru({ groundingState: 'abstained', citations: [{ title: 't' } as never] })),
+    ).toMatch(/no close match/i);
+  });
+
   it('stays silent for user messages, the welcome message and errors', () => {
     expect(describeArrival({ ...guru(), role: 'user' })).toBeNull();
     expect(describeArrival(guru({ isWelcome: true }))).toBeNull();

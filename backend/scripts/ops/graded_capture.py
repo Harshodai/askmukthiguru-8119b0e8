@@ -19,6 +19,7 @@ it marks the run INVALID if the log contains `spend limit` or `indeterminate (ti
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -42,7 +43,8 @@ UNANSWERABLE = REPO / "evals" / "first_person" / "unanswerable60_draft.jsonl"
 BENCHMARK_FROZEN29 = REPO / "evals" / "first_person" / "frozen29.jsonl"
 BENCHMARK_COMPOUND10 = REPO / "evals" / "first_person" / "compound10.jsonl"
 BENCHMARK_OOC13 = REPO / "evals" / "first_person" / "ooc13.jsonl"
-ENV_PREFIXES = ("FIRST_PERSON_", "OPENROUTER_", "CELERY_TASK", "LLM_PROVIDER")
+# INTENT_ROUTER_ added 2026-11-13 (audit H-14): its flags change routing and were invisible.
+ENV_PREFIXES = ("FIRST_PERSON_", "OPENROUTER_", "CELERY_TASK", "LLM_PROVIDER", "INTENT_ROUTER_")
 
 
 # ── pure helpers (unit-tested) ───────────────────────────────────────────────
@@ -85,6 +87,22 @@ def build_row(
         "latency_ms": result.get("latency_ms"),
         "sec": round(wall_seconds, 1),
     }
+
+
+def file_fingerprint(path: Path) -> dict[str, Any]:
+    """sha256 and row count of one input dataset file (audit H-16), so a changed input leaves a trace."""
+    raw = path.read_bytes()
+    text = raw.decode("utf-8")
+    if path.suffix == ".json":
+        data = json.loads(text)
+        rows = len(data["questions"] if isinstance(data, dict) else data)
+    else:
+        rows = sum(1 for line in text.splitlines() if line.strip())
+    return {"sha256": hashlib.sha256(raw).hexdigest(), "rows": rows}
+
+
+def input_fingerprints(paths: list[Path]) -> dict[str, dict[str, Any]]:
+    return {str(p.relative_to(REPO)): file_fingerprint(p) for p in paths if p.exists()}
 
 
 def cache_proof(returncode: int, output: str) -> Check:
@@ -369,7 +387,28 @@ def main() -> int:
     )
     (run_dir / "backend.log").write_text(log_text.stdout + log_text.stderr, encoding="utf-8")
     verdict = validity(log_text.stdout + log_text.stderr, spend_before, read_spend(), preflight_ok)
-    manifest = {"run_id": args.run_id, "sha": sha, **facts, **verdict}
+    read_files = [
+        p
+        for p, used in (
+            (FROZEN, include_frozen),
+            (UNANSWERABLE, include_unanswerable),
+            (BENCHMARK_FROZEN29, include_benchmarks),
+            (BENCHMARK_COMPOUND10, include_benchmarks),
+            (BENCHMARK_OOC13, include_benchmarks),
+        )
+        if used
+    ]
+    manifest = {
+        "run_id": args.run_id,
+        "sha": sha,
+        **facts,
+        **verdict,
+        "input_files": input_fingerprints(read_files),
+        # Left null on purpose: this flow has no Qdrant client (only Redis and docker), and a
+        # new client would change what a capture touches. Criteria want {points, ids_sha256}
+        # of the served collection; fill it from a separate read-only step or when a client exists.
+        "collection_fingerprint": None,
+    }
     (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(json.dumps({k: manifest[k] for k in ("run_id", "sha", "valid", "reasons")}, indent=2))
     return 0 if verdict["valid"] else 2

@@ -227,14 +227,14 @@ _DESPACED_CRISIS_NEEDLES = [
 ]
 
 _HELPLINE_MESSAGE = (
-    "I care deeply about your wellbeing. Please know that you are valued, and there "
-    "are compassionate people who want to support you right now. You do not have to "
-    "walk through this alone.\n\n"
     "Please connect directly with verified, confidential crisis support:\n"
     "• Tele-MANAS (India): 14416 / 1800 891 4416 (24/7 Toll-Free Mental Health Helpline)\n"
+    "• Emergency Services: 112 (India) or your local emergency number\n"
     "• Vandrevala Foundation (India): +91 9999 666 555 (24/7 Free & Confidential Counseling)\n\n"
-    "If you or someone nearby is in immediate danger, please reach out to emergency "
-    "services (112 in India) or a trusted friend immediately."
+    "I care deeply about your wellbeing. Please know that you are valued, and there "
+    "are compassionate people who want to support you right now. You do not have to "
+    "walk through this alone. If you or someone nearby is in immediate danger, please reach "
+    "out to emergency services immediately."
 )
 
 

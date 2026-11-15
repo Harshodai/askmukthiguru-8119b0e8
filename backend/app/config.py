@@ -199,9 +199,6 @@ class Settings(BaseSettings):
     # v10-only posture (context harness + terminal both on) an unset slot is the
     # active collection; otherwise the legacy slot keeps this rollback default.
     first_person_collection: str = ""
-    # C8: optional corpus version label stamped on first-person serve/abstain logs. Empty = unset
-    # (never guessed). Read by first_person_bridge via getattr, so it must be declared here.
-    first_person_corpus_version: str = ""
     # THE one name of the collection a deployment serves (owner request 2026-11-01:
     # the two slots held the same literal and drifted). FIRST_PERSON_COLLECTION and
     # FIRST_PERSON_CONTEXT_COLLECTION are optional overrides of it, kept for rollback.
@@ -335,6 +332,7 @@ class Settings(BaseSettings):
     # metadata carries ``corpus_version`` so served-share can be attributed per corpus.
     # Empty means "read it off the retrieval result"; this setting only overrides when
     # the result carries none. Never guessed (X40: no synthesized provenance).
+    # Read by first_person_bridge via getattr, so it must stay declared (once) here.
     first_person_corpus_version: str = ""
     # Maximum combined word count for a context-harness answer (sum of all spans).
     # Distinct from first_person_max_answer_words (single-clip legacy path).
@@ -542,10 +540,6 @@ class Settings(BaseSettings):
     # that burned the whole deadline is congestion, and retrying it doubled a live 15 s
     # stall to 31.4 s (2026-11-11).
     first_person_relevance_max_attempts: int = Field(default=2, ge=1, le=3)
-    # Retained as a compatibility setting only. Provider errors/refusals are
-    # relevance-indeterminate in serving; no uncalibrated local fallback may
-    # turn a budget denial or provider failure into an answer.
-    first_person_relevance_fallback_enabled: bool = False
     # Path to a JSON list of approved clip point_ids (ids only, no transcript text). When set, ONLY those
     # clips can be served; a missing/unreadable file serves nothing (fail closed). Empty = off.
     first_person_quality_allowlist_path: str = ""
@@ -608,7 +602,6 @@ class Settings(BaseSettings):
     memory_skip_intents: tuple = ("doctrine_lookup", "casual")
     memory_token_budget: int = 830
     memory_background_task_timeout_seconds: int = 30
-    feature_regex_prerouter: bool = True
 
     # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
     # Trust the semantic router's tier when its confidence exceeds this; below it,
@@ -683,13 +676,7 @@ class Settings(BaseSettings):
     openrouter_preferred_min_throughput_p90: float = Field(default=20.0, ge=0.0, le=10000.0)
     openrouter_require_no_training: bool = True
     openrouter_allow_provider_fallbacks: bool = True
-    # Sends the stable per-conversation id as top-level session_id so
-    # OpenRouter's sticky routing pins follow-up turns to the same upstream
-    # node -- required for DeepSeek/Llama's automatic (no cache_control)
-    # prompt caching to ever hit. See CLAUDE.md cache-routing note.
-    openrouter_sticky_session_routing_enabled: bool = True
     # OpenRouter Prompt Caching & Response Caching
-    openrouter_cache_enabled: bool = True
     openrouter_prompt_caching_enabled: bool = True
     openrouter_http_referer: str = "https://askmukthiguru.com"
     openrouter_x_title: str = "AskMukthiGuru"
@@ -802,7 +789,6 @@ class Settings(BaseSettings):
     # Parent Document Group Search (Qdrant query_points_groups):
     # Groups hits by parent document, video_id, or source_url to prevent a single
     # discourse or parent text from dominating top-K results.
-    qdrant_parent_grouping_enabled: bool = True
     qdrant_group_by: str = "parent_id"  # Options: parent_id, source_url, video_id
     qdrant_group_size: int = 2  # Max points retrieved per parent group
 
@@ -1286,7 +1272,6 @@ class Settings(BaseSettings):
     # Early-access collection remains off until its migration and privacy copy are deployed.
     waitlist_enabled: bool = False
     google_sso_enabled: bool = True
-    push_notifications_enabled: bool = True
     # ~USD equivalent of the ₹3,000/month operating envelope (see CLAUDE.md budget note).
     # Fixed conversion, not a live FX lookup — this is a soft alert threshold, not a hard cap.
     monthly_cost_budget_usd: float = 36.0
@@ -1392,12 +1377,10 @@ class Settings(BaseSettings):
     # rather than removing them. Fraction is of rag_top_k_retrieval.
     rag_summary_quota_enabled: bool = True
     rag_summary_quota_fraction: float = 0.25
-    ingestion_deduplication_enabled: bool = True
     rag_top_k_retrieval_after_cutoff: int = 10
     retrieval_dedup_threshold: float = 0.85
     ingestion_dedup_threshold: float = 0.85
     raptor_parent_summaries_enabled: bool = True
-    use_markitdown_parser: bool = True
     # BM25 keyword search via native Qdrant sparse vectors
     bm25_retrieval_enabled: bool = True
     bm25_result_limit: int = 10
@@ -1514,9 +1497,6 @@ class Settings(BaseSettings):
     # The write path runs after the reply is already out, so it can afford a
     # real budget — but not an unbounded one.
     canonical_memory_write_timeout: float = 30.0
-    rag_okf_auto_extract_enabled: bool = (
-        True  # post-ingestion OKF extraction; hardened w/ Celery retry + logging
-    )
     # Minimum cosine an OKF entry must reach before it is injected at all.
     okf_min_similarity: float = 0.45
     # Curated, human-reviewed doctrine outranks a raw chunk of equal similarity — margin, not a floor.
@@ -1553,9 +1533,7 @@ class Settings(BaseSettings):
     use_flashrank: bool = True
     flashrank_model: str = "auto"
     use_cross_encoder_only: bool = False
-    rerank_bypass_high_confidence_enabled: bool = True
     rerank_bypass_threshold: float = 0.85
-    context_chunk_dedup_enabled: bool = True
     context_chunk_dedup_threshold: float = 0.85
     use_adaptive_chunking: bool = True
     adaptive_chunking_min_chars: int = 800
@@ -1603,9 +1581,6 @@ class Settings(BaseSettings):
     hyper_extract_max_chars: int = 50_000  # Hard cap to keep enrichment fast and safe
 
     # --- KG Phase 6: Auto-extraction from ingestion ---
-    write_ontology_to_neo4j: bool = (
-        True  # Materialize hyper_extract entities/relationships into Neo4j during ingestion
-    )
     ontology_write_required: bool = False  # Only block and roll back ingestion when graph materialization is explicitly mandatory.
     default_corpus_id: str = (
         "askmukthiguru"  # Required scope for legacy/current teacher corpus data.
@@ -1658,7 +1633,6 @@ class Settings(BaseSettings):
     # writes are bypassed so latency samples represent the uncached path.
     latency_benchmark_cache_disabled: bool = False
     semantic_cache_similarity: float = 0.92  # Correctness floor, not a tuning knob: below 0.92 dissimilar queries false-hit and one seeker's answer gets served as doctrine to a different seeker. Do not lower.
-    intent_prerouter_cache_hint_enabled: bool = True  # E3.1: hint cache-first for FACTUAL/CASUAL
     semantic_cache_ttl: int = 604800  # Cache TTL in seconds (7 days)
     guardrails_llm_enabled: bool = False  # Toggle LLM-based guardrail checks
 
@@ -1725,7 +1699,6 @@ class Settings(BaseSettings):
     teachings_tips_ttl_seconds: int = 604_800  # 7 days
 
     # --- User Profiles & Persistence ---
-    user_profile_enabled: bool = True  # Enable user profiles and persistent memory
     krutrim_api_key: str = ""  # Fallback Indian LLM provider
 
     # --- Proactive Serene Mind ---
@@ -1791,8 +1764,6 @@ class Settings(BaseSettings):
     # uses LightRAG for graph context alongside Qdrant vector search.
     # Ingestion, ontology seeder, and Qdrant-only paths are unaffected.
     knowledge_graph_query_enabled: bool = True
-    # Knowledge graph analytics (PageRank, HITS, centrality, Louvain communities)
-    kg_analytics_enabled: bool = True
     # Knowledge graph standalone HTML export via D3Blocks (requires d3blocks)
     kg_export_enabled: bool = False
 
@@ -1909,7 +1880,6 @@ class Settings(BaseSettings):
     # where adversarial / interrogative queries containing meditation nouns were being
     # routed into the meditation flow with step=0, returning the misleading literal
     # "The meditation is complete. Thank you for practicing with me." string.
-    intent_demote_meditation_on_interrogative: bool = True
     # When handle_meditation is invoked with step<=0 and no script keyword in the query
     # (i.e. the user did not actually ask to begin a meditation), the fallback behaviour
     # is to demote to FACTUAL via the answer wrapper rather than emit a misleading
@@ -1930,10 +1900,6 @@ class Settings(BaseSettings):
     llm_gateway_cross_provider_fallback: bool = False
 
     # --- Persona controls (Phase B — guru voice quality) ---
-    # When True, the generation node strips the canned "*Note: Based on what I found...*"
-    # footer that was breaking immersion. The context-aware close is generated dynamically
-    # from the intent + citation count instead.
-    strip_canned_footer: bool = True
     # Maximum age (days) of a stored persona before prepare_user_memory stops
     # injecting it into prompts; a stale persona is skipped, not served.
     persona_max_age_days: int = 30
@@ -1942,13 +1908,11 @@ class Settings(BaseSettings):
     # Voice is composed during generation from retrieved, attributable context.
     # It preserves verified first-person quotations but never synthesises founder
     # speech, forces Sanskrit, imitates an accent, or rewrites a finished answer.
-    langhanam_voice_enabled: bool = True
     # "prompt" is the only active voice mode. "adapter" is accepted only for
     # backward-compatible configuration parsing and is a logged no-op; it must
     # never run a regex or LLM rewrite after citations are attached.
     guru_voice_mode: str = "prompt"
-    # Benchmark gate: minimum mean rubric score (of 5.0) required before
-    # langhanam_voice_enabled may be flipped on.
+    # Benchmark gate: minimum mean rubric score (of 5.0) for the guru voice.
     guru_voice_gate_score: float = 4.0
     # Default output path for the guru voice benchmark report.
     guru_voice_benchmark_output: str = "benchmarks/reports/guru_voice_benchmark.json"
@@ -2049,7 +2013,17 @@ class Settings(BaseSettings):
     # rules identify a spiritual/general ambiguity. Most requests stay on the
     # deterministic fast path; an unavailable/low-confidence router falls back
     # to the existing domain rule. This keeps the latency penalty bounded.
-    intent_router_ambiguous_domain_enabled: bool = True
+    #
+    # Default OFF (2026-11-13). Measured from the backend container: the router
+    # answers in 470-690 ms (9 calls, fresh and keep-alive connections), above the
+    # 0.45 s budget below, so in 12 h of local logs it timed out 27 of 27 times.
+    # Every ambiguous turn paid 0.45 s and then took the fallback (teaching lane),
+    # which is also what every graded run measured. Off keeps that exact routing
+    # without the wasted wait, and stops a faster network from silently switching
+    # the router on in production. To turn it on: raise the budget above the
+    # measured latency and compare a graded run first (only a `live_research`
+    # decision changes the route, and it leaves the verbatim lane).
+    intent_router_ambiguous_domain_enabled: bool = False
     intent_router_ambiguous_domain_timeout_s: float = Field(default=0.45, gt=0, le=1.5)
     off_topic_domain_boundary_enabled: bool = True
 
@@ -2073,19 +2047,11 @@ class Settings(BaseSettings):
     rerank_threshold_simple: float = 0.05
     rerank_floor: float = 0.3
     cross_encoder_cutoff: int = 20  # Use cross-encoder primary path when <= this many docs
-    reranker_enabled_for_complex: bool = (
-        True  # Enable cross-encoder reranker for tier3_complex queries
-    )
     # Adaptive-RAG confidence gate: when >=3 reranked docs score at or above this
     # (sigmoid-normalized [0,1]), skip the LLM grading and sufficiency calls for
     # complex queries — saves 2 serial LLM round-trips. 0 disables.
     crag_skip_confidence: float = 0.75
     crag_score_delta_ratio: float = 0.5
-    citation_by_sentence: bool = True
-    # The deep graph adds a second verifier after standard verification. Skip
-    # only when the first verifier already returned a strict faithful pass;
-    # disable this flag to restore the duplicate contradiction check.
-    deep_gate_skip_on_verified: bool = True
     # --- RAGFlow integration gaps ---
     rag_deep_research_enabled: bool = (
         False  # ponytail: master switch; auto-fires for tier3_complex + standard
@@ -2145,8 +2111,6 @@ class Settings(BaseSettings):
     agentic_graph_max_steps: int = 3
     agentic_graph_fast_model: str = "nim:meta/llama-3.1-8b-instruct"
     agentic_graph_timeout_per_step: int = 15
-    # Atomic GraphRAG openCypher traversal (single-query 1-2 hop expansion)
-    atomic_graphrag_enabled: bool = True
     # When True, skip the LLM-based retrieval expansion call (parallel-fire from
     # retrieve_documents). Saves 1 LLM call on the standard/deep paths. Off by
     # default to avoid changing generation behavior.
@@ -2707,6 +2671,11 @@ class Settings(BaseSettings):
     # the frozen-bank comparison shows the judge is not worse.
     first_person_judge_enabled: bool = False
     first_person_judge_model: str = "anthropic/claude-haiku-5.5"
+    # Candidate A (docs/analysis/SAME_CLIP_DEFECT_2026-11-13.md): after the
+    # per-clip judge, ONE comparative call picks the best of the passing
+    # contexts, or abstains. Needs the judge active. It changes served answers,
+    # so it may only be turned on through a registered graded run.
+    first_person_comparative_judge_enabled: bool = False
 
 
 @lru_cache

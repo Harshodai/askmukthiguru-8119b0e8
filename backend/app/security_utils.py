@@ -641,8 +641,10 @@ class RedisBackedRateLimiter:
 
             client = aioredis.Redis.from_url(
                 self._redis_url,
-                socket_timeout=0.5,
-                socket_connect_timeout=0.5,
+                socket_timeout=1.0,
+                socket_connect_timeout=1.0,
+                health_check_interval=30,
+                retry_on_timeout=True,
                 decode_responses=True,
             )
             await client.ping()

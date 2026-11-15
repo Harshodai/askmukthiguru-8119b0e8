@@ -747,8 +747,6 @@ class ContextualReingestEngine:
 
     def _dedup_raw_chunks(self, raw_chunks: list[str]) -> list[str]:
         """Drop raw chunks that are near-duplicates of already-accepted chunks."""
-        if not settings.ingestion_deduplication_enabled:
-            return raw_chunks
         if not self._dedup_index_seeded:
             self._seed_dedup_index_from_target()
             self._dedup_index_seeded = True

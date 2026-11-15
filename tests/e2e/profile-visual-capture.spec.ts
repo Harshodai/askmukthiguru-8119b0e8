@@ -9,7 +9,7 @@ const outputDir = path.resolve(__dirname, '../../playwright-screenshots');
 
 const session = {
   access_token:
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjo5OTk5OTk5OTk5LCJzdWIiOiJtb2NrLXVzZXItdXVpZCIsImVtYWlsIjoic2Vla2VyQGdtYWlsLmNvbSIsInJvbGUiOiJhdXRoZW50aWNhdGVkIn0.signature',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjo5OTk5OTk5OTk5LCJzdWIiOiJtb2NrLXVzZXItdXVpZCIsImVtYWlsIjoic2Vla2VyQGdtYWlsLmNvbSIsInJvbGUiOiJhdXRoZW50aWNhdGVkIn0.c2lnbmF0dXJl',
   token_type: 'bearer',
   expires_in: 3600,
   expires_at: 9999999999,

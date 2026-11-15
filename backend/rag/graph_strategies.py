@@ -521,7 +521,7 @@ class FastGraphStrategy(GraphStrategy):
         # candidate set at ~5-7 docs for fast/tier2_simple (see
         # rag/nodes/retrieval.py chunk_limit), so the cross-encoder pass here
         # is cheap. rerank_documents also self-protects latency: its
-        # rerank_bypass_high_confidence_enabled path skips the cross-encoder
+        # high-confidence bypass path (off in production) skips the cross-encoder
         # entirely when the top retrieval score already clears
         # rerank_bypass_threshold (0.85) for fast/tier2_simple tiers -- the
         # RETRIEVAL_QUALITY.md §5.4 "pre-filter before the expensive
@@ -652,25 +652,24 @@ async def deep_contradiction_gate(state: GraphState) -> dict:
     # trip on high-confidence answers without weakening abstention semantics.
     standard_verification = state.get("verification")
     faithfulness_score = state.get("faithfulness_score")
-    if getattr(settings, "deep_gate_skip_on_verified", False):
-        try:
-            strict_pass = (
-                isinstance(standard_verification, dict)
-                and standard_verification.get("passed") is True
-                and state.get("is_faithful") is True
-                and float(faithfulness_score) >= float(settings.faithfulness_floor)
-            )
-        except (TypeError, ValueError):
-            strict_pass = False
-        if strict_pass:
-            logger.info(
-                "deep_contradiction_gate: reusing strict standard verification (score=%.3f)",
-                float(faithfulness_score),
-            )
-            return {
-                "needs_correction": False,
-                "reflection_feedback": "Deep verification reused strict standard verification",
-            }
+    try:
+        strict_pass = (
+            isinstance(standard_verification, dict)
+            and standard_verification.get("passed") is True
+            and state.get("is_faithful") is True
+            and float(faithfulness_score) >= float(settings.faithfulness_floor)
+        )
+    except (TypeError, ValueError):
+        strict_pass = False
+    if strict_pass:
+        logger.info(
+            "deep_contradiction_gate: reusing strict standard verification (score=%.3f)",
+            float(faithfulness_score),
+        )
+        return {
+            "needs_correction": False,
+            "reflection_feedback": "Deep verification reused strict standard verification",
+        }
 
     from rag.nodes import _services
 

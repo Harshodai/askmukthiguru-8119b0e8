@@ -424,6 +424,26 @@ def get_chat_backpressure() -> dict:
     }
 
 
+_FOLLOWUP_HINT_MAX_CHARS = 200  # same cap as rag.resolve_followup._get_last_user_message
+
+
+def _capture_followup_hint(chat_body: ChatRequest) -> None:
+    """Keep the client's last PRIOR user turn for the follow-up resolver only.
+
+    Client assistant turns stay untrusted and ``messages`` is still emptied by the
+    caller; a user turn from the same anonymous client has the same trust as the
+    current message and reaches only the retrieval-query builder.
+    """
+    current = (chat_body.user_message or "").strip()
+    for m in reversed(chat_body.messages or []):
+        if m.role != "user":
+            continue
+        text = (m.content or "").strip()
+        if text and text != current:
+            chat_body._followup_hint_user_turn = text[:_FOLLOWUP_HINT_MAX_CHARS]
+            return
+
+
 async def populate_server_side_history(
     chat_body: ChatRequest, user: dict, container: ServiceContainer, is_benchmark: bool
 ) -> None:
@@ -444,6 +464,7 @@ async def populate_server_side_history(
     # comparison never matches and anonymous requests would otherwise fall
     # through to a live Supabase lookup instead of staying local-only.
     if not user or user.get("is_anonymous") or user_id == "anonymous" or not chat_body.session_id:
+        _capture_followup_hint(chat_body)
         chat_body.messages = []
         return
 
@@ -874,6 +895,9 @@ async def chat_endpoint(
         )
         request_data = {
             "chat_body": chat_body_dict,
+            # A pydantic private attribute does not survive model_dump(), so the
+            # anonymous follow-up hint rides in the job payload (restored by the worker).
+            "followup_hint_user_turn": chat_body._followup_hint_user_turn,
             "user": user_dict,
             "is_benchmark": False,
             # Lets the queued worker release the reservation when the job
@@ -1212,6 +1236,8 @@ async def chat_stream_endpoint(
             )
             request_data = {
                 "chat_body": chat_body_dict,
+                # See the non-stream enqueue above: the hint is not part of model_dump().
+                "followup_hint_user_turn": chat_body._followup_hint_user_turn,
                 "user": user_dict,
                 "is_benchmark": False,
                 # Lets the queued worker release the reservation when the job

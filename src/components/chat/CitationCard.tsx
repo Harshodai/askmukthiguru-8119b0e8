@@ -73,7 +73,8 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
             onOpenVideoModal(citation);
           }
         }}
-        className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-ojas-ink transition-all hover:scale-110 hover:bg-saffron-gold/20 focus:outline-none"
+        aria-label={`Citation ${citation.index}: ${citation.title}`}
+        className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-ojas-ink transition-all hover:scale-110 hover:bg-saffron-gold/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
       >
         {citation.index}
       </button>
@@ -370,7 +371,8 @@ export const DiscourseVideoModal: React.FC<{
                     setShowReport(false);
                     setReportStatus('idle');
                   }}
-                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Close report panel"
+                  className="text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>

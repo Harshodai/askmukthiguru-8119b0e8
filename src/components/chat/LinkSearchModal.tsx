@@ -46,6 +46,13 @@ interface SourceData {
   matches?: QueryMatch[];
 }
 
+// Honest per-status messages for the source inspector (the modal's strings are plain English).
+const INSPECT_ERROR_TEXT: Record<number, string> = {
+  403: 'This source is not cleared for display here.',
+  404: 'This source is not available.',
+  429: 'Too many requests. Please try again shortly.',
+};
+
 interface LinkSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -67,6 +74,7 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [sourceData, setSourceData] = useState<SourceData | null>(null);
+  const [inspectError, setInspectError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'reader' | 'websearch'>('reader');
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
@@ -84,6 +92,8 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
 
     let isMounted = true;
     setLoading(true);
+    setInspectError(null);
+    setSourceData(null);
     setSearchTerm('');
     setCurrentMatchIndex(0);
 
@@ -97,6 +107,8 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
           if (isMounted) {
             setSourceData(data);
           }
+        } else if (isMounted) {
+          setInspectError(INSPECT_ERROR_TEXT[res.status] ?? null);
         }
       } catch (err) {
         console.error('Failed to inspect source', err);
@@ -219,7 +231,8 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                aria-label="Close search modal"
+                className="p-2 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -271,7 +284,8 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                    aria-label="Clear search input"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -289,7 +303,11 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
               </div>
             ) : activeTab === 'reader' ? (
               /* Reader View */
-              filteredChunks.length === 0 ? (
+              inspectError ? (
+                <div role="alert" className="text-center py-12 text-white/70">
+                  <p className="text-sm">{inspectError}</p>
+                </div>
+              ) : filteredChunks.length === 0 ? (
                 <div className="text-center py-12 text-white/50">
                   <p className="text-sm">No passages found matching "{searchTerm}".</p>
                   <button

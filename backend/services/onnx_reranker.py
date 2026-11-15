@@ -228,8 +228,6 @@ class OnnxReranker:
         repo_files = self._repo_files(repo_id, revision)
         download_kwargs: dict[str, object] = {
             "local_dir": str(cache_dir),
-            "local_dir_use_symlinks": False,
-            "resume_download": True,
         }
         if repo_files:
             download_kwargs["allow_patterns"] = [

@@ -155,14 +155,6 @@ def test_render_langhanam_system_prompt_empty_base():
     assert render_langhanam_system_prompt("") == LANGHANAM_VOICE_BLOCK
 
 
-def test_langhanam_voice_flag_default():
-    """The source-aware prompt voice ships enabled by default."""
-    from app.config import Settings
-
-    settings = Settings(llm_provider="ollama")
-    assert settings.langhanam_voice_enabled is True
-
-
 def test_guru_voice_mode_defaults_to_prompt():
     from app.config import Settings
 
@@ -192,7 +184,7 @@ def test_guru_voice_gate_score_default():
 #   2. Both `_maybe_apply_langhanam_voice` code paths (the live
 #      `voice_register.apply_register` path and the `render_langhanam_system_prompt`
 #      fallback) APPEND to the existing system prompt; neither ever replaces it,
-#      so the base clause survives regardless of `langhanam_voice_enabled`.
+#      so the base clause survives regardless of the voice block.
 # This test locks that structural behavior so a future refactor that swaps
 # append for replace (or drops the base clause) fails loudly here rather than
 # silently reopening an N2 gap.

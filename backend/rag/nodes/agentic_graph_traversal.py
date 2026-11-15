@@ -90,7 +90,7 @@ async def agentic_graph_traversal(
 
             # Atomic GraphRAG Fast Path (2026 Production Standard):
             # Executes 1-hop and 2-hop graph expansion in a single openCypher query (<5ms)
-            if getattr(settings, "atomic_graphrag_enabled", True) and start_concepts:
+            if start_concepts:
                 try:
                     from app.dependencies import get_container
                     from rag.nodes.atomic_graphrag import aexecute_atomic_graphrag

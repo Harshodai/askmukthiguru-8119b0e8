@@ -22,6 +22,66 @@ import httpx
 from services.resilience import call_with_full_jitter
 
 
+class _CallTiming:
+    """Where one provider call spends its time (measurement only, changes no behaviour).
+
+    ``trace`` is httpx's per-request ``extensions["trace"]`` hook; httpcore 1.0.9 calls it with
+    ``connection.connect_tcp.*``, ``connection.start_tls.*``, ``http11.send_request_*`` and
+    ``http11.receive_response_*`` events (HTTP/2 is not enabled on our client). It exposes NO
+    pool-wait event, so ``pool_wait_ms`` is derived: request entered the client -> first
+    connection/send event (a wait for a free connection shows up there).
+    """
+
+    __slots__ = ("limiter_ms", "status", "t", "t0")
+
+    def __init__(self) -> None:
+        self.limiter_ms = 0.0
+        self.status: int | str = "none"
+        self.t: dict[str, float] = {}
+        self.t0 = time.perf_counter()
+
+    def new_attempt(self) -> None:
+        self.t = {}
+        self.t0 = time.perf_counter()
+
+    async def trace(self, event: str, info: dict) -> None:
+        # httpcore awaits this for async clients. Bookkeeping only, and it must never raise.
+        try:
+            self.t[event] = time.perf_counter()
+        except Exception:  # noqa: BLE001 - tracing must not fail a request
+            pass
+
+    def _span_ms(self, name: str) -> float:
+        a, b = self.t.get(f"{name}.started"), self.t.get(f"{name}.complete")
+        return (b - a) * 1000 if a is not None and b is not None else 0.0
+
+    @staticmethod
+    def _gap_ms(a: float | None, b: float | None) -> float:
+        return (b - a) * 1000 if a is not None and b is not None else 0.0
+
+    def fields(self, attempt: int) -> str:
+        """Per-attempt timing fields for the OPENROUTER_CALL_TIMING line (last attempt)."""
+        t = self.t
+        starts = [
+            t[k]
+            for k in ("connection.connect_tcp.started", "http11.send_request_headers.started")
+            if k in t
+        ]
+        sent = t.get("http11.send_request_body.complete") or t.get(
+            "http11.send_request_headers.complete"
+        )
+        headers_done = t.get("http11.receive_response_headers.complete")
+        return (
+            f"limiter_wait_ms={self.limiter_ms:.1f} "
+            f"pool_wait_ms={self._gap_ms(self.t0, min(starts) if starts else None):.1f} "
+            f"connect_ms={self._span_ms('connection.connect_tcp') + self._span_ms('connection.start_tls'):.1f} "
+            f"ttfb_ms={self._gap_ms(sent, headers_done):.1f} "
+            f"read_ms={self._gap_ms(headers_done, t.get('http11.receive_response_body.complete')):.1f} "
+            f"conn_reused={bool(t) and 'connection.connect_tcp.started' not in t} "
+            f"attempt={attempt} status={self.status}"
+        )
+
+
 def _is_retryable_openrouter_error(exc: BaseException) -> bool:
     """429 can't be fixed by retrying the same model within seconds — the
     quota that's exhausted doesn't refill that fast. Retrying just adds
@@ -545,8 +605,11 @@ class OpenRouterService:
         self._policy.assert_model_allowed(model)
         max_tokens = min(max_tokens, self._policy.output_ceiling(operation))
 
+        timing = _CallTiming()
         if not _is_fallback_attempt:
+            _limiter_started = time.perf_counter()
             await self._enforce_rate_limit(strict_gateway=strict_gateway, model=model)
+            timing.limiter_ms = (time.perf_counter() - _limiter_started) * 1000
 
         if not self._circuit.can_execute():
             if strict_gateway:
@@ -637,13 +700,12 @@ class OpenRouterService:
         # app code controls. Kept because it is correct per the docs and costs
         # nothing. Do NOT re-derive this: re-measure cached_tokens first.
         session_id = kwargs.get("session_id")
-        if session_id and settings.openrouter_sticky_session_routing_enabled:
+        if session_id:
             payload["session_id"] = session_id
         headers = {}
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
-        if getattr(settings, "openrouter_cache_enabled", True):
-            headers["X-OpenRouter-Cache"] = "true"
+        headers["X-OpenRouter-Cache"] = "true"
 
         attempt_count = 0
         call_started = time.perf_counter()
@@ -658,13 +720,20 @@ class OpenRouterService:
             attempt_started = time.perf_counter()
             client = await self._get_http_client()
             request_sent = True
+            timing.new_attempt()
             try:
-                resp = await client.post("/chat/completions", json=payload, headers=headers or None)
+                resp = await client.post(
+                    "/chat/completions",
+                    json=payload,
+                    headers=headers or None,
+                    extensions={"trace": timing.trace},
+                )
             except httpx.ConnectError:
                 # Never reached the provider: nothing can be billed, so refund in full.
                 request_sent = False
                 raise
             response_arrived = True
+            timing.status = int(getattr(resp, "status_code", 0) or 0)
             try:
                 _body = resp.json()
                 _usage = _body.get("usage") if isinstance(_body, dict) else None
@@ -768,7 +837,7 @@ class OpenRouterService:
             logger.info(
                 "OPENROUTER_CALL_TIMING operation=%s model=%s attempts=%d total_ms=%.1f "
                 "prompt_tokens=%s completion_tokens=%s cached_tokens=%s cache_write_tokens=%s "
-                "cost=%s finish_reason=%s",
+                "cost=%s finish_reason=%s %s",
                 operation,
                 model,
                 attempt_count,
@@ -779,6 +848,7 @@ class OpenRouterService:
                 cache_write_tokens,
                 f"{cost_usd:.6f}" if cost_usd is not None else "none",
                 str(data.get("choices", [{}])[0].get("finish_reason") or "unknown")[:32],
+                timing.fields(attempt_count),
             )
 
             try:
@@ -802,6 +872,15 @@ class OpenRouterService:
             # timeouts during recovery wedge the breaker open forever with no
             # natural recovery (see test_cancelled_call_releases_half_open_reservation).
             self._circuit.release_reservation()
+            # A cancelled call (caller's wait_for timeout) used to log nothing, which is how
+            # slow verify/judge calls went missing from the timing logs.
+            logger.info(
+                "OPENROUTER_CALL_TIMING operation=%s model=%s total_ms=%.1f cancelled=True %s",
+                operation,
+                model,
+                (time.perf_counter() - call_started) * 1000,
+                timing.fields(attempt_count),
+            )
             raise
         except ProviderRefusalError as refusal_exc:
             # CA-4: deterministic refusal, not provider illness. Retrying
@@ -827,17 +906,25 @@ class OpenRouterService:
             finally:
                 self._circuit.release_reservation()
             record_llm_error(current_llm_span(), refusal_exc)
+            logger.info(
+                "OPENROUTER_CALL_TIMING operation=%s model=%s total_ms=%.1f refusal=True %s",
+                operation,
+                model,
+                (time.perf_counter() - call_started) * 1000,
+                timing.fields(attempt_count),
+            )
             raise
         except Exception as exc:
             record_llm_error(current_llm_span(), exc)
             logger.warning(
                 "OPENROUTER_CALL_ERROR_TIMING operation=%s model=%s attempts=%d elapsed_ms=%.1f "
-                "error_type=%s",
+                "error_type=%s %s",
                 operation,
                 model,
                 locals().get("attempt_count", 0),
                 (time.perf_counter() - locals().get("call_started", time.perf_counter())) * 1000,
                 type(exc).__name__,
+                timing.fields(locals().get("attempt_count", 0)),
             )
             # Do NOT count 429 (rate limit) as a circuit breaker failure.
             # 429 is a transient quota signal — the service is up but throttling.
@@ -1158,7 +1245,7 @@ class OpenRouterService:
         if temperature is not None:
             payload["temperature"] = temperature
         session_id = kwargs.get("session_id")
-        if session_id and settings.openrouter_sticky_session_routing_enabled:
+        if session_id:
             payload["session_id"] = session_id
 
         if not self._circuit.can_execute():
@@ -1449,15 +1536,14 @@ class OpenRouterService:
         if temperature is not None:
             payload["temperature"] = temperature
         session_id = kwargs.get("session_id")
-        if session_id and settings.openrouter_sticky_session_routing_enabled:
+        if session_id:
             payload["session_id"] = session_id
 
         is_anthropic = ("anthropic/" in model or "claude" in model) and self._prompt_caching_enabled
         headers = {}
         if is_anthropic:
             headers["anthropic-beta"] = "prompt-caching-2024-07-31"
-        if getattr(settings, "openrouter_cache_enabled", True):
-            headers["X-OpenRouter-Cache"] = "true"
+        headers["X-OpenRouter-Cache"] = "true"
 
         if not self._circuit.can_execute():
             # Circuit open means "stop contacting OpenRouter" — a fallback that

@@ -36,7 +36,7 @@ langgraph>=1.0,<2.0  # PYSEC-2026-83 fixed >=1.0
 # searches and the candidate-diversity guarantee was lost. Identical query and
 # identical Qdrant server (1.18.0) returns 29 groups under client 1.18.0.
 # Re-test grouping end to end before raising this pin.
-qdrant-client==1.18.0
+qdrant-client==1.20.0
 
 # --- Supabase ---
 supabase>=2.0.0

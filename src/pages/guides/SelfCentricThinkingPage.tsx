@@ -89,15 +89,15 @@ const SelfCentricThinkingPage = () => {
           <h2 className="text-xl font-semibold text-foreground">{content.dailyPractice.heading}</h2>
           <p>
             {content.dailyPractice.part1}
-            <Link to="/practices" className="text-ojas underline">
+            <Link to="/practices" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.dailyPractice.explorePracticesLink}
             </Link>
             {content.dailyPractice.part2}
-            <Link to="/guides/serene-mind-practice" className="text-ojas underline">
+            <Link to="/guides/serene-mind-practice" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.dailyPractice.sereneMindBreathLink}
             </Link>
             {content.dailyPractice.part3}
-            <Link to="/guides/ai-spiritual-companion" className="text-ojas underline">
+            <Link to="/guides/ai-spiritual-companion" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.dailyPractice.aiCompanionLink}
             </Link>
             {content.dailyPractice.part4}

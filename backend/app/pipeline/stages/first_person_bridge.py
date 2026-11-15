@@ -621,6 +621,26 @@ def _dense_vector(encoded: object, expected_dimension: int) -> list[float] | Non
         return None
 
 
+def _hint_reads_calm(ctx: Any, hint: str) -> bool:
+    """True only when the distress assessor rates the hint NONE.
+
+    The pipeline's crisis pre-check also reads the resolved retrieval query, so a
+    hint carrying distress would make a follow-up turn redirect where it did not
+    before the hint existed. Distress routing must not change without a clinician
+    note, so such a hint is simply not merged: the turn behaves as it did before.
+    Fails closed: no assessor, or an unreadable level, means the hint is not used.
+    """
+    serene_mind = getattr(getattr(ctx, "container", None), "serene_mind", None)
+    if serene_mind is None:
+        return False
+    assessment = serene_mind.assess_distress(hint)
+    if assessment is None:
+        return True
+    level = getattr(assessment, "level", None)
+    value = getattr(level, "value", level)
+    return isinstance(value, int) and not isinstance(value, bool) and value == 0
+
+
 def _fp_pipeline(container: Any) -> Any:
     """One FirstPersonPipeline per process (calibration profile loaded once).
 
@@ -711,6 +731,7 @@ class FirstPersonBridgeStage(Stage):
         *,
         reason: str | None = None,
         answerability: str | None = None,
+        error: str | None = None,
     ) -> PipelineResult | None:
         """Hand off to the generating graph, or (first-person-only) abstain statically.
 
@@ -746,6 +767,7 @@ class FirstPersonBridgeStage(Stage):
             related=await self._safe_related(ctx, related, compassion),
             reason=reason,
             answerability=answerability,
+            error=error,
         )
 
     async def _safe_related(
@@ -890,6 +912,19 @@ class FirstPersonBridgeStage(Stage):
 
         # Conversational Follow-Up Resolution (CQR / Anaphora):
         chat_history = getattr(ctx, "chat_body_messages", None) or []
+        # Anonymous requests carry no trusted history; their one prior user turn
+        # (same trust as the current message) feeds ONLY this resolver.
+        _hint = getattr(ctx, "followup_hint_user_turn", None)
+        if (
+            not chat_history
+            and _hint
+            and not getattr(ctx, "incognito", False)
+            and _hint_reads_calm(ctx, _hint)
+        ):
+            chat_history = [{"role": "user", "content": _hint}]
+        # A history-resolved retrieval query depends on the conversation, but the
+        # exact cache key hashes only the bare question; such a turn must bypass it.
+        followup_resolved = False
         if (
             chat_history
             and _is_heuristic_followup(retrieval_query, chat_history)
@@ -898,6 +933,7 @@ class FirstPersonBridgeStage(Stage):
             last_user = _get_last_user_message(chat_history)
             if last_user:
                 retrieval_query = f"{last_user} — {retrieval_query}"
+                followup_resolved = True
                 logger.info(
                     "[FirstPersonBridge] Resolved follow-up query (len=%d sha=%s)",
                     len(retrieval_query),
@@ -1077,6 +1113,7 @@ class FirstPersonBridgeStage(Stage):
             cache_bypass=(
                 getattr(ctx, "cache_bypass", False) is True
                 or getattr(ctx, "incognito", False) is True
+                or followup_resolved
                 or bool(memory_signals and memory_signals.get("seen_video_ids"))
             ),
             memory_signals=memory_signals,
@@ -1099,9 +1136,11 @@ class FirstPersonBridgeStage(Stage):
         # or a served result), so an empty/absent value keeps the abstain payload
         # byte-identical and off-topic/safety turns carry nothing.
         related = getattr(result, "related_clips", None) or None
-        # Opt-in (first_person_serve_weak_match): the pipeline already ran the
-        # answerability gate on this clip, so a gated weak_match is servable under
-        # its honest "Related, not a direct answer" label. The getattr default
+        # Opt-in (first_person_serve_weak_match): a weak_match is servable under its
+        # honest "Related, not a direct answer" label. The pipeline runs the
+        # answerability gate only when first_person_answerability_check_enabled is
+        # on; when it is off the harness records answerability="permissive" and no
+        # gate ran. The getattr default
         # matches the declared default (True); real Settings always carries it.
         #
         # FP-primary posture (2026-10-27, plan Change 5): `first_person_primary_mode`
@@ -1155,6 +1194,7 @@ class FirstPersonBridgeStage(Stage):
                         # NEW-ANS-2: keep why the pipeline abstained.
                         reason=getattr(result, "abstain_reason", None),
                         answerability=getattr(result, "answerability", None),
+                        error=getattr(result, "error", None),
                     )
             logger.debug(
                 "[FirstPersonBridge] No direct answer (status=%s, posture=%s); GraphStage runs.",
@@ -1177,7 +1217,12 @@ class FirstPersonBridgeStage(Stage):
         ):
             logger.debug("[FirstPersonBridge] No servable verbatim answer; declining.")
             return await self._decline(
-                ctx, status, boundaries, compassion=distress_compassion, related=related
+                ctx,
+                status,
+                boundaries,
+                compassion=distress_compassion,
+                related=related,
+                error=getattr(result, "error", None),
             )
 
         # Sub-task 2 (verbatim-only assembly): the served answer must contain
@@ -1590,6 +1635,7 @@ class FirstPersonBridgeStage(Stage):
         *,
         reason: str | None = None,
         answerability: str | None = None,
+        error: str | None = None,
     ) -> PipelineResult:
         """Ask-1 FP-primary abstain — static text, no LLM, no fall-through.
 
@@ -1618,7 +1664,7 @@ class FirstPersonBridgeStage(Stage):
         # copy asks the seeker to try again.
         from app.answer_contract import abstain_cause, abstain_copy_key
 
-        cause = abstain_cause(status, reason, answerability)
+        cause = abstain_cause(status, reason, answerability, error)
         if compassion and cause != "system_unavailable":
             cause = "safety"
         try:

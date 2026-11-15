@@ -60,7 +60,7 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
                 settings.web_search_enabled and getattr(container, "web_search", None) is not None,
             ),
             "request_queue": _state(chat_queue_enabled, chat_queue_available),
-            "teacher_voice": _state(settings.langhanam_voice_enabled),
+            "teacher_voice": _state(True),
             "serene_mind": _state(True, getattr(container, "serene_mind", None) is not None),
             "guided_meditation": "available",
             "text_attachments": "available",
@@ -77,7 +77,7 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
                 getattr(container, "supabase_client", None) is not None,
             ),
             "google_sso": _state(settings.google_sso_enabled),
-            "push_notifications": _state(settings.push_notifications_enabled),
+            "push_notifications": _state(True),
         },
     }
 

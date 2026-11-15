@@ -93,11 +93,11 @@ const BeautifulStateMeditationPage = () => {
           <h2 className="text-xl font-semibold text-foreground">{content.dailyLife.heading}</h2>
           <p>
             {content.dailyLife.part1}
-            <Link to="/practices" className="text-ojas underline">
+            <Link to="/practices" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.dailyLife.browsePracticesLink}
             </Link>
             {content.dailyLife.part2}
-            <Link to="/guides/ai-spiritual-companion" className="text-ojas underline">
+            <Link to="/guides/ai-spiritual-companion" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.dailyLife.aiCompanionLink}
             </Link>
             {content.dailyLife.part3}

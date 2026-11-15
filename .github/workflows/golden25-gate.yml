@@ -4,7 +4,7 @@ name: Golden-25 First-Person Attribution Gate
 # refs in .github/workflows/* — decorative. This runs the REAL first-person
 # harness (evaluation.first_person_harness run) over
 # evaluation/datasets/first_person_golden_paraphrase_25.json (SHA-pinned by
-# GOLDEN_PARAPHRASE_SHA256) against the first_person_v7 collection with the
+# GOLDEN_PARAPHRASE_SHA256) against the first_person_v10 collection with the
 # Phase-2 answerability gate enabled, then fails the job when attribution or
 # paraphrase-consistency metrics regress below the measured baseline.
 #
@@ -13,7 +13,7 @@ name: Golden-25 First-Person Attribution Gate
 # NOT pretend to gate. Never a fake green, never a fake red.
 #
 # Required repo secrets (owner-configured, like nightly-rls.yml):
-#   QDRANT_URL, QDRANT_API_KEY   — read-only access to the v7 collection
+#   QDRANT_URL, QDRANT_API_KEY   — read-only access to the v10 collection
 #   OPENROUTER_API_KEY           — answerability gate calls (GATE_PACE_S paced)
 #
 # Redis: CI has no shared Redis. OpenRouterService falls back to its in-process
@@ -114,7 +114,7 @@ jobs:
           # for recall@{5,10}+MRR+NDCG@10 + dense-only leg logging. Threshold
           # envs below are UNTOUCHED — new metrics never fail this gate.
           python -m evaluation.first_person_harness run \
-            --collection first_person_v7 \
+            --collection first_person_v10 \
             --questions evaluation/datasets/first_person_golden_paraphrase_25.json \
             --rank-depth 10 \
             --probe-legs \

@@ -671,9 +671,15 @@ def assert_startup_safe(
     is_production: bool,
     legacy_route_enabled: bool,
     context_harness_enabled: bool,
+    context_terminal_enabled: Optional[bool] = None,
 ) -> None:
     """Fail closed where an unsafe configuration could actually serve.
 
+    * In production the two v10 flags must agree (``context_terminal_enabled``
+      is checked only when the caller passes it). Exactly one on is a
+      half-applied v10-only rollout: the slot resolver then leaves the legacy
+      slot on the v8 clip store, so the process would silently serve v8. Both
+      off (the declared ``v8_bridge`` posture) and both on (v10-only) pass.
     * In production every error stops the process: a deployment that cannot
       state which schema it serves must not take traffic at all.
     * Outside production the **context harness** path stops the process when
@@ -688,6 +694,17 @@ def assert_startup_safe(
 
     The path-scoped behaviour is covered by tests, not by assumption.
     """
+    if (
+        is_production
+        and context_terminal_enabled is not None
+        and bool(context_harness_enabled) != (context_terminal_enabled is True)
+    ):
+        raise FirstPersonServingContractError(
+            "Unsafe first-person serving configuration in production: "
+            "FIRST_PERSON_CONTEXT_HARNESS_ENABLED and FIRST_PERSON_CONTEXT_TERMINAL_ENABLED "
+            "must both be true (v10-only) or both be false (v8 rollback); exactly one is on, "
+            "which would silently serve the legacy clip store"
+        )
     if not report.errors:
         return
     if is_production:

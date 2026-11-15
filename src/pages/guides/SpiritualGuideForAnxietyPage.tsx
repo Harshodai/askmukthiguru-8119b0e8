@@ -55,7 +55,7 @@ const SpiritualGuideForAnxietyPage = () => {
           <h2 className="text-xl font-semibold text-foreground">{content.notInHead.heading}</h2>
           <p>
             {content.notInHead.part1}
-            <Link to="/guides/self-centric-thinking" className="text-ojas underline">
+            <Link to="/guides/self-centric-thinking" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.notInHead.selfCentricLink}
             </Link>
             {content.notInHead.part2}
@@ -85,7 +85,7 @@ const SpiritualGuideForAnxietyPage = () => {
             <h3 className="text-lg font-semibold text-foreground">{content.approach.steps[2].title}</h3>
             <p>
               {content.approach.steps[2].part1}
-              <Link to="/guides/serene-mind-practice" className="text-ojas underline">
+              <Link to="/guides/serene-mind-practice" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
                 {content.approach.steps[2].sereneMindLink}
               </Link>
               {content.approach.steps[2].part2}
@@ -101,7 +101,7 @@ const SpiritualGuideForAnxietyPage = () => {
           <h2 className="text-xl font-semibold text-foreground">{content.movingToward.heading}</h2>
           <p>
             {content.movingToward.part1}
-            <Link to="/guides/beautiful-state-meditation" className="text-ojas underline">
+            <Link to="/guides/beautiful-state-meditation" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.movingToward.beautifulStateLink}
             </Link>
             {content.movingToward.part2}
@@ -112,7 +112,7 @@ const SpiritualGuideForAnxietyPage = () => {
           <h2 className="text-xl font-semibold text-foreground">{content.dailyPractice.heading}</h2>
           <p>
             {content.dailyPractice.part1}
-            <Link to="/practices" className="text-ojas underline">
+            <Link to="/practices" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.dailyPractice.browsePracticesLink}
             </Link>
             {content.dailyPractice.part2}

@@ -107,6 +107,44 @@ def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResul
     else:
         warnings.append(f"LLM_PROVIDER={provider!r} has no preflight key mapping")
 
+    # Mirrors Settings.validate_production_restrictions (backend/app/config.py).
+    # Settings treats any non-empty string as "set" (no strip). A bool field
+    # takes its default only when the variable is absent; pydantic does not
+    # strip, so " " or "maybe" stops the app at import and must fail here too.
+    def is_set(name: str) -> bool:
+        return bool(str(values.get(name, "") or ""))
+
+    def flag(name: str, default: bool) -> bool:
+        if name not in values:
+            return default
+        raw = str(values[name]).lower()
+        if raw in {"1", "true", "yes", "on", "t", "y"}:
+            return True
+        if raw in {"0", "false", "no", "off", "f", "n"}:
+            return False
+        errors.append(f"{name} is not a valid boolean")
+        return default
+
+    # Read every flag once, up front: a short-circuited `and` would skip the
+    # parse check for a flag whose value Settings still rejects.
+    faculty_gate_disabled = flag("FACULTY_GATE_DISABLED", False)
+    budget_guard = flag("OPENROUTER_BUDGET_GUARD_ENABLED", True)
+    budget_fail_closed = flag("OPENROUTER_BUDGET_FAIL_CLOSED", True)
+    allow_uncapped = flag("ALLOW_UNCAPPED_LLM_SPEND", False)
+
+    if not is_set("BRAIN_KEK"):
+        errors.append("BRAIN_KEK is required")
+    if not is_set("FACULTY_ACCESS_CODE") and not faculty_gate_disabled:
+        errors.append(
+            "FACULTY_ACCESS_CODE is required (or FACULTY_GATE_DISABLED=true as a recorded decision)"
+        )
+    budget_guarded = budget_guard and budget_fail_closed
+    if not allow_uncapped and not budget_guarded:
+        errors.append(
+            "OPENROUTER_BUDGET_GUARD_ENABLED and OPENROUTER_BUDGET_FAIL_CLOSED must both be true "
+            "(or ALLOW_UNCAPPED_LLM_SPEND=true as a recorded decision)"
+        )
+
     first_person_mode = str(values.get("FIRST_PERSON_MODE", "") or "").lower().strip()
     if first_person_mode:
         # 2026-10-20: allowed values live in app.config (single source of truth)
@@ -117,6 +155,16 @@ def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResul
             errors.append("cannot read FIRST_PERSON_MODES from app/config.py")
         elif first_person_mode not in modes:
             errors.append(f"FIRST_PERSON_MODE must be one of {modes}")
+
+    # Serving posture: v10-only needs both flags, the v8 rollback needs neither.
+    # Exactly one on would silently serve the legacy clip store (A-32).
+    harness = flag("FIRST_PERSON_CONTEXT_HARNESS_ENABLED", False)
+    terminal = flag("FIRST_PERSON_CONTEXT_TERMINAL_ENABLED", False)
+    if harness != terminal:
+        errors.append(
+            "FIRST_PERSON_CONTEXT_HARNESS_ENABLED and FIRST_PERSON_CONTEXT_TERMINAL_ENABLED "
+            "must both be true (v10-only) or both be false (v8 rollback)"
+        )
 
     redis_url = str(values.get("REDIS_URL", "") or "").lower()
     if "localhost" in redis_url or "127.0.0.1" in redis_url:

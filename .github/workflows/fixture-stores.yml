@@ -34,7 +34,7 @@ jobs:
       # Pinned to the same tag as backend/docker-compose.yml: a fixture test
       # against a different engine version proves nothing about production.
       qdrant:
-        image: qdrant/qdrant:v1.18.0
+        image: qdrant/qdrant:v1.20.0
         ports:
           - 6333:6333
         options: >-

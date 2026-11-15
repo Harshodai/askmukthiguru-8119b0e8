@@ -3,8 +3,6 @@ import logging
 import re
 from typing import Optional
 
-from app.config import settings
-
 
 def _q_tag(text: str) -> str:
     """Length + short sha256 prefix; never the seeker's words (SEC-003)."""
@@ -90,9 +88,6 @@ def preroute_intent(query: str) -> Optional[str]:
     Returns:
         "DISTRESS" | "MEDITATION" | "CASUAL" | None
     """
-    if not getattr(settings, "feature_regex_prerouter", True):
-        return None
-
     cleaned = query.strip().lower()
     if not cleaned:
         return "CASUAL"

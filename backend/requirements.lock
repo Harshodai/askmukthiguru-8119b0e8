@@ -694,7 +694,7 @@ pyyaml==6.0.3
     #   peft
     #   transformers
     #   uvicorn
-qdrant-client==1.18.0
+qdrant-client==1.20.0
     # via -r backend/requirements.txt
 rag-fact-checker==0.1.5
     # via lettucedetect
@@ -730,6 +730,8 @@ requests==2.34.2
     #   langchain-community
     #   langsmith
     #   markitdown
+    #   opentelemetry-exporter-http-transport
+    #   opentelemetry-exporter-otlp-proto-http
     #   requests-toolbelt
     #   tiktoken
     #   youtube-transcript-api
@@ -920,7 +922,6 @@ tzlocal==5.4.4
 urllib3==2.8.0
     # via
     #   instructor
-    #   opentelemetry-exporter-http-transport
     #   qdrant-client
     #   requests
 uuid-utils==0.17.1

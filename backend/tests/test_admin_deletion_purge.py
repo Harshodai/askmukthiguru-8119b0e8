@@ -462,7 +462,7 @@ def test_tenant_lookup_missing_client_returns_503_and_records_audit(container):
 
 def test_require_admin_rejects_non_superuser():
     with pytest.raises(HTTPException) as exc:
-        compliance._require_admin({"id": "user-1", "is_superuser": False})
+        asyncio.run(compliance._require_admin({"id": "user-1", "is_superuser": False}))
     assert exc.value.status_code == 403
     assert exc.value.detail == "Admin access required"
 

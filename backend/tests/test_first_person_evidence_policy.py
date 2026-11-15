@@ -436,8 +436,7 @@ def test_trailing_transitive_verb_ends_mid_sentence():
         _standalone_problem,
     )
 
-    text = "When love is getting out of your relationship and your heart is closing, it is not allowing."
-    # With period at end, it's not a trailing verb without period, but if ending without punctuation:
+    # Without a trailing period the clip ends on a transitive verb:
     text_cut = (
         "When love is getting out of your relationship and your heart is closing it is not allowing"
     )

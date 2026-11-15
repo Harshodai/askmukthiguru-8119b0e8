@@ -1750,7 +1750,6 @@ async def test_bridge_serves_spiritual_metaphor_with_medical_claim_notice(fp_pip
     assert MEDICAL_CLAIM_NOTICE in result.route_metadata["safety_notices"]
 
 
-
 # --- HyDE provider resolution (2026-11-11) ---------------------------------
 # Finding 5 of the SOTA audit said HyDE only ever ran when `container.ollama` was
 # truthy. On the real container `ollama` is a deprecated alias for `llm`, and the

@@ -57,6 +57,9 @@ class PipelineContext:
     user_id: str = "anonymous"
     stable_session_id: str = "anonymous"
     chat_body_messages: list = field(default_factory=list)
+    # Anonymous follow-up hint: the client's prior USER turn, read only by the
+    # first-person follow-up resolver. Never part of chat_body_messages.
+    followup_hint_user_turn: str | None = None
 
     # Set by coordinator.execute() BEFORE the stage chain runs — CacheCheckStage
     # is stage #1 while state.memory_context is only built later by

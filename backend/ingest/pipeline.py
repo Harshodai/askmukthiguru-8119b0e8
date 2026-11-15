@@ -796,44 +796,43 @@ class IngestionPipeline:
         if ext not in supported_exts:
             return {"status": "error", "message": f"Unsupported file type: {ext}"}
 
-        if settings.use_markitdown_parser:
-            try:
-                from markitdown import MarkItDown
-                from openai import OpenAI
+        try:
+            from markitdown import MarkItDown
+            from openai import OpenAI
 
-                # Configure OpenAI-compatible client for the active LLM provider
-                provider = settings.llm_provider.lower()
-                if provider == "ollama":
-                    base_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
-                    api_key = "ollama"
-                    model = settings.model_for_generation
-                elif provider == "nim":
-                    base_url = settings.nim_base_url
-                    api_key = settings.nim_api_key
-                    model = settings.nim_generation_model
-                elif provider == "openrouter":
-                    base_url = settings.openrouter_base_url
-                    api_key = settings.openrouter_api_key
-                    model = settings.openrouter_generation_model
-                elif provider in ("sarvam", "sarvam_cloud"):
-                    base_url = settings.sarvam_base_url
-                    api_key = settings.sarvam_api_key
-                    model = settings.sarvam_cloud_model
-                else:
-                    base_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
-                    api_key = "ollama"
-                    model = settings.model_for_generation
+            # Configure OpenAI-compatible client for the active LLM provider
+            provider = settings.llm_provider.lower()
+            if provider == "ollama":
+                base_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
+                api_key = "ollama"
+                model = settings.model_for_generation
+            elif provider == "nim":
+                base_url = settings.nim_base_url
+                api_key = settings.nim_api_key
+                model = settings.nim_generation_model
+            elif provider == "openrouter":
+                base_url = settings.openrouter_base_url
+                api_key = settings.openrouter_api_key
+                model = settings.openrouter_generation_model
+            elif provider in ("sarvam", "sarvam_cloud"):
+                base_url = settings.sarvam_base_url
+                api_key = settings.sarvam_api_key
+                model = settings.sarvam_cloud_model
+            else:
+                base_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
+                api_key = "ollama"
+                model = settings.model_for_generation
 
-                llm_client = OpenAI(base_url=base_url, api_key=api_key)
+            llm_client = OpenAI(base_url=base_url, api_key=api_key)
 
-                md = MarkItDown(llm_client=llm_client, llm_model=model)
-                # Run convert synchronously
-                result = md.convert(file_path)
-                text = result.text_content
-            except Exception as e:
-                logger.error(
-                    f"MarkItDown conversion failed for {file_path}: {e}. Falling back to default parsers."
-                )
+            md = MarkItDown(llm_client=llm_client, llm_model=model)
+            # Run convert synchronously
+            result = md.convert(file_path)
+            text = result.text_content
+        except Exception as e:
+            logger.error(
+                f"MarkItDown conversion failed for {file_path}: {e}. Falling back to default parsers."
+            )
 
         if not text:
             if ext == ".pdf":
@@ -1285,7 +1284,7 @@ class IngestionPipeline:
             }
 
         # KG Phase 6: materialize extracted entities/relationships into Neo4j.
-        if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
+        if hyper_extract_result:
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
 
@@ -1573,7 +1572,7 @@ class IngestionPipeline:
         # post-success so both the standard video path and _ingest_video_enhanced
         # invoke it exactly once, after rollback-prone work has finished.
         # Failure propagates so checkpoint is NOT saved — prevents silent non-retry.
-        if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
+        if hyper_extract_result:
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
 
@@ -1603,19 +1602,18 @@ class IngestionPipeline:
         checkpoint.save(_ckpt_key)
 
         # OKF auto-extraction: fire-and-forget for newly ingested content.
-        # ponytail: gated by rag_okf_auto_extract_enabled (default on — hardened
+        # ponytail: always on (hardened
         # w/ Celery retry + logging in _okf_extract_for_video). Non-fatal — OKF
         # extraction must never break ingestion. Mirrors the hook in _ingest_video —
         # ingest_raw_text (the split local-transcribe/raw-text pipeline) previously
         # had no OKF hook at all, so anything ingested through it never reached OKF.
-        if getattr(settings, "rag_okf_auto_extract_enabled", False):
-            try:
-                video_id = extract_video_id(source_url)
-                if video_id:
-                    asyncio.create_task(_okf_extract_for_video(video_id))
-                    logger.debug("OKF extraction queued for video: %s", video_id)
-            except Exception as e:
-                logger.warning(f"Failed to queue OKF extraction for {source_url}: {e}")
+        try:
+            video_id = extract_video_id(source_url)
+            if video_id:
+                asyncio.create_task(_okf_extract_for_video(video_id))
+                logger.debug("OKF extraction queued for video: %s", video_id)
+        except Exception as e:
+            logger.warning(f"Failed to queue OKF extraction for {source_url}: {e}")
 
         self._notify(on_progress, "Complete!", 1.0)
         return {
@@ -1919,7 +1917,7 @@ class IngestionPipeline:
         # graph stays permanently behind for this source; that degradation is
         # reported as ontology_indexed=False instead of a clean success.
         ontology_indexed = True
-        if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
+        if hyper_extract_result:
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
 
@@ -1956,17 +1954,16 @@ class IngestionPipeline:
         checkpoint.save(self._checkpoint_key(content_hash, source_version))
 
         # OKF auto-extraction: fire-and-forget for newly ingested content.
-        # ponytail: gated by rag_okf_auto_extract_enabled (default on — hardened
+        # ponytail: always on (hardened
         # w/ Celery retry + logging in _okf_extract_for_video). Non-fatal — OKF
         # extraction must never break ingestion.
-        if getattr(settings, "rag_okf_auto_extract_enabled", False):
-            try:
-                video_id = extract_video_id(url)
-                if video_id:
-                    asyncio.create_task(_okf_extract_for_video(video_id))
-                    logger.debug("OKF extraction queued for video: %s", video_id)
-            except Exception as e:
-                logger.warning(f"Failed to queue OKF extraction for {url}: {e}")
+        try:
+            video_id = extract_video_id(url)
+            if video_id:
+                asyncio.create_task(_okf_extract_for_video(video_id))
+                logger.debug("OKF extraction queued for video: %s", video_id)
+        except Exception as e:
+            logger.warning(f"Failed to queue OKF extraction for {url}: {e}")
 
         self._notify(on_progress, "Complete!", 1.0)
         return {
@@ -2285,7 +2282,7 @@ class IngestionPipeline:
         # graph stays permanently behind for this source; that degradation is
         # reported as ontology_indexed=False instead of a clean success.
         ontology_indexed = True
-        if hyper_extract_result and getattr(settings, "write_ontology_to_neo4j", True):
+        if hyper_extract_result:
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
 
@@ -2321,19 +2318,18 @@ class IngestionPipeline:
 
         checkpoint.save(self._checkpoint_key(content_hash, source_version))
 
-        # OKF auto-extraction hook (same gate as _ingest_video).
+        # OKF auto-extraction hook (same as _ingest_video).
         # ponytail: simplified from the previous to_thread(asyncio.run(...)) wrapper —
         # we're already inside a running event loop here, so create_task() directly
         # is correct and matches _ingest_video()'s pattern (no need for a new thread
         # + a nested event loop).
-        if getattr(settings, "rag_okf_auto_extract_enabled", False):
-            try:
-                video_id = extract_video_id(url)
-                if video_id:
-                    asyncio.create_task(_okf_extract_for_video(video_id))
-                    logger.debug("OKF extraction queued for enhanced video: %s", video_id)
-            except Exception as e:
-                logger.warning(f"Failed to queue OKF extraction for {url}: {e}")
+        try:
+            video_id = extract_video_id(url)
+            if video_id:
+                asyncio.create_task(_okf_extract_for_video(video_id))
+                logger.debug("OKF extraction queued for enhanced video: %s", video_id)
+        except Exception as e:
+            logger.warning(f"Failed to queue OKF extraction for {url}: {e}")
 
         self._notify(on_progress, "Enhanced ingestion complete!", 1.0)
         return {
@@ -2672,7 +2668,7 @@ class IngestionPipeline:
                 # Checkpoint is keyed on content_hash_pl (computed from raw_text
                 # right after fetch, same convention as _ingest_video) so re-runs
                 # dedupe by content, not by URL — the URL is kept as metadata only.
-                if pl_hyper_extract and getattr(settings, "write_ontology_to_neo4j", True):
+                if pl_hyper_extract:
                     try:
                         from ingest.ontology_writer import write_extraction_to_neo4j
 
@@ -2721,14 +2717,13 @@ class IngestionPipeline:
 
                 # OKF auto-extraction: fire-and-forget per video. Fix: playlist path
                 # had no OKF hook at all, unlike _ingest_video()/_ingest_video_enhanced().
-                if getattr(settings, "rag_okf_auto_extract_enabled", False):
-                    try:
-                        pl_video_id = extract_video_id(video["url"])
-                        if pl_video_id:
-                            asyncio.create_task(_okf_extract_for_video(pl_video_id))
-                            logger.debug(f"OKF extraction queued for playlist video: {pl_video_id}")
-                    except Exception as e:
-                        logger.warning(f"Failed to queue OKF extraction for {video['url']}: {e}")
+                try:
+                    pl_video_id = extract_video_id(video["url"])
+                    if pl_video_id:
+                        asyncio.create_task(_okf_extract_for_video(pl_video_id))
+                        logger.debug(f"OKF extraction queued for playlist video: {pl_video_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to queue OKF extraction for {video['url']}: {e}")
 
             except Exception as e:
                 errors.append({"url": video["url"], "error": str(e)})
@@ -2800,7 +2795,7 @@ class IngestionPipeline:
         )
 
         # KG Phase 6: materialize extracted entities/relationships into Neo4j.
-        if img_hyper_extract and getattr(settings, "write_ontology_to_neo4j", True):
+        if img_hyper_extract:
             try:
                 from ingest.ontology_writer import write_extraction_to_neo4j
 
@@ -3324,17 +3319,16 @@ class IngestionPipeline:
 
         tags = list(set(tags + teacher_tags + [source_tag] + category_tags))
 
-        # Optional ingestion-time deduplication
-        if getattr(settings, "ingestion_deduplication_enabled", False):
-            placeholder_metas = [
-                extra_metadatas[i] if extra_metadatas and i < len(extra_metadatas) else {}
-                for i in range(len(chunks))
-            ]
-            chunks, extra_metadatas = deduplicate_by_payload(
-                chunks,
-                placeholder_metas,
-                threshold=settings.ingestion_dedup_threshold,
-            )
+        # Ingestion-time deduplication
+        placeholder_metas = [
+            extra_metadatas[i] if extra_metadatas and i < len(extra_metadatas) else {}
+            for i in range(len(chunks))
+        ]
+        chunks, extra_metadatas = deduplicate_by_payload(
+            chunks,
+            placeholder_metas,
+            threshold=settings.ingestion_dedup_threshold,
+        )
 
         # ---------------------------------------------------------------
         # Single quality gate for everything persisted to Qdrant.

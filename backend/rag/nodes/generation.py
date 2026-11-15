@@ -1298,18 +1298,15 @@ def _build_stop_sequences() -> list[str]:
 def _maybe_apply_langhanam_voice(
     state: GraphState, system_prompt: str, answer: str
 ) -> tuple[str, str]:
-    """Apply the Langhanam guru voice to generation (feature-flagged, default on).
+    """Apply the Langhanam guru voice to generation.
 
     Variant A (``guru_voice_mode == "prompt"``) appends the voice block to
     the system prompt; variant B (``"adapter"``) rewrites the finished
-    answer with ``apply_langhanam_tone``. Gated on
-    ``settings.langhanam_voice_enabled`` (defaults to True) and intent
+    answer with ``apply_langhanam_tone``. Gated on intent
     eligibility — teaching/doctrine/distress/FACTUAL qualify (FACTUAL is in
     ``LANGHANAM_ELIGIBLE_INTENTS``); CASUAL and GREETING are excluded. Any
     failure degrades to the untouched inputs.
     """
-    if not getattr(settings, "langhanam_voice_enabled", False):
-        return system_prompt, answer
     if not is_voice_eligible(state.get("intent") or "FACTUAL"):
         return system_prompt, answer
     # T1-06 (AI-003): general mode answers in a neutral voice; never append the
@@ -1881,7 +1878,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
 
     # Context Engineering (§8): deduplicate exact and near-duplicate chunks before budget packing
     pruned_dups = 0
-    if getattr(settings, "context_chunk_dedup_enabled", True) and len(knowledge_docs) > 1:
+    if len(knowledge_docs) > 1:
         if len(knowledge_docs) > 30:
             logger.warning(
                 "Document count %d exceeds dedup cap of 30; skipping near-duplicate dedup",
@@ -3775,13 +3772,10 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     # tier3_complex / deep queries never leak the raw CCR tag to the user.
     answer = re.sub(r"\[RETRIEVE:\s*[^\]]+\]", "", answer)
 
-    # --- A3: Humanizer (config-gated). Runs after strip_cot + CCR strip so
+    # --- A3: Humanizer. Runs after strip_cot + CCR strip so
     # chain-of-thought markers and [RETRIEVE] tags are not mangled, and before
     # citation-by-sentence attachment so citations attach to humanized text.
-    # Skipped unless settings.strip_canned_footer is True — same flag that
-    # governs canned-footer removal, so existing deployments with it off see
-    # no change.
-    if getattr(settings, "strip_canned_footer", True) and answer:
+    if answer:
         try:
             answer = scrub(answer)
         except Exception as _humanizer_err:
@@ -3790,18 +3784,14 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
     # Langhanam guru voice — variant B (tone adapter): rewrite the finished
     # answer. Streaming responses are left untouched (chunks were already
     # pushed to the client). Feature-flagged off by default.
-    if getattr(settings, "langhanam_voice_enabled", False) and not stream_queue:
+    if not stream_queue:
         system_prompt, answer = _maybe_apply_langhanam_voice(state, system_prompt, answer)
 
     # Step 1 — Intent-gated factual slot corrections (NEC-style, removed per P1-10)
     # Step 2 — Append missing doctrine keywords as footnotes (removed per P1-10)
 
     # 1.10 Citation-by-Sentence — attach per-sentence inline citations
-    if (
-        getattr(settings, "citation_by_sentence", True)
-        and surviving_docs
-        and not general_knowledge_mode
-    ):
+    if surviving_docs and not general_knowledge_mode:
         try:
             intent = state.get("intent", "QUERY")
             answer = _cite_sentences(answer, surviving_docs, intent=intent)

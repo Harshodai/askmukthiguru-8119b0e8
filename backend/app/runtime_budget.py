@@ -98,9 +98,154 @@ def capacity_snapshot(settings: Any) -> dict[str, int]:
     }
 
 
+def serving_gate_warnings(settings: Any) -> list[str]:
+    """Question-level gates that are off while first-person chat is serving.
+
+    Invariants 19 and 22 describe the YES/NO answerability gate as covering every
+    served clip. It is a flag: with it off the harness records
+    ``answerability="permissive"`` and the relevance scorer is the only
+    question-level gate left. That may be a deliberate choice, so this reports it
+    at startup instead of changing it (found off in the live env, 2026-11-13).
+    """
+    serving = bool(getattr(settings, "first_person_route_enabled", False)) and bool(
+        getattr(settings, "first_person_chat_bridge_enabled", False)
+    )
+    if serving and not bool(getattr(settings, "first_person_answerability_check_enabled", True)):
+        return [
+            "FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=false while first-person chat serves: "
+            "no YES/NO answerability gate runs (answers record answerability=permissive); "
+            "the relevance scorer is the only question-level gate"
+        ]
+    return []
+
+
+# The project alerts at 70% of a cap in production; locally there was no signal at all, so a
+# plain compose stack refused every model call with a provider-style message and nothing said
+# whose limit it was (T-E2, 2026-11-14).
+HEADROOM_WARN_FRACTION = 0.70
+
+
+def budget_cap_warnings(
+    settings: Any, spent_day: float | None, spent_month: float | None
+) -> list[str]:
+    """Report a spend cap that is at or near its limit *before* a user asks a question.
+
+    Pure: the caller reads the ledger. ``None`` means the ledger could not be read, which is
+    not a cap breach and must not be reported as one (an unreachable ledger already has its
+    own fail-closed behaviour in `app/openrouter_budget.py`).
+    """
+    if not bool(getattr(settings, "openrouter_budget_guard_enabled", False)):
+        return []
+    daily = float(getattr(settings, "openrouter_daily_budget_usd", 0.0) or 0.0)
+    monthly = float(getattr(settings, "openrouter_monthly_budget_usd", 0.0) or 0.0)
+    warnings: list[str] = []
+    for label, spent, cap, setting in (
+        ("day", spent_day, daily, "OPENROUTER_DAILY_BUDGET_USD"),
+        ("month", spent_month, monthly, "OPENROUTER_MONTHLY_BUDGET_USD"),
+    ):
+        if spent is None or cap <= 0:
+            continue
+        if spent >= cap:
+            warnings.append(
+                f"model budget cap reached: {label} ledger ${spent:.2f} >= cap ${cap:.2f} "
+                f"({setting}). Every LLM call is refused by our own guard "
+                "(app/openrouter_budget.py) until the cap is raised or the ledger rolls over — "
+                "this is not a provider balance problem"
+            )
+        elif spent >= cap * HEADROOM_WARN_FRACTION:
+            warnings.append(
+                f"model budget {label} ledger ${spent:.2f} is at "
+                f"{spent / cap:.0%} of the ${cap:.2f} cap ({setting}); at 100% every LLM call "
+                "is refused by our own guard"
+            )
+    return warnings
+
+
+def _ledger_read_errors() -> tuple[type[BaseException], ...]:
+    """The exceptions a ledger read may raise, named rather than swallowed with `Exception`.
+
+    Redis raises `redis.exceptions.RedisError`, which does not subclass `OSError`, so a narrow
+    `OSError` catch would miss a dead Redis. The repo's exception ratchet is shrink-only, so this
+    stays an enumerated tuple instead of a blanket catch.
+    """
+    errors: tuple[type[BaseException], ...] = (
+        ImportError,
+        OSError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        TimeoutError,
+    )
+    try:
+        from redis.exceptions import RedisError
+
+        return errors + (RedisError,)
+    except ImportError:  # redis absent in a docs-only environment
+        return errors
+
+
+_LEDGER_READ_ERRORS = _ledger_read_errors()
+
+
+async def read_spend_ledger(settings: Any) -> tuple[float | None, float | None]:
+    """Read today's and this month's OpenRouter spend. Best-effort: `(None, None)` when unknown.
+
+    Uses the guard's own key derivation (`OpenRouterBudgetGuard._keys`) so the reader and the
+    writer can never disagree about where the ledger lives.
+    """
+    if not bool(getattr(settings, "openrouter_budget_guard_enabled", False)):
+        return None, None
+    try:
+        import redis.asyncio as aioredis
+
+        from app.openrouter_budget import OpenRouterBudgetGuard
+
+        day_key, month_key, _, _ = OpenRouterBudgetGuard._keys()
+        # Bounded: a startup report must never hold the app on an unreachable Redis
+        # (`socket_connect_timeout=None` is the client default, i.e. OS-timeout only).
+        client = aioredis.from_url(
+            str(settings.redis_url),
+            decode_responses=True,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
+        try:
+            day, month = await client.mget(day_key, month_key)
+        finally:
+            await client.aclose()
+        return float(day or 0.0), float(month or 0.0)
+    except _LEDGER_READ_ERRORS:  # reporting must never stop startup
+        return None, None
+
+
+async def log_budget_headroom(logger: logging.Logger, settings: Any) -> None:
+    """Say the cap state once at startup. Never raises, never spends."""
+    try:
+        spent_day, spent_month = await read_spend_ledger(settings)
+        for warning in budget_cap_warnings(settings, spent_day, spent_month):
+            logger.warning("Model budget posture: %s", warning)
+        if spent_day is not None and spent_month is not None:
+            logger.info(
+                "Model budget ledger: day=$%.2f of $%.2f, month=$%.2f of $%.2f",
+                spent_day,
+                float(getattr(settings, "openrouter_daily_budget_usd", 0.0) or 0.0),
+                spent_month,
+                float(getattr(settings, "openrouter_monthly_budget_usd", 0.0) or 0.0),
+            )
+    except (
+        TypeError,
+        ValueError,
+        KeyError,
+        AttributeError,
+    ):  # pragma: no cover - reporting must not stop startup
+        logger.debug("budget headroom log failed", exc_info=True)
+
+
 def log_runtime_budget(logger: logging.Logger, settings: Any) -> None:
     """Log the budget table and the capacity line. Never raises."""
     try:
+        for warning in serving_gate_warnings(settings):
+            logger.warning("Serving gate posture: %s", warning)
         table = " ".join(f"{row['name']}={row['value']}" for row in llm_budget_table(settings))
         logger.info("LLM budget table: %s", table)
         cap = capacity_snapshot(settings)

@@ -38,8 +38,25 @@ Preflight: `cd backend && .venv/bin/python -m scripts.ops.graded_run_preflight -
 Confirm the resolved values in the container: `FIRST_PERSON_CONTEXT_USE_SPARSE=false`, `FIRST_PERSON_JUDGE_MODEL=anthropic/claude-haiku-5.5`, `FIRST_PERSON_RELEVANCE_MIN_SCORE=3`, `FIRST_PERSON_ACTIVE_COLLECTION=first_person_v10`. Record the answerability-gate setting too (unresolved; see handoff).
 
 ## 3. Collection fingerprint [READ]
-Record point counts and schema of `first_person_v10` before the run (read-only scroll/count).
-Do not touch `first_person_v11` or create any collection.
+Record point count and `ids_sha256` of `first_person_v10` before the run:
+```bash
+python3 scripts/ops/collection_fingerprint.py --collection first_person_v10   # prints {points, ids_sha256, collection}
+```
+Save that output. Do not touch `first_person_v11` or create any collection.
+
+**The fingerprint must also be IN the manifest, or the run is invalid.** `graded_capture.py`
+writes `collection_fingerprint: None`, and `graded_registered_report.py` marks any run with a
+null fingerprint `run valid: False`. With no producer, no run could ever be a verdict — that is
+why `20261114-graded-7` is neither a PASS nor a FAIL (`docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md` §8.3, F-10).
+So immediately after step 4 and before any grading:
+```bash
+python3 scripts/ops/collection_fingerprint.py --collection first_person_v10 \
+    --run-dir ~/mukthiguru_attribution_data/graded_runs/<run-id> --write
+```
+The post-capture value must **equal** the pre-run value. If it does not, something wrote to the
+collection during the run and the capture is not reproducible — record that and stop.
+The tool refuses `--write` once `registered_report.json` exists, so a finished run cannot be
+retro-fitted into validity; a run found invalid must be re-run.
 
 ## 4. Capture [PAID]
 ```bash

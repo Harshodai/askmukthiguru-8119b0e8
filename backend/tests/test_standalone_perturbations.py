@@ -13,14 +13,22 @@ import pytest
 
 from services.first_person_evidence_policy import _standalone_problem
 
-_ROWS = Path("/Users/harshodaikolluru/mukthiguru_attribution_data/graded_runs/20261112-graded-6/rows.jsonl")
+_ROWS = Path(
+    "/Users/harshodaikolluru/mukthiguru_attribution_data/graded_runs/20261112-graded-6/rows.jsonl"
+)
 
 
 def _good_clips():
     if not _ROWS.exists():
         return []
-    rows = [json.loads(line) for line in _ROWS.read_text(encoding="utf-8").splitlines() if line.strip()]
-    texts = [r["citations"][0]["text"] for r in rows if r.get("citations") and r["citations"][0].get("text")]
+    rows = [
+        json.loads(line) for line in _ROWS.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    texts = [
+        r["citations"][0]["text"]
+        for r in rows
+        if r.get("citations") and r["citations"][0].get("text")
+    ]
     return [t for t in texts if _standalone_problem(t) is None]
 
 

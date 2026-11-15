@@ -10,6 +10,12 @@ import faulthandler
 import json
 import logging
 import re
+import warnings
+
+# Suppress QdrantClient UserWarning when API key is used over internal Docker bridge (http://)
+warnings.filterwarnings(
+    "ignore", category=UserWarning, message=".*Api key is used with an insecure connection.*"
+)
 
 faulthandler.enable()
 import os
@@ -77,7 +83,7 @@ from app.context import correlation_id_var, set_request_id
 from app.dependencies import async_shutdown, get_container, startup
 from app.metrics import REQUEST_COUNT
 from app.observability import init_observability
-from app.runtime_budget import log_runtime_budget
+from app.runtime_budget import log_budget_headroom, log_runtime_budget
 from app.security_utils import (
     ExponentialBackoffRateLimiter,
     RedisBackedRateLimiter,
@@ -903,7 +909,10 @@ async def lifespan(app: FastAPI):
 
     if _fp_report is not None:
         for _warning in _fp_report.warnings:
-            logger.warning("Lifespan: first-person serving contract warning: %s", _warning)
+            if "v10-only mode" in _warning:
+                logger.info("Lifespan: first-person serving contract: %s", _warning)
+            else:
+                logger.warning("Lifespan: first-person serving contract warning: %s", _warning)
         for _error in _fp_report.errors:
             logger.error("Lifespan: first-person serving contract error: %s", _error)
         assert_startup_safe(
@@ -912,6 +921,9 @@ async def lifespan(app: FastAPI):
             legacy_route_enabled=bool(getattr(settings, "first_person_route_enabled", True)),
             context_harness_enabled=bool(
                 getattr(settings, "first_person_context_harness_enabled", False)
+            ),
+            context_terminal_enabled=(
+                getattr(settings, "first_person_context_terminal_enabled", False) is True
             ),
         )
         logger.info(
@@ -976,6 +988,8 @@ async def lifespan(app: FastAPI):
     timer.log(logger, healthcheck_timeout_s=330)
     # NEW-OPS-8 / NEW-LOAD-4 / NEW-LOAD-5: one budget table and one capacity line.
     log_runtime_budget(logger, settings)
+    # T-E2: say the spend-cap state at boot, so a refusal is never a mystery.
+    await log_budget_headroom(logger, settings)
     logger.info("=== Server accepting requests ===")
     yield
 

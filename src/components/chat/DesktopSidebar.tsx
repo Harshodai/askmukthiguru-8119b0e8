@@ -151,6 +151,7 @@ export const DesktopSidebar = ({
           <button
             onClick={() => { void onNewConversation(); }}
             title={t('desktopSidebar.newConvTooltip')}
+            aria-label={t('nav.newChat') || t('desktopSidebar.newConvTooltip') || "Start new conversation"}
             className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-ojas/10 text-muted-foreground hover:text-ojas transition-all"
           >
             <Plus className="w-4 h-4" />
@@ -178,6 +179,7 @@ export const DesktopSidebar = ({
                   key={c.id}
                   onClick={() => { onSelectConversation?.(c); }}
                   title={c.preview || t('desktopSidebar.conversation')}
+                  aria-label={c.preview || t('desktopSidebar.conversation') || "Switch conversation"}
                   className={`w-1.5 h-1.5 rounded-full transition-all ${
                     c.id === currentConversationId ? 'bg-ojas scale-150' : 'bg-muted-foreground/30 hover:bg-ojas/50'
                   }`}
@@ -291,7 +293,7 @@ export const DesktopSidebar = ({
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                           <button
                             onClick={e => handleRename(conv, e)}
-                            className="flex h-6 w-6 items-center justify-center rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                            className="flex h-6 w-6 items-center justify-center rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                             title={t('desktopSidebar.rename')}
                             aria-label={t('desktopSidebar.renameConv') === 'desktopSidebar.renameConv' ? 'Rename conversation' : t('desktopSidebar.renameConv')}
                           >
@@ -302,7 +304,7 @@ export const DesktopSidebar = ({
                               e.stopPropagation();
                               setDeleteConfirmId(conv.id);
                             }}
-                            className="flex h-6 w-6 items-center justify-center rounded hover:bg-destructive/15 text-muted-foreground hover:text-destructive"
+                            className="flex h-6 w-6 items-center justify-center rounded hover:bg-destructive/15 text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                             title={t('common.delete')}
                             aria-label={t('desktopSidebar.deleteConv') === 'desktopSidebar.deleteConv' ? 'Delete conversation' : t('desktopSidebar.deleteConv')}
                           >

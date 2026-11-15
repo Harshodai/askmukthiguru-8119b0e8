@@ -166,11 +166,11 @@ export const DailyTeachingCard = () => {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-ojas">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ojas-ink">
             {t('ritual.badge', "Today's Teaching")}
           </h2>
         </div>
-        <span className="flex items-center gap-1 rounded-full bg-ojas/10 px-2 py-0.5 text-[11px] font-medium text-ojas">
+        <span className="flex items-center gap-1 rounded-full bg-ojas/10 px-2 py-0.5 text-[11px] font-medium text-ojas-ink">
           <Flame className="w-3 h-3" aria-hidden="true" />
           {streakLabel}
         </span>
@@ -188,12 +188,12 @@ export const DailyTeachingCard = () => {
               href={teaching.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-ojas hover:underline"
+              className="text-ojas-ink hover:underline"
             >
               {teaching.source_label}
             </a>
           ) : (
-            <Link to={teaching.url} className="text-ojas hover:underline">
+            <Link to={teaching.url} className="text-ojas-ink hover:underline">
               {teaching.source_label}
             </Link>
           )}
@@ -244,7 +244,7 @@ export const DailyTeachingCard = () => {
             />
           </button>
         </div>
-        <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/80">
+        <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
           {supportsNotifications()
             ? t(
                 'ritual.reminderNote',

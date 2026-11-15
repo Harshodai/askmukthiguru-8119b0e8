@@ -493,7 +493,14 @@ def init_observability(app: FastAPI) -> bool:
         otlp_exporter = OTLPSpanExporter(endpoint=endpoint, insecure=True)
         provider.add_span_processor(PrivacyRedactionSpanProcessor())
         provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-        trace.set_tracer_provider(provider)
+
+        current_provider = trace.get_tracer_provider()
+        if isinstance(current_provider, TracerProvider):
+            logger.info(
+                "OpenTelemetry TracerProvider already registered globally; reusing existing provider."
+            )
+        else:
+            trace.set_tracer_provider(provider)
 
         FastAPIInstrumentor.instrument_app(app, excluded_urls=excluded_urls)
         LangChainInstrumentor().instrument()

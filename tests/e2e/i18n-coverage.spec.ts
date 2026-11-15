@@ -69,7 +69,7 @@ test.describe("i18n route coverage", () => {
         }, lang);
 
         await page.goto(route, { waitUntil: "domcontentloaded" });
-        await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+        await page.waitForLoadState("load");
 
         // Basic render sanity.
         const html = await page.locator("html").getAttribute("lang");
@@ -87,7 +87,7 @@ test.describe("i18n route coverage", () => {
         // <html lang> attribute. The public navbar is present on /, so use its
         // localized Practices label as a stable cross-locale sentinel.
         await page.goto("/", { waitUntil: "domcontentloaded" });
-        await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+        await page.waitForLoadState("load");
         await expect(page.getByText(EXPECTED_NAV_PRACTICES[lang], { exact: true }).first()).toBeVisible();
 
         // Screenshot the top viewport for manual review of any leaks.

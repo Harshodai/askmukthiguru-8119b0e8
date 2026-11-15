@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { Message } from '@/lib/chatStorage';
+import { RELATED_NOT_DIRECT_LABEL } from '@/lib/relatedLabel';
 
 const ZERO_WIDTH = String.fromCharCode(0x200b);
 
@@ -13,8 +14,18 @@ export const ANSWER_ARRIVED_TEXT = 'Mukthi Guru has replied. The answer is below
 export const ANSWER_ABSTAINED_TEXT =
   'Mukthi Guru found no close match in the recorded teachings for this question.';
 
+export const CLIP_SHOWN_TEXT = 'Mukthi Guru has replied with a teaching clip. The clip is below.';
+export const RELATED_CLIP_SHOWN_TEXT = `Mukthi Guru has replied with a teaching clip. ${RELATED_NOT_DIRECT_LABEL}. The clip is below.`;
+
 export function describeArrival(message: Message): string | null {
   if (message.role !== 'guru' || message.isWelcome || message.error) return null;
+  // The backend serves a clip with grounding_state 'abstained' by design (no
+  // calibration profile), so a shown clip must not be announced as "no match".
+  // Same signals the visible card uses: a citation with text, verification.direct === false.
+  const clipShown = message.citations?.some((c) => Boolean(c.quote || c.textSnippet));
+  if (clipShown && message.groundingState === 'abstained') {
+    return message.verification?.direct === false ? RELATED_CLIP_SHOWN_TEXT : CLIP_SHOWN_TEXT;
+  }
   return message.groundingState === 'abstained' ? ANSWER_ABSTAINED_TEXT : ANSWER_ARRIVED_TEXT;
 }
 

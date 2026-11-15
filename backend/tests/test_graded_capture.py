@@ -186,3 +186,26 @@ def test_manifest_flags_never_carry_a_secret_value(monkeypatch):
     assert secret not in json.dumps(facts)
     assert facts["flags"]["OPENROUTER_API_KEY"] == "***REDACTED***"
     assert facts["flags"]["FIRST_PERSON_ACTIVE_COLLECTION"] == "first_person_v10"
+
+
+def test_intent_router_flags_are_recorded_in_the_manifest():
+    from scripts.ops.graded_capture import ENV_PREFIXES
+
+    assert "INTENT_ROUTER_AMBIGUOUS_DOMAIN_ENABLED".startswith(ENV_PREFIXES)
+    assert "FIRST_PERSON_JUDGE_MODEL".startswith(ENV_PREFIXES)
+    assert not "PATH".startswith(ENV_PREFIXES)
+
+
+def test_input_files_are_fingerprinted_by_sha_and_row_count(tmp_path, monkeypatch):
+    import hashlib
+
+    from scripts.ops import graded_capture as gc
+
+    jl = tmp_path / "a.jsonl"
+    jl.write_text('{"id": 1}\n\n{"id": 2}\n')
+    js = tmp_path / "b.json"
+    js.write_text('{"questions": [{"id": 1}, {"id": 2}, {"id": 3}]}')
+    monkeypatch.setattr(gc, "REPO", tmp_path)
+    fp = gc.input_fingerprints([jl, js, tmp_path / "missing.jsonl"])
+    assert fp["a.jsonl"] == {"sha256": hashlib.sha256(jl.read_bytes()).hexdigest(), "rows": 2}
+    assert fp["b.json"]["rows"] == 3 and len(fp) == 2

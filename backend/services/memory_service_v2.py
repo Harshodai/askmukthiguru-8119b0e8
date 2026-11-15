@@ -1412,7 +1412,7 @@ class MemoryServiceV2(MemoryService):
             enriched = copy.deepcopy(result)
 
             def _do_enrich():
-                return kg_analytics.enrich_graph(enriched, enabled=settings.kg_analytics_enabled)
+                return kg_analytics.enrich_graph(enriched)
 
             try:
                 await asyncio.wait_for(asyncio.to_thread(_do_enrich), timeout=30.0)
@@ -1863,7 +1863,7 @@ class MemoryServiceV2(MemoryService):
         enriched = copy.deepcopy(result)
 
         def _do_enrich():
-            return kg_analytics.enrich_graph(enriched, enabled=settings.kg_analytics_enabled)
+            return kg_analytics.enrich_graph(enriched)
 
         try:
             await asyncio.wait_for(asyncio.to_thread(_do_enrich), timeout=30.0)

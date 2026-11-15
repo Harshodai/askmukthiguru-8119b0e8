@@ -38,8 +38,6 @@ def _download_checkpoint() -> str:
         repo_id=CANDIDATE,
         revision=CANDIDATE_REVISION,
         local_dir=str(SCRATCH),
-        local_dir_use_symlinks=False,
-        resume_download=True,
         ignore_patterns=["*.md", "*.py", "requirements.txt"],
     )
     print(f"Downloaded to: {local_path}")

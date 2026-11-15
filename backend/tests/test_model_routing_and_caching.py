@@ -222,7 +222,6 @@ class TestSarvamModelSupport:
 class TestPromptCachingAndCostSuite:
     def test_openrouter_prompt_caching_config_defaults(self):
         """Prompt caching and identification headers must be enabled by default."""
-        assert settings.openrouter_cache_enabled is True
         assert settings.openrouter_prompt_caching_enabled is True
         assert settings.openrouter_http_referer == "https://askmukthiguru.com"
         assert settings.openrouter_x_title == "AskMukthiGuru"
@@ -260,7 +259,6 @@ class TestPromptCachingAndCostSuite:
     async def test_openrouter_cache_headers_sent_in_api_call(self, monkeypatch):
         """_call_api must attach X-OpenRouter-Cache header when enabled."""
         monkeypatch.setattr(settings, "openrouter_api_key", "sk-mock-key")
-        monkeypatch.setattr(settings, "openrouter_cache_enabled", True)
 
         service = OpenRouterService()
         captured_headers = {}

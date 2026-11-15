@@ -23,7 +23,6 @@ def update_demoted_sheet(sheet_path: Path, results: dict) -> int:
     lines = text.splitlines()
     new_lines = []
     for line in lines:
-        matched = False
         for point_id, data in results.items():
             if point_id in line:
                 verdict = data.get("verdict", "")
@@ -38,7 +37,6 @@ def update_demoted_sheet(sheet_path: Path, results: dict) -> int:
                             parts[-2] = f" {notes} "
                             line = "|".join(parts)
                     updated_count += 1
-                    matched = True
                     break
         new_lines.append(line)
 
@@ -56,7 +54,6 @@ def update_served_sheet(sheet_path: Path, results: dict) -> int:
     lines = text.splitlines()
     new_lines = []
     for line in lines:
-        matched = False
         for point_id, data in results.items():
             if point_id in line:
                 voice = data.get("voice", "")
@@ -74,7 +71,6 @@ def update_served_sheet(sheet_path: Path, results: dict) -> int:
                             p[-2] = f" {notes} "
                             line = "|".join(p)
                     updated_count += 1
-                    matched = True
                     break
         new_lines.append(line)
 

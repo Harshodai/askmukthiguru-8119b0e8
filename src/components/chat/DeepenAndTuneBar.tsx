@@ -545,7 +545,8 @@ export const DeepenAndTuneBar: React.FC<DeepenAndTuneBarProps> = ({
               <button
                 type="button"
                 onClick={() => setShowVaultReflection(false)}
-                className="text-muted-foreground hover:text-foreground"
+                aria-label="Close reflection drawer"
+                className="text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded"
               >
                 <X className="h-3.5 w-3.5" />
               </button>

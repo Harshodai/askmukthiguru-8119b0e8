@@ -33,7 +33,9 @@ def _scope(path: str):
 
 
 def test_downstream_handler_receives_the_full_body(monkeypatch):
-    monkeypatch.setattr(app_main._AUTH_RATE_LIMITER, "is_allowed_async", AsyncMock(return_value=(True, 0)))
+    monkeypatch.setattr(
+        app_main._AUTH_RATE_LIMITER, "is_allowed_async", AsyncMock(return_value=(True, 0))
+    )
     monkeypatch.setattr(app_main._AUTH_RATE_LIMITER, "record_attempt_async", AsyncMock())
     seen = {}
 
@@ -51,7 +53,9 @@ def test_downstream_handler_receives_the_full_body(monkeypatch):
 
 
 def test_failed_login_is_recorded_as_failure(monkeypatch):
-    monkeypatch.setattr(app_main._AUTH_RATE_LIMITER, "is_allowed_async", AsyncMock(return_value=(True, 0)))
+    monkeypatch.setattr(
+        app_main._AUTH_RATE_LIMITER, "is_allowed_async", AsyncMock(return_value=(True, 0))
+    )
     record = AsyncMock()
     monkeypatch.setattr(app_main._AUTH_RATE_LIMITER, "record_attempt_async", record)
 
@@ -82,8 +86,3 @@ def test_non_auth_path_passes_through_untouched(monkeypatch):
     scope = {"type": "http", "method": "POST", "path": "/api/chat", "client": ("10.0.0.9", 1)}
     _run(mw(scope, _receiver(b"{}"), send))
     assert reached["yes"] and check.await_count == 0
-
-
-if __name__ == "__main__":
-    test_non_auth_path_passes_through_untouched.__globals__  # self-check placeholder
-    print("ok")

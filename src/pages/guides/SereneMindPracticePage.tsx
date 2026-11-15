@@ -92,15 +92,15 @@ const SereneMindPracticePage = () => {
           <h2 className="text-xl font-semibold text-foreground">{content.doorway.heading}</h2>
           <p>
             {content.doorway.part1}
-            <Link to="/guides/beautiful-state-meditation" className="text-ojas underline">
+            <Link to="/guides/beautiful-state-meditation" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.doorway.beautifulStateLink}
             </Link>
             {content.doorway.part2}
-            <Link to="/practices" className="text-ojas underline">
+            <Link to="/practices" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.doorway.findPracticesLink}
             </Link>
             {content.doorway.part3}
-            <Link to="/guides/ai-spiritual-companion" className="text-ojas underline">
+            <Link to="/guides/ai-spiritual-companion" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.doorway.aiCompanionLink}
             </Link>
             {content.doorway.part4}

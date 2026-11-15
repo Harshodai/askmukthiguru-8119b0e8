@@ -16,7 +16,7 @@ const CONVERSATION_ID = '3f2b8c1e-9a4d-4e6f-8a1b-2c3d4e5f6a7b';
 
 const session = {
   access_token:
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjo5OTk5OTk5OTk5LCJzdWIiOiJtb2NrLXVzZXItdXVpZCIsImVtYWlsIjoic2Vla2VyQGdtYWlsLmNvbSIsInJvbGUiOiJhdXRoZW50aWNhdGVkIn0.signature',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjo5OTk5OTk5OTk5LCJzdWIiOiJtb2NrLXVzZXItdXVpZCIsImVtYWlsIjoic2Vla2VyQGdtYWlsLmNvbSIsInJvbGUiOiJhdXRoZW50aWNhdGVkIn0.c2lnbmF0dXJl',
   token_type: 'bearer',
   expires_in: 3600,
   expires_at: 9999999999,

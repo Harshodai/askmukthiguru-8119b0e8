@@ -102,7 +102,7 @@ export const CookieConsentBanner = () => {
               </p>
               <p className="text-sm text-muted-foreground leading-snug">
                 {t('common.noThirdParty')}{' '}
-                <Link to="/privacy" className="text-primary-foreground font-semibold underline underline-offset-2">{t('common.privacy')}</Link>.
+                <Link to="/privacy" className="text-foreground dark:text-cream font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">{t('common.privacy')}</Link>.
               </p>
               <div className="flex gap-2 pt-0.5">
                 <Button size="sm" variant="outline" className="min-h-[44px] text-sm px-4" onClick={() => decide('rejected')}>

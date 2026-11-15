@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { AnswerEvidence, BackendMetadata, Citation, GuidancePlan, GroundingState, LiveLogisticsEvent, PersonalizationProvenance, ProactiveSereneMindTrigger, TeachingPreview } from './chat/types';
 import type { PersonalizeTeachingRef } from './chat/personalize';
 import { supabase } from '@/integrations/supabase/client';
+import { sha256Hex } from '@/lib/authConstants';
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import type { SupportedStorage } from '@supabase/supabase-js';
@@ -394,6 +395,21 @@ export const clearChatHistory = (): void => {
   }
 };
 
+/**
+ * Rights and speaker flags for a citation-ledger row. Only an explicit `true`
+ * from the server counts: an absent flag is recorded as unverified, never as
+ * licensed or voice-verified (root CLAUDE.md invariant 23).
+ */
+export function citationLedgerFlags(c: Pick<Citation, 'rightsCleared' | 'speakerVerified'>): {
+  rights_status: 'cleared' | 'unverified';
+  speaker_verified: boolean;
+} {
+  return {
+    rights_status: c.rightsCleared === true ? 'cleared' : 'unverified',
+    speaker_verified: c.speakerVerified === true,
+  };
+}
+
 // ── Cloud sync ────────────────────────────────────────────────────
 // Mirrors a conversation + its messages into Supabase for authenticated users.
 // Fire-and-forget: never blocks the local-first save. Failures are logged only.
@@ -461,14 +477,9 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
             const vid = c.videoId || (c.url ? (c.url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/)?.[1] ?? '') : '');
             if (vid) {
               const quote = c.quote || c.textSnippet || '';
-              let hash = '';
-              if (quote) {
-                let h = 0;
-                for (let i = 0; i < quote.length; i++) {
-                  h = (Math.imul(31, h) + quote.charCodeAt(i)) | 0;
-                }
-                hash = Math.abs(h).toString(16).padStart(8, '0');
-              }
+              // sha256 of the displayed quote, so the ledger hash is comparable
+              // with the corpus `source_text_hash`. '' when Web Crypto is absent.
+              const hash = quote ? ((await sha256Hex(quote)) ?? '') : '';
               citationRows.push({
                 message_id: m.id,
                 span_id: c.sourceSpanId || null,
@@ -478,8 +489,7 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
                 end_ms: c.endMs ?? 0,
                 verbatim_text: quote,
                 source_text_hash: hash,
-                rights_status: c.rightsCleared ? 'cleared' : 'licensed',
-                speaker_verified: c.speakerVerified ?? true,
+                ...citationLedgerFlags(c),
               });
             }
           }
@@ -487,11 +497,12 @@ async function syncConversationToDb(conversation: Conversation): Promise<void> {
       }
 
       if (citationRows.length) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any).from('message_citations').insert(citationRows);
-        } catch (citeErr) {
-          console.warn('Structured citation persistence skipped:', citeErr);
+        // supabase-js resolves with `{ error }` instead of throwing, so a missing
+        // table or a denied insert has to be read off the result.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: citeErr } = await (supabase as any).from('message_citations').insert(citationRows);
+        if (citeErr) {
+          console.warn('Structured citation persistence skipped:', citeErr.message ?? citeErr);
         }
       }
     }

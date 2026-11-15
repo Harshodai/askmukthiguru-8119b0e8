@@ -1282,11 +1282,10 @@ async def retrieve_for_single_query(
         fusion_strategy=fusion_strat,
     )
 
-    parent_grouping_enabled = getattr(settings, "qdrant_parent_grouping_enabled", True)
     group_by_key = getattr(settings, "qdrant_group_by", "parent_id")
     group_size = int(getattr(settings, "qdrant_group_size", 2))
 
-    if parent_grouping_enabled and hasattr(qdrant, "search_groups"):
+    if hasattr(qdrant, "search_groups"):
         chunk_task = asyncio.to_thread(
             qdrant.search_groups,
             query_vector=query_embedding["dense"],

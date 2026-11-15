@@ -42,7 +42,9 @@ services:
 
   # --- Memgraph (Primary Graph Database, port 7687, C++, ~80MB RAM) ---
   memgraph:
-    image: memgraph/memgraph-mage:2.20.1
+    # Digest of the image the local stack actually runs (2026-11-14). A bare
+    # moving tag is not reproducible; a version downgrade risks the data volume.
+    image: memgraph/memgraph-mage:latest@sha256:97383094cd266c1091e69ead8db91e162b0feb356cae438dd0422ce8559d514f
     container_name: mukthiguru-memgraph
     logging: *default-logging
     ports:
@@ -69,7 +71,8 @@ services:
 
   # --- Redis Cache ---
   redis:
-    image: redis:7.2.5-alpine
+    # Redis 7.4.10, pinned by digest (same reason as memgraph above).
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     container_name: mukthiguru-redis
     logging: *default-logging
     ports:
@@ -149,9 +152,14 @@ services:
           cpus: '0.25'
 
   qdrant:
-    image: qdrant/qdrant:v1.18.0
+    image: qdrant/qdrant:v1.20.0
     container_name: mukthiguru-qdrant
     logging: *default-logging
+    entrypoint:
+      - "bash"
+      - "-c"
+      - "test -z \"$$QDRANT__SERVICE__API_KEY\" && unset QDRANT__SERVICE__API_KEY; test -z \"$$QDRANT__SERVICE__READ_ONLY_API_KEY\" && unset QDRANT__SERVICE__READ_ONLY_API_KEY; exec ./entrypoint.sh \"$$@\""
+      - "--"
     ports:
       - "127.0.0.1:6333:6333" # REST API
       - "127.0.0.1:6334:6334" # gRPC
@@ -199,6 +207,8 @@ services:
       - path: ../.env
         required: false
     environment: &backend-env
+      - TQDM_DISABLE=1
+      - HF_HUB_DISABLE_PROGRESS_BARS=1
       # Bound numeric-library thread pools (2026-09-06, fix for L-DOCKER-9:
       # RuntimeError: can't start new thread under load). MKL/OpenBLAS/OMP
       # each detect the HOST's full core count inside a container rather
@@ -328,6 +338,7 @@ services:
       - FIRST_PERSON_RELEVANCE_TIMEOUT_S=${FIRST_PERSON_RELEVANCE_TIMEOUT_S:-25.0}
       - FIRST_PERSON_MAX_CLIP_SECONDS=${FIRST_PERSON_MAX_CLIP_SECONDS:-300}
       - FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED=${FIRST_PERSON_SPECULATIVE_PARALLELISM_ENABLED:-true}
+      - FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=${FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED:-true}
       # Supabase
       - SUPABASE_URL=${SUPABASE_URL:-http://host.docker.internal:54321}
       - SUPABASE_KEY=${SUPABASE_KEY:-}
@@ -581,10 +592,15 @@ services:
         # Local dev exercises the flagship first-person surface (TeacherWords
         # route + attribution labels). Prod (Lovable) sets its own envs.
         VITE_FIRST_PERSON_ENABLED: ${VITE_FIRST_PERSON_ENABLED:-true}
+        # Button shows only for signed-in, non-incognito seekers; the backend
+        # PersonalizeStage decides consent and the personal graph.
+        VITE_PERSONALIZE_TEACHING_ENABLED: ${VITE_PERSONALIZE_TEACHING_ENABLED:-true}
         # The frontend is served behind Nginx, which proxies /api to backend.
         # Keep the default same-origin; explicit staging/native overrides remain supported.
         VITE_BACKEND_URL: ${VITE_BACKEND_URL:-}
     container_name: mukthiguru-frontend
+    environment:
+      - NGINX_ENTRYPOINT_QUIET_LOGS=1
     ports:
       - "80:80"
     volumes:

@@ -62,7 +62,7 @@ const SufferingToBeautifulStatePage = () => {
           <h2 className="text-xl font-semibold text-foreground">{content.whyDefault.heading}</h2>
           <p>
             {content.whyDefault.part1}
-            <Link to="/guides/self-centric-thinking" className="text-ojas underline">
+            <Link to="/guides/self-centric-thinking" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.whyDefault.selfCentricLink}
             </Link>
             {content.whyDefault.part2}
@@ -83,7 +83,7 @@ const SufferingToBeautifulStatePage = () => {
             <h3 className="text-lg font-semibold text-foreground">{content.steps.step3Title}</h3>
             <p>
               {content.steps.step3Part1}
-              <Link to="/guides/serene-mind-practice" className="text-ojas underline">
+              <Link to="/guides/serene-mind-practice" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
                 {content.steps.sereneMindLink}
               </Link>
               {content.steps.step3Part2}
@@ -97,7 +97,7 @@ const SufferingToBeautifulStatePage = () => {
             <h3 className="text-lg font-semibold text-foreground">{content.steps.step5Title}</h3>
             <p>
               {content.steps.step5Part1}
-              <Link to="/guides/beautiful-state-meditation" className="text-ojas underline">
+              <Link to="/guides/beautiful-state-meditation" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
                 {content.steps.beautifulStateLink}
               </Link>
               {content.steps.step5Part2}
@@ -114,7 +114,7 @@ const SufferingToBeautifulStatePage = () => {
           <h2 className="text-xl font-semibold text-foreground">{content.dailyHabit.heading}</h2>
           <p>
             {content.dailyHabit.part1}
-            <Link to="/practices" className="text-ojas underline">
+            <Link to="/practices" className="text-ojas-ink dark:text-ojas underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
               {content.dailyHabit.explorePracticesLink}
             </Link>
             {content.dailyHabit.part2}

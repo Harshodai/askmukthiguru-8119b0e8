@@ -114,9 +114,7 @@ def test_okf_no_concepts_costs_no_store_call(pipeline, monkeypatch):
     primary = [_context("p1", "vidA")]
     store = MagicMock()
 
-    with patch(
-        "services.first_person_okf_expansion.expand_concepts_via_okf", return_value=[]
-    ):
+    with patch("services.first_person_okf_expansion.expand_concepts_via_okf", return_value=[]):
         out = _call(pipeline, primary, store)
 
     assert out == primary

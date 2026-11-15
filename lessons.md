@@ -1,6 +1,128 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 14, 2026 — Qdrant stack upgrade, client elevation, and compose auth isolation
+
+### L-QDRANT-AUTH-ENV-TRAP-1. Empty environment variables in Docker Compose activate Qdrant API key authentication, breaking unauthenticated access.
+- **What:** In `docker-compose.yml`, declaring `QDRANT__SERVICE__API_KEY: ${QDRANT_WRITE_API_KEY:-}` passes an empty string `""` to the container environment when the host variable is unset. Qdrant treats any defined `QDRANT__SERVICE__API_KEY` string (even empty) as requiring Bearer authentication, causing local API `/api/health` probes to fail with 401 Unauthorized.
+- **Fix:** Added a shell entrypoint wrapper in `docker-compose.yml` (`test -z "$$QDRANT__SERVICE__API_KEY" && unset QDRANT__SERVICE__API_KEY; ... exec ./entrypoint.sh "$$@"`) to explicitly unset empty service keys before launching Qdrant.
+- **Rule:** Never pass empty string environment variables to Qdrant service config in Compose. Explicitly unset empty credentials in the container entrypoint.
+
+### L-QDRANT-STEP-MIGRATION-1. Qdrant server version upgrades must advance minor-by-minor to preserve on-disk collection storage.
+- **What:** Jumping multiple minor versions (e.g., from v1.18.0 directly to v1.20.0) risks collection corruption or schema incompatibility on persistent disk volumes (`qdrant_data`).
+- **Fix:** Performed step migration: v1.18.0 -> v1.19.2 -> v1.20.0, validating collection health, payload schemas, and point counts at each minor release before proceeding to the next.
+- **Rule:** Qdrant version upgrades on persistent data must always follow minor version stepping with pre-upgrade cold backups.
+
+## Nov 14, 2026 — Review remediations: build args, test mocks, networkidle, and quote squashing
+
+### L-DOCKERIGNORE-BUILD-ARG-1. `.dockerignore` excluding `.env*` strips Vite build flags from the client bundle.
+- **What:** The Personalize button on served teaching cards failed to render in Docker even though `VITE_PERSONALIZE_TEACHING_ENABLED=true` was defined in `.env.production`. `.dockerignore` intentionally ignores `.env*` files, preventing Vite from embedding the variable during `npm run build`.
+- **Fix:** Explicitly declare `ARG VITE_PERSONALIZE_TEACHING_ENABLED` and `ENV VITE_PERSONALIZE_TEACHING_ENABLED=$VITE_PERSONALIZE_TEACHING_ENABLED` in `frontend.Dockerfile`, and pass `args: [VITE_PERSONALIZE_TEACHING_ENABLED]` from `docker-compose.yml`.
+- **Rule:** Client build flags must be declared as explicit Dockerfile build arguments when `.env` files are docker-ignored.
+
+### L-TEST-LOG-SELF-MOCK-1. A test asserting a log message formatted by its own local variable tests nothing.
+- **What:** `test_terminal_mode_logging.py` formatted its own local `msg` variable and logged it directly to `caplog` to assert text presence. It called no production code in `FirstPersonPipeline` or `services/`.
+- **Fix:** Rewrote `test_terminal_mode_logging.py` to exercise real `FirstPersonPipeline._serve_from_context_harness` execution paths under terminal and non-terminal modes, testing context retrieval failures and direct answer abstention.
+- **Rule:** Never assert logging against in-test formatted strings. Unit tests for logging must execute the production module's methods.
+
+### L-SWALLOWED-NETWORKIDLE-1. Swallowing networkidle timeouts hides real hangs and produces misleading downstream failures.
+- **What:** E2E specs used `page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined)` to silence timeouts on preview environments. If a network request hangs or fails, the swallowed rejection causes subsequent locators to fail with confusing timeouts.
+- **Fix:** Replaced fragile `networkidle` waits with deterministic `page.waitForLoadState('load')` and explicit landmark locators in `tests/e2e/a11y-smoke.spec.ts` and `tests/e2e/i18n-coverage.spec.ts`.
+- **Rule:** Do not swallow `networkidle` rejections. Wait on deterministic document lifecycle states (`load`, `domcontentloaded`) and explicit DOM landmarks.
+
+### L-SQUASH-QUOTE-EXPOSURE-1. Truncating copyrighted quotes in a later commit leaves full text in git commit history.
+- **What:** An audit trimmed verbatim teacher quotes down to short 12-word excerpts in commit `8b0a63af`. Because earlier commits in the branch history still contained the 170-word quotes, git history retained the un-truncated text.
+- **Rule:** When copyright or rights policy mandates removing text, evaluate whether branch history requires squashing prior to public merge.
+
+## Nov 14, 2026 — E-series close-out: a cap must announce itself, a dataset needs a consumer
+
+### L-CAP-STATE-AT-BOOT-1. A refusal that reads like the vendor's message will be blamed on the vendor.
+- **What:** every first-person turn abstained as `first_person_check_unavailable` because the app's own monthly cap (100) was below its ledger (123.13). The exception text is a provider-style sentence, so a review read it as an empty provider account and an owner-facing "top up the account" action followed. Nothing at startup said which cap, whose cap, or how full it was.
+- **Fix:** `log_budget_headroom` reads the ledger once at boot (`OpenRouterBudgetGuard._keys`, so reader and writer cannot disagree) and logs the cap state — over-cap, a 70 % warning, or the numbers — naming the setting and saying it is not a provider balance. An unreadable ledger is logged as unknown, never as a breach.
+- **Rule:** a guard that can refuse work must report its state at boot, in the same units as its own settings, and say whose limit it is. Never phrase an internal cap in the vendor's words.
+
+### L-SHRINK-ONLY-RATCHET-BITES-BEST-EFFORT-CODE-1. A blanket catch in "must never crash" code is still a blanket catch.
+- **What:** a new best-effort startup reader used `except Exception` and turned the full backend suite red on `test_exception_and_import_ratchets` (723 broad catches against a 722 shrink-only ceiling) — the only red in 14,276 tests.
+- **Why it looked safe:** "this must never stop startup" is exactly the justification that produces blanket catches, so the ratchet is designed to resist it.
+- **Fix:** name the tuple once (`_ledger_read_errors()`) — ImportError/OSError/ValueError/TypeError/AttributeError/TimeoutError plus `redis.exceptions.RedisError` when redis is importable (it does **not** subclass OSError, so `except OSError` alone would miss a dead Redis).
+- **Rule:** never raise the ratchet ceiling for new code. Enumerate the errors (adding a third-party base class where its exceptions do not inherit a builtin), or narrow the `try`.
+
+### L-DRAFT-ROWS-NEED-A-CONSUMER-1. A dataset no code executes is documentation, not a measurement.
+- **What:** `conversation_cases_draft.jsonl` (24 AI-authored rows) was schema-tested and nothing else, so it could not change any number while being cited as coverage for multi-turn behaviour. The inverse risk sits in the same file: a runner that scores draft rows silently turns AI-authored expectations into a metric.
+- **Fix:** `scripts/ops/run_conversation_cases.py` executes both row shapes, records route/grounding/citations/latency (never text), and stamps every output row `draft_needs_owner_review` with a note that it is not a verdict. Executing needs an explicit spend flag.
+- **Rule:** give every dataset a consumer in the same change that adds it; make the consumer refuse to treat a draft as a label.
+
+## Nov 14, 2026 — local migrations applied, provenance defaults, and a ledger that asserted rights
+
+### L-COLUMN-DEFAULT-IS-AN-ASSERTION-1. `DEFAULT 'licensed'` writes a rights claim nobody checked.
+- **What:** `supabase/migrations/20261107000000` created `message_citations` with `rights_status TEXT NOT NULL DEFAULT 'licensed'` and `speaker_verified BOOLEAN NOT NULL DEFAULT true`. A row inserted without those columns therefore claimed a cleared licence and a voice-verified speaker. The 2026-11-13 client fix had just removed exactly that default in `citationLedgerFlags()` (`src/lib/chatStorage.ts:403-411`); the table still asserted it, so the fix only covered the writer that used the helper. Migrations `20261107000000/1` had never been applied anywhere, so no data was wrong — the defect was latent, and only visible because the migrations were finally run.
+- **Fix:** `20261114000000_message_citations_provenance_defaults.sql` drops both defaults and adds `CHECK (rights_status IN ('cleared','unverified','licensed','revoked'))`. Proven rolled back: omission → `not_null_violation`, explicit → accepted, invented status → `check_violation`. The only writer already supplied both columns, so nothing working changed.
+- **Rule:** X40 applies to schema, not just code. When a provenance flag is fixed in a writer, grep the table definitions for a default on the same column in the same change. A default that is indistinguishable from a verified value is a false assertion with a SQL interface.
+
+### L-MIGRATION-ON-DISK-IS-NOT-A-SCHEMA-1. The snapshot said the tables did not exist; the tree said they did.
+- **What:** `supabase/migrations/20261107000000`, `…0001` and `20261113000000` were on disk, referenced by tests and by the new client code, and had never been applied. `supabase/schema_snapshot.sql` did not contain any of their four tables, so the committed snapshot described a schema that predates three merged migrations. `supabase_migrations.schema_migrations` stopped at `20261030140000`. A migration file is a draft wearing a filename until something applies it.
+- **Fix:** `npx supabase migration up` (local only) applied all four, then `supabase db dump --local --schema public` regenerated the snapshot: **+200 lines, 0 deletions**, `migration_lint.py --dump-file` → SUCCESS. RLS re-proven on the applied policy set with two real `auth.users` owners in a rolled-back transaction.
+- **Rule:** "applied" means a row in `schema_migrations` on a named target. Never infer it from the file existing, and never cite a policy as live until a role-scoped probe on the applied schema shows the allow **and** the deny.
+
+### L-INVALID-RUN-IS-NEITHER-VERDICT-1. The invalid-run rule protects the FAIL path too.
+- **What:** the same day `L-REPORT-TOOL-MUST-NOT-TURN-MISSING-INTO-PASS-1` fixed a tool that let a missing value read as PASS, `20261114-graded-7` was reported as a quality FAIL. Its own report says `run valid: False` (*"manifest lacks collection fingerprint"*). An invalid run cannot support a FAIL any more than a PASS: the 0.7561 showable rate and 10,015 ms p95 are diagnostic, not a verdict.
+- **Rule:** when a run tool prints `run valid`, that flag gates both directions. Report "no valid measurement" — not the failing numbers — until a valid run exists.
+
+## Nov 14, 2026 — Phase 2 of the readiness engagement: what review and the guards caught
+
+### L-APP-BUDGET-CAP-IS-NOT-THE-PROVIDER-1. "Spend limit reached" came from our own guard, not from the provider.
+- **What:** every first-person turn abstained as `first_person_check_unavailable`. A review read the log line `OpenRouter daily or monthly spend limit reached` as an empty provider account. The line is raised by `backend/app/openrouter_budget.py:217`. Read from the container: month ledger 123.13 against a monthly cap of 100. The container had been recreated from `docker-compose.yml` alone, so the graded overlay's local caps (100 daily / 300 monthly) were gone.
+- **Rule:** before reporting a provider outage, find the code that raises the message and read the ledger keys (`askmukthiguru:openrouter-spend:day|month:*`) and the caps from the running process. Record spend in `docs/operations/SPEND_LOG_2026.md`.
+
+### L-HISTORY-HINT-MUST-NOT-MOVE-CRISIS-ROUTING-1. Anything merged into the retrieval query is also read by the crisis pre-check.
+- **What:** the anonymous follow-up hint is concatenated into `retrieval_query`. `_crisis_preemption` assesses `[query, retrieval_query]`, so a distress sentence in the previous turn would have made the follow-up turn redirect where it did not before. Two reviewers disagreed on whether the hint was screened; the code settled it.
+- **Fix:** `_hint_reads_calm` uses the hint only when the distress assessor rates it NONE, and fails closed without an assessor. Crisis routing for anonymous users is unchanged; safety scenarios 226 pass, 0 fail.
+- **Rule:** when two reviews disagree, read the code path. Any new text that reaches the retrieval query is a safety input.
+
+### L-RATCHET-GUARDS-COUNT-NEW-BROAD-EXCEPTS-1. Two new `except Exception` blocks failed the full suite, not the targeted tests.
+- **What:** the comparative judge added one broad handler in the judge and one around its call in the pipeline. `tests/test_exception_and_import_ratchets.py` counts them in `backend/app`, `backend/rag` and `backend/services/first_person*` against a ceiling that only goes down (722; the change made 724). Every targeted run was green.
+- **Fix:** both judge calls share one fail-closed helper (`_call_or_none`); the pipeline's redundant handler is gone. The harness test now fails the provider call itself, so it covers the real handler and not a stand-in.
+- **Rule:** run the full suite before calling a change done. Reuse the existing fail-closed handler; do not raise a ratchet.
+
+### L-REPORT-TOOL-MUST-NOT-TURN-MISSING-INTO-PASS-1. `None != None` is false.
+- **What:** `graded_registered_report.bar_unanswerable` compared `passed != n` per group. A group with both values missing counted as passing, and the row count crashed on `None`. Found by review, then by the test written for it.
+- **Fix:** a group with no rows or a missing count is failing; an invalid run can never read as PASS.
+- **Rule:** in a tool that judges a run, every missing value is "not measured" or "failed", and there is a test with the value missing.
+
+## Nov 13, 2026 — Engineering and readiness audit: what the running system showed that the docs did not
+
+Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
+
+### L-ANSWERABILITY-GATE-WAS-OFF-LIVE-1. The running container had the answerability gate off; the invariants say it covers every clip.
+- **What:** `settings.first_person_answerability_check_enabled` read `False` in the live backend (set in `.env`; no compose file pins it). The harness then records `answerability="permissive"` and the relevance scorer is the only question-level gate. Invariants 19 and 22 and the bridge comment described the gate as always run. This also settles `L-CLAIM-A-CONFIG-ONLY-AFTER-READING-IT-1` below for the container that was running on 2026-11-13: the gate was off. What graded-6 itself ran with is still not read from its manifest.
+- **Fix:** startup logs `Serving gate posture: FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=false ...` at WARNING (`app/runtime_budget.serving_gate_warnings`). The env was not changed: on or off is the owner's decision (open-work row T-E1).
+- **Rule:** read a serving flag from the running process (`scripts/ops/backend_py.sh -c 'from app.config import settings; ...'`), not from the code default or a doc. A gate that can be switched off must announce it at startup.
+
+### L-TIMEOUT-BELOW-MEASURED-LATENCY-1. A budget set below the callee's real latency is a dead feature that still costs the wait.
+- **What:** the ambiguous-domain router had a 0.45 s budget. Measured from the container it answers in 470-690 ms (9 calls, fresh and reused connections). In 12 h of logs it timed out 27 times and completed 0 times. Each ambiguous turn paid 0.45 s and then took the fallback. The timeout was logged at INFO as a "fallback", so nothing looked wrong.
+- **Fix:** `intent_router_ambiguous_domain_enabled` defaults to `False` (same routing as every graded run, without the wait). Turning it on needs a budget above the measured latency and a graded comparison, because a `live_research` decision leaves the verbatim lane.
+- **Rule:** before trusting an optional call, count its successes, not only its failures. A fallback that fires 100% of the time is the real code path.
+
+### L-HISTORY-RESOLVED-QUERY-NEEDS-ITS-OWN-CACHE-RULE-1. A cache keyed on the bare question must not serve a turn whose retrieval query was built from history.
+- **What:** the bridge rewrites a follow-up to `"<previous user message> — <follow-up>"` for retrieval, but the first-person exact cache hashed only the bare text. "why does that happen?" asked after anger and after money shared one cache entry.
+- **Fix:** a history-resolved turn passes `cache_bypass=True` (read and write). The key was not widened with `retrieval_query`, because that is also the English translation of a non-English question and would stop those from caching.
+- **Rule:** when a stage rewrites the query from conversation state, every cache below it either keys on that state or is bypassed.
+
+### L-SUPABASE-JS-RETURNS-ERRORS-1. `supabase-js` does not throw; a `try/catch` around an insert catches nothing.
+- **What:** the browser wrote citation-ledger rows inside `try { await supabase.from('message_citations').insert(rows) } catch`. The local database does not have that table (migrations `20261107000000` and `20261107000001` were never applied locally), and the original migration granted INSERT with RLS on and no INSERT policy. Every insert failed and nothing was logged.
+- **Fix:** the insert reads `{ error }`; a new migration adds owner-scoped SELECT and INSERT policies. The migration was proven inside a transaction that was never committed (owner reads own rows only, own insert allowed, forged insert denied) and is applied nowhere.
+- **Rule:** read `{ error }` from every Supabase call. Check `supabase_migrations.schema_migrations` against `supabase/migrations/` before debugging a table. A GRANT without a matching policy is a denial.
+
+### L-UNKNOWN-IS-NOT-VERIFIED-1. A ledger row must not turn a missing flag into "licensed" or "voice verified".
+- **What:** the citation ledger wrote `rights_status: c.rightsCleared ? 'cleared' : 'licensed'` and `speaker_verified: c.speakerVerified ?? true`, and a 32-bit string hash in a column named `source_text_hash`.
+- **Fix:** only an explicit `true` counts (`citationLedgerFlags`); the hash is sha256 of the quote. The ledger is still written by the client, so it is self-attested: do not treat it as server truth until the backend writes it.
+- **Rule:** defaults for provenance fields are the unverified value. Same rule as invariant 23.
+
+### L-PREFLIGHT-MUST-MIRROR-STARTUP-VALIDATORS-1. A preflight that checks less than the app does passes environments that cannot boot.
+- **What:** `validate_production_env.py` did not check `BRAIN_KEK`, `FACULTY_ACCESS_CODE` (or `FACULTY_GATE_DISABLED`) or the OpenRouter budget guard, all of which `Settings.validate_production_restrictions` requires in production.
+- **Fix:** the three rules are mirrored in the preflight and its `backend/scripts/ops/` twin, with a test per rule.
+- **Rule:** when a `Settings` production validator is added, add the same rule to the preflight in the same change.
+
 ## Nov 13, 2026 — Agent-owned work round 2: negative controls, gate rule scope, runbook
 
 ### L-SO-RULE-MUST-RESPECT-EXISTING-TEST-1. A new general rule that contradicts a deliberate test is a decision, not a fix.
@@ -1340,115 +1462,6 @@
 - **What:** `Settings.admin_rate_limit = "5/minute"` (`backend/app/config.py`) feeds `admin_rate_limit_middleware`. One admin page load plus one save is already 3 to 4 requests. Whether the local `backend/.env` overrides it is not visible from the repo.
 - **Rule:** set `ADMIN_RATE_LIMIT` (for example `60/minute`) in the local `.env` before relying on any multi-call admin page.
 
-
-## Oct 28, 2026 — Phase 7: Lifecycle, observability, runbooks, ADRs & contract
-
-### L-RETENTION-LIFECYCLE-1. An unbounded quality gate rejection ledger or staging queue creates a silent storage leak; retention policies must be tested end-to-end from day one.
-- **What:** `corpus_gate_rejections` and `staging_quality_queue` tables grow indefinitely during continuous ingestion and reindexing. Without an automated retention lifecycle, databases experience performance degradation and compliance risk.
-- **Fix:** Added `cleanup_staging_quality_queue` and `cleanup_corpus_gate_rejections` to `scripts/ops/cleanup_inactive_user_data.py` and Celery `tasks.retention_tasks.cleanup_retention_data`, with `--dry-run` and live delete modes.
-- **Rule:** Every new telemetry, staging, or rejection table must declare and test an automated retention purge from day one.
-- **Pin:** `backend/tests/test_retention_lifecycle.py`.
-
-### L-QDRANT-OBSERVABILITY-1. Vector store optimizer failure and snapshot aging are invisible without explicit Prometheus SLIs and export probes.
-- **What:** A stuck Qdrant optimizer or stalled automated snapshot cron does not raise standard HTTP errors, silently degrading search latency and risking catastrophic data loss.
-- **Fix:** Added `QDRANT_OPTIMIZER_STATUS`, `QDRANT_DELETED_POINTS_RATIO`, and `QDRANT_SNAPSHOT_AGE_HOURS` gauges to `app/metrics.py`, queried by `scripts/ops/export_qdrant_health.py` and `scripts/ops/snapshot_qdrant.py`.
-- **Rule:** A vector database is only observable when segment optimizer health, deleted point ratios, and snapshot ages are exported as continuous gauges.
-- **Pin:** `scripts/ops/export_qdrant_health.py`, `scripts/ops/snapshot_qdrant.py`, `backend/tests/test_repo_layout.py`.
-
-### L-LINEAGE-COMPLETENESS-1. Provenance claims without automated completeness verification degrade silently across corpus reindexes.
-- **What:** Vector points may miss release versions, chunker versions, encoder names, or quality verdicts if ingestion pipelines lack automated lineage auditing.
-- **Fix:** Added `CORPUS_LINEAGE_COMPLETENESS_RATIO` gauge to `app/metrics.py` and created `scripts/ops/audit_lineage_completeness.py` to audit points across release, encoder, chunker, gate verdict, and ASR method.
-- **Rule:** Lineage is not a passive schema definition; it is a measurable ratio that must be audited before and after any corpus reindex or alias promotion.
-- **Pin:** `scripts/ops/audit_lineage_completeness.py`, `backend/tests/test_repo_layout.py`.
-
-
-## Oct 30, 2026 — WhatsApp receiver, check-in vs practice, refused sends
-
-### L-JOURNEY-PROOF-1. A journey step is done only when its own action is confirmed, never when the page opens.
-- **What:** the daily journey now covers teaching and reflection. Teaching is marked done when the seeker plays a served clip (`GuruTeachingCard` `onPlay`); reflection when a NEW note saves (`NotesPanel`, edits do not count); practice stays tied to `meditation_completed`. The banner only navigates (`/chat?q=…`, `/profile?tab=memory`) and marks nothing. `nextPendingStep` skips the practice step when the check-in offered none.
-- **Rule:** pin each proof with a test (`src/test/MoodBanner.journey.test.tsx`, `src/test/dailyJourney.test.ts`). Not browser-verified.
-
-### L-CHECKIN-NOT-PRACTICE-1. A mood check-in stored as a "completed session" leaks into every consumer that asks "did they practise?".
-- **What:** `recordMoodCheckIn` called `completeMeditationSession(..., completed=true)`. Stats already ignored zero-duration rows, but the call also stamped `askmukthiguru_last_serene_mind_at` (sent as `last_serene_mind_at`, read by `distress_stage.py` for the 15-minute proactive Serene Mind cooldown), inserted a completed row into `meditation_sessions` (read by `get_last_meditation_session`), and fired the practice reward event. A check-in could suppress the Serene Mind offer for a distressed seeker.
-- **Fix:** `completeMeditationSession(..., countsAsPractice=false)` for check-ins (no stamp, no DB row, separate `askmukthiguru:mood_checkin` event); `get_last_meditation_session` ignores `duration_seconds = 0`.
-- **Rule:** one record type per meaning. Pin it: `src/test/meditationStorage.checkin.test.ts` fails without the fix (2 of 4 tests). Not live-verified; the backend change has no test in this environment (pydantic stack not installed).
-
-### L-REFUSE-BEFORE-ABORT-1. Validate a send before cancelling the thing it would replace.
-- **What:** in `ChatInterface.submitImpl` the context-full and quota refusals ran after the active answer was aborted, so a refused forced send (voice, "send now") killed the answer being read. Queued turns also fell back to the composer's current files when they had none (`options.attachmentOverride ?? attachedFiles`).
-- **Fix:** `decideSubmit` / `resolveTurnFiles` in `src/lib/chat/submitGuard.ts` decide first; an explicit empty override wins. Pinned in `src/test/chat/submitGuard.test.ts`. A duplicate-send guard (800 ms) was added defensively; a real double send was NOT reproduced (React flushes discrete events), so treat it as unproven.
-
-### L-WA-AT-LEAST-ONCE-1. Webhook receivers are at-least-once; "accepted by the gateway" is not "delivered".
-- **What:** `whatsapp_bot/wa_bot.py` handled only `messages[0]` of one Meta change, ignored status callbacks, did not deduplicate retries and had no 24-hour-window rule. README said duplicates were re-processed.
-- **Fix:** `wa_inbound` (unique provider id), `wa_outbound` + `wa_status_events` (status only moves forward), `wa_window`, optional `META_TEMPLATE_NAME`, DB mode 0600. A phone number stays anonymous (no user or memory column). Pinned in `backend/tests/test_whatsapp_bot_webhook.py` (80 bot tests pass). A real phone round trip is UNPROVEN.
-- **Also:** the "TanStack migration" for WhatsApp was a plan line only (`.lovable/plan.md`, `roadmap.md`); the app only uses `@tanstack/react-query`, which stays.
-
-## Oct 27, 2026 — first-person answer body, harness gaps, and unverified "done" claims
-
-### L-UI-LABEL-IN-BODY-1. A UI affordance rendered by the backend becomes answer text for every non-UI consumer.
-- **What:** "Related, not a direct answer:" was prepended into the answer body at four sites. Two were fixed in `cd4d3e21` (`services/first_person_pipeline.py` weak-match assembly x2); the third and fourth survived into `app/api/chat.py` (the verified-practice endpoint's `teaching` field) and `services/quote_weaver.py::_format_assembled_answer` (the `first_person_continuous_layout_enabled` branch, currently unreachable — a landmine for the day it is enabled). The frontend already derives the label from `verification.direct === false` (`src/components/chat/ChatMessage.tsx:192` and `:1183`), so the injected text was duplicated: visible in the UI answer body (rendered by ChatMessage) and also shown as a related-answer badge — making the label appear twice — and additionally present in every API response, cache entry, and eval fixture.
-- **Fix:** body text is now the verbatim quote only. The endpoint returns additive `is_direct_answer` + `verification_method` fields; the pipeline's weak-match path signals `status="weak_match"` / `is_direct_answer=False` / `verification["direct"]=False`; the bridge abstain path keeps the heading in `route_metadata.related_clips_heading` (metadata, correct). Stale pins asserting the old body text were corrected in `tests/test_first_person_pipeline.py`, `tests/test_first_person_payload_contract.py`, `tests/test_breath_teaching_grounding.py`.
-- **Rule:** answer text is evidence; directness is metadata. Never prepend a heading to a verbatim quote — a quotation with editorial framing is no longer a quotation. Pin the JSON body, and where an import is too heavy for a unit test, a source-level pin is acceptable **only if the test says it is source-level**.
-
-### L-PLAN-DONE-IS-NOT-DONE-1. A checklist marking a task done without a pinning test is a claim, and re-review is the only way to test a claim.
-- **What:** `.claude/tasks/fp-primary-quality-harness-2026-10-27.md` marked T2a, T2c and T4 `[x]`. Re-review found T2a still injecting the heading at two more sites (above), and T2c/T4 present in code but **unpinned**: no test anywhere referenced `_span_starts_with_antecedent` or the chronological `_window` sort, so a future refactor of `_window` could have regressed both silently with a green suite. Three pins were added to `tests/test_first_person_context_harness.py`.
-- **Rule:** "done" means a test fails when the behaviour is removed. When re-reviewing an inherited checklist, ask "what breaks if I delete this line" — not "is the code there". A plan's progress section is a claim about the tree, and the tree is the only authority.
-
-## Oct 26, 2026 — data-engineering audit close-out (D-series + review comments)
-
-### L-STAGE-PIN-ENFORCED-1. A stage manifest nobody checked was documentation, not a control.
-- **What:** `scripts/ingestion/stages/manifest.json` described seven ingest stages as `pinned: true`, but no code read it — editing `build_full_corpus_v10.py` or `speaker_diarization.py` silently invalidated the claim that the corpus came from the listed stages.
-- **Fix:** each stage with a repo `script` now carries `script_sha256`; `verify_stage_pins()` hashes the working tree and raises `SystemExit` on any mismatch or missing file, called at the top of `port_stage_scripts()`. Regenerate after an intentional edit with `python3 scripts/ingestion/mass_first_person_ingest.py --refresh-stage-pins`. A missing manifest warns (it is a repo record, not a runtime dependency); drift is fatal.
-- **Rule:** a "pinned" flag must name the check that enforces it. Verify the pin check itself with a drift probe (append a byte, expect refusal, restore) before trusting it; the ported pilot copies remain guarded by the WD-literal check because the manifest cannot address a path outside the repo.
-
-### L-RELEASE-GRADE-REPORTED-NOT-DROPPED-1. Calling a validator is only honest if its verdict is measured, not used to quietly shrink the corpus.
-- **What:** `SourceSpan.validate_release_grade()` existed with no caller. Both builders now run every built span through it and count defects by reason code (`release_grade_defects` in the v9 report, logged in the v10 run summary).
-- **Rule:** do not convert a reported defect into a silent drop at build time — the scorecard is the gate, and dropping hides the defect from the measurement that is supposed to catch it. Wire validators as counters first, then decide separately (with the owner) whether a code becomes a quarantine reason.
-
-### L-PROVENANCE-UNKNOWN-BY-DEFAULT-1. A default enum value is a provenance claim the producer may not be able to make.
-- **What:** `SourceSpan.text_origin` defaulted to `asr_voted`, so every span carried an origin claim even where the text was display-punctuated or a human edit, and the v9 carry-over builder could not know at all. `embedding_model`/`embedding_revision`/`embedded_text_sha256` were never populated, and `source_artifact_sha256` did not exist.
-- **Fix:** `text_origin` now defaults to `None` (unrecorded); the v10 builder sets `ASR_VOTED` because it parses the voted transcript itself, the v9 builder leaves `None` with a comment. The v10 builder records embedding provenance from the configured backend (ONNX pin vs HF pin — not a fixed constant), `embedded_text_sha256` hashes exactly the string handed to the encoder, and `source_artifact_sha256` hashes the whole transcript `.md` file it read (distinct from `transcript_hash`, which hashes the body because it is part of the span id).
-- **Rule:** unknown provenance is `None`, never a plausible default; and a provenance field must be derived from the component that actually did the work, because naming the wrong pinned revision is worse than naming none.
-
-### L-VERBATIM-NO-DELETE-1. A cleaner that deletes spoken words desynchronises text from the audio window it cites.
-- **What:** `clean_verbatim_text` removed retreat-date announcements, embedded audience acknowledgements and severed trailing clauses outright, and collapsed whole-word repeats across `.`/`?`/`!`. Each deletion shifted the stored text away from the transcript it was located in, so the citation timestamp and the words on screen disagreed.
-- **Fix:** those three rules are now `asr_cleaner_flags()` reasons — builders quarantine the span (`asr_cleaner_retreat_date_announcement` etc.) instead of editing it. Repeat collapsing is limited to `,`/`;` (a decoder restart); a repeat across sentence-final punctuation is the teacher's rhetoric and is preserved.
-- **Rule:** when a cleanup rule and the verbatim invariant conflict, the rule becomes a quarantine reason. `clean_verbatim_text` may only normalise formatting (spacing, casing of a stripped opener, hallucination phrases), never remove a word the teacher said. Pin both halves: the artifact case still collapses, the rhetorical case survives.
-
-- **What:** `VerbatimConfig.language` existed but nothing read it, and Parakeet is English-only; a Hindi talk would have been voted on by a model that cannot hear it.
-- **Fix:** `run_verbatim_pipeline` refuses explicitly non-English `language` values and, with `language="auto"` (the new default), infers the **dominant script** of the whisper words: Latin proceeds, anything else returns `unsupported_parakeet_script:<SCRIPT>` plus `language_inferred_script`. Whisper is loaded before the gate so the decision uses the actual transcript.
-- **Rule:** this is script-level, not language identification — say so. A Latin-script Hinglish talk still passes; a caller that knows the language must set it explicitly. Do not read "gate added" as "LID implemented".
-
-
-## Oct 25, 2026 — feature audit fixes (read-only audit, then one small PR)
-
-### L-AUDIT-SCORER-BUDGET-1. The relevance scorer ran with a 200-token reasoning cap, and its cascade never scored the third clip.
-- **What (from code, live effect UNPROVEN):** `_call_api` sent `reasoning.max_tokens = max(64, max_tokens // 4)`; the scorer asked for 1024, the fast ceiling clamped it to 800, so reasoning got 200, below OpenRouter's documented 1024 minimum for Anthropic models. Separately, `docker-compose.yml` turns speculative parallelism on, which scored clip 1 alone, then clip 2 alone, and never clip 3.
-- **Fix:** `reasoning_effort` kwarg on `_call_api` (`low`/`medium`/`high` replaces the token cap); an Anthropic scorer now sends `reasoning_effort="low"`, `operation="verify"` (ceiling 1500) and `max_tokens=2048`. The cascade scores clip 1 alone, then clips 2 and 3 together in one call (still at most two scorer calls). Clips that start in the first 60 s of a talk need a score of 3 even if the minimum is lowered. The answerability gate now reads the English (follow-up-resolved) `retrieval_query` the scorer already sees. A follow-up phrase that names its own topic ("tell me more about the Beautiful State") is no longer glued to the previous question.
-- **Rule:** after this lands, the first live run must log `finish_reason` and completion tokens for the scorer (`OPENROUTER_CALL_TIMING operation=verify`); an empty reply there means the effort setting did not help. Tests: `test_reasoning_effort_2026_10_25.py`, `test_names_new_topic_2026_10_25.py`, the three-clip cascade and gate-query tests in `test_first_person_speculative_parallelism.py`, the opening-clip test in `test_relevance_standalone_gates.py`.
-- **Faculty gate:** `/api/search` is now a gated prefix (anonymous `POST /api/search/web-discourse` ran a live web search with no gate; a fresh anon session token gets a fresh rate-limit bucket). The frontend wrapper sends the code on every backend request. Dev-mode caveat from the audit helper, unverified: with `BACKEND_URL` empty the absolute localhost URLs may not get the header.
-- **Second batch:** the bridge's glue step now protects attribution lines (`— Name`, `Sources: ...`) the same way it protects quoted text, so a translation or tone pass cannot rewrite who said a clip (`test_glue_protects_attribution_2026_10_25.py`). New read-only tool `backend/scripts/ops/mine_seeker_questions.py` pulls real seeker questions (host/guest turns followed by a teacher answer) out of transcripts, to build the real-seeker test set; it writes nothing to Qdrant. Compound-question splitting stays off until that set exists.
-- **Dependency advisories (CI red on the PR, not caused by it):** Trivy also flagged undici 6.29.0 (CVE-2026-109869) in `mobile/expo/package-lock.json`; bumped to 6.29.1, local Trivy fs scan clean. `npm audit` flagged zod <4.6.6 (GHSA-mrhx-c7xc-m3w5) and `pip-audit` flagged brotli 1.2.0, filelock 4.0.9, pypdf 6.21.1 and setuptools 84.0.0 (advisories published after main's last green run). Fixed by zod 4.6.7 (typecheck, lint, 907 frontend tests and the build pass) and patch bumps brotli 1.2.1, filelock 4.2.1, pypdf 6.21.2, setuptools 84.1.0 in `backend/requirements.lock`; `pip-audit` then reports 0 un-ignored findings. Not yet run: the backend suite against the new pins on a clean install.
-- **Not changed on purpose:** the LLM rerank still reads 350 characters of each clip (changing it needs an A/B on the real stack); the addiction contradiction in the answerability prompt (needs a live out-of-corpus re-run); the speaker-label flag (a data backfill, owner approval); the relationship safety line and compassion copy (safety copy, owner).
-
-## Oct 24, 2026 — Mac v10 run follow-ups
-
-### L-FP-TRAILING-QUESTION-1. An assembled first-person answer that ends on a question-only span now drops that span.
-- **What:** the context harness could end a served answer on an interviewer-style question span. The trailing span is now trimmed (kept text untouched, hashes still hold); if nothing teaching remains it abstains `question_only_clip`. If trimming drops all retrieved hit spans, it abstains `retrieved_hit_trimmed` rather than serving an unrelated antecedent span.
-- **Rule:** judge the tail of an assembled answer, not only the whole; test with a fixture whose last span is a question. Also ensure relationship-safety filter pattern across retrieval paths (`_violent_for_context`) excludes violent clips when relationship queries are asked, tested with positive and unrelated-query controls.
-
-### L-ERASURE-PARTIAL-1. Erasure that partly failed must not report completed.
-- **What:** `app/api/compliance.py` did not set tenant context and returned success even when `result["errors"]` was non-empty. It now resolves the target user's tenant via asynchronous lookup (`canonical_memories`/`guru_memories`/`user_profiles`), validates an override against the target user's tenant records and rejects it with HTTP 409 when it conflicts, falls back to the override when every lookup succeeded and found no rows, raises HTTP 503 on unresolvable target tenant, scopes the purge to the target tenant, and answers 502 `purge_incomplete` on a partial purge. A separate failed-deletion exception applies only after every lookup succeeded and found at least one tenant: an override absent from those rows is accepted when that tenant is named by the newest `completed`/`purge_failed`/`purge_incomplete` `gdpr_deletion_request` record for the user. It never applies when a table lookup raised.
-- **Rule:** a deletion receipt is only written when every store reported clean; escalate the errors list, never swallow it. When target tenant cannot be resolved or any table lookup raises an error (even when an override is supplied), fail closed, return HTTP 503, and record tenant_lookup_failed before calling purge_all_user_data; the failed-deletion override exception is not a lookup-failure bypass. Validate tenant overrides against existing tenant records and return 409 on mismatch unless that exception applies.
-
-### L-ROUTING-FALLTHROUGH-2. A teaching route that needs a positive spiritual cue lets life questions fall to the general model; default unknown to teaching, general only on a secular match.
-- **What:** off-topic stage defaulted unknown or low-confidence non-secular questions to the general assistant route, causing life suffering and anxiety queries to be answered in unverified guru-voice prose without citations or clips.
-- **Fix:** an ambiguous-domain turn with no usable semantic decision (Jev timeout, low confidence, missing key) and the unknown fall-through now route to the first-person teaching route. General mode is reserved strictly for clearly secular text (`is_off_topic`, general task/coding requests).
-- **Rule:** when domain confidence is indeterminate, prefer the authoritative teaching route over ungrounded general prose; test life and relationship queries explicitly against the routing stage-chain.
-
-### L-FP-V10-RELEVANCE-1. The v10 context-harness serve path skipped the min-score relevance scorer.
-- **What:** the context harness assembled candidate clips without scoring the completed answer against the min-score relevance threshold, allowing low-relevance or event-bound clips through.
-- **Fix:** the harness now scores the assembled answer; below the minimum score it falls through to the legacy path (under its own gate); scorer error abstains with `relevance_indeterminate`. Event markers ("tomorrow is", "this coming month", "when I bless you", ...) and orphan openers ("It refuses", "We need them", "I led him") reject whole clips before serving.
-- **Rule:** assembled context-harness answers must pass both deterministic standalone checks and minimum relevance scoring before delivery.
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged,
 > to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md` (13519 lines). Look an ID up with

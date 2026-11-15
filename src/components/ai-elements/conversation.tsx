@@ -94,6 +94,7 @@ const { t } = useTranslation();
         size="icon"
         type="button"
         variant="outline"
+        aria-label="Scroll to latest message"
         {...props}
       >
         <ArrowDownIcon className="size-4" />

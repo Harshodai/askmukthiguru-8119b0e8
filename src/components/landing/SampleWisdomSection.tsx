@@ -160,7 +160,7 @@ export const SampleWisdomSection = () => {
                   key={index}
                   type="button"
                   onClick={() => setCurrentIndex(index)}
-                  className="group flex h-6 min-w-6 items-center justify-center rounded-full"
+                  className="group flex h-6 w-6 min-h-[24px] min-w-[24px] items-center justify-center rounded-full p-1"
                   aria-label={t('wisdom.goToSlide', 'Go to slide {{index}}', { index: index + 1 })}
                   aria-current={index === currentIndex ? 'true' : undefined}
                 >

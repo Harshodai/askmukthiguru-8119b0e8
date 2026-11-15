@@ -20,20 +20,31 @@ _SYSTEM_REASONS = frozenset(
 )
 _TOPIC_REASONS = frozenset({"topic_blocked"})
 
+# ``result.error`` prefixes that mean the retrieval backend failed (not "no clip").
+_SYSTEM_ERROR_PREFIXES = ("context_retrieval_error:",)
+
 ABSTAIN_CAUSES = ("no_evidence", "system_unavailable", "topic_boundary", "safety")
 
 
-def abstain_cause(status: str | None, reason: str | None, answerability: str | None) -> str:
+def abstain_cause(
+    status: str | None,
+    reason: str | None,
+    answerability: str | None,
+    error: str | None = None,
+) -> str:
     """Map the pipeline's status, abstain reason and gate verdict to one cause.
 
     ``system_unavailable`` is the only cause for which ``verification.passed``
     is false: the seeker was not told the truth that no teaching exists, only
     that the check failed. Unknown reasons fall to ``no_evidence`` only when the
-    status is not an error.
+    status is not an error. A retrieval outage (``error`` starting with a
+    ``_SYSTEM_ERROR_PREFIXES`` entry) is also ``system_unavailable``.
     """
     status = str(status or "").strip().lower()
     reason = str(reason or "").strip().lower()
     verdict = str(answerability or "").strip().lower()
+    if str(error or "").startswith(_SYSTEM_ERROR_PREFIXES):
+        return "system_unavailable"
     if status == "error" or reason in _SYSTEM_REASONS:
         return "system_unavailable"
     if reason == "answerability_withheld" and verdict not in ("no", ""):

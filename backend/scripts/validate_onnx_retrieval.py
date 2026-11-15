@@ -220,8 +220,6 @@ class EncodeBoth:
             repo_id="BAAI/bge-m3",
             revision=BGE_M3_REVISION,
             local_dir=str(SCRATCH / "bge_m3_fp32"),
-            local_dir_use_symlinks=False,
-            resume_download=True,
             ignore_patterns=["*.md", "*.py", "requirements.txt"],
         )
         self._baseline = BGEM3FlagModel(bge_local, use_fp16=False, device="cpu")
@@ -233,8 +231,6 @@ class EncodeBoth:
             repo_id=ONNX_CANDIDATE,
             revision=ONNX_CANDIDATE_REVISION,
             local_dir=str(SCRATCH),
-            local_dir_use_symlinks=False,
-            resume_download=True,
             ignore_patterns=["*.md", "*.py", "requirements.txt"],
         )
         self._onnx_session = ort.InferenceSession(

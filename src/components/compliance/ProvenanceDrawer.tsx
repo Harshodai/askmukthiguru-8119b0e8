@@ -382,7 +382,7 @@ export const ProvenanceDrawer: React.FC<ProvenanceDrawerProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowRawJson(!showRawJson)}
-                  className="text-[11px] text-ojas hover:underline font-medium focus-visible:outline-none"
+                  className="text-[11px] text-ojas-ink dark:text-ojas hover:underline font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded-sm"
                 >
                   {showRawJson ? 'Hide Preview' : 'Show Preview'}
                 </button>

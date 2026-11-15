@@ -5,7 +5,7 @@ import logging
 from typing import Any, Literal, Optional
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
 
 from app.schemas.compliance_provenance import (
     AIProvenanceManifest,
@@ -146,6 +146,9 @@ class ChatRequest(BaseModel):
     messages: list[MessagePayload] = Field(
         ..., max_length=_HISTORY_TURNS_MAX, description="Conversation history"
     )
+    # Anonymous follow-up hint (see populate_server_side_history). Private: never
+    # serialised, never read by any safety consumer.
+    _followup_hint_user_turn: Optional[str] = PrivateAttr(default=None)
     user_message: str = Field(
         ..., min_length=1, max_length=10000, description="Current user message"
     )

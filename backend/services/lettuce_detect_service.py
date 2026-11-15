@@ -738,7 +738,6 @@ class LettuceDetectService:
                 local_path = snapshot_download(
                     repo_id=_LETTUCE_MODEL_ID,
                     revision=_LETTUCE_MODEL_REVISION,
-                    resume_download=True,
                 )
                 LettuceDetectService._shared_detector = HallucinationDetector(
                     method="transformer",

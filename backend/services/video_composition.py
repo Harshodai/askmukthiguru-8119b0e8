@@ -337,7 +337,7 @@ def generate_ffmpeg_concat_filter(
 
     # Additional visual overlay inputs
     overlay_start_idx = len(manifest.segments)
-    for idx, ov in enumerate(manifest.visual_overlays):
+    for ov in manifest.visual_overlays:
         inputs.extend(["-loop", "1", "-i", ov.asset_url])
 
     # 1. Video trimming and scaling

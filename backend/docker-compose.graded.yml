@@ -36,9 +36,25 @@ services:
       # Pinned so a graded run reproduces from committed files (2026-11-13; graded-6 ran on the
       # Settings default, and its sparse setting lived only in an override outside the repo).
       FIRST_PERSON_JUDGE_MODEL: anthropic/claude-haiku-5.5
+      # Comparative judge (candidate A for the same-clip defect) stays OFF in the graded
+      # config until its negative-control measurement exists; switching it on is a new
+      # registered run. Pinned so the manifest records the value (2026-11-13).
+      FIRST_PERSON_COMPARATIVE_JUDGE_ENABLED: "false"
       # Graded-6 A/B setting (sparse retrieval OFF). The Settings default is still True and the
       # owner decision on the default is open; this pin only makes the graded config explicit.
       FIRST_PERSON_CONTEXT_USE_SPARSE: "false"
+      # Pinned 2026-11-13 (harness audit H-12). The graded-6 manifest records this flag as
+      # false, but the value came from .env: no committed file set it and the Settings
+      # default is true. Pinned to the graded-6 value so graded-7 is comparable. Whether the
+      # product should run with the YES/NO answerability gate on is owner decision T-E1.
+      # graded-8 (registered 2026-11-14): the ONE value changed from graded-7. The run measures
+      # what the YES/NO answerability gate does to served count, showable share and latency
+      # (owner decision D1 needs that delta). Whether the product runs with it on stays D1.
+      FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED: "true"
+      # Pinned 2026-11-13 (harness audit H-14). The ambiguous-domain router never completed
+      # inside its 0.45 s budget (measured 470-690 ms), so every graded run so far routed as
+      # if it were off. Pinned off so a faster network cannot change routing mid-comparison.
+      INTENT_ROUTER_AMBIGUOUS_DOMAIN_ENABLED: "false"
       # Relevance scorer: the single variable a stage may change.
       FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5
       FIRST_PERSON_RELEVANCE_MIN_SCORE: "3" # = base compose default and CLAUDE.md invariant 24; was 2
@@ -65,6 +81,17 @@ services:
       OPENROUTER_BUDGET_FAIL_CLOSED: "true"
     # `!override` REPLACES the base list. Application code is not mounted: the container runs
     # the code that `--build` copied from a clean tree. Only caches and data stay mounted.
+    #
+    # What this deliberately REMOVES versus the dev stack (2026-11-14: named because a
+    # removed mount is invisible until a feature quietly reads it):
+    #   - `../transcripts`  -> no `/app/transcripts`. The `GET /api/search/inspect-source`
+    #     local-transcript fallback and any projected-transcript reader do not exist here.
+    #     A 0-chunk inspect result in a graded stack is NOT evidence that the Qdrant path
+    #     failed; check the collection for the video id before drawing a conclusion.
+    #   - `../scripts`      -> no `/app/scripts` (see L-OPS-MOUNT-1; ops code must run via
+    #     `app/backend_scripts` or a repo-root `scripts/ops/` wrapper).
+    #   - `./app ./services ./rag ./domain ./guardrails ./routers ...` -> no live code
+    #     reload. A graded run measures the image, which is the point.
     volumes: !override
       - hf_model_cache:/app/.cache
       - ./.model_cache:/app/model_cache

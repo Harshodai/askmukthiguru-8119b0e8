@@ -22,6 +22,9 @@ ARG VITE_BACKEND_URL
 # Must be declared here or Docker silently drops the compose arg (that exact
 # miss kept /teachers-words 404 locally despite the compose default of true).
 ARG VITE_FIRST_PERSON_ENABLED=true
+# .dockerignore keeps .env.production out of the build, so the value it sets
+# never reached the image and the "Personalize this teaching" button was missing.
+ARG VITE_PERSONALIZE_TEACHING_ENABLED=true
 
 # Set them as environment variables for the build process
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
@@ -31,6 +34,7 @@ ENV VITE_JAEGER_UI_URL=$VITE_JAEGER_UI_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
 ENV VITE_FIRST_PERSON_ENABLED=$VITE_FIRST_PERSON_ENABLED
+ENV VITE_PERSONALIZE_TEACHING_ENABLED=$VITE_PERSONALIZE_TEACHING_ENABLED
 
 # Copy source code and build
 COPY index.html vite.config.ts tsconfig*.json tailwind.config.ts postcss.config.js components.json ./
@@ -68,6 +72,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 # chown lchowns a symlink operand, so chown the real /run target, not
 # /var/run, or the pid dir stays root-owned and nginx exits with
 # 'open() "/run/nginx.pid" failed (13: Permission denied)'.
+RUN sed -i 's/^user /#user /' /etc/nginx/nginx.conf
 RUN chown -R nginx:nginx /var/cache/nginx /run /var/log/nginx
 
 USER nginx

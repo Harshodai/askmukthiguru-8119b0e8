@@ -6,7 +6,13 @@ import logging
 import os
 import re
 import threading
+import warnings
 from typing import Any, Optional
+
+# Suppress QdrantClient UserWarning when API key is used over internal Docker bridge (http://)
+warnings.filterwarnings(
+    "ignore", category=UserWarning, message=".*Api key is used with an insecure connection.*"
+)
 
 import httpx
 from cachetools import TTLCache
