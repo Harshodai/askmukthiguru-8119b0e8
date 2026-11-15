@@ -116,9 +116,12 @@ def test_build_citation_refuses_okf_and_cached_citations_are_rechecked():
     source fence on the two guards (the behavioural half is covered by
     `test_gate_rejects_curated_okf_provenance` above).
     """
+    import services.first_person_legacy as fp_legacy
     import services.first_person_pipeline as fp
 
-    src = inspect.getsource(fp)
+    # The legacy v7/v8 tail lives in its own module since 2026-11-15; the
+    # fence covers both files.
+    src = inspect.getsource(fp) + inspect.getsource(fp_legacy)
     assert 'if provenance_kind == "curated_okf"' in src
     assert 'raise ValueError("OKF entries cannot become first-person citations")' in src
     # Cached citations are re-checked before serve (check_exact_cache).

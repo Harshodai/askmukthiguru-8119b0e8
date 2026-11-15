@@ -1233,7 +1233,6 @@ async def dream_user_memories(
     """
     user_id = user["id"]
     dry_run = payload.dry_run if payload else False
-    limit_convs = payload.limit_conversations if payload else 50
     tenant_id = TenantContext.get()
 
     db = await _get_supabase(container)

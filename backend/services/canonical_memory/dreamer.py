@@ -660,7 +660,7 @@ class MemoryDreamer:
             if fk:
                 fact_key_groups.setdefault(fk, []).append(m)
 
-        for fk, group in fact_key_groups.items():
+        for group in fact_key_groups.values():
             if len(group) > 1:
                 # Sort by timestamp ascending
                 sorted_group = sorted(
@@ -941,7 +941,7 @@ class MemoryDreamer:
         event_id = str(uuid.uuid4())
         now = datetime.now(UTC).isoformat()
         try:
-            res = await asyncio.to_thread(
+            await asyncio.to_thread(
                 self._db.table("canonical_memory_events")
                 .insert(
                     {

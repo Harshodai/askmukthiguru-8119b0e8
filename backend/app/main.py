@@ -922,6 +922,9 @@ async def lifespan(app: FastAPI):
             context_harness_enabled=bool(
                 getattr(settings, "first_person_context_harness_enabled", False)
             ),
+            context_terminal_enabled=(
+                getattr(settings, "first_person_context_terminal_enabled", False) is True
+            ),
         )
         logger.info(
             "Lifespan: first-person serving contract checked (legacy=%s ok=%s context=%s ok=%s)",

@@ -331,3 +331,96 @@ def test_personalize_still_reads_the_legacy_store_for_the_two_slot_config(monkey
         is None
     )
     store.get_clip_by_video_and_start.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# A-32: production posture contract (flags must agree)
+# ---------------------------------------------------------------------------
+def _posture(harness, terminal, legacy_override=""):
+    """Resolve slots through Settings, then run the same checks main.py runs."""
+    from app.config import Settings
+
+    s = Settings(
+        _env_file=None,
+        openrouter_api_key="test-key",
+        is_production=False,
+        first_person_context_harness_enabled=harness,
+        first_person_context_terminal_enabled=terminal,
+        first_person_collection=legacy_override,
+    )
+    report = validate_serving_contract(
+        contract=load_contract(CONTRACT_PATH),
+        legacy_collection=s.first_person_collection,
+        context_collection=s.first_person_context_collection,
+        context_harness_enabled=harness,
+        context_terminal_enabled=terminal,
+        active_collection=s.first_person_active_collection,
+    )
+    return s, report
+
+
+def _assert_prod(report, harness, terminal, production=True):
+    assert_startup_safe(
+        report,
+        is_production=production,
+        legacy_route_enabled=True,
+        context_harness_enabled=harness,
+        context_terminal_enabled=terminal,
+    )
+
+
+def test_posture_case1_v10_both_on_passes_in_production():
+    s, report = _posture(True, True)
+    assert s.first_person_collection == V10
+    _assert_prod(report, True, True)
+
+
+@pytest.mark.parametrize("harness,terminal", [(True, False), (False, True)])
+def test_posture_half_applied_v10_stops_production(harness, terminal):
+    """Cases 2 and 3: the contract itself is clean (legacy slot silently falls back to v8)."""
+    s, report = _posture(harness, terminal)
+    assert s.first_person_collection == V8
+    assert report.ok, report.errors
+    with pytest.raises(FirstPersonServingContractError, match="FIRST_PERSON_CONTEXT_TERMINAL"):
+        _assert_prod(report, harness, terminal)
+    _assert_prod(report, harness, terminal, production=False)
+
+
+def test_posture_both_off_is_the_v8_bridge_and_passes():
+    """Cases 4 and 5 are the same resolved config: v8_bridge must keep starting."""
+    s, report = _posture(False, False)
+    assert s.first_person_collection == V8
+    _assert_prod(report, False, False)
+    _, explicit_v8 = _posture(False, False, V8)
+    _assert_prod(explicit_v8, False, False)
+
+
+def test_posture_explicit_v10_legacy_slot_without_both_flags_stops_production():
+    _, report = _posture(False, False, V10)
+    with pytest.raises(FirstPersonServingContractError):
+        _assert_prod(report, False, False)
+
+
+def test_production_env_preflight_flags_must_agree():
+    from scripts.ops.validate_production_env import validate_environment
+
+    env = {
+        "IS_PRODUCTION": "true",
+        "SUPABASE_URL": "https://example.supabase.co",
+        "SUPABASE_KEY": "k",
+        "REDIS_URL": "rediss://redis.example/0",
+        "ANON_SESSION_HMAC_SECRET": "x" * 64,
+        "FORWARDED_ALLOW_IPS": "10.0.0.0/8",
+        "LLM_PROVIDER": "openrouter",
+        "OPENROUTER_API_KEY": "k",
+        "BRAIN_KEK": "k",
+        "FACULTY_ACCESS_CODE": "c",
+    }
+    both = {
+        "FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "true",
+        "FIRST_PERSON_CONTEXT_TERMINAL_ENABLED": "true",
+    }
+    assert validate_environment({**env, **both}).ok
+    assert validate_environment(env).ok
+    half = validate_environment({**env, "FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "true"})
+    assert not half.ok

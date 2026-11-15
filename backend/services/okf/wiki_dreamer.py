@@ -200,9 +200,9 @@ class OKFWikiDreamer:
         if summary_match:
             summary_text = summary_match.group(1).strip()
             lines = [
-                l.strip()
-                for l in summary_text.splitlines()
-                if l.strip() and not l.startswith(("#", ">", "-", "*", "`"))
+                ln.strip()
+                for ln in summary_text.splitlines()
+                if ln.strip() and not ln.startswith(("#", ">", "-", "*", "`"))
             ]
             if lines:
                 sentence = re.split(r"(?<=[.!?])\s", lines[0])[0].strip()
@@ -285,7 +285,7 @@ class OKFWikiDreamer:
                         links_added.append(wiki_id)
             else:
                 # Wikify bold keywords in body
-                def _bold_sub(match: re.Match) -> str:
+                def _bold_sub(match: re.Match, line: str = line) -> str:
                     word = match.group(1).strip()
                     wid = wiki_index.get(word)
                     if not wid:
@@ -442,15 +442,10 @@ class OKFWikiDreamer:
         """
         lines = body.split("\n")
         new_lines = []
-        in_quotes_section = False
-
         for line in lines:
             if re.match(r"^##\s*Quotes", line, re.I):
-                in_quotes_section = True
                 new_lines.append(line)
                 continue
-            elif line.startswith("## ") and not line.startswith("### "):
-                in_quotes_section = False
 
             m = re.match(r'^>\s*"(.+?)"(?:\s*—\s*(.*))?$', line)
             if m:

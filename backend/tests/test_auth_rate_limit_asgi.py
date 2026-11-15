@@ -86,8 +86,3 @@ def test_non_auth_path_passes_through_untouched(monkeypatch):
     scope = {"type": "http", "method": "POST", "path": "/api/chat", "client": ("10.0.0.9", 1)}
     _run(mw(scope, _receiver(b"{}"), send))
     assert reached["yes"] and check.await_count == 0
-
-
-if __name__ == "__main__":
-    test_non_auth_path_passes_through_untouched.__globals__  # self-check placeholder
-    print("ok")

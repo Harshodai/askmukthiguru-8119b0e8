@@ -156,6 +156,16 @@ def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResul
         elif first_person_mode not in modes:
             errors.append(f"FIRST_PERSON_MODE must be one of {modes}")
 
+    # Serving posture: v10-only needs both flags, the v8 rollback needs neither.
+    # Exactly one on would silently serve the legacy clip store (A-32).
+    harness = flag("FIRST_PERSON_CONTEXT_HARNESS_ENABLED", False)
+    terminal = flag("FIRST_PERSON_CONTEXT_TERMINAL_ENABLED", False)
+    if harness != terminal:
+        errors.append(
+            "FIRST_PERSON_CONTEXT_HARNESS_ENABLED and FIRST_PERSON_CONTEXT_TERMINAL_ENABLED "
+            "must both be true (v10-only) or both be false (v8 rollback)"
+        )
+
     redis_url = str(values.get("REDIS_URL", "") or "").lower()
     if "localhost" in redis_url or "127.0.0.1" in redis_url:
         warnings.append("REDIS_URL points at loopback; confirm this is intentional")
