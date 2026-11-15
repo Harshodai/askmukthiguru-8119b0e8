@@ -72,7 +72,7 @@ function saveManifest() {
 
 function writeSafetyReport() {
   const keys = enKeys.filter((k) => SAFETY_KEY_RE.test(k) || SAFETY_KEY_RE.test(enFlat[k]));
-  const rows = keys.map((k) => `| \`${k}\` | ${enFlat[k].replace(/[\\|]/g, (c) => '\\' + c).replace(/\n/g, ' ')} |`);
+  const rows = keys.map((k) => `| \`${k}\` | ${enFlat[k].replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`);
   writeFileSync(SAFETY_REPORT, [
     '# Safety/crisis UI strings: machine-translated, NOT native-reviewed',
     '',

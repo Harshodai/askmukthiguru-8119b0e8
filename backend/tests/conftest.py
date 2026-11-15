@@ -28,6 +28,9 @@ warnings.warn = _suppress_langchain_warn
 # ordinary test runs deterministic when Jaeger/OTLP is not running.
 os.environ.setdefault("OTEL_ENABLED", "false")
 
+if not os.environ.get("OPENROUTER_API_KEY"):
+    os.environ["OPENROUTER_API_KEY"] = "dummy-openrouter-test-key"
+
 # app/main.py caps the process with RLIMIT_DATA (default 6144 MB) at import.
 # RLIMIT_DATA counts VIRTUAL private mappings (thread stacks, glibc malloc
 # arenas, model mmaps), and a pytest process that imports torch/onnx/numpy and

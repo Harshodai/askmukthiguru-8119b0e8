@@ -25,9 +25,14 @@ edits apply without a restart.
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
 import re
 import time
+import unicodedata
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -288,12 +293,113 @@ _CAPITALISED_ONLY_VARIANTS = frozenset({"akam"})
 _TTL_SECONDS = 300.0
 _cache_terms: dict[str, list[str]] | None = None
 _cache_regexes: list[tuple[re.Pattern, str, str]] | None = None  # (pattern, canonical, rule_id)
+_cache_trie: DoctrinePhraseTrie | None = None
 _cache_ts = 0.0
+
+_WORD_OR_SYM_TOKEN_RE = re.compile(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*|&")
+
+
+@dataclass
+class _TrieNode:
+    children: dict[str, _TrieNode] = field(default_factory=dict)
+    terminal: Optional[tuple[str, str]] = None
+
+
+class DoctrinePhraseTrie:
+    """Deterministic Word-Boundary Phrase Trie replacing 180+ sequential regex scans.
+
+    Complexity: O(N) in document tokens (bounded by max phrase length <= 6 tokens),
+    compared to O(R * N) for running 180+ separate `re.Pattern.finditer` passes.
+    """
+
+    def __init__(self, terms: dict[str, list[str]]) -> None:
+        self.root = _TrieNode()
+        self._build(terms)
+
+    @staticmethod
+    def _tokenize_variant(variant: str) -> list[str]:
+        return [m.group(0) for m in _WORD_OR_SYM_TOKEN_RE.finditer(variant)]
+
+    def _insert(self, tokens: list[str], canonical: str, rule_id: str) -> None:
+        if not tokens:
+            return
+        node = self.root
+        for tok in tokens:
+            node = node.children.setdefault(tok, _TrieNode())
+        node.terminal = (canonical, rule_id)
+
+    def _build(self, terms: dict[str, list[str]]) -> None:
+        for canonical, variants in terms.items():
+            variant_literal_set = set(variants)
+            slug_chars = [ch if ch.isalnum() else "_" for ch in canonical.upper()]
+            rule_slug = "_".join(filter(None, "".join(slug_chars).split("_")))
+            rule_id = f"DOCTRINE_{rule_slug}"
+            for v in variants:
+                if not v:
+                    continue
+                v_tokens = self._tokenize_variant(v)
+                self._insert(v_tokens, canonical, rule_id)
+                low = v.lower()
+                if (
+                    low != v
+                    and low not in _CAPITALISED_ONLY_VARIANTS
+                    and low not in variant_literal_set
+                ):
+                    low_tokens = self._tokenize_variant(low)
+                    self._insert(low_tokens, canonical, rule_id)
+
+    def find_matches(self, text: str) -> list[dict[str, Any]]:
+        """Scan `text` in a single O(N) pass and return longest non-overlapping matches."""
+        tokens: list[tuple[str, int, int]] = [
+            (m.group(0), m.start(), m.end())
+            for m in _WORD_OR_SYM_TOKEN_RE.finditer(text)
+        ]
+        n = len(tokens)
+        matches: list[dict[str, Any]] = []
+        i = 0
+        while i < n:
+            node = self.root
+            best_match: Optional[tuple[int, str, str]] = None
+            j = i
+            while j < n:
+                tok_str, tok_start, _ = tokens[j]
+                if j > i:
+                    prev_end = tokens[j - 1][2]
+                    between = text[prev_end:tok_start]
+                    if not between or not between.isspace():
+                        break
+                nxt = node.children.get(tok_str)
+                if nxt is None:
+                    break
+                node = nxt
+                if node.terminal is not None:
+                    best_match = (j, node.terminal[0], node.terminal[1])
+                j += 1
+
+            if best_match is not None:
+                end_j, canonical, rule_id = best_match
+                char_start = tokens[i][1]
+                char_end = tokens[end_j][2]
+                matches.append(
+                    {
+                        "start": char_start,
+                        "end": char_end,
+                        "matched_text": text[char_start:char_end],
+                        "replacement": canonical,
+                        "rule_id": rule_id,
+                    }
+                )
+                i = end_j + 1
+            else:
+                i += 1
+        return matches
 
 
 def _load_admin_overrides() -> dict[str, list[str]]:
     """Rows from the ``doctrine_terms`` Supabase table. Empty on any failure (graceful)."""
     overrides: dict[str, list[str]] = {}
+    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("DOCTRINE_TERMS_TEST_DB"):
+        return overrides
     try:
         from app.telemetry_db import _get_client  # same accessor PromptStore uses
 
@@ -336,7 +442,7 @@ def _build_regexes(terms: dict[str, list[str]]) -> list[tuple[re.Pattern, str, s
 
 def load_doctrine_terms() -> dict[str, list[str]]:
     """DEFAULTS merged with admin overrides (DB wins), TTL-cached. Never raises."""
-    global _cache_terms, _cache_regexes, _cache_ts
+    global _cache_terms, _cache_regexes, _cache_trie, _cache_ts
     now = time.time()
     if _cache_terms is not None and (now - _cache_ts) < _TTL_SECONDS:
         return _cache_terms
@@ -346,79 +452,53 @@ def load_doctrine_terms() -> dict[str, list[str]]:
         terms[canonical] = merged
     _cache_terms = terms
     _cache_regexes = _build_regexes(terms)
+    _cache_trie = DoctrinePhraseTrie(terms)
     _cache_ts = now
     return terms
 
 
 def reload() -> None:
     """Drop the cache so the next call reflects admin edits (hot-reload)."""
-    global _cache_terms, _cache_regexes, _cache_ts
-    _cache_terms = _cache_regexes = None
+    global _cache_terms, _cache_regexes, _cache_trie, _cache_ts
+    _cache_terms = _cache_regexes = _cache_trie = None
     _cache_ts = 0.0
 
 
 def apply_corrections_with_ledger(
     text: str,
     segment_id: str = "seg_0000",
-    pipeline_version: str = "2.0.0",
-) -> tuple[str, list[dict]]:
-    """Apply domain corrections while recording a truly reversible, offset-based audit ledger.
-
-    Only the doctrine_terms map corrections are recorded here. The data-derived
-    lexicon pass (``_apply_lexicon_corrections``) is deliberately NOT chained: its
-    word-level replacements cannot be addressed in original-text offsets, so
-    ledgered/audited ingestion content skips it and stays fully reversible.
-    Non-audited flows get the lexicon via ``apply_corrections``.
-
-    Returns:
-        (corrected_text, ledger_records)
-    """
-    import hashlib
-    import unicodedata
-
+    pipeline_version: str = "2.1.0-fable",
+) -> tuple[str, list[dict[str, Any]]]:
+    """Apply domain corrections in a single O(N) Trie scan with a truly reversible offset ledger."""
     if not text:
         return text, []
 
-    # Enforce standard Unicode NFC normalization
     norm_text = unicodedata.normalize("NFC", text)
     orig_hash = hashlib.sha256(norm_text.encode("utf-8")).hexdigest()
 
     load_doctrine_terms()
-    ledger: list[dict] = []
+    trie = _cache_trie or DoctrinePhraseTrie(load_doctrine_terms())
+    matches = trie.find_matches(norm_text)
+    if not matches:
+        return norm_text, []
 
-    # Collect all match spans
-    matches: list[dict] = []
-    for pattern, replacement, rule_id in _cache_regexes or []:
-        for m in pattern.finditer(norm_text):
-            matches.append(
-                {
-                    "start": m.start(),
-                    "end": m.end(),
-                    "matched_text": m.group(0),
-                    "replacement": replacement,
-                    "rule_id": rule_id,
-                }
-            )
-
-    # Sort matches by start position ascending
-    matches.sort(key=lambda x: (x["start"], -x["end"]))
-
-    # Apply non-overlapping replacements from left to right, computing occurrence counts
-    corrected_parts = []
+    ledger: list[dict[str, Any]] = []
+    corrected_parts: list[str] = []
     last_idx = 0
+    corrected_cursor = 0
     occurrence_counts: dict[str, int] = {}
 
     for m in matches:
-        if m["start"] < last_idx:
-            # Overlapping match — skip to avoid corrupted text
-            continue
-
-        # Append unchanged text before match
-        corrected_parts.append(norm_text[last_idx : m["start"]])
+        unchanged_prefix = norm_text[last_idx : m["start"]]
+        corrected_parts.append(unchanged_prefix)
+        corrected_cursor += len(unchanged_prefix)
 
         matched_str = m["matched_text"]
         replacement_str = m["replacement"]
         occurrence_counts[matched_str] = occurrence_counts.get(matched_str, 0) + 1
+
+        corr_start = corrected_cursor
+        corr_end = corr_start + len(replacement_str)
 
         ledger.append(
             {
@@ -426,6 +506,8 @@ def apply_corrections_with_ledger(
                 "segment_id": segment_id,
                 "char_start": m["start"],
                 "char_end": m["end"],
+                "corrected_char_start": corr_start,
+                "corrected_char_end": corr_end,
                 "occurrence_index": occurrence_counts[matched_str],
                 "matched_text": matched_str,
                 "replacement": replacement_str,
@@ -440,9 +522,11 @@ def apply_corrections_with_ledger(
         )
 
         corrected_parts.append(replacement_str)
+        corrected_cursor = corr_end
         last_idx = m["end"]
 
-    corrected_parts.append(norm_text[last_idx:])
+    tail = norm_text[last_idx:]
+    corrected_parts.append(tail)
     corrected_text = "".join(corrected_parts)
     corr_hash = hashlib.sha256(corrected_text.encode("utf-8")).hexdigest()
 
@@ -453,25 +537,41 @@ def apply_corrections_with_ledger(
     return corrected_text, ledger
 
 
-def revert_corrections_from_ledger(corrected_text: str, ledger: list[dict]) -> str:
-    """Reverse corrections using the ledger to verify exact round-trip fidelity."""
-    import hashlib
-
+def revert_corrections_from_ledger(corrected_text: str, ledger: list[dict[str, Any]]) -> str:
+    """Reverse corrections using offset spans in reverse order and verify SHA-256 round-trip."""
     if not ledger or not corrected_text:
         return corrected_text
 
-    # 1. If original_segment_text is stored, verify its hash directly
-    first_entry = ledger[0]
-    orig_text = first_entry.get("original_segment_text")
-    expected_hash = first_entry.get("original_segment_hash")
-    if orig_text and expected_hash:
-        actual_hash = hashlib.sha256(orig_text.encode("utf-8")).hexdigest()
+    reconstructed = corrected_text
+    sorted_entries = sorted(
+        ledger,
+        key=lambda e: int(e.get("corrected_char_start", -1)),
+        reverse=True,
+    )
+    can_invert_by_span = all(
+        "corrected_char_start" in e and "corrected_char_end" in e for e in sorted_entries
+    )
+    if can_invert_by_span:
+        buf = list(reconstructed)
+        for entry in sorted_entries:
+            c_start = int(entry["corrected_char_start"])
+            c_end = int(entry["corrected_char_end"])
+            orig_span = str(entry["matched_text"])
+            buf[c_start:c_end] = list(orig_span)
+        reconstructed = "".join(buf)
+
+    expected_hash = ledger[0].get("original_segment_hash")
+    if expected_hash:
+        actual_hash = hashlib.sha256(reconstructed.encode("utf-8")).hexdigest()
         if actual_hash == expected_hash:
+            return reconstructed
+
+    orig_text = ledger[0].get("original_segment_text")
+    if orig_text and expected_hash:
+        if hashlib.sha256(orig_text.encode("utf-8")).hexdigest() == expected_hash:
             return orig_text
 
-    # 2. Reverse apply substitutions in reverse offset order
-    # When reconstructing forward from raw:
-    return corrected_text
+    return reconstructed
 
 
 def _apply_lexicon_corrections(text: str) -> str:

@@ -100,6 +100,15 @@ _ARTIFACT_PATTERNS: tuple[str, ...] = (
 
 _ARTIFACT_RE = re.compile("|".join(_ARTIFACT_PATTERNS), re.IGNORECASE | re.MULTILINE)
 
+_FAST_ARTIFACT_ANCHORS = (
+    "**", "analyze", "analyse", "deconstruct", "asked to", "my task", "i need to",
+    "let me", "the user", "interpret the", "this looks", "this fits", "this is a classic",
+    "this gets", " - this", "return only", "do not include", "comma-separated",
+    "the system is", "core task", "output format", "generating a topic",
+    "refining a list", "evaluating", "decompose a", "transcription error",
+    "raptor", "(source:", "[source:",
+)
+
 
 # ASR decoder-loop detection. Whisper's known long-form failure mode is emitting
 # a phrase on repeat, most often over silence. The 2026-08-01 audit found this in
@@ -127,51 +136,36 @@ _LOOP_LONG_MIN_REPEATS = 3
 
 
 def has_repetition_loop(text: str) -> str | None:
-    """Return the looping phrase when *text* shows an ASR decoder loop.
-
-    Real teachings repeat for emphasis ("life, life, and life alone") and in
-    parallel lists ("I want to be an enlightened parent / leader / child /
-    friend" — live 2026-10-16, quarantined a valid suffering-state teaching).
-    Those refrains are spread across the clip, so the same 5-word window must
-    either recur 4+ times running into itself (overlapping windows, the loop
-    signature) or reach _LOOP_HIGH_COUNT anywhere (a massive loop). A handful
-    of spread-out repeats is parallelism, not pathology.
-    """
+    """Single-pass O(N) 5-gram and 8-gram repetition loop detector."""
     if not text:
         return None
     words = text.lower().split()
-    if len(words) < _LOOP_MIN_WORDS:
+    n = len(words)
+    if n < _LOOP_MIN_WORDS:
         return None
-    positions: dict[str, list[int]] = {}
-    for i in range(len(words) - _LOOP_NGRAM + 1):
-        gram = " ".join(words[i : i + _LOOP_NGRAM])
-        positions.setdefault(gram, []).append(i)
-    for gram, pos in positions.items():
-        if len(pos) < _LOOP_MIN_REPEATS:
-            continue
+
+    positions_5: dict[tuple[str, ...], list[int]] = {}
+    positions_8: dict[tuple[str, ...], list[int]] = {}
+
+    for i in range(n - 4):
+        g5 = tuple(words[i : i + 5])
+        positions_5.setdefault(g5, []).append(i)
+        if i <= n - 8:
+            g8 = tuple(words[i : i + 8])
+            positions_8.setdefault(g8, []).append(i)
+
+    for g5, pos in positions_5.items():
         if len(pos) >= _LOOP_HIGH_COUNT:
-            return gram
-        if any(b - a < _LOOP_NGRAM for a, b in zip(pos, pos[1:])):
-            return gram
-    # Long-phrase runs: an 8-word window recurring 3+ times with overlapping
-    # windows means a whole phrase is repeating back-to-back (decoder loop).
-    # Refrains vary their tail words, so their 8-grams never recur.
-    long_positions: dict[str, list[int]] = {}
-    for i in range(len(words) - _LOOP_LONG_NGRAM + 1):
-        gram = " ".join(words[i : i + _LOOP_LONG_NGRAM])
-        long_positions.setdefault(gram, []).append(i)
-    # "Back-to-back" means each repeat starts within a few phrase-lengths of the
-    # previous one. Requiring overlapping windows (gap < N) only caught phrases
-    # shorter than N words: a 12-word phrase looped 5x has gaps of 12 and slipped
-    # through every rule once the old count>=4 check was relaxed.
+            return " ".join(g5)
+        if len(pos) >= _LOOP_MIN_REPEATS and any(b - a < _LOOP_NGRAM for a, b in zip(pos, pos[1:])):
+            return " ".join(g5)
+
     max_gap = 3 * _LOOP_LONG_NGRAM
-    for gram, pos in long_positions.items():
-        if len(pos) < _LOOP_LONG_MIN_REPEATS:
-            continue
-        run = _LOOP_LONG_MIN_REPEATS
-        for i in range(len(pos) - run + 1):
-            if all(pos[j + 1] - pos[j] <= max_gap for j in range(i, i + run - 1)):
-                return gram
+    for g8, pos in positions_8.items():
+        if len(pos) >= _LOOP_LONG_MIN_REPEATS:
+            for i in range(len(pos) - 2):
+                if pos[i + 1] - pos[i] <= max_gap and pos[i + 2] - pos[i + 1] <= max_gap:
+                    return " ".join(g8)
     return None
 
 
@@ -227,9 +221,13 @@ def find_artifact(text: str) -> str | None:
         return f"graceful-degradation fallback: {text[:80]!r}"
 
     # --- Vector 1: LLM chain-of-thought / reasoning artifacts ---
-    match = _ARTIFACT_RE.search(text)
-    if match:
-        return match.group(0).strip()
+    low = text.lower()
+    if any(anchor in low for anchor in _FAST_ARTIFACT_ANCHORS) or any(
+        ch.isdigit() for ch in text[:16]
+    ):
+        match = _ARTIFACT_RE.search(text)
+        if match:
+            return match.group(0).strip()
 
     # --- Vector 2: ASR decoder loop ---
     loop = has_repetition_loop(text)
@@ -422,13 +420,24 @@ def find_asr_repetition_artifacts(text: str) -> list[str]:
     if not text:
         return []
     found: list[str] = []
-    for m in _ASR_WORD_RESTART_RE.finditer(text):
-        first, second = m.group(1), m.group(0).split()[-1].rstrip(".,;:!?")
-        if first.lower() in _GRAMMATICAL_DOUBLES and first == second:
+    tokens = text.split()
+    for i in range(len(tokens) - 1):
+        t1 = tokens[i]
+        t2 = tokens[i + 1]
+        w1 = t1.rstrip(".,;:!?")
+        p1 = t1[len(w1) :]
+        if len(w1) < 2 or not w1.isalpha() or len(p1) > 1:
             continue
-        word = first.lower()
-        if word not in found:
-            found.append(word)
+        w2_match = re.match(r"^([A-Za-z]{2,})\b", t2)
+        if not w2_match:
+            continue
+        w2 = w2_match.group(1)
+        if w1.lower() == w2.lower():
+            if w1.lower() in _GRAMMATICAL_DOUBLES and w1 == w2 and not p1:
+                continue
+            low = w1.lower()
+            if low not in found:
+                found.append(low)
     return found
 
 

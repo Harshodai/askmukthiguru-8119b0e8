@@ -86,7 +86,7 @@ eval: ## Run tests plus the >95% benchmark release gate against a running backen
 
 # Clean Docker config path (no credential helper – avoids macOS keychain -25293)
 DOCKER_CONFIG_CLEAN = /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean
-DOCKER_BIN = /Users/harshodaikolluru/.docker/bin
+DOCKER_BIN = /Users/harshodaikolluru/Public/askmukthiguru-8119b0e8/.docker_clean/bin:/Users/harshodaikolluru/.docker/bin
 
 # Use scripts/docker-safe.sh for any target that builds/pulls images (avoids keychain errors)
 # The script temporarily strips 'credsStore' from ~/.docker/config.json to avoid

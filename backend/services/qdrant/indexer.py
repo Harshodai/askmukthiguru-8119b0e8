@@ -100,6 +100,25 @@ def _host_lowered(url: str) -> str:
     return parts._replace(scheme=parts.scheme.lower(), netloc=parts.netloc.lower()).geturl()
 
 
+_YOUTUBE_HOSTS = frozenset(
+    {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "www.youtu.be"}
+)
+
+
+def is_youtube_source_url(source_url: str | None) -> bool:
+    """Strict URL host parser (fixes CodeQL #1976 incomplete URL substring check)."""
+    if not source_url:
+        return False
+    try:
+        parsed = urlparse(source_url.strip())
+        if parsed.scheme not in ("http", "https"):
+            return False
+        host = (parsed.hostname or "").lower()
+        return host in _YOUTUBE_HOSTS
+    except ValueError:
+        return False
+
+
 def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None) -> str:
     """DE-4.4: Look up source in rights register. Returns 'licensed' if registered and cleared, else 'unverified'."""
     cleared_map = _load_rights_register()
@@ -109,21 +128,13 @@ def resolve_source_rights_status(source_url: str, video_id: Optional[str] = None
         candidates.append(_host_lowered(source_url.strip()))
     if video_id and video_id.strip():
         candidates.append(video_id.strip())
-    if source_url:
+    if source_url and is_youtube_source_url(source_url):
         try:
-            parsed_netloc = (urlparse(source_url).netloc or "").lower().split(":")[0]
-            if parsed_netloc in {
-                "youtube.com",
-                "www.youtube.com",
-                "m.youtube.com",
-                "youtu.be",
-                "www.youtu.be",
-            }:
-                from ingest.youtube_loader import extract_video_id
+            from ingest.youtube_loader import extract_video_id
 
-                extracted_vid = extract_video_id(source_url)
-                if extracted_vid:
-                    candidates.append(extracted_vid)
+            extracted_vid = extract_video_id(source_url)
+            if extracted_vid:
+                candidates.append(extracted_vid)
         except Exception:
             pass
 

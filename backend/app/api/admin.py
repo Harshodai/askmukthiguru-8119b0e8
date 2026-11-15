@@ -99,7 +99,12 @@ async def fetch_query_trace(
     user: dict = Depends(_require_admin),
 ) -> dict[str, Any]:
     """Fetch a single detailed trace by query ID. Requires admin authentication."""
-    trace = await get_query_trace(trace_id)
+    from app.telemetry_db import TelemetryBackendError
+
+    try:
+        trace = await get_query_trace(trace_id)
+    except TelemetryBackendError as e:
+        raise HTTPException(status_code=503, detail="Telemetry storage unavailable") from e
     if not trace:
         raise HTTPException(status_code=404, detail=f"Trace {trace_id} not found")
     return trace_detail(trace)
@@ -1460,21 +1465,39 @@ class OkfReviewItem(BaseModel):
     reviewer_notes: Optional[str] = None
 
 
+def is_valid_admin_markdown_id(clean_id: str) -> bool:
+    """Linear O(N) validator replacing regex (fixes CodeQL #1965 polynomial ReDoS)."""
+    if not clean_id or len(clean_id) > 255 or not clean_id.endswith(".md"):
+        return False
+    stem = clean_id[:-3]
+    if not stem:
+        return False
+    i = 0
+    n = len(stem)
+    in_seg = False
+    while i < n:
+        ch = stem[i]
+        if ch.isalnum() or ch in ("_", "-"):
+            in_seg = True
+        elif ch in (".", " "):
+            if not in_seg:
+                return False
+            in_seg = False
+        else:
+            return False
+        i += 1
+    return in_seg
+
+
 def _safe_staging_filename(review_id: str) -> str:
     """Reject anything that isn't a bare ``<slug>.md`` filename (no path
     separators, no traversal) before it touches the filesystem."""
     import os
-    import re
 
     if not review_id or "/" in review_id or "\\" in review_id:
         raise HTTPException(status_code=400, detail="Invalid review id")
     clean_id = os.path.basename(review_id)
-    # Dots/spaces between word characters are allowed so every name the review-queue
-    # listing returns can be approved or rejected; leading dots, "..", ";" and "$" stay out.
-    # Split instead of a nested-quantifier regex: linear time on hostile input.
-    stem = clean_id[:-3] if clean_id.endswith(".md") else ""
-    segments = re.split(r"[. ]", stem)
-    if not stem or not all(re.fullmatch(r"[\w\-]+", seg) for seg in segments):
+    if not is_valid_admin_markdown_id(clean_id):
         raise HTTPException(status_code=400, detail="Invalid review id")
     return clean_id
 

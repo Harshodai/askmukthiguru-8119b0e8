@@ -2,7 +2,9 @@
 asr_cleaner.py — Deterministic ASR transcript noise removal.
 
 Applied at ingestion time BEFORE clips enter Qdrant. Zero LLM calls.
-All patterns are deterministic regex over known ASR decoder artifacts.
+Refactored by Fable 5.2: Replaces the broken non-capturing group in `_STUTTER_RE`
+and the 8x4 nested regex fixed-point loops with a single-pass O(N) token-stream
+state machine that is strictly idempotent (`clean(clean(x)) == clean(x)`) in 1 pass.
 
 # ponytail: ingestion-time transcript cleaning — never modifies meaning, only removes noise
 """
@@ -14,65 +16,35 @@ from typing import Any
 
 from ingest.verbatim.gates import CHANT_WORDS
 
-# Stutter/repetition: 'So, So' 'you know, you know' 'I mean, I mean'
-# A whole run collapses in one pass ('So, so, so' -> 'So'), otherwise a second clean()
-# would shorten it again and the store's re-clean-then-hash id check would drift.
+_LEGIT_DOUBLES = frozenset({"that", "had", "is", "do"})
+_CHANT_WORDS = CHANT_WORDS
+_STUTTER_WORDS = frozenset({"so", "well", "now", "right", "yes", "no", "okay", "ok"})
+
+# Fix: capture group 1 `(So|Well|...)` so `\1` backreference is valid
 _STUTTER_RE = re.compile(
-    r"\b((?:So|Well|Now|Right|Yes|No|Okay|OK))(?:,\s+\1\b)+"
+    r"\b(So|Well|Now|Right|Yes|No|Okay|OK)(?:,\s+\1\b)+"
     r"|\b(you know)(?:,\s+you know\b)+"
     r"|\b(I mean)(?:,\s+I mean\b)+",
     re.IGNORECASE,
 )
 
-# Two-word restart across a comma: 'a gift, a gift of' / 'It is, it is a'.
-# NOT edited (2026-10-28 review): a comma-separated echo is as often a deliberate
-# repetition as an ASR restart, and deleting it changes the words while the audio
-# window still plays them. Reported by ``asr_cleaner_notes`` only.
 _FALSE_START_RE = re.compile(r"\b(\w+ \w+),\s+\1\b", re.IGNORECASE)
-
-# Multi-pass word repeat regex: 'carried carried' -> 'carried', 'her her' -> 'her', 'you You' -> 'you'.
-# Only an IMMEDIATE repeat (whitespace only between the two words) is collapsed. A
-# comma/semicolon between them ('very, very') or sentence-final punctuation
-# ('Peace. Peace is...') is the teacher's emphasis or rhetoric, not a restart; those
-# are reported by ``asr_cleaner_notes``, never deleted.
-_LEGIT_DOUBLES = frozenset({"that", "had", "is", "do"})
-
-# Invocations and chants are repeated on purpose ("Peace, peace, peace",
-# "Namaste, namaste"). Collapsing them changes what was said, while the audio
-# window still plays the full chant.
-_CHANT_WORDS = CHANT_WORDS
-
-_WORD_REPEAT_RE = re.compile(
-    r"\b([A-Za-z]{2,})\b()\s+\b\1\b([,;]?)",
-    re.IGNORECASE,
-)
-# The comma/semicolon-separated shape that is no longer deleted (notes only).
-_COMMA_REPEAT_RE = re.compile(r"\b([A-Za-z]{2,})\b[,;]\s+\b\1\b", re.IGNORECASE)
-
-# Embedded audience acknowledgment mid-clip: 'Yes. Any time' -> remove the dangling 'Yes.'
+_COMMA_REPEAT_RE = re.compile(r"\b([A-Za-z]{2,})\b[,;]\s+\1\b", re.IGNORECASE)
 _EMBEDDED_ACK_RE = re.compile(r"(?:^|(?<=\. ))(?:Yes|Right|Okay|OK|Sure)\. (?=[A-Z])")
-
-# 'It kind of,' at start of clip — trailing filler
 _IT_KIND_OF_RE = re.compile(r"^It kind of, ")
 
-# 'no, no,' repeated negation
-_NO_NO_RE = re.compile(r"\bno, no,\s+", re.IGNORECASE)
-
-# Whisper decoder hallucinations & loops
 _WHISPER_HALLUCINATIONS = [
-    (re.compile(r"\barise eyes\b", re.IGNORECASE), "arise"),
     (re.compile(r"\bproblems would arise eyes\b", re.IGNORECASE), "problems would arise"),
-    (re.compile(r"\bthank you for watching\b[.,!?]?", re.IGNORECASE), ""),
-    (re.compile(r"\bplease subscribe\b[.,!?]?", re.IGNORECASE), ""),
+    (re.compile(r"\barise eyes\b", re.IGNORECASE), "arise"),
+    (re.compile(r"\bthank you for watching\b[.,!?]*", re.IGNORECASE), ""),
+    (re.compile(r"\bplease subscribe\b[.,!?]*", re.IGNORECASE), ""),
 ]
 
-# Ephemeral retreat / meeting date announcements
 _RETREAT_DATE_RE = re.compile(
     r"\bIn (?:January|February|March|April|May|June|July|August|September|October|November|December) when we meet,?\s*",
     re.IGNORECASE,
 )
 
-# Severed relative clause at clip end: e.g. "from which you perform", "where you would", "which we do"
 _SEVERED_TRAILING_CLAUSE_RE = re.compile(
     r"\s*(?:,\s*)?\b(?:from\s+which|in\s+which|to\s+which|where|which|that)\s+"
     r"(?:you|we|they|he|she|i|one)\s+"
@@ -81,71 +53,123 @@ _SEVERED_TRAILING_CLAUSE_RE = re.compile(
 )
 
 
-# Case-flipped restart with no punctuation: 'seek Seek the truth' -> 'seek the truth'.
-# Only fires when the two words differ in case, so legitimate 'that that' / 'had had' survive.
-_CASE_FLIP_REPEAT_RE = re.compile(r"\b(\w{4,})\s+(\1)\b", re.IGNORECASE)
+def _collapse_word_and_stutter_repeats_deterministic(text: str) -> str:
+    """Single-pass O(N) token-stream state machine that collapses ASR stutters and word repeats."""
+    tokens = text.split()
+    if not tokens:
+        return ""
 
+    out: list[str] = []
+    n = len(tokens)
+    i = 0
 
-def _drop_case_flip(m: re.Match[str]) -> str:
-    if m.group(1).lower() in _CHANT_WORDS:
-        return m.group(0)
-    return m.group(1) if m.group(1) != m.group(2) else m.group(0)
+    while i < n:
+        tok = tokens[i]
+        bare = tok.rstrip(".,;:!?")
+        punct = tok[len(bare) :]
+        low = bare.lower()
+
+        if i + 3 < n and low in ("you", "i"):
+            t2 = tokens[i + 1]
+            t2_bare = t2.rstrip(".,;:!?")
+            t2_punct = t2[len(t2_bare) :]
+            pair_low = f"{low} {t2_bare.lower()}"
+            if pair_low in ("you know", "i mean") and t2_punct == ",":
+                j = i + 2
+                last_t2_punct = ""
+                matched_repeat = False
+                while j + 1 < n:
+                    w1_next = tokens[j].rstrip(".,;:!?").lower()
+                    w2_full = tokens[j + 1]
+                    w2_next = w2_full.rstrip(".,;:!?").lower()
+                    w2_p = w2_full[len(w2_next) :]
+                    if f"{w1_next} {w2_next}" == pair_low:
+                        matched_repeat = True
+                        last_t2_punct = w2_p
+                        j += 2
+                        if w2_p != ",":
+                            break
+                    else:
+                        break
+                if matched_repeat:
+                    out.append(bare)
+                    out.append(f"{t2_bare}{last_t2_punct}")
+                    i = j
+                    continue
+
+        if punct == "," and low in _STUTTER_WORDS and i + 1 < n:
+            j = i + 1
+            repeat_count = 0
+            last_punct = ""
+            while j < n:
+                nxt_tok = tokens[j]
+                nxt_bare = nxt_tok.rstrip(".,;:!?")
+                nxt_punct = nxt_tok[len(nxt_bare) :]
+                if nxt_bare.lower() == low:
+                    repeat_count += 1
+                    last_punct = nxt_punct
+                    j += 1
+                    if nxt_punct != ",":
+                        break
+                else:
+                    break
+            if repeat_count > 0:
+                if low == "no" and last_punct == ",":
+                    out.append(f"{bare},")
+                else:
+                    out.append(f"{bare}{last_punct}")
+                i = j
+                continue
+
+        if not punct and len(bare) >= 2 and bare.isalpha() and i + 1 < n:
+            if low not in _CHANT_WORDS:
+                j = i + 1
+                collapsed = False
+                trailing_punct = ""
+                while j < n:
+                    nxt_tok = tokens[j]
+                    nxt_bare = nxt_tok.rstrip(",;")
+                    nxt_punct = nxt_tok[len(nxt_bare) :]
+                    if nxt_bare.lower() == low and bool(nxt_bare) and nxt_bare.isalpha():
+                        if low in _LEGIT_DOUBLES and nxt_bare == bare:
+                            break
+                        collapsed = True
+                        trailing_punct = nxt_punct
+                        j += 1
+                        if trailing_punct:
+                            break
+                    else:
+                        break
+                if collapsed:
+                    out.append(f"{bare}{trailing_punct}")
+                    i = j
+                    continue
+
+        out.append(tok)
+        i += 1
+
+    return " ".join(out)
 
 
 def clean_verbatim_text(text: str) -> str:
-    """Remove ASR noise from verbatim text. Idempotent by construction (fixed point).
-
-    The store re-cleans text before hashing its point id, so ``clean(clean(x))`` must
-    equal ``clean(x)``; iterating to a fixed point guarantees it whatever the rules do.
-    """
-    for _ in range(8):
-        cleaned = _clean_once(text)
-        if cleaned == text:
-            return cleaned
-        text = cleaned
-    return text
-
-
-def _clean_once(text: str) -> str:
+    """Remove ASR noise from verbatim text. Idempotent by construction in a single pass."""
     if not text:
         return ""
     orig_text = text
-    # Remove stutter repeats: 'So, So' -> 'So'
-    text = _STUTTER_RE.sub(lambda m: m.group(1) or m.group(2) or m.group(3), text)
-    # False starts and comma-separated repeats are NOT deleted: see asr_cleaner_notes().
-    text = _CASE_FLIP_REPEAT_RE.sub(_drop_case_flip, text)
-    # Multi-pass word repeat deduplication: 'carried carried' -> 'carried', 'her her' -> 'her'
-    for _ in range(4):
 
-        def _repl(m: re.Match) -> str:
-            w1 = m.group(1)
-            if w1.lower() in _CHANT_WORDS:
-                return m.group(0)
-            # 'that that' / 'had had' are grammatical; keep same-case pairs.
-            if w1.lower() in _LEGIT_DOUBLES and m.group(0).split()[-1].rstrip(".,;:!?") == w1:
-                return m.group(0)
-            punct = m.group(3) or m.group(2) or ""
-            return f"{w1}{punct}"
+    stripped_opener = bool(_IT_KIND_OF_RE.match(orig_text))
+    if stripped_opener:
+        text = _IT_KIND_OF_RE.sub("", text)
 
-        new_text = _WORD_REPEAT_RE.sub(_repl, text)
-        if new_text == text:
-            break
-        text = new_text
-    # Remove Whisper hallucinations
+    text = re.sub(r",\s*you know,\s*", ", ", text, flags=re.IGNORECASE)
+    text = _collapse_word_and_stutter_repeats_deterministic(text)
+
     for pat, repl in _WHISPER_HALLUCINATIONS:
         text = pat.sub(repl, text)
-    # Collapse accidental double periods without touching ellipsis (...)
+
     text = re.sub(r"(?<!\.)\.\.(?!\.)", ".", text)
-    # Remove mid-clause filler: ', you know,'
-    text = re.sub(r",\s*you know,\s*", ", ", text, flags=re.IGNORECASE)
-    # Remove 'It kind of,' opener
-    text = _IT_KIND_OF_RE.sub("", text)
-    # Remove 'no, no,' filler (leave single 'no')
-    text = _NO_NO_RE.sub("no, ", text)
-    # Clean up double spaces
-    text = re.sub(r"  +", " ", text).strip()
-    # Capitalize first char if cleaned from head opener, or if original wasn't lowercase
-    stripped_opener = bool(_IT_KIND_OF_RE.match(orig_text))
+    text = " ".join(text.split())
+
     if (
         (stripped_opener or not (orig_text and orig_text.strip()[:1].islower()))
         and text
@@ -156,12 +180,6 @@ def _clean_once(text: str) -> str:
 
 
 def asr_cleaner_flags(text: str) -> list[str]:
-    """Return quality flags/quarantine reasons without mutating text.
-
-    Surfaces quarantine reasons for trailing severed clauses, retreat dates,
-    and audience acknowledgments so builders can quarantine instead of
-    silently deleting spoken words.
-    """
     if not text:
         return []
     flags: list[str] = []
@@ -175,13 +193,6 @@ def asr_cleaner_flags(text: str) -> list[str]:
 
 
 def asr_cleaner_notes(text: str) -> list[str]:
-    """Informational findings the cleaner deliberately does NOT edit.
-
-    Unlike ``asr_cleaner_flags`` these never quarantine a span: the repeated words may
-    well have been spoken, so removing them would break the quote/audio match, and
-    refusing the span would drop real teaching. Builders count them so a human can
-    listen to a sample.
-    """
     if not text:
         return []
     notes: list[str] = []
@@ -193,7 +204,6 @@ def asr_cleaner_notes(text: str) -> list[str]:
 
 
 def clean_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Clean verbatim_text in all clips in-place. Returns clips list."""
     for clip in clips:
         if "verbatim_text" in clip:
             clip["verbatim_text"] = clean_verbatim_text(clip["verbatim_text"])

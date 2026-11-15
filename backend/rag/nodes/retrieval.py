@@ -53,6 +53,41 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
+def format_clip_attribution(
+    speaker: str | None,
+    verified: bool,
+    verification_method: str | None = None,
+    channel_name: str | None = None,
+) -> str:
+    """Remediates `FINDING-ATTR-001` & 732-span provenance invariant."""
+    valid_methods = {"biometric_embedding", "ecapa_cosine", "human_listen"}
+    speaker_clean = (speaker or "").strip()
+    channel_clean = (channel_name or "").strip()
+
+    if verified and verification_method in valid_methods and speaker_clean:
+        return f"— {speaker_clean}"
+    if channel_clean and speaker_clean:
+        return f"— {speaker_clean} (shared in {channel_clean}, unverified diarization)"
+    if speaker_clean:
+        return f"— {speaker_clean} (unverified diarization)"
+    return "— Unverified speaker"
+
+
+def build_tenant_isolated_2hop_cypher() -> str:
+    """Remediates `FINDING-MULTI-001` in `backend/rag/nodes/retrieval.py`."""
+    return (
+        "MATCH (c1:Concept)-[r1:RELATES_TO]->(c2:Concept)-[r2:RELATES_TO]->(c3:Concept) "
+        "WHERE c1.name IN $seed_concepts "
+        "AND coalesce(c1.tenant_id, 'oneness') = $tenant_id "
+        "AND coalesce(r1.tenant_id, 'oneness') = $tenant_id "
+        "AND coalesce(c2.tenant_id, 'oneness') = $tenant_id "
+        "AND coalesce(r2.tenant_id, 'oneness') = $tenant_id "
+        "AND coalesce(c3.tenant_id, 'oneness') = $tenant_id "
+        "RETURN c1.name AS source, r1.type AS rel1, c2.name AS pivot, "
+        "r2.type AS rel2, c3.name AS target LIMIT $limit"
+    )
+
+
 # ponytail: lightweight OKF compiled-index loader (Phase 2b).
 # Avoids heavy startup — reads disk lazily, cached per-process via module-level cache.
 _base_path = __import__("pathlib").Path(__file__).resolve().parent

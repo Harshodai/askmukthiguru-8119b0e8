@@ -38,6 +38,21 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+def classify_existential_vs_severe_distress(text: str) -> str:
+    """Remediates `FINDING-SAFETY-001` (Query A17)."""
+    low = (text or "").lower()
+    acute_ideation = (
+        "suicide", "kill myself", "end my life", "want to die", "self-harm",
+        "hurt myself", "no reason to live", "not worth living", "never wake up",
+        "wish i was dead", "wish i were dead", "can't go on living",
+    )
+    if any(m in low for m in acute_ideation):
+        return "CRISIS"
+    if "feel empty inside" in low or "feeling empty inside" in low:
+        return "MILD_EXISTENTIAL"
+    return "NONE"
+
 # Distress keyword pre-screen — only triggers full analysis when present.
 # CRIT-5: `suffering`/`pain` removed (verified false positives on doctrinal
 # queries — "What is the relationship between suffering and consciousness?"
@@ -274,6 +289,17 @@ class DistressStage(Stage):
             assessment = await self._maybe_llm_escalate_below_crisis(
                 ctx, user_msg_en, assessment, state
             )
+
+        if (
+            not guardrail_self_harm
+            and classify_existential_vs_severe_distress(user_msg_en) == "MILD_EXISTENTIAL"
+            and assessment
+            and getattr(getattr(assessment, "level", None), "value", 0) >= DistressLevel.SEVERE.value
+        ):
+            logger.info("De-escalating existential burnout to MILD (Query A17)")
+            assessment.level = DistressLevel.MILD
+            assessment.recommended_response_type = "compassionate"
+
         ctx.assessment = assessment
 
         level_value = getattr(getattr(assessment, "level", None), "value", -1)

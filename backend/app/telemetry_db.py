@@ -26,6 +26,43 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+
+class TelemetryBackendError(RuntimeError):
+    """Raised when telemetry database queries fail (maps to HTTP 503, never 404)."""
+
+
+def sanitize_for_log(value: Any, max_len: int = 128) -> str:
+    """Strip CR/LF/control chars to remediate CodeQL #1945, #1946, #1951."""
+    raw = "" if value is None else str(value)
+    cleaned = "".join(ch if (ch >= " " and ch != "\x7f") else "_" for ch in raw)
+    return cleaned[:max_len]
+
+
+async def fetch_query_trace_concurrent(
+    trace_id: str,
+    table_fetcher: Any,
+) -> Optional[dict[str, Any]]:
+    """Remediates 6-table sequential N+1 query bottleneck and swallowed 5xx-as-404 bug."""
+    tables = (
+        "chat_queries",
+        "chat_responses",
+        "retrieval_events",
+        "trace_spans",
+        "trigger_events",
+        "safety_events",
+    )
+    try:
+        results = await asyncio.gather(*(table_fetcher(t, trace_id) for t in tables))
+    except Exception as exc:
+        raise TelemetryBackendError(
+            f"Telemetry storage unavailable for trace {sanitize_for_log(trace_id)}"
+        ) from exc
+
+    mapped = dict(zip(tables, results))
+    if not mapped["chat_queries"] and not mapped["chat_responses"]:
+        return None
+    return mapped
+
 _REFUSAL_PATTERN = re.compile(
     r"(?:i(?:'m| am) unable|i (?:can(?:not|'t)|don't|do not) have|"
     r"cannot provide|can't provide|not able to|no specific teaching)",
@@ -1844,7 +1881,7 @@ async def get_query_trace(query_id: str) -> Optional[dict[str, Any]]:
         }
     except Exception as e:
         logger.error(f"Failed to get query trace {sanitize_log_input(str(query_id))}: {e}")
-        return None
+        raise TelemetryBackendError(f"Database error fetching trace {query_id}: {e}") from e
 
 
 async def get_node_latencies(limit: int = 1000) -> list[dict[str, Any]]:
