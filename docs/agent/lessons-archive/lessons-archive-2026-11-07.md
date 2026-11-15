@@ -1,5 +1,86 @@
 <!-- Archive of lessons.md sections older than the cut on 2026-11-07. Unchanged text. Newest-first order kept. -->
 
+## Oct 30, 2026 — memory source links and keyboard access
+
+### L-MEMORY-SOURCE-1. A memory had no stored origin, so the UI could not link to it without guessing.
+- **What:** `guru_memories` had no provenance column. The extraction queue already carried `conversation_id`, but both edge functions (`memory-extract`, `memory-extract-drain`) dropped it at insert. `canonical_memories` does store `source_conversation_id`, but Profile and the Wisdom Map read `guru_memories`.
+- **Fix:** migration `20261030140000_guru_memories_source_conversation.sql` adds a nullable `source_conversation_id`. Both functions store it (validated, 200 chars max). The API returns `source_ref: {kind, id}` or null, never a URL (`services/memory_source.py`); `src/lib/memorySource.ts` is the only place that maps a kind to a route. Old rows and explicit memories show "Source unavailable".
+- **Order:** apply the migration before deploying the two functions. If a function runs first, it retries the insert without the column, so no memory is lost, only the link.
+- **Check:** UNPROVEN against a real Supabase project. Tests use fakes and mocks only (`backend/tests/test_memory_source_refs.py`, `src/test/memorySource.test.tsx`, `tests/e2e/memory-source-links.spec.ts`).
+- **Limit:** the link opens `/chat?conversation=<id>`. If the user deleted that conversation, the chat page ignores the link silently. Notebook nodes link to `/notebooks` (no per-item deep link exists).
+
+### L-LIST-MEMORIES-METADATA-1. UNVERIFIED: `list_memories` selected a `metadata` column that no `guru_memories` migration adds.
+- **What:** the select in `services/memory_service.py` named `metadata`. Neither the migrations nor `src/integrations/supabase/types.ts` define it on `guru_memories`. A missing-column error was caught and turned into an empty list, so Profile, `/api/memory/list` and the personal graph would show no memories. Whether the live database has the column is not known from the repo.
+- **Fix:** `list_memories` now tries three column sets and falls back only on a missing-column error. Other errors still return an empty list.
+- **Rule:** a select that names an optional column needs a fallback and a test for the missing-column case.
+
+### L-KG-KEYBOARD-1. Wisdom Map nodes took focus but Enter and Space did nothing.
+- **What:** the graph passes controlled nodes to React Flow with no `onNodesChange`, so keyboard selection never reached `onNodeClick`. Keyboard users could not open node details, so they could not reach the new source link. Found in the browser sweep, not by unit tests (the unit test mocks React Flow).
+- **Fix:** `handleGraphKeyDown` in `KGConceptMap.tsx`: Enter or Space opens the details and moves focus into them; Escape closes them and returns focus to the node.
+- **Pin:** `tests/e2e/memory-source-links.spec.ts`.
+
+### L-PW-ROUTE-ORDER-1. Playwright runs the last registered matching route first.
+- **What:** a catch-all `/rest/v1/` route registered after `/rest/v1/guru_memories` answered every memory request with an empty list, so the spec failed while a hand-run sweep passed.
+- **Rule:** register catch-all mocks first and specific mocks last.
+
+## Oct 30, 2026 — v10-only serving config (no v8)
+
+### L-LEGACY-SLOT-NAME-1. A "legacy" collection setting was doing two jobs it did not say: it gated startup, and it switched a safety guard on by name.
+- **What:** the serving contract (B4) stops production startup when `FIRST_PERSON_COLLECTION` names a context collection (VERIFIED in code; the Railway runbook claim holds). So v10-only needed a phantom `first_person_v8` name. Pointing the slot at v10 instead would also have turned `_boundary_guard_enabled` off, because that guard is keyed on the legacy collection name (v6/v7/v8) and the harness reuses it for v10 spans. Also found: facet split searches only the legacy store, so it bypassed `first_person_context_terminal_enabled`.
+- **Fix:** `validate_serving_contract(context_terminal_enabled=...)` allows the alias only when the harness AND the terminal flag are on (`v10_only_mode_active`); all context-side checks still run. The pipeline keeps the boundary guard and content gate on when its store aliases the context collection, skips facet split while terminal, and the personalize stage declines without a Qdrant read when aliased.
+- **Rule:** before pointing a slot at a different collection, grep what else keys on that slot's NAME, not only what reads it.
+- **Pin:** `backend/tests/test_first_person_v10_only.py` (29 tests). UNPROVEN: a clean-Docker v10-only start and live answers; Mac run owns that.
+
+## Oct 30, 2026 — v10-only run: flags, caches, eval inputs, serializer
+
+### L-EFFECTIVE-FLAGS-1. Numbers labelled "v10" were legacy v8 numbers, because compose pinned the harness flag off.
+- **What:** `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false` is set in `backend/docker-compose.yml`, so the rebuilt stack served only `first_person_v8`. Probes and the 8-of-8 live eval were first read as "v10 harness plus v8 fallback"; the first teaching answer cited a Curly Tales v8 clip, which exposed it.
+- **Fix:** read the effective settings from the running container before quoting any result; label every result with the flags that were active. `first_person_context_terminal_enabled` (default off) makes the harness terminal so v8 cannot serve when v10-only is wanted.
+- **Check:** `docker exec mukthiguru-backend python -c "from app.config import settings as s; print(s.first_person_context_harness_enabled, s.first_person_context_terminal_enabled, s.first_person_context_collection)"`.
+- **Pin:** `backend/tests/test_first_person_context_serving.py::test_terminal_flag_blocks_legacy_fallthrough`.
+
+### L-FLUSH-AFTER-RECREATE-1. A cache flush that runs before the container recreate proves nothing about the new container.
+- **What:** the flush ran, then the backend was recreated; startup warm-up can refill caches.
+- **Fix/Rule:** order is recreate, wait for health, then `make flush-cache`, then `make verify-cache-empty` (exit 0 only).
+
+### L-EVAL-INPUT-PATH-1. An eval that reads inputs from a path a later commit removed crashes late and looks like a product failure.
+- **What:** `first_person_live_eval.py` reads the bake-off `videos.json`, which pointed three videos at the removed `scripts/ingestion/corpus/` folder.
+- **Fix:** worked around with a scratch copy of the bake-off folder and a rebuilt transcript set; the script itself still fails on those paths (UNPROVEN fix in the script). A pinned eval must check every input exists before it sends the first request.
+- **Also:** the legacy route cannot answer the frozen bake-off set on this stack (v8 holds none of its 8 videos), so its 0.0 is structural, not a regression. Name which scoring rule each number uses.
+
+### L-SERIALIZER-PARITY-1. Moving platform copy out of the answer body is invisible until every serializer carries the new field.
+- **What:** `safety_notices` reached the SSE done metadata but the queued/sync serializer in `app/orchestrator.py` built its `ChatResponse` without it, so framing, boundaries and the support line vanished from `/api/chat` job results; stage-level tests stayed green.
+- **Fix:** field set in the live serializer and in `/api/chat/v2`; found only by a live probe.
+- **Pin:** `backend/tests/test_safety_notices_wire.py` (AST guard: every keyword-built `ChatResponse` sets `safety_notices`).
+
+### L-SESSION-REUSE-1. Reusing one anonymous session for several eval questions is only safe if sessions carry no memory.
+- **What:** to stay under the session endpoint's rate limit the runner reuses a session for 4 questions (quota is 5). Anonymous identities are excluded from memory read and write (`graph_stage.py`, `glue_stages.py`), and each request sends `messages: []`.
+- **Rule:** label the run "4 questions per session"; confirm with a fresh-vs-reused spot check before quoting a number.
+
+### L-RATE-LIMIT-NAMES-1. "The 20 per minute limit" was three different limits.
+- **What:** `chat_rate_limit` is 20/minute (app limiter), `openrouter_rpm_limit` is 120 in the local setup, `first_person_rate_limit` is 120/minute. What slowed the eval was creating a session per question.
+- **Rule:** read the limit from the running container before blaming the provider; do not raise a limit to speed a test.
+
+### L-NO-UNREQUESTED-DELETES-1. A plan step that deletes collections was proposed without being asked for.
+- **What:** a "remove the other collections" instruction was read as a delete plan. Nothing was deleted; two snapshots were taken (`first_person_v8`, `first_person_v10`, local Qdrant only).
+- **Rule:** snapshot-and-restore is the default; deletion needs a typed confirmation naming the collections.
+
+## Oct 30, 2026 — admin video approval
+
+### L-HUMAN-DECISION-SEPARATE-1. A human review decision must live apart from the machine-measured evidence it reviews, and may only tighten serving.
+- **What:** the owner needs to say which videos reach users. Writing that into `speaker_verified` would erase the difference between "the voice model measured this" and "a person said so", and an "approved" flag that could override a failed gate would loosen safety.
+- **Fix:** `services/first_person_video_decisions.py` keeps `admin_approved`, `human_speaker_check`, `grade`, `notes` in its own file with an audit log (who, when, why, before, after). A video is blocked when `admin_approved` is false or `human_speaker_check` is `rejected`. Approval and "confirmed" never unblock anything. No decision keeps today's behaviour. An unreadable decisions file blocks every video (fail closed).
+- **Rule:** one more serve-time check may be added; none may be relaxed by a human flag. Hook the single choke point (`_passes_integrity_gate`) plus every cache re-check (`points_servable`, `_points_servable_cached` keyed by `decisions_fingerprint()`), not just retrieval.
+- **Pin:** `backend/tests/test_fp_video_decisions.py`, `backend/tests/test_admin_video_review_api.py`, `backend/tests/test_fp_video_review_guards.py`.
+
+### L-ADMIN-TRIAGE-NOOP-1. UNVERIFIED in a live run: the "Speaker & Dialogue" triage endpoints do not save anything.
+- **What:** `POST /api/admin/attribution/span/{id}/triage` and `.../batch-triage` (`backend/app/api/admin.py`) only log and return `ok: true`; the decision read back by `_load_speaker_decisions` comes from a markdown file in `audits/evidence/`. A reviewer who clicks a triage button sees success and nothing changes. Found by code reading only.
+- **Rule:** an admin write endpoint must have a test that reads the change back. Not fixed in this PR.
+
+### L-ADMIN-RATE-LIMIT-1. UNVERIFIED on the local stack: `admin_rate_limit` defaults to `5/minute`, per client IP, across all of `/api/admin/`.
+- **What:** `Settings.admin_rate_limit = "5/minute"` (`backend/app/config.py`) feeds `admin_rate_limit_middleware`. One admin page load plus one save is already 3 to 4 requests. Whether the local `backend/.env` overrides it is not visible from the repo.
+- **Rule:** set `ADMIN_RATE_LIMIT` (for example `60/minute`) in the local `.env` before relying on any multi-call admin page.
+
 ## Oct 28, 2026 — Phase 7: Lifecycle, observability, runbooks, ADRs & contract
 
 ### L-RETENTION-LIFECYCLE-1. An unbounded quality gate rejection ledger or staging queue creates a silent storage leak; retention policies must be tested end-to-end from day one.

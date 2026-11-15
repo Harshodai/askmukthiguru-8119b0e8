@@ -1,6 +1,49 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 15, 2026 — Graded-8 remediation, dry-run closure, and lane alignment
+
+### L-RUBRIC-RECITED-IS-NOT-MEASURED-1. Deterministic offline replay re-scoring is not an LLM judge measurement.
+- **What:** Offline replay (`run_offline_replay.py`) re-scored 40 served rows using regexes derived from known Graded-8 defects; rejecting the 9 flawed rows succeeded by construction without exercising an LLM judge.
+- **Fix:** Added explicit evidence disclosures to `run_offline_replay.py` and runbook stating re-scoring is deterministic without an LLM judge, and that its PASS is by construction rather than a rubric measurement.
+- **Rule:** A rubric item added to a prompt is not measured until an independent judge model or recomputation scores it. Explicitly label the evaluation mechanism.
+
+### L-WINDOW-DEFAULTED-CLOSURE-1. A boolean dataclass default turned unverified dry-run cases into an unconditional PASS.
+- **What:** `ResegmentationResult.closure_achieved: bool = True` in `dry_run_resegmentation.py` caused all cases to claim discourse completion regardless of transcript content; `print_report` printed PASS unconditionally and `main()` exited 0.
+- **Fix:** Removed the permissive default (`closure_achieved: bool = False`), computed terminal punctuation closure dynamically from window text, and required `all(r.closure_achieved for r in results)` for non-zero exit.
+- **Rule:** Verdict and closure fields in dataclasses must never have permissive defaults. Compute them from evidence and exit non-zero when validation fails.
+
+### L-OVERLAP-NOT-CONTAINMENT-1. Requiring transcript segments to sit entirely inside a window drops edge-straddling text.
+- **What:** Window text extraction in `dry_run_resegmentation.py` required full segment containment (`start >= start_s` and `end <= end_s + 2`), dropping segments crossing boundaries and guaranteeing artificial transcript truncation.
+- **Fix:** Switched to span overlap (`max(start_s, start) < min(end_s, end)`) in `_window_text`, joining all straddling segments across the window.
+- **Rule:** Slicing transcript or time-series data across windows must check overlap (`start < window_end and end > window_start`), never strict containment.
+
+### L-FALLBACK-TEXT-IS-NOT-A-MEASUREMENT-1. Hand-authored mock fallbacks treated as corpus evidence produce false measurements.
+- **What:** When local Whisper transcripts were missing, `dry_run_resegmentation.py` substituted hardcoded string snippets into word counts and closure checks, presenting synthetic text as corpus evidence.
+- **Fix:** Added `used_fallback_text: bool = False` to `ResegmentationResult`, stamped it `True` on fixture fallbacks, and warned in `print_report` when cases resolved via synthetic text.
+- **Rule:** Mock fallback text used for offline environments must be explicitly flagged in output telemetry and excluded from empirical corpus metrics.
+
+### L-REFUSAL-MUST-MATCH-THE-LANE-1. Ambiguous spiritual questions with generation disabled must keep the teaching lane.
+- **What:** When Jev router classified an ambiguous query as `live_research` while `first_person_llm_fallback_enabled` was off, `OffTopicStage` returned "Query is outside spiritual wisdom" for legitimate spiritual inquiries.
+- **Fix:** With fallback generation disabled, ambiguous `live_research` queries remain on `domain_route = "teaching"` (`general_knowledge_mode = False`), allowing verbatim retrieval or an honest spiritual abstention.
+- **Rule:** A refusal must match the question's lane. Never emit an "outside spiritual wisdom" copy for a spiritual inquiry just because the generating model is turned off.
+
+### L-CARVEOUT-BY-TYPE-1. `isinstance(x, int)` matches `bool`; distress carve-outs must strictly exclude booleans and normalize enums.
+- **What:** `DistressAssessment.level` is an `IntEnum`. In Python, `isinstance(True, int)` is true, while extracting `.value` directly fails on raw integers. An un-normalized type check either missed raw ints or let booleans masquerade as distress levels.
+- **Fix:** Normalized `_level_raw` via `getattr(raw, "value", raw)` and strictly guarded with `isinstance(_level_value, int) and not isinstance(_level_value, bool) and _level_value >= DistressLevel.MODERATE.value`.
+- **Rule:** Always guard against booleans (`and not isinstance(x, bool)`) when checking integer severity levels, and normalize enum `.value` attributes safely.
+
+### L-BROADCAST-REGEX-FALSE-POSITIVE-1. Overbroad promotional markers flag philosophical teachings as program announcements.
+- **What:** `EVENT_MARKER_RE` matched `(?:can|is)` after "manifest" and unqualified `"I will lead you"`, rejecting core teachings such as "This manifest can be seen as the play of consciousness" and "I will lead you through a breathing practice".
+- **Fix:** Removed `can|is` from `EVENT_MARKER_RE`, required "manifest" to pair with program objects (`process|festival|gathering|event|journey`), and anchored "lead you" to promotional targets (`you and your|your`).
+- **Rule:** Broadcast and promotional filters must anchor to program/event nouns and avoid contemplative verbs (`can`, `is`, `lead`) that appear in spiritual discourse.
+
+### L-PREREGISTERED-BAR-WEAKENED-1. Runbook criteria citing point estimates weaken statistically enforced Wilson score bounds.
+- **What:** A draft of `GRADED_9_PRE_REGISTERED_CRITERIA.md` cited "≥85% of served rows" (a point estimate), named `gemini-2.0-flash` instead of `gemini-3.6-flash`, and referenced `FIRST_PERSON_ACTIVE_COLLECTION` instead of the live `FIRST_PERSON_COLLECTION`.
+- **Fix:** Aligned the runbook with code constants `SHOWABLE_BAR_LOWER` (Wilson lower bound 0.850) and `AI_STAGE_POINT` (0.90 per grader), pinned `google/gemini-3.6-flash`, and cited `FIRST_PERSON_COLLECTION`.
+- **Rule:** Runbooks and pre-registered criteria must quote the exact code constant, file path, and statistical formula. Never substitute a point estimate for a confidence bound.
+
+
 ## Nov 14, 2026 — Qdrant stack upgrade, client elevation, and compose auth isolation
 
 ### L-QDRANT-AUTH-ENV-TRAP-1. Empty environment variables in Docker Compose activate Qdrant API key authentication, breaking unauthenticated access.
@@ -1380,87 +1423,6 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 ### L-BUILDER-ADDITIVE-ONLY-VIDEOS-1. A new empty staging collection makes the builder treat every transcript as missing.
 - **What:** the "already indexed" skip reads the TARGET collection, so a new collection plus no `--only-videos` would rebuild everything. Always pass `--only-videos` with the exact id list.
 - **Also:** the strict audit's `speaker_evidence_per_span` gate needs a Phase-3 candidate file, which does not exist for new spans; it stays BLOCKED on staging exactly as on live v10 (no independent per-span verdicts: UNPROVEN, not failed).
-
-## Oct 30, 2026 — memory source links and keyboard access
-
-### L-MEMORY-SOURCE-1. A memory had no stored origin, so the UI could not link to it without guessing.
-- **What:** `guru_memories` had no provenance column. The extraction queue already carried `conversation_id`, but both edge functions (`memory-extract`, `memory-extract-drain`) dropped it at insert. `canonical_memories` does store `source_conversation_id`, but Profile and the Wisdom Map read `guru_memories`.
-- **Fix:** migration `20261030140000_guru_memories_source_conversation.sql` adds a nullable `source_conversation_id`. Both functions store it (validated, 200 chars max). The API returns `source_ref: {kind, id}` or null, never a URL (`services/memory_source.py`); `src/lib/memorySource.ts` is the only place that maps a kind to a route. Old rows and explicit memories show "Source unavailable".
-- **Order:** apply the migration before deploying the two functions. If a function runs first, it retries the insert without the column, so no memory is lost, only the link.
-- **Check:** UNPROVEN against a real Supabase project. Tests use fakes and mocks only (`backend/tests/test_memory_source_refs.py`, `src/test/memorySource.test.tsx`, `tests/e2e/memory-source-links.spec.ts`).
-- **Limit:** the link opens `/chat?conversation=<id>`. If the user deleted that conversation, the chat page ignores the link silently. Notebook nodes link to `/notebooks` (no per-item deep link exists).
-
-### L-LIST-MEMORIES-METADATA-1. UNVERIFIED: `list_memories` selected a `metadata` column that no `guru_memories` migration adds.
-- **What:** the select in `services/memory_service.py` named `metadata`. Neither the migrations nor `src/integrations/supabase/types.ts` define it on `guru_memories`. A missing-column error was caught and turned into an empty list, so Profile, `/api/memory/list` and the personal graph would show no memories. Whether the live database has the column is not known from the repo.
-- **Fix:** `list_memories` now tries three column sets and falls back only on a missing-column error. Other errors still return an empty list.
-- **Rule:** a select that names an optional column needs a fallback and a test for the missing-column case.
-
-### L-KG-KEYBOARD-1. Wisdom Map nodes took focus but Enter and Space did nothing.
-- **What:** the graph passes controlled nodes to React Flow with no `onNodesChange`, so keyboard selection never reached `onNodeClick`. Keyboard users could not open node details, so they could not reach the new source link. Found in the browser sweep, not by unit tests (the unit test mocks React Flow).
-- **Fix:** `handleGraphKeyDown` in `KGConceptMap.tsx`: Enter or Space opens the details and moves focus into them; Escape closes them and returns focus to the node.
-- **Pin:** `tests/e2e/memory-source-links.spec.ts`.
-
-### L-PW-ROUTE-ORDER-1. Playwright runs the last registered matching route first.
-- **What:** a catch-all `/rest/v1/` route registered after `/rest/v1/guru_memories` answered every memory request with an empty list, so the spec failed while a hand-run sweep passed.
-- **Rule:** register catch-all mocks first and specific mocks last.
-
-## Oct 30, 2026 — v10-only serving config (no v8)
-
-### L-LEGACY-SLOT-NAME-1. A "legacy" collection setting was doing two jobs it did not say: it gated startup, and it switched a safety guard on by name.
-- **What:** the serving contract (B4) stops production startup when `FIRST_PERSON_COLLECTION` names a context collection (VERIFIED in code; the Railway runbook claim holds). So v10-only needed a phantom `first_person_v8` name. Pointing the slot at v10 instead would also have turned `_boundary_guard_enabled` off, because that guard is keyed on the legacy collection name (v6/v7/v8) and the harness reuses it for v10 spans. Also found: facet split searches only the legacy store, so it bypassed `first_person_context_terminal_enabled`.
-- **Fix:** `validate_serving_contract(context_terminal_enabled=...)` allows the alias only when the harness AND the terminal flag are on (`v10_only_mode_active`); all context-side checks still run. The pipeline keeps the boundary guard and content gate on when its store aliases the context collection, skips facet split while terminal, and the personalize stage declines without a Qdrant read when aliased.
-- **Rule:** before pointing a slot at a different collection, grep what else keys on that slot's NAME, not only what reads it.
-- **Pin:** `backend/tests/test_first_person_v10_only.py` (29 tests). UNPROVEN: a clean-Docker v10-only start and live answers; Mac run owns that.
-
-## Oct 30, 2026 — v10-only run: flags, caches, eval inputs, serializer
-
-### L-EFFECTIVE-FLAGS-1. Numbers labelled "v10" were legacy v8 numbers, because compose pinned the harness flag off.
-- **What:** `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false` is set in `backend/docker-compose.yml`, so the rebuilt stack served only `first_person_v8`. Probes and the 8-of-8 live eval were first read as "v10 harness plus v8 fallback"; the first teaching answer cited a Curly Tales v8 clip, which exposed it.
-- **Fix:** read the effective settings from the running container before quoting any result; label every result with the flags that were active. `first_person_context_terminal_enabled` (default off) makes the harness terminal so v8 cannot serve when v10-only is wanted.
-- **Check:** `docker exec mukthiguru-backend python -c "from app.config import settings as s; print(s.first_person_context_harness_enabled, s.first_person_context_terminal_enabled, s.first_person_context_collection)"`.
-- **Pin:** `backend/tests/test_first_person_context_serving.py::test_terminal_flag_blocks_legacy_fallthrough`.
-
-### L-FLUSH-AFTER-RECREATE-1. A cache flush that runs before the container recreate proves nothing about the new container.
-- **What:** the flush ran, then the backend was recreated; startup warm-up can refill caches.
-- **Fix/Rule:** order is recreate, wait for health, then `make flush-cache`, then `make verify-cache-empty` (exit 0 only).
-
-### L-EVAL-INPUT-PATH-1. An eval that reads inputs from a path a later commit removed crashes late and looks like a product failure.
-- **What:** `first_person_live_eval.py` reads the bake-off `videos.json`, which pointed three videos at the removed `scripts/ingestion/corpus/` folder.
-- **Fix:** worked around with a scratch copy of the bake-off folder and a rebuilt transcript set; the script itself still fails on those paths (UNPROVEN fix in the script). A pinned eval must check every input exists before it sends the first request.
-- **Also:** the legacy route cannot answer the frozen bake-off set on this stack (v8 holds none of its 8 videos), so its 0.0 is structural, not a regression. Name which scoring rule each number uses.
-
-### L-SERIALIZER-PARITY-1. Moving platform copy out of the answer body is invisible until every serializer carries the new field.
-- **What:** `safety_notices` reached the SSE done metadata but the queued/sync serializer in `app/orchestrator.py` built its `ChatResponse` without it, so framing, boundaries and the support line vanished from `/api/chat` job results; stage-level tests stayed green.
-- **Fix:** field set in the live serializer and in `/api/chat/v2`; found only by a live probe.
-- **Pin:** `backend/tests/test_safety_notices_wire.py` (AST guard: every keyword-built `ChatResponse` sets `safety_notices`).
-
-### L-SESSION-REUSE-1. Reusing one anonymous session for several eval questions is only safe if sessions carry no memory.
-- **What:** to stay under the session endpoint's rate limit the runner reuses a session for 4 questions (quota is 5). Anonymous identities are excluded from memory read and write (`graph_stage.py`, `glue_stages.py`), and each request sends `messages: []`.
-- **Rule:** label the run "4 questions per session"; confirm with a fresh-vs-reused spot check before quoting a number.
-
-### L-RATE-LIMIT-NAMES-1. "The 20 per minute limit" was three different limits.
-- **What:** `chat_rate_limit` is 20/minute (app limiter), `openrouter_rpm_limit` is 120 in the local setup, `first_person_rate_limit` is 120/minute. What slowed the eval was creating a session per question.
-- **Rule:** read the limit from the running container before blaming the provider; do not raise a limit to speed a test.
-
-### L-NO-UNREQUESTED-DELETES-1. A plan step that deletes collections was proposed without being asked for.
-- **What:** a "remove the other collections" instruction was read as a delete plan. Nothing was deleted; two snapshots were taken (`first_person_v8`, `first_person_v10`, local Qdrant only).
-- **Rule:** snapshot-and-restore is the default; deletion needs a typed confirmation naming the collections.
-
-## Oct 30, 2026 — admin video approval
-
-### L-HUMAN-DECISION-SEPARATE-1. A human review decision must live apart from the machine-measured evidence it reviews, and may only tighten serving.
-- **What:** the owner needs to say which videos reach users. Writing that into `speaker_verified` would erase the difference between "the voice model measured this" and "a person said so", and an "approved" flag that could override a failed gate would loosen safety.
-- **Fix:** `services/first_person_video_decisions.py` keeps `admin_approved`, `human_speaker_check`, `grade`, `notes` in its own file with an audit log (who, when, why, before, after). A video is blocked when `admin_approved` is false or `human_speaker_check` is `rejected`. Approval and "confirmed" never unblock anything. No decision keeps today's behaviour. An unreadable decisions file blocks every video (fail closed).
-- **Rule:** one more serve-time check may be added; none may be relaxed by a human flag. Hook the single choke point (`_passes_integrity_gate`) plus every cache re-check (`points_servable`, `_points_servable_cached` keyed by `decisions_fingerprint()`), not just retrieval.
-- **Pin:** `backend/tests/test_fp_video_decisions.py`, `backend/tests/test_admin_video_review_api.py`, `backend/tests/test_fp_video_review_guards.py`.
-
-### L-ADMIN-TRIAGE-NOOP-1. UNVERIFIED in a live run: the "Speaker & Dialogue" triage endpoints do not save anything.
-- **What:** `POST /api/admin/attribution/span/{id}/triage` and `.../batch-triage` (`backend/app/api/admin.py`) only log and return `ok: true`; the decision read back by `_load_speaker_decisions` comes from a markdown file in `audits/evidence/`. A reviewer who clicks a triage button sees success and nothing changes. Found by code reading only.
-- **Rule:** an admin write endpoint must have a test that reads the change back. Not fixed in this PR.
-
-### L-ADMIN-RATE-LIMIT-1. UNVERIFIED on the local stack: `admin_rate_limit` defaults to `5/minute`, per client IP, across all of `/api/admin/`.
-- **What:** `Settings.admin_rate_limit = "5/minute"` (`backend/app/config.py`) feeds `admin_rate_limit_middleware`. One admin page load plus one save is already 3 to 4 requests. Whether the local `backend/.env` overrides it is not visible from the repo.
-- **Rule:** set `ADMIN_RATE_LIMIT` (for example `60/minute`) in the local `.env` before relying on any multi-call admin page.
 
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged,
