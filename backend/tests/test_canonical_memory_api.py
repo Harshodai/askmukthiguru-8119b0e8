@@ -1280,7 +1280,10 @@ class TestSeekerDashboardAndDreamingEndpoints:
         app.dependency_overrides[get_container] = _container
 
         client = TestClient(app)
-        resp = client.post("/memory/dream", json={"dry_run": True, "limit_conversations": 10})
+        # limit_conversations was accepted and ignored; it is now rejected.
+        rejected = client.post("/memory/dream", json={"dry_run": True, "limit_conversations": 10})
+        assert rejected.status_code == 422
+        resp = client.post("/memory/dream", json={"dry_run": True})
         assert resp.status_code == 200
         data = resp.json()
         assert data["user_id"] == "test-user-001"

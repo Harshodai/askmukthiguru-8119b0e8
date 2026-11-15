@@ -165,6 +165,32 @@ def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResul
             "FIRST_PERSON_CONTEXT_HARNESS_ENABLED and FIRST_PERSON_CONTEXT_TERMINAL_ENABLED "
             "must both be true (v10-only) or both be false (v8 rollback)"
         )
+    # Mirrors services/first_person_serving_contract._check_declared_posture and the
+    # slot resolver Settings.resolve_first_person_active_collection (A-32).
+    posture = str(values.get("FIRST_PERSON_SERVING_POSTURE", "") or "")
+    active = str(values.get("FIRST_PERSON_ACTIVE_COLLECTION", "first_person_v10") or "").strip()
+    legacy_slot = str(values.get("FIRST_PERSON_COLLECTION", "") or "").strip() or (
+        active if harness and terminal else "first_person_v8"
+    )
+    context_slot = str(values.get("FIRST_PERSON_CONTEXT_COLLECTION", "") or "").strip() or active
+    if posture == "v10_only":
+        if not (harness and terminal and legacy_slot == context_slot == "first_person_v10"):
+            errors.append(
+                "FIRST_PERSON_SERVING_POSTURE=v10_only needs FIRST_PERSON_CONTEXT_HARNESS_ENABLED "
+                "and FIRST_PERSON_CONTEXT_TERMINAL_ENABLED true and both collection slots "
+                "on first_person_v10"
+            )
+    elif posture == "v8_bridge":
+        if harness or terminal:
+            errors.append(
+                "FIRST_PERSON_SERVING_POSTURE=v8_bridge needs FIRST_PERSON_CONTEXT_HARNESS_ENABLED "
+                "and FIRST_PERSON_CONTEXT_TERMINAL_ENABLED false"
+            )
+    elif posture:
+        errors.append("FIRST_PERSON_SERVING_POSTURE must be v10_only, v8_bridge or empty")
+    else:
+        lane = "v10-only context harness" if harness and terminal else "legacy clip store"
+        warnings.append(f"FIRST_PERSON_SERVING_POSTURE is undeclared; the flags serve the {lane}")
 
     redis_url = str(values.get("REDIS_URL", "") or "").lower()
     if "localhost" in redis_url or "127.0.0.1" in redis_url:

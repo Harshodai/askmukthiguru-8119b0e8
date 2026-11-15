@@ -925,6 +925,7 @@ async def lifespan(app: FastAPI):
             context_terminal_enabled=(
                 getattr(settings, "first_person_context_terminal_enabled", False) is True
             ),
+            serving_posture=str(getattr(settings, "first_person_serving_posture", "") or ""),
         )
         logger.info(
             "Lifespan: first-person serving contract checked (legacy=%s ok=%s context=%s ok=%s)",

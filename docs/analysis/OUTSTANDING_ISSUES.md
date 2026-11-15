@@ -255,3 +255,9 @@ column empty, source hashes in `PROVENANCE.json`, regenerable with
 - **Corpus:** no full transcript corpus exists on this machine (best candidate holds 7 videos; v10 covers 491). The data gate cannot be made meaningful here.
 - **Hub clip (graded-8 bar 8):** `UlOt31lBhLY` at t=101 served q001, q026, q040, q042 with identical text. Both graders called three of the four showable; the first grader was unsure on q040.
 - `first_person_v11` (4,360 points) is named only in the serving-contract file and one ingest script; its purpose is unverified.
+
+### 8.1 Closed by the Opus writer on 2026-11-15
+- A-32: CLOSED. `FIRST_PERSON_SERVING_POSTURE` (`v10_only`, `v8_bridge` or empty). A declared posture that contradicts the flags or the collection slots stops startup in every environment; an empty posture in production logs a warning naming the lane that will serve. `.railway/railway.ts` and the graded compose declare it. A running graded container must be recreated before the next graded run (new pinned variable).
+- `limit_conversations`: REMOVED from the dream request, which now rejects unknown fields. A cap in the transcript loop would have made the grounding audit evict memories.
+- A-37: NO REACHABLE LEAK for teaching questions; proving tests in `tests/test_a37_teaching_lane_routes.py`. Generation remains reachable only through the documented carve-outs (MODERATE+ distress, meditation, crisis redirect) and the general lane (A-34, open).
+- Not verified: `tsc` on the `railway.ts` edit; whether the exact-cache key changes when the posture flips.

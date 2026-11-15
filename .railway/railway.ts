@@ -114,6 +114,7 @@ export default defineRailway((ctx) => {
           FIRST_PERSON_ACTIVE_COLLECTION: "first_person_v10",
           FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "true",
           FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true",
+          FIRST_PERSON_SERVING_POSTURE: SERVING_POSTURE,
         }
       : SERVING_POSTURE === "v8_bridge"
         ? {
@@ -121,11 +122,13 @@ export default defineRailway((ctx) => {
             // resolves to first_person_v8 (config.py resolve_first_person_active_collection).
             FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "false",
             FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "false",
+            FIRST_PERSON_SERVING_POSTURE: SERVING_POSTURE,
           }
         : {
             FIRST_PERSON_ACTIVE_COLLECTION: preserve(),
             FIRST_PERSON_CONTEXT_HARNESS_ENABLED: preserve(),
             FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: preserve(),
+            FIRST_PERSON_SERVING_POSTURE: preserve(),
           };
 
   // ---- Backend API ---------------------------------------------------------

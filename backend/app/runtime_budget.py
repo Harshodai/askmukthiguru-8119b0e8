@@ -107,16 +107,32 @@ def serving_gate_warnings(settings: Any) -> list[str]:
     question-level gate left. That may be a deliberate choice, so this reports it
     at startup instead of changing it (found off in the live env, 2026-11-13).
     """
+    warnings: list[str] = []
     serving = bool(getattr(settings, "first_person_route_enabled", False)) and bool(
         getattr(settings, "first_person_chat_bridge_enabled", False)
     )
     if serving and not bool(getattr(settings, "first_person_answerability_check_enabled", True)):
-        return [
+        warnings.append(
             "FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED=false while first-person chat serves: "
             "no YES/NO answerability gate runs (answers record answerability=permissive); "
             "the relevance scorer is the only question-level gate"
-        ]
-    return []
+        )
+    # A-32: in production an undeclared posture is allowed but named, so a deployment
+    # that lost its harness variables is visible as "serving the legacy lane".
+    if getattr(settings, "is_production", False) is True and not getattr(
+        settings, "first_person_serving_posture", ""
+    ):
+        v10 = bool(getattr(settings, "first_person_context_harness_enabled", False)) and (
+            getattr(settings, "first_person_context_terminal_enabled", False) is True
+        )
+        lane = "v10-only context harness" if v10 else "legacy clip store"
+        warnings.append(
+            "FIRST_PERSON_SERVING_POSTURE is undeclared: the resolved flags serve the "
+            f"{lane} (collection "
+            f"{getattr(settings, 'first_person_collection', '')!r}); set it to v10_only "
+            "or v8_bridge so a mismatch stops startup"
+        )
+    return warnings
 
 
 # The project alerts at 70% of a cap in production; locally there was no signal at all, so a

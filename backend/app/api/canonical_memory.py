@@ -24,7 +24,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.dependencies import (  # noqa: F401 (tests import get_container from here)
     ServiceContainer,
@@ -186,11 +186,13 @@ class SeekerCoreResponse(BaseModel):
 class MemoryDreamRequest(BaseModel):
     """Payload for POST /memory/dream."""
 
+    # The dreamer has no per-conversation limit (a cap on loaded transcripts would make
+    # the grounding audit evict the uncapped memories), so unknown fields are rejected
+    # rather than silently ignored.
+    model_config = ConfigDict(extra="forbid")
+
     dry_run: bool = Field(
         default=False, description="Simulate dreaming without persisting changes."
-    )
-    limit_conversations: int = Field(
-        default=50, ge=1, le=200, description="Max recent conversations to process."
     )
 
 

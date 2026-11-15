@@ -672,6 +672,7 @@ def assert_startup_safe(
     legacy_route_enabled: bool,
     context_harness_enabled: bool,
     context_terminal_enabled: Optional[bool] = None,
+    serving_posture: str = "",
 ) -> None:
     """Fail closed where an unsafe configuration could actually serve.
 
@@ -693,7 +694,18 @@ def assert_startup_safe(
       defect, and the safe behaviour (serve nothing) is unchanged.
 
     The path-scoped behaviour is covered by tests, not by assumption.
+
+    ``serving_posture`` (A-32, ``FIRST_PERSON_SERVING_POSTURE``) is an explicit
+    assertion, so a mismatch stops the process in every environment: ``v10_only``
+    needs both flags on and both slots on ``first_person_v10``; ``v8_bridge``
+    needs both flags off. Empty keeps the behaviour above unchanged.
     """
+    _check_declared_posture(
+        report,
+        serving_posture=serving_posture,
+        context_harness_enabled=bool(context_harness_enabled),
+        context_terminal_enabled=context_terminal_enabled is True,
+    )
     if (
         is_production
         and context_terminal_enabled is not None
@@ -722,6 +734,44 @@ def assert_startup_safe(
     # production: the legacy path fails closed on its own (see
     # legacy_store_preflight and FirstPersonPipeline._serving_contract_error).
     _ = legacy_route_enabled
+
+
+V10_COLLECTION = "first_person_v10"
+POSTURE_V10_ONLY = "v10_only"
+POSTURE_V8_BRIDGE = "v8_bridge"
+
+
+def _check_declared_posture(
+    report: ContractReport,
+    *,
+    serving_posture: str,
+    context_harness_enabled: bool,
+    context_terminal_enabled: bool,
+) -> None:
+    """Raise when the resolved flags or slots contradict a declared posture (A-32)."""
+    flags = (
+        f"FIRST_PERSON_CONTEXT_HARNESS_ENABLED={str(context_harness_enabled).lower()}, "
+        f"FIRST_PERSON_CONTEXT_TERMINAL_ENABLED={str(context_terminal_enabled).lower()}"
+    )
+    if serving_posture == POSTURE_V10_ONLY:
+        slots = (report.legacy_collection, report.context_collection)
+        if context_harness_enabled and context_terminal_enabled and slots == (V10_COLLECTION,) * 2:
+            return
+        problem = (
+            f"needs both flags true and both slots on {V10_COLLECTION!r}; got {flags}, "
+            f"FIRST_PERSON_COLLECTION={slots[0]!r}, FIRST_PERSON_CONTEXT_COLLECTION={slots[1]!r}"
+        )
+    elif serving_posture == POSTURE_V8_BRIDGE:
+        if not context_harness_enabled and not context_terminal_enabled:
+            return
+        problem = f"needs both flags false; got {flags}"
+    elif serving_posture:
+        problem = "must be 'v10_only', 'v8_bridge' or empty"
+    else:
+        return
+    raise FirstPersonServingContractError(
+        f"FIRST_PERSON_SERVING_POSTURE={serving_posture!r} {problem}"
+    )
 
 
 def legacy_store_preflight(
