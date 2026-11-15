@@ -450,8 +450,7 @@ class KeySetupHandler(BaseHTTPRequestHandler):
 
         elif self.path == "/api/recreate-backend":
             cmd = (
-                "cd backend && "
-                "bash ../scripts/docker-safe.sh docker compose -f docker-compose.yml -f docker-compose.graded.yml up -d --force-recreate --no-deps backend && "
+                "(cd backend && bash ../scripts/docker-safe.sh docker compose -f docker-compose.yml -f docker-compose.graded.yml up -d --force-recreate --no-deps backend) && "
                 "make flush-cache && make verify-cache-empty"
             )
             res = subprocess.run(
