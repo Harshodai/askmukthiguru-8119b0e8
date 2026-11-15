@@ -204,3 +204,41 @@ column empty, source hashes in `PROVENANCE.json`, regenerable with
 - A-34: OPEN, documented in CLAUDE.md invariant 21. A-36, A-37: OPEN (owner decision; A-37 changes served answers).
 - Lint: `ruff check .` and `ruff format --check .` pass. Found while fixing: the admin request field `limit_conversations` is accepted and ignored by `MemoryDreamer.dream()`.
 - Live check after rebuild at `87d4af4d`: normal question abstained, ambiguous question served a verified Sri Preethaji clip, crisis returned the safety redirect, out-of-corpus returned the static boundary, both follow-up turns served verified clips; no traceback in the backend log.
+
+---
+
+## 7. End-to-end review of 2026-11-15 (answer path, data, ingestion, scale). Measured facts; nothing changed.
+
+### 7.1 Why the stored labels cannot stop the graded-8 failures (D-01, highest value)
+- All 10 answers that were not showable by both graders were built from spans labelled `completeness_status=complete`; 25 of their 27 spans have `boundary_status=verified`; every one ends in terminal punctuation. The 30 good answers look the same (53 of 53 complete, 51 of 53 verified).
+- So the labels are sentence-level. "The clip stops before finishing its argument" (q010, q019, q074, q085) is not recorded anywhere in the data, and no deterministic gate can catch it today. Only a question-plus-clip judgement or a re-segmentation can.
+- Served contexts are long: failed answers run 35 to 259 seconds and 76 to 636 words; 15 of 40 served answers exceed 60 seconds. Invariant 11 targets 18 to 25 seconds. In the collection, 675 of 2,758 spans are over 60 s, 255 under 10 s, only 346 in the 18 to 25 s band; 658 have an uncertain boundary; 284 do not end in terminal punctuation.
+- Consequence: answer quality above about 0.75 needs either a stricter judge (fewer answers) or new segmentation (new collection, dry run and approval first). Gates alone will not get there.
+
+### 7.2 Evaluation harness
+- H-26: `rows.jsonl` keeps only the citation URL. Point ids, span ids and start/end times are dropped, so a failed row cannot be traced to its data without text matching. Fix: record `point_id`, `source_span_id`s, `start_ms`, `end_ms`, `completeness_status`, `boundary_status` per served row.
+- H-27: an unparseable grader reply is scored `unsure` (q070), which counts against the bar. A retry is being added in the other session's uncommitted work.
+- H-7 still open: legacy `grades.json` gate and the registered report can disagree.
+
+### 7.3 LLM wiring on the answer path
+- Per served question: answerability check, per-clip judge (about 8 calls), optional rerank/selection. Judge calls measured p50 1.4 s, p99 5.6 s; they dominate the 9.3 s p95.
+- Cancelled calls keep their 0.03 reservation (P2-e), so the ledger overstates spend and can trip the monthly cap early.
+- Three provider classes share no code; only OpenRouter is live (A-36, evidence pending from the Opus audit).
+
+### 7.4 OKF and Memgraph
+- Neither is on the live answer path. `first_person_okf_expansion_enabled` and graph expansion default off; the first-person files import no graph client except `first_person_graph_expansion.py`.
+- Memgraph: 9,696 nodes, 11,033 edges (6,427 untyped `base`, 2,760 `TUTeachingUnit`, 492 `TUVideoSource`, 6 `Concept`). It serves only the general graph lane and the knowledge-graph UI. On Railway the Memgraph service has no volume: data is lost on restart.
+- OKF: 487 compiled entries; 34 of 72 quoted strings are not found in their source video (47%), 40 duplicate filename pairs. OKF is never shown as teacher voice (invariant 12), so this is a routing-quality risk, not an attribution risk.
+
+### 7.5 Ingestion and data engineering
+- Audio archive: 681 manifest entries, 680 WAV files (1 missing). Serving collection covers a subset of videos.
+- `backend/ingest/verbatim/` (vote, speaker verify, boundaries, gates) is still not imported by `ingest/pipeline.py` (invariant 7): the collection was built by offline scripts, so a rebuild is not one command and not covered by the ingestion tests.
+- `scripts/ingestion/corpus` is absent on this machine: `data_quality_audit.py` cannot run its transcript checks (exit 1). Real location pending from the Opus audit.
+- Backups: `/etc/cron.d/mukthiguru-backup` not installed; newest backup folder is dated 2026-10-08 and lives on the same disk. RPO is unbounded.
+- Qdrant holds five stale `*_ingest_backup_*` collections and three empty cache collections; 4,824 of 14,080 legacy points have no `video_id`.
+- Four Supabase migrations are unapplied on the hosted project.
+
+### 7.6 Scale
+- One backend replica, `WEB_CONCURRENCY=1`, `max_concurrent_chat=12`: at about 6 s per answer the ceiling is roughly 2 answers a second; beyond 12 in flight the API returns 503. Admission caps are per process, so adding replicas multiplies them without a shared limit.
+- The bottleneck is provider calls, not CPU: about 8 judge calls per question. Fewer, batched judge calls (one call scoring several clips) is the largest latency and cost lever, and it changes served answers (registered run).
+- Single-node Redis, Qdrant and Memgraph; no load test has been run against Railway. All latency numbers are from one Mac.
