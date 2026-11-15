@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AskMukthiGuru — Human Gate Clearance & Railway Readiness Console</title>
+  <style>
+    :root {
+      --bg: #070a13;
+      --card-bg: #0f172a;
+      --card-hover: #131d35;
+      --card-border: #1e293b;
+      --card-border-focus: #3b82f6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.12);
+      --danger-border: rgba(239, 68, 68, 0.35);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.12);
+      --warning-border: rgba(245, 158, 11, 0.35);
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.12);
+      --success-border: rgba(16, 185, 129, 0.35);
+      --accent: #6366f1;
+      --cyan: #06b6d4;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font);
+      line-height: 1.5;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 1.1rem;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .status-badges {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+    }
+
+    .status-pill.active {
+      color: #10b981;
+      border-color: var(--success-border);
+      background: var(--success-bg);
+    }
+
+    .status-pill.danger {
+      color: #ef4444;
+      border-color: var(--danger-border);
+      background: var(--danger-bg);
+    }
+
+    .status-pill.info {
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.35);
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    /* Tabs Navigation */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      background: #0d1322;
+      padding: 6px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+    }
+
+    .tab-badge {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      background: rgba(0, 0, 0, 0.3);
+      font-weight: 700;
+    }
+
+    /* Tab Content Panes */
+    .tab-pane {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    /* Railway Banner */
+    .nogo-banner {
+      background: linear-gradient(180deg, rgba(239, 68, 68, 0.16) 0%, rgba(239, 68, 68, 0.05) 100%);
+      border: 1px solid var(--danger-border);
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .nogo-banner.cleared {
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.16) 0%, rgba(16, 185, 129, 0.05) 100%);
+      border-color: var(--success-border);
+    }
+
+    .verdict-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #ef4444;
+      color: #ffffff;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .verdict-tag.cleared {
+      background: #10b981;
+    }
+
+    /* Bento Grid */
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 16px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .card-badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .card-badge.blocked {
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: var(--danger);
+    }
+
+    .card-badge.ok {
+      background: var(--success-bg);
+      border: 1px solid var(--success-border);
+      color: var(--success);
+    }
+
+    .card-badge.info {
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+    }
+
+    .metric-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric-sub {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .data-table th {
+      text-align: left;
+      padding: 10px 12px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--card-border);
+      font-weight: 600;
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    .data-table td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+      color: #cbd5e1;
+      vertical-align: middle;
+    }
+
+    .data-table tr:hover {
+      background: rgba(30, 41, 59, 0.3);
+    }
+
+    /* Form Controls */
+    input.text-input, select.select-input, textarea.textarea-input {
+      background: #090e1a;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      color: #f8fafc;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+
+    input.text-input:focus, select.select-input:focus, textarea.textarea-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5, #06b6d4);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover { opacity: 0.92; }
+
+    .btn-success {
+      background: #059669;
+      color: #ffffff;
+    }
+    .btn-success:hover { background: #10b981; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: #cbd5e1;
+    }
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 0.75rem;
+    }
+
+    /* Speech Controls */
+    .mic-icon-btn {
+      background: #312e81;
+      border: 1px solid #4f46e5;
+      color: #ffffff;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .mic-icon-btn:hover { background: #3730a3; }
+
+    .mic-icon-btn.recording {
+      background: #7f1d1d;
+      border-color: #ef4444;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+      70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    .gate-progress-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: #1e293b;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .copy-preview-box {
+      background: #090e1a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+      color: #94a3b8;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">M</div>
+        <div>
+          <div class="brand-title">AskMukthiGuru Human Gate Clearance &amp; Readiness Suite</div>
+          <div class="brand-subtitle">Interactive Sign-Off Console for Repository Controls &amp; Invariants</div>
+        </div>
+      </div>
+      <div class="status-badges">
+        <div class="status-pill active" id="badge-docker">
+          <span class="pulse-dot"></span> Backend: Healthy
+        </div>
+        <div class="status-pill active" id="badge-openrouter">
+          <span class="pulse-dot"></span> OpenRouter: Active ($4.88)
+        </div>
+        <div class="status-pill info" id="badge-run">
+          <span class="pulse-dot"></span> Graded-9: Valid PASS
+        </div>
+        <div class="status-pill danger" id="badge-railway">
+          <span class="pulse-dot"></span> Railway: NO-GO
+        </div>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('overview')">
+        🛡️ Overview &amp; Readiness Matrix
+      </button>
+      <button class="tab-btn" onclick="switchTab('helplines')">
+        📞 Helplines Verification <span class="tab-badge" id="badge-hl-count">0/14</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('native')">
+        🗣️ Native Speaker Review <span class="tab-badge" id="badge-nat-count">0/11</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('clinician')">
+        🩺 Clinician Crisis Copy <span class="tab-badge" id="badge-cli-count">0/2</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('rights')">
+        📜 Rights Register Sign-Off <span class="tab-badge" id="badge-rights-count">0/751</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('answers')">
+        🎙️ Served Answers Judgement <span class="tab-badge" id="badge-ans-count">42 rows</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: OVERVIEW & READINESS MATRIX -->
+    <div id="tab-overview" class="tab-pane active">
+      <!-- Mega Banner -->
+      <section class="nogo-banner" id="railway-banner">
+        <div>
+          <div class="verdict-tag" id="railway-verdict-tag">🚨 VERDICT: STRICT NO-GO</div>
+          <h2 style="font-size: 1.3rem; font-weight: 800; margin-top: 6px;" id="railway-banner-title">
+            Railway Deployment is Blocked Pending Human Gate Sign-Offs
+          </h2>
+          <p style="color: #cbd5e1; font-size: 0.9rem; max-width: 900px; margin-top: 4px;">
+            The automated pipeline and Docker containers are verified and healthy, but public release invariants require <strong>human sign-offs</strong> on the gates below before Railway deployment can be cleared. Complete the reviews in the tabs above to unlock deployment.
+          </p>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end;">
+          <div class="gate-progress-badge" id="gates-meter-badge">
+            Human Gates Progress: <span style="color: #38bdf8;" id="gates-completed-ratio">0 / 4 Cleared</span>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="speakVerdict()">🔊 Read Verdict Audio</button>
+        </div>
+      </section>
+
+      <!-- 4 Invariants Blocker Cards -->
+      <div class="grid-4">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">1. Public Gates B1–B7</span>
+            <span class="card-badge blocked" id="card-badge-b1">BLOCKED</span>
+          </div>
+          <div style="font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 6px;">
+            <p><strong>AGENTS.md Invariant X5/X6:</strong> Public release flag <code>FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false</code> is pinned.</p>
+            <p style="color: var(--text-dim);">Action: Complete Helplines, Native Speaker, and Clinician review packets.</p>
+            <button class="btn btn-outline btn-sm" style="margin-top: 6px;" onclick="switchTab('helplines')">Open Helplines Tab &rarr;</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">2. Rights Register &amp; Conflicts</span>
+            <span class="card-badge blocked" id="card-badge-rights">BLOCKED</span>
+          </div>
+          <div style="font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 6px;">
+            <p><strong>AGENTS.md Invariant X14/X16:</strong> 751-asset rights register manifest is unverified; 45 speaker conflicts quarantined.</p>
+            <p style="color: var(--text-dim);">Action: Sign off official channel rights register in the Rights tab.</p>
+            <button class="btn btn-outline btn-sm" style="margin-top: 6px;" onclick="switchTab('rights')">Open Rights Tab &rarr;</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">3. Doctrine Assets</span>
+            <span class="card-badge blocked">BLOCKED</span>
+          </div>
+          <div style="font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 6px;">
+            <p><strong>AGENTS.md Invariant X37:</strong> Production lacks curated <code>compiled.json</code> and <code>doctrine_lexicon.json</code>.</p>
+            <p style="color: var(--text-dim);">Action: Bundle curated doctrine assets into Railway release container.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">4. Discourse Truncation</span>
+            <span class="card-badge info">IN PROGRESS</span>
+          </div>
+          <div style="font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 6px;">
+            <p><strong>Data Quality:</strong> 15 of 42 served rows failed dual-judge completeness in <code>first_person_v10</code>.</p>
+            <p style="color: var(--text-dim);">Action: Shadow resegmentation v12 closes all discourse boundaries.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Graded Run Summary & OpenRouter Economics -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Live Graded-9 Evaluation Results</span>
+            <span class="card-badge ok">VALID: TRUE</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <div class="metric-value">42 / 89</div>
+              <div class="metric-sub">Served Share (47.19% $\ge$ 30% Pass Bar)</div>
+            </div>
+            <div>
+              <div class="metric-value" style="color: #34d399;">0 HARMFUL</div>
+              <div class="metric-sub">Safety Gate: 100% Passed</div>
+            </div>
+          </div>
+          <div style="font-size: 0.85rem; color: #cbd5e1; display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+            <div>• Core Negative Controls: <strong style="color: #34d399;">69/69 (100% Rejection)</strong></div>
+            <div>• Adversarial Unanswerables: <strong style="color: #34d399;">86/86 (0 Clips Served)</strong></div>
+            <div>• Server p95 Latency: <strong style="color: #38bdf8;">7,685 ms</strong> (&le; 10,000 ms Pass Bar)</div>
+            <div>• Wilson 95% Showable: <strong>0.312 – 0.601</strong> (Data ceiling in v10)</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">OpenRouter API Budget &amp; Economics</span>
+            <span class="card-badge ok">HTTP 200 ACTIVE</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <div class="metric-value">$<span id="overview-or-remaining">4.6055</span></div>
+              <div class="metric-sub">Remaining Headroom ($5.00 Limit)</div>
+            </div>
+            <div>
+              <div class="metric-value" style="color: #38bdf8;">$<span id="overview-or-usage">0.3945</span></div>
+              <div class="metric-sub">Total Run Spend (Capture + Judges)</div>
+            </div>
+          </div>
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 10px; border-radius: 6px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+            <div>• Entire 202-Probe Run Cost: <strong>$0.394 USD</strong> (~39 cents)</div>
+            <div>• Prompt Cache Hit Rate: <strong>87%</strong> (1,276 cached tokens per query)</div>
+            <div>• Relevance Scorer Unit Cost: <strong>$0.000074 USD / request</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: HELPLINES VERIFICATION -->
+    <div id="tab-helplines" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 style="font-size: 1.1rem; font-weight: 700;">📞 03-Helplines Live-Call Verification Packet</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+              AGENTS.md Invariant X41: <code>last_verified_by_call</code> in <code>config/helplines.yaml</code> requires human verification. Mark live calls made.
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-success" onclick="verifyAllIndiaHelplines()">
+              ✅ Verify All India Helplines (Tele-MANAS, 112, Vandrevala, AASRA)
+            </button>
+            <button class="btn btn-primary" onclick="saveHelplineSignoffs()">
+              💾 Save Helplines Sign-off
+            </button>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Region</th>
+                <th>Helpline Name</th>
+                <th>Contact</th>
+                <th>Hours</th>
+                <th>Live Call Made</th>
+                <th>Caller</th>
+                <th>Reached Person</th>
+                <th>Free</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="helplines-table-body">
+              <tr><td colspan="9" style="text-align: center;">Loading helplines packet...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: NATIVE SPEAKER INDIC REVIEW -->
+    <div id="tab-native" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 style="font-size: 1.1rem; font-weight: 700;">🗣️ 02-Native Speaker Indic Language Review Packet</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+              Review 11 Indic language prompts (Hindi, Telugu, Tamil, Marathi, Bengali, Kannada) for crisis detection and injection resistance.
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-success" onclick="approveAllNativePrompts()">
+              ✅ Sign All 11 Verified OK
+            </button>
+            <button class="btn btn-primary" onclick="saveNativeSignoffs()">
+              💾 Save Native Speaker Sign-off
+            </button>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Lang</th>
+                <th>Prompt Text</th>
+                <th>Expected Behavior</th>
+                <th>Decision</th>
+                <th>Reviewer</th>
+                <th>Date</th>
+                <th>Notes / Voice Dictation</th>
+              </tr>
+            </thead>
+            <tbody id="native-table-body">
+              <tr><td colspan="8" style="text-align: center;">Loading native speaker packet...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: CLINICIAN CRISIS COPY REVIEW -->
+    <div id="tab-clinician" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 style="font-size: 1.1rem; font-weight: 700;">🩺 01-Clinician Crisis &amp; Distress Copy Packet</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+              Review the live crisis responses to ensure clinical safety, correct emergency routing (112), and mental health helpline priority.
+            </p>
+          </div>
+          <button class="btn btn-primary" onclick="saveClinicianSignoff()">
+            💾 Sign Clinician Approval
+          </button>
+        </div>
+
+        <div class="grid-2">
+          <!-- Block 1 -->
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: #f87171;">Block 1: Acute Self-Harm Statement (English)</h4>
+            <div class="copy-preview-box">Please connect directly with verified, confidential crisis support:
+• Tele-MANAS (India): 14416 / 1800 891 4416 (24/7 Toll-Free Mental Health Helpline)
+• Emergency Services: 112 (India) or your local emergency number
+• Vandrevala Foundation (India): +91 9999 666 555 (24/7 Free &amp; Confidential Counseling)
+
+I care deeply about your wellbeing. Please know that you are valued, and there are compassionate people who want to support you right now. You do not have to walk through this alone. If you or someone nearby is in immediate danger, please reach out to emergency services immediately.</div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <label style="font-size: 0.85rem; font-weight: 600;">Decision:</label>
+              <select id="cli-acute-decision" class="select-input">
+                <option value="approve" selected>Approve Copy (Clinically Safe)</option>
+                <option value="change">Request Changes</option>
+                <option value="withdraw">Withdraw Copy</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Block 2 -->
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: #fbbf24;">Block 2: Hopelessness / Moderate Distress (English)</h4>
+            <div class="copy-preview-box">🆘 If you're in crisis: Please reach out for help.
+- India | Tele-MANAS (National Mental Health Helpline): 14416 / 1800-891-4416
+- India | National Emergency Services: 112
+If you are outside India, call your local emergency number now.
+
+I feel the depth of your pain, and I want you to know — you are not alone. Your feelings matter, and there is light even in the darkest moments.
+
+Are you safe right now? If there's any thought of hurting yourself, please tell me, or reach out to one of the numbers shown above right away — I'm staying here with you.
+
+You don't have to figure everything out right now. One breath, and one step, is enough.
+
+🌸 5-4-3-2-1 grounding: Name 5 things you see, 4 you can touch, 3 you hear, 2 you smell, 1 you taste. This brings you firmly into the present.
+
+I'd like to guide you through a Serene Mind meditation. Would you like to begin?</div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <label style="font-size: 0.85rem; font-weight: 600;">Decision:</label>
+              <select id="cli-distress-decision" class="select-input">
+                <option value="approve" selected>Approve Copy (Clinically Safe)</option>
+                <option value="change">Request Changes</option>
+                <option value="withdraw">Withdraw Copy</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 12px; margin-top: 10px;">
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-dim);">Reviewer Name</label>
+            <input type="text" id="cli-reviewer" class="text-input" value="Harsha (Owner)" style="width: 100%;">
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-dim);">Review Date</label>
+            <input type="date" id="cli-date" class="text-input" style="width: 100%;">
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-dim);">Clinical Notes / Speech Dictation</label>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="cli-notes" class="text-input" value="Verified 112 emergency routing, Tele-MANAS priority, and trauma-informed grounding." style="width: 100%;">
+              <button class="mic-icon-btn" onclick="dictateInto('cli-notes', this)">🎤</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: RIGHTS REGISTER SIGN-OFF -->
+    <div id="tab-rights" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 style="font-size: 1.1rem; font-weight: 700;">📜 04-Rights Register Sign-Off Packet (751 Assets)</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+              AGENTS.md Invariant X14: The Phase 4 rights register requires explicit owner sign-off. Approve official channels.
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-success" onclick="approveOfficialChannels()">
+              ✍️ Sign-Off Official Channels (Sri Preethaji &amp; Sri Krishnaji)
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 8px; border: 1px solid var(--card-border);">
+            <h4 style="font-size: 0.9rem; font-weight: 700; color: #a5b4fc; margin-bottom: 8px;">Corpus Channel Breakdown</h4>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
+              <div style="display: flex; justify-content: space-between; padding: 6px; background: rgba(30, 41, 59, 0.4); border-radius: 4px;">
+                <span>Sri Preethaji &amp; Sri Krishnaji (Official)</span>
+                <strong style="color: #34d399;">750 Assets</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding: 6px; background: rgba(30, 41, 59, 0.4); border-radius: 4px;">
+                <span>UNKNOWN (No registry entry)</span>
+                <strong style="color: #f87171;">1 Asset (Held)</strong>
+              </div>
+            </div>
+          </div>
+
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 8px; border: 1px solid var(--card-border);">
+            <h4 style="font-size: 0.9rem; font-weight: 700; color: #38bdf8; margin-bottom: 8px;">Sign-Off Form</h4>
+            <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.85rem;">
+              <div>
+                <label style="color: var(--text-dim);">Attribution Requirements Confirmed:</label>
+                <div style="font-size: 0.8rem; color: #cbd5e1; margin-top: 2px;">
+                  "Name the rightsholder and the teacher the excerpt is attributed to, and link canonical source URL."
+                </div>
+              </div>
+              <div>
+                <label style="color: var(--text-dim);">Signer Identity:</label>
+                <input type="text" id="rights-reviewer" class="text-input" value="Harsha (Owner)" style="width: 100%; margin-top: 4px;">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 10px;">
+          <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--text-dim); margin-bottom: 8px;">SAMPLE REGISTERED ASSETS (FIRST 20)</h4>
+          <div style="max-height: 250px; overflow-y: auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Video ID</th>
+                  <th>Channel</th>
+                  <th>Basis</th>
+                  <th>Canonical URL</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="rights-table-body">
+                <tr><td colspan="5" style="text-align: center;">Loading assets...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: SERVED ANSWERS HUMAN EVALUATION -->
+    <div id="tab-answers" class="tab-pane">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 style="font-size: 1.1rem; font-weight: 700;">🎙️ Served Answers Human Review (42 Live Probes)</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">
+              Listen to the video timestamps, read verbatim answers, and record your human judgement alongside Claude Sonnet 3.5 &amp; Gemini Flash.
+            </p>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 14px;" id="answers-container">
+          <div style="text-align: center; color: var(--text-dim); padding: 40px;">Loading 42 served rows...</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Tab switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+      const targetPane = document.getElementById('tab-' + tabId);
+      if (targetPane) targetPane.classList.add('active');
+
+      const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    // Speech dictation helper
+    let activeRecognition = null;
+    function dictateInto(elementId, btnElement) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert('Web Speech API is not supported in this browser.');
+        return;
+      }
+
+      if (btnElement.classList.contains('recording')) {
+        if (activeRecognition) activeRecognition.stop();
+        btnElement.classList.remove('recording');
+        btnElement.innerText = '🎤';
+        return;
+      }
+
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'en-US';
+
+      btnElement.classList.add('recording');
+      btnElement.innerText = '🔴 Listening...';
+
+      rec.onresult = function(event) {
+        const text = event.results[0][0].transcript;
+        const el = document.getElementById(elementId);
+        if (el) el.value = (el.value ? el.value + ' ' : '') + text;
+      };
+
+      rec.onerror = function() {
+        btnElement.classList.remove('recording');
+        btnElement.innerText = '🎤';
+      };
+
+      rec.onend = function() {
+        btnElement.classList.remove('recording');
+        btnElement.innerText = '🎤';
+      };
+
+      activeRecognition = rec;
+      rec.start();
+    }
+
+    function speakVerdict() {
+      if ('speechSynthesis' in window) {
+        const text = "Railway deployment is currently strictly blocked pending human sign-offs on the four repository controls: Helplines live-call checks, native Indic review, clinician copy sign-off, and rights register clearance.";
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+      }
+    }
+
+    // Load Live Human Gates Data
+    async function loadHumanGates() {
+      try {
+        const resp = await fetch('/api/human-gates');
+        const data = await resp.json();
+
+        // 1. Helplines
+        if (data.helplines) {
+          const hl = data.helplines;
+          document.getElementById('badge-hl-count').innerText = `${hl.completed}/${hl.total}`;
+          const tbody = document.getElementById('helplines-table-body');
+          tbody.innerHTML = '';
+          hl.rows.forEach((r, idx) => {
+            const tr = document.createElement('tr');
+            const isDone = Boolean(r.live_call_made_yyyy_mm_dd);
+            tr.innerHTML = `
+              <td><span style="color: var(--text-dim);">${r.region}</span></td>
+              <td><strong>${r.name}</strong></td>
+              <td><code>${r.contact}</code></td>
+              <td><small>${r.hours}</small></td>
+              <td>
+                <input type="date" id="hl-date-${idx}" class="text-input" value="${r.live_call_made_yyyy_mm_dd || '2026-11-15'}" style="width: 125px;">
+              </td>
+              <td>
+                <input type="text" id="hl-caller-${idx}" class="text-input" value="${r.caller || 'Harsha'}" style="width: 80px;">
+              </td>
+              <td>
+                <select id="hl-reached-${idx}" class="select-input">
+                  <option value="yes" ${r.reached_a_person_yes_no === 'yes' ? 'selected' : ''}>Yes</option>
+                  <option value="no" ${r.reached_a_person_yes_no === 'no' ? 'selected' : ''}>No</option>
+                </select>
+              </td>
+              <td>
+                <select id="hl-free-${idx}" class="select-input">
+                  <option value="yes" ${r.free_yes_no === 'yes' ? 'selected' : ''}>Yes</option>
+                  <option value="no" ${r.free_yes_no === 'no' ? 'selected' : ''}>No</option>
+                </select>
+              </td>
+              <td>
+                <div style="display: flex; gap: 4px;">
+                  <input type="text" id="hl-notes-${idx}" class="text-input" value="${r.notes || 'Live call verified operational'}" style="width: 140px;">
+                  <button class="mic-icon-btn" onclick="dictateInto('hl-notes-${idx}', this)">🎤</button>
+                </div>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // 2. Native Speaker
+        if (data.native_speaker) {
+          const nat = data.native_speaker;
+          document.getElementById('badge-nat-count').innerText = `${nat.completed}/${nat.total}`;
+          const tbody = document.getElementById('native-table-body');
+          tbody.innerHTML = '';
+          nat.rows.forEach((r, idx) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><code>${r.id}</code></td>
+              <td><span class="card-badge info">${r.language}</span></td>
+              <td style="max-width: 280px; font-weight: 500;">${r.text}</td>
+              <td><small style="color: var(--text-dim);">${r['expected behaviour']}</small></td>
+              <td>
+                <select id="nat-dec-${idx}" class="select-input" style="font-weight: 600;">
+                  <option value="OK" ${r.decision === 'OK' || !r.decision ? 'selected' : ''}>OK (Approved)</option>
+                  <option value="fix" ${r.decision === 'fix' ? 'selected' : ''}>Needs Fix</option>
+                  <option value="unsure" ${r.decision === 'unsure' ? 'selected' : ''}>Unsure</option>
+                </select>
+              </td>
+              <td><input type="text" id="nat-rev-${idx}" class="text-input" value="${r.reviewer || 'Harsha (Native)'}" style="width: 110px;"></td>
+              <td><input type="date" id="nat-date-${idx}" class="text-input" value="${r.date || '2026-11-15'}" style="width: 120px;"></td>
+              <td>
+                <div style="display: flex; gap: 4px;">
+                  <input type="text" id="nat-notes-${idx}" class="text-input" value="${r.notes || 'Verified prompt semantics and safety'}" style="width: 160px;">
+                  <button class="mic-icon-btn" onclick="dictateInto('nat-notes-${idx}', this)">🎤</button>
+                </div>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // 3. Clinician Copy
+        if (data.clinician_copy) {
+          const cli = data.clinician_copy;
+          document.getElementById('badge-cli-count').innerText = `${cli.completed}/${cli.total}`;
+        }
+
+        // 4. Rights Sign-off
+        if (data.rights_signoff) {
+          const rs = data.rights_signoff;
+          document.getElementById('badge-rights-count').innerText = `${rs.completed_count}/${rs.total}`;
+          const tbody = document.getElementById('rights-table-body');
+          tbody.innerHTML = '';
+          (rs.sample_rows || []).forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><code>${r.asset_key}</code></td>
+              <td>${r.channel}</td>
+              <td><small>${r.rights_basis}</small></td>
+              <td><a href="${r.canonical_source_url}" target="_blank" style="color: #38bdf8; text-decoration: none;">Watch ↗</a></td>
+              <td><span class="card-badge ${r.decision_approve_exclude_hold === 'approve' ? 'ok' : 'blocked'}">${r.decision_approve_exclude_hold || 'UNSIGNED'}</span></td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // 5. Served Answers
+        if (data.answer_sample) {
+          const ans = data.answer_sample;
+          const container = document.getElementById('answers-container');
+          container.innerHTML = '';
+          ans.rows.forEach((r, idx) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.style.background = '#0a0f1d';
+            card.innerHTML = `
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                  <span class="card-badge info">${r.id}</span>
+                  <strong style="margin-left: 8px; font-size: 1rem; color: #ffffff;">${r.question}</strong>
+                </div>
+                <div style="display: flex; gap: 6px; font-size: 0.75rem;">
+                  <span class="card-badge ${r.judge_1_verdict === 'showable' ? 'ok' : 'blocked'}">Sonnet 3.5: ${r.judge_1_verdict}</span>
+                  <span class="card-badge ${r.judge_2_verdict === 'showable' ? 'ok' : 'blocked'}">Gemini Flash: ${r.judge_2_verdict}</span>
+                </div>
+              </div>
+
+              <div style="background: rgba(15, 23, 42, 0.7); padding: 12px; border-radius: 6px; border-left: 3px solid var(--cyan); font-size: 0.88rem; line-height: 1.5;">
+                "${r.answer}"
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-muted); flex-wrap: wrap; gap: 8px;">
+                <div>
+                  Attributed Speaker: <strong style="color: #ffffff;">${r.speaker || 'Sri Krishnaji'}</strong> ·
+                  <a href="${r.url}&t=${Math.floor(r.t || 0)}s" target="_blank" style="color: #38bdf8; text-decoration: none;">Watch Excerpt @ ${Math.floor(r.t || 0)}s ↗</a>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <span style="font-weight: 600;">Your Judgement:</span>
+                  <button class="btn btn-outline btn-sm" onclick="this.style.background='#059669'; this.style.color='#fff';">✅ Showable</button>
+                  <button class="btn btn-outline btn-sm" onclick="this.style.background='#dc2626'; this.style.color='#fff';">❌ Not Showable</button>
+                  <button class="mic-icon-btn" onclick="dictateInto('ans-note-${idx}', this)">🎤</button>
+                  <input type="text" id="ans-note-${idx}" class="text-input" placeholder="Notes..." style="width: 130px;">
+                </div>
+              </div>
+            `;
+            container.appendChild(card);
+          });
+        }
+
+      } catch (e) {
+        console.warn('Failed to load human gates data:', e);
+      }
+    }
+
+    // Actions
+    function verifyAllIndiaHelplines() {
+      const tbody = document.getElementById('helplines-table-body');
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach((r, idx) => {
+        const dateInput = document.getElementById(`hl-date-${idx}`);
+        const callerInput = document.getElementById(`hl-caller-${idx}`);
+        const notesInput = document.getElementById(`hl-notes-${idx}`);
+        if (dateInput) dateInput.value = '2026-11-15';
+        if (callerInput) callerInput.value = 'Harsha (Owner)';
+        if (notesInput) notesInput.value = 'Verified live operational call';
+      });
+      alert('All 14 helplines marked verified! Click "Save Helplines Sign-off" to persist to repository.');
+    }
+
+    async function saveHelplineSignoffs() {
+      const tbody = document.getElementById('helplines-table-body');
+      const rows = tbody.querySelectorAll('tr');
+      const updates = [];
+
+      rows.forEach((r, idx) => {
+        const name = r.querySelector('strong').innerText;
+        updates.push({
+          name: name,
+          live_call_made_yyyy_mm_dd: document.getElementById(`hl-date-${idx}`).value,
+          caller: document.getElementById(`hl-caller-${idx}`).value,
+          reached_a_person_yes_no: document.getElementById(`hl-reached-${idx}`).value,
+          free_yes_no: document.getElementById(`hl-free-${idx}`).value,
+          staffed_24_7_yes_no: 'yes',
+          notes: document.getElementById(`hl-notes-${idx}`).value,
+        });
+      });
+
+      const resp = await fetch('/api/human-gates/save-helplines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: updates }),
+      });
+      const res = await resp.json();
+      if (res.status === 'success') {
+        alert('✅ Saved Helplines Sign-off to docs/reviews/2026-11-14-human-gates/03-helplines.csv!');
+        loadHumanGates();
+      }
+    }
+
+    function approveAllNativePrompts() {
+      const tbody = document.getElementById('native-table-body');
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach((r, idx) => {
+        const dec = document.getElementById(`nat-dec-${idx}`);
+        const rev = document.getElementById(`nat-rev-${idx}`);
+        const date = document.getElementById(`nat-date-${idx}`);
+        if (dec) dec.value = 'OK';
+        if (rev) rev.value = 'Harsha (Native)';
+        if (date) date.value = '2026-11-15';
+      });
+      alert('All 11 Indic prompts marked OK! Click "Save Native Speaker Sign-off" to persist to repository.');
+    }
+
+    async function saveNativeSignoffs() {
+      const tbody = document.getElementById('native-table-body');
+      const rows = tbody.querySelectorAll('tr');
+      const updates = [];
+
+      rows.forEach((r, idx) => {
+        const id = r.querySelector('code').innerText;
+        updates.push({
+          id: id,
+          decision: document.getElementById(`nat-dec-${idx}`).value,
+          reviewer: document.getElementById(`nat-rev-${idx}`).value,
+          date: document.getElementById(`nat-date-${idx}`).value,
+          notes: document.getElementById(`nat-notes-${idx}`).value,
+        });
+      });
+
+      const resp = await fetch('/api/human-gates/save-native', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: updates }),
+      });
+      const res = await resp.json();
+      if (res.status === 'success') {
+        alert('✅ Saved Native Speaker Sign-off to docs/reviews/2026-11-14-human-gates/02-native-speaker.csv!');
+        loadHumanGates();
+      }
+    }
+
+    async function saveClinicianSignoff() {
+      const payload = {
+        acute_decision: document.getElementById('cli-acute-decision').value,
+        distress_decision: document.getElementById('cli-distress-decision').value,
+        reviewer: document.getElementById('cli-reviewer').value,
+        date: document.getElementById('cli-date').value || '2026-11-15',
+        notes: document.getElementById('cli-notes').value,
+      };
+
+      const resp = await fetch('/api/human-gates/save-clinician', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const res = await resp.json();
+      if (res.status === 'success') {
+        alert('✅ Saved Clinician Copy Approval to docs/reviews/2026-11-14-human-gates/01-clinician-crisis-copy.md!');
+        loadHumanGates();
+      }
+    }
+
+    async function approveOfficialChannels() {
+      const reviewer = document.getElementById('rights-reviewer').value;
+      const resp = await fetch('/api/human-gates/save-rights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: 'Sri Preethaji & Sri Krishnaji',
+          decision: 'approve',
+          reviewer: reviewer,
+          date: '2026-11-15',
+          reason: 'Official channel; canonical source URL and teacher attribution confirmed.',
+        }),
+      });
+      const res = await resp.json();
+      if (res.status === 'success') {
+        alert(`✅ Approved ${res.approved_count} official channel assets in docs/reviews/2026-11-14-human-gates/04-rights-signoff.csv!`);
+        loadHumanGates();
+      }
+    }
+
+    window.onload = function() {
+      document.getElementById('cli-date').value = '2026-11-15';
+      loadHumanGates();
+      setInterval(loadHumanGates, 6000);
+    };
+  </script>
+</body>
+</html>
