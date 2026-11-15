@@ -54,7 +54,7 @@ Truth anchors: this section and `docs/architecture/first-person-path-to-prod.md`
 
 ## Data stores and caches
 
-- Memgraph replaces Neo4j (`NEO4J_*` env vars alias `MEMGRAPH_*`); verify which graph is live before any write. Qdrant: server-side RRF/DBSF over named dense+sparse vectors. Detail: `docs/agent/claude-md-archive/database-and-graph.md`.
+- Memgraph replaces Neo4j (`NEO4J_*` env vars alias `MEMGRAPH_*`); verify which graph is live before any write. Qdrant: server-side RRF/DBSF over named dense+sparse vectors; server upgraded to `v1.20.0` with client SDK `qdrant-client==1.20.0` (2026-11-14). Docker Compose wraps the entrypoint to strip empty `QDRANT__SERVICE__*` environment variables, preventing unintended 401 Unauthorized errors in local development. Detail: `docs/agent/claude-md-archive/database-and-graph.md`.
 - Qdrant `teacher_id` is NOT uniformly `"ekam"` (only 4,337 of 12,904 points; others `preethaji_krishnaji`, `krishnaji`). Re-count before relying on a value. Graph edges carry `tenant_id='oneness'`; run `backfill_edge_tenant_id.py --apply` after every LightRAG ingestion (idempotent). Unified single-tenant model.
 - Cache key is `(language, message)` only: never cache an answer personalized with `memory_context` (`cache_stage.py`, `test_cache_personalization_leak.py`). `TurboQuantCache` stays a process-wide singleton.
 - Embedding dimension and Qdrant collection size are a pinned pair; `_ensure_encoder()` never accepts a fallback of different dimension; `_verify_collection_dimension()` raises on mismatch; `generate_answer` abstains honestly on empty docs. Detail: archive.

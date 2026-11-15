@@ -169,7 +169,7 @@ qdrant:
   enabled: true
   image:
     repository: qdrant/qdrant
-    tag: v1.18.0
+    tag: v1.20.0
   persistence:
     enabled: true
     size: 20Gi

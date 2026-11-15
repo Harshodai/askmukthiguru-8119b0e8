@@ -138,7 +138,7 @@ services:
 
   # --- Vector DB (Qdrant) ---
   qdrant:
-    image: qdrant/qdrant:v1.18.0
+    image: qdrant/qdrant:v1.20.0
     container_name: mukthiguru-qdrant-prod
     volumes:
       - qdrant_data:/qdrant/storage
