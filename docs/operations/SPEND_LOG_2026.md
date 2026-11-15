@@ -29,6 +29,8 @@ Add a row before a paid step (planned) and complete it after (ledger before and 
 | 2026-11-14 | DONE: graded-8 grading, two graders on 40 served rows + unanswerable scoring; host-side, **not on this ledger** | graded-8 registration | n/a | n/a | estimated under 1 from list prices; not measured (planned up to 8) | about 9 |
 | 2026-11-14 | Other session's persona and acceptance probes after graded-8 (not planned in this log) | none | 130.2055 | 130.3711 (read 16:5x UTC) | 0.1656 | about 9.2 |
 
+| 2026-11-15 | DONE: stack rebuild at `87d4af4d` (warm-up) and five-path probe after the flag removal and legacy-tail move; includes any use by other sessions since the last read | verification of a refactor of the serving file | 130.3711 | 130.6801 | 0.3090 | about 9.5 |
+
 Graded-7 total against its stop rule of 25: about 4.3. Graded-8 total against its stop rule of 25: about 4.3.
 Engagement total against the cap of 90: about 9.2 (ledger 123.0053 to 130.3711 is 7.37; the two grading passes are estimates on top).
 Result and evidence: `docs/audits/ENGINEERING_READINESS_REPORT_2026-11-14.md`.

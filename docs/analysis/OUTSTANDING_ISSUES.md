@@ -195,3 +195,12 @@ column empty, source hashes in `PROVENANCE.json`, regenerable with
 
 ### 6.5 CI
 - Every GitHub Actions job on PR #99 failed in 3 seconds with "recent account payments have failed or your spending limit needs to be increased". CI gave no signal; the gates were run locally on the merged commit.
+
+### 6.6 What was closed on 2026-11-15 (commits `573ddfd5`, `87d4af4d`)
+- Flags: 24 removed (23 inlined as always on, 1 dead). Not removed, with reason: `sarvam_budget_guard_enabled` (spend guard, dynamic reader), `enable_transcript_council` (an ingestion script turns it off), `canonical_memory_enabled`, `canonical_memory_retrieval`, `memory_influence` (tests exercise the off branch), 3 index-fingerprint inputs, 4 deployment knobs. The 70 default-off flags are untouched: each needs a per-flag decision.
+- A-32: PARTLY CLOSED. A mixed harness/terminal pair now stops a production boot. Both off still boots and serves v8 because it equals the `v8_bridge` posture; closing that needs an explicit posture variable (owner decision).
+- A-33: CLOSED as a move. Legacy tail is `services/first_person_legacy.py` (2,146 lines); `first_person_pipeline.py` is 5,728. Deleting the tail is still an owner decision.
+- A-35: CLOSED. Six notebook routes and the compliance admin gate use async dependencies; guard `tests/test_no_sync_route_dependencies.py`.
+- A-34: OPEN, documented in CLAUDE.md invariant 21. A-36, A-37: OPEN (owner decision; A-37 changes served answers).
+- Lint: `ruff check .` and `ruff format --check .` pass. Found while fixing: the admin request field `limit_conversations` is accepted and ignored by `MemoryDreamer.dream()`.
+- Live check after rebuild at `87d4af4d`: normal question abstained, ambiguous question served a verified Sri Preethaji clip, crisis returned the safety redirect, out-of-corpus returned the static boundary, both follow-up turns served verified clips; no traceback in the backend log.
