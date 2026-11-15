@@ -136,7 +136,7 @@ All 18 Docker containers are running healthy and freshly rebuilt from source:
 ## 5. Next Steps for Incoming Engineers
 
 1. **Conduct Faculty Demonstration**:
-   - Follow the 5-act demonstration script in [DEMO_READINESS_DECISION.md](DEMO_READINESS_DECISION.md):
+   - Follow the 5-act demonstration script in [DEMO_READINESS_DECISION.md](docs/acceptance/2026-11-14/DEMO_READINESS_DECISION.md):
      - Act I: Core Spiritual Question (*"How do I transition from suffering to a beautiful state during family stress?"*)
      - Act II: Deep Conceptual Inquiry (*"What is the connection between self-centric thinking and suffering?"*)
      - Act III: Epistemic Boundary & Abstention (*"What did the guru teach about quantum entanglement and AGI?"*)

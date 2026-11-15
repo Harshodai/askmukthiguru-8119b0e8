@@ -166,3 +166,32 @@ column empty, source hashes in `PROVENANCE.json`, regenerable with
 - **Single-Machine Hardware Constraints**: All latency, throughput, and coverage measurements derive from a single Apple Silicon Mac host with local Docker. Production performance on Railway/Supabase is unmeasured.
 - **Synthetic Frozen-116 Nature**: The 116 core evaluation questions were synthetically authored from transcripts, inherently flattering retrieval phrasing.
 - **Multi-Turn Dataset Status**: 24 conversation cases (`conversation_cases_draft.jsonl`) remain draft awaiting owner review; multi-turn performance is not yet part of registered bars.
+
+---
+
+## 6. Foundation review of 2026-11-15 (inventory only; nothing below was changed unless marked DONE)
+
+### 6.1 Documentation
+- DONE: 10 acceptance reports moved from the repo root to `docs/acceptance/2026-11-14/`; 2 root video-analysis notes and 26 markdown files with zero inbound references and no commit since 2026-10-15 deleted (recoverable from git history).
+- Open: 2,360 tracked markdown files, 1,601 of them under `memory/` (OKF). 759 others: 136 are read by a test, guard or code and must stay; 101 have no inbound reference, of which 69 are newer than 2026-10-15 and were left. `handoff.md` and `FIRST_PERSON_CONTEXT_HARNESS_AND_TAGGING_PLAN_2026-10-20.md` are still at the root because tests and guards read them there.
+
+### 6.2 Config flags (`backend/app/config.py`, 204 boolean or mode flags; tracked files only, real env files were not read)
+- 2 with no reader: `first_person_relevance_fallback_enabled`, `sarvam_budget_guard_enabled`. Safe to delete after updating the two tests that name the first.
+- 32 default-on and never switched off in a tracked file or test (list: scratch inventory, to be copied into a plan before work starts). Inlining them removes about 150 to 200 lines. Not done: three feed the index fingerprint (`reingest_late_chunking`, `raptor_parent_summaries_enabled`, `bm25_retrieval_enabled`), seven touch memory consent or voice, four are deployment knobs. Each needs a one-line owner yes.
+- 70 default-off and never switched on in a tracked file. Each guards code that may be dead; deleting the flag means deleting that code, so it is a per-flag decision.
+- 99 must stay (safety, spend, auth, graded-run pins, owner decisions).
+
+### 6.3 Architecture (independent review, file:line evidence in the session report)
+- A-32: `first_person_context_harness_enabled` and `first_person_context_terminal_enabled` default to False in code. The serving posture exists only in env. A deployment that misses either variable serves the legacy v7/v8 path. Fix: fail startup when the v10-only contract is incomplete. Changes no served answer where the env is already correct.
+- A-33: about 2,000 of the 7,730 lines of `services/first_person_pipeline.py` are the legacy v7/v8 tail, unreachable with harness and terminal on. Moving it to its own module is a pure move; deleting it is an owner decision.
+- A-34: general-knowledge and live-research turns still generate prose (`rag/pipeline_registry.py:96`, `off_topic_stage.py:516-529`). Invariant 21 does not list them as carve-outs. Either document them or close them; closing changes served answers and needs a registered run.
+- A-35: `routers/notebooks.py` has six handlers on the sync `Depends(get_container)`, against the async-dependency rule (L-DOCKER-18).
+- A-36: three LLM provider classes share no code (4,353 lines); only OpenRouter is live.
+- A-37: fail-closed lane checks are spread over six files; `deep_research.py` does not check them.
+
+### 6.4 Data (read-only scan, 2026-11-14)
+- `first_person_v10`: 4,224 points (2,758 spans, 1,466 parents); hash mismatch 0; rights `licensed` on every span; 22 spans not speaker-verified; 8 quarantined; 7 under 15 words; 16 duplicate-text points. Fingerprint unchanged after the Qdrant 1.20.0 upgrade.
+- `scripts/ops/data_quality_audit.py` exits 1: the corpus folder `scripts/ingestion/corpus` is not on this machine, so the transcript checks cannot run. OKF: 34 of 72 quoted strings not found in their source video; 40 duplicate filename pairs. Legacy chat collection: 4,824 of 14,080 points have no `video_id`.
+
+### 6.5 CI
+- Every GitHub Actions job on PR #99 failed in 3 seconds with "recent account payments have failed or your spending limit needs to be increased". CI gave no signal; the gates were run locally on the merged commit.
