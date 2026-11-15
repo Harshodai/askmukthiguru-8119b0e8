@@ -208,3 +208,136 @@ All 18 Docker containers are running healthy and freshly rebuilt from source:
 - **Supabase Local Studio**: `http://localhost:54324/` (Database explorer, Auth, Storage)
 - **Qdrant Vector DB**: `http://localhost:6333/dashboard` (Vector collections and payload viewer)
 - **Redis Cache & Limiter**: Port `6379` (Session store and rate limiting)
+
+
+---
+
+# Operational Handoff: Qdrant Elevation to v1.20.0, Stack Re-creation & Ecosystem Verification
+
+**Date:** 2026-11-15 03:40 UTC (09:10 IST)  
+**Author:** Antigravity  
+**Branch:** `feature/audit-strengthen-rag-qdrant` (PR #99 open at `https://github.com/Harshodai/askmukthiguru-8119b0e8/pull/99`)  
+**Commit Range:** `8b0a63af` -> `a34fe66f` -> `ff740d93` (clean working tree, pushed to origin)
+
+---
+
+## 1. Goal We Are Working Toward
+
+1. **Stack Re-creation & Maximum Version Modernization**:
+   - Recreate the full 17-container Docker stack end-to-end cleanly.
+   - Upgrade Qdrant vector database and its client SDK to the highest supported production release (`v1.20.0` / `qdrant-client==1.20.0`).
+   - Preserve all data, RocksDB segments, collection configurations, and payload invariants across migrations.
+2. **Subsystem Health & Integrity Verification**:
+   - Verify health and connectivity across OKF (Ontology Knowledge Fabric), Memgraph (graph database), Redis (`noeviction` session/rate limit cache), Supabase/PostgreSQL (auth & chat sessions), Celery async workers, and Nginx frontend.
+   - Verify the end-to-end first-person retrieval pipeline (`POST /api/chat`) under authentic anonymous HMAC session tokens.
+3. **Strict Invariant & Governance Adherence**:
+   - Obey Rule X6 and O-4: Preserve all 4,224 points in `first_person_v10` and ensure the alias `first_person` remains unchanged.
+   - Keep individual git commit history intact on the remote feature branch (PR #99) without squashing.
+   - NEVER push directly to `origin/main` (which triggers automatic production deployment to Railway).
+   - Maintain `lessons.md` strictly below the 1,500-line ceiling.
+
+---
+
+## 2. Current State of Code & Stack
+
+- **Git & Remote Branch**:
+  - Local `main` is at commit `ff740d93` (`feat(qdrant): upgrade server and client to v1.20.0, resolve compose auth trap, verify stack`).
+  - Working tree is clean.
+  - Remote feature branch `origin/feature/audit-strengthen-rag-qdrant` is up to date with `main`.
+  - PR #99 is open, healthy, and encompasses all individual commits from 2026-11-13 through 2026-11-15.
+- **Docker Stack Health (17 Containers Running)**:
+  - `mukthiguru-backend`: Elevated to Python `qdrant-client==1.20.0`. Deep health check `/api/health` returns `ready: true`, `status: healthy`, `qdrant: { ok: true, latency_ms: 49, critical: true }`.
+  - `mukthiguru-qdrant`: Elevated to Docker image `qdrant/qdrant:v1.20.0`. REST/gRPC endpoints responsive. Verified `version: "1.20.0"`. Collection `first_person_v10` has 4,224 points; alias `first_person` verified.
+  - `mukthiguru-memgraph`: Graph database running with 9,696 nodes and 11,033 relationships across 10 labels.
+  - `mukthiguru-redis`: 616 keys with `noeviction` policy, 0 evictions.
+  - `mukthiguru-supabase`: 1,919 sessions, auth and chat migrations verified.
+  - `mukthiguru-celery`: 20 worker queues running.
+  - `mukthiguru-frontend`: Nginx serving HTTP 200 with CSP, HSTS, X-Frame-Options, and `VITE_PERSONALIZE_TEACHING_ENABLED=true` compiled into the client bundle.
+- **End-to-End Chat Flow Verified**:
+  - Tested asynchronous session flow via `POST /api/auth/anon-session` -> `POST /api/chat` -> `GET /api/jobs/{job_id}`.
+  - Successfully retrieved verbatim clip from `first_person_v10` on Qdrant v1.20.0 with verified citation (`Sri Preethaji`, `speaker_verified: true`).
+
+---
+
+## 3. Files Actively Edited in this Cycle
+
+1. **`backend/docker-compose.yml`**:
+   - Updated Qdrant image to `qdrant/qdrant:v1.20.0`.
+   - Added POSIX entrypoint wrapper script (`/bin/sh -c '... exec ./entrypoint.sh'`) that unsets empty `QDRANT__SERVICE__API_KEY` and `QDRANT__SERVICE__READ_ONLY_API_KEY` environment variables.
+2. **`docker-compose.prod.yml`**, **`backend/infrastructure/k8s.yaml`**, **`infrastructure/k8s_deployment.yaml`**, **`infrastructure/k8s/helm/mukthiguru/values.yaml`**, **`.github/workflows/fixture-stores.yml`**:
+   - Pinned Qdrant image version to `v1.20.0` in lockstep across all production, Kubernetes, Helm, and CI manifests.
+3. **`backend/requirements.txt` & `backend/requirements.lock`**:
+   - Bumped `qdrant-client==1.18.0` -> `qdrant-client==1.20.0` and recompiled lockfile via `uv pip compile`.
+4. **`CLAUDE.md` & `backend/CLAUDE.md`**:
+   - Updated system documentation to reflect Qdrant server `v1.20.0` and client SDK `1.20.0`. Documented the Compose entrypoint authentication trap fix.
+5. **`lessons.md` & `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`**:
+   - Added new architectural lessons `L-QDRANT-AUTH-ENV-TRAP-1` and `L-QDRANT-STEP-MIGRATION-1`.
+   - Archived Oct 28 lessons to stay below the 1,500-line ceiling (current: 1,469 lines, verified by `test_lessons_archive.py`).
+6. **`.claude/tasks/2026-11-14-qdrant-upgrade-stack-elevation-and-verification.md`**:
+   - Recorded complete stepped upgrade plan, verification evidence, and rollback runbook.
+
+---
+
+## 4. Everything Tried and Failed (Dead Ends & Root Causes)
+
+1. **Direct Leap Upgrade from Qdrant v1.18.0 to v1.20.0**:
+   - *Attempt*: Directly bumping the Qdrant container image from `v1.18.0` to `v1.20.0`.
+   - *Failure / Risk*: Qdrant documentation and RocksDB storage engine invariants strictly forbid skipping minor versions. Bypassing `v1.19.x` risks segment corruption and index metadata incompatibility.
+   - *Correction*: Executed a stepped migration (`1.18.0` -> `1.19.2` -> `1.20.0`), starting the engine at each intermediate step and verifying collection integrity before advancing.
+2. **Direct Environment Substitution in Compose (`${VAR:-}`)**:
+   - *Attempt*: Commit `13c818dad` added `- QDRANT__SERVICE__API_KEY=${QDRANT_WRITE_API_KEY:-${QDRANT_API_KEY:-}}`.
+   - *Failure*: When `QDRANT_WRITE_API_KEY` is not defined in `.env`, Compose passes `QDRANT__SERVICE__API_KEY=""`. Qdrant treats an empty string as *enabling* API key authentication with an empty key, rejecting all requests with `401 Unauthorized`. This caused the critical `/api/health` check to fail.
+   - *Correction*: Implemented an entrypoint wrapper that unsets empty key variables before executing `./entrypoint.sh`.
+3. **Querying `/api/chat` with Arbitrary Session Strings or Mock Bearer Tokens**:
+   - *Attempt*: Testing `/api/chat` using `session_id="00000000-0000-0000-0000-000000000001"` or fabricated HS256 JWT tokens.
+   - *Failure*: Returned `HTTP 400: Invalid anonymous session token`.
+   - *Root Cause*: `backend/services/auth_service.py` enforces cryptographic HMAC-SHA256 signatures on anonymous session tokens (`<payload>.<sig>`) generated by `POST /api/auth/anon-session` to prevent quota bypass and history spoofing (Invariant L-K3-1).
+   - *Correction*: Fetched authentic token via `POST /api/auth/anon-session` and passed it as `session_id` in the body and `X-Session-Id` header.
+4. **Module Version Inspection via `qdrant_client.__version__`**:
+   - *Attempt*: Checking installed client version with `python3 -c "import qdrant_client; print(qdrant_client.__version__)"`.
+   - *Failure*: `AttributeError: module 'qdrant_client' has no attribute '__version__'`.
+   - *Correction*: Used standard metadata inspection: `importlib.metadata.version('qdrant-client')`.
+
+---
+
+## 5. Results Obtained from Each Step
+
+| Step | Action Taken | Result / Outcome | Status |
+| :--- | :--- | :--- | :--- |
+| **Volume Backup** | Archived `/data` volume from running Qdrant container | Created `/tmp/qdrant_upgrade_20261114/qdrant_data_v1.18.0.tgz` (597.5 MB, sha256 `75e9710c5f1e73194d6d3baf5ffb09ee5a41a248f43178b721c0e4ea0025ad45`) | 🟢 **PASS** |
+| **Stepped Migration** | Upgraded `1.18.0` -> `1.19.2` -> `1.20.0` | Server reported version `1.20.0`; all 4,224 points preserved on `first_person_v10` | 🟢 **PASS** |
+| **Auth Trap Neutralization** | Added POSIX wrapper in `backend/docker-compose.yml` | `QDRANT__SERVICE__API_KEY` unset when empty; unauthenticated local REST/gRPC queries return HTTP 200 | 🟢 **PASS** |
+| **SDK & Container Rebuild** | Bumped `qdrant-client` to `1.20.0`, compiled lockfile, rebuilt image | All 30 build stages passed; container reports `qdrant-client: 1.20.0` | 🟢 **PASS** |
+| **Deep Health Check** | Probed `GET /api/health` against running container | `ready: true`, `status: healthy`, `qdrant: { ok: true, latency_ms: 49, critical: true }` | 🟢 **PASS** |
+| **Subsystems Matrix** | Verified Memgraph, OKF, Redis, Supabase, Celery | Memgraph (9,696 nodes, 11,033 rels), OKF (776 entries), Redis (616 keys, `noeviction`), Supabase (1,919 sessions), Celery (20 queues) | 🟢 **PASS** |
+| **E2E Chat Probe** | Tested asynchronous job flow with signed anon token | Job queued, completed; retrieved verbatim quote from `first_person_v10` with verified speaker attribution (`Sri Preethaji`) | 🟢 **PASS** |
+| **Invariants & Archive** | Ran `test_lessons_archive.py` and infrastructure tests | 3/3 archive tests passed; `lessons.md` at 1,469 lines (< 1,500 ceiling); 33/33 invariant tests passed | 🟢 **PASS** |
+| **Remote Sync** | Committed and pushed to `feature/audit-strengthen-rag-qdrant` | PR #99 updated with all 23 individual commits preserved; working tree clean | 🟢 **PASS** |
+
+---
+
+## 6. What Was Learned (Deeper Engineering Insights)
+
+1. **`L-QDRANT-AUTH-ENV-TRAP-1` (Empty Env String Is Not Unset in Docker Compose)**:
+   - In Docker Compose, specifying `- QDRANT__SERVICE__API_KEY=${QDRANT_WRITE_API_KEY:-}` when the variable is unset results in setting the container environment variable to an empty string `""`, NOT leaving it undefined. Rust services like Qdrant evaluate `env::var("QDRANT__SERVICE__API_KEY")` as `Ok("")`, which enables authentication expecting an empty secret. A POSIX shell wrapper that checks `[ -z "$VAR" ] && unset VAR` is mandatory when exposing optional credentials in Compose.
+2. **`L-QDRANT-STEP-MIGRATION-1` (Strict Minor Version Stepping)**:
+   - Storage engines backed by RocksDB and custom segment indexes (such as Qdrant) cannot safely skip minor versions (`1.18` -> `1.20`). Executing stepped migrations (`1.18` -> `1.19` -> `1.20`) ensures on-disk schema transitions, WAL replay, and index manifests upgrade without data corruption.
+3. **`L-ANON-HMAC-SESSION-1` (Signed Anonymous Session Security)**:
+   - Anonymous sessions are not arbitrary strings; they are cryptographically signed HMAC tokens (`<entropy>.<sig>`). Any test or script hitting `/api/chat` must first acquire a signed token from `POST /api/auth/anon-session` and forward it via body `session_id` and header `X-Session-Id`.
+4. **`L-LINE-CEILING-DISCIPLINE-1` (Shrink-Only Governance on Operational Docs)**:
+   - Rules like the 1,500-line ceiling on `lessons.md` must be respected proactively. Archiving dated operational blocks to dedicated archive files keeps working memory fast and prevents test failures in CI.
+
+---
+
+## 7. Next Steps
+
+1. **Owner Sign-off on Human Gate Packets**:
+   - The 5 review packets in `docs/reviews/2026-11-14-human-gates/` remain unreviewed (empty decision columns, source hashes pinned in `PROVENANCE.json`). Owner review is required for human attribution certification (B7).
+2. **Railway Staging Preparation**:
+   - Review gap list in `OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md` §2.7:
+     - 15 Railway variables missing (3 secrets requiring owner creation).
+     - Remove `ENABLE_TEST_AUTH` on production.
+     - Elevate Railway Qdrant from `v1.17.1` to `v1.20.0` following the same stepped migration path.
+     - Apply 4 pending Supabase migrations on remote instance.
+3. **Merge PR #99**:
+   - Once all review gates and CI workflows finish on GitHub, merge `feature/audit-strengthen-rag-qdrant` into `main`.
