@@ -1,6 +1,44 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 15, 2026 — Fable 5.2 Deterministic Parsers, Trie Normalization & Hardening
+
+### L-NONCAPTURING-STUTTER-RE-1. A non-capturing group paired with a backreference causes regex backreference mismatch.
+- **What:** `_STUTTER_RE` in `asr_cleaner.py` used `(?:So|Well|...)` paired with `\1`. Because group 1 was non-capturing, single-word stutters ("So, So") failed to match and `m.group(1)` resolved to "you know", corrupting transcript tokens while running an 8x4 fixed-point loop.
+- **Fix:** Switched group 1 to capturing `(So|Well|...)` and replaced the multi-pass fixed-point loops with `_collapse_word_and_stutter_repeats_deterministic()`, an $O(N)$ single-pass token state machine that is strictly idempotent (`clean(clean(x)) == clean(x)`) while preserving `CHANT_WORDS` and `_LEGIT_DOUBLES`.
+- **Rule:** A backreference (`\1`) requires a capturing group. When cleaning repetitive spoken noise, prefer single-pass token-stream state machines over iterated regex fixed points.
+
+### L-CAPTION-REPETITION-REDOS-1. Nested quantifier captions regex causes catastrophic backtracking on repeated tokens.
+- **What:** `_REPEATED_TOKEN_RE` (`r"(\S+(?:\s+\S+){0,3})(?:\s+\1){2,}"` in `cleaner.py`) exhibited exponential backtracking on long caption streams. Additionally, 14 sequential `FILLER_WORDS` regex passes and `__DOT__`/`__COMMA__` string sentinels introduced fragile string mutations.
+- **Fix:** Implemented `_strip_markup_and_annotations_dfa()` (single-pass character DFA), linear token n-gram deduplicator (`_collapse_repeated_ngrams_token_stream()`), single-pass token filter, and stateful sentence splitter (`split_sentences_deterministic()`) preserving abbreviations, decimals, and Indic dandas.
+- **Rule:** Never use nested quantifier regexes for multi-word repetition detection. Use discrete token-stream n-gram windows.
+
+### L-DOCTRINE-TRIE-REVERSIBLE-1. Sequential multi-regex scans scale as $O(R \cdot N)$ and stubbed ledgers break provenance audits.
+- **What:** `doctrine_terms.py` executed 180+ individual regex `.finditer()` passes per segment ($O(R \cdot N)$), while `revert_corrections_from_ledger()` was an unfinished stub returning `corrected_text` unmodified whenever `original_segment_text` was omitted.
+- **Fix:** Built `DoctrinePhraseTrie` (single-pass $O(N)$ longest-match word-boundary phrase scanner) and recorded both input and corrected offsets in the ledger so `revert_corrections_from_ledger()` reconstructs original text and verifies SHA-256 round-trip integrity.
+- **Rule:** Multi-phrase entity normalization must use Trie/Aho-Corasick token structures, and audit ledgers must store bidirectional offsets to guarantee mathematical reversibility.
+
+### L-GREETING-ZERO-REGEX-1. Overlapping whitespace quantifiers in conversational regexes cause polynomial ReDoS.
+- **What:** Stacked greeting regexes with adjacent whitespace classes (`CodeQL #1975`) exhibited polynomial backtracking when given long whitespace floods or repeated Unicode emojis.
+- **Fix:** Replaced greeting regexes with a zero-regex, linear $O(N)$ lexical token scanner (`is_deterministic_greeting`) with a strict 80-character boundary.
+- **Rule:** User-facing greeting and intake routers must use zero-regex lexical scanners with strict length bounds ahead of any heavy downstream pipeline stages.
+
+### L-EXISTENTIAL-DISTRESS-CARVEOUT-1. Career burnout and existential emptiness without ideation must not trigger suicide redirects.
+- **What:** Messages expressing existential burnout ("achieved success in my career but still feel empty inside", Query A17) triggered suicide crisis preemption and emergency helpline redirects.
+- **Fix:** Implemented `classify_existential_vs_severe_distress()` in `DistressStage`, distinguishing acute suicidal ideation (`CRISIS`) from contemplative burnout (`MILD_EXISTENTIAL`), routing seekers to Serene Mind practice rather than emergency crisis lines.
+- **Rule:** Severe distress classifiers must isolate acute ideation patterns from philosophical or existential despair so contemplative inquiries remain within the compassionate teaching lane.
+
+### L-ATTRIBUTION-METHOD-GATE-1. Claiming speaker verification without a certified biometric method violates provenance invariants.
+- **What:** Clips with unverified diarization or absent verification methods were formatted with bare teacher names, confusing automated diarization with human- or model-certified biometric voiceprints.
+- **Fix:** Implemented `format_clip_attribution()`, requiring `verified=True` AND a verified method (`ecapa_cosine`, `biometric_embedding`, `human_listen`) to render bare teacher attribution; all others are explicitly tagged with `(shared in <channel>, unverified diarization)` or `(unverified diarization)`.
+- **Rule:** A speaker label may only appear unqualified when backed by a verified biometric method. Unverified transcripts must declare their channel provenance or diarization status.
+
+### L-TELEMETRY-NPLUSONE-5XX-1. Sequential trace table queries create N+1 bottlenecks and swallow 5xx storage outages as 404.
+- **What:** `get_query_trace()` executed 6 sequential Supabase queries and caught all exceptions as `return None`, misrepresenting database connection failures as HTTP 404 "Trace not found".
+- **Fix:** Built `fetch_query_trace_concurrent()` using `asyncio.gather` and raised `TelemetryBackendError` on database failures, enabling `admin.py` to return HTTP 503 while preserving HTTP 404 for genuinely missing traces.
+- **Rule:** Differentiate empty query results (404) from transport and storage errors (503). Concurrently fetch independent telemetry tables.
+
+
 ## Nov 15, 2026 — Graded-8 remediation, dry-run closure, and lane alignment
 
 ### L-RUBRIC-RECITED-IS-NOT-MEASURED-1. Deterministic offline replay re-scoring is not an LLM judge measurement.
