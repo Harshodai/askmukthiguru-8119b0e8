@@ -112,6 +112,8 @@ export default defineRailway((ctx) => {
     SERVING_POSTURE === "v10_only"
       ? {
           FIRST_PERSON_ACTIVE_COLLECTION: "first_person_v10",
+          FIRST_PERSON_COLLECTION: "first_person_v10",
+          FIRST_PERSON_CONTEXT_COLLECTION: "first_person_v10",
           FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "true",
           FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true",
           FIRST_PERSON_SERVING_POSTURE: SERVING_POSTURE,
@@ -130,6 +132,28 @@ export default defineRailway((ctx) => {
             FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: preserve(),
             FIRST_PERSON_SERVING_POSTURE: preserve(),
           };
+
+  // ---- Live first-person-only posture (U2, 2026-11-16) -------------------------
+  // Railway gets code defaults for any variable not pinned, and these differ from
+  // the live local values. Non-secret literals only. Pinned on backend AND worker
+  // (both import app.config). Guard: tests/test_railway_posture_pinned_2026_11_16.py.
+  const livePosture = {
+    FIRST_PERSON_CHAT_BRIDGE_ENABLED: "true",
+    FIRST_PERSON_LLM_FALLBACK_ENABLED: "false",
+    FIRST_PERSON_SERVE_WEAK_MATCH: "true",
+    FIRST_PERSON_REQUIRE_SPEAKER_VERIFIED: "true",
+    // Owner decision 12.4 #3: local/graded value (code default is 2).
+    FIRST_PERSON_RELEVANCE_MIN_SCORE: "3",
+    DISTRESS_LLM_ESCALATION_ENABLED: "true",
+    FIRST_PERSON_CONTEXT_USE_SPARSE: "false",
+    FIRST_PERSON_LLM_RERANK_ENABLED: "false",
+    SEMANTIC_CACHE_ENABLED: "false",
+    WEB_SEARCH_ENABLED: "false",
+    FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED: "true",
+    FIRST_PERSON_HYDE_ENABLED: "true",
+    // TODO owner decision 12.4 #4: live value is false; decide before go-live.
+    FIRST_PERSON_POINTS_SERVABLE_HASH_CHECK_ENABLED: "false",
+  };
 
   // ---- Backend API ---------------------------------------------------------
   // Multi-stage Dockerfile (builder + runtime). QUANTIZED_ONLY=true: INT8 ONNX
@@ -151,6 +175,7 @@ export default defineRailway((ctx) => {
     env: {
       ...sharedEnv,
       ...postureEnv,
+      ...livePosture,
       RAILWAY_DEPLOYMENT_DRAINING_SECONDS: DRAIN_SECONDS_BACKEND,
       REDIS_URL: cache.env.REDIS_URL,
       FACULTY_ACCESS_CODE: preserve(), // D-29: the only staging gate
@@ -177,6 +202,8 @@ export default defineRailway((ctx) => {
     replicas: 1,
     env: {
       ...sharedEnv,
+      ...postureEnv,
+      ...livePosture,
       RAILWAY_DEPLOYMENT_DRAINING_SECONDS: DRAIN_SECONDS_WORKER,
       SERVICE_TYPE: "celery",
       CELERY_QUEUES: "ingestion,embedding,indexing,okf,memory",
