@@ -326,6 +326,7 @@ services:
       - FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=${FIRST_PERSON_CONTEXT_TERMINAL_ENABLED:-false}
       # A-32: declared posture (v10_only | v8_bridge); empty = undeclared, unchanged behaviour.
       - FIRST_PERSON_SERVING_POSTURE=${FIRST_PERSON_SERVING_POSTURE:-}
+      - FIRST_PERSON_JUDGE_RUBRIC=${FIRST_PERSON_JUDGE_RUBRIC:-v1}
       - FIRST_PERSON_CONTEXT_COLLECTION=${FIRST_PERSON_CONTEXT_COLLECTION:-}
       # Owner-only, file-backed first-person review preview (2026-10-22).
       # LOCAL ONLY: the route refuses to run when IS_PRODUCTION is true, and it

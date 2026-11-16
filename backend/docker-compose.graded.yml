@@ -41,6 +41,9 @@ services:
       # config until its negative-control measurement exists; switching it on is a new
       # registered run. Pinned so the manifest records the value (2026-11-13).
       FIRST_PERSON_COMPARATIVE_JUDGE_ENABLED: "false"
+      # Judge prompt version. v1 is the prompt of the registered runs; v2 (strict
+      # completeness rules) is switched on only by a new registered run.
+      FIRST_PERSON_JUDGE_RUBRIC: "v1"
       # Graded-6 A/B setting (sparse retrieval OFF). The Settings default is still True and the
       # owner decision on the default is open; this pin only makes the graded config explicit.
       FIRST_PERSON_CONTEXT_USE_SPARSE: "false"

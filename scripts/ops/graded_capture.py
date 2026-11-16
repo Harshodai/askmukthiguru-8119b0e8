@@ -47,6 +47,12 @@ BENCHMARK_OOC13 = REPO / "evals" / "first_person" / "ooc13.jsonl"
 ENV_PREFIXES = ("FIRST_PERSON_", "OPENROUTER_", "CELERY_TASK", "LLM_PROVIDER", "INTENT_ROUTER_")
 
 
+MAX_REASON_IDS = 10
+RETRY_ATTEMPTS = 5  # per request, first try included
+RETRY_BASE_S = 2.0
+RETRY_CAP_S = 60.0
+
+
 # ── pure helpers (unit-tested) ───────────────────────────────────────────────
 
 
@@ -96,7 +102,13 @@ def unavailable_citation_fields(citations: list[dict[str, Any]]) -> list[str]:
 
 
 def build_row(
-    item: dict[str, Any], result: dict[str, Any], http: int, wall_seconds: float
+    item: dict[str, Any],
+    result: dict[str, Any],
+    http: int,
+    wall_seconds: float,
+    *,
+    transport_retries: int = 0,
+    transport_failed: bool = False,
 ) -> dict[str, Any]:
     cits = result.get("citations") or []
     citations = [build_citation(c) for c in cits]
@@ -113,6 +125,9 @@ def build_row(
         # Server-side latency is what the p95 bar is read from; wall clock includes polling.
         "latency_ms": result.get("latency_ms"),
         "sec": round(wall_seconds, 1),
+        # A refused or never-finished request says nothing about routing; the report excludes it.
+        "transport_retries": transport_retries,
+        "transport_failed": transport_failed,
     }
 
 
@@ -156,7 +171,11 @@ def _run_cache_proof() -> Check:
 
 
 def validity(
-    log_text: str, spend_before: tuple[Any, Any], spend_after: tuple[Any, Any], preflight_ok: bool
+    log_text: str,
+    spend_before: tuple[Any, Any],
+    spend_after: tuple[Any, Any],
+    preflight_ok: bool,
+    transport_failed_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """A run is valid only if the preflight passed and the log shows no blocked LLM calls or auth errors."""
     log = check_log_clean(log_text)
@@ -165,6 +184,13 @@ def validity(
         reasons.append("preflight failed")
     if not log.ok:
         reasons.append(log.detail)
+    if transport_failed_ids:
+        shown = ", ".join(transport_failed_ids[:MAX_REASON_IDS])
+        more = " ..." if len(transport_failed_ids) > MAX_REASON_IDS else ""
+        reasons.append(
+            f"{len(transport_failed_ids)} rows failed at transport after retries "
+            f"(not 200/202, or job never completed): {shown}{more}"
+        )
     return {
         "valid": not reasons,
         "reasons": reasons,
@@ -310,35 +336,75 @@ def _items(
     return items
 
 
-def _ask(client: Any, base: str, token_box: dict[str, Any], question: str) -> tuple[int, dict]:
-    """One question through /api/chat with an anonymous session (5 chats per session)."""
+def retry_wait(resp: Any, attempt: int) -> float | None:
+    """Seconds to wait before retrying, or None when this response is not retryable.
+
+    429 always retries; 503 only with a Retry-After header. Retry-After wins, else 2 s doubling;
+    every wait is capped at 60 s. Other 4xx/5xx are never retried.
+    """
+    after = resp.headers.get("retry-after")
+    if resp.status_code != 429 and not (resp.status_code == 503 and after is not None):
+        return None
+    try:
+        wait = float(after) if after is not None else RETRY_BASE_S * 2**attempt
+    except ValueError:  # an HTTP-date Retry-After: fall back to backoff
+        wait = RETRY_BASE_S * 2**attempt
+    return min(max(wait, 0.0), RETRY_CAP_S)
+
+
+def request_with_retry(send: Any, sleep: Any = time.sleep) -> tuple[Any, int]:
+    """Call ``send()`` up to RETRY_ATTEMPTS times; returns (last response, retries used)."""
+    for attempt in range(RETRY_ATTEMPTS):
+        r = send()
+        wait = retry_wait(r, attempt)
+        if wait is None or attempt == RETRY_ATTEMPTS - 1:
+            return r, attempt
+        sleep(wait)
+    raise AssertionError("unreachable")
+
+
+def _ask(
+    client: Any,
+    base: str,
+    token_box: dict[str, Any],
+    question: str,
+    sleep: Any = time.sleep,
+) -> tuple[int, dict, int, bool]:
+    """One question through /api/chat with an anonymous session (5 chats per session).
+
+    Returns (http, result, transport_retries, completed). ``completed`` is False when the final
+    status is not a success for its path or a 202 job never finished: a transport failure.
+    """
+    retries = 0
     if token_box.get("token") is None or token_box["used"] >= 4:
-        for _ in range(25):
-            r = client.post(base + "/api/auth/anon-session")
-            if r.status_code == 200:
-                token_box.update(token=r.json()["token"], used=0)
-                break
-            time.sleep(float(r.headers.get("retry-after", "8")) + 2)
-        else:
-            raise SystemExit("anon-session endpoint stayed rate limited")
+        r, n = request_with_retry(lambda: client.post(base + "/api/auth/anon-session"), sleep)
+        retries += n
+        if r.status_code != 200:
+            return r.status_code, {}, retries, False
+        token_box.update(token=r.json()["token"], used=0)
     token_box["used"] += 1
     token = token_box["token"]
     headers = {"X-Session-Id": token}
-    r = client.post(
-        base + "/api/chat",
-        json={"messages": [], "user_message": question, "session_id": token},
-        headers=headers,
+    r, n = request_with_retry(
+        lambda: client.post(
+            base + "/api/chat",
+            json={"messages": [], "user_message": question, "session_id": token},
+            headers=headers,
+        ),
+        sleep,
     )
+    retries += n
     if r.status_code == 202:
         job = r.json()["job_id"]
         deadline = time.time() + 110
         while time.time() < deadline:
             j = client.get(base + f"/api/jobs/{job}", headers=headers).json()
             if j.get("status") in ("completed", "failed"):
-                return r.status_code, j.get("result") or {}
-            time.sleep(1.0)
-        return r.status_code, {}
-    return r.status_code, (r.json() if r.status_code == 200 else {})
+                return r.status_code, j.get("result") or {}, retries, True
+            sleep(1.0)
+        return r.status_code, {}, retries, False
+    ok = r.status_code == 200
+    return r.status_code, (r.json() if ok else {}), retries, ok
 
 
 def main() -> int:
@@ -396,12 +462,24 @@ def main() -> int:
     include_qb = args.include_question_bank or args.question_bank_only
     items = _items(include_frozen, include_unanswerable, include_benchmarks, include_qb)
 
+    transport_failed_ids: list[str] = []
     with httpx.Client(timeout=120) as client, rows_path.open("w", encoding="utf-8") as out:
         for item in items:
             t0 = time.time()
-            http, result = _ask(client, args.base_url, token_box, item["question"])
+            http, result, retries, completed = _ask(
+                client, args.base_url, token_box, item["question"]
+            )
+            if not completed:
+                transport_failed_ids.append(str(item["id"]))
             row = stamp_row(
-                build_row(item, result, http, time.time() - t0),
+                build_row(
+                    item,
+                    result,
+                    http,
+                    time.time() - t0,
+                    transport_retries=retries,
+                    transport_failed=not completed,
+                ),
                 sha=sha,
                 container_id=facts["container_id"],
                 run_id=args.run_id,
@@ -413,7 +491,13 @@ def main() -> int:
         ["docker", "logs", args.container], capture_output=True, text=True, timeout=120
     )
     (run_dir / "backend.log").write_text(log_text.stdout + log_text.stderr, encoding="utf-8")
-    verdict = validity(log_text.stdout + log_text.stderr, spend_before, read_spend(), preflight_ok)
+    verdict = validity(
+        log_text.stdout + log_text.stderr,
+        spend_before,
+        read_spend(),
+        preflight_ok,
+        transport_failed_ids,
+    )
     read_files = [
         p
         for p, used in (

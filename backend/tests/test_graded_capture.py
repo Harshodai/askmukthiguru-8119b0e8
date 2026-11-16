@@ -6,6 +6,7 @@ import pytest
 
 from scripts.ops.graded_capture import (
     CITATION_IDENTITY_FIELDS,
+    _ask,
     build_row,
     cache_proof,
     refuse_if_evidence_exists,
@@ -260,3 +261,78 @@ def test_input_files_are_fingerprinted_by_sha_and_row_count(tmp_path, monkeypatc
     fp = gc.input_fingerprints([jl, js, tmp_path / "missing.jsonl"])
     assert fp["a.jsonl"] == {"sha256": hashlib.sha256(jl.read_bytes()).hexdigest(), "rows": 2}
     assert fp["b.json"]["rows"] == 3 and len(fp) == 2
+
+
+# ── transport retries (2026-11-16: graded-9-live measured the limiter, not the app) ──
+
+
+class _Resp:
+    def __init__(self, status, body=None, headers=None):
+        self.status_code, self._body, self.headers = status, body or {}, headers or {}
+
+    def json(self):
+        return self._body
+
+
+class _Client:
+    """Scripted client: chat POSTs answer from ``chats`` in order; the session POST always works."""
+
+    def __init__(self, chats):
+        self.chats = list(chats)
+        self.chat_calls = 0
+
+    def post(self, url, **_kw):
+        if url.endswith("/api/auth/anon-session"):
+            return _Resp(200, {"token": "t"})
+        self.chat_calls += 1
+        return self.chats.pop(0) if len(self.chats) > 1 else self.chats[0]
+
+
+def _ask_with(chats):
+    sleeps: list[float] = []
+    client = _Client(chats)
+    out = _ask(client, "http://x", {"token": None, "used": 0}, "q", sleeps.append)
+    return out, sleeps, client
+
+
+def test_429_then_success_is_retried_and_counted():
+    (http, result, retries, completed), sleeps, _ = _ask_with(
+        [_Resp(429), _Resp(429), _Resp(200, {"response": "ok"})]
+    )
+    assert (http, retries, completed, result["response"]) == (200, 2, True, "ok")
+    assert sleeps == [2.0, 4.0]  # exponential from 2 s
+
+
+def test_retry_after_header_is_honoured_and_capped():
+    _, sleeps, _ = _ask_with([_Resp(429, headers={"retry-after": "7"}), _Resp(200)])
+    assert sleeps == [7.0]
+    _, sleeps, _ = _ask_with([_Resp(503, headers={"retry-after": "500"}), _Resp(200)])
+    assert sleeps == [60.0]
+
+
+def test_503_without_retry_after_and_other_4xx_are_not_retried():
+    for status in (503, 400, 401, 404):
+        (http, _, retries, completed), sleeps, client = _ask_with([_Resp(status)])
+        assert (http, retries, completed, sleeps, client.chat_calls) == (status, 0, False, [], 1)
+
+
+def test_persistent_429_stops_after_five_attempts_and_is_a_transport_failure():
+    (http, result, retries, completed), sleeps, client = _ask_with([_Resp(429)])
+    assert (http, result, retries, completed) == (429, {}, 4, False)
+    assert client.chat_calls == 5 and sleeps == [2.0, 4.0, 8.0, 16.0]
+
+
+def test_transport_failure_invalidates_the_run_with_a_bounded_id_list():
+    ids = [f"ua{i}" for i in range(12)]
+    v = validity("", (0, 0), (0, 0), True, ids)
+    assert v["valid"] is False
+    (reason,) = v["reasons"]
+    assert reason.startswith("12 rows failed at transport") and "ua9" in reason
+    assert "ua10" not in reason and reason.endswith("...")
+    assert validity("", (0, 0), (0, 0), True, [])["valid"] is True
+
+
+def test_row_records_retries_and_transport_failure():
+    row = build_row({"id": "q"}, {}, 429, 1.0, transport_retries=4, transport_failed=True)
+    assert row["transport_retries"] == 4 and row["transport_failed"] is True
+    assert build_row({"id": "q"}, {}, 200, 1.0)["transport_failed"] is False

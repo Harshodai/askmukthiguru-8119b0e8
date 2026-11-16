@@ -59,7 +59,46 @@ def _build_judge_system_prompt() -> str:
     )
 
 
-JUDGE_SYSTEM_PROMPT = _build_judge_system_prompt()
+JUDGE_SYSTEM_PROMPT = _build_judge_system_prompt()  # the v1 rubric; importers rely on it
+
+# Rubric v2 (default off, FIRST_PERSON_JUDGE_RUBRIC): v1 plus this block. The output
+# schema is unchanged, so ``parse_judge_reply`` needs no change.
+JUDGE_RUBRIC_V2_BLOCK = (
+    "STRICT COMPLETENESS RULES (apply to every clip, in addition to the above):\n"
+    "A clip that is merely related to the topic must not be marked as answering. "
+    "Set answers to false and relevance to 2 or lower when any of these applies:\n"
+    "1. It addresses the broad theme but not the specific question asked "
+    "(question: how to forgive a parent; clip: a general talk about why forgiveness matters).\n"
+    "2. It starts a list or framework and ends before finishing it "
+    "(announces three steps, gives only the first).\n"
+    "3. It starts an analogy, story or parable and ends before its conclusion "
+    "(describes a farmer and a field, stops before the point is drawn).\n"
+    "4. It opens by pointing at context the seeker cannot see "
+    '("as I said earlier", "everyone asked me this", "that question you raised").\n'
+    "5. It stops in the middle of an argument, before the conclusion that answers the question.\n"
+    "When unsure whether a clip is complete and on the exact question, choose answers false."
+)
+
+JUDGE_RUBRICS = ("v1", "v2")
+
+
+def judge_rubric() -> str:
+    """Active rubric, read per call so the flag is live."""
+    from app.config import settings
+
+    return str(getattr(settings, "first_person_judge_rubric", "v1") or "v1")
+
+
+def judge_system_prompt(rubric: Optional[str] = None) -> str:
+    """System prompt for ``rubric`` (default: the configured one). v1 is byte-identical to
+    ``JUDGE_SYSTEM_PROMPT``; an unknown value raises rather than silently using v1."""
+    r = rubric or judge_rubric()
+    if r == "v1":
+        return JUDGE_SYSTEM_PROMPT
+    if r == "v2":
+        return JUDGE_SYSTEM_PROMPT + "\n\n" + JUDGE_RUBRIC_V2_BLOCK
+    raise ValueError(f"unknown first_person_judge_rubric: {r!r}")
+
 
 JUDGE_JSON_SCHEMA: dict[str, Any] = {
     "type": "json_schema",
@@ -339,16 +378,20 @@ async def judge_select_async(
     timeout_s: float,
     scores_out: Optional[list[int]] = None,
     judge_meta_out: Optional[dict[str, Any]] = None,
+    rubric: Optional[str] = None,
 ) -> Optional[int]:
-    """One judge call. Index to serve, None (below minimum), or INDETERMINATE."""
+    """One judge call. Index to serve, None (below minimum), or INDETERMINATE.
+
+    ``rubric`` overrides the configured rubric for this call only (offline replay)."""
 
     if not clips or llm_service is None or not hasattr(llm_service, "generate"):
         return INDETERMINATE
     user_prompt = build_judge_prompt(question, clips)
+    system_prompt = judge_system_prompt(rubric)
 
     async def _call() -> str:
         res = llm_service.generate(
-            system_prompt=JUDGE_SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             user_prompt=user_prompt,
             response_format=JUDGE_JSON_SCHEMA,
             **judge_call_kwargs(judge_model()),

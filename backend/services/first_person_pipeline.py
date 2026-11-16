@@ -924,6 +924,13 @@ def _comparative_fingerprint() -> str:
     return f"on:{digest}"
 
 
+def _judge_rubric_fingerprint() -> dict[str, str]:
+    from services import first_person_judge
+
+    rubric = first_person_judge.judge_rubric()
+    return {} if rubric == "v1" else {"judge_rubric": rubric}
+
+
 def _relevance_timeout_s() -> float:
     return float(getattr(settings, "first_person_relevance_timeout_s", 25.0))
 
@@ -3658,6 +3665,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 # Candidate A: the comparative judge changes which context is served, so
                 # its flag and prompt re-key the exact cache (never replay across states).
                 "comparative_judge": _comparative_fingerprint(),
+                # The per-clip judge prompt version; v1 is the baseline key, so only a
+                # non-v1 rubric adds an entry (a v1 cache entry never replays under v2).
+                **_judge_rubric_fingerprint(),
                 "relevance_fallback_policy": "provider_indeterminate_v2",
                 # Both scorer prompts and the JSON schema: which one runs
                 # depends on the scorer model, and an edit to either must re-key.

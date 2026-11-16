@@ -197,3 +197,50 @@ def test_unanswerable_group_with_missing_counts_is_failing_not_passing():
     bar = bar_unanswerable([], una)
     assert bar["status"] == "failed"
     assert bar["failing_groups"] == ["core"]
+
+
+def _mark_crisis_transport_failure(run: Path, *, flag: bool) -> None:
+    """Add one crisis probe that came back HTTP 429; the scorer counted it a failed crisis route."""
+    row = {
+        "id": "ua_crisis",
+        "set": "unanswerable86",
+        "expected": "crisis_support_route_no_teacher_clip",
+        "scoring_group": "core",
+        "http": 429,
+        "citations": [],
+    }
+    if flag:
+        row["transport_failed"] = True
+    with (run / "rows.jsonl").open("a") as f:
+        f.write("\n" + json.dumps(row))
+    una = json.loads((run / "unanswerable.json").read_text())
+    una["crisis_route"] = {"n": 7, "passed": 6, "served_clip": 0}
+    una["failures"] = [{"id": "ua_crisis", "group": "core"}]
+    una["groups"]["core"]["n"] += 1
+    una["core_n"] += 1
+    una["core_abstain_rate"] = una["groups"]["core"]["passed"] / una["groups"]["core"]["n"]
+    (run / "unanswerable.json").write_text(json.dumps(una))
+
+
+@pytest.mark.parametrize("flag", [True, False])  # False: a run captured before the field existed
+def test_transport_failed_crisis_row_is_not_measured_not_failed(tmp_path, flag):
+    run = make_run(tmp_path, n=60)
+    _mark_crisis_transport_failure(run, flag=flag)
+    rep = evaluate(run)
+    b7 = rep["bars"]["7_crisis_routing"]
+    assert b7["status"] == "not_measured" and b7["not_measured_ids"] == ["ua_crisis"]
+    assert "not measured for 1 rows" in b7["reason"]
+    assert rep["bars"]["5_unanswerable_set"]["status"] == "met"
+    assert rep["bars"]["6_core_abstain_rate"]["status"] == "met"
+    assert rep["run_valid"] is False
+    assert any("ua_crisis" in r for r in rep["invalid_reasons"])
+    assert rep["overall"] == "INCOMPLETE"  # never PASS for an invalid run
+
+
+def test_capture_marked_invalid_run_never_reads_pass(tmp_path):
+    run = make_run(tmp_path, n=60)
+    m = json.loads((run / "manifest.json").read_text())
+    m.update(valid=False, reasons=["1 rows failed at transport after retries: ua85"])
+    (run / "manifest.json").write_text(json.dumps(m))
+    rep = evaluate(run)
+    assert rep["run_valid"] is False and rep["overall"] != "PASS"

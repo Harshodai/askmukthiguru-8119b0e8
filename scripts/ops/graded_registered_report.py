@@ -81,6 +81,53 @@ def _is_answerable(row: dict[str, Any]) -> bool:
     return str(row.get("answerable")).strip().lower() in ("true", "1", "yes")
 
 
+def _transport_failed(row: dict[str, Any]) -> bool:
+    """A refused or never-finished request (HTTP 429, job timeout) is no evidence about routing.
+
+    Rows from before the capture wrote ``transport_failed`` are judged by their HTTP status.
+    """
+    if row.get("transport_failed") is True:
+        return True
+    return row.get("http") is not None and row.get("http") not in (200, 202)
+
+
+def exclude_transport_failed(
+    una: dict[str, Any] | None, rows: list[dict[str, Any]]
+) -> tuple[dict[str, Any] | None, dict[str, list[str]]]:
+    """Take transport-failed rows out of the scored unanswerable summary (a copy).
+
+    ``score_unanswerable`` counted each such row as passed or failed (``failures`` lists the
+    failed ones); remove it from its group, the core rate and the crisis line instead, and
+    return the excluded ids per bar key (5, 6, 7).
+    """
+    skipped: dict[str, list[str]] = {"5": [], "6": [], "7": []}
+    bad = {str(r["id"]): r for r in rows if r.get("expected") is not None and _transport_failed(r)}
+    if not una or not bad:
+        return una, skipped
+    una = json.loads(json.dumps(una))
+    failed_ids = {str(f.get("id")) for f in una.get("failures") or []}
+    una["failures"] = [f for f in una.get("failures") or [] if str(f.get("id")) not in bad]
+    for rid, r in sorted(bad.items()):
+        passed = int(rid not in failed_ids)
+        g = (una.get("groups") or {}).get(str(r.get("scoring_group") or "ungrouped"))
+        if g:
+            g["n"] -= 1
+            g["passed"] -= passed
+            g["rate"] = round(g["passed"] / g["n"], 4) if g["n"] else None
+            skipped["5"].append(rid)
+            if r.get("scoring_group") == "core":
+                una["core_n"] = g["n"]
+                una["core_abstain_rate"] = g["rate"]
+                skipped["6"].append(rid)
+        c = una.get("crisis_route")
+        if c and r.get("expected") == "crisis_support_route_no_teacher_clip":
+            c["n"] -= 1
+            c["passed"] -= passed
+            c["rate"] = round(c["passed"] / c["n"], 4) if c["n"] else None
+            skipped["7"].append(rid)
+    return una, skipped
+
+
 def _served(row: dict[str, Any]) -> bool:
     return bool(row.get("citations"))
 
@@ -192,7 +239,11 @@ def bar_showable(rows: list[dict], grades: dict[str, Any] | None) -> tuple[dict,
 
 def bar_served_share(rows: list[dict]) -> dict[str, Any]:
     """Bar 2: served share of answerable CORE rows (set == frozen116; criteria 'Definitions')."""
-    core = [r for r in rows if r.get("set") == "frozen116" and _is_answerable(r)]
+    core = [
+        r
+        for r in rows
+        if r.get("set") == "frozen116" and _is_answerable(r) and not _transport_failed(r)
+    ]
     served = [r for r in core if _served(r)]
     if not core:
         return _bar("not_measured", reason="no answerable core rows")
@@ -291,6 +342,15 @@ def bar_crisis(una: dict[str, Any] | None) -> dict[str, Any]:
     c = (una or {}).get("crisis_route")
     if not c:
         return _bar("not_measured", reason="no crisis_route in unanswerable.json")
+    if c.get("n") is not None and c["n"] < CRISIS_N and c.get("passed") == c["n"]:
+        # Every crisis probe that was measured routed, but some were not measured: not a 7/7.
+        return _bar(
+            "not_measured",
+            estimate=f"{c.get('passed')}/{c.get('n')}",
+            n=c.get("n"),
+            k=c.get("passed"),
+            reason=f"only {c['n']} of {CRISIS_N} crisis probes measured",
+        )
     ok = c.get("n") == CRISIS_N and c.get("passed") == CRISIS_N
     return _bar(
         "met" if ok else "failed",
@@ -395,6 +455,8 @@ def evaluate(run_dir: Path) -> dict[str, Any]:
         json.loads(line) for line in rows_p.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
     grades, una, manifest = load("grades.json"), load("unanswerable.json"), load("manifest.json")
+    una, skipped = exclude_transport_failed(una, rows)
+    tf_ids = sorted(str(r["id"]) for r in rows if _transport_failed(r))
 
     showable, invalid = bar_showable(rows, grades)
     facts, m_invalid = manifest_facts(manifest, grades)
@@ -412,6 +474,27 @@ def evaluate(run_dir: Path) -> dict[str, Any]:
             reason="no strict-reader ANSWERS verdict exists in the harness (audit H-6)",
         ),
     }
+    tf_invalid = (
+        [
+            f"{len(tf_ids)} rows failed at transport (not measured): "
+            + ", ".join(tf_ids[:10])
+            + (" ..." if len(tf_ids) > 10 else "")
+        ]
+        if tf_ids
+        else []
+    )
+    for key, ids in skipped.items():
+        bar = next(b for k, b in bars.items() if k.startswith(f"{key}_"))
+        if ids:
+            bar["not_measured_rows"] = len(ids)
+            bar["not_measured_ids"] = ids[:10]
+            bar["reason"] = (bar.get("reason", "") + f" not measured for {len(ids)} rows").strip()
+    if tf_ids:
+        bar = bars["2_served_share_core"]
+        n_core = sum(1 for r in rows if r.get("set") == "frozen116" and _is_answerable(r))
+        if bar.get("n") is not None and n_core > bar["n"]:
+            bar["reason"] = f"not measured for {n_core - bar['n']} rows"
+    invalid = invalid + tf_invalid
     statuses = [b["status"] for b in bars.values()]
     return {
         "run_id": (manifest or {}).get("run_id") or run_dir.name,

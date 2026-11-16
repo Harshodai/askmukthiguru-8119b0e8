@@ -2676,6 +2676,10 @@ class Settings(BaseSettings):
     # the frozen-bank comparison shows the judge is not worse.
     first_person_judge_enabled: bool = False
     first_person_judge_model: str = "anthropic/claude-haiku-5.5"
+    # Judge prompt version. "v1" is the prompt of the registered runs; "v2" adds strict
+    # completeness rules (theme-only, unfinished list/analogy, dangling reference, mid-argument).
+    # Changes served answers: switch to v2 only through a registered graded run.
+    first_person_judge_rubric: Literal["v1", "v2"] = "v1"
     # Candidate A (docs/analysis/SAME_CLIP_DEFECT_2026-11-13.md): after the
     # per-clip judge, ONE comparative call picks the best of the passing
     # contexts, or abstains. Needs the judge active. It changes served answers,
