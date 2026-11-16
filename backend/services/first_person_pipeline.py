@@ -1667,6 +1667,10 @@ def _llm_rerank_clips(
 # 12.0 s (was 6.0): matches FIRST_PERSON_RELEVANCE_TIMEOUT_S=12 so slow provider
 # responses on adversarial injection queries do not time out and log indeterminate.
 _ANSWERABILITY_TIMEOUT_S = 12.0
+# ponytail: U1 - at most 4 harness context judge calls in flight per request. Ceiling: the
+# OpenRouter client limiter is 60 RPM per model, and an unbounded 16-24 burst measured 8-9 s
+# shared stalls. Raise only with a higher provider RPM, then re-measure.
+_HARNESS_JUDGE_CONCURRENCY = 4
 
 # Distinguish a gate that has not run from the gate's indeterminate verdict.
 # Neither state may be treated as YES by a later retrieval, scoring, or assembly
@@ -5216,16 +5220,22 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 if _harness_parallel:
                     _ctx_results: list[Optional[FirstPersonPipelineResult]] = [None] * len(contexts)
                     _indeterminate_tokens: list[int] = []
-                    # Track the lowest context index that raised
-                    # _HarnessRelevanceIndeterminate.  Any context at an equal or
-                    # higher index is blocked: sequential contract says an
-                    # indeterminate from ctx[i] prevents ctx[j>=i] from being
-                    # accepted as a substitute.
+                    # U1: an indeterminate context is skipped, not a barrier. The first
+                    # context (original rank order) that passed is served; the index of the
+                    # lowest indeterminate is kept only for the (default-off) comparative path.
                     _lowest_indeterminate_idx: int = len(contexts)
+                    _judge_sem = asyncio.Semaphore(_HARNESS_JUDGE_CONCURRENCY)
+                    _judge_retries: list[int] = []
+                    _fpj.JUDGE_RETRY_LOG.set(_judge_retries)
+
+                    async def _bounded_ctx(_c: Any) -> Any:
+                        async with _judge_sem:
+                            return await _eval_ctx_worker(_c)
+
                     # T7-02: one coroutine per context on this loop (was one
                     # thread per context, each blocked on its scorer call).
                     _outcomes = await asyncio.gather(
-                        *(_eval_ctx_worker(ctx) for ctx in contexts), return_exceptions=True
+                        *(_bounded_ctx(ctx) for ctx in contexts), return_exceptions=True
                     )
                     for idx, _outcome in enumerate(_outcomes):
                         if isinstance(_outcome, _HarnessRelevanceIndeterminate):
@@ -5250,6 +5260,17 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             # exit path (None, success, indeterminate) counts them.
                             fp_llm_tokens.extend(_ctx_tokens)
                             _ctx_results[idx] = _ctx_result
+                    logger.info(
+                        "[FirstPersonPipeline] Harness judge summary: passed=%d failed=%d indeterminate=%d retried=%d",
+                        sum(1 for r in _ctx_results if r is not None),
+                        sum(
+                            1
+                            for r, o in zip(_ctx_results, _outcomes)
+                            if r is None and not isinstance(o, BaseException)
+                        ),
+                        sum(1 for o in _outcomes if isinstance(o, _HarnessRelevanceIndeterminate)),
+                        len(_judge_retries),
+                    )
                     if _comparative_on:
                         _cmp_abstain = await self._comparative_narrow(
                             _ctx_results,
@@ -5261,22 +5282,15 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         )
                         if _cmp_abstain is not None:
                             return _cmp_abstain
-                    # Honour original ordering: first context by score wins,
-                    # but only if its index is strictly before the lowest
-                    # indeterminate index (sequential contract).
+                    # Honour original ordering: first context that passed wins.
                     _harness_res: Optional[FirstPersonPipelineResult] = next(
-                        (
-                            r
-                            for i, r in enumerate(_ctx_results)
-                            if r is not None and i < _lowest_indeterminate_idx
-                        ),
-                        None,
+                        (r for r in _ctx_results if r is not None), None
                     )
                     if editorial_set_enabled:
                         _editorial_pairs = [
                             (contexts[i], context_result)
                             for i, context_result in enumerate(_ctx_results)
-                            if context_result is not None and i < _lowest_indeterminate_idx
+                            if context_result is not None
                         ]
                         if _editorial_pairs:
                             _editorial_res = self._build_editorial_set_result(
@@ -5319,7 +5333,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             sum(fp_llm_tokens),
                         )
                         return _harness_res
-                    if _indeterminate_tokens:
+                    # U1: key on the count, not the token list: the judge path records no
+                    # tokens, so an all-indeterminate request used to skip this abstain.
+                    if _lowest_indeterminate_idx < len(contexts):
                         fp_llm_tokens.extend(_indeterminate_tokens)
                         latency = (time.monotonic() - start_time) * 1000.0
                         self._log_and_count(

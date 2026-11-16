@@ -145,7 +145,7 @@ def _scenario_harness_answerability_no(monkeypatch):
 
 
 def _scenario_harness_parallel_first_indeterminate(monkeypatch):
-    # ctx0 unparseable scorer reply -> indeterminate; ctx1 would pass. Must abstain.
+    # ctx0 unparseable scorer reply -> indeterminate; ctx1 passes. U1: ctx1 is served (not a barrier).
     _harness_on(monkeypatch, answerability=False)
     llm = FakeLLM(scores={"Suffering is not a punishment": "maybe", "Every relationship": "3"})
     return _harness_pipeline(llm, [SPAN_TEXT_ONE, SPAN_TEXT_TWO]), dict(HARNESS_QUERY)

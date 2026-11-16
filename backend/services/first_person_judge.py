@@ -22,6 +22,8 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import time
+from contextvars import ContextVar
 from typing import Any, Optional
 
 from services.untrusted import data_notice, fence_inline, neutralise
@@ -354,6 +356,11 @@ def build_editorial_set_from_judge(
     }
 
 
+# U1 (2026-11-16): the harness sets a list here; each judge retry appends one entry so the
+# per-request summary line can report how many calls were retried. None outside the harness.
+JUDGE_RETRY_LOG: ContextVar[Optional[list[int]]] = ContextVar("fp_judge_retry_log", default=None)
+
+
 async def _call_or_none(call: Any, timeout_s: float, label: str) -> Optional[str]:
     """Run one judge-model call under its timeout; None on any failure.
 
@@ -400,12 +407,26 @@ async def judge_select_async(
             res = await res
         return str(res)
 
-    raw = await _call_or_none(_call, timeout_s, "judge")
-    if raw is None:
-        return INDETERMINATE
-    parsed = parse_judge_reply(raw, len(clips))
+    # U1: one retry on failure/timeout/unparseable reply, inside the SAME total budget
+    # (the second attempt gets only the time left, never a fresh timeout_s).
+    deadline = time.monotonic() + timeout_s
+    parsed = None
+    for attempt in (0, 1):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        if attempt:
+            retry_log = JUDGE_RETRY_LOG.get()
+            if retry_log is not None:
+                retry_log.append(1)
+        raw = await _call_or_none(_call, remaining, "judge")
+        if raw is None:
+            continue
+        parsed = parse_judge_reply(raw, len(clips))
+        if parsed is not None:
+            break
+        logger.info("[FPJudge] judge reply rejected by the strict parser (attempt %d)", attempt + 1)
     if parsed is None:
-        logger.info("[FPJudge] judge reply rejected by the strict parser; abstaining")
         return INDETERMINATE
     scores, answerable = parsed
     if scores_out is not None:
