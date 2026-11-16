@@ -43,15 +43,31 @@ def classify_existential_vs_severe_distress(text: str) -> str:
     """Remediates `FINDING-SAFETY-001` (Query A17)."""
     low = (text or "").lower()
     acute_ideation = (
-        "suicide", "kill myself", "end my life", "want to die", "self-harm",
-        "hurt myself", "no reason to live", "not worth living", "never wake up",
-        "wish i was dead", "wish i were dead", "can't go on living",
+        "suicide",
+        "kill myself",
+        "end my life",
+        "want to die",
+        "self-harm",
+        "hurt myself",
+        "no reason to live",
+        "not worth living",
+        "never wake up",
+        "wish i was dead",
+        "wish i were dead",
+        "can't go on living",
     )
     if any(m in low for m in acute_ideation):
         return "CRISIS"
     if "feel empty inside" in low or "feeling empty inside" in low:
         return "MILD_EXISTENTIAL"
     return "NONE"
+
+
+def _only_existential_signal(assessment: object) -> bool:
+    """True when "empty inside" is the only thing the engine detected."""
+    signals = list(getattr(assessment, "detected_signals", None) or [])
+    return bool(signals) and all("empty inside" in str(sig) for sig in signals)
+
 
 # Distress keyword pre-screen — only triggers full analysis when present.
 # CRIT-5: `suffering`/`pain` removed (verified false positives on doctrinal
@@ -181,6 +197,8 @@ _SEVERE_SECOND_OPINION_SYSTEM = (
 # 2026-09-28 (owner-approved "escalate-only + re-tier", Task 3). Used only by
 # `_maybe_llm_escalate_below_crisis`, behind `distress_llm_escalation_enabled`
 # (default False). AI-AUTHORED, PENDING-CLINICIAN-REVIEW.
+_ESCALATION_VERDICT_RE = re.compile(r"\b(CRISIS|SEVERE|MODERATE|MILD|NONE)\b")
+
 _ESCALATION_SYSTEM_PROMPT = (
     "You are a careful multilingual safety classifier for a spiritual-teachings "
     "assistant. The message may be in any language, including Hindi, Marathi, Tamil, "
@@ -290,11 +308,15 @@ class DistressStage(Stage):
                 ctx, user_msg_en, assessment, state
             )
 
+        # Never lowers CRISIS, and never lowers SEVERE when the engine saw any
+        # signal besides "empty inside": "I feel empty inside and I am going to
+        # end it all tonight" was rated CRISIS and came out MILD (2026-11-16).
         if (
             not guardrail_self_harm
-            and classify_existential_vs_severe_distress(user_msg_en) == "MILD_EXISTENTIAL"
             and assessment
-            and getattr(getattr(assessment, "level", None), "value", 0) >= DistressLevel.SEVERE.value
+            and getattr(assessment, "level", None) is DistressLevel.SEVERE
+            and _only_existential_signal(assessment)
+            and classify_existential_vs_severe_distress(user_msg_en) == "MILD_EXISTENTIAL"
         ):
             logger.info("De-escalating existential burnout to MILD (Query A17)")
             assessment.level = DistressLevel.MILD
@@ -620,33 +642,48 @@ class DistressStage(Stage):
         """
         if not settings.distress_llm_escalation_enabled or assessment is None:
             return assessment
+        # Never let this optional layer fail the request: anything unexpected keeps
+        # the regex result as it is.
+        if not isinstance(getattr(assessment, "level", None), DistressLevel):
+            return assessment
         if assessment.level >= DistressLevel.CRISIS:
             return assessment
         if assessment.recommended_response_type == "third_party_crisis":
             # Third-party already has its own dedicated response; there is
             # nothing more specific to escalate it to.
             return assessment
-        llm = getattr(getattr(ctx, "container", None), "ollama", None)
-        if llm is None:
+        container = getattr(ctx, "container", None)
+        llm = getattr(container, "llm", None) or getattr(container, "ollama", None)
+        if llm is None or not hasattr(llm, "generate"):
             return assessment
+        from services.first_person_judge import judge_call_kwargs
+
         try:
             raw = await asyncio.wait_for(
-                llm._generate_fast(_ESCALATION_SYSTEM_PROMPT, user_msg_en[:512]),
+                llm.generate(
+                    system_prompt=_ESCALATION_SYSTEM_PROMPT,
+                    user_prompt=user_msg_en[:512],
+                    **judge_call_kwargs(settings.distress_llm_escalation_model),
+                ),
                 timeout=settings.distress_llm_escalation_timeout_s,
             )
         except Exception as e:  # includes asyncio.TimeoutError
             logger.warning("Distress LLM escalation unavailable; keeping regex level: %s", e)
             return assessment
-        verdict = (raw or "").strip().strip(".").upper()
+        # A reasoning model may add words around the label: take the first one.
+        found = _ESCALATION_VERDICT_RE.search(str(raw or "").upper())
         try:
-            llm_level = DistressLevel[verdict]
+            llm_level = DistressLevel[found.group(1) if found else ""]
         except KeyError:
             logger.warning(
                 "Distress LLM escalation returned an unparseable verdict %r; keeping regex level",
                 raw,
             )
             return assessment
-        if llm_level > assessment.level:
+        # Only SEVERE/CRISIS act: a MODERATE verdict would send an ordinary
+        # question into the distress carve-out and cost the seeker their clip
+        # (measured 2026-11-16: 13 of 116 graded questions).
+        if llm_level >= DistressLevel.SEVERE and llm_level > assessment.level:
             assessment.level = llm_level
             assessment.confidence = max(assessment.confidence, 0.7)
             assessment.detected_signals.append(f"[LLM escalation] raised to {llm_level.name}")

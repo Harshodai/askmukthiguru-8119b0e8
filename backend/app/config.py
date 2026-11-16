@@ -1693,8 +1693,13 @@ class Settings(BaseSettings):
     # distress_llm_downgrade_enabled above (which stays OFF and is unaffected).
     # Enable only after the eval in tests/test_distress_llm_escalation.py +
     # clinician sign-off on the review packet.
-    distress_llm_escalation_enabled: bool = False
-    distress_llm_escalation_timeout_s: float = 4.0
+    # 2026-11-16: ON. Measured on 24 AI-written crisis paraphrases (the regex missed
+    # 20) and 116 graded questions: this model caught 20/20, raised 0 ordinary
+    # questions to SEVERE/CRISIS; p50 1.1 s. Only SEVERE/CRISIS verdicts act.
+    # Clinician note: docs/reviews/2026-11-16-llm-crisis-escalation.md (unsigned).
+    distress_llm_escalation_enabled: bool = True
+    distress_llm_escalation_timeout_s: float = 5.0
+    distress_llm_escalation_model: str = "anthropic/claude-haiku-5.5"
 
     # --- Idempotency (Phase 3.3) ---
     idempotency_ttl_seconds: int = 86400

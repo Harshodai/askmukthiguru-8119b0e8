@@ -44,7 +44,7 @@ def _stage(level: DistressLevel) -> DistressStage:
 
 
 def _llm(reply=None, exc=None, delay=0.0):
-    async def generate(_system, _user):
+    async def generate(system_prompt=None, user_prompt=None, **_kw):
         if delay:
             await asyncio.sleep(delay)
         if exc:
@@ -52,7 +52,8 @@ def _llm(reply=None, exc=None, delay=0.0):
         return reply
 
     llm = SimpleNamespace()
-    llm._generate_fast = AsyncMock(side_effect=generate)
+    llm.generate = AsyncMock(side_effect=generate)
+    llm._generate_fast = llm.generate  # old name kept so assertions read the same call
     return llm
 
 
@@ -63,8 +64,8 @@ def flag_on(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_flag_off_by_default_never_calls_llm():
-    assert settings.distress_llm_escalation_enabled is False
+async def test_flag_off_never_calls_llm(monkeypatch):
+    monkeypatch.setattr(settings, "distress_llm_escalation_enabled", False)
     llm = _llm("CRISIS")
     result = await _stage(DistressLevel.MODERATE).run(_ctx(llm))
     assert result is None  # MODERATE doesn't preempt; continues on compassionate path
@@ -124,10 +125,10 @@ async def test_escalation_never_lowers_a_higher_regex_level(flag_on, verdict):
         _llm("CRISIS", delay=1.0),  # exceeds the 0.05s timeout
         _llm(""),
         _llm(None),
-        _llm("maybe crisis?"),  # not an exact enum word
+        _llm("I cannot tell from this message."),  # no level word at all
         _llm("EMERGENCY"),  # not a real level name
     ],
-    ids=["error", "timeout", "empty", "none", "malformed_prose", "unknown_word"],
+    ids=["error", "timeout", "empty", "none", "no_level_word", "unknown_word"],
 )
 async def test_every_failure_mode_keeps_regex_level_unchanged(flag_on, llm):
     ctx = _ctx(llm)
@@ -184,5 +185,33 @@ async def test_third_party_assessment_is_never_escalated_further(flag_on):
 async def test_downgrade_and_escalation_flags_are_fully_independent():
     """Enabling escalation must not turn the (still-OFF) downgrade path on,
     and vice versa."""
+    # 2026-11-16: escalation is ON by default (measured; escalate-only); the
+    # downgrade path stays OFF and must not follow it.
     assert settings.distress_llm_downgrade_enabled is False
-    assert settings.distress_llm_escalation_enabled is False
+    assert settings.distress_llm_escalation_enabled is True
+
+
+@pytest.mark.asyncio
+async def test_moderate_verdict_never_diverts_an_ordinary_question(flag_on):
+    """Only SEVERE/CRISIS act: a MODERATE verdict on an ordinary question must not
+    send it into the distress carve-out (13 of 116 graded questions, 2026-11-16)."""
+    llm = _llm("MODERATE")
+    stage = _stage(DistressLevel.NONE)
+    result = await stage.run(_ctx(llm, "What is the root cause of human suffering?"))
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_label_inside_extra_words_is_read(flag_on):
+    llm = _llm("Assessment: CRISIS - the message states a plan for tonight.")
+    result = await _stage(DistressLevel.NONE).run(_ctx(llm, "tonight I will make the pain stop"))
+    assert result is not None and result.route_decision == "crisis_preempted"
+
+
+@pytest.mark.asyncio
+async def test_hedged_label_errs_toward_helplines(flag_on):
+    """Since 2026-11-16 the first level word in the reply is read, so a hedged
+    "maybe crisis?" escalates: an uncertain crisis signal shows the helplines."""
+    llm = _llm("maybe crisis?")
+    result = await _stage(DistressLevel.NONE).run(_ctx(llm, "nothing will change, I'm ready to go"))
+    assert result is not None and result.route_decision == "crisis_preempted"
