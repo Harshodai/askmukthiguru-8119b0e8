@@ -14,11 +14,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import re
 import subprocess
 import sys
-import threading
 import time
 import urllib.error
 import urllib.request
@@ -428,7 +425,7 @@ class KeySetupHandler(BaseHTTPRequestHandler):
                     resp = {"success": False, "error": message}
                 else:
                     # Save to backend/.env
-                    up_backend = update_env_file(BACKEND_ENV, new_key)
+                    update_env_file(BACKEND_ENV, new_key)
                     # Also update root .env if present
                     if ROOT_ENV.is_file():
                         update_env_file(ROOT_ENV, new_key)
@@ -504,7 +501,9 @@ def run_native_dialog() -> int:
     if ROOT_ENV.is_file():
         update_env_file(ROOT_ENV, key)
 
-    print(f"✅ Key verified and saved successfully to backend/.env! (Label: {details.get('label', 'Default')})")
+    print(
+        f"✅ Key verified and saved successfully to backend/.env! (Label: {details.get('label', 'Default')})"
+    )
     return 0
 
 
@@ -527,7 +526,9 @@ def run_cli() -> int:
     if ROOT_ENV.is_file():
         update_env_file(ROOT_ENV, key)
 
-    print(f"✅ Key verified and saved successfully to backend/.env! (Label: {details.get('label', 'Default')})")
+    print(
+        f"✅ Key verified and saved successfully to backend/.env! (Label: {details.get('label', 'Default')})"
+    )
     return 0
 
 

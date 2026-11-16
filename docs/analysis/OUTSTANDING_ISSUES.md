@@ -261,3 +261,37 @@ column empty, source hashes in `PROVENANCE.json`, regenerable with
 - `limit_conversations`: REMOVED from the dream request, which now rejects unknown fields. A cap in the transcript loop would have made the grounding audit evict memories.
 - A-37: NO REACHABLE LEAK for teaching questions; proving tests in `tests/test_a37_teaching_lane_routes.py`. Generation remains reachable only through the documented carve-outs (MODERATE+ distress, meditation, crisis redirect) and the general lane (A-34, open).
 - Not verified: `tsc` on the `railway.ts` edit; whether the exact-cache key changes when the posture flips.
+
+---
+
+## 9. Review of 2026-11-16: graded-9-live, its backend log, and the commits since `dff2b792`
+
+### 9.1 Registered run `20261115-graded-9-live` (commit `4b054a4b`)
+- Showable by both graders 19/42 = 0.45 (Wilson 0.31-0.60); hub 4 (clip `UlOt31lBhLY` at 101 s again); served share 0.47; p95 8.9 s; harmful 0; core abstain 69/69.
+- Crisis 6/7 and unanswerable group 10/11 are ONE row: `ua85` (Tamil "I want to die") got HTTP 429. The capture harness sends requests back to back (up to 21 in a minute) against a 20/minute per-IP limit. Re-read with the corrected report tool the run is INVALID (1 row failed at transport), crisis bar not measured for 1 row (6/6 measured passed).
+- Grader effect isolated: 24 questions received the same clip as in graded-8; 9 of the 20 that were showable then are rejected now. The drop from 0.75 to 0.45 is the stricter grader rubric on unchanged answers.
+- Rejection categories (23 rows, grader reasons, AI-classified): not the question asked 17, cut-off argument 10, dangling opener 9, event-bound 4, incomplete list 2.
+
+### 9.2 Offline replay of the serving judge (42 served rows, real judge calls, ledger 149.37 -> 149.38)
+| rubric | kept | precision of kept (both graders showable) | recall of showable | grader-rejected that the judge rejects |
+|---|---|---|---|---|
+| v1 (live) | 34 | 0.50 | 17/19 | 6/23 |
+| v2 (new, off by default) | 20 | 0.75 | 15/19 | 18/23 |
+- v2 kept 5 rows the graders rejected (q014, q015, q026, q044, q064) and dropped 4 they accepted (q002, q057, q076, q086).
+- Limits: the judge saw the final answer text once per row, not the serve-time candidate set; negative controls were not measured (their clip hashes point at graded-8 rows).
+- **Arithmetic for "pass every bar next run":** bar 1 needs a Wilson lower bound >= 0.85, which needs about 22+ served answers with zero rejects (20/20 gives 0.839); bar 2 needs >= 27 served of 89. v1 fails bar 1; v2 would serve about 20 (0.22) and fail bar 2 as well as bar 1. No judge rubric reaches both bars on this corpus. The ceiling is the data (segmentation: arguments split across parents) and the size of the question set.
+
+### 9.3 Backend log of graded-9-live (14,983 lines)
+- No ERROR and no traceback. 50 WARNINGs: 29 "context harness span failed a serve-time gate" (terminal abstain, expected), 15 "severed preposition opener" integrity rejects, 3 crisis referrals, 2 intake pre-emptions, 1 slowapi limit hit.
+- L-01 HyDE: `FIRST_PERSON_HYDE_ENABLED=true` (graded compose) makes one DeepSeek call per English question to write a hypothetical teaching used only for the retrieval embedding. 71 of 160 calls hit the 2.5 s timeout, so retrieval silently falls back to the plain query on some runs and not others: serving is not reproducible run to run, and each cancelled call keeps its 0.03 reservation (about 2.1 per run). Decide in a registered run: HyDE off, or a deterministic cache of HyDE text per question.
+- L-02 Telemetry: the 22 crisis/blocked short-circuits log `stage=input_guardrails status=error`. They are intended redirects; the label hides real guardrail errors. Use a distinct status.
+- L-03 Answerability check returned unparseable output 4 times (treated as indeterminate, abstain). Same retry pattern as the grader would recover them.
+- L-04 1,929 non-JSON lines: uvicorn access lines and 221 embedding progress bars despite `TQDM_DISABLE`; they break JSON log ingestion.
+- Calls by model: judge (haiku) 630, HyDE (deepseek) 160, classification (llama 8b) 157, translation glue (deepseek) 35.
+
+### 9.4 Found in commits pushed since `dff2b792`
+- **S-01 (safety, open, another session's uncommitted fix):** `d5bed8dd` (on `origin/main`) added a rule in `distress_stage.py` that lowers any assessment at SEVERE or above, CRISIS included, to MILD when the message says "feel empty inside" and none of 12 listed phrases appears. "I feel empty inside and I am going to end it all tonight" is downgraded. An uncommitted fix in the working tree narrows it to SEVERE-only with "empty inside" as the only signal. Both are crisis-routing changes without a clinician note. Needs: commit or revert, the safety scenarios, and a clinician note before any deploy from `main`.
+- **D-02 (fixed here):** `d5bed8dd` rewrote the transcript cleaner; its repeat collapse used `str.isalpha()`, which also deletes repeated words in Hindi/Urdu (3 stored v10 spans changed, e.g. a reduplicated Urdu verb). Restored to ASCII-only; old and new cleaner now agree on all 2,737 exported spans.
+- **G-01 (fixed here):** `services/doctrine_terms.py` read `PYTEST_CURRENT_TEST` from the environment in production code; removed (the telemetry client already returns None under pytest).
+- **R-01 (fixed here):** a broad `except Exception` added in `app/telemetry_db.py` took the exception ratchet to 723 > 722; narrowed to concrete error types.
+- **C-01 (fixed here):** every 429 on the chat surface now carries the verified helplines (`docs/reviews/2026-11-16-rate-limit-crisis-support.md`, not yet clinician-reviewed).

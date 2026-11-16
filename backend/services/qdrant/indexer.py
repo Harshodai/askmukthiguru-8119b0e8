@@ -101,7 +101,14 @@ def _host_lowered(url: str) -> str:
 
 
 _YOUTUBE_HOSTS = frozenset(
-    {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com", "youtu.be", "www.youtu.be"}
+    {
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "music.youtube.com",
+        "youtu.be",
+        "www.youtu.be",
+    }
 )
 
 

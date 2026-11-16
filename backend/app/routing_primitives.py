@@ -10,7 +10,8 @@ the closed-vocabulary crisis-preemption invariant.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 _MAX_GREETING_CHARS = 80
 

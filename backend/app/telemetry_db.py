@@ -53,7 +53,7 @@ async def fetch_query_trace_concurrent(
     )
     try:
         results = await asyncio.gather(*(table_fetcher(t, trace_id) for t in tables))
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError, TimeoutError) as exc:
         raise TelemetryBackendError(
             f"Telemetry storage unavailable for trace {sanitize_for_log(trace_id)}"
         ) from exc
@@ -62,6 +62,7 @@ async def fetch_query_trace_concurrent(
     if not mapped["chat_queries"] and not mapped["chat_responses"]:
         return None
     return mapped
+
 
 _REFUSAL_PATTERN = re.compile(
     r"(?:i(?:'m| am) unable|i (?:can(?:not|'t)|don't|do not) have|"

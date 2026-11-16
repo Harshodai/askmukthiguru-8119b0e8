@@ -22,12 +22,8 @@ import csv
 import datetime
 import http.server
 import json
-import os
 import re
 import socketserver
-import subprocess
-import sys
-import threading
 import time
 import urllib.parse
 import urllib.request
@@ -149,23 +145,30 @@ def get_graded_run_metrics() -> dict[str, Any]:
     captured = len(lines)
     served = sum(1 for r in lines if r.get("citations") and len(r["citations"]) > 0)
     abstained = sum(1 for r in lines if not r.get("citations"))
-    crisis = sum(1 for r in lines if "Tele-MANAS" in (r.get("answer") or "") or "112" in (r.get("answer") or ""))
+    crisis = sum(
+        1
+        for r in lines
+        if "Tele-MANAS" in (r.get("answer") or "") or "112" in (r.get("answer") or "")
+    )
     latencies = [r.get("latency_ms", 0) for r in lines if r.get("latency_ms")]
     avg_lat = round(sum(latencies) / max(1, len(latencies)))
 
     recent = lines[-10:] if lines else []
     recent_simplified = []
     for r in reversed(recent):
-        recent_simplified.append({
-            "id": r.get("id"),
-            "question": r.get("question"),
-            "route": r.get("route"),
-            "served": bool(r.get("citations")),
-            "answer_preview": (r.get("answer") or "")[:200] + ("..." if len(r.get("answer") or "") > 200 else ""),
-            "speaker": r["citations"][0].get("speaker") if r.get("citations") else None,
-            "latency_ms": r.get("latency_ms"),
-            "url": r["citations"][0].get("url") if r.get("citations") else None,
-        })
+        recent_simplified.append(
+            {
+                "id": r.get("id"),
+                "question": r.get("question"),
+                "route": r.get("route"),
+                "served": bool(r.get("citations")),
+                "answer_preview": (r.get("answer") or "")[:200]
+                + ("..." if len(r.get("answer") or "") > 200 else ""),
+                "speaker": r["citations"][0].get("speaker") if r.get("citations") else None,
+                "latency_ms": r.get("latency_ms"),
+                "url": r["citations"][0].get("url") if r.get("citations") else None,
+            }
+        )
 
     report_summary = {}
     if report_path.exists():
@@ -219,13 +222,26 @@ def get_human_gates_data() -> dict[str, Any]:
     # 3. Clinician copy (01-clinician-crisis-copy.md)
     clinician_file = HUMAN_GATES_DIR / "01-clinician-crisis-copy.md"
     clinician_text = clinician_file.read_text(encoding="utf-8") if clinician_file.exists() else ""
-    acute_approved = bool(re.search(r"acute self-harm statement.*?\|\s*(approve|approved)\s*\|", clinician_text, re.I))
-    distress_approved = bool(re.search(r"hopelessness / moderate distress.*?\|\s*(approve|approved)\s*\|", clinician_text, re.I))
+    acute_approved = bool(
+        re.search(r"acute self-harm statement.*?\|\s*(approve|approved)\s*\|", clinician_text, re.I)
+    )
+    distress_approved = bool(
+        re.search(
+            r"hopelessness / moderate distress.*?\|\s*(approve|approved)\s*\|", clinician_text, re.I
+        )
+    )
     cli_done = (1 if acute_approved else 0) + (1 if distress_approved else 0)
 
     # 4. Rights sign-off (04-rights-signoff.csv)
     rights_file = HUMAN_GATES_DIR / "04-rights-signoff.csv"
-    rights_summary = {"total": 751, "approved": 0, "excluded": 0, "held": 0, "unsigned": 751, "channels": {}}
+    rights_summary = {
+        "total": 751,
+        "approved": 0,
+        "excluded": 0,
+        "held": 0,
+        "unsigned": 751,
+        "channels": {},
+    }
     rights_sample = []
     if rights_file.exists():
         with rights_file.open("r", encoding="utf-8") as f:
@@ -273,29 +289,38 @@ def get_human_gates_data() -> dict[str, Any]:
                     qid = r.get("id")
                     g1 = first_grades.get(qid, {})
                     g2 = second_grades.get(qid, {})
-                    served_answers.append({
-                        "id": qid,
-                        "question": r.get("question"),
-                        "answer": r.get("answer"),
-                        "speaker": r["citations"][0].get("speaker"),
-                        "url": r["citations"][0].get("url"),
-                        "t": r["citations"][0].get("t"),
-                        "latency_ms": r.get("latency_ms"),
-                        "judge_1_verdict": g1.get("verdict", "pending"),
-                        "judge_1_reason": g1.get("reason", ""),
-                        "judge_2_verdict": g2.get("verdict", "pending"),
-                        "judge_2_reason": g2.get("reason", ""),
-                        "human_verdict": r.get("human_verdict", ""),
-                        "human_notes": r.get("human_notes", ""),
-                    })
+                    served_answers.append(
+                        {
+                            "id": qid,
+                            "question": r.get("question"),
+                            "answer": r.get("answer"),
+                            "speaker": r["citations"][0].get("speaker"),
+                            "url": r["citations"][0].get("url"),
+                            "t": r["citations"][0].get("t"),
+                            "latency_ms": r.get("latency_ms"),
+                            "judge_1_verdict": g1.get("verdict", "pending"),
+                            "judge_1_reason": g1.get("reason", ""),
+                            "judge_2_verdict": g2.get("verdict", "pending"),
+                            "judge_2_reason": g2.get("reason", ""),
+                            "human_verdict": r.get("human_verdict", ""),
+                            "human_notes": r.get("human_notes", ""),
+                        }
+                    )
 
     return {
         "helplines": {"total": hl_total, "completed": hl_done, "rows": helplines_rows},
         "native_speaker": {"total": nat_total, "completed": nat_done, "rows": native_rows},
-        "clinician_copy": {"total": 2, "completed": cli_done, "acute_approved": acute_approved, "distress_approved": distress_approved},
+        "clinician_copy": {
+            "total": 2,
+            "completed": cli_done,
+            "acute_approved": acute_approved,
+            "distress_approved": distress_approved,
+        },
         "rights_signoff": {
             "total": rights_summary["total"],
-            "completed_count": rights_summary["approved"] + rights_summary["excluded"] + rights_summary["held"],
+            "completed_count": rights_summary["approved"]
+            + rights_summary["excluded"]
+            + rights_summary["held"],
             "summary": rights_summary,
             "sample_rows": rights_sample,
         },
@@ -305,10 +330,22 @@ def get_human_gates_data() -> dict[str, Any]:
 
 def get_railway_readiness() -> dict[str, Any]:
     gates = get_human_gates_data()
-    hl_done = gates["helplines"]["completed"] == gates["helplines"]["total"] and gates["helplines"]["total"] > 0
-    nat_done = gates["native_speaker"]["completed"] == gates["native_speaker"]["total"] and gates["native_speaker"]["total"] > 0
-    cli_done = gates["clinician_copy"]["completed"] == gates["clinician_copy"]["total"] and gates["clinician_copy"]["total"] > 0
-    rights_done = gates["rights_signoff"]["completed_count"] > 0 and gates["rights_signoff"]["completed_count"] >= gates["rights_signoff"]["total"]
+    hl_done = (
+        gates["helplines"]["completed"] == gates["helplines"]["total"]
+        and gates["helplines"]["total"] > 0
+    )
+    nat_done = (
+        gates["native_speaker"]["completed"] == gates["native_speaker"]["total"]
+        and gates["native_speaker"]["total"] > 0
+    )
+    cli_done = (
+        gates["clinician_copy"]["completed"] == gates["clinician_copy"]["total"]
+        and gates["clinician_copy"]["total"] > 0
+    )
+    rights_done = (
+        gates["rights_signoff"]["completed_count"] > 0
+        and gates["rights_signoff"]["completed_count"] >= gates["rights_signoff"]["total"]
+    )
 
     all_human_passed = hl_done and nat_done and cli_done and rights_done
 
@@ -370,7 +407,14 @@ def save_helpline_updates(updates: list[dict[str, Any]]) -> dict[str, Any]:
         name = r.get("name")
         if name in update_map:
             u = update_map[name]
-            for col in ("live_call_made_yyyy_mm_dd", "caller", "reached_a_person_yes_no", "free_yes_no", "staffed_24_7_yes_no", "notes"):
+            for col in (
+                "live_call_made_yyyy_mm_dd",
+                "caller",
+                "reached_a_person_yes_no",
+                "free_yes_no",
+                "staffed_24_7_yes_no",
+                "notes",
+            ):
                 if col in u:
                     r[col] = str(u[col])
             updated_count += 1
@@ -484,7 +528,9 @@ def save_rights_channel_approval(data: dict[str, Any]) -> dict[str, Any]:
     decision = data.get("decision", "approve")
     reviewer = data.get("reviewer", "Harsha (Owner)")
     date_str = data.get("date", datetime.date.today().isoformat())
-    reason = data.get("reason", "Official channel; canonical source URL and teacher attribution confirmed.")
+    reason = data.get(
+        "reason", "Official channel; canonical source URL and teacher attribution confirmed."
+    )
 
     with file_path.open("r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -511,7 +557,7 @@ def save_rights_channel_approval(data: dict[str, Any]) -> dict[str, Any]:
 def save_user_decision(data: dict[str, Any]) -> dict[str, Any]:
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
     entry = {
-        "id": f"decision_{int(time.time()*1000)}",
+        "id": f"decision_{int(time.time() * 1000)}",
         "timestamp": datetime.datetime.now().isoformat(),
         "text": data.get("text", "").strip(),
         "source": data.get("source", "text"),
@@ -532,7 +578,9 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            html_content = (REPO_ROOT / "audits" / "evidence" / "railway_readiness_dashboard.html").read_text(encoding="utf-8")
+            html_content = (
+                REPO_ROOT / "audits" / "evidence" / "railway_readiness_dashboard.html"
+            ).read_text(encoding="utf-8")
             self.wfile.write(html_content.encode("utf-8"))
             return
 
@@ -624,7 +672,9 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
 def run_server(port: int = 8765) -> None:
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", port), DashboardHandler) as httpd:
-        print(f"🚀 AskMukthiGuru Railway Readiness & Human Gates Suite running at http://localhost:{port}")
+        print(
+            f"🚀 AskMukthiGuru Railway Readiness & Human Gates Suite running at http://localhost:{port}"
+        )
         httpd.serve_forever()
 
 

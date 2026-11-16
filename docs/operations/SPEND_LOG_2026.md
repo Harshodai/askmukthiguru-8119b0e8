@@ -57,3 +57,5 @@ reads higher than the provider's bill (owner item P2-e).
 1. No paid step without a row here first.
 2. A registered run records the ledger before and after in its manifest as well.
 3. When the running total reaches 70 (of 90), stop and tell the owner.
+
+| 2026-11-16 | DONE: offline judge replay, rubric v1 and v2, 42 served rows of graded-9-live (84 judge calls; the negative-control half failed before any call) plus a 4-row smoke; an earlier attempt was killed with the container (exit 137) | measure rubric v2 before any registered run | 148.9208 | 149.3816 | 0.4608 at most (includes the backend restart's warm-up and the killed attempt) | |

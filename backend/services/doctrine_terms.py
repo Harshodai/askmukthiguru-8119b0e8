@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import re
 import time
 import unicodedata
@@ -351,8 +350,7 @@ class DoctrinePhraseTrie:
     def find_matches(self, text: str) -> list[dict[str, Any]]:
         """Scan `text` in a single O(N) pass and return longest non-overlapping matches."""
         tokens: list[tuple[str, int, int]] = [
-            (m.group(0), m.start(), m.end())
-            for m in _WORD_OR_SYM_TOKEN_RE.finditer(text)
+            (m.group(0), m.start(), m.end()) for m in _WORD_OR_SYM_TOKEN_RE.finditer(text)
         ]
         n = len(tokens)
         matches: list[dict[str, Any]] = []
@@ -398,8 +396,6 @@ class DoctrinePhraseTrie:
 def _load_admin_overrides() -> dict[str, list[str]]:
     """Rows from the ``doctrine_terms`` Supabase table. Empty on any failure (graceful)."""
     overrides: dict[str, list[str]] = {}
-    if os.environ.get("PYTEST_CURRENT_TEST") and not os.environ.get("DOCTRINE_TERMS_TEST_DB"):
-        return overrides
     try:
         from app.telemetry_db import _get_client  # same accessor PromptStore uses
 

@@ -204,7 +204,9 @@ def clean_transcript(text: str) -> str:
 
     cleaned_len = len(text)
     reduction = ((original_len - cleaned_len) / original_len * 100) if original_len > 0 else 0
-    logger.debug(f"Cleaned text: {original_len} -> {cleaned_len} chars ({reduction:.1f}% reduction)")
+    logger.debug(
+        f"Cleaned text: {original_len} -> {cleaned_len} chars ({reduction:.1f}% reduction)"
+    )
     return text
 
 

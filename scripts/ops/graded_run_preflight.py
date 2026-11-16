@@ -27,14 +27,14 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 try:
     from datetime import UTC
 except ImportError:
-    UTC = timezone.utc
+    UTC = UTC
 
 
 def _find_repo_root() -> Path:

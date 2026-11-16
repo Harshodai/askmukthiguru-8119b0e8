@@ -1070,7 +1070,9 @@ def test_ask_and_parse_with_retry_recovers_after_unparseable_attempt():
         calls.append(prompt)
         if len(calls) == 1:
             return "I am thinking... <thought>not json</thought>"
-        return json.dumps({"verdict": "showable", "harmful": False, "reason": "recovered successfully"})
+        return json.dumps(
+            {"verdict": "showable", "harmful": False, "reason": "recovered successfully"}
+        )
 
     result = ask_and_parse_with_retry(
         mock_ask, "SYSTEM_RUBRIC", "QUESTION_PROMPT", row_id="r1", max_attempts=3, backoff=0.0

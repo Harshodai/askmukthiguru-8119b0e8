@@ -121,7 +121,9 @@ def _collapse_word_and_stutter_repeats_deterministic(text: str) -> str:
                 i = j
                 continue
 
-        if not punct and len(bare) >= 2 and bare.isalpha() and i + 1 < n:
+        # ASCII only, as the pre-2026-11-15 regex ([A-Za-z]): reduplication is
+        # grammatical in Hindi/Urdu and the verbatim layer must not delete it.
+        if not punct and len(bare) >= 2 and bare.isascii() and bare.isalpha() and i + 1 < n:
             if low not in _CHANT_WORDS:
                 j = i + 1
                 collapsed = False
@@ -130,7 +132,7 @@ def _collapse_word_and_stutter_repeats_deterministic(text: str) -> str:
                     nxt_tok = tokens[j]
                     nxt_bare = nxt_tok.rstrip(",;")
                     nxt_punct = nxt_tok[len(nxt_bare) :]
-                    if nxt_bare.lower() == low and bool(nxt_bare) and nxt_bare.isalpha():
+                    if nxt_bare.lower() == low and nxt_bare.isascii() and nxt_bare.isalpha():
                         if low in _LEGIT_DOUBLES and nxt_bare == bare:
                             break
                         collapsed = True

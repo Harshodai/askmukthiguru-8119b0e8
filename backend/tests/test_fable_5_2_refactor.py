@@ -21,13 +21,11 @@ import unittest
 from app.api.admin import is_valid_admin_markdown_id
 from app.pipeline.stages.distress_stage import classify_existential_vs_severe_distress
 from app.routing_primitives import (
-    GREETING_SEQUENCE_RE,
     is_deterministic_greeting,
 )
 from app.telemetry_db import (
     TelemetryBackendError,
     fetch_query_trace_concurrent,
-    sanitize_for_log,
 )
 from ingest.cleaner import (
     _collapse_repeated_ngrams_token_stream,
@@ -87,7 +85,10 @@ class TestAskMukthiGuruFable52Refactor(unittest.TestCase):
                 "Suffering will come problems would arise. But the question is",
             ),
             ("Peace, peace, peace be with you.", "Peace, peace, peace be with you."),
-            ("I know that that is true and he had had enough.", "I know that that is true and he had had enough."),
+            (
+                "I know that that is true and he had had enough.",
+                "I know that that is true and he had had enough.",
+            ),
         ]
         for raw, expected in cases:
             cleaned = clean_verbatim_text(raw)
@@ -116,7 +117,9 @@ class TestAskMukthiGuruFable52Refactor(unittest.TestCase):
             "At Ekam, Sri Preethaji guided Soul Sync into a Beautiful State.",
         )
         self.assertEqual(len(ledger), 4)
-        stripped_ledger = [{k: v for k, v in entry.items() if k != "original_segment_text"} for entry in ledger]
+        stripped_ledger = [
+            {k: v for k, v in entry.items() if k != "original_segment_text"} for entry in ledger
+        ]
         reverted = revert_corrections_from_ledger(corrected, stripped_ledger)
         self.assertEqual(reverted, raw)
 
@@ -212,7 +215,9 @@ class TestAskMukthiGuruFable52Refactor(unittest.TestCase):
         )
 
         self.assertEqual(
-            format_clip_attribution("Sri Krishnaji", verified=True, verification_method="ecapa_cosine"),
+            format_clip_attribution(
+                "Sri Krishnaji", verified=True, verification_method="ecapa_cosine"
+            ),
             "— Sri Krishnaji",
         )
         self.assertIn(
@@ -221,7 +226,9 @@ class TestAskMukthiGuruFable52Refactor(unittest.TestCase):
         )
         self.assertIn(
             "unverified diarization",
-            format_clip_attribution("Sri Preethaji", verified=False, verification_method="ecapa_cosine"),
+            format_clip_attribution(
+                "Sri Preethaji", verified=False, verification_method="ecapa_cosine"
+            ),
         )
 
         cypher = build_tenant_isolated_2hop_cypher()
