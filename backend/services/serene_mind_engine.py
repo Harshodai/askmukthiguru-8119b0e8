@@ -138,6 +138,13 @@ _EN_PATTERNS = {
         # the (unrelated) hinglish/other-language buckets happened to catch
         # some phrasings. `suicid\w*` matches the stem plus any suffix.
         r"\b(suicid\w*|kill\s*my\s*self|kill\s*myself|end\s*(my|it)\s*all|want\w*\s*to\s*die|self[\s-]*harm)\b",
+        # 2026-11-16 (faculty-demo probe): "I feel like giving up and ending everything"
+        # and "I feel like ending it all" scored NONE and got an ordinary abstain with
+        # no helpline. Gerund "ending" and "end/ending everything" now count; the
+        # lookahead keeps "ending everything with a prayer / on time" open.
+        # AI-AUTHORED, PENDING-CLINICIAN-REVIEW (docs/reviews/2026-11-16-crisis-phrase-gap.md).
+        r"\bending\s*(?:my|it)\s*all\b",
+        r"\bend(?:ing)?\s+everything\b(?!\s+(?:with|on|by|at|in|for|before|after)\b)",
         r"\b(overdose|no\s*reason\s*to\s*live|not\s*worth\s*living)\b",
         # 2026-10-08 (addiction + ideation probes, evals/scenarios/tier3_crisis/006): a bare
         # "I don't want to live" (no "anymore") and an already-taken overdose scored NONE.

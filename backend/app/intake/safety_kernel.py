@@ -106,6 +106,8 @@ _CRISIS_PATTERNS = [
     "slit wrist",
     "commit suicide",
     "end it all",
+    "ending it all",
+    "ending everything",
     "ways to end it all",
     "how do i stop wanting to die",
     "how to stop wanting to die",
