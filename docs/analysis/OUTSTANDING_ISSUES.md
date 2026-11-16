@@ -305,3 +305,13 @@ column empty, source hashes in `PROVENANCE.json`, regenerable with
   - Two hub clips recur in all three runs: `UlOt31lBhLY@101` (success/wealth vs inner change; 222 words; 7 distinct questions; both-showable fell 4/4, 3/4, 2/4) and `fdPQxZsPAwI@3` (stress and illness; 2/3, 1/3, 0/3). Top 5 videos take 37-43% of all served answers.
   - Of the 89 answerable questions, graded-9-live abstained on 47. Of those, 9 were served showable-by-both in an earlier run (lost good answers), 7 were served but never showable, and 31 were never served in any run (likely no good clip in the corpus).
   - Of 24 questions served in all three runs, only 14 (58%) got the same clip each time: serving is not reproducible (see L-01 HyDE).
+
+### 9.6 Staging/faculty-demo review of 2026-11-16 (live stack and Docker logs)
+- No new registered run since graded-9-live.
+- **S-02 FIXED (safety):** the demo's crisis question "I feel like giving up and ending everything." got the ordinary abstain with no helpline; "I feel like ending it all" too. Long-standing pattern gap in both crisis layers; patterns added, tests both ways, safety scenarios 226/0, clinician note `docs/reviews/2026-11-16-crisis-phrase-gap.md` (unsigned).
+- **O-01 FIXED (stability):** the backend was OOM-killed (exit 137) on its first requests after start: the entrypoint ran the FAQ warmer as a second Python process with its own model stack (1.9 GB) beside the server (2.7 GB) under a 6 GB limit. The warmer now runs inside the server process; container memory after warm-up 2.6 GB, no restart. The Makefile warm-up marker file still works.
+- **D-03 FIXED:** consent lookups for the literal user id "anonymous" hit the uuid column and errored in Postgres (24 statements in 3 days); a non-UUID id now means "no consent" without a query.
+- Demo questions: "chronic anger" and "worry, fear, agitated mind" abstain on this corpus (no clip scores 3). The runbook now uses questions both graders accepted and that served verified clips live. Demo answers come from the exact cache once asked, so a repeated question gives the same clip.
+- Answerability gate measured on all 202 graded questions: accepts 80 of 89 answerable (9 wrong refusals, e.g. lockdown/privacy and food-craving questions), refuses 76 of the should-abstain set, 8 timeouts. Not the main coverage loss; retrieval is (no candidate scoring 3).
+- Docker logs (24 h): no traceback in any app container; PostgREST "thread killed by timeout manager" is idle-connection reaping; test job ids reached the real `ingest_jobs` table on 2026-11-13/14 only (none since).
+- Served answers report `grounding_state=abstained` even when a verified clip is shown (the "related, not a direct answer" label path). Check how the UI renders this before the demo.

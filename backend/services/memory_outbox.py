@@ -98,7 +98,15 @@ class MemoryOutbox:
 
         Do not filter granted=true before ordering: that would resurrect an
         older grant after a newer revocation.
+
+        A user id that is not a UUID ("anonymous", "anon:<payload>") cannot own a
+        receipt (the column is uuid): answer "no consent" without a query, which
+        Postgres would reject (seen as repeated uuid syntax errors in its log).
         """
+        try:
+            uuid.UUID(str(user_id))
+        except ValueError:
+            return None
         query = self._client.table("memory_consent_receipts").select(
             "id,user_id,tenant_id,consent_version,granted,revoked_at,created_at,event_sequence"
         )

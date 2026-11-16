@@ -168,7 +168,7 @@ async def test_latest_revocation_does_not_resurrect_older_grant():
         [
             {
                 "id": "latest-revocation",
-                "user_id": "user-1",
+                "user_id": "00000000-0000-4000-8000-000000000001",
                 "tenant_id": "tenant-1",
                 "consent_version": "memory-v1",
                 "granted": False,
@@ -178,7 +178,7 @@ async def test_latest_revocation_does_not_resurrect_older_grant():
             },
             {
                 "id": "prior-grant",
-                "user_id": "user-1",
+                "user_id": "00000000-0000-4000-8000-000000000001",
                 "tenant_id": "tenant-1",
                 "consent_version": "memory-v1",
                 "granted": True,
@@ -190,7 +190,7 @@ async def test_latest_revocation_does_not_resurrect_older_grant():
     )
     outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
 
-    receipt = await outbox.active_consent(user_id="user-1", tenant_id="tenant-1")
+    receipt = await outbox.active_consent(user_id="00000000-0000-4000-8000-000000000001", tenant_id="tenant-1")
 
     assert receipt is None
     assert ("order", "event_sequence", True) in client.queries[0].calls
@@ -202,7 +202,7 @@ async def test_record_consent_appends_receipts_instead_of_overwriting_history():
     outbox = MemoryOutbox(supabase_client=client, worker_id="worker-1")
 
     await outbox.record_consent(
-        user_id="user-1",
+        user_id="00000000-0000-4000-8000-000000000001",
         tenant_id="tenant-1",
         granted=True,
     )
@@ -210,6 +210,6 @@ async def test_record_consent_appends_receipts_instead_of_overwriting_history():
     assert client.queries[0].calls[0][0] == "insert"
     assert not any(call[0] == "upsert" for query in client.queries for call in query.calls)
     payload_row = client.queries[0].calls[0][1]
-    assert payload_row["user_id"] == "user-1"
+    assert payload_row["user_id"] == "00000000-0000-4000-8000-000000000001"
     assert payload_row["tenant_id"] == "tenant-1"
     assert payload_row["granted"] is True

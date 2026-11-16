@@ -2,6 +2,8 @@
 
 > **Correction (2026-11-14, independent review).** Everything in this file was produced and scored by AI agents using simulated personas. No faculty member, clinician, native speaker or other human reviewer took part, so nothing here is a human acceptance or sign-off. Scores are AI self-assessments and are diagnostic only. The registered run graded-8 **failed** two bars (both-graders showable 30/40 = 0.75 against a lower-bound bar of 0.85; one clip served 4 questions against a limit of 3) and every human gate is unsigned. Current verdict: **NO-GO** for production and for a demo that claims the quality bar. Source of truth: `docs/analysis/OWNER_ACTIONS_AND_HUMAN_GATES_2026-11-14.md`.
 
+> **Update 2026-11-16 (live probe).** "How should one deal with chronic anger?" and "How can I handle constant worry, fear, and an agitated mind?" abstained on the current corpus (no clip scored 3 of 3), so the demo now uses questions both graders accepted in graded-9-live and that served verified clips live on 2026-11-16. "I feel like giving up and ending everything." was NOT recognised as a crisis before 2026-11-16 (fixed the same day, pending clinician review). Run every question once before the audience arrives; serving can change after a cache flush.
+
 **Document Reference:** `docs/operations/FACULTY_DEMO_RUNBOOK_2026-11-14.md`  
 **Date:** 2026-11-14  
 **Author:** Engineering Readiness Team & Principal AI/ML Architect  
@@ -141,7 +143,7 @@ Demonstrate the core product experience: retrieving verbatim, timestamp-synchron
 #### The Interaction
 1. In the chat composer, enter:
    ```text
-   How can I handle constant worry, fear, and an agitated mind?
+   What actually creates a happy family?
    ```
 2. Press **Send**.
 
@@ -169,9 +171,9 @@ Demonstrate multi-turn conversational intelligence while highlighting strict pri
 #### The Interaction
 1. **Turn 1:** In the chat composer, enter:
    ```text
-   How should one deal with chronic anger?
+   Why does love seem to fade so fast after marriage, when everything felt perfect before?
    ```
-2. Wait for the Guru's teaching on anger to render.
+2. Wait for the teaching on love fading after marriage to render.
 3. **Turn 2 (Follow-up):** In the same conversation, enter:
    ```text
    Why does that happen?
@@ -179,10 +181,10 @@ Demonstrate multi-turn conversational intelligence while highlighting strict pri
 4. Press **Send**.
 
 #### Expected System Behavior
-- **Antecedent Resolution:** The follow-up resolver identifies that *"that"* refers to *"chronic anger"* from the preceding turn.
+- **Antecedent Resolution:** The follow-up resolver identifies that *"that"* refers to love fading after marriage from the preceding turn.
 - **Cache Isolation:** The exact-cache is bypassed for history-resolved turns (preventing cache collisions between different seekers asking *"why does that happen?"* after different topics).
 - **Session Privacy:** The server stores zero long-term seeker history; only the immediate preceding turn hint travels through the secure follow-up resolver.
-- **Response:** Delivers teachings directly explaining the spiritual and psychological causes of anger.
+- **Response:** A verified clip on why love fades, attributed to the speaker in the recording.
 
 #### Talking Points for Faculty
 - Explain the tension between **Conversational Memory** and **Seeker Privacy**.
