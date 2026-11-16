@@ -1503,6 +1503,12 @@ app.add_middleware(
     or ["127.0.0.1"],
 )
 
+# Every 429 on the chat surface carries the verified helplines (the limiter runs
+# before any crisis check). Adds one field; classifies and exempts nothing.
+from app.middleware.crisis_support_on_refusal import CrisisSupportOnRefusalMiddleware  # noqa: E402
+
+app.add_middleware(CrisisSupportOnRefusalMiddleware)
+
 
 # In-flight tracker middleware for graceful drain (R3)
 @app.middleware("http")
