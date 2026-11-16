@@ -1,5 +1,12 @@
 # Active UI and backend reliability roadmap
 
+## Current request — Chat send and long-message UX
+
+- [ ] Streamline the post-send conversation layout while keeping disclosure, safety, stop, queue, and retry controls available.
+- [ ] Improve long-draft composer and long-message wrapping/readability across phone, tablet, and desktop.
+- [ ] Add restrained send/loading motion that respects reduced-motion settings.
+- [ ] Run focused chat regressions and browser checks; report any service-dependent limitations separately.
+
 ## Current request — 2026-11-06: full daily loop in existing PR
 
 - [ ] Connect confirmed check-in to one real teaching clip and selected practice.
