@@ -542,3 +542,57 @@ def test_prompt_keeps_safety_adjacent_topics_out_of_scope_and_conflict_in_scope(
         "difficult boss",
     ):
         assert needle in p, needle
+
+
+# ── L-03: one retry on an unparseable reply (changes served answers: fewer abstains) ──
+
+
+class _SeqLLM:
+    def __init__(self, replies):
+        self.replies, self.calls = list(replies), []
+
+    async def generate(self, system_prompt="", user_prompt="", **kwargs):
+        self.calls.append(user_prompt)
+        r = self.replies.pop(0)
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+
+def _core(llm, **kw):
+    from services.first_person_pipeline import _async_answerability_check
+
+    return asyncio.run(_async_answerability_check("What is suffering?", llm, **kw))
+
+
+def test_unparseable_then_valid_retries_once():
+    llm = _SeqLLM(["Sure!!", "YES"])
+    assert _core(llm) is True
+    assert len(llm.calls) == 2 and "YES or NO" in llm.calls[1] and "YES or NO" not in llm.calls[0]
+
+
+def test_unparseable_twice_is_indeterminate_after_one_retry():
+    llm = _SeqLLM(["Sure!!", "hmm ok", "YES"])
+    assert _core(llm) is None
+    assert len(llm.calls) == 2
+
+
+def test_parseable_no_is_not_retried():
+    llm = _SeqLLM(["NO", "YES"])
+    assert _core(llm) is False and len(llm.calls) == 1
+
+
+def test_provider_error_is_not_retried():
+    llm = _SeqLLM([RuntimeError("boom"), "YES"])
+    assert _core(llm) is None and len(llm.calls) == 1
+
+
+def test_timeout_is_not_retried():
+    llm = _SeqLLM([TimeoutError("slow"), "YES"])
+    assert _core(llm) is None and len(llm.calls) == 1
+
+
+def test_no_retry_when_deadline_exhausted():
+    llm = _SeqLLM(["Sure!!", "YES"])
+    assert _core(llm, deadline_s=0.0) is None
+    assert len(llm.calls) == 1

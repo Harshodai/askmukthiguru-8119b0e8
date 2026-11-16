@@ -1936,58 +1936,74 @@ async def _acall(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     return result
 
 
+_ANSWERABILITY_RETRY_SUFFIX = "\n\nReply with exactly one word: YES or NO. No other text."
+
+
 async def _async_answerability_check(
     query: str,
     llm_service: Any,
     token_sink: Optional[list[int]] = None,
+    deadline_s: float = _ANSWERABILITY_TIMEOUT_S,
 ) -> Optional[bool]:
-    """Async core of answerability gate."""
+    """Async core of answerability gate.
+
+    One retry (L-03) when the reply is unparseable (not on timeout/provider
+    error, not on a parseable verdict), only if time remains inside
+    ``deadline_s``. This slightly changes served answers: fewer indeterminate
+    abstains. Fail closed (None) when the retry is also unparseable.
+    """
     if llm_service is None or not hasattr(llm_service, "generate"):
         return None
-    try:
-        import inspect
+    started = time.monotonic()
+    for attempt in range(2):
+        suffix = _ANSWERABILITY_RETRY_SUFFIX if attempt else ""
+        try:
+            import inspect
 
-        fast_call = getattr(llm_service, "_generate_fast", None)
-        if fast_call is not None and not type(fast_call).__name__.endswith("Mock"):
-            call = fast_call
-        else:
-            call = llm_service.generate
-        res = call(
-            system_prompt=_ANSWERABILITY_SYSTEM_PROMPT,
-            user_prompt=neutralise(query),
-            temperature=0.0,
-            max_tokens=16,
-        )
-        if inspect.isawaitable(res):
-            res = await res
-        raw = str(res)
-    except Exception as e:
-        if isinstance(e, ProviderRefusalError):
-            logger.info("[FirstPersonPipeline] Answerability check refused by provider")
-        else:
-            logger.info(
-                "[FirstPersonPipeline] Answerability check indeterminate (timeout/error): %s", e
+            fast_call = getattr(llm_service, "_generate_fast", None)
+            if fast_call is not None and not type(fast_call).__name__.endswith("Mock"):
+                call = fast_call
+            else:
+                call = llm_service.generate
+            res = call(
+                system_prompt=_ANSWERABILITY_SYSTEM_PROMPT,
+                user_prompt=neutralise(query) + suffix,
+                temperature=0.0,
+                max_tokens=16,
             )
-        if token_sink is not None:
-            token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query))
-        return None
+            if inspect.isawaitable(res):
+                res = await res
+            raw = str(res)
+        except Exception as e:
+            if isinstance(e, ProviderRefusalError):
+                logger.info("[FirstPersonPipeline] Answerability check refused by provider")
+            else:
+                logger.info(
+                    "[FirstPersonPipeline] Answerability check indeterminate (timeout/error): %s",
+                    e,
+                )
+            if token_sink is not None:
+                token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query))
+            return None
 
-    if token_sink is not None:
-        token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query, raw))
-    if raw is None:
-        return None
-    # Strict parse: exact token only. "YES, because ..." is NOT a verdict
-    # (Phase 2 gate contract: strip -> casefold -> exact token).
-    token = str(raw).strip().rstrip(".!").strip().casefold()
-    if token == "yes":
-        return True
-    if token == "no":
-        return False
-    logger.info(
-        "[FirstPersonPipeline] Answerability check unparseable output (len=%d); "
-        "treating as indeterminate",
-        len(str(raw)),
-    )
+        if token_sink is not None:
+            token_sink.append(_estimate_fp_tokens(_ANSWERABILITY_SYSTEM_PROMPT, query, raw))
+        # Strict parse: exact token only. "YES, because ..." is NOT a verdict
+        # (Phase 2 gate contract: strip -> casefold -> exact token).
+        token = raw.strip().rstrip(".!").strip().casefold()
+        if token == "yes":
+            return True
+        if token == "no":
+            return False
+        retry = attempt == 0 and (time.monotonic() - started) < deadline_s
+        logger.info(
+            "[FirstPersonPipeline] Answerability check unparseable output (len=%d, retries=%d); %s",
+            len(raw),
+            attempt,
+            "retrying once" if retry else "treating as indeterminate",
+        )
+        if not retry:
+            return None
     return None
 
 

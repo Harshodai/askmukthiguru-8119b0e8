@@ -1441,7 +1441,7 @@ def test_answerability_indeterminate_preserves_old_behavior(mock_store, mock_red
     assert res.answerability == "indeterminate"
     assert res.abstain_reason == "answerability_withheld"
     assert res.citations == []
-    assert stub.answerability_calls == 1
+    assert stub.answerability_calls == 2  # unparseable gets one retry (L-03)
     assert stub.scorer_calls == 0  # skipped: outcome already determined
     assert stub.rerank_calls == 0
     assert rerank_calls == []

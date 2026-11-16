@@ -295,3 +295,13 @@ column empty, source hashes in `PROVENANCE.json`, regenerable with
 - **G-01 (fixed here):** `services/doctrine_terms.py` read `PYTEST_CURRENT_TEST` from the environment in production code; removed (the telemetry client already returns None under pytest).
 - **R-01 (fixed here):** a broad `except Exception` added in `app/telemetry_db.py` took the exception ratchet to 723 > 722; narrowed to concrete error types.
 - **C-01 (fixed here):** every 429 on the chat surface now carries the verified helplines (`docs/reviews/2026-11-16-rate-limit-crisis-support.md`, not yet clinician-reviewed).
+
+### 9.5 Closed on 2026-11-16 (second batch) and cross-run evidence
+- L-02 CLOSED: an intended intake short-circuit now logs `status=short_circuit`; only a raised exception logs `status=error`. Remaining gap: the circuit-breaker-open branch inside `input_guardrails` also returns a result, so it now logs `short_circuit` too.
+- L-03 CLOSED: one retry on an unparseable answerability reply inside the existing deadline (changes served answers slightly: fewer indeterminate abstains).
+- L-04 CLOSED: uvicorn access lines go through the JSON handler; sentence-transformers progress bars off (logger level and `show_progress_bar=False`). Not yet confirmed in a live container log.
+- Capture pacing: chat POSTs spaced at least 3.2 s apart (limit 20/min), recorded in the manifest.
+- Cross-run (graded-7, 8, 9-live; AI analysis):
+  - Two hub clips recur in all three runs: `UlOt31lBhLY@101` (success/wealth vs inner change; 222 words; 7 distinct questions; both-showable fell 4/4, 3/4, 2/4) and `fdPQxZsPAwI@3` (stress and illness; 2/3, 1/3, 0/3). Top 5 videos take 37-43% of all served answers.
+  - Of the 89 answerable questions, graded-9-live abstained on 47. Of those, 9 were served showable-by-both in an earlier run (lost good answers), 7 were served but never showable, and 31 were never served in any run (likely no good clip in the corpus).
+  - Of 24 questions served in all three runs, only 14 (58%) got the same clip each time: serving is not reproducible (see L-01 HyDE).

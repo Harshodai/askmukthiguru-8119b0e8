@@ -735,8 +735,10 @@ def test_context_answerability_withheld_before_workers_or_scorer(monkeypatch, ve
     legacy_store.search_hybrid.assert_not_called()
     scorer.assert_not_called()
     # The only provider call is the question-only answerability gate.
-    assert llm.generate.call_count == 1
-    assert llm.generate.call_args.kwargs["user_prompt"] == "What is the capital of France?"
+    assert llm.generate.call_count == (
+        1 if verdict == "NO" else 2
+    )  # unparseable gets one retry (L-03)
+    assert llm.generate.call_args.kwargs["user_prompt"].startswith("What is the capital of France?")
 
 
 def test_pipeline_fetches_validated_predecessor_before_harness_decision(monkeypatch):

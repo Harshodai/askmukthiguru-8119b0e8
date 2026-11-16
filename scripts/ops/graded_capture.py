@@ -51,6 +51,9 @@ MAX_REASON_IDS = 10
 RETRY_ATTEMPTS = 5  # per request, first try included
 RETRY_BASE_S = 2.0
 RETRY_CAP_S = 60.0
+# Backend chat limit is 20/minute per IP (settings.chat_rate_limit): 60/20 = 3.0 s plus margin.
+# Hard-coded because this script does not import app settings.
+DEFAULT_MIN_INTERVAL_S = 3.2
 
 
 # ── pure helpers (unit-tested) ───────────────────────────────────────────────
@@ -363,12 +366,30 @@ def request_with_retry(send: Any, sleep: Any = time.sleep) -> tuple[Any, int]:
     raise AssertionError("unreachable")
 
 
+class Pacer:
+    """Keeps consecutive calls at least ``interval_s`` apart (clock and sleep are injected)."""
+
+    def __init__(
+        self, interval_s: float, sleep: Any = time.sleep, clock: Any = time.monotonic
+    ) -> None:
+        self.interval_s, self._sleep, self._clock = interval_s, sleep, clock
+        self._last: float | None = None
+
+    def __call__(self) -> None:
+        now = self._clock()
+        if self._last is not None and now < self._last + self.interval_s:
+            self._sleep(self._last + self.interval_s - now)
+            now = self._last + self.interval_s
+        self._last = now
+
+
 def _ask(
     client: Any,
     base: str,
     token_box: dict[str, Any],
     question: str,
     sleep: Any = time.sleep,
+    pace: Any = None,
 ) -> tuple[int, dict, int, bool]:
     """One question through /api/chat with an anonymous session (5 chats per session).
 
@@ -385,14 +406,17 @@ def _ask(
     token_box["used"] += 1
     token = token_box["token"]
     headers = {"X-Session-Id": token}
-    r, n = request_with_retry(
-        lambda: client.post(
+
+    def _post_chat() -> Any:
+        if pace is not None:
+            pace()  # only chat POSTs are paced, never job polls
+        return client.post(
             base + "/api/chat",
             json={"messages": [], "user_message": question, "session_id": token},
             headers=headers,
-        ),
-        sleep,
-    )
+        )
+
+    r, n = request_with_retry(_post_chat, sleep)
     retries += n
     if r.status_code == 202:
         job = r.json()["job_id"]
@@ -417,6 +441,12 @@ def main() -> int:
     ap.add_argument("--container", default="mukthiguru-backend")
     ap.add_argument("--base-url", default="http://localhost:8000")
     ap.add_argument("--need-usd", type=float, default=12.0)
+    ap.add_argument(
+        "--min-interval-s",
+        type=float,
+        default=DEFAULT_MIN_INTERVAL_S,
+        help="minimum seconds between consecutive chat POSTs (backend limit 20/minute)",
+    )
     ap.add_argument("--no-frozen", action="store_true")
     ap.add_argument("--no-unanswerable", action="store_true")
     ap.add_argument("--include-benchmarks", action="store_true", default=False)
@@ -463,11 +493,12 @@ def main() -> int:
     items = _items(include_frozen, include_unanswerable, include_benchmarks, include_qb)
 
     transport_failed_ids: list[str] = []
+    pace = Pacer(args.min_interval_s)
     with httpx.Client(timeout=120) as client, rows_path.open("w", encoding="utf-8") as out:
         for item in items:
             t0 = time.time()
             http, result, retries, completed = _ask(
-                client, args.base_url, token_box, item["question"]
+                client, args.base_url, token_box, item["question"], pace=pace
             )
             if not completed:
                 transport_failed_ids.append(str(item["id"]))
@@ -514,6 +545,7 @@ def main() -> int:
         "sha": sha,
         **facts,
         **verdict,
+        "min_interval_s": args.min_interval_s,
         "input_files": input_fingerprints(read_files),
         # Left null on purpose: this flow has no Qdrant client (only Redis and docker), and a
         # new client would change what a capture touches. Criteria want {points, ids_sha256}

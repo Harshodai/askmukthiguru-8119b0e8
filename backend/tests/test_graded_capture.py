@@ -336,3 +336,40 @@ def test_row_records_retries_and_transport_failure():
     row = build_row({"id": "q"}, {}, 429, 1.0, transport_retries=4, transport_failed=True)
     assert row["transport_retries"] == 4 and row["transport_failed"] is True
     assert build_row({"id": "q"}, {}, 200, 1.0)["transport_failed"] is False
+
+
+# ── pacing (2026-11-16: stay under the 20/minute chat limit instead of retrying it) ──
+
+
+def test_pacer_spaces_consecutive_calls_with_a_fake_clock():
+    from scripts.ops.graded_capture import Pacer
+
+    now = [100.0]
+    slept: list[float] = []
+
+    def sleep(s):
+        slept.append(s)
+        now[0] += s
+
+    pace = Pacer(3.2, sleep=sleep, clock=lambda: now[0])
+    pace()  # first call never waits
+    now[0] += 1.0
+    pace()  # 1.0 s elapsed: waits the remaining 2.2 s
+    now[0] += 5.0
+    pace()  # already past the interval: no wait
+    assert slept == [pytest.approx(2.2)]
+
+
+def test_ask_paces_chat_posts_only_not_session_or_polls():
+    paced: list[int] = []
+    client = _Client([_Resp(200, {"response": "ok"})])
+    _ask(
+        client, "http://x", {"token": None, "used": 0}, "q", lambda s: None, lambda: paced.append(1)
+    )
+    assert paced == [1]  # one chat POST; the anon-session POST was not paced
+
+
+def test_default_interval_is_above_the_chat_limit_spacing():
+    from scripts.ops.graded_capture import DEFAULT_MIN_INTERVAL_S
+
+    assert DEFAULT_MIN_INTERVAL_S > 60 / 20
