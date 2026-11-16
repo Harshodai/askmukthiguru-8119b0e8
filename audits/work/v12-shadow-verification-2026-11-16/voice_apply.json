@@ -1,0 +1,12 @@
+{
+ "collection": "first_person_v12_shadow",
+ "mode": "apply",
+ "children": 2719,
+ "outcomes": {
+  "promoted": 841,
+  "no_evidence": 1437,
+  "not_pending": 429,
+  "ecapa_failed": 12
+ },
+ "written": 853
+}

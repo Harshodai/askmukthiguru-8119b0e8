@@ -1,0 +1,88 @@
+{
+  "audio_failures": {},
+  "by_verdict": {
+    "calibration_unavailable": 0,
+    "invalid_audio": 0,
+    "missing_audio": 0,
+    "not_run": 0,
+    "out_of_bounds": 0,
+    "refused_below_cosine_floor": 5,
+    "refused_below_margin": 0,
+    "refused_guru_mismatch": 7,
+    "too_short": 0,
+    "verified": 2278
+  },
+  "calibration": {
+    "calibration_revision": "8daa506533f492231efa1827effbdbdadfb3159ccc6fa3f3cd13d4c763d6106e",
+    "cosine_floor": 0.28282581431961057,
+    "false_accept_bound": {
+      "alpha": 0.05,
+      "clean_trials_needed_for_target": 598,
+      "false_accepts": 0,
+      "impostor_trials": 262,
+      "independence_caveat": "assumes independent trials; trials sharing a speaker or a video are correlated, so the true uncertainty is wider than this bound",
+      "meets_target": false,
+      "method": "clopper_pearson_one_sided_exact",
+      "source": "trial_counts.test_impostor_trials, false_accept.test.count",
+      "target": 0.005,
+      "upper_bound": 0.01136897
+    },
+    "margin_threshold": 1e-06,
+    "recalibrated": false
+  },
+  "generated_at_utc": "2026-11-16T22:34:36.869731+00:00",
+  "inputs": {
+    "audio_dir": "/Users/harshodaikolluru/mukthiguru_attribution_data/audio_archive/wavs",
+    "calibration": {
+      "calibration_revision": "8daa506533f492231efa1827effbdbdadfb3159ccc6fa3f3cd13d4c763d6106e",
+      "path": "/Users/harshodaikolluru/mukthiguru_attribution_data/phase2_references_2026-10-30/calibration.json",
+      "sha256": "0d044a452a469ec3314ad2d1fdb5df256278bcebc48dc11a58d66308561acb28"
+    },
+    "mode": "served_window",
+    "model": {
+      "device": "mps",
+      "id": "speechbrain/spkrec-ecapa-voxceleb",
+      "revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286"
+    },
+    "recipe": {
+      "hop_seconds": 1.0,
+      "sample_rate": 16000,
+      "served_pad_ms": 250,
+      "silence_rms_floor": 0.01,
+      "window_rule": "max(0, start_ms - pad) .. end_ms + pad (CITATION_PLAYBACK_PAD_S)",
+      "window_seconds": 2.0
+    },
+    "references": {
+      "path": "/Users/harshodaikolluru/mukthiguru_attribution_data/phase2_references_2026-10-30/references.npz",
+      "sha256": "5ccba5b6584918aff2186ee2a0d6f5354e492806f6e2147485830e3f4b0528c1"
+    },
+    "spans": {
+      "path": "/private/tmp/claude-501/-Users-harshodaikolluru-Public-askmukthiguru-8119b0e8/5c54e142-9370-4607-a6a4-b4d42012eba9/scratchpad/spans.jsonl",
+      "sha256": "2bcfe82c1e6fb8bd8784e9a1286061829201c29e463679d46de593bb3430f700"
+    }
+  },
+  "mode": "served_window",
+  "mutations": {
+    "alias_changes": 0,
+    "environment_changes": 0,
+    "qdrant_reads": 0,
+    "qdrant_writes": 0,
+    "redis_operations": 0
+  },
+  "rows_emitted": 2290,
+  "run_id": "ac1a214f4d3548fbea6bed1d0e4faaf5b2249e184a45b21458422a4f2d47d73f",
+  "schema": "first-person-v10-ecapa-served-span-summary-v1",
+  "script_version": "regenerate-v10-span-ecapa-verdicts-v1",
+  "slices_embedded": 2290,
+  "spans_scored": 2290,
+  "validation": {
+    "checks": {
+      "every_row_echoes_calibration_revision": true,
+      "every_row_uses_the_served_window": true,
+      "one_row_per_source_span_id": true,
+      "row_schema_failures": 0
+    },
+    "failures": [],
+    "row_failure_reasons": {}
+  }
+}

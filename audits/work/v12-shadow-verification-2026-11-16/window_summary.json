@@ -1,0 +1,9 @@
+{
+  "no_diarization_ending_in_question": 4,
+  "unchecked_children": 2290,
+  "verdicts": {
+    "no_diarization": 111,
+    "window_fail": 1338,
+    "window_pass": 841
+  }
+}

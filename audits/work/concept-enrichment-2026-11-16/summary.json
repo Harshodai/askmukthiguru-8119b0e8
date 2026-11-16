@@ -1,0 +1,523 @@
+{
+ "children": 2758,
+ "coverage_ge1_id": 2644,
+ "coverage_pct": 95.87,
+ "per_key_points": {
+  "topic_ids": 2012,
+  "entity_ids": 2586,
+  "tags": 766
+ },
+ "ids_per_point": {
+  "histogram": {
+   "0": 114,
+   "1": 183,
+   "2": 270,
+   "3": 232,
+   "4": 246,
+   "5": 248,
+   "6": 1465
+  },
+  "mean": 7.796,
+  "median": 6.0,
+  "max": 42
+ },
+ "distinct_concepts_proposed": 868,
+ "top_concepts": [
+  [
+   "Consciousness",
+   549
+  ],
+  [
+   "consciousness",
+   547
+  ],
+  [
+   "State",
+   449
+  ],
+  [
+   "Presence",
+   373
+  ],
+  [
+   "love",
+   344
+  ],
+  [
+   "Love",
+   338
+  ],
+  [
+   "mind",
+   327
+  ],
+  [
+   "Other",
+   327
+  ],
+  [
+   "Mind",
+   316
+  ],
+  [
+   "The World",
+   309
+  ],
+  [
+   "Time",
+   306
+  ],
+  [
+   "Need",
+   254
+  ],
+  [
+   "peace",
+   237
+  ],
+  [
+   "Peace",
+   228
+  ],
+  [
+   "Heart",
+   190
+  ],
+  [
+   "children",
+   184
+  ],
+  [
+   "Children",
+   183
+  ],
+  [
+   "Suffering",
+   181
+  ],
+  [
+   "suffering",
+   179
+  ],
+  [
+   "brain",
+   172
+  ],
+  [
+   "divine",
+   171
+  ],
+  [
+   "Brain",
+   170
+  ],
+  [
+   "Family",
+   167
+  ],
+  [
+   "Beautiful State",
+   165
+  ],
+  [
+   "connection",
+   163
+  ],
+  [
+   "World",
+   163
+  ],
+  [
+   "beautiful state",
+   162
+  ],
+  [
+   "Connection",
+   153
+  ],
+  [
+   "fear",
+   144
+  ],
+  [
+   "Anger",
+   144
+  ]
+ ],
+ "max_share": 0.25,
+ "concepts_over_cap_after_drop": {},
+ "concepts_dropped_for_exceeding_cap": {
+  "You": 1857,
+  "life": 766,
+  "Life": 758
+ },
+ "samples": [
+  {
+   "point_id": "4d73f0f3-80de-5895-982f-195660a0d1e0",
+   "proposed": {
+    "entity_ids": [
+     "Eight Conscious Spreads",
+     "Humming Sound"
+    ]
+   },
+   "first_words": "Move to the second stage. Inhale slowly. Exhale make a"
+  },
+  {
+   "point_id": "4ea2acbc-f1ad-5e6b-ac9d-db545a7c812c",
+   "proposed": {
+    "topic_ids": [
+     "awakening",
+     "divine",
+     "love"
+    ],
+    "entity_ids": [
+     "Awakening",
+     "Breakthroughs",
+     "Earth",
+     "Journey",
+     "Love",
+     "Obstacles",
+     "Passion",
+     "Path",
+     "Success",
+     "Synchronicities",
+     "The Divine",
+     "Wealth",
+     "Young People"
+    ],
+    "tags": [
+     "Discovering Your Swadharma",
+     "Swadharma And Its Relationship With Ego",
+     "The Nature Of Suffering And Swadharma"
+    ]
+   },
+   "first_words": "You are not in it for money, but wealth and"
+  },
+  {
+   "point_id": "f1185c4b-0ad3-5d16-ac66-6957e0d5b994",
+   "proposed": {
+    "topic_ids": [
+     "anxiety",
+     "communication",
+     "fear",
+     "relationship",
+     "stress"
+    ],
+    "entity_ids": [
+     "Anxiety",
+     "Emotions",
+     "Fear of Failure",
+     "Health",
+     "Intelligence",
+     "Loss",
+     "State",
+     "Stress",
+     "Time"
+    ]
+   },
+   "first_words": "A long time ago you could have suffered poverty or"
+  },
+  {
+   "point_id": "9758037f-b591-5578-8ca7-1add6dada30d",
+   "proposed": {
+    "topic_ids": [
+     "brain",
+     "consciousness"
+    ],
+    "entity_ids": [
+     "Brain",
+     "Consciousness",
+     "Intelligence"
+    ]
+   },
+   "first_words": "Intelligence to focus and be creative. Intelligence to be playful"
+  },
+  {
+   "point_id": "7decb4c3-4af6-5af1-91b3-43cce7ad5261",
+   "proposed": {
+    "topic_ids": [
+     "connection",
+     "consciousness"
+    ],
+    "entity_ids": [
+     "Connection",
+     "Consciousness",
+     "Transformed State"
+    ]
+   },
+   "first_words": "That you are able to give them a gift of"
+  },
+  {
+   "point_id": "bbfbf45d-2747-5d7c-96bc-7c1c6d91913b",
+   "proposed": {
+    "entity_ids": [
+     "Body Issues"
+    ]
+   },
+   "first_words": "One question that keeps coming up again and again is"
+  },
+  {
+   "point_id": "f5cb29e3-0532-5c44-b0b4-978491aaf37e",
+   "proposed": {
+    "topic_ids": [
+     "consciousness",
+     "oneness"
+    ],
+    "entity_ids": [
+     "Consciousness",
+     "Humanity",
+     "Man",
+     "Matter",
+     "Mystic",
+     "Oneness",
+     "Other",
+     "Separation"
+    ]
+   },
+   "first_words": "Whether it is separation between man and a woman, humanity"
+  },
+  {
+   "point_id": "78a10fc9-79a3-54a9-8f8b-957aec86c317",
+   "proposed": {
+    "entity_ids": [
+     "Depression",
+     "Time"
+    ]
+   },
+   "first_words": "Coming back to your question, every possibility is if you"
+  },
+  {
+   "point_id": "d8ed7753-279c-5b3a-a6cd-a0429fae69e3",
+   "proposed": {
+    "topic_ids": [
+     "love"
+    ],
+    "entity_ids": [
+     "Love"
+    ],
+    "tags": [
+     "Ending Toxic Relationships",
+     "Endure Or Endure"
+    ]
+   },
+   "first_words": "You know, I meet a lot of youngsters, they'll go,"
+  },
+  {
+   "point_id": "04089fb6-f80d-59b3-b5fa-e2324fbb8fde",
+   "proposed": {
+    "topic_ids": [
+     "meditation"
+    ],
+    "entity_ids": [
+     "Meditation"
+    ]
+   },
+   "first_words": "Meditation does not fail people give up on meditation. They"
+  },
+  {
+   "point_id": "bc846c8d-c1e7-5288-9da8-50e200da8724",
+   "proposed": {
+    "topic_ids": [
+     "anxiety",
+     "children",
+     "fear",
+     "parents"
+    ],
+    "entity_ids": [
+     "Anxiety",
+     "Children",
+     "Fear",
+     "Joy",
+     "Loved Ones",
+     "Need",
+     "Other",
+     "Parents"
+    ]
+   },
+   "first_words": "they too have families, they too have babies or young"
+  },
+  {
+   "point_id": "45974fcd-8f44-5d70-8118-d6654e729b16",
+   "proposed": {
+    "topic_ids": [
+     "divine"
+    ],
+    "entity_ids": [
+     "Earth",
+     "Intelligence",
+     "Manifest",
+     "Processes",
+     "The Divine",
+     "Time",
+     "Wisdom"
+    ]
+   },
+   "first_words": "Every one of you has an innate genius that is"
+  },
+  {
+   "point_id": "01e2a86e-66e4-53c7-ac3e-f671869b0d4e",
+   "proposed": {
+    "topic_ids": [
+     "brain",
+     "practice"
+    ],
+    "entity_ids": [
+     "Brain",
+     "Emotions",
+     "Other",
+     "This Simple Practice"
+    ],
+    "tags": [
+     "Observing Emotions For Mental Health",
+     "The Brain S Attraction To Negativity",
+     "The Present Moment And Brain Function"
+    ]
+   },
+   "first_words": "With this simple practice you will cut through negativity and"
+  },
+  {
+   "point_id": "c2c3e659-6e02-5101-92d5-cbf3909fe4ae",
+   "proposed": {
+    "entity_ids": [
+     "Community",
+     "Organization"
+    ]
+   },
+   "first_words": "You feel connected to your organization or community. You're conscious"
+  },
+  {
+   "point_id": "bad833d7-9e76-5f32-8201-3620a07e5880",
+   "proposed": {
+    "topic_ids": [
+     "parents"
+    ],
+    "entity_ids": [
+     "Family",
+     "Other",
+     "Parents"
+    ]
+   },
+   "first_words": "always. That's the unfortunate part of living. Your family, your"
+  },
+  {
+   "point_id": "ed8df918-a976-5d77-806b-d7d109429fa2",
+   "proposed": {
+    "entity_ids": [
+     "Challenge",
+     "Soul Sync",
+     "Soul Sync Challenge"
+    ]
+   },
+   "first_words": "Welcome back to the 6th day of the Soul Sync"
+  },
+  {
+   "point_id": "d8df3fb5-d5b3-5de2-8253-47c8187099db",
+   "proposed": {
+    "entity_ids": [
+     "Need",
+     "Truth"
+    ],
+    "tags": [
+     "Inner Stillness Through Observation",
+     "Seeing The Truth Of Self"
+    ]
+   },
+   "first_words": "It's like these pillars have shown up, showing my truth"
+  },
+  {
+   "point_id": "88a5b729-1376-5273-befe-1a64006f471b",
+   "proposed": {
+    "topic_ids": [
+     "love"
+    ],
+    "entity_ids": [
+     "Love",
+     "Problem",
+     "State"
+    ],
+    "tags": [
+     "Letting Go of Attachments and Judgments",
+     "Living in a Beautiful State",
+     "Returning to Inner Beauty",
+     "Returning to the Beautiful State",
+     "Transcending Self-Centric Thinking"
+    ]
+   },
+   "first_words": "We are preoccupied with opportunities that did not come our"
+  },
+  {
+   "point_id": "bb2ca1d4-e284-5721-a522-8f6fa5bb7e06",
+   "proposed": {
+    "topic_ids": [
+     "alpha state",
+     "beta state",
+     "brain",
+     "peace"
+    ],
+    "entity_ids": [
+     "Alpha State",
+     "Brain",
+     "Challenge",
+     "Karma",
+     "Need",
+     "Peace",
+     "State",
+     "Sun"
+    ],
+    "tags": [
+     "Conquering Disturbances Through Calmness",
+     "The Illusion Of The Ego And Calmness",
+     "The Power Of Observation For Inner Peace"
+    ]
+   },
+   "first_words": "One way to do it is learn to change your"
+  },
+  {
+   "point_id": "5a82fe3b-7b6b-59cd-a9c9-74d64e8152d6",
+   "proposed": {
+    "topic_ids": [
+     "awareness",
+     "beautiful state",
+     "fear",
+     "mind"
+    ],
+    "entity_ids": [
+     "Awareness",
+     "Beautiful State",
+     "Clarity",
+     "Consciousness",
+     "Family",
+     "Fear",
+     "Hurt",
+     "Mind",
+     "Organization",
+     "Passion",
+     "Separation",
+     "Voice",
+     "Wisdom"
+    ]
+   },
+   "first_words": "You find fulfillment in caring for your family. You're capable"
+  }
+ ],
+ "collection": "first_person_v10",
+ "vocab": {
+  "okf_tag_vocab": 150,
+  "okf_video_title_videos": 181,
+  "graph_entity_vocab": 755,
+  "tu_topic_edges": 2,
+  "tu_topic_edges_matching_v10_children": 0,
+  "tu_node_count": 2760
+ },
+ "mode": "dry-run (nothing written to any store)",
+ "simulation": {
+  "questions": 116,
+  "max_clips": 16,
+  "max_spans": 3,
+  "questions_with_graph_terms": 19,
+  "questions_with_okf_terms": 116,
+  "questions_gaining_via_graph": 19,
+  "questions_gaining_via_okf": 116,
+  "questions_gaining_any": 116
+ }
+}
