@@ -930,6 +930,7 @@ class EmbeddingService:
                             output = self._encoder.encode(
                                 texts,
                                 normalize_embeddings=True,
+                                show_progress_bar=False,
                             )
                             if isinstance(output, list):
                                 result = output
@@ -1188,6 +1189,7 @@ class EmbeddingService:
                                 output = self._encoder.encode(
                                     prefixed_texts,
                                     normalize_embeddings=True,
+                                    show_progress_bar=False,
                                 )
                                 if isinstance(output, list):
                                     dense_vecs = output

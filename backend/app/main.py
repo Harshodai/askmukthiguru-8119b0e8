@@ -191,6 +191,24 @@ class PIIScrubber(logging.Filter):
 handler = logging.StreamHandler()
 handler.setFormatter(JSONFormatter(datefmt="%Y-%m-%dT%H:%M:%S%z"))
 logging.basicConfig(level=logging.INFO, handlers=[handler])
+# sentence-transformers prints a tqdm "Batches" bar on every encode/predict while its
+# logger is at INFO (L-04: 221 non-JSON lines in one graded run).
+logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
+
+
+def route_uvicorn_access_through_json() -> None:
+    """Send uvicorn's access lines through the root JSON handler.
+
+    uvicorn installs its own plain-text handler on ``uvicorn.access`` before the
+    app is imported. The AUDIT middleware skips health/metrics, so the access
+    log is not a pure duplicate; keep it but make it JSON (and PII-scrubbed).
+    """
+    access = logging.getLogger("uvicorn.access")
+    access.handlers.clear()
+    access.propagate = True
+
+
+route_uvicorn_access_through_json()
 
 # Defense in depth: PIIScrubber on the root logger AND on its handlers.
 # Logger-level filters only run for records emitted by that logger itself, so

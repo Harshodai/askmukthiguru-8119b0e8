@@ -320,7 +320,7 @@ def _build_centroids() -> dict[str, list[float]]:
     for label, words in _CLASS_KEYWORDS.items():
         all_phrases = words + [label.lower()]
         try:
-            embeddings = encoder.encode(all_phrases)
+            embeddings = encoder.encode(all_phrases, show_progress_bar=False)
         except Exception:
             logger.warning("On-device classifier: encoder.encode failed; disabling embedding path")
             return {}
@@ -432,7 +432,7 @@ def classify_with_embeddings(text: str, *, threshold: float = 0.45) -> str | Non
         return None
 
     try:
-        emb = encoder.encode(text)
+        emb = encoder.encode(text, show_progress_bar=False)
     except Exception:
         logger.warning("On-device classifier: encoder.encode failed; falling back to keyword path")
         return None

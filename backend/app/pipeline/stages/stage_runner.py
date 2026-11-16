@@ -90,6 +90,13 @@ class StageRunner:
                 duration_ms = max(0.0, round((time.time_ns() - start_ns) / 1_000_000, 2))
                 status = str(getattr(ctx, "last_stage_status", "success") or "success")[:32]
                 metadata = getattr(ctx, "last_stage_metadata", None)
+                # A stage that sets the sticky "error" status AND returns a
+                # result is a deliberate safety redirect (blocked/crisis intake),
+                # not a failure. Only a raised exception logs status=error.
+                # The sticky ctx field stays "error" (cache/compliance read it).
+                # circuit_breaker open is a real provider failure: keep "error".
+                if status == "error" and result is not None and stage_name != "circuit_breaker":
+                    status = "short_circuit"
                 logger.info(
                     "PIPELINE_STAGE_TIMING job_id=%s trace_id=%s stage=%s status=%s duration_ms=%.2f",
                     getattr(ctx, "job_id", None) or "-",
