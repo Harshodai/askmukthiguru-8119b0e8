@@ -108,11 +108,6 @@ def _detect_language(text: str) -> str:
 def _get_openai_compat_config() -> dict:
     """Return base_url + api_key for the configured classification provider."""
     provider = settings.llm_provider.lower()
-    if provider == "ollama":
-        return {
-            "base_url": f"{settings.ollama_base_url}/v1",
-            "api_key": "ollama",
-        }
     if provider == "sarvam":
         return {
             "base_url": settings.sarvam_base_url,
@@ -128,11 +123,7 @@ def _get_openai_compat_config() -> dict:
             "base_url": settings.nim_base_url,
             "api_key": settings.nim_api_key,
         }
-    logger.warning("Unknown provider '%s', falling back to Ollama", provider)
-    return {
-        "base_url": f"{settings.ollama_base_url}/v1",
-        "api_key": "ollama",
-    }
+    raise ValueError(f"Unsupported llm_provider for metadata extraction: {provider!r}")
 
 
 def _extract_title_speaker_sync(text: str) -> dict:

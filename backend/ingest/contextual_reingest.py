@@ -2,16 +2,15 @@
 
 Reads source payloads from the existing Qdrant collection, reconstructs each
 source document, re-chunks it with boundary-aware chunking, situates every chunk
-with a local Ollama-generated contextual header, and writes the new chunks into
+with an OpenRouter-generated contextual header, and writes the new chunks into
 a dedicated `_contextual` collection with identical dense+sparse vector and
 payload index configuration.
 
 Design choices:
-- Local Ollama only, primary/fallback model swap inside a thin wrapper.
+- OpenRouter contextualizer (Ollama support removed 2026-11-16, owner decision).
 - Embeddings reuse the project's bge-m3 EmbeddingService (1024-dim dense+sparse).
 - Deterministic point IDs make the task idempotent.
 - Progress is resumed via scripts/ingestion/ingestion_state.json.
-- Runtime Ollama health/model check prevents silent stalls.
 """
 
 from __future__ import annotations
@@ -24,7 +23,6 @@ import os
 import tempfile
 import threading
 import time
-import urllib.request
 from collections import defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -49,7 +47,6 @@ from app.config import settings
 from ingest.deduplication import LSHNearDupIndex
 from services.contextual_chunking_service import ContextualChunkingService
 from services.embedding_service import EmbeddingService, get_embedding_service
-from services.ollama_service import OllamaService
 from services.qdrant.client import QdrantClientManager
 from services.qdrant_service import QdrantService
 
@@ -139,30 +136,11 @@ _STATE_KEY: str = "contextual_reingest_processed_sources"
 _STATE_KEY_SECTIONS: str = "contextual_reingest_processed_sections"
 
 
-def _ollama_model_available_sync(base_url: str, model: str, timeout: float = 10.0) -> bool:
-    """Synchronous check that Ollama is reachable and *model* is in its tag list."""
-    import json as _json
-
-    url = f"{base_url.rstrip('/')}/api/tags"
-    try:
-        req = urllib.request.Request(url, method="GET")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
-            if resp.status != 200:
-                return False
-            data = _json.loads(resp.read().decode("utf-8"))
-            names = {m.get("name", "") for m in data.get("models", [])}
-            return model in names
-    except (TimeoutError, urllib.error.URLError, ConnectionError, Exception) as exc:
-        logger.debug("Ollama availability check failed for %s/%s: %s", url, model, exc)
-        return False
-
-
 class _OpenRouterContextualizer:
-    """OpenRouter-backed contextualizer with the same surface as the Ollama one.
+    """OpenRouter-backed contextualizer with the exposing ``.service.generate()`` for ContextualChunkingService.
 
     Gated as an approved dev-only exception (requires ALLOW_OPENROUTER_REINGEST=1 in prod).
     Note: Document and chunk text are sent to the hosted OpenRouter endpoint.
-    Default provider remains local Ollama so production inference makes zero external API calls.
 
     Selected by ``reingest_llm_provider=openrouter``. Model defaults to
     ``google/gemma-3-12b-it``, chosen by measurement rather than list price: a
@@ -268,128 +246,6 @@ class _OpenRouterContextualizer:
         )
 
 
-class _LocalOllamaContextualizer:
-    """Thin wrapper that forces local Ollama and primary/fallback model swap.
-
-    Bypasses the normal OllamaService provider guard so re-ingest can use any
-    locally-tagged Ollama model even when OLLAMA_CLOUD_ONLY is true globally.
-    The primary model is loaded at construction; if generation fails with an
-    Ollama ResponseError, the wrapper swaps to the fallback model and retries
-    once. This keeps the re-ingest resilient to transient model retirement.
-
-    Runtime guard: construction checks that the requested base URL/model are
-    actually reachable. If neither primary nor fallback is available, the
-    engine fails fast with an actionable message instead of retrying silently.
-    """
-
-    def __init__(
-        self,
-        base_url: Optional[str] = None,
-        primary_model: Optional[str] = None,
-        fallback_model: Optional[str] = None,
-        existing_service: Optional[OllamaService] = None,
-        skip_health_check: bool = False,
-    ) -> None:
-        self._base_url = base_url or settings.ollama_base_url or "http://localhost:11434"
-        self._primary_model = primary_model or os.environ.get(
-            "OLLAMA_REINGEST_MODEL", "gemini-3-flash-preview:cloud"
-        )
-        self._fallback_model = fallback_model or os.environ.get(
-            "OLLAMA_REINGEST_FALLBACK_MODEL", "deepseek-v4-flash:cloud"
-        )
-        self._service = existing_service
-        self._current_model = self._primary_model
-        self._using_fallback = False
-
-        if not skip_health_check:
-            primary_ok = _ollama_model_available_sync(self._base_url, self._primary_model)
-            if primary_ok:
-                return
-            fallback_ok = _ollama_model_available_sync(self._base_url, self._fallback_model)
-            if fallback_ok:
-                logger.warning(
-                    "Primary re-ingest model %s unavailable at %s; falling back to %s",
-                    self._primary_model,
-                    self._base_url,
-                    self._fallback_model,
-                )
-                self._current_model = self._fallback_model
-                return
-            raise RuntimeError(
-                f"Contextual re-ingest requires Ollama at {self._base_url} with model "
-                f"{self._primary_model} or fallback {self._fallback_model}. "
-                "Set OLLAMA_REINGEST_MODEL / OLLAMA_REINGEST_FALLBACK_MODEL to available tags, "
-                "or ensure Ollama is reachable."
-            )
-
-    @property
-    def service(self) -> _LocalOllamaContextualizer:
-        """Return self so ContextualChunkingService can call .generate()."""
-        return self
-
-    async def generate(
-        self,
-        system_prompt: str,
-        user_prompt: str,
-        timeout: float = 30.0,
-        max_retries: int = 1,
-        temperature: float = 0.3,
-        **kwargs: Any,
-    ) -> str:
-        """Generate via raw Ollama AsyncClient, with optional fallback swap."""
-        from ollama import AsyncClient
-        from ollama import ResponseError as OllamaResponseError
-
-        async def _call(model: str) -> str:
-            client = AsyncClient(host=self._base_url)
-            response = await asyncio.wait_for(
-                client.generate(
-                    model=model,
-                    prompt=user_prompt,
-                    system=system_prompt,
-                    options={"temperature": 0.3, "num_predict": 256},
-                ),
-                timeout=timeout,
-            )
-            return response.get("response", "")
-
-        last_exc: Optional[Exception] = None
-        for attempt in range(max(1, max_retries + 1)):
-            try:
-                return await _call(self._current_model)
-            except OllamaResponseError as exc:
-                last_exc = exc
-                if exc.status_code == 410:
-                    # Model retired — permanently swap to fallback.
-                    if not self._using_fallback:
-                        logger.warning(
-                            "Contextualizer primary model %s retired; switching to fallback %s",
-                            self._current_model,
-                            self._fallback_model,
-                        )
-                        self._using_fallback = True
-                        self._current_model = self._fallback_model
-                        continue
-                logger.warning(
-                    "Contextualizer model %s failed on attempt %d/%d: %s",
-                    self._current_model,
-                    attempt + 1,
-                    max_retries + 1,
-                    exc,
-                )
-            except TimeoutError as exc:
-                last_exc = exc
-                logger.warning(
-                    "Contextualizer model %s timed out on attempt %d/%d",
-                    self._current_model,
-                    attempt + 1,
-                    max_retries + 1,
-                )
-        raise RuntimeError(
-            f"Contextual enrichment failed for model {self._current_model}"
-        ) from last_exc
-
-
 class ContextualReingestEngine:
     """Re-ingest existing Qdrant sources into the contextual collection."""
 
@@ -398,7 +254,7 @@ class ContextualReingestEngine:
         source_collection: Optional[str] = None,
         target_collection: Optional[str] = None,
         embedding_service: Optional[EmbeddingService] = None,
-        contextualizer: Optional[_LocalOllamaContextualizer] = None,
+        contextualizer: Optional[_OpenRouterContextualizer] = None,
         qdrant_client: Optional[QdrantClient] = None,
         state_file: Optional[Path] = None,
     ) -> None:
@@ -450,7 +306,7 @@ class ContextualReingestEngine:
         re-ingest task runs it before any LLM work.
         """
         # Force lazy initialization of the contextualizer (and health check)
-        # so callers get a clear error if Ollama is not ready.
+        # so callers get a clear error if the contextualizer is not ready.
         self._contextualizer_service(skip_health_check=skip_health_check)
         sources = self._list_source_groups(source_url=source_url, limit=limit)
         previews = []
@@ -485,7 +341,7 @@ class ContextualReingestEngine:
         skip_processed: bool = True,
     ) -> dict[str, Any]:
         """Re-ingest sources into the contextual collection."""
-        # Fail fast if Ollama is not available — never queue a hours-long job
+        # Fail fast if the contextualizer is not available — never queue a hours-long job
         # that will stall on the first LLM call.
         self._contextualizer_service(skip_health_check=False)
         self._ensure_target_collection()
@@ -681,7 +537,7 @@ class ContextualReingestEngine:
         return self._embedding
 
     def _contextualizer_service(self, skip_health_check: bool = False):
-        """Ollama by default; OpenRouter when ``REINGEST_LLM_PROVIDER=openrouter``.
+        """OpenRouter contextualizer; ``REINGEST_LLM_PROVIDER`` must be ``openrouter``.
 
         A full re-ingest is one LLM call per chunk, so throughput dominates cost
         here. A 2026-08-01 bake-off on real corpus chunks (scored with
@@ -693,14 +549,12 @@ class ContextualReingestEngine:
         """
         if self._contextualizer is None:
             provider = (settings.reingest_llm_provider or "").strip().lower()
-            if provider == "openrouter":
-                self._contextualizer = _OpenRouterContextualizer(
-                    skip_health_check=skip_health_check
+            if provider != "openrouter":
+                raise RuntimeError(
+                    f"REINGEST_LLM_PROVIDER={provider!r} is unsupported; "
+                    "only 'openrouter' remains (Ollama removed 2026-11-16)."
                 )
-            else:
-                self._contextualizer = _LocalOllamaContextualizer(
-                    skip_health_check=skip_health_check
-                )
+            self._contextualizer = _OpenRouterContextualizer(skip_health_check=skip_health_check)
         return self._contextualizer
 
     def _get_dedup_index(self) -> Optional[LSHNearDupIndex]:
@@ -1011,19 +865,14 @@ class ContextualReingestEngine:
         raw_chunks: list[str],
         source_label: str,
     ) -> list[str]:
-        """Use local Ollama to situate each raw chunk within the full document."""
+        """Use the contextualizer LLM to situate each raw chunk within the full document."""
         contextualizer = self._contextualizer_service()
-        # Concurrency was hardcoded at 3, sized for a single local Ollama process
-        # where more in-flight requests just queue behind one GPU. Against a
-        # hosted endpoint the calls are network-bound and 3 leaves the pipeline
-        # idle: ~440 chunks at gemma's measured 2.09s each is ~5 minutes of
-        # mostly waiting. Default 8; keep it at 3 for local Ollama by setting
-        # REINGEST_CONTEXTUALIZER_CONCURRENCY, and lower it if OpenRouter starts
+        # Calls are network-bound against the hosted endpoint: ~440 chunks at
+        # gemma's measured 2.09s each is ~5 minutes of mostly waiting. Default 8;
+        # tune via REINGEST_CONTEXTUALIZER_CONCURRENCY, and lower it if OpenRouter starts
         # returning 429s — a rate-limit mid-run costs more than the parallelism
         # saves (2026-08-01: a 429 lost two complete runs).
         concurrency = max(1, int(settings.reingest_contextualizer_concurrency))
-        if (settings.reingest_llm_provider or "").strip().lower() != "openrouter":
-            concurrency = min(concurrency, 3)
         service = ContextualChunkingService(
             llm=contextualizer.service,
             max_doc_chars=max(1_000, int(settings.reingest_contextualizer_doc_chars)),
@@ -1569,13 +1418,7 @@ async def _smoke_test() -> None:
     """Self-check: dry-run the smallest YouTube source available locally."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(name)s  %(message)s")
 
-    # Force local Ollama settings for the self-check.
-    os.environ.setdefault("LLM_PROVIDER", "ollama")
-    os.environ.setdefault("OLLAMA_REINGEST_MODEL", "deepseek-v4-flash:cloud")
-    os.environ.setdefault("OLLAMA_REINGEST_FALLBACK_MODEL", "gemini-3-flash-preview:cloud")
-    os.environ.setdefault("OLLAMA_MODEL", "deepseek-v4-flash:cloud")
-    os.environ.setdefault("OLLAMA_CLASSIFY_MODEL", "deepseek-v4-flash:cloud")
-    os.environ.setdefault("OLLAMA_CLOUD_ONLY", "false")
+    os.environ.setdefault("REINGEST_LLM_PROVIDER", "openrouter")
     os.environ.setdefault("QDRANT_URL", "http://localhost:6333")
 
     engine = ContextualReingestEngine()

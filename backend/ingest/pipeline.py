@@ -54,7 +54,7 @@ from services.embedding_service import EmbeddingService
 from services.injection_scanner import scan_chunks_for_injection
 from services.metadata_extractor import extract_video_metadata
 from services.ocr_service import OCRService
-from services.ollama_service import OllamaService
+from services.llm_protocol import ILLMService
 from services.pii_scanner import redact_pii
 from services.qdrant_service import QdrantService
 from services.text_quality_filter import select_clean
@@ -474,7 +474,7 @@ class IngestionPipeline:
         self,
         qdrant_service: QdrantService,
         embedding_service: EmbeddingService,
-        ollama_service: OllamaService,
+        ollama_service: ILLMService,
         lightrag_service: Optional[Any] = None,
         ocr_service: Optional[OCRService] = None,
         semantic_cache_service: Optional[Any] = None,
@@ -802,11 +802,7 @@ class IngestionPipeline:
 
             # Configure OpenAI-compatible client for the active LLM provider
             provider = settings.llm_provider.lower()
-            if provider == "ollama":
-                base_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
-                api_key = "ollama"
-                model = settings.model_for_generation
-            elif provider == "nim":
+            if provider == "nim":
                 base_url = settings.nim_base_url
                 api_key = settings.nim_api_key
                 model = settings.nim_generation_model
@@ -819,9 +815,7 @@ class IngestionPipeline:
                 api_key = settings.sarvam_api_key
                 model = settings.sarvam_cloud_model
             else:
-                base_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
-                api_key = "ollama"
-                model = settings.model_for_generation
+                raise ValueError(f"Unsupported llm_provider for MarkItDown: {provider!r}")
 
             llm_client = OpenAI(base_url=base_url, api_key=api_key)
 

@@ -616,7 +616,7 @@ class LightRAGService:
             elif (
                 openrouter
                 and getattr(settings, "openrouter_api_key", None)
-                and provider not in ("ollama", "sarvam", "sarvam_cloud")
+                and provider not in ("sarvam", "sarvam_cloud")
             ):
                 kwargs["model"] = settings.openrouter_classify_model
                 kwargs["max_tokens"] = min(kwargs.get("max_tokens", 2048), 2048)

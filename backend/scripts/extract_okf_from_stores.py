@@ -776,33 +776,7 @@ async def _call_llm(system: str, user: str) -> str:
                 logger.info("LLM: generated %d chars via Sarvam", len(text))
                 return text.strip()
     except Exception as exc:
-        logger.warning("Sarvam LLM failed: %s — trying Ollama", _sanitize_log(exc))
-
-    # Final fallback: Ollama (local — always available if ollama serve is running)
-    try:
-        from services.ollama_service import OllamaService
-
-        ollama = OllamaService()
-        text = await ollama.generate(
-            system_prompt=system,
-            user_prompt=user,
-            temperature=0.3,
-            operation="okf_extraction",
-        )
-        if text:
-            from services.text_quality_filter import find_artifact
-
-            artifact = find_artifact(text)
-            if artifact:
-                logger.warning(
-                    "LLM output from Ollama contains artifact %r — trying next provider",
-                    artifact,
-                )
-            else:
-                logger.info("LLM: generated %d chars via Ollama", len(text))
-                return text.strip()
-    except Exception as exc:
-        logger.warning("Ollama LLM failed: %s", _sanitize_log(exc))
+        logger.warning("Sarvam LLM failed: %s", _sanitize_log(exc))
 
     raise RuntimeError("No LLM provider available — ensure llm_provider is configured")
 

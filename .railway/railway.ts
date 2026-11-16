@@ -151,8 +151,6 @@ export default defineRailway((ctx) => {
     WEB_SEARCH_ENABLED: "false",
     FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED: "true",
     FIRST_PERSON_HYDE_ENABLED: "true",
-    // TODO owner decision 12.4 #4: live value is false; decide before go-live.
-    FIRST_PERSON_POINTS_SERVABLE_HASH_CHECK_ENABLED: "false",
   };
 
   // ---- Backend API ---------------------------------------------------------

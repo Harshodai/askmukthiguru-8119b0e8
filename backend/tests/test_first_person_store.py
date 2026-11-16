@@ -546,6 +546,7 @@ def _point(pid, **payload):
             "speaker": "Sri Krishnaji",
             "is_verbatim": True,
             "verbatim_text": "A registered test teaching.",
+            "transcript_hash": hashlib.sha256(b"A registered test teaching.").hexdigest(),
             "first_person_eligible": True,
             "rights_cleared": True,
             "domain_rights_status": "licensed",

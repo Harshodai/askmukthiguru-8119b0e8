@@ -66,7 +66,7 @@ async def test_sequential_calls_do_not_cross_contaminate_context(mock_services, 
     """Two calls on the same default config must each send their own context."""
     from app.config import settings as app_settings
 
-    monkeypatch.setattr(app_settings, "llm_provider", "ollama")
+    monkeypatch.setattr(app_settings, "llm_provider", "openrouter")
     monkeypatch.setattr(app_settings, "use_dspy", False)
     monkeypatch.setattr(
         "rag.nodes.generation._generation_route",

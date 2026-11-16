@@ -58,12 +58,6 @@ def build_llm_client() -> tuple[Any, str] | None:
             settings.nim_classify_model,
         )
 
-    if provider == "ollama":
-        # Use the ollama-specific classify model, falling back to the primary
-        # ollama model, then the OllamaService default (sarvam-30b:latest).
-        model = settings.ollama_classify_model or settings.ollama_model or "sarvam-30b:latest"
-        return _make_client(settings.ollama_base_url, "ollama"), model
-
     return None
 
 

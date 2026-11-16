@@ -100,9 +100,8 @@ def _llm_settings():
     from app.config import settings
 
     return (
-        patch.object(settings, "llm_provider", "ollama"),
+        patch.object(settings, "llm_provider", "openrouter"),
         patch.object(settings, "rag_context_compression_enabled", True),
-        patch.object(settings, "ollama_cloud_only", False),
     )
 
 
@@ -113,8 +112,8 @@ async def test_poisoned_chunk_fenced_in_compression_path():
 
     provider = _RecordingProvider("A calm grounded answer.")
     _wire(provider)
-    p1, p2, p3 = _llm_settings()
-    with p1, p2, p3:
+    p1, p2 = _llm_settings()
+    with p1, p2:
         await generate_answer(_state())
     assert provider.calls, "LLM was never called"
     _assert_fenced(provider.calls[0]["user_prompt"])
@@ -132,8 +131,8 @@ async def test_poisoned_chunk_fenced_in_ccr_context_path():
     _wire(provider)
     raw = {"title": "Poison Title", "source_url": "http://x/poison", "text": POISON_TEXT}
     compressed = {"title": "Poison Title", "source_url": "http://x/poison", "text": "short"}
-    p1, p2, p3 = _llm_settings()
-    with p1, p2, p3:
+    p1, p2 = _llm_settings()
+    with p1, p2:
         await generate_answer(_state(relevant_docs=[compressed], raw_documents=[raw]))
     assert len(provider.calls) == 2, "CCR re-generation did not fire"
     _assert_fenced(provider.calls[1]["user_prompt"])
@@ -152,8 +151,8 @@ async def test_poisoned_chunk_fenced_in_ccr_knowledge_path():
     raw = {"title": "Poison Title", "source_url": "http://x/poison", "text": POISON_TEXT}
     compressed = {"title": "Poison Title", "source_url": "http://x/poison", "text": "short"}
     layers = {"persona": "P", "instructions": "I", "user_state": "U"}
-    p1, p2, p3 = _llm_settings()
-    with p1, p2, p3:
+    p1, p2 = _llm_settings()
+    with p1, p2:
         await generate_answer(
             _state(relevant_docs=[compressed], raw_documents=[raw], context_layers=layers)
         )

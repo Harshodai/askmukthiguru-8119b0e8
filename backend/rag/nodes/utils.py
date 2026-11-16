@@ -1088,9 +1088,6 @@ def select_llm_model(query: str, context_len: int) -> str:
         # Use the configured generation model; deepseek/deepseek-chat is the default.
         return getattr(settings, "openrouter_generation_model", "deepseek/deepseek-chat")
 
-    elif provider == "ollama":
-        return getattr(settings, "ollama_model", "qwen2.5:32b")
-
     elif provider == "nim":
         return getattr(settings, "nim_generation_model", "minimaxai/minimax-m2.7")
 

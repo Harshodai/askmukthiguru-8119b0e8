@@ -10,7 +10,6 @@ class LLMProvider(str, Enum):
     """LLM Provider identifiers - must match LLM_PROVIDER config values."""
 
     SARVAM_CLOUD = "sarvam_cloud"
-    OLLAMA = "ollama"
     OPENROUTER = "openrouter"
     NIM = "nim"
 
@@ -41,7 +40,6 @@ class CircuitBreakerProvider(str, Enum):
     """Circuit breaker provider identifiers - must match LLMProvider values."""
 
     SARVAM_CLOUD = LLMProvider.SARVAM_CLOUD.value
-    OLLAMA = LLMProvider.OLLAMA.value
     OPENROUTER = LLMProvider.OPENROUTER.value
     NIM = LLMProvider.NIM.value
     QDRANT = "qdrant"
@@ -93,11 +91,6 @@ CIRCUIT_BREAKER_CONFIGS = {
         "recovery_timeout": 90.0,
         "half_open_max_calls": 3,
     },
-    CircuitBreakerProvider.OLLAMA: {
-        "failure_threshold": 3,
-        "recovery_timeout": 60.0,
-        "half_open_max_calls": 1,
-    },
     CircuitBreakerProvider.OPENROUTER: {
         "failure_threshold": 5,
         "recovery_timeout": 60.0,
@@ -119,7 +112,6 @@ CIRCUIT_BREAKER_CONFIGS = {
 # Default timeouts per provider
 DEFAULT_TIMEOUTS = {
     LLMProvider.SARVAM_CLOUD: 60.0,
-    LLMProvider.OLLAMA: 30.0,
     LLMProvider.OPENROUTER: 30.0,
     LLMProvider.NIM: 60.0,
 }
@@ -127,11 +119,6 @@ DEFAULT_TIMEOUTS = {
 # Reasoning effort defaults per provider
 REASONING_EFFORT_DEFAULTS = {
     LLMProvider.SARVAM_CLOUD: {
-        "fast": "low",
-        "standard": "medium",
-        "complex": "high",
-    },
-    LLMProvider.OLLAMA: {
         "fast": "low",
         "standard": "medium",
         "complex": "high",
@@ -166,10 +153,6 @@ PROVIDER_MODELS = {
         "default": "sarvam-105b",  # was "sarvam-30b" (deprecated model)
         "classify": "sarvam-105b",  # was "sarvam-30b" (deprecated model)
         "complex": "sarvam-105b",
-    },
-    LLMProvider.OLLAMA: {
-        "default": "deepseek-r1:7b",
-        "classify": "deepseek-r1:7b",
     },
     LLMProvider.OPENROUTER: {
         "default": "deepseek/deepseek-chat",

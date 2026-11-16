@@ -41,7 +41,7 @@ from services.embedding_service import EmbeddingService
 from services.graphrag_fusion import GraphRAGFusion
 from services.lightrag_service import LightRAGService
 from services.llm_gateway import LLMGateway
-from services.ollama_service import OllamaService
+from services.llm_protocol import ILLMService
 from services.qdrant_service import QdrantService
 from services.serene_mind_engine import SereneMindEngine
 from services.web_search_service import WebSearchService
@@ -49,7 +49,7 @@ from services.web_search_service import WebSearchService
 
 def _init_then_compile(
     strategy_name: str,
-    ollama_service: OllamaService,
+    ollama_service: ILLMService,
     embedding_service: EmbeddingService,
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
@@ -81,7 +81,7 @@ def _init_then_compile(
 
 
 def build_rag_graph(
-    ollama_service: OllamaService,
+    ollama_service: ILLMService,
     embedding_service: EmbeddingService,
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
@@ -112,7 +112,7 @@ def build_rag_graph(
 
 
 def build_fast_graph(
-    ollama_service: OllamaService,
+    ollama_service: ILLMService,
     embedding_service: EmbeddingService,
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,
@@ -138,7 +138,7 @@ def build_fast_graph(
 
 
 def build_deep_graph(
-    ollama_service: OllamaService,
+    ollama_service: ILLMService,
     embedding_service: EmbeddingService,
     qdrant_service: QdrantService,
     lightrag_service: LightRAGService,

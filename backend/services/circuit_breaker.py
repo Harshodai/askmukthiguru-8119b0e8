@@ -402,7 +402,7 @@ class CircuitBreakerRegistry:
     Usage:
         registry = CircuitBreakerRegistry()
         registry.register("sarvam", DefaultCircuitBreaker(config))
-        registry.register("ollama", DefaultCircuitBreaker(config))
+        registry.register("openrouter", DefaultCircuitBreaker(config))
 
         active_breaker = registry.get_active()  # Based on LLM_PROVIDER config
         if active_breaker.can_execute():

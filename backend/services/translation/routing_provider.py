@@ -13,17 +13,17 @@ logger = logging.getLogger(__name__)
 
 
 class RoutingTranslationProvider(TranslationProvider):
-    """Dynamic translation router: Gemini first (when enabled), Sarvam fallback, Ollama last resort."""
+    """Dynamic translation router: Gemini first (when enabled), Sarvam fallback, generic service last resort."""
 
     def __init__(
         self,
-        ollama_provider: TranslationProvider | None = None,
+        service_provider: TranslationProvider | None = None,
         sarvam_provider: TranslationProvider | None = None,
         gemini_provider: TranslationProvider | None = None,
     ) -> None:
-        # Legacy positional order preserved: (ollama_provider, sarvam_provider).
-        # Keyword args (gemini_provider=..., sarvam_provider=..., ollama_provider=...) also work.
-        self._ollama = ollama_provider
+        # Positional order preserved: (service_provider, sarvam_provider).
+        # Keyword args (gemini_provider=..., sarvam_provider=..., service_provider=...) also work.
+        self._service = service_provider
         self._sarvam = sarvam_provider
         self._gemini = gemini_provider
 
@@ -35,7 +35,7 @@ class RoutingTranslationProvider(TranslationProvider):
         target_lang: str,
         **kwargs: Any,
     ) -> str:
-        """Translate via Gemini first (when enabled + configured), else Sarvam, else Ollama."""
+        """Translate via Gemini first (when enabled + configured), else Sarvam, else the generic service provider."""
         # Gemini-first path: try, fall back to Sarvam on any failure.
         if settings.gemini_translation_enabled and self._gemini is not None:
             try:
@@ -67,21 +67,21 @@ class RoutingTranslationProvider(TranslationProvider):
                 return restore_citation_markers(text, translated)
             except Exception as sarvam_err:
                 logger.error(f"Sarvam translation failed: {sarvam_err}")
-                # Fall through to Ollama if available.
+                # Fall through to the service provider if available.
                 pass
 
-        # Ollama fallback if Sarvam unavailable/failed and Ollama configured.
-        if self._ollama is not None:
+        # Service fallback if Sarvam unavailable/failed and a service provider is configured.
+        if self._service is not None:
             try:
-                translated = await self._ollama.translate_text(
+                translated = await self._service.translate_text(
                     text=text, source_lang=source_lang, target_lang=target_lang, **kwargs
                 )
                 return restore_citation_markers(text, translated)
-            except Exception as ollama_err:
-                logger.error(f"Ollama translation failed: {ollama_err}")
+            except Exception as service_err:
+                logger.error(f"Service translation failed: {service_err}")
                 raise
 
-        raise RuntimeError("No translation provider available (Sarvam/Ollama not configured)")
+        raise RuntimeError("No translation provider available (Sarvam/service not configured)")
 
     async def health_check(self) -> bool:
         """Return True if any provider in the chain is healthy."""
@@ -104,11 +104,11 @@ class RoutingTranslationProvider(TranslationProvider):
             except Exception:
                 sarvam_ok = False
 
-        ollama_ok = False
-        if self._ollama is not None:
+        service_ok = False
+        if self._service is not None:
             try:
-                ollama_ok = await self._ollama.health_check()
+                service_ok = await self._service.health_check()
             except Exception:
-                ollama_ok = False
+                service_ok = False
 
-        return gemini_ok or sarvam_ok or ollama_ok
+        return gemini_ok or sarvam_ok or service_ok

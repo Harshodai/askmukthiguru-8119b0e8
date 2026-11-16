@@ -138,8 +138,8 @@ def test_gating_triggers_for_comparative_tier2(monkeypatch):
     state["graph_traversal_context"] = [
         {"concept_id": "Karma", "node_data": {"entity_id": "Karma", "name": "Karma"}, "step": 0}
     ]
-    with patch("services.ollama_service.OllamaService") as MockOllama:
-        instance = MockOllama.return_value
+    with patch("rag.nodes._services._ollama") as MockOllama:
+        instance = MockOllama
         instance._generate_fast = AsyncMock(
             return_value='{"action": "DONE", "reasoning": "enough"}'
         )
@@ -160,8 +160,8 @@ def test_gating_tier3_complex_triggers_without_comparative(monkeypatch):
     state["graph_traversal_context"] = [
         {"concept_id": "Karma", "node_data": {"entity_id": "Karma", "name": "Karma"}, "step": 0}
     ]
-    with patch("services.ollama_service.OllamaService") as MockOllama:
-        instance = MockOllama.return_value
+    with patch("rag.nodes._services._ollama") as MockOllama:
+        instance = MockOllama
         instance._generate_fast = AsyncMock(return_value='{"action": "DONE", "reasoning": "done"}')
         result = asyncio.run(agt.agentic_graph_traversal(state))
     assert "relevant_docs" in result
@@ -369,10 +369,10 @@ def test_full_react_loop_first_step_done(monkeypatch):
         }
     ]
     with (
-        patch("services.ollama_service.OllamaService") as MockOllama,
+        patch("rag.nodes._services._ollama") as MockOllama,
         patch("ingest.pipeline.extract_doctrine_tags", return_value=["Karma"]),
     ):
-        instance = MockOllama.return_value
+        instance = MockOllama
         instance._generate_fast = AsyncMock(
             return_value='{"action": "DONE", "reasoning": "enough context"}'
         )

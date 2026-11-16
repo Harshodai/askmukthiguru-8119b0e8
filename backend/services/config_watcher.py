@@ -7,7 +7,7 @@ triggering in-process setting reloads without a server restart.
 Design:
   - ``ConfigWatcher``: asyncio-based watcher using watchfiles (if available)
   - Falls back to polling (every 30s) if watchfiles is not installed
-  - Reloads: rag/prompts.py constants, settings.model_preset, settings.llm_timeout
+  - Reloads: rag/prompts.py constants, settings.llm_timeout
   - Notifies the ServiceContainer to re-init affected services on change
   - Runs as a background asyncio Task; errors are caught and logged (never crash)
 

@@ -205,10 +205,10 @@ def cleanup(dry_run: bool = False, max_points: int | None = None) -> dict[str, A
             # ponytail: rebuild entire RAPTOR tree since we deleted leaf nodes
             from ingest.raptor import RaptorIndexer
             from services.embedding_service import EmbeddingService
-            from services.ollama_service import OllamaService
+            from services.openrouter_service import OpenRouterService
 
             embedder = EmbeddingService()
-            llm = OllamaService()
+            llm = OpenRouterService()
             raptor = RaptorIndexer(
                 embedding_service=embedder,
                 ollama_service=llm,

@@ -59,7 +59,7 @@ def setup_dspy_lm() -> bool:
     """
     Configure DSPy to use the production LLM provider.
 
-    Priority: openrouter (live default) -> nim -> ollama local-only.
+    Priority: openrouter (live default) -> nim.
     Returns False when dspy is not installed or no provider is configured.
     """
     if dspy is None:
@@ -103,17 +103,8 @@ def setup_dspy_lm() -> bool:
                 logger.info(f"DSPy configured to use NIM model: {model}")
                 return True
 
-        # Fallback: Ollama (local dev only)
-        ollama_base = getattr(settings, "ollama_base_url", "http://localhost:11434")
-        lm = dspy.LM(
-            model=f"openai/{model}",
-            api_base=ollama_base,
-            max_tokens=max_tokens,
-            cache=False,
-        )
-        dspy.settings.configure(lm=lm)
-        logger.info(f"DSPy configured to use Ollama at {ollama_base} with model: {model}")
-        return True
+        logger.error("DSPy LM not configured: no NIM/OpenRouter key for provider %r", provider)
+        return False
     except Exception as e:
         logger.error(f"Failed to configure DSPy LM: {e}")
         return False

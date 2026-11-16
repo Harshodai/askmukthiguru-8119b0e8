@@ -11,7 +11,7 @@ import logging
 import re
 
 from services.doctrine_terms import apply_corrections, correction_term_lines
-from services.ollama_service import OllamaService
+from services.llm_protocol import ILLMService
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ def _sentence_aware_split(text: str, chunk_size: int = 4000, overlap: int = 100)
 
 
 class TranscriptCorrector:
-    def __init__(self, ollama_service: OllamaService):
+    def __init__(self, ollama_service: ILLMService):
         self._llm = ollama_service
 
     async def correct_transcript(self, text: str, source_url: str) -> str:

@@ -53,7 +53,7 @@ class LLMServiceFactory:
 
     Usage:
         factory = LLMServiceFactory()
-        ollama = factory.create("ollama")
+        openrouter = factory.create("openrouter")
         sarvam = factory.create("sarvam_cloud")
     """
 
@@ -78,13 +78,6 @@ class LLMServiceFactory:
 
 def _register_default_providers() -> None:
     """Auto-register built-in providers to keep the module self-contained."""
-    try:
-        from services.ollama_service import OllamaService
-
-        _registry.register("ollama", OllamaService)
-    except ImportError as exc:
-        logger.warning(f"Could not register Ollama provider: {exc}")
-
     try:
         from services.sarvam_service import SarvamCloudService
 

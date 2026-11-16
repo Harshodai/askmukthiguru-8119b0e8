@@ -83,10 +83,9 @@ async def test_first_ccr_retrieve_works():
         ab_model="primary",
     )
 
-    with patch.object(settings, "llm_provider", "ollama"):
+    with patch.object(settings, "llm_provider", "openrouter"):
         with patch.object(settings, "rag_context_compression_enabled", True):
-            with patch.object(settings, "ollama_cloud_only", False):
-                result = await generate_answer(state)
+            result = await generate_answer(state)
 
     # The second generate call used the uncompressed doc.
     assert "original uncompressed text" in result["answer"].lower()
@@ -122,9 +121,8 @@ async def test_second_ccr_retrieve_falls_back():
         ccr_attempted=True,
     )
 
-    with patch.object(settings, "llm_provider", "ollama"):
+    with patch.object(settings, "llm_provider", "openrouter"):
         with patch.object(settings, "rag_context_compression_enabled", True):
-            with patch.object(settings, "ollama_cloud_only", False):
-                result = await generate_answer(state)
+            result = await generate_answer(state)
 
     assert result["answer"] == FALLBACK_RESPONSE

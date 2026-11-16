@@ -208,14 +208,13 @@ class ServiceContainer:
 
     def _build_llm_services(self) -> None:
         """Layer 3: LLM, translation, failover, and circuit-breaker services."""
-        from services.llm import OllamaProvider
         from services.llm_factory import LLMServiceFactory
         from services.openrouter_service import OpenRouterService
         from services.translation import TranslationProviderFactory
 
         self.llm = (
             _create_llm_service()
-        )  # Canonical LLMProvider strategy (wrapping Sarvam, OpenRouter, or Ollama)
+        )  # Canonical LLMProvider strategy (wrapping Sarvam, OpenRouter, or NIM)
 
         # Wire TranslationProvider using TranslationProviderFactory
         if settings.is_sarvam_cloud:
@@ -228,11 +227,7 @@ class ServiceContainer:
             self.sarvam_cloud = None
             from services.llm.openrouter_provider import OpenRouterProvider
 
-            if isinstance(self.llm, OllamaProvider):
-                from services.translation import OllamaTranslationProvider
-
-                self.translation = OllamaTranslationProvider(self.llm._service)
-            elif isinstance(self.llm, OpenRouterProvider):
+            if isinstance(self.llm, OpenRouterProvider):
                 # 2026-09-28: the live provider fell to the no-op branch below, so every
                 # "translate to English / back to the seeker's language" call silently
                 # returned its input. Gemini-via-OpenRouter first (gemini_translation_enabled,
@@ -240,7 +235,7 @@ class ServiceContainer:
                 # and returns the source text on failure — so this chain never raises into
                 # the callers that don't guard it (cache/glue/guardrail stages).
                 from services.translation import (
-                    OllamaTranslationProvider,  # adapts any .translate_text(text, src, tgt)
+                    ServiceTranslationProvider,  # adapts any .translate_text(text, src, tgt)
                 )
                 from services.translation.gemini_provider import GeminiTranslationProvider
                 from services.translation.routing_provider import RoutingTranslationProvider
@@ -250,10 +245,10 @@ class ServiceContainer:
                     gemini_provider=GeminiTranslationProvider(openrouter)
                     if settings.gemini_translation_enabled
                     else None,
-                    ollama_provider=OllamaTranslationProvider(openrouter),
+                    service_provider=ServiceTranslationProvider(openrouter),
                 )
             else:
-                # Non-Ollama provider without Sarvam: keep a placeholder that passes text through
+                # Provider without a translation adapter and without Sarvam: keep a placeholder that passes text through
                 self.translation = _NoopTranslationProvider()
 
         # Cross-provider failover via NIM was removed per security audit:

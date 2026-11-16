@@ -17,6 +17,7 @@ throwaway prefix and are deleted in teardown. No flush of any kind is used.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import uuid
@@ -91,6 +92,9 @@ def _clip_payload(**overrides: Any) -> dict[str, Any]:
         "teacher_id": "preethaji",
         "speaker": "Sri Preethaji",
         "verbatim_text": "A fixture span used only by the fixture-store contract test.",
+        "transcript_hash": hashlib.sha256(
+            b"A fixture span used only by the fixture-store contract test."
+        ).hexdigest(),
         "first_person_eligible": True,
         "rights_cleared": True,
         "is_verbatim": True,

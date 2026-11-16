@@ -327,12 +327,8 @@ def test_first_person_only_posture_is_the_default():
     assert s.first_person_llm_fallback_enabled is False
     assert s.first_person_serve_weak_match is True
     # Same idiom: assert the declared default rather than the env-resolved value.
-    # 2026-11-10 (SOTA plan WS3): the declared default moved 3 -> 2. A score-2 context is
-    # served as ``weak_match`` (status + is_direct_answer=False + verification.direct=False),
-    # never as a direct answer, because directness is now resolved separately by
-    # ``_DIRECT_ANSWER_MIN_SCORE = 3``. Asserting 3 here would pin the old guillotine that
-    # discarded 95% of authentic discourse.
-    assert Settings.model_fields["first_person_relevance_min_score"].default == 2
+    # Owner decision 2026-11-16: the declared default is 3 everywhere.
+    assert Settings.model_fields["first_person_relevance_min_score"].default == 3
 
 
 def test_production_refuses_missing_faculty_code():

@@ -171,11 +171,6 @@ async def bulk_ingest_async(
 
         llm_svc = SarvamCloudService()
         logger.info("Using SarvamCloudService as LLM provider for ingestion")
-    elif llm_provider == "ollama":
-        from services.ollama_service import OllamaService
-
-        llm_svc = OllamaService()
-        logger.info("Using OllamaService as LLM provider for ingestion")
     else:
         llm_svc = OpenRouterService()
         llm_svc._rpm_limit = rpm_limit

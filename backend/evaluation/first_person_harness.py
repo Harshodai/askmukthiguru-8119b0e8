@@ -346,7 +346,7 @@ def _make_llm_service():
         svc = OpenRouterService()
         if getattr(svc, "_api_key", None):
             return svc, "openrouter"
-        print("[harness] OpenRouter has no API key; trying ollama chain", file=sys.stderr)
+        print("[harness] OpenRouter has no API key; trying the configured provider chain", file=sys.stderr)
     except Exception as e:
         print(f"[harness] OpenRouterService unavailable: {e}", file=sys.stderr)
     try:
@@ -354,9 +354,9 @@ def _make_llm_service():
 
         svc = _create_llm_service()
         if svc is not None and hasattr(svc, "generate"):
-            return svc, "ollama"
+            return svc, "configured_provider"
     except Exception as e:
-        print(f"[harness] ollama chain unavailable: {e}", file=sys.stderr)
+        print(f"[harness] configured provider chain unavailable: {e}", file=sys.stderr)
     return None, None
 
 

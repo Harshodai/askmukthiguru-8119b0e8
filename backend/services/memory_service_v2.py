@@ -196,12 +196,6 @@ class MemoryServiceV2(MemoryService):
                     api_key=settings.nim_api_key,
                 )
                 model_name = settings.nim_classify_model
-            elif settings.llm_provider.lower() == "ollama":
-                client = AsyncOpenAI(
-                    base_url=settings.ollama_base_url,
-                    api_key="ollama",
-                )
-                model_name = settings.model_for_classification
             else:
                 return {}
 

@@ -929,7 +929,7 @@ class LegacyStoreServingMixin:
                     judge_meta_out=judge_meta,
                 )
             elif speculative_enabled and candidates:
-                min_rel = int(getattr(settings, "first_person_relevance_min_score", 2))
+                min_rel = int(getattr(settings, "first_person_relevance_min_score", 3))
                 # Cascade Reranker-to-Scorer Filtering (Track 1):
                 # Only score candidate #1 first. If candidate #1 passes with score >= min_rel,
                 # serve it immediately. Only evaluate candidate #2 on tie/rejection.
@@ -1028,7 +1028,7 @@ class LegacyStoreServingMixin:
             if getattr(settings, "first_person_second_quote_enabled", False) and len(
                 rel_scores
             ) == len(candidates):
-                minimum = int(getattr(settings, "first_person_relevance_min_score", 2))
+                minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
                 others = [
                     i
                     for i in range(len(candidates))
@@ -1064,7 +1064,7 @@ class LegacyStoreServingMixin:
             _j_sel = judge_meta.get("selected")
             if isinstance(_j_sel, int) and 0 <= _j_sel < len(_j_scores):
                 _j_item = _j_scores[_j_sel]
-                _min_rel = int(getattr(settings, "first_person_relevance_min_score", 2))
+                _min_rel = int(getattr(settings, "first_person_relevance_min_score", 3))
                 _answers = bool(_j_item.get("answers", False))
                 _rel = int(_j_item.get("relevance", 0))
                 _is_direct_judge = _answers and _rel >= _min_rel
@@ -1933,7 +1933,7 @@ class LegacyStoreServingMixin:
 
         # Per-part Scoring & Selection (Task F2)
         t_scorer_start = time.monotonic()
-        minimum_score = int(getattr(settings, "first_person_relevance_min_score", 2))
+        minimum_score = int(getattr(settings, "first_person_relevance_min_score", 3))
         used_video_ids: set[str] = set()
         part_results: list[dict[str, Any]] = []
 

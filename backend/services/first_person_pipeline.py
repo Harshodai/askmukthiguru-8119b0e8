@@ -1213,7 +1213,7 @@ def _harness_rejection_reasons(judge_meta: dict[str, Any]) -> str:
     return first_person_judge.rejection_reason(
         judge_meta["scores"],
         bool(judge_meta.get("question_answerable")),
-        int(getattr(settings, "first_person_relevance_min_score", 2)),
+        int(getattr(settings, "first_person_relevance_min_score", 3)),
     )
 
 
@@ -1269,7 +1269,7 @@ async def _relevance_select_async(
             query,
             clips,
             llm_service,
-            minimum=int(getattr(settings, "first_person_relevance_min_score", 2)),
+            minimum=int(getattr(settings, "first_person_relevance_min_score", 3)),
             timeout_s=_relevance_timeout_s(),
             scores_out=scores_out,
             judge_meta_out=judge_meta_out,
@@ -1358,7 +1358,7 @@ async def _relevance_select_scored_async(
     """
     if not clips or llm_service is None or not hasattr(llm_service, "generate"):
         return _RELEVANCE_INDETERMINATE
-    minimum = int(getattr(settings, "first_person_relevance_min_score", 2))
+    minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
     user_prompt = _build_relevance_user_prompt(query, clips)
     use_json_schema = False
     # Bound before the try: the except branches below estimate tokens from it.

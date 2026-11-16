@@ -54,3 +54,8 @@ def test_gotcha_settings_pinned():
     assert 'healthcheck: "/api/healthz"' in IAC
     assert 'FORWARDED_ALLOW_IPS: "10.0.0.0/8"' in IAC
     assert 'PYTHON_MEMORY_LIMIT_MB: "0"' in IAC
+
+
+def test_hash_check_flag_removed_not_pinned():
+    # Integrity re-check on cache replay is always on (owner decision 2026-11-16).
+    assert "POINTS_SERVABLE_HASH_CHECK" not in IAC

@@ -499,7 +499,7 @@ def llm(monkeypatch):
     from app.config import settings as app_settings
     from services.gateways.anthropic_gateway import AnthropicGatewayError
 
-    monkeypatch.setattr(app_settings, "llm_provider", "ollama")
+    monkeypatch.setattr(app_settings, "llm_provider", "openrouter")
 
     def _no_gateway(cls):
         raise AnthropicGatewayError("not configured in tests")

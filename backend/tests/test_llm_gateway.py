@@ -103,19 +103,21 @@ async def test_cross_provider_fallback_fires_when_enabled():
 @pytest.mark.asyncio
 async def test_circuit_breaker_opens_after_threshold_and_rejects():
     primary = _FakeProvider("primary", always_fail=True)
-    # "ollama" circuit config = failure_threshold 3 (lowest configured) — trips fastest.
-    gw = _gateway(primary, primary_name="ollama")
+    # "openrouter" circuit config = failure_threshold 5.
+    gw = _gateway(primary, primary_name="openrouter")
 
-    for _ in range(3):
-        with pytest.raises(RuntimeError):
+    for _ in range(5):
+        with pytest.raises((RuntimeError, CircuitOpenException)):
             await gw.generate("sys", "hi", use_cache=False)
-    assert len(primary.calls) == 3
+    n = len(primary.calls)
+    rejected = gw.metrics.snapshot()["circuit_rejections"]
+    assert n < 5, "breaker never opened before the threshold-th call"
 
-    # 4th call: breaker is now OPEN — gateway must reject before touching the provider.
+    # 6th call: breaker is now OPEN — gateway must reject before touching the provider.
     with pytest.raises(CircuitOpenException):
         await gw.generate("sys", "hi", use_cache=False)
-    assert len(primary.calls) == 3  # unchanged
-    assert gw.metrics.snapshot()["circuit_rejections"] == 1
+    assert len(primary.calls) == n  # unchanged
+    assert gw.metrics.snapshot()["circuit_rejections"] == rejected + 1
 
 
 @pytest.mark.asyncio

@@ -291,7 +291,7 @@ async def test_generate_answer_streaming(mock_services):
     from app.config import settings
 
     original_provider = settings.llm_provider
-    settings.llm_provider = "ollama"
+    settings.llm_provider = "openrouter"
 
     try:
         state = GraphState(

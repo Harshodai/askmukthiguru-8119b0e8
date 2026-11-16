@@ -117,25 +117,24 @@ def test_excluded_dirs_never_enter_the_compiled_index(excluded_dir: str):
         # Assert on the symbol the code actually uses.
         ("multi-provider", "multi_provider_llm"),
         ("OpenRouter", "OpenRouterService"),
-        ("Ollama", "OllamaService"),
+        ("Sarvam", "SarvamCloudService"),
     ],
 )
 def test_extractor_llm_chain_has_all_fallbacks(provider: str, source_token: str):
-    """This is the copy ingestion/Celery/admin import; it must fall back to Ollama."""
+    """This is the copy ingestion/Celery/admin import; it must fall back to Sarvam."""
     assert source_token in inspect.getsource(extractor._call_llm), (
         f"{provider} leg ({source_token}) missing from _call_llm — "
-        "OKF extraction raises under LLM_PROVIDER=ollama"
+        "OKF extraction raises when every provider is configured away"
     )
 
 
 @pytest.mark.asyncio
-async def test_extractor_llm_chain_actually_falls_through_to_ollama(monkeypatch):
+async def test_extractor_llm_chain_actually_falls_through_to_sarvam(monkeypatch):
     """production-audit finding false-confidence-4: the sibling test above only
     greps source text for provider names — it never proves the fallback chain
-    actually EXECUTES. Mock the first three providers to fail/raise and assert
-    Ollama's .generate() is really invoked and its text is what's returned."""
+    actually EXECUTES. Mock the first two providers to fail/raise and assert
+    Sarvam's .generate() is really invoked and its text is what's returned."""
     import services.multi_provider_llm as multi_provider_llm
-    import services.ollama_service as ollama_service
     import services.openrouter_service as openrouter_service
     import services.sarvam_service as sarvam_service
 
@@ -150,20 +149,14 @@ async def test_extractor_llm_chain_actually_falls_through_to_ollama(monkeypatch)
 
     monkeypatch.setattr(openrouter_service, "OpenRouterService", _RaisingOpenRouter)
 
-    class _RaisingSarvam:
+    class _WorkingSarvam:
         async def generate(self, **kwargs):
-            raise RuntimeError("sarvam down")
+            return "sarvam fallback text"
 
-    monkeypatch.setattr(sarvam_service, "SarvamCloudService", _RaisingSarvam)
-
-    class _WorkingOllama:
-        async def generate(self, **kwargs):
-            return "ollama fallback text"
-
-    monkeypatch.setattr(ollama_service, "OllamaService", _WorkingOllama)
+    monkeypatch.setattr(sarvam_service, "SarvamCloudService", _WorkingSarvam)
 
     result = await extractor._call_llm("system prompt", "user prompt")
-    assert result == "ollama fallback text"
+    assert result == "sarvam fallback text"
 
 
 def test_extractor_copies_are_identical():

@@ -5,7 +5,7 @@ Uses Pydantic Settings for type-safe, validated configuration from .env files.
 Implements the Singleton pattern via module-level instance for zero-cost DI.
 
 Includes configs for:
-  - Sarvam 30B (Indian multilingual LLM via Ollama)
+  - Sarvam 30B (Indian multilingual LLM)
   - faster-whisper (4x faster Whisper transcription)
   - Multi-language transcript extraction (10 Indian languages)
   - Concurrent playlist ingestion workers
@@ -64,18 +64,10 @@ class Settings(BaseSettings):
     #   "openrouter"   → OpenRouter (deepseek/deepseek-chat generation,
     #                    meta-llama/llama-3.1-8b-instruct classify/fast) [DEFAULT]
     #   "sarvam_cloud" → Sarvam Cloud API
-    #   "ollama"       → Local Ollama (requires model downloads)
     # Default aligned with backend/.env and docker-compose.yml, which both
     # already set openrouter; leaving this at sarvam_cloud meant a process
     # started without an .env silently ran a different provider than production.
     llm_provider: str = "openrouter"
-
-    # --- Model Preset (for Ollama mode only) ---
-    # Set MODEL_PRESET to switch between Ollama model configurations:
-    #   "qwen"    → Qwen3-30B-A3B (generation) + Qwen3-14B (classification)
-    #   "sarvam"  → Sarvam 30B (generation) + llama3.2:3b (classification)   [Requires custom GGUF import]
-    #   "custom"  → Use OLLAMA_MODEL + OLLAMA_CLASSIFY_MODEL below
-    model_preset: str = "qwen"
 
     # --- Sarvam Cloud API ---
     sarvam_api_key: str = ""  # API subscription key from dashboard.sarvam.ai
@@ -518,12 +510,9 @@ class Settings(BaseSettings):
     # clip scoring >= min_score or abstain (fail closed). Standalone: deterministic backstop
     # rejecting clips that end/start mid-thought or announce a one-off event.
     first_person_relevance_gate_enabled: bool = True
-    # RP-A4/QBUG-2 (2026-10-13): was 3. Calibrated to 2 on 2026-11-10 (SOTA plan WS3):
-    # a spiritual teaching explains the root cause of an inner state rather than giving a
-    # transactional "how-to", and the strict 3-only floor discarded 95% of authentic
-    # discourse. Score 2 serves as ``weak_match`` (status + is_direct_answer=False +
-    # verification.direct=False), never as a direct answer.
-    first_person_relevance_min_score: int = 2
+    # Owner decision 2026-11-16: 3 everywhere (code default, compose, Railway). The
+    # 2026-11-10 calibration to 2 (SOTA plan WS3, weak_match band) is withdrawn.
+    first_person_relevance_min_score: int = 3
     # Optional stronger model for the relevance scorer ONLY (one ~24-token reply per query);
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
@@ -634,12 +623,6 @@ class Settings(BaseSettings):
     # three sites; srs guardrail reverts to its prior latent-dead-code state).
     multilingual_guardrails: bool = True
 
-    # --- Ollama (local mode / cloud tag) ---
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
-    ollama_classify_model: str = ""  # Auto-set by preset, or override with MODEL_PRESET=custom
-    ollama_cloud_only: bool = True  # When True, refuse local-only models (no :cloud tag)
-
     # --- OpenRouter (free tier for simple queries) ---
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
@@ -697,7 +680,7 @@ class Settings(BaseSettings):
 
     # --- Re-ingest & Late Chunking Settings ---
     reingest_openrouter_model: str = "google/gemma-3-12b-it"
-    reingest_llm_provider: str = "ollama"
+    reingest_llm_provider: str = "openrouter"
     # Default True so the committed config matches what the green collection
     # actually contains. Every point in spiritual_wisdom_contextual carries
     # pooling="mean", which only happens with late chunking on — meaning the run
@@ -710,11 +693,10 @@ class Settings(BaseSettings):
     late_chunk_window_tokens: int = Field(default=2048, gt=2)
     late_chunk_window_batch_size: int = Field(default=4, ge=1)
     # In-flight contextualizer LLM calls. 8 suits a hosted endpoint (calls are
-    # network-bound); _contextualize() clamps it back to 3 for local Ollama,
-    # where extra concurrency only queues behind one model.
+    # network-bound); tune it down if the provider returns 429s.
     reingest_contextualizer_concurrency: int = Field(default=8, ge=1, le=32)
     # Characters of the surrounding document sent with each chunk so the model
-    # can situate it. 8,000 was sized for a local Ollama context window and, on
+    # can situate it. 8,000 was sized for a small local context window and, on
     # The_Four_Sacred_Secrets.pdf, meant every chunk saw the first and last 4,000
     # chars of a 424,302-char book — 1.9% of it, and the wrong 1.9%. Units are
     # now book SECTIONS averaging ~18k chars, so 24,000 fits most whole. Gemma-3
@@ -1295,7 +1277,7 @@ class Settings(BaseSettings):
 
     # --- RAPTOR ---
     raptor_cluster_size: int = 8
-    raptor_summary_model: str = ""  # Auto-set from model_preset
+    raptor_summary_model: str = ""  # Defaults to the generation model
 
     # --- RAG ---
     # Depth the reranker gets to choose from. Measured on the same golden set
@@ -1990,7 +1972,7 @@ class Settings(BaseSettings):
 
     # --- Intent Router Model & Provider Selection ---
     # Model to use for fallback intent classification.
-    # Supported: "default" (existing on-device/Ollama/OpenRouter), "typesafe/jev-1.14", "typesafe/jev-router".
+    # Supported: "default" (existing on-device/OpenRouter), "typesafe/jev-1.14", "typesafe/jev-router".
     intent_router_model: str = "default"
     # Master switch for TypeSafe Jev routing across the system:
     jev_enabled: bool = True
@@ -2127,7 +2109,7 @@ class Settings(BaseSettings):
     # with chat history. Off by default to avoid changing generation behavior.
     rag_heuristic_followup: bool = False
     # B23 (2026-09-12 latency audit): rewrite_query is the only CRAG helper
-    # still calling the "main" model (services/ollama_service.py:816) while
+    # still calling the "main" model (ollama_service.py, since removed) while
     # every sibling (decompose_query, batch grader, faithfulness check, HyDE)
     # uses the fast model. Measured at ~20-25s/call, ~40% of a failing
     # comparative query's 112s total. Off by default pending a rewrite-quality
@@ -2221,23 +2203,6 @@ class Settings(BaseSettings):
             return []
         return [lang.strip() for lang in self.transcript_languages.split(",") if lang.strip()]
 
-    # --- Model Preset Resolution ---
-    # These define the preset configurations for each model family.
-    _PRESETS = {
-        "sarvam": {
-            "generation": "sarvam-30b:latest",
-            "classification": "llama3.2:3b",
-        },
-        "qwen": {
-            "generation": "qwen3:30b-a3b",
-            "classification": "qwen3:14b",
-        },
-        "sarvam-m": {
-            "generation": "sarvamai/sarvam-m",
-            "classification": "meta-llama/llama-3.1-8b-instruct",
-        },
-    }
-
     OPENROUTER_PRESETS: ClassVar[dict[str, dict[str, str]]] = {
         "deepseek-v3": {
             "generation": "deepseek/deepseek-chat",
@@ -2278,10 +2243,7 @@ class Settings(BaseSettings):
             return self.openrouter_generation_model
         if self.llm_provider.lower() == "nim":
             return self.nim_generation_model
-        if self.ollama_model:
-            return self.ollama_model
-        preset = self._PRESETS.get(self.model_preset.lower(), {})
-        return preset.get("generation", "sarvam-30b:latest")
+        raise ValueError(f"no generation model mapping for llm_provider={self.llm_provider!r}")
 
     @property
     def model_for_classification(self) -> str:
@@ -2299,10 +2261,7 @@ class Settings(BaseSettings):
             return self.openrouter_classify_model
         if self.llm_provider.lower() == "nim":
             return self.nim_classify_model
-        if self.ollama_classify_model:
-            return self.ollama_classify_model
-        preset = self._PRESETS.get(self.model_preset.lower(), {})
-        return preset.get("classification", "llama3.2:3b")
+        raise ValueError(f"no classification model mapping for llm_provider={self.llm_provider!r}")
 
     @property
     def model_for_raptor(self) -> str:
@@ -2657,10 +2616,10 @@ class Settings(BaseSettings):
 
     # --- Opus thread 2026-11-06 (append-only block; each flag has a reader and
     # tests for both states, per the CLAUDE.md "Dormant modules" rule) ---
-    # NEW-ING-6 (DATA-15/D-DQ1 proposal): the legacy store's points_servable also
-    # requires sha256(verbatim_text) to equal the stored hash. D-DQ1 (owner
-    # decision 2026-11-07): keep the compare behind this flag, off by default.
-    first_person_points_servable_hash_check_enabled: bool = False
+    # The first_person_points_servable_hash_check_enabled flag was removed
+    # 2026-11-16 (owner decision: integrity re-check always on). The legacy
+    # store's points_servable always requires sha256(verbatim_text) to equal the
+    # stored hash (source_text_hash on v10, else transcript_hash).
     # NEW-AI-5 (AI-010): the first-person lanes drop a clip the injection
     # screen matches. Off: flag for review only (served, counted). D-PG16 (owner
     # decision 2026-11-07): flag only, never drop a span at ingest; this

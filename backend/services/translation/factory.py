@@ -19,7 +19,6 @@ class TranslationProviderFactory:
 
     @staticmethod
     def create_provider(
-        ollama_service=None,
         sarvam_service=None,
     ) -> TranslationProvider:
         """Create and return a TranslationProvider instance.
@@ -46,6 +45,5 @@ class TranslationProviderFactory:
 
         return RoutingTranslationProvider(
             gemini_provider=gemini_provider,
-            ollama_provider=None,
             sarvam_provider=sarvam_provider,
         )

@@ -295,7 +295,7 @@ async def _ask_llm_to_decide(
     """Ask the fast model to decide what to do next in the traversal.
 
     Routes via _services._llm_gateway.generate() when available; falls back
-    to the legacy ollama fast path only when no gateway is wired.
+    to the container LLM service's fast path only when no gateway is wired.
     """
     try:
         from rag.nodes import _services
@@ -303,9 +303,7 @@ async def _ask_llm_to_decide(
         gateway = getattr(_services, "_llm_gateway", None)
         ollama = _services._ollama
         if ollama is None and gateway is None:
-            from services.ollama_service import OllamaService
-
-            ollama = OllamaService()
+            raise RuntimeError("no LLM gateway or service wired for agentic traversal")
 
         # Build actual entity IDs from traversed context, not just counts.
         traversed_ids = [c.get("entity_id") for c in context_summary.get("concepts_found", [])]

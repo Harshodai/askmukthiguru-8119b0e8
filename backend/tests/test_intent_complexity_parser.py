@@ -1,4 +1,4 @@
-"""Regression tests for OllamaService.classify_intent_and_complexity parsing.
+"""Regression tests for the provider services' classify_intent_and_complexity parsing.
 
 Bug history:
 - Initial implementation used `"COMPLEX" in result_upper` to detect complex
@@ -16,7 +16,7 @@ import pytest
 
 
 def _parse(result: str) -> dict:
-    """Inline copy of the parser block from OllamaService.classify_intent_and_complexity.
+    """Inline copy of the parser block from the provider services' classify_intent_and_complexity.
 
     Kept in sync manually — if the production parser changes, update here too.
     """

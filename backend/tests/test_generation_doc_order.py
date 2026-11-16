@@ -46,7 +46,7 @@ async def test_budget_truncation_preserves_rerank_order(mock_services, monkeypat
     """Docs must survive the budget loop in rerank (input) order, not alphabetical."""
     from app.config import settings as app_settings
 
-    monkeypatch.setattr(app_settings, "llm_provider", "ollama")
+    monkeypatch.setattr(app_settings, "llm_provider", "openrouter")
     monkeypatch.setattr(app_settings, "max_tokens_per_request", 60)
 
     monkeypatch.setattr(

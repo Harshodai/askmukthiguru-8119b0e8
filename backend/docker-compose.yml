@@ -7,10 +7,7 @@
 #   observability     — jaeger, prometheus, grafana (enable: COMPOSE_PROFILES=observability)
 #   cache             — gptcache-server (enable: COMPOSE_PROFILES=cache)
 #
-# Ollama runs on the HOST machine (not in Docker) because:
-#   - Windows Docker doesn't support GPU passthrough easily
-#   - Ollama Desktop is already installed and running
-#   - The backend connects to Ollama via host.docker.internal
+# Ollama support was removed 2026-11-16 (owner decision); LLMs run via hosted providers.
 #
 # Usage:
 #   docker compose up -d                            # Start serving stack; no worker/tracing
@@ -236,7 +233,7 @@ services:
       # HF_HUB_OFFLINE removed — Llama Guard needs runtime download; embedding
       # models are pre-cached at build time so they load without network.
       # === LLM Provider ===
-      # "openrouter" (default), "sarvam_cloud", or "ollama" (requires Ollama on host)
+      # "openrouter" (default) or "sarvam_cloud"
       - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
       # --- Sarvam Cloud API (config-driven — any model name works) ---
       - SARVAM_API_KEY=${SARVAM_API_KEY:-}
@@ -297,14 +294,6 @@ services:
       - RAG_RETRIEVAL_EXPANSION_SOFT_WAIT_SECONDS=${RAG_RETRIEVAL_EXPANSION_SOFT_WAIT_SECONDS:-0.35}
       # --- Observability ---
       - ENABLE_CORRELATION_IDS=${ENABLE_CORRELATION_IDS:-true}
-      # --- Ollama (only used when LLM_PROVIDER=ollama) ---
-      # Model Preset: "qwen" (default) or "sarvam" (requires custom GGUF import)
-      - MODEL_PRESET=${MODEL_PRESET:-qwen}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-deepseek-v4-flash:cloud}
-      - OLLAMA_CLASSIFY_MODEL=${OLLAMA_CLASSIFY_MODEL:-deepseek-v4-flash:cloud}
-      - OLLAMA_FAST_MODEL=${OLLAMA_FAST_MODEL:-deepseek-v4-flash:cloud}
-      # Ollama runs on the HOST, not in Docker
-      - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # Qdrant runs as a sibling container
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=${QDRANT_COLLECTION:-spiritual_wisdom_contextual}
@@ -503,7 +492,6 @@ services:
       # NOTE: the ./repos/LightRAG/lightrag override mount was removed — backend/repos/
       # was deleted (P2 cleanup) and the empty host dir shadowed the pip-installed
       # lightrag-hku, causing "cannot import name 'LightRAG'" boot crash-loops.
-    # Allow access to host's Ollama (if LLM_PROVIDER=ollama)
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

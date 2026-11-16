@@ -40,7 +40,7 @@ class TestLLMFactory(unittest.TestCase):
         from services.llm_factory import LLMServiceFactory
 
         providers = LLMServiceFactory.list_providers()
-        self.assertIn("ollama", providers)
+        self.assertIn("openrouter", providers)
         self.assertIn("sarvam_cloud", providers)
 
     def test_unknown_provider_raises(self) -> None:
@@ -117,16 +117,7 @@ class TestCircuitBreaker(unittest.TestCase):
 
 
 class TestIsAvailable(unittest.TestCase):
-    """Verify both LLM services expose the is_available property."""
-
-    def test_ollama_is_available(self) -> None:
-        from app.config import settings
-        from services.ollama_service import OllamaService
-
-        # Exercise OllamaService internals; temporarily bypass cloud-only guard.
-        settings.ollama_cloud_only = False
-        svc = OllamaService()
-        self.assertTrue(svc.is_available)
+    """Verify LLM services expose the is_available property."""
 
     def test_sarvam_is_available(self) -> None:
         from services.sarvam_service import SarvamCloudService

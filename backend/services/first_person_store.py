@@ -635,14 +635,12 @@ class FirstPersonStore:
         )
         if len(points) != len(set(point_ids)):
             return False
-        check_hash = bool(
-            getattr(settings, "first_person_points_servable_hash_check_enabled", False)
-        )
         for point in points:
             payload = point.payload or {}
-            if check_hash and not _stored_text_matches_hash(payload):
-                # NEW-ING-6 (D-DQ1 proposal): a cached replay re-validates the
-                # stored text against its hash, not only the serve flags.
+            if not _stored_text_matches_hash(payload):
+                # NEW-ING-6: a cached replay always re-validates the stored text
+                # against its hash (one sha256, no extra Qdrant call: the
+                # payload is already in this retrieve), not only the serve flags.
                 return False
             if (
                 payload.get("first_person_eligible") is not True

@@ -1,17 +1,16 @@
-"""Ollama Translation Provider strategy implementation."""
+"""Adapter exposing any service with ``translate_text(text, src, tgt)`` as a TranslationProvider."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from services.ollama_service import OllamaService
 from services.translation.base import TranslationProvider
 
 
-class OllamaTranslationProvider(TranslationProvider):
-    """Adapter strategy wrapping OllamaService to match the TranslationProvider contract."""
+class ServiceTranslationProvider(TranslationProvider):
+    """Wraps an LLM service (e.g. OpenRouterService) to match the TranslationProvider contract."""
 
-    def __init__(self, service: OllamaService) -> None:
+    def __init__(self, service: Any) -> None:
         self._service = service
 
     async def translate_text(

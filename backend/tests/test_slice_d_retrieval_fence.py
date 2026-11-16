@@ -91,9 +91,8 @@ def _llm_settings():
     from app.config import settings
 
     return (
-        patch.object(settings, "llm_provider", "ollama"),
+        patch.object(settings, "llm_provider", "openrouter"),
         patch.object(settings, "rag_context_compression_enabled", True),
-        patch.object(settings, "ollama_cloud_only", False),
     )
 
 
@@ -139,8 +138,8 @@ async def test_query_path_still_fences_every_prompt_reaching_chunk():
         {"title": "Clean", "source_url": "http://x/clean", "text": CLEAN_TEXT},
         dict(POISON_DOC, source_url="http://x/poison"),
     ]
-    p1, p2, p3 = _llm_settings()
-    with p1, p2, p3:
+    p1, p2 = _llm_settings()
+    with p1, p2:
         await asyncio.wait_for(generate_answer(_state(relevant_docs=docs)), timeout=60)
     assert provider.calls, "LLM was never called on the QUERY path"
     prompt = provider.calls[0]["user_prompt"]

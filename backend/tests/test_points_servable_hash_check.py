@@ -2,10 +2,8 @@
 
 The legacy store's ``points_servable`` is the replay check for the exact cache.
 It checked serve flags only, so a point whose ``verbatim_text`` was edited in
-place (hash left stale) was still replayed. Behind
-``first_person_points_servable_hash_check_enabled`` (default off until D-DQ1)
-it also requires ``sha256(verbatim_text)`` to equal ``source_text_hash`` (v10)
-or ``transcript_hash`` (legacy). Both flag states are tested here.
+place (hash left stale) was still replayed. Always on (flag removed 2026-11-16, owner decision), it also requires ``sha256(verbatim_text)`` to equal ``source_text_hash`` (v10)
+or ``transcript_hash`` (legacy).
 """
 
 from __future__ import annotations
@@ -60,47 +58,28 @@ def _licensed(monkeypatch):
     monkeypatch.setattr(fps, "video_is_blocked", lambda _vid: False)
 
 
-def _set_flag(monkeypatch, value: bool) -> None:
-    monkeypatch.setattr(
-        settings, "first_person_points_servable_hash_check_enabled", value, raising=False
-    )
+def test_flag_removed_hash_check_always_on():
+    assert "first_person_points_servable_hash_check_enabled" not in type(settings).model_fields
 
 
-def test_flag_defaults_off():
-    assert (
-        type(settings).model_fields["first_person_points_servable_hash_check_enabled"].default
-        is False
-    )
-
-
-def test_flag_off_keeps_old_behaviour_for_tampered_text(monkeypatch):
-    _set_flag(monkeypatch, False)
-    store = _store([_payload(verbatim_text=TEXT + " (edited)")])
-    assert store.points_servable(["p1"]) is True
-
-
-def test_flag_on_refuses_tampered_text(monkeypatch):
-    _set_flag(monkeypatch, True)
+def test_tampered_text_refuses_cached_answer():
     store = _store([_payload(verbatim_text=TEXT + " (edited)")])
     assert store.points_servable(["p1"]) is False
 
 
-def test_flag_on_refuses_missing_hash(monkeypatch):
-    _set_flag(monkeypatch, True)
+def test_missing_hash_refuses_cached_answer():
     store = _store([_payload(transcript_hash=None)])
     assert store.points_servable(["p1"]) is False
 
 
-def test_flag_on_serves_matching_transcript_hash(monkeypatch):
-    _set_flag(monkeypatch, True)
+def test_matching_transcript_hash_serves_from_cache_v8():
     store = _store([_payload()])
     assert store.points_servable(["p1"]) is True
 
 
-def test_flag_on_prefers_source_text_hash_on_v10(monkeypatch):
+def test_source_text_hash_is_the_field_on_v10():
     # v10 stores the whole-transcript hash in transcript_hash (CLAUDE.md inv. 2),
     # so source_text_hash is the field that must match.
-    _set_flag(monkeypatch, True)
     store = _store([_payload(transcript_hash="whole-transcript", source_text_hash=GOOD)])
     assert store.points_servable(["p1"]) is True
     store = _store([_payload(transcript_hash=GOOD, source_text_hash="stale")])

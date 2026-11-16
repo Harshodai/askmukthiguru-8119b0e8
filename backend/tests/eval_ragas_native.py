@@ -20,7 +20,7 @@ from time import time
 
 from guardrails import LightweightGuardrails
 from services.embedding_service import EmbeddingService
-from services.ollama_service import OllamaService
+from services.openrouter_service import OpenRouterService
 from services.qdrant_service import QdrantService
 
 EVAL_DATASET = [
@@ -48,7 +48,7 @@ EVAL_DATASET = [
 
 
 async def run_benchmark():
-    ollama = OllamaService()
+    ollama = OpenRouterService()
     embedder = EmbeddingService()
     qdrant = QdrantService()
     guardrails = LightweightGuardrails()

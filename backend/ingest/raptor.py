@@ -33,7 +33,7 @@ from sklearn.mixture import GaussianMixture
 
 from app.config import settings
 from services.embedding_service import EmbeddingService
-from services.ollama_service import OllamaService
+from services.llm_protocol import ILLMService
 from services.provenance import ChunkProvenance
 from services.qdrant_service import QdrantService
 
@@ -72,7 +72,7 @@ class RaptorIndexer:
     def __init__(
         self,
         embedding_service: EmbeddingService,
-        ollama_service: OllamaService,
+        ollama_service: ILLMService,
         qdrant_service: QdrantService,
     ) -> None:
         self._embedder = embedding_service

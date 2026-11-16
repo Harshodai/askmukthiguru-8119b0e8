@@ -658,15 +658,13 @@ async def log_ingestion_run(run_data: dict) -> None:
 async def get_available_models() -> list[str]:
     """Get list of available LLM models."""
     # For now, return hardcoded list based on what's configured
-    # In a real implementation, this might query Ollama or check available models
+    # In a real implementation, this might check available models
     models = []
-    if settings.ollama_model:
-        models.append(settings.ollama_model)
     if settings.sarvam_cloud_model:
         models.append(settings.sarvam_cloud_model)
     # Add some defaults if none configured
     if not models:
-        models = ["sarvam-30b", "llama3.2:3b"]
+        models = ["sarvam-30b"]
     return models
 
 

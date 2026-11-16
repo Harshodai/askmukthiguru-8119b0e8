@@ -141,13 +141,12 @@ def test_closed_breaker_is_not_open(monkeypatch):
     "module_path",
     [
         "services/llm/openrouter_provider.py",
-        "services/llm/ollama_provider.py",
         "services/llm/sarvam_provider.py",
         "services/llm/nim_provider.py",
     ],
 )
 def test_no_provider_probes_the_breaker_with_can_execute(module_path):
-    """All four providers had re-transcribed the same wrong line.
+    """All remaining providers had re-transcribed the same wrong line.
 
     Asserted against the shipped source so a new provider cannot copy the old
     idiom back in. A probe path must never call ``can_execute()``.

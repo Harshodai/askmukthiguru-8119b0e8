@@ -92,5 +92,7 @@ def test_bad_score_fails_toward_related():
     assert _resolve_served_directness(True, "not-a-score") is False
 
 
-def test_relevance_minimum_default_is_the_calibrated_band():
-    assert settings.first_person_relevance_min_score == 2
+def test_relevance_minimum_default_is_three():
+    # Owner decision 2026-11-16: the declared default is 3 (the env-resolved value
+    # may differ locally, so assert the declaration, not the live setting).
+    assert type(settings).model_fields["first_person_relevance_min_score"].default == 3

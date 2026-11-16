@@ -132,7 +132,7 @@ async def test_generate_answer_falls_back_on_anthropic_config_error(mock_service
 
     from app.config import settings as app_settings
 
-    monkeypatch.setattr(app_settings, "llm_provider", "ollama")
+    monkeypatch.setattr(app_settings, "llm_provider", "openrouter")
 
     from services.gateways.anthropic_gateway import AnthropicGatewayError
 

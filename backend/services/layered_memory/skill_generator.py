@@ -59,10 +59,6 @@ def _build_client() -> tuple[Any, str] | None:
         return AsyncOpenAI(
             base_url=settings.nim_base_url, api_key=settings.nim_api_key
         ), settings.nim_classify_model
-    if provider == "ollama":
-        return AsyncOpenAI(
-            base_url=settings.ollama_base_url, api_key="ollama"
-        ), settings.model_for_classification
     return None
 
 

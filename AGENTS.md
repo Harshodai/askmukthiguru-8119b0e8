@@ -115,7 +115,7 @@ Per binding `L-FP-HYBRID-SCAFFOLD-1`, a gateless run cannot speak to answerabili
 - **Staleness invariant**: `PRE_EXTRACTED_MAX_AGE_SKIP=30 days`. Always `touch` projected transcripts before running ingestion or they will be skipped and fall back to live YouTube API.
 
 **X33** (from "Corpus ingestion handoff — Aug 27, 2026", was line 118)
-- **LLM provider for ingestion**: Use `OpenRouterService` (cloud-only mode, `OLLAMA_CLOUD_ONLY=true`). `bulk_ingest_video.py` was fixed from `OllamaService` → `OpenRouterService`. `LLM_PROVIDER=openrouter` env required.
+- **LLM provider for ingestion**: Use `OpenRouterService` (Ollama was removed 2026-11-16 by owner decision). `LLM_PROVIDER=openrouter` env required.
 
 **X34** (from "Fresh Railway handoff — Aug 23, 2026 post-audit correction", was line 145)
 - Grounded partials are deterministic source excerpts only: maximum two excerpts of 360 characters, absolute URLs, `verification.method=grounded_partial_evidence`, `partial=true`, `verification.passed=false`, and `faithfulness_score=0.0`. They are not verified generated teachings.

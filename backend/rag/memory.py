@@ -83,17 +83,6 @@ def _build_llm_client():
         return AsyncOpenAI(
             base_url=settings.nim_base_url, api_key=settings.nim_api_key
         ), settings.nim_classify_model
-    if provider == "ollama":
-        # Use the shared, container-managed OllamaService rather than a raw
-        # AsyncOpenAI client — the shared service carries the retry,
-        # circuit-breaker, and cost-tracking behavior every other provider
-        # branch above gets for free via the OpenAI-compatible endpoint.
-        from app.dependencies import get_container
-
-        ollama = getattr(get_container(), "ollama", None)
-        if ollama is None:
-            return None
-        return ollama, settings.model_for_classification, "ollama_native"
     return None
 
 

@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from anyio import Semaphore as AsyncSemaphore
 
 if TYPE_CHECKING:
-    from services.ollama_service import OllamaService
+    from services.llm_protocol import ILLMService
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class ContextualChunkingService:
     Parameters
     ----------
     llm:
-        An OllamaService instance used for generation.  Uses a smaller/faster model
+        An ILLMService instance used for generation.  Uses a smaller/faster model
         when available (CASUAL model) to keep latency acceptable at ingestion time.
     max_doc_chars:
         Maximum characters of the full document sent to the LLM.  Long spiritual
@@ -75,7 +75,7 @@ class ContextualChunkingService:
 
     def __init__(
         self,
-        llm: OllamaService,
+        llm: ILLMService,
         max_doc_chars: int = 8_000,
         concurrency: int = 3,
         metadata_extractor: Optional[Any] = None,

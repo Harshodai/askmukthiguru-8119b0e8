@@ -9,7 +9,7 @@
 #   SUPABASE_SERVICE_ROLE_KEY — Supabase service role (backend)
 #   REDIS_PASSWORD    — Redis auth password
 #   JWT_SECRET        — JWT signing secret
-#   LLM_PROVIDER      — LLM provider (sarvam_cloud | ollama)
+#   LLM_PROVIDER      — LLM provider (openrouter | sarvam_cloud)
 #   SARVAM_API_KEY    — Sarvam API key (if using sarvam_cloud)
 #   NEOREJ_URI      — Neo4j Bolt URI (optional; defaults to managed/external instance)
 #
