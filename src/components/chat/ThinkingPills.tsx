@@ -280,13 +280,26 @@ export const ThinkingPills = ({
         >
           <div className="flex items-center gap-2 text-[13px] font-medium text-ojas-ink dark:text-ojas">
             <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-ojas/15 text-[10px]">✨</span>
-            <span>{t('chat.sacredTeaching', 'Sacred Teaching')}</span>
-            <span className="text-xs font-normal text-muted-foreground/80">
-              · {activeWisdomTip.teacher || 'Sri Preethaji & Sri Krishnaji'}
+            {/* Only a tip that names its teacher is a teaching quote. An uncredited
+                tip is a summary in our words: never quoted, never credited to the
+                teachers (invariant 12; the tips endpoint sends teacher: ''). */}
+            <span>
+              {activeWisdomTip.teacher
+                ? t('chat.sacredTeaching', 'Sacred Teaching')
+                : t('chat.reflectionTip', 'A reflection, in our words')}
             </span>
+            {activeWisdomTip.teacher && (
+              <span className="text-xs font-normal text-muted-foreground/80">
+                · {activeWisdomTip.teacher}
+              </span>
+            )}
           </div>
-          <p className="mt-1.5 font-serif text-[14px] leading-relaxed italic text-foreground/90">
-            "{activeWisdomTip.text}"
+          <p
+            className={`mt-1.5 font-serif text-[14px] leading-relaxed text-foreground/90${
+              activeWisdomTip.teacher ? ' italic' : ''
+            }`}
+          >
+            {activeWisdomTip.teacher ? `"${activeWisdomTip.text}"` : activeWisdomTip.text}
           </p>
         </motion.div>
       )}

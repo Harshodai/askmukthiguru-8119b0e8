@@ -116,3 +116,36 @@ describe('ThinkingPills', () => {
     expect(screen.getByText('Step 8/8: Verifying sacred teachings (95%)')).toBeInTheDocument();
   });
 });
+
+describe('wisdom tip while waiting (invariant 12)', () => {
+  const step = [{ id: 'step-1', label: 'Searching sacred wisdom', status: 'active' as const }];
+
+  it('never credits or quotes an uncredited summary tip', () => {
+    render(
+      <ThinkingPills
+        steps={step}
+        visible={true}
+        wisdomTip={{ id: 't1', text: 'Stillness opens the way.', source: 'paraphrase', teacher: '' }}
+      />,
+    );
+    const card = screen.getByTestId('thinking-pills-wisdom-tip');
+    expect(card).toHaveTextContent('A reflection, in our words');
+    expect(card).not.toHaveTextContent('Sri Preethaji');
+    expect(card).not.toHaveTextContent('Sacred Teaching');
+    expect(card).not.toHaveTextContent('"Stillness opens the way."');
+  });
+
+  it('credits and quotes a tip that names its teacher', () => {
+    render(
+      <ThinkingPills
+        steps={step}
+        visible={true}
+        wisdomTip={{ id: 't2', text: 'Be with what is.', source: 'https://www.youtube.com/watch?v=x', teacher: 'Sri Preethaji' }}
+      />,
+    );
+    const card = screen.getByTestId('thinking-pills-wisdom-tip');
+    expect(card).toHaveTextContent('Sacred Teaching');
+    expect(card).toHaveTextContent('Sri Preethaji');
+    expect(card).toHaveTextContent('"Be with what is."');
+  });
+});
