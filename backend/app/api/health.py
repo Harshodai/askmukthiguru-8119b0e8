@@ -187,7 +187,7 @@ def _redact_health_body(response: JSONResponse) -> JSONResponse:
     """Shallow public view: ready/status only, same status code (SEC-010)."""
     try:
         body = json.loads(response.body)
-    except Exception:
+    except (ValueError, TypeError):  # JSONDecodeError and UnicodeDecodeError are ValueErrors
         return response
     shallow = {"ready": body.get("ready", False), "status": body.get("status", "unknown")}
     return JSONResponse(shallow, status_code=response.status_code)

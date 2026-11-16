@@ -29,9 +29,11 @@ from services.auth_service import (
     resolve_anon_identity,
 )
 from services.cost_tracker import get_cost_tracker
+from services.crisis_helplines import format_helplines_block
 from services.first_person_pipeline import FirstPersonPipeline, serve_first_person
 from services.first_person_public_projection import public_editorial_set_metadata
 from services.first_person_store import FirstPersonStore
+from services.safety_telemetry import log_crisis_referral_shown
 
 logger = logging.getLogger(__name__)
 
@@ -388,6 +390,18 @@ async def query_first_person_teaching(
 
     retrieval_query = await _english_query(req.query, container)
 
+    # Before embedding/retrieval: a crisis must not wait on, or 503 with, them.
+    crisis_level = await _crisis_redirect_level(req.query, retrieval_query, container)
+    if crisis_level:
+        log_crisis_referral_shown(trace_id="", level=crisis_level, region=None)
+        return FirstPersonQueryResponse(
+            answer_text=format_helplines_block(verified_only=True),
+            citations=[],
+            status="crisis_redirect",
+            is_direct_answer=False,
+            latency_ms=0.0,
+        )
+
     try:
         encoded = await container.embedding.encode_single_full_async(retrieval_query)
     except Exception as e:
@@ -457,6 +471,42 @@ async def query_first_person_teaching(
 
 
 _UNVERIFIED_ABSTAIN_TEXT = "No verified first-person discourse found for this question."
+
+
+async def _crisis_redirect_level(query: str, retrieval_query: str, container: Any) -> Optional[str]:
+    """The chat route's crisis checks, minus anything that can lower a level.
+
+    Intake kernel, then assess_distress (seeker's words and English), then the
+    escalate-only LLM second opinion from DistressStage. Returns the reason to
+    redirect ("KERNEL", "SEVERE", "CRISIS", "CHECK_FAILED") or None.
+    Fails closed: if the check itself raises, show the helplines.
+    A provider timeout/error inside the escalation keeps the regex level (same
+    as /api/chat). The pipeline's own regex pre-check stays as a second layer.
+    """
+    from types import SimpleNamespace
+
+    from app.intake.safety_kernel import get_safety_kernel
+    from app.pipeline.stages.distress_stage import DistressStage
+    from services.serene_mind_engine import DistressLevel, SereneMindEngine
+
+    texts = [query] + ([retrieval_query] if retrieval_query != query else [])
+    try:
+        kernel = get_safety_kernel()
+        if any(kernel.evaluate(t).is_crisis for t in texts):
+            return "KERNEL"
+        engine = SereneMindEngine()
+        assessment = max((engine.assess_distress(t) for t in texts), key=lambda a: a.level.value)
+        assessment = await DistressStage()._maybe_llm_escalate_below_crisis(
+            SimpleNamespace(container=container), retrieval_query, assessment, {}
+        )
+        if assessment.level.value >= DistressLevel.SEVERE.value:
+            return assessment.level.name
+        return None
+    except Exception as e:  # noqa: BLE001 -- a crashed crisis check is not a pass
+        logger.error(
+            "[FirstPersonRoute] Crisis check failed; showing helplines (%s)", type(e).__name__
+        )
+        return "CHECK_FAILED"
 
 
 async def _output_rail_passes(container: Any, text: str) -> bool:
