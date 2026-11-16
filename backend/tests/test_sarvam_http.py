@@ -24,6 +24,9 @@ def _mock_settings() -> SimpleNamespace:
         llm_timeout=10,
         llm_max_retries=2,
         sarvam_max_tokens=4096,
+        # Budget guard is out of scope here and always fails closed now; off so the
+        # test never depends on a reachable Redis.
+        sarvam_budget_guard_enabled=False,
     )
 
 

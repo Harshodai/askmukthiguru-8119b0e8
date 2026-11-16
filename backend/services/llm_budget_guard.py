@@ -102,7 +102,7 @@ class LLMBudgetGuard:
             daily_budget_usd=float(getattr(settings, daily_key, 10.0)),
             monthly_budget_usd=float(getattr(settings, monthly_key, 100.0)),
             max_request_cost_usd=float(getattr(settings, max_cost_key, 0.05)),
-            fail_closed=bool(getattr(settings, "llm_budget_fail_closed", False)),
+            fail_closed=True,
         )
 
     @property

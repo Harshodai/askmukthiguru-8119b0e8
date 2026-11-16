@@ -82,7 +82,6 @@ services:
       OPENROUTER_DAILY_BUDGET_USD: "100"
       OPENROUTER_MONTHLY_BUDGET_USD: "300"
       OPENROUTER_BUDGET_GUARD_ENABLED: "true"
-      OPENROUTER_BUDGET_FAIL_CLOSED: "true"
     # `!override` REPLACES the base list. Application code is not mounted: the container runs
     # the code that `--build` copied from a clean tree. Only caches and data stay mounted.
     #

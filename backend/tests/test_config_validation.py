@@ -111,7 +111,6 @@ def test_spend_guard_defaults():
     """
     s = Settings(_env_file=None)
     assert s.openrouter_budget_guard_enabled is True  # T1-07
-    assert s.openrouter_budget_fail_closed is True
     defaults = Settings.model_fields
     assert defaults["openrouter_daily_budget_usd"].default == 10.0
     assert defaults["openrouter_monthly_budget_usd"].default == 40.0
@@ -452,7 +451,6 @@ def test_uncapped_spend_refused_in_production_unless_recorded():
     )
     for kw in (
         {"openrouter_budget_guard_enabled": False},
-        {"openrouter_budget_fail_closed": False},
     ):
         with pytest.raises(ValueError, match="spend cap"):
             Settings(**base, **kw)

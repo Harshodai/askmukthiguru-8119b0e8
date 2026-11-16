@@ -52,7 +52,6 @@ def _generated_teaching() -> PipelineResult:
 def test_breach_detector_fires_with_the_bridge_flag_off(monkeypatch):
     monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", False)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
-    monkeypatch.setattr(settings, "fp_fail_closed_enabled", True)
     before = _breaches()
 
     PipelineCoordinator._emit_answer_outcome(_generated_teaching())

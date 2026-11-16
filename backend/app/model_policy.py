@@ -112,7 +112,7 @@ class OpenRouterModelPolicy:
             preferred_min_throughput_p90=float(
                 getattr(settings, "openrouter_preferred_min_throughput_p90", 0.0)
             ),
-            require_no_training=bool(getattr(settings, "openrouter_require_no_training", True)),
+            require_no_training=True,
             allow_provider_fallbacks=bool(
                 getattr(settings, "openrouter_allow_provider_fallbacks", True)
             ),

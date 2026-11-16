@@ -156,7 +156,7 @@ class OpenRouterBudgetGuard:
             daily_budget_usd=policy.daily_budget_usd,
             monthly_budget_usd=policy.monthly_budget_usd,
             max_request_cost_usd=float(getattr(settings, "openrouter_max_request_cost_usd", 0.03)),
-            fail_closed=bool(getattr(settings, "openrouter_budget_fail_closed", True)),
+            fail_closed=True,
         )
 
     @property

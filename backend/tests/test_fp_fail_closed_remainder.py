@@ -29,13 +29,11 @@ def _counter(reason: str) -> float:
 
 @pytest.fixture
 def closed(monkeypatch):
-    monkeypatch.setattr(settings, "fp_fail_closed_enabled", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
 
 
 @pytest.fixture
 def generation_allowed(monkeypatch):
-    monkeypatch.setattr(settings, "fp_fail_closed_enabled", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
 
 

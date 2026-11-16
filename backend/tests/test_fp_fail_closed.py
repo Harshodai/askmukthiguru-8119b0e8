@@ -21,7 +21,6 @@ def _counter_value(reason: str) -> float:
 
 @pytest.fixture
 def closed(monkeypatch):
-    monkeypatch.setattr(settings, "fp_fail_closed_enabled", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
 
 
@@ -30,14 +29,9 @@ def _config(ctx):
 
 
 def test_predicate(monkeypatch):
-    monkeypatch.setattr(settings, "fp_fail_closed_enabled", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
     assert fp_fail_closed.teaching_generation_allowed() is False
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
-    assert fp_fail_closed.teaching_generation_allowed() is True
-    # Rollback flag restores the old behaviour.
-    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
-    monkeypatch.setattr(settings, "fp_fail_closed_enabled", False)
     assert fp_fail_closed.teaching_generation_allowed() is True
 
 

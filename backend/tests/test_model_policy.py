@@ -13,7 +13,6 @@ def _settings(**overrides):
         "openrouter_fast_model": "meta-llama/llama-3.1-8b-instruct",
         "openrouter_classify_model": "meta-llama/llama-3.1-8b-instruct",
         "openrouter_allowed_providers": "DeepSeek,Together",
-        "openrouter_require_no_training": True,
         "openrouter_allow_provider_fallbacks": True,
         "openrouter_enforce_model_policy": True,
         "openrouter_daily_budget_usd": 0.25,

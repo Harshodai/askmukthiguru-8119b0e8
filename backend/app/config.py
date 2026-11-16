@@ -483,11 +483,6 @@ class Settings(BaseSettings):
     # state, preserving byte-for-byte legacy behavior. When True, queries namespaced
     # server-side store to avoid serving recently seen clips to returning seekers.
     first_person_server_seen_clips_enabled: bool = False
-    # T1-05 rollback flag (env FP_FAIL_CLOSED_ENABLED, default True): when on, a
-    # teaching-lane turn that cannot be served by first person (bridge off, node
-    # fault) gets the static abstain instead of the generating graph, unless
-    # first_person_llm_fallback_enabled is deliberately True.
-    fp_fail_closed_enabled: bool = True
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
     # labelled "Related, not a direct answer", instead of declining. RP-A4/QBUG-2
@@ -679,7 +674,6 @@ class Settings(BaseSettings):
     # oversubscribed slow host) without pinning to one provider, which would
     # cost the sticky-session-id caching path its load-balancing.
     openrouter_preferred_min_throughput_p90: float = Field(default=20.0, ge=0.0, le=10000.0)
-    openrouter_require_no_training: bool = True
     openrouter_allow_provider_fallbacks: bool = True
     # OpenRouter Prompt Caching & Response Caching
     openrouter_prompt_caching_enabled: bool = True
@@ -693,7 +687,6 @@ class Settings(BaseSettings):
     # Redis-backed cross-replica reservation guard. Default enabled with $10 daily / $40 monthly ceilings (T1-07).
     openrouter_budget_guard_enabled: bool = True
     openrouter_max_request_cost_usd: float = Field(default=0.03, gt=0)
-    openrouter_budget_fail_closed: bool = True
     # Explicit, recorded owner decision to run production with no OpenRouter spend cap (T1-07).
     # Without it, production refuses to start when the guard is disabled or fail-open.
     allow_uncapped_llm_spend: bool = False
@@ -701,7 +694,6 @@ class Settings(BaseSettings):
     # via from_settings(provider). Matches the openrouter twin so the generic
     # path is fail-closed, not silently fail-open.
     llm_budget_guard_enabled: bool = True
-    llm_budget_fail_closed: bool = True
 
     # --- Re-ingest & Late Chunking Settings ---
     reingest_openrouter_model: str = "google/gemma-3-12b-it"
@@ -2506,11 +2498,11 @@ class Settings(BaseSettings):
         if (
             self.is_production
             and not self.allow_uncapped_llm_spend
-            and not (self.openrouter_budget_guard_enabled and self.openrouter_budget_fail_closed)
+            and not self.openrouter_budget_guard_enabled
         ):
             raise ValueError(
-                "openrouter_budget_guard_enabled and openrouter_budget_fail_closed must both be "
-                "true in production (spend cap). Set allow_uncapped_llm_spend=true only as a "
+                "openrouter_budget_guard_enabled must be true in production (spend cap; the "
+                "guard always fails closed). Set allow_uncapped_llm_spend=true only as a "
                 "recorded owner decision."
             )
         return self

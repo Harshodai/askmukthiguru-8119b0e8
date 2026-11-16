@@ -55,7 +55,6 @@ class _DirectCoalescer:
 @pytest.fixture
 def fp_only(monkeypatch):
     """First-person-only posture: bridge on, generated fallback off."""
-    monkeypatch.setattr(settings, "fp_fail_closed_enabled", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
     monkeypatch.setattr(settings, "first_person_chat_bridge_enabled", True)
     monkeypatch.setattr(settings, "first_person_route_enabled", True)

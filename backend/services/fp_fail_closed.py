@@ -3,7 +3,7 @@
 When first person cannot serve a teaching-lane turn (kill switch off, node
 fault), the answer is the static abstain, never LLM-written teaching prose.
 The generating path is allowed only when ``FIRST_PERSON_LLM_FALLBACK_ENABLED``
-is deliberately true (or the ``FP_FAIL_CLOSED_ENABLED`` rollback flag is off).
+is deliberately true.
 """
 
 from __future__ import annotations
@@ -25,8 +25,6 @@ STATIC_ABSTAIN_TEXT = (
 
 def teaching_generation_allowed() -> bool:
     """True only when generated teaching prose may serve a teaching-lane turn."""
-    if not getattr(settings, "fp_fail_closed_enabled", True):
-        return True  # rollback flag: pre-T1-05 behaviour
     return getattr(settings, "first_person_llm_fallback_enabled", False) is True
 
 

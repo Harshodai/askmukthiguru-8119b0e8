@@ -100,7 +100,6 @@ def test_override_drops_every_code_bind_and_pins_the_serving_path():
     assert pins["FIRST_PERSON_LOCAL_REVIEW_ENABLED"] == "false"
     assert pins["FIRST_PERSON_RELEVANCE_TIMEOUT_S"] == "12"
     assert pins["OPENROUTER_BUDGET_GUARD_ENABLED"] == "true"  # caps are raised, never removed
-    assert pins["OPENROUTER_BUDGET_FAIL_CLOSED"] == "true"
 
 
 def test_every_pinned_flag_is_a_real_setting():
