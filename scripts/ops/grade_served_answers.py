@@ -20,6 +20,7 @@ LLM calls go through OpenRouter (project rule); the key comes from settings.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -851,6 +852,15 @@ def grade_rows(
     }
 
 
+def grader_meta(models: dict[str, Any] | None) -> dict[str, Any]:
+    """H-19: both graders use the one RUBRIC; its hash and the model ids go into grades.json."""
+    return {
+        "rubric_sha256": hashlib.sha256(RUBRIC.encode("utf-8")).hexdigest(),
+        "first_model": (models or {}).get("first"),
+        "second_model": (models or {}).get("second"),
+    }
+
+
 UNANSWERABLE_EXPECTED = ("abstain_no_teacher_clip", "crisis_support_route_no_teacher_clip")
 
 
@@ -1606,6 +1616,8 @@ def main() -> int:
     all_passed = result["bar"]["status"] == "PASS"
 
     result["status"] = result["bar"]["status"]
+    # H-19: both graders use the one RUBRIC; record its hash and the model ids next to the verdicts.
+    result["grader_meta"] = grader_meta(result.get("models"))
     result["evaluation_mode"] = evaluation_mode
     result["auth_status"] = auth_status
     if error_details:

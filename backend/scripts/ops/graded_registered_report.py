@@ -443,6 +443,53 @@ def manifest_facts(
     return facts, invalid
 
 
+def cohen_kappa(a: list[bool], b: list[bool]) -> float | None:
+    """Cohen's kappa for two binary labelings; None when undefined (no rows or chance agreement 1)."""
+    n = len(a)
+    if n == 0:
+        return None
+    po = sum(x == y for x, y in zip(a, b)) / n
+    pa, pb = sum(a) / n, sum(b) / n
+    pe = pa * pb + (1 - pa) * (1 - pb)
+    return None if pe == 1 else round((po - pe) / (1 - pe), 4)
+
+
+def grader_trust(rows: list[dict], grades: dict[str, Any] | None) -> dict[str, Any]:
+    """Per-grader showable rate, inter-grader agreement + kappa, per-set showable, rubric hash."""
+    if not grades:
+        return {"status": "not_measured", "reason": "grades.json missing"}
+    first, second = grades.get("first") or {}, grades.get("second") or {}
+    show = lambda g, i: g[i].get("verdict") == "showable"  # noqa: E731
+    both = sorted(set(first) & set(second))
+    a, b = [show(first, i) for i in both], [show(second, i) for i in both]
+    set_of = {str(r["id"]): r.get("set") for r in rows}
+    by_set: dict[str, Any] = {}
+    for name, g in (("first", first), ("second", second)):
+        for i in g:
+            s = by_set.setdefault(str(set_of.get(i, "unlabelled")), {}).setdefault(
+                name, {"k": 0, "n": 0}
+            )
+            s["n"] += 1
+            s["k"] += show(g, i)
+    meta = grades.get("grader_meta") or {}
+    return {
+        "per_grader_showable": {
+            n: {"k": sum(show(g, i) for i in g), "n": len(g)}
+            for n, g in (("first", first), ("second", second))
+        },
+        "rows_graded_by_both": len(both),
+        "agreement": round(sum(x == y for x, y in zip(a, b)) / len(both), 4) if both else None,
+        "cohen_kappa": cohen_kappa(a, b),
+        "showable_by_set": by_set,
+        # ponytail: held-out = any set label other than the tuning set and the unanswerable probes
+        "held_out_set_label_present": any(
+            k not in ("frozen116", "unanswerable86", "unlabelled") for k in by_set
+        ),
+        "rubric_sha256": meta.get("rubric_sha256"),
+        "grader_models": {"first": meta.get("first_model"), "second": meta.get("second_model")},
+    }
+
+
 def evaluate(run_dir: Path) -> dict[str, Any]:
     def load(name: str) -> Any:
         p = run_dir / name
@@ -501,6 +548,7 @@ def evaluate(run_dir: Path) -> dict[str, Any]:
         "rows": len(rows),
         "bars": bars,
         "9_grader_disagreements": disagreements(grades),
+        "grader_trust": grader_trust(rows, grades),
         "manifest": facts,
         "invalid_reasons": invalid + m_invalid,
         "run_valid": not (invalid or m_invalid),
@@ -528,6 +576,22 @@ def to_markdown(rep: dict[str, Any]) -> str:
     ]
     lines += [f"| {k} {fmt(b)} |" for k, b in rep["bars"].items()]
     d = rep["9_grader_disagreements"]
+    t = rep["grader_trust"]
+    if "per_grader_showable" in t:
+        pg = t["per_grader_showable"]
+        lines += [
+            "",
+            "Grader trust: "
+            + "; ".join(f"{n} showable {v['k']}/{v['n']}" for n, v in pg.items())
+            + f"; agreement {t['agreement']} and Cohen kappa {t['cohen_kappa']}"
+            + f" on {t['rows_graded_by_both']} rows graded by both; rubric sha256 {t['rubric_sha256'] or 'not recorded'}",
+            "Showable by set: "
+            + "; ".join(
+                f"{s}: " + ", ".join(f"{n} {v['k']}/{v['n']}" for n, v in d_.items())
+                for s, d_ in t["showable_by_set"].items()
+            )
+            + ("" if t["held_out_set_label_present"] else " (no held-out set label in rows)"),
+        ]
     lines += [
         "",
         f"Grader disagreements ({d['status']}): {', '.join(d['ids']) or 'none'}",
