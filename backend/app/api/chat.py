@@ -1312,6 +1312,10 @@ async def chat_stream_endpoint(
             slot.release()
 
 
+# Seconds the job stream waits for the "final" answer text after "done".
+_FINAL_AFTER_DONE_GRACE_S = 3.0
+
+
 @router.get("/chat/stream/{job_id}")
 async def chat_stream_poll(
     job_id: str,
@@ -1348,12 +1352,24 @@ async def chat_stream_poll(
     async def _sse():
         last_id = last_event_id
         last_done_data: str | None = None
+        done_seen_at: float | None = None
         timeout = settings.queue_default_timeout
         deadline = time.time() + timeout
         try:
             while time.time() < deadline:
+                # After "done", wait briefly for the "final" text event; a producer
+                # that never sends it must not hold the stream open to the deadline.
+                if (
+                    done_seen_at is not None
+                    and time.time() - done_seen_at > _FINAL_AFTER_DONE_GRACE_S
+                ):
+                    return
                 try:
-                    results = await r.xread({stream_key: last_id}, count=10, block=2000)
+                    results = await r.xread(
+                        {stream_key: last_id},
+                        count=10,
+                        block=500 if done_seen_at is not None else 2000,
+                    )
                 except Exception as e:
                     logger.debug("SSE Redis xread failed (retrying): %s", e)
                     await asyncio.sleep(0.5)
@@ -1381,7 +1397,7 @@ async def chat_stream_poll(
                             if last_done_data is not None:
                                 return
                             fallback = json.dumps({"grounding_state": "system_error"})
-                            yield f"event: done\\ndata: {fallback}\\n\\n"
+                            yield f"event: done\ndata: {fallback}\n\n"
                             return
                     continue
 
@@ -1405,10 +1421,16 @@ async def chat_stream_poll(
                                 evt = parsed.get("event", "status")
                                 dat = parsed.get("data", "")
                                 if evt == "done":
+                                    # Keep reading: the worker publishes the answer
+                                    # text as a "final" event right after "done"
+                                    # (orchestrator.py). Returning here dropped it, the
+                                    # browser saw an empty answer and re-sent the turn
+                                    # to /api/chat (two jobs, two quota units).
                                     last_done_data = str(dat)
-                                    yield f"{event_id}event: {evt}\ndata: {dat}\n\n"
-                                    return
+                                    done_seen_at = time.time()
                                 yield f"{event_id}event: {evt}\ndata: {dat}\n\n"
+                                if evt == "final":
+                                    return
                             else:
                                 yield f"{event_id}event: token\ndata: {str(parsed)}\n\n"
                         except (json.JSONDecodeError, TypeError):
