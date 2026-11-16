@@ -17,11 +17,6 @@ from app.schemas import ChatRequest, MessagePayload
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("warm_cache")
 
-# Increase LLM timeout for batch warming to reduce transient Ollama timeouts
-os.environ["LLM_TIMEOUT"] = "120"
-os.environ["PIPELINE_TIMEOUT"] = "240"
-settings.llm_timeout = 120
-settings.pipeline_timeout = 240
 
 TOP_FAQ_QUESTIONS = [
     "What is the Beautiful State?",
@@ -97,7 +92,7 @@ async def main():
         embed_service = container.embedding
         all_texts = TOP_FAQ_QUESTIONS
         logger.info(f"Batch-embedding all {len(all_texts)} questions upfront...")
-        embed_service.encode_batch(all_texts)
+        await asyncio.to_thread(embed_service.encode_batch, all_texts)
         logger.info("Batch embedding complete — subsequent pipeline calls will hit cache.")
     except Exception as e:
         logger.warning(f"Batch upfront embedding failed (non-critical): {e}")
@@ -126,5 +121,36 @@ async def main():
     )
 
 
+WARM_LOG_PATH = Path("/app/data/warm_cache.log")
+
+
+async def run_in_process(log_path: Path = WARM_LOG_PATH) -> None:
+    """Warm inside the server process, sharing its loaded models.
+
+    Writes the same log file the separate process used to write, so the graded-run
+    Makefile step that waits for "Cache warming complete" keeps working. Live
+    timeouts are left alone (the CLI below raises them only for its own process).
+    """
+    handler = None
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        handler = logging.FileHandler(log_path, mode="w")
+        handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+        logger.addHandler(handler)
+    except OSError as exc:
+        logger.warning("warm_cache: cannot write %s (%s); logging to stdout only", log_path, exc)
+    try:
+        await main()
+    finally:
+        if handler is not None:
+            logger.removeHandler(handler)
+            handler.close()
+
+
 if __name__ == "__main__":
+    # Standalone use only: a separate process gets its own, longer budgets.
+    os.environ["LLM_TIMEOUT"] = "120"
+    os.environ["PIPELINE_TIMEOUT"] = "240"
+    settings.llm_timeout = 120
+    settings.pipeline_timeout = 240
     asyncio.run(main())

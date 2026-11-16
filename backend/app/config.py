@@ -2680,6 +2680,10 @@ class Settings(BaseSettings):
     # completeness rules (theme-only, unfinished list/analogy, dangling reference, mid-argument).
     # Changes served answers: switch to v2 only through a registered graded run.
     first_person_judge_rubric: Literal["v1", "v2"] = "v1"
+    # Warm the FAQ cache inside the server process at startup (docker-entrypoint.sh
+    # sets it). A separate warmer process loaded a second model stack (1.9 GB) and
+    # the backend was OOM-killed at 6 GB on its first requests (2026-11-16).
+    warm_cache_on_start: bool = False
     # Candidate A (docs/analysis/SAME_CLIP_DEFECT_2026-11-13.md): after the
     # per-clip judge, ONE comparative call picks the best of the passing
     # contexts, or abstains. Needs the judge active. It changes served answers,

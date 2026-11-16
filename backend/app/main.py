@@ -1010,7 +1010,14 @@ async def lifespan(app: FastAPI):
     # T-E2: say the spend-cap state at boot, so a refusal is never a mystery.
     await log_budget_headroom(logger, settings)
     logger.info("=== Server accepting requests ===")
+    warm_task = None
+    if settings.warm_cache_on_start:
+        from scripts.warm_cache import run_in_process
+
+        warm_task = asyncio.create_task(run_in_process(), name="warm_cache")
     yield
+    if warm_task is not None and not warm_task.done():
+        warm_task.cancel()
 
     logger.info("Shutting down — waiting for in-flight requests (R3 graceful drain)...")
     drain_waited = 0.0
