@@ -1,0 +1,6 @@
+{
+  "children": 2719,
+  "valid": 2719,
+  "errors": 0,
+  "note": "record_type is a collection discriminator, not a SourceSpan field"
+}

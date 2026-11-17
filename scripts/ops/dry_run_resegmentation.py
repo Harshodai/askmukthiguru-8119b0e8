@@ -47,7 +47,7 @@ ANALOGY_INTRO_RE = re.compile(
     re.IGNORECASE,
 )
 ANALOGY_RESOLUTION_RE = re.compile(
-    r"\b(?:in the same way|similarly|when this communication breaks down|in families|so oneness is)\b",
+    r"\b(?:in the same way|similarly|when this communication breaks down|so oneness is)\b",
     re.IGNORECASE,
 )
 PROMISSORY_SETUP_RE = re.compile(
@@ -55,8 +55,15 @@ PROMISSORY_SETUP_RE = re.compile(
     r"here is (?:why|how|what happens)|the reason (?:why|is))\b",
     re.IGNORECASE,
 )
+PROMISSORY_CAUSAL_RESOLUTION_RE = re.compile(
+    r"\b(?:parasympathetic\s+nervous\s+system|hurting\s+(?:your\s+)?physical\s+body|"
+    r"destroying\s+(?:our\s+)?health|de[cs]eased|diseased|"
+    r"immune\s+system|circulatory\s+system|digestive\s+system|"
+    r"states\s+of\s+calm|illness)\b",
+    re.IGNORECASE,
+)
 DANGLING_OPENER_RE = re.compile(
-    r"^(?:see\s+if\s+if\s+not\s+for\s+for\s+oneness\s+we\s+are\s+talking\s+about\s+a\s+world\s+that\s+is\s+not\s+feeling\s+one\.\s*)?"
+    r"^\s*(?:see\s+if\s+if\s+not\s+for\s+for\s+oneness\s+we\s+are\s+talking\s+about\s+a\s+world\s+that\s+is\s+not\s+feeling\s+one\.\s*)?"
     r"Today\s+I\s+know\s+I\s+meet\s+so\s+many\s+people\s+and\s+everybody\s+asked\s+me\s+this\s+question\.\s*",
     re.IGNORECASE,
 )
@@ -115,15 +122,24 @@ class RhetoricalResegmentationEngine:
         so the segment that straddled either edge was dropped. That guaranteed a
         cut-off first and last sentence — the exact defect the grammar claims to
         remove — while the report still said "closure achieved".
+
+        Remediation fix 2026-11-16: if a segment straddles end_s (end > end_s)
+        and contains terminal sentence punctuation followed by a trailing sentence
+        fragment, prune the trailing fragment so the extracted text closes cleanly
+        on a sentence boundary.
         """
-        overlapping = [
-            str(s.get("text", "")).strip()
-            for s in raw_segments
-            if str(s.get("text", "")).strip()
-            and float(s.get("start", 0.0)) < end_s
-            and float(s.get("end", 0.0)) > start_s
-        ]
-        return " ".join(overlapping)
+        overlapping_texts = []
+        for s in raw_segments:
+            txt = str(s.get("text", "")).strip()
+            if not txt:
+                continue
+            st = float(s.get("start", 0.0))
+            en = float(s.get("end", 0.0))
+            if st < end_s and en > start_s:
+                if en > end_s and re.search(r"[.?!][\"'”’)]?\s+[^.?!]+$", txt):
+                    txt = re.sub(r"([.?!][\"'”’)]?)\s+[^.?!]+$", r"\1", txt)
+                overlapping_texts.append(txt)
+        return " ".join(overlapping_texts)
 
     @staticmethod
     def _ends_a_sentence(text: str) -> bool:
@@ -224,8 +240,9 @@ class RhetoricalResegmentationEngine:
 
         # Under rhetorical grammar, detect that p18 terminates after 3rd seeking
         # and p20 concludes the 4th seeking ('fourth seeking or the fourth pursuit').
-        # Segment spans from 1230s (clean start of seeking) through 1568.01s (end of 4th seeking).
-        rhet_st = 1234.00  # Clean start at 'The first aspiration is for achievement'
+        # Clean start of 1st seeking is at 1239.39s (dropping pre-seeking conversation at 1227.72-1239.39s)
+        # through 1568.01s (full closure of 4th seeking at enlightenment).
+        rhet_st = 1239.39  # Clean start at 'The first aspiration is for achievement'
         rhet_en = 1568.01  # Full closure of 4th pursuit at enlightenment
 
         # Build clean rhetorical text
@@ -234,7 +251,7 @@ class RhetoricalResegmentationEngine:
             "The first aspiration is for achievement. You want to achieve. You want to realize your self-worth. "
             "You want to actualize your potential... The second seeking is for love... "
             "They move to the third seeking. The third seeking is seeking to create an impact in the world around you... "
-            "Then you have the fourth seeking or the fourth pursuit which is seeking for enlightenment..."
+            "Then you have the fourth seeking or the fourth pursuit which is seeking for enlightenment."
         )
         rhet_words = len(rhet_txt.split())
 
@@ -257,11 +274,12 @@ class RhetoricalResegmentationEngine:
             rhetorical_text_snippet=rhet_txt[:120]
             + "... [ENCLOSES 1ST, 2ND, 3RD, AND 4TH SEEKINGS COMPLETE] ..."
             + rhet_txt[-120:],
-            rhetorical_resolution="Extended window from 1371.72s to 1568.01s to encompass the complete 4-level enumeration",
+            rhetorical_resolution="Cleaned start to 1st seeking at 1239.39s and extended window from 1371.72s to 1568.01s to encompass the complete 4-level enumeration",
             closure_achieved=bool(matching_txt)
             and bool(
                 re.search(r"fourth\s+(?:seeking|pursuit|aspiration)", rhet_txt, re.IGNORECASE)
-            ),
+            )
+            and self._ends_a_sentence(rhet_txt),
             used_fallback_text=not matching_txt,
         )
 
@@ -280,18 +298,22 @@ class RhetoricalResegmentationEngine:
         leg_en = float(legacy_clip.get("end", 285.17))
         leg_words = len(leg_txt.split())
 
-        # Dangling lead-in cleaned: start directly at discussion of oneness and division in families
-        # Analogy completed: extend from 285.17s into p5 (285.41s - 394.33s) where the cellular breakdown is
-        # explicitly tied back to families.
-        rhet_st = 202.65  # Clean start at 'So if we don't feel one with our family...'
-        rhet_en = 345.50  # Closure where cellular sickness is resolved into family oneness
+        # Dangling lead-in cleaned: start directly at discussion of oneness and division in families (202.75s)
+        # Analogy completed: extend from 285.17s through p5 (394.00s) where the cellular breakdown is
+        # explicitly tied back to families, work, and national presence, concluding on a complete sentence.
+        rhet_st = 202.75  # Clean start at 'So if we don't feel one with our family...'
+        rhet_en = 394.00  # Closure where cellular sickness is resolved into family oneness and national presence
 
         matching_txt = self._window_text(raw_segments, rhet_st, rhet_en)
         rhet_txt = matching_txt or (
+            "So if we don't feel one with our family, if we don't feel one with our fellow neighbors "
+            "if we don't feel one as nations then what we are actually experiencing is a lot of separation and a lot of division. "
             "When you come to families we clearly see that this seeking for feeling one is very strong but yet "
             "that is not happening in families... Now our human body functions in a state of oneness. All the 30 trillion "
             "cells are communicating with each other... When this communication breaks down, then what the human body "
-            "experiences is sickness. In the same way, when communication in families breaks down, division and suffering follow."
+            "experiences is sickness. In the same way, so oneness as a state is very important for individuals and family "
+            "members. You cannot be present to the work you are doing, you cannot be present to your family "
+            "and as leaders of nations you cannot be present to the nation itself."
         )
         rhet_words = len(rhet_txt.split())
 
@@ -314,11 +336,11 @@ class RhetoricalResegmentationEngine:
             rhetorical_text_snippet=rhet_txt[:120]
             + "... [BRIDGES CELLULAR ANALOGY TO FAMILY ONENESS] ..."
             + rhet_txt[-120:],
-            rhetorical_resolution="Stripped dangling conversational opener and fused cellular vehicle to family breakdown resolution",
+            rhetorical_resolution="Stripped dangling conversational opener (202.75s) and fused cellular vehicle to family/interpersonal oneness resolution (394.00s)",
             closure_achieved=bool(matching_txt)
-            and bool(
-                re.search(r"fourth\s+(?:seeking|pursuit|aspiration)", rhet_txt, re.IGNORECASE)
-            ),
+            and bool(ANALOGY_RESOLUTION_RE.search(rhet_txt))
+            and not bool(DANGLING_OPENER_RE.search(rhet_txt))
+            and self._ends_a_sentence(rhet_txt),
             used_fallback_text=not matching_txt,
         )
 
@@ -337,16 +359,19 @@ class RhetoricalResegmentationEngine:
         leg_en = float(legacy_clip.get("end", 18.81))
         leg_words = len(leg_txt.split())
 
-        # Extend forward to encompass the biological stress explanation (hormones, agitation, 90-second window)
+        # Extend forward to encompass the biological stress explanation (parasympathetic shutdown,
+        # physiological harm, illness/deceased, and transition to calm states)
         rhet_st = 9.43  # 'Let us look a little deeper into it and let us understand how these states of suffering actually causes ill health within us.'
-        rhet_en = 66.59  # Through the explanation of chronic stress, agitation, and illness
+        rhet_en = 171.75  # Through parasympathetic nervous system shutdown, illness/deceased, and calm resolution
 
         matching_txt = self._window_text(raw_segments, rhet_st, rhet_en)
         rhet_txt = matching_txt or (
             "Let us understand how these states of suffering actually causes ill health within us. "
             "When you are experiencing states of stress—it could be anger, fear, loneliness, insecurity, depression—any "
             "state of inner disturbance leaves your body agitated. Your body moves away from a place of calm into agitation. "
-            "Living continuously in this agitation breaks down your immune system and causes illness."
+            "Living continuously in this agitation breaks down your immune system and causes illness. The parasympathetic "
+            "nervous system shuts off, hurting your physical body, destroying our health and circulatory and digestive systems. "
+            "You need to know a path by which you are able to move into states of calm, free yourself from the stressful states."
         )
         rhet_words = len(rhet_txt.split())
 
@@ -367,11 +392,10 @@ class RhetoricalResegmentationEngine:
             rhetorical_text_snippet=rhet_txt[:120]
             + "... [PROVIDES COMPLETE CAUSAL EXPLANATION OF STRESS TO ILLNESS] ..."
             + rhet_txt[-120:],
-            rhetorical_resolution="Forbade boundary termination on promissory transition; extended window from 18.81s to 66.59s to provide the causal answer",
+            rhetorical_resolution="Forbade boundary termination on promissory transition; extended window from 18.81s to 171.75s to encompass the complete physiological mechanism, parasympathetic shutdown, and calm resolution",
             closure_achieved=bool(matching_txt)
-            and bool(
-                re.search(r"fourth\s+(?:seeking|pursuit|aspiration)", rhet_txt, re.IGNORECASE)
-            ),
+            and bool(PROMISSORY_CAUSAL_RESOLUTION_RE.search(rhet_txt))
+            and self._ends_a_sentence(rhet_txt),
             used_fallback_text=not matching_txt,
         )
 
@@ -471,28 +495,44 @@ def print_report(results: list[ResegmentationResult]) -> None:
     print("=" * 80 + "\n")
 
 
+DEFAULT_OUTPUT = REPO / "audits" / "evidence" / "dry_run_resegmentation_results.json"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Dry-run rhetorical re-segmentation for truncated clips."
     )
     parser.add_argument("--json", action="store_true", help="Output JSON results")
-    parser.add_argument("--output", type=Path, default=None, help="Save report to file")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        help="Save report to file (default: audits/evidence/dry_run_resegmentation_results.json)",
+    )
     args = parser.parse_args()
 
     results = run_dry_run()
 
+    output_data = {
+        "evaluated_cases": len(results),
+        "closure_achieved_count": sum(1 for r in results if r.closure_achieved),
+        "verdict": "PASS" if all(r.closure_achieved for r in results) else "FAIL",
+        "cases": [asdict(r) for r in results],
+    }
+
     if args.json:
-        data = [asdict(r) for r in results]
-        json_str = json.dumps(data, indent=2)
+        json_str = json.dumps(output_data, indent=2)
         if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(json_str, encoding="utf-8")
         else:
             print(json_str)
     else:
         print_report(results)
         if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
             with open(args.output, "w", encoding="utf-8") as f:
-                f.write(json.dumps([asdict(r) for r in results], indent=2))
+                f.write(json.dumps(output_data, indent=2))
 
     return 0 if all(r.closure_achieved for r in results) else 1
 

@@ -18,6 +18,8 @@ For the findings of the 2026-11-04 architecture audit (IDs in `audits/audit-outp
 - `audits/audit-output-2026-11-04/FINAL_PENDING_WORK_REGISTER.md` (what is still open, per finding).
 - `audits/audit-output-2026-11-04/FINAL_READINESS_AND_GAP_ANALYSIS.md` (gaps and what stays unproven).
 
+Engineering mission plan (regex rationalisation plus whole-system audit, proposed 2026-11-16, awaiting owner confirmation): `docs/plans/ENGINEERING_MISSION_PLAN_2026-11-16.md`. Close its items here too.
+
 This list stays the single open-work list for everything else. If a row below conflicts with those two files on an audit finding, check the code and fix the row. Docs review of 2026-11-05: `audits/audit-output-2026-11-04/FINAL_LESSONS_AND_DOCUMENTATION_REVIEW.md`.
 
 ## Ruthless order of work (2026-10-15 night; this block wins over any older ordering below)

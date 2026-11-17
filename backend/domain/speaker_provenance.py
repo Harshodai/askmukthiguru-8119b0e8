@@ -38,11 +38,14 @@ METHOD_ECAPA_SPAN_SLICE_V2 = "ecapa_voxceleb_span_slice_v2"
 #: (review D3). Spans already stored with it stay readable; the promotion gate counts them
 #: (time-boxed exemption, re-score after the graded run).
 METHOD_ECAPA_CENTROID_V1 = "ecapa_voxceleb_centroid_v1"
+#: Every window in [start_ms, end_ms] must pass the per-window ECAPA floor.
+#: Needs the same provenance set as span_slice_v2.
+METHOD_ECAPA_WINDOWED_V1 = "ecapa_voxceleb_windowed_v1"
 #: A person listened to the served window. Never merged into an automated method.
 METHOD_HUMAN_LISTEN_V1 = "human_listen_v1"
 
 KNOWN_METHODS = frozenset(
-    {METHOD_ECAPA_SPAN_SLICE_V2, METHOD_ECAPA_CENTROID_V1, METHOD_HUMAN_LISTEN_V1}
+    {METHOD_ECAPA_SPAN_SLICE_V2, METHOD_ECAPA_CENTROID_V1, METHOD_ECAPA_WINDOWED_V1, METHOD_HUMAN_LISTEN_V1}
 )
 
 STATUS_VERIFIED = "verified"
@@ -189,6 +192,29 @@ def speaker_write_violations(
         if payload.get("voice_window_check") == WINDOW_CHECK_FAIL:
             out.append("window_check_failed")
 
+    elif method == METHOD_ECAPA_WINDOWED_V1:
+        for key in ("voice_calibration_id", "voice_model_revision"):
+            if _blank(payload.get(key)):
+                out.append(f"ecapa_missing:{key}")
+        score = payload.get("voice_score")
+        if not _finite(score):
+            out.append("ecapa_missing:voice_score")
+        floor = _threshold(payload, "cosine_floor")
+        if floor is None:
+            out.append("ecapa_missing:voice_threshold_applied")
+        elif _finite(score) and float(score) < floor:
+            out.append("ecapa_score_below_floor")
+        margin = payload.get("voice_margin")
+        margin_floor = _threshold(payload, "margin_threshold")
+        if not _finite(margin):
+            out.append("ecapa_missing:voice_margin")
+        if margin_floor is None:
+            out.append("ecapa_missing:margin_threshold")
+        if _finite(margin) and margin_floor is not None and float(margin) < margin_floor:
+            out.append("ecapa_margin_below_threshold")
+        if payload.get("voice_window_check") == WINDOW_CHECK_FAIL:
+            out.append("window_check_failed")
+
     elif method == METHOD_HUMAN_LISTEN_V1:
         for key in ("reviewer_id", "reviewed_at"):
             if _blank(payload.get(key)):
@@ -253,6 +279,19 @@ def pending_voice_fields() -> dict[str, Any]:
     }
 
 
+def _verified_method(method: str | None) -> str:
+    """Name the automated method a verified record may claim.
+
+    Only the two automated ECAPA methods are eligible. An unknown or legacy method
+    name (``centroid_v1`` in particular) is not silently relabelled as the modern
+    method: it falls back to the span-slice name, which the write rule then refuses
+    for any payload that lacks span-slice evidence.
+    """
+    if method == METHOD_ECAPA_WINDOWED_V1:
+        return METHOD_ECAPA_WINDOWED_V1
+    return METHOD_ECAPA_SPAN_SLICE_V2
+
+
 def automated_voice_fields(
     *,
     verified: bool,
@@ -261,19 +300,33 @@ def automated_voice_fields(
     calibration_id: str | None,
     verified_at: str | None = None,
     window_check: str | None = None,
+    method: str | None = None,
 ) -> dict[str, Any]:
-    """Span fields for a span scored by the span-slice ECAPA check (method v2).
+    """Span fields for a span scored by an automated ECAPA check.
+
+    ``method`` selects which rule the record must satisfy: the span-slice v2 rule
+    (default) or the windowed v1 rule. Both share the same evidence shape.
 
     ``evidence`` keys: ``cosine``, ``margin``, ``cosine_floor``, ``margin_threshold``.
 
+    ``cosine`` must be the **gated** statistic, not a flattering aggregate: for the
+    windowed method that is the *worst* window cosine (the gate is per-window, so a
+    mean above the floor with one window below it is not a pass — lesson
+    ``L-WINDOW-GATE-SCORES-WITH-ITS-WORST-WINDOW-1``).
+
     * No score at all -> :func:`pending_voice_fields`.
-    * ``verified`` and the record is complete and passes the write rule -> method v2 with
-      the full provenance and status ``verified``.
+    * ``verified`` and the record is complete and passes the write rule -> the method
+      with the full provenance and status ``verified``.
     * ``verified`` but the record is incomplete (no model revision, no calibration id, no
       threshold, or a score below its own floor) -> :func:`pending_voice_fields`. The
       builder never claims what it cannot back with evidence.
     * not ``verified`` with a score -> ``speaker_verified=False``, status ``ecapa_failed``,
       the evidence recorded, and no method.
+
+    ``voice_verified_at`` names the moment the *claim* was made, so it is stamped only on
+    a verified record. A refused span keeps its score and status and carries no
+    verification timestamp: the old unconditional stamp made 1,311 refused spans look
+    like they had been verified at some point (review F3).
     """
     ev = evidence or {}
     if not _finite(ev.get("cosine")):
@@ -284,7 +337,7 @@ def automated_voice_fields(
         "voice_score": float(ev["cosine"]),
         "voice_margin": float(ev["margin"]) if _finite(ev.get("margin")) else None,
         "voice_calibration_id": None if _blank(calibration_id) else str(calibration_id),
-        "voice_verified_at": None if _blank(verified_at) else str(verified_at),
+        "voice_verified_at": None,
         "voice_window_check": window_check,
     }
     if _finite(ev.get("cosine_floor")) and _finite(ev.get("margin_threshold")):
@@ -303,8 +356,9 @@ def automated_voice_fields(
 
     fields.update(
         speaker_verified=True,
-        voice_verification_method=METHOD_ECAPA_SPAN_SLICE_V2,
+        voice_verification_method=_verified_method(method),
         speaker_verification_status=STATUS_VERIFIED,
+        voice_verified_at=None if _blank(verified_at) else str(verified_at),
     )
     if speaker_write_violations(fields):
         return pending_voice_fields()

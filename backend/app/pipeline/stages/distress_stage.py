@@ -323,6 +323,8 @@ class DistressStage(Stage):
             assessment.recommended_response_type = "compassionate"
 
         ctx.assessment = assessment
+        if assessment is not None:
+            state["assessment"] = assessment
 
         level_value = getattr(getattr(assessment, "level", None), "value", -1)
         if not isinstance(level_value, int):

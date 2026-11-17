@@ -698,7 +698,7 @@ class FirstPersonContextHarness:
                 selected_span_ids = None
 
         if selected_span_ids:
-            by_id = {span.source_span_id: span for span in spans}
+            by_id = {span.source_span_id: span for span in context.spans}
             if all(span_id in by_id for span_id in selected_span_ids):
                 # Reading order stays chronological even when a selector returns
                 # IDs out of order; duplicates collapse.
@@ -707,7 +707,8 @@ class FirstPersonContextHarness:
                     key=lambda span: span.start_ms,
                 )
                 if ordered:
-                    spans = tuple(ordered)
+                    limit = max(1, window_limit if window_limit is not None else self._policy.max_context_spans)
+                    spans = tuple(ordered[:limit])
                 gates["selector_honored"] = True
             else:
                 # Fail open to the deterministic retrieval order, and say so.

@@ -779,11 +779,25 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
     elif isinstance(tags, str):
         tags = [tags]
 
+    speech_act = str(clip.get("speech_act") or "").lower()
+    text_lower = text.lower()
+    practice_markers = (
+        "practice",
+        "meditation",
+        "soul sync",
+        "soul-sync",
+        "serene mind",
+        "dhyana",
+    )
     is_practice = bool(
         clip.get("category") == "practice"
         or clip.get("type") == "Practice"
-        or "practice" in tags
-        or "practice" in topic_ids
+        or speech_act in ("practice", "meditation", "guided_practice")
+        or any(m in tags for m in practice_markers)
+        or any(m in topic_ids for m in practice_markers)
+        or "soul sync" in text_lower
+        or "soul-sync" in text_lower
+        or "serene mind" in text_lower
     )
     if _LIVE_EVENT_INSTRUCTION_RE.search(text) and not is_practice:
         logger.info(
@@ -1673,7 +1687,7 @@ _ANSWERABILITY_TIMEOUT_S = 12.0
 # ponytail: U1 - at most 4 harness context judge calls in flight per request. Ceiling: the
 # OpenRouter client limiter is 60 RPM per model, and an unbounded 16-24 burst measured 8-9 s
 # shared stalls. Raise only with a higher provider RPM, then re-measure.
-_HARNESS_JUDGE_CONCURRENCY = 4
+_HARNESS_JUDGE_CONCURRENCY = 2
 
 # Distinguish a gate that has not run from the gate's indeterminate verdict.
 # Neither state may be treated as YES by a later retrieval, scoring, or assembly
@@ -4375,6 +4389,24 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         distress_assessment = max(
             (a for a in assessments if a), key=lambda a: a.level.value, default=None
         )
+        if (
+            distress_assessment
+            and distress_assessment.level is DistressLevel.SEVERE
+        ):
+            from app.pipeline.stages.distress_stage import (
+                _only_existential_signal,
+                classify_existential_vs_severe_distress,
+            )
+            if (
+                _only_existential_signal(distress_assessment)
+                and any(
+                    classify_existential_vs_severe_distress(t) == "MILD_EXISTENTIAL"
+                    for t in safety_texts
+                )
+            ):
+                logger.info("[FirstPersonPipeline] De-escalating existential query to MILD")
+                distress_assessment.level = DistressLevel.MILD
+
         is_crisis = bool(
             distress_assessment and distress_assessment.level.value >= DistressLevel.SEVERE.value
         )

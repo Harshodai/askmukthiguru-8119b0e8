@@ -971,6 +971,24 @@ class TestContentQualityGate:
         clip_with_practice["topic_ids"] = ["practice", "meditation"]
         assert _passes_content_quality_gate(clip_with_practice, gate_enabled=True) is True
 
+    def test_soul_sync_practice_exemption_passes(self):
+        # Even without explicit category/topic_ids metadata, authentic Soul Sync instructions
+        # with breathing directions must pass content quality gate and not be discarded as crowd management.
+        text = (
+            "Welcome back to the final stage of your soul-sync challenge. Today we'll be practicing all the stages. "
+            "Rest your hands on your thighs with your palms facing skywards and touch your thumbs and fingers. "
+            "Gently close your eyes. Inhale deeply. While exhaling, make a humming sound of a bee at a base pitch."
+        )
+        assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
+
+    def test_serene_mind_practice_exemption_passes(self):
+        text = (
+            "Every time you experience an inner disturbance, you need to bring attention to your state. "
+            "So that is why it is important for you to get back to the serene mind practice. "
+            "Sit in stillness, close your eyes, and observe the breath moving through your heart space."
+        )
+        assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
+
 
 def test_teacher_diversity_preserves_top_rank():
     """When teacher diversity balancing runs, the #1 top-ranked match is never demoted,

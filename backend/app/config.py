@@ -239,7 +239,8 @@ class Settings(BaseSettings):
     # the calibration contract is preserved.
     # Fail-open: timeout/error falls back to the original retrieval_query.
     # 2026-10-26: declared for latency-optimisation + quality improvement sweep.
-    first_person_hyde_enabled: bool = False
+    # 2026-11-17: ON by default to bridge situational seeker vocabulary into EKAM spiritual terminology.
+    first_person_hyde_enabled: bool = True
     # Quarantine clips whose verbatim text has no sentence end or opens on orphan
     # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
     # removed 59% of first_person_v2 and 68% of v5. Enable only with a
@@ -345,11 +346,34 @@ class Settings(BaseSettings):
     # are not served at all. Graded 2026-10-31: 13 of 33 served clips had a bare flag, and the
     # proposed hard gate H2 allows none. Turning it on costs coverage; the owner decides.
     first_person_require_voice_method: bool = False
+    # --- In-ingest speaker gate (windowed ECAPA v1, 2026-11-17) ---
+    # Scores every teacher-attributed span of an incoming video (YouTube submit or
+    # file upload) with the windowed ECAPA method and stamps the same provenance a
+    # rebuilt span carries. ON by default: a span written without this gate can only
+    # ever be `pending_voice_check`, and the upload path used to write no speaker
+    # evidence at all. It fails closed — if the model, calibration or references are
+    # missing the gate logs DISARMED at boot and stamps nothing verified.
+    speaker_gate_enabled: bool = True
+    # Path to references.npz (pinned ECAPA guru references). Empty = the default
+    # ~/mukthiguru_attribution_data/phase2_references_2026-10-30/references.npz.
+    speaker_gate_references_path: str = ""
+    # Path to windowed_ecapa_calibration.json. Empty = $WINDOWED_ECAPA_CALIBRATION_PATH
+    # then backend/config/windowed_ecapa_calibration.json.
+    speaker_gate_calibration_path: str = ""
+    # SpeechBrain model cache. Empty uses the process default HF cache.
+    speaker_gate_model_cache: str = ""
+    # Cost ceiling per source: only this many gateable spans are scored; the rest are
+    # stamped pending_voice_check (never verified). 0 disables scoring entirely.
+    speaker_gate_max_spans_per_source: int = 60
+    # Directory holding archived ``<video_id>.wav`` (16 kHz mono) for submitted YouTube
+    # videos. The upload path passes its own temp WAV, so this is only needed for the
+    # URL path. Empty = no archive lookup, spans stay pending_voice_check.
+    speaker_gate_audio_dir: str = ""
     # Phase D8: optional structured span selector. OFF: the only thing it may
     # return is span IDs drawn from retrieved clips; every other field in the
     # reply (prose, answer, explanation) is ignored. An unknown ID or malformed
     # reply falls back to the deterministic retrieval order.
-    first_person_context_selector_enabled: bool = False
+    first_person_context_selector_enabled: bool = True
     # Optional selector model override; empty uses the provider default.
     first_person_context_selector_model: str = ""
     # --- FP-primary posture (2026-10-27) ---

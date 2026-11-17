@@ -1,0 +1,96 @@
+{
+ "script_path": "/private/tmp/claude-501/-Users-harshodaikolluru-Public-askmukthiguru-8119b0e8/b0a8ecf7-4510-49f5-8408-71d71a89e3ca/scratchpad/regex-scan/scan.py",
+ "total_patterns": 1558,
+ "files_with_patterns": 317,
+ "inline_uncompiled_calls": 694,
+ "slow_patterns": [
+  {
+   "file_line": "backend/app/pipeline/stages/first_person_bridge.py:124",
+   "pattern_excerpt": "_COMPOUND_QUESTION_RE: \\bboth\\s+\\w[\\w\\s]*and\\s+\\w | \\w[\\w\\s]*\\s+as\\s+well\\s+as\\s+\\w | \\w[\\w\\s]*,?\\s+and\\s+(?:also|why|how|...)\\b (flags=I)",
+   "input_shape": "5,000 chars of 'a' + tail: 2.73 s; 50,000 chars of body1 + tail: killed at 5 s limit (quadratic: each start position scans to end of the word run). Same mechanism with 'a'*N since \\w[\\w\\s]* restarts at every word char.",
+   "seconds": 2.728,
+   "reachable_from_user_input": "YES. _is_compound_question(text) at first_person_bridge.py:134-152 is called with the chat query at line 1095. ChatRequest.user_message cap is max_length=10000 (app/schemas/__init__.py:152), so a 10k-char message of word chars with no ' and <keyword>' tail costs roughly 4x the 5k figure (about 11 s, extrapolating the quadratic; not measured at 10k). This runs on the event loop thread of the serving path before any clip is served. Only the 5,000 and 50,000 sizes were measured."
+  },
+  {
+   "file_line": "backend/rag/doc_utils.py:78",
+   "pattern_excerpt": "_PLACEHOLDER_QUOTE_RE: ^\\s*>?\\s*\"Exact quote from transcript\"\\s*(?:—|-)\\s*.*$ (flags=M|I)",
+   "input_shape": "50,000 spaces + tail: >=5 s (killed); 5,000: 0.052 s. Quadratic on whitespace runs (re.MULTILINE ^ retried at each position, \\s* adjacent to \\s*).",
+   "seconds": 5,
+   "reachable_from_user_input": "No direct user path found. Applied at doc_utils.py:97 (strip_contextual_artifacts) to retrieved doc text, i.e. corpus/LightRAG content. Only a poisoned or whitespace-heavy corpus chunk triggers it."
+  },
+  {
+   "file_line": "backend/rag/nodes/generation.py:782",
+   "pattern_excerpt": "_TRAILING_MARKERS_RE: (?:\\s*\\[\\d+\\])+",
+   "input_shape": "50,000 spaces + tail: >=5 s (killed); 5,000: 0.139 s. Used with .match(para, left/right) at generation.py:792,797.",
+   "seconds": 5,
+   "reachable_from_user_input": "No direct user path. Applied to paragraphs of generated/retrieved answer text (corpus or LLM output); the generation lane is not the live first-person-only path per invariant 21."
+  },
+  {
+   "file_line": "backend/services/memory/okf_store.py:342",
+   "pattern_excerpt": "_TRAILING_ATTR_RE (3-way alternation anchored at $, contains \\s*...[.\\s]*$ and [^)]*): '\\s*\\((?:[^)]*?(?:speaker|...)[^)]*)\\)\\s*(?:[—–-][^.\\n]*)?[.\\s]*$' (flags=I)",
+   "input_shape": "5,000 chars of body0 + tail: 1.10 s; 50,000: >=5 s (killed). Used in a while True strip loop at okf_store.py:392, so cost multiplies per stripped attribution.",
+   "seconds": 5,
+   "reachable_from_user_input": "No. Applied to OKF entry text (memory/okf, corpus/curated), not chat messages."
+  }
+ ],
+ "exact_duplicates": [
+  {
+   "pattern_excerpt": "\\s+",
+   "locations": [
+    "21 files, e.g. backend/app/api/kg.py, backend/app/api/memory.py, backend/app/api/teachings.py"
+   ]
+  },
+  {
+   "pattern_excerpt": "(?<=[.!?])\\s+",
+   "locations": [
+    "19 files, e.g. backend/evaluation/bench.py, backend/ingest/adaptive_chunking.py, backend/ingest/pipeline.py"
+   ]
+  },
+  {
+   "pattern_excerpt": "[^\\w\\s]",
+   "locations": [
+    "10 files, e.g. backend/evaluation/verbatim_metrics.py, backend/rag/resolve_followup.py, backend/services/canonical_memory/context_builder.py"
+   ]
+  },
+  {
+   "pattern_excerpt": "\\w+",
+   "locations": [
+    "9 files"
+   ]
+  },
+  {
+   "pattern_excerpt": "\\b\\w+\\b",
+   "locations": [
+    "9 files, e.g. backend/ingest/verbatim/gates.py, backend/rag/nodes/contradiction_resolver.py, backend/rag/nodes/retrieval.py"
+   ]
+  },
+  {
+   "pattern_excerpt": "\\{\\{[^}]+\\}\\}",
+   "locations": [
+    "9 files, mostly scripts/apply_offline_translations_*.py and assemble_as_locale.py"
+   ]
+  },
+  {
+   "pattern_excerpt": "[^a-z0-9]+",
+   "locations": [
+    "8 files, e.g. backend/app/intake/safety_kernel.py, backend/app/seed_okf.py"
+   ]
+  },
+  {
+   "pattern_excerpt": "<think>.*?</think>",
+   "locations": [
+    "7 files: backend/rag/nodes/utils.py, backend/services/lightrag_service.py, backend/services/ollama_service.py, ... (reasoning-tag stripping reimplemented per provider service)"
+   ]
+  },
+  {
+   "pattern_excerpt": "^[A-Za-z0-9_-]{11}$ (YouTube id)",
+   "locations": [
+    "5+ files incl. backend/app/api/ingest.py, backend/app/api/teachings.py, backend/app/pipeline/stages/personalize_stage.py"
+   ]
+  }
+ ],
+ "byte_identical_copy_pairs": [
+  "100 byte-identical .py pairs between scripts/ops and backend/scripts/ops (full list in out.json key identical_pairs; e.g. corpus_forensics.py, graded_capture.py, reindex_corpus.py, update_openrouter_key_ui.py, validate_production_env.py)"
+ ],
+ "notes": "All numbers from the script's output (full JSON at /private/tmp/claude-501/-Users-harshodaikolluru-Public-askmukthiguru-8119b0e8/b0a8ecf7-4510-49f5-8408-71d71a89e3ca/scratchpad/regex-scan/out.json). Scope: backend/ and scripts/ minus .venv, venv, node_modules, __pycache__, tests, test_*.py, conftest.py, and a few scratch dirs (.work, .hypothesis, scratch, .claude).\n\nTOTALS: 1558 call sites = 1434 literal-resolved + 124 unresolved (36 of those are f-strings; 88 are other dynamic expressions). 317 files; 992 distinct literal patterns. By function: compile 679, sub 317, search 190, findall 126, split 58, match 37, fullmatch 17, finditer 10. Constant resolution covers module-level string constants, string concatenation, and loops over module-level string lists; it does not cover patterns built in other functions.\n\nDUPLICATES: 180 pattern strings appear in more than one file. Collapsing the 100 byte-identical scripts/ops mirrors leaves 97 real cross-file duplicates. Most are trivial (\\\\s+, \\\\w+). The only substantive ones are the 7x <think>.*?</think> and the 5+ YouTube-id regexes, which are shared-helper candidates.\n\nINLINE CALLS (item 3): 694 re.search/match/sub/findall/split/fullmatch/finditer calls with a literal pattern inside a function (recompiled or re's internal 512-entry cache lookup each call), 325 of them under serve dirs (backend/app, rag, services, guardrails, routers, domain, memory). Heaviest files: rag/nodes/generation.py 44, services/quote_weaver.py 16, services/okf/wiki_dreamer.py 16, services/first_person_evidence_policy.py 12, rag/nodes/utils.py 11, services/lettuce_detect_service.py 9, services/memory/okf_store.py 9. A further 19 re.compile calls sit inside functions (14 in serve dirs). Caveat: 'serve dirs' is path-based, not call-graph-based, so some of the 325 are on the dormant generation lane or offline tools such as wiki_dreamer, not on the live first-person path. Python's re cache makes the per-call cost small. This is a hygiene and consistency issue, not a measured latency problem. I did not time it.\n\nREDOS: 31 heuristic candidates (nested quantifier, adjacent overlapping unbounded quantifiers, or overlapping alternation inside a repeat) were timed with 258 subprocess runs at lengths 5,000 and 50,000 with a 5 s kill. 4 exceeded 0.2 s, listed above. Only one is reachable from user-controlled input: first_person_bridge.py:124 _COMPOUND_QUESTION_RE, applied to the chat query (1095), with the chat input cap at 10,000 chars. It is quadratic (2.7 s at 5k, so roughly 11 s at 10k by extrapolation; 10k was not measured). Recommend a bounded rewrite or a length guard before calling it. The other 3 slow patterns run only on corpus/OKF/LLM-output text. The adversarial inputs are heuristic and the scan is not exhaustive: other patterns could be slow on inputs the generator did not try, and the 27 candidates under 0.2 s are not proven safe. Not checked: whether any existing OUTSTANDING_ISSUES or task-list ID covers regex performance. A grep for 'regex|ReDoS' found only A12 (crisis regex convergence) and A20 (rejected clip-text regex repair), neither related, so already_registered is empty for all findings.\n\nScan limits: analysis uses Python 3.12 re._parser on the backend venv; flags are read from literal re.X args only; unresolved f-string patterns were counted but not analysed."
+}

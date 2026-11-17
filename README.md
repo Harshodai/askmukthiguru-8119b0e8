@@ -262,6 +262,31 @@ Populate key environment variables in `backend/.env`:
 | `FIRST_PERSON_CORPUS_VERSION` | Reported in `route_metadata.corpus_version` for served and abstained first-person turns so served share can be attributed per corpus. The retrieval result is the primary source; set this only when an environment's payloads carry no version. Never guessed | *(empty — read from the result)* |
 | `FIRST_PERSON_CONTEXT_USE_SPARSE` | Fuse the named `passage_sparse` vector with `passage_dense` in fp-context retrieval. Doctrinal terms ("Four Sacred Secrets", "Soul Sync") are lexical matches dense retrieval scored 0/20 on; the store degrades to dense-only when a collection has no sparse vector | `true` |
 | `FIRST_PERSON_RELEVANCE_MIN_SCORE` | Admission floor for the first-person relevance scorer. Score 2 is served as `weak_match` (`is_direct_answer=False`, `verification.direct=False`); directness is governed separately by `_DIRECT_ANSWER_MIN_SCORE=3` | `2` |
+| `SPEAKER_GATE_ENABLED` | In-ingest windowed-ECAPA speaker gate. Scores every teacher-attributed span of a new source (YouTube submit or file upload) and stamps the same voice provenance a rebuilt span carries. Fails closed: missing model/calibration/references means `pending_voice_check`, never `speaker_verified` | `true` |
+| `SPEAKER_GATE_REFERENCES_PATH` | `references.npz` with the pinned ECAPA guru references. Empty uses `~/mukthiguru_attribution_data/phase2_references_2026-10-30/references.npz` | *(empty — default path)* |
+| `SPEAKER_GATE_CALIBRATION_PATH` | Windowed calibration artifact. Empty falls back to `WINDOWED_ECAPA_CALIBRATION_PATH`, then `backend/config/windowed_ecapa_calibration.json` | *(empty — bundled artifact)* |
+| `SPEAKER_GATE_MODEL_CACHE` | SpeechBrain/HF cache directory for the pinned ECAPA model. Empty uses the process default | *(empty)* |
+| `SPEAKER_GATE_MAX_SPANS_PER_SOURCE` | Cost ceiling: only this many gateable spans per source are scored; the rest are stamped `pending_voice_check` (never verified). `0` disables scoring | `60` |
+| `SPEAKER_GATE_AUDIO_DIR` | Directory of archived 16 kHz mono `<video_id>.wav` for submitted YouTube URLs. The upload route passes its own WAV, so this is only needed for the URL path; empty means URL-submitted spans stay `pending_voice_check` | *(empty)* |
+| `WINDOWED_ECAPA_CALIBRATION_PATH` | Calibration JSON read by the offline windowed scorer and builder (`--verifier windowed_v1`, `apply_shadow_voice_verdicts.py`) | `backend/config/windowed_ecapa_calibration.json` |
+
+### In-ingest speaker verification
+
+A new span may claim `speaker_verified=true` only from a complete stored voice record
+(score, margin, model revision, calibration id, thresholds). `services/speaker_gate.py`
+applies that rule at the write boundary for both live paths:
+
+* **file upload** (`POST /api/ingest/upload-video`) — the route archives a 16 kHz mono WAV,
+  passes it with the caller's speaker label, and the pipeline derives per-chunk timings from
+  real ASR segments before scoring;
+* **YouTube submit** (`POST /api/ingest`) — audio is resolved from `SPEAKER_GATE_AUDIO_DIR`;
+  when no retained audio exists the spans are stamped `pending_voice_check`.
+
+Only a label naming exactly one registry teacher (`preethaji`, `krishnaji`) is gated; a
+compound label such as "Sri Preethaji & Sri Krishnaji" has no single expected voice and is
+left ungated. The gate reports its own state at boot (`off` / `missing_references` /
+`missing_calibration` / `verifier_error` / `ready`), so an unarmed gate is never mistaken
+for a passing one.
 
 ---
 

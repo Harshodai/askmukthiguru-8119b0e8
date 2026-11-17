@@ -693,6 +693,56 @@ _SERENE_MIND_REDIRECT_TOPICS = frozenset(["self_harm", "substance_abuse"])
 # Blocked topics whose response carries helplines (a safety redirect, not an off-topic decline).
 SAFETY_TOPICS = frozenset(["self_harm", "substance_abuse", "violence", "domestic_abuse_safety"])
 
+# ---------------------------------------------------------------------------
+# Philosophical allow-list helpers (2026-11-17)
+# These carve out narrow exceptions inside match_blocked_topic for questions
+# that superficially match a blocked pattern but are clearly asking about
+# consciousness / inner life rather than seeking political or medical guidance.
+# ---------------------------------------------------------------------------
+
+# q065-class: "politics" / "war" appears as an enumerated example inside a
+# broader inquiry about how inner state shapes the external world.
+# Allow when: the question contains consciousness/inner-state framing AND
+# "politics" is paired with non-political concepts (war, kids, children...).
+_PHILOSOPHICAL_POLITICS_RE = re.compile(
+    r"\b(?:inner\s+state|inner\s+life|inner\s+world|consciousness|awareness|"
+    r"how\s+we\s+feel|how\s+we\s+think|mind|our\s+state|state\s+of\s+(?:mind|being))\b",
+    re.I,
+)
+_POLITICS_AS_EXAMPLE_RE = re.compile(
+    r"(?:things?\s+like|such\s+as|like|including)\s+[^?!]{0,60}\bpolitics\b"
+    r"|\bpolitics\b[^?!]{0,60}(?:or|and)\s+(?:war|kids?|children|family|world|society|nation|how)",
+    re.I,
+)
+
+
+def _is_philosophical_politics_framing(text: str) -> bool:
+    """True when 'politics' is used as an example within a consciousness/inner-state question."""
+    return bool(_PHILOSOPHICAL_POLITICS_RE.search(text)) or bool(_POLITICS_AS_EXAMPLE_RE.search(text))
+
+
+# q083-class: "what kinds of things CAN BECOME an addiction / what can be addictive"
+# Allow when: the question asks what *can* be addictive (enumeration / nature-of-mind framing)
+# AND does NOT contain treatment-seeking patterns (quit/stop/cure/help/get rid of).
+_PHILOSOPHICAL_ADDICTION_ALLOW_RE = re.compile(
+    r"\bwhat\s+(?:kinds?\s+of\s+things?|things?|can)\s+(?:\w+\s+){0,4}(?:become|be)\s+"
+    r"(?:an?\s+)?addict\w*"
+    r"|\bwhat\s+(?:is|are|makes?|causes?)\s+(?:\w+\s+){0,3}addict\w*"
+    r"|\baddict\w*\s+(?:in\s+)?(?:terms?\s+of|nature\s+of|essence\s+of|from\s+a\s+spiritual)",
+    re.I,
+)
+_TREATMENT_SEEKING_RE = re.compile(
+    r"\b(?:quit|stop|cure|treat|help\s+me|get\s+rid\s+of|how\s+to\s+overcome|recover\s+from)\b",
+    re.I,
+)
+
+
+def _is_philosophical_addiction_framing(text: str) -> bool:
+    """True when asking *what can be addictive* (philosophical) rather than seeking treatment."""
+    return bool(_PHILOSOPHICAL_ADDICTION_ALLOW_RE.search(text)) and not bool(
+        _TREATMENT_SEEKING_RE.search(text)
+    )
+
 
 def match_blocked_topic(text: str) -> tuple[str, str] | None:
     """Regex-only topic rail (no LLM): ``(topic, response)`` for the first blocked
@@ -726,6 +776,16 @@ def match_blocked_topic(text: str) -> tuple[str, str] | None:
 
             if is_authentic_bhakti_devotion(text):
                 continue
+        # 2026-11-17: allow philosophical enumeration queries that use a blocked word
+        # only as an example within a broader consciousness/inner-state question.
+        # q065: "Does our inner state shape things like war, politics, or how kids turn out?"
+        # → "politics" appears alongside non-political concepts; intent is philosophical.
+        if topic == "politics" and _is_philosophical_politics_framing(text):
+            continue
+        # q083: "What kinds of things can become an addiction, besides drugs or alcohol?"
+        # → asks about the nature of mind, not requesting medical treatment.
+        if topic == "medical_advice_broad" and _is_philosophical_addiction_framing(text):
+            continue
         if any(re.search(pattern, v) for pattern in patterns for v in variants):
             return topic, _resolve_block_response(
                 topic, "I can only help with spiritual guidance. 🙏", text=text

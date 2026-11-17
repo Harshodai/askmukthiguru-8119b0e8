@@ -82,6 +82,7 @@ backend/services/quote_fidelity.py	15
 backend/services/quote_weaver.py	2
 backend/services/semantic_model_router.py	5
 backend/services/speaker_diarization.py	3
+backend/services/speaker_gate.py	5
 backend/services/speech_config.py	1
 backend/services/teacher_attribution.py	8
 backend/services/voice/register.py	12

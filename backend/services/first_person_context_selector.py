@@ -73,12 +73,16 @@ def _strip_optional_fence(raw: str) -> str:
     return "\n".join(lines).strip()
 
 
-def parse_selection(raw: str, allowed_ids: Iterable[str]) -> tuple[str, ...] | None:
+def parse_selection(
+    raw: str,
+    allowed_ids: Iterable[str],
+    index_map: Optional[dict[str, str]] = None,
+) -> tuple[str, ...] | None:
     """Validate a selector reply. ``None`` means "use deterministic order".
 
     Rules: the whole reply (after an optional enclosing Markdown fence) must be
     one JSON object; only ``span_ids`` is read; every id must be an allowed span
-    ID; duplicates collapse; an empty selection is not a selection.
+    ID (or valid 1-based span index); duplicates collapse; an empty selection is not a selection.
     """
     try:
         text = _strip_optional_fence(str(raw))
@@ -93,13 +97,25 @@ def parse_selection(raw: str, allowed_ids: Iterable[str]) -> tuple[str, ...] | N
     if not isinstance(ids, list):
         return None
     allowed = set(allowed_ids)
+    allowed_list = list(allowed_ids)
     picked: list[str] = []
     for candidate in ids:
-        if not isinstance(candidate, str) or candidate not in allowed:
+        cand_str = str(candidate).strip()
+        resolved_id = None
+        if cand_str in allowed:
+            resolved_id = cand_str
+        elif index_map and cand_str in index_map:
+            resolved_id = index_map[cand_str]
+        elif cand_str.isdigit() and allowed_list:
+            idx = int(cand_str)
+            if 1 <= idx <= len(allowed_list):
+                resolved_id = allowed_list[idx - 1]
+
+        if not resolved_id or resolved_id not in allowed:
             # An unknown id means the model did not honour the contract.
             return None
-        if candidate not in picked:
-            picked.append(candidate)
+        if resolved_id not in picked:
+            picked.append(resolved_id)
     return tuple(picked) or None
 
 
@@ -128,6 +144,7 @@ def select_span_ids(
         return None
 
     allowed_ids = [span.source_span_id for span in span_list]
+    index_map = {str(i): span.source_span_id for i, span in enumerate(span_list, 1)}
     user_prompt = _build_prompt(question, span_list)
     gen_kwargs: dict[str, Any] = {
         "system_prompt": _SELECTOR_SYSTEM_PROMPT,
@@ -143,7 +160,7 @@ def select_span_ids(
         gen_kwargs["model"] = model
         gen_kwargs["max_tokens"] = 256
 
-    _SELECTOR_TIMEOUT_S = 3.0
+    _SELECTOR_TIMEOUT_S = 8.0
 
     async def _call() -> Any:
         res = llm_service.generate(**gen_kwargs)
@@ -159,7 +176,7 @@ def select_span_ids(
         # Covers provider refusal, timeout, and transport errors alike.
         logger.info("[FPSelector] selection skipped (%s); deterministic order kept", exc)
         return None
-    return parse_selection(result, allowed_ids)
+    return parse_selection(result, allowed_ids, index_map=index_map)
 
 
 if __name__ == "__main__":
@@ -167,6 +184,10 @@ if __name__ == "__main__":
     # 1. Valid JSON
     _valid = parse_selection('{"span_ids": ["span_2", "span_1"]}', _allowed)
     assert _valid == ("span_2", "span_1"), f"Unexpected valid parse: {_valid}"
+
+    # 1b. Index-based JSON
+    _valid_idx = parse_selection('{"span_ids": ["2", "1"]}', _allowed)
+    assert _valid_idx == ("span_2", "span_1"), f"Unexpected valid index parse: {_valid_idx}"
 
     # 2. Prose-wrapped output (rejected by design)
     _prose = parse_selection('Here are the spans: {"span_ids": ["span_1"]}', _allowed)

@@ -79,10 +79,9 @@ def _hyde_provider(container: Any) -> Any:
     work — but the signal was invisible and any container built without it (mocks, a
     provider wired under a different name) skipped HyDE in silence. Prefer the canonical
     provider, then the legacy aliases, and only accept an object that actually
-    implements ``generate_hyde``. ``OpenRouterService`` does not, which is why a name
-    check alone is not enough.
+    implements ``generate_hyde`` (including ``OpenRouterService``).
     """
-    for attribute in ("llm", "ollama", "openrouter", "nim"):
+    for attribute in ("llm", "openrouter", "nim", "ollama"):
         candidate = getattr(container, attribute, None)
         if candidate is not None and hasattr(candidate, "generate_hyde"):
             return candidate
@@ -121,12 +120,17 @@ _SYNTHESIS_SHAPE_RE = re.compile(
 )
 
 
+# Linear-time form (2026-11-16). The earlier `\w[\w\s]*` prefixes made a search
+# quadratic: 0.94 s on an 8,000-character message, and the cap is 10,000. A
+# leading `\w[\w\s]*` before `\s+` matches exactly when a single `\w` does, so
+# dropping it keeps the verdict. Only the "both ... and" span is now bounded.
+_COMPOUND_BOTH_SPAN_MAX = 200
 _COMPOUND_QUESTION_RE = re.compile(
-    r"\bboth\s+\w[\w\s]*and\s+\w"
-    r"|\w[\w\s]*\s+as\s+well\s+as\s+\w"
+    rf"\bboth\s+\w[\w\s]{{0,{_COMPOUND_BOTH_SPAN_MAX}}}and\s+\w"
+    r"|\w\s+as\s+well\s+as\s+\w"
     r"|—[^—]{3,80}(?:and|&)[^—]{3,80}—"
     r"|,\s*[^,]+,\s*(?:and|&)\s*"
-    r"|\w[\w\s]*,?\s+and\s+(?:also|why|how|what|can|at\s+what|help|do|did|does|is|are|will|would)\b",
+    r"|\w(?:\s*,)?\s+and\s+(?:also|why|how|what|can|at\s+what|help|do|did|does|is|are|will|would)\b",
     re.IGNORECASE,
 )
 
@@ -1003,7 +1007,7 @@ class FirstPersonBridgeStage(Stage):
                 if _llm is not None:
                     hyde_text = await _asyncio.wait_for(
                         _llm.generate_hyde(question=retrieval_query),
-                        timeout=2.5,
+                        timeout=4.5,
                     )
                     if hyde_text and len(hyde_text.strip()) > 10:
                         # Embed HyDE text + original query (keeps sparse signal).

@@ -223,7 +223,7 @@ def test_upload_failure_is_reported_and_never_queues_a_placeholder_chunk(
         def __init__(self, *a, **k):
             pass
 
-        async def ingest_video(self, _path):
+        async def ingest_video(self, _path, **_kwargs):
             raise RuntimeError("whisper out of memory")
 
     queued: list = []
@@ -274,7 +274,7 @@ def test_upload_success_stamps_points_and_returns_media_url(upload_client, monke
         def __init__(self, *a, **k):
             pass
 
-        async def ingest_video(self, _path):
+        async def ingest_video(self, _path, **_kwargs):
             return SimpleNamespace(chunks_ingested=2, point_ids=["point-1", "point-2"])
 
     monkeypatch.setattr(vp, "VideoPipeline", _SuccessPipeline)

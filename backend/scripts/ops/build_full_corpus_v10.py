@@ -790,6 +790,27 @@ def _embedding_provenance() -> tuple[str | None, str | None]:
     return model, getattr(settings, "embedding_model_revision", None)
 
 
+def _write_verifier_report(args: "argparse.Namespace", report: dict[str, object]) -> None:
+    """Record which verifier actually ran, and why, next to the build artifacts.
+
+    Silence was the defect: an init failure downgraded the whole build to the legacy
+    verifier with one log line nobody read (review F7). The report is written before
+    the build too, so a crashed run still says which method it intended to use.
+    """
+    path = getattr(args, "verifier_report", "") or ""
+    if not path:
+        return
+    try:
+        out = Path(path).expanduser()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        payload = dict(report)
+        payload["written_at"] = datetime.now(UTC).isoformat()
+        out.write_text(json.dumps(payload, indent=2))
+        logger.info("Verifier report written to %s (used=%s)", out, payload.get("used"))
+    except Exception as exc:  # reporting must never break a build
+        logger.warning("Could not write verifier report to %s: %s", path, exc)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -892,6 +913,45 @@ def main() -> int:
             "Per-run manifest path (planned/written/verified/failed). Default: "
             "<cache-dir>/build_runs/<collection>-<UTC time>.json"
         ),
+    )
+    parser.add_argument(
+        "--verifier",
+        choices=["span_slice_v2", "windowed_v1"],
+        default="windowed_v1",
+        help=(
+            "Speaker verification method for new spans. "
+            "'windowed_v1' (default): slide 3s/1.5s ECAPA windows over the served "
+            "clip and require teacher throughout (ecapa_voxceleb_windowed_v1). "
+            "'span_slice_v2': legacy whole-span cosine floor check "
+            "(ecapa_voxceleb_span_slice_v2)."
+        ),
+    )
+    parser.add_argument(
+        "--windowed-calibration",
+        default=os.environ.get(
+            "WINDOWED_ECAPA_CALIBRATION_PATH",
+            str(Path(__file__).resolve().parents[2] / "config" / "windowed_ecapa_calibration.json"),
+        ),
+        help=(
+            "Path to windowed_ecapa_calibration.json (used when --verifier=windowed_v1). "
+            "Default: backend/config/windowed_ecapa_calibration.json or "
+            "$WINDOWED_ECAPA_CALIBRATION_PATH."
+        ),
+    )
+    parser.add_argument(
+        "--allow-verifier-fallback",
+        action="store_true",
+        help=(
+            "permit --verifier=windowed_v1 to fall back to the legacy span-slice check when "
+            "the windowed verifier cannot initialise (missing references, calibration or "
+            "scorer module). Default: fail before the build starts — a silent downgrade "
+            "shipped 841 spans under a method nobody chose (review F7/F9)."
+        ),
+    )
+    parser.add_argument(
+        "--verifier-report",
+        default="",
+        help="optional JSON path to record which verifier actually ran and why.",
     )
     args = parser.parse_args()
 
@@ -1052,6 +1112,49 @@ def main() -> int:
 
     logger.info("Loading ECAPA speaker recognition model...")
     embedder = speaker_verify._load_embedder(cache_dir)
+
+    # Windowed ECAPA verifier (default for new builds, --verifier windowed_v1)
+    _windowed_verifier = None
+    _verifier_report: dict[str, object] = {
+        "requested": getattr(args, "verifier", "windowed_v1"),
+        "used": "span_slice_v2",
+        "fallback_reason": None,
+        "calibration_path": getattr(args, "windowed_calibration", "") or None,
+    }
+    if getattr(args, "verifier", "windowed_v1") == "windowed_v1":
+        try:
+            from ingest.verbatim.windowed_speaker_verify import WindowedEcapaVerifier  # noqa: E402
+
+            _cal_path = getattr(args, "windowed_calibration", "")
+            _windowed_verifier = WindowedEcapaVerifier(
+                references_path=args.references_npz if args.references_npz else None,
+                calibration_path=_cal_path if _cal_path else None,
+                audio_dir=args.wav_dir,
+                embedder=embedder,  # share the already-loaded model
+            )
+            _verifier_report["used"] = "windowed_v1"
+            logger.info(
+                "Windowed ECAPA verifier ready (calibration=%s)",
+                _cal_path or "default",
+            )
+        except Exception as _wv_exc:
+            _verifier_report["fallback_reason"] = f"{type(_wv_exc).__name__}: {_wv_exc}"
+            if not getattr(args, "allow_verifier_fallback", False):
+                logger.error(
+                    "Windowed ECAPA verifier init failed (%s). Refusing to build with an "
+                    "unrequested legacy verifier; pass --allow-verifier-fallback to accept "
+                    "span_slice_v2 explicitly, or fix the references/calibration paths.",
+                    _wv_exc,
+                )
+                _write_verifier_report(args, _verifier_report)
+                return 2
+            logger.warning(
+                "Windowed ECAPA verifier init failed (%s); --allow-verifier-fallback set, "
+                "building with span_slice_v2",
+                _wv_exc,
+            )
+            _windowed_verifier = None
+    _write_verifier_report(args, _verifier_report)
 
     logger.info("Initializing BGE-M3 embedding service...")
     embed_svc = EmbeddingService()
@@ -1247,18 +1350,35 @@ def main() -> int:
             # P3: the span records what produced the claim. No audio / no embedding gives
             # `pending_voice_check`; incomplete evidence is demoted to unverified, never
             # dropped and never promoted (domain.speaker_provenance).
-            voice_fields = span_slice_voice_fields(
-                verified=verified,
-                scored=verdict["predicted"] is not None,
-                cosine=verdict["cosine"],
-                margin=verdict["margin"],
-                foreign_window_count=verdict["metrics"]["foreign_window_count"],
-                cosine_floor=cosine_floor,
-                margin_threshold=margin_threshold,
-                model_revision=model_revision,
-                calibration_id=calibration_id,
-                verified_at=verified_at,
-            )
+            #
+            # Verifier selection (--verifier cli arg):
+            # - windowed_v1 (default): slide 3s/1.5s ECAPA windows over the served clip.
+            #   Span is verified only if every window passes.  Uses windowed_speaker_verify.
+            # - span_slice_v2 (legacy): whole-span cosine floor check with foreign-window count.
+            if _windowed_verifier is not None:
+                # Windowed ECAPA v1: re-score independently over the served window.
+                # The span-slice verdict above still determines `predicted_guru` and
+                # provides the coarse pass/fail for quarantine counting — but the payload
+                # voice fields come entirely from the windowed check.
+                voice_fields = _windowed_verifier.verify_span(
+                    video_id=video_id,
+                    start_ms=spec["start_ms"],
+                    end_ms=spec["end_ms"],
+                    guru_id=predicted_guru,
+                )
+            else:
+                voice_fields = span_slice_voice_fields(
+                    verified=verified,
+                    scored=verdict["predicted"] is not None,
+                    cosine=verdict["cosine"],
+                    margin=verdict["margin"],
+                    foreign_window_count=verdict["metrics"]["foreign_window_count"],
+                    cosine_floor=cosine_floor,
+                    margin_threshold=margin_threshold,
+                    model_revision=model_revision,
+                    calibration_id=calibration_id,
+                    verified_at=verified_at,
+                )
             # The vector is produced from the instruction-prefixed passage text
             # embedded by encode_batch below, so this hash names exactly the
             # string actually embedded, bypassing query expansion.

@@ -1,0 +1,19 @@
+{
+  "total_children": 2719,
+  "valid_source_spans": 2719,
+  "validation_failures": 0,
+  "errors": [],
+  "verified_count": 1408,
+  "verified_share_pct": 51.78,
+  "by_method": {
+    "ecapa_voxceleb_span_slice_v2": 841,
+    "None": 1311,
+    "ecapa_voxceleb_windowed_v1": 555,
+    "ecapa_voxceleb_centroid_v1": 12
+  },
+  "by_status": {
+    "verified": 1396,
+    "ecapa_failed": 1311,
+    "None": 12
+  }
+}

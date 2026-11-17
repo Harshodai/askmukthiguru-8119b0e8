@@ -1009,6 +1009,14 @@ async def lifespan(app: FastAPI):
     log_runtime_budget(logger, settings)
     # T-E2: say the spend-cap state at boot, so a refusal is never a mystery.
     await log_budget_headroom(logger, settings)
+    # X41: the in-ingest speaker gate can refuse to verify. Say whether it is armed, in
+    # its own units, before the first ingest asks it for a verdict.
+    try:
+        from services import speaker_gate
+
+        speaker_gate.log_status(logger, settings)
+    except Exception as gate_boot_exc:  # boot must never fail on a status line
+        logger.warning("Speaker gate status unavailable at boot: %s", gate_boot_exc)
     logger.info("=== Server accepting requests ===")
     warm_task = None
     if settings.warm_cache_on_start:

@@ -1,0 +1,501 @@
+{
+ "children": 2719,
+ "coverage_ge1_id": 2611,
+ "coverage_pct": 96.03,
+ "per_key_points": {
+  "topic_ids": 1997,
+  "entity_ids": 2547,
+  "tags": 741
+ },
+ "ids_per_point": {
+  "histogram": {
+   "0": 108,
+   "1": 188,
+   "2": 265,
+   "3": 280,
+   "4": 296,
+   "5": 277,
+   "6": 1305
+  },
+  "mean": 6.105,
+  "median": 5,
+  "max": 29
+ },
+ "distinct_concepts_proposed": 858,
+ "top_concepts": [
+  [
+   "consciousness",
+   505
+  ],
+  [
+   "Consciousness",
+   495
+  ],
+  [
+   "Presence",
+   312
+  ],
+  [
+   "love",
+   285
+  ],
+  [
+   "Love",
+   273
+  ],
+  [
+   "mind",
+   273
+  ],
+  [
+   "Mind",
+   259
+  ],
+  [
+   "peace",
+   195
+  ],
+  [
+   "Peace",
+   185
+  ],
+  [
+   "brain",
+   154
+  ],
+  [
+   "Suffering",
+   152
+  ],
+  [
+   "Brain",
+   151
+  ],
+  [
+   "suffering",
+   148
+  ],
+  [
+   "Heart",
+   147
+  ],
+  [
+   "children",
+   146
+  ],
+  [
+   "Children",
+   145
+  ],
+  [
+   "divine",
+   141
+  ],
+  [
+   "Beautiful State",
+   138
+  ],
+  [
+   "Anger",
+   137
+  ],
+  [
+   "connection",
+   135
+  ],
+  [
+   "beautiful state",
+   135
+  ],
+  [
+   "Family",
+   132
+  ],
+  [
+   "fear",
+   131
+  ],
+  [
+   "Fear",
+   128
+  ],
+  [
+   "Connection",
+   125
+  ],
+  [
+   "World",
+   123
+  ],
+  [
+   "oneness",
+   119
+  ],
+  [
+   "Child",
+   113
+  ],
+  [
+   "Awakening",
+   110
+  ],
+  [
+   "The Divine",
+   109
+  ]
+ ],
+ "max_share": 0.25,
+ "concepts_over_cap_after_drop": {},
+ "concepts_dropped_for_exceeding_cap": {
+  "You": 1788
+ },
+ "samples": [
+  {
+   "point_id": "519e515c-d740-5e7d-9a1c-ba387943b10d",
+   "proposed": {
+    "topic_ids": [
+     "letting go",
+     "relationship"
+    ],
+    "entity_ids": [
+     "Health",
+     "Hurt",
+     "Prosperity",
+     "Surrender",
+     "well-being"
+    ],
+    "tags": [
+     "Ending Toxic Relationships",
+     "Endure Or Endure"
+    ]
+   },
+   "first_words": "Giving someone and letting go of your hurt is absolutely"
+  },
+  {
+   "point_id": "52d77b39-56b6-5400-bbed-f1d93e0acb43",
+   "proposed": {
+    "entity_ids": [
+     "Science"
+    ]
+   },
+   "first_words": "The fifth cosmic principle is the principle of three very"
+  },
+  {
+   "point_id": "f5f2b455-6bde-575c-994a-21565c8d69f6",
+   "proposed": {
+    "entity_ids": [
+     "Einstein"
+    ]
+   },
+   "first_words": "Devakirti and Swayam, you must be 8th graders or 9th"
+  },
+  {
+   "point_id": "9fe47abb-cddc-5a22-9f6c-a04875134fb8",
+   "proposed": {
+    "topic_ids": [
+     "peace"
+    ],
+    "entity_ids": [
+     "Health",
+     "Peace",
+     "World"
+    ]
+   },
+   "first_words": "It is in those moments when you are made to"
+  },
+  {
+   "point_id": "88308b1f-0b6f-5256-9f1e-2e9a054b1e40",
+   "proposed": {
+    "topic_ids": [
+     "gratitude",
+     "love",
+     "mind"
+    ],
+    "entity_ids": [
+     "Calm",
+     "Gratitude",
+     "Love",
+     "Mind",
+     "Past",
+     "Present",
+     "The Present"
+    ]
+   },
+   "first_words": "Where do you think your mind is in all these"
+  },
+  {
+   "point_id": "c56f4b19-bf1d-51c8-a1c6-4d6e165ea334",
+   "proposed": {
+    "topic_ids": [
+     "practice"
+    ],
+    "entity_ids": [
+     "Depression",
+     "Wisdom"
+    ]
+   },
+   "first_words": "The support system where you can ask for help, where"
+  },
+  {
+   "point_id": "fa969ccc-aef1-5a0d-9bcd-7615a25d54ed",
+   "proposed": {
+    "topic_ids": [
+     "connection",
+     "consciousness"
+    ],
+    "entity_ids": [
+     "Connection",
+     "Consciousness",
+     "Family",
+     "Transformed State",
+     "World"
+    ]
+   },
+   "first_words": "Your state influences others. You can impact your family, your"
+  },
+  {
+   "point_id": "81c6090d-545a-5092-8166-816d6046341d",
+   "proposed": {
+    "topic_ids": [
+     "children",
+     "consciousness",
+     "love",
+     "mind"
+    ],
+    "entity_ids": [
+     "Children",
+     "Consciousness",
+     "Love",
+     "Mind"
+    ]
+   },
+   "first_words": "Do we love our children? Do we see them as"
+  },
+  {
+   "point_id": "de659c70-2868-59f9-9dc6-891ecdebcc10",
+   "proposed": {
+    "topic_ids": [
+     "Suffering",
+     "suffering"
+    ],
+    "entity_ids": [
+     "Suffering"
+    ],
+    "tags": [
+     "Letting Go of Attachments and Judgments",
+     "Living in a Beautiful State",
+     "Returning to Inner Beauty",
+     "Returning to the Beautiful State",
+     "Transcending Self-Centric Thinking"
+    ]
+   },
+   "first_words": "Realizing that all lingering in suffering is a total preoccupation"
+  },
+  {
+   "point_id": "05063db5-5ac8-513f-951d-c0c41a224a83",
+   "proposed": {},
+   "first_words": "Women are the creators who birth the future. How can"
+  },
+  {
+   "point_id": "c600e373-2755-53f9-9fc4-9173ec6aec98",
+   "proposed": {
+    "topic_ids": [
+     "children"
+    ],
+    "entity_ids": [
+     "Attention",
+     "Children"
+    ]
+   },
+   "first_words": "We will also collectively bless all the children of the"
+  },
+  {
+   "point_id": "495d56f2-c59f-5420-aa6f-9a6ceb8db9b1",
+   "proposed": {
+    "topic_ids": [
+     "awareness",
+     "compassion",
+     "consciousness",
+     "meditation"
+    ],
+    "entity_ids": [
+     "Awareness",
+     "Compassion",
+     "Consciousness",
+     "Family",
+     "Meditation",
+     "Organization",
+     "People In Power",
+     "Violence",
+     "War"
+    ]
+   },
+   "first_words": "Whether you victim or an aggressor. A massive culture of"
+  },
+  {
+   "point_id": "027409fb-4869-5e7a-99a5-668a3cab86f3",
+   "proposed": {
+    "topic_ids": [
+     "inner state",
+     "parents"
+    ],
+    "entity_ids": [
+     "Attention",
+     "Inner State",
+     "Parents",
+     "Vision"
+    ],
+    "tags": [
+     "Letting Go of Attachments and Judgments",
+     "Living in a Beautiful State",
+     "Returning to Inner Beauty",
+     "Returning to the Beautiful State",
+     "Transcending Self-Centric Thinking"
+    ]
+   },
+   "first_words": "From which state do we want to relate to the"
+  },
+  {
+   "point_id": "cb1c9b89-66cf-5e4a-a9e9-376baed5a51a",
+   "proposed": {
+    "topic_ids": [
+     "awakening",
+     "beautiful state",
+     "consciousness",
+     "healing",
+     "peace",
+     "world peace"
+    ],
+    "entity_ids": [
+     "Awakening",
+     "Beautiful State of Peace",
+     "Grace",
+     "Healing",
+     "Heart",
+     "Individual",
+     "Individuals",
+     "Peace Consciousness",
+     "Umit",
+     "World Peace"
+    ]
+   },
+   "first_words": "All life on this planet is inseparably connected like a"
+  },
+  {
+   "point_id": "c4916dc5-c3e5-5983-919b-0414d0b19e66",
+   "proposed": {
+    "topic_ids": [
+     "mind"
+    ],
+    "entity_ids": [
+     "Energy",
+     "Mind",
+     "Problem",
+     "Samskara"
+    ],
+    "tags": [
+     "Relationship with EGO"
+    ]
+   },
+   "first_words": "Can anyone succeed at everything? but the problem is once"
+  },
+  {
+   "point_id": "f3577cb8-c36f-56ce-b87a-e692de4523cc",
+   "proposed": {
+    "entity_ids": [
+     "Partner"
+    ],
+    "tags": [
+     "Cultivating Non Egoic Relationships",
+     "Evolving Beyond Rigid Views",
+     "The Reinforcement Of Views"
+    ]
+   },
+   "first_words": "Every time you get stuck in your views, your responses"
+  },
+  {
+   "point_id": "de597721-6eba-585b-8dad-fe463b9f5ce7",
+   "proposed": {
+    "topic_ids": [
+     "compassion",
+     "connection"
+    ],
+    "entity_ids": [
+     "Compassion",
+     "Connection",
+     "Individuals",
+     "Inner Judgments",
+     "Inner Prejudice",
+     "Passion",
+     "Soul Sync"
+    ]
+   },
+   "first_words": "SoulSync has freed scores of individuals of their inner judgments"
+  },
+  {
+   "point_id": "90e75ec2-7452-5f92-9df2-17a963007fbe",
+   "proposed": {
+    "topic_ids": [
+     "divine"
+    ],
+    "entity_ids": [
+     "Divine",
+     "God",
+     "The Divine"
+    ]
+   },
+   "first_words": "To see Leela or the dance of the Divine in"
+  },
+  {
+   "point_id": "c4a877de-dff0-53f3-9b30-f1de7070e8d8",
+   "proposed": {
+    "topic_ids": [
+     "ekam"
+    ],
+    "entity_ids": [
+     "Path"
+    ],
+    "tags": [
+     "The Journey To Sampurna Jeevan Mukthas",
+     "The Path Of Sampurna Jeevan Mukthi",
+     "The Vision Of Liberated Consciousness"
+    ]
+   },
+   "first_words": "This is Ekampatta or the path of Ekam. Close your"
+  },
+  {
+   "point_id": "60c51a26-e6c0-5f58-901c-11d02b1c3bfd",
+   "proposed": {
+    "topic_ids": [
+     "consciousness"
+    ],
+    "entity_ids": [
+     "Ananda",
+     "Bliss",
+     "Consciousness",
+     "Intelligence"
+    ]
+   },
+   "first_words": "Consciousness is described as chit which means intelligence that is"
+  }
+ ],
+ "collection": "first_person_v12_shadow",
+ "vocab": {
+  "okf_tag_vocab": 150,
+  "okf_video_title_videos": 181,
+  "graph_entity_vocab": 755,
+  "tu_topic_edges": 2,
+  "tu_topic_edges_matching_v10_children": 0,
+  "tu_node_count": 2760
+ },
+ "generic_terms_dropped": {
+  "life": 667,
+  "Life": 658,
+  "Other": 267,
+  "The World": 233,
+  "Time": 222,
+  "State": 381,
+  "Need": 191
+ },
+ "mode": "dry-run (nothing written to any store)"
+}

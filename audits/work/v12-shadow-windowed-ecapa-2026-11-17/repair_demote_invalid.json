@@ -1,0 +1,12 @@
+{
+ "collection": "first_person_v12_shadow",
+ "mode": "apply",
+ "children": 2719,
+ "outcomes": {
+  "valid_untouched": 1396,
+  "already_unverified": 1311,
+  "demoted:ecapa_voxceleb_centroid_v1": 12,
+  "reason:legacy_method_refused": 12
+ },
+ "written": 12
+}

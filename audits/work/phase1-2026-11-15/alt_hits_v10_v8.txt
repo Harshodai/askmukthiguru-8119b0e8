@@ -1,0 +1,58 @@
+
+===== first_person_v10: 4224 points, 2758 with verbatim_text
+
+[CLINICAL] alternatives=42 clips_hit=90 | alts hitting 0 clips=6, exactly 1=11, 2-5=18, >5=7
+  top: '\\bcur(?:e|es|ed|ing)\\b'=18 (sole 14); '\\b(?:regions?|parts?)\\s+of\\s+(?:your|t'=12 (sole 12); '\\boxytocin\\b'=9 (sole 7); '\\bcancer\\b'=8 (sole 6); '\\bheal(?:ed|s|ing)?\\s+(?:physically|(?'=8 (sole 4); '\\bscientifically proven\\b'=7 (sole 3)
+  zero-hit sample: '\\bchemotherap\\w+'; '\\bantidepressants?\\b'; '\\bmedications?\\b'; '\\b(?:cur(?:e|ed|ing)|heal(?:ed|ing)?|ove'; '\\baddictions?\\b[^.?!,]{0,40}\\b(?:cured|h'; '\\bcompletely\\s+free\\s+of\\s+anxiety\\b'
+
+[CAUSAL_ETIOLOGY] alternatives=5 clips_hit=2 | alts hitting 0 clips=1, exactly 1=4, 2-5=0, >5=0
+  top: '\\bthese\\s+diseases\\s+are\\s+(?:actually'=1 (sole 1); '\\bundigested\\s+(?:material|toxins?)\\b'=1 (sole 0); '\\baging\\s+is\\s+caused\\s+or\\s+disease\\s'=1 (sole 0); '\\bdisease\\s+is\\s+caused\\s+by\\s+(?:the\\'=1 (sole 0)
+  zero-hit sample: '\\btoxins?\\s+that\\s+is\\s+flowing\\b'
+
+[OUTCOME_PROMISE] alternatives=12 clips_hit=12 | alts hitting 0 clips=7, exactly 1=3, 2-5=1, >5=1
+  top: 'will\\s+definitely'=6 (sole 6); 'dissolve\\s+(?:all\\s+)?(?:your\\s+)?(?:a'=3 (sole 3); '100\\s*%\\s+(?:sure|certain|guaranteed?)'=1 (sole 1); 'you\\s+will\\s+(?:always|never\\s+again|b'=1 (sole 1); 'guaranteed?\\s+to'=1 (sole 1)
+  zero-hit sample: 'promise\\s+(?:you|that)\\s+(?:this|it)\\s+w'; 'melt like ice(?:\\s+in\\s+the\\s+heat\\s+of\\'; 'problems?\\s+(?:will\\s+)?(?:all\\s+)?melt('; 'guarantee(?:d|s)?\\s+(?:a\\s+)?miracle'; 'instant\\s+miracle'; 'guaranteed\\s+(?:outcome|result|healing|c'
+
+[EVENT_MARKER] alternatives=29 clips_hit=98 | alts hitting 0 clips=6, exactly 1=9, 2-5=10, >5=4
+  top: '\\bnamaste\\b'=38 (sole 36); '\\b(?:corona|covid(?:-19)?|lockdowns?|q'=24 (sole 21); '\\btoday,?\\s+we\\s+(?:will|shall|are\\s+g'=9 (sole 9); '\\bon\\s+this\\s+day\\b'=7 (sole 6); '\\bthis\\s+manifest\\s+(?:you|would|will|'=5 (sole 3); '\\bthis\\s+coming\\b'=4 (sole 2)
+  zero-hit sample: 'today\\s+is\\s+the\\s+day\\s+of'; '\\bi\\s+will\\s+bless\\s+you\\b'; '\\b(?:in\\s+the\\s+last\\s+(?:session|questi'; '\\b(?:like\\s+i\\s+said\\s+(?:yesterday|earl'; '\\b(?:upcoming|announcing)\\s+(?:event|pro'; '\\bwelcome\\s+to\\s+this\\s+(?:program|gathe'
+
+[WELLBEING_FRAMING] alternatives=16 clips_hit=9 | alts hitting 0 clips=8, exactly 1=4, 2-5=4, >5=0
+  top: '\\b(?:causes?\\s+)?ill\\s+health\\b'=3 (sole 3); '\\bundigested\\s+(?:material|toxins?|foo'=3 (sole 2); '\\bevery\\s+muscle\\s+in\\s+(?:your|the)\\s'=2 (sole 0); '\\bwhen\\s+you\\s+truly\\s+feel\\s+peace.*('=2 (sole 0); '\\bbody\\s+agitated\\b'=1 (sole 0); '\\binner\\s+disturbance\\s+leaves\\s+your\\'=1 (sole 0)
+  zero-hit sample: '\\btoxins?\\s+(?:in\\s+(?:your|the)\\s+body|'; '\\bphysiologically?\\s+(?:dead|dying|destr'; '\\bdead\\s+inside\\b'; '\\b(?:heart|soul|spirit)\\s+(?:is\\s+)?(?:d'; '\\bempty\\s+inside\\b'; '\\bhollowed?\\s+out\\s+inside\\b'
+
+[GRAPHIC_VIOLENCE] alternatives=5 clips_hit=5 | alts hitting 0 clips=0, exactly 1=0, 2-5=5, >5=0
+  top: 'racial\\s+violence'=5 (sole 3); "crush(?:ing)?\\s+another's\\s+throat"=2 (sole 0); 'throat\\s+to\\s+death'=2 (sole 0); "burn(?:ing)?\\s+down\\s+someone's\\s+home"=2 (sole 0); 'act\\s+of\\s+unthinkable\\s+cruelty'=2 (sole 0)
+
+[PRACTICE_INVITATION] alternatives=13 clips_hit=36 | alts hitting 0 clips=3, exactly 1=4, 2-5=3, >5=3
+  top: '\\b(?:close\\s+your\\s+eyes|gently\\s+clos'=19 (sole 9); '\\bsit\\s+(?:comfortably|quietly|still|u'=12 (sole 7); '\\bgently\\s+(?:close|rest|place|bring|d'=7 (sole 0); '\\btake\\s+a\\s+(?:deep\\s+)?breath(?:\\s+i'=3 (sole 3); '\\b(?:observe|watch|notice|be\\s+aware\\s'=3 (sole 2); '\\bbring\\s+your\\s+awareness\\s+(?:to|bac'=2 (sole 1)
+  zero-hit sample: '\\bfocus\\s+(?:your\\s+attention\\s+)?on\\s+('; '\\bduring\\s+this\\s+practice\\b'; '\\bin\\s+this\\s+practice\\b'
+
+===== first_person_v8: 1801 points, 1801 with verbatim_text
+
+[CLINICAL] alternatives=42 clips_hit=76 | alts hitting 0 clips=14, exactly 1=9, 2-5=12, >5=7
+  top: '\\bcur(?:e|es|ed|ing)\\b'=16 (sole 12); '\\b(?:regions?|parts?)\\s+of\\s+(?:your|t'=11 (sole 11); '\\boxytocin\\b'=9 (sole 7); '\\bheal(?:ed|s|ing)?\\s+(?:physically|(?'=8 (sole 4); '\\bscientifically proven\\b'=6 (sole 2); '\\bwrong\\s+signals?\\s+(?:to|into)\\s+the'=6 (sole 0)
+  zero-hit sample: '\\bchemotherap\\w+'; '\\bantidepressants?\\b'; '\\bmedications?\\b'; '\\b(?:cur(?:e|ed|ing)|heal(?:ed|ing)?|ove'; '\\baddictions?\\b[^.?!,]{0,40}\\b(?:cured|h'; '\\b100\\s*%\\s*(?:you\\s*can\\s*)?heal\\b'
+
+[CAUSAL_ETIOLOGY] alternatives=5 clips_hit=1 | alts hitting 0 clips=4, exactly 1=1, 2-5=0, >5=0
+  top: '\\bthese\\s+diseases\\s+are\\s+(?:actually'=1 (sole 1)
+  zero-hit sample: '\\bundigested\\s+(?:material|toxins?)\\b'; '\\btoxins?\\s+that\\s+is\\s+flowing\\b'; '\\baging\\s+is\\s+caused\\s+or\\s+disease\\s+i'; '\\bdisease\\s+is\\s+caused\\s+by\\s+(?:the\\s+'
+
+[OUTCOME_PROMISE] alternatives=12 clips_hit=11 | alts hitting 0 clips=7, exactly 1=2, 2-5=3, >5=0
+  top: 'will\\s+definitely'=5 (sole 5); 'dissolve\\s+(?:all\\s+)?(?:your\\s+)?(?:a'=2 (sole 2); 'you\\s+will\\s+(?:always|never\\s+again|b'=2 (sole 2); '100\\s*%\\s+(?:sure|certain|guaranteed?)'=1 (sole 1); 'guaranteed?\\s+to'=1 (sole 1)
+  zero-hit sample: 'promise\\s+(?:you|that)\\s+(?:this|it)\\s+w'; 'melt like ice(?:\\s+in\\s+the\\s+heat\\s+of\\'; 'problems?\\s+(?:will\\s+)?(?:all\\s+)?melt('; 'guarantee(?:d|s)?\\s+(?:a\\s+)?miracle'; 'instant\\s+miracle'; 'guaranteed\\s+(?:outcome|result|healing|c'
+
+[EVENT_MARKER] alternatives=29 clips_hit=72 | alts hitting 0 clips=10, exactly 1=12, 2-5=4, >5=3
+  top: '\\bnamaste\\b'=29 (sole 27); '\\b(?:corona|covid(?:-19)?|lockdowns?|q'=20 (sole 18); '\\btoday,?\\s+we\\s+(?:will|shall|are\\s+g'=7 (sole 7); '\\bon\\s+this\\s+day\\b'=5 (sole 5); '\\b(?:this|the|upcoming|next)\\s+manifes'=3 (sole 2); '\\b(?:i|we)\\s+will\\s+lead\\s+(?:you\\s+an'=2 (sole 1)
+  zero-hit sample: 'today\\s+is\\s+the\\s+day\\s+of'; '\\bin\\s+this\\s+coming\\b'; '\\bi\\s+will\\s+bless\\s+you\\b'; '\\b(?:the\\s+previous\\s+(?:question|person'; '\\b(?:in\\s+the\\s+last\\s+(?:session|questi'; '\\b(?:like\\s+i\\s+said\\s+(?:yesterday|earl'
+
+[WELLBEING_FRAMING] alternatives=16 clips_hit=5 | alts hitting 0 clips=12, exactly 1=2, 2-5=2, >5=0
+  top: '\\b(?:causes?\\s+)?ill\\s+health\\b'=2 (sole 2); '\\bundigested\\s+(?:material|toxins?|foo'=2 (sole 2); '\\bevery\\s+muscle\\s+in\\s+(?:your|the)\\s'=1 (sole 0); '\\bwhen\\s+you\\s+truly\\s+feel\\s+peace.*('=1 (sole 0)
+  zero-hit sample: '\\btoxins?\\s+(?:in\\s+(?:your|the)\\s+body|'; '\\bdisease\\s+is\\s+caused\\s+by\\s+(?:the\\s+'; '\\baging\\s+is\\s+caused\\s+(?:or|and|by)\\s+'; '\\bphysiologically?\\s+(?:dead|dying|destr'; '\\bbody\\s+agitated\\b'; '\\binner\\s+disturbance\\s+leaves\\s+your\\s+'
+
+[GRAPHIC_VIOLENCE] alternatives=5 clips_hit=5 | alts hitting 0 clips=0, exactly 1=0, 2-5=5, >5=0
+  top: 'racial\\s+violence'=5 (sole 3); "crush(?:ing)?\\s+another's\\s+throat"=2 (sole 0); 'throat\\s+to\\s+death'=2 (sole 0); "burn(?:ing)?\\s+down\\s+someone's\\s+home"=2 (sole 0); 'act\\s+of\\s+unthinkable\\s+cruelty'=2 (sole 0)
+
+[PRACTICE_INVITATION] alternatives=13 clips_hit=19 | alts hitting 0 clips=6, exactly 1=2, 2-5=3, >5=2
+  top: '\\b(?:close\\s+your\\s+eyes|gently\\s+clos'=10 (sole 5); '\\bsit\\s+(?:comfortably|quietly|still|u'=7 (sole 4); '\\bgently\\s+(?:close|rest|place|bring|d'=4 (sole 0); '\\b(?:observe|watch|notice|be\\s+aware\\s'=3 (sole 2); '\\bbring\\s+your\\s+awareness\\s+(?:to|bac'=2 (sole 1); '\\btake\\s+a\\s+(?:deep\\s+)?breath(?:\\s+i'=1 (sole 1)
+  zero-hit sample: "\\b(?:let(?:\\s+us|[\\s'\\u2019]*s)\\s+move\\s"; '\\bfocus\\s+(?:your\\s+attention\\s+)?on\\s+('; '\\ballow\\s+(?:yourself|your\\s+body|your\\s'; '\\bin\\s+this\\s+meditation\\b'; '\\bduring\\s+this\\s+practice\\b'; '\\bin\\s+this\\s+practice\\b'

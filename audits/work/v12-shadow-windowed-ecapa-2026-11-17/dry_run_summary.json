@@ -1,0 +1,30 @@
+{
+  "by_group": {
+    "pending": {
+      "refused": 996,
+      "verified": 441
+    },
+    "ecapa_failed": {
+      "refused": 12
+    },
+    "mixed_calib": {
+      "verified": 31,
+      "refused": 22
+    }
+  },
+  "by_reason": {
+    "pending": {
+      "refused_below_cosine_floor": 975,
+      "verified": 441,
+      "refused_host_window": 21
+    },
+    "ecapa_failed": {
+      "refused_host_window": 11,
+      "refused_below_cosine_floor": 1
+    },
+    "mixed_calib": {
+      "verified": 31,
+      "refused_below_cosine_floor": 22
+    }
+  }
+}

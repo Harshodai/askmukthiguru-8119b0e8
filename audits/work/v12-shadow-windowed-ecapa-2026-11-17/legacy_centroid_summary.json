@@ -1,0 +1,20 @@
+{
+  "schema": "windowed-ecapa-span-summary-v1",
+  "script_version": "windowed-ecapa-v1-scorer-v1",
+  "spans_scored": 376,
+  "by_group": {
+    "refused": 281,
+    "verified": 83,
+    "not_run": 12
+  },
+  "audio_failures": {
+    "out_of_bounds": 12
+  },
+  "windowed_calibration_revision": "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e",
+  "pinned_calibration_revision": "8daa506533f492231efa1827effbdbdadfb3159ccc6fa3f3cd13d4c763d6106e",
+  "cosine_floor": 0.4929868455061912,
+  "margin_threshold": 1e-06,
+  "max_failing_windows": 0,
+  "window_w_s": 3.0,
+  "window_h_s": 1.5
+}

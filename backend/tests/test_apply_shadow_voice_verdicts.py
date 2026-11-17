@@ -71,3 +71,76 @@ def test_allowed_keys_are_declared_span_fields():
     from domain.first_person_context import SourceSpan
 
     assert set(w.ALLOWED_KEYS) <= set(SourceSpan.model_fields)
+
+
+# ---------------------------------------------------------------------------
+# Windowed ECAPA v1 (review F1/F2/F6)
+# ---------------------------------------------------------------------------
+
+WINDOWED_ROW = {
+    "source_span_id": "s1",
+    "video_id": "vid",
+    "verdict_group": "verified",
+    "span_cosine_mean": 0.71,
+    "span_cosine_min": 0.53,
+    "span_margin_min": 0.19,
+    "windowed_calibration_revision": "a40b315b",
+    "model_revision": "0f99f2d0",
+    "window_check": "pass",
+}
+CAL = {"cosine_floor": 0.492987, "margin_threshold": 1e-6}
+
+
+def test_windowed_promotes_with_full_provenance_and_min_cosine():
+    outcome, upd = w.decide_windowed(PENDING, WINDOWED_ROW, NOW, CAL)
+    assert outcome == "promoted"
+    assert upd["speaker_verified"] is True
+    assert upd["voice_verification_method"] == "ecapa_voxceleb_windowed_v1"
+    assert upd["voice_calibration_id"] == "a40b315b"
+    assert upd["voice_model_revision"] == "0f99f2d0"
+    # Never the mean: the gate is per-window.
+    assert upd["voice_score"] == 0.53
+    assert upd["voice_threshold_applied"]["cosine_floor"] == 0.492987
+    assert set(upd) <= set(w.ALLOWED_KEYS)
+
+
+def test_windowed_refusal_demotes_a_legacy_verified_row():
+    legacy = {**PENDING, "speaker_verified": True, "speaker_verification_status": "verified"}
+    row = {**WINDOWED_ROW, "verdict_group": "refused", "window_check": "fail"}
+    outcome, upd = w.decide_windowed(legacy, row, NOW, CAL)
+    assert outcome == "demoted"
+    assert upd["speaker_verified"] is False
+    assert upd["speaker_verification_status"] == "ecapa_failed"
+    assert upd["voice_verified_at"] is None
+
+
+@pytest.mark.parametrize("group", ["not_run", None])
+def test_windowed_indeterminate_is_no_evidence(group):
+    """An unscored span is not a refusal: nothing is written."""
+    row = {**WINDOWED_ROW, "verdict_group": group}
+    assert w.decide_windowed(PENDING, row, NOW, CAL) == ("windowed_no_evidence", {})
+
+
+def test_windowed_without_score_is_no_evidence():
+    row = {**WINDOWED_ROW, "span_cosine_min": None, "cosine": None}
+    assert w.decide_windowed(PENDING, row, NOW, CAL) == ("windowed_no_evidence", {})
+
+
+def test_windowed_missing_calibration_id_stays_untouched():
+    row = {**WINDOWED_ROW, "windowed_calibration_revision": None}
+    assert w.decide_windowed(PENDING, row, NOW, CAL) == ("windowed_no_evidence", {})
+
+
+def test_windowed_skips_already_windowed_rows_unless_recheck():
+    done = {
+        **PENDING,
+        "speaker_verified": True,
+        "speaker_verification_status": "verified",
+        "voice_verification_method": "ecapa_voxceleb_windowed_v1",
+    }
+    assert w.decide_windowed(done, WINDOWED_ROW, NOW, CAL) == ("not_pending", {})
+
+    # --recheck-windowed re-evaluates and rewrites the score under the current rule.
+    outcome, upd = w.decide_windowed(done, WINDOWED_ROW, NOW, CAL, recheck=True)
+    assert outcome == "promoted"
+    assert upd["voice_score"] == 0.53

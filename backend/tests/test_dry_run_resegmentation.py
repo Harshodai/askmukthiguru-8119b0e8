@@ -22,6 +22,7 @@ from scripts.ops.dry_run_resegmentation import (
     DANGLING_OPENER_RE,
     ENUMERATION_INTRO_RE,
     ENUMERATION_ITEM_RE,
+    PROMISSORY_CAUSAL_RESOLUTION_RE,
     PROMISSORY_SETUP_RE,
     ResegmentationResult,
     RhetoricalResegmentationEngine,
@@ -36,10 +37,14 @@ def test_regex_patterns_detect_target_structures():
     assert ENUMERATION_ITEM_RE.search("The first aspiration is for achievement") is not None
     assert ENUMERATION_ITEM_RE.search("Then you have the fourth seeking") is not None
 
-    # Analogy detection
+    # Analogy detection (hardened: genuine resolution markers only, bare 'in families' excluded)
     assert ANALOGY_INTRO_RE.search("The human body is a great example") is not None
     assert ANALOGY_INTRO_RE.search("For example, consider the cells") is not None
     assert ANALOGY_RESOLUTION_RE.search("In the same way, families break down") is not None
+    assert ANALOGY_RESOLUTION_RE.search("similarly, the mind reacts") is not None
+    assert ANALOGY_RESOLUTION_RE.search("when this communication breaks down") is not None
+    assert ANALOGY_RESOLUTION_RE.search("so oneness is the key") is not None
+    assert ANALOGY_RESOLUTION_RE.search("not happening in families in today's world") is None
 
     # Promissory setup detection
     assert (
@@ -50,11 +55,30 @@ def test_regex_patterns_detect_target_structures():
     )
     assert PROMISSORY_SETUP_RE.search("here is why you feel lonely") is not None
 
-    # Dangling opener detection
+    # Promissory causal resolution detection
+    assert (
+        PROMISSORY_CAUSAL_RESOLUTION_RE.search("the entire parasympathetic nervous system is being shut off")
+        is not None
+    )
+    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("hurting your physical body") is not None
+    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("destroying our health") is not None
+    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("you're a person who's deceased") is not None
+    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("you're a person who is diseased") is not None
+    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search("move into states of calm, free yourself") is not None
+
+    # Dangling opener detection (supports optional leading whitespace)
     match = DANGLING_OPENER_RE.search(
         "Today I know I meet so many people and everybody asked me this question. We are not able to feel this connection"
     )
     assert match is not None
+    match_ws = DANGLING_OPENER_RE.search(
+        "   Today I know I meet so many people and everybody asked me this question. We are not able to feel this connection"
+    )
+    assert match_ws is not None
+    match_nl = DANGLING_OPENER_RE.search(
+        "\n\tToday I know I meet so many people and everybody asked me this question. Foo"
+    )
+    assert match_nl is not None
 
 
 def test_window_text_keeps_the_segments_that_straddle_each_edge():
@@ -90,10 +114,13 @@ def test_resegment_video_q010_enumeration_closure():
     )
     # Closure is claimed only because the fourth item is inside the window.
     assert re.search(r"fourth\s+(?:seeking|pursuit|aspiration)", window, re.IGNORECASE)
+    assert engine._ends_a_sentence(window) is True
+    assert window.endswith("effortlessly.")
+    assert "Most people think" not in window
     assert res.closure_achieved is True
 
 
-def test_resegment_video_q019_analogy_window_starts_after_the_dangling_opener():
+def test_resegment_video_q019_analogy_window_closure():
     engine = RhetoricalResegmentationEngine()
     res = engine.resegment_video("x-mTRlE0TC4", "q019", "everybody asked me this question")
 
@@ -105,14 +132,31 @@ def test_resegment_video_q019_analogy_window_starts_after_the_dangling_opener():
         engine.load_raw_segments("x-mTRlE0TC4"), res.rhetorical_start_s, res.rhetorical_end_s
     )
     assert "everybody asked me this question" not in window.lower()
-    # Measured 2026-11-15: the application marker ("in the same way") is NOT in
-    # this window, so the analogy is still unconcluded. A future window change
-    # that adds it must flip this assertion deliberately.
-    assert re.search(r"\b(?:in\s+the\s+same\s+way|similarly)\b", window, re.IGNORECASE) is None
-    assert res.closure_achieved is False
+    # Analogy resolution markers (communication breaks down, so oneness is) are inside the window.
+    assert ANALOGY_RESOLUTION_RE.search(window) is not None
+    assert engine._ends_a_sentence(window) is True
+    assert res.closure_achieved is True
 
 
-def test_resegment_video_q074_promissory_window_reaches_the_mechanism_only_partly():
+def test_severed_analogy_at_284s_rejects_closure():
+    """Severed analogy ending at 284.75s must NOT achieve closure (bare 'in families' excluded)."""
+    engine = RhetoricalResegmentationEngine()
+    raw_q019 = engine.load_raw_segments("x-mTRlE0TC4")
+    txt_severed = engine._window_text(raw_q019, 202.75, 284.75)
+    # Severed analogy has no genuine resolution marker
+    assert ANALOGY_RESOLUTION_RE.search(txt_severed) is None
+    # Even though it ends a sentence ('you are in good health.'), closure must evaluate to False
+    assert engine._ends_a_sentence(txt_severed) is True
+    closure_achieved = (
+        bool(txt_severed)
+        and bool(ANALOGY_RESOLUTION_RE.search(txt_severed))
+        and not bool(DANGLING_OPENER_RE.search(txt_severed))
+        and engine._ends_a_sentence(txt_severed)
+    )
+    assert closure_achieved is False
+
+
+def test_resegment_video_q074_promissory_window_closure():
     engine = RhetoricalResegmentationEngine()
     res = engine.resegment_video("fdPQxZsPAwI", "q074", "causes ill health within us")
 
@@ -126,10 +170,9 @@ def test_resegment_video_q074_promissory_window_reaches_the_mechanism_only_partl
         engine.load_raw_segments("fdPQxZsPAwI"), res.rhetorical_start_s, res.rhetorical_end_s
     )
     assert "90 seconds" in window.lower()
-    # The window stops before "immune system"/"disease", so the causal chain is
-    # still unfinished at 66.59s.
-    assert "immune" not in window.lower()
-    assert res.closure_achieved is False
+    # Window extends through parasympathetic shutdown, physiological harm, and calm resolution.
+    assert PROMISSORY_CAUSAL_RESOLUTION_RE.search(window) is not None
+    assert res.closure_achieved is True
 
 
 def test_a_missing_transcript_never_claims_closure(tmp_path: Path):
@@ -148,10 +191,11 @@ def test_resegment_video_missing_match_raises():
         engine.resegment_video("sMgbjxyrgqw", "q010", "nonexistent phrase xyz 123")
 
 
-def test_run_dry_run_reports_one_closed_case_and_two_open():
+def test_run_dry_run_reports_all_three_cases_closed():
     results = run_dry_run()
     assert len(results) == 3
-    assert [r.closure_achieved for r in results] == [True, False, False]
+    assert [r.closure_achieved for r in results] == [True, True, True]
+    assert all(r.closure_achieved for r in results) is True
     assert all(r.chunker_version == "boundary_v2:rhetorical" for r in results)
 
 
@@ -160,10 +204,15 @@ def test_main_cli_execution(tmp_path: Path, capsys):
     with patch("sys.argv", ["dry_run_resegmentation.py", "--output", str(out_file), "--json"]):
         exit_code = main()
     data = json.loads(out_file.read_text(encoding="utf-8"))
-    assert len(data) == 3
-    assert data[0]["target_row_id"] == "q010"
-    # Exit status follows the computed verdicts, never a hard-coded PASS.
-    assert exit_code == (0 if all(r["closure_achieved"] for r in data) else 1)
+    assert isinstance(data, dict)
+    assert data["evaluated_cases"] == 3
+    assert data["closure_achieved_count"] == 3
+    assert data["verdict"] == "PASS"
+    assert len(data["cases"]) == 3
+    assert data["cases"][0]["target_row_id"] == "q010"
+    # Exit status follows the computed verdicts, 0 when all 3 cases close.
+    assert exit_code == 0
+    assert all(r["closure_achieved"] for r in data["cases"])
 
 
 def test_print_report_verdict_follows_the_computed_closures(capsys):

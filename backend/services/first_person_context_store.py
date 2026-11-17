@@ -678,7 +678,7 @@ class FirstPersonContextStore:
                         query=FusionQuery(fusion=Fusion.RRF),
                         group_by="parent_unit_id",
                         limit=limit_parents * 3,
-                        group_size=spans_per_parent,
+                        group_size=max(spans_per_parent, 8),
                         with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
                     )
                 else:
@@ -689,7 +689,7 @@ class FirstPersonContextStore:
                         query_filter=query_filter,
                         group_by="parent_unit_id",
                         limit=limit_parents * 3,
-                        group_size=spans_per_parent,
+                        group_size=max(spans_per_parent, 8),
                         with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
                     )
                 out: list[tuple[str, tuple[str, ...], float]] = []

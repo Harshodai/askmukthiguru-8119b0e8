@@ -1,0 +1,469 @@
+{
+ "families": [
+  {
+   "file": "backend/app/security_utils.py",
+   "name": "_YOUTUBE_VIDEO_ID_RE, _SAFE_ID_RE, _CORRELATION_ID_RE, _ISO_DATE_RE, _SAFE_PATH_RE, _EMAIL_RE (lines 28-43)",
+   "pattern_count": 6,
+   "role": "structural_parse",
+   "path": "serve",
+   "purpose": "Validate ids, dates, paths and emails at input boundaries.",
+   "disposition": "keep",
+   "hazards": [
+    "Anchored with ^...$ but re.match and $ accept a trailing newline: _EMAIL_RE and _ISO_DATE_RE return True for 'a@b.co\\n' and '2026-11-15T10:00:00+05:30\\n'. Use fullmatch or \\Z.",
+    "_CORRELATION_ID_RE is also defined in sanitization.py."
+   ],
+   "duplicates_of": "backend/app/sanitization.py:_CORRELATION_ID_RE (identical pattern)",
+   "tested": "none",
+   "notes_for_row": "Not checked against tests/ in this sweep."
+  },
+  {
+   "file": "backend/app/sanitization.py",
+   "name": "_SESSION_ID_RE, _CORRELATION_ID_RE, _USER_INPUT_CONTROL_RE, _USER_INPUT_SCRIPT_RE, _URL_CREDENTIALS_RE (lines 13-19, 117)",
+   "pattern_count": 5,
+   "role": "normalisation",
+   "path": "serve",
+   "purpose": "Strip control characters and script tags from user input; redact URL credentials; validate session and correlation ids.",
+   "disposition": "keep",
+   "hazards": [
+    "Same $-newline acceptance as security_utils for the id validators.",
+    "_URL_CREDENTIALS_RE replaces the whole match including scheme when a bare replacement string is used; only a \\1 backreference preserves the scheme (regex-only probe, call site not read)."
+   ],
+   "duplicates_of": "backend/app/security_utils.py:_CORRELATION_ID_RE",
+   "tested": "none"
+  },
+  {
+   "file": "backend/app/observability.py",
+   "name": "Span-attribute allowlist (lines 179-183) and secret scrubbers _SENTINEL_REGEX, _AUTH_HEADER_REGEX, _TOKEN_PARAM_REGEX, _KEY_PATTERN_REGEX (lines 278-284)",
+   "pattern_count": 8,
+   "role": "output_scrub",
+   "path": "serve",
+   "purpose": "Keep only allowlisted telemetry attributes; redact bearer/basic auth headers, token query params and key-shaped strings before logs or traces leave the process.",
+   "disposition": "keep",
+   "hazards": [
+    ".*_(tokens|ms|...)$ attribute allowlist is unanchored at the start and admits any suffix match.",
+    "_SENTINEL_REGEX sentinel[_\\-\\w]* is broad and can redact unrelated identifiers containing 'sentinel'."
+   ],
+   "duplicates_of": "backend/app/release_manifest.py:key patterns (near-duplicate secret shapes, hypothesis)",
+   "tested": "none"
+  },
+  {
+   "file": "backend/app/release_manifest.py",
+   "name": "Secret-shape patterns (lines 26-31)",
+   "pattern_count": 6,
+   "role": "output_scrub",
+   "path": "serve",
+   "purpose": "Redact sk-, ghp_, JWT, Bearer, PEM private-key headers and password assignments from manifest output.",
+   "disposition": "merge_duplicate",
+   "hazards": [
+    "Secret shapes duplicated in observability and sanitization (hypothesis: not diffed in this sweep). Keep one list and import it."
+   ],
+   "duplicates_of": "backend/app/observability.py:_KEY_PATTERN_REGEX (hypothesis)",
+   "tested": "none"
+  },
+  {
+   "file": "backend/app/telemetry_db.py",
+   "name": "EMAIL_REGEX, PHONE_REGEX, ID_REGEX (lines 205-209) and _REFUSAL_PATTERN (line 29)",
+   "pattern_count": 4,
+   "role": "output_scrub",
+   "path": "ingest",
+   "purpose": "Scrub PII from telemetry rows before insert; classify refusals.",
+   "disposition": "merge_duplicate",
+   "hazards": [
+    "ID_REGEX matches any grouped 12-digit number, so non-personal reference ids are redacted (over-redaction, low severity).",
+    "PHONE_REGEX matches any 10-digit run including numeric ids."
+   ],
+   "duplicates_of": "backend/services/pii_scanner.py:EMAIL_REGEX and PHONE_REGEX (identical)",
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/pii_scanner.py",
+   "name": "PIIScanner.EMAIL/PHONE/AADHAAR/SSN/IP/URL_QUERY_PARAM regexes (lines 8-13)",
+   "pattern_count": 6,
+   "role": "output_scrub",
+   "path": "serve",
+   "purpose": "Detect and redact PII (email, phone, Aadhaar-style id, SSN, IP, URL query values).",
+   "disposition": "merge_duplicate",
+   "hazards": [
+    "AADHAAR_REGEX matches any grouped 12-digit number (probe: 'ref 1234 5678 9012' matches), so it over-redacts. Probe confirmed.",
+    "SSN_REGEX is correct on the probe cases: '123-45-6789' matches, '000-12-3456' does not."
+   ],
+   "duplicates_of": "backend/app/telemetry_db.py:EMAIL_REGEX, PHONE_REGEX",
+   "tested": "none"
+  },
+  {
+   "file": "backend/app/routing_primitives.py",
+   "name": "GREETING_RE, GREETING_VOCATIVE_RE, GREETING_SEQUENCE_RE, CONVERSATIONAL_OPENER_RE (lines 7-50)",
+   "pattern_count": 4,
+   "role": "lexicon_match",
+   "path": "serve",
+   "purpose": "Deterministic greeting short-circuit for pure greetings with a closed vocative vocabulary.",
+   "disposition": "keep",
+   "hazards": [
+    "Closed vocative list is good: probe shows 'namaste suicide' and 'hi kms' are rejected by is_deterministic_greeting (correct), 'hello there' and 'Namaste! Good morning.' are accepted (correct).",
+    "Regex is a closed-vocabulary check; the list could live as data (move_to_lexicon_data is optional)."
+   ],
+   "duplicates_of": "backend/app/intake/short_circuit.py:_TIER2_GREETING_RE, _TIER2_STACKED_RE; backend/rag/intent_prerouter.py:GREETINGS_RE",
+   "tested": "none",
+   "notes_for_row": "Comments cite a 2026-10-23 live run; test files not checked."
+  },
+  {
+   "file": "backend/app/intake/short_circuit.py",
+   "name": "_TIER2_GREETING_RE, _TIER2_STACKED_RE, _TIER2_OPENER_RE, _TIER3_HELP_RE, _TIER4_GLOSSARY_RE (lines 36-124)",
+   "pattern_count": 5,
+   "role": "lexicon_match",
+   "path": "dead",
+   "purpose": "Second greeting and help grammar that short-circuits to canned replies.",
+   "disposition": "delete_dead",
+   "hazards": [
+    "CLAUDE.md lists app/intake/short_circuit.py as a second greeting grammar and dormant (no call site). The caller grep was not run in this sweep, so this is a hypothesis until confirmed.",
+    "If it is live, its vocative list (_VOCATIVES) differs from routing_primitives, so the same input can classify differently."
+   ],
+   "duplicates_of": "backend/app/routing_primitives.py:GREETING_* patterns",
+   "tested": "none"
+  },
+  {
+   "file": "backend/rag/intent_prerouter.py",
+   "name": "GREETINGS_RE (line 27)",
+   "pattern_count": 1,
+   "role": "lexicon_match",
+   "path": "serve",
+   "purpose": "Pre-route compact greetings to CASUAL before the LLM classifier.",
+   "disposition": "merge_duplicate",
+   "hazards": [
+    "Trailing (\\s+.*)?$ accepts any suffix: GREETINGS_RE.match('hi there suicide') is truthy. preroute_intent avoids a crisis mis-route only because DISTRESS_RE runs first. This is ordering-dependent safety.",
+    "Open vocabulary, unlike routing_primitives (closed vocatives)."
+   ],
+   "duplicates_of": "backend/app/routing_primitives.py:GREETING_RE, GREETING_VOCATIVE_RE",
+   "tested": "none"
+  },
+  {
+   "file": "backend/rag/intent_prerouter.py",
+   "name": "DISTRESS_RE (line 34), used by preroute_intent (line 95)",
+   "pattern_count": 1,
+   "role": "safety_lexicon",
+   "path": "serve",
+   "purpose": "Acute distress keyword gate before LLM classification; the call site is rag/nodes/intent.py:525, inside the graph after the Distress stage.",
+   "disposition": "replace_with_classifier",
+   "hazards": [
+    "Confirmed false negatives: 'I am feeling suicidal' (no match), 'hi I am suicidal' (preroute returns CASUAL), 'I have panic attacks' (no match: attacks is not matched because the pattern ends with \\battack\\b).",
+    "No stemming, so suicidal/suicides and attacks are missed. Owned by the crisis work already tracked as A12. Any fix must be measured with the human-written crisis set, not this sweep."
+   ],
+   "duplicates_of": "backend/services/serene_mind_engine.py crisis lexicon (other shard)",
+   "tested": "none",
+   "notes_for_row": "already_registered=A12 (docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md, A12 crisis regex does not converge)."
+  },
+  {
+   "file": "backend/rag/intent_prerouter.py",
+   "name": "MEDITATION_RE (line 75)",
+   "pattern_count": 1,
+   "role": "semantic_judgment",
+   "path": "serve",
+   "purpose": "Route imperative meditation requests to MEDITATION, requiring an imperative verb plus a meditation noun within 40 chars.",
+   "disposition": "keep",
+   "hazards": [
+    "Probe: 'start meditation' matches, 'what is soul sync' does not (both correct). The conservative design is intentional and documented in the file.",
+    "It is still a regex judgment of intent; the LLM path is the fallback."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/llm_verdict.py",
+   "name": "_THINK_RE, _FENCE_RE, _NUMBERED_RE (lines 27, 28, 47)",
+   "pattern_count": 3,
+   "role": "structural_parse",
+   "path": "serve",
+   "purpose": "Strip reasoning tags and code fences from LLM verdict output, then parse numbered verdicts.",
+   "disposition": "keep",
+   "hazards": [
+    "_THINK_RE is lazy with DOTALL: an unterminated <think> block is left intact and would reach the parser (hypothesis, not probed).",
+    "Parsing LLM output with regex is fragile when the model drifts format; verdict failures should abstain, not default to a value (hypothesis: call sites not read)."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/injection_screen.py",
+   "name": "_PATTERNS tuple: instruction_override, role_marker, and others (lines 28-58)",
+   "pattern_count": 5,
+   "role": "safety_lexicon",
+   "path": "serve",
+   "purpose": "Heuristic prompt-injection screen on user and retrieved text.",
+   "disposition": "keep",
+   "hazards": [
+    "Regex screen is a heuristic. Paraphrased overrides ('disregard the rules above') bypass exact phrase lists. Treat as a tripwire, not a guarantee (hypothesis: bypass cases not probed).",
+    "Unicode normalisation runs before matching (line 2 imports unicodedata), so the screen sees normalised text."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/live_event_text.py",
+   "name": "LIVE_EVENT_INSTRUCTION_RE (line 16)",
+   "pattern_count": 1,
+   "role": "semantic_judgment",
+   "path": "ingest",
+   "purpose": "Flag live-event crowd instructions in transcript text so they are excluded from doctrine clips.",
+   "disposition": "replace_with_offline_label",
+   "hazards": [
+    "Deciding whether a sentence is a live-event instruction is semantic. Regex cannot separate an instruction from a teaching that mentions the same words (hypothesis: body not read in this sweep).",
+    "Ingest-only; should be a reviewed offline label set, not a serve-time gate."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/teacher_attribution.py",
+   "name": "_MENTION_PATTERNS: sadhguru, amma_bhagavan, iskcon (lines 68-72)",
+   "pattern_count": 3,
+   "role": "lexicon_match",
+   "path": "ingest",
+   "purpose": "Emit mentions:<teacher> tags only; the module docstring says these never set identity.",
+   "disposition": "keep",
+   "hazards": [
+    "Probe: 'Prabhupada wrote about yoga' and 'Krishna Consciousness is a philosophy' match. This is correct only if the mention tag is never read as identity. Verified from the docstring; the identity-path call sites were not traced here."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/provenance.py",
+   "name": "Refusal-phrase patterns (lines 49-53)",
+   "pattern_count": 5,
+   "role": "lexicon_match",
+   "path": "serve",
+   "purpose": "Detect assistant refusal or meta phrases in generated text.",
+   "disposition": "keep",
+   "hazards": [
+    "'i cannot provide (that|this) (information|content)' misses 'i cannot provide the information' (hypothesis, not probed).",
+    "Output-side lexicon: misses are safe only if the caller treats no-match as unverified, not as clean."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/memory_service.py",
+   "name": "Personal-fact extractors (lines 43-45 and nearby)",
+   "pattern_count": 3,
+   "role": "semantic_judgment",
+   "path": "serve",
+   "purpose": "Extract personal facts such as location and occupation from user text for memory writes.",
+   "disposition": "replace_with_classifier",
+   "hazards": [
+    "'i live in' and 'i work' patterns misfire on hypotheticals and third-party statements ('my friend lives in Pune' is not matched because of the subject list; 'i work out daily' matches 'i work'). Hypothesis, not probed.",
+    "Writes personal data to memory; consent gate lives elsewhere."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/guru_registry.py",
+   "name": "Alias patterns (lines 83, 181, 261-302, 443) and _CLEAN_PREFIX_RE",
+   "pattern_count": 17,
+   "role": "lexicon_match",
+   "path": "serve",
+   "purpose": "Map teacher aliases to canonical teacher names and strip title prefixes.",
+   "disposition": "move_to_lexicon_data",
+   "hazards": [
+    "Hardcoded alias regexes (lines 261-302) duplicate data that also lives in gurus.yaml (the comment at teacher_attribution.py:62-63 says aliases come from gurus.yaml). Hypothesis, not diffed.",
+    "Aliases compiled with re.I and \\b, so short aliases can match inside other words (hypothesis)."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/lightrag_service.py",
+   "name": "_SPECIFIC_LOCAL_PATTERNS, _INTERROGATIVE_LOCAL_PATTERNS, _GLOBAL_ROUTING_PATTERNS (lines 163-178)",
+   "pattern_count": 3,
+   "role": "semantic_judgment",
+   "path": "serve",
+   "purpose": "Choose LightRAG local vs global retrieval mode from the query wording.",
+   "disposition": "replace_with_classifier",
+   "hazards": [
+    "Query-mode routing by regex is a semantic decision; misroutes are silent (hypothesis: not probed).",
+    "Entity pattern at line 1005 uses a capitalised bracket form that LLM output may not produce."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/memory/okf_store.py",
+   "name": "_VIDEO_ID_RE, _TRAILING_ATTR_RE, _LEADING_BOILERPLATE_RE, _TRUNCATED_QUOTE_END_RE (lines 42, 342-373)",
+   "pattern_count": 4,
+   "role": "output_scrub",
+   "path": "ingest",
+   "purpose": "Extract video ids; strip extraction boilerplate and truncated-quote tails from OKF entries.",
+   "disposition": "keep",
+   "hazards": [
+    "_TRUNCATED_QUOTE_END_RE is a hardcoded word list (sp|comfo|expre|me|e|t): it can delete real words that end a sentence.",
+    "OKF is LLM-extracted (CLAUDE.md invariant 12), so cleanup here cannot make it verbatim."
+   ],
+   "duplicates_of": "backend/services/memory/compiler.py:_VIDEO_ID_RE",
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/memory/compiler.py",
+   "name": "_HEADING_RE, _VIDEO_ID_RE (lines 34, 43)",
+   "pattern_count": 2,
+   "role": "structural_parse",
+   "path": "ingest",
+   "purpose": "Parse OKF headings and video ids during compile.",
+   "disposition": "keep",
+   "hazards": [
+    "_VIDEO_ID_RE duplicates okf_store (identical)."
+   ],
+   "duplicates_of": "backend/services/memory/okf_store.py:_VIDEO_ID_RE",
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/transcript_verbatim.py",
+   "name": "_TOKEN_RE, _APOSTROPHE_RE, _QUOTED_STRING_RE (lines 47-50)",
+   "pattern_count": 3,
+   "role": "normalisation",
+   "path": "serve",
+   "purpose": "Tokenise and normalise apostrophes for exact-substring quote checks, and extract quoted spans.",
+   "disposition": "keep",
+   "hazards": [
+    "Apostrophe normalisation must match the one used for stored text, or the exact-substring check fails closed (correct direction).",
+    "_QUOTED_STRING_RE requires 20-400 chars inside quotes, so short verbatim quotes are not extracted."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/citation_service.py",
+   "name": "_MARKER_RE, _QUOTE_RE (lines 34, 209)",
+   "pattern_count": 2,
+   "role": "structural_parse",
+   "path": "serve",
+   "purpose": "Parse citation markers and quoted spans for citation checks.",
+   "disposition": "keep",
+   "hazards": [
+    "_MARKER_RE overlaps humanizer._CITE_RE (near-duplicate marker grammar)."
+   ],
+   "duplicates_of": "backend/services/humanizer.py:_CITE_RE",
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/humanizer.py",
+   "name": "_CITE_RE (line 32)",
+   "pattern_count": 1,
+   "role": "output_scrub",
+   "path": "serve",
+   "purpose": "Strip citation markers from output text before display.",
+   "disposition": "merge_duplicate",
+   "hazards": [
+    "Near-duplicate of citation_service._MARKER_RE with a different accepted syntax (\\[\\^?\\d{1,3}\\] vs \\[\\^(\\d{1,3})\\]). Two grammars can disagree."
+   ],
+   "duplicates_of": "backend/services/citation_service.py:_MARKER_RE",
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/text_quality_filter.py and backend/services/okf_quality_filter.py",
+   "name": "_ARTIFACT_RE (text_quality_filter.py:101, 408), _LEAKAGE_RE and _MATCH_NOISE_RE (okf_quality_filter.py:39, 44)",
+   "pattern_count": 6,
+   "role": "output_scrub",
+   "path": "ingest",
+   "purpose": "Reject extraction artifacts (RAPTOR headers, prompt commentary, leakage) from ingest and OKF text.",
+   "disposition": "keep",
+   "hazards": [
+    "Built with \"|\".join of pattern lists: one malformed alternative breaks the whole compiled pattern at import time (fails loud, acceptable).",
+    "Pattern bodies were not read in this sweep (hypothesis on coverage)."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/doctrine_terms.py and backend/services/doctrine_lexicon.py",
+   "name": "_WORD_OR_SYM_TOKEN_RE (doctrine_terms.py:298), dynamic \\b re.escape(term)\\b compile (doctrine_terms.py:429, 436), _TOKEN_RE (doctrine_lexicon.py:56)",
+   "pattern_count": 4,
+   "role": "lexicon_match",
+   "path": "ingest",
+   "purpose": "Canonicalise doctrine terms and tokenise for lexicon matching.",
+   "disposition": "keep",
+   "hazards": [
+    "\\b around terms whose edges are non-word characters (e.g. symbols) never matches, so those terms need a different boundary (hypothesis, not probed).",
+    "Dynamic compile per rule: fine at ingest scale; cache if moved to serve."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/text_normalize.py",
+   "name": "_IN_WORD_SUBSTITUTE, _SPACED_LETTERS (lines 47, 50)",
+   "pattern_count": 2,
+   "role": "normalisation",
+   "path": "ingest",
+   "purpose": "Repair in-word substitutions and collapse spaced-out letters (e.g. 'h e l l o').",
+   "disposition": "keep",
+   "hazards": [
+    "_SPACED_LETTERS is ASCII-only [a-z] so it does not repair other scripts (hypothesis, not probed).",
+    "Collapsing spaced letters can merge real short words in spaced text."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/services/language_detection.py",
+   "name": "_HINDI_PATTERN, _TAMIL_PATTERN (lines 179, 203)",
+   "pattern_count": 2,
+   "role": "structural_parse",
+   "path": "serve",
+   "purpose": "Unicode script-range detection for Hindi and Tamil.",
+   "disposition": "keep",
+   "hazards": [
+    "Script ranges detect script, not language: Marathi and Nepali use Devanagari and would match the Hindi pattern (hypothesis, not probed)."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/evaluation/* and backend/benchmarks/* (bench.py 14, abstention_eval.py 12, seeker_relevance_run.py 13, ragas_eval.py, llm_judge.py, verbatim_metrics.py, run_golden_eval.py and others)",
+   "name": "Eval and benchmark pattern sets (grouped)",
+   "pattern_count": 60,
+   "role": "semantic_judgment",
+   "path": "eval",
+   "purpose": "Parse eval outputs, extract claims and verdicts, score relevance and abstention.",
+   "disposition": "keep",
+   "hazards": [
+    "Eval scorers that use regex to parse LLM judge output inherit the llm_verdict fragility (hypothesis: bodies not read).",
+    "Not used at serve time per the file headers; excluded from any latency or safety claim."
+   ],
+   "tested": "none"
+  },
+  {
+   "file": "backend/scripts/ops/* and scripts/ops/* (about 45 files), scripts/ingestion/*, scripts/i18n_*, scripts/translate_locales.py, scripts/build_exact_*.py",
+   "name": "Offline ops, ingestion and locale scripts (grouped)",
+   "pattern_count": 150,
+   "role": "structural_parse",
+   "path": "offline_tool",
+   "purpose": "Parse transcripts, subtitles, JSON dumps, locale keys and reports.",
+   "disposition": "keep",
+   "hazards": [
+    "Byte-identical duplicates exist under backend/scripts/ops and scripts/ops (CLAUDE.md invariant). Count these as one family.",
+    "Not read individually in this sweep."
+   ],
+   "duplicates_of": "backend/scripts/ops/* vs scripts/ops/* (identical by rule)",
+   "tested": "none"
+  },
+  {
+   "file": "scripts/guards/* (lesson_guards.py 11, pipeline_order_guard.py 10, migration_lint.py 3, stale_flags.py, supabase_types_lint.py 4, guru_literal_guard.py, check_regex_safety.py)",
+   "name": "Guard scripts (grouped)",
+   "pattern_count": 30,
+   "role": "structural_parse",
+   "path": "offline_tool",
+   "purpose": "Enforce pipeline order, migration lint, stale flags and literal guards in pre-commit and CI.",
+   "disposition": "keep",
+   "hazards": [
+    "Guard regexes that read source code are brittle to formatting changes (hypothesis, not probed).",
+    "scripts/security/check_regex_safety.py exists, so a ReDoS checker is already in the tree; not run in this sweep."
+   ],
+   "tested": "none"
+  }
+ ],
+ "files_scanned": 249,
+ "worst_offenders": [
+  "backend/rag/intent_prerouter.py:34 DISTRESS_RE: misses 'suicidal' and 'panic attacks' and is reached via preroute_intent, which returns CASUAL for 'hi I am suicidal'. Confirmed by probe. Already registered as A12.",
+  "backend/rag/intent_prerouter.py:27 GREETINGS_RE: trailing (\\s+.*)? lets 'hi there suicide' match. Safe only because DISTRESS_RE is checked first in preroute_intent (line 95).",
+  "backend/app/security_utils.py:37 and :43: $ accepts a trailing newline. _ISO_DATE_RE and _EMAIL_RE return True for values with '\\n' appended. Confirmed by probe.",
+  "backend/services/pii_scanner.py:10 and backend/app/telemetry_db.py:209: AADHAAR/ID patterns match any grouped 12-digit number, so ids are over-redacted. Confirmed by probe.",
+  "backend/app/intake/short_circuit.py:36-124: second greeting grammar with a different vocative list. CLAUDE.md marks it dormant; the caller grep was not run, so this is unconfirmed."
+ ],
+ "notes": "Scope: 249 non-test Python files under backend/ and scripts/ that call re.*, minus the excluded shards. About 40 files were read or probed directly. The rest are grouped by family from grep output and are marked tested=none or hypothesis where bodies were not read. Verified by running patterns: prerouter/DISTRESS_RE false negatives (hi I am suicidal -> CASUAL; I am feeling suicidal -> no match; I have panic attacks -> None); GREETINGS_RE trailing-text match; is_deterministic_greeting correct on 'namaste suicide', 'hi kms', 'hello there', 'Namaste! Good morning.'; $-newline acceptance in _EMAIL_RE and _ISO_DATE_RE; AADHAAR over-match; SSN correct; MEDITATION_RE correct on 'start meditation' and 'what is soul sync'; teacher mention patterns match plain text (mention-only by docstring). Registry: A12 (docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md) covers the crisis regex non-convergence; the prerouter DISTRESS_RE findings fall under it. No other regex finding was found in docs/analysis/OUTSTANDING_ISSUES.md or the task list by grep for regex/pattern terms, so the remaining findings are recorded as new. The rag/nodes/intent.py:525 call site is live on the graph path but sits behind the Distress stage; the actual user-facing effect of the prerouter false negatives was not traced end to end (hypothesis). No files were edited and no git, docker or data-store writes were made.\"",
+ "false_positive_or_negative_examples": [
+  "'hi I am suicidal' | rag/intent_prerouter.py preroute_intent via DISTRESS_RE | got CASUAL | expected DISTRESS (false negative)",
+  "'I am feeling suicidal' | rag/intent_prerouter.py DISTRESS_RE | got no match | expected match (false negative; no stemming)",
+  "'I have panic attacks' | rag/intent_prerouter.py DISTRESS_RE via preroute_intent | got None | expected DISTRESS (false negative; \\battack\\b rejects 'attacks')",
+  "'hi there suicide' | rag/intent_prerouter.py GREETINGS_RE | got match (CASUAL when called alone) | expected no match (false positive; masked only by DISTRESS-first ordering)",
+  "'a@b.co\\n' | backend/app/security_utils.py _EMAIL_RE | got True | expected False (false positive; $ accepts trailing newline)",
+  "'2026-11-15T10:00:00+05:30\\n' | backend/app/security_utils.py _ISO_DATE_RE | got True | expected False (false positive; $ accepts trailing newline)",
+  "'ref 1234 5678 9012' | backend/services/pii_scanner.py AADHAAR_REGEX (also app/telemetry_db.py ID_REGEX) | got match (redacted) | expected no match (false positive; over-redaction of reference ids)",
+  "'000-12-3456' | backend/services/pii_scanner.py SSN_REGEX | got no match | expected no match (correct; included as a control for SSN)"
+ ]
+}

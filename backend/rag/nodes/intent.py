@@ -400,7 +400,24 @@ def _early_filter(
         try:
             from services.serene_mind_engine import DistressLevel
 
-            keyword_assessment = serene_mind.assess_distress(question, chat_history)
+            prior_assessment = state.get("assessment")
+            if prior_assessment is not None and getattr(prior_assessment, "level", None) is not None:
+                keyword_assessment = prior_assessment
+            else:
+                keyword_assessment = serene_mind.assess_distress(question, chat_history)
+
+            if keyword_assessment and keyword_assessment.level is DistressLevel.SEVERE:
+                from app.pipeline.stages.distress_stage import (
+                    _only_existential_signal,
+                    classify_existential_vs_severe_distress,
+                )
+                if (
+                    _only_existential_signal(keyword_assessment)
+                    and classify_existential_vs_severe_distress(question) == "MILD_EXISTENTIAL"
+                ):
+                    logger.info("Intent Router: De-escalating existential query to MILD")
+                    keyword_assessment.level = DistressLevel.MILD
+
             if keyword_assessment.level >= DistressLevel.MODERATE:
                 logger.info(
                     "Intent Router: Serene Mind keyword detected %s distress "
@@ -1516,7 +1533,10 @@ async def handle_distress(state: GraphState, config: Optional[RunnableConfig] = 
     chat_history = state.get("chat_history", [])
     serene_mind = _services._serene_mind
 
-    if serene_mind is not None:
+    prior_assessment = state.get("assessment")
+    if prior_assessment is not None and getattr(prior_assessment, "level", None) is not None:
+        assessment = prior_assessment
+    elif serene_mind is not None:
         assessment = await serene_mind.async_assess_distress(question, chat_history)
     else:
         assessment = DistressAssessment(level=DistressLevel.MODERATE, confidence=0.5)

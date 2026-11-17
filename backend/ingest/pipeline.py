@@ -111,6 +111,17 @@ class EmbedIndexConfig:
     chunk_ends: Optional[list[Optional[float]]] = None
     chunk_clips: Optional[list[Optional[dict]]] = None
 
+    # Optional per-chunk speaker-provenance fields from the in-ingest windowed
+    # ECAPA gate (`services.speaker_gate`). Each entry is a dict of
+    # `voice_*`/`speaker_verification_status` keys; `{}` means "not applicable"
+    # (no single teacher attributed) and stamps nothing. Parallel to `chunks`.
+    # When omitted, `_embed_and_index` runs the gate itself.
+    chunk_voice: Optional[list[Optional[dict]]] = None
+    # 16 kHz mono PCM WAV for THIS ingest, so the gate can score an upload whose
+    # audio never reaches a stable archive. When None the gate falls back to
+    # `<speaker_gate_audio_dir>/<video_id>.wav`.
+    voice_audio_path: Optional[str] = None
+
     # Source-level ASR/alignment provenance: which transcriber produced the
     # timing (e.g. "parakeet", "whisper-large-v3", "two-asr-vote") and which
     # forced aligner produced word times (e.g. "qwen3-forced-aligner").
@@ -3244,6 +3255,8 @@ class IngestionPipeline:
         chunk_starts = config.chunk_starts
         chunk_ends = config.chunk_ends
         chunk_clips = config.chunk_clips
+        chunk_voice = config.chunk_voice
+        voice_audio_path = config.voice_audio_path
         asr_method = config.asr_method
         align_method = config.align_method
 
@@ -3403,6 +3416,59 @@ class IngestionPipeline:
                 f"chunks from source_url={source_url} (whisperx cache)"
             )
 
+        # ---------------------------------------------------------------
+        # In-ingest windowed ECAPA speaker gate (2026-11-17).
+        # Every new span written by the live API goes through the same evidence
+        # rule the corpus builders use: `speaker_verified=True` only from a
+        # complete stored record, otherwise `pending_voice_check`/`ecapa_failed`.
+        # The gate never raises and never claims; a missing WAV means "not
+        # checked", not "passed".
+        # ---------------------------------------------------------------
+        chunk_voice = _filter_parallel_timing(chunk_voice, keep_indices, len(chunks), source_url)
+        if chunk_voice is None:
+            try:
+                from services import speaker_gate
+
+                if speaker_gate.enabled():
+                    audio_path = voice_audio_path
+                    if not audio_path and video_id:
+                        audio_root = speaker_gate.audio_dir()
+                        candidate = audio_root / f"{video_id}.wav" if audio_root else None
+                        if candidate is not None and candidate.is_file():
+                            audio_path = str(candidate)
+                    chunk_voice = speaker_gate.annotate_chunks(
+                        chunks=clean_chunks,
+                        starts=[None if s is None else float(s) * 1000.0 for s in chunk_starts]
+                        if chunk_starts is not None
+                        else None,
+                        ends=[None if e is None else float(e) * 1000.0 for e in chunk_ends]
+                        if chunk_ends is not None
+                        else None,
+                        speakers=resolved_speakers,
+                        audio_path=audio_path,
+                        video_id=video_id,
+                        source_url=source_url,
+                    )
+                    gate_status = speaker_gate.status()
+                    logger.info(
+                        "Speaker gate: %s for %s (%d gateable chunks, audio=%s)",
+                        gate_status["state"],
+                        source_url,
+                        sum(1 for v in chunk_voice if v),
+                        "yes" if audio_path else "none",
+                    )
+            except Exception as gate_err:
+                # Fail closed: the payload keeps no voice claim at all.
+                logger.warning(
+                    "Speaker gate failed for %s (%s); spans stay without voice evidence",
+                    source_url,
+                    gate_err,
+                )
+                chunk_voice = None
+
+        voice_stamped = 0
+        voice_verified = 0
+
         # Do not delete the current source before the new batch is safely indexed.
         # QdrantService performs a two-phase source replacement: upsert the new
         # deterministic point set first, then delete only stale old point IDs.
@@ -3494,6 +3560,28 @@ class IngestionPipeline:
                 base_meta["chunk_speaker"] = resolved_speakers[i]
             if extra_metadatas and i < len(extra_metadatas):
                 base_meta.update(extra_metadatas[i])
+            # Voice provenance is stamped AFTER extra_metadatas: a caller-supplied
+            # metadata dict must never be able to inject or override a
+            # `speaker_verified` claim. The gate's own record is re-checked here, so
+            # an invalid claim is demoted to `pending_voice_check` rather than written.
+            if chunk_voice and i < len(chunk_voice) and chunk_voice[i]:
+                voice_fields = dict(chunk_voice[i])
+                if voice_fields.get("speaker_verified") is True:
+                    from domain.speaker_provenance import pending_voice_fields, speaker_write_violations
+
+                    if speaker_write_violations(voice_fields):
+                        logger.error(
+                            "Refusing an invalid speaker-verified record for %s chunk %d "
+                            "(source_url=%s); demoting to pending_voice_check",
+                            video_id or source_url,
+                            i,
+                            source_url,
+                        )
+                        voice_fields = pending_voice_fields()
+                base_meta.update(voice_fields)
+                voice_stamped += 1
+                if base_meta.get("speaker_verified") is True:
+                    voice_verified += 1
             # ponytail: Gap 2 — important_kwd ingest tagging. Reuses extract_doctrine_tags.
             if getattr(settings, "important_kwd_boost_enabled", True):
                 base_meta["important_kwd"] = extract_doctrine_tags(clean_chunks[i])
@@ -3512,6 +3600,15 @@ class IngestionPipeline:
             base_meta["provenance"] = _prov.provenance.value
             base_meta["provenance_rationale"] = _prov.rationale
             metadatas.append(base_meta)
+
+        if voice_stamped:
+            logger.info(
+                "Speaker gate stamped %d chunks for %s (%d verified, %d unverified/pending)",
+                voice_stamped,
+                source_url,
+                voice_verified,
+                voice_stamped - voice_verified,
+            )
 
         # Persist source-level metadata to telemetry (best-effort)
         self._record_kb_source(source_url, title, content_type, tags)

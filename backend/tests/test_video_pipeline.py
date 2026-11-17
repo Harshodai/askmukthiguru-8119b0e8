@@ -66,7 +66,7 @@ class TestVideoPipeline(unittest.TestCase):
         self.pipe._transcribe = fake_transcribe  # type: ignore
 
         # Replace _upsert_chunks with a recorder that still calls embedder
-        async def record_upsert(chunks, source):
+        async def record_upsert(chunks, source, **kwargs):
             embeddings = self.pipe._embedder.embed(chunks)
             upserted.append((len(chunks), source, len(embeddings)))
             # The contract is (written, point_ids): the direct-video upload path

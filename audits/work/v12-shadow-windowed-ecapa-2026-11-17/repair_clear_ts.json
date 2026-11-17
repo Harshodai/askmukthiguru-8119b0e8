@@ -1,0 +1,11 @@
+{
+ "collection": "first_person_v12_shadow",
+ "mode": "apply",
+ "children": 2719,
+ "outcomes": {
+  "verified_untouched": 1396,
+  "timestamp_cleared": 1311,
+  "no_timestamp": 12
+ },
+ "written": 1311
+}

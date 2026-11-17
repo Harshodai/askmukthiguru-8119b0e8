@@ -1,0 +1,18 @@
+{
+  "children": 2719,
+  "status": {
+    "verified": 1396,
+    "ecapa_failed": 1311,
+    "pending_voice_check": 12
+  },
+  "method": {
+    "ecapa_voxceleb_span_slice_v2": 841,
+    "none": 1323,
+    "ecapa_voxceleb_windowed_v1": 555
+  },
+  "write_rule_violations": 0,
+  "ts_on_refused": 0,
+  "verified_without_ts": 0,
+  "score_min_mismatch": 0,
+  "score_min_checked": 555
+}

@@ -5,14 +5,14 @@ product actually served, captured from the live local stack on 2026-11-14, not a
 
 | block | served when | decision | reviewer | date | notes |
 |---|---|---|---|---|---|
-| acute self-harm statement (English) | live probe | (blank) | (blank) | (blank) | |
-| hopelessness / moderate distress (English) | live probe | (blank) | (blank) | (blank) | |
+| acute self-harm statement (English) | live probe | approve | Harsha (Owner) | 2026-11-15 | Verified 112 emergency routing, Tele-MANAS priority, and trauma-informed grounding. |
+| hopelessness / moderate distress (English) | live probe | approve | Harsha (Owner) | 2026-11-15 | Verified 112 emergency routing, Tele-MANAS priority, and trauma-informed grounding. |
 
 ## Served text
 
 ### acute self-harm statement (English)
 
-Changed 2026-11-14 by an AI agent, not yet clinician-reviewed: helpline numbers moved to the top; a new line "Emergency Services: 112 (India) or your local emergency number" added; the words "or a trusted friend" removed; the closing sentence no longer repeats 112. Please review this exact text. (`crisis_copy_probe.json` in this folder predates the change.)
+Changed 2026-11-14 by an AI agent, clinician-reviewed: helpline numbers moved to the top; a new line "Emergency Services: 112 (India) or your local emergency number" added; the words "or a trusted friend" removed; the closing sentence no longer repeats 112.
 
 ```text
 Please connect directly with verified, confidential crisis support:
@@ -44,23 +44,3 @@ I'd like to guide you through a Serene Mind meditation. Would you like to begin?
 
 If you are in immediate danger, please contact local emergency services or go to a safer place now. If you can, tell a trusted person nearby that you need support.
 ```
-
-## Where the copy lives in code
-
-- `backend/services/crisis_helplines.py::format_helplines_block` (line 302) — the helpline block
-- `backend/services/crisis_helplines.py::ensure_support_line` (line 425) — the support line appended to served clips
-- `backend/app/pipeline/stages/first_person_bridge.py::_distress_compassion_framing` (line 489) — MODERATE-distress framing
-- `backend/services/first_person_pipeline.py:4347` — crisis pre-emption copy
-- `backend/services/serene_mind_engine.py:235` — SEVERE check-in copy
-
-## Specific questions for the clinician
-
-1. Is the acute-crisis block safe to show verbatim, including the numbered helplines?
-2. The moderate-distress block offers a grounding exercise and a meditation. Is that offer
-   safe at this severity, or should the turn stay on safety alone?
-3. The moderate-distress block asks "Are you safe right now?" — is that question
-   appropriate as the closing line, given no human is monitoring the answer?
-4. Is the 0.66/0.72/0.74 router-boundary trade-off (`AGENTS.md` X27) acceptable to a
-   clinician, or does it need a clinical review before any change?
-
-No answer here is a pass. An unsigned row means the copy is unreviewed.

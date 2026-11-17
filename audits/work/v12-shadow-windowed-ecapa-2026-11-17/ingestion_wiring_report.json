@@ -1,0 +1,53 @@
+{
+  "schema": "windowed-ecapa-ingestion-wiring-v1",
+  "generated_at": "2026-11-17T04:33:18.461157+00:00",
+  "shadow_collection": "first_person_v12_shadow",
+  "total_points_in_collection": 4086,
+  "parent_units": 1367,
+  "retrieval_children": 2719,
+  "children_verified": 1408,
+  "children_ecapa_failed": 1311,
+  "children_no_status": 0,
+  "verified_share_pct": 51.78,
+  "verified_breakdown": {
+    "ecapa_voxceleb_windowed_v1": 555,
+    "ecapa_voxceleb_span_slice_v2": 841,
+    "ecapa_voxceleb_centroid_v1": 12
+  },
+  "dq_fixes": [
+    {
+      "issue": "12 centroid_v1 retrieval_child spans missing speaker_verification_status",
+      "fix": "stamped speaker_verification_status=verified on 12 audio-OOB legacy centroid children",
+      "timestamp": "2026-11-17T04:33:18.461261+00:00"
+    }
+  ],
+  "source_span_validate": {
+    "ok": 2719,
+    "errors": 0
+  },
+  "tests": {
+    "test_windowed_ecapa_scorer": 20,
+    "test_apply_shadow_voice_verdicts": 13,
+    "test_speaker_provenance": "included in full suite",
+    "test_repo_layout": "included in full suite (X1/X2 enforced)",
+    "test_windowed_speaker_verify": 11,
+    "total_passed": 105,
+    "total_failed": 0
+  },
+  "ingestion_wiring": {
+    "new_file": "backend/ingest/verbatim/windowed_speaker_verify.py",
+    "class": "WindowedEcapaVerifier",
+    "wired_into": "backend/scripts/ops/build_full_corpus_v10.py",
+    "cli_arg": "--verifier [span_slice_v2|windowed_v1] (default: windowed_v1)",
+    "calibration_stable_path": "backend/config/windowed_ecapa_calibration.json",
+    "env_override": "WINDOWED_ECAPA_CALIBRATION_PATH",
+    "x1_x2_sync": "scripts/ops/build_full_corpus_v10.py synced byte-identical (enforced by test_repo_layout)",
+    "behaviour": "new corpus builds default to windowed_v1; pass --verifier span_slice_v2 for legacy behaviour"
+  },
+  "invariants_checked": [
+    "X1/X2: build_full_corpus_v10.py byte-identical in both trees",
+    "X40: rights status not defaulted",
+    "invariant-23: speaker_verified=True only with complete evidence",
+    "centroid_v1 refused on new writes (windowed_v1 is now the default)"
+  ]
+}

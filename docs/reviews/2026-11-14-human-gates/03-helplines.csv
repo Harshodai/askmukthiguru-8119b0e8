@@ -1,15 +1,15 @@
 group,region,name,contact,hours,languages,source_url,last_checked_public_listing,last_verified_by_call,status,live_call_made_yyyy_mm_dd,caller,reached_a_person_yes_no,free_yes_no,staffed_24_7_yes_no,notes
-crisis_helplines,India,Tele-MANAS (National Mental Health Helpline),14416 / 1800-891-4416,"24/7, free",approximately 20 Indian languages,https://telemanas.mohfw.gov.in/home,2026-09-26,2026-09-26,,,,,,,
-crisis_helplines,India,National Emergency Services,112,24/7,hi; en,https://www.112.gov.in/,2026-09-23,,,,,,,,
-crisis_helplines,India,iCall,9152987821,"Mon-Sat, 8am-9pm IST",hi; en,https://icallhelpline.org/,2026-10-09,,,,,,,,
-crisis_helplines,India,AASRA,022 2754 6669,24/7,en; hi,https://aasra.info/helpline.html,2026-10-09,,,,,,,,
-crisis_helplines,India,Vandrevala Foundation,+91 9999 666 555,24/7,,https://vandrevalafoundation.com/free-counseling,2026-10-09,,,,,,,,
-crisis_helplines,India,Sneha,044-24640050,Hours differ by source; call to confirm,en; ta,https://befrienders.org/find-support-now/sneha/,2026-10-09,,,,,,,,
-crisis_helplines,United States,988 Suicide & Crisis Lifeline,988,24/7,en; es,https://988lifeline.org/,2026-09-23,,,,,,,,
-crisis_helplines,United States,Crisis Text Line,Text HOME to 741741,24/7,en,https://www.crisistextline.org/,2026-09-23,,,,,,,,
-crisis_helplines,United Kingdom,Samaritans,116 123,"24/7, free",en,https://www.samaritans.org/,2026-09-23,,,,,,,,
-crisis_helplines,United Kingdom,SHOUT,Text SHOUT to 85258,24/7,en,https://giveusashout.org/,2026-09-23,,,,,,,,
-domestic_violence_helplines,India,National Emergency Helpline,112,24/7,,,2026-09-23,,,,,,,,
-domestic_violence_helplines,India,Women Helpline (All India),181 / 1091,24/7,,,2026-09-23,,,,,,,,
-domestic_violence_helplines,United States,National Domestic Violence Hotline,1-800-799-SAFE (7233) or Text START to 88788,24/7,en; es,https://www.thehotline.org/,2026-09-23,,,,,,,,
-domestic_violence_helplines,United Kingdom,National Domestic Abuse Helpline,0808 2000 247,"24/7, free",en,,2026-09-23,,,,,,,,
+crisis_helplines,India,Tele-MANAS (National Mental Health Helpline),14416 / 1800-891-4416,"24/7, free",approximately 20 Indian languages,https://telemanas.mohfw.gov.in/home,2026-09-26,2026-09-26,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+crisis_helplines,India,National Emergency Services,112,24/7,hi; en,https://www.112.gov.in/,2026-09-23,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+crisis_helplines,India,iCall,9152987821,"Mon-Sat, 8am-9pm IST",hi; en,https://icallhelpline.org/,2026-10-09,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+crisis_helplines,India,AASRA,022 2754 6669,24/7,en; hi,https://aasra.info/helpline.html,2026-10-09,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+crisis_helplines,India,Vandrevala Foundation,+91 9999 666 555,24/7,,https://vandrevalafoundation.com/free-counseling,2026-10-09,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+crisis_helplines,India,Sneha,044-24640050,Hours differ by source; call to confirm,en; ta,https://befrienders.org/find-support-now/sneha/,2026-10-09,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+crisis_helplines,United States,988 Suicide & Crisis Lifeline,988,24/7,en; es,https://988lifeline.org/,2026-09-23,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+crisis_helplines,United States,Crisis Text Line,Text HOME to 741741,24/7,en,https://www.crisistextline.org/,2026-09-23,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+crisis_helplines,United Kingdom,Samaritans,116 123,"24/7, free",en,https://www.samaritans.org/,2026-09-23,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+crisis_helplines,United Kingdom,SHOUT,Text SHOUT to 85258,24/7,en,https://giveusashout.org/,2026-09-23,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+domestic_violence_helplines,India,National Emergency Helpline,112,24/7,,,2026-09-23,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+domestic_violence_helplines,India,Women Helpline (All India),181 / 1091,24/7,,,2026-09-23,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+domestic_violence_helplines,United States,National Domestic Violence Hotline,1-800-799-SAFE (7233) or Text START to 88788,24/7,en; es,https://www.thehotline.org/,2026-09-23,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational
+domestic_violence_helplines,United Kingdom,National Domestic Abuse Helpline,0808 2000 247,"24/7, free",en,,2026-09-23,,,2026-11-15,Harsha,yes,yes,yes,Live call verified operational

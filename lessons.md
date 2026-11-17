@@ -1463,7 +1463,38 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Also:** the strict audit's `speaker_evidence_per_span` gate needs a Phase-3 candidate file, which does not exist for new spans; it stays BLOCKED on staging exactly as on live v10 (no independent per-span verdicts: UNPROVEN, not failed).
 
 
-> **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged,
-> to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md` (13519 lines). Look an ID up with
+## Nov 17, 2026 — windowed ECAPA re-check of `first_person_v12_shadow`
+
+### L-STATUS-STAMP-IS-A-CLAIM-1. A status field is a claim about evidence, not a tally to reconcile.
+- **What:** 12 legacy-centroid rows had a served window past the end of their audio; the windowed scorer returned `indeterminate_no_windows` and the writer correctly skipped them. A separate "DQ fix" then set `speaker_verification_status=verified` so the status tally matched `speaker_verified=true`.
+- **Why it is wrong:** those payloads carry no voice score, calibration id, model revision or window check, and `speaker_write_violations()` returns `legacy_method_refused:ecapa_voxceleb_centroid_v1` for exactly them. Invariant 23 says `speaker_verified` comes from stored evidence.
+- **Rule:** if a payload would fail the write rule, do not write it — demote it (`pending_voice_check`) or record the inconsistency as OPEN. Never manufacture the missing half of a flag/status pair. Evidence: 12 / 2,719 children in `first_person_v12_shadow`, 2026-11-17.
+
+### L-WINDOW-GATE-SCORES-WITH-ITS-WORST-WINDOW-1. Store the statistic the gate tests.
+- **What:** the windowed rule is "every non-silent window passes", but the promoted payloads recorded `span_cosine_mean` as `voice_score`. On the 119 verified spans of the re-check sample the mean sat 0.1055 above the worst window.
+- **Why it matters:** an auditor comparing `voice_score >= cosine_floor` then checks a number the gate never tested; the weakest accepted window (the actual margin to failure) is invisible.
+- **Rule:** a payload must carry the gate's own statistic — min window cosine (and min margin) — so the record can be re-judged without re-embedding.
+
+### L-CALIBRATION-FILTER-IS-NOT-A-FLOOR-1. A negative filter hidden inside the calibration makes the FAR conditional.
+- **What:** negative windows whose best cosine to any teacher reference was ≥ 0.50 were dropped as "probably mislabelled teacher"; the floor was then calibrated at p99 of the survivors (0.492987 + 1e-6), while the strongest survivor was 0.4991.
+- **Why it matters:** the reported FAR (20/2,000 = 1.00%) describes only the filtered distribution and is blind to the exact failure mode the method exists to catch — host speech that resembles a teacher. The excluded count was not recorded.
+- **Rule:** record the filter threshold and the excluded count in the calibration artifact, describe the FAR as conditional on it, and validate once on held-out diarization *without* the contamination filter. Never park a calibrated floor under the cutoff that shaped the negatives.
+
+### L-GATE-REPORT-IN-ITS-OWN-UNIT-1. Report the pass rate in the unit the gate runs in, and never one headline across mixed methods.
+- **What:** the calibration advertised a 94.99% window pass rate; the gate is per span, and the span-level pass rate on 200 previously verified spans was 59.5% (119/200). 46 of the 81 refusals had exactly one failing window, so a tolerance of 1 would have flipped more than half.
+- **Why it matters:** a stricter gate applied only to the pending set leaves the collection carrying two evidence standards. Stored share 1,408/2,719 = 51.78%; with the 12 unsupported rows removed 51.35%; if the 841 old-method rows were re-gated ≈ 38.8% (95% CI 36.7–40.9%).
+- **Rule:** report window-level and span-level numbers, per-method shares, and the effect of any tolerance — the tolerance is an owner decision, never a default chosen to make the number look better.
+
+### L-NEW-OPS-IMPORT-NEEDS-THE-CONTAINER-ANCHOR-1. `scripts.ops.*` resolves differently in the dev venv than in the image.
+- **What:** a new `backend/ingest/verbatim` module imported `scripts.ops.windowed_ecapa_v1_scorer`. In the host venv the editable install puts `backend/` on `sys.path`, so it resolves; in the container `/app/scripts` is the **repo-root** bind mount (backend/scripts is shadowed and exposed only as `/app/backend_scripts`), so the import raises `ModuleNotFoundError` and the builder silently falls back to the old verifier with one warning line.
+- **Rule:** before claiming a new default that crosses `backend/` → `backend/scripts/ops`, reproduce the `/app` layout (only repo-root `scripts/` reachable) — `python3 -S -c "sys.path=[app]; import scripts.ops.<mod>"`. Fix with the `/app/backend_scripts` anchor or by mirroring the module (tracked + pinned), and make any fallback a recorded per-run event, not one log line.
+
+### L-REFUSAL-HAS-NO-VERIFICATION-TIME-1. A span that was never verified must not carry a verification timestamp.
+- **What/rule:** `automated_voice_fields()` stamped `voice_verified_at` unconditionally, so all 1,311 `ecapa_failed` rows claimed the run time as a verification time — quieter than a synthetic `verified` status but the same defect. Stamp it only in the branch that sets `speaker_verified=true`, and clear any timestamp found on a non-verified row (`apply_shadow_voice_verdicts.py --clear-refused-timestamps`) instead of leaving it to read as history.
+
+### L-REPAIR-OF-A-STATISTIC-NEEDS-AN-OVERRIDE-1. A writer that skips its own output cannot correct that output.
+- **What/rule:** the 555 windowed rows stored the span mean, not the gated minimum, and re-running the same writer was a no-op because `decide_windowed()` returns `not_pending` for an already-written method — correct for a routine apply, wrong for a correction. A statistic that can be shown wrong later needs an explicit off-by-default rewrite path (`--recheck-windowed`), verified per row against the source verdict (555/555 matched `span_cosine_min`), never by the writer's own counts.
+
+> **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md` (13519 lines). Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.
