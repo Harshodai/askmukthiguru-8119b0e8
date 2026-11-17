@@ -2554,12 +2554,14 @@ return (
       <MoodBanner isLandingMode={isLandingMode} />
 
       {/* Personalized Spiritual Memory Opt-In Banner */}
-      <MemoryConsentBanner
-        hasConsent={memoryConsent}
-        onConsentChange={(granted) => setMemoryConsent(granted)}
-        isIncognito={isIncognito}
-        isAuthenticated={hasAuthenticatedSession}
-      />
+      {isLandingMode && (
+        <MemoryConsentBanner
+          hasConsent={memoryConsent}
+          onConsentChange={(granted) => setMemoryConsent(granted)}
+          isIncognito={isIncognito}
+          isAuthenticated={hasAuthenticatedSession}
+        />
+      )}
 
 
       {/* Messages Area — this is the scroll container */}
@@ -2773,13 +2775,15 @@ return (
               retryAfterSeconds={quotaMeta.retryAfterSeconds}
             />
           )}
-          <HealingPathCard
-            lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
-            recommendedCourse={recommendedCourse}
-            userTurnHistory={userTurnHistory}
-            onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
-            onOpenSereneMind={() => openSereneMind('audio')}
-          />
+          {!isTyping && !isStreaming && !showInstantPill && (
+            <HealingPathCard
+              lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
+              recommendedCourse={recommendedCourse}
+              userTurnHistory={userTurnHistory}
+              onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
+              onOpenSereneMind={() => openSereneMind('audio')}
+            />
+          )}
           <QueuedMessagesTray
             queue={queuedMessages}
             onSendNow={handleSendNowQueued}

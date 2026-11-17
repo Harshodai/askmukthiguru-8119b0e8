@@ -1255,9 +1255,9 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       <>
         <motion.div
           ref={ref}
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, delay: Math.min(index * 0.03, 0.15) }}
+          transition={{ duration: 0.18, delay: 0 }}
           className={`group message-bubble flex items-start gap-2 ${isGuru ? 'justify-start' : 'justify-end'}`}
           data-message-id={message.id}
         >
@@ -1275,7 +1275,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               (the parent is already capped at max-w-3xl), the way Claude/ChatGPT
               lay out assistant turns. Capping it at 75% made every answer a
               narrow ragged strip. The user's own turn stays a right-aligned bubble. */}
-          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'flex-1 min-w-0 w-full' : 'max-w-[85%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
+          <div className={`${isEditing ? 'w-full max-w-[95%] sm:max-w-[85%]' : isGuru ? 'flex-1 min-w-0 w-full' : 'max-w-[90%] sm:max-w-[75%]'} flex flex-col gap-1 ${isGuru ? 'items-start' : 'items-end'}`}>
             {/* Message body */}
             <div
 className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 ${isGuru
@@ -1286,7 +1286,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 }`}
             >
               <div
-                className={`break-words ${isGuru ? '' : 'whitespace-pre-wrap'}`}
+                className={`break-words [overflow-wrap:anywhere] ${isGuru ? '' : 'whitespace-pre-wrap'}`}
               >
                 {isGuru ? (
                   message.error ? (
