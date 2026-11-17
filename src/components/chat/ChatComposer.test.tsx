@@ -122,4 +122,13 @@ describe('ChatComposer keyboard behavior', () => {
     // the old 1px, 30%-opacity ring is under the 3:1 non-text contrast minimum
     expect(textarea.className).not.toContain('focus:ring-ojas/30');
   });
+
+  it('keeps a long draft editable without a separate scroll-control button', () => {
+    const longDraft = 'A long draft '.repeat(80);
+    renderComposer({ inputValue: longDraft });
+    const textarea = screen.getByRole('textbox', { name: /your message/i });
+
+    expect(textarea).toHaveValue(longDraft);
+    expect(screen.queryByRole('button', { name: /go to start/i })).not.toBeInTheDocument();
+  });
 });

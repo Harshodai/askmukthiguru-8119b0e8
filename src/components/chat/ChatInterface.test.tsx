@@ -124,7 +124,10 @@ vi.mock('@/hooks/useDailyTeaching', () => ({
   useDailyTeaching: () => ({ teaching: null, loading: false, error: null, refetch: vi.fn() }),
 }));
 vi.mock('./HealingPathCard', () => ({
-  HealingPathCard: () => null,
+  HealingPathCard: () => <div data-testid="healing-path-card" />,
+}));
+vi.mock('./MemoryConsentBanner', () => ({
+  MemoryConsentBanner: () => <div data-testid="memory-consent-banner" />,
 }));
 vi.mock('@/components/meditation/GuidedMeditationFlow', () => ({
   GuidedMeditationFlow: () => null,
@@ -185,6 +188,7 @@ describe('ChatInterface', () => {
 
     expect(screen.getByTestId('desktop-sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('chat-header')).toBeInTheDocument();
+    expect(screen.getByTestId('memory-consent-banner')).toBeInTheDocument();
   });
 
   it('allows user to type and send a message', async () => {
@@ -228,6 +232,10 @@ describe('ChatInterface', () => {
         'en',
         undefined,
       );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('memory-consent-banner')).not.toBeInTheDocument();
     });
 
     // Check if the mock message appears in the list
