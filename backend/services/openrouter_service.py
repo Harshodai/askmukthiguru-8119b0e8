@@ -1911,6 +1911,10 @@ class OpenRouterService:
         """HyDE: Generate hypothetical answer."""
         return await self.generate(HYDE_PROMPT, query, operation="generate_hyde", **kwargs)
 
+    async def generate_hyde(self, question: str, **kwargs) -> str:
+        """HyDE: Generate hypothetical answer passage (canonical method name)."""
+        return await self.generate_hypothetical_answer(query=question, **kwargs)
+
     async def compress_context(self, question: str, document_text: str, **kwargs) -> str:
         """Compress context chunk."""
         prompt = COMPRESS_CONTEXT_PROMPT.format(question=question, document_text=document_text)

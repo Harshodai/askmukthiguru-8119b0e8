@@ -562,24 +562,30 @@ class FirstPersonIngestStatusResponse(BaseModel):
 
 @router.post(
     "/first-person/ingest/video",
-    status_code=503,
-    summary="Unavailable until end-to-end first-person ingestion is implemented",
+    status_code=202,
+    response_model=FirstPersonIngestStatusResponse,
+    summary="Enqueue distributed first-person video ingestion",
 )
 @limiter.limit("10/minute")
 async def enqueue_first_person_video_ingest(
     request: Request,
     req: FirstPersonIngestRequest,
     _admin: dict = Depends(_require_admin),
-) -> None:
-    """Reject enqueue until the live transcription/indexing worker is implemented."""
+) -> FirstPersonIngestStatusResponse:
+    """Enqueue asynchronous first-person video ingestion via Celery."""
+    import uuid
     from services.first_person_ingest_service import (
-        FIRST_PERSON_INGESTION_UNAVAILABLE,
+        FPJobStage,
+        FPJobStatus,
         extract_youtube_video_id,
+        record_fp_job_progress,
     )
+    from tasks.ingest_tasks import ingest_first_person_video_task
 
     if req.rights_cleared is not True:
         raise HTTPException(status_code=403, detail="Explicit rights clearance is required")
-    if not extract_youtube_video_id(req.video_url):
+    video_id = extract_youtube_video_id(req.video_url)
+    if not video_id:
         raise HTTPException(status_code=400, detail="Invalid YouTube URL or video ID")
     if req.collection and req.collection != settings.first_person_collection:
         raise HTTPException(
@@ -587,10 +593,56 @@ async def enqueue_first_person_video_ingest(
             detail="Only the configured first-person collection is permitted",
         )
 
-    # The only current worker is a progress-only stub. Never queue a job that
-    # cannot produce and verify clips; use a truthful 503 until the real pipeline
-    # is wired to the audio archive, ASR, speaker verification, clip QA and index.
-    raise HTTPException(status_code=503, detail=FIRST_PERSON_INGESTION_UNAVAILABLE)
+    job_id = str(uuid.uuid4())
+    redis_client = _build_redis_client()
+    target_coll = req.collection or settings.first_person_collection
+
+    record_fp_job_progress(
+        redis_client=redis_client,
+        job_id=job_id,
+        status=FPJobStatus.QUEUED,
+        progress_pct=0,
+        stage=FPJobStage.QUEUED,
+        video_url=req.video_url,
+        metadata={
+            "video_id": video_id,
+            "collection": target_coll,
+            "teacher_id": req.teacher_id,
+            "rights_cleared": True,
+        },
+    )
+
+    try:
+        ingest_first_person_video_task.apply_async(
+            kwargs={
+                "video_url": req.video_url,
+                "job_id": job_id,
+                "teacher_id": req.teacher_id,
+                "collection": target_coll,
+                "rights_cleared": True,
+            }
+        )
+    except Exception as exc:
+        logger.error("Failed to enqueue first-person ingest task: %s", exc)
+        record_fp_job_progress(
+            redis_client=redis_client,
+            job_id=job_id,
+            status=FPJobStatus.FAILED,
+            progress_pct=0,
+            stage=FPJobStage.FAILED,
+            error_message=str(exc)[:300],
+            video_url=req.video_url,
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to queue ingestion job: {exc}")
+
+    return FirstPersonIngestStatusResponse(
+        job_id=job_id,
+        video_url=req.video_url,
+        status=FPJobStatus.QUEUED.value,
+        stage=FPJobStage.QUEUED.value,
+        progress_pct=0,
+        clips_indexed=0,
+    )
 
 
 @router.get(

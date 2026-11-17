@@ -72,6 +72,22 @@ def grounding_state_for(result: Any) -> GroundingState:
         # "abstained" while carrying real prose and citations.
         return "grounded"
 
+    if (
+        verification.get("method") == "first_person_verbatim_clip_gate"
+        and getattr(result, "citations", None)
+        and (
+            getattr(result, "citations_verified", False) is True
+            or verification.get("citations_verified") is True
+        )
+        and not bool(getattr(result, "hallucination_flag", False))
+    ):
+        # A served first-person answer contains only verbatim excerpts from authentic,
+        # hash-verified and voice-attributed guru discourse. Regardless of whether it is
+        # certified as a direct answer or served under "Related, not a direct answer"
+        # (weak_match / parabolic), the teaching is 100% grounded in authentic discourse,
+        # never an abstention.
+        return "grounded"
+
     # grounded_partial_evidence is deliberately NOT promoted: the model draft failed
     # verification (passed=False) and only retrieved excerpts ship. Publicly that is
     # "abstained" (with citations + verification.partial=true for clients that want

@@ -94,7 +94,7 @@ def test_record_and_get_job_progress_mock_redis():
     assert progress["clips_indexed"] == 12
 
 
-def test_api_enqueue_is_rejected_until_real_pipeline_is_wired(test_client, monkeypatch):
+def test_api_enqueue_succeeds_when_wired(test_client, monkeypatch):
     mock_apply_async = MagicMock()
     monkeypatch.setattr(
         "tasks.ingest_tasks.ingest_first_person_video_task.apply_async", mock_apply_async
@@ -111,10 +111,12 @@ def test_api_enqueue_is_rejected_until_real_pipeline_is_wired(test_client, monke
         },
     )
 
-    assert response.status_code == 503
-    assert "does not yet execute" in response.json()["detail"]
-    mock_apply_async.assert_not_called()
-    mock_redis.hset.assert_not_called()
+    assert response.status_code == 202
+    data = response.json()
+    assert data["status"] == "queued"
+    assert "job_id" in data
+    mock_apply_async.assert_called_once()
+    mock_redis.hset.assert_called_once()
 
 
 def test_api_ingest_requires_explicit_rights_attestation(test_client, monkeypatch):
@@ -221,21 +223,61 @@ def test_celery_task_execution_lifecycle(monkeypatch):
     assert mock_container.semantic_cache.invalidate_all.called
 
 
-def test_execute_first_person_video_ingestion_fails_honestly_until_pipeline_is_wired():
+def test_execute_first_person_video_ingestion_executes_pipeline(monkeypatch, tmp_path):
     progress_stages = []
 
     def on_prog(stage, pct):
         progress_stages.append((stage, pct))
 
-    with pytest.raises(RuntimeError, match="does not yet execute"):
-        execute_first_person_video_ingestion(
-            video_url="https://youtu.be/dQw4w9WgXcQ",
-            job_id="test_stages_job",
-            rights_cleared=True,
-            on_progress=on_prog,
+    test_wav = tmp_path / "dQw4w9WgXcQ.wav"
+    test_wav.write_bytes(b"RIFF" + b"\x00" * 2000)
+
+    monkeypatch.setattr(
+        "ingest.audio_transcriber.download_audio_stream",
+        lambda url, target_dir: test_wav,
+    )
+    def _fake_run(*args, **kwargs):
+        cmd = args[0] if args else []
+        if cmd and len(cmd) > 0 and str(cmd[-1]).endswith(".wav"):
+            from pathlib import Path
+
+            Path(cmd[-1]).write_bytes(b"RIFF" + b"\x00" * 2000)
+        return MagicMock(returncode=0)
+
+    monkeypatch.setattr("subprocess.run", _fake_run)
+
+    from ingest.video_pipeline import VideoIngestResult
+
+    mock_pipeline = MagicMock()
+
+    async def _mock_ingest(*args, **kwargs):
+        return VideoIngestResult(
+            chunks_ingested=5,
+            duration_seconds=120.0,
+            transcript_preview="Spiritual wisdom teaching...",
+            status="success",
+            point_ids=["pt1", "pt2", "pt3", "pt4", "pt5"],
         )
 
-    assert progress_stages == [(FPJobStage.FAILED, 0)]
+    mock_pipeline.ingest_video = _mock_ingest
+
+    monkeypatch.setattr(
+        "ingest.video_pipeline.VideoPipeline",
+        lambda *args, **kwargs: mock_pipeline,
+    )
+
+    fake_redis = MagicMock()
+    result = execute_first_person_video_ingestion(
+        video_url="https://youtu.be/dQw4w9WgXcQ",
+        job_id="00000000-0000-0000-0000-000000000001",
+        rights_cleared=True,
+        redis_client=fake_redis,
+        on_progress=on_prog,
+    )
+
+    assert result["status"] == "success"
+    assert result["clips_indexed"] == 5
+    assert (FPJobStage.COMPLETED, 100) in progress_stages
 
 
 def test_execute_first_person_video_ingestion_requires_rights_clearance():

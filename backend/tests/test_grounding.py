@@ -273,3 +273,41 @@ async def test_short_circuit_terminal_fallback_grounded_partial_evidence():
         answer_evidence=None,
     )
     assert grounding_state_for(result_ns) == "abstained"
+
+
+def test_first_person_verbatim_clip_is_grounded_even_on_weak_match():
+    """A served verbatim first-person clip is authentic guru discourse and must be
+    labelled 'grounded', even when served as related (weak_match / passed=False)."""
+    result = SimpleNamespace(
+        blocked=False,
+        intent="QUERY",
+        citations=[{"videoId": "abc12345678", "verbatim_text": "Spiritual teaching."}],
+        citations_verified=True,
+        hallucination_flag=False,
+        verification={
+            "method": "first_person_verbatim_clip_gate",
+            "citations_verified": True,
+            "passed": False,  # weak match (related, not direct)
+            "direct": False,
+        },
+    )
+    assert grounding_state_for(result) == "grounded"
+
+
+def test_first_person_no_match_abstain_is_abstained():
+    """An explicit first-person abstain with no citations is 'abstained'."""
+    result = SimpleNamespace(
+        blocked=False,
+        intent="QUERY",
+        citations=[],
+        citations_verified=False,
+        hallucination_flag=False,
+        verification={
+            "method": "first_person_no_match_abstain",
+            "citations_verified": False,
+            "passed": True,
+            "abstain_cause": "no_match",
+        },
+    )
+    assert grounding_state_for(result) == "abstained"
+

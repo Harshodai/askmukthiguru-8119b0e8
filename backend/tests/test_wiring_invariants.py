@@ -45,8 +45,6 @@ ALLOWED_DEAD_SETTINGS: set[str] = {
     # attribute name, unlike OpenRouterBudgetGuard's static `settings.openrouter_x`
     # access (app/openrouter_budget.py), which is why only the sarvam_* family needs
     # this allowlisting and the openrouter_* equivalents don't.
-    "sarvam_budget_guard_enabled": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
-    "sarvam_daily_budget_usd": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
     "sarvam_monthly_budget_usd": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
     "sarvam_max_request_cost_usd": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
 }
@@ -62,9 +60,6 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "qdrant_write_api_key": (
         "T3-02: consumed by docker-compose (QDRANT__SERVICE__API_KEY) only; no Python "
         "write path reads it yet (open: wire the builders to the write key)"
-    ),
-    "redis_password": (
-        "T2-06 declaration; Redis auth reaches Python inside REDIS_URL, the field is unread"
     ),
 }
 
@@ -335,6 +330,12 @@ ALLOWED_DEAD_REGISTRATION_HOOKS: dict[str, str] = {
         "tests/reloads'). Production never calls it: get_release_manifest() "
         "lazily builds the singleton itself on first access. Not the failure "
         "class this guard targets — flagging it here documents the "
+        "distinction rather than hiding it."
+    ),
+    "services/speaker_gate.py::set_verifier_for_tests": (
+        "Test-only injection hook (docstring says 'tests only'). Production "
+        "always uses get_verifier() which builds the real verifier. Not the "
+        "failure class this guard targets — flagging it here documents the "
         "distinction rather than hiding it."
     ),
 }

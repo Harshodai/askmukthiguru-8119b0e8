@@ -169,6 +169,27 @@
         "corpus_version"
       ],
       "evidence_policy": "payload_speaker_and_rights_claims_unverified"
+    },
+    "first_person_v12_shadow": {
+      "schema": "fp-context-v1",
+      "role": "context",
+      "corpus_version": "fp-context-transcript-v1",
+      "embedding_model": "BAAI/bge-m3",
+      "embedding_dimension": 1024,
+      "approved_corpus_version": "fp-context-transcript-v1",
+      "required_payload_fields": [
+        "record_type",
+        "source_span_id",
+        "parent_unit_id",
+        "guru_id",
+        "verbatim_text",
+        "source_text_hash",
+        "transcript_hash",
+        "speaker_verified",
+        "rights_cleared",
+        "corpus_version"
+      ],
+      "evidence_policy": "payload_speaker_and_rights_claims_unverified"
     }
   }
 }

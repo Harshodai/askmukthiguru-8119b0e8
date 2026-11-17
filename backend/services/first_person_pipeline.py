@@ -889,7 +889,10 @@ _RELEVANCE_RUBRIC_CORE = (
     "introduces unsolicited suicide/self-harm or graphic violence, or a question about what "
     "another spiritual teacher or external tradition teaches. "
     "Calibration: prefer 2 over 1 whenever the clip leaves the seeker with a real teaching about "
-    "the state behind their question; never score 3 for a clip that only describes the problem; "
+    "the state behind their question; for situational or compound queries (e.g. asking about anger, "
+    "anxiety, suffering, or desire in a specific setting such as work or relationships), a clip that "
+    "illuminates the root inner state or spiritual law qualifies as score 2; "
+    "never score 3 for a clip that only describes the problem; "
     "never score 0 for a clip that teaches through story rather than instruction. "
 )
 

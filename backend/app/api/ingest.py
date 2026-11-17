@@ -759,7 +759,18 @@ async def ingest_upload_video_endpoint(
             qdrant_service=container.qdrant,
             embedding_service=container.embedding,
         )
-        res = await pipeline.ingest_video(video_save_path)
+        target_collection = (
+            getattr(settings, "first_person_collection", None)
+            or getattr(settings, "qdrant_collection", "mukthi_guru")
+        )
+        res = await pipeline.ingest_video(
+            video_save_path,
+            speaker=speaker,
+            title=resolved_title,
+            video_id=video_id,
+            audio_path=wav_save_path,
+            collection_name=target_collection,
+        )
         chunks_indexed = res.chunks_ingested
 
         # Stamp direct_video attributes onto exactly the points this write created.
