@@ -2679,6 +2679,7 @@ return (
                                   isLandingMode={true}
                                   onVoiceToggle={handleVoiceToggle}
                                   onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
+                                  onOpenVoiceMode={handleOpenVoiceMode}
                                   onTtsToggle={handleTtsToggle}
                                   onLanguageChange={handleLanguageChange}
             capabilities={chatCapabilities}

@@ -389,20 +389,6 @@ function ChatComposerInner({
           <div className="flex-1" />
 
           <PromptInputTools>
-            {onOpenVoiceMode && (
-              <Button
-                data-testid="composer-voice-mode-button"
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                onClick={onOpenVoiceMode}
-                aria-label={t('chat.voiceMode', 'Voice Mode')}
-                title={t('chat.voiceMode', 'Voice Mode')}
-                className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-full transition-all flex items-center justify-center text-muted-foreground hover:text-ojas hover:bg-ojas/10"
-              >
-                <AudioLines className="w-4 h-4 text-ojas" />
-              </Button>
-            )}
             {actionCapabilities.voiceInput && (
               <Button
                 data-testid="start-voice-input-button"
@@ -429,6 +415,23 @@ function ChatComposerInner({
                 )}
               </Button>
             )}
+
+            {/* Voice Mode button - positioned directly beside the Send button */}
+            {onOpenVoiceMode && (
+              <Button
+                data-testid="composer-voice-mode-button"
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                onClick={onOpenVoiceMode}
+                aria-label={t('chat.voiceMode', 'Voice Mode')}
+                title={t('chat.voiceMode', 'Voice Mode (Hands-free Sacred Audio)')}
+                className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl border-ojas/30 bg-ojas/10 text-ojas-ink dark:text-ojas hover:bg-ojas/20 hover:text-ojas-dark active:scale-95 transition-all flex items-center justify-center shadow-sm"
+              >
+                <AudioLines className="w-4 h-4 text-ojas" />
+              </Button>
+            )}
+
             {(isStreaming || isTyping) ? (
               <div className="flex items-center gap-1.5 sm:gap-2">
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className="inline-flex">
