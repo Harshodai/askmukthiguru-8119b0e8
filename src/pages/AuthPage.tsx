@@ -34,7 +34,7 @@ import {
 } from '@/lib/authConstants';
 import { checkPasswordBreached, BREACHED_PASSWORD_MESSAGE } from '@/lib/passwordBreachCheck';
 import { isSafeRelativePath } from '@/lib/safeRedirect';
-import { GetHelpNow } from '@/components/common/GetHelpNow';
+import { EkamLinkButton } from '@/components/common/EkamLinkButton';
 
 const isNativePlatform = Capacitor.isNativePlatform();
 
@@ -983,7 +983,7 @@ const AuthPage = () => {
         }}
       />
       <div className="absolute right-3 top-3 z-10">
-        <GetHelpNow />
+        <EkamLinkButton variant="pill" />
       </div>
       <div className="relative w-full max-w-[400px] mx-4 sm:mx-auto space-y-6 rounded-2xl backdrop-blur-2xl bg-card/60 ring-1 ring-border/40 shadow-2xl shadow-foreground/10 p-6 sm:p-8">
         <div className="text-center space-y-2">

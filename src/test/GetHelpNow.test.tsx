@@ -32,14 +32,33 @@ describe('GetHelpNow', () => {
   });
 });
 
-describe('placement (WCAG 3.2.6: consistent placement across main layout pages)', () => {
-  const must: Array<[string, string]> = [
+describe('navigation headers (community & official links replace intrusive crisis banner)', () => {
+  const headers: Array<[string, string]> = [
     ['src/components/layout/AppShell.tsx', 'profile and practices'],
     ['src/components/landing/Navbar.tsx', 'landing and public pages'],
     ['src/pages/AuthPage.tsx', 'auth'],
   ];
-  it.each(must)('%s renders <GetHelpNow /> (%s)', (file) => {
+
+  it.each(headers)('%s does not render <GetHelpNow /> in main navigation header (%s)', (file) => {
     const src = readFileSync(join(process.cwd(), file), 'utf8');
-    expect(src).toContain('<GetHelpNow');
+    expect(src).not.toContain('<GetHelpNow');
+  });
+
+  it.each(headers)('%s renders community/official links (%s)', (file) => {
+    const src = readFileSync(join(process.cwd(), file), 'utf8');
+    const hasCommunityLink = src.includes('<EkamLinkButton') || src.includes('<WhatsAppButton');
+    expect(hasCommunityLink).toBe(true);
+  });
+});
+
+describe('crisis helplines safety preservation', () => {
+  it('SafetyDisclaimer renders crisis helpline contact points', () => {
+    const src = readFileSync(join(process.cwd(), 'src/components/common/SafetyDisclaimer.tsx'), 'utf8');
+    expect(src).toContain('INDIA_CRISIS_LINES');
+  });
+
+  it('SafetyPillarsSection renders crisis support contact points', () => {
+    const src = readFileSync(join(process.cwd(), 'src/components/landing/SafetyPillarsSection.tsx'), 'utf8');
+    expect(src).toContain('INDIA_CRISIS_LINES');
   });
 });

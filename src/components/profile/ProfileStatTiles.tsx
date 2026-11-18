@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Clock, Sparkles, LayoutGrid, CircleDot } from 'lucide-react';
+import { Flame, Clock, Sparkles, LayoutGrid, CircleDot, Wind } from 'lucide-react';
 import type { MeditationStats } from '@/lib/meditationStorage';
 import { dailySeries, localDayKey, type NormalizedSession } from '@/lib/meditationMetrics';
 import { SadhanaHeatmap } from './SadhanaHeatmap';
@@ -34,10 +34,10 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
       accent: 'text-ojas',
     },
     {
-      icon: Flame,
-      label: t('profileStatTiles.streak', 'Sadhana Rhythm'),
-      value: t('profileStatTiles.streakDays', { days: stats.streakDays, defaultValue: `${stats.streakDays}d` }),
-      accent: 'text-amber-600',
+      icon: Wind,
+      label: t('profileStatTiles.breaths', 'Breaths'),
+      value: stats.totalCycles || 0,
+      accent: 'text-prana',
     },
   ];
 

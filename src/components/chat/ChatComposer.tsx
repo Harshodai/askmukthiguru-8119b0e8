@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Send, Square, Flame, Sparkles, Plus, Mic, X, FileText, AudioLines,
+  Send, Square, Flame, Sparkles, Plus, Mic, X, FileText, AudioLines, Headphones,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -307,7 +307,7 @@ function ChatComposerInner({
         {isHandsFreeVoice && (
           <div className="mx-3 mb-1.5 flex items-center justify-between gap-3 rounded-xl border border-ojas/25 bg-ojas/5 px-3 py-2 text-xs">
             <div className="flex min-w-0 items-center gap-2 text-foreground">
-              <AudioLines className="w-3.5 h-3.5 text-ojas shrink-0" />
+              <Headphones className="w-3.5 h-3.5 text-ojas shrink-0" />
               <span className="truncate">{t('chat.voiceConversationOn', 'Voice conversation is on. Speak naturally and the answer will be read aloud.')}</span>
             </div>
             <button
@@ -371,14 +371,8 @@ function ChatComposerInner({
                   )}
                   {actionCapabilities.voiceInput && (
                     <DropdownMenuItem onClick={onHandsFreeVoiceToggle}>
-                      <AudioLines className="w-4 h-4 mr-2 text-ojas" />
+                      <Headphones className="w-4 h-4 mr-2 text-ojas" />
                       {isHandsFreeVoice ? t('chat.turnOffVoiceConversation', 'Turn off voice conversation') : t('chat.voiceConversation', 'Voice conversation')}
-                    </DropdownMenuItem>
-                  )}
-                  {onOpenVoiceMode && (
-                    <DropdownMenuItem onClick={onOpenVoiceMode} data-testid="composer-voice-mode-action">
-                      <AudioLines className="w-4 h-4 mr-2 text-ojas animate-pulse" />
-                      {t('chat.voiceMode', 'Voice Mode')}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>

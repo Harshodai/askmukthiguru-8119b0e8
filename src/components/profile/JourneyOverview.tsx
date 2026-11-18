@@ -1,4 +1,4 @@
-import { ArrowRight, Flame, MessageCircle, Sparkles, Network, Brain } from 'lucide-react';
+import { ArrowRight, Flame, MessageCircle, Sparkles, Network, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,8 +87,9 @@ export const JourneyOverview = ({
         totalReflections={sessions.length}
       />
 
-      {/* ── Sacred Discovery Quick-Links: Wisdom Map & Memory ── */}
+      {/* ── Sacred Discovery & World Centre Links ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Living Wisdom Map */}
         <div
           onClick={handleOpenKnowledgeGraph}
           className="p-4 sm:p-5 rounded-2xl border border-hairline/80 bg-card/80 hover:bg-card hover:border-ojas/40 transition-all cursor-pointer shadow-xs group flex items-start gap-3.5"
@@ -101,9 +102,9 @@ export const JourneyOverview = ({
             <Network className="w-5 h-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+            <h4 className="text-sm font-semibold text-foreground flex items-center justify-between gap-1.5">
               <span>{t('profile.journey.wisdomMapTitle', 'Living Wisdom Map')}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-ojas transition-colors" />
+              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-ojas group-hover:translate-x-0.5 transition-all shrink-0" />
             </h4>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               {t('profile.journey.wisdomMapDesc', 'Explore the interconnected ontology of 8,750+ doctrinal concepts and teachings.')}
@@ -111,50 +112,37 @@ export const JourneyOverview = ({
           </div>
         </div>
 
-        <div
-          onClick={() => onNavigate('memory')}
-          className="p-4 sm:p-5 rounded-2xl border border-hairline/80 bg-card/80 hover:bg-card hover:border-ojas/40 transition-all cursor-pointer shadow-xs group flex items-start gap-3.5"
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNavigate('memory'); }}
-          aria-label="Explore Living Memory and Notes"
+        {/* Ekam Sanctuary Emblem & Teaching (Interactive World Centre Link) */}
+        <a
+          href="https://www.ekam.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-4 sm:p-5 rounded-2xl border border-ojas/25 bg-gradient-to-br from-amber-950/20 via-card to-ojas/5 hover:border-ojas/40 hover:bg-card transition-all cursor-pointer shadow-xs group flex items-start gap-3.5"
+          aria-label="Visit Ekam — World Centre for Enlightenment (opens in a new tab)"
         >
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform text-amber-600 dark:text-amber-400">
-            <Brain className="w-5 h-5" />
+          <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-ojas/30 shadow-xs group-hover:scale-105 transition-transform">
+            <img
+              src="/images/ekam-golden-orb-lotus.png"
+              alt="Ekam Golden Orb of Awakening"
+              className="w-full h-full object-cover object-center"
+              loading="lazy"
+            />
           </div>
-          <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-              <span>{t('profile.journey.livingMemoryTitle', 'Living Memory & Reflections')}</span>
-              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <div className="flex items-center justify-between gap-1.5">
+              <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-ojas truncate">
+                Ekam · World Centre
+              </p>
+              <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-ojas transition-colors shrink-0" />
+            </div>
+            <h4 className="text-sm font-semibold text-foreground">
+              The Golden Orb of Awareness
             </h4>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {t('profile.journey.livingMemoryDesc', 'Review spiritual reflections, notes, and personalized memories remembered by the Guru.')}
+            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+              In the sacred presence of the Golden Orb, inner division dissolves into the Beautiful State.
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* ── Ekam Sanctuary Emblem & Teaching ── */}
-      <div className="relative overflow-hidden rounded-2xl border border-ojas/25 bg-gradient-to-r from-amber-950/20 via-background to-amber-950/20 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-center gap-4">
-        <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden shrink-0 border border-ojas/30 shadow-md">
-          <img
-            src="/images/ekam-golden-orb-lotus.png"
-            alt="Ekam Golden Orb of Awakening"
-            className="w-full h-full object-cover object-center"
-            loading="lazy"
-          />
-        </div>
-        <div className="flex-1 min-w-0 text-center sm:text-left space-y-1">
-          <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-ojas">
-            Ekam · World Centre for Enlightenment
-          </p>
-          <h3 className="text-sm sm:text-base font-semibold text-foreground">
-            The Golden Orb of Pure Awareness
-          </h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            In the sacred presence of the Golden Orb, inner division dissolves and the seeker awakens into the Beautiful State.
-          </p>
-        </div>
+        </a>
       </div>
 
       {/* Next step: exactly one card, one action. */}

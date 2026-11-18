@@ -40,7 +40,8 @@ import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
 import { checkConnection, resetHealthCache } from '@/lib/aiService';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
-import { GetHelpNow } from '@/components/common/GetHelpNow';
+import { WhatsAppButton } from '@/components/common/WhatsAppButton';
+import { EkamLinkButton } from '@/components/common/EkamLinkButton';
 
 interface AppShellProps {
   children: ReactNode;
@@ -320,7 +321,8 @@ export const AppShell = ({ children, title }: AppShellProps) => {
             </div>
             <ConnectionPill />
             <HeaderSereneButton />
-            <GetHelpNow />
+            <EkamLinkButton variant="pill" />
+            <WhatsAppButton />
             <UserMenu />
           </header>
 

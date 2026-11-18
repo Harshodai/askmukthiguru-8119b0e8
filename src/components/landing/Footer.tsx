@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Sparkles } from 'lucide-react';
+import { ExternalLink, Heart, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const Footer = forwardRef<HTMLElement>((_, ref) => {
@@ -45,6 +45,17 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
             </Link>
             <a href="#gurus" className="text-caption hover:text-foreground transition-colors">
               {t('nav.about')}
+            </a>
+            <a
+              href="https://www.ekam.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-caption hover:text-foreground transition-colors inline-flex items-center gap-1"
+              aria-label={t('common.visitEkam', 'Visit Ekam World Centre')}
+              title={t('common.visitEkam', 'Visit Ekam World Centre')}
+            >
+              <span>Ekam (World Centre)</span>
+              <ExternalLink className="w-3 h-3 text-muted-foreground/60" aria-hidden="true" />
             </a>
             <Link to="/terms" className="text-caption hover:text-foreground transition-colors">
               {t('terms.title')}

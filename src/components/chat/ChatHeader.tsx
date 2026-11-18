@@ -189,7 +189,9 @@ export const ChatHeader = ({
         >
           <WhatsAppIcon className="w-5 h-5 fill-current" />
         </a>
-        <div className={sidebarCollapsed ? '' : 'sm:hidden'} data-tour="profile"><UserMenu /></div>
+        <div className={cn('flex items-center flex-shrink-0', sidebarCollapsed ? '' : 'sm:hidden')}>
+          <UserMenu />
+        </div>
       </div>
     </div>
   </header>;

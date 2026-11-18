@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { BookOpenCheck, Heart, HeartHandshake, ShieldCheck, Sparkles } from 'lucide-react';
+import { BookOpenCheck, ExternalLink, Heart, HeartHandshake, ShieldCheck, Sparkles } from 'lucide-react';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 /** Strip the surrounding quotation marks the locale strings carry. */
@@ -119,9 +119,24 @@ export const MeetTheGurusSection = () => {
                 <h3 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-foreground mb-2">
                   {t('landing.meetGurus.name')}
                 </h3>
-                <p className="text-ojas font-semibold text-sm uppercase tracking-wider mb-4">
+                <p className="text-ojas font-semibold text-sm uppercase tracking-wider mb-2">
                   {t('landing.meetGurus.title')}
                 </p>
+                <div className="mb-4">
+                  <a
+                    href="https://www.ekam.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-ojas hover:text-ojas-light transition-colors group/ekam focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas rounded-sm"
+                    aria-label={t('common.visitEkam', 'Visit Ekam World Centre')}
+                    title={t('common.visitEkam', 'Visit Ekam World Centre')}
+                  >
+                    <span className="group-hover/ekam:underline underline-offset-4">
+                      Ekam — World Centre for Enlightenment
+                    </span>
+                    <ExternalLink className="w-3.5 h-3.5 text-ojas/80 transition-transform duration-200 group-hover/ekam:translate-x-0.5 group-hover/ekam:-translate-y-0.5" aria-hidden="true" />
+                  </a>
+                </div>
                 <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6 font-sans">
                   {t('landing.meetGurus.description')}
                 </p>
