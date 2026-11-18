@@ -179,8 +179,8 @@ export const ThinkingPills = ({
         type="button"
         onClick={() => hasSteps && setExpanded((v) => !v)}
         disabled={!hasSteps}
-        className={`group inline-flex items-center gap-2 min-h-[32px] px-2.5 py-1 rounded-full bg-ojas/[0.04] border border-ojas/15 shadow-[0_0_10px_hsl(var(--ojas)/0.08)] text-[14px] leading-5 font-sans font-normal text-muted-foreground/90 transition-all ${
-          hasSteps ? 'cursor-pointer hover:bg-ojas/[0.08] hover:border-ojas/25 hover:text-foreground' : 'cursor-default'
+        className={`group inline-flex items-center gap-2.5 min-h-[36px] px-3.5 py-1.5 rounded-full bg-card/85 dark:bg-card/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-[0_2px_14px_rgba(245,158,11,0.1)] text-[14px] leading-5 font-sans font-medium text-muted-foreground transition-all duration-200 ${
+          hasSteps ? 'cursor-pointer hover:bg-card/95 hover:border-ojas/40 hover:text-foreground hover:shadow-md' : 'cursor-default'
         }`}
         aria-expanded={expanded}
         aria-label={t('chat.toggleThinking', 'Toggle thinking details')}
@@ -275,7 +275,7 @@ export const ThinkingPills = ({
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="w-full max-w-xl rounded-xl border border-ojas/20 bg-gradient-to-r from-ojas/[0.06] via-background to-ojas/[0.03] px-3.5 py-3 shadow-xs"
+          className="w-full max-w-xl rounded-2xl border border-white/20 dark:border-white/10 bg-gradient-to-r from-ojas/[0.08] via-card/90 to-ojas/[0.04] backdrop-blur-xl px-4 py-3.5 shadow-md"
           data-testid="thinking-pills-wisdom-tip"
         >
           <div className="flex items-center gap-2 text-[13px] font-medium text-ojas-ink dark:text-ojas">

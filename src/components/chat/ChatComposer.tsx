@@ -191,32 +191,36 @@ function ChatComposerInner({
 
   return (
     <motion.div
-      className="w-full max-w-3xl mx-auto py-2 sm:py-3"
+      className="w-full max-w-3xl mx-auto py-2 sm:py-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]"
     >
-      <PromptInput
-        onSubmit={handleFormSubmit}
-        role="form"
-        aria-label={t('chat.messageComposer')}
-        className={`rounded-2xl border border-hairline bg-card transition-colors duration-200 overflow-visible ${
+      {/* Double-Bezel Outer Frosted Glass Dock */}
+      <div
+        className={`relative rounded-2xl p-1 sm:p-1.5 bg-gradient-to-b from-card/95 via-card/85 to-card/75 dark:from-card/85 dark:via-card/75 dark:to-card/65 backdrop-blur-2xl border transition-all duration-300 ${
           inputFocused || isListening
-            ? 'border-ojas/50 shadow-md'
-            : 'shadow-sm'
+            ? 'border-ojas/60 ring-2 ring-ojas/20 shadow-[0_8px_30px_rgba(245,158,11,0.15)]'
+            : 'border-white/20 dark:border-white/10 shadow-xl'
         }`}
       >
-        {isAwaitingSereneMind && (
-          <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-border/40 bg-ojas/5 rounded-t-3xl">
-            <span className="text-xs text-ojas-ink dark:text-ojas font-medium">
-              {t('chat.sereneMindRequired')}
-            </span>
-            <button
-              type="button"
-              onClick={onSereneMind}
-              className="px-3 py-1 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-xs font-semibold hover:shadow-md transition-all"
-            >
-              {t('chat.openSereneMind')}
-            </button>
-          </div>
-        )}
+        <PromptInput
+          onSubmit={handleFormSubmit}
+          role="form"
+          aria-label={t('chat.messageComposer')}
+          className="rounded-xl bg-background/60 dark:bg-background/45 border border-black/5 dark:border-white/5 shadow-[inset_0_1px_2px_rgba(255,255,255,0.12)] overflow-visible"
+        >
+          {isAwaitingSereneMind && (
+            <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-border/40 bg-ojas/5 rounded-t-xl">
+              <span className="text-xs text-ojas-ink dark:text-ojas font-medium">
+                {t('chat.sereneMindRequired')}
+              </span>
+              <button
+                type="button"
+                onClick={onSereneMind}
+                className="px-3 py-1 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-xs font-semibold hover:shadow-md transition-all"
+              >
+                {t('chat.openSereneMind')}
+              </button>
+            </div>
+          )}
 
         {inputValue.startsWith('/') && (
         <div className="px-5 pt-3">
@@ -390,46 +394,50 @@ function ChatComposerInner({
 
           <PromptInputTools>
             {actionCapabilities.voiceInput && (
-              <Button
-                data-testid="start-voice-input-button"
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                onClick={onVoiceToggle}
-                aria-label={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
-                aria-pressed={isListening}
-                title={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
-                className={`min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-full transition-all flex items-center justify-center ${
-                  isListening
-                    ? 'bg-red-500/15 text-red-500 hover:bg-red-500/25'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {isListening ? (
-                  <span className="relative flex items-center justify-center">
-                    <span className="absolute inline-flex h-5 w-5 rounded-full bg-red-500/30 animate-ping" />
-                    <Mic className="w-4 h-4 relative" />
-                  </span>
-                ) : (
-                  <Mic className="w-4 h-4" />
-                )}
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.94 }} className="inline-flex">
+                <Button
+                  data-testid="start-voice-input-button"
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={onVoiceToggle}
+                  aria-label={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
+                  aria-pressed={isListening}
+                  title={isListening ? t('chat.stopRecording') : t('chat.startVoiceInput')}
+                  className={`min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl transition-all flex items-center justify-center ${
+                    isListening
+                      ? 'bg-red-500/15 text-red-500 hover:bg-red-500/25'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {isListening ? (
+                    <span className="relative flex items-center justify-center">
+                      <span className="absolute inline-flex h-5 w-5 rounded-full bg-red-500/30 animate-ping" />
+                      <Mic className="w-4 h-4 relative" />
+                    </span>
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </Button>
+              </motion.div>
             )}
 
             {/* Voice Mode button - positioned directly beside the Send button */}
             {onOpenVoiceMode && (
-              <Button
-                data-testid="composer-voice-mode-button"
-                type="button"
-                size="icon-sm"
-                variant="outline"
-                onClick={onOpenVoiceMode}
-                aria-label={t('chat.voiceMode', 'Voice Mode')}
-                title={t('chat.voiceMode', 'Voice Mode (Hands-free Sacred Audio)')}
-                className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl border-ojas/30 bg-ojas/10 text-ojas-ink dark:text-ojas hover:bg-ojas/20 hover:text-ojas-dark active:scale-95 transition-all flex items-center justify-center shadow-sm"
-              >
-                <AudioLines className="w-4 h-4 text-ojas" />
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.94 }} className="inline-flex">
+                <Button
+                  data-testid="composer-voice-mode-button"
+                  type="button"
+                  size="icon-sm"
+                  variant="outline"
+                  onClick={onOpenVoiceMode}
+                  aria-label={t('chat.voiceMode', 'Voice Mode')}
+                  title={t('chat.voiceMode', 'Voice Mode (Hands-free Sacred Audio)')}
+                  className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl border-ojas/30 bg-ojas/10 text-ojas-ink dark:text-ojas hover:bg-ojas/20 hover:text-ojas-dark transition-all flex items-center justify-center shadow-sm"
+                >
+                  <AudioLines className="w-4 h-4 text-ojas" />
+                </Button>
+              </motion.div>
             )}
 
             {(isStreaming || isTyping) ? (
@@ -439,7 +447,7 @@ function ChatComposerInner({
                     type="button"
                     size="icon-sm"
                     onClick={onStop}
-                    className="min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] sm:h-9 sm:w-9 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20 flex items-center justify-center active:scale-95 transition-all duration-200 ease-out shadow-sm"
+                    className="min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] sm:h-9 sm:w-9 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20 flex items-center justify-center transition-all duration-200 ease-out shadow-sm"
                     aria-label={t('chat.stop', 'Stop generating')}
                     title={t('chat.stopGenerating', 'Stop generating')}
                   >
@@ -452,7 +460,7 @@ function ChatComposerInner({
                     <PromptInputSubmit
                       type="submit"
                       size="icon-sm"
-                      className="min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-dark shadow-sm hover:shadow-md active:scale-95 transition-all duration-200 ease-out flex items-center justify-center"
+                      className="min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-dark shadow-sm hover:shadow-md transition-all duration-200 ease-out flex items-center justify-center"
                       aria-label={t('chat.queueMessage', 'Queue follow-up message')}
                       title={t('chat.queueMessage', 'Queue follow-up (sends automatically after current response)')}
                     >
@@ -477,6 +485,7 @@ function ChatComposerInner({
           </PromptInputTools>
         </PromptInputFooter>
       </PromptInput>
+      </div>
 
       {isLandingMode && (
         <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground select-none">

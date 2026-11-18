@@ -1430,6 +1430,12 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Pin:** `src/components/chat/ChatComposer.tsx:420-435`, `src/components/chat/ChatInterface.tsx:2681,2870`.
 - **Rule:** whenever a component is rendered across multiple conditional layout branches (landing vs. active), newly introduced feature callbacks must be explicitly wired to all branches and verified across viewport states.
 
+### L-DOUBLE-BEZEL-DIRECT-CHILD-SELECTOR-1. Double-bezel container styling must wrap compound components rather than breaking CSS direct-child selectors.
+- **What:** In high-end agency UI redesigns using Double-Bezel (Doppelrand) patterns, inserting an intermediate wrapper `<div>` directly inside compound input components (such as `PromptInput` / `InputGroup`) breaks CSS direct-child selectors like `has-[>[data-align=block-end]]`. This causes the parent flex container to collapse to `h-9` instead of expanding to `h-auto flex-col`, silently truncating textareas and hiding action toolbars.
+- **Fix:** Structured the double-bezel architecture by applying the outer frosted glass bezel (`bg-gradient-to-b from-card/95 ... backdrop-blur-2xl border`) to an exterior wrapper around `PromptInput`, allowing `PromptInput` to serve as the inner core interaction surface while keeping `PromptInputTextarea` and `PromptInputFooter` as direct children of `InputGroup`.
+- **Pin:** `src/components/chat/ChatComposer.tsx:193-215`, `src/components/ui/input-group.tsx:10-38`, `src/test/components/ChatComposer-keyboard.test.tsx`.
+- **Rule:** when applying multi-layer or double-bezel styling to compound components, never insert intermediate wrappers between parent containers and child components governed by CSS direct-child selectors (`>`).
+
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.

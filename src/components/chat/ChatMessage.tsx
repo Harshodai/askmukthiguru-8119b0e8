@@ -503,11 +503,11 @@ export const GuruTeachingCard = ({
     <aside
       data-testid="guru-teaching-card"
       aria-label={t('chat.guruTeaching.ariaLabel', "Guru teaching in the teacher's own words")}
-      className="w-full rounded-2xl border border-ojas/30 bg-gradient-to-br from-ojas/[0.08] via-card to-card px-4 py-3.5 shadow-sm"
+      className="w-full rounded-2xl border border-white/20 dark:border-white/10 bg-gradient-to-br from-card/90 via-card/80 to-card/70 dark:from-card/85 dark:via-card/75 dark:to-card/65 backdrop-blur-xl p-4 sm:p-5 shadow-lg relative overflow-hidden transition-all duration-300"
     >
       <div className="flex flex-wrap items-center gap-2">
         <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-ojas-ink">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-ojas-ink dark:text-ojas">
           {personalized
             ? t('chat.guruTeaching.personalizedLabel', 'Personalized reflection')
             : t('chat.guruTeaching.label', 'Guru teaching · verbatim')}
@@ -521,10 +521,10 @@ export const GuruTeachingCard = ({
                 : 'Verified teaching: verbatim quotation from recorded teachings.'
           }
           className={cn(
-            'ms-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+            'ms-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium shadow-2xs',
             showVerified
-              ? 'border-ojas/20 bg-ojas/10 text-ojas-ink'
-              : 'border-amber-500/20 bg-amber-500/10 text-amber-ink'
+              ? 'border-ojas/30 bg-ojas/15 text-ojas-ink dark:text-ojas'
+              : 'border-amber-500/30 bg-amber-500/15 text-amber-ink'
           )}
         >
           {badgeLabel}
@@ -533,7 +533,7 @@ export const GuruTeachingCard = ({
       <blockquote
         data-testid="guru-teaching-quote"
         lang={quoteLang(citation.language)}
-        className="mt-2 border-s-2 border-ojas/40 ps-3 font-serif text-[15px] leading-[1.75] text-foreground"
+        className="mt-3 border-s-2 border-ojas/50 ps-3.5 font-serif text-[15px] sm:text-[16px] leading-[1.8] text-foreground"
       >
         {displayedQuoteSegments.map((segment, segmentIndex) => (
           <span
@@ -561,9 +561,9 @@ export const GuruTeachingCard = ({
           )}
         </p>
       )}
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-muted-foreground">
         {attribution && (
-          <span className="font-medium text-ojas-ink">{attribution}</span>
+          <span className="font-medium text-ojas-ink dark:text-ojas">{attribution}</span>
         )}
         <span className="tabular-nums">{clockLabel}</span>
         {playbackLabel && <span className="tabular-nums">{playbackLabel}</span>}
@@ -577,7 +577,7 @@ export const GuruTeachingCard = ({
             type="button"
             onClick={openPlayback}
             aria-label={playName}
-            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-ojas px-3 py-1.5 font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="ms-auto inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] rounded-xl bg-ojas px-3.5 py-1.5 font-semibold text-primary-foreground shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.03] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Play className="h-3 w-3 fill-current" aria-hidden="true" />
             {t('chat.guruTeaching.playClip', 'Play clip')}
@@ -588,7 +588,7 @@ export const GuruTeachingCard = ({
             target="_blank"
             rel="noopener noreferrer"
             aria-label={playName}
-            className="ms-auto inline-flex items-center gap-1.5 rounded-full bg-ojas px-3 py-1.5 font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="ms-auto inline-flex items-center gap-1.5 min-h-[44px] sm:min-h-[36px] rounded-xl bg-ojas px-3.5 py-1.5 font-semibold text-primary-foreground shadow-sm hover:shadow-md transition-all duration-200 hover:scale-[1.03] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Play className="h-3 w-3 fill-current" aria-hidden="true" />
             {t('chat.guruTeaching.playClip', 'Play clip')}
@@ -600,7 +600,7 @@ export const GuruTeachingCard = ({
           rel="noopener noreferrer"
           aria-label={t('chat.guruTeaching.openSourceAria', 'Open source teaching')}
           title={domain}
-          className="min-h-[44px] min-w-[44px] sm:h-7 sm:w-7 inline-flex items-center justify-center rounded-lg border border-border/40 bg-background/40 text-muted-foreground transition-all duration-200 ease-out hover:bg-background/80 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 inline-flex items-center justify-center rounded-xl border border-white/20 dark:border-white/10 bg-background/50 hover:bg-background/80 hover:text-foreground text-muted-foreground shadow-xs transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
         </a>

@@ -2632,12 +2632,23 @@ return (
                 exit={{ opacity: 0, y: -12, transition: { duration: 0.18 } }}
                 className="flex min-h-[calc(100dvh-8.75rem)] flex-col items-center px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-5 sm:min-h-[calc(100dvh-10rem)] sm:justify-center sm:py-10"
               >
-              <div className="text-center px-4 sm:mb-8">
+              <div className="text-center px-4 sm:mb-8 flex flex-col items-center">
+                {/* Sacred Sanctuary Eyebrow Badge */}
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-medium tracking-wider uppercase mb-3.5 shadow-xs backdrop-blur-md"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                  <span>{t('landing.archiveBadge', 'Ekam Sacred Wisdom Sanctuary')}</span>
+                </motion.div>
+
                 <motion.h2
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  className="text-[24px] sm:text-[30px] font-semibold text-foreground tracking-normal leading-snug text-balance"
+                  className="font-serif text-2xl sm:text-4xl font-normal text-foreground tracking-wide leading-snug sm:leading-tight text-balance"
                 >
                   {buildGreeting(selected?.slug, profile.displayName ?? '', greetingContext)}
                 </motion.h2>
@@ -2645,11 +2656,11 @@ return (
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 }}
-                  className="mt-2 text-[13px] sm:text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto"
+                  className="mt-2.5 text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-md mx-auto"
                 >
                   {buildGreetingSubline(greetingContext)}
                 </motion.p>
-                <div className="mt-3">
+                <div className="mt-3.5">
                   <TeacherGuidancePanel />
                 </div>
               </div>
@@ -2704,7 +2715,7 @@ return (
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="w-full max-w-2xl px-2 flex flex-nowrap items-center gap-2 mt-1.5 overflow-x-auto momentum-scroll pb-1 sm:flex-wrap sm:justify-center sm:px-4"
+                className="w-full max-w-2xl px-2 flex flex-nowrap items-center gap-2 mt-2 overflow-x-auto momentum-scroll pb-1.5 sm:flex-wrap sm:justify-center sm:px-4"
               >
                 {STARTER_CARDS.map((card, idx) => (
                   <motion.button
@@ -2712,9 +2723,11 @@ return (
                     type="button"
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.96 }}
                     transition={{ delay: 0.25 + idx * 0.05 }}
                     onClick={() => handleSuggestionClick(t(card.promptKey))}
-                    className="group flex shrink-0 items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-xl border border-hairline bg-card hover:bg-ojas/10 hover:border-ojas/40 text-xs text-muted-foreground hover:text-foreground transition-colors no-tap-highlight"
+                    className="group flex shrink-0 items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl border border-white/20 dark:border-white/10 bg-card/75 dark:bg-card/60 backdrop-blur-md hover:bg-card/95 hover:border-ojas/40 shadow-xs hover:shadow-md text-xs font-medium text-muted-foreground hover:text-foreground transition-all duration-200 no-tap-highlight"
                     title={t(card.promptKey)}
                   >
                     <card.icon className="w-3.5 h-3.5 text-ojas/70 group-hover:text-ojas transition-colors flex-shrink-0" />
