@@ -1044,7 +1044,17 @@ async def prepare_user_memory(
                 # context (it used to be silently dropped here) but is NOT
                 # evidence: it stays out of the 4th element.
                 merged = "\n\n".join(filter(None, [memory_context, canonical_block]))
-                return _scrub_memory_context(merged), distress_history, None, canonical_block
+                # DEF-R2-03: Fetch and preserve user_profile alongside canonical memory
+                profile = None
+                if getattr(container, "user_profile", None) is not None:
+                    try:
+                        profile = await container.user_profile.get_or_create_profile(user_id)
+                        profile.total_conversations += 1
+                        await container.user_profile.update_profile(profile)
+                        distress_history = await container.user_profile.get_distress_history(user_id)
+                    except Exception as exc:
+                        logger.warning("Failed to fetch user profile alongside canonical memory: %s", exc)
+                return _scrub_memory_context(merged), distress_history, profile, canonical_block
         except TimeoutError:
             logger.warning("Canonical memory context timed out; using legacy memory")
         except Exception as exc:

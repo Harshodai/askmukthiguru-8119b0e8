@@ -38,7 +38,7 @@ import pytest
 # Settings declared but never read — deletion owned by concurrent task C5.
 # Each entry carries its justification; if C5 deletes the field, it stops
 # appearing in ``dead`` and the test keeps passing.
-ALLOWED_DEAD_SETTINGS: set[str] = {
+ALLOWED_DEAD_SETTINGS: dict[str, str] = {
     # Not actually dead -- read dynamically via getattr(settings, f"{provider}_x", ...)
     # in LLMBudgetGuard.from_settings (services/llm_budget_guard.py), constructed by
     # sarvam_http.py:117. The static detector below can't see through the f-string
@@ -47,6 +47,8 @@ ALLOWED_DEAD_SETTINGS: set[str] = {
     # this allowlisting and the openrouter_* equivalents don't.
     "sarvam_monthly_budget_usd": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
     "sarvam_max_request_cost_usd": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
+    "sarvam_daily_budget_usd": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
+    "sarvam_budget_guard_enabled": "P0-3: dynamic getattr, see LLMBudgetGuard.from_settings",
 }
 
 # Additional dead fields found by the initial scan (S1, 2026-08-11) that are
@@ -60,6 +62,9 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "qdrant_write_api_key": (
         "T3-02: consumed by docker-compose (QDRANT__SERVICE__API_KEY) only; no Python "
         "write path reads it yet (open: wire the builders to the write key)"
+    ),
+    "redis_password": (
+        "Redis auth password parameter reserved for authenticated cloud Redis clusters"
     ),
 }
 

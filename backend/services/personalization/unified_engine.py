@@ -88,41 +88,188 @@ class UnifiedPersonalizationEngine:
         mood_ctx = MoodSpiritualJournalContext()
         whatsapp_ctx = WhatsAppReflectionContext()
 
-        # Concurrent facet fetching helper tasks
+        # Concurrent facet fetching helper tasks (DEF-R2-04: Genuine database hydration)
+        async def _safe_first(res: Any) -> Any:
+            fn = getattr(res, "first", None)
+            if not callable(fn):
+                return None
+            val = fn()
+            if asyncio.iscoroutine(val):
+                val = await val
+            return val
+
+        async def _safe_fetchall(res: Any) -> list:
+            fn = getattr(res, "fetchall", None)
+            if not callable(fn):
+                return []
+            val = fn()
+            if asyncio.iscoroutine(val):
+                val = await val
+            return val if isinstance(val, (list, tuple)) else []
+
         async def _fetch_profile() -> None:
             if not session:
                 return
-            pass
+            try:
+                from sqlalchemy import text
+
+                stmt = text(
+                    "SELECT spiritual_readiness, tradition, tone, preferred_guru, language, distress_level "
+                    "FROM user_profiles WHERE user_id = :uid LIMIT 1"
+                )
+                res = await session.execute(stmt, {"uid": user_id})
+                row = await _safe_first(res)
+                if row:
+                    m = getattr(row, "_mapping", row)
+                    profile_ctx.spiritual_readiness = str(getattr(m, "spiritual_readiness", profile_ctx.spiritual_readiness) or profile_ctx.spiritual_readiness)
+                    profile_ctx.tradition = str(getattr(m, "tradition", profile_ctx.tradition) or profile_ctx.tradition)
+                    profile_ctx.tone = str(getattr(m, "tone", profile_ctx.tone) or profile_ctx.tone)
+                    profile_ctx.preferred_guru = str(getattr(m, "preferred_guru", profile_ctx.preferred_guru) or profile_ctx.preferred_guru)
+                    profile_ctx.language = str(getattr(m, "language", profile_ctx.language) or profile_ctx.language)
+                    profile_ctx.distress_level = int(getattr(m, "distress_level", profile_ctx.distress_level) or 0)
+            except Exception as e:
+                logger.debug("Unified engine: profile query exception: %s", e)
 
         async def _fetch_brain() -> None:
             if not session:
                 return
-            pass
+            try:
+                from sqlalchemy import text
+
+                stmt = text(
+                    "SELECT id, statement, category FROM canonical_memories "
+                    "WHERE user_id = :uid AND status = 'active' ORDER BY created_at DESC LIMIT 10"
+                )
+                res = await session.execute(stmt, {"uid": user_id})
+                rows = await _safe_fetchall(res)
+                mems = []
+                for r in rows:
+                    m = getattr(r, "_mapping", r)
+                    st = getattr(m, "statement", None)
+                    if st:
+                        mems.append({
+                            "id": str(getattr(m, "id", "")),
+                            "statement": str(st),
+                            "category": str(getattr(m, "category", "")),
+                        })
+                if mems:
+                    brain_ctx.canonical_memories = mems
+            except Exception as e:
+                logger.debug("Unified engine: brain query exception: %s", e)
 
         async def _fetch_sadhana() -> None:
             if not session:
                 return
-            pass
+            try:
+                from sqlalchemy import text
+
+                stmt = text(
+                    "SELECT streak_count, longest_streak, consistency_score, minutes_meditated "
+                    "FROM user_sadhana WHERE user_id = :uid LIMIT 1"
+                )
+                res = await session.execute(stmt, {"uid": user_id})
+                row = await _safe_first(res)
+                if row:
+                    m = getattr(row, "_mapping", row)
+                    sadhana_ctx.streak_count = int(getattr(m, "streak_count", 0) or 0)
+                    sadhana_ctx.longest_streak = int(getattr(m, "longest_streak", 0) or 0)
+                    sadhana_ctx.consistency_score = float(getattr(m, "consistency_score", 1.0) or 1.0)
+                    sadhana_ctx.minutes_meditated = int(getattr(m, "minutes_meditated", 0) or 0)
+            except Exception as e:
+                logger.debug("Unified engine: sadhana query exception: %s", e)
 
         async def _fetch_pre_practice() -> None:
             if not session:
                 return
-            pass
+            try:
+                from sqlalchemy import text
+
+                stmt = text(
+                    "SELECT pre_session_state, mental_clarity, emotional_tone "
+                    "FROM user_pre_practice_logs WHERE user_id = :uid ORDER BY created_at DESC LIMIT 1"
+                )
+                res = await session.execute(stmt, {"uid": user_id})
+                row = await _safe_first(res)
+                if row:
+                    m = getattr(row, "_mapping", row)
+                    pre_practice_ctx.pre_session_state = str(getattr(m, "pre_session_state", pre_practice_ctx.pre_session_state) or pre_practice_ctx.pre_session_state)
+                    pre_practice_ctx.mental_clarity = int(getattr(m, "mental_clarity", pre_practice_ctx.mental_clarity) or pre_practice_ctx.mental_clarity)
+                    pre_practice_ctx.emotional_tone = str(getattr(m, "emotional_tone", pre_practice_ctx.emotional_tone) or pre_practice_ctx.emotional_tone)
+            except Exception as e:
+                logger.debug("Unified engine: pre_practice query exception: %s", e)
 
         async def _fetch_notebook() -> None:
             if not session:
                 return
-            pass
+            try:
+                from sqlalchemy import text
+
+                stmt = text(
+                    "SELECT title, video_id, timestamp_seconds FROM user_saved_teachings "
+                    "WHERE user_id = :uid ORDER BY created_at DESC LIMIT 5"
+                )
+                res = await session.execute(stmt, {"uid": user_id})
+                rows = await _safe_fetchall(res)
+                saved = []
+                for r in rows:
+                    m = getattr(r, "_mapping", r)
+                    saved.append({
+                        "title": str(getattr(m, "title", "Teaching")),
+                        "video_id": str(getattr(m, "video_id", "")),
+                        "timestamp_seconds": float(getattr(m, "timestamp_seconds", 0.0) or 0.0),
+                    })
+                if saved:
+                    notebook_ctx.saved_teachings = saved
+            except Exception as e:
+                logger.debug("Unified engine: notebook query exception: %s", e)
 
         async def _fetch_mood() -> None:
             if not session:
                 return
-            pass
+            try:
+                from sqlalchemy import text
+
+                stmt = text(
+                    "SELECT dominant_emotion, notes FROM mood_entries "
+                    "WHERE user_id = :uid ORDER BY created_at DESC LIMIT 3"
+                )
+                res = await session.execute(stmt, {"uid": user_id})
+                rows = await _safe_fetchall(res)
+                moods = []
+                for r in rows:
+                    m = getattr(r, "_mapping", r)
+                    moods.append({
+                        "dominant_emotion": str(getattr(m, "dominant_emotion", "balanced")),
+                        "notes": str(getattr(m, "notes", "")),
+                    })
+                if moods:
+                    mood_ctx.mood_trajectory = moods
+            except Exception as e:
+                logger.debug("Unified engine: mood query exception: %s", e)
 
         async def _fetch_whatsapp() -> None:
             if not session:
                 return
-            pass
+            try:
+                from sqlalchemy import text
+
+                stmt = text(
+                    "SELECT sadhana_reflection, insight FROM user_reflections "
+                    "WHERE user_id = :uid AND source = 'whatsapp' ORDER BY created_at DESC LIMIT 3"
+                )
+                res = await session.execute(stmt, {"uid": user_id})
+                rows = await _safe_fetchall(res)
+                refs = []
+                for r in rows:
+                    m = getattr(r, "_mapping", r)
+                    refs.append({
+                        "sadhana_reflection": str(getattr(m, "sadhana_reflection", "")),
+                        "insight": str(getattr(m, "insight", "")),
+                    })
+                if refs:
+                    whatsapp_ctx.reflections = refs
+            except Exception as e:
+                logger.debug("Unified engine: whatsapp query exception: %s", e)
 
         results = await asyncio.gather(
             _fetch_profile(),
@@ -212,7 +359,18 @@ class UnifiedPersonalizationEngine:
             encrypt_facet(payload, vault_key_bytes)
 
         if session:
-            pass
+            try:
+                from sqlalchemy import text
+
+                stmt = text(
+                    "INSERT INTO user_reflections (user_id, facet_name, payload, created_at) "
+                    "VALUES (:uid, :facet, :payload, NOW())"
+                )
+                await session.execute(
+                    stmt, {"uid": user_id, "facet": facet_name, "payload": str(payload)}
+                )
+            except Exception as e:
+                logger.debug("Unified engine: persist_facet_update query exception: %s", e)
 
         return {
             "user_id": user_id,
@@ -249,19 +407,4 @@ class UnifiedPersonalizationEngine:
         """
         if not context.is_authenticated:
             return "[Anonymous Seeker: Universal Tradition, Compassionate Tone]"
-
-        profile = context.seeker_profile
-        sadhana = context.sadhana_practice
-        brain = context.second_brain
-
-        guidance = [
-            f"[Seeker Context: ID={context.user_id}]",
-            f"- Readiness: {profile.spiritual_readiness} | Tradition: {profile.tradition} | Tone: {profile.tone}",
-            f"- Preferred Guru: {profile.preferred_guru} | Distress Level: {profile.distress_level}",
-            f"- Sadhana Streak: {sadhana.streak_count} days (Consistency: {sadhana.consistency_score:.2f})",
-        ]
-
-        if brain.observations:
-            guidance.append(f"- Key Observations: {'; '.join(brain.observations[:3])}")
-
-        return "\n".join(guidance)
+        return context.format_prompt_guidance()

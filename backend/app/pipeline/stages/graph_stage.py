@@ -234,6 +234,22 @@ class GraphStage(Stage):
                 routing_question = personalize_grounded_question(user_msg_en, personalize_clip)
                 initial_state["question"] = routing_question
 
+                # DEF-R2-01: Construct synthetic personalize_doc per interface contract
+                personalize_doc = {
+                    "text": str(personalize_clip.get("verbatim_text") or "").strip(),
+                    "title": personalize_clip.get("title") or "Served Teaching",
+                    "source_url": personalize_clip.get("source_url")
+                    or f"https://www.youtube.com/watch?v={personalize_clip.get('video_id')}",
+                    "video_id": personalize_clip.get("video_id"),
+                    "point_id": personalize_clip.get("point_id"),
+                    "speaker": personalize_clip.get("speaker"),
+                    "teacher_id": personalize_clip.get("teacher_id"),
+                    "is_verbatim": True,
+                    "knowledge_source": "personalize_clip",
+                    "rerank_score": 1.0,
+                }
+                initial_state["documents"] = [personalize_doc]
+
             # Determine route only after the personalized grounded question is
             # finalized. Unknown/non-doctrinal questions default to general
             # answering; classifier failure must not trap users in closed-corpus
@@ -259,6 +275,10 @@ class GraphStage(Stage):
                 initial_state["codemix_preference"] = True
             initial_state["memory_context"] = memory_context
             initial_state["canonical_memory_evidence"] = canonical_memory_evidence
+            if "seeker_guidance" in (ctx.state or {}):
+                initial_state["seeker_guidance"] = ctx.state["seeker_guidance"]
+            if "seeker_context" in (ctx.state or {}):
+                initial_state["seeker_context"] = ctx.state["seeker_context"]
             initial_state["user_id"] = ctx.user_id or "anonymous"
             initial_state["stable_session_id"] = ctx.stable_session_id or "anonymous"
             # Attachment evidence is a per-turn input, separate from personal memory.

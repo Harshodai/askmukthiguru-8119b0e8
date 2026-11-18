@@ -1020,6 +1020,206 @@ async def test_coordinator_confirms_context_only_when_a_probe_returns_data():
         assert got is eligible and bool(confirmed) is confirmed_expected
 
 
+# =========================================================================
+# Milestone M2 Regression & Verification Tests (DEF-R2-01 through DEF-R2-05)
+# =========================================================================
+
+@pytest.mark.asyncio
+async def test_def_r2_01_graph_stage_injects_synthetic_personalize_doc(monkeypatch):
+    """DEF-R2-01: GraphStage constructs synthetic personalize_doc in initial_state['documents']."""
+    from app.pipeline.stages.graph_stage import GraphStage
+
+    clip = _clip_payload(
+        verbatim_text="Awareness sees the movement of thought without following it.",
+        title="Discourse on Stillness",
+        video_id="dQw4w9WgXcQ",
+    )
+    ctx = _graph_ctx(monkeypatch, clip)
+    assert await GraphStage().run(ctx) is None
+    sent_state = ctx.container.standard_graph.ainvoke.call_args[0][0]
+    assert "documents" in sent_state
+    docs = sent_state["documents"]
+    assert len(docs) == 1
+    doc = docs[0]
+    assert doc["text"] == clip["verbatim_text"]
+    assert doc["title"] == clip["title"]
+    assert doc["video_id"] == clip["video_id"]
+    assert doc["speaker"] == clip["speaker"]
+    assert doc["is_verbatim"] is True
+    assert doc["knowledge_source"] == "personalize_clip"
+    assert doc["rerank_score"] == 1.0
+
+
+@pytest.mark.asyncio
+async def test_def_r2_01_retrieve_documents_preserves_and_prepends_personalize_doc():
+    """DEF-R2-01: retrieve_documents preserves and prepends personalize_doc to documents and relevant_docs."""
+    from rag.nodes.retrieval import retrieve_documents
+
+    p_doc = {
+        "text": "Verbatim teaching on observation.",
+        "title": "Observation Teaching",
+        "video_id": "test_vid_123",
+        "knowledge_source": "personalize_clip",
+        "rerank_score": 1.0,
+    }
+    state = {
+        "question": "Please personalize this teaching for me.",
+        "documents": [p_doc],
+        "query_tier": "fast",
+        "intent": "FACTUAL",
+        "general_knowledge_mode": True,
+    }
+
+    result = await retrieve_documents(state)
+    assert "documents" in result
+    assert result["documents"][0] == p_doc
+    assert "relevant_docs" in result
+    assert result["relevant_docs"][0] == p_doc
+
+
+def test_def_r2_01_verification_context_includes_personalize_clip_verbatim():
+    """DEF-R2-01: _verification_context includes personalize_clip verbatim_text in reference context."""
+    from rag.nodes.verification import _verification_context
+
+    clip = {
+        "verbatim_text": "In seeing without judgment, the mind grows silent.",
+        "video_id": "test_vid_abc",
+    }
+    state = {
+        "personalize_clip": clip,
+        "selected_docs": [{"text": "General doctrine about silence."}],
+    }
+    context = _verification_context(state, [])
+    assert clip["verbatim_text"] in context
+    assert "General doctrine about silence." in context
+
+
+@pytest.mark.asyncio
+async def test_def_r2_02_resolve_followup_bypasses_rewriting_on_personalize_turn():
+    """DEF-R2-02: resolve_followup returns {} immediately when personalize_clip is present."""
+    from rag.resolve_followup import resolve_followup
+
+    state = {
+        "question": 'Please personalize this teaching for me: "The witness is unattached."',
+        "chat_history": [{"role": "user", "content": "Tell me about meditation."}],
+        "personalize_clip": {"verbatim_text": "The witness is unattached."},
+    }
+
+    result = await resolve_followup(state)
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_def_r2_03_prepare_user_memory_preserves_user_profile_with_canonical_memory():
+    """DEF-R2-03: prepare_user_memory fetches and retains user_profile alongside canonical memory."""
+    from app.orchestrator_utils import prepare_user_memory
+    from services.user_profile_service import SpiritualLevel, UserProfile
+
+    mock_profile = UserProfile(
+        user_id="11111111-1111-4111-8111-111111111111",
+        created_at=time.time(),
+        updated_at=time.time(),
+        spiritual_level=SpiritualLevel.PRACTITIONER,
+        topics_of_interest=["meditation", "stillness"],
+    )
+    container = MagicMock()
+    container.memory_outbox.active_consent = AsyncMock(return_value={"active": True})
+    container.canonical_memory_integration.prepare_context = AsyncMock(
+        return_value="Seeker has daily breath meditation practice."
+    )
+    container.user_profile.get_or_create_profile = AsyncMock(return_value=mock_profile)
+    container.user_profile.update_profile = AsyncMock()
+    container.user_profile.get_distress_history = AsyncMock(return_value=[])
+
+    mem_ctx, distress, profile, canon_ev = await prepare_user_memory(
+        container=container,
+        user_id="11111111-1111-4111-8111-111111111111",
+        chat_history=[],
+        user_msg_en="Please personalize this teaching for me.",
+    )
+
+    assert "Seeker has daily breath meditation practice." in mem_ctx
+    assert profile is not None
+    assert profile.spiritual_level == SpiritualLevel.PRACTITIONER
+    assert profile.topics_of_interest == ["meditation", "stillness"]
+    assert canon_ev == "Seeker has daily breath meditation practice."
+
+
+@pytest.mark.asyncio
+async def test_def_r2_04_unified_engine_genuine_facet_queries_and_graph_stage_forwarding(monkeypatch):
+    """DEF-R2-04: Unified engine executes facet queries and GraphStage forwards seeker_guidance."""
+    from app.pipeline.stages.graph_stage import GraphStage
+    from services.personalization import UnifiedPersonalizationEngine
+
+    class MockRow:
+        spiritual_readiness = "practitioner"
+        tradition = "advaita"
+        tone = "compassionate"
+        preferred_guru = "Sri Preethaji"
+        language = "en"
+        distress_level = 0
+
+    mock_session = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.first.return_value = MockRow()
+    mock_res.fetchall.return_value = []
+    mock_session.execute = AsyncMock(return_value=mock_res)
+
+    ctx_hydrated = await UnifiedPersonalizationEngine.hydrate_seeker_context(
+        user_id="seeker-456",
+        session=mock_session,
+    )
+    assert ctx_hydrated.is_authenticated is True
+    assert ctx_hydrated.seeker_profile.spiritual_readiness == "practitioner"
+    guidance = UnifiedPersonalizationEngine.format_prompt_guidance(ctx_hydrated)
+    assert "Readiness Level" in guidance or "Readiness:" in guidance
+
+    ctx = _graph_ctx(monkeypatch, _clip_payload())
+    ctx.state["seeker_guidance"] = "[Seeker Context: ID=seeker-456]"
+    ctx.state["seeker_context"] = ctx_hydrated
+
+    await GraphStage().run(ctx)
+    sent_state = ctx.container.standard_graph.ainvoke.call_args[0][0]
+    assert sent_state.get("seeker_guidance") == "[Seeker Context: ID=seeker-456]"
+    assert sent_state.get("seeker_context") == ctx_hydrated
+
+
+@pytest.mark.asyncio
+async def test_def_r2_05_generation_context_engineer_injects_personalization_directive():
+    """DEF-R2-05: context_engineer injects PERSONALIZATION DIRECTIVE when personalize_clip is present."""
+    from rag.nodes.generation import context_engineer
+
+    clip = {
+        "verbatim_text": "Stillness is not the absence of thought, but freedom from its grip.",
+        "video_id": "test_vid_xyz",
+        "title": "Discourse on Stillness",
+        "speaker": "Sri Preethaji",
+        "teacher_id": "sri_preethaji",
+    }
+    state = {
+        "question": "Please personalize this teaching for me.",
+        "personalize_clip": clip,
+        "relevant_docs": [],
+        "chat_history": [],
+        "detected_language": "en",
+        "memory_context": "Seeker often struggles with overthinking during meditation.",
+        "seeker_guidance": "[Seeker Context: Daily meditator]",
+    }
+
+    result = await context_engineer(state)
+    assert "context_layers" in result
+    layers = result["context_layers"]
+    instructions = layers.get("instructions", "")
+    assert "PERSONALIZATION DIRECTIVE" in instructions
+    assert "Gently relate the teacher's verbatim insight" in instructions
+
+    knowledge = layers.get("knowledge", "")
+    assert clip["verbatim_text"] in knowledge
+
+    user_state = layers.get("user_state", "")
+    assert "seeker_guidance" in user_state
+
+
 if __name__ == "__main__":
     import sys
 

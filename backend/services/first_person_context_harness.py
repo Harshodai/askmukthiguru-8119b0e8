@@ -447,7 +447,7 @@ class FirstPersonContextHarness:
         # anchor the window to include the opening anchor span so antecedent pronouns have clear discourse context.
         if hit_index <= 2 and limit >= 2:
             start = 0
-            end = min(len(ordered), max(limit, hit_index + 1))
+            end = min(len(ordered), limit)
         else:
             # Include one preceding span whenever the bound allows it, even for an
             # even-sized window where exact centering would drop it.
@@ -475,15 +475,15 @@ class FirstPersonContextHarness:
                 "severed_lowercase_opener",
             ):
                 head_candidate = self._apply_word_budget(
-                    ordered[: max(limit, hit_index + 1)], hit_ids
+                    ordered[:limit], hit_ids
                 )
                 if not _context_standalone_problem(
                     (s.verbatim_text for s in head_candidate),
                     is_verified_parent=True,
                 ):
-                    return head_candidate
+                    return head_candidate[:limit]
 
-        return candidate
+        return candidate[:limit]
 
     def _apply_word_budget(
         self, spans: tuple[SourceSpan, ...], hit_ids: set[str]

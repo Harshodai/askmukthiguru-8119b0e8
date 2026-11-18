@@ -337,6 +337,7 @@ class Settings(BaseSettings):
     # 600 words: a 5-6 minute discourse excerpt, enough to cover a full teaching
     # arc without overflowing a chat surface. Measured 2026-11-10 on v10 corpus.
     first_person_max_context_words: int = 600
+    first_person_context_min_answer_words: int = 18
     # Optional temporal quality adjustment for fp-context retrieval ranking.
     # Disabled until a reviewed calibration demonstrates that the adjustment
     # improves held-out serving quality without changing evidence eligibility.
@@ -373,7 +374,7 @@ class Settings(BaseSettings):
     # return is span IDs drawn from retrieved clips; every other field in the
     # reply (prose, answer, explanation) is ignored. An unknown ID or malformed
     # reply falls back to the deterministic retrieval order.
-    first_person_context_selector_enabled: bool = True
+    first_person_context_selector_enabled: bool = False
     # Optional selector model override; empty uses the provider default.
     first_person_context_selector_model: str = ""
     # --- FP-primary posture (2026-10-27) ---

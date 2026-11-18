@@ -179,6 +179,12 @@ async def resolve_followup(state: GraphState, config: Optional[RunnableConfig] =
         logger.info("Resolve Follow-up: fast path query, skipping LLM resolution.")
         return {}
 
+    # DEF-R2-02: Bypass follow-up resolution on personalize turns to preserve
+    # the grounded question and verbatim quote intact.
+    if state.get("personalize_clip"):
+        logger.info("Resolve Follow-up: personalize teaching turn active; preserving grounded question.")
+        return {}
+
     chat_history = state.get("chat_history", [])
     question = state["question"]
 

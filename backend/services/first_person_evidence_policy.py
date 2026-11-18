@@ -424,10 +424,15 @@ def _context_standalone_problem(
     try:
         from app.config import settings as _cfg
 
-        _min = int(getattr(_cfg, "first_person_min_answer_words", 23))
+        _min_legacy = int(getattr(_cfg, "first_person_min_answer_words", 23))
+        _min = (
+            0
+            if _min_legacy == 0
+            else int(getattr(_cfg, "first_person_context_min_answer_words", 18))
+        )
         _max = int(getattr(_cfg, "first_person_max_context_words", 600))
     except (ImportError, AttributeError, ValueError, TypeError):
-        _min, _max = 23, 600
+        _min, _max = 18, 600
     _word_count = len(stripped_whole.split()) if stripped_whole else 0
     if _word_count < _min:
         return "too_short"

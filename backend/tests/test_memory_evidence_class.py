@@ -97,7 +97,7 @@ def test_prepare_user_memory_only_emits_evidence_on_the_canonical_branch():
     assert (
         src.count('distress_history, None, ""') + src.count('distress_history, profile, ""') >= 2
     ), "a legacy return path is emitting memory as evidence"
-    assert "distress_history, None, canonical_block" in src, (
+    assert "distress_history, profile, canonical_block" in src, (
         "the canonical branch must emit its block as evidence"
     )
 

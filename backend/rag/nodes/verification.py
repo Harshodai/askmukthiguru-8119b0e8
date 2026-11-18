@@ -141,6 +141,14 @@ def _verification_context(state: dict, fallback: list) -> str:
     docs = _verification_docs(state, fallback)
     context = "\n\n".join(doc_text(doc) for doc in docs)
 
+    # DEF-R2-01: Ensure personalize_clip verbatim text is included in reference context
+    # so LettuceDetect recognizes claims rooted in the teaching clip as supported.
+    personalize_clip = state.get("personalize_clip")
+    if isinstance(personalize_clip, dict):
+        clip_text = str(personalize_clip.get("verbatim_text") or "").strip()
+        if clip_text and clip_text not in context:
+            context = f"{context}\n\n{clip_text}" if context else clip_text
+
     memory_evidence = _trim_memory_evidence(state.get("canonical_memory_evidence"))
     if not memory_evidence:
         return context

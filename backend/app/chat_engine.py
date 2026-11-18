@@ -104,6 +104,7 @@ class ChatResult:
         self.live_logistics_events: list[dict] = []
         self.answer_evidence: Optional[AnswerEvidence] = None
         self.guidance_plan: Optional[GuidancePlan] = None
+        self.route_metadata: Optional[dict[str, Any]] = None
 
 
 class ChatChunk:
@@ -339,6 +340,11 @@ class ChatEngine:
         )
         result.answer_evidence = getattr(pipeline_result, "answer_evidence", None)
         result.guidance_plan = getattr(pipeline_result, "guidance_plan", None)
+        result.route_metadata = (
+            getattr(pipeline_result, "route_metadata", None)
+            if not settings.is_production
+            else None
+        )
 
         if not chat_request.incognito:
             # Content-bearing telemetry is disabled for ephemeral chats.

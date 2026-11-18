@@ -1744,6 +1744,30 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     await emit_status(config, "Composing the response...")
     intent = state.get("intent", "FACTUAL")
     raw_docs = state.get("relevant_docs", [])
+
+    # DEF-R2-01 / DEF-R2-05: Ensure personalize_doc is present in relevant_docs
+    if state.get("personalize_clip"):
+        p_clip = state["personalize_clip"]
+        has_p_doc = any(
+            isinstance(d, dict) and d.get("knowledge_source") == "personalize_clip"
+            for d in raw_docs
+        )
+        if not has_p_doc:
+            p_doc = {
+                "text": str(p_clip.get("verbatim_text") or "").strip(),
+                "title": p_clip.get("title") or "Served Teaching",
+                "source_url": p_clip.get("source_url")
+                or f"https://www.youtube.com/watch?v={p_clip.get('video_id')}",
+                "video_id": p_clip.get("video_id"),
+                "point_id": p_clip.get("point_id"),
+                "speaker": p_clip.get("speaker"),
+                "teacher_id": p_clip.get("teacher_id"),
+                "is_verbatim": True,
+                "knowledge_source": "personalize_clip",
+                "rerank_score": 1.0,
+            }
+            raw_docs = [p_doc] + list(raw_docs)
+
     relevant_docs = sort_docs_litm_aware(raw_docs)
     chat_history = state.get("chat_history", [])
     meditation_step = state.get("meditation_step", 0)
@@ -2003,6 +2027,9 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         user_state += f"Detected Language: {detected_language}\n"
     if memory_context:
         user_state += f"\n{_fence('user_memory', memory_context)}\n"
+    seeker_guidance = state.get("seeker_guidance")
+    if seeker_guidance:
+        user_state += f"\n{_fence('seeker_guidance', seeker_guidance)}\n"
     # Continuation summaries are explicit user-context inputs, not durable transcript
     # replacements. They are bounded here and suppressed for Temporary Chat upstream.
     conversation_summary = cap_to_token_budget(
@@ -2129,10 +2156,19 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
         # Inject instruction in Layer 4 (Instructions)
         instructions += f"\n14. COST STEERING — The conversation history is long. You MUST be extremely concise and answer in under {COST_STEERED_BREVITY_LIMIT} words."
 
+    # DEF-R2-05: Personalization Generation Prompt Directive
+    if state.get("personalize_clip"):
+        instructions += (
+            "\nPERSONALIZATION DIRECTIVE: You are personalizing the provided teaching for this seeker. "
+            "Gently relate the teacher's verbatim insight to the seeker's personal reflections, practices, and situation "
+            "as captured in their saved memory. Clarify how the teaching illuminates their inner state without judging, "
+            "and offer practical contemplation based strictly on the teaching's principles."
+        )
+
     # The instructions are always English text, so they are budgeted as English.
     # Budgeting them with the seeker's language ratio (e.g. Kannada) cut every
     # item after 8 -- the adversarial-premise and CCR rules -- for Indic seekers.
-    instructions = cap_to_token_budget(instructions, 900, "en")
+    instructions = cap_to_token_budget(instructions, 1200, "en")
 
     # -------------------------------------------------------------------------
     # 1.9 Structured Prompt Assembly — labeled sections built from relevant_docs

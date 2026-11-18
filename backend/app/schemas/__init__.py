@@ -467,6 +467,10 @@ class ChatResponse(BaseModel):
         default=None,
         description="EU AI Act Article 50 provenance manifest",
     )
+    route_metadata: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="Diagnostic routing and abstain metadata for non-production harnesses and eval callers",
+    )
 
 
 class LiveLogisticsEvent(BaseModel):

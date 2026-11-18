@@ -23,7 +23,15 @@ import importlib.util
 import json
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+def _find_repo_root() -> Path:
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        if (parent / "scripts" / "ops" / "collection_fingerprint.py").exists():
+            return parent
+    raise FileNotFoundError("Could not find repository root containing scripts/ops")
+
+
+REPO_ROOT = _find_repo_root()
 SCRIPT = REPO_ROOT / "scripts" / "ops" / "collection_fingerprint.py"
 
 

@@ -50,6 +50,7 @@ from domain.first_person_context import EDGE_ANNOTATION_VERSION as _FP_EDGE_VERS
 from domain.first_person_context import PARENT_VERSION as _FP_PARENT_VERSION
 from domain.first_person_context import SCHEMA_VERSION as _FP_CONTEXT_SCHEMA_VERSION
 from domain.first_person_context import (
+    AnswerRole,
     CitationSpan,
     HarnessDecision,
     ParentContext,
@@ -3159,6 +3160,11 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             for citation in citations:
                 source_span_id = str(citation.get("source_span_id") or "")
                 raw_index = citation.get("source_span_index")
+                is_predecessor = bool(
+                    citation.get("is_predecessor")
+                    or citation.get("answer_role") in ("antecedent", AnswerRole.ANTECEDENT)
+                    or str(citation.get("parent_unit_id") or "") != parent_id
+                )
                 if (
                     not source_span_id
                     or isinstance(raw_index, bool)
@@ -3166,7 +3172,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     or str(citation.get("video_id") or "") != video_id
                     or str(citation.get("guru_id") or "") != guru_id
                     or str(citation.get("teacher_id") or "") != guru_id
-                    or str(citation.get("parent_unit_id") or "") != parent_id
+                    or (str(citation.get("parent_unit_id") or "") != parent_id and not is_predecessor)
                     or str(citation.get("speaker_id") or "") != speaker_id
                     or citation.get("speaker_verified") is not True
                     or citation.get("speaker_role") != "guru"
@@ -3178,10 +3184,22 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     break
                 span_ids.append(source_span_id)
                 span_indices.append(raw_index)
+            same_parent_indices = [
+                citation.get("source_span_index")
+                for citation in citations
+                if not (
+                    citation.get("is_predecessor")
+                    or citation.get("answer_role") in ("antecedent", AnswerRole.ANTECEDENT)
+                    or str(citation.get("parent_unit_id") or "") != parent_id
+                )
+            ]
             if (
                 not same_parent_verified_source
                 or len(set(span_ids)) != len(span_ids)
-                or span_indices != list(range(span_indices[0], span_indices[0] + len(span_indices)))
+                or (
+                    same_parent_indices
+                    and same_parent_indices != list(range(same_parent_indices[0], same_parent_indices[0] + len(same_parent_indices)))
+                )
             ):
                 continue
             selection_id = f"{video_id}:{guru_id}:{parent_id}:{span_id}"
@@ -3319,7 +3337,11 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         ) or "unverified clip"
         title = f"Discourse by {speaker_name}"
         label = cite_span.label if cite_span else None
-        return {
+        is_predecessor = bool(
+            getattr(span, "is_predecessor", False)
+            or getattr(span, "answer_role", None) in ("antecedent", AnswerRole.ANTECEDENT)
+        )
+        cit_dict = {
             # The Qdrant point id (UUIDv5 of the span id), NOT the sha256 span
             # id: the servability re-check and the quality allow/block lists
             # are keyed by point id, and a sha256 is not a valid Qdrant point
@@ -3406,6 +3428,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             **{key: getattr(span, key) for key in (*AUTOMATED_PROVENANCE_KEYS, *HUMAN_REVIEW_KEYS)},
             **transcript_label(span.verbatim_text, span.caption_status),
         }
+        if is_predecessor:
+            cit_dict["is_predecessor"] = True
+        return cit_dict
 
     @staticmethod
     def _club_consecutive_citations(citations: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -5031,6 +5056,11 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     for span in served_spans:
                         c_span = cite_by_id.get(span.source_span_id)
                         cit_dict = self._build_context_citation(span, c_span, confidence=confidence)
+                        if (
+                            validated_predecessor is not None
+                            and span.source_span_id == validated_predecessor.predecessor.source_span_id
+                        ):
+                            cit_dict["is_predecessor"] = True
                         # The gate's YouTube availability check is sync network + Redis
                         # I/O; keep it off the request loop.
                         if not await _io_thread(

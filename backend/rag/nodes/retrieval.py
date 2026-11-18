@@ -1582,6 +1582,30 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
     if contract_err:
         return contract_err
 
+    # DEF-R2-01: Preserve synthetic personalize_doc from initial state
+    personalize_docs = [
+        d
+        for d in (state.get("documents") or [])
+        if isinstance(d, dict) and d.get("knowledge_source") == "personalize_clip"
+    ]
+    if not personalize_docs and state.get("personalize_clip"):
+        p_clip = state["personalize_clip"]
+        personalize_docs = [
+            {
+                "text": str(p_clip.get("verbatim_text") or "").strip(),
+                "title": p_clip.get("title") or "Served Teaching",
+                "source_url": p_clip.get("source_url")
+                or f"https://www.youtube.com/watch?v={p_clip.get('video_id')}",
+                "video_id": p_clip.get("video_id"),
+                "point_id": p_clip.get("point_id"),
+                "speaker": p_clip.get("speaker"),
+                "teacher_id": p_clip.get("teacher_id"),
+                "is_verbatim": True,
+                "knowledge_source": "personalize_clip",
+                "rerank_score": 1.0,
+            }
+        ]
+
     query_tier = state.get("query_tier", "standard")
     retrieval_started = time.perf_counter()
     retrieval_stage_times: dict[str, Any] = {}
@@ -1649,6 +1673,8 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
     ):
         base_question = state.get("rewritten_query") or state["question"]
         tour_docs = await query_neo4j_guided_tour(base_question)
+        if personalize_docs:
+            tour_docs = personalize_docs + [d for d in tour_docs if d not in personalize_docs]
         lane_consumed = round((time.perf_counter() - retrieval_started) * 1000, 1)
         retrieval_stage_times["total_logged_ms"] = lane_consumed
         retrieval_stage_times["retrieval_lane"] = retrieval_lane
@@ -1714,6 +1740,8 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
                 "lane_budget_consumed_ms": elapsed_ms,
             }
         )
+        if personalize_docs:
+            general_docs = personalize_docs + [d for d in general_docs if d not in personalize_docs]
         logger.info(
             "General-knowledge retrieval completed with %d approved web result(s) in %.1fms",
             len(general_docs),
@@ -2725,9 +2753,12 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
     except Exception as _rg_err:
         logger.warning("[retrieval] Invariant X40 rights gate warning: %s", _rg_err)
 
+    if personalize_docs:
+        all_docs = personalize_docs + [d for d in all_docs if d not in personalize_docs]
+
     await emit_teaching_preview(config, all_docs)
 
-    return {
+    res_dict = {
         "documents": all_docs,
         "raw_documents": raw_docs_copy,
         "query_tier": query_tier,
@@ -2752,3 +2783,7 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
             **lane_trace,
         ),
     }
+    if personalize_docs:
+        existing_rel = [d for d in (state.get("relevant_docs") or []) if d not in personalize_docs]
+        res_dict["relevant_docs"] = personalize_docs + existing_rel
+    return res_dict

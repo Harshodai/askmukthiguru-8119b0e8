@@ -21,7 +21,7 @@
   "schema": "fp-local-review-contract-v1",
   "serving_contract": {
     "path": "backend/config/first_person_serving_contract.json",
-    "sha256": "3d3b1256e88540d1144d839000004afcb82f10c165261ff08e194a69dc7fa8b0"
+    "sha256": "bb5a353804faf7c41edcf5a089392343ea25ea0d50cbe8f9b2c8be2450bbda20"
   },
   "speaker_conflicts": {
     "path": "audits/evidence/public_release_phase4_speaker_conflicts_v2_2026-10-22.jsonl",
