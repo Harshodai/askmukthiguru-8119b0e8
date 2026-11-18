@@ -1424,6 +1424,12 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Pin:** `src/components/chat/VoiceModeModal.tsx`, `src/hooks/useVoiceConversation.ts`, `src/components/chat/VoiceOrb.tsx`, `backend/app/api/speech.py:73-100`, `backend/tests/test_speech_endpoints.py`.
 - **Rule:** voice interaction layers must remain decoupled from message transport via FSM abstractions; spoken audio must synthesize verified verbatim context rather than ungrounded conversational filler.
 
+### L-DUAL-COMPOSER-PROP-SYNCHRONIZATION-1. Dual-instance chat composers require mirrored prop binding and adjacent action placement for unified discovery.
+- **What:** In React chat layouts that conditionally render separate composer instances for empty/landing states versus active conversation threads, new input triggers (like `onOpenVoiceMode`) can be inadvertently bound to only one instance, leaving the initial landing composer missing essential action affordances. Furthermore, placing full-duplex voice triggers inside nested dropdowns reduces discovery compared to anchoring directly adjacent to the primary submit button.
+- **Fix:** Synchronized `onOpenVoiceMode={handleOpenVoiceMode}` across both landing (`line 2681`) and active (`line 2870`) `ChatComposer` instances in `ChatInterface.tsx`. Positioned the Voice Mode trigger immediately adjacent to `PromptInputSubmit` in `ChatComposer.tsx` with shared 44px touch targets and `rounded-xl` geometry, and validated dual-mode rendering via headless Playwright screenshot automation.
+- **Pin:** `src/components/chat/ChatComposer.tsx:420-435`, `src/components/chat/ChatInterface.tsx:2681,2870`.
+- **Rule:** whenever a component is rendered across multiple conditional layout branches (landing vs. active), newly introduced feature callbacks must be explicitly wired to all branches and verified across viewport states.
+
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.
