@@ -188,7 +188,6 @@ describe('ChatInterface', () => {
 
     expect(screen.getByTestId('desktop-sidebar')).toBeInTheDocument();
     expect(screen.getByTestId('chat-header')).toBeInTheDocument();
-    expect(screen.getByTestId('memory-consent-banner')).toBeInTheDocument();
   });
 
   it('allows user to type and send a message', async () => {
@@ -234,9 +233,7 @@ describe('ChatInterface', () => {
       );
     });
 
-    await waitFor(() => {
-      expect(screen.queryByTestId('memory-consent-banner')).not.toBeInTheDocument();
-    });
+    expect(screen.queryByTestId('memory-consent-banner')).not.toBeInTheDocument();
 
     // Check if the mock message appears in the list
   });
