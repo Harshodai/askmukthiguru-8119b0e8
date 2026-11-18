@@ -88,9 +88,10 @@ def test_write_refuses_a_finished_run(tmp_path: Path) -> None:
 
 def test_report_tool_reads_the_producer_key_names() -> None:
     """The producer and the validity rule must agree on the key names, not just the shape."""
-    report = (REPO_ROOT / "backend" / "scripts" / "ops" / "graded_registered_report.py").read_text(
-        encoding="utf-8"
-    )
+    candidate = REPO_ROOT / "scripts" / "ops" / "graded_registered_report.py"
+    if not candidate.exists():
+        candidate = REPO_ROOT / "backend" / "scripts" / "ops" / "graded_registered_report.py"
+    report = candidate.read_text(encoding="utf-8")
     assert "collection_fingerprint" in report
     produced = cf.fingerprint_from_ids(["x"])
     assert set(produced) == {"points", "ids_sha256"}

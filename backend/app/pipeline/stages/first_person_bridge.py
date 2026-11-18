@@ -70,6 +70,29 @@ _DISTRESS_DECLINE_LEVEL = 2
 # A mutable cell, so the note needs no ``global`` statement.
 _HYDE_PROVIDER_WARNED: dict[str, bool] = {"said": False}
 
+# Deterministic in-memory HyDE caching to eliminate LLM jitter and timeouts (T-R1)
+_HYDE_CACHE: dict[str, tuple[str, list[float], float]] = {}  # query_hash -> (hyde_text, vector, expiry)
+_HYDE_CACHE_MAX_SIZE = 1000
+_HYDE_CACHE_TTL_S = 86400.0 * 7  # 7 days
+
+
+def _get_cached_hyde(query_hash: str) -> tuple[str, list[float]] | None:
+    now = time.monotonic()
+    entry = _HYDE_CACHE.get(query_hash)
+    if entry:
+        text, vec, expiry = entry
+        if expiry > now:
+            return text, vec
+        _HYDE_CACHE.pop(query_hash, None)
+    return None
+
+
+def _set_cached_hyde(query_hash: str, text: str, vec: list[float]) -> None:
+    if len(_HYDE_CACHE) >= _HYDE_CACHE_MAX_SIZE:
+        oldest_key = next(iter(_HYDE_CACHE))
+        _HYDE_CACHE.pop(oldest_key, None)
+    _HYDE_CACHE[query_hash] = (text, vec, time.monotonic() + _HYDE_CACHE_TTL_S)
+
 
 def _hyde_provider(container: Any) -> Any:
     """The container service that can write a HyDE passage, or ``None``.
@@ -990,44 +1013,56 @@ class FirstPersonBridgeStage(Stage):
         # contract is unchanged. Fail-open: timeout or error falls back to original.
         retrieval_dense = dense  # default: retrieval uses original-query vector
         if _hyde_enabled and _is_en and not _is_distress:
-            try:
-                import asyncio as _asyncio
-
-                _llm = _hyde_provider(container)
-                if _llm is None:
-                    # Not silent: the old code checked one attribute and skipped HyDE
-                    # without a trace when it was absent.
-                    if not _HYDE_PROVIDER_WARNED["said"]:
-                        _HYDE_PROVIDER_WARNED["said"] = True
-                        logger.info(
-                            "[FirstPersonBridge] No container provider implements "
-                            "generate_hyde (checked llm, ollama, openrouter, nim); "
-                            "HyDE is skipped for this deployment."
-                        )
-                if _llm is not None:
-                    hyde_text = await _asyncio.wait_for(
-                        _llm.generate_hyde(question=retrieval_query),
-                        timeout=4.5,
-                    )
-                    if hyde_text and len(hyde_text.strip()) > 10:
-                        # Embed HyDE text + original query (keeps sparse signal).
-                        _hyde_text_to_embed = f"{hyde_text.strip()} {retrieval_query}"
-                        _hyde_encoded = await container.embedding.encode_single_full_async(
-                            _hyde_text_to_embed
-                        )
-                        _hyde_dense = _dense_vector(_hyde_encoded, settings.embedding_dimension)
-                        if _hyde_dense is not None:
-                            retrieval_dense = _hyde_dense
-                            logger.info(
-                                "[FirstPersonBridge] HyDE hypothetical generated (%d chars); "
-                                "using HyDE embedding for retrieval only.",
-                                len(hyde_text),
-                            )
-            except Exception as _hyde_exc:
-                # Fail-open: timeout, circuit-open, or any error → original query.
-                logger.debug(
-                    "[FirstPersonBridge] HyDE generation skipped (fail-open): %s", _hyde_exc
+            _q_norm = retrieval_query.strip().lower()
+            _q_hash = hashlib.sha256(_q_norm.encode("utf-8")).hexdigest()
+            _cached = _get_cached_hyde(_q_hash)
+            if _cached is not None:
+                _, cached_vec = _cached
+                retrieval_dense = cached_vec
+                logger.info(
+                    "[FirstPersonBridge] HyDE cache hit for query hash %s; using deterministic cached vector.",
+                    _q_hash[:8],
                 )
+            else:
+                try:
+                    import asyncio as _asyncio
+
+                    _llm = _hyde_provider(container)
+                    if _llm is None:
+                        # Not silent: the old code checked one attribute and skipped HyDE
+                        # without a trace when it was absent.
+                        if not _HYDE_PROVIDER_WARNED["said"]:
+                            _HYDE_PROVIDER_WARNED["said"] = True
+                            logger.info(
+                                "[FirstPersonBridge] No container provider implements "
+                                "generate_hyde (checked llm, ollama, openrouter, nim); "
+                                "HyDE is skipped for this deployment."
+                            )
+                    if _llm is not None:
+                        hyde_text = await _asyncio.wait_for(
+                            _llm.generate_hyde(question=retrieval_query),
+                            timeout=5.0,
+                        )
+                        if hyde_text and len(hyde_text.strip()) > 10:
+                            # Embed HyDE text + original query (keeps sparse signal).
+                            _hyde_text_to_embed = f"{hyde_text.strip()} {retrieval_query}"
+                            _hyde_encoded = await container.embedding.encode_single_full_async(
+                                _hyde_text_to_embed
+                            )
+                            _hyde_dense = _dense_vector(_hyde_encoded, settings.embedding_dimension)
+                            if _hyde_dense is not None:
+                                retrieval_dense = _hyde_dense
+                                _set_cached_hyde(_q_hash, hyde_text.strip(), _hyde_dense)
+                                logger.info(
+                                    "[FirstPersonBridge] HyDE hypothetical generated (%d chars); "
+                                    "cached and using HyDE embedding for retrieval only.",
+                                    len(hyde_text),
+                                )
+                except Exception as _hyde_exc:
+                    # Fail-open: timeout, circuit-open, or any error → original query.
+                    logger.debug(
+                        "[FirstPersonBridge] HyDE generation skipped (fail-open): %s", _hyde_exc
+                    )
 
         user_lang = str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
 

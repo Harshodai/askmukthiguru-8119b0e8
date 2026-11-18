@@ -1813,3 +1813,17 @@ def test_hyde_provider_helper_is_the_canonical_resolver_not_a_copy():
     wrapper = _HydeCapable()
     container = SimpleNamespace(llm=wrapper, ollama=wrapper, openrouter=_NoHyde())
     assert bridge_module._hyde_provider(container) is wrapper
+
+
+def test_hyde_cache_stores_and_returns_deterministic_vector():
+    """T-R1: Cached HyDE vector is returned without calling generate_hyde again."""
+    q_hash = "test_hash_12345"
+    sample_vec = [0.123] * 1024
+    bridge_module._set_cached_hyde(q_hash, "hypothetical teaching", sample_vec)
+
+    cached = bridge_module._get_cached_hyde(q_hash)
+    assert cached is not None
+    text, vec = cached
+    assert text == "hypothetical teaching"
+    assert vec == sample_vec
+
