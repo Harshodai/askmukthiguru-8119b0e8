@@ -170,8 +170,8 @@ const QueryErrorBoundary = ({ children }: { children: React.ReactNode }) => (
 );
 
 const DebugLayout = () => (
-  <div id="debug-layout">
-    <main id="main-content" tabIndex={-1}>
+  <div id="debug-layout" className="h-full w-full">
+    <main id="main-content" tabIndex={-1} className="h-full w-full">
       <Outlet />
     </main>
   </div>

@@ -171,7 +171,7 @@ const ChatPage = () => {
       {/* The banner is a sibling of a full-height ChatInterface, so it has to
           share the viewport with it — otherwise it pushes the chat (and the
           sidebar footer / user menu) below the fold whenever it appears. */}
-      <div className="h-dvh flex flex-col">
+      <div className="h-dvh max-h-dvh flex flex-col overflow-hidden">
         <BackendHealthBanner />
         <ChatInterface />
       </div>

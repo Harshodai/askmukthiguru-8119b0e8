@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { useProfile } from '@/hooks/useProfile';
 import { translateText } from '@/lib/aiService';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
-import { InlineActions, EngagementCard } from './InlineActions';
+import { EngagementCard } from './InlineActions';
 import { FacultyReviewGate } from './FacultyReviewGate';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { createPortal } from 'react-dom';
@@ -1037,18 +1037,32 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         .filter(Boolean)
         .join('\n\n');
       if (!quote || !teachingBody) return false;
-      const normalize = (text: string) =>
+
+      const stripAttributionHeader = (text: string) =>
         text
+          .replace(/^(?:\*{1,2}|_{1,2})?(?:sri\s+(?:preethaji|krishnaji|bhagavan|amma))(?:\*{1,2}|_{1,2})?[^•\n·]*[•·]?[^\n]*\n+/i, '')
+          .replace(/^\[(?:sri\s+(?:preethaji|krishnaji|bhagavan|amma))[^\]]*\]\s*/i, '');
+
+      const normalize = (text: string) =>
+        stripAttributionHeader(text)
           .replace(/^Related,\s*not a direct answer:?\s*/i, '')
           .replace(/^["'“”‘’«»]+|["'“”‘’«»]+$/g, '')
+          .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '')
           .replace(/\s+/g, ' ')
           .trim()
           .toLowerCase();
+
       const normBody = normalize(teachingBody);
       const normQuote = normalize(quote);
       if (!normBody || !normQuote) return false;
-      if (editorialSet) return normBody === normQuote;
-      return normBody === normQuote || normQuote.startsWith(normBody) || normBody.startsWith(normQuote);
+      if (editorialSet) return normBody === normQuote || normQuote.includes(normBody) || normBody.includes(normQuote);
+      return (
+        normBody === normQuote ||
+        normQuote.startsWith(normBody) ||
+        normBody.startsWith(normQuote) ||
+        normBody.includes(normQuote) ||
+        normQuote.includes(normBody)
+      );
     }, [guruTeachingGroups, editorialSet, teachingBody]);
 
     const markdownComponents = useMemo(() => ({
@@ -1521,8 +1535,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             <AbstainHelpCard onAction={onAction} className="mt-3.5" />
                           )}
 
-                          {/* Attached directly beneath Guru words: Playable source-recording strip */}
-                          {isGuru && !isStreaming && !message.error && primaryDiscourseCitation && !isCrisisAnswer(message.content) && (
+                          {/* Attached directly beneath Guru words: Playable source-recording strip (only when not already in GuruTeachingCard) */}
+                          {isGuru && !isStreaming && !message.error && primaryDiscourseCitation && !isCrisisAnswer(message.content) && guruTeachingGroups.length === 0 && (
                             <DiscourseAudioStrip
                               citation={primaryDiscourseCitation}
                               onOpenVideoModal={(c) => {
@@ -1694,19 +1708,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     <p className="text-muted-foreground/70">{t('chat.personalization.privateMemoryNotShown')}</p>
                   </div>
                 </details>
-              )}
-
-              {/* Inline action buttons for the latest guru message only.
-                  Suppressed on crisis/helpline answers and first-person abstain. */}
-              {isGuru && isLastGuru && message.content && !isStreaming && onAction && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22, delay: 0.04 }}
-                  className="w-full"
-                >
-                  <InlineActions messageContent={message.content} onAction={onAction} />
-                </motion.div>
               )}
 
               {/* Engagement card: "Did this help?" — shown for the last guru answer.

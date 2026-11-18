@@ -9,14 +9,12 @@ import {
   HelpCircle,
   Compass,
   BookOpen,
-  Network,
   ArrowRight,
   User,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { UserMenu } from '@/components/common/UserMenu';
-import { WhatsAppButton } from '@/components/common/WhatsAppButton';
 import { EkamLotusIcon } from '@/components/common/EkamLinkButton';
 import { useProfile } from '@/hooks/useProfile';
 import { getInitials } from '@/lib/profileStorage';
@@ -32,7 +30,6 @@ export const Navbar = () => {
     { href: '#how-it-works', label: t('nav.howItWorks'), icon: HelpCircle },
     { href: '#practices', label: t('nav.practices'), icon: Compass },
     { href: '#wisdom', label: t('nav.wisdom', 'Wisdom'), icon: BookOpen },
-    { href: '/knowledge-graph', label: t('nav.wisdomMap', 'Wisdom Map'), isRoute: true, icon: Network },
     {
       href: 'https://www.ekam.org',
       label: 'Ekam',
@@ -118,18 +115,6 @@ export const Navbar = () => {
 
               {/* Action Group */}
               <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-                <Link
-                  to="/chat"
-                  className="hidden md:inline-flex items-center justify-center min-h-[38px] px-5 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold rounded-full text-xs sm:text-sm whitespace-nowrap shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2"
-                >
-                  {t('nav.startChat')}
-                </Link>
-
-                {/* WhatsApp Community Action */}
-                <div className="hidden md:flex items-center justify-center">
-                  <WhatsAppButton data-testid="navbar-whatsapp-button" />
-                </div>
-
                 {/* User Menu (Desktop) */}
                 <div className="hidden md:flex items-center justify-center">
                   <UserMenu />
@@ -298,14 +283,8 @@ export const Navbar = () => {
                   </div>
                 </a>
 
-                {/* Action Footer: WhatsApp & Start Chat */}
-                <div className="pt-2 pb-6 space-y-2.5">
-                  <WhatsAppButton
-                    variant="pill"
-                    className="w-full justify-center h-11"
-                    data-testid="navbar-mobile-whatsapp-button"
-                    onClick={() => setIsOpen(false)}
-                  />
+                {/* Action Footer: Start Chat */}
+                <div className="pt-2 pb-6">
                   <Link
                     to="/chat"
                     onClick={() => setIsOpen(false)}

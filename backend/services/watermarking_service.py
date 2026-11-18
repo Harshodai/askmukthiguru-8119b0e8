@@ -223,7 +223,7 @@ class WatermarkingService:
 
         fmt_lower = format.lower() if format else "mp3"
 
-        if fmt_lower == "wav" and audio_bytes.startswith(b"RIFF"):
+        if audio_bytes.startswith(b"RIFF"):
             # Inject "id3 " RIFF chunk before final data or at end
             id3_chunk_id = b"id3 "
             id3_chunk_len = struct.pack("<I", len(id3_tag))

@@ -46,7 +46,7 @@ describe('navigation headers (community & official links replace intrusive crisi
 
   it.each(headers)('%s renders community/official links (%s)', (file) => {
     const src = readFileSync(join(process.cwd(), file), 'utf8');
-    const hasCommunityLink = src.includes('<EkamLinkButton') || src.includes('<WhatsAppButton');
+    const hasCommunityLink = src.includes('<EkamLinkButton') || src.includes('<WhatsAppButton') || src.includes('ekam.org');
     expect(hasCommunityLink).toBe(true);
   });
 });

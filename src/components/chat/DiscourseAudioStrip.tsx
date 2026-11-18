@@ -184,7 +184,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
               <span className="font-serif text-xs font-semibold text-foreground truncate">
                 {effectiveSpeaker}
               </span>
-              <span className="rounded-full bg-saffron-gold/20 px-1.5 py-0.2 text-[9px] font-medium text-saffron-gold uppercase tracking-wider">
+              <span className="rounded-full bg-saffron-gold/20 px-1.5 py-0.5 text-[9px] font-medium text-saffron-gold uppercase tracking-wider whitespace-nowrap shrink-0">
                 Source clip
               </span>
             </div>

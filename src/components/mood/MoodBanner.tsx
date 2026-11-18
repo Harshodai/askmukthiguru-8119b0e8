@@ -29,13 +29,21 @@ export const MoodBanner = ({ isLandingMode = true }: MoodBannerProps) => {
   const [journey, setJourney] = useState<JourneyState | null>(() => getJourney());
 
   useEffect(() => {
-    const snooze = parseInt(localStorage.getItem(SNOOZE_KEY) ?? '0', 10) || 0;
-    const lastMood = parseInt(localStorage.getItem('askmukthiguru_last_mood_checkin') ?? '0', 10) || 0;
-    const now = Date.now();
-    if (now - snooze > SNOOZE_MS && now - lastMood > RECENT_MS) {
-      setShowBanner(true);
+    const today = new Date().toISOString().slice(0, 10);
+    const checkedInToday = localStorage.getItem(`askmukthiguru_daily_arrival_${today}`);
+    if (!checkedInToday) {
+      const timer = setTimeout(() => setShowModal(true), 1200);
+      return () => clearTimeout(timer);
     }
   }, []);
+
+  const handleModalClose = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      localStorage.setItem(`askmukthiguru_daily_arrival_${today}`, 'true');
+    } catch { /* storage quota */ }
+    setShowModal(false);
+  };
 
   // A completed practice (the check-in no longer fires this event) finishes that step.
   useEffect(() => {
@@ -173,7 +181,7 @@ export const MoodBanner = ({ isLandingMode = true }: MoodBannerProps) => {
           </div>
         </aside>
       )}
-      <MoodCheckIn isOpen={showModal} onClose={() => setShowModal(false)} />
+      <MoodCheckIn isOpen={showModal} onClose={handleModalClose} />
     </>
   );
 };

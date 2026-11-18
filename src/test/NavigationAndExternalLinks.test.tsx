@@ -84,9 +84,8 @@ describe('Navbar updates', () => {
     expect(screen.getByTestId('navbar-ekam-button')).toBeInTheDocument();
     expect(screen.getByTestId('navbar-ekam-button')).toHaveAttribute('href', 'https://www.ekam.org');
 
-    // Assert exactly 1 WhatsApp button exists (no mobile/desktop duplication)
-    const waButtons = screen.getAllByTestId('navbar-whatsapp-button');
-    expect(waButtons).toHaveLength(1);
+    // Assert WhatsApp button is removed from landing page navbar (both desktop and mobile)
+    expect(screen.queryByTestId('navbar-whatsapp-button')).not.toBeInTheDocument();
     expect(screen.queryByTestId('navbar-mobile-whatsapp-button')).not.toBeInTheDocument();
 
     // Assert GetHelpNow is removed

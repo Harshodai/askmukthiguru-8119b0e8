@@ -308,10 +308,12 @@ async def text_to_speech_endpoint(
                         },
                     )
 
+                    is_wav = raw_audio_bytes.startswith(b"RIFF")
+                    actual_format = "wav" if is_wav else "mp3"
                     tagged_audio_bytes = WatermarkingService.inject_audio_provenance(
                         audio_bytes=raw_audio_bytes,
                         manifest=manifest,
-                        format="mp3",
+                        format=actual_format,
                     )
                     tagged_b64 = base64.b64encode(tagged_audio_bytes).decode("ascii")
 
@@ -331,7 +333,8 @@ async def text_to_speech_endpoint(
                     return {
                         "audio": tagged_b64,
                         "audio_base64": tagged_b64,
-                        "format": "mp3",
+                        "format": actual_format,
+                        "mime_type": f"audio/{actual_format}",
                         "provenance": manifest.model_dump(),
                     }
                 else:

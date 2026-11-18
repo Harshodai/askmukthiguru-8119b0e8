@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mic, MicOff } from 'lucide-react';
+import { X, Mic, MicOff, Sparkles, Wind } from 'lucide-react';
 import { recordMoodCheckIn, getMeditationStats } from '@/lib/meditationStorage';
 import { startJourney } from '@/lib/dailyJourney';
 import { practices } from '@/lib/practicesContent';
@@ -53,6 +53,24 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
   const voice = useVoiceInput();
   const mic = micHook ? micHook() : voice;
 
+  const [breathePhase, setBreathePhase] = useState<'inhale' | 'exhale'>('inhale');
+  const [selectedPractices, setSelectedPractices] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const interval = setInterval(() => {
+      setBreathePhase((prev) => (prev === 'inhale' ? 'exhale' : 'inhale'));
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
+
+  const MEDITATION_OPTIONS = [
+    { id: 'soul-sync', label: 'Soul Sync', icon: '🌿' },
+    { id: 'serene-mind', label: 'Serene Mind', icon: '🌸' },
+    { id: 'beautiful-state', label: 'Beautiful State', icon: '✨' },
+    { id: 'daily-reflection', label: 'Daily Reflection', icon: '🧘' },
+  ];
+
   const suggestedPractice = useMemo(() => {
     if (!mood) return undefined;
     const slug = MOOD_TO_PRACTICE[mood];
@@ -80,6 +98,15 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
     setSaveError(false);
     try {
       await recordMoodCheckIn(mood, reflection.slice(0, 200) || undefined);
+      // Mark daily arrival completed for today
+      const today = new Date().toISOString().slice(0, 10);
+      try {
+        localStorage.setItem(`askmukthiguru_daily_arrival_${today}`, 'true');
+        if (selectedPractices.length > 0) {
+          localStorage.setItem(`askmukthiguru_practices_today_${today}`, JSON.stringify(selectedPractices));
+        }
+      } catch { /* storage quota */ }
+
       // Only a confirmed save starts the journey.
       startJourney(mood, suggestedPractice?.slug);
       setSubmitted(true);
@@ -150,9 +177,28 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
               </p>
               <h2 className="text-lg font-medium text-foreground mb-1">{t('mood.subtitle')}</h2>
 
+              {/* Sacred Pre-Arrival Breath Guidance */}
+              <div className="my-3 py-2 px-3 rounded-2xl bg-ojas/8 border border-ojas/25 flex items-center gap-3 text-left">
+                <motion.div
+                  animate={{ scale: breathePhase === 'inhale' ? [1, 1.25] : [1.25, 1], opacity: [0.75, 1, 0.75] }}
+                  transition={{ duration: 4, ease: 'easeInOut' }}
+                  className="w-8 h-8 rounded-full bg-gradient-to-br from-ojas to-saffron-gold flex items-center justify-center text-primary-foreground shadow-sm shrink-0"
+                >
+                  <Wind className="w-4 h-4" />
+                </motion.div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-ojas">
+                    {breathePhase === 'inhale' ? 'Take a slow, deep conscious breath in…' : 'Exhale gently… release all tension'}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/80 leading-tight">
+                    "Pause your mind, breathe with awareness, and arrive in the sacred present."
+                  </p>
+                </div>
+              </div>
+
               {!submitted ? (
                 <>
-                  <div className="flex justify-center gap-3 mt-5">
+                  <div className="flex justify-center gap-3 mt-3">
                     {MOODS.map((m) => (
                       <button
                         key={m.id}
@@ -175,6 +221,37 @@ export const MoodCheckIn = ({ isOpen, onClose, micHook = null }: MoodCheckInProp
                       {t('mood.streakRooting', '{{count}} day of consistent reflection', { count: streakDays, defaultValue_other: '{{count}} days of consistent reflection' })}
                     </Badge>
                   )}
+
+                  {/* Meditations completed today */}
+                  <div className="mt-3 text-left">
+                    <label className="block text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-wider mb-1.5">
+                      Meditations practiced today
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {MEDITATION_OPTIONS.map((opt) => {
+                        const isSelected = selectedPractices.includes(opt.id);
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPractices((prev) =>
+                                isSelected ? prev.filter((id) => id !== opt.id) : [...prev, opt.id],
+                              );
+                            }}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                              isSelected
+                                ? 'bg-ojas text-primary-foreground border-ojas shadow-xs scale-[1.02]'
+                                : 'bg-muted/40 text-foreground/80 border-border/50 hover:bg-muted/70'
+                            }`}
+                          >
+                            <span className="mr-1">{opt.icon}</span>
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
                   <label className="block text-[10px] font-semibold text-muted-foreground/80 uppercase tracking-wider mt-5 mb-1 text-left">
                     {t('mood.reflectionLabel')}

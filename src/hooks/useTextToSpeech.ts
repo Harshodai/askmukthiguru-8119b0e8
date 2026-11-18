@@ -236,7 +236,8 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         currentTextRef.current = text;
         sentencesRef.current = splitIntoSentences(text);
 
-        const audioUrl = `data:audio/mp3;base64,${data.audio}`;
+        const format = data.format || (data.audio?.startsWith('UklGR') ? 'wav' : 'mp3');
+        const audioUrl = `data:audio/${format};base64,${data.audio}`;
         const audio = new Audio(audioUrl);
         sarvamAudioRef.current = audio;
 
