@@ -1757,7 +1757,7 @@ def _run_with_scorer(monkeypatch, fake_select):
 
 
 def test_harness_answer_scored_below_min_is_not_served(monkeypatch):
-    def fake(query, clips, llm, loop=None, token_sink=None, scores_out=None):
+    def fake(query, clips, llm, loop=None, token_sink=None, scores_out=None, **kwargs):
         assert clips[0]["verbatim_text"] == TEXT_ONE
         scores_out[:] = [2]
         return None
@@ -1767,7 +1767,7 @@ def test_harness_answer_scored_below_min_is_not_served(monkeypatch):
 
 
 def test_harness_answer_scored_at_min_is_served(monkeypatch):
-    def fake(query, clips, llm, loop=None, token_sink=None, scores_out=None, judge_meta_out=None):
+    def fake(query, clips, llm, loop=None, token_sink=None, scores_out=None, judge_meta_out=None, **kwargs):
         scores_out[:] = [3]
         return 0
 

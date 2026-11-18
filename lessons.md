@@ -1400,6 +1400,18 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Pin:** `backend/tests/fixtures/resegmentation_transcripts.json`, `scripts/ops/dry_run_resegmentation.py`, `backend/tests/e2e/resegmentation/` (all 188 tests passing).
 - **Rule:** ingestion and chunking test harnesses must remain 100% portable across CI and container runtimes by providing self-contained fixtures; never rely exclusively on host-specific data paths.
 
+### L-HARNESS-PARALLEL-RPM-HEADROOM-1. Parallel context evaluation requires bounded worker concurrency and synchronized RPM limits to prevent provider 429 cascades.
+- **What:** When `first_person_harness_parallel_enabled` evaluates multiple parent contexts concurrently across OpenRouter LLMs, unbounded fan-out or mismatched RPM limits (e.g. 60 RPM default vs 120 RPM tier) can cause burst spikes, tripping provider 429 rate limits and degrading evaluation into false abstentions. Additionally, mock scorers in test harnesses that omit `**kwargs` fail with `TypeError: fake() got an unexpected keyword argument 'is_distress'` during parallel runs.
+- **Fix:** Synchronized `OPENROUTER_RPM_LIMIT=120` across `.env`, `backend/.env`, and `backend/app/config.py`. Enforced `_HARNESS_JUDGE_CONCURRENCY = 2` via `asyncio.Semaphore` in `FirstPersonPipeline._eval_ctx_worker`, capping simultaneous LLM calls. Added `**kwargs` resilience to mock scorers in `backend/tests/test_first_person_context_serving.py`.
+- **Pin:** `backend/app/config.py:659`, `backend/services/first_person_pipeline.py:1742`, `backend/tests/test_first_person_context_serving.py:1760-1775`.
+- **Rule:** parallel evaluation fan-out must always be strictly bounded by an asyncio semaphore sized against the verified provider RPM limit; mock scorers must accept arbitrary forward kwargs.
+
+### L-EDITORIAL-SET-EXACT-CACHE-BYPASS-1. Dynamic multi-video editorial sets require single-clip cache isolation to prevent compound response contamination.
+- **What:** In `FirstPersonPipeline._cache_scope`, `_editorial_set_enabled()` was previously bypassing exact caching globally for all requests. Dynamic multi-video editorial sets (`first_person_set_selector_v3`) combine multiple independent videos for multi-facet queries, whereas standard queries serve a single parent-unit clip. Bypassing exact caching globally broke standard exact-cache replay assertions in unit tests.
+- **Fix:** Verified that `FIRST_PERSON_EDITORIAL_SET_SELECTION_ENABLED` defaults to `false` in production and base staging configs, allowing single-clip queries to leverage Redis exact cache while multi-video facet assembly is invoked per query intent or explicit non-production opt-in. Stamped `editorial_set_enabled` into the exact-cache fingerprint to ensure key isolation.
+- **Pin:** `backend/services/first_person_pipeline.py:2578`, `backend/services/first_person_pipeline.py:3756`, `backend/tests/test_first_person_context_serving.py:292-365`.
+- **Rule:** multi-video compound sets must never pollute single-clip exact cache entries; feature flags that bypass caching must be scoped exclusively to their target execution paths.
+
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.
