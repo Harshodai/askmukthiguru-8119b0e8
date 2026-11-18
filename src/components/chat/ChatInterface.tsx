@@ -102,6 +102,8 @@ import { HealingPathCard, type HealingCourseRecommendation, type UserTurn } from
 import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
 import { buildPersonalisedWelcome } from './ChatHelpers';
+import { VoiceModeModal } from './VoiceModeModal';
+import { useVoiceConversation } from '@/hooks/useVoiceConversation';
 
 // ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
 import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
@@ -371,6 +373,8 @@ export const ChatInterface = () => {
   const handsFreeVoiceRef = useRef(false);
   const voiceAwaitingPlaybackRef = useRef(false);
   const voiceSubmitRef = useRef<(text: string) => void>(() => {});
+  const voiceResponseResolverRef = useRef<((text: string) => void) | null>(null);
+  const isVoiceModeOpenRef = useRef(false);
   /** AbortController for the in-flight streaming request — Stop button calls .abort(). */
   const streamControllerRef = useRef<AbortController | null>(null);
   /** The current background job ID running on the backend. */
@@ -707,15 +711,25 @@ export const ChatInterface = () => {
       lastMessage.content !== lastGuruMessageRef.current
     ) {
       lastGuruMessageRef.current = lastMessage.content;
-      // Regular autoplay is explicitly opt-in. Hands-free voice is a temporary
-      // session mode, so it may speak each completed answer without changing the
-      // saved profile preference.
-      if ((profile.voiceAutoplay || handsFreeVoiceRef.current) && hasUserInteractedRef.current) {
+      // If interactive voice mode is waiting for response, resolve it
+      if (voiceResponseResolverRef.current) {
+        const cleanWisdom = stripPlainText(lastMessage.content);
+        const resolver = voiceResponseResolverRef.current;
+        voiceResponseResolverRef.current = null;
+        resolver(cleanWisdom);
+      } else if ((profile.voiceAutoplay || handsFreeVoiceRef.current) && hasUserInteractedRef.current && !isVoiceModeOpenRef.current) {
+        // Regular autoplay is explicitly opt-in. Hands-free voice is a temporary
+        // session mode, so it may speak each completed answer without changing the
+        // saved profile preference.
         if (handsFreeVoiceRef.current) voiceAwaitingPlaybackRef.current = true;
         speak(stripPlainText(lastMessage.content), lastMessage.language);
       }
+    } else if (voiceResponseResolverRef.current && !isStreaming && lastMessage?.error) {
+      const resolver = voiceResponseResolverRef.current;
+      voiceResponseResolverRef.current = null;
+      resolver(t('voice.errorMessage', 'Unable to receive teaching right now. Please try again.'));
     }
-  }, [messages, ttsEnabled, speak, isStreaming, profile.voiceAutoplay, stripPlainText]);
+  }, [messages, ttsEnabled, speak, isStreaming, profile.voiceAutoplay, stripPlainText, t]);
 
   // Reset TTS gate when switching conversations
   useEffect(() => {
@@ -2051,6 +2065,42 @@ voiceSubmitRef.current = (text) => {
   handleSubmit(fakeEvent, text, { forceImmediate: true, bypassCache: false });
 };
 
+const [isVoiceModeOpen, setIsVoiceModeOpen] = useState(false);
+
+const handleVoiceSendMessage = useCallback(
+  async (text: string): Promise<string> => {
+    return new Promise((resolve) => {
+      voiceResponseResolverRef.current = resolve;
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+      handleSubmit(fakeEvent, text, { forceImmediate: true, bypassCache: false });
+    });
+  },
+  [handleSubmit],
+);
+
+const voiceConversation = useVoiceConversation({
+  onSendMessage: handleVoiceSendMessage,
+  language: currentLanguage,
+  speaker: profile.speaker || 'priya',
+  autoLoop: true,
+});
+
+const handleOpenVoiceMode = useCallback(() => {
+  isVoiceModeOpenRef.current = true;
+  setIsVoiceModeOpen(true);
+  hasUserInteractedRef.current = true;
+  voiceConversation.startSession();
+}, [voiceConversation]);
+
+const handleCloseVoiceMode = useCallback(() => {
+  isVoiceModeOpenRef.current = false;
+  setIsVoiceModeOpen(false);
+  voiceConversation.endSession();
+  if (voiceResponseResolverRef.current) {
+    voiceResponseResolverRef.current = null;
+  }
+}, [voiceConversation]);
+
 
 const handleSendNowQueued = useCallback((id: string) => {
   const target = queuedMessagesRef.current.find((m) => m.id === id);
@@ -2518,6 +2568,7 @@ return (
         onResetResponsePreferences={resetResponsePreferences}
         onOpenMemorySettings={() => setMemorySettingsOpen(true)}
         memoryActive={memoryConsent === true}
+        onOpenVoiceMode={handleOpenVoiceMode}
       />
 
 
@@ -2816,6 +2867,7 @@ return (
             isLandingMode={false}
             onVoiceToggle={handleVoiceToggle}
             onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
+            onOpenVoiceMode={handleOpenVoiceMode}
             onTtsToggle={handleTtsToggle}
             onLanguageChange={handleLanguageChange}
             capabilities={chatCapabilities}
@@ -2977,6 +3029,34 @@ return (
     <GuidedMeditationFlow
       isOpen={showGuidedMeditation}
       onClose={() => setShowGuidedMeditation(false)}
+    />
+
+    {/* Sacred Interactive Voice Mode Modal */}
+    <VoiceModeModal
+      isOpen={isVoiceModeOpen}
+      onClose={handleCloseVoiceMode}
+      state={voiceConversation.state}
+      transcript={voiceConversation.transcript}
+      interimTranscript={voiceConversation.interimTranscript}
+      responseTranscript={voiceConversation.responseTranscript}
+      audioLevel={voiceConversation.audioLevel}
+      isMuted={voiceConversation.isMuted}
+      isSpeaking={voiceConversation.isSpeaking}
+      error={voiceConversation.error}
+      currentLanguage={voiceConversation.currentLanguage}
+      currentSpeaker={voiceConversation.currentSpeaker}
+      onToggleMute={voiceConversation.toggleMute}
+      onInterrupt={voiceConversation.interruptSpeaking}
+      onSubmitSpeech={voiceConversation.submitCurrentSpeech}
+      onLanguageChange={(lang) => {
+        voiceConversation.setLanguage(lang);
+        handleLanguageChange(lang);
+      }}
+      onSpeakerChange={(speaker) => {
+        voiceConversation.setSpeaker(speaker);
+        updateProfile({ speaker });
+      }}
+      onRetry={handleOpenVoiceMode}
     />
 
     {/* Quick Wisdom Card — portaled to body to avoid sidebar z-index conflicts.

@@ -107,21 +107,21 @@ export const useVoiceInput = (): UseVoiceInputResult => {
         const preferredLanguage = i18n.language?.split('-')[0] || 'en';
         const langTag = LANG_BCP47[preferredLanguage] || 'en-IN';
         const form = new FormData();
+        form.append('file', blob, `voice.${extension}`);
         form.append('audio', blob, `voice.${extension}`);
+        form.append('language_code', langTag);
         form.append('language', langTag);
         try {
-          if (!API_BASE) {
-            setError('Voice endpoint not configured');
-            return;
-          }
-          const res = await fetch(`${API_BASE}/api/speech/stt`, { method: 'POST', body: form });
+          const endpointUrl = API_BASE ? `${API_BASE}/api/speech/stt` : '/api/speech/stt';
+          const res = await fetch(endpointUrl, { method: 'POST', body: form });
           if (!res.ok) {
             setError('Transcription failed');
             return;
           }
-          const data = (await res.json()) as { text?: string };
-          if (data.text) {
-            setTranscript((prev) => (prev ? `${prev} ${data.text}` : data.text ?? ''));
+          const data = (await res.json()) as { transcript?: string; text?: string };
+          const recognized = data.transcript || data.text;
+          if (recognized) {
+            setTranscript((prev) => (prev ? `${prev} ${recognized}` : recognized));
           }
         } catch {
           setError('Transcription failed');

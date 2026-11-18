@@ -55,6 +55,7 @@ interface ChatComposerProps {
   isLandingMode: boolean;
   onVoiceToggle: () => void;
   onHandsFreeVoiceToggle: () => void;
+  onOpenVoiceMode?: () => void;
   onTtsToggle: () => void;
   onLanguageChange: (code: string) => void;
   capabilities?: {
@@ -100,6 +101,7 @@ function ChatComposerInner({
   isLandingMode,
   onVoiceToggle,
   onHandsFreeVoiceToggle,
+  onOpenVoiceMode,
   onTtsToggle,
   onLanguageChange,
   capabilities,
@@ -373,6 +375,12 @@ function ChatComposerInner({
                       {isHandsFreeVoice ? t('chat.turnOffVoiceConversation', 'Turn off voice conversation') : t('chat.voiceConversation', 'Voice conversation')}
                     </DropdownMenuItem>
                   )}
+                  {onOpenVoiceMode && (
+                    <DropdownMenuItem onClick={onOpenVoiceMode} data-testid="composer-voice-mode-action">
+                      <AudioLines className="w-4 h-4 mr-2 text-ojas animate-pulse" />
+                      {t('chat.voiceMode', 'Voice Mode')}
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -381,6 +389,20 @@ function ChatComposerInner({
           <div className="flex-1" />
 
           <PromptInputTools>
+            {onOpenVoiceMode && (
+              <Button
+                data-testid="composer-voice-mode-button"
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                onClick={onOpenVoiceMode}
+                aria-label={t('chat.voiceMode', 'Voice Mode')}
+                title={t('chat.voiceMode', 'Voice Mode')}
+                className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-full transition-all flex items-center justify-center text-muted-foreground hover:text-ojas hover:bg-ojas/10"
+              >
+                <AudioLines className="w-4 h-4 text-ojas" />
+              </Button>
+            )}
             {actionCapabilities.voiceInput && (
               <Button
                 data-testid="start-voice-input-button"

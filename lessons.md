@@ -1418,6 +1418,12 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Pin:** `backend/app/config.py:1246`, `backend/app/api/chat.py:676`, `backend/app/api/speech.py:38-51`, `scripts/ops/predeployment_checklist.py:150`.
 - **Rule:** front-facing conversational and voice route limiters must match provider capacity and tier allowances; hardcoded rate limit strings on fast endpoints must be avoided in favor of central Settings.
 
+### L-VOICE-MODE-FSM-DECOUPLING-1. Interactive conversational voice mode requires decoupled FSM architecture and verbatim speech resolution to preserve truthfulness.
+- **What:** Introducing interactive full-duplex voice mode in web clients often tempts tight coupling between audio hardware I/O and backend streaming transport, or introduces LLM-authored filler speech during latency gaps that violates verbatim truthfulness (Invariant X24). Direct FastAPI endpoint parameter parsing also fails with `AttributeError` when unsupplied Form parameters yield `fastapi.params.Form` objects in unit tests.
+- **Fix:** Architected Voice Mode following SOLID principles: decoupled `VoiceOrb` visualizer, a state machine hook (`useVoiceConversation`), and an accessible `VoiceModeModal`. Integrated with `ChatInterface` via Promise resolver (`voiceResponseResolverRef`), ensuring spoken audio strictly synthesizes the authentic served First-Person transcript (`stripPlainText(lastMessage.content)`) with zero LLM-authored filler. In `speech.py`, switched to `get_optional_user` and added `isinstance(val, str)` guards for robust Form parsing.
+- **Pin:** `src/components/chat/VoiceModeModal.tsx`, `src/hooks/useVoiceConversation.ts`, `src/components/chat/VoiceOrb.tsx`, `backend/app/api/speech.py:73-100`, `backend/tests/test_speech_endpoints.py`.
+- **Rule:** voice interaction layers must remain decoupled from message transport via FSM abstractions; spoken audio must synthesize verified verbatim context rather than ungrounded conversational filler.
+
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.

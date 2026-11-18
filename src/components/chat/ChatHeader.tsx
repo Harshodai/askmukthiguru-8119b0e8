@@ -28,6 +28,7 @@ interface ChatHeaderProps {
   onResetResponsePreferences?: () => void;
   onOpenMemorySettings?: () => void;
   memoryActive?: boolean;
+  onOpenVoiceMode?: () => void;
 }
 
 const WhatsAppIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -58,6 +59,7 @@ export const ChatHeader = ({
   onResetResponsePreferences,
   onOpenMemorySettings,
   memoryActive = false,
+  onOpenVoiceMode,
 }: ChatHeaderProps) => {
   const { t } = useTranslation();
   const { capabilities } = useChatCapabilities();
@@ -134,6 +136,20 @@ export const ChatHeader = ({
         )}
       </div>
       <div className="flex items-center gap-0.5 sm:gap-1.5">
+        {onOpenVoiceMode && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onOpenVoiceMode}
+            className="flex items-center gap-1.5 h-8 px-2.5 rounded-full border-ojas/30 bg-ojas/10 text-ojas-ink dark:text-ojas hover:bg-ojas/20 text-xs font-medium transition-all"
+            aria-label={t('chat.voiceMode', 'Voice Mode')}
+            title={t('chat.voiceMode', 'Voice Mode')}
+            data-testid="header-voice-mode-button"
+          >
+            <AudioLines className="w-3.5 h-3.5 text-ojas animate-pulse" />
+            <span className="hidden md:inline">{t('chat.voiceMode', 'Voice Mode')}</span>
+          </Button>
+        )}
         {responsePreferences && onResponsePreferencesChange && onResetResponsePreferences && <div className="hidden sm:block"><ResponsePreferencesMenu value={responsePreferences} onChange={onResponsePreferencesChange} onReset={onResetResponsePreferences} /></div>}
         {isIncognito && <span className="text-[10px] text-amber-600/70 hidden sm:block mr-1">{t('chat.incognitoScope', 'Not saved to history, personal memory, or your personal wisdom map.')}</span>}
         {hasMessages && onOpenSources && <Button size="icon" variant="ghost" onClick={onOpenSources} className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground relative flex items-center justify-center rounded-xl" aria-label={t('chat.openSources', { count: sourcesCount })} title={t('chat.viewSources')}><Library className="w-4 h-4" />{sourcesCount > 0 && <span className="absolute top-0 right-0 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-ojas/15 text-ojas-ink dark:text-ojas text-[10px] font-semibold tabular-nums">{sourcesCount}</span>}</Button>}

@@ -26,7 +26,7 @@ from app.schemas.compliance_provenance import (
     SoftwareAgentDescriptor,
 )
 from app.security_utils import RedisBackedRateLimiter, is_benchmark_request
-from services.auth_service import get_current_user_from_supabase
+from services.auth_service import get_current_user_from_supabase, get_optional_user
 from services.sarvam_service import SarvamCloudService
 from services.watermarking_service import WatermarkingService
 from services.whisper_local_service import transcribe_with_whisper
@@ -79,16 +79,28 @@ class SpeechTTSRequest(BaseModel):
 @router.post("/speech/stt")
 async def speech_to_text_endpoint(
     request: Request,
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(None),
+    audio: Optional[UploadFile] = File(None),
     language_code: Optional[str] = Form(None),
+    language: Optional[str] = Form(None),
     model: str = Form("saaras:v3"),
-    user: dict = Depends(get_current_user_from_supabase),
+    user: Optional[dict] = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container_async),
 ):
     """
     Transcribe uploaded audio file using Sarvam Cloud STT or fallback to local Whisper.
     """
     _check_speech_rate_limit(request, _STT_RATE_LIMITER, "stt", user)
+    upload_file = file or audio
+    if not upload_file:
+        raise HTTPException(status_code=422, detail="No audio content provided.")
+
+    resolved_lang = None
+    if isinstance(language_code, str) and language_code.strip():
+        resolved_lang = language_code.strip()
+    elif isinstance(language, str) and language.strip():
+        resolved_lang = language.strip()
+
     MAX_AUDIO_BYTES = 25 * 1024 * 1024
     ALLOWED_AUDIO_TYPES = {
         "audio/webm",
@@ -111,16 +123,16 @@ async def speech_to_text_endpoint(
     # If the read happened first, a hostile 30MB upload would be fully
     # buffered into memory before being rejected — the very DoS this cap
     # exists to prevent.
-    if file.size and file.size > MAX_AUDIO_BYTES:
+    if upload_file.size and upload_file.size > MAX_AUDIO_BYTES:
         raise HTTPException(status_code=413, detail="Audio file too large. Maximum size is 25MB.")
-    base_type = (file.content_type or "").split(";")[0].strip()
+    base_type = (upload_file.content_type or "").split(";")[0].strip()
     if not base_type or base_type not in ALLOWED_AUDIO_TYPES:
         raise HTTPException(
             status_code=415,
             detail=f"Unsupported audio format. Supported: {', '.join(sorted(ALLOWED_AUDIO_TYPES))}",
         )
 
-    content = await file.read(MAX_AUDIO_BYTES + 1)
+    content = await upload_file.read(MAX_AUDIO_BYTES + 1)
     if not content:
         raise HTTPException(status_code=422, detail="No audio content provided.")
     if len(content) > MAX_AUDIO_BYTES:
@@ -135,11 +147,11 @@ async def speech_to_text_endpoint(
                 "api-subscription-key": api_key,
             }
             files = {
-                "file": (file.filename or "audio.webm", content, file.content_type or "audio/webm")
+                "file": (upload_file.filename or "audio.webm", content, upload_file.content_type or "audio/webm")
             }
             data = {"model": model}
-            if language_code:
-                data["language_code"] = language_code
+            if resolved_lang:
+                data["language_code"] = resolved_lang
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
@@ -148,11 +160,11 @@ async def speech_to_text_endpoint(
                 if resp.status_code == 200:
                     result = resp.json()
                     transcript = result.get("transcript", "")
-                    detected_lang = result.get("language_code", language_code or "en-IN")
+                    detected_lang = result.get("language_code", resolved_lang or "en-IN")
                     logger.info(
                         f"Sarvam STT returned transcript: {sanitize_log_input(transcript)} (lang: {sanitize_log_input(str(detected_lang))})"
                     )
-                    return {"transcript": transcript, "language_code": detected_lang}
+                    return {"transcript": transcript, "text": transcript, "language_code": detected_lang}
                 else:
                     logger.error(
                         f"Sarvam STT failed with status {resp.status_code}: {sanitize_log_input(resp.text)}"
@@ -169,22 +181,22 @@ async def speech_to_text_endpoint(
 
         try:
             whisper_lang = "en"
-            if language_code:
-                whisper_lang = language_code.split("-")[0].lower()
+            if resolved_lang:
+                whisper_lang = resolved_lang.split("-")[0].lower()
 
             transcript = transcribe_with_whisper(
                 video_id="browser_recording", audio_path=tmp_path, language=whisper_lang
             )
 
             if transcript:
-                detected_lang = language_code or "en-IN"
+                detected_lang = resolved_lang or "en-IN"
                 msg_lang = detect_message_lang(transcript)
                 if msg_lang and msg_lang not in ("en", "non_en"):
                     # Sarvam's canonical Odia tag is "od-IN", not "or-IN" —
                     # detect_message_lang uses ISO 639-1 "or" for Oriya script.
                     detected_lang = "od-IN" if msg_lang == "or" else f"{msg_lang}-IN"
 
-                return {"transcript": transcript, "language_code": detected_lang}
+                return {"transcript": transcript, "text": transcript, "language_code": detected_lang}
             else:
                 raise Exception("Whisper returned empty transcript")
         finally:
@@ -201,7 +213,7 @@ async def speech_to_text_endpoint(
 async def text_to_speech_endpoint(
     request: Request,
     req: SpeechTTSRequest,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: Optional[dict] = Depends(get_optional_user),
     container: ServiceContainer = Depends(get_container_async),
 ):
     """
@@ -318,6 +330,8 @@ async def text_to_speech_endpoint(
 
                     return {
                         "audio": tagged_b64,
+                        "audio_base64": tagged_b64,
+                        "format": "mp3",
                         "provenance": manifest.model_dump(),
                     }
                 else:
@@ -347,7 +361,7 @@ class TranslateRequest(BaseModel):
 async def translate_endpoint(
     request: Request,
     req: TranslateRequest,
-    user: dict = Depends(get_current_user_from_supabase),
+    user: Optional[dict] = Depends(get_optional_user),
 ):
     api_key = settings.sarvam_api_key
     if not api_key or api_key.startswith("sk_dummy") or len(api_key) <= 10:
