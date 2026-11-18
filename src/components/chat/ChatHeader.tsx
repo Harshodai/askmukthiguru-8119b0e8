@@ -8,7 +8,6 @@ import { UserMenu } from '@/components/common/UserMenu';
 import { ResponsePreferencesMenu } from './ResponsePreferencesMenu';
 import type { ResponsePreferences } from '@/lib/chat/types';
 import { Button } from '@/components/ui/button';
-import { GetHelpNow } from '@/components/common/GetHelpNow';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -65,7 +64,9 @@ export const ChatHeader = ({
   const { capabilities } = useChatCapabilities();
   const rawWhatsApp = (import.meta.env.VITE_WHATSAPP_NUMBER || '').trim();
   const whatsappNumber = rawWhatsApp.replace(/[^0-9]/g, '');
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=Namaste%20Mukthi%20Guru`;
+  const whatsappUrl = whatsappNumber
+    ? `https://wa.me/${whatsappNumber}?text=Namaste%20Mukthi%20Guru`
+    : 'https://wa.me/?text=Namaste%20Mukthi%20Guru';
 
   return <header className={`relative z-20 sticky top-0 backdrop-blur-md border-b border-border/30 h-[56px] sm:h-[64px] safe-top ${isIncognito ? 'bg-amber-950/15' : 'bg-background/85 bg-gradient-to-r from-ojas/5 to-transparent'}`} data-testid="chat-header-simplified">
     <div className="flex items-center justify-between px-2.5 sm:px-5 h-full">
@@ -154,18 +155,17 @@ export const ChatHeader = ({
         {isIncognito && <span className="text-[10px] text-amber-600/70 hidden sm:block mr-1">{t('chat.incognitoScope', 'Not saved to history, personal memory, or your personal wisdom map.')}</span>}
         {hasMessages && onOpenSources && <Button size="icon" variant="ghost" onClick={onOpenSources} className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground relative flex items-center justify-center rounded-xl" aria-label={t('chat.openSources', { count: sourcesCount })} title={t('chat.viewSources')}><Library className="w-4 h-4" />{sourcesCount > 0 && <span className="absolute top-0 right-0 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-ojas/15 text-ojas-ink dark:text-ojas text-[10px] font-semibold tabular-nums">{sourcesCount}</span>}</Button>}
         {hasMessages && onExport && <Button size="icon" variant="ghost" onClick={onExport} className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 hidden sm:flex text-muted-foreground items-center justify-center" aria-label={t('chat.exportMarkdown')} title={t('chat.exportMarkdown')}><Download className="w-4 h-4" /></Button>}
-        {capabilities.whatsapp && whatsappNumber && <a
+        <a
           href={whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-8 sm:w-8 text-muted-foreground hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center justify-center rounded-xl hover:bg-emerald-500/10"
+          className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-8 sm:w-8 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors flex items-center justify-center rounded-xl hover:bg-emerald-500/10"
           aria-label={t('chat.chatOnWhatsApp', 'Chat on WhatsApp')}
           title={t('chat.chatOnWhatsApp', 'Chat on WhatsApp')}
           data-testid="whatsapp-action-button"
         >
-          <WhatsAppIcon className="w-4 h-4 fill-current" />
-        </a>}
-        <GetHelpNow />
+          <WhatsAppIcon className="w-5 h-5 fill-current" />
+        </a>
         <div className={sidebarCollapsed ? '' : 'sm:hidden'} data-tour="profile"><UserMenu /></div>
       </div>
     </div>

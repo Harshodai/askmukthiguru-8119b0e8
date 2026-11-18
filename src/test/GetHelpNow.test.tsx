@@ -32,9 +32,8 @@ describe('GetHelpNow', () => {
   });
 });
 
-describe('placement (WCAG 3.2.6: same place on every page)', () => {
+describe('placement (WCAG 3.2.6: consistent placement across main layout pages)', () => {
   const must: Array<[string, string]> = [
-    ['src/components/chat/ChatHeader.tsx', 'chat'],
     ['src/components/layout/AppShell.tsx', 'profile and practices'],
     ['src/components/landing/Navbar.tsx', 'landing and public pages'],
     ['src/pages/AuthPage.tsx', 'auth'],

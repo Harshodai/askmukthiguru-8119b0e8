@@ -193,34 +193,30 @@ function ChatComposerInner({
     <motion.div
       className="w-full max-w-3xl mx-auto py-2 sm:py-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)]"
     >
-      {/* Double-Bezel Outer Frosted Glass Dock */}
-      <div
-        className={`relative rounded-2xl p-1 sm:p-1.5 bg-gradient-to-b from-card/95 via-card/85 to-card/75 dark:from-card/85 dark:via-card/75 dark:to-card/65 backdrop-blur-2xl border transition-all duration-300 ${
+      <PromptInput
+        onSubmit={handleFormSubmit}
+        role="form"
+        aria-label={t('chat.messageComposer')}
+        className={`rounded-2xl border border-hairline bg-card transition-colors duration-200 overflow-visible ${
           inputFocused || isListening
-            ? 'border-ojas/60 ring-2 ring-ojas/20 shadow-[0_8px_30px_rgba(245,158,11,0.15)]'
-            : 'border-white/20 dark:border-white/10 shadow-xl'
+            ? 'border-ojas/50 shadow-md'
+            : 'shadow-sm hover:shadow-md'
         }`}
       >
-        <PromptInput
-          onSubmit={handleFormSubmit}
-          role="form"
-          aria-label={t('chat.messageComposer')}
-          className="rounded-xl bg-background/60 dark:bg-background/45 border border-black/5 dark:border-white/5 shadow-[inset_0_1px_2px_rgba(255,255,255,0.12)] overflow-visible"
-        >
-          {isAwaitingSereneMind && (
-            <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-border/40 bg-ojas/5 rounded-t-xl">
-              <span className="text-xs text-ojas-ink dark:text-ojas font-medium">
-                {t('chat.sereneMindRequired')}
-              </span>
-              <button
-                type="button"
-                onClick={onSereneMind}
-                className="px-3 py-1 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-xs font-semibold hover:shadow-md transition-all"
-              >
-                {t('chat.openSereneMind')}
-              </button>
-            </div>
-          )}
+        {isAwaitingSereneMind && (
+          <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-border/40 bg-ojas/5 rounded-t-2xl">
+            <span className="text-xs text-ojas-ink dark:text-ojas font-medium">
+              {t('chat.sereneMindRequired')}
+            </span>
+            <button
+              type="button"
+              onClick={onSereneMind}
+              className="px-3 py-1 rounded-full bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground text-xs font-semibold hover:shadow-md transition-all"
+            >
+              {t('chat.openSereneMind')}
+            </button>
+          </div>
+        )}
 
         {inputValue.startsWith('/') && (
         <div className="px-5 pt-3">
@@ -485,7 +481,6 @@ function ChatComposerInner({
           </PromptInputTools>
         </PromptInputFooter>
       </PromptInput>
-      </div>
 
       {isLandingMode && (
         <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground select-none">
