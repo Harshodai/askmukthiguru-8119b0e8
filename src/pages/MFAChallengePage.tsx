@@ -133,7 +133,7 @@ const MFAChallengePage = () => {
           <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center shadow-[0_0_24px_hsl(var(--ojas-gold)/0.35)]">
             <ShieldCheck className="w-6 h-6 text-ojas" />
           </div>
-          <h1 className="text-xl font-sacred font-semibold text-foreground">{t('auth.twoFactorTitle')}</h1>
+          <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">{t('auth.twoFactorTitle')}</h1>
           <p className="text-sm text-muted-foreground italic">
             {t('auth.mfaPrompt', { defaultValue: 'Enter the 6-digit code from your authenticator app.' })}
           </p>

@@ -20,8 +20,9 @@
 }
 
 [data-testid='chat-header-wordmark'] {
-  font-family: var(--font-serif);
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  letter-spacing: -0.016em;
+  font-weight: 600;
 }
 
 .message-bubble {

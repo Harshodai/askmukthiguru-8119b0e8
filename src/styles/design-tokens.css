@@ -64,11 +64,12 @@
   --dur-slow: 600ms;
 
   /* --- type --- */
-  /* Keep token names aligned with index.html and tailwind.config.ts. */
-  --font-serif: "Cormorant Garamond", Georgia, serif;
-  --font-sans: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
-  --font-display: "Outfit", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Apple HIG typography stack aligned with tailwind.config.ts and index.html. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Helvetica Neue", Helvetica, Arial, "Inter", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --font-serif: "New York", -apple-system-ui-serif, ui-serif, "Cormorant Garamond", Georgia, Cambria, serif;
+  --font-sacred: "New York", -apple-system-ui-serif, ui-serif, "Cormorant Garamond", Georgia, Cambria, serif;
+  --font-mono: "SF Mono", "SF Pro Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
 }
 
 .dark {

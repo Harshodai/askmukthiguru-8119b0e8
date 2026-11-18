@@ -113,7 +113,7 @@ export const StreakMilestoneCard: React.FC<StreakMilestoneCardProps> = ({
 
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-3xl font-serif font-bold tracking-tight text-foreground">
+              <span className="text-3xl font-display font-bold tracking-tight text-foreground">
                 {currentStreak}
               </span>
               <span className="text-xs font-semibold uppercase tracking-wider text-saffron-gold">
@@ -173,7 +173,7 @@ export const StreakMilestoneCard: React.FC<StreakMilestoneCardProps> = ({
                 </div>
 
                 <div className="space-y-0.5 min-w-0 w-full">
-                  <p className="text-xs font-semibold font-serif text-foreground truncate">{m.name}</p>
+                  <p className="text-xs font-semibold font-sans text-foreground truncate">{m.name}</p>
                   <p className="text-[10px] font-mono text-saffron-gold/80 italic">{m.sanskritName}</p>
                   <p className="text-[10px] text-muted-foreground">{m.requiredDays} Days</p>
                 </div>

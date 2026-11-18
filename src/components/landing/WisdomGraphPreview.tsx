@@ -55,7 +55,7 @@ export const WisdomGraphPreview: React.FC = () => {
           <Badge variant="outline" className="text-amber-800 dark:text-saffron-gold border-saffron-gold/40 px-3 py-1 text-xs">
             <Network className="w-3.5 h-3.5 mr-1.5" /> {t('landing.graph.badge', '8,750+ Node Doctrinal Ontology')}
           </Badge>
-          <h2 className="text-3xl sm:text-4xl font-serif font-bold tracking-tight text-foreground">
+          <h2 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-foreground">
             {t('landing.graph.heading', 'Explore the Living Knowledge Graph')}
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
@@ -124,7 +124,7 @@ export const WisdomGraphPreview: React.FC = () => {
                           animate={isSelected && !reduceMotion ? { opacity: [0.55, 1, 0.55] } : { opacity: 0.7 }}
                           transition={{ duration: 1.8, repeat: isSelected && !reduceMotion ? Infinity : 0, ease: 'easeInOut' }}
                         />
-                        <span className="max-w-16 truncate font-serif text-[10px] sm:max-w-none sm:text-sm">{node.label}</span>
+                        <span className="max-w-16 truncate font-sans text-[10px] sm:max-w-none sm:text-sm">{node.label}</span>
                       </Button>
                     </motion.div>
                   </div>
@@ -143,7 +143,7 @@ export const WisdomGraphPreview: React.FC = () => {
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-saffron-gold">
                 <Sparkles className="w-3 h-3" /> {t('landing.graph.ontologicalNode', 'Ontological Node')}
               </div>
-              <h4 className="font-serif text-base font-bold text-saffron-gold mt-1">{activeNode.label}</h4>
+              <h4 className="font-display text-base font-bold text-saffron-gold mt-1">{activeNode.label}</h4>
               <p className="line-clamp-2 text-xs text-saffron-gold/70 mt-1 leading-relaxed">{activeNode.description}</p>
             </motion.div>
 

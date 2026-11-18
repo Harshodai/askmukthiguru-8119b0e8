@@ -78,7 +78,7 @@ const PracticeCard = ({ practice: p, index: i, isFavorited, onToggle }: Practice
             </div>
             <div className="flex-1 min-w-0 pr-8">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-sacred text-xl font-semibold text-foreground truncate">{p.title}</h3>
+                <h3 className="font-display text-xl font-semibold tracking-tight text-foreground truncate">{p.title}</h3>
                 <span className="w-8 h-8 rounded-full bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors">
                   <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-ojas transition-colors shrink-0" />
                 </span>

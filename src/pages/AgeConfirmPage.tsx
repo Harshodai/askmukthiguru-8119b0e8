@@ -97,7 +97,7 @@ export default function AgeConfirmPage() {
           <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto shadow-[0_0_24px_hsl(var(--ojas-gold)/0.35)]">
             <ShieldCheck className="w-6 h-6 text-ojas" />
           </div>
-          <h1 className="text-xl font-sacred font-semibold text-foreground">
+          <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">
             {t('auth.ageConfirmTitle', { defaultValue: 'One quick check' })}
           </h1>
           <p className="text-sm text-muted-foreground italic">

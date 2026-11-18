@@ -339,7 +339,7 @@ export default function SecondBrainPage() {
                       <Brain className="w-7 h-7 text-ojas" />
                     </div>
                     <div className="max-w-sm space-y-2">
-                      <h2 className="font-sacred text-2xl text-foreground">
+                      <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
                         {t('brain.emptyHeadline', 'Your inner journey begins here')}
                       </h2>
                       <p className="text-sm text-muted-foreground italic">

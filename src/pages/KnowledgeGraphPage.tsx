@@ -32,7 +32,7 @@ export default function KnowledgeGraphPage() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="font-sacred text-2xl sm:text-3xl text-foreground leading-tight truncate">
+                <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-tight truncate">
                   {t('kg.title', 'Wisdom Map')}
                 </h1>
                 <span className="hidden sm:inline-flex rounded-full border border-ojas/20 bg-ojas/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ojas">

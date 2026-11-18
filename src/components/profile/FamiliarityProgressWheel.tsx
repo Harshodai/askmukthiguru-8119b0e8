@@ -118,7 +118,7 @@ export const FamiliarityProgressWheel: React.FC<FamiliarityProgressWheelProps> =
 
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-serif text-base font-semibold text-foreground">{currentCfg.title}</h3>
+              <h3 className="font-display text-base font-semibold tracking-tight text-foreground">{currentCfg.title}</h3>
               <Badge variant="outline" className="text-[10px] text-saffron-gold border-saffron-gold/40">
                 {currentCfg.guidanceTone}
               </Badge>
@@ -166,7 +166,7 @@ export const FamiliarityProgressWheel: React.FC<FamiliarityProgressWheelProps> =
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-serif text-sm font-semibold text-foreground">
+                      <span className="font-sans text-sm font-semibold text-foreground">
                         {concept.term} ({concept.transliteration})
                       </span>
                     </div>

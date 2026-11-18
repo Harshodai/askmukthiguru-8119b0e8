@@ -994,7 +994,7 @@ const AuthPage = () => {
               className="w-full h-full object-cover rounded-full"
             />
           </div>
-          <h1 className="text-xl font-sacred font-semibold text-foreground">{t('auth.signInTitle')}</h1>
+          <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">{t('auth.signInTitle')}</h1>
           <p className="text-sm text-muted-foreground italic">
             {isSignUp ? t('auth.createAccount') : t('auth.welcomeBack')}
           </p>

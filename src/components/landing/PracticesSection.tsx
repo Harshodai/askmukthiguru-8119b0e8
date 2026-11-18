@@ -33,7 +33,7 @@ export const PracticesSection = () => {
           transition={{ duration: 0.5 }}
           className="text-center max-w-2xl mx-auto mb-12"
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground font-serif">{t('landing.practices.heading')}</h2>
+          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-foreground font-display tracking-tight">{t('landing.practices.heading')}</h2>
           <p className="text-muted-foreground text-lg">
             {t('landing.practices.subtitle')}
           </p>
@@ -96,7 +96,7 @@ export const PracticesSection = () => {
                   <div className="w-12 h-12 rounded-2xl bg-saffron-gold/15 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     <Icon className="w-6 h-6 text-saffron-gold" />
                   </div>
-                  <h3 className="font-serif text-lg font-bold text-foreground pr-6">{p.title}</h3>
+                  <h3 className="font-display text-lg font-semibold tracking-tight text-foreground pr-6">{p.title}</h3>
                   <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed flex-1">{p.tagline}</p>
                   <div className="flex items-center justify-between mt-5 pt-3 border-t border-border/40 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5 font-mono">

@@ -90,7 +90,7 @@ export const SampleWisdomSection = () => {
               {t('wisdom.curatedTeachings', 'Curated Teachings')}
             </span>
           </motion.div>
-          <h2 className="font-sacred text-4xl md:text-5xl font-light text-foreground mb-4">
+          <h2 className="font-display text-4xl md:text-5xl font-semibold tracking-tight text-foreground mb-4">
             {t('wisdom.heading', 'Wisdom & Insights')}
           </h2>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
@@ -109,7 +109,7 @@ export const SampleWisdomSection = () => {
               transition={{ duration: 0.4 }}
               className="flex-1 flex flex-col justify-center"
             >
-              <h3 className="font-sacred text-2xl md:text-3xl font-light text-gradient-gold mb-6">
+              <h3 className="font-display text-2xl md:text-3xl font-semibold tracking-tight text-gradient-gold mb-6">
                 {teachings[currentIndex].title}
               </h3>
 
@@ -120,7 +120,7 @@ export const SampleWisdomSection = () => {
                   clips with timestamps replace them. */}
               <p
                 data-testid="wisdom-paraphrase"
-                className="font-sacred text-lg md:text-xl text-foreground/90 leading-relaxed mb-3 border-l-2 border-saffron-gold/30 pl-4 md:pl-6"
+                className="font-serif italic text-lg md:text-xl text-foreground/90 leading-relaxed mb-3 border-l-2 border-saffron-gold/30 pl-4 md:pl-6"
               >
                 {teachings[currentIndex].quote}
               </p>

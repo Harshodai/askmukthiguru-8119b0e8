@@ -224,7 +224,7 @@ export const HeroSection = () => {
                         <span className="font-mono text-[10px] uppercase tracking-wider text-saffron-gold">
                           {t('landing.hero.recommendedPractice', 'Recommended Sacred Practice')}
                         </span>
-                        <h4 className="font-serif text-sm font-semibold text-white truncate mt-0.5">
+                        <h4 className="font-display text-sm font-semibold text-white tracking-tight truncate mt-0.5">
                           {current.title}
                         </h4>
                         <p className="text-xs text-white/70 line-clamp-1 mt-0.5">

@@ -30,7 +30,7 @@ export const MeetTheGurusSection = () => {
           transition={{ duration: 0.7 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-sacred font-bold mb-4">
+          <h2 className="text-4xl md:text-5xl font-display font-bold tracking-tight mb-4">
             <span className="text-foreground">{t('landing.meetGurus.heading1')}</span>{' '}
             <span className="text-gradient-gold">{t('landing.meetGurus.heading2')}</span>
           </h2>
@@ -116,7 +116,7 @@ export const MeetTheGurusSection = () => {
 
               {/* Content */}
               <div className="flex-1 text-center md:text-left">
-                <h3 className="text-2xl md:text-3xl font-sacred font-bold text-foreground mb-2">
+                <h3 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-foreground mb-2">
                   {t('landing.meetGurus.name')}
                 </h3>
                 <p className="text-ojas font-semibold text-sm uppercase tracking-wider mb-4">
