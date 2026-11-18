@@ -2599,8 +2599,6 @@ return (
         {answerAnnouncement}
       </div>
 
-      <AiTransparencyBanner />
-
       {/* Daily Mood Check-In & Journey Banner (Landing Mode only) */}
       <MoodBanner isLandingMode={isLandingMode} />
 
@@ -2756,44 +2754,46 @@ return (
 
 
                 {/* Single authoritative thinking indicator */}
-                <div className="flex items-start gap-2">
-                  {thinkingVisible && (
-                    <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.15)] ring-1 ring-ojas/20 bg-background">
-                      <img
-                        src={gurusPhoto}
-                        alt="Sri Preethaji & Sri Krishnaji"
-                        className="w-full h-full object-cover animate-pulse-soft"
+                {(thinkingVisible || isStreaming || isTyping || showInstantPill) && (
+                  <div className="flex items-start gap-2">
+                    {thinkingVisible && (
+                      <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.15)] ring-1 ring-ojas/20 bg-background">
+                        <img
+                          src={gurusPhoto}
+                          alt="Sri Preethaji & Sri Krishnaji"
+                          className="w-full h-full object-cover animate-pulse-soft"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <ThinkingPills
+                        steps={pipelineSteps}
+                        visible={thinkingVisible}
+                        heartbeat={pipelineHeartbeat}
+                        tradition="Ekam — Sri Preethaji & Sri Krishnaji"
+                        searchContext={showInstantPill ? pendingQuery : undefined}
+                        fallbackLabel={
+                          isStreaming && streamingContent === ''
+                            ? (rotatingThinkingLabel ?? t('chat.reflecting'))
+                            : t('chat.thinking.analyzing')
+                        }
+                        teachingPreview={teachingPreview}
                       />
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <ThinkingPills
-                      steps={pipelineSteps}
-                      visible={thinkingVisible}
-                      heartbeat={pipelineHeartbeat}
-                      tradition="Ekam — Sri Preethaji & Sri Krishnaji"
-                      searchContext={showInstantPill ? pendingQuery : undefined}
-                      fallbackLabel={
-                        isStreaming && streamingContent === ''
-                          ? (rotatingThinkingLabel ?? t('chat.reflecting'))
-                          : t('chat.thinking.analyzing')
-                      }
-                      teachingPreview={teachingPreview}
-                    />
+                    {(isStreaming || isTyping || showInstantPill) && (
+                      <button
+                        type="button"
+                        onClick={handleStopGeneration}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full text-[12px] font-medium text-foreground/80 border border-border/60 bg-background/80 hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-colors flex-shrink-0"
+                        aria-label={t('chat.stopGenerating')}
+                        title={t('chat.stopGenerating') + ' (Esc)'}
+                      >
+                        <Square className="w-3 h-3 fill-current" />
+                        {t('chat.stopGenerating')}
+                      </button>
+                    )}
                   </div>
-                  {(isStreaming || isTyping || showInstantPill) && (
-                    <button
-                      type="button"
-                      onClick={handleStopGeneration}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-1 rounded-full text-[12px] font-medium text-foreground/80 border border-border/60 bg-background/80 hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-colors flex-shrink-0"
-                      aria-label={t('chat.stopGenerating')}
-                      title={t('chat.stopGenerating') + ' (Esc)'}
-                    >
-                      <Square className="w-3 h-3 fill-current" />
-                      {t('chat.stopGenerating')}
-                    </button>
-                  )}
-                </div>
+                )}
 
                 {/* Scroll anchor */}
                 <div ref={messagesEndRef} className="h-1" />

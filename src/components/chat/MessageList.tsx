@@ -170,7 +170,7 @@ export const MessageList = React.memo(({
                 key={message.id}
                 id={message.id}
                 defaultHeight={isStreamingMsg ? 0 : message.role === 'user' ? 65 : 320}
-                alwaysVisible={isStreamingMsg}
+                alwaysVisible={isStreamingMsg || index >= group.messages.length - 8 || messages.length <= 15}
               >
                 {/* During the entire streaming period (including before the first token arrives)
                     mark the streaming message as active so ChatMessage can render a thinking indicator. */}

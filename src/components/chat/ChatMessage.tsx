@@ -178,6 +178,25 @@ const isCrisisAnswer = (content: string): boolean =>
  * Detects whether a guru response is a first-person abstain
  * ("I don't have a verified verbatim teaching that directly answers this...").
  */
+export const isGreetingOrConversationalMessage = (content?: string, isWelcome?: boolean): boolean => {
+  if (isWelcome) return true;
+  const trimmed = (content || '').trim();
+  if (!trimmed) return true;
+  const lower = trimmed.toLowerCase();
+  return (
+    lower.startsWith('namaste') ||
+    lower.startsWith('welcome') ||
+    lower.startsWith('a still night to you') ||
+    lower.startsWith('good morning') ||
+    lower.startsWith('good evening') ||
+    lower.startsWith('peace to you') ||
+    lower.startsWith('hello') ||
+    lower.includes('welcome back to mukthi guru') ||
+    lower.includes('what question would you like to explore') ||
+    lower.includes('what would you like to pick up today')
+  );
+};
+
 export const isFirstPersonAbstainMessage = (message: Message): boolean => {
   if (message.isFirstPersonAbstain === true) return true;
   if (message.routeDecision === 'first_person_abstain') return true;
@@ -207,6 +226,7 @@ interface TeachingGroundingCardProps {
   citationsVerified?: boolean | null;
   verification?: Record<string, unknown> | null;
   guidanceAttribution?: TeachingAttribution | null;
+  isGreeting?: boolean;
 }
 
 const TeachingGroundingCard = ({
@@ -216,6 +236,7 @@ const TeachingGroundingCard = ({
   citationsVerified,
   verification,
   guidanceAttribution,
+  isGreeting = false,
 }: TeachingGroundingCardProps) => {
   const { t } = useTranslation();
   const items = teachingPreview.length > 0
@@ -294,6 +315,7 @@ const TeachingGroundingCard = ({
   if (items.length === 0 && !isAbstained) return null;
 
   if (items.length === 0 && isAbstained) {
+    if (isGreeting) return null;
     return (
       <aside
         data-testid="teaching-grounding"
@@ -537,23 +559,25 @@ export const GuruTeachingCard = ({
             ? t('chat.guruTeaching.personalizedLabel', 'Personalized reflection')
             : t('chat.guruTeaching.label', 'Guru teaching · verbatim')}
         </span>
-        <span
-          title={
-            related
-              ? 'Related teaching: addresses surrounding spiritual concepts, not a direct direct answer to your specific query.'
-              : !showVerified
-                ? 'Unverified clip: recording from an uncertified channel or unconfirmed speaker.'
-                : 'Verified teaching: verbatim quotation from recorded teachings.'
-          }
-          className={cn(
-            'ms-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium shadow-2xs',
-            showVerified
-              ? 'border-ojas/30 bg-ojas/15 text-ojas-ink dark:text-ojas'
-              : 'border-amber-500/30 bg-amber-500/15 text-amber-ink'
-          )}
-        >
-          {badgeLabel}
-        </span>
+        {(showVerified || conflicted || personalized || related) && (
+          <span
+            title={
+              related
+                ? 'Related teaching: addresses surrounding spiritual concepts, not a direct direct answer to your specific query.'
+                : !showVerified
+                  ? 'Unverified clip: recording from an uncertified channel or unconfirmed speaker.'
+                  : 'Verified teaching: verbatim quotation from recorded teachings.'
+            }
+            className={cn(
+              'ms-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium shadow-2xs',
+              showVerified
+                ? 'border-ojas/30 bg-ojas/15 text-ojas-ink dark:text-ojas'
+                : 'border-amber-500/30 bg-amber-500/15 text-amber-ink'
+            )}
+          >
+            {badgeLabel}
+          </span>
+        )}
       </div>
       <blockquote
         data-testid="guru-teaching-quote"
@@ -1347,19 +1371,21 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           <p className="text-sm font-semibold text-destructive-ink leading-tight">{errorTitle}</p>
                           <p className="text-sm text-foreground/80 mt-1 leading-relaxed">{errorDescription}</p>
                           {/* T1-17: every error card carries a care line with call-verified helpline(s); static so it works when the backend is down. */}
-                          <p className="text-sm text-foreground/80 mt-1.5 leading-relaxed" data-testid="error-care-line">
-                            {t('chat.errorCareLine', 'If you are in distress, you are not alone. Help is available now:')}{' '}
-                            {CALL_VERIFIED_CRISIS_LINES.map((line, i) => (
-                              <span key={line.registryName}>
-                                {i > 0 && ', '}
-                                <a href={`tel:${line.tel}`} className="underline font-medium">
-                                  {line.label} {line.display}
-                                </a>{' '}
-                                ({line.hours})
-                              </span>
-                            ))}
-                            .
-                          </p>
+                          {!errorDescription?.includes('14416') && !errorDescription?.toLowerCase().includes('distress') && (
+                            <p className="text-sm text-foreground/80 mt-1.5 leading-relaxed" data-testid="error-care-line">
+                              {t('chat.errorCareLine', 'If you are in distress, you are not alone. Help is available now:')}{' '}
+                              {CALL_VERIFIED_CRISIS_LINES.map((line, i) => (
+                                <span key={line.registryName}>
+                                  {i > 0 && ', '}
+                                  <a href={`tel:${line.tel}`} className="underline font-medium">
+                                    {line.label} {line.display}
+                                  </a>{' '}
+                                  ({line.hours})
+                                </span>
+                              ))}
+                              .
+                            </p>
+                          )}
                           <div className="flex flex-wrap gap-2 mt-2.5">
                             {(message.error.actionLabel === 'retry' || !message.error.actionLabel) && onRegenerate && (
                               <button
@@ -1415,6 +1441,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           citationsVerified={message.citationsVerified}
                           verification={message.verification}
                           guidanceAttribution={message.guidancePlan?.attribution}
+                          isGreeting={isGreetingOrConversationalMessage(message.content, message.isWelcome)}
                         />
                       )}
                       {personalizeRef && !isAlreadyPersonalized && (
@@ -1476,9 +1503,13 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                 && citation.rightsCleared === true
                                 && citation.speakerVerified === true}
                               conflicted={editorialSet?.status === 'conflicted'}
-                              related={message.verification?.direct === false
-                                || editorialSet?.status === 'conflicted'
-                                || editorialSet?.status === 'insufficient'}
+                              related={
+                                editorialSet != null
+                                  ? (message.verification?.direct === false
+                                    || editorialSet?.status === 'conflicted'
+                                    || editorialSet?.status === 'insufficient')
+                                  : false
+                              }
                               index={citationIndex + 1}
                               onPlay={(c) => {
                                 // A grouped source card is one selected discourse window.
@@ -1821,31 +1852,26 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           <StickyNote className={`w-4 h-4 mr-2 ${noteSaved ? 'fill-current' : ''}`} />
                           {noteSaved ? t('chat.savedToNotes') : t('chat.saveAsNote')}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setProvenanceOpen(true)}>
+                          <Sparkles className="w-4 h-4 mr-2 text-ojas" />
+                          {t('chat.provenance.viewDetails', 'AI Transparency & Provenance')}
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                     <LanguageTranslateButton message={message} />
+                    <time className="text-[11px] text-muted-foreground/60 select-none ml-1.5 shrink-0">
+                      {formatTime(message.timestamp)}
+                    </time>
                   </div>
                 </div>
               )}
 
             </div>
 
-            {/* Unified Metadata & Provenance Row: EU AI Act Article 50 badge + Sources Cited */}
-            {isGuru && !message.error && (message.content || !isStreaming) && (
+            {/* Contextual Disclosures & Non-Grouped Citations (only when present and not already displayed in GuruTeachingCard) */}
+            {isGuru && !message.error && (message.content || !isStreaming) && (editorialSet?.status === 'conflicted' || (citations.length > 0 && guruTeachingGroups.length === 0)) && (
               <div className="mt-1.5 select-none flex flex-wrap items-center justify-between gap-2 px-1">
                 <div className="flex items-center gap-2">
-                <EuAiBadge
-                  originType={
-                    (typeof message.aiProvenance?.originType === 'string' &&
-                     ['ai_generated', 'human_generated', 'ai_assisted', 'unverified'].includes(message.aiProvenance.originType)
-                      ? (message.aiProvenance.originType as OriginType)
-                      : (message.verification?.method === 'first_person_verbatim_clip_gate' && message.verification?.passed !== false
-                        ? 'human_generated'
-                        : 'ai_generated'))
-                  }
-                  onClick={() => setProvenanceOpen(true)}
-                  size="sm"
-                />
                 {editorialSet?.status === 'conflicted' && (
                   <span
                     data-testid="editorial-conflict-disclosure"
@@ -1858,7 +1884,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     )}
                   </span>
                 )}
-                {citations.length > 0 && (
+                {citations.length > 0 && guruTeachingGroups.length === 0 && (
                   <button
                     type="button"
                     onClick={() => setSourcesOpen(true)}
@@ -1883,9 +1909,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   </button>
                 )}
                 </div>
-                <time className="text-[11px] text-muted-foreground/60 select-none ml-auto">
-                  {formatTime(message.timestamp)}
-                </time>
               </div>
             )}
 

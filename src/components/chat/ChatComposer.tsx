@@ -294,7 +294,7 @@ function ChatComposerInner({
             dir={currentLanguage === 'ur' ? 'rtl' : 'auto'}
             enterKeyHint="send"
             aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
-            className="!flex-none min-h-12 max-h-[240px] w-full cursor-text bg-transparent border-none outline-none resize-none px-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus-visible:ring-2 focus-visible:ring-ojas disabled:opacity-50 disabled:cursor-not-allowed"
+            className="!flex-none min-h-12 max-h-[240px] w-full cursor-text bg-transparent border-none outline-none resize-none px-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual focus:ring-0 focus-visible:ring-0 focus:outline-none focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               scrollbarWidth: 'thin',
               scrollbarColor: 'hsl(var(--ojas-gold) / 0.5) transparent',

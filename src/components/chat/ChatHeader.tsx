@@ -138,20 +138,6 @@ export const ChatHeader = ({
         )}
       </div>
       <div className="flex items-center gap-0.5 sm:gap-1.5">
-        {onOpenVoiceMode && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onOpenVoiceMode}
-            className="flex items-center gap-1.5 h-8 px-2.5 rounded-full border-ojas/30 bg-ojas/10 text-ojas-ink dark:text-ojas hover:bg-ojas/20 text-xs font-medium transition-all"
-            aria-label={t('chat.voiceMode', 'Voice Mode')}
-            title={t('chat.voiceMode', 'Voice Mode')}
-            data-testid="header-voice-mode-button"
-          >
-            <AudioLines className="w-3.5 h-3.5 text-ojas animate-pulse" />
-            <span className="hidden md:inline">{t('chat.voiceMode', 'Voice Mode')}</span>
-          </Button>
-        )}
         {responsePreferences && onResponsePreferencesChange && onResetResponsePreferences && <div className="hidden sm:block"><ResponsePreferencesMenu value={responsePreferences} onChange={onResponsePreferencesChange} onReset={onResetResponsePreferences} /></div>}
         {isIncognito && <span className="text-[10px] text-amber-600/70 hidden sm:block mr-1">{t('chat.incognitoScope', 'Not saved to history, personal memory, or your personal wisdom map.')}</span>}
         {hasMessages && onOpenSources && (

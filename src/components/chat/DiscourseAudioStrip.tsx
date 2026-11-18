@@ -170,7 +170,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* Left: Teacher Avatar & Discourse Metadata */}
-        <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex items-center gap-3 min-w-[120px] flex-1">
           {/* Sacred Avatar Ring */}
           <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-saffron-gold to-amber-600 text-white shadow-sm ring-2 ring-saffron-gold/40">
             <span className="font-serif text-xs font-bold tracking-tight">{teacherInitials}</span>
@@ -184,7 +184,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
               <span className="font-serif text-xs font-semibold text-foreground truncate">
                 {effectiveSpeaker}
               </span>
-              <span className="rounded-full bg-saffron-gold/20 px-1.5 py-0.5 text-[9px] font-medium text-saffron-gold uppercase tracking-wider whitespace-nowrap shrink-0">
+              <span className="hidden sm:inline-flex rounded-full bg-saffron-gold/20 px-1.5 py-0.5 text-[9px] font-medium text-saffron-gold uppercase tracking-wider whitespace-nowrap shrink-0">
                 Source clip
               </span>
             </div>

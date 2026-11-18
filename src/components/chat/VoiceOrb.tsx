@@ -182,29 +182,21 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
       </AnimatePresence>
 
       {/* =========================================================================
-          Layer 5: 3D Specular Glass Core & Interaction Anchor
+          Layer 5: Sacred Ekam Golden Orb & Interaction Anchor
          ========================================================================= */}
       <motion.div
-        className="relative z-10 flex items-center justify-center rounded-full overflow-hidden transition-shadow"
+        className="relative z-10 flex items-center justify-center rounded-full overflow-hidden transition-shadow ring-2 ring-amber-400/60 dark:ring-amber-300/70"
         style={{
           width: size,
           height: size,
-          background:
-            state === 'listening'
-              ? 'radial-gradient(circle at 35% 30%, #FEF3C7 0%, #F59E0B 45%, #B45309 85%, #78350F 100%)'
-              : state === 'speaking'
-              ? 'radial-gradient(circle at 35% 30%, #F5D0FE 0%, #A855F7 45%, #6B21A8 85%, #4C1D95 100%)'
-              : state === 'thinking'
-              ? 'radial-gradient(circle at 35% 30%, #E0E7FF 0%, #6366F1 45%, #4338CA 85%, #312E81 100%)'
-              : 'radial-gradient(circle at 35% 30%, #FEF3C7 0%, #D97706 50%, #92400E 90%, #451A03 100%)',
           boxShadow:
             state === 'listening'
-              ? '0 12px 40px rgba(245, 158, 11, 0.55), inset 0 3px 8px rgba(255, 255, 255, 0.6), inset 0 -4px 12px rgba(0, 0, 0, 0.35)'
+              ? '0 12px 40px rgba(245, 158, 11, 0.65), 0 0 35px rgba(245, 158, 11, 0.55), inset 0 0 20px rgba(254, 243, 199, 0.3)'
               : state === 'speaking'
-              ? '0 12px 40px rgba(168, 85, 247, 0.55), inset 0 3px 8px rgba(255, 255, 255, 0.6), inset 0 -4px 12px rgba(0, 0, 0, 0.35)'
+              ? '0 12px 40px rgba(217, 119, 6, 0.65), 0 0 35px rgba(245, 158, 11, 0.5), inset 0 0 20px rgba(254, 243, 199, 0.3)'
               : state === 'thinking'
-              ? '0 12px 40px rgba(99, 102, 241, 0.5), inset 0 3px 8px rgba(255, 255, 255, 0.6), inset 0 -4px 12px rgba(0, 0, 0, 0.35)'
-              : '0 8px 24px rgba(217, 119, 6, 0.35), inset 0 2px 6px rgba(255, 255, 255, 0.4), inset 0 -3px 8px rgba(0, 0, 0, 0.3)',
+              ? '0 12px 40px rgba(245, 158, 11, 0.5), 0 0 25px rgba(245, 158, 11, 0.4), inset 0 0 20px rgba(254, 243, 199, 0.25)'
+              : '0 8px 24px rgba(217, 119, 6, 0.45), 0 0 20px rgba(245, 158, 11, 0.35)',
         }}
         animate={
           shouldReduceMotion
@@ -221,40 +213,74 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
           damping: 20,
         }}
       >
-        {/* Top-left specular gloss highlight */}
+        {/* Authentic Sacred Ekam Golden Orb Photo */}
+        <img
+          src="/images/ekam-golden-orb-lotus-square.png"
+          alt="Sacred Ekam Golden Orb"
+          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-none transform scale-105"
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = 'none';
+          }}
+        />
+
+        {/* Ambient lighting gradient overlay for seamless dark integration */}
+        <div
+          className="absolute inset-0 rounded-full pointer-events-none mix-blend-overlay opacity-30"
+          style={{
+            background:
+              state === 'listening'
+                ? 'radial-gradient(circle, rgba(245, 158, 11, 0.8) 0%, transparent 80%)'
+                : state === 'speaking'
+                ? 'radial-gradient(circle, rgba(234, 88, 12, 0.8) 0%, transparent 80%)'
+                : state === 'thinking'
+                ? 'radial-gradient(circle, rgba(139, 92, 246, 0.7) 0%, transparent 80%)'
+                : 'radial-gradient(circle, rgba(245, 158, 11, 0.4) 0%, transparent 80%)',
+          }}
+        />
+
+        {/* Specular gloss highlight */}
         <div
           className="absolute inset-0 rounded-full pointer-events-none"
           style={{
             background:
-              'radial-gradient(ellipse at 32% 26%, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.15) 35%, transparent 65%)',
+              'radial-gradient(ellipse at 32% 26%, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.1) 35%, transparent 65%)',
           }}
         />
 
-        {/* State Icon Indicator with smooth kinetic transitions */}
-        <div className="relative z-20 text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+        {/* Floating frosted glass state indicator badge */}
+        <div className="absolute bottom-3.5 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/55 backdrop-blur-md border border-amber-400/40 text-amber-200 text-xs font-medium shadow-lg select-none">
           {state === 'listening' ? (
             <motion.div
-              animate={shouldReduceMotion ? {} : { scale: [1, 1.12 + clampedLevel * 0.25, 1] }}
+              className="flex items-center gap-1.5"
+              animate={shouldReduceMotion ? {} : { scale: [1, 1.08 + clampedLevel * 0.2, 1] }}
               transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <Mic className="w-11 h-11" />
+              <Mic className="w-3.5 h-3.5 text-amber-300 fill-amber-300/30" />
+              <span>Listening</span>
             </motion.div>
           ) : state === 'thinking' ? (
             <motion.div
-              animate={shouldReduceMotion ? {} : { rotate: 360 }}
-              transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
+              className="flex items-center gap-1.5"
+              animate={shouldReduceMotion ? {} : { rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <Sparkles className="w-11 h-11 text-indigo-100" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
+              <span>Reflecting</span>
             </motion.div>
           ) : state === 'speaking' ? (
             <motion.div
-              animate={shouldReduceMotion ? {} : { scale: [1, 1.14, 1] }}
+              className="flex items-center gap-1.5"
+              animate={shouldReduceMotion ? {} : { scale: [1, 1.06, 1] }}
               transition={{ duration: 1.1, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <Volume2 className="w-11 h-11 text-purple-100" />
+              <Volume2 className="w-3.5 h-3.5 text-amber-300" />
+              <span>Speaking</span>
             </motion.div>
           ) : (
-            <Pause className="w-10 h-10 opacity-75" />
+            <div className="flex items-center gap-1.5 text-amber-200/80">
+              <Pause className="w-3.5 h-3.5 opacity-75" />
+              <span>Paused</span>
+            </div>
           )}
         </div>
       </motion.div>

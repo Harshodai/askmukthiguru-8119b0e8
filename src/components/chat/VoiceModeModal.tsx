@@ -167,8 +167,12 @@ export const VoiceModeModal: React.FC<VoiceModeModalProps> = ({
             {/* Modal Header: Frosted Glass Double-Bezel Bar */}
             <header className="flex-none flex items-center justify-between px-4 sm:px-8 py-3.5 sm:py-4 border-b border-white/10 dark:border-white/5 bg-card/60 backdrop-blur-xl">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-9 h-9 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500">
-                  <span className="text-lg leading-none" aria-hidden="true">🙏</span>
+                <div className="relative flex items-center justify-center w-9 h-9 rounded-full overflow-hidden border border-amber-400/40 shadow-[0_0_12px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/20 bg-background shrink-0">
+                  <img
+                    src="/images/ekam-golden-orb-lotus-square.png"
+                    alt="Ekam Golden Orb"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div>
                   <h2 id={titleId} className="font-serif text-base sm:text-lg font-semibold tracking-wide text-foreground">
