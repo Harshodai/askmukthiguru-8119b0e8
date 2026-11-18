@@ -375,6 +375,7 @@ const ProfilePage = () => {
 
             <TabsContent value="journey" className="space-y-6 mt-0">
               <JourneyOverview
+                familiarityLevel={profile.familiarityLevel}
                 stats={stats}
                 sessions={sessions}
                 conversations={conversations}

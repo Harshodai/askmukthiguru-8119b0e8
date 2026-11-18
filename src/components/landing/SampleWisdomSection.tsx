@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Youtube, Sparkles } from 'lucide-react';
+import gurusPhoto from '@/assets/gurus-photo.jpg';
 
 interface Teaching {
   title: string;
@@ -128,22 +129,27 @@ export const SampleWisdomSection = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-auto pt-4 border-t border-border/50">
-                <div>
-                  <span className="text-xs text-muted-foreground uppercase tracking-widest">
-                    {t('wisdom.fromTeachingOf', 'From the teaching of')}
-                  </span>
-                  <p className="text-sm font-semibold text-deep-earth dark:text-foreground/90">
-                    {teachings[currentIndex].teacher}
-                  </p>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full overflow-hidden border border-saffron-gold/40 shadow-xs shrink-0 ring-1 ring-saffron-gold/20">
+                    <img src={gurusPhoto} alt="Sri Preethaji & Sri Krishnaji" className="w-full h-full object-cover" loading="lazy" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-widest block font-medium">
+                      {t('wisdom.fromTeachingOf', 'From the teaching of')}
+                    </span>
+                    <p className="text-sm font-semibold text-deep-earth dark:text-foreground/90">
+                      {teachings[currentIndex].teacher}
+                    </p>
+                  </div>
                 </div>
 
                 <a
                   href={teachings[currentIndex].resource}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-xs font-semibold text-saffron-gold hover:text-pale-gold transition-colors self-start sm:self-auto bg-saffron-gold/10 hover:bg-saffron-gold/20 px-3.5 py-2 rounded-full border border-saffron-gold/20"
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-saffron-gold hover:text-pale-gold transition-colors self-start sm:self-auto bg-saffron-gold/10 hover:bg-saffron-gold/20 px-3.5 py-2 rounded-full border border-saffron-gold/20 min-h-[36px]"
                 >
-                  <Youtube className="w-4 h-4" />
+                  <Youtube className="w-4 h-4 text-red-500" />
                   <span>{t('wisdom.relatedTeaching', 'Explore a related teaching')}</span>
                 </a>
               </div>

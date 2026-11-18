@@ -2633,6 +2633,21 @@ return (
                 className="flex min-h-[calc(100dvh-8.75rem)] flex-col items-center px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-5 sm:min-h-[calc(100dvh-10rem)] sm:justify-center sm:py-10"
               >
               <div className="text-center px-4 sm:mb-8">
+                {/* Sacred Gurus Avatar with Golden Aura */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.35, ease: 'easeOut' }}
+                  className="mx-auto mb-4 relative flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-ojas/40 shadow-[0_0_28px_hsl(var(--ojas)/0.3)] ring-2 ring-ojas/20 bg-background"
+                >
+                  <img
+                    src={gurusPhoto}
+                    alt="Sri Preethaji & Sri Krishnaji"
+                    className="w-full h-full object-cover"
+                    loading="eager"
+                  />
+                </motion.div>
+
                 <motion.h2
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -2652,6 +2667,28 @@ return (
                 <div className="mt-3">
                   <TeacherGuidancePanel />
                 </div>
+
+                {/* Today's Sacred Teaching Banner (if active) */}
+                {dailyTeaching?.caption && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="mt-4 mx-auto max-w-md rounded-2xl border border-ojas/25 bg-gradient-to-r from-ojas/10 via-background to-ojas/5 p-3.5 shadow-xs text-left flex items-start gap-3 backdrop-blur-sm"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-ojas/15 border border-ojas/30 flex items-center justify-center shrink-0 mt-0.5">
+                      <Sparkles className="w-4 h-4 text-ojas" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-ojas">
+                        {t('chat.todaysWisdom', "Today's Sacred Wisdom")}
+                      </span>
+                      <p className="mt-1 text-xs text-foreground/90 font-serif italic leading-relaxed line-clamp-2">
+                        &ldquo;{dailyTeaching.caption}&rdquo;
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               <div className="mt-auto w-full max-w-2xl px-2 pb-[var(--cookie-banner-h,0px)] sm:mt-0 sm:px-4">

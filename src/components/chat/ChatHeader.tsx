@@ -8,6 +8,7 @@ import { UserMenu } from '@/components/common/UserMenu';
 import { ResponsePreferencesMenu } from './ResponsePreferencesMenu';
 import type { ResponsePreferences } from '@/lib/chat/types';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -153,7 +154,29 @@ export const ChatHeader = ({
         )}
         {responsePreferences && onResponsePreferencesChange && onResetResponsePreferences && <div className="hidden sm:block"><ResponsePreferencesMenu value={responsePreferences} onChange={onResponsePreferencesChange} onReset={onResetResponsePreferences} /></div>}
         {isIncognito && <span className="text-[10px] text-amber-600/70 hidden sm:block mr-1">{t('chat.incognitoScope', 'Not saved to history, personal memory, or your personal wisdom map.')}</span>}
-        {hasMessages && onOpenSources && <Button size="icon" variant="ghost" onClick={onOpenSources} className="min-h-[44px] min-w-[44px] h-10 w-10 sm:h-8 sm:w-8 text-muted-foreground hover:text-foreground relative flex items-center justify-center rounded-xl" aria-label={t('chat.openSources', { count: sourcesCount })} title={t('chat.viewSources')}><Library className="w-4 h-4" />{sourcesCount > 0 && <span className="absolute top-0 right-0 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-ojas/15 text-ojas-ink dark:text-ojas text-[10px] font-semibold tabular-nums">{sourcesCount}</span>}</Button>}
+        {hasMessages && onOpenSources && (
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={onOpenSources}
+            className={cn(
+              "min-h-[44px] min-w-[44px] h-10 w-10 sm:h-8 sm:w-8 relative flex items-center justify-center rounded-xl transition-all",
+              sourcesCount > 0
+                ? "text-ojas hover:text-ojas hover:bg-ojas/10 border border-ojas/20"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            aria-label={t('chat.openSources', { count: sourcesCount })}
+            title={t('chat.viewSources', 'View cited sources and teachings')}
+            data-testid="header-sources-button"
+          >
+            <Library className="w-4 h-4" />
+            {sourcesCount > 0 && (
+              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-ojas text-primary-foreground text-[10px] font-bold tabular-nums shadow-xs">
+                {sourcesCount}
+              </span>
+            )}
+          </Button>
+        )}
         {hasMessages && onExport && <Button size="icon" variant="ghost" onClick={onExport} className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 hidden sm:flex text-muted-foreground items-center justify-center" aria-label={t('chat.exportMarkdown')} title={t('chat.exportMarkdown')}><Download className="w-4 h-4" /></Button>}
         <a
           href={whatsappUrl}

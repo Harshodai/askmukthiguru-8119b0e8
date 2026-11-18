@@ -5,7 +5,7 @@ import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CALL_VERIFIED_CRISIS_LINES } from '@/lib/crisisHelplines';
-import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal, ChevronDown, Youtube } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
@@ -44,6 +44,7 @@ import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
 import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
+import { SourcePlatformBadge, isYouTubeUrl } from '@/components/common/SourcePlatformBadge';
 import { completeStep } from '@/lib/dailyJourney';
 import { AbstainHelpCard } from './AbstainHelpCard';
 
@@ -218,7 +219,18 @@ const TeachingGroundingCard = ({
 }: TeachingGroundingCardProps) => {
   const { t } = useTranslation();
   const items = teachingPreview.length > 0
-    ? teachingPreview.slice(0, 3)
+    ? teachingPreview.slice(0, 3).map((tp) => {
+        const matching = citations.find((c) => c.url === tp.url);
+        return {
+          title: tp.title,
+          teacher: tp.teacher ?? null,
+          url: tp.url ?? null,
+          excerpt: tp.excerpt ?? null,
+          timestampSeconds: matching?.timestampSeconds,
+          playbackStartSeconds: matching?.playbackStartSeconds,
+          channel_name: matching?.channel_name,
+        };
+      })
     : citations
         .filter((citation) => Boolean(citation.title || citation.quote || citation.textSnippet))
         .slice(0, 3)
@@ -227,6 +239,9 @@ const TeachingGroundingCard = ({
           teacher: resolveAttributionLabel(citation) ?? null,
           url: citation.url || null,
           excerpt: citation.quote || citation.textSnippet || null,
+          timestampSeconds: citation.timestampSeconds,
+          playbackStartSeconds: citation.playbackStartSeconds,
+          channel_name: citation.channel_name,
         }));
 
   const isAbstained = groundingState === 'abstained';
@@ -361,37 +376,47 @@ const TeachingGroundingCard = ({
           const safeUrl = item.url && isUsableSourceUrl(item.url) ? safeUrlTransform(item.url) : null;
 
           return (
-            <div key={item.url || item.title + '-' + index} className="min-w-0">
-              <div className="text-[15px] leading-5 font-medium text-foreground">
-                {safeUrl ? (
-                  <a
-                    href={safeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-ojas hover:underline underline-offset-2"
-                    aria-label={t('chat.openSourceAria', {
-                      number: index + 1,
-                      domain: (() => {
-                        try {
-                          return new URL(safeUrl).hostname.replace(/^www\./, '');
-                        } catch {
-                          return safeUrl;
-                        }
-                      })(),
-                    })}
-                  >
-                    {item.title}
-                  </a>
-                ) : (
-                  item.title
-                )}
+            <div key={item.url || item.title + '-' + index} className="min-w-0 p-2.5 rounded-xl bg-background/50 border border-border/50 hover:border-ojas/30 transition-all">
+              <div className="flex flex-wrap items-center gap-2">
+                <SourcePlatformBadge
+                  url={safeUrl}
+                  timestampSeconds={item.timestampSeconds}
+                  playbackStartSeconds={item.playbackStartSeconds}
+                  channelName={item.channel_name}
+                  size="sm"
+                />
+                <div className="text-[14px] sm:text-[15px] leading-5 font-semibold text-foreground truncate flex-1 min-w-[140px]">
+                  {safeUrl ? (
+                    <a
+                      href={safeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-ojas hover:underline underline-offset-2 inline-flex items-center gap-1.5"
+                      aria-label={t('chat.openSourceAria', {
+                        number: index + 1,
+                        domain: (() => {
+                          try {
+                            return new URL(safeUrl).hostname.replace(/^www\./, '');
+                          } catch {
+                            return safeUrl;
+                          }
+                        })(),
+                      })}
+                    >
+                      <span className="truncate">{item.title}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground/70" aria-hidden="true" />
+                    </a>
+                  ) : (
+                    item.title
+                  )}
+                </div>
               </div>
               {item.teacher && (
-                <div className="mt-0.5 text-[14px] leading-tight text-muted-foreground font-medium">{item.teacher}</div>
+                <div className="mt-1 text-[13px] leading-tight text-ojas-ink dark:text-ojas font-medium">{item.teacher}</div>
               )}
               {item.excerpt && (
-                <blockquote className="mt-1 border-s-2 border-ojas/30 ps-3 text-[15px] leading-[1.75] text-muted-foreground line-clamp-3">
-                  {item.excerpt}
+                <blockquote className="mt-1.5 border-s-2 border-ojas/40 ps-3 text-[14px] leading-relaxed text-muted-foreground line-clamp-3 italic">
+                  "{item.excerpt}"
                 </blockquote>
               )}
             </div>
@@ -562,6 +587,13 @@ export const GuruTeachingCard = ({
         </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs text-muted-foreground">
+        <SourcePlatformBadge
+          url={citation.playbackUrl || citation.url}
+          timestampSeconds={startSeconds}
+          playbackStartSeconds={citation.playbackStartSeconds}
+          channelName={citation.channel_name}
+          size="sm"
+        />
         {attribution && (
           <span className="font-medium text-ojas-ink dark:text-ojas">{attribution}</span>
         )}
@@ -1850,7 +1882,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     aria-label={t('chat.viewSources')}
                     title={t('chat.references')}
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden="true" />
+                    {citations.some((c) => isYouTubeUrl(c?.url)) ? (
+                      <Youtube className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0" aria-hidden="true" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden="true" />
+                    )}
                     <span className="sr-only">{t('chat.references')}</span>
                     <span className="font-medium text-foreground">
                       {t('chat.sourcesCitedCount', { count: citations.length, defaultValue: `${citations.length} Sources` })}

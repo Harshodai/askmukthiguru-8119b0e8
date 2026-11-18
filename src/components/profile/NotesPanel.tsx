@@ -12,6 +12,8 @@ import {
   Trash2,
   X,
   StickyNote,
+  MessageCircle,
+  Youtube,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -293,8 +295,15 @@ export function NotesPanel() {
                         </Badge>
                       ))}
                       {n.source_message_id && (
-                        <Badge variant="outline" className="text-xs">
-                          {t('notes.fromChat')}
+                        <Badge variant="outline" className="text-xs inline-flex items-center gap-1 border-ojas/30 bg-ojas/5 text-ojas-ink dark:text-ojas">
+                          <MessageCircle className="w-3 h-3 text-ojas" />
+                          <span>{t('notes.fromChat', 'From Guru Chat')}</span>
+                        </Badge>
+                      )}
+                      {(n.body.includes('youtube.com') || n.body.includes('youtu.be')) && (
+                        <Badge variant="outline" className="text-xs inline-flex items-center gap-1 border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400">
+                          <Youtube className="w-3 h-3 text-red-500" />
+                          <span>YouTube Discourse</span>
                         </Badge>
                       )}
                     </div>

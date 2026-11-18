@@ -1,4 +1,4 @@
-import { ArrowRight, Flame, MessageCircle, Sparkles } from 'lucide-react';
+import { ArrowRight, Flame, MessageCircle, Sparkles, Network, Brain } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,8 @@ import type { Conversation } from '@/lib/chatStorage';
 import type { PersonalInsight } from '@/lib/personalInsights';
 import type { NormalizedSession } from '@/lib/meditationMetrics';
 import { ProfileStatTiles } from '@/components/profile/ProfileStatTiles';
+import { StreakMilestoneCard } from '@/components/profile/StreakMilestoneCard';
+import { FamiliarityProgressWheel, type FamiliarityLevel } from '@/components/profile/FamiliarityProgressWheel';
 
 interface JourneyOverviewProps {
   displayName?: string;
@@ -37,6 +39,7 @@ interface JourneyOverviewProps {
 }
 
 export const JourneyOverview = ({
+  familiarityLevel,
   stats,
   sessions = [],
   conversations,
@@ -45,17 +48,91 @@ export const JourneyOverview = ({
   onNavigate,
   onContinueChat,
   onPractice,
+  onKnowledgeGraph,
 }: JourneyOverviewProps) => {
   const { t } = useTranslation();
+  const handleOpenKnowledgeGraph = () => {
+    if (onKnowledgeGraph) {
+      onKnowledgeGraph();
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/knowledge-graph';
+    }
+  };
   const hasPracticed = stats.totalSessions > 0;
   const recentConversations = conversations.slice(0, 3);
   const insights = personalInsights.slice(0, 2);
   const hasActivity = recentConversations.length > 0 || insights.length > 0;
+  const normalizedLevel: FamiliarityLevel =
+    familiarityLevel === 'advanced' || familiarityLevel === 'advanced_meditator'
+      ? 'advanced_meditator'
+      : familiarityLevel === 'seeker'
+        ? 'seeker'
+        : 'practitioner';
 
   return (
     <div className="space-y-6">
       {/* ── Practice Overview: Stat tiles & 7-day sparkline ── */}
       <ProfileStatTiles stats={stats} sessions={sessions} />
+
+      {/* ── Sacred Practice Milestones & Badges ── */}
+      <StreakMilestoneCard
+        currentStreak={stats.streakDays}
+        longestStreak={stats.longestStreakDays}
+      />
+
+      {/* ── Guidance Depth & Sanskrit Lexicon ── */}
+      <FamiliarityProgressWheel
+        level={normalizedLevel}
+        totalConversations={conversations.length}
+        totalReflections={sessions.length}
+      />
+
+      {/* ── Sacred Discovery Quick-Links: Wisdom Map & Memory ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div
+          onClick={handleOpenKnowledgeGraph}
+          className="p-4 sm:p-5 rounded-2xl border border-hairline/80 bg-card/80 hover:bg-card hover:border-ojas/40 transition-all cursor-pointer shadow-xs group flex items-start gap-3.5"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleOpenKnowledgeGraph(); }}
+          aria-label="Explore Living Wisdom Map"
+        >
+          <div className="w-10 h-10 rounded-xl bg-ojas/10 border border-ojas/25 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform text-ojas">
+            <Network className="w-5 h-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <span>{t('profile.journey.wisdomMapTitle', 'Living Wisdom Map')}</span>
+              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-ojas transition-colors" />
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {t('profile.journey.wisdomMapDesc', 'Explore the interconnected ontology of 8,750+ doctrinal concepts and teachings.')}
+            </p>
+          </div>
+        </div>
+
+        <div
+          onClick={() => onNavigate('memory')}
+          className="p-4 sm:p-5 rounded-2xl border border-hairline/80 bg-card/80 hover:bg-card hover:border-ojas/40 transition-all cursor-pointer shadow-xs group flex items-start gap-3.5"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onNavigate('memory'); }}
+          aria-label="Explore Living Memory and Notes"
+        >
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform text-amber-600 dark:text-amber-400">
+            <Brain className="w-5 h-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <span>{t('profile.journey.livingMemoryTitle', 'Living Memory & Reflections')}</span>
+              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
+            </h4>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {t('profile.journey.livingMemoryDesc', 'Review spiritual reflections, notes, and personalized memories remembered by the Guru.')}
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* ── Ekam Sanctuary Emblem & Teaching ── */}
       <div className="relative overflow-hidden rounded-2xl border border-ojas/25 bg-gradient-to-r from-amber-950/20 via-background to-amber-950/20 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-center gap-4">

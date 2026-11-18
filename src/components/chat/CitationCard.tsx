@@ -74,9 +74,12 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
           }
         }}
         aria-label={`Citation ${citation.index}: ${citation.title}`}
-        className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-ojas-ink transition-all hover:scale-110 hover:bg-saffron-gold/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+        className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-ojas-ink transition-all hover:scale-110 hover:bg-saffron-gold/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
       >
-        {citation.index}
+        {(citation.url?.includes('youtube.com') || citation.url?.includes('youtu.be')) && (
+          <Play className="w-2 h-2 fill-red-600 text-red-600 shrink-0" aria-hidden="true" />
+        )}
+        <span>{citation.index}</span>
       </button>
 
       {/* Hovercard Preview */}
