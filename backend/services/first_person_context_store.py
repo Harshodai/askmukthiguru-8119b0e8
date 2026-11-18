@@ -748,19 +748,41 @@ class FirstPersonContextStore:
                     filter=query_filter,
                 ),
             ]
-            response = self._client.query_points(
-                collection_name=self._collection,
-                prefetch=prefetch_queries,
-                query=FusionQuery(fusion=Fusion.RRF),
-                limit=limit_parents * spans_per_parent * 3,
-                with_payload=[
-                    "parent_unit_id",
-                    "source_span_id",
-                    "start_ms",
-                    "end_ms",
-                    "verbatim_text",
-                ],
-            )
+            try:
+                response = self._client.query_points(
+                    collection_name=self._collection,
+                    prefetch=prefetch_queries,
+                    query=FusionQuery(fusion=Fusion.RRF),
+                    limit=limit_parents * spans_per_parent * 3,
+                    with_payload=[
+                        "parent_unit_id",
+                        "source_span_id",
+                        "start_ms",
+                        "end_ms",
+                        "verbatim_text",
+                    ],
+                )
+            except Exception as exc:  # noqa: BLE001 - a collection may have no sparse vector
+                # The sparse lane is an addition, never a reason to fail retrieval: a
+                # collection built before `passage_sparse` existed must still answer from
+                # dense alone. Falling through here is what makes that promise true.
+                logger.debug(
+                    "[ContextStore] sparse prefetch unavailable; retrying dense-only: %s", exc
+                )
+                response = self._client.query_points(
+                    collection_name=self._collection,
+                    query=query_dense,
+                    using="passage_dense",
+                    query_filter=query_filter,
+                    limit=limit_parents * spans_per_parent * 3,
+                    with_payload=[
+                        "parent_unit_id",
+                        "source_span_id",
+                        "start_ms",
+                        "end_ms",
+                        "verbatim_text",
+                    ],
+                )
         else:
             response = self._client.query_points(
                 collection_name=self._collection,
@@ -1532,6 +1554,50 @@ class FirstPersonContextStore:
             if key not in expected or expected.get(key) != payload.get(key):
                 return False
         return True
+
+    def dense_vectors_for_spans(
+        self, span_ids: Sequence[str]
+    ) -> dict[str, list[float]]:
+        """Read-only ``passage_dense`` lookup for a set of child span IDs.
+
+        The harness scores a served parent with the retrieval score that produced
+        the hit. When retrieval ran on a HyDE expansion, that score describes the
+        expansion, not the seeker's question, so the calibrated confidence needs
+        the child vectors to recompute cosine against the original query vector.
+        This is a read-only fetch: it never widens a candidate set, never changes
+        a payload, and returns ``{}`` when the client refuses the read so the
+        caller can fall back to the retrieval score.
+        """
+        if not span_ids:
+            return {}
+        by_point: dict[str, str] = {}
+        for span_id in span_ids:
+            key = str(span_id or "").strip()
+            if not key or key in by_point:
+                continue
+            by_point[point_id_for_record(key)] = key
+        if not by_point:
+            return {}
+        try:
+            records = self._client.retrieve(
+                collection_name=self._collection,
+                ids=list(by_point),
+                with_payload=False,
+                with_vectors=["passage_dense"],
+            )
+        except Exception as exc:  # pragma: no cover - transport dependent
+            logger.debug(
+                "[FirstPersonContextStore] passage_dense read unavailable: %s", exc
+            )
+            return {}
+        out: dict[str, list[float]] = {}
+        for record in records or ():
+            span_id = by_point.get(str(getattr(record, "id", "")))
+            raw = getattr(record, "vector", None)
+            dense = raw.get("passage_dense") if isinstance(raw, dict) else None
+            if span_id and dense:
+                out[span_id] = [float(x) for x in dense]
+        return out
 
     def _get_record(self, point_id: str) -> Any:
         records = self._client.retrieve(

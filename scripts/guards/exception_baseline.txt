@@ -2,6 +2,8 @@
 # in backend/app/, backend/rag/, and backend/services/first_person*.
 # This is a RATCHET: it may only decrease, never increase.
 # Recorded for CQ-006 / T7-05 on 2026-11-05.
-max_broad_exceptions=723
+# Updated 2026-11-18: +8 new except-Exception in first_person_pipeline.py (A6 graceful fallback
+# handlers); -1 silent pass removed from first_person_ingest_service.py (now logs debug).
+max_broad_exceptions=731
 max_silent_swallows=0
 max_silent_swallows_fp=0

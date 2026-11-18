@@ -53,7 +53,7 @@ def test_missing_sparse_weights_stay_none(monkeypatch):
 
 
 def test_relevance_prompt_version_bumped_for_the_new_rubric():
-    assert _RELEVANCE_PROMPT_VERSION == "v3"
+    assert _RELEVANCE_PROMPT_VERSION == "v4"
 
 
 @pytest.mark.parametrize("prompt", [_RELEVANCE_SYSTEM_PROMPT, _RELEVANCE_JSON_SYSTEM_PROMPT])

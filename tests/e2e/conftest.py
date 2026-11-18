@@ -31,9 +31,10 @@ from fastapi.testclient import TestClient
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _BACKEND_DIR = _REPO_ROOT / "backend"
 
-for _p in (str(_BACKEND_DIR), str(_REPO_ROOT)):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+for _p in (str(_REPO_ROOT), str(_BACKEND_DIR)):
+    if _p in sys.path:
+        sys.path.remove(_p)
+    sys.path.insert(0, _p)
 
 os.environ.setdefault("IS_PRODUCTION", "false")
 os.environ.setdefault("ENABLE_TEST_AUTH", "true")
@@ -72,9 +73,12 @@ def _ensure_e2e_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "enable_test_auth", True, raising=False)
     monkeypatch.setattr(settings, "is_production", False, raising=False)
     monkeypatch.setattr(settings, "queue_enabled", False, raising=False)
-    # Ensure legacy and context slots do not alias in default test posture so clip lookup succeeds
-    monkeypatch.setattr(settings, "first_person_collection", "first_person_v8", raising=False)
+    # Ensure legacy and context slots point to active context collection in v10-only terminal posture
+    monkeypatch.setattr(settings, "first_person_collection", "first_person_v10", raising=False)
     monkeypatch.setattr(settings, "first_person_context_collection", "first_person_v10", raising=False)
+    monkeypatch.setattr(settings, "first_person_active_collection", "first_person_v10", raising=False)
+    monkeypatch.setattr(settings, "first_person_context_terminal_enabled", True, raising=False)
+    monkeypatch.setattr(settings, "first_person_context_harness_enabled", True, raising=False)
     # Ensure YouTube availability check succeeds for test synthetic video IDs
     monkeypatch.setattr(
         "services.first_person_pipeline.is_youtube_video_available",
@@ -82,6 +86,16 @@ def _ensure_e2e_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         raising=False,
     )
     # Authoritative licensing check succeeds for synthetic licensed clips
+    monkeypatch.setattr(
+        "services.first_person_rights.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.pipeline.stages.first_person_bridge.source_is_authoritatively_licensed",
+        lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
+        raising=False,
+    )
     monkeypatch.setattr(
         "services.first_person_pipeline.source_is_authoritatively_licensed",
         lambda **kwargs: kwargs.get("domain_rights_status") == "licensed",
@@ -207,6 +221,11 @@ def mock_teaching_store(monkeypatch: pytest.MonkeyPatch) -> MockTeachingStore:
     monkeypatch.setattr(
         "app.pipeline.stages.personalize_stage._store_for_request",
         lambda: store,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "services.first_person_serving_contract.legacy_slot_aliases_context",
+        lambda *args: False,
         raising=False,
     )
     return store

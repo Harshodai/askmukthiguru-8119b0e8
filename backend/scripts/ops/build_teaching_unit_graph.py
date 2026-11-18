@@ -240,8 +240,70 @@ def build_graph(
     # when BOTH endpoints exist in this scroll (verified epistemic state).
     span_id_set: set[str] = {p["source_span_id"] for p in valid}
 
+    # A1: Compute edge statistics across the scrolled units
+    units_with_topics = sum(1 for p in valid if any(t for t in (p.get("topics") or p.get("topic_ids") or [])))
+    units_with_concepts = sum(1 for p in valid if any(c for c in (p.get("concepts") or p.get("entity_ids") or [])))
+    all_topics: set[str] = set()
+    all_concepts: set[str] = set()
+    total_topic_edges = 0
+    total_concept_edges = 0
+    total_video_edges = 0
+    total_spoken_by_edges = 0
+    total_temporal_edges = 0
+
+    for p in valid:
+        t_list = [t for t in (p.get("topics") or p.get("topic_ids") or []) if t]
+        c_list = [c for c in (p.get("concepts") or p.get("entity_ids") or []) if c]
+        all_topics.update(t_list)
+        all_concepts.update(c_list)
+        total_topic_edges += len(t_list)
+        total_concept_edges += len(c_list)
+        if p.get("video_id"):
+            total_video_edges += 1
+        if p.get("guru_id") or p.get("speaker"):
+            total_spoken_by_edges += 1
+        if p.get("next_span_id") and p.get("next_span_id") in span_id_set:
+            total_temporal_edges += 1
+        if p.get("previous_span_id") and p.get("previous_span_id") in span_id_set:
+            total_temporal_edges += 1
+
+    dry_run_total_edges = (
+        total_video_edges
+        + total_spoken_by_edges
+        + total_topic_edges
+        + total_concept_edges
+        + total_temporal_edges
+    )
+
+    logger.info(
+        "A1 Projection Coverage: %d/%d (%.1f%%) units carry topics (%d unique, %d edges), "
+        "%d/%d (%.1f%%) units carry concepts (%d unique, %d edges). Edges: %d video, %d spoken_by, %d temporal.",
+        units_with_topics,
+        len(valid),
+        (units_with_topics / len(valid) * 100.0) if valid else 0.0,
+        len(all_topics),
+        total_topic_edges,
+        units_with_concepts,
+        len(valid),
+        (units_with_concepts / len(valid) * 100.0) if valid else 0.0,
+        len(all_concepts),
+        total_concept_edges,
+        total_video_edges,
+        total_spoken_by_edges,
+        total_temporal_edges,
+    )
+
     if dry_run:
-        logger.info("[DRY RUN] Would write %d nodes, skip Memgraph.", len(valid))
+        logger.info(
+            "[DRY RUN] Would write %d nodes, %d edges (%d video, %d speaker, %d topic, %d concept, %d temporal); skip Memgraph apply.",
+            len(valid),
+            dry_run_total_edges,
+            total_video_edges,
+            total_spoken_by_edges,
+            total_topic_edges,
+            total_concept_edges,
+            total_temporal_edges,
+        )
         manifest = GraphBuildManifest(
             build_id=f"dryrun-{uuid.uuid4().hex[:8]}",
             built_at=datetime.now(UTC).isoformat(),
@@ -249,7 +311,7 @@ def build_graph(
             qdrant_collection=collection,
             qdrant_point_count=qdrant_point_count,
             node_count=len(valid),
-            edge_count=0,
+            edge_count=dry_run_total_edges,
             rejection_count=len(rejected_span_ids),
             rights_filter_applied=True,
             rejected_span_ids=rejected_span_ids,

@@ -1408,3 +1408,99 @@ def test_cross_parent_predecessor_allows_fragment_opener_when_predecessor_comple
     adapter.upsert(parent([opener]), [opener])
 
     assert isinstance(adapter.fetch_preceding_span(opener), ValidatedCrossParentEdge)
+
+
+# --- Original-query confidence read path (2026-11-18) -----------------------
+# HyDE replaces the retrieval vector, so the retrieval score no longer describes the
+# seeker's question. The pipeline recomputes confidence from the stored child vectors;
+# that read is read-only and must never widen a candidate set.
+
+
+class _VectorClient:
+    """Minimal client that answers ``retrieve`` with named dense vectors only."""
+
+    def __init__(self, vectors: dict[str, list[float]]) -> None:
+        self.vectors = vectors
+        self.calls: list[tuple[object, ...]] = []
+        self.raise_on_call = False
+
+    def retrieve(self, collection_name, ids, with_payload=True, with_vectors=False):
+        self.calls.append((collection_name, list(ids), with_payload, with_vectors))
+        if self.raise_on_call:
+            raise RuntimeError("qdrant unavailable")
+        return [
+            SimpleNamespace(id=i, vector={"passage_dense": self.vectors[i]})
+            for i in ids
+            if i in self.vectors
+        ]
+
+
+def test_dense_vectors_for_spans_reads_named_dense_vectors_without_payload():
+    sample = span(3)
+    point_id = point_id_for_record(sample.source_span_id)
+    client = _VectorClient({point_id: [0.25, 0.5]})
+    adapter = store(client)
+
+    got = adapter.dense_vectors_for_spans([sample.source_span_id, "missing-span"])
+
+    assert got == {sample.source_span_id: [0.25, 0.5]}
+    assert client.calls == [
+        ("fp_context_test", [point_id, point_id_for_record("missing-span")], False, ["passage_dense"])
+    ]
+
+
+def test_dense_vectors_for_spans_fails_open_on_transport_error():
+    sample = span(4)
+    client = _VectorClient({point_id_for_record(sample.source_span_id): [1.0, 0.0]})
+    client.raise_on_call = True
+
+    assert store(client).dense_vectors_for_spans([sample.source_span_id]) == {}
+
+
+def test_dense_vectors_for_spans_with_no_ids_never_calls_the_client():
+    client = _VectorClient({})
+    assert store(client).dense_vectors_for_spans([]) == {}
+    assert client.calls == []
+
+
+class _NoSparseVectorClient(FakeClient):
+    """A collection built before `passage_sparse` existed: the lane must degrade."""
+
+    def query_points(  # type: ignore[override]
+        self,
+        collection_name,
+        query,
+        using=None,
+        query_filter=None,
+        limit=10,
+        with_payload=True,
+        prefetch=None,
+        **kwargs,
+    ):
+        if prefetch:
+            raise RuntimeError("Wrong input: Not existing vector name error: passage_sparse")
+        return super().query_points(
+            collection_name,
+            query,
+            using=using,
+            query_filter=query_filter,
+            limit=limit,
+            with_payload=with_payload,
+            **kwargs,
+        )
+
+
+def test_retrieve_degrades_to_dense_when_the_collection_has_no_sparse_vector():
+    s1, s2 = span(0), span(1)
+    client = _NoSparseVectorClient()
+    adapter = store(client)
+    adapter.upsert(parent([s1, s2]), [s1, s2])
+
+    contexts = adapter.retrieve(
+        [0.1] * 8,
+        query_sparse={"indices": [1, 2], "values": [0.5, 0.5]},
+        limit_parents=3,
+    )
+
+    assert [c.parent.parent_unit_id for c in contexts] == ["parentA"]
+    assert {s.source_span_id for s in contexts[0].spans} == {s1.source_span_id, s2.source_span_id}

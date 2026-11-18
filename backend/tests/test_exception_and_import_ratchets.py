@@ -3,7 +3,11 @@
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+_HERE = Path(__file__).resolve()
+if _HERE.parents[1].name == "app" or _HERE.parents[1] == Path("/app"):
+    REPO_ROOT = Path("/app")
+else:
+    REPO_ROOT = _HERE.parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 

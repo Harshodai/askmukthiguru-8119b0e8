@@ -737,7 +737,9 @@ def assert_startup_safe(
 
 
 V10_COLLECTION = "first_person_v10"
+V12_SHADOW_COLLECTION = "first_person_v12_shadow"
 POSTURE_V10_ONLY = "v10_only"
+POSTURE_V12_SHADOW = "v12_shadow"
 POSTURE_V8_BRIDGE = "v8_bridge"
 
 
@@ -761,12 +763,20 @@ def _check_declared_posture(
             f"needs both flags true and both slots on {V10_COLLECTION!r}; got {flags}, "
             f"FIRST_PERSON_COLLECTION={slots[0]!r}, FIRST_PERSON_CONTEXT_COLLECTION={slots[1]!r}"
         )
+    elif serving_posture == POSTURE_V12_SHADOW:
+        slots = (report.legacy_collection, report.context_collection)
+        if context_harness_enabled and context_terminal_enabled and slots == (V12_SHADOW_COLLECTION,) * 2:
+            return
+        problem = (
+            f"needs both flags true and both slots on {V12_SHADOW_COLLECTION!r}; got {flags}, "
+            f"FIRST_PERSON_COLLECTION={slots[0]!r}, FIRST_PERSON_CONTEXT_COLLECTION={slots[1]!r}"
+        )
     elif serving_posture == POSTURE_V8_BRIDGE:
         if not context_harness_enabled and not context_terminal_enabled:
             return
         problem = f"needs both flags false; got {flags}"
     elif serving_posture:
-        problem = "must be 'v10_only', 'v8_bridge' or empty"
+        problem = "must be 'v10_only', 'v12_shadow', 'v8_bridge' or empty"
     else:
         return
     raise FirstPersonServingContractError(

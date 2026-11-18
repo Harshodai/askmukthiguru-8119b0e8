@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 _DEFAULT_MAX_CONCEPTS = 8
 _DEFAULT_MIN_SIMILARITY = 0.40
 
+# A3 Tag Hygiene: generic tags shared by >80% of entries that act as wildcards
+# and fail to discriminate doctrine concepts.
+_GENERIC_OKF_TAGS = frozenset({"oneness", "teaching", "teachings", "spirituality", "general"})
+
 
 def expand_concepts_via_okf(
     query_dense_vector: Sequence[float],
@@ -90,12 +94,12 @@ def expand_concepts_via_okf(
                 if "krishna" in target_teacher and "krishna" not in entry_teacher:
                     continue
 
-        # 1. Collect canonical tags from frontmatter
+        # 1. Collect canonical tags from frontmatter (excluding generic wildcards, A3)
         for tag in entry.get("tags", []):
             if isinstance(tag, str):
                 cleaned = tag.strip()
                 key = cleaned.lower()
-                if cleaned and key not in seen:
+                if cleaned and key not in seen and key not in _GENERIC_OKF_TAGS:
                     seen.add(key)
                     collected.append(cleaned)
                     if len(collected) >= max_concepts:

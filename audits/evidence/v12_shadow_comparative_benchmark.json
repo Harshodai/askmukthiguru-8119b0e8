@@ -1,0 +1,82 @@
+{
+  "run_date": "2026-11-18",
+  "baseline_collection": "first_person_v10",
+  "shadow_collection": "first_person_v12_shadow",
+  "shadow_corpus_speaker_verified_pct": 0.5134,
+  "baseline_corpus_speaker_verified_pct": 0.265,
+  "shadow_corpus_topic_ids_count": 1997,
+  "baseline_corpus_topic_ids_count": 0,
+  "shadow_corpus_total_points": 4086,
+  "baseline_corpus_total_points": 2758,
+  "total_previously_abstained": 47,
+  "now_served": 26,
+  "now_served_pct": 55.3,
+  "still_abstained": 21,
+  "still_abstained_ids": [
+    "q004",
+    "q008",
+    "q009",
+    "q010",
+    "q017",
+    "q021",
+    "q029",
+    "q030",
+    "q031",
+    "q032",
+    "q033",
+    "q036",
+    "q037",
+    "q038",
+    "q039",
+    "q053",
+    "q067",
+    "q077",
+    "q078",
+    "q079",
+    "q089"
+  ],
+  "still_abstained_root_causes": {
+    "out_of_corpus_lockdown_privacy": [
+      "q031",
+      "q032",
+      "q033",
+      "q036",
+      "q037",
+      "q038",
+      "q039"
+    ],
+    "out_of_corpus_food_diet": [
+      "q077",
+      "q078",
+      "q079"
+    ],
+    "out_of_corpus_retreat_admin": [
+      "q021",
+      "q029",
+      "q030"
+    ],
+    "parable_clips_filtered_by_character_re": [
+      "q067",
+      "q089"
+    ],
+    "speaker_unverified_or_low_relevance": [
+      "q004",
+      "q008",
+      "q009",
+      "q010",
+      "q017",
+      "q053"
+    ]
+  },
+  "methodology": "Re-evaluated 47 previously-abstained graded-9 questions against first_person_v12_shadow with posture v12_shadow. Served = bridge route + citations_count > 0.",
+  "constitutional_ai_improvements": [
+    "HyDE now expands distress/venting queries (removed _is_distress exclusion)",
+    "Relevance rubric recognises emotional suffering expressions",
+    "Moksha/ritual close-your-eyes false positive fixed (live_event_text.py ritual exemption)"
+  ],
+  "collection_fingerprint": {
+    "collection": "first_person_v12_shadow",
+    "points": 4086,
+    "ids_sha256": "3446384040f2ca2c8e1a33b44c83924741073be6df73fa80ccf1479e52320f8b"
+  }
+}

@@ -1,22 +1,20 @@
 {
   "total": 47,
-  "now_served": 21,
-  "still_abstained": 26,
+  "now_served": 26,
+  "still_abstained": 21,
   "results": [
     {
       "id": "q004",
       "question": "Why do I keep replaying something that already happened, long after it's over?",
       "set": "frozen116",
       "prev_route": "first_person_abstain",
-      "new_route": "first_person_bridge",
-      "new_grounding": "grounded",
-      "citations_count": 1,
-      "citation_titles": [
-        "Discourse by Sri Preethaji"
-      ],
+      "new_route": "first_person_abstain",
+      "new_grounding": "abstained",
+      "citations_count": 0,
+      "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 8.42,
-      "response_preview": "You can live, you can achieve, you can relate from a state of unperturbed peace, from such unconditioned love, from such"
+      "elapsed_s": 2.68,
+      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
       "id": "q005",
@@ -27,11 +25,11 @@
       "new_grounding": "grounded",
       "citations_count": 1,
       "citation_titles": [
-        "Discourse by Sri Krishnaji"
+        "Discourse by Sri Preethaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 7.16,
-      "response_preview": "So here is what happens when your consciousness is totally free of suffering and you're connected to this vast fabric of"
+      "elapsed_s": 4.17,
+      "response_preview": "To make it more simpler for people who don't understand what suffering is, let's keep it very simple. You live your life"
     },
     {
       "id": "q007",
@@ -42,26 +40,24 @@
       "new_grounding": "grounded",
       "citations_count": 1,
       "citation_titles": [
-        "Discourse by Sri Preethaji"
+        "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 7.99,
-      "response_preview": "Peace is an internal state, simply put, where you are not being pulled by two opposing desires. You are not conflicted a"
+      "elapsed_s": 5.47,
+      "response_preview": "Right? You feel this experience in the world today. You feel it with your family. You feel it in your workplace. You fee"
     },
     {
       "id": "q008",
       "question": "How do I get out of a bad mood without forcing myself to be positive?",
       "set": "frozen116",
       "prev_route": "first_person_abstain",
-      "new_route": "first_person_bridge",
-      "new_grounding": "grounded",
-      "citations_count": 1,
-      "citation_titles": [
-        "Discourse by Sri Preethaji"
-      ],
+      "new_route": "first_person_abstain",
+      "new_grounding": "abstained",
+      "citations_count": 0,
+      "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 8.05,
-      "response_preview": "Breathe into your heart. Breathe out of your heart for whatever you have been angry with yourself. Say to yourself: \"I f"
+      "elapsed_s": 5.82,
+      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
       "id": "q009",
@@ -73,7 +69,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 3.07,
+      "elapsed_s": 2.25,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -86,25 +82,12 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 14.2,
+      "elapsed_s": 6.73,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
       "id": "q012",
       "question": "Is it really only the mother's job to keep the family happy?",
-      "set": "frozen116",
-      "prev_route": "first_person_abstain",
-      "new_route": "first_person_abstain",
-      "new_grounding": "abstained",
-      "citations_count": 0,
-      "citation_titles": [],
-      "abstain_reason": null,
-      "elapsed_s": 7.48,
-      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
-    },
-    {
-      "id": "q017",
-      "question": "We have a plan for our career and finances \u2014 why don't we ever plan our inner life the same way?",
       "set": "frozen116",
       "prev_route": "first_person_abstain",
       "new_route": "first_person_bridge",
@@ -114,8 +97,21 @@
         "Discourse by Sri Preethaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 14.91,
-      "response_preview": "For centuries popular religion and spirituality they have got associated with renunciation and giving up the world. We h"
+      "elapsed_s": 5.46,
+      "response_preview": "Keeping your children happy does not mean fulfilling every desire of your child. You always don't need a lot of money to"
+    },
+    {
+      "id": "q017",
+      "question": "We have a plan for our career and finances \u2014 why don't we ever plan our inner life the same way?",
+      "set": "frozen116",
+      "prev_route": "first_person_abstain",
+      "new_route": "first_person_abstain",
+      "new_grounding": "abstained",
+      "citations_count": 0,
+      "citation_titles": [],
+      "abstain_reason": null,
+      "elapsed_s": 6.1,
+      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
       "id": "q018",
@@ -129,8 +125,8 @@
         "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 9.74,
-      "response_preview": "If your sense of self were to be seen as a circle, in I Consciousness neither your family, your children, your friends, "
+      "elapsed_s": 3.22,
+      "response_preview": "Let me share an anecdote from the life of one of the CEOs. Some years ago, he took over a huge company as the CEO and wa"
     },
     {
       "id": "q020",
@@ -141,11 +137,11 @@
       "new_grounding": "grounded",
       "citations_count": 1,
       "citation_titles": [
-        "Discourse by Sri Krishnaji"
+        "Discourse by Sri Preethaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 9.67,
-      "response_preview": "the truth why you are wanting to be a pleaser with each and every person your friends your parents your teachers then yo"
+      "elapsed_s": 4.94,
+      "response_preview": "Family is when the separation between everybody in within the house at least within the family dissolves and begin to ex"
     },
     {
       "id": "q021",
@@ -157,7 +153,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 3.39,
+      "elapsed_s": 2.95,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -169,24 +165,26 @@
       "new_grounding": "grounded",
       "citations_count": 1,
       "citation_titles": [
-        "Discourse by Sri Preethaji"
+        "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 12.2,
-      "response_preview": "I'm sure you to have tried to pierce through this mystery to make greater sense of life. And answers to these questions "
+      "elapsed_s": 5.07,
+      "response_preview": "Your emotional state, your spiritual state, your traumas, your blocks, everything is controlled by the brain. Your brain"
     },
     {
       "id": "q023",
       "question": "What part of me actually gets healed during a retreat like this \u2014 is it emotional, physical, what?",
       "set": "frozen116",
       "prev_route": "first_person_abstain",
-      "new_route": "first_person_abstain",
-      "new_grounding": "abstained",
-      "citations_count": 0,
-      "citation_titles": [],
+      "new_route": "first_person_bridge",
+      "new_grounding": "grounded",
+      "citations_count": 1,
+      "citation_titles": [
+        "Discourse by Sri Krishnaji"
+      ],
       "abstain_reason": null,
-      "elapsed_s": 13.29,
-      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
+      "elapsed_s": 4.41,
+      "response_preview": "You can actually get there by going through a spiritual journey. We have thousands of people who come to our courses, to"
     },
     {
       "id": "q024",
@@ -200,21 +198,23 @@
         "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 15.5,
-      "response_preview": "Today I know I meet so many people and everybody asked me this question. We are not able to feel this connection, we're "
+      "elapsed_s": 5.7,
+      "response_preview": "This will draw obstacles for you from the universe because you are communicating a negative state to the universe and ev"
     },
     {
       "id": "q025",
       "question": "What happens when that blocked, hurt part of me actually gets healed?",
       "set": "frozen116",
       "prev_route": "first_person_abstain",
-      "new_route": "first_person_abstain",
-      "new_grounding": "abstained",
-      "citations_count": 0,
-      "citation_titles": [],
+      "new_route": "first_person_bridge",
+      "new_grounding": "grounded",
+      "citations_count": 1,
+      "citation_titles": [
+        "Discourse by Sri Krishnaji"
+      ],
       "abstain_reason": null,
-      "elapsed_s": 10.28,
-      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
+      "elapsed_s": 3.38,
+      "response_preview": "Life is a playground of infinite possibilities. Anything can happen. Accessing the power of the universal intelligence b"
     },
     {
       "id": "q027",
@@ -225,11 +225,11 @@
       "new_grounding": "grounded",
       "citations_count": 1,
       "citation_titles": [
-        "Discourse by Sri Preethaji"
+        "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 12.17,
-      "response_preview": "Please know that you and your family members are not only connected through your relationships, you are interconnected i"
+      "elapsed_s": 4.37,
+      "response_preview": "It is to make this world a more connected space. Connection is what is lacking. It is to remove division and separation "
     },
     {
       "id": "q029",
@@ -241,7 +241,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 8.66,
+      "elapsed_s": 2.31,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -254,7 +254,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 14.29,
+      "elapsed_s": 5.34,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -267,7 +267,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 11.3,
+      "elapsed_s": 7.26,
       "response_preview": "I hear you, and I want you to know that your feelings are completely valid. In moments like these, you don't have to fig"
     },
     {
@@ -280,7 +280,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 2.35,
+      "elapsed_s": 2.87,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -293,7 +293,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 5.48,
+      "elapsed_s": 7.52,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -301,13 +301,15 @@
       "question": "Why would some people rather risk getting sick than keep staying home with their own family?",
       "set": "frozen116",
       "prev_route": "first_person_abstain",
-      "new_route": "first_person_abstain",
-      "new_grounding": "abstained",
-      "citations_count": 0,
-      "citation_titles": [],
+      "new_route": "first_person_bridge",
+      "new_grounding": "grounded",
+      "citations_count": 1,
+      "citation_titles": [
+        "Discourse by Sri Krishnaji"
+      ],
       "abstain_reason": null,
-      "elapsed_s": 4.0,
-      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
+      "elapsed_s": 4.45,
+      "response_preview": "Let me share an anecdote from the life of one of the CEOs. Some years ago, he took over a huge company as the CEO and wa"
     },
     {
       "id": "q036",
@@ -319,7 +321,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 2.88,
+      "elapsed_s": 2.75,
       "response_preview": "I hear you, and I want you to know that your feelings are completely valid. In moments like these, you don't have to fig"
     },
     {
@@ -332,7 +334,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 7.11,
+      "elapsed_s": 3.15,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -345,7 +347,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 2.51,
+      "elapsed_s": 4.78,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -358,7 +360,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 1.94,
+      "elapsed_s": 2.29,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -370,11 +372,11 @@
       "new_grounding": "grounded",
       "citations_count": 1,
       "citation_titles": [
-        "Discourse by Sri Krishnaji"
+        "Discourse by Sri Preethaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 7.69,
-      "response_preview": "Remember, in 100 billion solar systems, with 100 billion galaxies that make up our universe, there is only one planet th"
+      "elapsed_s": 4.15,
+      "response_preview": "To stop separating people on the basis of gender, sexual inclination, race, color, religion, nationality, all this must "
     },
     {
       "id": "q045",
@@ -388,8 +390,8 @@
         "Discourse by Sri Preethaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 7.12,
-      "response_preview": "It's to look inside yourself. There's nothing more magical than having a journey inward because it's all about being. An"
+      "elapsed_s": 8.33,
+      "response_preview": "To make it more simpler for people who don't understand what suffering is, let's keep it very simple. You live your life"
     },
     {
       "id": "q046",
@@ -400,11 +402,11 @@
       "new_grounding": "grounded",
       "citations_count": 1,
       "citation_titles": [
-        "Discourse by Sri Preethaji"
+        "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 10.3,
-      "response_preview": "wealth and success are probably the two most discussed topics in the world yet there are so many of us who really do not"
+      "elapsed_s": 6.26,
+      "response_preview": "Wealth creation is one of the most discussed topics in the world. You have no doubt heard many techniques and strategies"
     },
     {
       "id": "q049",
@@ -418,38 +420,27 @@
         "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 7.98,
-      "response_preview": "Nobody's children listens. That is why awakening to a state is important. Right now you are thinking you'll be happy if "
+      "elapsed_s": 3.71,
+      "response_preview": "You have to first become joyful. You have to become enlightened. If you become enlightened and joyful, then your success"
     },
     {
       "id": "q051",
       "question": "How does being stressed affect my ability to actually be present with my kids or partner?",
       "set": "frozen116",
       "prev_route": "first_person_abstain",
-      "new_route": "first_person_abstain",
-      "new_grounding": "abstained",
-      "citations_count": 0,
-      "citation_titles": [],
+      "new_route": "first_person_bridge",
+      "new_grounding": "grounded",
+      "citations_count": 1,
+      "citation_titles": [
+        "Discourse by Sri Preethaji"
+      ],
       "abstain_reason": null,
-      "elapsed_s": 8.66,
-      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
+      "elapsed_s": 2.91,
+      "response_preview": "You are dissatisfied with reality because you are incapable of experiencing reality. Incapable of experiencing the rain "
     },
     {
       "id": "q052",
       "question": "Is true love about accepting your partner completely, flaws and all, no matter what?",
-      "set": "frozen116",
-      "prev_route": "first_person_abstain",
-      "new_route": "first_person_abstain",
-      "new_grounding": "abstained",
-      "citations_count": 0,
-      "citation_titles": [],
-      "abstain_reason": null,
-      "elapsed_s": 6.21,
-      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
-    },
-    {
-      "id": "q053",
-      "question": "If I truly love someone unconditionally, shouldn't I just accept their addiction or bad behavior?",
       "set": "frozen116",
       "prev_route": "first_person_abstain",
       "new_route": "first_person_bridge",
@@ -459,8 +450,21 @@
         "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 7.8,
-      "response_preview": "If you truly loved another, you will care for their well -being. You will not be obsessing over whether they love you or"
+      "elapsed_s": 5.48,
+      "response_preview": "You are constantly trying to find love in your partner or with your parents or with your grandparents or with your frien"
+    },
+    {
+      "id": "q053",
+      "question": "If I truly love someone unconditionally, shouldn't I just accept their addiction or bad behavior?",
+      "set": "frozen116",
+      "prev_route": "first_person_abstain",
+      "new_route": "first_person_abstain",
+      "new_grounding": "abstained",
+      "citations_count": 0,
+      "citation_titles": [],
+      "abstain_reason": null,
+      "elapsed_s": 2.57,
+      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
       "id": "q059",
@@ -474,7 +478,7 @@
         "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 12.72,
+      "elapsed_s": 4.87,
       "response_preview": "That's how parents are with children, right? You behave well, you get the rewards. You don't behave well, you get punish"
     },
     {
@@ -482,13 +486,15 @@
       "question": "My partner is an alcoholic and I've basically given up hope \u2014 can love actually change that?",
       "set": "frozen116",
       "prev_route": "first_person_abstain",
-      "new_route": "first_person_abstain",
-      "new_grounding": "abstained",
-      "citations_count": 0,
-      "citation_titles": [],
+      "new_route": "first_person_bridge",
+      "new_grounding": "grounded",
+      "citations_count": 1,
+      "citation_titles": [
+        "Discourse by Sri Krishnaji"
+      ],
       "abstain_reason": null,
-      "elapsed_s": 2.96,
-      "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
+      "elapsed_s": 5.19,
+      "response_preview": "Let me remind you, it became an addiction at a point when life became a struggle for you or when you became unhappy abou"
     },
     {
       "id": "q062",
@@ -502,21 +508,23 @@
         "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 9.88,
-      "response_preview": "Can you believe this? An average person visits social media platforms anywhere between a hundred to hundred and fifty ti"
+      "elapsed_s": 5.63,
+      "response_preview": "Before you conclude that addiction is not your problem, listen me out to the end. Addictions are many kinds. Overeating,"
     },
     {
       "id": "q065",
       "question": "Does our inner state really shape huge things like war, politics, or how kids turn out?",
       "set": "frozen116",
       "prev_route": "blocked",
-      "new_route": "blocked",
-      "new_grounding": "safety_redirect",
-      "citations_count": 0,
-      "citation_titles": [],
+      "new_route": "first_person_bridge",
+      "new_grounding": "grounded",
+      "citations_count": 1,
+      "citation_titles": [
+        "Discourse by Sri Krishnaji"
+      ],
       "abstain_reason": null,
-      "elapsed_s": 0.03,
-      "response_preview": "I'm here to guide you on your spiritual journey. Political discussions are outside my area of guidance. Let me share the"
+      "elapsed_s": 3.91,
+      "response_preview": "Unless and until we change our state, we transform our state, we learn to live in a beautiful state and send out beautif"
     },
     {
       "id": "q067",
@@ -528,7 +536,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 2.41,
+      "elapsed_s": 2.46,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -543,8 +551,8 @@
         "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 8.52,
-      "response_preview": "Nobody's children listens. That is why awakening to a state is important. Right now you are thinking you'll be happy if "
+      "elapsed_s": 4.44,
+      "response_preview": "You have to first become joyful. You have to become enlightened. If you become enlightened and joyful, then your success"
     },
     {
       "id": "q073",
@@ -558,8 +566,8 @@
         "Discourse by Sri Krishnaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 9.6,
-      "response_preview": "A few weeks later, the king once again goes hunting and gets lost in the depths of the forest and is caught by a canniba"
+      "elapsed_s": 4.24,
+      "response_preview": "Only when this thinking changes towards oneness, we are not talking about bringing all religions together. We are not ta"
     },
     {
       "id": "q077",
@@ -571,7 +579,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 3.55,
+      "elapsed_s": 4.05,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -584,7 +592,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 2.84,
+      "elapsed_s": 2.12,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -597,7 +605,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 6.64,
+      "elapsed_s": 4.02,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     },
     {
@@ -609,24 +617,26 @@
       "new_grounding": "grounded",
       "citations_count": 1,
       "citation_titles": [
-        "Discourse by Sri Krishnaji"
+        "Discourse by Sri Preethaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 9.33,
-      "response_preview": "Coming here, I've started to see the inner workings of my mind and I've been put into a state of stillness.  One of conn"
+      "elapsed_s": 5.15,
+      "response_preview": "Relax your body through meditation, it heals. Observe your mind in meditation, it calms. Awaken to an experience of conn"
     },
     {
       "id": "q083",
       "question": "What kinds of things can become an addiction, besides drugs or alcohol?",
       "set": "frozen116",
       "prev_route": "blocked",
-      "new_route": "blocked",
-      "new_grounding": "safety_redirect",
-      "citations_count": 0,
-      "citation_titles": [],
+      "new_route": "first_person_bridge",
+      "new_grounding": "grounded",
+      "citations_count": 1,
+      "citation_titles": [
+        "Discourse by Sri Krishnaji"
+      ],
       "abstain_reason": null,
-      "elapsed_s": 0.04,
-      "response_preview": "I care deeply about your health. Mukthi Guru shares spiritual wisdom for inner peace, which is strictly complementary to"
+      "elapsed_s": 5.57,
+      "response_preview": "Before you conclude that addiction is not your problem, listen me out to the end. Addictions are many kinds. Overeating,"
     },
     {
       "id": "q084",
@@ -640,8 +650,8 @@
         "Discourse by Sri Preethaji"
       ],
       "abstain_reason": null,
-      "elapsed_s": 11.42,
-      "response_preview": "A state of Ananda, bliss pouring into your consciousness from all sides. In that state of Ananda, you are not enslaved b"
+      "elapsed_s": 7.66,
+      "response_preview": "To make it more simpler for people who don't understand what suffering is, let's keep it very simple. You live your life"
     },
     {
       "id": "q089",
@@ -653,7 +663,7 @@
       "citations_count": 0,
       "citation_titles": [],
       "abstain_reason": null,
-      "elapsed_s": 7.52,
+      "elapsed_s": 7.22,
       "response_preview": "I don't have a verified verbatim teaching that directly answers this, and I'd rather say so than improvise one. Try reph"
     }
   ]

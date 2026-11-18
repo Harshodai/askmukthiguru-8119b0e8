@@ -51,3 +51,28 @@ def test_expand_concepts_mock_matrix(tmp_path):
             max_concepts=5,
         )
         assert "suffering state" in concepts_krishna
+
+
+def test_expand_concepts_excludes_generic_wildcard_tags():
+    """A3: generic tags like 'oneness' and 'teaching' must not act as wildcards."""
+    dummy_entries = [
+        {
+            "title": "Oneness Teaching Overview",
+            "teacher": "both",
+            "tags": ["oneness", "teaching", "compassion", "listening"],
+            "embedding": [1.0] + [0.0] * 1023,
+        }
+    ]
+    matrix = np.array([e["embedding"] for e in dummy_entries], dtype=np.float32)
+
+    with patch(
+        "services.first_person_okf_expansion._load_compiled_matrix",
+        return_value=(dummy_entries, matrix),
+    ):
+        q_vec = [1.0] + [0.0] * 1023
+        concepts = expand_concepts_via_okf(q_vec, max_concepts=5)
+
+        assert "oneness" not in [c.lower() for c in concepts]
+        assert "teaching" not in [c.lower() for c in concepts]
+        assert "compassion" in concepts
+        assert "listening" in concepts

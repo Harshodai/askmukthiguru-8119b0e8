@@ -423,5 +423,5 @@ def execute_first_person_video_ingestion(
         if tmp_dir_obj:
             try:
                 tmp_dir_obj.cleanup()
-            except Exception:
-                pass
+            except Exception as _cleanup_exc:  # noqa: BLE001 — best-effort temp dir removal
+                logger.debug("tmp_dir cleanup failed (ignored): %s", _cleanup_exc)

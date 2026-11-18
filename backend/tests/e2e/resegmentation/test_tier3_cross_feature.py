@@ -35,7 +35,7 @@ from scripts.ops.dry_run_resegmentation import (
 from services.first_person_content_assessment import EVENT_MARKER_RE
 from services.qdrant.indexer import get_chunker_version
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 # ===========================================================================

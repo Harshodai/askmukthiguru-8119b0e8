@@ -1,3 +1,160 @@
+## Oct 31, 2026 — multi-span parent context gating, tag filtering parity & speaker verification audit
+
+### L-PARENT-CONTEXT-QUALITY-GATE-1. Gating internal spans of a multi-turn discourse as standalone clips breaks parent contexts.
+- **What:** `FirstPersonPipeline._eval_ctx_worker` applied `_passes_content_quality_gate` to every individual span inside a multi-span `SERVE_PARENT_CONTEXT` candidate. In authentic guru discourse, internal speech turns often begin with reflective questions ("What happens when you react?") or brief connective thoughts (<25 words). Enforcing standalone clip rules on internal parent units caused complete, high-quality parent discourses to fail closed and fall back to legacy v8 clips.
+- **Fix:** `_eval_ctx_worker` now checks single-span decisions (`SERVE_SINGLE_SPAN`) individually, while parent context decisions (`SERVE_PARENT_CONTEXT`) evaluate the assembled discourse across all spans together.
+- **Pin:** `tests/test_first_person_pipeline.py::TestContentQualityGate::test_topic_ids_practice_exemption_passes`.
+- **Rule:** evaluate standalone candidate clips individually; evaluate multi-span parent units on their unified assembled discourse.
+
+### L-TAG-FILTER-PARITY-1. A store filter that omits a payload tagging key silently drops indexed concepts.
+- **What:** Video corpus tagging enriched points with `tags`, but `FirstPersonContextStore._query_groups` only queried `topic_ids` and `entity_ids`. Concept-based retrieval queries (e.g. `Beautiful State`, `Stillness`) failed to match parent units that had been indexed under `tags`.
+- **Fix:** Added `FieldCondition(key="tags", match=MatchAny(any=concepts))` in `FirstPersonContextStore.retrieve` and registered `tags`, `category`, and `facet_ids` in `SPAN_INDEXES`.
+- **Rule:** whenever a payload gains an indexing attribute for classification or retrieval, the query filter must include that attribute in its union match.
+
+### L-SPEAKER-AUDIT-VERIFICATION-1. Verification status must record proof method, not a bare boolean.
+- **What:** In `first_person_v11`, 732 spans had bare boolean `speaker_verified=True` without a recorded `voice_verification_method`. Under strict serve-time gates (`first_person_require_speaker_verified=True`), unverified clips are quarantined to prevent unauthenticated speech turns.
+- **Fix:** Added `scripts/ops/verify_and_update_v11_speakers.py` and `scripts/ops/tag_v11_corpus.py` to audit audio waveforms, run ECAPA voice verification against anchor moments, and stamp explicit methods (`verified_verbatim`, `ecapa_voxceleb_span_slice_v2`).
+- **Pin:** `tests/test_unverified_clip_serving_gate.py` (3 passed).
+- **Rule:** a citation can never publish "verified" on the strength of a bare boolean without an audited verification method.
+
+
+## Oct 31, 2026 — speaker attribution: the rule and the builders had holes the Opus review found
+
+### L-RULE-ACCEPTS-WRONG-ANSWER-1. A rule that checks a field is present does not check the field is right.
+- **What:** the write rule accepted `human_listen_v1` with any `review_choice` (`host_or_interviewer`, `unclear`, the other teacher) and any clip length, accepted `ecapa_voxceleb_centroid_v1` on any new write with no evidence, and passed a `span_slice_v2` claim with no `voice_margin` because the margin check ran only when a margin existed. Found by the Opus review of 9a3187a (D2, D3, D7).
+- **Fix:** `speaker_write_violations` now requires the human choice to equal the span's own teacher (`teacher_code`, `CONFIRMING_CHOICE`) and the clip to be at least 2000 ms; refuses the centroid method unless `allow_legacy_centroid=True` (read paths only: the promotion gate and the backfill post-check); requires `voice_margin` and `margin_threshold` for v2.
+- **Pin:** `tests/test_speaker_provenance.py` (one test per wrong choice, the 1.9 s clip, the missing margin), `tests/test_first_person_context_store.py` (same through `upsert`).
+- **Rule:** for each evidence field, write the test "present but wrong" before the test "absent". A check that only runs when the value exists is a default-pass.
+
+### L-BUILDER-STAMPS-ARE-CLAIMS-1. A builder that sets a flag must set the evidence in the same expression.
+- **What:** `build_full_corpus_v10` stamped `speaker_verified=True` and the v2 method from one boolean while it already held the cosine, margin, floors, model revision and calibration. The evidence was thrown away one line before it was needed. The v9 builder passed a centroid verdict through as a verified claim.
+- **Fix:** both builders call shared helpers in `domain/speaker_provenance.py` (`span_slice_voice_fields`, `automated_voice_fields`) that return the flag and its evidence together, and demote to `pending_voice_check` when the evidence is incomplete. The batch is refused by `assert_speaker_provenance`. The v9 builder cannot produce v2 (no span audio) and refuses centroid rows.
+- **Pin:** `tests/test_speaker_builder_provenance.py`, `tests/test_fp_context_builder_from_v9.py` (P3 section).
+- **Rule:** derive the flag from the evidence object, never beside it. If the flag cannot be derived, it is false.
+
+### L-SNAPSHOT-NAME-IS-NOT-A-SNAPSHOT-1. A string argument proves nothing about a rollback.
+- **What:** `backfill_v10_voice_method.py --apply --snapshot X` accepted any text, so "skipping the snapshot is impossible" was false (D4).
+- **Fix:** before any write the script lists `GET /collections/<c>/snapshots`; the name must appear with a `creation_time` under 2 h old, else exit 2. An unreadable listing fails closed.
+- **Pin:** `test_apply_with_an_unknown_snapshot_name_exits_two_and_writes_nothing` and the stale and unreadable variants.
+- **Rule:** a safety precondition passed as a flag must be verified against the system it protects.
+
+
+## Oct 31, 2026 — a clean image must not depend on host file modes
+
+### L-DOCKER-COPY-MODE-1. Bind mounts hid 0600 source files; the graded override (no code mounts) crash-looped.
+- **What:** with `docker-compose.graded.yml` the backend died on `PermissionError: /app/services/qdrant/client.py`. Git tracks the file as 644, but the host working tree had `services/qdrant/client.py`, `rag/nodes/short_circuit.py` and two tests at 0600 (an atomic-write tool leaves 0600). `COPY backend/ .` copies working-tree modes, so the image held root-owned 0600 files, and the entrypoint drops to `appuser` with `gosu`. Every earlier run used bind mounts, where Docker Desktop's file sharing made the files readable, so the bug never showed.
+- **Fix:** `COPY --chmod=go+rX` for `backend/`, `memory/` and `config/helplines.yaml`, and `--chmod=755` for the entrypoint (backend/Dockerfile). Chosen over a trailing `RUN chmod -R` because that would duplicate the whole layer. Proof (graded override, caches flushed and verified empty): 0 non-world-readable files under the code dirs in the image, `gosu appuser python -c "import services.qdrant.client"` works, no code bind mounts, backend healthy with 0 restarts, `graded_run_preflight` PASS 7/7.
+- **Rule:** the first time a stack runs without bind mounts, test it as the runtime user (`gosu appuser`), not as root. Git's tracked mode is not what Docker copies; the build context is the working tree. Not covered by a unit test: the guard is the build itself (UNPROVEN on a machine whose host files are all 644, where it is a no-op).
+
+
+## Oct 31, 2026 — an approved pass bar with no code path that reads it is decoration
+
+### L-BAR-NOT-IMPLEMENTED-1. Budget settlement, preflight, capture — all real; the bar itself was not.
+- **What:** `evals/first_person/grading_pass_bar.json` was approved with `p95_latency_s`, `min_served_share` and `min_core_abstain_rate`, but `grade_served_answers.evaluate_bar()` only read `min_showable_rate` and `max_harmful`. Stage A's "p95 12.5 s" and "33 of 116 served" were quoted from a scratchpad, and nothing in the pipeline would have failed if the run had missed them. Three of five approved gates had no evaluator.
+- **Fix:** `evaluate_bar` now evaluates every gate the bar *declares*; a declared gate with no evidence produces `INCOMPLETE`, never PASS. `latency_stats` reads server-side `latency_ms` (not the capture script's polled wall clock) by nearest rank, and reports rows with no latency rather than treating them as fast. `served_share` counts answerable questions only.
+- **Rule:** before approving a threshold, grep for the code that reads it. A gate is a function with a failing test, not a number in a JSON file. And when a bar gains a field, the same change must extend the evaluator and add the "declared but unmeasured ⇒ INCOMPLETE" test.
+
+### L-SPEAKER-STORE-GATE-1. A per-record guard does not protect a batch writer.
+- **What:** `FirstPersonContextStore.upsert()` refuses a span that is `speaker_verified=true` with no `voice_verification_method` (I1), but both corpus builders construct `PointStruct` batches and call the Qdrant client directly, so the guard never runs on the path that produced the 732 bare-flag live spans. The store's docstring promised a rule the writers bypassed.
+- **Fix:** `assert_no_bare_flag_speakers()` operates on raw payload dicts and is called before `create_collection`/`upsert` in `build_fp_context_from_v9._apply` and in `build_full_corpus_v10`, so the whole promotion is refused before any mutation. It reads payloads, never `SourceSpan`, because the 732 live points must stay readable for serving.
+- **Rule:** when the same invariant must hold for a unit write and a bulk write, enforce it at the narrowest *shared* level that both paths cross, and test the bulk path with a fake client that asserts zero writes.
+
+### L-PREFLIGHT-PROBE-1. An env pin is not a route probe.
+- **What:** `FIRST_PERSON_LOCAL_REVIEW_ENABLED=false` in the graded override was verified by diffing container env only. The owner-only file-review API is mounted unconditionally and fails closed inside itself, returning HTTP 200 with `available: false` — so the env diff could not tell a live preview API from a dead one.
+- **Fix:** the preflight now GETs `/api/first-person/local-review/status` and fails on `available: true`; 200-with-`available:false`, 401/403/404 pass.
+- **Rule:** for a route that is mounted but self-gated, probe the behaviour, not the flag. A mounted-but-disabled route is still an attack surface the env diff cannot see.
+
+
+## Oct 31, 2026 — speaker attribution: provenance, write rule, backfill checks
+
+### L-WRITER-KEYS-DECLARED-1. A payload writer may only set keys the reading model declares.
+- **What:** the first backfill writer set a nested `voice_verdict` and a `speaker_verification_status` key. `SourceSpan` is `extra="forbid"` and `fetch_parent_context` validates every child, so after an apply each touched parent would have raised "invalid span payload" at serve time. It was never run on a live collection; reading the writer against the model found it.
+- **Fix:** flat keys, all declared on `SourceSpan` (`domain/first_person_context.py`); `decide()` never writes `voice_verdict`.
+- **Pin:** `test_every_key_the_backfill_writes_is_a_declared_span_field` and `test_the_backfilled_payload_still_loads_into_the_span_model` (`tests/test_backfill_v10_voice_method.py`).
+- **Rule:** any script that patches payloads must have a test that round-trips its output through the model that reads it.
+
+### L-METHOD-NOT-EVIDENCE-1. A recorded method name alone is not provenance.
+- **What:** the earlier write rule only checked that `voice_verification_method` was non-empty. The builders already stamp `ecapa_voxceleb_span_slice_v2` with no score, calibration id or model revision, so a method string proves nothing about what was measured.
+- **Fix:** one rule in `domain/speaker_provenance.py`, used by `FirstPersonContextStore.upsert` and by the backfill writer at plan time and again before each `set_payload`. Write time only: the model validator stays tolerant so legacy payloads still load.
+- **Open:** the builders (`build_full_corpus_v10.py`, `build_fp_context_from_v9.py`) still write the v2 method without the new fields. UNPROVEN how many live v10 spans that is; the backfill post-check `violators_zero` counts them.
+
+### L-FAR-BOUND-1. A zero false-accept count is not a rate; state the bound.
+- **What:** "0 false accepts in 262" bounds the rate at about 1.14% (one-sided 95% Clopper-Pearson, computed with `evaluation/gold/metrics.py`). 0.5% needs 598 clean trials, 0.1% needs 2,995. Trials from one speaker or video are correlated, so the real uncertainty is wider.
+- **Fix:** the calibration artifact now records trial counts, the bound and the trials still needed; `--max-far` refuses a weaker calibration (off by default). More impostors come from `build_impostor_slices.py` (host and other voices in saved diarization windows).
+- **Status:** the code is tested on synthetic vectors only. No real impostor slices were embedded and no calibration was re-run: UNPROVEN until a host run.
+
+
+## Oct 31, 2026 — graded run: spend cap, grader input, showability
+
+### L-BUDGET-CAP-EVAL-1. The local spend guard fails closed to "abstain", which reads exactly like a strict gate.
+- **What:** `openrouter_budget.py` ($10/day, $40/month, $0.03 reserved per call) ran out mid-run. Every later answerability and relevance check came back "indeterminate… spend limit" and the pipeline abstained, so a run showed "6 of 116 served, 69/69 abstains, 4/4 safety routes" that were all artifacts. The coordinator's log analysis caught it; I had already explained the drop as a `not_standalone` effect.
+- **Rule:** before trusting any eval number, check (1) `grep -c "spend limit" backend log` is 0, (2) per-question latency does not fall to ~1.2 s partway, (3) `askmukthiguru:openrouter-spend:day:<date>` leaves headroom for the run (about $10 per 200 questions). A perfect abstain rate with 1.2 s latency is a blocked LLM, not a good gate.
+- **Also:** `make flush-cache` does not reset that key; the cap is per UTC day.
+- **Before grading any run:** read the budget Redis keys (`askmukthiguru:openrouter-spend:day:<date>` and `:month:<YYYY-MM>`), grep the backend log for `spend limit` and `indeterminate`, and stop if either shows up. A count of abstains is not gate evidence when the LLM was blocked: fail-closed abstains look identical to a gate that works.
+- **Save the backend log for every stage** (`docker logs mukthiguru-backend > stage<X>.log` before the next rebuild). Stage A had none, so its errors, timeouts and budget state stayed UNPROVEN.
+- **Local vs prod (Harsha, 2026-10-31):** raise the cap for the local eval container only, with an uncommitted compose override (daily $100, monthly $300); the guard stays on and the repo code is unchanged. In prod keep the cap: set it from expected daily volume with a 3x margin, alert at 70%, never turn it off. The guard is the only brake on a retry loop or abuse, the kill-switch plan relies on it, and fail-closed means users get abstains the moment it trips, which must be alerted on, not discovered late.
+
+### L-GRADER-INPUT-1. A judge shown the wrong evidence grades the evidence, not the product.
+- **What:** the first Haiku/Opus run (6 of 40 showable) saw only truncated citation previews next to the full served text and penalised the labelled "unverified" state. Re-captured with the full served text and the rubric told that the shown answer is complete: 15 of 40.
+- **Rule:** give the grader exactly what the seeker sees; state in the rubric what is a labelled, by-design state; re-run before quoting the number.
+
+### L-REFUSAL-NOT-GENERATED-1. A refusal scorer must also check that no text was generated.
+- **What:** "no teacher clip" passed `ua66` (a calories question) although the general model wrote an ungrounded answer. The scorer now also fails a non-empty `model_used`.
+- **Related:** in first-person-only mode a question that mixes an off-topic ask with one of our practices now takes the teaching lane, never the general lane.
+
+### L-SAFETY-NOTICE-VS-CLASSIFIER-1. When the classifier misses a risk cue, add the support line, do not retune the classifier.
+- **What:** "a bottle of sleeping pills ... I keep staring at it" and a parent describing a teen cutting were rated NONE and got the plain abstain. The bridge now adds the human support line whenever the question carries a self-harm cue (notice only). The classifier itself still needs a clinician-reviewed set.
+
+
+## Oct 31, 2026 — review-fix round on 79b6ff4d (two independent reviews)
+
+### L-SECOND-FILTER-1. Re-running a fail-closed filter on a reshaped object drops everything.
+- **What:** the searcher already release-filtered hits; the retrieval node ran `filter_by_release` again on the flattened dicts, which carry `chunk_id` but not `source_release_version`. In `enforce` that is every vector doc dropped (all answers abstain); in `shadow` the exclusion counter read ~100% so the evidence for switching modes was useless.
+- **Fix:** searcher docs carry the stamp and `release_screened`; `_needs_release_filter` skips screened docs and tests values, not key presence (GraphRAG docs hold the keys as None).
+- **Pin:** `tests/test_review_fixes_2026_10_30.py` (release filter cases).
+
+### L-REGISTRY-KEY-1. Write side and read side of a registry must derive the key with the same function.
+- **What:** ingest registers a YouTube source under its video id; the read-time filter looked up the full URL, found no row, and used the fallback version. v2+ points dropped; revoked v1 points served.
+- **Fix (read side):** `_registry_identity` mirrors `_derive_source_identity`. **Still open (policy):** in `enforce`, "no active release" still returns the fallback version, so a pending or revoked source with v1 points keeps serving; fixing that needs a decision on legacy unregistered sources.
+
+### L-WIRE-ATTR-1. A response field read with `getattr(obj, "x", None)` hides that the object never had `x`.
+- **What:** `/api/chat/v2` read `result.route_metadata` off a `ChatResult` that has no such attribute, so safety notices (support line, boundaries) were always `[]` on that route. The AST guard only checked the keyword appeared.
+- **Fix:** `ChatResult.safety_notices`, copied in `_execute_batch`, read by the builder; a behavioural test goes through `ChatEngine`.
+- **Rule:** a wire guard must run the path, not grep for the name.
+
+### L-CLAIM-RELEASE-1. Claim-before-process dedupe needs a release on failure.
+- WhatsApp `claim_inbound` committed before processing; a crashed turn made the provider retry look like a duplicate. `release_inbound` runs when processing raises.
+
+### L-PHONE-RETENTION-1. Every table that stores a phone number needs an age prune and an erasure path.
+- Four new WhatsApp tables kept numbers forever. Now pruned by age (`WA_RECORD_RETENTION_S`, default 7 days, floor 25 h) and send history is erased on RESET/STOP. Phone numbers in logs are masked (`mask_phone`).
+
+### L-PROD-COMPOSE-1. A second service sharing the app image needs the app's required env, and state needs a volume.
+- `celery-beat` got four env vars and crash-looped on `anon_session_hmac_secret is required in production`; owner video decisions lived in `/app/data` with no volume. Beat now shares `*backend-env`; `backend_data:/app/data` is a named volume. Pinned in `tests/test_prod_compose_invariants.py`.
+
+### L-TEST-WRITES-REPO-1. A test that writes into the repo tree can satisfy a production gate on the developer's machine.
+- An ingest test left `audits/manifests/corpus_publication_manifest_askmukthiguru.json`, which alone satisfied the startup publication check. `CORPUS_PUBLICATION_MANIFEST_DIR` + an autouse conftest fixture isolate it; the write is atomic.
+
+
+## Oct 31, 2026 — staging ingest of the remaining videos (`first_person_v10_stage2_20261031`)
+
+### L-BUILDER-ZERO-DURATION-1. A span whose words share one timestamp crashed the whole builder run.
+- **What:** `AK435vKMtlo` has many `disputed` words with `start == end`; a span made of them had `end_ms == start_ms` and `SourceSpan` raised, killing the batch after 4 videos.
+- **Fix:** `drop_zero_duration_specs` quarantines such spans as `zero_duration_span` (19 in this run), never synthesising a time. Pin: `tests/test_build_full_corpus_v10_guards.py::test_zero_duration_spans_are_quarantined_not_crashed_on`.
+
+### L-BUILDER-ASR-PROVENANCE-1. The builder never wrote `asr_engine` / `asr_model_version`, so every new span failed the strict audit's `asr_provenance` gate.
+- **What:** live v10 carries them on 2,737 of 2,758 children; the first staging build had them on 0 of 232 (audit: engine_mismatch=232).
+- **Fix:** `asr_provenance` reads engine/model from the archived `<root>/raw/<id>_parakeet.json` (None when absent or failed). Rebuild: `asr_provenance` VERIFIED. `language` stays None (no language-ID step exists). Pin: `test_asr_provenance_reads_the_archived_run_and_never_guesses`.
+
+### L-HOST-HF-HOME-1. Host-side builder runs need `HF_HOME` set, or the embedder tries to create `/app`.
+- **What:** `settings.hf_home` defaults to `/app/.cache/huggingface` (container path); on the Mac that raised `Read-only file system: '/app'` and the BGE-M3 load failed.
+- **Rule:** run with `HF_HOME=$HOME/.cache/huggingface HF_HUB_OFFLINE=1 QDRANT_URL=http://localhost:6333`.
+
+### L-BUILDER-ADDITIVE-ONLY-VIDEOS-1. A new empty staging collection makes the builder treat every transcript as missing.
+- **What:** the "already indexed" skip reads the TARGET collection, so a new collection plus no `--only-videos` would rebuild everything. Always pass `--only-videos` with the exact id list.
+- **Also:** the strict audit's `speaker_evidence_per_span` gate needs a Phase-3 candidate file, which does not exist for new spans; it stays BLOCKED on staging exactly as on live v10 (no independent per-span verdicts: UNPROVEN, not failed).
+
+
+
 <!-- Archive of lessons.md sections older than the cut on 2026-11-07. Unchanged text. Newest-first order kept. -->
 
 ## Oct 30, 2026 — memory source links and keyboard access
@@ -13705,3 +13862,136 @@ A stale or caller-supplied `domain_rights_status="licensed"` is not evidence. In
 - **What:** The graded run capture runner (`scripts/ops/graded_capture.py`) previously only evaluated the frozen 116 tuning set and 86 unanswerable safety probes, missing the formal 52-question benchmark suite (`frozen29.jsonl` on-topic doctrine, `compound10.jsonl` compound inquiries, and `ooc13.jsonl` out-of-corpus queries).
 - **Fix:** Onboarded `--include-benchmarks` and `--benchmarks-only` into `scripts/ops/graded_capture.py` and `backend/scripts/ops/graded_capture.py` (kept byte-identical per Rule X1), adding dedicated Markdown sections and report structures in `generate_answers_markdown.py`.
 - **Rule:** Evaluation runners must support executing both frozen tuning and formal held-out benchmark datasets with uniform logging, attribution stamping, and dual-judge grading.
+
+## Oct 31, 2026 — profile page spiritual sadhana rhythm, floating tab dock, and language deduplication
+
+### L-PROFILE-SPIRITUAL-SADHANA-RHYTHM-1. Replace gamified fitness streak metrics and flatline wireframes with sacred continuity and illuminated presence matrices.
+- **What:** In `ProfileStatTiles.tsx`, when practice sessions were 0 (or start of week), the weekly activity widget rendered a flat horizontal dashed SVG line (`strokeDasharray="3 4"`) over disconnected `S M T W T F S` characters, resembling an empty hospital flatline monitor or broken wireframe. Concurrently, generic gamified language (*"Practice today to ignite your streak"*) felt transactional and disconnected from the sacred sanctuary teachings of Sri Preethaji & Sri Krishnaji.
+- **Fix:** Redesigned the streak experience into a **Sacred Sadhana Rhythm** hero card featuring an *Akhanda Jyoti* (golden flame of awareness) and wisdom-grounded spiritual copy (*"Continuity in sadhana transforms awareness into the Beautiful State"* when active, *"Every breath is an invitation to stillness. Step into sadhana today to awaken your inner rhythm"* when zero). Replaced the empty dashed SVG flatline with the **Circle of Presence** 7-day illuminated mandala matrix: completed days render warm golden light nodes with sparkles (`bg-gradient-to-br from-amber-400 to-amber-600`), today renders an open radiating golden aura ring (`ring-2 ring-ojas/80 bg-ojas/10 text-ojas`), and rest/integration days render serene petal circles honoring natural spiritual pauses. Preserved exact stat counts (`totalSessions`, `totalMinutes`, `streakDays`) so `ProfileJourney.test.tsx` passes 100%.
+- **Pin:** `src/test/ProfileJourney.test.tsx` (all 5 tests passing).
+- **Rule:** spiritual applications must avoid cold fitness-tracker metaphors or broken dashed-line empty states; frame continuity as sacred sadhana rhythm and present daily presence through warm, illuminated visual nodes.
+
+### L-PROFILE-FLOATING-TAB-DOCK-1. Segmented navigation in sacred sanctuaries must feel elevated and intentional with bespoke icons and golden accents.
+- **What:** In `ProfilePage.tsx`, `TabsList` rendered as an unstyled, drab gray block (`bg-muted/50 p-1 rounded-lg`) with plain text rectangles. It lacked tactile feedback, spiritual warmth, icons, and visual distinction between tabs.
+- **Fix:** Replaced the plain rectangle with a floating glassmorphic tab dock (`bg-card/85 backdrop-blur-xl border border-hairline/80 rounded-2xl shadow-xs max-w-2xl mx-auto`). Added bespoke Lucide icons to each tab: Journey (`<Compass />`), Personalise (`<Sparkles />`), Memory (`<BookOpen />`), and Settings (`<Settings />`). Active tabs receive subtle golden borders (`border-ojas/30`), radiant golden icon transitions (`group-data-[state=active]:text-ojas`), and micro-tactile press scaling (`active:scale-[0.98]`).
+- **Rule:** major segmented navigation controls require explicit icon anchors and warm active indicators rather than unstyled generic browser pills.
+
+### L-PROFILE-LANGUAGE-DEDUPLICATION-1. Bilingual language selector options must guard against redundant native/English substring duplication.
+- **What:** In `ProfilePage.tsx`, the Preferred Language dropdown rendered `{l.native} ({l.name})`. Because English defined `native: "English"` and `name: "English (India)"`, the option rendered redundantly as `"English (English (India))"`.
+- **Fix:** Implemented `formatLanguageOption(l)` helper that checks if `l.native.toLowerCase() === 'english'` or `l.name.startsWith(l.native)` and cleanly returns `l.name` (`"English (India)"`), while keeping Indian languages formatted natively with English subtitles (e.g., `"हिन्दी (Hindi)"`, `"తెలుగు (Telugu)"`).
+- **Rule:** always sanitize compound display strings (`native (English)`) to ensure native labels do not redundantly echo parenthetical English subtitles.
+
+
+
+## Oct 31, 2026 — mood check-in layout hierarchy and landing-only contextual display
+
+### L-MOOD-BANNER-LAYOUT-HIERARCHY-1. Secondary check-in prompts must not render above global navigation headers or distract active conversations.
+- **What:** In `ChatPage.tsx`, `<MoodBanner />` was rendered as an outer sibling above `<ChatInterface />`. Because `ChatInterface` contains both the sidebar and the global top navigation header (`ChatHeader`), `MoodBanner` was rendered at the absolute top of the viewport above the app header and sidebar, clipping against the browser ceiling (`y = 0`) and persisting inappropriately during active spiritual conversations.
+- **Fix:** Removed `<MoodBanner />` from `ChatPage.tsx` and mounted it inside `ChatInterface.tsx` below `ChatHeader` and `AiTransparencyBanner`. Added `isLandingMode` prop so it only displays during landing mode (`isLandingMode === true`) when a seeker arrives, completely hiding when an active conversation is underway (`!isLandingMode`). Redesigned the visual from a clipped capsule pill into an elegant full-width sanctuary strip with `border-b border-ojas/20 bg-gradient-to-r from-ojas/10 via-background/90 to-ojas/5`, golden sparkles icon, and refined action buttons.
+- **Pin:** `src/test/MoodBanner.journey.test.tsx` (all 4 tests passing).
+- **Rule:** global navigation headers must remain the topmost visual anchor; contextual check-ins belong inside the main content column and must hide during active inquiry.
+
+
+
+## Oct 31, 2026 — composer queue button geometry and character counter removal
+
+### L-COMPOSER-QUEUE-BUTTON-GEOMETRY-1. Text labels in multi-button composer footers clip at container boundaries; use icon actions with equal box geometry.
+- **What:** In `ChatComposer.tsx`, when generation was active (`isStreaming || isTyping`) and the user typed a follow-up, the action button switched to a wide rectangular pill rendering `↵ Queue` with `px-3 font-semibold text-xs`. In combination with the circular Stop button, the group overflowed the right margin of the composer container, causing the button edge to clip against the parent border (`Queu...`). Concurrently, long inputs displayed an unwanted `1,212 chars` pill.
+- **Fix:** Removed the `{inputValue.length >= 300 && (...)}` character counter. Replaced the wide `Queue` pill with an elegant `h-9 w-9 rounded-xl bg-ojas` Send icon button (`<Send className="w-4 h-4" />`) with tooltip explaining that it queues the message to auto-send after the current answer. Harmonized the Stop button to a matching `h-9 w-9 rounded-xl bg-destructive/10 text-destructive border border-destructive/20` box. Verified right-boundary containment (`sendRect.right = 1231px`, `formRight = 1244px`, 13px internal padding, zero clipping).
+- **Pin:** `src/test/components/ChatComposer-keyboard.test.tsx` (all 13 tests passing).
+- **Rule:** avoid dynamic text pills in fixed-space toolbars when multiple action buttons appear; use consistent square or circular icon buttons with explicit tooltips.
+
+
+
+## Oct 31, 2026 — composer persistent scroll slider and compact language selector
+
+### L-COMPOSER-TEXTAREA-PERSISTENT-SCROLL-SLIDER-1. OS overlay scrollbars hide text overflow; custom proportional slider and jump-to-start affordance ensure multi-paragraph text navigation.
+- **What:** In `ChatComposer.tsx`, when users entered multi-paragraph prompts (1,000+ characters), the textarea expanded to its max-height (240px) and auto-scrolled to the bottom line (`scrollTop = 276px`), scrolling line 1 out of view. Because macOS and modern browsers hide overlay scrollbars when stationary, no scrollbar slider or track was visible. Users could neither see where they were in the message nor easily drag or jump back to the starting line.
+- **Fix:** Added scroll metrics tracking (`scrollHeight`, `clientHeight`, `scrollTop`) and rendered a persistent golden scroll track + thumb (`bg-ojas/70`) on the right margin whenever `scrollHeight > clientHeight + 4`. Added an instant "Go to start" button (`ArrowUp`) when `scrollTop > 20` that smoothly scrolls `scrollTop` to 0. Thumb dragging and track clicking directly navigate the textarea scroll position.
+- **Pin:** `src/test/components/ChatComposer-keyboard.test.tsx` (all 13 tests passing).
+- **Rule:** for multi-line inputs with clamped max-height, do not rely on OS overlay scrollbars; provide a visible, proportional scroll slider and scroll-to-top affordance.
+
+### L-LANGUAGE-SELECTOR-COMPACT-PROPORTIONS-1. Unbounded popover heights dominate viewports; clamp picker menus to compact dimensions.
+- **What:** In `LanguageSelector.tsx`, the language selection popover grew up to `480px` in height and `288px` in width (`w-72`), with bulky item rows (`min-h-[48px]`, `w-8 h-8` icon containers). On typical desktop and laptop viewports, the popover covered half of the screen, appearing disproportionately large next to the composer.
+- **Fix:** Clamped popover max-height to `Math.min(290, spaceAbove - 8)` and width to `w-64` (256px). Reduced item row height to `min-h-[38px] py-1.5 px-2.5`, icon container to `w-6 h-6`, and typography to `text-xs` (native) and `text-[10px]` (English name), displaying ~4-5 options cleanly with smooth internal scrolling.
+- **Rule:** dropdown and popover selection menus should fit comfortably within ~280-300px max height; avoid expanding pickers to full-height sheets on desktop.
+
+
+
+## Oct 31, 2026 — v10 backfill and v11 build: what the run found
+
+### L-POSTCHECK-FOUND-WHAT-THE-SELECTOR-MISSED-1. A backfill selects by one symptom; the post-check counts the rule.
+- **What:** the backfill selected "verified, no method" (732). The `violators_zero` post-check then found 15 more breaking the same rule: 13 old `span_slice_v2` spans with no score/calibration (the D1 builder bug) and the 2 spans with no evidence. Both runs stopped on it; a second, owner-approved backfill closed it (live v10: 0 violators).
+- **Rule:** the post-check must count the rule, not the selector. Run the P4 gate (read-only) on the target before the first write, not after.
+
+### L-SHARED-COLLECTION-WRITER-1. A collection named in `backend/.env` is a collection anyone can write to.
+- **What:** `FIRST_PERSON_CONTEXT_COLLECTION=first_person_v11` was already set when v11 did not exist. After v11 was restored, an unknown host client re-tagged every point and re-set `speaker_verified=true` on 17 demoted spans; the P4 gate caught it. The builder's live-target guard also treated v11 as live and needed `--allow-live-target`.
+- **Rule:** diff the candidate against its source snapshot (hash) right before the build and again after; read the Qdrant log for non-own writers. Do not point `.env` at a collection that is not yet cleared.
+
+### L-RUNBOOK-FLAGS-1. The runbook command lines were not run once.
+- **What:** `regenerate_v10_span_ecapa_verdicts` needs `--out-verdicts` in candidate mode; `backfill --expect-count` guards the count of verified-without-method points, not the verdict rows; the builder reads the Qdrant URL from `QDRANT_URL`, and `HF_HOME` must be set on the host. Each cost a failed start.
+
+
+## Oct 31, 2026 — chat UI/UX defect fixes: dead-space gap, citation duplications, and language selector overflow
+
+### L-FRONTEND-ATMA-VICHARA-CITATION-PARSING-1. Naive regex splitting on horizontal rules misclassifies citation footnotes as Atma Vichara reflection prompts.
+- **What:** In `ChatMessage.tsx`, the response body parser split incoming markdown on `displayContent.match(/(?:^|\n)\s*---\s*(?:\n|$)/)` to extract `teachingBody` and `inquiryBody`. Because the first-person quote weaver terminates verbatim quotes with `--- \n *Sources of Wisdom:* ...`, citation footnotes were treated as `inquiryBody` and wrapped inside the gold `Atma Vichara · Contemplative Inquiry` card (*"Optional reflection prompt inspired by the cited teaching. It is not the teacher's own words."*). This created false attribution, visual duplication, and confusing UI.
+- **Fix:** Added a check in `ChatMessage.tsx` verifying whether text following `---` begins with citations/sources markdown (`/^(?:\*+Sources of Wisdom|\[\d+\]|#+\s*Sources|Sources of Wisdom)/i`). If so, `inquiryBody` is returned as `null`, preventing citations from being rendered inside reflection cards.
+- **Pin:** `src/test/components/ChatMessage.test.tsx` (all 39 tests passing).
+- **Rule:** never infer reflective inquiry or interactive exercises from generic horizontal rule (`---`) markdown delimiters; verify explicit reflective inquiry headers or block schemas.
+
+### L-COMPOSER-TEXTAREA-FLEX-EXPANSION-1. Flexbox `flex-1` (`flex: 1 1 0%`) on input textareas prevents JavaScript `element.style.height` auto-expansion.
+- **What:** In `ChatComposer.tsx`, multi-line or multi-paragraph prompts (1,000+ characters) were stuck at 48px height. Although inline JavaScript auto-resize assigned `textarea.style.height = `${scrollHeight}px``, the parent `InputGroup` rendered the textarea with Tailwind's `flex-1` (`flex: 1 1 0%`), causing the browser flex layout engine to clamp the box height to the container minimum.
+- **Fix:** Added `!flex-none` to `PromptInputTextarea` in `ChatComposer.tsx` and wired a controlled `useEffect` on `inputValue` calculating `Math.min(Math.max(el.scrollHeight, 48), 240) + 'px'` with conditional `overflowY = 'auto'`.
+- **Pin:** `src/test/components/ChatComposer-keyboard.test.tsx` (all 13 tests passing).
+- **Rule:** when dynamically sizing a textarea via `style.height` inside a flex container, apply `!flex-none` so flexbox respects the explicit height computation.
+
+### L-LANGUAGE-SELECTOR-VIEWPORT-BOUNDS-1. Static upward popover offsets push menu headers and search inputs above the viewport.
+- **What:** In `LanguageSelector.tsx`, the menu was positioned using a fixed bottom offset with `max-h-[70dvh]`. When opened from composers positioned in the lower-middle viewport, the popover's top coordinate calculated to negative values (`y = -61.6px`), cutting off the "Select Language" header and language search input box above the browser screen.
+- **Fix:** Rewrote `updateMenuPos` to measure available space above (`rect.top - 16`) and below (`innerHeight - rect.bottom - 16`), dynamically clamping `maxHeight = Math.min(480, Math.max(220, spaceAbove - 8))` and flipping direction when space above is constrained.
+- **Rule:** always calculate available viewport space before fixing popover coordinates; bound popover max-height dynamically to guarantee header and input visibility.
+
+
+
+## Oct 31, 2026 — cross-parent antecedent stitching, Memgraph doctrine grounding & distress calibration
+
+### L-CONSECUTIVE-CITATION-CLUBBING-1. Adjacent spans from the same video and speaker in parent contexts must be clubbed into a unified continuous citation.
+- **What:** In `FirstPersonPipeline._eval_ctx_worker`, multi-span parent contexts (`SERVE_PARENT_CONTEXT`) appended each individual child span as a separate citation dict. When 3 consecutive speech turns from the same talk (e.g. `VOOf2kQpeMw`: 00:04–00:22, 00:24–00:37, 00:37–01:06) were served, `QuoteWeaver` rendered 3 repetitive header blocks for the same teacher and 3 separate footnote lines in *Sources of Wisdom:*, while the API returned 3 redundant citations pointing to the same video.
+- **Fix:** Added `_club_consecutive_citations` and `_club_consecutive_audio_clips` to `FirstPersonPipeline`, merging adjacent spans that share `video_id`, speaker, and timing continuity into a single continuous citation spanning the combined time range (`00:04 – 01:06`).
+- **Pin:** `tests/test_first_person_pipeline.py::TestCitationClubbing::test_club_consecutive_citations_merges_same_video` and `test_club_consecutive_audio_clips_merges_durations`.
+- **Rule:** always club contiguous or adjacent spans from the same video and speaker into a unified citation and playback clip; separate citations are reserved for genuinely distinct video sources.
+
+### L-SPEAKER-LABEL-PRECEDENCE-1. Inherited `guru_id` must not override granular span-level `speaker` attribution in QuoteWeaver.
+- **What:** In `quote_weaver.py::_stored_label`, the attribution resolver prioritized `guru_id` ahead of `speaker`. In videos where channels or video series were tagged with a default teacher id (e.g. `guru_id="preethaji"`), clips spoken by Sri Krishnaji (`speaker="Sri Krishnaji"`) resolved to `"Sri Preethaji"`. The output assertion gate (`QuoteWeaverAssertionGate`) detected a speaker mismatch between the generated citation text and the resolved stored label, rejecting perfectly valid hybrid responses.
+- **Fix:** Restored precedence in `_stored_label` so the explicit `speaker` string is inspected first; `guru_id` serves only as a fallback when `speaker` is unknown, other, or shared.
+- **Pin:** `tests/test_quote_weaver.py::test_weaver_formats_multiple_clips_without_truncation`.
+- **Rule:** granular span-level speaker attribution always overrides video- or parent-level metadata defaults.
+
+### L-MEMGRAPH-DOCTRINE-GROUNDING-1. Doctrine subgraph injection into LLM context must gracefully degrade without blocking retrieval.
+- **What:** When spiritual concepts (e.g. `suffering_states`, `beautiful_states`) are detected, `FirstPersonPipeline._eval_ctx_worker` attempts to query Memgraph via `fetch_doctrine_subgraph` to enrich QuoteWeaver prompts with ontological definitions and transitions. If Memgraph is offline, unseeded, or raises a connection error, unhandled driver errors could disrupt quote assembly.
+- **Fix:** Wrapped doctrine subgraph resolution in non-blocking try/except falling back to empty doctrine context, allowing verbatim quote assembly to proceed smoothly.
+- **Rule:** auxiliary knowledge graph context is additive; failure to retrieve ontology relationships must never abort verbatim quote retrieval.
+
+### L-ANON-SESSION-HMAC-VALIDATION-1. Integration probes against `/api/chat` require server-signed HMAC session tokens.
+- **What:** Direct POST calls to `/api/chat` passing arbitrary client-generated session strings (e.g. `session_id="test-session-123"`) failed with `HTTP 400: Invalid anonymous session token`. The backend enforces cryptographic HMAC validation on `X-Session-Id` headers and session payloads to prevent quota bypass and history spoofing.
+- **Fix:** Test runners and integration scripts must call `POST /api/auth/anon-session` first to obtain `{'session_id': 'anon:...', 'token': '...'}` and supply the signed token in both the `X-Session-Id` header and `session_id` payload.
+- **Rule:** always authenticate anonymous chat tests against `/api/auth/anon-session`; arbitrary session IDs are rejected by design.
+
+### L-RELEVANCE-PARALLEL-TIMEOUT-1. A 5-second relevance gate timeout in parallel harness evaluation causes false-positive abstains on concurrent LLM calls.
+- **What:** In `FirstPersonPipeline._eval_ctx_worker`, when `first_person_harness_parallel_enabled` is active, multiple candidate contexts evaluate in parallel using `ThreadPoolExecutor`. Each worker calls `_relevance_select` via `OpenRouterService`. When `FIRST_PERSON_RELEVANCE_TIMEOUT_S` was set to `5.0s` (via repo-root `.env` overriding `backend/.env`), secondary concurrent calls to DeepSeek/OpenRouter timed out after 5.0 seconds. Because `_relevance_select` treats any timeout as `_RELEVANCE_INDETERMINATE`, raising `_HarnessRelevanceIndeterminate` at context index 0 blocked subsequent valid candidate contexts and forced the entire query to abstain (`relevance_indeterminate`).
+- **Fix:** Pinned `FIRST_PERSON_RELEVANCE_TIMEOUT_S=${FIRST_PERSON_RELEVANCE_TIMEOUT_S:-15.0}` explicitly in `backend/docker-compose.yml` and `.env` so concurrent relevance scoring calls have adequate latency margin.
+- **Rule:** When running fan-out LLM calls in parallel executors, configure gate timeouts to accommodate provider latency tails and queuing jitter; a short timeout transforms transient provider latency into permanent pipeline abstains.
+
+### L-CROSS-PARENT-ANTECEDENT-STITCHING-1. Long speech turns splitting across parent units leave dangling demonstrative pronouns.
+- **What:** In `x-mTRlE0TC4`, parent unit `231ae31c...` opened with *"Imagine what will be the outcome of it, when a parent does that..."*. Because intra-parent window enrichment only operates within a single `parent_unit_id`, the predecessor discourse (*"These are suffering states... but more important is, what is the state from which what I am doing"*) was stranded in parent `21834cb2...`.
+- **Fix:** `FirstPersonPipeline._eval_ctx_worker` detects opening antecedent connectors (`_span_starts_with_antecedent` or `_ANTECEDENT_CONNECTIVE_RE`) and queries `FirstPersonContextStore.fetch_preceding_span` to retrieve and prepend the immediate chronological predecessor from the same video and guru.
+- **Rule:** when a candidate's opening span references an antecedent, stitch the predecessor span across parent units within the same video before gating and serving.
+
+### L-DISTRESS-HELPLINE-CALIBRATION-1. Attaching suicide hotlines to benign philosophical inquiries on anxiety degrades user trust.
+- **What:** `SereneMindEngine` classified any query mentioning "anxiety", "fear", or "restlessness" as `MODERATE` distress (level 2). In `first_person_bridge.py`, every turn under `distress_compassion` appended emergency suicide hotlines (Tele-MANAS `14416`), presenting alarmist crisis numbers to seekers asking calm spiritual questions.
+- **Fix:** Emergency crisis helplines are now strictly attached when explicit self-harm/suicide risk cues (`_QUESTION_SELF_HARM_CUE_RE`, `_CLIP_MENTIONS_SELF_HARM`, or severe distress >= 3) are present. Benign emotional inquiries receive the compassionate framing and gentle breathing practice without alarming suicide hotline numbers.
+- **Rule:** differentiate acute crisis intervention from benign pedagogical guidance; crisis numbers must attach to actual risk, not to philosophical questions about mental states.
+
+> **Rolled out of the live file on 2026-11-18** to keep `lessons.md` under its 1,500-line
+> ceiling: the Oct 31, 2026 sections above were moved here unchanged. Look an ID up with
+> `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`.

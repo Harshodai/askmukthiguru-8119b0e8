@@ -27,9 +27,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.orchestrator_utils import prepare_user_memory
+from app.orchestrator_utils import prepare_request_state, prepare_user_memory
 from app.pipeline.stages.context import PipelineContext
 from app.pipeline.stages.distress_stage import DistressStage, has_crisis_keywords
+from app.pipeline.stages.graph_stage import GraphStage
 from app.pipeline.stages.memory_stage import MemoryStage
 from app.pipeline.stages.personalize_stage import (
     PERSONALIZE_TEACHING_PROMPT,
@@ -219,23 +220,34 @@ def test_cross_04_intake_crisis_preemption_overrides_personalize_turn():
 
 def test_cross_05_incognito_toggle_mid_conversation_resets_memory_and_declines():
     """Pairwise 5: Toggling incognito mid-conversation suppresses memory context and declines opt-in."""
-    # 1. Test memory isolation in prepare_user_memory
+    # 1. Test memory isolation in prepare_user_memory and prepare_request_state
+    container = MagicMock()
+    container.translation = MagicMock()
+    container.memory_outbox = MagicMock()
+
     chat_body = SimpleNamespace(
         incognito=True,
+        user_message="How do I meditate?",
+        session_id="test-session-incognito",
+        messages=[],
         conversation_summary="Prior discussion on meditation",
     )
-    is_incognito = getattr(chat_body, "incognito", False)
-    assert is_incognito is True
+    user = {"id": "11111111-1111-4111-8111-111111111111"}
 
-    # Under incognito, memory context and user profile are explicitly zeroed out
-    memory_context = ""
-    distress_history = []
-    user_profile = None
-    canonical_memory_evidence = ""
+    # Orchestrator prepare_request_state enforces hard incognito boundary
+    req_state = asyncio.run(prepare_request_state(container, chat_body, "en", user=user))
+    assert req_state["memory_context"] == ""
+    assert req_state["user_profile"] is None
+    assert req_state["canonical_memory_evidence"] == ""
+    assert req_state["conversation_summary"] == ""
 
-    assert memory_context == ""
-    assert user_profile is None
-    assert canonical_memory_evidence == ""
+    # When active consent is missing or revoked, prepare_user_memory also strictly returns empty
+    container.memory_outbox.active_consent = AsyncMock(return_value=False)
+    mem_tuple = asyncio.run(prepare_user_memory(container, user["id"], []))
+    assert mem_tuple[0] == ""  # memory_context
+    assert mem_tuple[1] == []  # distress_history
+    assert mem_tuple[2] is None  # user_profile
+    assert mem_tuple[3] == ""  # canonical_memory_evidence
 
     # 2. Test MemoryStage persistence skip
     mem_ctx = PipelineContext(
@@ -292,39 +304,60 @@ def test_cross_06_synthetic_doc_retrieval_and_verification_grounding():
         "point_id": "pt_deep_obs",
         "speaker": "Sri Preethaji",
         "teacher_id": "preethaji",
+        "start_ms": 1000,
+        "end_ms": 5000,
     }
     state: dict[str, Any] = {
         "personalize_clip": clip,
+        "question": "How to observe without the observer?",
         "relevant_docs": [
             {"text": "General meditation background doc.", "knowledge_source": "general_rag"}
         ],
         "canonical_memory_evidence": "Seeker meditates 20 mins every evening.",
     }
 
-    # Verify synthetic doc insertion logic from generation.py
-    has_p_doc = any(
-        isinstance(d, dict) and d.get("knowledge_source") == "personalize_clip"
-        for d in state["relevant_docs"]
+    # Execute genuine context engineering which injects synthetic personalize_doc
+    ce_result = asyncio.run(context_engineer(state))
+    selected = ce_result.get("selected_docs") or []
+    assert len(selected) >= 1
+    p_doc = selected[0]
+    assert p_doc["knowledge_source"] == "personalize_clip"
+    assert p_doc["is_verbatim"] is True
+    assert p_doc["rerank_score"] == 1.0
+    assert p_doc["text"] == clip["verbatim_text"]
+    assert clip["verbatim_text"] in ce_result["context_layers"]["knowledge"]
+
+    # Also verify via GraphStage packaging
+    container = MagicMock()
+    mock_graph = MagicMock()
+    mock_graph.ainvoke = AsyncMock(return_value={"final_answer": "ok", "citations": []})
+    container.fast_graph = mock_graph
+    container.standard_graph = mock_graph
+    container.deep_graph = mock_graph
+    coordinator = MagicMock()
+    async def fake_get_or_run(key, fn):
+        return await fn()
+    coordinator.coalescer = MagicMock()
+    coordinator.coalescer.get_or_run.side_effect = fake_get_or_run
+
+    g_ctx = PipelineContext(
+        container=container,
+        coordinator=coordinator,
+        request=MagicMock(attachment_context=None, assistant=None),
+        user_msg="Please personalize this teaching for me.",
+        preferred_lang="en",
+        trace_id="test-cross-06-graph",
+        start_time=time.time(),
+        state={"user_msg_en": "Please personalize this teaching for me.", "chat_history_en": [], "personalize_clip": clip},
+        user_id="11111111-1111-4111-8111-111111111111",
+        session_id="sess-cross-06",
     )
-    assert not has_p_doc
-
-    p_doc = {
-        "text": str(clip.get("verbatim_text") or "").strip(),
-        "title": clip.get("title") or "Served Teaching",
-        "source_url": clip.get("source_url"),
-        "video_id": clip.get("video_id"),
-        "point_id": clip.get("point_id"),
-        "speaker": clip.get("speaker"),
-        "teacher_id": clip.get("teacher_id"),
-        "is_verbatim": True,
-        "knowledge_source": "personalize_clip",
-        "rerank_score": 1.0,
-    }
-    updated_docs = [p_doc] + list(state["relevant_docs"])
-
-    assert updated_docs[0]["knowledge_source"] == "personalize_clip"
-    assert updated_docs[0]["is_verbatim"] is True
-    assert updated_docs[0]["rerank_score"] == 1.0
+    asyncio.run(GraphStage().run(g_ctx))
+    graph_initial_state = mock_graph.ainvoke.call_args[0][0]
+    docs = graph_initial_state.get("documents", [])
+    assert len(docs) >= 1
+    assert docs[0]["knowledge_source"] == "personalize_clip"
+    assert docs[0]["is_verbatim"] is True
 
     # Verification context incorporates verbatim text
     v_ctx = _verification_context(state, fallback=[])
@@ -338,18 +371,24 @@ def test_cross_07_personalize_generation_prompt_directive():
         "verbatim_text": "Stillness is the natural state of consciousness.",
         "speaker": "Sri Krishnaji",
     }
-    state = {"personalize_clip": clip}
-
-    instructions = "Base instructions."
-    if state.get("personalize_clip"):
-        instructions += (
-            "\nPERSONALIZATION DIRECTIVE: You are personalizing the provided teaching for this seeker. "
-            "Gently relate the teacher's verbatim insight to the seeker's personal reflections, practices, and situation "
-            "as captured in their saved memory."
-        )
-
+    state: dict[str, Any] = {
+        "personalize_clip": clip,
+        "question": "How do I overcome fear?",
+        "relevant_docs": [],
+    }
+    result = asyncio.run(context_engineer(state))
+    instructions = result["context_layers"]["instructions"]
     assert "PERSONALIZATION DIRECTIVE" in instructions
     assert "Gently relate the teacher's verbatim insight" in instructions
+
+    # Verify that without personalize_clip, directive is absent
+    state_without: dict[str, Any] = {
+        "question": "How do I overcome fear?",
+        "relevant_docs": [],
+    }
+    result_without = asyncio.run(context_engineer(state_without))
+    instructions_without = result_without["context_layers"]["instructions"]
+    assert "PERSONALIZATION DIRECTIVE" not in instructions_without
 
 
 def test_cross_08_consent_revocation_blocks_personalization():

@@ -629,6 +629,67 @@ def test_the_first_person_gate_and_the_chat_fallback_share_one_pattern():
     assert not is_live_event_instruction("You dissolve your hurt and move to love.")
 
 
+def test_ritual_moksha_exemption_not_flagged_as_live_event():
+    # c78f48db parent assembled text — close your eyes in a funeral/departure context
+    # was incorrectly rejected as a crowd direction before 2026-11-18 fix.
+    # Lesson: L-LIVE-EVENT-FALSE-POSITIVE-RITUAL-1
+    ritual_text = (
+        "You may now close your eyes and listen to this chant "
+        "to be sung to those who are departing. "
+        "In moksha, the soul merges with the infinite light."
+    )
+    assert not is_live_event_instruction(ritual_text), (
+        "Funeral/moksha 'close your eyes' must be exempt from the live-event gate"
+    )
+
+
+def test_crowd_direction_with_departing_unrelated_still_rejected():
+    # Paranoia: if the ritual keyword appears but the main pattern is crowd-context
+    # (sneaking a peek), it must still be rejected — the exemption only fires when
+    # the ENTIRE passage has ritual framing, not when keywords happen to co-occur.
+    crowd_text = (
+        "Please close your eyes. I still see a few sneaking a peek. "
+        "Now breathe and enter stillness."
+    )
+    # No ritual keywords here — must still be caught
+    assert is_live_event_instruction(crowd_text), (
+        "Crowd-direction 'close your eyes' with 'sneaking a peek' must still be rejected"
+    )
+
+
+def test_mixed_context_crowd_address_overrides_ritual_keyword():
+    # Regression: an unrelated ritual reference must not suppress an explicit
+    # crowd direction. The exemption is same-sentence + crowd-address-free.
+    mixed = (
+        "All of you in the audience, please close your eyes and raise your hand "
+        "if you have heard the chant to be sung to those who are departing."
+    )
+    assert is_live_event_instruction(mixed), (
+        "Crowd address must win over a ritual keyword in the same passage"
+    )
+
+
+def test_mixed_context_ritual_keyword_in_other_sentence_still_rejected():
+    # The ritual noun phrase lives in a different sentence from the instruction;
+    # proximity alone is not context.
+    mixed = (
+        "Please close your eyes and sit comfortably. "
+        "Later we will discuss moksha and the chant to be sung to those who are departing."
+    )
+    assert is_live_event_instruction(mixed), (
+        "A ritual keyword in another sentence must not suppress the instruction"
+    )
+
+
+def test_mixed_context_ritual_sentence_without_crowd_address_passes():
+    # The intended exemption survives the narrowing.
+    ritual = (
+        "You may now close your eyes and listen to this chant "
+        "to be sung to those who are departing."
+    )
+    assert not is_live_event_instruction(ritual)
+
+
 def test_absent_comparison_term_only_for_comparison_questions():
     docs = [_speech("Live in a beautiful state.")]
     assert gen._absent_comparison_terms(_S4_Q, docs) == ["detachment"]
@@ -762,11 +823,10 @@ async def test_serene_mind_script_carries_the_practice_recording():
 def test_serene_mind_recording_is_in_the_cleared_corpus_inventory():
     from pathlib import Path
 
-    inv = json.loads(
-        (
-            Path(__file__).resolve().parents[2] / "scripts/ingestion/corpus_inventory.json"
-        ).read_text()
-    )
+    inv_path = Path(__file__).resolve().parents[2] / "scripts/ingestion/corpus_inventory.json"
+    if not inv_path.is_file():
+        inv_path = Path("/app/scripts/ingestion/corpus_inventory.json")
+    inv = json.loads(inv_path.read_text())
     text = json.dumps(inv)
     assert '"video_id": "igSp4H0OWLE"' in text
     entry = text[text.index('"igSp4H0OWLE": {') :].split("}", 1)[0]

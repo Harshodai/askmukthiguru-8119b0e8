@@ -1012,7 +1012,7 @@ class FirstPersonBridgeStage(Stage):
         # embedding) is kept intact for all cosine confidence scoring so the calibration
         # contract is unchanged. Fail-open: timeout or error falls back to original.
         retrieval_dense = dense  # default: retrieval uses original-query vector
-        if _hyde_enabled and _is_en and not _is_distress:
+        if _hyde_enabled and _is_en:
             _q_norm = retrieval_query.strip().lower()
             _q_hash = hashlib.sha256(_q_norm.encode("utf-8")).hexdigest()
             _cached = _get_cached_hyde(_q_hash)
@@ -1039,9 +1039,10 @@ class FirstPersonBridgeStage(Stage):
                                 "HyDE is skipped for this deployment."
                             )
                     if _llm is not None:
+                        _hyde_to = float(getattr(settings, "first_person_hyde_timeout_s", 15.0) or 15.0)
                         hyde_text = await _asyncio.wait_for(
                             _llm.generate_hyde(question=retrieval_query),
-                            timeout=5.0,
+                            timeout=_hyde_to,
                         )
                         if hyde_text and len(hyde_text.strip()) > 10:
                             # Embed HyDE text + original query (keeps sparse signal).
@@ -1136,12 +1137,12 @@ class FirstPersonBridgeStage(Stage):
             pipeline,
             query=query,
             # retrieval_dense is the HyDE embedding when HyDE is active; otherwise
-            # identical to `dense`. Confidence scoring inside the pipeline always
-            # uses `dense` (original-query vector) via the cosine profile — passing
-            # `retrieval_dense` here only affects the Qdrant search, never the
-            # calibrated confidence check (which compares stored-clip vectors to the
-            # original-query `dense` computed above).
+            # identical to `dense`. `confidence_query_dense` carries the
+            # original-query vector separately so the calibrated confidence
+            # check still compares stored-clip vectors with the seeker's own
+            # question, never with the HyDE expansion.
             query_dense_vector=retrieval_dense,
+            confidence_query_dense=dense,
             query_sparse_vector=sparse,
             teacher_id="both",
             max_clips=4 if is_compound else 3,
@@ -1156,6 +1157,10 @@ class FirstPersonBridgeStage(Stage):
                 or bool(memory_signals and memory_signals.get("seen_video_ids"))
             ),
             memory_signals=memory_signals,
+            # Venting/suffering queries: allow score-2 foundational clips and
+            # honor HyDE expansion alignment in confidence (not raw colloquial cosine).
+            # Lesson: L-VENTING-CONFIDENCE-HONORS-HYDE-1, L-VENTING-SCORE2-FOUNDATIONAL-ELIGIBLE-1.
+            is_distress=distress_compassion,
         )
 
         # Calibrated gate: the pipeline's own is_direct decision (fitted

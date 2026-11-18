@@ -46,19 +46,24 @@ def scan_layer_violations(repo_root: Path) -> list[tuple[str, int, str]]:
 
     violations: list[tuple[str, int, str]] = []
 
+    if (repo_root / "backend").is_dir():
+        backend_dir = repo_root / "backend"
+    else:
+        backend_dir = repo_root
+
     # Rules: (dir_path, forbidden_import_prefixes)
     rules = [
-        (repo_root / "backend" / "domain", ("services", "rag", "app")),
-        (repo_root / "backend" / "services", ("rag", "app.pipeline", "app.api")),
-        (repo_root / "backend" / "rag", ("app.api",)),
-        (repo_root / "backend" / "app" / "pipeline", ("app.api",)),
+        (backend_dir / "domain", ("services", "rag", "app")),
+        (backend_dir / "services", ("rag", "app.pipeline", "app.api")),
+        (backend_dir / "rag", ("app.api",)),
+        (backend_dir / "app" / "pipeline", ("app.api",)),
     ]
 
     for base_dir, forbidden in rules:
         if not base_dir.is_dir():
             continue
         for py_path in base_dir.rglob("*.py"):
-            rel_str = str(py_path.relative_to(repo_root))
+            rel_str = f"backend/{py_path.relative_to(backend_dir)}"
             try:
                 tree = ast.parse(py_path.read_text(encoding="utf-8"), filename=rel_str)
             except Exception:

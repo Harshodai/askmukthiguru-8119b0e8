@@ -8,6 +8,7 @@ backend/services/cache/semantic_adapter.py -> rag.corpus_scope
 backend/services/chat_context_budget.py -> rag.compressor
 backend/services/config_watcher.py -> rag.prompts
 backend/services/first_person_graph_expansion.py -> rag.kg_expansion
+backend/services/first_person_pipeline.py -> app.pipeline.stages.distress_stage
 backend/services/first_person_pipeline.py -> rag.compressor
 backend/services/graphrag_fusion.py -> rag.nodes
 backend/services/llm/base.py -> rag.compressor

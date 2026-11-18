@@ -218,13 +218,80 @@ def test_f1_05_standalone_readiness_scoring_relaxation():
     assert relaxed_problem is None
 
 
-def test_f1_06_fp_served_flag_invariant():
+def test_f1_06_fp_served_flag_invariant(monkeypatch: pytest.MonkeyPatch):
     """F1.6: route_metadata.fp_served is strictly True on served turns, omitted on abstain."""
-    served_meta: dict[str, Any] = {"fp_served": True}
-    assert served_meta.get("fp_served") is True
+    from app.config import settings
+    from app.pipeline.stages.first_person_bridge import FirstPersonBridgeStage
+    import services.first_person_pipeline as fp_mod
+    from services.first_person_pipeline import FirstPersonPipelineResult
 
-    abstain_meta: dict[str, Any] = {"selected_variant": "no_match_abstain"}
-    assert abstain_meta.get("fp_served") is not True
+    stage = FirstPersonBridgeStage()
+    container = MagicMock()
+    container.guardrails.check_output = AsyncMock(return_value={"blocked": False})
+    container.translation = MagicMock()
+    container.embedding.encode_single_full_async = AsyncMock(
+        return_value={"dense": [0.1] * settings.embedding_dimension}
+    )
+
+    teaching_text = (
+        "Awareness sees the movement of thought without following it, and in that "
+        "seeing the mind grows still on its own."
+    )
+    thash = hashlib.sha256(teaching_text.encode("utf-8")).hexdigest()
+    fp_result = FirstPersonPipelineResult(
+        teaching_text,
+        [{
+            "video_id": "dQw4w9WgXcQ",
+            "videoId": "dQw4w9WgXcQ",
+            "source_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "start": 99,
+            "end": 129,
+            "start_ms": 99000,
+            "end_ms": 129000,
+            "speaker": "Sri Preethaji",
+            "verbatim_text": teaching_text,
+            "rights_cleared": True,
+            "domain_rights_status": "licensed",
+            "speaker_verified": True,
+            "corpus_version": "fp-context-transcript-v1",
+            "first_person_eligible": True,
+            "is_verbatim": True,
+            "transcript_hash": thash,
+            "source_text_hash": thash,
+        }],
+        "success",
+        True,
+        10.0,
+        fp_served=True,
+    )
+    monkeypatch.setattr(fp_mod, "serve_first_person", AsyncMock(return_value=fp_result))
+
+    ctx = MagicMock(
+        container=container,
+        user_msg="How to observe thoughts?",
+        user_msg_en="How to observe thoughts?",
+        preferred_lang="en",
+        trace_id="test-f1-06-serve",
+        start_time=time.time(),
+        state={"user_msg_en": "How to observe thoughts?"},
+        user_id="11111111-1111-4111-8111-111111111111",
+        session_id="sess-f1-06",
+        is_indic=False,
+        incognito=False,
+        routing_chain=[],
+        preclassified_intent="QUERY",
+    )
+
+    # 1. Served turn carries fp_served=True in route_metadata
+    serve_res = asyncio.run(stage._bridge(ctx))
+    assert serve_res is not None
+    assert serve_res.route_metadata.get("fp_served") is True
+
+    # 2. Abstain turn strictly omits fp_served
+    abstain_res = asyncio.run(stage._abstain(ctx, status="no_match", reason="below_min_relevance"))
+    assert abstain_res is not None
+    assert "fp_served" not in abstain_res.route_metadata
+    assert abstain_res.route_metadata.get("selected_variant") == "no_match_abstain"
 
 
 # ===========================================================================
@@ -266,7 +333,10 @@ def test_f2_01_t_b14_opt_in_admission_success(mock_teaching_store: Any):
 
 
 def test_f2_02_synthetic_personalize_doc_structure():
-    """F2.2: Synthetic personalize_doc contains all mandatory grounding fields."""
+    """F2.2: GraphStage injects synthetic personalize_doc with all mandatory grounding fields."""
+    from app.pipeline.stages.context import PipelineContext
+    from app.pipeline.stages.graph_stage import GraphStage
+
     clip = {
         "verbatim_text": "Stillness is the nature of consciousness.",
         "title": "On Consciousness",
@@ -275,24 +345,53 @@ def test_f2_02_synthetic_personalize_doc_structure():
         "point_id": "pt_001",
         "speaker": "Sri Preethaji",
         "teacher_id": "preethaji",
-    }
-    personalize_doc = {
-        "text": str(clip.get("verbatim_text") or "").strip(),
-        "title": clip.get("title") or "Served Teaching",
-        "source_url": clip.get("source_url"),
-        "video_id": clip.get("video_id"),
-        "point_id": clip.get("point_id"),
-        "speaker": clip.get("speaker"),
-        "teacher_id": clip.get("teacher_id"),
-        "is_verbatim": True,
-        "knowledge_source": "personalize_clip",
-        "rerank_score": 1.0,
+        "start_ms": 1000,
+        "end_ms": 5000,
     }
 
+    container = MagicMock()
+    mock_graph = MagicMock()
+    mock_graph.ainvoke = AsyncMock(return_value={"final_answer": "test", "citations": []})
+    container.fast_graph = mock_graph
+    container.standard_graph = mock_graph
+    container.deep_graph = mock_graph
+
+    coordinator = MagicMock()
+    async def fake_get_or_run(key, fn):
+        return await fn()
+    coordinator.coalescer = MagicMock()
+    coordinator.coalescer.get_or_run.side_effect = fake_get_or_run
+
+    ctx = PipelineContext(
+        container=container,
+        coordinator=coordinator,
+        request=MagicMock(attachment_context=None, assistant=None),
+        user_msg="Please personalize this teaching for me.",
+        preferred_lang="en",
+        trace_id="test-f2-02-graph",
+        start_time=time.time(),
+        state={
+            "user_msg_en": "Please personalize this teaching for me.",
+            "chat_history_en": [],
+            "personalize_clip": clip,
+        },
+        user_id="11111111-1111-4111-8111-111111111111",
+        session_id="sess-f2-02",
+    )
+
+    stage = GraphStage()
+    asyncio.run(stage.run(ctx))
+
+    invoked_state = mock_graph.ainvoke.call_args[0][0]
+    docs = invoked_state.get("documents", [])
+    assert len(docs) >= 1
+    personalize_doc = docs[0]
     assert personalize_doc["is_verbatim"] is True
     assert personalize_doc["knowledge_source"] == "personalize_clip"
     assert personalize_doc["rerank_score"] == 1.0
     assert personalize_doc["text"] == clip["verbatim_text"]
+    assert personalize_doc["speaker"] == clip["speaker"]
+    assert personalize_doc["video_id"] == clip["video_id"]
 
 
 def test_f2_03_verbatim_clip_in_verification_context():
@@ -561,11 +660,24 @@ def test_f4_05_unreachable_qdrant_raises_qdrant_error():
 
 
 def test_f4_06_manifest_missing_fingerprint_invalid_run():
-    """F4.6: Manifest lacking collection fingerprint marks eval run as invalid."""
-    manifest = {
+    """F4.6: Manifest lacking collection fingerprint marks eval run as invalid per Invariant X41."""
+    from scripts.ops.graded_registered_report import manifest_facts
+
+    manifest_missing = {
         "run_id": "eval_without_fingerprint",
-        "collection_fingerprint": None,
+        "flags": {},
     }
-    # Invariant X41: Graded evidence without collection fingerprint is neither PASS nor FAIL
-    is_valid = manifest.get("collection_fingerprint") is not None
-    assert is_valid is False
+    facts, invalid = manifest_facts(manifest_missing, None)
+    assert any("manifest lacks collection fingerprint" in r for r in invalid)
+
+    manifest_with_fp = {
+        "run_id": "eval_with_fingerprint",
+        "flags": {},
+        "collection_fingerprint": {
+            "points": 4197,
+            "ids_sha256": "0" * 64,
+            "collection": "first_person_v10",
+        },
+    }
+    facts_ok, invalid_ok = manifest_facts(manifest_with_fp, None)
+    assert not any("manifest lacks collection fingerprint" in r for r in invalid_ok)

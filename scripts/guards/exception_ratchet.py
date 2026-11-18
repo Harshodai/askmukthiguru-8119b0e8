@@ -46,10 +46,15 @@ def parse_baseline(baseline_path: Path) -> tuple[int, int, int]:
 
 def scan_exceptions(repo_root: Path) -> tuple[int, list[tuple[str, int]], list[tuple[str, int]]]:
     """Scan scoped directories and return (broad_count, all_silent_swallows, silent_swallows_fp)."""
+    if (repo_root / "backend").is_dir():
+        backend_dir = repo_root / "backend"
+    else:
+        backend_dir = repo_root
+
     targets = [
-        repo_root / "backend" / "app",
-        repo_root / "backend" / "rag",
-        repo_root / "backend" / "services",
+        backend_dir / "app",
+        backend_dir / "rag",
+        backend_dir / "services",
     ]
 
     broad_count = 0
@@ -60,8 +65,8 @@ def scan_exceptions(repo_root: Path) -> tuple[int, list[tuple[str, int]], list[t
         if not target.is_dir():
             continue
         for py_path in target.rglob("*.py"):
-            rel = py_path.relative_to(repo_root)
-            rel_str = str(rel)
+            rel = py_path.relative_to(backend_dir)
+            rel_str = f"backend/{rel}"
 
             is_fp_service = "backend/services" in rel_str and "first_person" in rel_str
             is_scoped = "backend/app" in rel_str or "backend/rag" in rel_str or is_fp_service

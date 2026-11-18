@@ -29,7 +29,7 @@ import re
 import threading
 import time
 import unicodedata
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Optional
@@ -526,6 +526,7 @@ from services.first_person_evidence_policy import (
 )
 from services.live_event_text import (
     LIVE_EVENT_INSTRUCTION_RE as _LIVE_EVENT_INSTRUCTION_RE,  # noqa: E402
+    is_live_event_instruction as _is_live_event_instruction,
 )
 
 _PARABLE_CHARACTER_RE = re.compile(r"\b(?:Yasme|Yesme|Yasmi|Nomi)\b")
@@ -800,7 +801,7 @@ def _passes_content_quality_gate(clip: dict[str, Any], gate_enabled: Optional[bo
         or "soul-sync" in text_lower
         or "serene mind" in text_lower
     )
-    if _LIVE_EVENT_INSTRUCTION_RE.search(text) and not is_practice:
+    if _is_live_event_instruction(text) and not is_practice:
         logger.info(
             "[FirstPersonPipeline] Clip %s rejected by content quality gate: live-event instruction pattern",
             clip.get("point_id") or clip.get("video_id"),
@@ -875,9 +876,9 @@ def transcript_label(verbatim_text: str, caption_status: Optional[str]) -> dict[
 # RP-A5: version of the relevance-scoring prompt. Bumped by hand whenever
 # _RELEVANCE_SYSTEM_PROMPT's rubric changes; the policy fingerprint below also
 # carries a hash of the prompt text, so an unbumped edit still re-keys.
-_RELEVANCE_PROMPT_VERSION = "v3"
+_RELEVANCE_PROMPT_VERSION = "v4"
 
-# Calibrated rubric core (2026-11-10, SOTA plan WS3). Shared by the comma-separated and the
+# Calibrated rubric core (2026-11-10, SOTA plan WS3; calibrated 2026-11-18 WS4). Shared by the comma-separated and the
 # JSON-schema reply grammars so the two paths cannot disagree about what a 2 means.
 # Score 2 is now an explicit *foundational / parabolic* answer band: a spiritual teaching
 # explains the root cause of an inner state ("why does grief hold me", "what is the state
@@ -888,14 +889,14 @@ _RELEVANCE_PROMPT_VERSION = "v3"
 # meaning so a calibration change cannot widen the serving surface to announcements,
 # fragments, event-bound clips, external teachers, or self-harm.
 _RELEVANCE_RUBRIC_CORE = (
-    "You judge whether recorded teaching clips ANSWER a seeker's question. Score each numbered "
+    "You judge whether recorded teaching clips ANSWER a seeker's question or address their expressed inner state. Score each numbered "
     "clip on this fixed scale. "
-    "3 = directly answers the question in the teacher's own words: the clip names the specific "
+    "3 = directly answers the question or directly guides the seeker through an expressed state of sorrow, depression, or suffering in the teacher's own words: the clip names the specific "
     "mechanism, practice, or realisation the seeker asked for and stands alone as a coherent "
     "thought. "
     "2 = foundational or parabolic answer: the clip does not restate the question but "
     "illuminates its root cause, underlying spiritual law, or inner state (for example, "
-    "explaining attachment to answer grief, or inner stillness to answer anger). A parable, "
+    "explaining attachment to answer grief, or inner stillness to answer anger or sadness). A parable, "
     "metaphor, or story that resolves the seeker's enquiry scores 2, not 1. "
     "1 = same broad theme but does not answer it: the clip touches the topic or shares a "
     "keyword with the question and offers no teaching about what was asked. "
@@ -904,9 +905,11 @@ _RELEVANCE_RUBRIC_CORE = (
     "introduces unsolicited suicide/self-harm or graphic violence, or a question about what "
     "another spiritual teacher or external tradition teaches. "
     "Calibration: prefer 2 over 1 whenever the clip leaves the seeker with a real teaching about "
-    "the state behind their question; for situational or compound queries (e.g. asking about anger, "
+    "the state behind their question or expression of emotional vulnerability; for situational or compound queries (e.g. asking about anger, "
     "anxiety, suffering, or desire in a specific setting such as work or relationships), a clip that "
     "illuminates the root inner state or spiritual law qualifies as score 2; "
+    "when the seeker shares personal sorrow or emotional heaviness, a clip that addresses the root of suffering and illuminates the path to inner peace qualifies as score 2 or 3; "
+    "if the question asks for a specific named book, publication, or specific multi-part doctrine (such as 'The Four Sacred Secrets') that is not explained in the clip, a clip that merely shares an incidental word like 'secret' without expounding the requested doctrine scores 1, not 2; "
     "never score 3 for a clip that only describes the problem; "
     "never score 0 for a clip that teaches through story rather than instruction. "
 )
@@ -1047,6 +1050,46 @@ def _resolve_served_directness(is_direct: bool, relevance_score: Optional[int]) 
         return int(relevance_score) >= _DIRECT_ANSWER_MIN_SCORE
     except (TypeError, ValueError):
         return False
+
+
+def _original_query_confidence(
+    *,
+    original_query_dense: Optional[Sequence[float]],
+    span_ids: Sequence[str],
+    dense_by_span: Mapping[str, Sequence[float]],
+    fallback: float,
+    is_distress: bool = False,
+) -> float:
+    """Calibrated confidence from the seeker's own question, never the HyDE expansion.
+
+    ``ctx.score`` is the retrieval score, and when HyDE is enabled retrieval ran on a
+    generated hypothetical teaching. Reusing that score as confidence would make the
+    calibration profile compare stored clips with an LLM-written paragraph instead of
+    the question, silently inflating or deflating the threshold. When the original
+    query vector and the served spans' stored vectors are both available, recompute
+    the best cosine over the served spans; otherwise keep the retrieval score
+    (fail-open, never a fabricated 0).
+
+    For distress/venting queries (``is_distress=True``), seekers express pain in
+    colloquial language ("I was so depressed today") rather than spiritual doctrine.
+    HyDE bridges this semantic gap. Forcing confidence against the raw colloquial
+    query penalizes the seeker — lowering the score below calibration thresholds and
+    causing false ``weak_match`` or abstain. When ``is_distress`` is True, the best
+    of (raw-query cosine, HyDE retrieval score) is returned so a strong HyDE alignment
+    is not discarded by a low raw-query cosine. Lesson: ``L-VENTING-CONFIDENCE-HONORS-HYDE-1``.
+    """
+    best: Optional[float] = None
+    if original_query_dense and dense_by_span:
+        for span_id in span_ids:
+            vec = dense_by_span.get(span_id)
+            if not vec or len(vec) != len(original_query_dense):
+                continue
+            sim = _cosine_similarity(list(original_query_dense), list(vec))
+            if best is None or sim > best:
+                best = sim
+    if best is not None:
+        return float(best)
+    return float(fallback)
 
 
 def _estimate_fp_tokens(*texts: Any) -> int:
@@ -1243,6 +1286,7 @@ def _relevance_select(
     token_sink: Optional[list[int]] = None,
     scores_out: Optional[list[int]] = None,
     judge_meta_out: Optional[dict[str, Any]] = None,
+    is_distress: bool = False,
 ) -> Optional[int]:
     """Sync bridge over ``_relevance_select_async`` for offline callers (T7-02)."""
     try:
@@ -1255,6 +1299,7 @@ def _relevance_select(
                 token_sink=token_sink,
                 scores_out=scores_out,
                 judge_meta_out=judge_meta_out,
+                is_distress=is_distress,
             ),
             _FACADE_TIMEOUT_S,
             request_loop,
@@ -1272,6 +1317,7 @@ async def _relevance_select_async(
     token_sink: Optional[list[int]] = None,
     scores_out: Optional[list[int]] = None,
     judge_meta_out: Optional[dict[str, Any]] = None,
+    is_distress: bool = False,
 ) -> Optional[int]:
     """Scorer entry point. The optional Jev picker only reorders candidates (its pick is
     scored first); the min-score scorer still decides and its real scores are kept.
@@ -1312,6 +1358,7 @@ async def _relevance_select_async(
         request_loop=None,
         token_sink=token_sink,
         scores_out=local_scores if scores_out is not None else None,
+        is_distress=is_distress,
     )
     if scores_out is not None and local_scores:
         restored = [0] * len(clips)
@@ -1333,12 +1380,14 @@ def _relevance_select_scored(
     request_loop: Optional[Any] = None,
     token_sink: Optional[list[int]] = None,
     scores_out: Optional[list[int]] = None,
+    is_distress: bool = False,
 ) -> Optional[int]:
     """Sync bridge over ``_relevance_select_scored_async`` for offline callers (T7-02)."""
     try:
         return run_llm_coroutine(
             lambda: _relevance_select_scored_async(
-                query, clips, llm_service, None, token_sink=token_sink, scores_out=scores_out
+                query, clips, llm_service, None, token_sink=token_sink, scores_out=scores_out,
+                is_distress=is_distress,
             ),
             _FACADE_TIMEOUT_S,
             request_loop,
@@ -1355,6 +1404,7 @@ async def _relevance_select_scored_async(
     request_loop: Optional[Any] = None,
     token_sink: Optional[list[int]] = None,
     scores_out: Optional[list[int]] = None,
+    is_distress: bool = False,
 ) -> Optional[int]:
     """Index of the best clip whose relevance score >= first_person_relevance_min_score.
 
@@ -1377,6 +1427,7 @@ async def _relevance_select_scored_async(
     if not clips or llm_service is None or not hasattr(llm_service, "generate"):
         return _RELEVANCE_INDETERMINATE
     minimum = int(getattr(settings, "first_person_relevance_min_score", 3))
+
     user_prompt = _build_relevance_user_prompt(query, clips)
     use_json_schema = False
     # Bound before the try: the except branches below estimate tokens from it.
@@ -4672,6 +4723,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         fp_llm_tokens: list[int],
         _ans_box: dict[str, Any],
         start_time: float,
+        confidence_query_dense: Optional[list[float]] = None,
+        is_distress: bool = False,
     ) -> Optional[FirstPersonPipelineResult]:
         """Step 2c: serve the question from the fp-context harness, else return None.
 
@@ -4806,8 +4859,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         if candidate_pool > 0 and not editorial_set_enabled:
             harness_candidate_limit = candidate_pool
         else:
+            # A4 Latency Bounding: cap candidate pool to <= 6 to ensure parallel relevance
+            # checks stay within provider concurrent worker quotas without triggering 429 stalls.
             harness_candidate_limit = (
-                min(16, max(0, int(max_clips)) * 2)
+                min(6, max(0, int(max_clips)) * 2)
                 if editorial_set_enabled
                 else (candidate_pool or max_clips)
             )
@@ -5051,6 +5106,29 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     audio_playback_clips = []
                     cite_by_id = {c.source_span_id: c for c in decision.citations}
                     confidence = float(getattr(ctx, "score", 1.0) or 1.0)
+                    served_span_ids = [s.source_span_id for s in served_spans]
+                    if confidence_query_dense is not None:
+                        # Retrieval ran on a HyDE expansion, so `ctx.score` describes the
+                        # expansion. Recompute confidence against the seeker's own question
+                        # from the served spans' stored vectors; calibration stays the same.
+                        try:
+                            dense_by_span = await _io_thread(
+                                ctx_store.dense_vectors_for_spans, served_span_ids
+                            )
+                        except Exception as exc:  # pragma: no cover - transport dependent
+                            logger.debug(
+                                "[FirstPersonPipeline] Original-query confidence read failed; "
+                                "keeping retrieval score: %s",
+                                exc,
+                            )
+                            dense_by_span = {}
+                        confidence = _original_query_confidence(
+                            original_query_dense=confidence_query_dense,
+                            span_ids=served_span_ids,
+                            dense_by_span=dense_by_span,
+                            fallback=confidence,
+                            is_distress=is_distress,
+                        )
                     _span_failed_gate = False
                     is_multi_span = len(served_spans) > 1
                     for span in served_spans:
@@ -5061,6 +5139,11 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             and span.source_span_id == validated_predecessor.predecessor.source_span_id
                         ):
                             cit_dict["is_predecessor"] = True
+                            # A5 Surface adjacency as metadata, never prose in answer_text
+                            cit_dict["relation"] = "precedes"
+                            cit_dict["edge_source"] = getattr(
+                                validated_predecessor, "edge_source", "store_validated"
+                            )
                         # The gate's YouTube availability check is sync network + Redis
                         # I/O; keep it off the request loop.
                         if not await _io_thread(
@@ -5215,6 +5298,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             token_sink=_local_tokens,
                             scores_out=_h_scores,
                             judge_meta_out=_h_judge_meta,
+                            is_distress=is_distress,
                         )
                         if _h_pick == _RELEVANCE_INDETERMINATE:
                             # Propagate indeterminate via a sentinel so the main
@@ -5358,25 +5442,40 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             if context_result is not None
                         ]
                         if _editorial_pairs:
+                            _active_facets = editorial_facets or get_default_planner().plan(query)
                             _editorial_res = self._build_editorial_set_result(
                                 retrieval_query or query,
                                 _editorial_pairs,
-                                facets=editorial_facets or get_default_planner().plan(query),
+                                facets=_active_facets,
                                 max_clips=max_clips,
                                 start_time=start_time,
                                 retrieval_ms=t_ctx_ret_ms,
                                 answerability=public_context_answerability,
                             )
-                            self._log_and_count(
-                                _editorial_res.status,
-                                _editorial_res.latency_ms,
-                                float(getattr(contexts[0], "score", 1.0) or 1.0),
-                                0,
-                                len(_editorial_res.citations),
-                                _editorial_res.abstain_reason or "none",
-                                sum(fp_llm_tokens),
-                            )
-                            return _editorial_res
+                            # A6 graceful fallback: when the editorial set builder
+                            # abstains (e.g. open-ended "general" intent with no
+                            # specific facets — "What is suffering?") and a harness
+                            # result already passed all gates, serve that winner
+                            # directly.  The editorial set builder is an organiser,
+                            # not a gate; it must not veto a clips-verified result.
+                            if _editorial_res.status == "abstained" and _harness_res is not None:
+                                logger.info(
+                                    "[FirstPersonPipeline] Editorial set abstained "
+                                    "(intent=%s facets=%s); falling back to best harness result.",
+                                    _active_facets.primary_intent,
+                                    _active_facets.candidate_facets,
+                                )
+                            else:
+                                self._log_and_count(
+                                    _editorial_res.status,
+                                    _editorial_res.latency_ms,
+                                    float(getattr(contexts[0], "score", 1.0) or 1.0),
+                                    0,
+                                    len(_editorial_res.citations),
+                                    _editorial_res.abstain_reason or "none",
+                                    sum(fp_llm_tokens),
+                                )
+                                return _editorial_res
                     if _harness_res is not None:
                         if not cache_bypass:
                             await _io_thread(
@@ -5487,15 +5586,44 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             )
                             return _seq_res
                     if editorial_set_enabled and _editorial_pairs_seq:
+                        _seq_active_facets = editorial_facets or get_default_planner().plan(query)
                         _editorial_res = self._build_editorial_set_result(
                             retrieval_query or query,
                             _editorial_pairs_seq,
-                            facets=editorial_facets or get_default_planner().plan(query),
+                            facets=_seq_active_facets,
                             max_clips=max_clips,
                             start_time=start_time,
                             retrieval_ms=t_ctx_ret_ms,
                             answerability=public_context_answerability,
                         )
+                        # A6 graceful fallback: editorial abstain → first passing harness result.
+                        if _editorial_res.status == "abstained" and _editorial_pairs_seq:
+                            _seq_fallback = _editorial_pairs_seq[0][1]
+                            logger.info(
+                                "[FirstPersonPipeline] Sequential editorial set abstained "
+                                "(intent=%s); falling back to first harness result.",
+                                _seq_active_facets.primary_intent,
+                            )
+                            if not cache_bypass:
+                                await _io_thread(
+                                    self.set_exact_cache,
+                                    query,
+                                    _seq_fallback.to_dict(),
+                                    teacher_id,
+                                    language=language,
+                                    allow_state=request_allow_state,
+                                    block_state=request_block_state,
+                                )
+                            self._log_and_count(
+                                _seq_fallback.status,
+                                _seq_fallback.latency_ms,
+                                float(getattr(contexts[0], "score", 1.0) or 1.0),
+                                0,
+                                len(_seq_fallback.citations),
+                                "none",
+                                sum(fp_llm_tokens),
+                            )
+                            return _seq_fallback
                         self._log_and_count(
                             _editorial_res.status,
                             _editorial_res.latency_ms,
@@ -5558,6 +5686,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         language: str = "en",
         cache_bypass: bool = False,
         memory_signals: Optional[dict[str, Any]] = None,
+        confidence_query_dense: Optional[list[float]] = None,
+        is_distress: bool = False,
     ) -> FirstPersonPipelineResult:
         """Sync entry point for offline callers, scripts and tests (T7-02).
 
@@ -5576,6 +5706,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             language=language,
             cache_bypass=cache_bypass,
             memory_signals=memory_signals,
+            confidence_query_dense=confidence_query_dense,
+            is_distress=is_distress,
         )
         try:
             target = _stable_llm_loop(self._llm_loop)
@@ -5603,6 +5735,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         language: str = "en",
         cache_bypass: bool = False,
         memory_signals: Optional[dict[str, Any]] = None,
+        confidence_query_dense: Optional[list[float]] = None,
+        is_distress: bool = False,
     ) -> FirstPersonPipelineResult:
         """
         Execute the end-to-end first-person verbatim serving pipeline.
@@ -5706,7 +5840,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             return contract_result
 
         # Step 2: exact-cache lookup.
-        if memory_signals and (
+        if is_distress:
+            # Distress calls must not read from or pollute the shared exact cache
+            cache_bypass = True
+        elif memory_signals and (
             memory_signals.get("seen_video_ids") or memory_signals.get("seen_clip_ids")
         ):
             # T6-02: Requests with returning-seeker memory signals bypass shared exact cache
@@ -5771,6 +5908,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             fp_llm_tokens=fp_llm_tokens,
             _ans_box=_ans_box,
             start_time=start_time,
+            confidence_query_dense=confidence_query_dense,
+            is_distress=is_distress,
         )
         if harness_result is not None:
             return harness_result

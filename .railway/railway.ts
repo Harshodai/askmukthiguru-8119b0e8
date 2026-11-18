@@ -37,8 +37,10 @@ export const partial = "askmukthiguru-8119b0e8";
 // resolve_first_person_active_collection fills both slots from the one active
 // name). The posture is read back from the "Serving posture:" startup log line
 // (backend/app/main.py). "v8_bridge" stays as the rollback value.
+// "v12_shadow" is added as a valid future posture type (2026-11-18) but the
+// constant stays "v10_only" until the owner explicitly promotes (D-14 still active).
 // test_railway_iac.py pins this.
-type ServingPosture = "unset" | "v10_only" | "v8_bridge";
+type ServingPosture = "unset" | "v10_only" | "v12_shadow" | "v8_bridge";
 const SERVING_POSTURE: ServingPosture = "v10_only";
 
 // D-30 decided 2026-11-07: worker and beat are ON in staging. This is the one
@@ -118,7 +120,20 @@ export default defineRailway((ctx) => {
           FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true",
           FIRST_PERSON_SERVING_POSTURE: SERVING_POSTURE,
         }
-      : SERVING_POSTURE === "v8_bridge"
+      : SERVING_POSTURE === "v12_shadow"
+        ? {
+            // v12_shadow promotes to staging when owner decides (D-14 pending).
+            // 1,996 topic_ids, 2× speaker-verified rate vs v10 (51.3% vs 26.5%).
+            // Set FIRST_PERSON_REQUIRE_SPEAKER_VERIFIED=true (default) so only
+            // the verified portion of v12 is served.
+            FIRST_PERSON_ACTIVE_COLLECTION: "first_person_v12_shadow",
+            FIRST_PERSON_COLLECTION: "first_person_v12_shadow",
+            FIRST_PERSON_CONTEXT_COLLECTION: "first_person_v12_shadow",
+            FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "true",
+            FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true",
+            FIRST_PERSON_SERVING_POSTURE: SERVING_POSTURE,
+          }
+        : SERVING_POSTURE === "v8_bridge"
         ? {
             // Harness flags stay at their false defaults, so the collection
             // resolves to first_person_v8 (config.py resolve_first_person_active_collection).

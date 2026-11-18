@@ -388,6 +388,44 @@ def bar_hub(rows: list[dict]) -> dict[str, Any]:
     )
 
 
+# A6: query-class breakdown (parable/practice/conceptual/venting/out_of_corpus).
+# Used for the per-class graph-on/off comparison mandated by GRAPH_CONTEXT_ADVANCEMENTS_2026-11-18.md.
+_CLASS_FIELD = "query_class"  # expected field on each row; set by graded_capture
+_KNOWN_CLASSES = ("parable", "practice", "conceptual", "venting", "out_of_corpus")
+
+
+def bar_per_class_served_share(rows: list[dict]) -> dict[str, Any]:
+    """A6 bar: per query-class served share and abstain breakdown.
+
+    Rows that lack a ``query_class`` field are grouped under ``unclassified``.
+    Each class reports served_n / total_n / served_share / abstain_reasons (top-3).
+    A class with zero rows is omitted.  Result is not_measured when no row has
+    the query_class field (older runs pre-dating A6 instrumentation).
+    """
+    if not any(_CLASS_FIELD in r for r in rows):
+        return _bar("not_measured", reason=f"no row carries '{_CLASS_FIELD}' (pre-A6 run)")
+    by_class: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        cls = str(r.get(_CLASS_FIELD) or "unclassified")
+        by_class[cls].append(r)
+    per_class: dict[str, dict] = {}
+    for cls, cls_rows in sorted(by_class.items()):
+        total = len(cls_rows)
+        served = sum(1 for r in cls_rows if _served(r))
+        abstains: dict[str, int] = defaultdict(int)
+        for r in cls_rows:
+            if not _served(r):
+                abstains[str(r.get("abstain_reason") or "unknown")] += 1
+        top_abstains = sorted(abstains.items(), key=lambda kv: -kv[1])[:3]
+        per_class[cls] = {
+            "total": total,
+            "served": served,
+            "served_share": round(served / total, 4) if total else None,
+            "abstain_reasons": dict(top_abstains),
+        }
+    return _bar("met", n=len(rows), per_class=per_class)
+
+
 def disagreements(grades: dict[str, Any] | None) -> dict[str, Any]:
     """Bar 9: row ids where the two graders' verdicts differ (reported, never averaged)."""
     if not grades:
@@ -516,6 +554,7 @@ def evaluate(run_dir: Path) -> dict[str, Any]:
         "6_core_abstain_rate": bar_core_abstain(una),
         "7_crisis_routing": bar_crisis(una),
         "8_hub_rule": bar_hub(rows),
+        "9a_per_class_served_share": bar_per_class_served_share(rows),
         "10_strict_reader_answers": _bar(
             "not_measured",
             reason="no strict-reader ANSWERS verdict exists in the harness (audit H-6)",

@@ -36,7 +36,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
-from fastapi.staticfiles import StaticFiles
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Fix import paths — run from backend/ directory
@@ -1721,49 +1720,7 @@ async def get_jwks():
     return get_jwks_dict()
 
 
-# === Mount Ingestion UI ===
 
-# Try to find the directory (Docker vs Local/Colab)
-ui_possible_paths = [
-    Path("/app/ingest-ui"),  # Docker (absolute)
-    Path("ingest-ui"),  # Local (relative to CWD)
-    Path("../ingest-ui"),  # Colab/Dev (relative to CWD backend/)
-]
-
-ui_path = None
-for p in ui_possible_paths:
-    if p.exists():
-        ui_path = p
-        break
-
-if ui_path:
-    app.mount("/static-ingest", StaticFiles(directory=str(ui_path), html=True), name="ingest")
-    logger.info(f"✅ Ingestion UI mounted at /static-ingest (from {ui_path})")
-else:
-    logger.info(
-        "Ingestion UI directory not found — static UI not mounted (expected in production container)"
-    )
-
-# === Mount Chat UI ===
-chat_ui_possible_paths = [
-    Path("/app/chat-ui"),
-    Path("chat-ui"),
-    Path("../chat-ui"),
-]
-
-chat_ui_path = None
-for p in chat_ui_possible_paths:
-    if p.exists():
-        chat_ui_path = p
-        break
-
-if chat_ui_path:
-    app.mount("/static-chat", StaticFiles(directory=str(chat_ui_path), html=True), name="chat")
-    logger.info(f"✅ Premium Chat UI mounted at /static-chat (from {chat_ui_path})")
-else:
-    logger.info(
-        "Chat UI directory not found — static UI not mounted (expected in production container)"
-    )
 
 # === Mount Gradio UI (gated; disabled by default in production) ===
 if os.getenv("ENABLE_GRADIO_UI", "false").lower() in ("1", "true", "yes"):
@@ -1790,8 +1747,7 @@ else:
 
 @app.get("/")
 async def root():
-    """Redirect root to Ingestion UI."""
-    return RedirectResponse(url="/ingest/")
+    return {"status": "ok", "service": "askmukthiguru-backend"}
 
 
 if __name__ == "__main__":

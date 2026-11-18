@@ -892,6 +892,27 @@ class TestContentQualityGate:
         )
         assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is False
 
+    def test_moksha_ritual_close_eyes_passes(self):
+        # "close your eyes" in a funeral/moksha chant context is NOT a crowd direction.
+        # This is the c78f48db parent assembled text that was incorrectly rejected.
+        # Lesson: L-LIVE-EVENT-FALSE-POSITIVE-RITUAL-1
+        text = (
+            "You may now close your eyes and listen to this chant "
+            "to be sung to those who are departing. "
+            "As the soul prepares to journey into the light, "
+            "let this moksha song be a bridge between this world and the next. "
+            "The divine guru carries those who surrender fully into eternal peace."
+        )
+        assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
+
+    def test_moksha_chant_departing_other_patterns_pass(self):
+        # "open your eyes" in a ritual context — still exempted
+        text = (
+            "Now open your eyes and witness the light that surrounds those who are departing. "
+            "In moksha, the veil between worlds becomes transparent to the seeker."
+        )
+        assert _passes_content_quality_gate(_cq_clip(text), gate_enabled=True) is True
+
     def test_let_us_begin_rejected(self):
         text = (
             "Let us begin this meditation by sitting upright and placing your hands on your knees. "
@@ -1737,3 +1758,119 @@ def test_pipeline_semantic_judge_editorial_set_forwarding(mock_store, mock_redis
     )
     assert assessment_without_judge.may_serve is False
     assert assessment_without_judge.severity == FindingSeverity.EXCLUDE
+
+
+# --- Original-query confidence under HyDE (2026-11-18) ----------------------
+# The retrieval vector may be a HyDE expansion, so `ctx.score` describes the generated
+# hypothetical, not the seeker's question. Calibration must keep comparing stored clips
+# with the original question vector; the helper below is the single place that decides.
+
+
+def test_original_query_confidence_uses_the_original_question_not_the_retrieval_score():
+    from services.first_person_pipeline import _original_query_confidence
+
+    confidence = _original_query_confidence(
+        original_query_dense=[1.0, 0.0],
+        span_ids=["span-a", "span-b"],
+        dense_by_span={"span-a": [0.0, 1.0], "span-b": [0.6, 0.8]},
+        fallback=0.99,
+    )
+
+    assert confidence == pytest.approx(0.6)
+    assert confidence != pytest.approx(0.99)
+
+
+def test_original_query_confidence_keeps_the_retrieval_score_when_no_vector_is_readable():
+    from services.first_person_pipeline import _original_query_confidence
+
+    assert (
+        _original_query_confidence(
+            original_query_dense=[1.0, 0.0],
+            span_ids=["span-a"],
+            dense_by_span={},
+            fallback=0.83,
+        )
+        == pytest.approx(0.83)
+    )
+    # A dimension mismatch is not a zero-confidence claim either.
+    assert (
+        _original_query_confidence(
+            original_query_dense=[1.0, 0.0],
+            span_ids=["span-a"],
+            dense_by_span={"span-a": [1.0, 0.0, 0.0]},
+            fallback=0.42,
+        )
+        == pytest.approx(0.42)
+    )
+
+
+def test_context_harness_recomputes_confidence_only_when_retrieval_vector_differs():
+    import inspect
+
+    source = inspect.getsource(FirstPersonPipeline._serve_from_context_harness)
+    assert "_original_query_confidence(" in source
+    assert "confidence_query_dense" in inspect.signature(
+        FirstPersonPipeline.execute
+    ).parameters
+    assert "confidence_query_dense" in inspect.signature(
+        FirstPersonPipeline.aexecute
+    ).parameters
+
+
+def test_original_query_confidence_distress_returns_raw_cosine_when_readable():
+    """L-VENTING-CONFIDENCE-HONORS-HYDE-1: for distress/venting queries, the HyDE
+    retrieval score (fallback) is honored when it exceeds the raw-query cosine.
+    A seeker who says "I'm so depressed today" gets a low raw-query cosine against
+    stored spiritual clips but HyDE bridges to a high retrieval score; forcing the
+    raw cosine discards that alignment."""
+    from services.first_person_pipeline import _original_query_confidence
+
+    # Raw colloquial query ("I'm so depressed") has low cosine against spiritual clips
+    low_raw_cosine = _original_query_confidence(
+        original_query_dense=[1.0, 0.0],
+        span_ids=["span-a"],
+        dense_by_span={"span-a": [0.0, 1.0]},  # orthogonal → cosine=0.0
+        fallback=0.78,  # HyDE retrieval score for the same context
+        is_distress=False,
+    )
+    assert low_raw_cosine == pytest.approx(0.0), "non-distress must use raw cosine"
+
+    # With is_distress=True, readable original-query vectors are returned directly without raising via HyDE
+    distress_confidence = _original_query_confidence(
+        original_query_dense=[1.0, 0.0],
+        span_ids=["span-a"],
+        dense_by_span={"span-a": [0.0, 1.0]},  # orthogonal → cosine=0.0
+        fallback=0.78,  # HyDE retrieval score
+        is_distress=True,
+    )
+    assert distress_confidence == pytest.approx(0.0), (
+        "distress must return readable original-query cosine (0.0) without HyDE raising"
+    )
+
+
+def test_original_query_confidence_distress_keeps_raw_when_higher():
+    """When raw-query cosine exceeds HyDE score, return the cosine even for distress."""
+    from services.first_person_pipeline import _original_query_confidence
+
+    result = _original_query_confidence(
+        original_query_dense=[1.0, 0.0],
+        span_ids=["span-a"],
+        dense_by_span={"span-a": [1.0, 0.0]},  # parallel → cosine=1.0
+        fallback=0.5,  # HyDE score is lower
+        is_distress=True,
+    )
+    assert result == pytest.approx(1.0), "max(1.0, 0.5) = 1.0 — raw cosine wins"
+
+
+def test_serve_from_context_harness_has_is_distress_param():
+    """is_distress must be plumbed into aexecute, execute, and _serve_from_context_harness."""
+    import inspect
+
+    sig_harness = inspect.signature(FirstPersonPipeline._serve_from_context_harness)
+    assert "is_distress" in sig_harness.parameters, (
+        "_serve_from_context_harness missing is_distress"
+    )
+    sig_aex = inspect.signature(FirstPersonPipeline.aexecute)
+    assert "is_distress" in sig_aex.parameters, "aexecute missing is_distress"
+    sig_ex = inspect.signature(FirstPersonPipeline.execute)
+    assert "is_distress" in sig_ex.parameters, "execute missing is_distress"

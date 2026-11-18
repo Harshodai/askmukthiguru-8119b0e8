@@ -23,6 +23,7 @@ import pytest
 
 from app.orchestrator_utils import prepare_user_memory
 from app.pipeline.stages.context import PipelineContext
+from app.pipeline.stages.graph_stage import GraphStage
 from app.pipeline.stages.memory_stage import MemoryStage
 from app.pipeline.stages.personalize_stage import (
     PERSONALIZED_LABEL,
@@ -62,6 +63,7 @@ from services.first_person_context_harness import (
     HarnessPolicy,
 )
 from services.first_person_evidence_policy import _context_standalone_problem
+from services.first_person_pipeline import FirstPersonPipeline, FirstPersonPipelineResult
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 HASH = "d" * 64
@@ -185,24 +187,21 @@ def test_tier4_s1_seeker_contemplative_inquiry_to_grounded_verbatim_teaching():
 
     # 5. Result assembly produces verbatim teaching with citable coordinates and fp_served=True
     assembled_text = " ".join(texts)
-    route_meta = {
-        "fp_served": True,
-        "requested_variant": "first_person",
-        "selected_variant": "first_person_served",
-    }
-    citation = {
-        "video_id": "dQw4w9WgXcQ",
-        "start_ms": windowed[0].start_ms,
-        "end_ms": windowed[-1].end_ms,
-        "source_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        "speaker": "Sri Preethaji",
-        "title": "On Quiet Observation and Meditation",
-    }
+    citation = FirstPersonPipeline._build_context_citation(windowed[0])
+    pipeline_result = FirstPersonPipelineResult(
+        answer_text=assembled_text,
+        citations=[citation],
+        status="success",
+        is_direct_answer=True,
+        latency_ms=15.0,
+        fp_served=bool([citation]),
+    )
 
-    assert route_meta["fp_served"] is True
+    assert pipeline_result.fp_served is True
+    assert pipeline_result.status == "success"
     assert citation["video_id"] == "dQw4w9WgXcQ"
     assert citation["start_ms"] == 0
-    assert "Awareness sees the movement of thought without following it" in assembled_text
+    assert "Awareness sees the movement of thought without following it" in pipeline_result.answer_text
 
 
 # ===========================================================================
@@ -250,22 +249,45 @@ def test_tier4_s2_seamless_transition_from_served_teaching_to_personalized_conte
     assert "personalize_clip" in ctx.state
     assert ctx.state["personalize_clip"]["video_id"] == video_id
 
-    # 3. LangGraph pipeline injects synthetic personalize_doc into retrieval
+    # 3. LangGraph pipeline injects synthetic personalize_doc into state
     p_clip = ctx.state["personalize_clip"]
-    personalize_doc = {
-        "text": str(p_clip.get("verbatim_text") or "").strip(),
-        "title": p_clip.get("title") or "Served Teaching",
-        "source_url": p_clip.get("source_url"),
-        "video_id": p_clip.get("video_id"),
-        "point_id": p_clip.get("point_id"),
-        "speaker": p_clip.get("speaker"),
-        "teacher_id": p_clip.get("teacher_id"),
-        "is_verbatim": True,
-        "knowledge_source": "personalize_clip",
-        "rerank_score": 1.0,
-    }
-    retrieved_docs = [personalize_doc, {"text": "Background mindfulness context."}]
+    g_container = MagicMock()
+    mock_graph = MagicMock()
+    mock_graph.ainvoke = AsyncMock(return_value={"final_answer": "test", "citations": []})
+    g_container.fast_graph = mock_graph
+    g_container.standard_graph = mock_graph
+    g_container.deep_graph = mock_graph
+
+    g_coordinator = MagicMock()
+    async def fake_get_or_run(key, fn):
+        return await fn()
+    g_coordinator.coalescer = MagicMock()
+    g_coordinator.coalescer.get_or_run.side_effect = fake_get_or_run
+
+    g_ctx = PipelineContext(
+        container=g_container,
+        coordinator=g_coordinator,
+        request=MagicMock(attachment_context=None, assistant=None),
+        user_msg=PERSONALIZE_TEACHING_PROMPT,
+        preferred_lang="en",
+        trace_id="test-s2-graph",
+        start_time=time.time(),
+        state={
+            "user_msg_en": PERSONALIZE_TEACHING_PROMPT,
+            "chat_history_en": [],
+            "personalize_clip": p_clip,
+        },
+        user_id="11111111-1111-4111-8111-111111111111",
+        session_id="sess-s2-transition",
+    )
+    asyncio.run(GraphStage().run(g_ctx))
+    graph_initial_state = mock_graph.ainvoke.call_args[0][0]
+    retrieved_docs = graph_initial_state.get("documents", [])
+    assert len(retrieved_docs) >= 1
     assert retrieved_docs[0]["knowledge_source"] == "personalize_clip"
+    assert retrieved_docs[0]["is_verbatim"] is True
+    assert retrieved_docs[0]["rerank_score"] == 1.0
+    assert retrieved_docs[0]["text"] == p_clip["verbatim_text"]
 
     # 4. Verification context includes verbatim clip for NLI faithfulness verification
     v_state = {

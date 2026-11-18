@@ -241,6 +241,7 @@ class Settings(BaseSettings):
     # 2026-10-26: declared for latency-optimisation + quality improvement sweep.
     # 2026-11-17: ON by default to bridge situational seeker vocabulary into EKAM spiritual terminology.
     first_person_hyde_enabled: bool = True
+    first_person_hyde_timeout_s: float = 15.0
     # Quarantine clips whose verbatim text has no sentence end or opens on orphan
     # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
     # removed 59% of first_person_v2 and 68% of v5. Enable only with a
@@ -294,7 +295,7 @@ class Settings(BaseSettings):
     # both slots on first_person_v10; "v8_bridge" requires both flags off. A mismatch
     # stops startup (services/first_person_serving_contract.assert_startup_safe).
     # "" = undeclared: unchanged behaviour, plus a production startup warning.
-    first_person_serving_posture: Literal["", "v10_only", "v8_bridge"] = ""
+    first_person_serving_posture: Literal["", "v10_only", "v12_shadow", "v8_bridge"] = ""
     # Admin video-approval page (services/first_person_video_decisions.py).
     # Directory for the human per-video decisions + audit log; empty uses
     # <backend>/data/fp_video_decisions (/app/data is the persisted Docker volume).

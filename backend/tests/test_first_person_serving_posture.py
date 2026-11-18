@@ -204,3 +204,42 @@ def test_preflight_v10_only_rejects_a_legacy_slot_override():
         "FIRST_PERSON_COLLECTION": V8,
     }
     assert any("first_person_v10" in e for e in validate_environment(env).errors)
+
+
+def test_v12_shadow_posture_accepts_v12_slots(contract):
+    v12 = "first_person_v12_shadow"
+    report = validate_serving_contract(
+        contract=contract,
+        legacy_collection=v12,
+        context_collection=v12,
+        context_harness_enabled=True,
+        context_terminal_enabled=True,
+    )
+    assert_startup_safe(
+        report,
+        is_production=True,
+        legacy_route_enabled=True,
+        context_harness_enabled=True,
+        context_terminal_enabled=True,
+        serving_posture="v12_shadow",
+    )
+
+
+def test_v12_shadow_rejects_a_slot_override_off_v12(contract):
+    v12 = "first_person_v12_shadow"
+    report = validate_serving_contract(
+        contract=contract,
+        legacy_collection="first_person_v10",
+        context_collection=v12,
+        context_harness_enabled=True,
+        context_terminal_enabled=True,
+    )
+    with pytest.raises(FirstPersonServingContractError, match="FIRST_PERSON_COLLECTION="):
+        assert_startup_safe(
+            report,
+            is_production=False,
+            legacy_route_enabled=True,
+            context_harness_enabled=True,
+            context_terminal_enabled=True,
+            serving_posture="v12_shadow",
+        )
