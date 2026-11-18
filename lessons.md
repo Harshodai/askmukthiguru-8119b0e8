@@ -1412,6 +1412,12 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Pin:** `backend/services/first_person_pipeline.py:2578`, `backend/services/first_person_pipeline.py:3756`, `backend/tests/test_first_person_context_serving.py:292-365`.
 - **Rule:** multi-video compound sets must never pollute single-clip exact cache entries; feature flags that bypass caching must be scoped exclusively to their target execution paths.
 
+### L-ROUTE-RATE-LIMIT-ALIGNMENT-1. Fast conversational endpoints and voice pipelines require route limiter alignment to prevent artificial client throttling.
+- **What:** While `openrouter_rpm_limit` was raised to 120 RPM and `first_person_rate_limit` was configured at 120/minute, `chat_rate_limit` remained throttled at a legacy default of 20/minute (`Settings.chat_rate_limit`) with `/chat/title` hardcoded to `@limiter.limit("20/minute")` and STT/TTS speech limiters at 10 requests/minute. This created an artificial client bottleneck during rapid dialogue, voice mode, and batch evaluation runs.
+- **Fix:** Increased `chat_rate_limit` default in `backend/app/config.py` to `120/minute`, bound `/chat/title` and `/breath-teaching` to `settings.chat_rate_limit`, increased STT/TTS burst limits to 60/minute, and set `CHAT_RATE_LIMIT=120/minute` across `.env` and `backend/.env`. Updated `predeployment_checklist.py` to assert the 120/min route ceiling.
+- **Pin:** `backend/app/config.py:1246`, `backend/app/api/chat.py:676`, `backend/app/api/speech.py:38-51`, `scripts/ops/predeployment_checklist.py:150`.
+- **Rule:** front-facing conversational and voice route limiters must match provider capacity and tier allowances; hardcoded rate limit strings on fast endpoints must be avoided in favor of central Settings.
+
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.

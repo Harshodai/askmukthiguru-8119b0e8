@@ -1243,17 +1243,17 @@ class Settings(BaseSettings):
     # otherwise expose an email-enumeration surface. Override with the
     # DISABLE_PUBLIC_REGISTRATION env var only for explicit internal flows.
     disable_public_registration: bool = True
-    chat_rate_limit: str = "20/minute"
+    chat_rate_limit: str = "120/minute"
     first_person_rate_limit: str = "120/minute"
-    chat_upload_rate_limit: str = "10/minute"
-    support_contact_rate_limit: str = "5/hour"
-    registration_rate_limit: str = "5/minute"
+    chat_upload_rate_limit: str = "30/minute"
+    support_contact_rate_limit: str = "20/hour"
+    registration_rate_limit: str = "20/minute"
     # Expensive authenticated operations use stricter limits than ordinary reads.
-    memory_generation_rate_limit: str = "10/hour"
-    second_brain_write_rate_limit: str = "30/minute"
-    second_brain_export_rate_limit: str = "3/hour"
-    srs_generation_rate_limit: str = "10/hour"
-    feedback_rate_limit: str = "30/minute"
+    memory_generation_rate_limit: str = "30/hour"
+    second_brain_write_rate_limit: str = "60/minute"
+    second_brain_export_rate_limit: str = "10/hour"
+    srs_generation_rate_limit: str = "30/hour"
+    feedback_rate_limit: str = "60/minute"
     # Faculty clip-quality reports (T-B12 quarantine intake): JSONL path, ids
     # only. Empty = anchor at <backend>/data (host) or /app/data (container
     # shared volume). Env name FEEDBACK_CLIP_REPORTS_PATH is kept.

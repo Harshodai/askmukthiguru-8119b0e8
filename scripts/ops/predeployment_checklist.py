@@ -147,7 +147,11 @@ def check_harness_architecture() -> tuple[bool, str]:
         if _HARNESS_JUDGE_CONCURRENCY > 4:
             return False, f"Judge concurrency {_HARNESS_JUDGE_CONCURRENCY} exceeds safe limit of 4"
         
-        return True, f"Harness parallel concurrency bounded ({_HARNESS_JUDGE_CONCURRENCY} workers, {rpm} RPM limit, Invariant X24)"
+        chat_limit = getattr(settings, "chat_rate_limit", "20/minute")
+        if chat_limit == "20/minute":
+            return False, f"Chat rate limit {chat_limit} not increased to 120/minute"
+        
+        return True, f"Harness parallel concurrency bounded ({_HARNESS_JUDGE_CONCURRENCY} workers, {rpm} RPM, chat limit {chat_limit}, Invariant X24)"
     except Exception as exc:
         return False, f"Harness architecture check failed: {exc}"
 

@@ -38,14 +38,14 @@ router = APIRouter(tags=["Speech"])
 _STT_RATE_LIMITER = RedisBackedRateLimiter(
     redis_url=settings.redis_url,
     ttl=60.0,
-    max_requests=10,
+    max_requests=60,
     backoff_base=2.0,
     backoff_multiplier=2.0,
 )
 _TTS_RATE_LIMITER = RedisBackedRateLimiter(
     redis_url=settings.redis_url,
     ttl=60.0,
-    max_requests=10,
+    max_requests=60,
     backoff_base=2.0,
     backoff_multiplier=2.0,
 )
@@ -343,7 +343,7 @@ class TranslateRequest(BaseModel):
 
 
 @router.post("/translate")
-@limiter.limit("30/minute")
+@limiter.limit(settings.chat_rate_limit)
 async def translate_endpoint(
     request: Request,
     req: TranslateRequest,

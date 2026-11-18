@@ -673,7 +673,7 @@ class TitleRequest(BaseModel):
 
 
 @router.post("/chat/title")
-@limiter.limit("20/minute")
+@limiter.limit(settings.chat_rate_limit)
 async def generate_title_endpoint(
     request: Request,
     body: TitleRequest,
@@ -1459,7 +1459,7 @@ _DEFAULT_TECHNIQUE_QUERY = "What do the recorded teachings say about the role of
 
 
 @router.get("/breath-teaching/{technique_id}", tags=["Meditation"])
-@limiter.limit("10/minute")
+@limiter.limit(settings.chat_rate_limit)
 async def get_breath_teaching(
     request: Request,
     technique_id: str,

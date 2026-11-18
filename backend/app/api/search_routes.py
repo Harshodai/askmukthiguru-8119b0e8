@@ -66,7 +66,7 @@ def _extract_video_id(url: str) -> Optional[str]:
 
 
 @router.get("/inspect-source")
-@limiter.limit("30/minute")
+@limiter.limit(settings.chat_rate_limit)
 async def inspect_source(
     request: Request,
     url: str = Query(
