@@ -126,10 +126,10 @@ export const HeroSection = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.7 }}
-              className="font-sacred text-center mb-8 leading-[1.1] tracking-tight"
+              className="font-sacred text-center mb-8 leading-[1.1] tracking-tight relative"
             >
               <span className="text-white font-light text-4xl sm:text-5xl md:text-6xl lg:text-7xl block drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">{t('landing.hero.heading1')}</span>
-              <span className="text-gradient-gold font-bold text-6xl sm:text-7xl md:text-8xl lg:text-9xl block mt-2">{t('landing.hero.heading2')}</span>
+              <span className="text-gradient-sacred-gold font-bold text-6xl sm:text-7xl md:text-8xl lg:text-9xl block mt-2">{t('landing.hero.heading2')}</span>
             </motion.h1>
 
             {/* Subtitle */}
@@ -141,7 +141,6 @@ export const HeroSection = () => {
             >
               {t('landing.hero.subtitle')}
             </motion.p>
-
 
             {/* State Check-In */}
             <motion.div
@@ -156,7 +155,7 @@ export const HeroSection = () => {
                   <span>{t('landing.hero.stateCheckIn', 'Select Your Current Inner State')}</span>
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:flex sm:justify-center gap-2.5 sm:gap-3 mb-4 max-w-md sm:max-w-none mx-auto">
+              <div className="grid grid-cols-2 sm:flex sm:justify-center gap-2 sm:gap-3 mb-4 w-full max-w-sm sm:max-w-none mx-auto px-1 sm:px-0">
                 {[
                   { key: 'anxious', label: t('landing.hero.moods.anxious.label', 'Anxiety & Overwhelm'), icon: Cloud, color: 'text-amber-400', practice: '3-Min Serene Mind Pranayama', action: '/practices/serene-mind' },
                   { key: 'restless', label: t('landing.hero.moods.restless.label', 'Restless Thoughts'), icon: Activity, color: 'text-orange-400', practice: 'Witnessing Presence (Sakshi)', action: '/practices/wisdom-reflection' },
@@ -170,14 +169,14 @@ export const HeroSection = () => {
                       key={mood.key}
                       type="button"
                       onClick={() => setSelectedMood(mood.key)}
-                      className={`inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs font-medium transition-all backdrop-blur-md border select-none ${
+                      className={`inline-flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-full text-[11px] sm:text-xs font-medium transition-all backdrop-blur-md border select-none min-h-[44px] leading-tight text-center ${
                         isSelected
                           ? 'bg-saffron-gold/25 border-saffron-gold text-white shadow-[0_0_20px_rgba(234,179,8,0.35)] scale-102 ring-1 ring-saffron-gold/40'
                           : 'bg-black/50 border-white/15 text-white/80 hover:bg-black/70 hover:text-white hover:border-white/25 active:scale-95'
                       }`}
                     >
                       <Icon className={`w-3.5 h-3.5 ${mood.color} shrink-0`} />
-                      <span className="truncate">{mood.label}</span>
+                      <span className="whitespace-normal leading-tight">{mood.label}</span>
                     </button>
                   );
                 })}

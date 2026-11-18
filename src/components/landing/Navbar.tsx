@@ -73,22 +73,22 @@ export const Navbar = () => {
         className="fixed top-0 left-0 right-0 z-40 flex justify-center pointer-events-none"
       >
         <div className="w-full max-w-5xl mx-4 mt-5 pointer-events-auto">
-          <div className="rounded-full bg-background/80 backdrop-blur-2xl ring-1 ring-border/40 px-4 sm:px-6 py-2.5 sm:py-3 shadow-[0_8px_32px_0_rgba(0,0,0,0.10)]">
+          <div className="rounded-full bg-background/85 backdrop-blur-2xl ring-1 ring-border/40 px-4 sm:px-6 py-2 shadow-[0_8px_32px_0_rgba(0,0,0,0.10)]">
             <div className="flex items-center justify-between gap-2">
               {/* Logo */}
-              <Link to="/" className="flex items-center gap-2 shrink-0">
+              <Link to="/" className="flex items-center gap-2 shrink-0 select-none">
                 <span className="text-lg" aria-hidden="true">🙏</span>
                 <span className="text-lg font-bold text-gradient-gold">{t('nav.appName')}</span>
               </Link>
 
               {/* Desktop Navigation Links */}
-              <div className="hidden md:flex items-center gap-6 lg:gap-7">
+              <div className="hidden md:flex items-center justify-center flex-1 mx-2 lg:mx-4 xl:mx-6 gap-3.5 lg:gap-5 xl:gap-6">
                 {navLinks.map((link) =>
                   link.isRoute ? (
                     <Link
                       key={link.href}
                       to={link.href}
-                      className="text-sm text-foreground/85 hover:text-ojas transition-colors duration-200 font-medium"
+                      className="text-xs lg:text-[13px] xl:text-sm text-foreground/80 hover:text-ojas transition-colors duration-200 font-medium whitespace-nowrap shrink-0"
                     >
                       {link.label}
                     </Link>
@@ -98,7 +98,7 @@ export const Navbar = () => {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-foreground/85 hover:text-ojas transition-colors duration-200 font-medium inline-flex items-center gap-1"
+                      className="text-xs lg:text-[13px] xl:text-sm text-foreground/80 hover:text-ojas transition-colors duration-200 font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1"
                       data-testid={link.testId}
                     >
                       <span>{link.label}</span>
@@ -108,7 +108,7 @@ export const Navbar = () => {
                     <a
                       key={link.href}
                       href={link.href}
-                      className="text-sm text-foreground/85 hover:text-ojas transition-colors duration-200 font-medium"
+                      className="text-xs lg:text-[13px] xl:text-sm text-foreground/80 hover:text-ojas transition-colors duration-200 font-medium whitespace-nowrap shrink-0"
                     >
                       {link.label}
                     </a>
@@ -117,21 +117,21 @@ export const Navbar = () => {
               </div>
 
               {/* Action Group */}
-              <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
                 <Link
                   to="/chat"
-                  className="hidden md:inline-flex px-5 py-2 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full text-sm transition-all duration-300 hover:scale-105 shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2"
+                  className="hidden md:inline-flex items-center justify-center min-h-[38px] px-5 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold rounded-full text-xs sm:text-sm whitespace-nowrap shadow-sm hover:shadow-md hover:scale-105 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2"
                 >
                   {t('nav.startChat')}
                 </Link>
 
                 {/* WhatsApp Community Action */}
-                <div className="hidden md:flex items-center">
+                <div className="hidden md:flex items-center justify-center">
                   <WhatsAppButton data-testid="navbar-whatsapp-button" />
                 </div>
 
                 {/* User Menu (Desktop) */}
-                <div className="hidden md:flex items-center">
+                <div className="hidden md:flex items-center justify-center">
                   <UserMenu />
                 </div>
 
