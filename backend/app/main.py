@@ -1264,7 +1264,7 @@ _SECURITY_HEADERS_STATIC = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Permissions-Policy": "camera=(), microphone=(self), geolocation=()",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "X-XSS-Protection": "1; mode=block",
     "Cache-Control": "no-store, no-cache, must-revalidate, private",

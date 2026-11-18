@@ -44,8 +44,13 @@ const nativeUsesProd =
 const currentHostname =
   typeof window !== 'undefined' ? window.location.hostname : '';
 
+const isLocalhost =
+  !isNative && (currentHostname === 'localhost' || currentHostname === '127.0.0.1');
+
 let resolvedUrl: string =
-  ENV_URL || (nativeUsesProd || isProdHost(currentHostname) ? PROD_RAILWAY_URL : '');
+  isLocalhost && ENV_URL === PROD_RAILWAY_URL
+    ? ''
+    : (ENV_URL || (nativeUsesProd || isProdHost(currentHostname) ? PROD_RAILWAY_URL : ''));
 
 if (!resolvedUrl && isNative && !nativeUsesProd) {
   console.warn(

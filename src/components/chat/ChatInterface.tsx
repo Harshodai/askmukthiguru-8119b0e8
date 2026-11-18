@@ -2630,9 +2630,9 @@ return (
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, y: -12, transition: { duration: 0.18 } }}
-                className="flex min-h-[calc(100dvh-8.75rem)] flex-col items-center px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-5 sm:min-h-[calc(100dvh-10rem)] sm:justify-center sm:py-10"
+                className="flex flex-col items-center justify-center py-6 sm:py-12 max-w-2xl mx-auto w-full"
               >
-              <div className="text-center px-4 sm:mb-8">
+              <div className="text-center px-4 w-full">
                 {/* Sacred Gurus Avatar with Golden Aura */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -2689,76 +2689,31 @@ return (
                     </div>
                   </motion.div>
                 )}
-              </div>
 
-              <div className="mt-auto w-full max-w-2xl px-2 pb-[var(--cookie-banner-h,0px)] sm:mt-0 sm:px-4">
-                <ChatComposer
-                                  inputValue={inputValue}
-                                  inputRef={inputRef}
-                                  attachedFiles={attachedFiles}
-                                  onAddFile={handleAddFile}
-                                  onRemoveFile={handleRemoveFile}
-                                  onInputChange={handleInputChange}
-                                  onPaste={handlePaste}
-                                  onKeyDown={handleKeyDown}
-                                  onSubmit={(e) => handleSubmit(e)}
-                                  onStop={handleStopGeneration}
-                                  isTyping={isTyping}
-                                  isStreaming={isStreaming}
-                                  isAwaitingSereneMind={isAwaitingSereneMind}
-                                  isListening={isListening}
-                                  isHandsFreeVoice={isHandsFreeVoice}
-                                  currentLanguage={currentLanguage}
-                                  voiceEnabled={voiceEnabled}
-                                  ttsEnabled={ttsEnabled}
-                                  isSpeaking={isSpeaking}
-                                  inputFocused={inputFocused}
-                                  isLandingMode={true}
-                                  onVoiceToggle={handleVoiceToggle}
-                                  onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
-                                  onOpenVoiceMode={handleOpenVoiceMode}
-                                  onTtsToggle={handleTtsToggle}
-                                  onLanguageChange={handleLanguageChange}
-            capabilities={chatCapabilities}
-                                  onSereneMind={() => openSereneMind()}
-                                  onGuidedMeditation={() => setShowGuidedMeditation(true)}
-                                  onFocus={() => setInputFocused(true)}
-                                  onBlur={() => setInputFocused(false)}
-                                  onSlashCommand={(cmd) => {
-                                    setInputValue('');
-                                    switch (cmd) {
-                                      case 'serene': openSereneMind(); break;
-                                      case 'meditate': setShowGuidedMeditation(true); break;
-                                      case 'retry': if (messages.length > 0) handleRegenerate(); break;
-                                      case 'clear': handleNewConversation(); break;
-                                    }
-                                  }}
-                                />
+                {/* Compact starter actions */}
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="w-full flex flex-wrap justify-center items-center gap-2 mt-5"
+                >
+                  {STARTER_CARDS.map((card, idx) => (
+                    <motion.button
+                      key={card.id}
+                      type="button"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.25 + idx * 0.05 }}
+                      onClick={() => handleSuggestionClick(t(card.promptKey))}
+                      className="group flex shrink-0 items-center gap-1.5 px-3.5 py-2 min-h-[44px] sm:min-h-[36px] rounded-xl border border-hairline bg-card hover:bg-ojas/10 hover:border-ojas/40 text-xs text-muted-foreground hover:text-foreground transition-colors no-tap-highlight"
+                      title={t(card.promptKey)}
+                    >
+                      <card.icon className="w-3.5 h-3.5 text-ojas/70 group-hover:text-ojas transition-colors flex-shrink-0" />
+                      <span className="font-medium">{t(card.eyebrowKey)}</span>
+                    </motion.button>
+                  ))}
+                </motion.div>
               </div>
-
-              {/* Compact starter actions: final tier of the empty state. */}
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="w-full max-w-2xl px-2 flex flex-nowrap items-center gap-2 mt-1.5 overflow-x-auto momentum-scroll pb-1 sm:flex-wrap sm:justify-center sm:px-4"
-              >
-                {STARTER_CARDS.map((card, idx) => (
-                  <motion.button
-                    key={card.id}
-                    type="button"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.25 + idx * 0.05 }}
-                    onClick={() => handleSuggestionClick(t(card.promptKey))}
-                    className="group flex shrink-0 items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-xl border border-hairline bg-card hover:bg-ojas/10 hover:border-ojas/40 text-xs text-muted-foreground hover:text-foreground transition-colors no-tap-highlight"
-                    title={t(card.promptKey)}
-                  >
-                    <card.icon className="w-3.5 h-3.5 text-ojas/70 group-hover:text-ojas transition-colors flex-shrink-0" />
-                    <span className="font-medium">{t(card.eyebrowKey)}</span>
-                  </motion.button>
-                ))}
-              </motion.div>
             </motion.div>
           ) : (
             <motion.div
@@ -2849,82 +2804,80 @@ return (
         </div>
       </div>
 
-      {!isLandingMode && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="sticky bottom-0 z-30 shrink-0 w-full px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
-        >
-          {!quotaExceeded && <QuotaCounter />}
-          {quotaExceeded && (
-            <QuotaAuthPrompt
-              remaining={quotaMeta.remaining}
-              totalLimit={quotaMeta.totalLimit}
-              retryAfterSeconds={quotaMeta.retryAfterSeconds}
-            />
-          )}
-          {!isTyping && !isStreaming && !showInstantPill && (
-            <HealingPathCard
-              lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
-              recommendedCourse={recommendedCourse}
-              userTurnHistory={userTurnHistory}
-              onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
-              onOpenSereneMind={() => openSereneMind('audio')}
-            />
-          )}
-          <QueuedMessagesTray
-            queue={queuedMessages}
-            onSendNow={handleSendNowQueued}
-            onEdit={handleEditQueued}
-            onRemove={handleRemoveQueued}
-            onClearAll={handleClearAllQueued}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: 'easeOut' }}
+        className="sticky bottom-0 z-30 shrink-0 w-full px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
+      >
+        {!quotaExceeded && <QuotaCounter />}
+        {quotaExceeded && (
+          <QuotaAuthPrompt
+            remaining={quotaMeta.remaining}
+            totalLimit={quotaMeta.totalLimit}
+            retryAfterSeconds={quotaMeta.retryAfterSeconds}
           />
-          <ChatComposer
-            inputValue={inputValue}
-            inputRef={inputRef}
-            attachedFiles={attachedFiles}
-            onAddFile={handleAddFile}
-            onRemoveFile={handleRemoveFile}
-            onInputChange={handleInputChange}
-            onPaste={handlePaste}
-            onKeyDown={handleKeyDown}
-            onSubmit={(e) => handleSubmit(e)}
-            onStop={handleStopGeneration}
-            isTyping={isTyping}
-            isStreaming={isStreaming}
-            isAwaitingSereneMind={isAwaitingSereneMind}
-            isQuotaExceeded={quotaExceeded}
-            isListening={isListening}
-            isHandsFreeVoice={isHandsFreeVoice}
-            currentLanguage={currentLanguage}
-            voiceEnabled={voiceEnabled}
-            ttsEnabled={ttsEnabled}
-            isSpeaking={isSpeaking}
-            inputFocused={inputFocused}
-            isLandingMode={false}
-            onVoiceToggle={handleVoiceToggle}
-            onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
-            onOpenVoiceMode={handleOpenVoiceMode}
-            onTtsToggle={handleTtsToggle}
-            onLanguageChange={handleLanguageChange}
-            capabilities={chatCapabilities}
-            onSereneMind={() => openSereneMind()}
-            onGuidedMeditation={() => setShowGuidedMeditation(true)}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
-            onSlashCommand={(cmd) => {
-              setInputValue('');
-              switch (cmd) {
-                case 'serene': openSereneMind(); break;
-                case 'meditate': setShowGuidedMeditation(true); break;
-                case 'retry': if (messages.length > 0) handleRegenerate(); break;
-                case 'clear': handleNewConversation(); break;
-              }
-            }}
+        )}
+        {!isLandingMode && !isTyping && !isStreaming && !showInstantPill && (
+          <HealingPathCard
+            lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
+            recommendedCourse={recommendedCourse}
+            userTurnHistory={userTurnHistory}
+            onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
+            onOpenSereneMind={() => openSereneMind('audio')}
           />
-        </motion.div>
-      )}
+        )}
+        <QueuedMessagesTray
+          queue={queuedMessages}
+          onSendNow={handleSendNowQueued}
+          onEdit={handleEditQueued}
+          onRemove={handleRemoveQueued}
+          onClearAll={handleClearAllQueued}
+        />
+        <ChatComposer
+          inputValue={inputValue}
+          inputRef={inputRef}
+          attachedFiles={attachedFiles}
+          onAddFile={handleAddFile}
+          onRemoveFile={handleRemoveFile}
+          onInputChange={handleInputChange}
+          onPaste={handlePaste}
+          onKeyDown={handleKeyDown}
+          onSubmit={(e) => handleSubmit(e)}
+          onStop={handleStopGeneration}
+          isTyping={isTyping}
+          isStreaming={isStreaming}
+          isAwaitingSereneMind={isAwaitingSereneMind}
+          isQuotaExceeded={quotaExceeded}
+          isListening={isListening}
+          isHandsFreeVoice={isHandsFreeVoice}
+          currentLanguage={currentLanguage}
+          voiceEnabled={voiceEnabled}
+          ttsEnabled={ttsEnabled}
+          isSpeaking={isSpeaking}
+          inputFocused={inputFocused}
+          isLandingMode={isLandingMode}
+          onVoiceToggle={handleVoiceToggle}
+          onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
+          onOpenVoiceMode={handleOpenVoiceMode}
+          onTtsToggle={handleTtsToggle}
+          onLanguageChange={handleLanguageChange}
+          capabilities={chatCapabilities}
+          onSereneMind={() => openSereneMind()}
+          onGuidedMeditation={() => setShowGuidedMeditation(true)}
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
+          onSlashCommand={(cmd) => {
+            setInputValue('');
+            switch (cmd) {
+              case 'serene': openSereneMind(); break;
+              case 'meditate': setShowGuidedMeditation(true); break;
+              case 'retry': if (messages.length > 0) handleRegenerate(); break;
+              case 'clear': handleNewConversation(); break;
+            }
+          }}
+        />
+      </motion.div>
 
       {/* Scroll-to-bottom FAB — positioned relative to the chat column.
           Only meaningful once there's an actual conversation to scroll

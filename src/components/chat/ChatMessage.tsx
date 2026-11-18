@@ -1710,43 +1710,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 </details>
               )}
 
-              {/* Engagement card: "Did this help?" — shown for the last guru answer.
-                  Never shown on crisis/helpline answers — a feedback widget under a
-                  helpline is unsafe (see isCrisisAnswer). */}
-              {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.22, delay: 0.08 }}
-                  className="w-full"
-                >
-                  <EngagementCard
-                    messageId={message.id}
-                    messageContent={message.content}
-                    queryText={queryText}
-                    qualityMetadata={{
-                      message_id: message.id,
-                      trace_id: message.traceId,
-                      latency_ms: message.latencyMs,
-                      model_used: message.modelUsed,
-                      model_provider: message.modelProvider,
-                      query_tier: message.queryTier,
-                      faithfulness_score: message.faithfulnessScore,
-                      relevancy_score: message.relevancyScore,
-                      hallucination_flag: message.hallucinationFlag,
-                      verification: message.verification,
-                      citations_verified: message.citationsVerified,
-                      citation_count: message.citations?.length ?? 0,
-                      answer_length_chars: message.content.length,
-                      answer_length_words: message.content.trim() ? message.content.trim().split(/\s+/).length : 0,
-                      grounding_state: message.groundingState,
-                      route_decision: message.queryTier,
-                    }}
-                  />
-                </motion.div>
-              )}
-
-
               {/* Faculty review labels: build-flag + signed-in gated inside the gate;
                   never under crisis/helpline answers. */}
               {isGuru && message.content && !isStreaming && !message.error && !message.isWelcome && !message.content.includes('_Stopped by you._') && (
@@ -1759,69 +1722,91 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 />
               )}
 
-              {/* Practice nudge: offer to turn the last answer into a guided Serene
-                  Mind session. Suppressed on crisis/helpline and abstain answers (which have their own dedicated practice trigger). */}
-              {isGuru && isLastGuru && message.content && !isStreaming && !message.error && !message.content.includes('_Stopped by you._') && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
-                <div
-                  className="mt-2 flex items-center gap-2 text-[12px]"
-                  title={t('chat.practiceNudge.body')}
-                >
-                  <span className="text-muted-foreground">{t('chat.practiceNudge.title')}</span>
-                  <button
-                    type="button"
-                    onClick={() => openSereneMind('audio', true)}
-                    className="min-h-[44px] sm:min-h-[32px] px-3 flex items-center flex-shrink-0 rounded-full border border-ojas/30 text-[11px] font-medium text-ojas-ink dark:text-ojas hover:bg-ojas/10 active:scale-[0.98] transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 whitespace-nowrap"
-                  >
-                    {t('chat.practiceNudge.cta')}
-                  </button>
-                </div>
-              )}
-
-              {/* Guru hover actions and timestamp — zero-height when inactive on desktop to prevent dead-space gaps */}
+              {/* Unified Footer: Feedback (left) + Practice pill & Action icons (right) */}
               {isGuru && message.content && !message.error && !isStreaming && !message.content.includes('_Stopped by you._') && (
-                <div className="flex items-center justify-between gap-2 mt-1 md:mt-0 md:max-h-0 md:overflow-hidden md:opacity-0 md:group-hover:mt-1.5 md:group-hover:max-h-12 md:group-hover:overflow-visible md:group-hover:opacity-100 md:group-focus-within:mt-1.5 md:group-focus-within:max-h-12 md:group-focus-within:overflow-visible md:group-focus-within:opacity-100 max-md:opacity-100 max-md:mt-1.5 transition-all duration-200">
-                  <div className="flex items-center gap-0.5 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100">
+                <div className="mt-2.5 pt-2 border-t border-border/15 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground select-none">
+                  {/* Left: Feedback */}
+                  <div className="flex items-center gap-2">
+                    {isLastGuru && !isCrisisAnswer(message.content) && (
+                      <EngagementCard
+                        messageId={message.id}
+                        messageContent={message.content}
+                        queryText={queryText}
+                        qualityMetadata={{
+                          message_id: message.id,
+                          trace_id: message.traceId,
+                          latency_ms: message.latencyMs,
+                          model_used: message.modelUsed,
+                          model_provider: message.modelProvider,
+                          query_tier: message.queryTier,
+                          faithfulness_score: message.faithfulnessScore,
+                          relevancy_score: message.relevancyScore,
+                          hallucination_flag: message.hallucinationFlag,
+                          verification: message.verification,
+                          citations_verified: message.citationsVerified,
+                          citation_count: message.citations?.length ?? 0,
+                          answer_length_chars: message.content.length,
+                          answer_length_words: message.content.trim() ? message.content.trim().split(/\s+/).length : 0,
+                          grounding_state: message.groundingState,
+                          route_decision: message.queryTier,
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Right: Practice button + Action icons */}
+                  <div className="flex items-center gap-1 ml-auto">
+                    {isLastGuru && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
+                      <button
+                        type="button"
+                        onClick={() => openSereneMind('audio', true)}
+                        className="min-h-[44px] sm:min-h-[28px] px-2.5 py-0.5 flex items-center gap-1 rounded-full border border-ojas/30 text-[11px] font-medium text-ojas-ink dark:text-ojas hover:bg-ojas/10 active:scale-[0.98] transition-all whitespace-nowrap mr-1"
+                        title={t('chat.practiceNudge.body')}
+                      >
+                        <Sparkles className="w-3 h-3 text-ojas" />
+                        <span>{t('chat.practiceNudge.cta')}</span>
+                      </button>
+                    )}
                     <button
                       onClick={handleCopy}
-                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
+                      className="min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] flex items-center justify-center p-1.5 rounded-md active:scale-95 transition-colors hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
                       title={copied ? t('common.copied') : t('chat.copyResponse')}
                       aria-label={copied ? (t('common.copied') || 'Copied') : (t('chat.copyResponse') || 'Copy response')}
                     >
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     {ttsSupported && (
                       <button
                         onClick={handleSpeak}
                         aria-pressed={isSpeaking}
-                        className={`min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out ${isSpeaking
-                            ? 'bg-ojas/15 text-ojas-ink'
-                            : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
-                          }`}
+                        className={`min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] flex items-center justify-center p-1.5 rounded-md active:scale-95 transition-colors ${
+                          isSpeaking ? 'bg-ojas/15 text-ojas-ink' : 'hover:bg-ojas/10 text-muted-foreground hover:text-ojas'
+                        }`}
                         title={isSpeaking ? t('chat.stopReading') : t('chat.readAloud')}
                         aria-label={isSpeaking ? (t('chat.stopReading') || 'Stop reading') : (t('chat.readAloud') || 'Read aloud')}
                       >
-                        {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                        {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
                       </button>
                     )}
                     <button
                       onClick={() => setShowWisdomCard(true)}
-                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
+                      className="min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] flex items-center justify-center p-1.5 rounded-md active:scale-95 transition-colors hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
                       title={t('chat.shareWisdomCard')}
                       aria-label={t('chat.shareWisdomCard') || 'Share wisdom card'}
                     >
-                      <Share2 className="w-4 h-4" />
+                      <Share2 className="w-3.5 h-3.5" />
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
-                          className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-md active:scale-95 focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200 ease-out hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
+                          className="min-h-[44px] min-w-[44px] sm:min-h-[28px] sm:min-w-[28px] flex items-center justify-center p-1.5 rounded-md active:scale-95 transition-colors hover:bg-ojas/10 text-muted-foreground hover:text-ojas"
                           title={t('common.more', 'More')}
                           aria-label={t('common.more', 'More')}
                         >
-                          <MoreHorizontal className="w-4 h-4" />
+                          <MoreHorizontal className="w-3.5 h-3.5" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
+                      <DropdownMenuContent align="end">
                         {isLastGuru && onRegenerate && (
                           <DropdownMenuItem onClick={onRegenerate}>
                             <RotateCcw className="w-4 h-4 mr-2" />
@@ -1840,9 +1825,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     </DropdownMenu>
                     <LanguageTranslateButton message={message} />
                   </div>
-                  <time className="text-[11px] text-muted-foreground/60 select-none pr-1">
-                    {formatTime(message.timestamp)}
-                  </time>
                 </div>
               )}
 
@@ -1850,7 +1832,8 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
 
             {/* Unified Metadata & Provenance Row: EU AI Act Article 50 badge + Sources Cited */}
             {isGuru && !message.error && (message.content || !isStreaming) && (
-              <div className="mt-1.5 select-none flex flex-wrap items-center gap-2">
+              <div className="mt-1.5 select-none flex flex-wrap items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2">
                 <EuAiBadge
                   originType={
                     (typeof message.aiProvenance?.originType === 'string' &&
@@ -1899,6 +1882,10 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     <BookOpen className="w-3.5 h-3.5 text-muted-foreground/70 ml-0.5 shrink-0" aria-hidden="true" />
                   </button>
                 )}
+                </div>
+                <time className="text-[11px] text-muted-foreground/60 select-none ml-auto">
+                  {formatTime(message.timestamp)}
+                </time>
               </div>
             )}
 
