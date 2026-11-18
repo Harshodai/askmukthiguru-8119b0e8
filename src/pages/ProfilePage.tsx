@@ -281,7 +281,7 @@ const ProfilePage = () => {
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
-        className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-6 safe-x safe-bottom profile-focus-flow"
+        className="max-w-5xl mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-6 safe-bottom profile-focus-flow"
       >
         {/* ── Profile hero: avatar, name, email, streak — calm, flat, generous ── */}
         {!isOnboarding && (

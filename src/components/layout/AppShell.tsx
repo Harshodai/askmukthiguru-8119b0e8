@@ -321,8 +321,8 @@ export const AppShell = ({ children, title }: AppShellProps) => {
             </div>
             <ConnectionPill />
             <HeaderSereneButton />
-            <EkamLinkButton variant="pill" />
-            <WhatsAppButton />
+            <EkamLinkButton variant="pill" className="hidden md:inline-flex" />
+            <WhatsAppButton className="hidden sm:inline-flex" />
             <UserMenu />
           </header>
 

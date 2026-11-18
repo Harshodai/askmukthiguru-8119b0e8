@@ -148,12 +148,15 @@ export const HeroSection = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.7 }}
-              className="mb-8 max-w-xl mx-auto"
+              className="mb-8 max-w-2xl mx-auto"
             >
-              <h2 className="text-xs uppercase tracking-[0.25em] text-saffron-gold/90 font-mono font-semibold mb-4 drop-shadow">
-                {t('landing.hero.stateCheckIn', 'Select Your Current Inner State')}
-              </h2>
-              <div className="flex justify-center gap-2 sm:gap-3 flex-wrap mb-4">
+              <div className="flex justify-center mb-5">
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-[11px] sm:text-xs uppercase tracking-[0.2em] font-medium text-amber-200 shadow-md">
+                  <Sparkles className="w-3.5 h-3.5 text-saffron-gold shrink-0" aria-hidden="true" />
+                  <span>{t('landing.hero.stateCheckIn', 'Select Your Current Inner State')}</span>
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:flex sm:justify-center gap-2.5 sm:gap-3 mb-4 max-w-md sm:max-w-none mx-auto">
                 {[
                   { key: 'anxious', label: t('landing.hero.moods.anxious.label', 'Anxiety & Overwhelm'), icon: Cloud, color: 'text-amber-400', practice: '3-Min Serene Mind Pranayama', action: '/practices/serene-mind' },
                   { key: 'restless', label: t('landing.hero.moods.restless.label', 'Restless Thoughts'), icon: Activity, color: 'text-orange-400', practice: 'Witnessing Presence (Sakshi)', action: '/practices/wisdom-reflection' },
@@ -167,14 +170,14 @@ export const HeroSection = () => {
                       key={mood.key}
                       type="button"
                       onClick={() => setSelectedMood(mood.key)}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all backdrop-blur-md border ${
+                      className={`inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs font-medium transition-all backdrop-blur-md border select-none ${
                         isSelected
-                          ? 'bg-saffron-gold/20 border-saffron-gold text-white shadow-[0_0_16px_rgba(234,179,8,0.3)] scale-105'
-                          : 'bg-black/40 border-white/10 text-white/70 hover:bg-black/60 hover:text-white'
+                          ? 'bg-saffron-gold/25 border-saffron-gold text-white shadow-[0_0_20px_rgba(234,179,8,0.35)] scale-102 ring-1 ring-saffron-gold/40'
+                          : 'bg-black/50 border-white/15 text-white/80 hover:bg-black/70 hover:text-white hover:border-white/25 active:scale-95'
                       }`}
                     >
-                      <Icon className={`w-3.5 h-3.5 ${mood.color}`} />
-                      <span>{mood.label}</span>
+                      <Icon className={`w-3.5 h-3.5 ${mood.color} shrink-0`} />
+                      <span className="truncate">{mood.label}</span>
                     </button>
                   );
                 })}

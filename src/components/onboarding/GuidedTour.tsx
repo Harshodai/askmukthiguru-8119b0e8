@@ -106,6 +106,20 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
   const [arrow, setArrow] = useState<{ side: 'top' | 'bottom'; left: number } | null>(null);
   const [ready, setReady] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return true;
+    return document.documentElement.classList.contains('dark');
+  });
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const checkTheme = () => setIsDark(document.documentElement.classList.contains('dark'));
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const tooltipRef = useRef<HTMLDivElement>(null);
   const lastSignature = useRef('');
   /** Real measured card height — the flip decision used to run off a hardcoded
@@ -462,16 +476,22 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
               {/* Outer shell */}
               <div
                 style={{
-                  background: 'rgba(24, 18, 15, 0.95)',
+                  background: isDark ? 'rgba(24, 18, 15, 0.95)' : 'rgba(255, 255, 255, 0.98)',
                   backdropFilter: 'blur(24px)',
                   WebkitBackdropFilter: 'blur(24px)',
-                  border: '1px solid rgba(212, 175, 55, 0.3)',
+                  border: isDark ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(212, 175, 55, 0.35)',
                   borderRadius: 20,
-                  boxShadow: [
-                    '0 0 0 1px rgba(212, 175, 55, 0.15) inset',
-                    '0 24px 48px rgba(0, 0, 0, 0.65)',
-                    '0 0 60px rgba(212, 175, 55, 0.08)',
-                  ].join(', '),
+                  boxShadow: isDark
+                    ? [
+                        '0 0 0 1px rgba(212, 175, 55, 0.15) inset',
+                        '0 24px 48px rgba(0, 0, 0, 0.65)',
+                        '0 0 60px rgba(212, 175, 55, 0.08)',
+                      ].join(', ')
+                    : [
+                        '0 0 0 1px rgba(212, 175, 55, 0.2) inset',
+                        '0 20px 48px rgba(0, 0, 0, 0.12)',
+                        '0 0 40px rgba(212, 175, 55, 0.1)',
+                      ].join(', '),
                   padding: '1px',
                 }}
               >
@@ -479,8 +499,12 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                 <div
                   style={{
                     borderRadius: 19,
-                    background: 'linear-gradient(135deg, rgba(32, 25, 20, 0.97) 0%, rgba(20, 16, 13, 0.99) 100%)',
-                    boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.06)',
+                    background: isDark
+                      ? 'linear-gradient(135deg, rgba(32, 25, 20, 0.97) 0%, rgba(20, 16, 13, 0.99) 100%)'
+                      : 'linear-gradient(135deg, rgba(255, 253, 248, 0.99) 0%, rgba(253, 248, 238, 0.98) 100%)',
+                    boxShadow: isDark
+                      ? 'inset 0 1px 1px rgba(255,255,255,0.06)'
+                      : 'inset 0 1px 2px rgba(255,255,255,0.95)',
                     padding: '18px 20px 20px',
                     position: 'relative',
                   }}
@@ -498,23 +522,19 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                           : { bottom: -7 }),
                         width: 14,
                         height: 14,
-                        background: 'rgba(20, 16, 13, 0.99)',
+                        background: isDark ? 'rgba(20, 16, 13, 0.99)' : 'rgba(253, 248, 238, 0.99)',
                         transform: 'rotate(45deg)',
-                        // When arrow is on TOP of tooltip (pointing up at target below):
-                        //   hide the bottom-right corner of the diamond → show top-left
-                        // When arrow is on BOTTOM of tooltip (pointing down at target above):
-                        //   hide the top-left corner of the diamond → show bottom-right
                         borderTop: arrow.side === 'bottom'
-                          ? '1px solid rgba(212, 175, 55, 0.3)'
+                          ? isDark ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(212, 175, 55, 0.35)'
                           : 'none',
                         borderLeft: arrow.side === 'bottom'
-                          ? '1px solid rgba(212, 175, 55, 0.3)'
+                          ? isDark ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(212, 175, 55, 0.35)'
                           : 'none',
                         borderBottom: arrow.side === 'top'
-                          ? '1px solid rgba(212, 175, 55, 0.3)'
+                          ? isDark ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(212, 175, 55, 0.35)'
                           : 'none',
                         borderRight: arrow.side === 'top'
-                          ? '1px solid rgba(212, 175, 55, 0.3)'
+                          ? isDark ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(212, 175, 55, 0.35)'
                           : 'none',
                       }}
                     />
@@ -524,15 +544,15 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                   <div className="flex items-center gap-2 mb-3">
                     <span
                       style={{
-                        background: 'rgba(212, 175, 55, 0.12)',
-                        border: '1px solid rgba(212, 175, 55, 0.25)',
+                        background: isDark ? 'rgba(212, 175, 55, 0.12)' : 'rgba(212, 175, 55, 0.16)',
+                        border: isDark ? '1px solid rgba(212, 175, 55, 0.25)' : '1px solid rgba(212, 175, 55, 0.4)',
                         borderRadius: 100,
                         padding: '2px 8px',
                         fontSize: 10,
                         fontWeight: 600,
                         letterSpacing: '0.12em',
                         textTransform: 'uppercase',
-                        color: 'rgba(212, 175, 55, 0.95)',
+                        color: isDark ? 'rgba(212, 175, 55, 0.95)' : '#b45309',
                       }}
                     >
                       <MapPin className="w-2.5 h-2.5 inline mr-1 -mt-0.5" />
@@ -550,22 +570,22 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                         width: 26,
                         height: 26,
                         borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                        border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: 'rgba(255,255,255,0.4)',
+                        color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)',
                         transition: 'all 0.15s',
                         cursor: 'pointer',
                       }}
                       onMouseEnter={e => {
-                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.1)';
-                        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.8)';
+                        (e.currentTarget as HTMLButtonElement).style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
+                        (e.currentTarget as HTMLButtonElement).style.color = isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)';
                       }}
                       onMouseLeave={e => {
-                        (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
-                        (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.4)';
+                        (e.currentTarget as HTMLButtonElement).style.background = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)';
+                        (e.currentTarget as HTMLButtonElement).style.color = isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.45)';
                       }}
                       aria-label={t('onboarding.tour.close', 'Close tour')}
                     >
@@ -599,7 +619,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                             style={{
                               fontSize: 15,
                               fontWeight: 700,
-                              color: '#fff',
+                              color: isDark ? '#fff' : '#1c1917',
                               marginBottom: 4,
                               lineHeight: 1.3,
                               letterSpacing: '-0.01em',
@@ -611,7 +631,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                             id="guided-tour-description"
                             style={{
                               fontSize: 13,
-                              color: 'rgba(255,255,255,0.55)',
+                              color: isDark ? 'rgba(255,255,255,0.55)' : '#57534e',
                               lineHeight: 1.6,
                             }}
                           >
@@ -626,7 +646,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                   <div
                     style={{
                       height: 2,
-                      background: 'rgba(255,255,255,0.08)',
+                      background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
                       borderRadius: 100,
                       marginBottom: 16,
                       overflow: 'hidden',
@@ -659,8 +679,8 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                               i === stepIndex
                                 ? '#d4af37'
                                 : i < stepIndex
-                                ? 'rgba(212,175,55,0.4)'
-                                : 'rgba(255,255,255,0.12)',
+                                ? isDark ? 'rgba(212,175,55,0.4)' : 'rgba(212,175,55,0.45)'
+                                : isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
                             transition: 'all 0.25s cubic-bezier(0.32,0.72,0,1)',
                             border: 'none',
                             padding: 0,
@@ -687,7 +707,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                           alignItems: 'center',
                           gap: 2,
                           fontSize: 12,
-                          color: 'rgba(255,255,255,0.5)',
+                          color: isDark ? 'rgba(255,255,255,0.5)' : '#78716c',
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
@@ -706,7 +726,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                         onClick={dismiss}
                         style={{
                           fontSize: 12,
-                          color: 'rgba(255,255,255,0.3)',
+                          color: isDark ? 'rgba(255,255,255,0.3)' : '#a8a29e',
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
@@ -715,10 +735,10 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                           transition: 'color 0.15s',
                         }}
                         onMouseEnter={e =>
-                          ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.6)')
+                          ((e.currentTarget as HTMLButtonElement).style.color = isDark ? 'rgba(255,255,255,0.6)' : '#57534e')
                         }
                         onMouseLeave={e =>
-                          ((e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.3)')
+                          ((e.currentTarget as HTMLButtonElement).style.color = isDark ? 'rgba(255,255,255,0.3)' : '#a8a29e')
                         }
                       >
                         {t('onboarding.tour.skip')}
@@ -762,19 +782,19 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                           gap: 4,
                           padding: '8px 14px',
                           borderRadius: 100,
-                          background: 'rgba(212,175,55,0.15)',
-                          border: '1px solid rgba(212,175,55,0.3)',
-                          color: 'rgba(212,175,55,0.95)',
+                          background: isDark ? 'rgba(212,175,55,0.15)' : 'rgba(212,175,55,0.18)',
+                          border: isDark ? '1px solid rgba(212,175,55,0.3)' : '1px solid rgba(212,175,55,0.45)',
+                          color: isDark ? 'rgba(212,175,55,0.95)' : '#92400e',
                           fontSize: 13,
                           fontWeight: 600,
                           cursor: 'pointer',
                           transition: 'all 0.15s',
                         }}
                         onMouseEnter={e => {
-                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,175,55,0.22)';
+                          (e.currentTarget as HTMLButtonElement).style.background = isDark ? 'rgba(212,175,55,0.22)' : 'rgba(212,175,55,0.25)';
                         }}
                         onMouseLeave={e => {
-                          (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,175,55,0.15)';
+                          (e.currentTarget as HTMLButtonElement).style.background = isDark ? 'rgba(212,175,55,0.15)' : 'rgba(212,175,55,0.18)';
                         }}
                       >
                         {t('onboarding.tour.next')}

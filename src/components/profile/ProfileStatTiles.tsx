@@ -104,7 +104,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
         {tiles.map((s, idx) => (
           <div
             key={idx}
-            className="group rounded-xl border border-hairline/80 bg-card/70 backdrop-blur-sm px-3.5 py-3 sm:py-3.5 flex flex-col gap-1 transition-all duration-200 hover:border-ojas/30 hover:bg-card hover:shadow-xs"
+            className="group rounded-xl border border-hairline/80 bg-card/70 backdrop-blur-sm px-2.5 sm:px-3.5 py-2.5 sm:py-3.5 flex flex-col gap-1 transition-all duration-200 hover:border-ojas/30 hover:bg-card hover:shadow-xs"
           >
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <s.icon className={`w-3.5 h-3.5 ${s.accent} transition-transform group-hover:scale-110`} aria-hidden="true" />
