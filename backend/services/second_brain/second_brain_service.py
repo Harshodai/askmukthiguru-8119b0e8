@@ -684,6 +684,31 @@ class SecondBrainService:
     # Internals: storage / vectors / audit
     # ------------------------------------------------------------------
 
+    async def check_kek_against_stored_keys(self, limit: int = 50) -> tuple[int, int]:
+        """Return (checked, failed): how many stored Mode-A wrapped DEKs the server KEK cannot unwrap.
+
+        A BRAIN_KEK that differs from the one that wrapped existing rows makes every vault call
+        fail with VaultIntegrityError (a 500). Startup uses this so that mismatch is loud at
+        deploy time instead of discovered by a user. Never raises on a bad row.
+        """
+        if not self._db or not self._server_kek:
+            return 0, 0
+        res = await asyncio.to_thread(
+            self._db.table("user_brain_keys")
+            .select("user_id,wrapped_dek,wrap_mode")
+            .eq("wrap_mode", _MODE_A)
+            .limit(limit)
+            .execute
+        )
+        rows = res.data or []
+        failed = 0
+        for row in rows:
+            try:
+                unwrap_dek(row["wrapped_dek"], self._server_kek)
+            except VaultIntegrityError:
+                failed += 1
+        return len(rows), failed
+
     async def _get_key_row(self, user_id: str) -> Optional[dict]:
         res = await asyncio.to_thread(
             self._db.table("user_brain_keys").select("*").eq("user_id", user_id).execute

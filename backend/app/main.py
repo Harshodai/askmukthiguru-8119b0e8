@@ -882,6 +882,25 @@ async def lifespan(app: FastAPI):
         "Lifespan: release manifest validated (release_id=%s)", get_release_manifest().release_id
     )
 
+    # Loud, immediate signal if BRAIN_KEK no longer unwraps the vault keys already stored
+    # (a swapped key makes every vault call a 500). Log-only: chat must not go down for it.
+    try:
+        _second_brain = getattr(container, "second_brain", None)
+        if _second_brain is not None:
+            _checked, _failed = await _second_brain.check_kek_against_stored_keys()
+            if _failed:
+                logger.error(
+                    "STARTUP: BRAIN_KEK cannot unwrap %d of %d stored vault keys -- every Second "
+                    "Brain call for those users will fail. Restore the original key or re-wrap "
+                    "with scripts/ops/rotate_brain_kek.py (docs/SECOND_BRAIN.md).",
+                    _failed,
+                    _checked,
+                )
+            else:
+                logger.info("Second Brain: BRAIN_KEK unwraps all %d stored vault keys", _checked)
+    except Exception as _kek_check_err:
+        logger.warning("STARTUP: could not verify BRAIN_KEK against stored vault keys: %s", _kek_check_err)
+
     # First-person is a rights-sensitive, calibrated route. In production,
     # refuse to accept traffic unless its release contract is complete.
     from services.first_person_release import validate_first_person_production_contract

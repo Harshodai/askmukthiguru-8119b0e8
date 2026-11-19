@@ -118,5 +118,16 @@ headline.
   better, a KMS — see `code/k8s/production-pack.yaml` ExternalSecret).
 - Rotating the Mode-A KEK orphans previously-wrapped DEKs — plan a re-wrap
   migration job before rotating.
+- **Production key rules (2026-11-19, after the Reflections outage):**
+  - The production `BRAIN_KEK` is generated once for production, never copied from a dev `.env`,
+    and never written to any `.env*` file, git, chat or backup. Dev keeps its own separate key.
+  - Keep an escrow copy in the owner's password manager. Seal the Railway variable (write-only).
+    A lost or overwritten KEK makes every vault unrecoverable; nothing can restore it.
+  - Never overwrite `BRAIN_KEK` on a service that already holds vault keys. To change it, set the
+    new value as `BRAIN_KEK_NEXT`, run `scripts/ops/rotate_brain_kek.py` (dry run, then `--apply
+    --confirm-rewrap`), then swap the variables.
+  - Startup runs `SecondBrainService.check_kek_against_stored_keys()` and logs an ERROR
+    (`BRAIN_KEK cannot unwrap N of M stored vault keys`) if the key no longer matches. Treat that
+    line as a deploy blocker.
 - The audit log (`_audit`) records unlock/export/shred events with no
   plaintext — ship it to your tamper-evident sink.

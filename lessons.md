@@ -1,6 +1,22 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 19, 2026 — Reflections outage: BRAIN_KEK was overwritten, plus two silent production bugs
+
+### L-BRAIN-KEK-NEVER-OVERWRITE-1. Never overwrite a production secret that already protects stored data, and never reuse a dev key as the production key.
+- **What:** copying `backend/.env` to Railway replaced the production `BRAIN_KEK`. The two existing vault key rows (wrapped under the old key) could no longer be unwrapped, so `GET /api/brain/items` raised `VaultIntegrityError: DEK unwrap failed — wrong KEK` and returned 500. A 500 raised before the CORS layer carries no CORS headers, so the browser showed "Reflections request failed (—)" with no status. The old key was unrecoverable (every env backup and Railway held only the new value). Nothing was stored under those keys (0 nodes, 0 edges), so the two rows were archived to `user_brain_keys_archive_20261119` and deleted.
+- **Why the dev key was also wrong:** the same value sat in 8 local `.env*` files and the local Docker stack. It was never in git (0 tracked files, 0 commits), but a production key must exist nowhere a dev machine reads.
+- **Fix:** a fresh production-only key (`openssl rand -base64 32` style), written once to a `0600` file for the owner's password manager and set on Railway without printing; startup now runs `SecondBrainService.check_kek_against_stored_keys()` and logs `BRAIN_KEK cannot unwrap N of M stored vault keys` as an ERROR (the old "vault key check: OK" only validated the key's format, so it passed during the outage). Rules are in `docs/SECOND_BRAIN.md` §8. Pin: `tests/test_second_brain_kek_check.py`.
+- **Rule:** before setting any secret on a service, read what it already holds and what depends on it; rotate with `scripts/ops/rotate_brain_kek.py`, never by overwrite. Keep an escrow copy.
+
+### L-PROFILE-EXTRA-COLUMNS-1. A table that gains a column must not break `Dataclass(**row)`.
+- **What:** production `user_profiles` has `tenant_id`; `UserProfile(**row)` raised `TypeError` on every fetch and the warning ("unexpected keyword argument 'tenant_id'") hid behind a fallback to an empty profile, so personalization was silently off for every signed-in chat.
+- **Fix:** keep only the dataclass's declared fields. Pin: `tests/test_user_profile_extra_columns.py`.
+
+### L-COLD-START-503-IS-OPAQUE-1. A request that reaches a waking service must wait, not get a CORS-less 503.
+- **What:** the startup wrapper answered non-health requests with 503 until the real app loaded (~25 s after a Railway wake). That response carries no CORS headers, so the browser reports it as a status-less failure; also `X-Brain-Unlock` and `X-CSRF-Token`, sent by the SPA, were missing from the CORS allow-list.
+- **Fix:** hold such requests up to 45 s; add the two headers. Pins: `tests/test_railway_cold_start_wait.py`, `tests/test_main_cors.py`.
+
 ## Nov 19, 2026 — public discovery without availability promises
 - Reuse existing translated guides instead of duplicating search pages. Link practices and Trust before promoting service-dependent inquiry.
 - A sitemap addition does not establish indexing. Preserve the primary-domain helper and omit lastmod when no page-specific authoritative timestamp exists.
@@ -56,6 +72,31 @@
 - **What:** billed so far this period: $0.16 (estimate $0.36, early). Measured peaks: backend 3.94 GB (against a 4 GB cap, so the cap went to 6 GB), Qdrant 1.49 GB (cap 1.5 GB, now 2.5 GB), Memgraph 0.88 GB, Redis 12 MB. Resource caps are ceilings, not charges. Volumes bill by provisioned size: two 50 GB volumes held under 1 GB of data and were replaced with 2 GB (Qdrant) and 1 GB (Redis); backups on the Redis volume bill too. Idle cron ticks cost ~$0.0004 in total. The workspace has a $5 soft and $30 hard usage limit; the soft limit will alert once steady-state compute passes $5.
 - **Wake time:** the sleeping backend wakes in ~40 s (container start to ready), not minutes; `/api/healthz` answers 200 after ~2 s but other paths return 503 until the real app loads.
 - **Rule:** read `railway usage projects --project …` and `get-service-metrics` before tuning; size caps from peaks, not averages.
+
+### L-CORS-ALLOW-LIST-MATCHES-FRONTEND-HEADERS-1. A custom request header missing from the CORS allow-list fails as "failed (—)", not as a 4xx.
+- **What:** `src/lib/secondBrainApi.ts` sends `X-Brain-Unlock` and the admin client sends `X-CSRF-Token`; neither was in `cors_allow_headers`. The browser blocks the preflight and the UI shows "Reflections request failed (—)" because no HTTP status ever arrives. A curl preflight with only `content-type,x-session-id` passed, so the gap was invisible from the server side.
+- **Fix:** both headers added to the production and dev lists in `app/main.py`.
+- **Rule:** when a UI reports a request failure with no status, diff the headers the frontend sends (`grep "'X-"`) against `allow_headers` before touching the backend logic.
+
+### L-COLD-START-HOLD-REQUESTS-1. A sleeping Railway service must hold the first requests, not answer them with a CORS-less 503.
+- **What:** `start_railway.py` answers `/api/healthz` instantly but returned 503 for every other path until the real app loaded (~25 s). That 503 comes from outside `CORSMiddleware`, so the browser reports an opaque network failure on the first visit after idle.
+- **Fix:** the not-ready branch now waits up to `_COLD_START_WAIT_S` (45 s) for the app, and answers 503 only after the timeout or when startup has failed. Pins: `tests/test_railway_cold_start_wait.py`.
+
+### L-SUPABASE-PROD-DRIFT-1. Production Supabase was 12 migrations behind the repo; the backend already called functions production did not have.
+- **What:** 131 applied vs 143 repo files. `memory_service.py` calls `match_user_memories_by_user`, `regenerate_summaries` and `create_compaction_snapshot` with `p_tenant_id`, but production still had the old signatures (so memory search, summaries and snapshots failed), and `message_citations`, `video_serving_decisions`, `corpus_*` and `retrieval_feedback_signals` did not exist.
+- **Blockers found by reading before applying:** (1) `guru_core_memory` held three fixture rows for one user/tenant, which would have failed the new `UNIQUE (user_id, tenant_id)` index; (2) `canonical_memory_compaction_snapshots` already existed, hand-made, with `memories_json TEXT` and different index/trigger names; (3) `video_serving_decisions` let every signed-in user read admin grades and notes, though only the backend reads it; (4) `message_citations` was created with `USING (true)` read and tightened by a later migration, so both had to land in one transaction.
+- **Fix:** three corrective migrations (`20261021000150_guru_core_memory_dedup_before_tenant_unique`, `20261022000050_canonical_snapshots_align_out_of_band_table`, `20261107000100_video_serving_decisions_service_only`); the dedup archives rows to `guru_core_memory_dedup_archive_20261119` before deleting. Applied in three single-transaction groups, then `supabase_migrations.schema_migrations` rows were inserted by hand so history equals the repo (146 = 146). A new file must not reuse an existing version number (`20261021000100` was taken; a duplicate key would have broken history).
+- **Still open:** all 18 `guru_memories` rows carry `tenant_id='default'` while the backend reads `'oneness'`, so existing memories are invisible until a reviewed backfill (the migration deliberately does not move them).
+- **Rule:** diff `list_migrations` against the repo before every release, read each file for the data it will meet, and prove the functions run (`select public.regenerate_summaries(...)`).
+
+### L-FIRST-PERSON-SCORER-TUNING-1. Measure serve rate on a fixed question set before choosing the relevance scorer and threshold.
+- **What:** same 10 in-domain questions, live: `deepseek-chat` at min score 3 served 6; `anthropic/claude-haiku-5.5` at min 3 served 1; haiku at min 2 served 7, and the served clips read as on-topic. Abstains logged `Relevance check parsed scores: [1] (minimum=3)` and `Harness answer rejected … min_score_scorer`, i.e. the gate working as designed, not a fault. `deepseek-chat` was only in `.env`; the recorded owner-approved scorer is haiku.
+- **Decision applied on Railway:** haiku, min score 2 (owner-pinned value is 3: revert with `FIRST_PERSON_RELEVANCE_MIN_SCORE=3`). The on-device encoder was not the cause of the abstains (A/B with it on and off behaved the same); it stays off.
+- **Tool:** `scratchpad/coverage_check.py` pattern: fixed questions, anon session, poll the job, count `first_person_bridge` with a citation.
+
+### L-LOVABLE-PUBLISHES-FROM-GITHUB-1. The Lovable site is built from GitHub `main`; verify what it ships from the bundle, not from guesses.
+- **What:** the served HTML carries `data-commit-sha` equal to the latest pushed commit, so a push publishes. `VITE_BACKEND_URL` from `.env.production` is baked into the bundle (`backendUrl` chunk), and the host allow-list does not need `askmukthiguru.lovable.app`. `curl` the page, read the `<script src>` and grep the chunks (Railway URL, `*.supabase.co` project ref, publishable key prefix). The Lovable MCP could not see the project, and the browser-extension profile was signed out (redirected to `/auth`), so signed-in behavior cannot be reproduced from here.
+- **Owner steps that no tool can do:** Supabase Auth Site URL and redirect URLs must include the Lovable origin; Google OAuth authorised origins likewise.
 
 ### L-RAILWAY-TOOLING-QUIRKS-1. Notes on the Railway MCP and CLI that cost time.
 - `get-logs` ignores its `filter` argument for the deploy stream; large results are saved to a file, so filter them locally. The log `status` field can read `SUCCESS` for a deployment whose process has only just started. `connect-service-source`, `set-variables` and TCP-proxy changes each trigger a deploy unless `--skip-deploys` is used; `railway variable set … --skip-deploys` then needs an explicit redeploy to take effect. Reference variables (`${{service.VAR}}`) share values between services without handling the secret. `fetch-docs` often returns "no page" even for pages `search-docs` lists. Do not publish a datastore (Redis) to prove a point; the permission classifier refused it, and waiting for the next scheduled run is the safe check.
