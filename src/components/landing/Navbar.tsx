@@ -14,11 +14,21 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import type { ComponentType } from 'react';
 import { UserMenu } from '@/components/common/UserMenu';
 import { EkamLotusIcon } from '@/components/common/EkamLinkButton';
 import { useProfile } from '@/hooks/useProfile';
 import { getInitials } from '@/lib/profileStorage';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
+type NavbarLink = {
+  href: string;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  isRoute?: boolean;
+  isExternal?: boolean;
+  testId?: string;
+};
 
 export const Navbar = () => {
   const { t } = useTranslation();
@@ -36,7 +46,7 @@ export const Navbar = () => {
     />
   );
 
-  const navLinks = [
+  const navLinks: NavbarLink[] = [
     { href: '#gurus', label: t('nav.meetGurus'), icon: Sparkles },
     { href: '#how-it-works', label: t('nav.howItWorks'), icon: HelpCircle },
     { href: '#practices', label: t('nav.practices'), icon: Compass },

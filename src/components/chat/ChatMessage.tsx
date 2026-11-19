@@ -44,7 +44,7 @@ import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
 import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
-import { SourcePlatformBadge, isYouTubeUrl } from '@/components/common/SourcePlatformBadge';
+import { SourcePlatformBadge } from '@/components/common/SourcePlatformBadge';
 import { completeStep } from '@/lib/dailyJourney';
 import { AbstainHelpCard } from './AbstainHelpCard';
 

@@ -19,6 +19,7 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
   className = '',
 }) => {
   const shouldReduceMotion = useReducedMotion();
+  type RadialBar = { id: number; angle: number; harmonic: number };
 
   // Dynamic scale interpolation based on live acoustic input
   const clampedLevel = Math.min(Math.max(audioLevel, 0), 1);
@@ -26,7 +27,7 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
 
   // 16 radial audio spectrum bars radiating outward
   const radialBars = useMemo(() => {
-    const bars = [];
+    const bars: RadialBar[] = [];
     const count = 16;
     for (let i = 0; i < count; i++) {
       const angle = (i * 360) / count;

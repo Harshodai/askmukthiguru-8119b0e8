@@ -49,6 +49,8 @@ export interface UserProfile {
   ttsRate: number; // 0.5–1.5
   /** Preferred Sarvam Mayura TTS voice */
   preferredVoice: string;
+  /** Preferred speaker voice used by Voice Mode. */
+  speaker?: string;
   meditationReminders: boolean;
   reminderTimeMinutes: number; // minutes since midnight
   prePracticeLog: PrePracticeLog;

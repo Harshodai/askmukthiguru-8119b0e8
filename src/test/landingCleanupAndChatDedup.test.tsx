@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Navbar } from '@/components/landing/Navbar';
 import Index from '@/pages/Index';
 import { ChatMessage } from '@/components/chat/ChatMessage';
-import type { Message } from '@/types/chat';
+import type { Message } from '@/lib/chatStorage';
 
 // Mock Capacitor
 vi.mock('@capacitor/core', () => ({
@@ -84,10 +84,8 @@ describe('ChatMessage Deduplication & Audio Strip Guard', () => {
       role: 'guru',
       content: `Sri Preethaji · Discourse by Sri Preethaji\n\n${verbatimQuote}`,
       timestamp: new Date(),
-      isVerbatim: true,
       citations: [
         {
-          index: 1,
           url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
           title: 'Sacred Oneness Discourse',
           quote: verbatimQuote,
