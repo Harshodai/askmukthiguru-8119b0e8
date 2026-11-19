@@ -256,7 +256,8 @@ class QdrantClientManager:
             else:
                 logger.info(f"Collection exists: {self._collection}")
                 self._verify_collection_dimension()
-                self._ensure_existing_collection_indexes()
+                if settings.qdrant_ensure_indexes_on_startup:
+                    self._ensure_existing_collection_indexes()
         except Exception:
             raise
 

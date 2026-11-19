@@ -269,10 +269,14 @@ def _get_encoder():
     global _ENCODER
     if _ENCODER is not None:
         return _ENCODER
+    from app.config import settings
+
+    if not settings.on_device_intent_encoder_enabled:
+        logger.info("On-device classifier: encoder disabled by config; keyword path only")
+        _ENCODER = False
+        return _ENCODER
     try:
         from sentence_transformers import SentenceTransformer
-
-        from app.config import settings
 
         _cache_dir = settings.sentence_transformers_home or settings.hf_home
         # The full org-scoped name is what download_models.py caches; use it so

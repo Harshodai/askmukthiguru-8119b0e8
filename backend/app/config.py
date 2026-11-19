@@ -760,6 +760,10 @@ class Settings(BaseSettings):
     # T3-02 / DATA-06: Write-only Qdrant key for offline builder/ingest scripts.
     # The running backend container never receives this key.
     qdrant_write_api_key: str = ""
+    # False when the serving token is read-only on the corpus (scoped Qdrant JWT):
+    # the startup payload-index ensure needs write access and would only log a 403.
+    # The collections are built and indexed offline, so serving does not need it.
+    qdrant_ensure_indexes_on_startup: bool = True
     qdrant_timeout: float = 30.0
     # Quantization strategy for the Qdrant dense vector index.
     # Quantization strategy for the Qdrant dense vector index.
@@ -949,6 +953,11 @@ class Settings(BaseSettings):
     # duplicating the env var under a different name.
     hf_home: str = "/app/.cache/huggingface"
     sentence_transformers_home: Optional[str] = None
+    # False skips loading the all-MiniLM-L6-v2 encoder in rag/nodes/on_device_intent.py.
+    # The keyword matcher stays (<1 ms, no model); ambiguous cases and bare-keyword
+    # DISTRESS defer to the JEV / LLM router (the L-INTENT-ENCODER-1 degrade path).
+    # Saves ~90 MB of image, ~3 s of boot and the Hugging Face dependency.
+    on_device_intent_encoder_enabled: bool = True
     # Query-document pairs scored per ONNX session.run(). The self-attention
     # buffer scales with batch x heads x seq x seq (~12.6MB per pair at 12
     # heads / 512 tokens), so an unbounded batch asked onnxruntime's arena for

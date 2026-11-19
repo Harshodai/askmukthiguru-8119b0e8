@@ -6,6 +6,61 @@
 - A sitemap addition does not establish indexing. Preserve the primary-domain helper and omit lastmod when no page-specific authoritative timestamp exists.
 - Public guide headings need clearance below the floating navigation; inspect first-viewport screenshots, not only overflow and DOM assertions.
 
+## Nov 19, 2026 — first real Railway deploy: build, data copy, least-privilege Qdrant, on-demand worker, cost
+
+### L-RAILWAY-UV-INDEX-STRATEGY-1. `uv` stops at the first index that hosts a package, so a pinned version on PyPI is invisible when the PyTorch index also hosts it.
+- **What:** `uv pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.lock` failed on Railway with "no version of certifi==2026.10.19": the PyTorch index hosts an older `certifi`, so uv never consulted PyPI. The first Railway build of this code failed in about a minute; both services failed the same way.
+- **Fix:** `--index-strategy unsafe-best-match` on the install line in `backend/Dockerfile.railway`. Reproduced locally with `uv pip install --dry-run` (fails without the flag with the same message, resolves with it). Versions stay pinned by `requirements.lock`.
+- **Rule:** when a second index is added for one family of packages, reproduce the resolve locally with `--dry-run` before the first cloud build.
+
+### L-RAILWAY-ENV-IS-NOT-A-COPY-OF-DOTENV-1. `backend/.env` is a local-development file; copying it verbatim to production is wrong in at least five ways.
+- **What:** `.env` had `IS_PRODUCTION=false`, `ENABLE_TEST_AUTH=true`, local-stack Supabase URL and keys, `localhost`/service-name hosts, `FIRST_PERSON_LOCAL_REVIEW_ENABLED=true`, `WEB_SEARCH_ENABLED=true`, posture `v12_shadow`, and no Qdrant keys, `ANON_SESSION_HMAC_SECRET` or faculty code at all. The Railway backend already held the real production Supabase/JWT values; overwriting them would have broken auth.
+- **Fix:** build the variable set from `.env`, drop dev-only keys, replace hosts with `*.railway.internal`, layer the pinned production values from `.railway/railway.ts`, and never overwrite Supabase/JWT values that already exist on the service. Secrets are applied by a script that reads the file and calls the CLI, never printed (a command that printed every secret was blocked by the permission classifier, correctly).
+- **Rule:** classify every key (copy / replace / drop / keep-existing) before applying; check what the target service already holds before writing.
+
+### L-RAILWAY-WORKER-IMPORTS-CONFIG-1. Every process that imports `app.config` runs the production validators, so a worker needs the same gate variables as the API.
+- **What:** the first cron worker run crashed on "faculty_access_code is required in production" because the apply script had stripped `FACULTY_ACCESS_CODE` from the worker. Owner then decided to drop the gate: `FACULTY_GATE_DISABLED=true` (the recorded opt-out) and the code deleted on both services.
+- **Rule:** the worker/beat env is the API env minus only what the validators do not read. A public launch without the gate leans on rate limits (`CHAT_RATE_LIMIT=20/minute`), the anonymous quota and the OpenRouter budget cap; anonymous sessions are free to mint, so the spend cap is the real backstop.
+
+### L-RAILWAY-CRON-ON-DEMAND-WORKER-1. A cron service can be an on-demand worker: it starts, checks Redis, and exits when idle.
+- **What:** `SERVICE_TYPE=celery-on-demand` (`start_railway.py`) runs every 5 minutes. It exits in 2–8 s when `LLEN` of the watched queues plus `HLEN unacked` is zero (`acks_late` keeps running tasks in `unacked`), otherwise runs a worker until the queues stay empty for ~1 minute (hard cap 4 h). Once per 24 h (`SET celery:daily-enqueue NX EX 86400`) it enqueues the tasks beat used to schedule, so no beat service exists. Verified live: tasks ran, "queues drained, stopping", warm shutdown.
+- **Gotchas:** (1) the `celery` default queue (unrouted tasks) must be watched but is kept out of `_CELERY_ALLOWED_QUEUES` because `ops_gauges.CELERY_QUEUES` must equal that set; (2) Railway skips a tick while the previous run is active, and a run that has to pull the large image can take minutes; (3) restarting Redis clears the daily marker, so the daily tasks re-run at the next tick; (4) a cron run appears to use the environment of its last deployment, so variables set with `--skip-deploys` may not reach the next run until a redeploy. The retention cleanup still logged "supabase_key is required" at 04:25 even though the variables were set earlier; confirm at the next daily run.
+- **Pins:** `tests/test_celery_on_demand.py`.
+
+### L-QDRANT-JWT-RBAC-LEAST-PRIVILEGE-1. Give the serving backend a scoped Qdrant JWT, not the master key and not a blanket read-only key.
+- **What:** a static read-only key made every startup ensure-step 403 (`create_payload_index`, LightRAG init, canonical-memory wiring). With `QDRANT__SERVICE__JWT_RBAC=true` the `api_key` becomes the signing secret and an HS256 token carries `access: [{collection, access: r|rw}]`. Tested matrix with the token: read corpus 200; delete points / create payload index on the corpus / create or delete a collection / read an unlisted collection all 403; payload index on a memory collection 200.
+- **Design:** corpus (`spiritual_wisdom_contextual`, `first_person_v10`, `first_person_v12_shadow`) read-only; read-write only on memory/vault/cache collections and LightRAG's three graph-vector collections. LightRAG calls `create_payload_index` on its own collections at init and probes legacy names (`lightrag_vdb_{ns}`, `__{ns}`, bare `{ns}`) with `collection_exists`, so those names need `r` even though they do not exist; no wildcards exist, so the list is explicit. The worker keeps the master key (internal-only, creates collections). Re-mint the token whenever collections change; rotating the master key invalidates every token.
+- **Fix in code:** `qdrant_ensure_indexes_on_startup` (default true) skips the startup payload-index ensure when the corpus is read-only. Pin: `tests/test_qdrant_startup_indexes_flag.py`.
+- **Rule:** a read-only guarantee on the teaching corpus is worth a token per consumer; test the deny cases, not just the allow cases.
+
+### L-QDRANT-SNAPSHOT-COPY-1. Snapshot upload to a remote Qdrant: delete stale remote collections whose config differs, and copy only required collections.
+- **What:** `POST /collections/{name}/snapshots/upload?priority=snapshot` returned 400 "Snapshot is not compatible with existing collection" for two collections that already existed remotely with a different config; deleting the stale remote collection and re-uploading fixed it. Compare point counts per collection afterwards (all matched). Qdrant 1.20.0 snapshots restored on 1.20.2.
+- **Scope decision:** keep the 10 required collections plus `first_person_v12_shadow`; dropped `first_person_v11`, `semantic_cache`, `semantic_query_cache` and `guru_tone_podcast` (the guru-brain path is inert: `set_guru_brain()` has no callers and the corpus is documented unusable). Local data untouched.
+- **Rule:** open a temporary TCP proxy only after auth is on, copy, verify counts, close the proxy.
+
+### L-MEMGRAPH-BATCH-COPY-1. Copy a graph to a remote Memgraph in `UNWIND` batches, not by replaying `DUMP DATABASE` statement by statement.
+- **What:** replaying the 20,744-statement dump through `mgconsole` over a public TCP proxy ran at ~76 nodes/minute (one round trip each), i.e. hours. A neo4j-driver loader that creates nodes per label set and edges per type in batches of 500 finished in minutes. Killing the replay left stray nodes (59 extra, one unique constraint failed); the loader wipes first, and a rerun matched exactly: 9,703 nodes, 11,041 edges, 8 indexes, 17 constraints, MAGE procedures present.
+- **Image:** `memgraph/memgraph-mage` (not plain `memgraph`) is required for `pagerank`/`community_detection`; pin the tag (3.14.0), do not use `latest`.
+
+### L-RAILWAY-VOLUME-OWNERSHIP-1. A non-root image on a fresh Railway volume needs `RAILWAY_RUN_UID=0`.
+- **What:** Memgraph logged "running as user memgraph, but /var/lib/memgraph is owned by user root" and restart-looped. `RAILWAY_RUN_UID=0` fixed it. Qdrant and Redis images run as root and did not need it.
+
+### L-RAILWAY-DEPLOYMENT-STUCK-BUILDING-1. A deployment can stay `BUILDING` forever after its image was exported.
+- **What:** the backend deployment froze (`updatedAt` unchanged for 20+ minutes) while the identical worker build completed. `redeploy` refuses it (`canRedeploy: false`). Re-attaching the GitHub source (`connect-service-source` with `commitSha`) created a fresh deployment that built from cached layers and succeeded. A `commitSha`-pinned service no longer auto-deploys on push, so re-attach after each push.
+
+### L-ON-DEVICE-ENCODER-FLAG-1. The MiniLM encoder in the on-device classifier is optional; turn it off by flag instead of ripping out the classifier.
+- **What:** the build cached `all-MiniLM-L6-v2` in the default hub cache but `rag/nodes/on_device_intent.py` loads it from an explicit `cache_folder` with `local_files_only=True`, so every cold start logged "unavailable in cache" and downloaded it from Hugging Face. The classifier module has seven call sites (cache stage, graph stage, intent node, startup, voice), so deletion is a refactor, not a switch. The keyword matcher is under 1 ms and has no model; only the embedding step needs the encoder.
+- **Fix:** `on_device_intent_encoder_enabled` (default true; false on Railway) makes `_get_encoder()` return False, which takes the existing, tested L-INTENT-ENCODER-1 path (bare-keyword DISTRESS and ambiguous cases defer to the JEV/LLM router; crisis pre-emption is unaffected because DistressStage runs first). Pin: `tests/test_on_device_intent_encoder_flag.py`, with `test_on_device_intent_encoder_missing.py` already covering the degrade path.
+
+### L-RAILWAY-COST-MEASURED-1. Fixed cost is the always-on RAM of the two databases; volumes and idle cron are rounding errors once sized correctly.
+- **What:** billed so far this period: $0.16 (estimate $0.36, early). Measured peaks: backend 3.94 GB (against a 4 GB cap, so the cap went to 6 GB), Qdrant 1.49 GB (cap 1.5 GB, now 2.5 GB), Memgraph 0.88 GB, Redis 12 MB. Resource caps are ceilings, not charges. Volumes bill by provisioned size: two 50 GB volumes held under 1 GB of data and were replaced with 2 GB (Qdrant) and 1 GB (Redis); backups on the Redis volume bill too. Idle cron ticks cost ~$0.0004 in total. The workspace has a $5 soft and $30 hard usage limit; the soft limit will alert once steady-state compute passes $5.
+- **Wake time:** the sleeping backend wakes in ~40 s (container start to ready), not minutes; `/api/healthz` answers 200 after ~2 s but other paths return 503 until the real app loads.
+- **Rule:** read `railway usage projects --project …` and `get-service-metrics` before tuning; size caps from peaks, not averages.
+
+### L-RAILWAY-TOOLING-QUIRKS-1. Notes on the Railway MCP and CLI that cost time.
+- `get-logs` ignores its `filter` argument for the deploy stream; large results are saved to a file, so filter them locally. The log `status` field can read `SUCCESS` for a deployment whose process has only just started. `connect-service-source`, `set-variables` and TCP-proxy changes each trigger a deploy unless `--skip-deploys` is used; `railway variable set … --skip-deploys` then needs an explicit redeploy to take effect. Reference variables (`${{service.VAR}}`) share values between services without handling the secret. `fetch-docs` often returns "no page" even for pages `search-docs` lists. Do not publish a datastore (Redis) to prove a point; the permission classifier refused it, and waiting for the next scheduled run is the safe check.
+- A pre-existing test failure, not caused by this work: `tests/test_jev_router.py::test_jev_picker_only_reorders_and_scorer_decides` (its fake scorer lacks the `is_distress` argument the pipeline now passes).
+
 ## Nov 18, 2026 — review pass: HyDE confidence contract, eval auth preflight, gate scope, live-tier package
 
 ### L-VENTING-CONFIDENCE-HONORS-HYDE-1. Colloquial suffering venting queries must honor HyDE expansion alignment in calibrated confidence.
