@@ -41,7 +41,7 @@ const AiSpiritualCompanionPage = () => {
 
   return (
     <PublicShell title={content.meta.publicShellTitle}>
-      <article className="mx-auto max-w-3xl px-4 py-10 space-y-8">
+      <article className="mx-auto max-w-3xl px-4 pt-28 pb-10 space-y-8">
         <header className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-foreground">
             {content.header.title}
@@ -49,6 +49,10 @@ const AiSpiritualCompanionPage = () => {
           <p className="text-muted-foreground">
             {content.header.subtitle}
           </p>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button asChild><Link to="/practices/serene-mind">{content.cta.practiceButton}</Link></Button>
+            <Button asChild variant="outline"><Link to="/trust">{t('trust.title')}</Link></Button>
+          </div>
         </header>
 
         {content.sections.map((s) => (
@@ -98,7 +102,7 @@ const AiSpiritualCompanionPage = () => {
           </dl>
         </section>
 
-        <section className="space-y-3 rounded-lg border border-border/60 bg-card/60 p-6">
+        <section className="space-y-3 border-t border-border pt-6">
           <h2 className="text-xl font-semibold text-foreground">{content.cta.heading}</h2>
           <p className="text-foreground/90 leading-relaxed">
             {content.cta.body}
@@ -113,6 +117,7 @@ const AiSpiritualCompanionPage = () => {
             <Button asChild variant="ghost">
               <Link to="/practices">{content.cta.exploreButton}</Link>
             </Button>
+            <Button asChild variant="ghost"><Link to="/privacy">{t('privacy.title')}</Link></Button>
           </div>
         </section>
       </article>

@@ -12,9 +12,10 @@
 - [x] Review analytics, search visibility, SEO basics, and current homepage/offer pages.
 - [x] Research audience-fit visitor channels and draft a ranked, evidence-based growth plan.
 - [x] Owner assigned Chat recovery and custom domain to themselves; scope remaining growth work separately.
-- [ ] Close sitemap gaps and improve existing guide discovery, citation-first positioning, and practice links.
-- [ ] Verify directory submission rules and prepare listing/outreach materials; never spend or send without permission.
-- [ ] Confirm duplicate-site control and affiliation before redirecting or stating endorsement status.
+- [x] Close sitemap gaps and improve existing guide discovery, citation-first positioning, and practice links; 17 focused tests pass.
+- [x] Verify Product Hunt rules and official directory offer; prepare listing/outreach materials in Files. No spend or send.
+- [ ] Confirm duplicate-site control and affiliation before redirecting or stating endorsement status — needs owner-controlled Vercel access and relationship confirmation.
+- [ ] Submit/schedule directory launch, request recrawl, and send outreach — needs authorized accounts and community permission; paid offer requires explicit approval.
 
 ## Current request — 2026-11-06: full daily loop in existing PR
 

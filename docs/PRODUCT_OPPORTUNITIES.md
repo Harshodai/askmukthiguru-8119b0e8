@@ -85,6 +85,10 @@ Model-route column: which tier to hand the fix to — `haiku` mechanical, `sonne
 
 # Roadmap — Execution Strategy
 
+## Visitor discovery — 2026-11-19
+- Added existing Trust and Spirit Guides routes to sitemap; strengthened AI guide sourcing/limitations and practice-first navigation; added official Oneness resource link to existing Serene Mind guide.
+- Chat recovery and custom domain remain owner-led. Vercel consolidation, affiliation wording, directory submissions, Search Console recrawl, and community promotion require external access or factual approval. Draft distribution materials saved in Files; nothing sent or paid.
+
 *Migrated verbatim from the former `docs/ROADMAP.md` on 2026-08-12 (that file was removed; this section is now its home). Tracks feature requests, priorities, and shipped work — the HOW to SPEC_DEV.md's WHAT.*
 
 ## Execution Philosophy

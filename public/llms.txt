@@ -1,8 +1,8 @@
 # AskMukthiGuru
 
-> AI-guided spiritual conversations rooted in the teachings of Sri Preethaji & Sri Krishnaji. Free, private, always available.
+> Spiritual reflection and guided practice inspired by Sri Preethaji & Sri Krishnaji. Check source attribution and service availability before relying on a response.
 
-AskMukthiGuru is a free AI spiritual guide that helps seekers move from suffering (self-centric states) toward the Beautiful State through conversation, guided practices (including Serene Mind 3-minute meditation), and reflections drawn from the doctrine of Sri Preethaji & Sri Krishnaji. All responses are grounded in an audited knowledge base of the gurus' teachings.
+AskMukthiGuru offers spiritual reflection, guided practices (including Serene Mind), and an inquiry interface designed to retrieve recorded teachings. Teacher quotations must be verbatim and source-linked. Related excerpts are not necessarily direct answers; when evidence or the service is unavailable, the app should say so rather than invent a teaching. It is not medical treatment or emergency care. See Trust and Privacy for sourcing, limitations, and data handling.
 
 ## Pages
 
@@ -10,10 +10,11 @@ AskMukthiGuru is a free AI spiritual guide that helps seekers move from sufferin
 - [Chat](https://askmukthiguru.lovable.app/chat): Talk with the AI spiritual guide.
 - [Practices](https://askmukthiguru.lovable.app/practices): Meditation and reflection practices catalog.
 - [Spirit Guides](https://askmukthiguru.lovable.app/guides/spirit-guides): Types of spirit guides and how to connect.
+- [Trust](https://askmukthiguru.lovable.app/trust): Source attribution, response labels, safety, and limitations.
 
 ## Guides
 
-- [AI-Guided Meditation](https://askmukthiguru.lovable.app/guides/ai-spiritual-companion): Step-by-step guide to using an AI spiritual companion.
+- [AI Spiritual Guide](https://askmukthiguru.lovable.app/guides/ai-spiritual-companion): How to evaluate sourced teachings and use reflection alongside existing practices.
 - [Beautiful State Meditation](https://askmukthiguru.lovable.app/guides/beautiful-state-meditation): How to enter the Beautiful State.
 - [Serene Mind Practice](https://askmukthiguru.lovable.app/guides/serene-mind-practice): The 3-minute Serene Mind meditation for stress.
 - [Self-Centric Thinking](https://askmukthiguru.lovable.app/guides/self-centric-thinking): Stop overthinking spiritually.

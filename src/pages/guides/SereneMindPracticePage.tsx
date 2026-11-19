@@ -41,7 +41,7 @@ const SereneMindPracticePage = () => {
 
   return (
     <PublicShell title={content.meta.publicShellTitle}>
-      <article className="mx-auto max-w-3xl px-4 py-10 space-y-8 text-foreground/90 leading-relaxed">
+      <article className="mx-auto max-w-3xl px-4 pt-28 pb-10 space-y-8 text-foreground/90 leading-relaxed">
         <header className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-serif font-semibold text-foreground">
             {content.header.title}
@@ -49,6 +49,10 @@ const SereneMindPracticePage = () => {
           <p className="text-muted-foreground">
             {content.header.subtitle}
           </p>
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button asChild><Link to="/practices/serene-mind">{t('guides.aiSpiritualCompanion.cta.practiceButton')}</Link></Button>
+            <Button asChild variant="outline"><Link to="/trust">{t('trust.title')}</Link></Button>
+          </div>
         </header>
 
         <section className="space-y-3">
@@ -119,9 +123,12 @@ const SereneMindPracticePage = () => {
           </dl>
         </section>
 
-        <section className="space-y-3 rounded-lg border border-border/60 bg-card/60 p-6">
+        <section className="space-y-3 border-t border-border pt-6">
           <h2 className="text-xl font-semibold text-foreground">{content.cta.heading}</h2>
           <p>{content.cta.body}</p>
+          <a href="https://www.theonenessmovement.org/products" target="_blank" rel="noopener noreferrer" className="inline-block text-ojas-ink dark:text-ojas underline focus-visible:ring-2 focus-visible:ring-ring">
+            {t('trust.sourcesTitle')} · Oneness Movement
+          </a>
           <div className="flex flex-wrap gap-2 pt-2">
             <Button asChild>
               <Link to="/chat">{content.cta.chatButton}</Link>

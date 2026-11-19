@@ -1,6 +1,11 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 19, 2026 — public discovery without availability promises
+- Reuse existing translated guides instead of duplicating search pages. Link practices and Trust before promoting service-dependent inquiry.
+- A sitemap addition does not establish indexing. Preserve the primary-domain helper and omit lastmod when no page-specific authoritative timestamp exists.
+- Public guide headings need clearance below the floating navigation; inspect first-viewport screenshots, not only overflow and DOM assertions.
+
 ## Nov 18, 2026 — review pass: HyDE confidence contract, eval auth preflight, gate scope, live-tier package
 
 ### L-VENTING-CONFIDENCE-HONORS-HYDE-1. Colloquial suffering venting queries must honor HyDE expansion alignment in calibrated confidence.
