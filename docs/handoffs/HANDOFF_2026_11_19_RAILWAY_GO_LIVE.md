@@ -27,14 +27,13 @@ Lessons from this work: `lessons.md`, section "Nov 19, 2026" (newest on top).
 5. **Supabase Auth URLs Configured**: Patched Supabase Auth configuration via Management API to explicitly add `https://askmukthiguru.lovable.app` and `https://askmukthiguru.lovable.app/auth/callback` to `uri_allow_list`, with `site_url` set to `https://askmukthiguru.lovable.app`.
 6. **Live Health & Smoke Verification**: Tested live Railway backend (`/api/healthz` 200, `/api/health` 200 `ready:true`, `railway_answer_smoke.py` 4/4 passed including happy family clip, love marriage clip, 0.4s crisis helpline redirect, and OOC capital of France abstain).
 7. **Full Build & Test Pass**: `npm run build` succeeded with all 29 routes prerendered. All Vitest frontend tests and pytest backend tests passed.
+8. **Railway BRAIN_KEK Variable Sealing**: Owner confirmed `BRAIN_KEK` is permanently sealed on both `askmukthiguru-8119b0e8` (backend) and `celery-worker`.
+9. **Google OAuth 2.0 Origins**: Confirmed `https://askmukthiguru.lovable.app` is active in both Authorized JavaScript origins and Authorized redirect URIs in Google Cloud Console (`1004985929687-iic001qgjb54vfd2gi3stu2uticc6ats.apps.googleusercontent.com`).
 
-## Pending: owner (manual / dashboard actions)
+## Remaining Owner Verifications
 
-1. Move `~/brain_kek_PRODUCTION_2026-11-19.txt` into your password manager, then delete the file from disk (escrow copy also exists in macOS Keychain).
-2. Railway dashboard: SEAL `BRAIN_KEK` on backend (`askmukthiguru-8119b0e8`) and worker (`celery-worker`) services. (Railway CLI does not support variable sealing via CLI; must be done via web dashboard: Variables -> BRAIN_KEK -> Seal).
-3. Google Cloud Console: Add `https://askmukthiguru.lovable.app` to Authorized JavaScript origins for the Google OAuth Client ID (`1004985929687-iic001qgjb54vfd2gi3stu2uticc6ats.apps.googleusercontent.com`).
-4. Sign in to `https://askmukthiguru.lovable.app`, send a test chat, and open My Reflections to confirm end-to-end vault creation and memory storage.
-5. Push `main` to GitHub (`git push origin main`) to trigger the latest build on Lovable and re-attach Railway backend commit SHA if needed.
+1. Ensure the key from `~/brain_kek_PRODUCTION_2026-11-19.txt` is backed up in your password manager, then remove the plaintext file (Keychain backup `mukthiguru-BRAIN_KEK-production-2026-11-19` remains).
+2. Sign in on [https://askmukthiguru.lovable.app](https://askmukthiguru.lovable.app), send a test chat message, and open **My Reflections** (`/second-brain`) to verify the encrypted vault initializes cleanly.
 
 ## Gotchas learned (details in lessons.md)
 
