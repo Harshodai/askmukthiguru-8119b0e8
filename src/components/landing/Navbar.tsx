@@ -25,6 +25,17 @@ export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { profile } = useProfile();
 
+  const brandMark = (
+    <img
+      src="/images/askmukthiguru-3d-logo.webp"
+      alt=""
+      width={32}
+      height={32}
+      aria-hidden="true"
+      className="h-8 w-8 rounded-full object-cover shadow-[0_2px_10px_rgba(234,179,8,0.28)]"
+    />
+  );
+
   const navLinks = [
     { href: '#gurus', label: t('nav.meetGurus'), icon: Sparkles },
     { href: '#how-it-works', label: t('nav.howItWorks'), icon: HelpCircle },
@@ -74,7 +85,7 @@ export const Navbar = () => {
             <div className="flex items-center justify-between gap-2">
               {/* Logo */}
               <Link to="/" className="flex items-center gap-2 shrink-0 select-none">
-                <span className="text-lg" aria-hidden="true">🙏</span>
+                {brandMark}
                 <span className="text-lg font-bold text-gradient-gold">{t('nav.appName')}</span>
               </Link>
 
@@ -170,7 +181,7 @@ export const Navbar = () => {
                   onClick={() => setIsOpen(false)}
                   className="flex items-center gap-2"
                 >
-                  <span className="text-xl" aria-hidden="true">🙏</span>
+                  {brandMark}
                   <span className="text-lg font-bold text-gradient-gold">{t('nav.appName')}</span>
                 </Link>
                 <button

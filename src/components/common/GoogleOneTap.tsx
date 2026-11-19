@@ -22,6 +22,12 @@ export const GoogleOneTap = () => {
   const justSucceededRef = useRef(false);
 
   useEffect(() => {
+    // Localhost has no configured Google Identity Services account context, so
+    // auto-prompting there only produces noisy FedCM/provider errors. Keep the
+    // optional prompt available on hosted builds without changing auth flows.
+    const isLocalHost = typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocalHost) return;
     if (status !== 'anonymous' || initialized.current) return;
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK;
