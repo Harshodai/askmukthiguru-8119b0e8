@@ -11,7 +11,10 @@
 
 - [x] Review analytics, search visibility, SEO basics, and current homepage/offer pages.
 - [x] Research audience-fit visitor channels and draft a ranked, evidence-based growth plan.
-- [ ] Get owner approval and required external access before marketing or site changes.
+- [x] Owner assigned Chat recovery and custom domain to themselves; scope remaining growth work separately.
+- [ ] Close sitemap gaps and improve existing guide discovery, citation-first positioning, and practice links.
+- [ ] Verify directory submission rules and prepare listing/outreach materials; never spend or send without permission.
+- [ ] Confirm duplicate-site control and affiliation before redirecting or stating endorsement status.
 
 ## Current request — 2026-11-06: full daily loop in existing PR
 
