@@ -104,6 +104,26 @@ _watchdog_started = False
 # to be tuned per-environment.
 _EXECUTOR_CANARY_TIMEOUT_S = 10
 _CELERY_ALLOWED_QUEUES = frozenset({"ingestion", "embedding", "indexing", "okf", "memory"})
+# Cost mode: Railway cron starts a `celery-on-demand` run every 5 minutes. It
+# exits at once when nothing is queued, otherwise runs a worker until the queues
+# stay empty. It also drains `celery`, the default queue that holds unrouted
+# tasks (retention, win-back, cache prune); it is kept out of
+# _CELERY_ALLOWED_QUEUES because ops_gauges.CELERY_QUEUES must match that set.
+_ON_DEMAND_DEFAULT_QUEUES = "ingestion,embedding,indexing,okf,memory"
+_ON_DEMAND_EXTRA_QUEUES = ["celery"]
+_ON_DEMAND_POLL_S = 15
+_ON_DEMAND_IDLE_POLLS = 4  # consecutive empty polls (~1 min) before the worker stops
+# Above task_time_limit (2400 s); stops a stale `unacked` entry holding the worker up.
+_ON_DEMAND_MAX_RUNTIME_S = 4 * 3600
+# What the once-a-day enqueue inside `celery-on-demand` sends: the tasks beat would have scheduled.
+_SCHEDULED_TASKS = (
+    "tasks.cancel_flow_tasks.dispatch_due_win_back_emails",
+    "tasks.layered_memory_tasks.process_batched_memories",
+    "tasks.memory_outbox_tasks.drain_memory_outbox",
+    "tasks.cache_maintenance_tasks.prune_semantic_cache",
+    "tasks.retention_tasks.cleanup_retention_data",
+    "tasks.ingest_tasks.sweep_stale_ingest_jobs",
+)
 
 
 def _parse_celery_queues(value: str) -> list[str]:
@@ -649,6 +669,69 @@ async def app(scope, receive, send):
     await _real_app(scope, receive, send)
 
 
+def celery_backlog(client, queues) -> int:
+    """Queued plus in-flight Celery messages. With task_acks_late=True a running
+    task stays in the Redis `unacked` hash until it finishes."""
+    return sum(int(client.llen(q)) for q in queues) + int(client.hlen("unacked"))
+
+
+def _run_on_demand_worker() -> int:
+    import redis
+
+    from celery_config import CELERY_BROKER_URL
+
+    queues = _parse_celery_queues(
+        os.environ.get("CELERY_QUEUES", _ON_DEMAND_DEFAULT_QUEUES)
+    ) + _ON_DEMAND_EXTRA_QUEUES
+    concurrency = _parse_celery_concurrency(os.environ.get("CELERY_CONCURRENCY", "1"))
+    client = redis.Redis.from_url(CELERY_BROKER_URL)
+    # Once per 24 h (Redis SET NX): send the tasks beat used to schedule, so
+    # no always-on beat service is needed. They land in the queues checked below.
+    if client.set("celery:daily-enqueue", "1", nx=True, ex=86400):
+        _enqueue_scheduled_tasks()
+    if celery_backlog(client, queues) == 0:
+        logger.info("celery-on-demand: no queued work, exiting")
+        return 0
+
+    cmd = [
+        sys.executable, "-m", "celery", "-A", "celery_config", "worker",
+        "-Q", ",".join(queues), f"--concurrency={concurrency}",
+        "--without-gossip", "--without-mingle", "--without-heartbeat", "-l", "info",
+    ]  # fmt: skip
+
+    def _stop_when_drained(child) -> None:
+        idle, started = 0, time.monotonic()
+        while child.poll() is None:
+            time.sleep(_ON_DEMAND_POLL_S)
+            try:
+                idle = idle + 1 if celery_backlog(client, queues) == 0 else 0
+            except redis.RedisError:
+                logger.warning("celery-on-demand: backlog check failed", exc_info=True)
+                idle = 0
+            if idle >= _ON_DEMAND_IDLE_POLLS or time.monotonic() - started > _ON_DEMAND_MAX_RUNTIME_S:
+                logger.info("celery-on-demand: queues drained (or runtime cap hit), stopping")
+                os.kill(os.getpid(), signal.SIGTERM)  # _supervise_celery_child forwards it
+                return
+
+    return _supervise_celery_child(
+        cmd,
+        label="celery-on-demand",
+        grace_s=get_celery_shutdown_grace_s(),
+        on_started=lambda child: threading.Thread(
+            target=_stop_when_drained, args=(child,), daemon=True
+        ).start(),
+    )
+
+
+def _enqueue_scheduled_tasks() -> int:
+    from celery_config import celery_app
+
+    for name in _SCHEDULED_TASKS:
+        celery_app.send_task(name)
+        logger.info("celery-enqueue: sent %s", name)
+    return 0
+
+
 def main() -> None:
     run_preflight_startup_hygiene()
 
@@ -662,6 +745,10 @@ def main() -> None:
                 grace_s=get_celery_shutdown_grace_s(),
             )
         )
+
+    # Railway cron modes (cost): no always-on worker or beat.
+    if os.environ.get("SERVICE_TYPE") == "celery-on-demand":
+        sys.exit(_run_on_demand_worker())
 
     # When SERVICE_TYPE=celery, start the Celery worker instead of the ASGI server.
     if os.environ.get("SERVICE_TYPE") == "celery":
