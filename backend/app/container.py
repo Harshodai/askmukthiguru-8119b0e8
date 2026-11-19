@@ -742,7 +742,19 @@ class ServiceContainer:
                         consent_lookup=_cm_consent,
                         judge_factory=_cm_build_judge,
                     )
-                    _cm_resolver = MemoryResolver(self.supabase_client)
+                    async def _cm_index_row(row: dict) -> None:
+                        await _cm_index.upsert(
+                            user_id=str(row["user_id"]),
+                            memory_id=str(row["id"]),
+                            vector=await _cm_embed(row["statement"]),
+                            memory_type=row["memory_type"],
+                            status=row["status"],
+                            tenant_id=str(row["tenant_id"]),
+                        )
+
+                    _cm_resolver = MemoryResolver(
+                        self.supabase_client, vector_indexer=_cm_index_row
+                    )
 
                 self.canonical_memory_integration = create_chat_integration(
                     context_orchestrator=AdaptiveContextOrchestrator(

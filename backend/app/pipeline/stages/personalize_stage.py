@@ -421,11 +421,13 @@ def _decline(ctx: PipelineContext, reason: str, message: str) -> PipelineResult:
         citations=[],
         faithfulness_score=None,
         hallucination_flag=False,
-        citations_verified=True,
+        # No citations on a decline; True contradicted that and tripped the
+        # F-VERIFY-1 coercion (an ERROR log) on every declined personalize turn.
+        citations_verified=False,
         verification={
             "passed": True,
             "method": decision,
-            "citations_verified": True,
+            "citations_verified": False,
         },
         release_manifest=get_release_manifest().to_dict(),
         route_metadata={

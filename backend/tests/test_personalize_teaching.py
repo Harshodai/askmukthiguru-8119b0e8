@@ -296,7 +296,7 @@ async def test_timestamp_far_from_any_clip_rejected(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_decline_is_distinct_from_first_person_abstain(monkeypatch):
+async def test_decline_is_distinct_from_first_person_abstain(monkeypatch, caplog):
     from app.pipeline.stages import personalize_stage as stage_module
     from app.pipeline.stages.personalize_stage import PersonalizeStage
 
@@ -307,6 +307,11 @@ async def test_decline_is_distinct_from_first_person_abstain(monkeypatch):
     result = await PersonalizeStage().run(ctx)
     assert result is not None
     assert result.route_decision != "first_person_abstain"
+    # A decline carries no citations, so it must not claim they were verified.
+    # PipelineResult coerces the contradiction, but logs an ERROR each time
+    # (live 2026-11-19: on every declined personalize turn).
+    assert result.verification["citations_verified"] is False
+    assert "F-VERIFY-1" not in caplog.text
 
 
 # ---------------------------------------------------------------------------

@@ -607,7 +607,13 @@ def record_token_usage(endpoint: str):
             user_id = user.get("id", "anonymous") if isinstance(user, dict) else "anonymous"
             session_id = chat_body.session_id or "" if chat_body else ""
 
-            get_user_monitor().record(user_id)
+            # All anonymous callers shared one "anonymous" bucket, so 30 separate
+            # visitors in a minute read as one abuse probe. Key them by a hash of
+            # their session token (the monitor logs the key; never the token).
+            monitor_key = user_id
+            if user_id == "anonymous" and session_id:
+                monitor_key = "anon:" + hashlib.sha256(session_id.encode()).hexdigest()[:8]
+            get_user_monitor().record(monitor_key)
 
             accumulator = TokenAccumulator()
             token = token_accumulator_var.set(accumulator)

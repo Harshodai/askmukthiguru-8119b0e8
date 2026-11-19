@@ -27,7 +27,8 @@ interface ChatHeaderProps {
   onResponsePreferencesChange?: (value: ResponsePreferences) => void;
   onResetResponsePreferences?: () => void;
   onOpenMemorySettings?: () => void;
-  memoryActive?: boolean;
+  /** null = consent not loaded yet: show no memory badge rather than "Paused". */
+  memoryActive?: boolean | null;
   onOpenVoiceMode?: () => void;
 }
 
@@ -97,7 +98,7 @@ export const ChatHeader = ({
               <span className="text-sm leading-none" aria-hidden="true">🙏</span>
               <span className="truncate">{t('nav.appName')}</span>
             </span>
-            {isPersonalized && (
+            {isPersonalized && memoryActive !== null && (
               onOpenMemorySettings ? (
                 <button
                   type="button"

@@ -280,7 +280,11 @@ class CanonicalMemoryRetriever:
         # _search_by_fact_key/_search_by_statement already filter
         # status="active" at the query level; this is the equivalent
         # guarantee for the vector-search + hydration path.
-        candidates = {mid: m for mid, m in candidates.items() if m.status != "deleted"}
+        # Only active memories, matching the lexical lane's status="active" filter.
+        # The resolver now vector-indexes every inserted row, and supersede does
+        # not rewrite the vector payload, so a superseded fact ("favourite colour
+        # blue" after "green") would otherwise come back through semantic search.
+        candidates = {mid: m for mid, m in candidates.items() if m.status == "active"}
 
         # 5. Rank by composite score
         now = datetime.now(UTC)
@@ -355,11 +359,14 @@ class CanonicalMemoryRetriever:
             if not terms:
                 return []
 
-            # Search by fact_key (exact match on terms)
-            fact_key_results = await self._search_by_fact_key(user_id, terms, tenant_id)
-
-            # Search by statement ILIKE (substring match)
-            statement_results = await self._search_by_statement(user_id, terms, tenant_id)
+            # fact_key and statement ILIKE lanes run concurrently. Each query is a
+            # network round trip to Supabase; the sequential form (2 lanes x up to
+            # 5 terms) hit the 2 s canonical_memory_timeout on 2 of 3 signed-in
+            # recalls in production (2026-11-19).
+            fact_key_results, statement_results = await asyncio.gather(
+                self._search_by_fact_key(user_id, terms, tenant_id),
+                self._search_by_statement(user_id, terms, tenant_id),
+            )
 
             # Merge and dedup by id, keeping highest lexical_score
             seen: dict[str, dict] = {}
@@ -383,64 +390,50 @@ class CanonicalMemoryRetriever:
         self, user_id: str, terms: list[str], tenant_id: str
     ) -> list[dict[str, Any]]:
         """Search by fact_key containing any of the search terms."""
-        results: list[dict[str, Any]] = []
-        for term in terms:
-            try:
-                # ILIKE pattern: %term%
-                result = await asyncio.to_thread(
-                    lambda term=term: (
-                        self._db.table("canonical_memories")
-                        .select(
-                            "id, fact_key, statement, memory_type, confidence, "
-                            "importance, evidence_count, status, "
-                            "source_conversation_id, created_at, updated_at"
-                        )
-                        .eq("user_id", user_id)
-                        .eq("tenant_id", tenant_id)
-                        .eq("status", "active")
-                        .ilike("fact_key", f"%{term}%")
-                        .limit(LEXICAL_LIMIT)
-                        .execute()
-                    )
-                )
-                rows = result.data if result.data else []
-                for row in rows:
-                    row["lexical_score"] = 0.8  # fact_key match is high confidence
-                    results.append(row)
-            except Exception:
-                continue
-        return results
+        # fact_key match is high confidence
+        return await self._search_by_column(user_id, terms, tenant_id, "fact_key", 0.8)
 
     async def _search_by_statement(
         self, user_id: str, terms: list[str], tenant_id: str
     ) -> list[dict[str, Any]]:
         """Search by statement containing any of the search terms."""
-        results: list[dict[str, Any]] = []
-        for term in terms:
-            try:
-                result = await asyncio.to_thread(
-                    lambda term=term: (
-                        self._db.table("canonical_memories")
-                        .select(
-                            "id, fact_key, statement, memory_type, confidence, "
-                            "importance, evidence_count, status, "
-                            "source_conversation_id, created_at, updated_at"
-                        )
-                        .eq("user_id", user_id)
-                        .eq("tenant_id", tenant_id)
-                        .eq("status", "active")
-                        .ilike("statement", f"%{term}%")
-                        .limit(LEXICAL_LIMIT)
-                        .execute()
-                    )
+        # baseline for statement match
+        return await self._search_by_column(user_id, terms, tenant_id, "statement", 0.5)
+
+    async def _search_by_column(
+        self, user_id: str, terms: list[str], tenant_id: str, column: str, score: float
+    ) -> list[dict[str, Any]]:
+        """ILIKE ``%term%`` on one column, one query per term, run concurrently.
+
+        A failed term query is skipped (the other terms still count), as before.
+        """
+
+        def _query(term: str) -> Any:
+            return (
+                self._db.table("canonical_memories")
+                .select(
+                    "id, fact_key, statement, memory_type, confidence, "
+                    "importance, evidence_count, status, "
+                    "source_conversation_id, created_at, updated_at"
                 )
-                rows = result.data if result.data else []
-                for row in rows:
-                    # Score based on how many terms matched
-                    row["lexical_score"] = 0.5  # baseline for statement match
-                    results.append(row)
-            except Exception:
+                .eq("user_id", user_id)
+                .eq("tenant_id", tenant_id)
+                .eq("status", "active")
+                .ilike(column, f"%{term}%")
+                .limit(LEXICAL_LIMIT)
+                .execute()
+            )
+
+        outcomes = await asyncio.gather(
+            *(asyncio.to_thread(_query, term) for term in terms), return_exceptions=True
+        )
+        results: list[dict[str, Any]] = []
+        for outcome in outcomes:
+            if isinstance(outcome, BaseException):
                 continue
+            for row in outcome.data or []:
+                row["lexical_score"] = score
+                results.append(row)
         return results
 
     def _extract_search_terms(self, query: str) -> list[str]:

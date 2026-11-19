@@ -584,6 +584,16 @@ def _resolve_block_response(category: str, default_message: str, text: str = "")
             if pat.search(text):
                 return resp
 
+    # "I'm addicted to my phone and porn" hit the explicit-content redirect and
+    # lost the addiction support line every other addiction question carries
+    # (live 2026-11-19). Still blocked; the reply now names the support.
+    if category == "explicit" and needs_addiction_support_boundary(text):
+        return (
+            "Thank you for sharing something so honest. I can't discuss explicit content, "
+            "but a compulsion you want to be free of deserves real support. "
+            + addiction_support_boundary()
+        )
+
     template = _BLOCK_RESPONSES.get(category, default_message)
     if "__HELPLINES__" in template:
         try:

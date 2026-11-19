@@ -9,7 +9,7 @@ Lessons from this work: `lessons.md`, section "Nov 19, 2026" (newest on top).
 |---|---|
 | Railway project | `resilient-embrace` `7cbd5f8c-2bb1-4ba8-8de9-8bc36a14e137`, env `production` `e0e120ff-3eca-4a3c-8c4d-7a6b71df7feb` |
 | Backend `askmukthiguru-8119b0e8` | id `18690f24-5e2d-4fdb-95f6-42142111df7e`; healthy (200 OK); live smoke test 4/4 passed |
-| Worker `celery-worker` | id `9ac523d7-4eae-4db5-9b2a-37906634203b`; cron every 5 min, exits when queues are empty; follows `main` |
+| Worker `celery-worker` | id `9ac523d7-4eae-4db5-9b2a-37906634203b`; cron daily `0 0 * * *` (owner change), exits when queues are empty; follows `main`. Canonical memory writes happen inline in the request; the browser `pending_extractions` plane is gated off (`VITE_MEMORY_EXTRACTION_ENABLED`, 0 rows) and would be drained by the Supabase Edge Function `memory-extract-drain`, not this cron; the outbox has 0 rows. So the daily schedule does not delay memories |
 | Qdrant | v1.20.2, 2 GB volume, 11 collections, scoped JWT for the backend (corpus read-only), master key only on worker |
 | Memgraph | memgraph-mage 3.14.0, 2 GB volume, 9,703 nodes / 11,041 edges |
 | Redis | 8.10.3, 1 GB volume, no sleep |
@@ -30,7 +30,24 @@ Lessons from this work: `lessons.md`, section "Nov 19, 2026" (newest on top).
 8. **Railway BRAIN_KEK Variable Sealing**: Owner confirmed `BRAIN_KEK` is permanently sealed on both `askmukthiguru-8119b0e8` (backend) and `celery-worker`.
 9. **Google OAuth 2.0 Origins**: Confirmed `https://askmukthiguru.lovable.app` is active in both Authorized JavaScript origins and Authorized redirect URIs in Google Cloud Console (`1004985929687-iic001qgjb54vfd2gi3stu2uticc6ats.apps.googleusercontent.com`).
 
+## Hardening pass (2026-11-19 afternoon, uncommitted until the owner pushes)
+
+Evidence: 24 h of deploy/http logs for all 5 services, parsed by signature; two live batteries (48 + 47 turns, ~$0.04 OpenRouter total).
+
+Fixed in code (each with a test that fails without it): "according to the teachings" read as an external teacher (`services/guru_registry.py`); chat-extracted memories never vector-indexed, plus sequential lexical recall timing out (`services/canonical_memory/resolver.py`, `retriever.py`, `app/container.py`); nonexistent `get_distress_history` call (`app/orchestrator_utils.py`); personalize decline F-VERIFY ERROR (`personalize_stage.py`); all anonymous users in one usage-monitor bucket (`app/api/chat.py`); porn-addiction question lost the addiction support line (`guardrails/lightweight_handler.py`); ~17 duplicate `GET /api/profile` per page load (`src/lib/profileStorage.ts`); client system prompt sent and dropped on every chat (`src/lib/chat/transport.ts`); "Memory Paused" shown while consent loads (`ChatHeader.tsx`, plus a one-line owner edit in `ChatInterface.tsx:2574`: `memoryActive={memoryConsent}`).
+
+Applied live: migration `20261119084013_pin_function_search_path` (3 functions); Railway vars (take effect at next deploy): `OPENROUTER_DAILY_BUDGET_USD=50`, `OPENROUTER_MONTHLY_BUDGET_USD=500` (backend + worker), `ANON_QUOTA_MESSAGES=50` (backend; abuse tradeoff: anonymous sessions are free to mint, so the per-session quota is not a spend cap; per-IP `CHAT_RATE_LIMIT=20/minute` and the budget guard remain the backstop), `GEMINI_TRANSLATION_ENABLED=false` (the policy already refused Gemini; Sarvam did all translation). Memgraph `sleepApplication=true` (it does not sleep yet: egress to :443, likely Memgraph telemetry).
+
+Measured: ~$0.0007 per chat turn; uncached p50 ~10-12 s, p95 ~14-16 s; crisis helpline 7/7 (English 0.4 s); persona/injection blocked 5/5; Supabase is ap-northeast-1 while Railway is us-west2.
+
+Not fixed (owner decisions, evidence in lessons.md): grief and "And tomorrow?" routed to the crisis reply (semantic sim 0.748 and LLM escalation; gate not loosened); the speaker gate rejects ~41% of candidate spans (`speaker_unverified_or_not_guru`, data); conversational follow-ups ("shorter", "give an example", "the second one") always abstain; "What are the four sacred secrets?" abstains; relevance scorer sometimes returns a miscounted array and the seeker sees "couldn't finish checking" (kept indeterminate by design); admin list fails on a PostgREST embed of `auth.users` (`app/telemetry_db.py:get_admins`); on-device intent encoder never loaded on Railway (keyword DISTRESS defers to the LLM router; crisis pre-emption unaffected).
+
 ## Remaining Owner Verifications
+
+0. Raise the OpenRouter key limit: it is $5 lifetime (`limit_reset: None`), ~$3.39 left on 2026-11-19, not $5/day.
+0. Commit/push the files above, re-attach the backend with `connect-service-source` + `commitSha`, and redeploy the worker so its new variables apply.
+0. Backfill vectors for the 5 existing memories of user `f148995a` (tenant `oneness`). `CanonicalMemoryVectorIndex.repair()` also DELETES orphan vectors (no Postgres row), so it needs an explicit OK; the alternative is to re-save those memories from the Memory screen.
+0. Post-deploy re-run: a Hindi turn (no Gemini ERROR), "What is suffering according to the teachings?" (serves), owner recall after backfill, one `GET /api/profile` per page load, the porn-addiction reply (support line), no "User anonymous exceeded" warning.
 
 1. Ensure the key from `~/brain_kek_PRODUCTION_2026-11-19.txt` is backed up in your password manager, then remove the plaintext file (Keychain backup `mukthiguru-BRAIN_KEK-production-2026-11-19` remains).
 2. Sign in on [https://askmukthiguru.lovable.app](https://askmukthiguru.lovable.app), send a test chat message, and open **My Reflections** (`/second-brain`) to verify the encrypted vault initializes cleanly.

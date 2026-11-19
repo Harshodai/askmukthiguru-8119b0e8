@@ -288,7 +288,19 @@ export const syncProfileToServer = async (profile: UserProfile) => {
  * Also syncs display name / avatar from Supabase auth metadata so OAuth users
  * (Google, etc.) always see their real name even without a backend.
  */
-export const fetchProfileFromServer = async () => {
+let profileFetchInFlight: Promise<UserProfile | null> | null = null;
+
+// Every useProfile() mount calls this on load; with ~10 mounted components the
+// live site sent ~17 identical GET /api/profile requests per page load
+// (2026-11-19). Callers that arrive while a fetch is running share it.
+export const fetchProfileFromServer = (): Promise<UserProfile | null> => {
+  profileFetchInFlight ??= fetchProfileFromServerOnce().finally(() => {
+    profileFetchInFlight = null;
+  });
+  return profileFetchInFlight;
+};
+
+const fetchProfileFromServerOnce = async (): Promise<UserProfile | null> => {
   // ── Step 1: Sync from Supabase auth user_metadata (works without backend) ──
   try {
     const { data: { session } } = await supabase.auth.getSession();

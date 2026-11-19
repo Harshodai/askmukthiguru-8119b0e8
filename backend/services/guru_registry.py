@@ -304,6 +304,21 @@ _CLEAN_PREFIX_RE = re.compile(
     re.I,
 )
 
+# "According to <target> what is X?" has no punctuation after the target, so the
+# lazy capture runs on into the question. Cut it at the first interrogative word.
+_TRAILING_QUESTION_RE = re.compile(r"\s+(?:what|how|why|who|when|where|is|are|does|do)\b.*$", re.I)
+
+# Generic references to the in-domain teachers/teachings, not a named authority.
+# "What is suffering according to the teachings?" used to abstain as an
+# external-teacher inquiry because "teachings" is not a registered guru id.
+_GENERIC_IN_DOMAIN_REFERENTS = frozenset(
+    f"{owner}{noun}"
+    for owner in ("", "your ", "their ", "our ", "these ", "this ")
+    for noun in ("teaching", "teachings", "teacher", "teachers", "guru", "gurus")
+)
+# Pronouns ("according to him") and "masters" stay out: after "What does Osho say
+# about ego?" a follow-up "according to him ..." still names the external teacher.
+
 
 def extract_target_authority(query: str) -> dict[str, Any] | None:
     """Intelligently extract the teacher or authority entity targeted by the query.
@@ -327,6 +342,9 @@ def extract_target_authority(query: str) -> dict[str, Any] | None:
             if not raw_target:
                 continue
             clean_target = _CLEAN_PREFIX_RE.sub("", raw_target).strip()
+            clean_target = _TRAILING_QUESTION_RE.sub("", clean_target).strip()
+            if clean_target.lower() in _GENERIC_IN_DOMAIN_REFERENTS:
+                continue
             if len(clean_target) >= 2:
                 gid = resolve_guru_id(clean_target) or canonical_guru_id(clean_target)
                 if not gid:

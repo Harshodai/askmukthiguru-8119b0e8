@@ -69,8 +69,15 @@ class MemoryResolver:
     worker or task queue).
     """
 
-    def __init__(self, supabase_client: Any):
+    def __init__(self, supabase_client: Any, vector_indexer: Any = None):
+        """``vector_indexer``: optional ``async (row: dict) -> None`` that embeds a
+        newly inserted row and upserts it into the canonical vector index.
+
+        Without it, chat-extracted memories existed only in Postgres and were
+        findable only by ILIKE (live 2026-11-19: 5 of 6 rows had no vector).
+        """
         self._db = supabase_client
+        self._vector_indexer = vector_indexer
 
     # ------------------------------------------------------------------
     # Public API
@@ -578,10 +585,17 @@ class MemoryResolver:
 
         try:
             self._db.table("canonical_memories").insert(row).execute()
-            return new_id
         except Exception as e:
             logger.error("Failed to insert memory: %s", e)
             raise
+        if self._vector_indexer is not None:
+            # The row is committed; a failed index must not turn the write into
+            # an error, but it is logged at ERROR so the gap is visible.
+            try:
+                await self._vector_indexer(row)
+            except Exception as e:
+                logger.error("Canonical memory %s saved but not vector-indexed: %s", new_id, e)
+        return new_id
 
     async def _supersede_memory(
         self,

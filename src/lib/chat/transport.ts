@@ -19,7 +19,7 @@ const REFERENTIAL_WORDS = ['earlier', 'before', 'previously', 'you said', 'you m
   'that practice', 'what about', 'the one', 'first', 'second', 'third'];
 
 const buildRequestBody = (
-  systemPrompt: string | undefined,
+  _systemPrompt: string | undefined,
   messages: MessagePayload[],
   userMessage: string,
   meditationStep: number,
@@ -33,29 +33,10 @@ const buildRequestBody = (
   languageOverride?: string,
   personalizeTeaching?: PersonalizeTeachingRef,
 ) => {
-  const date = new Date();
-  const timeZone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata' : 'Asia/Kolkata';
-  let localTimeStr = '12:00:00';
-  try {
-    localTimeStr = date.toLocaleTimeString('en-US', { timeZone, hour12: false });
-  } catch { /* fallback */ }
-  const localHour = parseInt(localTimeStr.split(':')[0], 10) || 12;
-
-  let timeOfDay = 'night';
-  if (localHour >= 5 && localHour < 12) timeOfDay = 'morning';
-  else if (localHour >= 12 && localHour < 17) timeOfDay = 'afternoon';
-  else if (localHour >= 17 && localHour < 21) timeOfDay = 'evening';
-
-  const slug = (typeof window !== 'undefined' ? window.localStorage.getItem('askmukthi.assistant.slug') : null) || 'general';
-  const greetingWord = slug === 'sadhguru' ? 'Namaskaram' : (timeOfDay === 'morning' ? 'Suprabhat' : timeOfDay === 'evening' ? 'Shubh Sandhya' : 'Namaste');
-
-  const formattedSystemPrompt = `${systemPrompt || ''}\n\nSeeker Environment:\n- Local Time: ${date.toLocaleString('en-US', { timeZone })}\n- Time Zone: ${timeZone}\n- Greeting Word: "${greetingWord}"\n- Rule: When greeting the user, align your opening greeting with the Local Time and Greeting Word. Never use a double "Ji" suffix for "Sri Preethaji" or "Sri Krishnaji" (i.e. do not write "Sri Preethaji Ji" or "Sri Krishnaji Ji", only use "Sri Preethaji" and "Sri Krishnaji").`;
-
   return JSON.stringify({
-    messages: [
-      { role: 'system', content: formattedSystemPrompt },
-      ...messages.slice(-(REFERENTIAL_WORDS.some((w) => userMessage.toLowerCase().includes(w)) ? 40 : 20)),
-    ],
+    // No client system prompt: the backend drops role=system by design (a client
+    // must not steer generation), which logged a WARNING on every chat (2026-11-19).
+    messages: messages.slice(-(REFERENTIAL_WORDS.some((w) => userMessage.toLowerCase().includes(w)) ? 40 : 20)),
     user_message: userMessage,
     ...(summary && !incognito ? { conversation_summary: summary.slice(0, 4000) } : {}),
     meditation_step: meditationStep,

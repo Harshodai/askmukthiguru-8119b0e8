@@ -1,6 +1,43 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 19, 2026 — go-live hardening: live logs + 48-turn battery, root causes
+
+### L-MEMORY-WRITER-MUST-INDEX-1. The only component that writes a row must also index it.
+- **What:** chat-extracted canonical memories were saved (6 rows, 6 CREATED events) but only the REST create path called `_index_memory_vector`; the resolver (the chat writer) never did, so 5 of 6 rows had no vector and were findable only by ILIKE. Lexical recall then ran 2 lanes x up to 5 terms of Supabase queries one after another and hit the 2 s `canonical_memory_timeout` on 2 of 3 signed-in recalls (Supabase is ap-northeast-1, Railway us-west2).
+- **Fix:** `MemoryResolver(vector_indexer=...)` indexes inside `_insert_memory`; lexical queries run concurrently. Pin: `tests/test_canonical_memory_index_and_latency_2026_11_19.py`. Existing rows need `vector_index.repair(user_id, embed_fn)` once.
+
+### L-GENERIC-REFERENT-IS-NOT-EXTERNAL-TEACHER-1. "According to the teachings" names the in-domain teachings, not an outside teacher.
+- **What:** "What is suffering according to the teachings?" abstained ("external teacher/tradition inquiry (teachings)") while "What is suffering?" served. Pattern 3 captured "the teachings"; it is not a registered guru id.
+- **Fix:** a closed set of generic in-domain referents (the/your/these + teaching(s)/teacher(s)/guru(s)) is skipped; the capture is cut at an interrogative. Pronouns stay blocked: "according to him" can refer to Osho in the prior turn. Pin: `tests/test_external_teacher_generic_referents.py`.
+
+### L-RAILWAY-REGION-VS-SUPABASE-1. Every Supabase call from Railway us-west2 crosses the Pacific.
+- **What:** Supabase `ozmjeuqbholoxypfxixb` is in ap-northeast-1 (Tokyo); the backend runs in us-west2. Any code that issues PostgREST calls in sequence multiplies that round trip. Pilot users are in India.
+- **Rule:** batch or parallelize Supabase calls on the request path; moving Railway to an Asia region (with its volumes) is an owner decision.
+
+### L-OPENROUTER-KEY-LIMIT-IS-LIFETIME-1. Check `limit_reset` before calling a key limit "per day".
+- **What:** `GET /api/v1/key` showed `limit: 5`, `limit_reset: None`: a $5 lifetime cap, not $5/day ($3.42 left on 2026-11-19). The app-side ledger is a separate, softer guard. Real cost measured: ~$0.0003-0.0008 per chat turn.
+
+### L-DISPLAY-ONLY-CEILING-1. `daily_cap_full_path_requests=55` is a worst-case display, not a limit.
+- **What:** `app/runtime_budget.py` divides the daily budget by the $0.03 per-call reservation used only when a provider omits `usage.cost`. It enforces nothing; it rises with `OPENROUTER_DAILY_BUDGET_USD`.
+
+### L-SHARED-ANON-BUCKET-1. Per-user monitors must key anonymous callers per session.
+- **What:** `UserUsageMonitor` keyed every anonymous request as "anonymous", so 4 concurrent visitors logged "possible abuse probe". Now keyed by a hash of the session token. Pin: `tests/test_usage_monitor_anon_key_2026_11_19.py`.
+
+### L-BLOCKED-TOPIC-ORDER-DROPS-BOUNDARY-1. A topic matched first must not drop a safety line a later rail would add.
+- **What:** "I'm addicted to my phone and porn" matched `explicit` and got a generic redirect without the addiction support line. Now still blocked, with the line. Pin: `tests/test_explicit_addiction_boundary_2026_11_19.py`.
+
+### L-CRISIS-FALSE-POSITIVES-ARE-SEMANTIC-OR-LLM-1. Report crisis-gate false positives with the layer that fired; do not loosen.
+- **What:** "My father died last month and I can't stop crying" got the crisis reply: the regex said MODERATE, the semantic layer said `CRISIS, sim=0.748`. "And tomorrow?" (after "anxious about the future") got it from "Distress LLM escalation raised level to CRISIS". Opposite gap: "Nothing seems to matter anymore" got the scorer-indeterminate "try again" reply, not the distress path. All three are for owner and clinician review.
+
+### L-SUPERSEDED-VECTOR-RESURFACES-1. Indexing every insert means the retriever must filter on the true status.
+- **What:** supersede does not rewrite the vector payload, and the retriever only hard-excluded `deleted`, so a superseded fact could return through semantic search. The retriever now keeps only `status == "active"`, matching the lexical lane.
+
+### L-SMALL-LOG-ERRORS-1. Three repeated log signatures were real bugs.
+- `get_distress_history` was called but never existed (no table, no method): removed; distress history is empty on every path (owner to decide if it should exist).
+- Personalize declines claimed `citations_verified=True` with no citations: every decline logged an F-VERIFY-1 ERROR.
+- `useProfile()` mounts in ~10 components each fetched `/api/profile`: ~17 identical GETs per page load. Now one shared in-flight request. Pin: `src/test/profileFetchDedupe.test.ts`.
+
 ## Nov 19, 2026 — Railway go-live remediation: i18n parity, non-blocking arrival banner, memory backfill
 
 ### L-I18N-PARITY-DEFENSIVE-DEFAULT-VALUE-1. Never call `t('some.key')` without `{ defaultValue: '...' }` when user-facing auth/navigation depends on it.

@@ -1051,7 +1051,11 @@ async def prepare_user_memory(
                         profile = await container.user_profile.get_or_create_profile(user_id)
                         profile.total_conversations += 1
                         await container.user_profile.update_profile(profile)
-                        distress_history = await container.user_profile.get_distress_history(user_id)
+                        # No distress-history store exists (no table, no
+                        # UserProfileService method), so distress_history stays
+                        # [] here exactly as on the legacy branch below. The old
+                        # get_distress_history() call raised AttributeError on
+                        # every signed-in canonical-memory turn.
                     except Exception as exc:
                         logger.warning("Failed to fetch user profile alongside canonical memory: %s", exc)
                 return _scrub_memory_context(merged), distress_history, profile, canonical_block
