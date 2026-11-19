@@ -142,7 +142,8 @@
     "knowledgeGraphDesc": "Explore teachings as a living map",
     "secondBrainDesc": "Your personal spiritual memory vault",
     "aiMeditationGuide": "AI Meditation Guide",
-    "spiritGuides": "Spirit Guides"
+    "spiritGuides": "Spirit Guides",
+    "newChat": "New chat"
   },
   "landing": {
     "continuePractice": "Continue your practice",
@@ -186,7 +187,8 @@
       "recommendedPractice": "Recommended Sacred Practice",
       "start": "Start",
       "seeHowThisWorks": "See how this works",
-      "tourAria": "See how AskMukthiGuru works in a three-step tour"
+      "tourAria": "See how AskMukthiGuru works in a three-step tour",
+      "tagline": "Bring a question, a difficult moment, or a wish to pause. AskMukthiGuru offers teaching-grounded reflection, a short practice when you want one, and space to return at your pace."
     },
     "howItWorks": {
       "heading1": "Choose your",
@@ -339,7 +341,8 @@
       "viewTerms": "Understand the terms",
       "crisisTitle": "Human help when it matters",
       "crisisDesc": "For acute distress or crisis, use qualified professional and emergency resources—not an AI companion.",
-      "viewHelplines": "Find crisis resources"
+      "viewHelplines": "Find crisis resources",
+      "disclaimer": "This is an AI wisdom portal based on authentic spiritual teachings. It is not a replacement for medical or clinical therapy. If you are experiencing a mental health crisis, please seek professional help."
     }
   },
   "mood": {
@@ -852,7 +855,10 @@
     "askSomethingFirst": "Ask something first.",
     "languagePicker": "Language picker",
     "languagePickerHint": "Use the globe icon below the input.",
-    "quotaResetsIn": "Resets in {{count}} hour(s)."
+    "quotaResetsIn": "Resets in {{count}} hour(s).",
+    "copyMessage": "Copy message",
+    "quotaExceededPlaceholder": "You have reached your message limit for now. Please try again later.",
+    "startSereneMind": "Start Serene Mind"
   },
   "notFound": {
     "message": "Oops! Page not found",
@@ -960,7 +966,9 @@
     "and": " and ",
     "privacyPolicy": "Privacy Policy",
     "troubleSigningIn": "Trouble signing in?",
-    "runDiagnostics": "Run diagnostics"
+    "runDiagnostics": "Run diagnostics",
+    "twoFactorTitle": "Two-Step Verification",
+    "verificationCode": "Verification code"
   },
   "admin": {
     "dashboard": "Dashboard",

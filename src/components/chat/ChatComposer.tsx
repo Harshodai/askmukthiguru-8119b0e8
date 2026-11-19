@@ -283,7 +283,7 @@ function ChatComposerInner({
             onBlur={onBlur}
             placeholder={
               isQuotaExceeded
-                ? t('chat.quotaExceededPlaceholder')
+                ? t('chat.quotaExceededPlaceholder', { defaultValue: 'You have reached your message limit for now. Please try again later.' })
                 : isAwaitingSereneMind
                   ? t('chat.inputPlaceholderSereneMind')
                   : isListening

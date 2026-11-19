@@ -142,7 +142,8 @@
     "knowledgeGraphDesc": "تعلیمات کو ایک زندہ نقشے کے طور پر دریافت کریں",
     "secondBrainDesc": "آپ کا ذاتی روحانی یادداشت خزانہ",
     "aiMeditationGuide": "AI مراقبہ گائیڈ",
-    "spiritGuides": "روحانی رہنما"
+    "spiritGuides": "روحانی رہنما",
+    "newChat": "نئی گفتگو"
   },
   "landing": {
     "continuePractice": "اپنی مشق جاری رکھیں",
@@ -186,7 +187,8 @@
       "recommendedPractice": "تجویز کردہ مقدس مشق",
       "start": "شروع کریں",
       "seeHowThisWorks": "دیکھیں یہ کیسے کام کرتا ہے",
-      "tourAria": "دیکھیں آسک مکتی گرو تین قدمی دورے میں کیسے کام کرتا ہے"
+      "tourAria": "دیکھیں آسک مکتی گرو تین قدمی دورے میں کیسے کام کرتا ہے",
+      "tagline": "ایک سوال، مشکل لمحہ یا ٹھہرنے کی خواہش لائیں۔ آسک مکتی گرو تعلیمات پر مبنی خود شناسی پیش کرتا ہے۔"
     },
     "howItWorks": {
       "heading1": "یہ کیسے",
@@ -334,7 +336,8 @@
       "viewTerms": "شرائط کو سمجھیں",
       "crisisTitle": "جب ضرورت ہو انسانی مدد",
       "crisisDesc": "شدید تکلیف یا بحران میں، اہل پیشہ ور اور ہنگامی وسائل استعمال کریں — AI ساتھی نہیں۔",
-      "viewHelplines": "بحرانی مدد کے وسائل تلاش کریں"
+      "viewHelplines": "بحرانی مدد کے وسائل تلاش کریں",
+      "disclaimer": "یہ مستند روحانی تعلیمات پر مبنی ایک AI علمی پورٹل ہے۔ یہ طبی علاج کا متبادل نہیں ہے۔"
     }
   },
   "mood": {
@@ -847,7 +850,10 @@
       "close": "بند کریں"
     },
     "quotaLeft": "آج {{limit}} میں سے {{remaining}} مفت سوالات باقی ہیں",
-    "quotaResetsIn": "{{count}} گھنٹوں میں ری سیٹ ہو جائے گا۔"
+    "quotaResetsIn": "{{count}} گھنٹوں میں ری سیٹ ہو جائے گا۔",
+    "copyMessage": "پیغام کاپی کریں",
+    "quotaExceededPlaceholder": "آپ اس وقت اپنے پیغامات کی حد تک پہنچ چکے ہیں۔ براہ کرم بعد میں دوبارہ کوشش کریں۔",
+    "startSereneMind": "سرین مائنڈ شروع کریں"
   },
   "notFound": {
     "message": "اوہو! صفحہ نہیں ملا",
@@ -955,7 +961,9 @@
     "and": " اور ",
     "privacyPolicy": "رازداری کی پالیسی",
     "troubleSigningIn": "سائن ان کرنے میں دشواری ہے؟",
-    "runDiagnostics": "تشخیص چلائیں (Run Diagnostics)"
+    "runDiagnostics": "تشخیص چلائیں (Run Diagnostics)",
+    "twoFactorTitle": "دو مرحلہ وار تصدیق",
+    "verificationCode": "تصدیقی کوڈ"
   },
   "admin": {
     "dashboard": "ڈیش بورڈ",
