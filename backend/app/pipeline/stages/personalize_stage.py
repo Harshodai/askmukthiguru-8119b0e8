@@ -276,13 +276,43 @@ def _lookup_servable_clip(ref: dict[str, Any]) -> Optional[dict[str, Any]]:
     if not _YOUTUBE_VIDEO_ID_RE.fullmatch(requested_video_id):
         return None
 
-    # v10-only mode: the legacy slot names the fp-context collection, so there is
-    # no legacy clip store to look a clip up in. Decline without a Qdrant read
-    # rather than rely on the context records lacking `first_person_eligible`.
+    # v12_shadow / unified-collection mode: both slots name the same fp-context
+    # collection (fp-context-v1 schema, no `first_person_eligible` field).
+    # In this posture we go directly to the context-collection lookup which
+    # uses the right filter set (record_type=retrieval_child, speaker_verified,
+    # etc.) — the legacy-slot gate does not apply here.
     if legacy_slot_aliases_context(
         settings.first_person_collection, settings.first_person_context_collection
     ):
-        return None
+        # Unified collection: skip the legacy lookup; use context lookup only.
+        store = _store_for_request()
+        try:
+            col = settings.first_person_context_collection
+            clip = store.get_clip_by_video_and_start_in_collection(
+                collection=col,
+                video_id=requested_video_id,
+                timestamp_seconds=ref["timestamp_seconds"],
+                tolerance_s=PERSONALIZE_CLIP_TOLERANCE_S,
+            )
+        except Exception as exc:
+            logger.warning(
+                "[PersonalizeStage] Unified collection clip lookup failed: %s", exc
+            )
+            raise
+        if not isinstance(clip, dict):
+            return None
+        returned_video_id = clip.get("video_id")
+        if (
+            not isinstance(returned_video_id, str)
+            or not _YOUTUBE_VIDEO_ID_RE.fullmatch(returned_video_id)
+            or canonical_video_id(returned_video_id) != requested_video_id
+        ):
+            logger.warning(
+                "[PersonalizeStage] Unified clip %s has mismatched video identity; declining.",
+                clip.get("point_id"),
+            )
+            return None
+        return clip
 
     store = _store_for_request()
     clip = store.get_clip_by_video_and_start(
