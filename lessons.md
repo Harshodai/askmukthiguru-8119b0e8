@@ -1,6 +1,25 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 19, 2026 — Railway go-live remediation: i18n parity, non-blocking arrival banner, memory backfill
+
+### L-I18N-PARITY-DEFENSIVE-DEFAULT-VALUE-1. Never call `t('some.key')` without `{ defaultValue: '...' }` when user-facing auth/navigation depends on it.
+- **What:** `MFAChallengePage.tsx` called `t('auth.twoFactorTitle')` and `t('auth.verificationCode')` without default values, and the keys were missing from `en.json`. The user saw raw translation keys in the 2FA modal. Additionally, 6 other keys (`chat.copyMessage`, `chat.quotaExceededPlaceholder`, `chat.startSereneMind`, `landing.hero.tagline`, `landing.safety.disclaimer`, `nav.newChat`) were missing in English and all 13 other language locale bundles (`hi`, `te`, `kn`, `ta`, `mr`, `bn`, `gu`, `ml`, `ur`, `pa`, `or`, `as`, `sa`).
+- **Fix:** populated all 8 keys across all 14 language JSON files in `src/locales/`; added `{ defaultValue: '...' }` at component call sites so missing keys never expose raw dotted strings to seekers; verified with `vitest run src/test/i18n-parity.test.ts` (14/14 passed, 0 missing, 0 extra).
+
+### L-AVOID-AUTO-POPUP-MODALS-ON-LANDING-1. An automatic modal timer on page load traps focus, stacks over tours, and hides the chat prompt.
+- **What:** `MoodBanner.tsx` ran `setTimeout(() => setShowModal(true), 1200)` whenever `daily_arrival` was unset. On landing on `/chat`, an opaque 95% full-screen modal (`fixed inset-0 z-50 backdrop-blur-xl`) popped up over the gurus avatar, welcome notice, and chat composer prompt. If returning continue prompts or guided tours were also active, dialogs stacked on top of each other and rendered the composer unreachable.
+- **Fix:** restored the non-blocking inline `MoodBanner` (`showBanner`) with gentle "Check in" and "Not now" actions. The modal opens only when the user explicitly clicks "Check in". The chat prompt and composer remain immediately visible, interactive, and unobstructed upon landing. Pin: `src/test/MoodBanner.journey.test.tsx`.
+
+### L-LEGACY-MEMORY-TENANT-BACKFILL-REPLICA-ROLE-1. Data backfills of pre-consent legacy rows must run under replica role so modern write-triggers do not block migration.
+- **What:** backfilling legacy `tenant_id = 'default'` rows to `'oneness'` in `guru_memories` (18 rows, 3 users, July 2026), `guru_core_memory` (1 row), and `guru_session_summaries` (5 rows) failed with `42501 active memory consent required for user and tenant` because `enforce_memory_consent_before_write` fires on `UPDATE` and checks for modern `memory-v1` consent receipts, which pre-dated users lack.
+- **Fix:** migration `20261119120000_backfill_legacy_memory_tenant_to_oneness.sql` archives historical state to dedicated audit tables first (`guru_*_tenant_backfill_archive_20261119`), runs under `SET LOCAL session_replication_role = 'replica';` inside an atomic transaction, updates `tenant_id = 'oneness'`, verifies 0 remaining `default` rows, and records the version in `supabase_migrations.schema_migrations`.
+
+### L-RAILWAY-QUANTIZED-IMAGE-SKIP-UNNEEDED-MODELS-1. Do not download unquantized PyTorch models when QUANTIZED_ONLY is active.
+- **What:** `backend/scripts/download_models.py` downloaded `sentence-transformers/all-MiniLM-L6-v2` unconditionally outside the `QUANTIZED_ONLY` guard, pulling unnecessary PyTorch weights into the Railway container image even though production runs with the on-device encoder disabled.
+- **Fix:** moved `SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", ...)` inside `if not QUANTIZED_ONLY:`. Railway builds (which set `QUANTIZED_ONLY=true`) skip this download, shrinking build time and image size.
+
+
 ## Nov 19, 2026 — Reflections outage: BRAIN_KEK was overwritten, plus two silent production bugs
 
 ### L-BRAIN-KEK-NEVER-OVERWRITE-1. Never overwrite a production secret that already protects stored data, and never reuse a dev key as the production key.
@@ -93,6 +112,12 @@
 - **What:** same 10 in-domain questions, live: `deepseek-chat` at min score 3 served 6; `anthropic/claude-haiku-5.5` at min 3 served 1; haiku at min 2 served 7, and the served clips read as on-topic. Abstains logged `Relevance check parsed scores: [1] (minimum=3)` and `Harness answer rejected … min_score_scorer`, i.e. the gate working as designed, not a fault. `deepseek-chat` was only in `.env`; the recorded owner-approved scorer is haiku.
 - **Decision applied on Railway:** haiku, min score 2 (owner-pinned value is 3: revert with `FIRST_PERSON_RELEVANCE_MIN_SCORE=3`). The on-device encoder was not the cause of the abstains (A/B with it on and off behaved the same); it stays off.
 - **Tool:** `scratchpad/coverage_check.py` pattern: fixed questions, anon session, poll the job, count `first_person_bridge` with a citation.
+
+### L-NEVER-OVERWRITE-A-KEY-THAT-WRAPS-STORED-DATA-1. Copying `.env` over an existing production secret can orphan data encrypted under the old value.
+- **What:** the first variable apply overwrote the Railway service's existing `BRAIN_KEK` with the local `.env` value (and the old one was never recorded). `BRAIN_KEK` wraps every Mode-A vault DEK, so any key row written under the old value fails with `VaultIntegrityError: DEK unwrap failed — wrong KEK or tampered blob`. In the user's live session `POST /api/brain/vault` returned 200 and `GET /api/brain/items` then returned 500 seven times ("Reflections request failed (—)"); the CORS preflight for it passed (200), so this was a server error, not CORS. At the time of the check `user_brain_keys` held 0 rows, so no data was lost, but the cause of the failing unwrap is not fully explained.
+- **Also found in the same session by a parallel agent:** `UserProfile(**row)` raised `TypeError` on every chat because production's `user_profiles` has an extra `tenant_id` column, so each chat silently used an empty profile (fixed in `user_profile_service`).
+- **Rule:** list the target's existing variables first and treat any key/KEK/HMAC/JWT secret that already exists there as read-only; record the old value (or its hash) before changing one; rotate through the documented `BRAIN_KEK_NEXT` path. Ask which environment a secret belongs to before copying it.
+- **Rule:** do not redeploy a service a person is actively testing; the A/B redeploys produced 503s on the user's live `/api/chat` and `/api/profile` calls.
 
 ### L-LOVABLE-PUBLISHES-FROM-GITHUB-1. The Lovable site is built from GitHub `main`; verify what it ships from the bundle, not from guesses.
 - **What:** the served HTML carries `data-commit-sha` equal to the latest pushed commit, so a push publishes. `VITE_BACKEND_URL` from `.env.production` is baked into the bundle (`backendUrl` chunk), and the host allow-list does not need `askmukthiguru.lovable.app`. `curl` the page, read the `<script src>` and grep the chunks (Railway URL, `*.supabase.co` project ref, publishable key prefix). The Lovable MCP could not see the project, and the browser-extension profile was signed out (redirected to `/auth`), so signed-in behavior cannot be reproduced from here.
