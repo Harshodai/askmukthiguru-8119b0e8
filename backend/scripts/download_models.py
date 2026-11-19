@@ -95,14 +95,13 @@ if not QUANTIZED_ONLY:
     )
     print("mmarco-mMiniLMv2-L12 (reranker_model_cpu fallback) cache populated")
 
-# 4. SemanticRouter / on-device intent classifier
-SentenceTransformer(
-    "sentence-transformers/all-MiniLM-L6-v2",
-    revision=_pin("sentence-transformers/all-MiniLM-L6-v2"),
-)
-print("all-MiniLM-L6-v2 cache populated")
+    # 4. SemanticRouter / on-device intent classifier (skipped when QUANTIZED_ONLY=true)
+    SentenceTransformer(
+        "sentence-transformers/all-MiniLM-L6-v2",
+        revision=_pin("sentence-transformers/all-MiniLM-L6-v2"),
+    )
+    print("all-MiniLM-L6-v2 cache populated")
 
-if not QUANTIZED_ONLY:
     # 5. Llama Guard / Rejection classifier (optional, skip on failure)
     try:
         from transformers import AutoModelForCausalLM, AutoTokenizer  # noqa: E402
