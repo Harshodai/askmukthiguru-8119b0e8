@@ -241,8 +241,33 @@ def test_fragment_with_adjacent_antecedent_is_servable():
     assert decision.gates["completeness"] is True
 
 
-def test_uncertain_span_abstains_even_when_fragment_antecedent_relaxation_is_enabled():
-    harness = FirstPersonContextHarness(HarnessPolicy(allow_fragment_with_antecedent=True))
+def test_uncertain_span_serves_as_weak_match_when_allow_uncertain_completeness_true():
+    """Uncertain completeness (not FRAGMENT) → SERVE_RELATED_NOT_DIRECT, not ABSTAIN.
+
+    This is the 2026-11-19 fix: imprecise boundary classification at ingest time
+    should not permanently block a genuine teaching. Clips tagged UNCERTAIN are
+    real teachings whose segment boundary was ambiguous — they serve as weak_match.
+    Future-proof: any video ingested with uncertain classification also surfaces.
+    """
+    harness = FirstPersonContextHarness(
+        HarnessPolicy(allow_fragment_with_antecedent=True, allow_uncertain_completeness=True)
+    )
+    uncertain = span(completeness_status=CompletenessStatus.UNCERTAIN)
+
+    decision = harness.decide(context([uncertain]), answerability="yes")
+
+    assert decision.decision is HarnessDecision.SERVE_RELATED_NOT_DIRECT, (
+        "Uncertain completeness must route as weak_match, not abstain"
+    )
+    assert decision.abstain_reason == "completeness_uncertain"
+    assert decision.gates["completeness"] is False  # never direct
+
+
+def test_uncertain_span_abstains_when_allow_uncertain_completeness_false():
+    """When policy opt-out, uncertain clips still hard-abstain (backward compat)."""
+    harness = FirstPersonContextHarness(
+        HarnessPolicy(allow_fragment_with_antecedent=True, allow_uncertain_completeness=False)
+    )
     uncertain = span(completeness_status=CompletenessStatus.UNCERTAIN)
 
     decision = harness.decide(context([uncertain]), answerability="yes")
@@ -252,8 +277,27 @@ def test_uncertain_span_abstains_even_when_fragment_antecedent_relaxation_is_ena
     assert decision.gates["completeness"] is False
 
 
-def test_uncertain_parent_unit_abstains_even_when_children_are_complete():
-    harness = FirstPersonContextHarness(HarnessPolicy(allow_fragment_with_antecedent=True))
+def test_uncertain_parent_unit_serves_as_weak_match_when_allow_uncertain_completeness_true():
+    """Uncertain parent_status (even with COMPLETE children) → weak_match, not abstain."""
+    harness = FirstPersonContextHarness(
+        HarnessPolicy(allow_fragment_with_antecedent=True, allow_uncertain_completeness=True)
+    )
+
+    decision = harness.decide(
+        context([span()], completeness_status=CompletenessStatus.UNCERTAIN),
+        answerability="yes",
+    )
+
+    assert decision.decision is HarnessDecision.SERVE_RELATED_NOT_DIRECT
+    assert decision.abstain_reason == "completeness_uncertain"
+    assert decision.gates["completeness"] is False
+
+
+def test_uncertain_parent_abstains_when_allow_uncertain_completeness_false():
+    """Policy opt-out keeps old hard-abstain for uncertain parent."""
+    harness = FirstPersonContextHarness(
+        HarnessPolicy(allow_fragment_with_antecedent=True, allow_uncertain_completeness=False)
+    )
 
     decision = harness.decide(
         context([span()], completeness_status=CompletenessStatus.UNCERTAIN),

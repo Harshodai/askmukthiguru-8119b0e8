@@ -508,6 +508,14 @@ class Settings(BaseSettings):
     # Note: this flag only takes effect when first_person_primary_mode is True; if
     # primary_mode is False, weak matches are never served regardless of this setting.
     first_person_serve_weak_match: bool = True
+    # 2026-11-19: Uncertain completeness classification → weak_match serving (not hard abstain).
+    # Spans with completeness_status=UNCERTAIN are genuine teachings whose boundary was
+    # ambiguous at ingest time — not structurally incomplete clips. The harness now routes
+    # them as SERVE_RELATED_NOT_DIRECT (weak_match) instead of abstaining.
+    # Mirrors boundary_uncertain → _related() pattern. Future-proof: any newly ingested
+    # video tagged "uncertain" by the boundary detector also surfaces via weak_match.
+    # Toggle off via FIRST_PERSON_ALLOW_UNCERTAIN_COMPLETENESS=false if needed.
+    first_person_allow_uncertain_completeness: bool = True
     # Owner decision 2026-10-19 (measured defect, additively fixed): MODERATE distress no
     # longer suppresses the clip. `assess_distress()` rates 15 of 150 benign on-topic
     # questions MODERATE on a SINGLE emotion keyword ("fear", "anxiety", "broken", "angry",

@@ -56,6 +56,7 @@ _ALLOWED_ABSTAIN_REASONS = frozenset(
         "fragment_without_antecedent",
         "antecedent_missing",
         "boundary_uncertain",
+        "completeness_uncertain",  # uncertain classification → weak_match, tracked here
         "answerability_no",
         "citation_alignment_failed",
         "reconstruction_failed",
@@ -278,6 +279,12 @@ class HarnessPolicy:
     require_voice_method: bool = False
     require_same_parent: bool = True
     allow_fragment_with_antecedent: bool = True
+    # When True (default), spans whose completeness_status is UNCERTAIN (not
+    # FRAGMENT) are served as SERVE_RELATED_NOT_DIRECT rather than abstained.
+    # Mirrors boundary_uncertain → _related() pattern. Future-proof: any video
+    # ingested with uncertain boundary classification still surfaces as a
+    # weak_match teaching. Toggle off via FIRST_PERSON_ALLOW_UNCERTAIN_COMPLETENESS=false.
+    allow_uncertain_completeness: bool = True
     min_context_sufficiency: str = "sufficient"
     labels_enabled: bool = True
     extra: dict[str, str] = field(default_factory=dict)
@@ -301,6 +308,10 @@ def policy_from_settings() -> HarnessPolicy:
     return HarnessPolicy(
         max_context_spans=max(1, int(settings.first_person_context_max_spans)),
         require_voice_method=getattr(settings, "first_person_require_voice_method", False) is True,
+        allow_uncertain_completeness=getattr(
+            settings, "first_person_allow_uncertain_completeness", True
+        )
+        is not False,  # env False/0/"false" disables; anything truthy (default) keeps on
     )
 
 
@@ -396,6 +407,29 @@ class FirstPersonContextHarness:
         return all(
             s.previous_span_id is not None and s.previous_span_id in present_ids for s in fragments
         )
+
+    @staticmethod
+    def _spans_are_uncertain_completeness(
+        spans: tuple[SourceSpan, ...],
+        parent_status: CompletenessStatus | None = None,
+    ) -> bool:
+        """Return True when the ONLY reason _completeness_gate failed is UNCERTAIN
+        classification — not a true structural fragment needing a predecessor.
+
+        Uncertain completeness means the ingestion boundary-detector could not
+        confidently decide where this teaching segment starts/ends, NOT that the
+        clip is mid-sentence or missing context. These clips are genuine teachings
+        and must surface as weak_match (SERVE_RELATED_NOT_DIRECT) so seekers can
+        still benefit. This is future-proof: any video ingested with uncertain
+        boundary classifications will also serve via weak_match without code changes.
+        """
+        has_uncertain = parent_status is CompletenessStatus.UNCERTAIN or any(
+            s.completeness_status is CompletenessStatus.UNCERTAIN for s in spans
+        )
+        has_true_fragment = any(
+            s.completeness_status is CompletenessStatus.FRAGMENT for s in spans
+        )
+        return has_uncertain and not has_true_fragment
 
     @staticmethod
     def _boundary_gate(spans: tuple[SourceSpan, ...]) -> bool:
@@ -876,6 +910,33 @@ class FirstPersonContextHarness:
         )
         state = enter(HarnessState.COMPLETENESS_GATE)
         if not gates["completeness"]:
+            # Distinguish UNCERTAIN (imprecise boundary classification → still a real
+            # teaching) from true FRAGMENT (structurally incomplete, needs predecessor).
+            # Uncertain clips follow the same pattern as boundary_uncertain: serve as
+            # SERVE_RELATED_NOT_DIRECT (weak_match) so the seeker still gets value.
+            # True fragments without their antecedent present always hard-abstain.
+            # This is future-proof: any newly ingested video tagged "uncertain" by the
+            # boundary detector also surfaces via weak_match without further code changes.
+            if self._policy.allow_uncertain_completeness and self._spans_are_uncertain_completeness(
+                spans, parent_status=context.parent.completeness_status
+            ):
+                # Let through — will be served as weak_match by _related() below.
+                # The coreference + boundary + answerability gates still run, so safety
+                # is not weakened. Mark completeness as "serving uncertain" in gates.
+                gates["completeness"] = False  # keep False so is_direct stays False
+                logger.info(
+                    "[FPContextHarness] completeness=uncertain → routing as weak_match (allow_uncertain_completeness=True)"
+                )
+                # Skip directly to _related path mirroring boundary_uncertain treatment.
+                return self._related(
+                    context,
+                    "completeness_uncertain",
+                    gates,
+                    (),
+                    spans=spans,
+                    state=state,
+                    state_path=tuple(states),
+                )
             return self._abstain(
                 context,
                 "fragment_without_antecedent",
