@@ -5,7 +5,13 @@
 - [x] Streamline the post-send conversation layout while keeping disclosure, safety, stop, queue, and retry controls available.
 - [x] Improve long-draft composer and long-message wrapping/readability across phone, tablet, and desktop.
 - [x] Add restrained send/loading motion that respects reduced-motion settings.
-- [ ] Run focused chat regressions and browser checks; report any service-dependent limitations separately.
+- [x] Run focused chat regressions and browser checks; report any service-dependent limitations separately.
+
+## Current request — 2026-11-19: grow visitors
+
+- [x] Review analytics, search visibility, SEO basics, and current homepage/offer pages.
+- [x] Research audience-fit visitor channels and draft a ranked, evidence-based growth plan.
+- [ ] Get owner approval and required external access before marketing or site changes.
 
 ## Current request — 2026-11-06: full daily loop in existing PR
 
