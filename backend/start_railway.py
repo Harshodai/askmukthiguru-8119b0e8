@@ -103,6 +103,9 @@ _watchdog_started = False
 # real app's settings fail to load. Promote to a setting if this ever needs
 # to be tuned per-environment.
 _EXECUTOR_CANARY_TIMEOUT_S = 10
+# How long a request that arrives before the real app is loaded waits for it (cold start
+# after Railway sleep) before getting a 503. Boot takes ~25 s; keep it under Railway's edge timeout.
+_COLD_START_WAIT_S = 45.0
 _CELERY_ALLOWED_QUEUES = frozenset({"ingestion", "embedding", "indexing", "okf", "memory"})
 # Cost mode: Railway cron starts a `celery-on-demand` run every 5 minutes. It
 # exits at once when nothing is queued, otherwise runs a worker until the queues
@@ -662,6 +665,13 @@ async def app(scope, receive, send):
             await _send_http(send, 503, _NOT_READY_HEADERS, _NOT_READY_BODY)
         return
 
+    if _real_app is None:
+        # Cold start: Railway wakes a sleeping service on the first request. Hold it
+        # until the real app is loaded (~25 s) instead of answering 503, which carries
+        # no CORS headers and so shows up in the browser as an opaque "failed (—)".
+        deadline = time.monotonic() + _COLD_START_WAIT_S
+        while _real_app is None and not _lifespan_failed and time.monotonic() < deadline:
+            await asyncio.sleep(0.25)
     if _real_app is None:
         await _send_http(send, 503, _NOT_READY_HEADERS, _NOT_READY_BODY)
         return

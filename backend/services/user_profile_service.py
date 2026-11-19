@@ -4,7 +4,7 @@ import logging
 import re
 import time
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from enum import Enum
 from typing import Optional
 
@@ -90,6 +90,12 @@ class UserProfile:
             self.favorite_teachings = []
 
 
+# Columns the dataclass accepts. The user_profiles table has gained columns the
+# dataclass does not model (tenant_id), and UserProfile(**row) raised TypeError on
+# every fetch, so each chat silently fell back to an empty default profile.
+_PROFILE_FIELDS = frozenset(f.name for f in fields(UserProfile))
+
+
 @dataclass
 class ConversationMemory:
     session_id: str
@@ -131,7 +137,7 @@ class UserProfileService:
                     self._supabase.table("user_profiles").select("*").eq("user_id", user_id).execute
                 )
                 if result.data:
-                    data = result.data[0]
+                    data = {k: v for k, v in result.data[0].items() if k in _PROFILE_FIELDS}
                     # Convert string values to Enums if necessary
                     if isinstance(data.get("preferred_language"), str):
                         data["preferred_language"] = LanguagePreference(data["preferred_language"])

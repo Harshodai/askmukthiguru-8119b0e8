@@ -1171,6 +1171,10 @@ if settings.is_production:
         "X-Correlation-Id",
         "Idempotency-Key",
         "X-Faculty-Code",
+        # Sent by the SPA (src/lib/secondBrainApi.ts, src/admin/lib/api.ts). A header
+        # missing here fails the browser preflight, which the UI reports as "failed (—)".
+        "X-Brain-Unlock",
+        "X-CSRF-Token",
     ]
 else:
     cors_origins_exact = [o for o in cors_origins if "*" not in o]
@@ -1183,6 +1187,8 @@ else:
         "Idempotency-Key",
         "X-Test-Key",
         "X-Faculty-Code",
+        "X-Brain-Unlock",
+        "X-CSRF-Token",
     ]
 
 # Faculty preview gate (off unless FACULTY_ACCESS_CODE is set). Added BEFORE
