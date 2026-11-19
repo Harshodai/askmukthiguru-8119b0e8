@@ -1,5 +1,13 @@
 # Active UI and backend reliability roadmap
 
+## Current request — 2026-11-19: guide launch subscriptions and structured data
+
+- [ ] Add accessible, consent-based guide email signup with secure persistent storage and protected owner access.
+- [ ] Verify and strengthen existing Article/FAQ data on spiritual-companion and Serene Mind guides.
+- [ ] Verify real signup storage, error recovery, access isolation, and guide navigation across devices.
+- [ ] Reconcile referenced marketing documents into a current execution-status report; identify account/permission/publication blockers.
+- [ ] Owner notifications and update sending — blocked by unconfigured verified email domain and campaign unsubscribe setup.
+
 ## Current request — Chat send and long-message UX
 
 - [x] Streamline the post-send conversation layout while keeping disclosure, safety, stop, queue, and retry controls available.
