@@ -32,7 +32,9 @@ RUN uv pip install --no-cache --index-url https://download.pytorch.org/whl/cpu t
 
 # Install all locked dependencies
 COPY backend/requirements.lock ./requirements.lock
-RUN uv pip install --no-cache --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.lock
+# unsafe-best-match: uv's default first-index strategy stops at the PyTorch index for
+# packages it also hosts (certifi) and never checks PyPI for the pinned version.
+RUN uv pip install --no-cache --index-strategy unsafe-best-match --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.lock
 
 # Pre-cache runtime models (ONNX INT8 quantized models + tokenizers only)
 ENV HF_HOME=/build/model_cache/huggingface \
