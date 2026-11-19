@@ -60,4 +60,12 @@ describe('MoodBanner daily journey', () => {
     act(() => { completeStep('teaching'); completeStep('practice'); completeStep('reflection'); });
     expect(screen.queryByTestId('journey-resume')).toBeNull();
   });
+
+  it('renders check-in banner when not checked in and not snoozed, and allows snoozing', () => {
+    localStorage.clear();
+    renderBanner();
+    expect(screen.getByRole('region', { name: /How are you arriving today\?/i })).toBeDefined();
+    fireEvent.click(screen.getByTitle(/Not now/i));
+    expect(screen.queryByRole('region', { name: /How are you arriving today\?/i })).toBeNull();
+  });
 });

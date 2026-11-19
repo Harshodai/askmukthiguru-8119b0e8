@@ -31,9 +31,11 @@ export const MoodBanner = ({ isLandingMode = true }: MoodBannerProps) => {
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
     const checkedInToday = localStorage.getItem(`askmukthiguru_daily_arrival_${today}`);
-    if (!checkedInToday) {
-      const timer = setTimeout(() => setShowModal(true), 1200);
-      return () => clearTimeout(timer);
+    const snooze = parseInt(localStorage.getItem(SNOOZE_KEY) ?? '0', 10) || 0;
+    const lastMood = parseInt(localStorage.getItem('askmukthiguru_last_mood_checkin') ?? '0', 10) || 0;
+    const now = Date.now();
+    if (!checkedInToday && now - snooze > SNOOZE_MS && now - lastMood > RECENT_MS) {
+      setShowBanner(true);
     }
   }, []);
 
