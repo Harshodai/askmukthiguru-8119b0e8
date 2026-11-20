@@ -1,0 +1,18 @@
+== baseline_flags_off
+simple   served 18/22 raw (82%); excl. safety 18/21 (86%)
+complex  served 14/15 raw (93%); excl. safety 14/14 (100%)
+multi    served 24/38 raw (63%); excl. safety 24/32 (75%)
+try-again replies: 0
+latency fp turns n=67 p50=9.1s p95=15.2s
+== armA_flags_off_INVALID_cpu_contention
+simple   served 12/22 raw (55%); excl. safety 12/21 (57%)
+complex  served 11/15 raw (73%); excl. safety 11/14 (79%)
+multi    served 11/38 raw (29%); excl. safety 11/32 (34%)
+try-again replies: 16
+latency fp turns n=67 p50=19.8s p95=72.8s
+== armB_all_flags_on
+simple   served 19/22 raw (86%); excl. safety 19/21 (90%)
+complex  served 9/15 raw (60%); excl. safety 9/14 (64%)
+multi    served 17/38 raw (45%); excl. safety 17/32 (53%)
+try-again replies: 3
+latency fp turns n=67 p50=6.1s p95=12.2s

@@ -1,6 +1,78 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 20, 2026 — quality loop close-out (lead review of the whole tree)
+
+### L-WIDENING-AN-EXEMPTION-IS-LOOSENING-1. Adding words to a safety exemption loosens the gate, even inside a "hardening" change.
+- **What:** to block the grief clip "If you're thinking of dying because you have lost a loved one", one change widened the clip detector `SELF_HARM_RE` (correct, that alone fixed it) and also added "thinking of dying" / "want to die" to `_MENTAL_HEALTH_QUERY_RE`. That regex is the educational exemption: the second edit made the self-harm clip servable to "I want to die, I miss him", exactly the seeker it must never reach if the crisis lane misses.
+- **Rule:** a fix to a block list touches the detector, never the exemption. Widening an exemption is a clinician decision. Pin: the ideation rows in `tests/test_first_person_hardening_2026_11_20.py::test_grief_queries_block_unsolicited_suicide_dying_clip`.
+
+### L-UNMEASURED-PROMPT-EDIT-1. A scorer-prompt edit made after the measured runs is an unmeasured config.
+- **What:** the relevance rubric went v4 -> v5 (extra "thinking of dying must score 0" text) after every arm had run, together with an unflagged serve-time LLM check whose `"SAFE" in reply` also matched "UNSAFE". The rubric edit alone broke 6 prefetch golden tests (+90 tokens). Both were reverted; the deterministic detector covers the case.
+- **Rule:** no prompt or gate edit lands after a measurement without a new registered run; a new serve-time LLM call needs a default-off flag, the configured model, and an exact-token verdict parse.
+
+### L-JUDGE-THE-ARM-YOU-SHIP-1. A winner on the local posture is not a winner on the production posture.
+- **What:** flag bundle R beat OFF on the local deepseek posture (9 better / 3 worse) and the notes recommended turning it on. The PROD arms had never been judged. Judged blind (115 new pairs): PROD RIGHT/answer 0.20 tune / 0.30 holdout, PROD+R 0.19 / 0.20, paired 9-9 and 8-7. No benefit, so the flags stay off.
+- **Rule:** judge the exact production arm before any recommendation; an unjudged arm reports serve rate only.
+
+### L-APPLIED-MIGRATION-IS-IMMUTABLE-1. Never append to a migration that already ran in production.
+- **What:** `DROP TABLE IF EXISTS public.user_brain_keys_archive_20261119` was appended to `20261119135236_drop_memory_backfill_archives.sql` a day after it was applied. Prod still has the table (likely the wrapped vault-key backup); any replay would have dropped it with no owner OK. The line was removed; dropping it is an owner decision in a new migration.
+
+### L-SHARED-TASK-NEEDS-INCLUDE-1. A `@shared_task` in a module the worker never imports is unregistered.
+- **What:** `tasks.web_ingest_tasks` was missing from `celery_app` `include`, so admin URL ingest enqueued a task the worker rejects. Pin: `tests/test_celery_task_modules_registered_2026_11_20.py` scans `tasks/` for task decorators.
+
+## Nov 19, 2026 (late evening) — E7 never-again guard lessons
+
+### L-CORS-SCAN-MULTILINE-1. A CORS header scanner must handle multi-line, lowercase, and `.set(...)` spellings.
+- **What:** the first `check_cors_headers.py` only matched `"Content-Type"` on a single line with the exact casing used in one file. It missed `headers: { ... }` blocks that span multiple lines, lowercase header names (`"content-type"`), and `.set("Content-Type", ...)` / `.append("Content-Type", ...)` call forms. An independent reviewer rewrote it with multi-line block scanning and a mutation test.
+- **Rule:** when scanning a CORS allow-list, collapse multi-line `headers: { ... }` blocks before extracting keys; normalise to lowercase before comparing; cover `.set(...)` and `.append(...)` as well as object-literal spellings. Add a mutation test that injects a header the scanner must not miss.
+- **Note:** `Add-Padding` is an HIBP third-party header served from Cloudflare, not the app. Its absence from the allow-list is correct.
+
+### L-ENV-INLINE-COMMENT-STRIPPING-1. An `.env` parser must strip inline comments before passing values to the validator.
+- **What:** `validate_production_env.py` read `REDIS_URL=redis://host:6379 # comment` and passed the full value including ` # comment` to the host-pattern check, which then raised a spurious error because `" # comment"` is not a valid host.
+- **Rule:** strip inline comments (`#` preceded by whitespace) from env values before validation; treat quoted values as opaque. Add a test that covers the stripped-comment case.
+
+### L-SCHEME-LESS-HOST-MUST-ALSO-BE-CHECKED-1. Dev-host detection must cover scheme-less variables like `*_HOST`.
+- **What:** `validate_production_env.py` checked `SUPABASE_URL` and `REDIS_URL` but not `MEMGRAPH_HOST`, `QDRANT_HOST`, etc. A service that accepts a bare hostname (no scheme) would let `localhost` through unchecked.
+- **Rule:** extend the dev-host check to every `*_HOST` variable whose value starts with `localhost`, `127.`, `host.docker.internal`, or matches any other local-only pattern.
+
+### L-RUNBOOK-IS-A-GATE-NOT-A-GUIDE-1. A post-deploy runbook is a hard gate, not advisory prose.
+- **What:** earlier deploys had a "Verification" section that described one curl. The 2026-11-19 battery found that four classes of failure (bad CORS, open /docs, crisis clip, error-as-refusal) all passed the original smoke test.
+- **Rule:** a runbook gate must be executable as a script and machine-verifiable. The post-deploy smoke battery (`live_smoke_battery.py`) exits 1 on the first failing check; CI or the engineer runs it and must not proceed on a non-zero exit.
+
+## Nov 19, 2026 (evening) — serve-rate loop, owner-commit recheck, never-again guards
+
+### L-FLAG-NEEDS-A-REAL-PATH-TEST-1. A flag that reroutes a code path needs one test that runs the real path with the flag on.
+- **What:** the answerability prefetch branch set `ans_verdict` but not `ans_str`. Every helper test passed; the first live battery with the flag on raised `UnboundLocalError` on all 52 harness turns and abstained them all.
+- **Rule:** replay the existing goldens with the flag on (`test_prefetch_replays_every_harness_golden`) plus one bridge test over the real pipeline (`test_bridge_with_real_pipeline_serves_with_every_flag`).
+
+### L-RELAX-ONLY-AFTER-EVERY-GATE-1. A "serve as related" relaxation must come after every later gate, never as an early return.
+- **What:** fb404456 returned `_related()` from the completeness gate for UNCERTAIN spans. That skipped contextual safety, the answerability NO veto, coreference, question-only and reconstruction. `boundary_uncertain`, the pattern it cited, runs after them. 9f2451ca had the same shape: the unified personalize branch returned early and skipped the quality lists, the integrity gate and the citation check.
+- **Fix:** keep a flag, run every gate, relax at the end. Pins: `tests/test_uncertain_completeness_keeps_gates_2026_11_19.py`, `tests/test_personalize_unified_keeps_gates_2026_11_19.py` (both fail on HEAD).
+
+### L-A-FIELD-THE-SCHEMA-LACKS-IS-NOT-A-GATE-1. Verify that a gate's field exists in the target schema before reusing the gate.
+- **What:** `_passes_integrity_gate` requires `first_person_eligible`. A read-only count found it on 0 of the v12 children, so reusing the gate declined every unified personalize clip. The store lookup had also let a child with no text hash through.
+- **Fix:** the context lookup now requires a text hash, and marks children that passed its own fp-context eligibility checks as eligible.
+
+### L-PROMPT-EXAMPLE-DIGITS-ANCHOR-SCORES-1. Changing an example in a scoring prompt changes the scores.
+- **What:** the first exact-N prompt replaced the 1-clip example "3" with "2". Simple serve fell from 18 to 16 of 22 in that run (single run, noisy).
+- **Rule:** keep the rubric and its examples byte-identical, and append only the constraint (count) or move it into a schema. Fingerprint the change.
+
+### L-INLINE-DEFAULT-IS-NEVER-TRANSLATED-1. `t('key', 'English')` without an en.json entry ships English to every locale.
+- **What:** 336 keys were used only with inline defaults, because `i18n:sync` reads en.json alone. Separately, en.json overrode the honest component default "Unverified attribution" with "General Spiritual Context".
+- **Fix:** the 35 keys in the chat/mood/TTS files were added and synced. A ratchet (`src/test/i18nKeysInEnglish.test.ts` with a 301-key baseline that can only shrink) blocks new ones, and `src/test/honestLabels.test.ts` pins the labels.
+
+### L-A-GUARD-MUST-FAIL-ON-AN-OUTAGE-1. A smoke check that treats "no citation" as a refusal passes a dead backend.
+- **What:** the first `live_smoke_battery.py` counted HTTP 500 and poll timeouts as "jailbreak refused", and counted a clip served beside the helpline as crisis-OK. An independent reviewer caught it.
+- **Rule:** every check first requires `answered()` (no HTTP error, no timeout, non-empty reply). Crisis requires the helpline and no teacher clip. Note that the crisis pre-check replies inline with HTTP 200 and no job.
+
+### L-SPEAKER-GATE-REJECTS-ARE-NEAR-FLOOR-1. Most speaker-gate rejects look like channel mismatch, not impostors.
+- **What (read-only, local v12_shadow):** 1,311 of 2,719 children (48%) were `ecapa_failed`, touching 392 of 487 videos; 125 videos are rejected entirely. Of the rejects, 594 (45%) score within 0.10 below the 0.493 floor with a margin of at least 0.15 toward the right teacher, and only 310 (24%) are clear rejects. Duration does not differ between passing and failing spans.
+- **Next:** human-label the 200-span stratified sample before any recalibration (no hand-picked floor), then consider AS-norm or windowed majority. Serene Mind and Soul Sync children are mostly blocked here, not missing.
+
+### L-GOLDENS-PIN-TOKEN-ESTIMATES-1. A prompt edit makes the LLM goldens stale through `llm_tokens` alone.
+- **What:** 16 goldens failed on clean HEAD after the rubric v4 commit. The only delta was +134 estimated tokens per scorer call. They were regenerated at HEAD and the diff confirmed nothing else changed.
+
 ## Nov 19, 2026 — go-live hardening: live logs + 48-turn battery, root causes
 
 ### L-MEMORY-WRITER-MUST-INDEX-1. The only component that writes a row must also index it.
@@ -1334,288 +1406,6 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 
 
 
-
-## Nov 2, 2026 — 13-Locale Synchronization & Punctuation-Fidelity Leaf Parity
-
-### L-I18N-PARITY-NEW-KEYS-1. Adding user-facing UI keys to `en.json` without updating the 13 supported Indic locales breaks `src/test/i18n-parity.test.ts` and `scripts/check_i18n_coverage.mjs`.
-- **What:** When 32 new personalization and spiritual memory consent/settings keys (`chat.memoryActive`, `chat.memoryPaused`, `chat.memoryBanner.*`, `chat.memorySettings.*`) were added to `src/locales/en.json`, the 13 non-English locale files (`hi`, `te`, `kn`, `ta`, `mr`, `bn`, `gu`, `ml`, `pa`, `or`, `as`, `ur`, `sa`) remained unsynchronized, failing `i18n-parity.test.ts` across 13 test suites (416 missing leaf keys).
-- **Fix:** Synchronized all 32 keys into all 13 locales with Sarvam Indic neural translations and curated spiritual terminology for Urdu, Assamese, and Sanskrit. Enforced strict sentence-count and punctuation fidelity via `clean_punctuation()` (ensuring strings without English ending periods or ellipses do not add trailing dandas/dots, preventing `fidelityProblem` rejections). Bootstrapped `scripts/i18n/source-hashes.json` so `node scripts/i18n_sync.mjs --check` and `vitest run src/test/i18n-sync.test.ts` pass cleanly (1,937 keys verified in sync).
-- **Pin:** `src/locales/*.json`, `scripts/i18n/source-hashes.json`, `scripts/merge_and_validate_i18n.py`, `src/test/i18n-parity.test.ts`, `src/test/i18n-sync.test.ts`.
-- **Rule:** Any commit that adds or edits keys in `src/locales/en.json` must be accompanied by synchronized translations in all 13 target locales and verified via `npm run i18n:check` and `npx vitest run src/test/i18n-sync.test.ts` before staging.
-
-
-
-## Nov 2, 2026 — First-Person Context Harness Serving, v10-Only Aliasing & WHATWG SSE Sequence Headers
-
-### L-FP-V10-TERMINAL-ALIASING-1. Activating `FIRST_PERSON_CONTEXT_HARNESS_ENABLED` requires setting `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=true` to prevent startup contract crashes under `v10-only` serving.
-- **What:** In `backend/.env`, both `FIRST_PERSON_COLLECTION` and `FIRST_PERSON_CONTEXT_COLLECTION` name `first_person_v10`. Per `services/first_person_serving_contract.py`, having the legacy collection alias the context collection is strictly forbidden unless both `context_harness` AND `context_terminal` are True (`v10_only_mode_active`). Setting `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` alone causes `validate_serving_contract` to fail closed at startup with `FirstPersonServingContractError` because the legacy store would attempt to query an `fp-context-v1` schema collection.
-- **Fix:** Both flags must be activated together (`FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` and `FIRST_PERSON_CONTEXT_TERMINAL_ENABLED=true`) in `.env` and `backend/.env`. In this posture, `FirstPersonPipeline` bypasses the legacy single-clip reader entirely and serves parent contexts directly from `first_person_v10`.
-- **Pin:** `backend/services/first_person_serving_contract.py:267-288`, `backend/tests/test_first_person_context_serving.py::test_terminal_flag_blocks_legacy_fallthrough`.
-- **Rule:** When configuring first-person v10 serving, never enable the context harness without enabling the terminal flag when both slots point to the same collection.
-
-### L-BUDGET-GUARD-UTC-LEDGER-BLOCK-1. A fail-closed provider budget guard that tracks UTC daily reservations silently causes answerability abstentions if the daily ceiling is set lower than testing spend.
-- **What:** `OpenRouterBudgetGuard` maintains an atomic Redis ledger key (`askmukthiguru:openrouter-spend:day:<YYYY-MM-DD>`). During heavy test passes or reingest batches, cumulative reserved cost reached $38.43. Because `OPENROUTER_DAILY_BUDGET_USD` was set to $25.0 and `OPENROUTER_BUDGET_FAIL_CLOSED=true`, all live user chat queries fell back to `reason="answerability_withheld"` and abstained, despite the monthly budget ($100.0) and provider key limits being completely healthy.
-- **Fix:** Raised `OPENROUTER_DAILY_BUDGET_USD=100.0` in `.env` and `backend/.env` to align with the monthly ceiling, ensuring daily development/testing spikes do not silently choke live answerability scoring.
-- **Pin:** `backend/app/openrouter_budget.py:143-160`, verified via live `POST /api/chat` yielding `first_person_verbatim_clip_gate` pass in 289ms.
-- **Rule:** Daily provider budget caps must accommodate the peak reservation volume of test and staging traffic, or testing runs must route through a dedicated non-shared environment.
-
-### L-SSE-WHATWG-EVENT-ORDER-1. SSE sequence numbering must place `event:` before `id:` to prevent breaking client test assertions that check `e.startswith("event:")`.
-- **What:** When adding WHATWG monotonic `id: <seq>` headers to Server-Sent Events in `stream_orchestrator.py` for client reconnection support (`Last-Event-ID`), placing `id:` on the first line (`f"id: {seq}\nevent: token..."`) caused existing test suites (e.g., `test_streaming_guardrail.py:106`) to fail because they asserted `[e for e in events if e.startswith("event: token")]`. Under the WHATWG SSE standard, line order within an event block is arbitrary.
-- **Fix:** Formatted all SSE emissions with `f"event: {event_type}\nid: {_sse_seq}\ndata: {data}\n\n"`. This satisfies WHATWG `Last-Event-ID` tracking on browsers, preserves full parser compatibility in `ResilientStreamTransport.ts`, and maintains backwards compatibility with test assertions checking string prefixes.
-- **Pin:** `backend/app/stream_orchestrator.py:156-425`, `backend/tests/test_streaming_guardrail.py`.
-
-
-
-## Nov 2, 2026 — Batch Curated Video Ingestion, Memgraph/OKF Cross-Store Alignment & Direct Video Verification
-
-### L-DISCOURSE-MULTI-STORE-ALIGNMENT-1. Ingesting curated discourses into vector collections alone leaves the graph and ontology stores empty, causing cross-channel retrieval gaps.
-- **What:** Ingesting curated YouTube discourses (`1nhXsnx5--Y`, `7BLsD_meNzw`, `88NOQTz5_yI`) into Qdrant collections alone left Memgraph with 0 `:Video` nodes and OKF without matching authentic teaching markdown files. A multi-channel RAG architecture queries Qdrant, Memgraph, and OKF in parallel; missing video nodes or ontology documents prevents relational knowledge expansion and OKF quote alignment.
-- **Fix:** Created `scripts/ops/batch_ingest_curated_discourses.py` (and synchronized a byte-identical copy to `backend/scripts/ops/batch_ingest_curated_discourses.py` per Invariant X1) that:
-  1. Merges `:Video` nodes with `id`, `title`, `source_type="youtube_discourse"`, and `domain_rights_status="licensed"` in Memgraph, and creates `(:Teacher)-[:SPEAKER_OF]->(:Video)` and `(:Video)-[:EXPOUNDS]->(:Concept)` relationships.
-  2. Creates authentic markdown entries in `memory/okf/` and `memory/okf/staging/`, and recompiles `memory/okf/compiled.json`.
-  3. Upserts verified dense + sparse points in `spiritual_wisdom_contextual`, and verified teacher verbatim spans with `passage_dense` in `first_person_v10` and `first_person_v11`.
-- **Pin:** `backend/tests/test_repo_layout.py`, `scripts/ops/batch_ingest_curated_discourses.py`.
-- **Rule:** When onboarding curated multimedia discourses, synchronize representation atomically across vector, graph, and ontology stores rather than writing to vector collections alone.
-
-### L-OKF-COMPILER-DATETIME-UTC-1. Top-level `from datetime import UTC` breaks compilation on Python runtimes where `UTC` is not in `datetime`.
-- **What:** `backend/services/memory/compiler.py` imported `from datetime import UTC, datetime` directly. In environments or runtimes without top-level `datetime.UTC`, this raised `ImportError: cannot import name 'UTC' from 'datetime'`, crashing the compilation of 432 OKF entries.
-- **Fix:** Added the project's standard fallback pattern in `backend/services/memory/compiler.py`:
-  ```python
-  try:
-      from datetime import UTC, datetime
-  except ImportError:
-      from datetime import datetime, timezone
-
-      UTC = timezone.utc
-  ```
-- **Pin:** `backend/services/memory/compiler.py`, verified with `compile_okf()`.
-
-### L-DIRECT-VIDEO-PAYLOAD-STAMP-TEST-1. Direct video upload payload stamping must be verified end-to-end against UUID5 point IDs.
-- **What:** A previous audit surfaced that point ID reconstruction using `"video_id_index"` was a silent no-op against UUID5 Qdrant points. While the route was updated to use `res.point_ids`, there was no unit test asserting that a successful upload calls `client.set_payload` with `source_type="direct_video"` and returns the correct `media_url` and `video_id`.
-- **Fix:** Added `test_upload_success_stamps_points_and_returns_media_url` to `backend/tests/test_video_serving_governance.py`. It mocks the pipeline, captures `stamped_calls`, and asserts collection name, point IDs, `source_type="direct_video"`, `media_url=f"/api/media/videos/{video_id}"`, title, speaker, and tags.
-- **Pin:** `backend/tests/test_video_serving_governance.py`.
-
-
-## Nov 2, 2026 — In-chat personal memory consent gate, toast feedback, and total erasure controls
-
-### L-MEMORY-CONSENT-CHAT-SURFACE-1. A backend privacy/consent gate that only surfaces in a deep profile settings menu creates silent feature abstention in the primary chat loop.
-- **What:** The adaptive canonical memory and personal Knowledge Graph pipeline enforced a strict cryptographic consent receipt (`memory-v1`). However, the only UI prompt triggering `recordConsent(true)` was inside `MemoryManager.tsx` on the `/profile` page, when manually typing and saving a note. As a consequence, authenticated users chatting exclusively in `/chat` had `receipt=null`. The extraction pipeline (`queueMemoryExtraction` in frontend and `_canonical_write` in backend) silently skipped all turn processing, leaving the personal Neo4j graph empty (`User nodes: []`) and giving the impression that memory was broken.
-- **Fix:** (1) Introduced `MemoryConsentBanner.tsx` in `/chat` for authenticated non-incognito users, explaining what is remembered, why, and privacy/encryption guarantees, with one-click `recordConsent(true)` and localStorage dismissal persistence. (2) Added interactive `ChatHeader` memory badge linking to `MemorySettingsModal.tsx` for real-time status inspection (`Active` vs `Paused`), toggling consent, and permanent destructive erasure (`memoryApi.deleteAll()`) with an `AlertDialog` confirmation. (3) Added reassuring toast notifications for all consent state transitions.
-- **Pin:** `src/components/chat/MemoryConsentBanner.tsx`, `src/components/chat/MemorySettingsModal.tsx`, `src/components/chat/ChatHeader.tsx`, `src/test/MemoryConsentBanner.test.tsx`, `src/test/MemorySettingsModal.test.tsx`.
-- **Rule:** If a backend capability fails closed without a user consent receipt, the primary interaction surface where that capability provides value MUST provide an explicit, transparent opt-in and revocation mechanism. Never hide a gating consent prompt behind a secondary screen.
-
-
-
-## Nov 1, 2026 — ingest wrote to live first_person_* collections
-
-### L-INGEST-WRITES-SERVING-COLLECTION-1. An ingest side effect that writes to a live serving collection, by default, bypasses every review gate.
-- **What:** `IngestionPipeline._upsert_first_person_context` dual-indexed into `first_person_v11` and `first_person_v10` after every video ingest, deleted by `video_id` on the live collection, hardcoded `voice_verification_method=ecapa_voxceleb_centroid_v1` and defaulted `speaker_verified=True`. That is how unreviewed points reached v10.
-- **Fix:** `FP_DUAL_INDEX_COLLECTIONS` (default empty) names the only collections it may touch; empty means zero Qdrant calls. New guard `lesson_guards.py fp-writes` (pre-commit) fails a Python file outside `scripts/ops/build_*|tag_*` and tests that names a `first_person_*` collection and calls upsert/set_payload/delete. Existing writers are a ratchet baseline in `scripts/guards/fp_write_allowlist.txt`; reviewed lines carry `fp-write-ok`.
-- **Not fixed:** the hardcoded verification method and `speaker_verified` default remain inside the opt-in path.
-- **Pin:** `tests/test_fp_dual_index_default_off.py`, `tests/test_lesson_guards.py`.
-
-
-## Nov 1, 2026 — /ingest/federated closed
-
-### L-FEDERATED-INGEST-OPEN-DOOR-1. An admin ingest route that takes a server path and stamps `licensed` is a file-read primitive unless it is off by default and path-bound.
-- **What:** `POST /api/ingest/federated` passed any `source_ref` to adapters that read server files (`okf_staging` read any path), ran blocking work inside `async def`, echoed `str(exc)` to the client, and used `assert` as the rights gate (stripped by `python -O`).
-- **Fix:** `FEDERATED_INGEST_ENABLED` defaults False (route answers 404). Path types must resolve (symlinks included) to a file under `FEDERATED_INGEST_ALLOWED_DIR` (empty = none accepted); youtube takes an 11-char id; other types are 400. Work runs in `asyncio.to_thread`; errors are logged and the client gets a generic 500. The rights check now raises `ValueError` before any write. Stamp semantics unchanged.
-- **Known limit, not built:** the Qdrant and Memgraph writes are not atomic; a Memgraph failure leaves Qdrant points in place.
-- **Pin:** `backend/tests/test_federated_ingest_route.py`.
-
-
-## Nov 1, 2026 — Direct-video ingestion, live DAG, HITL and serving governance review
-
-### L-DAG-STATIC-MOCK-1. An admin DAG that hardcodes "completed", "Licensed & Verified", "8/8 Passed" and a sample speaker confidence is a status page that cannot fail.
-- **What:** `IngestionWorkflowDAG.tsx` shipped with every stage `status: "completed"`, a "Pipeline Healthy (8/8 Passed)" badge, `Sri Preethaji (0.84)` on the ECAPA node, a 10.8 s "Total Pipeline Latency", invented log lines labelled "Execution Audit Log", and `IngestionWorkflowPage.tsx` offered four hardcoded sample videos with made-up guru labels and confidences. Nodes were also built once through `useNodesState`, so even a real job could never move the highlight.
-- **Fix:** node state now comes only from a job (`src/admin/lib/ingestionStages.ts`: `deriveNodeStates`), derived from props on every render; with no job every node is `unknown` and no pass/fail is claimed. Unknown backend stages highlight nothing. The page lists real videos from `listVideoReview` and polls `GET /api/first-person/ingest/status/{job_id}`. Log lines are labelled "reference, not from this video"; the drawer says the backend stores no per-stage log lines. Measured evidence (voice-verified spans, min window cosine, teacher from the voice match) is read from the row; nothing is defaulted.
-- **Pin:** `src/admin/components/IngestionWorkflowDAG.test.tsx`, `src/admin/lib/ingestionStages.test.ts`, `src/admin/pages/IngestionWorkflowPage.test.tsx`.
-- **Rule:** a status view reports "no data" when it has none. A default of "passed" is a fabricated verification.
-
-### L-FP-FAILED-STAGE-1. The first-person service reports `stage: "failed"` on failure, which names no pipeline node.
-- **What:** `first_person_ingest_service.py` sets `stage=FPJobStage.FAILED`, so a stage-to-node map alone loses where the job broke and the DAG shows "Job failed" with no failed node.
-- **Fix:** the page remembers the last stage that mapped to a node and passes it through `stageForDisplay`. Re-tracking resets that memory on purpose: a job already failed when tracking starts has no known failing stage, and the DAG says so.
-- **Pin:** `ingestionStages.test.ts`, `IngestionWorkflowPage.test.tsx`.
-
-### L-VIDEO-GOVERNANCE-FAILOPEN-1. A governance check wrapped in `except Exception` is fail-open for everything except the one error it was written for.
-- **What:** `source_policy.is_blocked_source` and `ContentRightsGate.validate_rights` wrapped the blocked-video lookup in `try/except Exception` (debug-log or `pass`). `video_is_blocked` already fails closed on a corrupt decisions file, so the blanket catch only ever swallowed other errors, e.g. an import failure, and served the excluded video. The two lanes also carried separate copies of the video-id regex, one without a trailing boundary.
-- **Fix:** both calls are unguarded. One shared `VIDEO_ID_IN_SOURCE` (with a lookahead) lives in `services/qdrant/source_policy.py`. `GET /api/media/videos/{id}` now answers 404 for an excluded video (same as a missing file), and the world-writable `/tmp/videos` is no longer a serving directory.
-- **Pin:** `backend/tests/test_video_serving_governance.py` (exclude, restore, YouTube URL, `video:` URL, corrupt-file fail-closed, rights gate, media 404/200, 206/416 ranges).
-- **Rule:** one admin click must remove a video from every lane (first-person retrieval, general RAG, media stream) and one click must restore it. Test all lanes against the same decisions file.
-
-### L-DIRECT-VIDEO-FALLBACK-FABRICATION-1. A catch-all that "queues the upload anyway" with a made-up sentence puts non-teaching text in the corpus and hides the failure.
-- **What:** when `VideoPipeline.ingest_video` raised, `POST /api/ingest/upload-video` queued `"Direct video recording: <title> by <speaker>. Video ID: ..."` through `ingest_document_task` and answered `processing`. That sentence would be indexed as a corpus chunk attributed to the teachers, and the Supabase job was never marked failed.
-- **Fix:** the route marks the job `failed`, returns 502 with the exception class only (no internal message), and queues nothing. Disk write and ffmpeg run in `asyncio.to_thread` so one upload cannot stall the loop; a non-zero ffmpeg exit is logged. Tags are stamped on the points.
-- **Pin:** `test_upload_failure_is_reported_and_never_queues_a_placeholder_chunk`.
-- **Rule:** an ingest failure is a failure. Never substitute generated filler for the content that could not be processed.
-
-### L-HITL-SPEAKER-LABEL-1. A human speaker control must record a verdict, never rewrite the teacher.
-- **What:** the plan asked for a speaker selector (Preethaji / Krishnaji / Both / Host / Disciple). Teacher identity is the voice match's output (`speaker_verified`, `guru_id`); a human edit of it would let a label override the gate.
-- **Decision:** the Human Review tab offers only Confirmed / Rejected / Needs review plus notes, saved through the existing decision store (audit log, reason required). "Rejected" blocks serving; "Confirmed" never loosens a machine gate. The plan's speaker reassignment is intentionally not built.
-- **Also:** every save re-reads the stored decision first, because the PUT replaces the whole decision and a payload built from stale props would undo another admin's grade or note.
-
-
-## Nov 1, 2026 — One active collection setting, health-gate wording, grader evidence, wiring audit
-
-### L-ONE-NAME-SERVING-COLLECTION-1. Two env vars holding the same literal will drift; derive one from a single name and check it at boot.
-- **What:** `FIRST_PERSON_COLLECTION` and `FIRST_PERSON_CONTEXT_COLLECTION` both had to read `first_person_v10` for the v10 run. A stale override in either silently serves a different collection.
-- **Fix:** `first_person_active_collection` (default `first_person_v10`) is the one name. The two old settings are optional overrides; `Settings.resolve_first_person_active_collection` fills an unset slot (v10-only posture: both slots; otherwise the legacy slot keeps the v8 rollback clip store). `validate_serving_contract(active_collection=...)` fails startup when the name is not in the contract file, or when the harness is terminal and a slot differs from it.
-- **Pin:** `app/config.py`, `services/first_person_serving_contract.py`, `app/main.py` (lifespan), `tests/test_first_person_active_collection.py`. Compose files and `.env.example` now set only `FIRST_PERSON_ACTIVE_COLLECTION`.
-- **Rule:** a value that must be equal in two places is one setting plus a derivation, not two settings plus a doc line. UNPROVEN: a clean-Docker boot with the new variable.
-
-### L-HEALTH-GATE-CLINICAL-WORDING-1. A health-claim regex that lists diseases misses the clinical words next to the claim.
-- **What:** q071 (2026-10-31 review) said people "would be healed" right after "psychiatric breakdowns and addictions"; `_HEALTH_CLAIM_RE` had no `psychiatric`, mental-illness or addiction-cure terms.
-- **Fix:** added `psychiatr*`, `mental illness/disorder/breakdown`, and cure/heal/overcome/recover-from-addiction wording. Plain "addiction" stays servable (the bridge adds the support boundary). The clip-text support-line trigger (`_CLIP_MENTIONS_SELF_HARM`) was already in place from the earlier session.
-- **Pin:** `services/first_person_pipeline.py`, `tests/test_showability_gates_2026_10_31.py`.
-
-### L-GRADER-CHEAP-ONLY-POSITIVES-1. A second-pass grader that samples positives leaves half the "showable" count on one cheap model.
-- **What:** Stage A: 8 of 16 showable verdicts were never seen by the strong model; the cheap model is also the product scorer family.
-- **Fix:** `grade_served_answers` re-grades every positive by default, reports `showable_checked_by_cheap_model_only` and `served_with_unverified_speaker`, and warns when the first grader is the product relevance scorer. The approved bar is unchanged (an unverified-speaker gate is an owner decision, not added).
-- **Pin:** `scripts/ops/grade_served_answers.py`, `tests/test_grade_served_answers.py`.
-
-### L-TESTED-IS-NOT-WIRED-1. A module with 100% passing tests and zero importers is not a shipped feature.
-- **What:** the master plan marked Engines 3 and 4, the short-circuit cascade, the 4-lane retrieval engine and the frontend resilient transport "done and verified". Importer trace: none of them is reached from the request path.
-- **Fix:** plan §12 records the real status; Engine 3 (speculative LLM generation) is deliberately not wired because the product serves verbatim clips only.
-- **Rule:** before marking a module done, name the call site that reaches it from a route; a test import does not count.
-
-
-## Nov 1, 2026 — Master-plan elevation triage: rights-gate scope, autouse monkeypatch undo, direct-video payload no-op
-
-### L-RIGHTS-GATE-SCOPE-1. An X40 rights gate applied to *every* retrieved document silently deletes the non-corpus lanes.
-- **What:** `rag/nodes/retrieval.py` ran `ContentRightsGate.validate_rights()` over the final `all_docs`, which by that point also holds OKF entries, web-search results, graph nodes and LightRAG output. None of those carry `domain_rights_status`, so the gate rejected them all. Seven unrelated tests went red (`test_retrieve_documents_contract`, `test_ruthless_phase3_planner`, `test_task3`, `test_okf_entity_linking_r6`, `test_no_seeker_text_in_logs`, `test_fp_pipeline_context_expansion`) and, in production, every OKF/web/graph answer would have abstained as if the corpus were empty.
-- **Fix:** `ContentRightsGate.is_corpus_document()` — a document is gated only when it declares corpus provenance (`corpus_id`, `corpus_version`, `domain_rights_status`, `rights_status`, `provenance_kind`, `record_type`). Corpus points always carry at least one; OKF/web/graph docs carry none. The gate still fails closed for corpus material: measured on `spiritual_wisdom_contextual`, 23 of 14,080 points lack `licensed`, and those are still dropped by design.
-- **Pin:** `rag/retrieval/rights_gate.py`, `rag/nodes/retrieval.py` (the X40 block), `tests/test_federated_retrieval.py`.
-- **Rule:** a rights/provenance gate is scoped to the material that makes the claim. A gate that also judges documents with no provenance field is not fail-closed, it is a silent outage of every other lane.
-
-### L-AUTouse-MONKEYPATCH-UNDO-1. A fixture that patches through the `monkeypatch` fixture is undone by any test that calls `monkeypatch.undo()` mid-test.
-- **What:** `tests/conftest.py::_legacy_two_slot_serving_baseline` pinned the serving collections through the shared `monkeypatch` fixture. `test_policy_fingerprint_covers_the_json_scorer_prompt` calls `monkeypatch.undo()` to assert that the exact-cache key returns to its base value; that undo also reverted the fixture's three settings to `backend/.env` values (v10/v10/terminal on), so the "restored" key differed from the base key and the test failed on a second-order interaction, not on the fingerprint.
-- **Fix:** the fixture builds its own `pytest.MonkeyPatch()`, yields, then calls `mp.undo()`. A test body cannot undo a patch it does not own.
-- **Pin:** `tests/conftest.py`.
-- **Rule:** autouse fixtures that must survive a test body's `monkeypatch.undo()` must own a private `MonkeyPatch` instance.
-
-### L-DIRECT-VIDEO-PAYLOAD-ID-1. Stamping payload onto reconstructed point ids is a silent no-op when the writer uses uuid5 ids.
-- **What:** `POST /api/ingest/upload-video` wrote `source_type=direct_video`, `media_url` and (worse) `domain_rights_status: "licensed"` with `set_payload(points=[f"{video_id}_{i}" for i in range(chunks_indexed)])`. `VideoPipeline._upsert_chunks` writes `uuid5(NAMESPACE_URL, f"{source}_{i}_0")`, so no id matched, Qdrant accepted the call, and the exception handler logged at `debug`. Measured on the two seeded videos: `source_type`, `media_url` and `domain_rights_status` were all `null` in `first_person_v10`/`first_person_v11`, so the citation player could never take the direct-video branch.
-- **Fix:** `_upsert_chunks` returns `(written, point_ids)`; `VideoIngestResult.point_ids` carries them; the route stamps `res.point_ids` and logs failures at `warning`. The `licensed` stamp is gone — rights resolve once per file from the curated register via `resolve_source_rights_status()` and fail closed to `unverified` (X40).
-- **Pin:** `ingest/video_pipeline.py`, `app/api/ingest.py`, `tests/test_video_pipeline.py`, `tests/test_data_engineering_gates.py`.
-- **Rule:** a writer returns the ids it wrote; a caller never rebuilds them from a convention it did not define.
-
-
-## Nov 1, 2026 — YouTube Error 153 player configuration fix, Playwright automation CSP bypass, and admin portal deep navigation
-
-### L-YOUTUBE-ERROR-153-ORIGIN-AND-NOCMD-1. YouTube iframe embeds throw Error 153 when origin param is passed over non-HTTPS or postMessage targetOrigin mismatches domain.
-- **What:** When embedding YouTube discourse clips in `DiscourseAudioStrip.tsx` and `CitationCard.tsx`, the iframe URL passed `enablejsapi=1&origin=${window.location.origin}`. On non-HTTPS host environments (such as Docker localhost), passing an unencrypted or unregistered origin caused YouTube's player initialization to fail with `Video player configuration error / Error 153`. Additionally, `useYouTubeEmbedError.ts` strictly expected `https://www.youtube.com` as both the postMessage listener origin and the `listening` postMessage target origin, dropping handshake messages coming from `https://www.youtube-nocookie.com`. Error code 153 was also absent from `UNPLAYABLE_EMBED_CODES`, causing the player to remain in a broken state instead of triggering the fallback.
-- **Fix:** (1) Sanitized `origin` query parameter generation so it is only appended when `window.location.protocol === 'https:'`. (2) Updated `referrerPolicy="no-referrer-when-downgrade"` on embed iframes to ensure referrer metadata is forwarded without protocol downgrade blocks. (3) Added error code 153 to `UNPLAYABLE_EMBED_CODES` in `useYouTubeEmbedError.ts`. (4) Accepted postMessages from both `youtube.com` and `youtube-nocookie.com` and posted handshake messages to the frame's actual origin. (5) Pinned behavior with unit test in `src/components/chat/__tests__/playbackFallback.a30.test.tsx`.
-- **Pin:** `src/hooks/useYouTubeEmbedError.ts`, `src/components/chat/DiscourseAudioStrip.tsx`, `src/components/chat/CitationCard.tsx`, `src/components/chat/__tests__/playbackFallback.a30.test.tsx`.
-
-### L-PLAYWRIGHT-CSP-BYPASS-LOCAL-ADMIN-1. Playwright automated end-to-end admin tests against containers with strict production CSP headers require bypass_csp=True.
-- **What:** When executing automated browser testing against the local Docker container running the production Nginx configuration, Supabase authentication calls to `http://127.0.0.1:54321` were blocked by the document's `Content-Security-Policy: connect-src 'self' ...` header. This prevented automated admin login scripts from completing the initial MFA elevation.
-- **Fix:** Configured Playwright browser context with `bypass_csp=True` in `deep_dive_admin_test_and_capture.py` so automation suites can authenticate against local Supabase test instances while preserving production CSP headers in `nginx.conf`.
-- **Pin:** `scripts/ops/deep_dive_admin_test_and_capture.py`, `backend/scripts/ops/deep_dive_admin_test_and_capture.py`.
-
-
-
-## Oct 31, 2026 — YouTube Error 153 resolution, ThinkingPills sacred teachings contemplation, and CI security gates
-
-### L-YOUTUBE-EMBED-ERROR-153-1. YouTube iframe embeds fail with Error 153 when Nginx Referrer-Policy is same-origin; enforce strict-origin-when-cross-origin.
-- **What:** In `DiscourseAudioStrip.tsx` and `CitationCard.tsx`, clicking "Play source clip" or the video toggle embedded YouTube iframes using standard URLs (`https://www.youtube.com/embed/...`). In browser environments where `nginx.conf` set `add_header Referrer-Policy "same-origin" always;`, the browser stripped the `Referer` header on all cross-origin requests to YouTube servers. YouTube's embedded player requires a valid cross-origin referrer and matching origin to authorize playback; stripping the referrer triggered a fatal YouTube player configuration error (`Video player configuration error / Error 153`).
-- **Fix:** In `nginx.conf` and `frontend/nginx.conf`, updated `Referrer-Policy` to `"strict-origin-when-cross-origin"`. In `index.html`, added `<meta name="referrer" content="strict-origin-when-cross-origin" />`. In `DiscourseAudioStrip.tsx` and `CitationCard.tsx`, switched player URLs to privacy-preserving `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(origin)}` and explicitly set `referrerPolicy="strict-origin-when-cross-origin"` on all player iframes.
-- **Pin:** `src/components/chat/DiscourseAudioStrip.tsx`, `src/components/chat/CitationCard.tsx`, `nginx.conf`, `frontend/nginx.conf`, `index.html`.
-- **Rule:** media embeds (YouTube, Vimeo) in privacy-hardened web applications require `Referrer-Policy: strict-origin-when-cross-origin` and explicit `origin` query parameters so the host can authenticate embed playback without leaking full paths.
-
-### L-THINKING-PILLS-SACRED-TEACHING-1. Display authentic sacred teachings from the admin portal during contemplation without arbitrary client artificial delays.
-- **What:** While generating spiritual answers, `ThinkingPills` displayed technical pipeline stage labels (*"Safety check"*, *"Refining relevance"*, *"Contemplating"*). Meanwhile, authentic sacred teachings curated by the admin portal (`/api/teachings/tips`) were fetched by `useWisdomTips.ts` but were not displayed due to an artificial 2000ms delay (`SHOW_DELAY_MS = 2000`) and missing integration into `ThinkingPills.tsx`. Because fast streaming responses return the first token in ~2s, the contemplation tip never rendered before the pipeline indicator faded.
-- **Fix:** Wired `useWisdomTips(visible)` directly into `ThinkingPills.tsx` to render a dedicated `data-testid="thinking-pills-wisdom-tip"` card during generation. Displayed the teaching text with authentic attribution (`· Sri Preethaji & Sri Krishnaji`). In `src/hooks/useWisdomTips.ts`, removed the artificial 2000ms delay (`SHOW_DELAY_MS = 0`) and enabled synchronous initialization from cached localStorage tips (`loadCachedTips()`), allowing seekers to contemplate authentic wisdom immediately upon submitting their inquiry.
-- **Pin:** `src/components/chat/ThinkingPills.tsx`, `src/hooks/useWisdomTips.ts`.
-- **Rule:** contemplation/thinking states in spiritual applications should elevate seekers with authentic wisdom from the teachers rather than displaying empty loaders or technical infrastructure labels.
-
-### L-CI-CSP-SECURITY-GATE-1. Production Nginx configuration must never contain private loopback IPs in Content-Security-Policy headers.
-- **What:** In `nginx.conf`, `connect-src` contained development fallback origins (`http://127.0.0.1:54321`, `http://localhost:54321`). This triggered a hard failure in the GitHub Actions `Security Audit` workflow (`.github/workflows/security-audit.yml`), which strictly tests: `if grep "add_header Content-Security-Policy" nginx.conf | grep -qE "localhost|127\.0\.0\.1|cdn\.jsdelivr|gs-extension"; then exit 1; fi`.
-- **Fix:** Cleaned `connect-src` in `nginx.conf` by removing all loopback addresses while preserving production Supabase and Google Auth origins. Verified the automated security audit gate passes with exit code 0.
-- **Rule:** never check localhost or private IP addresses into production Nginx CSP configurations; keep local dev proxies isolated to dev compose overrides.
-
-
-
-## Oct 31, 2026 — Ekam Golden Orb brand emblem and profile tab dock height & alignment
-
-### L-EKAM-GOLDEN-ORB-BRAND-EMBLEM-1. Replace generic AI sparkle glyphs with authentic spiritual emblems honoring the sacred teachings.
-- **What:** In `AppShell.tsx`, `SidebarBrand` rendered the app mark as a yellow rounded square with a generic AI star/sparkle icon (`<Sparkles className="w-5 h-5 text-primary-foreground" />`). This evoked generic AI chatbots (Siri / Bard / Copilot) rather than a sacred sanctuary grounded in the wisdom of Sri Preethaji & Sri Krishnaji and the World Centre for Enlightenment at Ekam.
-- **Fix:** Created `src/components/common/EkamGoldenOrb.tsx`, a bespoke SVG emblem representing the sacred **Ekam Golden Orb** (*Hiranyagarbha / Svarna Golakam*): an inner luminous orb and bindu of pure consciousness, concentric rings of universal oneness, and 8 cardinal and ordinal rays of divine grace. Replaced `<Sparkles />` in `SidebarBrand` with `<EkamGoldenOrb />`. Concurrently, replaced `<Sparkles />` on the Profile Personalise tab with `<SlidersHorizontal />` for authentic, purposeful personalization.
-- **Pin:** `src/components/common/EkamGoldenOrb.tsx`, `src/components/layout/AppShell.tsx`, `src/pages/ProfilePage.tsx`.
-- **Rule:** spiritual platforms must avoid generic generative AI sparkles; anchor brand identity in authentic sacred emblems (the Ekam Golden Orb, Jyoti, or Padma) reflecting oneness and inner awakening.
-
-### L-RADIX-TABSLIST-HEIGHT-OVERFLOW-1. Radix/shadcn TabsList hardcodes h-10; floating tab docks must explicitly override container height to prevent button protrusion.
-- **What:** In `src/pages/ProfilePage.tsx`, the floating tab dock rendered child `TabsTrigger` buttons with `min-h-[44px]` inside `TabsList` with `p-1.5`. Because `TabsList` in `src/components/ui/tabs.tsx` carries a default `h-10` (`40px`), `twMerge` retained `h-10` in the absence of an explicit container height class. With container padding taking up 12px, only 28px remained inside `TabsList`, forcing the active white button (`Personalise`) to overflow and protrude 16px past the bottom border of the dock pill. Inactive buttons were simultaneously cramped against the bottom edge with 0px margin.
-- **Fix:** Overrode `TabsList` with `h-auto min-h-[52px] sm:min-h-[56px] items-center p-1.5 sm:p-2`. Standardized all `TabsTrigger` buttons to `h-10 sm:h-11 min-h-0` with centered flex alignment. Added `border border-transparent` to inactive tabs transitioning to `data-[state=active]:border-ojas/30` on active tabs, eliminating all subpixel layout shifts.
-- **Pin:** `src/test/ProfileJourney.test.tsx` (all 5 tests passing).
-- **Rule:** when building custom tab docks using shadcn/Radix `TabsList`, always supply `h-auto min-h-[...]` so `twMerge` clears the default `h-10`; ensure inactive items share identical border dimensions with active items to avoid geometry shifts.
-
-## Nov 18, 2026 — Relevance Rubric Specific Doctrine Negative Calibration & Resegmentation Test Fixture Portability
-
-### L-RUBRIC-SPECIFIC-DOCTRINE-TRAP-1. Named books and multi-part doctrines absent from the transcript corpus must receive score 1, not foundational score 2.
-- **What:** In `FirstPersonPipeline._RELEVANCE_RUBRIC_CORE`, a query asking for a published book title or specific multi-part doctrine (e.g. *The Four Sacred Secrets*) received score 2 on Monet's bridge discourse because the scorer saw the incidental word *"Now let me share yet another secret with you..."*, falsely categorizing a narrative parable as a foundational teaching. Per Invariant X24, when a seeker asks about a specific published work or doctrine not expounded in the corpus, the system must truthfully abstain rather than serve an incidental keyword match.
-- **Fix:** Added explicit negative calibration to `_RELEVANCE_RUBRIC_CORE` in `backend/services/first_person_pipeline.py`: if the query asks for a specific named book, publication, or multi-part doctrine not explained in the clip, an incidental keyword match scores 1, not 2. Bumped prompt version to `_RELEVANCE_PROMPT_VERSION = "v4"` to re-key exact caches.
-- **Pin:** `backend/services/first_person_pipeline.py:891`, `backend/tests/test_first_person_relevance_calibration.py` (all 13 tests passing).
-- **Rule:** relevance scorers must include negative rubric examples for publication titles and named doctrine terms; incidental word presence in a parable must never elevate an unrelated clip to foundational score 2.
-
-### L-RESEGMENTATION-FIXTURE-PORTABILITY-1. Rhetorical resegmentation test harnesses must carry portable transcript fixtures rather than binding to host user home paths.
-- **What:** `scripts/ops/dry_run_resegmentation.py` hardcoded `RAW_WHISPER_DIR = Path.home() / "mukthiguru_attribution_data" / "mass_ingest_2026-10" / "raw"`. While this path exists on the host machine (`/Users/harshodaikolluru/`), inside isolated Docker containers or CI environments (`/root/`), the directory is absent. Its local stub `_fallback_raw_segments` provided generic 0–60s stubs that did not span the 1200s–1500s windows of test videos (`sMgbjxyrgqw`, `x-mTRlE0TC4`, `fdPQxZsPAwI`), causing 14 resegmentation tests to fail on `closure_achieved=False`.
-- **Fix:** Created `backend/tests/fixtures/resegmentation_transcripts.json` containing the exact ASR transcript segments and passage clips for the 3 reference videos. Updated `load_raw_segments` and `load_legacy_clips` to read from the local fixture in isolated environments before falling back to stubs. Synchronized byte-identically between `scripts/ops/` and `backend/scripts/ops/` per Invariant X1/X2.
-- **Pin:** `backend/tests/fixtures/resegmentation_transcripts.json`, `scripts/ops/dry_run_resegmentation.py`, `backend/tests/e2e/resegmentation/` (all 188 tests passing).
-- **Rule:** ingestion and chunking test harnesses must remain 100% portable across CI and container runtimes by providing self-contained fixtures; never rely exclusively on host-specific data paths.
-
-### L-HARNESS-PARALLEL-RPM-HEADROOM-1. Parallel context evaluation requires bounded worker concurrency and synchronized RPM limits to prevent provider 429 cascades.
-- **What:** When `first_person_harness_parallel_enabled` evaluates multiple parent contexts concurrently across OpenRouter LLMs, unbounded fan-out or mismatched RPM limits (e.g. 60 RPM default vs 120 RPM tier) can cause burst spikes, tripping provider 429 rate limits and degrading evaluation into false abstentions. Additionally, mock scorers in test harnesses that omit `**kwargs` fail with `TypeError: fake() got an unexpected keyword argument 'is_distress'` during parallel runs.
-- **Fix:** Synchronized `OPENROUTER_RPM_LIMIT=120` across `.env`, `backend/.env`, and `backend/app/config.py`. Enforced `_HARNESS_JUDGE_CONCURRENCY = 2` via `asyncio.Semaphore` in `FirstPersonPipeline._eval_ctx_worker`, capping simultaneous LLM calls. Added `**kwargs` resilience to mock scorers in `backend/tests/test_first_person_context_serving.py`.
-- **Pin:** `backend/app/config.py:659`, `backend/services/first_person_pipeline.py:1742`, `backend/tests/test_first_person_context_serving.py:1760-1775`.
-- **Rule:** parallel evaluation fan-out must always be strictly bounded by an asyncio semaphore sized against the verified provider RPM limit; mock scorers must accept arbitrary forward kwargs.
-
-### L-EDITORIAL-SET-EXACT-CACHE-BYPASS-1. Dynamic multi-video editorial sets require single-clip cache isolation to prevent compound response contamination.
-- **What:** In `FirstPersonPipeline._cache_scope`, `_editorial_set_enabled()` was previously bypassing exact caching globally for all requests. Dynamic multi-video editorial sets (`first_person_set_selector_v3`) combine multiple independent videos for multi-facet queries, whereas standard queries serve a single parent-unit clip. Bypassing exact caching globally broke standard exact-cache replay assertions in unit tests.
-- **Fix:** Verified that `FIRST_PERSON_EDITORIAL_SET_SELECTION_ENABLED` defaults to `false` in production and base staging configs, allowing single-clip queries to leverage Redis exact cache while multi-video facet assembly is invoked per query intent or explicit non-production opt-in. Stamped `editorial_set_enabled` into the exact-cache fingerprint to ensure key isolation.
-- **Pin:** `backend/services/first_person_pipeline.py:2578`, `backend/services/first_person_pipeline.py:3756`, `backend/tests/test_first_person_context_serving.py:292-365`.
-- **Rule:** multi-video compound sets must never pollute single-clip exact cache entries; feature flags that bypass caching must be scoped exclusively to their target execution paths.
-
-### L-ROUTE-RATE-LIMIT-ALIGNMENT-1. Fast conversational endpoints and voice pipelines require route limiter alignment to prevent artificial client throttling.
-- **What:** While `openrouter_rpm_limit` was raised to 120 RPM and `first_person_rate_limit` was configured at 120/minute, `chat_rate_limit` remained throttled at a legacy default of 20/minute (`Settings.chat_rate_limit`) with `/chat/title` hardcoded to `@limiter.limit("20/minute")` and STT/TTS speech limiters at 10 requests/minute. This created an artificial client bottleneck during rapid dialogue, voice mode, and batch evaluation runs.
-- **Fix:** Increased `chat_rate_limit` default in `backend/app/config.py` to `120/minute`, bound `/chat/title` and `/breath-teaching` to `settings.chat_rate_limit`, increased STT/TTS burst limits to 60/minute, and set `CHAT_RATE_LIMIT=120/minute` across `.env` and `backend/.env`. Updated `predeployment_checklist.py` to assert the 120/min route ceiling.
-- **Pin:** `backend/app/config.py:1246`, `backend/app/api/chat.py:676`, `backend/app/api/speech.py:38-51`, `scripts/ops/predeployment_checklist.py:150`.
-- **Rule:** front-facing conversational and voice route limiters must match provider capacity and tier allowances; hardcoded rate limit strings on fast endpoints must be avoided in favor of central Settings.
-
-### L-VOICE-MODE-FSM-DECOUPLING-1. Interactive conversational voice mode requires decoupled FSM architecture and verbatim speech resolution to preserve truthfulness.
-- **What:** Introducing interactive full-duplex voice mode in web clients often tempts tight coupling between audio hardware I/O and backend streaming transport, or introduces LLM-authored filler speech during latency gaps that violates verbatim truthfulness (Invariant X24). Direct FastAPI endpoint parameter parsing also fails with `AttributeError` when unsupplied Form parameters yield `fastapi.params.Form` objects in unit tests.
-- **Fix:** Architected Voice Mode following SOLID principles: decoupled `VoiceOrb` visualizer, a state machine hook (`useVoiceConversation`), and an accessible `VoiceModeModal`. Integrated with `ChatInterface` via Promise resolver (`voiceResponseResolverRef`), ensuring spoken audio strictly synthesizes the authentic served First-Person transcript (`stripPlainText(lastMessage.content)`) with zero LLM-authored filler. In `speech.py`, switched to `get_optional_user` and added `isinstance(val, str)` guards for robust Form parsing.
-- **Pin:** `src/components/chat/VoiceModeModal.tsx`, `src/hooks/useVoiceConversation.ts`, `src/components/chat/VoiceOrb.tsx`, `backend/app/api/speech.py:73-100`, `backend/tests/test_speech_endpoints.py`.
-- **Rule:** voice interaction layers must remain decoupled from message transport via FSM abstractions; spoken audio must synthesize verified verbatim context rather than ungrounded conversational filler.
-
-### L-DUAL-COMPOSER-PROP-SYNCHRONIZATION-1. Dual-instance chat composers require mirrored prop binding and adjacent action placement for unified discovery.
-- **What:** In React chat layouts that conditionally render separate composer instances for empty/landing states versus active conversation threads, new input triggers (like `onOpenVoiceMode`) can be inadvertently bound to only one instance, leaving the initial landing composer missing essential action affordances. Furthermore, placing full-duplex voice triggers inside nested dropdowns reduces discovery compared to anchoring directly adjacent to the primary submit button.
-- **Fix:** Synchronized `onOpenVoiceMode={handleOpenVoiceMode}` across both landing (`line 2681`) and active (`line 2870`) `ChatComposer` instances in `ChatInterface.tsx`. Positioned the Voice Mode trigger immediately adjacent to `PromptInputSubmit` in `ChatComposer.tsx` with shared 44px touch targets and `rounded-xl` geometry, and validated dual-mode rendering via headless Playwright screenshot automation.
-- **Pin:** `src/components/chat/ChatComposer.tsx:420-435`, `src/components/chat/ChatInterface.tsx:2681,2870`.
-- **Rule:** whenever a component is rendered across multiple conditional layout branches (landing vs. active), newly introduced feature callbacks must be explicitly wired to all branches and verified across viewport states.
-
-### L-DOUBLE-BEZEL-DIRECT-CHILD-SELECTOR-1. Double-bezel container styling must wrap compound components rather than breaking CSS direct-child selectors.
-- **What:** In high-end agency UI redesigns using Double-Bezel (Doppelrand) patterns, inserting an intermediate wrapper `<div>` directly inside compound input components (such as `PromptInput` / `InputGroup`) breaks CSS direct-child selectors like `has-[>[data-align=block-end]]`. This causes the parent flex container to collapse to `h-9` instead of expanding to `h-auto flex-col`, silently truncating textareas and hiding action toolbars.
-- **Fix:** Structured the double-bezel architecture by applying the outer frosted glass bezel (`bg-gradient-to-b from-card/95 ... backdrop-blur-2xl border`) to an exterior wrapper around `PromptInput`, allowing `PromptInput` to serve as the inner core interaction surface while keeping `PromptInputTextarea` and `PromptInputFooter` as direct children of `InputGroup`.
-- **Pin:** `src/components/chat/ChatComposer.tsx:193-215`, `src/components/ui/input-group.tsx:10-38`, `src/test/components/ChatComposer-keyboard.test.tsx`.
-- **Rule:** when applying multi-layer or double-bezel styling to compound components, never insert intermediate wrappers between parent containers and child components governed by CSS direct-child selectors (`>`).
-
-### L-SACRED-FEATURE-AND-SOURCE-BADGE-PARITY-1. Feature restorations and provenance badge renderers must maintain router-agnostic execution and WCAG navigation parity.
-- **What:** During iterative UI redesigns, sacred discovery surfaces (StreakMilestoneCard, FamiliarityProgressWheel) and media provenance badges (YouTube discourse timestamps, video citations) were unlinked or orphaned from key pages (Profile Journey, Chat Landing, ChatMessage). Furthermore, components rendered in isolated test harnesses without a `<Router>` ancestor fail with `Uncaught Error: useNavigate() may be used only in the context of a <Router> component`, while modifying navigational headers risks violating WCAG 3.2.6 consistent help requirements by inadvertently displacing crisis assistance buttons.
-- **Fix:** Architected `SourcePlatformBadge` for consistent discourse attribution across `TeachingGroundingCard`, `GuruTeachingCard`, and `NotesPanel`. Integrated `StreakMilestoneCard` and `FamiliarityProgressWheel` into `JourneyOverview` with router-agnostic action callbacks (`window.location.href` fallback). Restored the sacred Guru portrait (`gurusPhoto`) and "Today's Sacred Wisdom" in `ChatInterface` landing state. In `Navbar.tsx`, integrated the green WhatsApp community trigger and Wisdom Map while preserving `<GetHelpNow />` for accessibility compliance.
-- **Pin:** `src/components/common/SourcePlatformBadge.tsx:1-55`, `src/components/profile/JourneyOverview.tsx:120-175`, `src/components/chat/ChatInterface.tsx:1420-1460`, `src/components/landing/Navbar.tsx:88-142`.
-- **Rule:** shared feature components rendered in multiple test or page contexts must remain router-agnostic via prop callbacks, and visual provenance badges must present explicit media and timestamp metadata without altering verbatim teaching content.
-
-### L-APPLE-TYPOGRAPHY-SYSTEM-UNIFICATION-1. Eliminating web typography inconsistencies requires native system font stacks and optical tracking curves.
-- **What:** Ad-hoc font declarations mixing disparate web font families (Plus Jakarta Sans, Outfit, Cormorant Garamond, Inter) caused visual jarring, layout shift, and network latency (FOUT). Attempting to resolve font discordance with ad-hoc CSS overrides (`.profile-focus-flow .font-serif { font-family: var(--font-sans); }`) created cascading styling conflicts and broke intentional typographic hierarchy on modern UI cards.
-- **Fix:** Unified the design system to Apple HIG typography: mapped `--font-sans` and `sans` to `-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Inter", system-ui, sans-serif`; `--font-display` and `display` to SF Pro Display; `--font-serif` / `--font-sacred` to `"New York", -apple-system-ui-serif, ui-serif, "Cormorant Garamond", Georgia, serif`; and `--font-mono` to SF Mono. Added Apple optical tracking curves (`-0.024em` display, `-0.016em` title) and hardware smoothing (`-webkit-font-smoothing: antialiased`). Streamlined `index.html` to load zero-latency system fonts on Apple platforms while retaining lightweight web fallbacks.
-- **Pin:** `tailwind.config.ts:102-140`, `src/styles/design-tokens.css:66-73`, `src/index.css:231-236,737-775`, `index.html:12-16`, `src/styles/product-ux.css:22-26`.
-- **Rule:** interface typography must leverage native system font stacks first for zero-latency rendering and optical consistency; display headings must apply calibrated negative tracking curves rather than arbitrary font-family mixing.
-
-### L-CRISIS-HEADER-REPLACEMENT-AND-UI-DEDUPLICATION-1. Primary navigation must prioritize community and institutional discovery while preserving crisis safety gates in disclaimers.
-- **What:** Rendering emergency crisis hotlines (`GetHelpNow`) as persistent, destructive-styled red buttons in primary navigation headers (`Navbar`, `AppShell`, `AuthPage`) introduces a clinical, jarring atmosphere to a spiritual wisdom sanctuary. Placing secondary link buttons with heavy borders next to primary CTAs clutters the navbar, and hardcoding dark theme values in `GuidedTour` causes light mode inversions. On mobile (390px), cramming desktop links into the top bar truncates page titles (e.g., "My P...") while `.safe-x` overriding viewport gutters causes avatar clipping at `x=0`.
-- **Fix:** Replaced primary header crisis buttons with standardized, accessible `WhatsAppButton` and official `EkamLinkButton` (`https://www.ekam.org`) while strictly preserving crisis helplines (`INDIA_CRISIS_LINES`) in `SafetyDisclaimer`, `SafetyPillarsSection`, `TermsPage`, and backend distress redirects. Elevated `Ekam ↗` into primary center navigation links and wrapped hero eyebrows in frosted glass pill badges. Made `GuidedTour` dynamically theme-reactive via MutationObserver, rendering luxury frosted cream in light mode. On mobile, restricted top bar to Logo and Hamburger drawer, hid secondary header triggers in `AppShell` (`hidden sm:inline-flex`), and bounded `.safe-x` with `max(1rem, env(safe-area-inset-left, 0px))`.
-- **Pin:** `src/components/common/WhatsAppButton.tsx`, `src/components/landing/Navbar.tsx:42-120`, `src/components/landing/HeroSection.tsx:160-205`, `src/components/onboarding/GuidedTour.tsx:75-180`, `src/components/layout/AppShell.tsx:320-335`, `src/pages/ProfilePage.tsx:280-295`, `src/index.css:780-795`, `src/test/GetHelpNow.test.tsx:35-65`, `src/test/NavigationAndExternalLinks.test.tsx`.
-- **Rule:** emergency crisis helplines belong in dedicated disclaimers, crisis flows, and safety sections rather than primary navigation headers; metrics and modal triggers must have exactly one authoritative visual representation per screen, and mobile navigation bars must prioritize page identity over secondary action clusters.
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point

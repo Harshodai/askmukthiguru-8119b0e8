@@ -42,6 +42,11 @@ Measured: ~$0.0007 per chat turn; uncached p50 ~10-12 s, p95 ~14-16 s; crisis he
 
 Not fixed (owner decisions, evidence in lessons.md): grief and "And tomorrow?" routed to the crisis reply (semantic sim 0.748 and LLM escalation; gate not loosened); the speaker gate rejects ~41% of candidate spans (`speaker_unverified_or_not_guru`, data); conversational follow-ups ("shorter", "give an example", "the second one") always abstain; "What are the four sacred secrets?" abstains; relevance scorer sometimes returns a miscounted array and the seeker sees "couldn't finish checking" (kept indeterminate by design); admin list fails on a PostgREST embed of `auth.users` (`app/telemetry_db.py:get_admins`); on-device intent encoder never loaded on Railway (keyword DISTRESS defers to the LLM router; crisis pre-emption unaffected).
 
+## Owner decisions recorded 2026-11-19 (evening loop, see docs/handoffs/LOOP_NOTES_2026_11_19.md)
+
+- Memory-backfill archive tables dropped in production (migration `20261119135236_drop_memory_backfill_archives.sql`). A read-only check found 149 migrations applied, matching 149 repo files, with no archive tables left and the 18/1/5 live rows intact. The migration's orphan guard is inverted: it aborts when an archived row's live row was erased, so do not copy it for future backfills. `backend/scripts/ops/check_schema_drift.py --applied-versions` now checks repo files against the applied list.
+- On-device MiniLM intent encoder stays OFF in production; OpenRouter JEV does intent. `ON_DEVICE_INTENT_ENCODER_ENABLED=false` is set on the Railway backend and worker and applies at the next deploy. Do not bake MiniLM into the image. `scripts/ops/validate_production_env.py` warns when a QUANTIZED_ONLY image runs with the encoder on.
+
 ## Remaining Owner Verifications
 
 0. Raise the OpenRouter key limit: it is $5 lifetime (`limit_reset: None`), ~$3.39 left on 2026-11-19, not $5/day.
@@ -59,3 +64,11 @@ Not fixed (owner decisions, evidence in lessons.md): grief and "And tomorrow?" r
 - Never call `t('some.key')` without `{ defaultValue: '...' }` when critical UI/auth components rely on it.
 - An automatic `setTimeout` modal on landing blocks the chat composer; keep check-ins inline as gentle banners with user-driven triggers.
 - The backend is pinned to a commit: after every push, re-attach with `connect-service-source` + `commitSha`, otherwise nothing deploys.
+
+## Status update, 2026-11-19 evening (written before /compact)
+
+- Git: `main` has local commit `8d549a35` (agent fixes) NOT pushed. Owner commits and pushes (Claude's push is blocked). Backend on Railway still runs `fb404456`; after the push: re-attach backend with `connect-service-source` + `commitSha`, redeploy the worker, publish Lovable, then run the live smoke battery.
+- Owner decisions still open: raise OpenRouter key limit (dashboard), crisis false positives / "nothing matters" gap (needs clinician), Memgraph (stop or fix sleep), Railway region (Asia), repair-vs-resave for the owner's 5 memory vectors (`vector_index.repair()` also deletes orphan vectors), Supabase advisors (9 SECURITY DEFINER fns, leaked-password protection off, `vector` in public), en.json label "General Spiritual Context" for unverified attribution (must read "Unverified attribution").
+- Running now: ONE lead Opus agent (id a3a039c154cc240f5, resumable with SendMessage) doing everything left as a TDD autonomous loop; its notes file is `docs/handoffs/LOOP_NOTES_2026_11_19.md`. Scope: fix 16 golden-test regressions it introduced, retrieval quality (follow-ups, multi-part, exact-N scorer scores, latency), frontend leftovers (honest labels, 13-locale re-translation), recheck of the owner's commits, never-again guards (env preflight, drift checks, CORS header scan, post-deploy smoke battery), confidence report (target >= 98%). It may edit the four frontend files (ChatInterface, ChatMessage, MoodBanner, useTextToSpeech). It does not commit or push.
+- Verified independently at 18:50 IST: frontend `vitest` chat/components/TeacherWords 163 pass; backend first-person subset had 17 failures (16 from the agent's unfinished edits, 1 old jev test double).
+- Opus rate limit: 5-hour windows; if an agent dies with HTTP 429, resume it with SendMessage after the reset.
