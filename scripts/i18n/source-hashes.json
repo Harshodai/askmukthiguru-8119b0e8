@@ -1985,6 +1985,20 @@
     "voice.errorMessage": "404350314205",
     "chat.teachingContext.relatedTooltip": "93e2d3b48752",
     "chat.teachingContext.unverifiedTooltip": "100ed39e7e48",
-    "chat.teachingContext.verifiedTooltip": "2e8292e93771"
+    "chat.teachingContext.verifiedTooltip": "2e8292e93771",
+    "launchUpdates.emailLabel": "f2488fd4ef4a",
+    "launchUpdates.consentLabel": "2e5f9430bf91",
+    "launchUpdates.notice": "e00b8002a6c7",
+    "launchUpdates.privacyLink": "54a57c3147c4",
+    "launchUpdates.unsubscribeLink": "14df0ece41a6",
+    "unsubscribe.pageTitle": "07811bb304c7",
+    "unsubscribe.title": "21517a29ea75",
+    "unsubscribe.intro": "5e2cd10dd4c0",
+    "unsubscribe.button": "ecdc1a0f4cbd",
+    "unsubscribe.working": "eedc4deaf7af",
+    "unsubscribe.done": "eb6af219ad1c",
+    "unsubscribe.error": "f5fbcac0a407",
+    "privacy.launchTitle": "43828abc47c7",
+    "privacy.launchText": "e48983708e2a"
   }
 }

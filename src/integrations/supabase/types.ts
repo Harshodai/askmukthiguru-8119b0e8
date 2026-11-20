@@ -3314,6 +3314,7 @@ export type Database = {
           id: string
           name: string | null
           source: string | null
+          unsubscribe_token: string
           updated_at: string
         }
         Insert: {
@@ -3324,6 +3325,7 @@ export type Database = {
           id?: string
           name?: string | null
           source?: string | null
+          unsubscribe_token?: string
           updated_at?: string
         }
         Update: {
@@ -3334,6 +3336,7 @@ export type Database = {
           id?: string
           name?: string | null
           source?: string | null
+          unsubscribe_token?: string
           updated_at?: string
         }
         Relationships: []
@@ -3587,6 +3590,12 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      erase_launch_subscription: { Args: { p_email: string }; Returns: string }
+      erase_launch_subscription_with_token: {
+        Args: { p_email: string; p_token: string }
+        Returns: string
+      }
+      purge_expired_launch_subscribers: { Args: { p_months?: number }; Returns: number }
       seed_admin_demo: { Args: never; Returns: Json }
       subscribe_launch_updates: {
         Args: { p_consent: boolean; p_email: string; p_source: string }

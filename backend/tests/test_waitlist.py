@@ -1,4 +1,10 @@
-"""Focused safety tests for consent-required waitlist intake."""
+"""The backend waitlist route is retired: launch signup has exactly one path.
+
+The only consented signup is the `subscribe_launch_updates` RPC (consent flag, source allowlist,
+throttles, erase and retention all live in the database). The old route upserted without
+`consent_to_contact` and with an off-allowlist source, so every write failed. It now answers 410
+in every state and never touches Supabase.
+"""
 
 from __future__ import annotations
 
@@ -18,45 +24,17 @@ async def _call(payload, container):
 
 
 @pytest.mark.asyncio
-async def test_waitlist_is_closed_by_default(monkeypatch):
-    monkeypatch.setattr(settings, "waitlist_enabled", False)
-
-    with pytest.raises(HTTPException) as exc:
-        await _call(
-            WaitlistSignup(email="seeker@example.com", consent_to_contact=True), SimpleNamespace()
-        )
-
-    assert exc.value.status_code == 503
-
-
-@pytest.mark.asyncio
-async def test_waitlist_requires_explicit_contact_consent(monkeypatch):
-    monkeypatch.setattr(settings, "waitlist_enabled", True)
-
-    with pytest.raises(HTTPException) as exc:
-        await _call(
-            WaitlistSignup(email="seeker@example.com", consent_to_contact=False),
-            SimpleNamespace(supabase_client=MagicMock()),
-        )
-
-    assert exc.value.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_waitlist_upserts_normalized_email_without_disclosure(monkeypatch):
-    monkeypatch.setattr(settings, "waitlist_enabled", True)
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize("consent", [False, True])
+async def test_waitlist_route_is_gone_and_never_writes(monkeypatch, enabled, consent):
+    monkeypatch.setattr(settings, "waitlist_enabled", enabled)
     supabase = MagicMock()
-    container = SimpleNamespace(supabase_client=supabase)
 
-    result = await _call(
-        WaitlistSignup(email="Seeker@Example.com", name=" Seeker ", consent_to_contact=True),
-        container,
-    )
+    with pytest.raises(HTTPException) as exc:
+        await _call(
+            WaitlistSignup(email="seeker@example.com", consent_to_contact=consent),
+            SimpleNamespace(supabase_client=supabase),
+        )
 
-    assert result.status == "accepted"
-    table = supabase.table.return_value
-    table.upsert.assert_called_once_with(
-        {"email": "seeker@example.com", "name": "Seeker", "source": "website"},
-        on_conflict="email_key",
-    )
-    table.upsert.return_value.execute.assert_called_once()
+    assert exc.value.status_code == 410
+    supabase.table.assert_not_called()

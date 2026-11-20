@@ -177,9 +177,12 @@ def test_run_verification_success_mocked() -> None:
         patch("scripts.verify_rls_policies.create_client", return_value=mock_client),
         patch("scripts.verify_rls_policies.delete_user") as mock_del_user,
         patch("scripts.verify_rls_policies.delete_rows") as mock_del_rows,
+        # The launch-list DPDP probe needs row-aware mocks; it has its own tests below.
+        patch("scripts.verify_rls_policies._probe_launch_dpdp") as mock_probe,
     ):
         report = run_verification()
 
+    mock_probe.assert_called_once()
     assert report["ok"] is True
     assert report["failures"] == 0
     assert report["cleanup_failures"] == 0
@@ -213,3 +216,88 @@ def test_run_verification_leak_detection_mocked() -> None:
     # Cleanup must still run even on failure
     assert mock_del_user.call_count == 2
     assert mock_del_rows.call_count >= 1
+
+
+
+def _dpdp_clients(*, wrong_token_erases=False, email_erase_works=True, anon_purge_allowed=False, throttle_leaks=False):
+    """Row-aware mocks for _probe_launch_dpdp: the service client sees which rows still exist."""
+    from unittest.mock import MagicMock
+
+    rows: dict[str, str] = {}
+
+    service = MagicMock()
+
+    def table(name):
+        t = MagicMock()
+
+        def insert(payload):
+            rid = f"row-{len(rows)}"
+            rows[rid] = payload["email"]
+            b = MagicMock()
+            b.execute.return_value = MagicMock(data=[{"id": rid}])
+            return b
+
+        def select(*_a, **_k):
+            q = MagicMock()
+
+            def eq(_col, rid):
+                e = MagicMock()
+                e.execute.return_value = MagicMock(data=[{"id": rid}] if rid in rows else [])
+                return e
+
+            q.eq.side_effect = eq
+            return q
+
+        t.insert.side_effect = insert
+        t.select.side_effect = select
+        return t
+
+    service.table.side_effect = table
+
+    def anon_rpc(name, params):
+        call = MagicMock()
+        if name == "erase_launch_subscription_with_token" and wrong_token_erases:
+            for rid, em in list(rows.items()):
+                if em == params["p_email"]:
+                    del rows[rid]
+        if name == "erase_launch_subscription" and email_erase_works:
+            for rid, em in list(rows.items()):
+                if em == params["p_email"]:
+                    del rows[rid]
+        if name == "purge_expired_launch_subscribers" and not anon_purge_allowed:
+            call.execute.side_effect = Exception("permission denied for function purge_expired_launch_subscribers")
+        return call
+
+    def reader(leak):
+        c = MagicMock()
+        tq = MagicMock()
+        tq.select.return_value.limit.return_value.execute.return_value = MagicMock(data=[{"id": 1}] if leak else [])
+        c.table.return_value = tq
+        return c
+
+    anon = reader(throttle_leaks)
+    anon.rpc.side_effect = anon_rpc
+    return service, anon, reader(False)
+
+
+def _run_probe(**kw):
+    from scripts.verify_rls_policies import _probe_launch_dpdp
+
+    service, anon, bob = _dpdp_clients(**kw)
+    failures: list = []
+    seeded = {"waitlist_entries": []}
+    _probe_launch_dpdp(service, anon, bob, seeded, failures)
+    return failures, seeded
+
+
+def test_launch_dpdp_probe_passes_on_correct_policy() -> None:
+    failures, seeded = _run_probe()
+    assert failures == []
+    assert len(seeded["waitlist_entries"]) == 2  # both rows registered for cleanup
+
+
+def test_launch_dpdp_probe_catches_each_policy_defect() -> None:
+    assert any(f.get("op") == "erase_wrong_token" for f in _run_probe(wrong_token_erases=True)[0])
+    assert any(f.get("op") == "erase_by_email" for f in _run_probe(email_erase_works=False)[0])
+    assert any(f.get("op") == "purge" for f in _run_probe(anon_purge_allowed=True)[0])
+    assert any(f.get("table") == "launch_signup_throttle" for f in _run_probe(throttle_leaks=True)[0])

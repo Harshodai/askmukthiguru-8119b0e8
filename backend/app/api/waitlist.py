@@ -1,8 +1,7 @@
-"""Consent-required early-access waitlist intake."""
+"""Retired waitlist route (410). Launch signup is the `subscribe_launch_updates` RPC only."""
 
 from __future__ import annotations
 
-import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -12,7 +11,6 @@ from app.config import settings
 from app.core.limiter import limiter
 from app.dependencies import ServiceContainer, get_container_async
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/waitlist", tags=["Waitlist"])
 
 
@@ -37,28 +35,13 @@ async def signup_waitlist(
     payload: WaitlistSignup,
     container: ServiceContainer = Depends(get_container_async),
 ) -> WaitlistResponse:
-    """Store opt-in details without revealing whether the email already exists."""
-    del request
-    if not settings.waitlist_enabled:
-        raise HTTPException(status_code=503, detail="Waitlist is not open yet.")
-    if not payload.consent_to_contact:
-        raise HTTPException(
-            status_code=422, detail="Consent is required before contact details are retained."
-        )
-    supabase = getattr(container, "supabase_client", None)
-    if supabase is None:
-        raise HTTPException(status_code=503, detail="Waitlist is temporarily unavailable.")
-    row = {
-        "email": str(payload.email).strip().lower(),
-        "name": payload.name.strip() if payload.name else None,
-        "source": payload.source.strip() if payload.source else "website",
-    }
-    try:
-        supabase.table("waitlist_entries").upsert(row, on_conflict="email_key").execute()
-    except Exception:
-        logger.exception("Waitlist write failed")
-        raise HTTPException(status_code=503, detail="Waitlist is temporarily unavailable.")
-    return WaitlistResponse(
-        status="accepted",
-        message="Thank you. We will contact you when early access opens.",
+    """Retired: one signup path means one consent, throttle, erase and retention contract.
+
+    This route upserted without `consent_to_contact` and with source "website", which the
+    database trigger rejects, so it never stored anything. Nothing is read or written here.
+    """
+    del request, payload, container
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Launch signup moved to the in-app launch updates form.",
     )

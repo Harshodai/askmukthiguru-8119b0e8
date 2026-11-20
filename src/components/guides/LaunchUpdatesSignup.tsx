@@ -1,4 +1,5 @@
 import { FormEvent, useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -26,6 +27,7 @@ const REQUEST_FAILED =
  * - Nothing here claims an email is being sent: this only stores the opt-in.
  */
 export function LaunchUpdatesSignup({ source }: { source: LaunchSignupSource }) {
+  const { t } = useTranslation();
   const titleId = useId();
   const emailId = useId();
   const consentId = useId();
@@ -91,7 +93,7 @@ export function LaunchUpdatesSignup({ source }: { source: LaunchSignupSource }) 
       ) : (
         <form onSubmit={submit} className="space-y-3" noValidate>
           <div className="space-y-1.5">
-            <Label htmlFor={emailId}>Email address</Label>
+            <Label htmlFor={emailId}>{t('launchUpdates.emailLabel', { defaultValue: 'Email address' })}</Label>
             <Input
               id={emailId}
               type="email"
@@ -120,13 +122,25 @@ export function LaunchUpdatesSignup({ source }: { source: LaunchSignupSource }) 
               htmlFor={consentId}
               className="text-sm font-normal leading-5 text-muted-foreground"
             >
-              I agree that AskMukthiGuru may keep this email to contact me about launch updates.{' '}
-              <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">
-                Privacy
-              </Link>
-              .
+              {t('launchUpdates.consentLabel', {
+                defaultValue:
+                  'I agree that AskMukthiGuru may keep this email to contact me about launch updates.',
+              })}
             </Label>
           </div>
+          <p className="text-xs text-muted-foreground">
+            {t('launchUpdates.notice', {
+              defaultValue:
+                'Used only for launch updates. Kept for up to 12 months, then deleted. You can withdraw and erase it at any time.',
+            })}{' '}
+            <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">
+              {t('launchUpdates.privacyLink', { defaultValue: 'Privacy' })}
+            </Link>
+            {' · '}
+            <Link to="/unsubscribe" className="underline underline-offset-2 hover:text-foreground">
+              {t('launchUpdates.unsubscribeLink', { defaultValue: 'Unsubscribe and erase my email' })}
+            </Link>
+          </p>
 
           <Button type="submit" disabled={pending} aria-busy={pending}>
             {pending ? 'Joining…' : 'Join launch list'}

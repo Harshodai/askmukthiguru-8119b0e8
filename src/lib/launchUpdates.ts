@@ -64,3 +64,20 @@ export async function submitLaunchSignup({
   if (error) return { status: 'failed', reason: 'request_failed' };
   return data === 'accepted' ? { status: 'accepted' } : { status: 'failed', reason: 'request_failed' };
 }
+
+/**
+ * Withdraw consent and erase one address from the launch list.
+ *
+ * The database answers `accepted` for any well-formed address, whether or not it was on the
+ * list, so this never reveals membership. Interim design: there is no confirmation email yet
+ * (PENDING), so the RPC is throttled server-side instead. Never logs or returns the address.
+ */
+export async function submitLaunchErase(email: string): Promise<LaunchSignupResult> {
+  const normalized = sanitizeLaunchEmail(email);
+  if (!isPlausibleLaunchEmail(normalized)) {
+    return { status: 'failed', reason: 'invalid_email' };
+  }
+  const { data, error } = await supabase.rpc('erase_launch_subscription', { p_email: normalized });
+  if (error) return { status: 'failed', reason: 'request_failed' };
+  return data === 'accepted' ? { status: 'accepted' } : { status: 'failed', reason: 'request_failed' };
+}

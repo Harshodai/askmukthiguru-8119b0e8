@@ -258,6 +258,73 @@ def _is_permission_or_rls_error(exc: Exception) -> bool:
     return any(sig in msg for sig in denial_signals)
 
 
+def _probe_launch_dpdp(
+    service_client: Any,
+    anon_client: Any,
+    bob_client: Any,
+    seeded_ids: dict[str, list[str]],
+    failures: list[dict[str, Any]],
+) -> None:
+    """Launch-updates DPDP functions: token-gated erase, interim erase-by-email, service-only purge,
+    throttle table hidden from anon and authenticated (migration 20261120120000)."""
+    try:
+        wl_rows = []
+        for _ in range(2):
+            email = f"waitlist-{uuid.uuid4().hex[:8]}@gmail.com"
+            wl_ins = (
+                service_client.table("waitlist_entries")
+                .insert({"email": email, "source": "guide_serene_mind", "consent_to_contact": True})
+                .execute()
+            )
+            wl_rows.append({"id": wl_ins.data[0]["id"], "email": email})
+            seeded_ids["waitlist_entries"].append(wl_ins.data[0]["id"])
+        keep_row, erase_row = wl_rows
+
+        # Wrong token must not erase.
+        anon_client.rpc(
+            "erase_launch_subscription_with_token",
+            {"p_email": keep_row["email"], "p_token": str(uuid.uuid4())},
+        ).execute()
+        still_there = (
+            service_client.table("waitlist_entries").select("id").eq("id", keep_row["id"]).execute()
+        )
+        if not still_there.data:
+            failures.append(
+                {"table": "waitlist_entries", "client": "anon", "op": "erase_wrong_token", "expected": 1, "got": 0}
+            )
+
+        # Interim erase by email removes the row for anon.
+        anon_client.rpc("erase_launch_subscription", {"p_email": erase_row["email"]}).execute()
+        erased = service_client.table("waitlist_entries").select("id").eq("id", erase_row["id"]).execute()
+        if erased.data:
+            failures.append(
+                {"table": "waitlist_entries", "client": "anon", "op": "erase_by_email", "expected": 0, "got": len(erased.data)}
+            )
+
+        # Retention purge is service_role only.
+        try:
+            anon_client.rpc("purge_expired_launch_subscribers", {"p_months": 12}).execute()
+            failures.append({"table": "waitlist_entries", "client": "anon", "op": "purge", "error": "anon could call purge"})
+        except Exception as exc:
+            if not _is_permission_or_rls_error(exc):
+                failures.append({"table": "waitlist_entries", "op": "purge", "error": str(exc)})
+
+        # Throttle counters are invisible to anon and authenticated.
+        for label, client in (("anon", anon_client), ("bob", bob_client)):
+            try:
+                thr = client.table("launch_signup_throttle").select("*").limit(1).execute()
+                if thr.data:
+                    failures.append(
+                        {"table": "launch_signup_throttle", "client": label, "op": "select", "expected": [], "got": len(thr.data)}
+                    )
+            except Exception as exc:
+                if not _is_permission_or_rls_error(exc):
+                    failures.append({"table": "launch_signup_throttle", "client": label, "error": str(exc)})
+    except Exception as exc:
+        if not _is_permission_or_rls_error(exc):
+            failures.append({"table": "waitlist_entries", "op": "launch_dpdp", "error": str(exc)})
+
+
 def run_verification() -> dict[str, Any]:
     failures: list[dict[str, Any]] = []
     cleanup_failures: list[dict[str, Any]] = []
@@ -833,6 +900,11 @@ def run_verification() -> dict[str, Any]:
         except Exception as exc:
             if not _is_permission_or_rls_error(exc):
                 failures.append({"table": "waitlist_entries", "error": str(exc)})
+
+        # 9b. launch-updates DPDP functions (see _probe_launch_dpdp)
+        _probe_launch_dpdp(
+            service_client, create_client(SUPABASE_URL, ANON_KEY), bob_client, seeded_ids, failures
+        )
 
         # 10. assistant_scope_metadata (service_role only; references assistants table)
         try:

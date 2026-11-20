@@ -52,6 +52,11 @@ const PrivacyPage = () => {
                 {t('privacy.exportDeletion')}
                 <a href={`mailto:${getPrivacyEmail()}`}> {getPrivacyEmail()}</a>.
               </p>
+              <h2>{t('privacy.launchTitle')}</h2>
+              <p>
+                {t('privacy.launchText')}{' '}
+                <Link to="/unsubscribe">{t('launchUpdates.unsubscribeLink')}</Link>
+              </p>
               <h2>{t('privacy.aiDisclosure')}</h2>
               <p>{t('privacy.aiDisclosureText')}</p>
             </div>
