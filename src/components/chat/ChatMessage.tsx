@@ -198,6 +198,9 @@ export const isGreetingOrConversationalMessage = (content?: string, isWelcome?: 
   );
 };
 
+export const isServiceUnavailableMethod = (method?: unknown): boolean =>
+  method === 'first_person_check_unavailable' || method === 'first_person_store_unavailable';
+
 export const isFirstPersonAbstainMessage = (message: Message): boolean => {
   if (message.isFirstPersonAbstain === true) return true;
   if (message.routeDecision === 'first_person_abstain') return true;
@@ -316,7 +319,8 @@ const TeachingGroundingCard = ({
   if (items.length === 0 && !isAbstained) return null;
 
   if (items.length === 0 && isAbstained) {
-    if (isGreeting) return null;
+    // A provider/store outage is not "no teaching found": the reply already says to try again.
+    if (isGreeting || isServiceUnavailableMethod(verification?.method)) return null;
     return (
       <aside
         data-testid="teaching-grounding"
@@ -1560,7 +1564,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           {isGuru && !isStreaming && !message.error && isFirstPersonAbstainMessage(message) &&
                             !isCrisisAnswer(message.content) &&
                             message.verification?.method !== 'first_person_distress_compassion' &&
-                            message.verification?.method !== 'first_person_store_unavailable' && (
+                            !isServiceUnavailableMethod(message.verification?.method) && (
                             <AbstainHelpCard onAction={onAction} className="mt-3.5" />
                           )}
 

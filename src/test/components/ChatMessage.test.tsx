@@ -946,6 +946,25 @@ describe('ChatMessage personalize this teaching (T-B14)', () => {
       ).toBe(false);
     });
 
+    it('shows no "no teaching found" card or rephrase help when the check could not run (outage)', () => {
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            content:
+              "I couldn't finish checking the teachings for this question just now. Please try again in a moment.",
+            routeDecision: 'first_person_abstain',
+            groundingState: 'abstained',
+            verification: { method: 'first_person_check_unavailable', passed: false },
+          })}
+        />,
+        { wrapper },
+      );
+
+      expect(screen.getByText(/Please try again in a moment/)).toBeInTheDocument();
+      expect(screen.queryByTestId('abstain-help-card')).not.toBeInTheDocument();
+      expect(screen.queryByText(/No recorded teaching was found/)).not.toBeInTheDocument();
+    });
+
     it('renders AbstainHelpCard when message is a first-person abstain', () => {
       const onAction = vi.fn();
       render(
