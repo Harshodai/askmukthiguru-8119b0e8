@@ -186,6 +186,22 @@ export const sendMessage = async (
         }
       }
 
+      // Authenticated 401: refresh once and retry BEFORE the 202 check so a
+      // queued-job response from the retry is polled like the first attempt.
+      if (response.status === 401 && token) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${newToken}`,
+            },
+            body: buildBody(),
+          });
+        }
+      }
+
       // Queue integration: 202 Accepted → poll job endpoint until completed/failed
       if (response.status === 202) {
         const jobData = await response.json();
@@ -210,6 +226,15 @@ export const sendMessage = async (
                 ...(effectiveSessionId ? { 'X-Session-Id': effectiveSessionId } : {}),
               },
             });
+            if (pollResp.status === 401 || pollResp.status === 403 || pollResp.status === 404) {
+              // Not transient: the job is gone or we are not allowed to read it.
+              return {
+                content: '',
+                error: `Could not retrieve your answer (${pollResp.status}). Please retry your question.`,
+                errorCode: httpStatusToErrorCode(pollResp.status),
+                status: pollResp.status,
+              };
+            }
             if (pollResp.ok) {
               const job = await pollResp.json();
               if (job.status === 'completed') {
@@ -277,30 +302,7 @@ export const sendMessage = async (
           };
         }
 
-        // Auto-retry on 401 with token refresh
-        if (response.status === 401 && token) {
-          const newToken = await refreshAccessToken();
-          if (newToken) {
-            const retryResponse = await fetch(endpoint, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${newToken}`,
-              },
-              body: buildBody(),
-            });
-
-            if (retryResponse.ok) {
-              response = retryResponse;
-            } else {
-              return {
-                content: '',
-                error: `API error: ${retryResponse.status}`,
-                errorCode: httpStatusToErrorCode(retryResponse.status),
-              };
-            }
-          }
-        } else {
+        {
           let errorData: Record<string, unknown> | undefined;
           try {
             errorData = await response.clone().json();

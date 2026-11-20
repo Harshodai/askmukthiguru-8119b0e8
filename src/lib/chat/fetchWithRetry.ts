@@ -44,6 +44,19 @@ export const UNIVERSAL_HELPLINE_MESSAGE =
     (line) => `${line.label} ${line.display} (${line.hours})`,
   ).join(', ')}.`;
 
+/** Upper bound for any server-driven wait (anon-quota 429 sends Retry-After: 3600). */
+export const MAX_RETRY_AFTER_MS = 20_000;
+
+/** A quota-exhausted 429 will not clear in seconds; retrying only delays the quota message. */
+async function isQuotaExhausted(res: Response): Promise<boolean> {
+  if (res.status !== 429 || typeof res.clone !== 'function') return false;
+  try {
+    return (await res.clone().json())?.quota_exceeded === true;
+  } catch {
+    return false; // unreadable body: treat as an ordinary rate limit
+  }
+}
+
 export async function fetchWithRetry(
   url: string,
   options: RequestInit,
@@ -69,6 +82,7 @@ export async function fetchWithRetry(
     }
 
     if (!RETRYABLE.has(res.status) || attempt === maxAttempts - 1) return res;
+    if (await isQuotaExhausted(res)) return res;
 
     const retryAfter = res.headers?.get?.('Retry-After') ?? null;
     await sleep(retryDelayMs(retryAfter, attempt), signal);
@@ -88,7 +102,9 @@ export function retryDelayMs(retryAfterHeader: string | null, attempt: number): 
     // immediately — a shedding server would be hammered with zero-delay
     // retries. Fall back to backoff on anything non-finite.
     const parsed = parseInt(retryAfterHeader, 10) * 1000;
-    if (Number.isFinite(parsed) && parsed >= 0) return parsed + Math.random() * 1000;
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return Math.min(parsed + Math.random() * 1000, MAX_RETRY_AFTER_MS);
+    }
   }
   return backoffMs(attempt);
 }

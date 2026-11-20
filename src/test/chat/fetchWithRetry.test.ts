@@ -83,3 +83,53 @@ describe('final-503 helpline copy (RP-A2)', () => {
     expect(err.description).toContain('14416');
   });
 });
+
+describe('fetchWithRetry quota 429 and Retry-After cap', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('caps a header-driven delay at MAX_RETRY_AFTER_MS', async () => {
+    const { MAX_RETRY_AFTER_MS } = await import('@/lib/chat/fetchWithRetry');
+    vi.spyOn(Math, 'random').mockReturnValue(0.999);
+    expect(retryDelayMs('3600', 0)).toBeLessThanOrEqual(MAX_RETRY_AFTER_MS);
+    expect(MAX_RETRY_AFTER_MS).toBe(20_000);
+  });
+
+  it('never sleeps an hour on a Retry-After: 3600 503', async () => {
+    vi.useFakeTimers();
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue(new Response('busy', { status: 503, headers: { 'Retry-After': '3600' } }));
+    const pending = fetchWithRetry('http://x.test/api/chat', { method: 'POST' }, 2);
+    await vi.advanceTimersByTimeAsync(21_000);
+    expect((await pending).status).toBe(503);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns a quota-exhausted 429 immediately, body still readable', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ quota_exceeded: true }), { status: 429, headers: { 'Retry-After': '3600' } }),
+    );
+    const res = await fetchWithRetry('http://x.test/api/chat', { method: 'POST' }, 3);
+    expect(res.status).toBe(429);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(await res.json()).toEqual({ quota_exceeded: true });
+  });
+
+  it('still retries a plain 429 without quota flag', async () => {
+    vi.useFakeTimers();
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    fetchMock
+      .mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'Retry-After': '0' } }))
+      .mockResolvedValueOnce(new Response('ok', { status: 200 }));
+    const pending = fetchWithRetry('http://x.test/api/chat', { method: 'POST' }, 3);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect((await pending).status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});

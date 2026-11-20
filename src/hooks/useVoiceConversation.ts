@@ -34,6 +34,39 @@ export interface UseVoiceConversationReturn {
 
 const SILENCE_TIMEOUT_MS = 2000;
 
+// Minimal Web Speech API types (not in this project's lib.dom).
+interface WebSpeechResult {
+  isFinal: boolean;
+  0: { transcript: string };
+}
+interface WebSpeechEvent {
+  resultIndex: number;
+  results: ArrayLike<WebSpeechResult>;
+}
+interface WebSpeechErrorEvent {
+  error: string;
+}
+interface WebSpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: WebSpeechEvent) => void) | null;
+  onerror: ((event: WebSpeechErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+type SpeechWindow = {
+  SpeechRecognition?: new () => WebSpeechRecognition;
+  webkitSpeechRecognition?: new () => WebSpeechRecognition;
+  webkitAudioContext?: typeof AudioContext;
+};
+
+function warnStopFailed(err: unknown): void {
+  // stop() throws InvalidStateError when recognition is not running; harmless.
+  console.warn('[VoiceConversation] recognition.stop() failed (not running):', err);
+}
+
 export function useVoiceConversation({
   onSendMessage,
   language: initialLanguage = 'en',
@@ -50,7 +83,7 @@ export function useVoiceConversation({
   const [error, setError] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
 
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<WebSpeechRecognition | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -86,7 +119,7 @@ export function useVoiceConversation({
       mediaStreamRef.current = null;
     }
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current.close().catch((err) => console.warn('[VoiceConversation] AudioContext close failed:', err));
       audioContextRef.current = null;
     }
     setAudioLevel(0);
@@ -95,7 +128,7 @@ export function useVoiceConversation({
   // Web Audio Visualizer Loop
   const startAudioMeter = useCallback((stream: MediaStream) => {
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as unknown as SpeechWindow).webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       audioContextRef.current = ctx;
@@ -146,7 +179,9 @@ export function useVoiceConversation({
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch {}
+      } catch (err) {
+        warnStopFailed(err);
+      }
     }
 
     setState('thinking');
@@ -161,8 +196,8 @@ export function useVoiceConversation({
         // If onSendMessage didn't return string directly, wait for next cycle
         setState('speaking');
       }
-    } catch (err: any) {
-      setError(err?.message || 'Failed to process voice request');
+    } catch (err) {
+      setError((err instanceof Error && err.message) || 'Failed to process voice request');
       setState('idle');
     }
   }, [onSendMessage]);
@@ -191,7 +226,7 @@ export function useVoiceConversation({
 
     // Initialize Web Speech Recognition
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      (window as unknown as SpeechWindow).SpeechRecognition || (window as unknown as SpeechWindow).webkitSpeechRecognition;
 
     if (SpeechRecognition) {
       try {
@@ -220,7 +255,7 @@ export function useVoiceConversation({
 
         let accumulatedFinal = '';
 
-        recognition.onresult = (event: any) => {
+        recognition.onresult = (event: WebSpeechEvent) => {
           let interim = '';
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             const piece = event.results[i][0].transcript;
@@ -247,7 +282,7 @@ export function useVoiceConversation({
           }
         };
 
-        recognition.onerror = (e: any) => {
+        recognition.onerror = (e: WebSpeechErrorEvent) => {
           if (e.error === 'no-speech') {
             // Normal silence; keep listening
             return;
@@ -260,7 +295,9 @@ export function useVoiceConversation({
           if (activeRef.current && state === 'listening' && !isMuted) {
             try {
               recognition.start();
-            } catch {}
+            } catch (err) {
+        warnStopFailed(err);
+      }
           }
         };
 
@@ -280,7 +317,9 @@ export function useVoiceConversation({
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch {}
+      } catch (err) {
+        warnStopFailed(err);
+      }
     }
 
     speak(text);
@@ -321,7 +360,9 @@ export function useVoiceConversation({
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch {}
+      } catch (err) {
+        warnStopFailed(err);
+      }
       recognitionRef.current = null;
     }
     cleanupAudio();
@@ -337,7 +378,9 @@ export function useVoiceConversation({
         if (recognitionRef.current) {
           try {
             recognitionRef.current.stop();
-          } catch {}
+          } catch (err) {
+        warnStopFailed(err);
+      }
         }
         setState('idle');
       } else if (activeRef.current) {
