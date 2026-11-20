@@ -493,21 +493,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
-          memories_json: string
+          memories_json: Json
           tenant_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
           id?: string
-          memories_json: string
+          memories_json: Json
           tenant_id?: string
           user_id: string
         }
         Update: {
           created_at?: string
           id?: string
-          memories_json?: string
+          memories_json?: Json
           tenant_id?: string
           user_id?: string
         }
@@ -846,6 +846,117 @@ export type Database = {
           },
         ]
       }
+      corpus_gate_rejections: {
+        Row: {
+          chunk_index: number | null
+          created_at: string | null
+          gate_layer: string
+          gate_reason: string | null
+          gate_verdict: string | null
+          id: string
+          matched_span: string | null
+          point_id: string | null
+          reason: string
+          source_url: string
+        }
+        Insert: {
+          chunk_index?: number | null
+          created_at?: string | null
+          gate_layer: string
+          gate_reason?: string | null
+          gate_verdict?: string | null
+          id?: string
+          matched_span?: string | null
+          point_id?: string | null
+          reason: string
+          source_url: string
+        }
+        Update: {
+          chunk_index?: number | null
+          created_at?: string | null
+          gate_layer?: string
+          gate_reason?: string | null
+          gate_verdict?: string | null
+          id?: string
+          matched_span?: string | null
+          point_id?: string | null
+          reason?: string
+          source_url?: string
+        }
+        Relationships: []
+      }
+      corpus_sources: {
+        Row: {
+          active_release_id: string | null
+          corpus_id: string
+          created_at: string | null
+          last_checksum: string | null
+          last_ingested_at: string
+          source_identity: string
+          source_url: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          active_release_id?: string | null
+          corpus_id: string
+          created_at?: string | null
+          last_checksum?: string | null
+          last_ingested_at?: string
+          source_identity: string
+          source_url: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          active_release_id?: string | null
+          corpus_id?: string
+          created_at?: string | null
+          last_checksum?: string | null
+          last_ingested_at?: string
+          source_identity?: string
+          source_url?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      corpus_takedowns: {
+        Row: {
+          created_at: string | null
+          db_records_marked: number
+          dry_run: boolean
+          id: string
+          metadata: Json | null
+          qdrant_points_quarantined: number
+          reason: string
+          redis_keys_flushed: number
+          source_identity: string
+        }
+        Insert: {
+          created_at?: string | null
+          db_records_marked?: number
+          dry_run?: boolean
+          id?: string
+          metadata?: Json | null
+          qdrant_points_quarantined?: number
+          reason: string
+          redis_keys_flushed?: number
+          source_identity: string
+        }
+        Update: {
+          created_at?: string | null
+          db_records_marked?: number
+          dry_run?: boolean
+          id?: string
+          metadata?: Json | null
+          qdrant_points_quarantined?: number
+          reason?: string
+          redis_keys_flushed?: number
+          source_identity?: string
+        }
+        Relationships: []
+      }
       daily_teachings: {
         Row: {
           caption: string | null
@@ -1169,6 +1280,33 @@ export type Database = {
         }
         Relationships: []
       }
+      guru_core_memory_dedup_archive_20261119: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       guru_memories: {
         Row: {
           claim: string | null
@@ -1180,6 +1318,7 @@ export type Database = {
           fact_key: string | null
           id: string
           source: string
+          source_conversation_id: string | null
           summary: string | null
           tenant_id: string
           updated_at: string
@@ -1197,6 +1336,7 @@ export type Database = {
           fact_key?: string | null
           id?: string
           source?: string
+          source_conversation_id?: string | null
           summary?: string | null
           tenant_id?: string
           updated_at?: string
@@ -1214,6 +1354,7 @@ export type Database = {
           fact_key?: string | null
           id?: string
           source?: string
+          source_conversation_id?: string | null
           summary?: string | null
           tenant_id?: string
           updated_at?: string
@@ -1288,42 +1429,54 @@ export type Database = {
       }
       ingest_jobs: {
         Row: {
+          attempt: number | null
           chunks_indexed: number | null
           completed_at: string | null
           created_at: string | null
           error_message: string | null
+          heartbeat_at: string | null
           id: string
           progress_pct: number | null
+          source_identity: string | null
           source_type: string | null
           source_url: string
           started_at: string | null
           status: string | null
+          updated_at: string | null
           worker_id: string | null
         }
         Insert: {
+          attempt?: number | null
           chunks_indexed?: number | null
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
+          heartbeat_at?: string | null
           id?: string
           progress_pct?: number | null
+          source_identity?: string | null
           source_type?: string | null
           source_url: string
           started_at?: string | null
           status?: string | null
+          updated_at?: string | null
           worker_id?: string | null
         }
         Update: {
+          attempt?: number | null
           chunks_indexed?: number | null
           completed_at?: string | null
           created_at?: string | null
           error_message?: string | null
+          heartbeat_at?: string | null
           id?: string
           progress_pct?: number | null
+          source_identity?: string | null
           source_type?: string | null
           source_url?: string
           started_at?: string | null
           status?: string | null
+          updated_at?: string | null
           worker_id?: string | null
         }
         Relationships: []
@@ -1673,6 +1826,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      message_citations: {
+        Row: {
+          created_at: string | null
+          end_ms: number
+          guru_id: string
+          id: string
+          message_id: string
+          rights_status: string
+          source_text_hash: string
+          span_id: string | null
+          speaker_verified: boolean
+          start_ms: number
+          verbatim_text: string
+          video_id: string
+          withdrawn_by_source: boolean
+        }
+        Insert: {
+          created_at?: string | null
+          end_ms?: number
+          guru_id: string
+          id?: string
+          message_id: string
+          rights_status: string
+          source_text_hash: string
+          span_id?: string | null
+          speaker_verified: boolean
+          start_ms?: number
+          verbatim_text: string
+          video_id: string
+          withdrawn_by_source?: boolean
+        }
+        Update: {
+          created_at?: string | null
+          end_ms?: number
+          guru_id?: string
+          id?: string
+          message_id?: string
+          rights_status?: string
+          source_text_hash?: string
+          span_id?: string | null
+          speaker_verified?: boolean
+          start_ms?: number
+          verbatim_text?: string
+          video_id?: string
+          withdrawn_by_source?: boolean
+        }
+        Relationships: []
       }
       model_pricing: {
         Row: {
@@ -2072,6 +2273,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      retrieval_feedback_signals: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          point_id: string | null
+          query_hash: string
+          signal: string
+          source_url: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          point_id?: string | null
+          query_hash: string
+          signal: string
+          source_url: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          point_id?: string | null
+          query_hash?: string
+          signal?: string
+          source_url?: string
+        }
+        Relationships: []
       }
       router_decisions: {
         Row: {
@@ -2557,6 +2788,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_brain_keys_archive_20261119: {
+        Row: {
+          created_at: string | null
+          kdf: Json | null
+          rotated_at: string | null
+          updated_at: string | null
+          user_id: string | null
+          version: number | null
+          wrap_mode: string | null
+          wrapped_dek: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          kdf?: Json | null
+          rotated_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          version?: number | null
+          wrap_mode?: string | null
+          wrapped_dek?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          kdf?: Json | null
+          rotated_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          version?: number | null
+          wrap_mode?: string | null
+          wrapped_dek?: string | null
+        }
+        Relationships: []
+      }
       user_brain_nodes: {
         Row: {
           access_count: number
@@ -3005,8 +3269,78 @@ export type Database = {
         }
         Relationships: []
       }
+      video_serving_decision_audit: {
+        Row: {
+          actor: string
+          admin_approved: boolean | null
+          created_at: string
+          grade: string | null
+          human_speaker_check: string | null
+          id: string
+          notes: string | null
+          reason: string
+          video_id: string
+        }
+        Insert: {
+          actor: string
+          admin_approved?: boolean | null
+          created_at?: string
+          grade?: string | null
+          human_speaker_check?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string
+          video_id: string
+        }
+        Update: {
+          actor?: string
+          admin_approved?: boolean | null
+          created_at?: string
+          grade?: string | null
+          human_speaker_check?: string | null
+          id?: string
+          notes?: string | null
+          reason?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
+      video_serving_decisions: {
+        Row: {
+          admin_approved: boolean | null
+          grade: string | null
+          human_speaker_check: string | null
+          notes: string | null
+          reason: string
+          updated_at: string
+          updated_by: string
+          video_id: string
+        }
+        Insert: {
+          admin_approved?: boolean | null
+          grade?: string | null
+          human_speaker_check?: string | null
+          notes?: string | null
+          reason?: string
+          updated_at?: string
+          updated_by?: string
+          video_id: string
+        }
+        Update: {
+          admin_approved?: boolean | null
+          grade?: string | null
+          human_speaker_check?: string | null
+          notes?: string | null
+          reason?: string
+          updated_at?: string
+          updated_by?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
       waitlist_entries: {
         Row: {
+          consent_to_contact: boolean
           consented_at: string
           email: string
           email_key: string | null
@@ -3016,6 +3350,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          consent_to_contact?: boolean
           consented_at?: string
           email: string
           email_key?: string | null
@@ -3025,6 +3360,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          consent_to_contact?: boolean
           consented_at?: string
           email?: string
           email_key?: string | null
@@ -3170,7 +3506,7 @@ export type Database = {
         }
       }
       create_compaction_snapshot: {
-        Args: { p_memories_json: Json; p_user_id: string }
+        Args: { p_memories_json: Json; p_tenant_id: string; p_user_id: string }
         Returns: undefined
       }
       demote_admin_by_id: { Args: { _user_id: string }; Returns: Json }
@@ -3207,6 +3543,7 @@ export type Database = {
           p_k: number
           p_min_sim: number
           p_query_embedding: string
+          p_tenant_id: string
           p_user_id: string
         }
         Returns: {
@@ -3227,7 +3564,10 @@ export type Database = {
           total_practice_days: number
         }[]
       }
-      regenerate_summaries: { Args: { p_user_id: string }; Returns: number }
+      regenerate_summaries: {
+        Args: { p_tenant_id: string; p_user_id: string }
+        Returns: number
+      }
       register_source_release: {
         Args: {
           p_content_checksum: string
@@ -3281,6 +3621,10 @@ export type Database = {
         }
       }
       seed_admin_demo: { Args: never; Returns: Json }
+      subscribe_launch_updates: {
+        Args: { p_consent: boolean; p_email: string; p_source: string }
+        Returns: string
+      }
       upsert_canonical_memory: {
         Args: {
           p_confidence: number
