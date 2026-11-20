@@ -101,9 +101,26 @@ def refused(body: dict) -> bool:
     return answered(body) and not body.get("citations") and not body.get("model_used")
 
 
-def floor_check(report: Report, name: str, hits: int, total: int, floor: float) -> None:
+def abstain_cause(body: dict) -> str:
+    ver = body.get("verification") if isinstance(body.get("verification"), dict) else {}
+    return str(ver.get("abstain_cause") or body.get("route_decision") or "unknown")
+
+
+def floor_check(report: Report, name: str, hits: int, total: int, floor: float, causes: list[str] | None = None) -> None:
+    from collections import Counter
+
     rate = hits / total if total else 0.0
-    report.add(name, rate >= floor, f"{hits}/{total} = {rate:.0%} (floor {floor:.0%})")
+    detail = f"{hits}/{total} = {rate:.0%} (floor {floor:.0%})"
+    has_outage = False
+    if causes:
+        counts = Counter(causes)
+        cause_str = ", ".join(f"{c}: {n}" for c, n in counts.items())
+        if "system_unavailable" in counts:
+            has_outage = True
+            detail += f" [PROVIDER OUTAGE: {cause_str}]"
+        else:
+            detail += f" [causes: {cause_str}]"
+    report.add(name, rate >= floor and not has_outage, detail)
 
 
 class Client:
@@ -197,16 +214,37 @@ def run(client: Client, serve_floor: float, followup_floor: float) -> Report:
     ooc_status = str(ooc.get("route_decision") or ooc.get("status") or ("blocked" if ooc.get("blocked") else "refused" if refused(ooc) else "unhandled"))
     report.add("out-of-corpus refused", refused(ooc), ooc_status)
     hindi = single(HINDI)
-    report.add("hindi turn answered", served(hindi), str(hindi.get("route_decision")))
-    floor_check(report, "in-domain serve rate", sum(served(single(q)) for q in IN_DOMAIN), len(IN_DOMAIN), serve_floor)
+    hindi_ok = served(hindi)
+    hindi_cause = abstain_cause(hindi) if not hindi_ok else str(hindi.get("route_decision"))
+    hindi_detail = hindi_cause
+    if hindi_cause == "system_unavailable":
+        hindi_detail = "PROVIDER OUTAGE (system_unavailable)"
+    report.add("hindi turn answered", hindi_ok, hindi_detail)
+
     hits = 0
+    in_domain_causes = []
+    for q in IN_DOMAIN:
+        ans = single(q)
+        if served(ans):
+            hits += 1
+        else:
+            in_domain_causes.append(abstain_cause(ans))
+    floor_check(report, "in-domain serve rate", hits, len(IN_DOMAIN), serve_floor, in_domain_causes)
+
+    hits = 0
+    followup_causes = []
     for first, follow in CONVERSATIONS:
         session = client.session()
         r1 = client.ask(session, first, [])
         hist = [{"role": "user", "content": first}, {"role": "assistant", "content": r1.get("response") or ""}]
-        hits += served(client.ask(session, follow, hist))
-    floor_check(report, "follow-up serve rate", hits, len(CONVERSATIONS), followup_floor)
+        ans = client.ask(session, follow, hist)
+        if served(ans):
+            hits += 1
+        else:
+            followup_causes.append(abstain_cause(ans))
+    floor_check(report, "follow-up serve rate", hits, len(CONVERSATIONS), followup_floor, followup_causes)
     return report
+
 
 
 def main(argv: list[str] | None = None) -> int:

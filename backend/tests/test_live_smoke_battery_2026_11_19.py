@@ -97,3 +97,64 @@ def test_client_reads_faculty_code_from_settings(monkeypatch):
     client = smoke.Client("https://api.test", "https://askmukthiguru.lovable.app")
     assert client.faculty == "test-faculty-code"
 
+
+def test_system_unavailable_causes_provider_outage_failure():
+    outage_resp = {
+        "route_decision": "first_person_abstain",
+        "citations": [],
+        "response": "I couldn't finish checking the teachings for this question just now.",
+        "verification": {"passed": False, "abstain_cause": "system_unavailable"},
+    }
+    class _OutageClient(smoke.Client):
+        def __init__(self):
+            super().__init__("https://api.test", "https://askmukthiguru.lovable.app")
+        def call(self, method, path, body=None, headers=None):
+            if method == "OPTIONS":
+                return 200, {"access-control-allow-origin": self.origin}, {}
+            return 200, {}, {}
+        def session(self):
+            return "s"
+        def ask(self, session, text, history):
+            if text == smoke.CRISIS:
+                return {"response": "Tele-MANAS 14416", "citations": []}
+            if text in (smoke.JAILBREAK, smoke.OUT_OF_CORPUS):
+                return {"citations": [], "response": "outside"}
+            return outage_resp
+
+    report = smoke.run(_OutageClient(), 0.7, 0.5)
+    assert not report.ok
+    table = report.table()
+    assert "PROVIDER OUTAGE" in table
+    assert "system_unavailable" in table
+
+
+def test_genuine_abstain_reported_with_cause():
+    genuine_abstain = {
+        "route_decision": "first_person_abstain",
+        "citations": [],
+        "response": "I stay with the teachings.",
+        "verification": {"passed": False, "abstain_cause": "no_evidence"},
+    }
+    class _AbstainClient(smoke.Client):
+        def __init__(self):
+            super().__init__("https://api.test", "https://askmukthiguru.lovable.app")
+        def call(self, method, path, body=None, headers=None):
+            if method == "OPTIONS":
+                return 200, {"access-control-allow-origin": self.origin}, {}
+            return 200, {}, {}
+        def session(self):
+            return "s"
+        def ask(self, session, text, history):
+            if text == smoke.CRISIS:
+                return {"response": "Tele-MANAS 14416", "citations": []}
+            if text in (smoke.JAILBREAK, smoke.OUT_OF_CORPUS):
+                return {"citations": [], "response": "outside"}
+            return genuine_abstain
+
+    report = smoke.run(_AbstainClient(), 0.7, 0.5)
+    assert not report.ok
+    table = report.table()
+    assert "no_evidence" in table
+    assert "PROVIDER OUTAGE" not in table
+
+
