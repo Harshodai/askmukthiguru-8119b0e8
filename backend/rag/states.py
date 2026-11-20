@@ -155,6 +155,12 @@ class GraphState(TypedDict):
     answer: Annotated[Optional[str], keep_latest]
     citations: Annotated[list, keep_latest]
 
+    # Telemetry only: verification marks "nothing to be faithful to"; the
+    # coordinator reads it to emit NULL faithfulness instead of a measured 0.0.
+    no_context: Annotated[Optional[bool], keep_latest]
+    # Telemetry only: forwarded to PipelineResult / telemetry sink (glue_stages).
+    orphan_citations_stripped: Annotated[Optional[bool], keep_latest]
+
     # Self-RAG
     is_faithful: Annotated[Optional[bool], keep_latest]
 

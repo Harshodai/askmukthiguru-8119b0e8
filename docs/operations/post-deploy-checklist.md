@@ -32,3 +32,26 @@ Write the cause into `lessons.md` before you retry.
    the helpline only, no teacher clip; "What is the capital of France?" abstains with no
    citations; `/second-brain` initializes without a 500.
 5. Rollback: re-attach the previous commit SHA, redeploy, then repeat rows 5-7 and step 4.
+
+## Qdrant write credential (2026-11-20)
+
+Static trace only; no Railway variable was read and no secret printed.
+
+**Facts (from code)**
+- `.railway/railway.ts` pins only `QDRANT_URL` and `QDRANT_READ_ONLY_API_KEY` for the backend. It does not declare `QDRANT_API_KEY` or `QDRANT_WRITE_API_KEY`.
+- `app/config.py` has no resolver that copies `qdrant_read_only_api_key` into `qdrant_api_key`. They are independent settings, both default `""`.
+- The serving client (`services/qdrant/client.py:115`) uses `qdrant_read_only_api_key or qdrant_api_key`, so retrieval works with the read-only key alone.
+- Four other paths read only `settings.qdrant_api_key`: `services/canonical_memory/vector_index.py:109`, `services/memory_service_v2.py:729`, `services/cache/semantic_adapter.py:78,328`, `tasks/cache_maintenance_tasks.py:34`. If `QDRANT_API_KEY` is not also set on the service, these connect with no key (`api_key=None`).
+- `docker-compose.yml:300` masks this locally by setting `QDRANT_API_KEY=${QDRANT_READ_ONLY_API_KEY:-...}`. Railway has no equivalent line in `railway.ts`.
+
+**Consequence (inferred, not verified in production)**
+- If Railway has no `QDRANT_API_KEY`, canonical-memory vector upserts and semantic-cache reads and writes hit a secured Qdrant unauthenticated and fail (401/403).
+- If `QDRANT_API_KEY` is set to the same read-only JWT, writes fail with 403 unless the token's `access` claim grants `rw` on the memory and cache collections. The 11-19 handoff says only "corpus read-only", so it is unknown whether those collections are `rw`.
+- Either way memory and cache writes cannot succeed with a read-only credential, and `railway.ts` says the backend must never hold the write key. This is an owner decision: grant a second scoped JWT (`rw` on memory and cache collections only) or accept degraded memory and cache on Railway.
+
+**Unverified**
+- Whether `QDRANT_API_KEY` exists in the dashboard, and the actual JWT `access` claims. Whether these write paths fail loudly or silently (not traced).
+
+**Read-only post-deploy check**
+`QDRANT_API_KEY=<token> FIRST_PERSON_COLLECTION=... backend/.venv/bin/python backend/scripts/ops/check_qdrant_token_scope.py --require <memory_collection> --require <cache_collection>`
+It decodes the JWT claims locally (no network, no secrets printed). Note it treats `r`, `rw` and `m` all as "readable", so it proves read coverage only, not write. To check write scope, inspect the `access` claim for `rw` on the memory and cache collections by hand.
