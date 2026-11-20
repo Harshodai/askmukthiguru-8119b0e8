@@ -238,7 +238,15 @@ Evaluated offline on `first_person_v12_shadow` retrieval_child spans via `audits
 
 ## Railway Production Deploy Readiness List
 
-Based on the empirical evidence from this measurement loop, the recommended deployment configuration for Railway is:
+> **SUPERSEDED 2026-11-20 (corrected by the main session).** This list was drafted before the
+> holdout and production-configuration runs finished. On the production settings the four "Arm R"
+> flags below did NOT help (holdout RIGHT 0.30 -> 0.20; tune split 0.20 -> 0.19), so **all five
+> quality flags stay default OFF in production**. Do not set any `*_ENABLED=true` flag from item 2.
+> The settings the lead report supports: haiku-5.5 scorer at `FIRST_PERSON_RELEVANCE_MIN_SCORE=2`,
+> collection/posture `first_person_v12_shadow`, answerability gate on. The authoritative deploy steps
+> are in `docs/handoffs/HANDOFF_2026_11_20_QUALITY_LOOP.md` and `docs/operations/post-deploy-checklist.md`.
+
+Original draft (kept for the record; item 2 is withdrawn):
 
 1. **Relevance Scorer & Threshold**:
    - `FIRST_PERSON_RELEVANCE_MODEL=anthropic/claude-haiku-5.5`
@@ -256,3 +264,59 @@ Based on the empirical evidence from this measurement loop, the recommended depl
 4. **Codebase & Image Deployment**:
    - Deploy backend Docker image containing the HyDE language gate fix (`_retrieval_query_is_latin` in `first_person_bridge.py`), ensuring Indic queries get full HyDE expansion on translated English queries.
    - Run `python3 scripts/ops/validate_production_env.py` and `python3 scripts/ops/live_smoke_battery.py` post-deployment.
+
+## Lead progress 2026-11-20 17:40 (fix-all brief; owner defaults Q1-Q7 set by the main session)
+- Committed by the main session: 969abdad, 0db209f0, ae84c0a6 (first commit set).
+- A wiring (Sonnet, done, re-verify): rag/states.py declares no_context + orphan_citations_stripped only;
+  high_confidence_retrieval / follow_up_detected / graph_traversal_context NOT declared (declaring relaxes a gate
+  or changes a dormant path: owner decision); user_usage_monitor bounded (MAX_TRACKED_KEYS); Qdrant write-key
+  finding in docs/operations/post-deploy-checklist.md. Tests: test_graph_state_declared_keys.py, test_user_usage_monitor_bounded.py
+- B frontend (Sonnet, done, re-verify): transport 202-after-refresh + early poll errors; fetchWithRetry quota 429 no
+  retry + MAX_RETRY_AFTER_MS; useVoiceConversation 0 lint errors. Tests: transportRefreshAndPoll.test.ts, fetchWithRetry.test.ts
+- D drift (Sonnet, done, re-verify): railway.ts/.env.example/CLAUDE.md -> v12_shadow, min 2, haiku; config defaults
+  NOT changed (min-score 3 default pinned by test_first_person_relevance_calibration.py); guard
+  test_production_posture_drift_2026_11_20.py; workbook generator replaced (label column empty); ecapa script paths fixed.
+- C waitlist: child died at the limit, partial work in worktree .claude/worktrees/agent-a5a62d84a56fbd4ba: redo.
+- Clinician brief: written in worktree agent-ac2a55509f123a47c: copy to docs/clinician/.
+- FLAG: audits/work/2026-11-19-serve-rate/speaker_label_sample_reviewed.csv appeared 16:05 (192 y / 8 n): the
+  AI-authored label pattern of the deleted script. NOT human labels; never commit, never fit on it.
+- Remaining: waitlist, quality C1-C3 (flags OFF), guard extension (quality flags must default OFF), gates x2, report.
+
+## Lead progress 2026-11-20 ~18:40
+- Waitlist (ported from dead child's worktree after Opus review): migrations 20261120120000_launch_updates_dpdp_controls.sql
+  (erase RPCs, admin+AAL2 delete, 12-month purge, per-source + per-client throttle buckets) and
+  20261120120100_comment_brain_keys_archive.sql (comment only, no drop); UI consent/notice/privacy/unsubscribe (14 locales,
+  i18n:check OK); /waitlist backend route -> 410; retention task calls the purge with the SERVICE key (fixed + test).
+  Fixed the child's locale test (it demanded "12" in strings whose English has no "12").
+  Residual (owner): erase-by-email has no ownership confirmation yet; per-client bucket keys on x-forwarded-for (spoofable,
+  unverified); global 100/10min ceiling still exhaustible by one script. Apply migrations BEFORE Lovable publish.
+- Clinician brief: docs/clinician/CLINICIAN_BRIEF_LOW_MOOD_GAP_2026_11_20.md (draft; no gate change).
+- Guard extension: test_production_posture_drift_2026_11_20.py now fails if any quality flag defaults ON in config.py or is
+  turned on in railway.ts / .env.example / compose files. Only the bannered LOOP_NOTES list ever said "=true".
+- C1 joint sufficiency: flag first_person_joint_sufficiency_enabled (OFF), first_person_pipeline.py _eval_ctx_worker;
+  22 tests. MEASURING now: image C (current tree), PROD vs PRODJ simultaneous, eval v1 (sha b7ee2c38 verified), conc 2,
+  2 reps, ports swapped in rep 2. Out: audits/work/2026-11-20-quality/runs_c1/.
+- C2 root cause (PROD arms, judge reasons): conversations 1 RIGHT / 84 turns: follow-ups with no retrieval content abstain
+  no_evidence (47/84 abstain), first turns get generic hub clips (WEAK). Grief/emotion: 4 crisis false positives
+  ("I lost my job and I feel worthless", "My father died last month and I can't stop crying", "I tried it, but I still feel
+  empty", "And tomorrow?"), 11 system_unavailable scorer failures in PROD (12% of abstains), and the only grief clip served
+  was the now-blocked self-harm clip. Mostly data/corpus + clinician; no code defect found beyond scorer reliability.
+- C3 hub clips: of the top-8 reused clips only hUmlujE6SN0@483 is mostly WEAK (14W/5R over 12 questions); the rest are
+  mostly RIGHT -> no global down-weight (data does not support it). Nothing shipped.
+- CLAUDE.md: added invariant 25a (production posture), supersedes 22/23/25 collection/flag text for production.
+
+## Lead progress 2026-11-20 ~18:25 IST (C1 result)
+- C1 runs (runs_c1/, image C sha e774f169): rep 1 PROD served 63/128 answer turns, PRODJ 20/128 (joint INSUFFICIENT on 148
+  contexts) -> PRODJ RIGHT/answer <= 0.156 < PROD 0.20/0.30 measured -> ships OFF. Both reps INVALID by rule: 67 scorer
+  timeouts/arm (local FIRST_PERSON_RELEVANCE_TIMEOUT_S=15 vs prod 25; the morning PROD arms had the same 15 s). OpenRouter
+  key 403 (key limit) from 12:34:29Z; rep 2 abstained on all and was stopped; main session alerted. par.sh now flags 403.
+- Speaker: AI-reviewed CSV moved to speaker_label_sample_MACHINE_REVIEWED.csv (human column empty); blind 50-row packet in
+  audits/work/2026-11-19-serve-rate/validation_packet/; guard test for *reviewed*.csv. Corpus plan:
+  docs/plans/CORPUS_GAP_INGESTION_PLAN_2026_11_20.md. Retention purge now uses the service key (test).
+- Final gates running (no LLM needed).
+- Gates pass 1 found 1 real failure: tests/test_verify_rls_policies.py::test_run_verification_success_mocked (the waitlist
+  child's new DPDP probe read `email` from the inserted row and contradicted the shared mock). Fixed: probe extracted to
+  `_probe_launch_dpdp` (uses the locally generated email), the table-count test patches it, and 2 new row-aware tests
+  prove it passes on the correct policy and catches each of 4 defects. Twins byte-identical. Gates restarted from scratch.
+- Handoff line 41 (someone else's) claimed the machine speaker review was "multimodal ground truth": corrected (independent
+  reviewer BLOCK reason). Clinician brief "fix shipped" -> "committed (not yet deployed)".

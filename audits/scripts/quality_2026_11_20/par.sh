@@ -31,6 +31,7 @@ envyml() {  # $1 svc $2 arm $3 img -> override file
       PROD3) echo "      FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5"; echo "      FIRST_PERSON_CONTEXT_USE_SPARSE: \"false\""; echo "      FIRST_PERSON_CONTEXT_CANDIDATE_LIMIT: \"10\""; echo "      FIRST_PERSON_CONTEXT_MAX_SPANS: \"5\""; echo "      FIRST_PERSON_SERVE_UNREGISTERED: \"false\""; echo "      FIRST_PERSON_LOCAL_REVIEW_ENABLED: \"false\""; echo "      FIRST_PERSON_RELEVANCE_MIN_SCORE: \"3\"";;
       PRODR) echo "      FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5"; echo "      FIRST_PERSON_CONTEXT_USE_SPARSE: \"false\""; echo "      FIRST_PERSON_CONTEXT_CANDIDATE_LIMIT: \"10\""; echo "      FIRST_PERSON_CONTEXT_MAX_SPANS: \"5\""; echo "      FIRST_PERSON_SERVE_UNREGISTERED: \"false\""; echo "      FIRST_PERSON_LOCAL_REVIEW_ENABLED: \"false\""; echo "      FIRST_PERSON_RELEVANCE_MIN_SCORE: \"2\""; echo "      FIRST_PERSON_META_FOLLOWUP_ENABLED: \"true\""; echo "      FIRST_PERSON_CONTEXT_SEEN_RERANK_ENABLED: \"true\""; echo "      FIRST_PERSON_ANSWERABILITY_PREFETCH_ENABLED: \"true\""; echo "      FIRST_PERSON_MULTIPART_ENABLED: \"true\"";;
       PRODX) echo "      FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5"; echo "      FIRST_PERSON_CONTEXT_USE_SPARSE: \"false\""; echo "      FIRST_PERSON_CONTEXT_CANDIDATE_LIMIT: \"10\""; echo "      FIRST_PERSON_CONTEXT_MAX_SPANS: \"5\""; echo "      FIRST_PERSON_SERVE_UNREGISTERED: \"false\""; echo "      FIRST_PERSON_LOCAL_REVIEW_ENABLED: \"false\""; echo "      FIRST_PERSON_RELEVANCE_MIN_SCORE: \"2\""; echo "      FIRST_PERSON_RELEVANCE_EXACT_N_ENABLED: \"true\"";;
+      PRODJ) echo "      FIRST_PERSON_RELEVANCE_MODEL: anthropic/claude-haiku-5.5"; echo "      FIRST_PERSON_CONTEXT_USE_SPARSE: \"false\""; echo "      FIRST_PERSON_CONTEXT_CANDIDATE_LIMIT: \"10\""; echo "      FIRST_PERSON_CONTEXT_MAX_SPANS: \"5\""; echo "      FIRST_PERSON_SERVE_UNREGISTERED: \"false\""; echo "      FIRST_PERSON_LOCAL_REVIEW_ENABLED: \"false\""; echo "      FIRST_PERSON_RELEVANCE_MIN_SCORE: \"2\""; echo "      FIRST_PERSON_JOINT_SUFFICIENCY_ENABLED: \"true\"";;
       *) echo "bad arm $2" >&2; exit 2;;
     esac
   } > $f
@@ -46,7 +47,7 @@ one() {  # $1 svc $2 port $3 tag $4 arm $5 img $6 eval
   local start=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   { echo "start $start"; echo "port $port"; echo "load_start $(sysctl -n vm.loadavg)";
     echo "image $(docker inspect -f '{{.Image}}' $cname)";
-    echo "flags $(docker exec $cname sh -c 'env | grep -E "CONTEXT_USE_SPARSE|CANDIDATE_LIMIT|MAX_SPANS|SERVE_UNREGISTERED|RELEVANCE_MIN|RELEVANCE_MODEL|EXACT_N|META_FOLLOWUP|SEEN_RERANK|PREFETCH|MULTIPART" | sort | tr "\n" " "')"; } > $OUT/$tag.meta
+    echo "flags $(docker exec $cname sh -c 'env | grep -E "CONTEXT_USE_SPARSE|CANDIDATE_LIMIT|MAX_SPANS|SERVE_UNREGISTERED|RELEVANCE_MIN|RELEVANCE_MODEL|EXACT_N|META_FOLLOWUP|SEEN_RERANK|PREFETCH|MULTIPART|JOINT" | sort | tr "\n" " "')"; } > $OUT/$tag.meta
   MINT_CONTAINER=$cname BATTERY_BASE=http://localhost:$port python3 $HERE/run_eval.py $ev $OUT/$tag.jsonl --arm ${arm}${img} --rep ${tag##*_r} --conc ${CONC:-3} > $OUT/$tag.log 2>&1
   docker logs --since $start $cname > $OUT/$tag.backend.log 2>&1
   local L=$OUT/$tag.backend.log
@@ -56,6 +57,8 @@ one() {  # $1 svc $2 port $3 tag $4 arm $5 img $6 eval
     echo "http_402 $(grep -c 'status=402\|402 Payment\|nsufficient credits' $L)";
     echo "http_429 $(grep -c 'status=429\|429 Too Many' $L)";
     echo "budget_block $(grep -ci 'budget exceeded\|budget_guard' $L)";
+    a403=$(grep -c 'OpenRouter auth error (403)' $L); echo "provider_auth_403 $a403";
+    [ "$a403" -gt 0 ] && echo "INVALID: provider 403 (key limit) during run";
     echo "turns $(wc -l < $OUT/$tag.jsonl)"; } >> $OUT/$tag.meta
 }
 # Spec "PORT TAG ARM IMG EVAL" per argument (PORT 8000 -> service backend, 8001 -> backend_b).

@@ -1,6 +1,25 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 20, 2026 (evening) — fix-all round
+
+### L-A-LOCAL-ARM-IS-NOT-PROD-UNTIL-EVERY-TIMEOUT-MATCHES-1. Copy the production timeouts into a "production-equivalent" arm.
+- **What:** the PROD arms set the scorer model, min score, sparse and span limits, but inherited local `.env` `FIRST_PERSON_RELEVANCE_TIMEOUT_S=15` (production uses the 25 s default). The haiku scorer timed out 67 times in 181 turns, so those abstains are a local artifact.
+- **Rule:** a production-equivalent arm diffs its full effective `Settings` against the production variable list (names only) before it runs.
+
+### L-THE-BREAKER-MUST-SEE-PROVIDER-AUTH-ERRORS-1. A key limit shows up as a 403 inside the backend, not as a 402 at the API.
+- **What:** the OpenRouter key hit its limit mid-run (`OpenRouter auth error (403)` from 12:34:29Z). The app degraded safely (every turn abstained), so the chat API kept answering 202, and the runner's 402/429 breaker never opened. `par.sh` now records `provider_auth_403` and marks the run INVALID. The post-deploy `live_smoke_battery.py` serve floor (0.7) catches the same failure in production.
+
+### L-SOME-AGENT-TYPES-RUN-IN-A-WORKTREE-1. Check where a delegated agent actually wrote before trusting "done".
+- **What:** the privacy-engineer, docs-writer and grounding-engineer agent types ran in isolated `.claude/worktrees/*` checkouts. The waitlist work and the clinician brief existed only there, and one agent stopped because it could not edit the main tree. The work was ported with `git -C <worktree> diff | git apply` plus a copy of the new files, then re-tested in the main tree.
+- **Rule:** after any delegated edit, run `git status` in the main tree; if the files are not there, list worktrees and port explicitly.
+
+### L-A-SERVICE-ROLE-RPC-NEEDS-THE-SERVICE-KEY-1. A purge granted to service_role fails silently on the anon key.
+- **What:** the launch-list purge called `create_client(url, settings.supabase_key)`; the RPC is `service_role` only, so the 12-month promise on /privacy would never run, and the `except` only logs. Fixed to `supabase_service_key or supabase_key`, as the other four call sites do. Pin: `tests/test_launch_purge_uses_service_key_2026_11_20.py`.
+
+### L-AI-LABELS-REAPPEAR-AS-FILES-1. Deleting the generator does not delete its output.
+- **What:** after the AI-labelling workbook script was removed, `audits/work/2026-11-19-serve-rate/speaker_label_sample_reviewed.csv` (192 y / 8 n, the script's pattern) appeared. It is not a human label set; its verdicts moved to `speaker_label_sample_MACHINE_REVIEWED.csv` (MACHINE_REVIEW column, human column empty). Never fit on it. The replacement generator (`scripts/ops/generate_speaker_label_workbook.py`) always leaves the label column empty (pinned by a test).
+
 ## Nov 20, 2026 — quality loop close-out (lead review of the whole tree)
 
 ### L-WIDENING-AN-EXEMPTION-IS-LOOSENING-1. Adding words to a safety exemption loosens the gate, even inside a "hardening" change.
