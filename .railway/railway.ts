@@ -32,16 +32,20 @@ export const partial = "askmukthiguru-8119b0e8";
 
 // ---- Owner decisions that gate parts of this file -------------------------
 //
-// D-14 decided 2026-11-07: v10-only. The serving collection is first_person_v10
+// Owner decision 2026-11-20: production posture is the truth: v12_shadow serving
+// (first_person_v12_shadow), relevance min score 2, scorer anthropic/claude-haiku-5.5,
+// answerability gate on. Single source: PRODUCTION_POSTURE in
+// backend/services/first_person_serving_contract.py (drift guard:
+// backend/tests/test_production_posture_drift_2026_11_20.py).
+// History, D-14 decided 2026-11-07: v10-only. The serving collection was first_person_v10
 // with the context harness and terminal flags on (config.py
 // resolve_first_person_active_collection fills both slots from the one active
 // name). The posture is read back from the "Serving posture:" startup log line
 // (backend/app/main.py). "v8_bridge" stays as the rollback value.
-// "v12_shadow" is added as a valid future posture type (2026-11-18) but the
-// constant stays "v10_only" until the owner explicitly promotes (D-14 still active).
+// "v10_only" stays as a selectable posture; "v12_shadow" was promoted 2026-11-20.
 // test_railway_iac.py pins this.
 type ServingPosture = "unset" | "v10_only" | "v12_shadow" | "v8_bridge";
-const SERVING_POSTURE: ServingPosture = "v10_only";
+const SERVING_POSTURE: ServingPosture = "v12_shadow";
 
 // D-30 decided 2026-11-07: worker and beat are ON in staging. This is the one
 // switch: set it to false to drop both services from the plan.
@@ -122,7 +126,7 @@ export default defineRailway((ctx) => {
         }
       : SERVING_POSTURE === "v12_shadow"
         ? {
-            // v12_shadow promotes to staging when owner decides (D-14 pending).
+            // v12_shadow is the production posture (owner decision 2026-11-20).
             // 1,996 topic_ids, 2× speaker-verified rate vs v10 (51.3% vs 26.5%).
             // Set FIRST_PERSON_REQUIRE_SPEAKER_VERIFIED=true (default) so only
             // the verified portion of v12 is served.
@@ -157,8 +161,11 @@ export default defineRailway((ctx) => {
     FIRST_PERSON_LLM_FALLBACK_ENABLED: "false",
     FIRST_PERSON_SERVE_WEAK_MATCH: "true",
     FIRST_PERSON_REQUIRE_SPEAKER_VERIFIED: "true",
-    // Owner decision 12.4 #3: local/graded value (code default is 2).
-    FIRST_PERSON_RELEVANCE_MIN_SCORE: "3",
+    // Owner decision 2026-11-20: production min score 2 (min 3 abstained on ~85% of
+    // questions, docs/handoffs/LOOP_NOTES_2026_11_20.md "LEAD CORRECTION"). The code
+    // default in config.py is 3 and docker-compose.graded.yml pins its own frozen 3.
+    FIRST_PERSON_RELEVANCE_MIN_SCORE: "2",
+    FIRST_PERSON_RELEVANCE_MODEL: "anthropic/claude-haiku-5.5",
     DISTRESS_LLM_ESCALATION_ENABLED: "true",
     FIRST_PERSON_CONTEXT_USE_SPARSE: "false",
     FIRST_PERSON_LLM_RERANK_ENABLED: "false",
@@ -198,7 +205,6 @@ export default defineRailway((ctx) => {
       FORWARDED_ALLOW_IPS: "10.0.0.0/8",
       WEB_CONCURRENCY: "1",
       PYTHON_MEMORY_LIMIT_MB: "0",
-      FIRST_PERSON_RELEVANCE_MODEL: preserve(),
       OPENROUTER_EXTRA_ALLOWED_MODELS: preserve(),
     },
   });

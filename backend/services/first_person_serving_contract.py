@@ -742,6 +742,21 @@ POSTURE_V10_ONLY = "v10_only"
 POSTURE_V12_SHADOW = "v12_shadow"
 POSTURE_V8_BRIDGE = "v8_bridge"
 
+# Production posture, owner decision 2026-11-20 (measured: min score 3 abstains on ~85% of
+# questions, docs/handoffs/LOOP_NOTES_2026_11_20.md "LEAD CORRECTION"). The single
+# machine-readable source; tests/test_production_posture_drift_2026_11_20.py compares
+# .railway/railway.ts and backend/.env.example against it. Code defaults in app/config.py
+# (min score 3) and the frozen docker-compose.graded.yml are intentionally different.
+PRODUCTION_POSTURE: dict[str, str] = {
+    "FIRST_PERSON_RELEVANCE_MIN_SCORE": "2",
+    "FIRST_PERSON_RELEVANCE_MODEL": "anthropic/claude-haiku-5.5",
+    "FIRST_PERSON_SERVING_POSTURE": POSTURE_V12_SHADOW,
+    "FIRST_PERSON_ACTIVE_COLLECTION": V12_SHADOW_COLLECTION,
+    "FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "true",
+    "FIRST_PERSON_CONTEXT_TERMINAL_ENABLED": "true",
+    "FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED": "true",
+}
+
 
 def _check_declared_posture(
     report: ContractReport,
