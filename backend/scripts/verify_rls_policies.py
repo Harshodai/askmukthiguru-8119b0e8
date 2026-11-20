@@ -734,7 +734,7 @@ def run_verification() -> dict[str, Any]:
             if not _is_permission_or_rls_error(exc):
                 failures.append({"table": "user_episodes", "error": str(exc)})
 
-        # 9. waitlist_entries (service_role only table; authenticated users must be blocked)
+        # 9. waitlist_entries (admin MFA read only; public & authenticated non-admin users must be blocked from SELECT/UPDATE/DELETE)
         try:
             wl_resp = (
                 service_client.table("waitlist_entries")
@@ -742,7 +742,8 @@ def run_verification() -> dict[str, Any]:
                     {
                         "email": f"waitlist-{uuid.uuid4().hex[:8]}@gmail.com",
                         "name": "Alice Waitlist",
-                        "source": "rls_probe",
+                        "source": "guide_ai_spiritual_companion",
+                        "consent_to_contact": True,
                     }
                 )
                 .execute()
@@ -759,10 +760,21 @@ def run_verification() -> dict[str, Any]:
             )
             bob_delete = bob_client.table("waitlist_entries").delete().eq("id", wl_id).execute()
 
+            anon_client = create_client(SUPABASE_URL, ANON_KEY)
+            anon_select = anon_client.table("waitlist_entries").select("*").eq("id", wl_id).execute()
+            anon_update = (
+                anon_client.table("waitlist_entries")
+                .update({"name": "Hacked by Anon"})
+                .eq("id", wl_id)
+                .execute()
+            )
+            anon_delete = anon_client.table("waitlist_entries").delete().eq("id", wl_id).execute()
+
             if bob_select.data:
                 failures.append(
                     {
                         "table": "waitlist_entries",
+                        "client": "bob",
                         "op": "select",
                         "expected": [],
                         "got": bob_select.data,
@@ -772,6 +784,7 @@ def run_verification() -> dict[str, Any]:
                 failures.append(
                     {
                         "table": "waitlist_entries",
+                        "client": "bob",
                         "op": "update",
                         "expected": 0,
                         "got": len(bob_update.data),
@@ -781,9 +794,40 @@ def run_verification() -> dict[str, Any]:
                 failures.append(
                     {
                         "table": "waitlist_entries",
+                        "client": "bob",
                         "op": "delete",
                         "expected": 0,
                         "got": len(bob_delete.data),
+                    }
+                )
+            if anon_select.data:
+                failures.append(
+                    {
+                        "table": "waitlist_entries",
+                        "client": "anon",
+                        "op": "select",
+                        "expected": [],
+                        "got": anon_select.data,
+                    }
+                )
+            if anon_update.data:
+                failures.append(
+                    {
+                        "table": "waitlist_entries",
+                        "client": "anon",
+                        "op": "update",
+                        "expected": 0,
+                        "got": len(anon_update.data),
+                    }
+                )
+            if anon_delete.data:
+                failures.append(
+                    {
+                        "table": "waitlist_entries",
+                        "client": "anon",
+                        "op": "delete",
+                        "expected": 0,
+                        "got": len(anon_delete.data),
                     }
                 )
         except Exception as exc:

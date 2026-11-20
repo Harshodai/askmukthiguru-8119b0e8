@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import * as api from "@/admin/lib/api";
+import { listWaitlistSubscribers } from "@/admin/lib/waitlistSubscribers";
 import { useAdminFilters } from "@/admin/lib/filtersStore";
 import type { QueryFilters, TimeseriesMetric, TelemetryFilters } from "@/admin/types";
 
@@ -137,6 +138,13 @@ export function useAnnotations() {
 
 export function useAdmins() {
   return useQuery({ queryKey: ["admin", "admins"], queryFn: api.listAdmins });
+}
+
+export function useWaitlistSubscribers(limit = 200) {
+  return useQuery({
+    queryKey: ["admin", "waitlist-subscribers", limit],
+    queryFn: () => listWaitlistSubscribers(limit),
+  });
 }
 
 export function useModelPricing() {

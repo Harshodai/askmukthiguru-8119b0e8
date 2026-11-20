@@ -29,7 +29,7 @@ describe('fetchProfileFromServer', () => {
 
     await Promise.all([fetchProfileFromServer(), fetchProfileFromServer(), fetchProfileFromServer()]);
     // loadProfile() may also PUT a seeded default profile; count only GETs.
-    const gets = () => fetchMock.mock.calls.filter((c) => !(c[1] as RequestInit | undefined)?.method).length;
+    const gets = () => (fetchMock.mock.calls as unknown[][]).filter((c) => !(c[1] as RequestInit | undefined)?.method).length;
     expect(gets()).toBe(1);
 
     // A later call (after the first settled) fetches again.

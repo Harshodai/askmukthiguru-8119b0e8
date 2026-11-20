@@ -27,6 +27,7 @@ import {
   BarChart3,
   Layers,
   GitBranch,
+  Mail,
 } from "lucide-react";
 
 import { Sheet, SheetContent, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
@@ -51,6 +52,7 @@ const NAV = [
   { to: "/admin/routing", label: "Routing", icon: GitBranch },
   { to: "/admin/alerts", label: "Reliability", icon: Bell },
   { to: "/admin/feedback", label: "Feedback", icon: ThumbsUp },
+  { to: "/admin/subscribers", label: "Subscribers", icon: Mail },
   { to: "/admin/settings", label: "Settings", icon: Settings },
   { to: "/admin/admins", label: "Admins", icon: Users },
 ];

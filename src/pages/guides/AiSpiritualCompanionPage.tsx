@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { buildCanonical } from '@/lib/domain';
 import { useTranslation } from 'react-i18next';
 import { getAiSpiritualCompanionContent } from '@/lib/guidesContent';
+import { buildGuideStructuredData } from '@/lib/guideStructuredData';
+import { LaunchUpdatesSignup } from '@/components/guides/LaunchUpdatesSignup';
 
 const AiSpiritualCompanionPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const content = getAiSpiritualCompanionContent(t);
   const canonicalUrl = buildCanonical('/guides/ai-spiritual-companion');
 
@@ -16,27 +18,14 @@ const AiSpiritualCompanionPage = () => {
     description: content.meta.description,
     canonical: canonicalUrl,
     ogType: 'article',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Article',
-          headline: content.meta.articleHeadline,
-          description: content.meta.articleDescription,
-          author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-          mainEntityOfPage: canonicalUrl,
-          keywords: 'AI spiritual guide, AI-guided meditation, Beautiful State, spiritual growth, yogic wisdom',
-        },
-        {
-          '@type': 'FAQPage',
-          mainEntity: content.faqs.items.map((f) => ({
-            '@type': 'Question',
-            name: f.q,
-            acceptedAnswer: { '@type': 'Answer', text: f.a },
-          })),
-        },
-      ],
-    },
+    jsonLd: buildGuideStructuredData({
+      canonicalUrl,
+      headline: content.meta.articleHeadline,
+      description: content.meta.articleDescription,
+      language: i18n.language,
+      faqs: content.faqs.items,
+      keywords: 'AI spiritual guide, AI-guided meditation, Beautiful State, spiritual growth, yogic wisdom',
+    }),
   });
 
   return (
@@ -119,6 +108,7 @@ const AiSpiritualCompanionPage = () => {
             </Button>
             <Button asChild variant="ghost"><Link to="/privacy">{t('privacy.title')}</Link></Button>
           </div>
+          <LaunchUpdatesSignup source="guide_ai_spiritual_companion" />
         </section>
       </article>
     </PublicShell>

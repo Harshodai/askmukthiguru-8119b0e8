@@ -11,7 +11,7 @@ import { ChatHeader } from '@/components/chat/ChatHeader';
 const renderHeader = (memoryActive: boolean | null) =>
   render(
     <MemoryRouter>
-      <ChatHeader isPersonalized memoryActive={memoryActive} onOpenMemorySettings={vi.fn()} />
+      <ChatHeader isPersonalized memoryActive={memoryActive} onOpenMemorySettings={vi.fn()} onClearChat={vi.fn()} />
     </MemoryRouter>,
   );
 

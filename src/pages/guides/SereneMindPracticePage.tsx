@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { buildCanonical } from '@/lib/domain';
 import { useTranslation } from 'react-i18next';
 import { getSereneMindPracticeContent } from '@/lib/guidesContent';
+import { buildGuideStructuredData } from '@/lib/guideStructuredData';
+import { LaunchUpdatesSignup } from '@/components/guides/LaunchUpdatesSignup';
 
 const SereneMindPracticePage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const content = getSereneMindPracticeContent(t);
   const canonicalUrl = buildCanonical('/guides/serene-mind-practice');
 
@@ -16,27 +18,14 @@ const SereneMindPracticePage = () => {
     description: content.meta.description,
     canonical: canonicalUrl,
     ogType: 'article',
-    jsonLd: {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'Article',
-          headline: content.meta.articleHeadline,
-          description: content.meta.articleDescription,
-          author: { '@type': 'Organization', name: 'AskMukthiGuru' },
-          mainEntityOfPage: canonicalUrl,
-          keywords: 'serene mind meditation, 3 minute meditation stress, breath practice, Preethaji Krishnaji',
-        },
-        {
-          '@type': 'FAQPage',
-          mainEntity: content.faqs.items.map((f) => ({
-            '@type': 'Question',
-            name: f.q,
-            acceptedAnswer: { '@type': 'Answer', text: f.a },
-          })),
-        },
-      ],
-    },
+    jsonLd: buildGuideStructuredData({
+      canonicalUrl,
+      headline: content.meta.articleHeadline,
+      description: content.meta.articleDescription,
+      language: i18n.language,
+      faqs: content.faqs.items,
+      keywords: 'serene mind meditation, 3 minute meditation stress, breath practice, Preethaji Krishnaji',
+    }),
   });
 
   return (
@@ -137,6 +126,7 @@ const SereneMindPracticePage = () => {
               <Link to="/practices">{content.cta.exploreButton}</Link>
             </Button>
           </div>
+          <LaunchUpdatesSignup source="guide_serene_mind" />
         </section>
       </article>
     </PublicShell>

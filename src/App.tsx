@@ -106,6 +106,7 @@ let ClipReportsPage: ComponentType = NoopPage;
 let SpeakerAttributionPage: ComponentType = NoopPage;
 let VideoApprovalPage: ComponentType = NoopPage;
 let ObservabilityDashboard: ComponentType = NoopPage;
+let WaitlistSubscribersPage: ComponentType = NoopPage;
 
 
 if (ADMIN_ENABLED) {
@@ -138,6 +139,7 @@ if (ADMIN_ENABLED) {
   CachePage = lazyWithRetry(() => import("./admin/pages/CachePage"));
   RoutingPage = lazyWithRetry(() => import("./admin/pages/RoutingPage"));
   ClipReportsPage = lazyWithRetry(() => import("./admin/pages/ClipReportsPage"));
+  WaitlistSubscribersPage = lazyWithRetry(() => import("./admin/pages/WaitlistSubscribersPage"));
   SpeakerAttributionPage = lazyWithRetry(() => import("./admin/pages/SpeakerAttributionPage"));
   VideoApprovalPage = lazyWithRetry(() => import("./admin/pages/VideoApprovalPage"));
   ObservabilityDashboard = lazyWithRetry(() => import("./admin/components/ObservabilityDashboard").then(m => ({ default: m.ObservabilityDashboard })));
@@ -334,6 +336,7 @@ const App = () => {
                   <Route path="data-sources" element={<AdminRoute><DataSourcesPage /></AdminRoute>} />
                   <Route path="rag-flow" element={<AdminRoute><RAGFlowPage /></AdminRoute>} />
                   <Route path="feedback" element={<AdminRoute><FeedbackPage /></AdminRoute>} />
+                  <Route path="subscribers" element={<AdminRoute><WaitlistSubscribersPage /></AdminRoute>} />
                   <Route path="settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
                   <Route path="admins" element={<AdminRoute><AdminsPage /></AdminRoute>} />
                   <Route path="self-check" element={<AdminRoute><AdminSelfCheckPage /></AdminRoute>} />

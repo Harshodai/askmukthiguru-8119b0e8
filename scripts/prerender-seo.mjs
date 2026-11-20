@@ -267,12 +267,14 @@ function buildJsonLd(route) {
       return {
         '@context': ctx,
         '@type': 'Article',
+        '@id': `${url}#article`,
         headline: route.title,
         description: route.description,
         url,
+        inLanguage: 'en',
         image: OG_IMAGE,
         author: publisher,
-        publisher,
+        publisher: { ...publisher, url: BASE_URL },
         isPartOf: { '@id': SITE_ID },
         mainEntityOfPage: { '@type': 'WebPage', '@id': url },
       };
