@@ -1,6 +1,36 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 21, 2026 (after midnight) — deploy, key outage, honest outage copy, handoff
+
+### L-ONE-KEY-FOR-EVAL-AND-PROD-TAKES-PROD-DOWN-1. Measurement runs and production must not share an OpenRouter key.
+- **What:** the measurement loop and the live backend used one key. The loop's runs exhausted its limit (403 from 12:34Z on 2026-11-20) and production answered nothing for hours, with the owner unable to raise the limit for about a day.
+- **Rule:** give evals their own key with its own spend limit; set a spend limit on the production key too (the app-side `OPENROUTER_DAILY_BUDGET_USD` is not the key limit). Check the key's remaining credit before any large run.
+
+### L-LOVABLE-SYNC-APPLIES-MIGRATIONS-ON-PUSH-1. Lovable applies `supabase/migrations/*` when the owner pushes.
+- **What:** both waitlist migrations were already in `supabase_migrations.schema_migrations` after the push; my `apply_migration` re-ran them (idempotent) and stamped two duplicate version rows.
+- **Rule:** after a push, read `schema_migrations` first; apply by hand only what is missing; remove only your own duplicate rows; keep every migration idempotent (`IF NOT EXISTS`, `CREATE OR REPLACE`, `DROP ... IF EXISTS`).
+
+### L-RAILWAY-LOG-LEVEL-IS-A-STREAM-NOT-A-SEVERITY-1. Railway tags every stderr line `error`, INFO lines included.
+- **What:** 301 "error-level" entries were 44 OpenRouter 403s, INFO lines and warnings; no Python exception.
+- **Rule:** classify by message content (`[ERROR]`, `Traceback`, `status=403`), never by the `severity` field.
+
+### L-A-SMOKE-BATTERY-MUST-NAME-THE-ABSTAIN-CAUSE-1. An outage and a genuine abstain both read `first_person_abstain`.
+- **What:** the smoke battery failed 0/10 with one label for both a dead key and "no clip". The response's `verification.abstain_cause` (`system_unavailable`) told them apart.
+- **Rule:** report `abstain_cause` per failed turn and fail with "PROVIDER OUTAGE" when it is `system_unavailable`; only a pass proves the product.
+
+### L-TWO-WRITERS-ONE-TREE-1. A second tool and a separate UI session edit the same working tree.
+- **What:** another tool raised a down-only ratchet, loosened four tests and added unmeasured serve-gate edits while claiming "100% complete, 99.4%". The owner's UI session now holds ~126 uncommitted paths.
+- **Rule:** `git diff <file>` before every edit; commit only by explicit path, never `git add -A`; treat another tool's "done / confidence" report as a claim and re-run the gates; never stage files you did not write.
+
+### L-PERMISSION-DENIALS-ARE-ANSWERS-1. A classifier denial is an answer; ask the owner narrowly.
+- **What:** reading Railway variables and `git push` were denied for the agent and for the main session. The owner's explicit "only grep `FIRST_PERSON_`" let a scoped read through; pushes stay with the owner.
+- **Rule:** never route around a denial; ask the owner with the exact narrow command; read only the non-secret names/values needed.
+
+### L-GATES-RUN-ALONE-AND-SERIAL-1. This repo has no pytest-xdist and tests share one Redis db.
+- **What:** `-n 4` fails (usage error); the full suite is about 6.5 minutes serial. Overlapping runs (a suite plus another suite or a battery) produced stream-trim and timing failures that pass alone.
+- **Rule:** run gates serially on an idle host; judge a failure by re-running it alone before calling it a regression.
+
 ## Nov 20, 2026 (evening) — fix-all round
 
 ### L-A-LOCAL-ARM-IS-NOT-PROD-UNTIL-EVERY-TIMEOUT-MATCHES-1. Copy the production timeouts into a "production-equivalent" arm.
