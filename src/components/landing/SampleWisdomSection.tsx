@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Youtube, Sparkles } from 'lucide-react';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
+import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
 interface Teaching {
   title: string;
@@ -131,7 +132,7 @@ export const SampleWisdomSection = () => {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-auto pt-4 border-t border-border/50">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-full overflow-hidden border border-saffron-gold/40 shadow-xs shrink-0 ring-1 ring-saffron-gold/20">
-                    <img src={gurusPhoto} alt="Sri Preethaji & Sri Krishnaji" className="w-full h-full object-cover" loading="lazy" />
+                    <img src={gurusPhoto} alt={TEACHERS_DISPLAY_NAME} className="w-full h-full object-cover" loading="lazy" />
                   </div>
                   <div>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest block font-medium">

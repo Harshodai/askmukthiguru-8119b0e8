@@ -649,7 +649,7 @@ describe('ChatMessage guidance plan', () => {
       expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
     });
 
-    it('displays General Spiritual Context when citationsVerified is false', () => {
+    it('labels unverified citations as an unverified attribution (2026-11-19 honest label)', () => {
       render(
         <ChatMessage
           message={makeGuruMessage({
@@ -659,7 +659,8 @@ describe('ChatMessage guidance plan', () => {
         />,
         { wrapper },
       );
-      expect(screen.getByText('General Spiritual Context')).toBeInTheDocument();
+      expect(screen.getByText('Unverified attribution')).toBeInTheDocument();
+      expect(screen.queryByText('General Spiritual Context')).not.toBeInTheDocument();
       expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
     });
 

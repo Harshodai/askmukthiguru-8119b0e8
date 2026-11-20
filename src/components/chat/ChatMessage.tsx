@@ -47,6 +47,7 @@ import { EkamGoldenOrb } from '@/components/common/EkamGoldenOrb';
 import { SourcePlatformBadge } from '@/components/common/SourcePlatformBadge';
 import { completeStep } from '@/lib/dailyJourney';
 import { AbstainHelpCard } from './AbstainHelpCard';
+import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
 interface ChatMessageProps {
   message: Message;
@@ -330,7 +331,7 @@ const TeachingGroundingCard = ({
           </span>
         </div>
         <p className="mt-1.5 text-[15px] leading-[1.75] text-muted-foreground">
-          {t('chat.teachingContext.abstainedDescription', 'This contemplation is offered from foundational spiritual principles without direct discourse citations.')}
+          {t('chat.teachingContext.abstainedDescription', 'No recorded teaching was found that answers this directly, so no teaching is quoted here.')}
         </p>
       </aside>
     );
@@ -344,7 +345,7 @@ const TeachingGroundingCard = ({
     ? t(RELATED_NOT_DIRECT_KEY, RELATED_NOT_DIRECT_LABEL)
     : isSupporting
     ? t('chat.teachingContext.supportingBadge', 'Supporting Context')
-    : t('chat.teachingContext.unverifiedBadge', 'General Spiritual Context');
+    : t('chat.teachingContext.unverifiedBadge', 'Unverified attribution');
 
   return (
     <aside
@@ -559,25 +560,23 @@ export const GuruTeachingCard = ({
             ? t('chat.guruTeaching.personalizedLabel', 'Personalized reflection')
             : t('chat.guruTeaching.label', 'Guru teaching · verbatim')}
         </span>
-        {(showVerified || conflicted || personalized || related) && (
-          <span
-            title={
-              related
-                ? 'Related teaching: addresses surrounding spiritual concepts, not a direct direct answer to your specific query.'
-                : !showVerified
-                  ? 'Unverified clip: recording from an uncertified channel or unconfirmed speaker.'
-                  : 'Verified teaching: verbatim quotation from recorded teachings.'
-            }
-            className={cn(
-              'ms-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium shadow-2xs',
-              showVerified
-                ? 'border-ojas/30 bg-ojas/15 text-ojas-ink dark:text-ojas'
-                : 'border-amber-500/30 bg-amber-500/15 text-amber-ink'
-            )}
-          >
-            {badgeLabel}
-          </span>
-        )}
+        <span
+          title={
+            related
+              ? t('chat.teachingContext.relatedTooltip', 'Related teaching: addresses surrounding spiritual concepts, not a direct answer to your specific query.')
+              : !showVerified
+                ? t('chat.teachingContext.unverifiedTooltip', 'Unverified clip: recording from an uncertified channel or unconfirmed speaker.')
+                : t('chat.teachingContext.verifiedTooltip', 'Verified teaching: verbatim quotation from recorded teachings.')
+          }
+          className={cn(
+            'ms-auto inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium shadow-2xs',
+            showVerified
+              ? 'border-ojas/30 bg-ojas/15 text-ojas-ink dark:text-ojas'
+              : 'border-amber-500/30 bg-amber-500/15 text-amber-ink'
+          )}
+        >
+          {badgeLabel}
+        </span>
       </div>
       <blockquote
         data-testid="guru-teaching-quote"
@@ -1064,8 +1063,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
 
       const stripAttributionHeader = (text: string) =>
         text
-          .replace(/^(?:\*{1,2}|_{1,2})?(?:sri\s+(?:preethaji|krishnaji|bhagavan|amma))(?:\*{1,2}|_{1,2})?[^•\n·]*[•·]?[^\n]*\n+/i, '')
-          .replace(/^\[(?:sri\s+(?:preethaji|krishnaji|bhagavan|amma))[^\]]*\]\s*/i, '');
+          .replace(/^(?:\*{1,2}|_{1,2})?(?:sri\s+(?:preethaji|krishnaji|bhagavan|amma))(?:\*{1,2}|_{1,2})?[^•\n·]*[•·]?[^\n]*\n+/i, '').replace(/^\[(?:sri\s+(?:preethaji|krishnaji|bhagavan|amma))[^\]]*\]\s*/i, '');
 
       const normalize = (text: string) =>
         stripAttributionHeader(text)
@@ -1335,7 +1333,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
             <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.15)] ring-1 ring-ojas/20 bg-background">
               <img
                 src={gurusPhoto}
-                alt="Sri Preethaji & Sri Krishnaji"
+                alt={TEACHERS_DISPLAY_NAME}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
@@ -1371,7 +1369,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           <p className="text-sm font-semibold text-destructive-ink leading-tight">{errorTitle}</p>
                           <p className="text-sm text-foreground/80 mt-1 leading-relaxed">{errorDescription}</p>
                           {/* T1-17: every error card carries a care line with call-verified helpline(s); static so it works when the backend is down. */}
-                          {!errorDescription?.includes('14416') && !errorDescription?.toLowerCase().includes('distress') && (
+                          {!CALL_VERIFIED_CRISIS_LINES.some((line) => errorDescription?.includes(line.tel)) && !errorDescription?.toLowerCase().includes('distress') && (
                             <p className="text-sm text-foreground/80 mt-1.5 leading-relaxed" data-testid="error-care-line">
                               {t('chat.errorCareLine', 'If you are in distress, you are not alone. Help is available now:')}{' '}
                               {CALL_VERIFIED_CRISIS_LINES.map((line, i) => (
@@ -1786,7 +1784,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                   </div>
 
                   {/* Right: Practice button + Action icons */}
-                  <div className="flex items-center gap-1 ml-auto">
+                  <div className="flex items-center gap-1 ml-auto opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200">
                     {isLastGuru && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
                       <button
                         type="button"

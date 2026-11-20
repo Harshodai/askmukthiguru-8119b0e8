@@ -74,6 +74,15 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
 
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const onErrorRef = useRef(onError);
+  // Each speak() takes a generation; stop() and a newer speak() bump it and abort the
+  // in-flight TTS request, so a slow reply (Railway cold start: 25-40 s) never plays late.
+  const generationRef = useRef(0);
+  const pendingRequestRef = useRef<AbortController | null>(null);
+  const cancelPending = useCallback(() => {
+    generationRef.current += 1;
+    pendingRequestRef.current?.abort();
+    pendingRequestRef.current = null;
+  }, []);
 
   useEffect(() => {
     onErrorRef.current = onError;
@@ -167,7 +176,12 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event.error);
+      // "interrupted"/"canceled" are a stop() or a newer utterance, not a failure.
+      if (event.error !== 'interrupted' && event.error !== 'canceled') {
+        const errMsg = `Speech synthesis failed (${event.error}).`;
+        setError(errMsg);
+        onErrorRef.current?.(errMsg);
+      }
       setIsSpeaking(false);
       setIsPaused(false);
       setCurrentSentence(null);
@@ -192,6 +206,11 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
 
   const speak = useCallback(
     async (text: string, langOverride?: string) => {
+      cancelPending();
+      const generation = generationRef.current;
+      const controller = new AbortController();
+      pendingRequestRef.current = controller;
+      const superseded = () => generation !== generationRef.current;
       setError(null);
       setCurrentSentence(null);
 
@@ -216,8 +235,10 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
           throw new Error('Backend URL not configured');
         }
         const token = await getAccessToken();
+        if (superseded()) return;
         const res = await fetch(`${backendUrl}/api/speech/tts`, {
           method: 'POST',
+          signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -231,7 +252,9 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
 
         if (!res.ok) throw new Error(`TTS ${res.status}`);
         const data = await res.json();
+        if (superseded()) return;
         if (!data?.audio) throw new Error('No audio payload in response');
+        pendingRequestRef.current = null;
 
         currentTextRef.current = text;
         sentencesRef.current = splitIntoSentences(text);
@@ -287,6 +310,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
           setCurrentSentence(null);
         });
       } catch (err) {
+        if (superseded()) return; // stopped or replaced: the abort is not a failure
         // Fall back to native speech synthesis on backend failure.
         console.warn('Sarvam TTS failed, falling back to native TTS:', err);
         setIsSpeaking(false);
@@ -294,10 +318,11 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         playNativeTTS(text, langOverride);
       }
     },
-    [isSupported, playNativeTTS, lang, speaker]
+    [isSupported, playNativeTTS, lang, speaker, cancelPending]
   );
 
   const stop = useCallback(() => {
+    cancelPending();
     if (sarvamAudioRef.current) {
       sarvamAudioRef.current.pause();
       sarvamAudioRef.current = null;
@@ -308,7 +333,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     setIsSpeaking(false);
     setIsPaused(false);
     setCurrentSentence(null);
-  }, [isSupported]);
+  }, [isSupported, cancelPending]);
 
   const pause = useCallback(() => {
     if (sarvamAudioRef.current) {
@@ -330,9 +355,10 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     }
   }, [isSupported]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount: also drop an in-flight TTS request so it never plays later.
   useEffect(() => {
     return () => {
+      cancelPending();
       if (sarvamAudioRef.current) {
         sarvamAudioRef.current.pause();
         sarvamAudioRef.current = null;
@@ -343,7 +369,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
       utteranceRef.current = null;
       setCurrentSentence(null);
     };
-  }, [isSupported]);
+  }, [isSupported, cancelPending]);
 
   return {
     speak,

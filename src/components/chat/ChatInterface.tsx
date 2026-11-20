@@ -110,6 +110,7 @@ import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
 const STARTER_CARDS = [
   { id: 'reflect', icon: Compass, eyebrowKey: 'chat.starterCards.reflect.eyebrow', promptKey: 'chat.starterCards.reflect.prompt' },
@@ -121,6 +122,24 @@ const STARTER_CARDS = [
 const STARTER_SUGGESTIONS = STARTER_CARDS.map((c) => c.promptKey);
 
 const PASTE_ATTACHMENT_THRESHOLD = 8000;
+
+const TEACHING_BANNER_KEY = 'dismissed-teaching-banner';
+// sessionStorage can throw (private mode, blocked storage): the banner then shows again
+// on the next page load, and the component state still hides it for this one.
+const isTeachingBannerDismissed = (): boolean => {
+  try {
+    return sessionStorage.getItem(TEACHING_BANNER_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+const dismissTeachingBanner = (): void => {
+  try {
+    sessionStorage.setItem(TEACHING_BANNER_KEY, 'true');
+  } catch {
+    // storage unavailable: dismissed for this page load only
+  }
+};
 
 export const ChatInterface = () => {
   const { toast } = useToast();
@@ -363,6 +382,7 @@ export const ChatInterface = () => {
   }, [queuedMessages]);
 
   const { teaching: dailyTeaching } = useDailyTeaching();
+  const [teachingBannerDismissed, setTeachingBannerDismissed] = useState(isTeachingBannerDismissed);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const innerContentRef = useRef<HTMLDivElement>(null);
@@ -2567,7 +2587,7 @@ return (
         onResponsePreferencesChange={updateResponsePreferences}
         onResetResponsePreferences={resetResponsePreferences}
         onOpenMemorySettings={() => setMemorySettingsOpen(true)}
-        memoryActive={memoryConsent === true}
+        memoryActive={memoryConsent}
         onOpenVoiceMode={handleOpenVoiceMode}
       />
 
@@ -2640,7 +2660,7 @@ return (
                 >
                   <img
                     src={gurusPhoto}
-                    alt="Sri Preethaji & Sri Krishnaji"
+                    alt={TEACHERS_DISPLAY_NAME}
                     className="w-full h-full object-cover"
                     loading="eager"
                   />
@@ -2667,13 +2687,25 @@ return (
                 </div>
 
                 {/* Today's Sacred Teaching Banner (if active) */}
-                {dailyTeaching?.caption && (
+                {dailyTeaching?.caption && !teachingBannerDismissed && (
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="mt-4 mx-auto max-w-md rounded-2xl border border-ojas/25 bg-gradient-to-r from-ojas/10 via-background to-ojas/5 p-3.5 shadow-xs text-left flex items-start gap-3 backdrop-blur-sm"
+                    className="mt-4 mx-auto max-w-md rounded-2xl border border-ojas/25 bg-gradient-to-r from-ojas/10 via-background to-ojas/5 p-3.5 pe-10 shadow-xs text-left flex items-start gap-3 backdrop-blur-sm relative"
                   >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dismissTeachingBanner();
+                        setTeachingBannerDismissed(true);
+                        inputRef.current?.focus();
+                      }}
+                      className="absolute top-1 end-1 inline-flex h-8 w-8 items-center justify-center rounded-full hover:bg-ojas/10 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas/50"
+                      aria-label={t('chat.dismissBanner', 'Dismiss banner')}
+                    >
+                      <X className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
                     <div className="w-8 h-8 rounded-xl bg-ojas/15 border border-ojas/30 flex items-center justify-center shrink-0 mt-0.5">
                       <Sparkles className="w-4 h-4 text-ojas" />
                     </div>
@@ -2760,7 +2792,7 @@ return (
                       <div className="w-7 h-7 rounded-full overflow-hidden border border-ojas/30 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-[0_0_12px_hsl(var(--ojas)/0.15)] ring-1 ring-ojas/20 bg-background">
                         <img
                           src={gurusPhoto}
-                          alt="Sri Preethaji & Sri Krishnaji"
+                          alt={TEACHERS_DISPLAY_NAME}
                           className="w-full h-full object-cover animate-pulse-soft"
                         />
                       </div>
@@ -2770,7 +2802,7 @@ return (
                         steps={pipelineSteps}
                         visible={thinkingVisible}
                         heartbeat={pipelineHeartbeat}
-                        tradition="Ekam — Sri Preethaji & Sri Krishnaji"
+                        tradition={`Ekam — ${TEACHERS_DISPLAY_NAME}`}
                         searchContext={showInstantPill ? pendingQuery : undefined}
                         fallbackLabel={
                           isStreaming && streamingContent === ''

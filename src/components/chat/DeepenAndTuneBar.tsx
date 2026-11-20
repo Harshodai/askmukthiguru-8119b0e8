@@ -36,6 +36,7 @@ import type { Message } from '@/lib/chatStorage';
 import type { Citation } from '@/lib/chat/types';
 import type { DiscourseCitation } from './CitationCard';
 import { useNavigate } from 'react-router-dom';
+import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
 export interface DeepenAndTuneBarProps {
   message: Message;
@@ -107,7 +108,7 @@ const CANONICAL_CONCEPTS: ConceptDefinition[] = [
   {
     name: 'Four Sacred Secrets',
     category: 'Doctrine',
-    teacher: 'Sri Preethaji & Sri Krishnaji',
+    teacher: TEACHERS_DISPLAY_NAME,
     relation: 'guides to',
     target: 'Spiritual Awakening',
     description: 'Foundational roadmap navigating from the suffering state to the beautiful state through spiritual neurobiology.',

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { FlashcardPractice } from './FlashcardPractice';
+import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
 const REFLECTION_SECONDS = 3 * 60;
 const FALLBACK_PROMPT = 'Take a quiet moment to notice what is present in you right now. Let one breath arrive and leave without needing to change anything.';
@@ -38,7 +39,7 @@ export const WisdomReflectionPractice = () => {
   const sourceLabel = loading
     ? null
     : hasTeachingText
-    ? 'Source: Daily Teaching — Sri Preethaji & Sri Krishnaji'
+    ? `Source: Daily Teaching — ${TEACHERS_DISPLAY_NAME}`
     : 'Source: Reflection prompt — shown because no active Daily Teaching is available';
 
   const restart = () => {

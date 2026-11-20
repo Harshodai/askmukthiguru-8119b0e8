@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown, Info } from 'lucide-react';
+import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
 export const PRIORITY_CHAT_LANGUAGES = [
   { code: 'en', label: 'English', native: 'English' },
@@ -35,7 +36,7 @@ export function TeacherGuidancePanel({ assistantName }: TeacherGuidancePanelProp
       >
         {t(
           'chat.guidance.attribution',
-          'Inspired by the teachings of Sri Preethaji & Sri Krishnaji',
+          `Inspired by the teachings of ${TEACHERS_DISPLAY_NAME}`,
         )}
       </p>
 

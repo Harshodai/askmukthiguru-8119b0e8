@@ -26,6 +26,7 @@ import { VoiceOrb } from './VoiceOrb';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
 import { LANGUAGES } from './LanguageSelector';
 import type { VoiceConversationState } from '@/hooks/useVoiceConversation';
+import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
 export interface VoiceModeModalProps {
   isOpen: boolean;
@@ -179,7 +180,7 @@ export const VoiceModeModal: React.FC<VoiceModeModalProps> = ({
                     {t('voice.title', 'Sacred Voice Conversation')}
                   </h2>
                   <p className="text-[11px] text-muted-foreground hidden sm:block">
-                    {t('voice.subtitle', 'Direct verbal communion with Sri Preethaji & Sri Krishnaji teachings')}
+                    {t('voice.subtitle', `Direct verbal communion with ${TEACHERS_DISPLAY_NAME} teachings`)}
                   </p>
                 </div>
               </div>

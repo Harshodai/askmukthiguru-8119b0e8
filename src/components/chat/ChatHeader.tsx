@@ -59,7 +59,7 @@ export const ChatHeader = ({
   onResponsePreferencesChange,
   onResetResponsePreferences,
   onOpenMemorySettings,
-  memoryActive = false,
+  memoryActive,
   onOpenVoiceMode,
 }: ChatHeaderProps) => {
   const { t } = useTranslation();
@@ -98,7 +98,7 @@ export const ChatHeader = ({
               <span className="text-sm leading-none" aria-hidden="true">🙏</span>
               <span className="truncate">{t('nav.appName')}</span>
             </span>
-            {isPersonalized && memoryActive !== null && (
+            {isPersonalized && memoryActive != null && (
               onOpenMemorySettings ? (
                 <button
                   type="button"

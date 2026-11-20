@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { BookOpenCheck, ExternalLink, Heart, HeartHandshake, ShieldCheck, Sparkles } from 'lucide-react';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
+import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
 /** Strip the surrounding quotation marks the locale strings carry. */
 const stripQuoteMarks = (text: string): string =>
@@ -98,7 +99,7 @@ export const MeetTheGurusSection = () => {
                   <div className="w-full h-full rounded-full overflow-hidden bg-background">
                     <img
                       src={gurusPhoto}
-                      alt="Sri Preethaji & Sri Krishnaji"
+                      alt={TEACHERS_DISPLAY_NAME}
                       width={192}
                       height={192}
                       loading="lazy"

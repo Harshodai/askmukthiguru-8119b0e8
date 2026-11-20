@@ -113,7 +113,8 @@
     "takeTour": "Take a Tour",
     "clear": "Clear",
     "erasing": "Erasing…",
-    "send": "Send"
+    "send": "Send",
+    "readMore": "Read more"
   },
   "crisisDialog": {
     "heading": "Crisis Support Resources",
@@ -370,7 +371,16 @@
     "streakRooting_one": "{{count}} day of consistent reflection",
     "streakRooting_other": "{{count}} days of consistent reflection",
     "streakKeepGoing_one": "{{count}} day of practice",
-    "streakKeepGoing_other": "{{count}} days of practice"
+    "streakKeepGoing_other": "{{count}} days of practice",
+    "teachingAsk": "I am feeling {{mood}} today. Which teaching can help me?",
+    "resumeTeaching": "Continue today: hear one teaching",
+    "openTeaching": "Ask for a teaching",
+    "resumePractice": "Continue today: {{title}}",
+    "resumeReflection": "Continue today: write a short reflection",
+    "openReflection": "Write a note",
+    "dailyJourney": "Daily Journey",
+    "skipJourney": "Skip for today",
+    "bannerDismiss": "Dismiss"
   },
   "chat": {
     "quotaLeft": "{{remaining}} of {{limit}} free questions left today",
@@ -769,10 +779,14 @@
       "sourceCount": "{{count}} relevant teaching(s) found",
       "verifiedBadge": "Verified Sacred Teaching",
       "supportingBadge": "Supporting Context",
-      "unverifiedBadge": "General Spiritual Context",
+      "unverifiedBadge": "Unverified attribution",
       "unverifiedNote": "Discourse attribution is unverified; offered as general spiritual guidance.",
       "noDirectDiscourse": "No direct discourse match",
-      "abstainedDescription": "This contemplation is offered from foundational spiritual principles without direct discourse citations."
+      "abstainedDescription": "No recorded teaching was found that answers this directly, so no teaching is quoted here.",
+      "partialBadge": "Closest passages (not verified)",
+      "relatedTooltip": "Related teaching: addresses surrounding spiritual concepts, not a direct answer to your specific query.",
+      "unverifiedTooltip": "Unverified clip: recording from an uncertified channel or unconfirmed speaker.",
+      "verifiedTooltip": "Verified teaching: verbatim quotation from recorded teachings."
     },
     "contemplating": "Contemplating deeply — this may take a moment…",
     "answerTakingShape": "The answer is taking form…",
@@ -858,7 +872,34 @@
     "quotaResetsIn": "Resets in {{count}} hour(s).",
     "copyMessage": "Copy message",
     "quotaExceededPlaceholder": "You have reached your message limit for now. Please try again later.",
-    "startSereneMind": "Start Serene Mind"
+    "startSereneMind": "Start Serene Mind",
+    "languageSwitchFailed": "The conversation language was updated, but some interface text could not be translated.",
+    "dismissBanner": "Dismiss banner",
+    "guruTeaching": {
+      "personalizedBadge": "Personalized reflection",
+      "conflictedBadge": "Conflicting sources — not reconciled",
+      "verifiedBadge": "Verified",
+      "unverifiedBadge": "Unverified attribution",
+      "ariaLabel": "Guru teaching in the teacher's own words",
+      "personalizedLabel": "Personalized reflection",
+      "label": "Guru teaching · verbatim",
+      "conflictedNote": "Sources express opposing positions. They are shown separately; no synthesis was made.",
+      "personalizedNote": "In our own words — not a direct quote from the teachers.",
+      "autoTranscript": "auto-transcript",
+      "playClip": "Play clip",
+      "openSourceAria": "Open source teaching"
+    },
+    "noteSaveFailed": "Could not save note. Check your connection and sign-in, then retry.",
+    "errorCareLine": "If you are in distress, you are not alone. Help is available now:",
+    "personalizeTourTitle": "Tune this wisdom to your life",
+    "personalizeTeaching": "Personalize this teaching",
+    "personalizeNote": "Uses only memories you chose to save.",
+    "personalizeManage": "Review what is saved",
+    "provenance": {
+      "viewDetails": "AI Transparency & Provenance"
+    },
+    "editorialConflictDisclosure": "Conflicting source perspectives — shown separately; no synthesis",
+    "machineTranslationLabel": "Machine translation — not the teacher's words"
   },
   "notFound": {
     "message": "Oops! Page not found",
@@ -2396,5 +2437,8 @@
     "voiceHint_ishita": "Calm, soothing",
     "voiceHint_mani": "Deep, composed",
     "voiceHint_shubh": "Clear, default"
+  },
+  "voice": {
+    "errorMessage": "Unable to receive teaching right now. Please try again."
   }
 }

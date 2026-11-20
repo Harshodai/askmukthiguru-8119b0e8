@@ -27,7 +27,10 @@ export type GreetingContext = 'first_visit' | 'return_same_day' | 'return_new_da
 
 // ─── Shared persona buckets ───────────────────────────────────────────────────
 
-/** Greetings for Sri Preethaji & Sri Krishnaji ("Ji") personas — English spiritual. */
+/** Shared display name for the two teachers (T8-02: one literal, imported by components). */
+export const TEACHERS_DISPLAY_NAME = 'Sri Preethaji & Sri Krishnaji';
+
+/** Greetings for the teachers' ("Ji") personas — English spiritual. */
 export const JI_GREETINGS: Record<GreetingContext, Record<TimeOfDay, readonly string[]>> = {
   first_visit: {
     morning:   ['Welcome — may this morning be the beginning of something beautiful'],

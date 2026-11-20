@@ -179,6 +179,14 @@ export const MoodBanner = ({ isLandingMode = true }: MoodBannerProps) => {
               >
                 {t('mood.bannerSnooze', 'Not now')}
               </button>
+              <button
+                type="button"
+                onClick={() => setShowBanner(false)}
+                className="h-7 px-2.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                title={t('mood.bannerDismiss', 'Dismiss')}
+              >
+                {t('mood.bannerDismiss', 'Dismiss')}
+              </button>
             </div>
           </div>
         </aside>
