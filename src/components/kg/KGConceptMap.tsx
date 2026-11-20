@@ -24,7 +24,7 @@ import {
   Loader2,
   MessageCircle,
   Search,
-  Sparkles,
+  Sprout,
   X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -794,9 +794,9 @@ export const KGConceptMap = ({
       {/* Header & Metrics */}
       <div className={embedded ? 'sr-only' : 'flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between'}>
         <div>
-          <div className="mb-2 flex items-center gap-2">
+          <div className={`mb-2 items-center gap-2 ${isPersonal ? 'flex' : 'hidden'}`}>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-ojas/20 bg-ojas/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-ojas">
-              <Sparkles className="h-3 w-3" />
+              <Sprout className="h-3 w-3" />
               {isPersonal ? t('kg.personalBadge', 'Student-Teacher Consciousness Map') : t('kg.title')}
             </span>
             {isPersonal && (
@@ -805,7 +805,7 @@ export const KGConceptMap = ({
               </span>
             )}
           </div>
-          <h2 className="font-sacred text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+          <h2 className={`font-sacred text-2xl font-semibold tracking-tight text-foreground md:text-3xl ${isPersonal ? '' : 'sr-only'}`}>
             {isPersonal ? t('kg.personalTitle', 'Your Personal Wisdom Map') : t('kg.title')}
           </h2>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -1155,7 +1155,7 @@ export const KGConceptMap = ({
               <div className="relative mb-5 flex h-20 w-20 items-center justify-center">
                 <div className="absolute inset-0 rounded-full border border-ojas/25 bg-ojas/10 animate-pulse" />
                 <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-ojas/30 bg-card/80 backdrop-blur-md shadow-xl">
-                  <Sparkles className="h-7 w-7 text-ojas" />
+                  <Sprout className="h-7 w-7 text-ojas" />
                 </div>
               </div>
               <h3 className="font-sacred text-2xl font-medium text-graph-foreground">
@@ -1173,7 +1173,7 @@ export const KGConceptMap = ({
                   onClick={() => onApproveConsent?.()}
                   className="rounded-xl bg-ojas hover:bg-ojas-dark text-primary-foreground font-semibold shadow-lg shadow-ojas/20 px-6 py-2.5 text-sm"
                 >
-                  <Sparkles className="w-4 h-4 mr-2" />
+                  <Sprout className="w-4 h-4 mr-2" />
                   {t('kg.approveAndEnableMap', 'Approve & Enable Personal Wisdom Map')}
                 </Button>
               </div>
@@ -1184,7 +1184,7 @@ export const KGConceptMap = ({
               <div className="relative mb-5 flex h-20 w-20 items-center justify-center">
                 <div className="absolute inset-0 rounded-full border border-ojas/20 bg-ojas/5 animate-pulse" />
                 <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl border border-ojas/30 bg-card/60 backdrop-blur-md shadow-xl">
-                  <Sparkles className="h-7 w-7 text-ojas" />
+                  <Sprout className="h-7 w-7 text-ojas" />
                 </div>
               </div>
               <h3 className="font-sacred text-2xl font-medium text-graph-foreground">
@@ -1214,7 +1214,7 @@ export const KGConceptMap = ({
                     onClick={() => handleStartInquiryInChat('How do I shift from a suffering state to a beautiful state?')}
                     className="w-full flex items-center justify-between rounded-xl border border-border/50 bg-card/50 p-3 text-xs text-foreground transition-all hover:bg-card hover:border-ojas/40 group"
                   >
-                    <span className="truncate">🌿 How do I shift from a suffering state to a beautiful state?</span>
+                    <span className="truncate">How do I shift from a suffering state to a beautiful state?</span>
                     <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-ojas shrink-0 ms-2" />
                   </button>
                   <button
@@ -1222,7 +1222,7 @@ export const KGConceptMap = ({
                     onClick={() => handleStartInquiryInChat('Teach me the Serene Mind practice for anxiety & stress')}
                     className="w-full flex items-center justify-between rounded-xl border border-border/50 bg-card/50 p-3 text-xs text-foreground transition-all hover:bg-card hover:border-ojas/40 group"
                   >
-                    <span className="truncate">🧘 Teach me the Serene Mind practice for anxiety & stress</span>
+                    <span className="truncate">Teach me the Serene Mind practice for anxiety & stress</span>
                     <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-ojas shrink-0 ms-2" />
                   </button>
                   <button
@@ -1410,7 +1410,7 @@ export const KGConceptMap = ({
 
               <div className="rounded-2xl border border-ojas/15 bg-ojas/5 p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                  <Sparkles className="h-3.5 w-3.5 text-ojas" />
+                  <Sprout className="h-3.5 w-3.5 text-ojas" />
                   <span>{t('kg.consciousnessEvolution', 'Consciousness Evolution')}</span>
                 </div>
                 <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">

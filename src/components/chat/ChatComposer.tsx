@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Send, Square, Flame, Sparkles, Plus, Mic, X, FileText, AudioLines, Headphones,
+  Send, Square, Flame, Sprout, Plus, Mic, X, FileText, AudioLines, Headphones, Volume2, VolumeX,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -16,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { LanguageSelector } from './LanguageSelector';
 import { AssistantSwitcher } from './AssistantSwitcher';
 import { SlashCommandMenu, type SlashCommandId } from './SlashCommandMenu';
 import type { PromptInputMessage } from '@/components/ai-elements/prompt-input';
@@ -322,17 +321,20 @@ function ChatComposerInner({
 
         <PromptInputFooter className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2">
           <PromptInputTools>
-            <LanguageSelector
-              value={currentLanguage}
-              voiceEnabled={voiceEnabled}
-              isListening={isListening}
-              onVoiceToggle={onVoiceToggle}
-              onLanguageChange={onLanguageChange}
-              ttsEnabled={ttsEnabled}
-              onTtsToggle={onTtsToggle}
-              isSpeaking={isSpeaking}
-              compact
-            />
+            {onTtsToggle && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onTtsToggle}
+                aria-pressed={ttsEnabled}
+                aria-label={ttsEnabled ? t('chat.disableVoiceOutput', 'Disable voice output') : t('chat.enableVoiceOutput', 'Enable voice output')}
+                title={ttsEnabled ? t('chat.disableVoiceOutput', 'Disable voice output') : t('chat.enableVoiceOutput', 'Enable voice output')}
+                className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 rounded-full text-muted-foreground hover:text-foreground"
+              >
+                {ttsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </Button>
+            )}
             <div className="hidden sm:block">
               <AssistantSwitcher variant="chip" />
             </div>
@@ -351,18 +353,6 @@ function ChatComposerInner({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" side="top" className="w-48">
-                  {actionCapabilities.sereneMind && (
-                    <DropdownMenuItem onClick={onSereneMind}>
-                      <Flame className="w-4 h-4 mr-2 text-ojas" />
-                      {t('chat.sereneMind')}
-                    </DropdownMenuItem>
-                  )}
-                  {actionCapabilities.guidedMeditation && (
-                    <DropdownMenuItem onClick={onGuidedMeditation}>
-                      <Sparkles className="w-4 h-4 mr-2 text-ojas" />
-                      {t('chat.guidedMeditation')}
-                    </DropdownMenuItem>
-                  )}
                   {attachmentsAvailable && (
                     <DropdownMenuItem disabled={isUploading} onClick={() => fileInputRef.current?.click()}>
                       <FileText className="w-4 h-4 mr-2 text-ojas" />

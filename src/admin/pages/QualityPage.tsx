@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { InlineSpinner } from "@/components/common/BrandedSpinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -176,7 +177,7 @@ export default function QualityPage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {qualityLoading ? (
-                <div className="text-sm text-muted-foreground p-4">Loading…</div>
+                <InlineSpinner className="text-sm text-muted-foreground p-4" />
               ) : !Array.isArray(quality?.disagreements) || quality.disagreements.length === 0 ? (
                 <EmptyState title="No disagreements in this window" />
               ) : (
@@ -214,7 +215,7 @@ export default function QualityPage() {
             <CardHeader><CardTitle className="text-base">Low-confidence responses</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {qualityLoading ? (
-                <div className="text-sm text-muted-foreground p-4">Loading…</div>
+                <InlineSpinner className="text-sm text-muted-foreground p-4" />
               ) : !Array.isArray(quality?.low_confidence) || quality.low_confidence.length === 0 ? (
                 <EmptyState title="No low-confidence responses" />
               ) : (
@@ -240,7 +241,7 @@ export default function QualityPage() {
             <CardHeader><CardTitle className="text-base">Safety events</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {safetyLoading ? (
-                <div className="text-sm text-muted-foreground p-4">Loading…</div>
+                <InlineSpinner className="text-sm text-muted-foreground p-4" />
               ) : !Array.isArray(safety) || safety.length === 0 ? (
                 <EmptyState title="No safety events in this window" />
               ) : (
@@ -277,7 +278,7 @@ export default function QualityPage() {
             <CardHeader><CardTitle className="text-base">Reviewer annotations</CardTitle></CardHeader>
             <CardContent className="space-y-2">
               {annosLoading ? (
-                <div className="text-sm text-muted-foreground p-4">Loading…</div>
+                <InlineSpinner className="text-sm text-muted-foreground p-4" />
               ) : !Array.isArray(annos) || annos.length === 0 ? (
                 <EmptyState title="No annotations yet" />
               ) : (

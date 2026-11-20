@@ -532,6 +532,9 @@ const ProfilePage = () => {
                     <p className="mt-2 text-xs text-ojas/90">
                       {t('profile.personalDetails.sourceAware', 'Source-aware by design: verified quotations remain attributed; unsupported questions receive a clear limit or clarification.')}
                     </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t('profile.personalDetails.verbatimUnchanged', "These settings shape the guide's own words only. The teachers' quotes always stay word for word, so they will not change.")}
+                    </p>
                   </div>
                 </CardContent>
               </Card>

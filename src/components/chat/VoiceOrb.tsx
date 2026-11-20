@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { Mic, Sparkles, Volume2, Pause } from 'lucide-react';
+import { Mic, Sprout, Volume2, Pause } from 'lucide-react';
 import type { VoiceConversationState } from '@/hooks/useVoiceConversation';
 
 export interface VoiceOrbProps {
@@ -265,7 +265,7 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
               animate={shouldReduceMotion ? {} : { rotate: [0, 5, -5, 0] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
+              <Sprout className="w-3.5 h-3.5 text-amber-300 animate-spin" />
               <span>Reflecting</span>
             </motion.div>
           ) : state === 'speaking' ? (

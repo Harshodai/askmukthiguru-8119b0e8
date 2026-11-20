@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Flame, Sparkles, Play, CheckCircle2 } from 'lucide-react';
+import { Flame, Sprout, Play, CheckCircle2 } from 'lucide-react';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 
 interface SacredPracticeWidgetProps {

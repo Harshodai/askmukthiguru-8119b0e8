@@ -225,26 +225,33 @@ describe('MemoryManager Governance & Knowledge Graph Controls', () => {
     );
   });
 
-  it('passes scope="personal", hasConsent, and onApproveConsent to KGConceptMap in graph view', async () => {
+  it('does not ask for consent a second time inside the graph view', async () => {
     vi.mocked(memoryApi.getConsent).mockResolvedValue(false);
+
+    render(<MemoryManager />);
+
+    // The approval banner at the top of the tab is the single place to approve.
+    await waitFor(() => {
+      expect(
+        screen.getByText('Approve memory above and your map will appear here as you reflect.'),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('kg-concept-map')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('kg-approve-consent-btn')).not.toBeInTheDocument();
+  });
+
+  it('passes scope="personal" and hasConsent to KGConceptMap once memory is approved', async () => {
+    vi.mocked(memoryApi.getConsent).mockResolvedValue(true);
+    vi.mocked(memoryApi.hasConsent).mockResolvedValue(true);
 
     render(<MemoryManager />);
 
     await waitFor(() => {
       expect(screen.getByTestId('kg-concept-map')).toBeInTheDocument();
     });
-
     const kgMap = screen.getByTestId('kg-concept-map');
     expect(kgMap.getAttribute('data-scope')).toBe('personal');
-    expect(kgMap.getAttribute('data-has-consent')).toBe('false');
-
-    // Trigger approve from inside the graph component
-    const kgApproveBtn = screen.getByTestId('kg-approve-consent-btn');
-    fireEvent.click(kgApproveBtn);
-
-    await waitFor(() => {
-      expect(memoryApi.recordConsent).toHaveBeenCalledWith(true);
-    });
+    expect(kgMap.getAttribute('data-has-consent')).toBe('true');
   });
 
   it('renders Layer 4 Seeker Core Dashboard with active practices and inquiry', async () => {

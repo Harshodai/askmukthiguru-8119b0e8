@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Sparkles, Heart, ArrowRight } from 'lucide-react';
+import { Flame, Sprout, Heart, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   recordPrePractice,
@@ -42,7 +42,7 @@ export const PrePracticeGate = ({ children }: PrePracticeGateProps) => {
       id: 'soul_sync',
       label: t('chat.prePractice.soulSync'),
       helper: t('chat.prePractice.soulSyncHelper'),
-      Icon: Sparkles,
+      Icon: Sprout,
     },
     {
       id: 'serene_mind',

@@ -32,6 +32,15 @@ export const EkamLotusIcon = ({ className = 'w-4 h-4' }: { className?: string })
   </svg>
 );
 
+export const EkamLogoImage = ({ className = 'h-5 w-auto object-contain' }: { className?: string }) => (
+  <img
+    src="/images/ekam-oneness-logo.png"
+    alt="Ekam Oneness"
+    className={cn('inline-block shrink-0 object-contain', className)}
+    loading="lazy"
+  />
+);
+
 export const EkamLinkButton: React.FC<EkamLinkButtonProps> = ({
   className,
   variant = 'icon',
@@ -52,7 +61,7 @@ export const EkamLinkButton: React.FC<EkamLinkButtonProps> = ({
         rel="noopener noreferrer"
         className={cn(
           baseClasses,
-          'gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium',
+          'gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium',
           'text-ojas-ink dark:text-ojas bg-ojas/10 border border-ojas/25',
           'hover:bg-ojas/20 hover:border-ojas/40 active:scale-95 shadow-xs',
           className,
@@ -61,7 +70,7 @@ export const EkamLinkButton: React.FC<EkamLinkButtonProps> = ({
         title={label}
         data-testid={testId}
       >
-        <EkamLotusIcon className="w-4 h-4 fill-current shrink-0 text-ojas" />
+        <EkamLogoImage className="h-4 w-auto" />
         {children || (
           <>
             <span className="font-semibold tracking-wide">Ekam</span>
@@ -80,7 +89,7 @@ export const EkamLinkButton: React.FC<EkamLinkButtonProps> = ({
         target="_blank"
         rel="noopener noreferrer"
         className={cn(
-          'min-h-[44px] inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium',
+          'min-h-[44px] inline-flex items-center gap-2 text-xs sm:text-sm font-medium',
           'text-foreground hover:text-ojas transition-colors duration-200 ease-out active:scale-95',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas focus-visible:ring-offset-2',
           className,
@@ -89,7 +98,7 @@ export const EkamLinkButton: React.FC<EkamLinkButtonProps> = ({
         title={label}
         data-testid={testId}
       >
-        <EkamLotusIcon className="w-4 h-4 fill-current shrink-0 text-ojas" />
+        <EkamLogoImage className="h-4 w-auto" />
         <span>{children || t('common.ekamWorldCentre', 'Ekam · World Centre for Enlightenment')}</span>
         <ExternalLink className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-hidden="true" />
       </a>
@@ -103,14 +112,14 @@ export const EkamLinkButton: React.FC<EkamLinkButtonProps> = ({
       rel="noopener noreferrer"
       className={cn(
         baseClasses,
-        'rounded-xl text-ojas hover:text-ojas-light hover:bg-ojas/10 border border-transparent hover:border-ojas/20 active:scale-95',
+        'rounded-xl text-ojas hover:text-ojas-light hover:bg-ojas/10 border border-transparent hover:border-ojas/20 active:scale-95 px-2',
         className,
       )}
       aria-label={label}
       title={label}
       data-testid={testId}
     >
-      <EkamLotusIcon className="w-5 h-5 fill-current" />
+      <EkamLogoImage className="h-5 w-auto" />
     </a>
   );
 };

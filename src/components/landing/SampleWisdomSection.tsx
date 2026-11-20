@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Youtube, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Youtube, Sprout } from 'lucide-react';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
@@ -86,7 +86,7 @@ export const SampleWisdomSection = () => {
             viewport={{ once: true }}
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-saffron-gold/10 border border-saffron-gold/20 mb-4"
           >
-            <Sparkles className="w-3.5 h-3.5 text-saffron-gold animate-pulse" />
+            <Sprout className="w-3.5 h-3.5 text-saffron-gold animate-pulse" />
             <span className="text-xs uppercase tracking-widest font-semibold text-saffron-gold">
               {t('wisdom.curatedTeachings', 'Curated Teachings')}
             </span>

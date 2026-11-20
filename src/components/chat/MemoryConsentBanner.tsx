@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, X, ChevronDown, ChevronUp, ShieldCheck, Brain } from 'lucide-react';
+import { Sprout, X, ChevronDown, ChevronUp, ShieldCheck, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { memoryApi, MemoryApiError } from '@/lib/memoryApi';
 import { useToast } from '@/hooks/use-toast';
@@ -80,7 +80,7 @@ export const MemoryConsentBanner: React.FC<MemoryConsentBannerProps> = ({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <div className="mt-0.5 p-2 rounded-xl bg-ojas/15 text-ojas flex-shrink-0">
-            <Sparkles className="w-4 h-4" />
+            <Sprout className="w-4 h-4" />
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">

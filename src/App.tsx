@@ -16,6 +16,7 @@ import { BrandedSpinner } from "@/components/common/BrandedSpinner";
 import { AdminErrorBoundary } from "@/admin/components/AdminErrorBoundary";
 import { ChatErrorBoundary } from "@/components/common/ChatErrorBoundary";
 import { SereneMindProvider } from "@/components/common/SereneMindProvider";
+import { ThemeProvider } from "@/components/common/ThemeProvider";
 import { PushPermissionPrompt } from "@/components/common/PushPermissionPrompt";
 import { PushNotificationsManager } from "@/components/common/PushNotificationsManager";
 import { purgeConversationsByAge, getRetentionDays } from "@/lib/chatStorage";
@@ -82,6 +83,7 @@ let QueriesPage: ComponentType = NoopPage;
 let QualityPage: ComponentType = NoopPage;
 let RetrievalPage: ComponentType = NoopPage;
 let DailyTeachingPage: ComponentType = NoopPage;
+let EventsPage: ComponentType = NoopPage;
 let TeachingTipsPage: ComponentType = NoopPage;
 let TriggersPage: ComponentType = NoopPage;
 let TopicsPage: ComponentType = NoopPage;
@@ -118,6 +120,7 @@ if (ADMIN_ENABLED) {
   QualityPage = lazyWithRetry(() => import("./admin/pages/QualityPage"));
   RetrievalPage = lazyWithRetry(() => import("./admin/pages/RetrievalPage"));
   DailyTeachingPage = lazyWithRetry(() => import("./admin/pages/DailyTeachingPage"));
+  EventsPage = lazyWithRetry(() => import("./admin/pages/EventsPage"));
   TeachingTipsPage = lazyWithRetry(() => import("./admin/pages/TeachingTipsPage"));
   TriggersPage = lazyWithRetry(() => import("./admin/pages/TriggersPage"));
   TopicsPage = lazyWithRetry(() => import("./admin/pages/TopicsPage"));
@@ -207,6 +210,20 @@ const RouteTracker = () => {
   return null;
 };
 
+/** New page = top of the page. A #hash link scrolls to its target instead. */
+const ScrollToTop = () => {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) {
+      document.getElementById(hash.slice(1))?.scrollIntoView();
+      return;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.getElementById('main-content')?.scrollTo?.({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname, hash]);
+  return null;
+};
+
 const App = () => {
   useEffect(() => {
     const runPurge = () => {
@@ -247,6 +264,7 @@ const App = () => {
         can call useSereneMind() and get a real context, not the no-op fallback.
         Previously missing from this tree — Serene Mind modal never rendered.
       */}
+      <ThemeProvider>
       <SereneMindProvider>
         <QueryErrorBoundary>
         <a
@@ -257,6 +275,7 @@ const App = () => {
         </a>
         <AppRouter>
           <RouteTracker />
+          <ScrollToTop />
           <Routes>
             {/* Admin — only mounted when VITE_ADMIN_ENABLED !== 'false'.
                 When disabled the routes stay unmounted (runtime gate); admin
@@ -284,6 +303,7 @@ const App = () => {
                   {/* Content CMS: teachings · tips · topics · OKF */}
                   <Route path="content" element={<AdminRoute><GroupedPage tabs={[
                     { id: 'daily-teaching', label: 'Daily Teaching', Component: DailyTeachingPage },
+                    { id: 'events', label: 'Events', Component: EventsPage },
                     { id: 'teaching-tips', label: 'Teaching Tips', Component: TeachingTipsPage },
                     { id: 'topics', label: 'Topics', Component: TopicsPage },
                     { id: 'okf', label: 'OKF', Component: OkfManagerPage },
@@ -401,6 +421,7 @@ const App = () => {
         </AppRouter>
         </QueryErrorBoundary>
       </SereneMindProvider>
+      </ThemeProvider>
     </QueryClientProvider>
     </MotionConfig>
     </FacultyAccessGate>

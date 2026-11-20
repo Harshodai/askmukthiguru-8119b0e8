@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Sparkles,
+  Sprout,
   Shield,
   ShieldCheck,
   Copy,
@@ -141,7 +141,7 @@ export const ProvenanceDrawer: React.FC<ProvenanceDrawerProps> = ({
             <div className="rounded-xl border border-ojas/25 bg-gradient-to-br from-ojas/10 via-card to-background p-4 shadow-sm">
               <div className="flex items-start gap-3">
                 <div className="p-1.5 rounded-lg bg-ojas/15 text-ojas shrink-0 mt-0.5">
-                  <Sparkles className="w-4 h-4" aria-hidden="true" />
+                  <Sprout className="w-4 h-4" aria-hidden="true" />
                 </div>
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center justify-between">

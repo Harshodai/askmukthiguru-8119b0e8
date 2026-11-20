@@ -5,7 +5,7 @@ import {
   X,
   ExternalLink,
   ChevronRight,
-  Sparkles,
+  Sprout,
   HelpCircle,
   Compass,
   BookOpen,
@@ -47,7 +47,7 @@ export const Navbar = () => {
   );
 
   const navLinks: NavbarLink[] = [
-    { href: '#gurus', label: t('nav.meetGurus'), icon: Sparkles },
+    { href: '#gurus', label: t('nav.meetGurus'), icon: Sprout },
     { href: '#how-it-works', label: t('nav.howItWorks'), icon: HelpCircle },
     { href: '#practices', label: t('nav.practices'), icon: Compass },
     { href: '#wisdom', label: t('nav.wisdom', 'Wisdom'), icon: BookOpen },
@@ -116,9 +116,16 @@ export const Navbar = () => {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs lg:text-[13px] xl:text-sm text-foreground/80 hover:text-ojas transition-colors duration-200 font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1"
+                      className="text-xs lg:text-[13px] xl:text-sm text-foreground/80 hover:text-ojas transition-colors duration-200 font-medium whitespace-nowrap shrink-0 inline-flex items-center gap-1.5"
                       data-testid={link.testId}
                     >
+                      {link.testId === 'navbar-ekam-button' && (
+                        <img
+                          src="/images/ekam-oneness-logo.png"
+                          alt="Ekam Oneness"
+                          className="h-3.5 w-auto object-contain inline-block shrink-0"
+                        />
+                      )}
                       <span>{link.label}</span>
                       <ExternalLink className="w-3 h-3 opacity-60" aria-hidden="true" />
                     </a>
@@ -285,8 +292,12 @@ export const Navbar = () => {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-ojas/15 border border-ojas/30 flex items-center justify-center shrink-0">
-                        <EkamLotusIcon className="w-5 h-5 text-ojas" />
+                      <div className="w-14 h-10 rounded-xl bg-ojas/15 border border-ojas/30 flex items-center justify-center shrink-0 p-1">
+                        <img
+                          src="/images/ekam-oneness-logo.png"
+                          alt="Ekam Oneness"
+                          className="h-full w-auto object-contain"
+                        />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">

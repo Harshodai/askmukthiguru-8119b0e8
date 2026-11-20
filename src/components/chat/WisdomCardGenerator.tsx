@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Share2, Sparkles, Check } from 'lucide-react';
+import { X, Download, Share2, Sprout, Check } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { useTranslation } from 'react-i18next';
 
@@ -197,10 +197,10 @@ export const WisdomCardGenerator = ({ isOpen, onClose, content }: WisdomCardGene
 
               {/* Sacred subtle watermark */}
               <div className="absolute top-4 right-4 opacity-15 pointer-events-none text-white">
-                <Sparkles className="w-16 h-16" />
+                <Sprout className="w-16 h-16" />
               </div>
               <div className="absolute bottom-4 left-4 opacity-10 pointer-events-none text-white">
-                <Sparkles className="w-10 h-10" />
+                <Sprout className="w-10 h-10" />
               </div>
 
               {/* Quote & Brand Content */}
@@ -212,7 +212,7 @@ export const WisdomCardGenerator = ({ isOpen, onClose, content }: WisdomCardGene
                 </div>
                 <div className="mt-8 flex items-center justify-between border-t border-white/15 pt-3">
                   <div className="flex items-center gap-2">
-                    <Sparkles className={`w-4 h-4 ${style.accent}`} />
+                    <Sprout className={`w-4 h-4 ${style.accent}`} />
                     <span className={`text-xs font-semibold uppercase tracking-[0.18em] ${style.accent}`}>
                       AskMukthiGuru
                     </span>

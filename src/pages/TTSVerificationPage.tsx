@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Square, RefreshCw, CheckCircle, ArrowLeft, Volume2, Activity, Sparkles, ShieldAlert } from 'lucide-react';
+import { Play, Square, RefreshCw, CheckCircle, ArrowLeft, Volume2, Activity, Sprout, ShieldAlert } from 'lucide-react';
 import { useProfile } from '@/hooks/useProfile';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 
@@ -321,7 +321,7 @@ export default function TTSVerificationPage() {
           <div className="md:col-span-2 space-y-6">
             <div className="glass-card rounded-2xl border border-border/20 p-6 bg-card/30 backdrop-blur-md">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-ojas mb-4 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-ojas animate-spin-slow" />
+                <Sprout className="w-4 h-4 text-ojas animate-spin-slow" />
                 <span>Interactive TTS Tester</span>
               </h2>
 

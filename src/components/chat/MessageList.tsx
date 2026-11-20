@@ -140,13 +140,11 @@ export const MessageList = React.memo(({
     <div className="space-y-3 sm:space-y-4 scrollbar-thin scrollbar-thumb-muted-foreground/20">
       {groups.map((group) => (
         <React.Fragment key={group.label}>
-          {/* Date separator — sticks to the top of the scroller while its day is on screen. */}
-          <div className="sticky top-0 z-10 -mx-1 flex items-center gap-3 py-1.5 my-2">
-            <hr className="flex-1 border-border/30" />
-            <span className="rounded-full border border-border/40 bg-background/70 px-2.5 py-0.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground backdrop-blur-md select-none">
+          {/* Date separator: a quiet centred label. Not sticky, so it never covers a bubble. */}
+          <div className="flex justify-center pt-2">
+            <span className="text-[11px] font-medium tracking-wide text-muted-foreground/80 select-none">
               {group.label}
             </span>
-            <hr className="flex-1 border-border/30" />
           </div>
 
           {group.messages.map((message, index) => {

@@ -1,7 +1,7 @@
 import { FloatingParticles } from '@/components/landing/FloatingParticles';
 import { useState, useRef, useEffect, useCallback, useMemo, Suspense, useDeferredValue, startTransition } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, AlertCircle, Sparkles, Share2, BookOpen, RefreshCw, Square, X } from 'lucide-react';
+import { Send, AlertCircle, Sprout, Share2, BookOpen, RefreshCw, Square, X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 import {
@@ -139,6 +139,19 @@ const dismissTeachingBanner = (): void => {
   } catch {
     // storage unavailable: dismissed for this page load only
   }
+};
+
+/**
+ * Text to read aloud for a guru message. Teaching answers keep the teacher's words in the
+ * citation card and may leave `content` empty, so fall back to the cited quote.
+ */
+const speakableMessageText = (message?: Message): string => {
+  if (!message || message.role !== 'guru') return '';
+  const content = message.content?.trim();
+  if (content) return message.content;
+  const citation = message.citations?.[0];
+  const segments = (citation?.quoteSegments ?? []).filter((segment) => segment.trim());
+  return (segments.length > 0 ? segments.join(' ') : citation?.quote || citation?.textSnippet || '').trim();
 };
 
 export const ChatInterface = () => {
@@ -387,6 +400,7 @@ export const ChatInterface = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const innerContentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Id of the last guru message already handled (spoken or skipped). Ids, not text: the same answer can repeat.
   const lastGuruMessageRef = useRef<string>('');
   const isNearBottomRef = useRef(true);
   const titleGenerationRef = useRef<Set<string>>(new Set());
@@ -707,33 +721,37 @@ export const ChatInterface = () => {
 
   const ttsInitializedRef = useRef(false);
   useEffect(() => {
-    if (!ttsEnabled || messages.length === 0) {
+    // Voice mode waits on this effect for the answer, so it must run even when read-aloud is off.
+    const voiceModeWaiting = voiceResponseResolverRef.current !== null;
+    if ((!ttsEnabled && !voiceModeWaiting) || messages.length === 0) {
       // Seed the ref so the next message change is treated as "new"
       if (messages.length > 0) {
-        lastGuruMessageRef.current = messages[messages.length - 1]?.content ?? '';
+        lastGuruMessageRef.current = messages[messages.length - 1]?.id ?? '';
       }
       ttsInitializedRef.current = true;
       return;
     }
 
     // Skip first run: don't speak the already-existing last message on mount/switch
-    if (!ttsInitializedRef.current) {
+    // Voice mode is explicitly waiting for this answer, so never treat it as the already-seen one.
+    if (!ttsInitializedRef.current && !voiceModeWaiting) {
       ttsInitializedRef.current = true;
-      lastGuruMessageRef.current = messages[messages.length - 1]?.content ?? '';
+      lastGuruMessageRef.current = messages[messages.length - 1]?.id ?? '';
       return;
     }
 
     const lastMessage = messages[messages.length - 1];
+    const speakable = speakableMessageText(lastMessage);
     if (
       lastMessage.role === 'guru' &&
-      lastMessage.content &&
+      speakable &&
       !isStreaming &&
-      lastMessage.content !== lastGuruMessageRef.current
+      lastMessage.id !== lastGuruMessageRef.current
     ) {
-      lastGuruMessageRef.current = lastMessage.content;
+      lastGuruMessageRef.current = lastMessage.id;
       // If interactive voice mode is waiting for response, resolve it
       if (voiceResponseResolverRef.current) {
-        const cleanWisdom = stripPlainText(lastMessage.content);
+        const cleanWisdom = stripPlainText(speakable);
         const resolver = voiceResponseResolverRef.current;
         voiceResponseResolverRef.current = null;
         resolver(cleanWisdom);
@@ -742,7 +760,7 @@ export const ChatInterface = () => {
         // session mode, so it may speak each completed answer without changing the
         // saved profile preference.
         if (handsFreeVoiceRef.current) voiceAwaitingPlaybackRef.current = true;
-        speak(stripPlainText(lastMessage.content), lastMessage.language);
+        speak(stripPlainText(speakable), lastMessage.language);
       }
     } else if (voiceResponseResolverRef.current && !isStreaming && lastMessage?.error) {
       const resolver = voiceResponseResolverRef.current;
@@ -2280,6 +2298,12 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
 }, [isStreaming, isTyping, messages, handleSubmit]);
 
 const handleNewConversation = useCallback(async (continuationSummary?: string) => {
+  // Already on a fresh chat (nothing asked yet): reuse it instead of piling up empty ones.
+  // Click handlers pass an event as the first argument, so only a string counts as a summary.
+  if (typeof continuationSummary !== 'string' && !isIncognito && messages.length > 0 && messages.every((m) => m.role !== 'user')) {
+    setInputValue('');
+    return;
+  }
   stopSpeaking();
   if (isIncognito) {
     setIsIncognito(false);
@@ -2319,7 +2343,7 @@ const handleNewConversation = useCallback(async (continuationSummary?: string) =
   setConversationContextExhausted(false);
   setInputValue('');
   setRefreshTrigger(prev => prev + 1);
-}, [stopSpeaking, isIncognito, profile.prePracticeLog, selected?.slug]);
+}, [stopSpeaking, isIncognito, messages, profile.prePracticeLog, selected?.slug]);
 
 const handleNewIncognitoConversation = async () => {
   stopSpeaking();
@@ -2707,7 +2731,7 @@ return (
                       <X className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                     <div className="w-8 h-8 rounded-xl bg-ojas/15 border border-ojas/30 flex items-center justify-center shrink-0 mt-0.5">
-                      <Sparkles className="w-4 h-4 text-ojas" />
+                      <Sprout className="w-4 h-4 text-ojas" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="text-[10px] font-semibold uppercase tracking-wider text-ojas">
@@ -2840,7 +2864,7 @@ return (
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="sticky bottom-0 z-30 shrink-0 w-full px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-background/95 border-t border-border/20 shadow-[0_-18px_36px_hsl(var(--background)/0.96)]"
+        className="sticky bottom-0 z-30 shrink-0 w-full px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-gradient-to-t from-background via-background/90 to-transparent"
       >
         {!quotaExceeded && <QuotaCounter />}
         {quotaExceeded && (

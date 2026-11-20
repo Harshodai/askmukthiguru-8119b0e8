@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { InlineSpinner } from "@/components/common/BrandedSpinner";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useAlertEvents, useAlertRules } from "@/admin/hooks/useAdminData";
@@ -38,7 +39,7 @@ export default function AlertsPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           {rulesLoading ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
+            <InlineSpinner className="text-sm text-muted-foreground" />
           ) : rulesIsError ? (
             <div className="text-sm text-destructive">
               Failed to load alert rules: {(rulesError as Error)?.message || "Unknown error"}
@@ -79,7 +80,7 @@ export default function AlertsPage() {
         <CardHeader><CardTitle className="text-base">Recently fired</CardTitle></CardHeader>
         <CardContent className="p-0">
           {eventsLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+            <InlineSpinner className="p-6 text-sm text-muted-foreground" />
           ) : eventsIsError ? (
             <div className="p-6 text-sm text-destructive">
               Failed to load alert events: {(eventsError as Error)?.message || "Unknown error"}

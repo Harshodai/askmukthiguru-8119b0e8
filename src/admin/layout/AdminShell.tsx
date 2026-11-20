@@ -6,7 +6,7 @@ import {
   ShieldCheck,
   Database,
   Activity,
-  Sparkles,
+  Sprout,
   FileText,
   ClipboardCheck,
   Boxes,

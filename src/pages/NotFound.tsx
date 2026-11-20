@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { Sparkles, Search, Home } from 'lucide-react';
+import { Sprout, Search, Home } from 'lucide-react';
 import { getSupportEmail } from '@/lib/domain';
 
 const NotFound = () => {
@@ -27,7 +27,7 @@ const NotFound = () => {
       
       <main className="relative w-full max-w-md mx-auto text-center space-y-8 py-16">
         <Link to="/" className="inline-flex items-center gap-2 text-ojas hover:underline">
-          <Sparkles className="w-5 h-5" />
+          <Sprout className="w-5 h-5" />
           AskMukthiGuru
         </Link>
         

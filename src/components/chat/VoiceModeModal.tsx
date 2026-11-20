@@ -6,7 +6,7 @@ import {
   Mic,
   MicOff,
   Volume2,
-  Sparkles,
+  Sprout,
   Send,
   Square,
   AlertCircle,
@@ -262,7 +262,7 @@ export const VoiceModeModal: React.FC<VoiceModeModalProps> = ({
                   >
                     <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-violet-400 dark:text-violet-300 mb-2.5">
                       <div className="flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                        <Sprout className="w-3.5 h-3.5 text-violet-400" />
                         <span>{t('voice.guruWisdom', 'Guru Teaching')}</span>
                       </div>
                       {isSpeaking && (

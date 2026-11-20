@@ -9,7 +9,7 @@ import {
   Loader2,
   Play,
   Search,
-  Sparkles,
+  Sprout,
   X,
   Youtube,
 } from 'lucide-react';
@@ -383,7 +383,7 @@ export const LinkSearchModal: React.FC<LinkSearchModalProps> = ({
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <>
-                        <Sparkles className="w-3.5 h-3.5" />
+                        <Sprout className="w-3.5 h-3.5" />
                         <span>Search</span>
                       </>
                     )}

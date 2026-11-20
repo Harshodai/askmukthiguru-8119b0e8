@@ -5,7 +5,7 @@ import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CALL_VERIFIED_CRISIS_LINES } from '@/lib/crisisHelplines';
-import { Sparkles, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal, ChevronDown, Youtube } from 'lucide-react';
+import { Compass, Lightbulb, Flower2, Eye, ShieldCheck, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal, ChevronDown, Youtube } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useNotes } from '@/hooks/useNotes';
@@ -48,6 +48,9 @@ import { SourcePlatformBadge } from '@/components/common/SourcePlatformBadge';
 import { completeStep } from '@/lib/dailyJourney';
 import { AbstainHelpCard } from './AbstainHelpCard';
 import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
+
+/** Quotes longer than this collapse to six lines behind a Read full passage toggle (the text stays whole in the DOM). */
+const QUOTE_COLLAPSE_CHARS = 420;
 
 interface ChatMessageProps {
   message: Message;
@@ -328,7 +331,7 @@ const TeachingGroundingCard = ({
         className="mb-3.5 w-full rounded-xl border border-muted-foreground/15 bg-muted/20 px-3.5 py-3 text-start backdrop-blur-sm"
       >
         <div className="flex items-center gap-2 text-[15px] leading-5 font-medium text-foreground">
-          <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <Compass className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span>{t('chat.teachingContext.title')}</span>
           <span className="ms-auto rounded-full bg-muted/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
             {t('chat.teachingContext.noDirectDiscourse', 'No direct discourse match')}
@@ -369,9 +372,9 @@ const TeachingGroundingCard = ({
           {isExplicitlyVerified ? (
             <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
           ) : isSupporting ? (
-            <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <Compass className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           ) : (
-            <Sparkles className="h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
+            <Compass className="h-4 w-4 shrink-0 text-amber-500" aria-hidden="true" />
           )}
           <span>{t('chat.teachingContext.title')}</span>
           <span className="text-[15px] font-normal text-muted-foreground/70">
@@ -496,6 +499,7 @@ export const GuruTeachingCard = ({
   onPlay,
 }: GuruTeachingCardProps) => {
   const { t } = useTranslation();
+  const [quoteExpanded, setQuoteExpanded] = useState(false);
   const quote = citation.quote?.trim()
     ? citation.quote
     : citation.textSnippet?.trim()
@@ -555,7 +559,7 @@ export const GuruTeachingCard = ({
     <aside
       data-testid="guru-teaching-card"
       aria-label={t('chat.guruTeaching.ariaLabel', "Guru teaching in the teacher's own words")}
-      className="w-full rounded-2xl border border-white/20 dark:border-white/10 bg-gradient-to-br from-card/90 via-card/80 to-card/70 dark:from-card/85 dark:via-card/75 dark:to-card/65 backdrop-blur-xl p-4 sm:p-5 shadow-lg relative overflow-hidden transition-all duration-300"
+      className="w-full rounded-2xl border border-border/60 bg-card p-4 sm:p-5 relative overflow-hidden"
     >
       <div className="flex flex-wrap items-center gap-2">
         <BookOpen className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
@@ -585,7 +589,10 @@ export const GuruTeachingCard = ({
       <blockquote
         data-testid="guru-teaching-quote"
         lang={quoteLang(citation.language)}
-        className="mt-3 border-s-2 border-ojas/50 ps-3.5 font-serif text-[15px] sm:text-[16px] leading-[1.8] text-foreground"
+        className={cn(
+          'mt-3 font-sans text-[15px] leading-[1.65] text-foreground',
+          !quoteExpanded && playbackQuote.length > QUOTE_COLLAPSE_CHARS && 'line-clamp-6',
+        )}
       >
         {displayedQuoteSegments.map((segment, segmentIndex) => (
           <span
@@ -597,6 +604,18 @@ export const GuruTeachingCard = ({
           </span>
         ))}
       </blockquote>
+      {playbackQuote.length > QUOTE_COLLAPSE_CHARS && (
+        <button
+          type="button"
+          onClick={() => setQuoteExpanded((v) => !v)}
+          aria-expanded={quoteExpanded}
+          className="mt-1 inline-flex min-h-11 items-center text-[13px] font-medium text-ojas-ink dark:text-ojas hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+        >
+          {quoteExpanded
+            ? t('chat.guruTeaching.showLess', 'Show less')
+            : t('chat.guruTeaching.readFull', 'Read full passage')}
+        </button>
+      )}
       {conflicted && (
         <p data-testid="editorial-conflict-note" role="note" className="mt-2 text-xs text-amber-700 dark:text-amber-300">
           {t(
@@ -677,7 +696,7 @@ const GuidancePlanCard = ({ plan }: { plan: NonNullable<Message["guidancePlan"]>
     className="w-full rounded-xl border border-ojas/20 bg-gradient-to-br from-ojas/10 to-card px-3.5 py-3 shadow-sm"
   >
     <div className="flex items-start gap-2">
-      <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
+      <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
       <div className="min-w-0 flex-1">
         {plan.action_step && (
           <>
@@ -719,7 +738,7 @@ const SereneMindOfferCard = ({ offer }: { offer: NonNullable<Message["sereneMind
       className="mt-3 w-full rounded-xl border border-ojas/25 bg-gradient-to-br from-ojas/10 to-card px-3.5 py-3 shadow-sm"
     >
       <div className="flex items-start gap-2">
-        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
+        <Flower2 className="mt-0.5 h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ojas-ink">{t('chat.optionalPractice')}</p>
           <p className="mt-1 text-sm font-medium leading-5 text-foreground">
@@ -1199,7 +1218,6 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
               citation={discourseCitation}
               onOpenVideoModal={(c) => {
                 setActiveVideoCitation(c);
-                onCitationClick?.(message.id, n - 1);
               }}
               onOpenSearchModal={(c) => {
                 setActiveSearchCitation(c);
@@ -1517,7 +1535,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                 // A grouped source card is one selected discourse window.
                                 completeStep('teaching');
                                 setActiveVideoCitation(c);
-                                onCitationClick?.(message.id, c.index - 1);
                               }}
                             />
                           ))}
@@ -1574,7 +1591,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               citation={primaryDiscourseCitation}
                               onOpenVideoModal={(c) => {
                                 setActiveVideoCitation(c);
-                                onCitationClick?.(message.id, c.index - 1);
                               }}
                             />
                           )}
@@ -1587,7 +1603,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               className="my-3.5 rounded-2xl border border-saffron-gold/25 bg-gradient-to-br from-saffron-gold/10 via-card to-card p-3.5 shadow-sm backdrop-blur-md"
                             >
                               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-ojas-ink mb-2">
-                                <Sparkles className="h-3.5 w-3.5 text-saffron-gold" aria-hidden="true" />
+                                <Eye className="h-3.5 w-3.5 text-saffron-gold" aria-hidden="true" />
                                 <span>Atma Vichara · Contemplative Inquiry</span>
                               </div>
                               <p
@@ -1616,7 +1632,6 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                               citation={primaryDiscourseCitation}
                               onOpenVideoModal={(c) => {
                                 setActiveVideoCitation(c);
-                                onCitationClick?.(message.id, c.index - 1);
                               }}
                               onOpenSearchModal={(c) => {
                                 setActiveSearchCitation(c);
@@ -1726,7 +1741,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
               {isGuru && message.personalizationProvenance?.used && !isStreaming && !message.error && !isCrisisAnswer(message.content) && (
                 <details className="mt-2 rounded-xl border border-ojas/15 bg-ojas/[0.035] px-3 py-2 text-[11px] text-muted-foreground max-w-xl">
                   <summary className="cursor-pointer select-none text-ojas-ink/80 font-medium">
-                    ✨ {t('chat.personalization.header')}
+                    {t('chat.personalization.header')}
                   </summary>
                   <div className="mt-2 space-y-1.5 leading-relaxed">
                     {message.personalizationProvenance.profile_preferences && (
@@ -1757,7 +1772,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
 
               {/* Unified Footer: Feedback (left) + Practice pill & Action icons (right) */}
               {isGuru && message.content && !message.error && !isStreaming && !message.content.includes('_Stopped by you._') && (
-                <div className="mt-2.5 pt-2 border-t border-border/15 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground select-none">
+                <div className="mt-2.5 pt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground select-none">
                   {/* Left: Feedback */}
                   <div className="flex items-center gap-2">
                     {isLastGuru && !isCrisisAnswer(message.content) && (
@@ -1796,7 +1811,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                         className="min-h-[44px] sm:min-h-[28px] px-2.5 py-0.5 flex items-center gap-1 rounded-full border border-ojas/30 text-[11px] font-medium text-ojas-ink dark:text-ojas hover:bg-ojas/10 active:scale-[0.98] transition-all whitespace-nowrap mr-1"
                         title={t('chat.practiceNudge.body')}
                       >
-                        <Sparkles className="w-3 h-3 text-ojas" />
+                        <Flower2 className="w-3 h-3 text-ojas" />
                         <span>{t('chat.practiceNudge.cta')}</span>
                       </button>
                     )}
@@ -1855,7 +1870,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                           {noteSaved ? t('chat.savedToNotes') : t('chat.saveAsNote')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setProvenanceOpen(true)}>
-                          <Sparkles className="w-4 h-4 mr-2 text-ojas" />
+                          <ShieldCheck className="w-4 h-4 mr-2 text-ojas" />
                           {t('chat.provenance.viewDetails', 'AI Transparency & Provenance')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -1897,7 +1912,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     {citations.some((c) => isYouTubeUrl(c?.url)) ? (
                       <Youtube className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0" aria-hidden="true" />
                     ) : (
-                      <Sparkles className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden="true" />
+                      <BookOpen className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden="true" />
                     )}
                     <span className="sr-only">{t('chat.references')}</span>
                     <span className="font-medium text-foreground">

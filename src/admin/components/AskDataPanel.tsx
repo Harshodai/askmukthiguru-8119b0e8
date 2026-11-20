@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Search, Loader2 } from "lucide-react";
+import { Sprout, Search, Loader2 } from "lucide-react";
 import { useAskData } from "@/admin/hooks/useAskData";
 
 interface AskDataPanelProps {
@@ -23,7 +23,7 @@ export function AskDataPanel({ kpiContext }: AskDataPanelProps) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
+          <Sprout className="h-4 w-4 text-primary" />
           Ask the data
         </CardTitle>
       </CardHeader>

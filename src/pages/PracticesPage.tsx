@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Clock, Sparkles, Flame, Heart, Moon, Star } from 'lucide-react';
+import { ArrowRight, Clock, Sprout, Flame, Heart, Moon, Star } from 'lucide-react';
 import { PublicShell } from '@/components/layout/PublicShell';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { practices, getLocalizedPractice, type Practice } from '@/lib/practicesC
 import { useFavorites } from '@/hooks/useFavorites';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
 import { DailyTeachingCard } from '@/components/ritual/DailyTeachingCard';
+import { UpcomingEventsCard } from '@/components/ritual/UpcomingEventsCard';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { buildCanonical, PRODUCTION_OG_IMAGE } from '@/lib/domain';
 
 const accentMap: Record<Practice['accent'], { icon: typeof Flame; ring: string; bg: string; text: string }> = {
-  ojas: { icon: Sparkles, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas-ink' },
+  ojas: { icon: Sprout, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas-ink' },
   prana: { icon: Moon, ring: 'ring-prana/30', bg: 'bg-prana/10', text: 'text-prana' },
   tejas: { icon: Flame, ring: 'ring-ojas/30', bg: 'bg-ojas/10', text: 'text-ojas-dark' },
   lotus: { icon: Heart, ring: 'ring-ojas-light/30', bg: 'bg-ojas-light/10', text: 'text-ojas-light' },
@@ -172,7 +173,7 @@ const PracticesPage = () => {
                 {/* Text side */}
                 <div className="flex-1 p-6 sm:p-8 flex flex-col justify-center">
                   <div className="flex items-center gap-1.5 mb-3">
-                    <Sparkles className="w-3.5 h-3.5 text-ojas" />
+                    <Sprout className="w-3.5 h-3.5 text-ojas" />
                     <span className="text-xs font-semibold text-ojas-ink uppercase tracking-widest">
                       {t('practices.dailyWisdom.badge', 'Wisdom of the Day')}
                     </span>
@@ -193,6 +194,11 @@ const PracticesPage = () => {
 
         {/* Today's Teaching — ritual card (deterministic teaching + streak + reminder) */}
         <DailyTeachingCard />
+
+        {/* Events published by admins; renders nothing when there are none */}
+        <div className="mb-8 empty:hidden">
+          <UpcomingEventsCard />
+        </div>
 
         {favoritePractices.length > 0 && (
           <section className="mb-10">

@@ -27,7 +27,7 @@ import {
   Clock,
   Database,
   ArrowRight,
-  Sparkles,
+  Sprout,
   ShieldCheck,
   Search,
   MessageSquare,
@@ -625,7 +625,7 @@ export default function RAGFlowPage() {
               {/* Floating Strategy Descriptor */}
               <div className="absolute top-4 left-4 max-w-sm bg-background/95 backdrop-blur-md p-3 border border-border rounded-lg shadow-lg pointer-events-none">
                 <h4 className="text-xs font-semibold capitalize text-primary flex items-center gap-1.5 mb-1">
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Sprout className="h-3.5 w-3.5" />
                   {strategy} strategy active
                 </h4>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">

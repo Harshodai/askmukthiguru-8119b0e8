@@ -15,7 +15,8 @@ interface PublicShellProps {
 export const PublicShell = ({ children }: PublicShellProps) => (
   <div className="min-h-dvh bg-background flex flex-col">
     <Navbar />
-    <main className="flex-1">{children}</main>
+    {/* Navbar is position:fixed (~80px); offset so page headings are not hidden behind it. */}
+    <main className="flex-1 pt-20">{children}</main>
     <Footer />
   </div>
 );

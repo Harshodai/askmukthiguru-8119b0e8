@@ -63,6 +63,7 @@ celery_app = Celery(
         "tasks.contextual_reingest_task",
         "tasks.cache_maintenance_tasks",
         "tasks.retention_tasks",
+        "tasks.event_media_tasks",
         "tasks.celery_metrics",
         "tasks.web_ingest_tasks",
     ],
@@ -110,6 +111,10 @@ celery_app.conf.update(
         "prune-semantic-cache": {
             "task": "tasks.cache_maintenance_tasks.prune_semantic_cache",
             "schedule": 3600.0,  # hourly -- semantic_cache_ttl is 7 days, no need to run more often
+        },
+        "purge-ended-event-media": {
+            "task": "tasks.event_media_tasks.purge_ended_event_media",
+            "schedule": 3600.0,  # hourly: event audio/video is removed after the event ends
         },
         "cleanup-retention-data": {
             "task": "tasks.retention_tasks.cleanup_retention_data",

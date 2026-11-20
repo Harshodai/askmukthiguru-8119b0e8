@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Youtube, Play, Clock, Quote, Sparkles, ExternalLink, X, BookOpen, Search, Video, Flag, Check, AlertCircle } from 'lucide-react';
+import { Youtube, Play, Clock, Quote, Sprout, ExternalLink, X, BookOpen, Search, Video, Flag, Check, AlertCircle } from 'lucide-react';
 import { quoteLang } from '@/lib/quoteLang';
 import { buildCaptionVtt } from '@/lib/captionVtt';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -104,7 +104,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
                   <span className="flex items-center gap-1 text-ojas-ink">
                     {resolveAttributionLabel(citation) || FALLBACK_SPEAKER_LABEL}
                     {citation.speakerVerified && (
-                      <Sparkles className="h-2.5 w-2.5 text-saffron-gold" aria-label="Voice verified teacher" />
+                      <Sprout className="h-2.5 w-2.5 text-saffron-gold" aria-label="Voice verified teacher" />
                     )}
                   </span>
                   {citation.startTimestamp != null && (

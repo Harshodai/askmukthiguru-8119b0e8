@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Network, Sparkles, ArrowUpRight } from 'lucide-react';
+import { Network, Sprout, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -141,7 +141,7 @@ export const WisdomGraphPreview: React.FC = () => {
               aria-live="polite"
             >
               <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-saffron-gold">
-                <Sparkles className="w-3 h-3" /> {t('landing.graph.ontologicalNode', 'Ontological Node')}
+                <Sprout className="w-3 h-3" /> {t('landing.graph.ontologicalNode', 'Ontological Node')}
               </div>
               <h4 className="font-display text-base font-bold text-saffron-gold mt-1">{activeNode.label}</h4>
               <p className="line-clamp-2 text-xs text-saffron-gold/70 mt-1 leading-relaxed">{activeNode.description}</p>

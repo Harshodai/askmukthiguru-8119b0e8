@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, HelpCircle, BookOpen, Wind, Play, ArrowRight } from 'lucide-react';
+import { Sprout, HelpCircle, BookOpen, Wind, Play, ArrowRight } from 'lucide-react';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +38,7 @@ export const AbstainHelpCard: React.FC<AbstainHelpCardProps> = ({ onAction, clas
       {/* Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-ojas-ink dark:text-ojas">
-          <Sparkles className="h-4 w-4 text-ojas flex-shrink-0" aria-hidden="true" />
+          <Sprout className="h-4 w-4 text-ojas flex-shrink-0" aria-hidden="true" />
           <span>{t('chat.abstainHelp.title', 'Explore Verified Teachings')}</span>
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">

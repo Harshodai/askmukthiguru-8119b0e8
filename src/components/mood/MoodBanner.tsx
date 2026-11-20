@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Compass } from 'lucide-react';
+import { Sun, Compass, X } from 'lucide-react';
 import { MoodCheckIn } from './MoodCheckIn';
 import { practices } from '@/lib/practicesContent';
 import {
@@ -125,21 +125,21 @@ export const MoodBanner = ({ isLandingMode = true }: MoodBannerProps) => {
               <div className="w-6 h-6 rounded-lg bg-ojas/15 border border-ojas/30 flex items-center justify-center shrink-0">
                 <Compass className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
               </div>
-              <p className="text-xs sm:text-sm font-medium text-foreground/90 truncate">{resume.label}</p>
+              <p className="text-xs sm:text-sm font-medium leading-tight text-foreground/90 sm:truncate">{resume.label}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={resume.go}
                 data-testid="journey-resume-cta"
-                className="h-7 px-3 rounded-lg bg-ojas text-primary-foreground text-xs font-semibold hover:bg-ojas-dark shadow-xs transition-colors"
+                className="h-11 sm:h-8 px-4 rounded-lg bg-ojas text-primary-foreground text-xs font-semibold hover:bg-ojas-dark shadow-xs transition-colors"
               >
                 {resume.cta}
               </button>
               <button
                 type="button"
                 onClick={() => { skipJourney(); setJourney(getJourney()); }}
-                className="h-7 px-2.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                className="h-11 sm:h-8 px-3 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
               >
                 {t('mood.skipJourney', 'Skip for today')}
               </button>
@@ -157,7 +157,7 @@ export const MoodBanner = ({ isLandingMode = true }: MoodBannerProps) => {
           <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               <div className="w-6 h-6 rounded-lg bg-ojas/15 border border-ojas/30 flex items-center justify-center shrink-0">
-                <Sparkles className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
+                <Sun className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
               </div>
               <p className="text-xs sm:text-sm font-medium text-foreground/90 truncate">
                 {t('mood.bannerTitle', 'How are you arriving today?')}
@@ -167,25 +167,18 @@ export const MoodBanner = ({ isLandingMode = true }: MoodBannerProps) => {
               <button
                 type="button"
                 onClick={handleCheckIn}
-                className="h-7 px-3 rounded-lg bg-ojas text-primary-foreground text-xs font-semibold hover:bg-ojas-dark shadow-xs transition-colors"
+                className="h-11 sm:h-8 px-4 rounded-lg bg-ojas text-primary-foreground text-xs font-semibold hover:bg-ojas-dark shadow-xs transition-colors"
               >
                 {t('mood.bannerCta', 'Check in')}
               </button>
               <button
                 type="button"
                 onClick={handleSnooze}
-                className="h-7 px-2.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                aria-label={t('mood.bannerSnooze', 'Not now')}
                 title={t('mood.bannerSnooze', 'Not now')}
+                className="inline-flex h-11 w-11 sm:h-8 sm:w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/[0.07] transition-colors"
               >
-                {t('mood.bannerSnooze', 'Not now')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowBanner(false)}
-                className="h-7 px-2.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
-                title={t('mood.bannerDismiss', 'Dismiss')}
-              >
-                {t('mood.bannerDismiss', 'Dismiss')}
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
           </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Flame, Award, Sparkles, Shield, Compass, Heart, Lock } from 'lucide-react';
+import { Flame, Award, Sprout, Shield, Compass, Heart, Lock } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 export interface MilestoneBadge {
@@ -27,7 +27,7 @@ export const SACRED_MILESTONES: Omit<MilestoneBadge, 'unlocked'>[] = [
     sanskritName: 'Prarambha',
     requiredDays: 3,
     description: 'Completed 3 consecutive days of recorded practice.',
-    icon: Sparkles,
+    icon: Sprout,
   },
   {
     id: 'serene_mind_master',

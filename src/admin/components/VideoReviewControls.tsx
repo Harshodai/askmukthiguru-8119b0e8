@@ -105,8 +105,8 @@ export function VideoServingToggle({ videoId, decision, onSaved }: ControlProps)
     <>
       <Button
         size="sm"
-        variant={blocked ? "outline" : "destructive"}
-        className="gap-1.5"
+        variant="outline"
+        className={`gap-1.5 ${blocked ? "" : "text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"}`}
         onClick={() => setOpen(true)}
         data-testid={`serving-toggle-${videoId}`}
       >

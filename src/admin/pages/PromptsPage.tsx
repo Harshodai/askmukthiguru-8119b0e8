@@ -93,10 +93,11 @@ export default function PromptsPage() {
                   </div>
                   <div className="text-xs text-muted-foreground">{fmtDate(p.created_at)}</div>
                 </div>
+                {!p.active && (
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={p.active || activatingId === p.id}
+                  disabled={activatingId === p.id}
                   onClick={async () => {
                     setActivatingId(p.id);
                     try {
@@ -113,12 +114,11 @@ export default function PromptsPage() {
                 >
                   {activatingId === p.id ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : p.active ? (
-                    "Active"
                   ) : (
                     "Activate"
                   )}
                 </Button>
+                )}
               </div>
             ))
           )}

@@ -3,7 +3,7 @@ import '@/styles/mobile-chat-ux.css';
 import '@/styles/product-ux.css';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { PanelLeft, PanelLeftClose, Home, Download, Library, EyeOff, Sparkles, AudioLines } from 'lucide-react';
+import { PanelLeft, PanelLeftClose, Home, Download, Library, EyeOff, Brain, AudioLines } from 'lucide-react';
 import { UserMenu } from '@/components/common/UserMenu';
 import { ResponsePreferencesMenu } from './ResponsePreferencesMenu';
 import type { ResponsePreferences } from '@/lib/chat/types';
@@ -95,7 +95,6 @@ export const ChatHeader = ({
         ) : (
           <span className="flex items-center gap-2 font-serif font-semibold text-foreground text-sm ml-1 select-none" data-testid="chat-header-wordmark">
             <span className="flex items-center gap-1.5 truncate">
-              <span className="text-sm leading-none" aria-hidden="true">🙏</span>
               <span className="truncate">{t('nav.appName')}</span>
             </span>
             {isPersonalized && memoryActive != null && (
@@ -112,7 +111,7 @@ export const ChatHeader = ({
                   aria-label={t('chat.memorySettings.badgeTitle', 'Spiritual Memory Settings')}
                   data-testid="personalization-badge"
                 >
-                  <Sparkles className={`w-3 h-3 ${memoryActive ? 'text-ojas' : 'text-muted-foreground'}`} />
+                  <Brain className={`w-3 h-3 ${memoryActive ? 'text-ojas' : 'text-muted-foreground'}`} />
                   <span>{memoryActive ? t('chat.memoryActive', 'Memory Active') : t('chat.memoryPaused', 'Memory Paused')}</span>
                 </button>
               ) : (
@@ -121,7 +120,7 @@ export const ChatHeader = ({
                   title={t('chat.personalizedTitle')}
                   data-testid="personalization-badge"
                 >
-                  <Sparkles className="w-3 h-3" />
+                  <Brain className="w-3 h-3" />
                   {t('chat.personalized')}
                 </span>
               )

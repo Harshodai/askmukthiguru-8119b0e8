@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Clock, Sparkles, LayoutGrid, CircleDot, Wind } from 'lucide-react';
+import { Flame, Clock, Sprout, LayoutGrid, CircleDot, Wind } from 'lucide-react';
 import type { MeditationStats } from '@/lib/meditationStorage';
 import { dailySeries, localDayKey, type NormalizedSession } from '@/lib/meditationMetrics';
 import { SadhanaHeatmap } from './SadhanaHeatmap';
@@ -22,7 +22,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
 
   const tiles = [
     {
-      icon: Sparkles,
+      icon: Sprout,
       label: t('profileStatTiles.sessions', 'Sessions'),
       value: stats.totalSessions,
       accent: 'text-amber-500',
@@ -220,7 +220,7 @@ export const ProfileStatTiles = ({ stats, sessions }: Props) => {
                       aria-label={`${day.label}: ${isPracticed ? `${day.minutes}m practiced` : isToday ? 'Today' : 'Rest'}`}
                     >
                       {isPracticed ? (
-                        <Sparkles className="w-4 h-4 text-white" aria-hidden="true" />
+                        <Sprout className="w-4 h-4 text-white" aria-hidden="true" />
                       ) : isToday ? (
                         <span className="w-2 h-2 rounded-full bg-ojas animate-pulse" aria-hidden="true" />
                       ) : (

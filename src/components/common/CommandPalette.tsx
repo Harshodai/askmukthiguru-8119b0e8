@@ -7,7 +7,7 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command';
-import { Home, MessageCircle, User, Flame, Sparkles, Settings, Compass, Heart, Moon, Star, BookOpen, Brain, HardDrive, Search } from 'lucide-react';
+import { Home, MessageCircle, User, Flame, Sprout, Settings, Compass, Heart, Moon, Star, BookOpen, Brain, HardDrive, Search } from 'lucide-react';
 import { practices } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useSereneMind } from '@/components/common/SereneMindProvider';
@@ -22,7 +22,7 @@ interface CommandPaletteProps {
 }
 
 const practiceIcon: Record<string, typeof Flame> = {
-  'soul-sync': Sparkles,
+  'soul-sync': Sprout,
   'serene-mind': Flame,
   'beautiful-state': Heart,
   'daily-reflection': Moon,
@@ -132,7 +132,7 @@ export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPalett
         <CommandSeparator />
         <CommandGroup heading={t('nav.practices', 'Practices')}>
           {practices.map((p) => {
-            const Icon = practiceIcon[p.slug] ?? Sparkles;
+            const Icon = practiceIcon[p.slug] ?? Sprout;
             const fav = isFavorited(p.slug);
             return (
               <CommandItem key={p.slug} value={`practice ${p.title}`} onSelect={() => navigateAndClose(`/practices/${p.slug}`)}>
@@ -141,7 +141,7 @@ export const CommandPalette = ({ open, onOpenChange, onNavigate }: CommandPalett
               </CommandItem>
             );
           })}
-          <CommandItem onSelect={() => navigateAndClose('/profile?tab=stats')}><Sparkles className="w-4 h-4 mr-2" /> {t('commandPalette.viewMeditationStats', 'View meditation stats')}</CommandItem>
+          <CommandItem onSelect={() => navigateAndClose('/profile?tab=stats')}><Sprout className="w-4 h-4 mr-2" /> {t('commandPalette.viewMeditationStats', 'View meditation stats')}</CommandItem>
         </CommandGroup>
 
         <CommandSeparator />

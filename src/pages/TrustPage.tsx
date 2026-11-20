@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { Sprout } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { buildCanonical, getPrivacyEmail } from '@/lib/domain';
 import { PublicShell } from '@/components/layout/PublicShell';
@@ -27,7 +27,7 @@ const TrustPage = () => {
       <article className="w-full">
         <header className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-6 sm:pb-8">
           <div className="flex items-center gap-2 text-sm text-ojas-ink dark:text-ojas mb-5">
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
+            <Sprout className="w-4 h-4" aria-hidden="true" />
             <span>AskMukthiGuru</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, X, Check, Play, Clock } from 'lucide-react';
+import { Sprout, X, Check, Play, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useHealingCourse } from '@/hooks/useHealingCourse';
 import { BACKEND_URL } from '@/lib/backendUrl';
@@ -14,6 +14,28 @@ import {
   type HealingCourse,
   type SufferingSignal,
 } from '@/lib/healingCourses';
+
+const DISMISS_KEY_PREFIX = 'askmukthiguru_healing_path_dismissed_';
+const DISMISS_MS = 24 * 3600 * 1000;
+
+/** A seeker who closed the suggestion should not see it again after every reply. */
+const wasDismissedRecently = (slug: string | null | undefined): boolean => {
+  if (!slug) return false;
+  try {
+    const at = Number(localStorage.getItem(DISMISS_KEY_PREFIX + slug));
+    return Number.isFinite(at) && at > 0 && Date.now() - at < DISMISS_MS;
+  } catch {
+    return false;
+  }
+};
+
+const rememberDismissal = (slug: string): void => {
+  try {
+    localStorage.setItem(DISMISS_KEY_PREFIX + slug, String(Date.now()));
+  } catch {
+    /* storage unavailable: the card simply reappears */
+  }
+};
 
 /** Course assignment surfaced by the backend chat response. */
 export interface HealingCourseRecommendation {
@@ -167,7 +189,7 @@ export function HealingPathCard({
 
   useEffect(() => {
     if (prevCourseSlugRef.current !== (course?.slug ?? null)) {
-      setDismissed(false);
+      setDismissed(wasDismissedRecently(course?.slug));
     }
     prevCourseSlugRef.current = course?.slug ?? null;
   }, [course?.slug]);
@@ -224,7 +246,7 @@ export function HealingPathCard({
     })();
   }, [course, enrolled, userTurnHistory]);
 
-  if (!course || dismissed) return null;
+  if (!course || dismissed || wasDismissedRecently(course.slug)) return null;
 
   const done = state?.completed_lessons ?? [];
   const total = course.lessons.length;
@@ -254,7 +276,7 @@ export function HealingPathCard({
       >
         <div className="flex items-start gap-3">
           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Sparkles className="h-4 w-4" />
+            <Sprout className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] uppercase tracking-[0.18em] text-primary/80">
@@ -262,9 +284,6 @@ export function HealingPathCard({
             </p>
             <h3 className="mt-0.5 font-serif text-base text-foreground">{course.title}</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{course.subtitle}</p>
-            {reason && (
-              <p className="mt-1 text-xs text-primary/70">{reason}</p>
-            )}
 
             <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
@@ -345,7 +364,10 @@ export function HealingPathCard({
           </div>
           <button
             type="button"
-            onClick={() => setDismissed(true)}
+            onClick={() => {
+              rememberDismissal(course.slug);
+              setDismissed(true);
+            }}
             className="rounded-full p-1 text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
             aria-label={t('chat.healingPath.dismiss')}
           >

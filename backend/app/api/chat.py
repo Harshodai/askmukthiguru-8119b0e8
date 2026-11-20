@@ -715,8 +715,13 @@ async def generate_title_endpoint(
             user_prompt=user_prompt,
         )
 
-        title = raw_title.strip().replace('"', "").replace("'", "").strip()
-        if title:
+        # Strip only quotes wrapping the title; inner apostrophes ("I'm") are kept.
+        title = raw_title.strip().strip("\"'").strip()
+        # The standalone provider path returns a canned apology instead of raising
+        # when it is down. Never persist that as a title: fall back to the user's words.
+        from services.text_quality_filter import find_artifact
+
+        if title and not find_artifact(title):
             if len(title) > 50:
                 title = title[:47] + "..."
             return {"title": title}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { Sparkles, BookOpen } from 'lucide-react';
+import { Sprout, BookOpen } from 'lucide-react';
 import type { MessageError, MessageErrorKind } from '@/lib/chatStorage';
 import { greetingPrefix } from '@/lib/greeting';
 import { derivePrePracticeInsights } from '@/lib/profileStorage';
@@ -14,7 +14,7 @@ export const OptimisticPlaceholder = () => (
     className="flex items-start gap-3 w-full"
   >
     <div className="w-7 h-7 rounded-full bg-ojas/12 border border-ojas/20 flex items-center justify-center flex-shrink-0 mt-0.5 animate-pulse">
-      <Sparkles className="w-3.5 h-3.5 text-ojas/60" />
+      <Sprout className="w-3.5 h-3.5 text-ojas/60" />
     </div>
     <div className="flex-1 flex flex-col gap-2 max-w-[85%] sm:max-w-[75%]">
       <div className="border-l-[3px] border-ojas/10 pl-4 py-2 space-y-3 w-full bg-gradient-to-r from-ojas/5 to-transparent rounded-r-xl">
@@ -62,7 +62,7 @@ export const SlowResponseHint = ({ visible }: { visible: boolean }) => {
 };
 
 export const WELCOME_MESSAGE = (slug: string | undefined): string =>
-  `${greetingPrefix(slug, 'return_new_day')}. Welcome to AskMukthiGuru. You can ask a question to explore the recorded teachings of Sri Krishnaji and Sri Preethaji.\n\n• If a recorded teaching matches, you will receive the teacher's verbatim words with a direct video clip.\n• If no teaching addresses your question, the guide abstains honestly and offers a stillness practice.\n• In cases of acute emotional distress, professional crisis care lines are provided.`;
+  `${greetingPrefix(slug, 'return_new_day')}. Ask a question to explore the recorded teachings of Sri Krishnaji and Sri Preethaji. If a teaching fits, you will see their exact words with a playable clip; if not, you will be told plainly.\n\nIf you are in acute distress, crisis care lines are provided.`;
 
 type PrePracticeLog = NonNullable<
   ReturnType<typeof import('@/lib/profileStorage').loadProfile>['prePracticeLog']

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Brain, Check, RefreshCw } from 'lucide-react';
+import { Sprout, Brain, Check, RefreshCw } from 'lucide-react';
 import { BACKEND_URL } from '@/lib/backendUrl';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -129,7 +129,7 @@ export const FlashcardPractice = () => {
         <CardContent className="py-8 text-center space-y-3">
           {fetchState === 'error' ? (
             <>
-              <Sparkles className="w-8 h-8 text-ojas/80 mx-auto" />
+              <Sprout className="w-8 h-8 text-ojas/80 mx-auto" />
               <h3 className="text-sm font-medium text-foreground">Practice unavailable</h3>
               <p className="text-xs text-muted-foreground max-w-xs mx-auto">
                 {fetchError ?? 'Could not load your reflection cards.'}

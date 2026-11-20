@@ -326,6 +326,10 @@
     @apply bg-clip-text text-transparent;
     background-image: var(--gradient-gold);
   }
+  /* The pale gold gradient disappears on a light background. */
+  html:not(.dark) .text-gradient-gold {
+    background-image: linear-gradient(90deg, #8a5a00, #b45309);
+  }
 
   .text-gradient-sacred-gold {
     @apply bg-clip-text text-transparent;
@@ -824,6 +828,12 @@ nav,
 .markdown-body {
   -webkit-user-select: text;
   user-select: text;
+}
+
+/* Selected text uses the brand gold instead of the browser's default blue. */
+::selection {
+  background: hsl(var(--ojas-gold) / 0.35);
+  color: inherit;
 }
 
 /* H2.3: Toast containers must sit above the chat composer (z-20) and

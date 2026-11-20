@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { InlineSpinner } from "@/components/common/BrandedSpinner";
 import { listQueueJobs } from '@/admin/lib/api';
 import type { QueueJob } from '@/admin/types';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +40,7 @@ export default function JobsPage() {
   const jobs = Array.isArray(data?.jobs) ? data.jobs : [];
 
   if (isLoading) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
+    return <InlineSpinner className="p-6 text-sm text-muted-foreground" />;
   }
 
   if (isError) {

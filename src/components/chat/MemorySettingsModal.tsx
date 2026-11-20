@@ -19,7 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Brain, Trash2, PauseCircle, PlayCircle, ExternalLink, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Sprout, Brain, Trash2, PauseCircle, PlayCircle, ExternalLink, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { memoryApi, MemoryApiError } from '@/lib/memoryApi';
 import { useToast } from '@/hooks/use-toast';
 
@@ -121,7 +121,7 @@ export const MemorySettingsModal: React.FC<MemorySettingsModalProps> = ({
           <DialogHeader className="gap-1.5 text-left">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-xl bg-ojas/15 text-ojas">
-                <Sparkles className="w-5 h-5" />
+                <Sprout className="w-5 h-5" />
               </div>
               <div>
                 <DialogTitle className="text-base font-serif font-semibold">

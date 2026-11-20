@@ -126,6 +126,7 @@ _SCHEDULED_TASKS = (
     "tasks.cache_maintenance_tasks.prune_semantic_cache",
     "tasks.retention_tasks.cleanup_retention_data",
     "tasks.ingest_tasks.sweep_stale_ingest_jobs",
+    "tasks.event_media_tasks.purge_ended_event_media",
 )
 
 

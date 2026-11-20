@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mic, MicOff, Sparkles, Wind } from 'lucide-react';
+import { X, Mic, MicOff, Sprout, Wind } from 'lucide-react';
 import { recordMoodCheckIn, getMeditationStats } from '@/lib/meditationStorage';
 import { startJourney } from '@/lib/dailyJourney';
 import { practices } from '@/lib/practicesContent';

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Sparkles,
+  Sprout,
   Brain,
   Wind,
   Video,
@@ -335,7 +335,7 @@ export const DeepenAndTuneBar: React.FC<DeepenAndTuneBarProps> = ({
       {/* Sacred Bar Eyebrow */}
       <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-border/40">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-3.5 w-3.5 text-saffron-gold" />
+          <Sprout className="h-3.5 w-3.5 text-saffron-gold" />
           <span className="font-serif text-xs font-semibold uppercase tracking-wider text-saffron-gold">
             Deepen & Tune Your Contemplation
           </span>

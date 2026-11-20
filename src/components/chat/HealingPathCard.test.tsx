@@ -30,6 +30,7 @@ vi.mock('@/lib/backendUrl', () => ({
 const noop = () => {};
 
 beforeEach(() => {
+  localStorage.clear();
   mocks.progress = {};
   mocks.enroll.mockClear();
   mocks.completeLesson.mockClear();
@@ -194,7 +195,8 @@ describe('HealingPathCard', () => {
       />,
     );
     expect(screen.getByText('Walking Through Grief')).toBeInTheDocument();
-    expect(screen.getByText('2 consecutive distress turns')).toBeInTheDocument();
+    // The internal trigger reason is never shown to the seeker.
+    expect(screen.queryByText('2 consecutive distress turns')).toBeNull();
     expect(screen.queryByText('Quieting Anxiety')).toBeNull();
   });
 
@@ -236,6 +238,20 @@ describe('HealingPathCard', () => {
     await waitFor(() =>
       expect(screen.queryByRole('region', { name: 'Healing path' })).toBeNull(),
     );
+  });
+
+  it('stays dismissed after the next reply re-renders the card', async () => {
+    const props = {
+      lastUserText: 'Still anxious',
+      userTurnHistory: [{ text: 'I feel so anxious' }, { text: 'Still anxious, can you help' }],
+      onAskGuru: noop,
+      onOpenSereneMind: noop,
+    };
+    const first = render(<HealingPathCard {...props} />);
+    fireEvent.click(screen.getByLabelText('Dismiss healing path'));
+    first.unmount();
+    render(<HealingPathCard {...props} />);
+    expect(screen.queryByRole('region', { name: 'Healing path' })).toBeNull();
   });
 
   it('fires the backend assign call when showing an un-enrolled course', async () => {

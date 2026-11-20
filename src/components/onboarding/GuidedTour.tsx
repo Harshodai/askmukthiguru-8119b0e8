@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { X, ChevronRight, ChevronLeft, Sparkles, MapPin } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Sprout, MapPin } from 'lucide-react';
 
 interface Step {
   target: string;
@@ -768,7 +768,7 @@ export const GuidedTour = ({ isOpen, onComplete, onDismiss }: GuidedTourProps) =
                           transition: 'box-shadow 0.2s',
                         }}
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
+                        <Sprout className="w-3.5 h-3.5" />
                         {t('onboarding.tour.gotIt')}
                       </motion.button>
                     ) : (

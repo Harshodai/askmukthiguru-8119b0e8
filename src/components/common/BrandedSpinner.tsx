@@ -42,3 +42,14 @@ export const BrandedSpinner = () => (
     </motion.p>
   </div>
 );
+
+/**
+ * Compact loading state for panels and tables (BrandedSpinner is full-viewport).
+ * CSS-only spin; motion-reduce stops it.
+ */
+export const InlineSpinner = ({ className = '' }: { className?: string }) => (
+  <div role="status" aria-live="polite" className={`flex items-center justify-center gap-2 ${className}`}>
+    <span className="h-4 w-4 rounded-full border-2 border-ojas/30 border-t-ojas animate-spin motion-reduce:animate-none" aria-hidden="true" />
+    <span className="text-sm text-muted-foreground">Loading</span>
+  </div>
+);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
+import { Check, Pause, Play, RotateCcw, Sprout } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDailyTeaching } from '@/hooks/useDailyTeaching';
@@ -54,7 +54,7 @@ export const WisdomReflectionPractice = () => {
       <Card className="border-ojas/20">
         <CardHeader>
           <CardTitle id="wisdom-reflection-heading" className="flex items-center gap-2 text-base">
-            <Sparkles className="w-5 h-5 text-ojas" aria-hidden="true" /> Source teaching
+            <Sprout className="w-5 h-5 text-ojas" aria-hidden="true" /> Source teaching
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">

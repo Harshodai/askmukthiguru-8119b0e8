@@ -18,7 +18,7 @@ import {
   UserX,
   Volume2,
   AlertTriangle,
-  Sparkles,
+  Sprout,
   Users,
   Search,
   CheckCircle,
@@ -580,7 +580,7 @@ export default function SpeakerAttributionPage() {
                             }
                             className="h-7 text-xs px-2.5 text-purple-600 dark:text-purple-300"
                           >
-                            <Sparkles className="h-3.5 w-3.5 mr-1" /> Tag as Context Header
+                            <Sprout className="h-3.5 w-3.5 mr-1" /> Tag as Context Header
                           </Button>
 
                           <Button

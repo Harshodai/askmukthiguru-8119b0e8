@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Flame, RefreshCw, Sparkles, Share2, Trash2, Languages, GraduationCap, MessageSquare } from 'lucide-react';
+import { Flame, RefreshCw, Sprout, Share2, Trash2, Languages, GraduationCap, MessageSquare } from 'lucide-react';
 
 export type SlashCommandId =
   | 'serene'
@@ -43,7 +43,7 @@ export const SlashCommandMenu = ({ input, open, onSelect, onClose }: Props) => {
       id: 'meditate',
       label: '/meditate',
       hint: t('chat.slashMeditateHint'),
-      icon: Sparkles,
+      icon: Sprout,
       keywords: ['meditate', 'meditation', 'practice'],
     },
     {

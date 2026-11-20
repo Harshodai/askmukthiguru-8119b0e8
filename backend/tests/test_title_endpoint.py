@@ -107,3 +107,27 @@ def test_generate_title_endpoint_anon_quota_exceeded():
         assert called_user["is_anonymous"] is True
     finally:
         app.dependency_overrides.clear()
+
+
+def test_generate_title_endpoint_rejects_provider_apology_and_keeps_apostrophes():
+    """A provider outage string must never become a title; inner apostrophes survive."""
+    mock_container = MagicMock()
+    mock_container.ollama = AsyncMock()
+    mock_container.anon_quota_service = _mock_quota_service()
+    app.dependency_overrides[get_container] = lambda: mock_container
+    app.dependency_overrides[get_current_user_from_supabase] = _override_title_auth
+
+    outage = (
+        "I'm here and listening. However, I'm experiencing a temporary connection issue "
+        "with my backend services. Please try again shortly."
+    )
+    mock_container.ollama.generate.return_value = outage
+    first_msg = "I feel overwhelmed"
+    response = client.post("/api/chat/title", json={"first_message": first_msg})
+    assert response.json()["title"] == first_msg
+
+    mock_container.ollama.generate.return_value = '"Finding calm when I\'m anxious"'
+    response = client.post("/api/chat/title", json={"first_message": first_msg})
+    assert response.json()["title"] == "Finding calm when I'm anxious"
+
+    app.dependency_overrides.clear()

@@ -67,7 +67,7 @@ export const BackgroundParticles = ({
       delay: -Math.random() * 40,
       duration: 28 + Math.random() * 32,
       size: (isMobile ? 3 : 5) + Math.random() * (isMobile ? 5 : 10),
-      opacity: 0.18 + Math.random() * 0.22,
+      opacity: 0.3 + Math.random() * 0.3,
     }));
   }, [effectiveCount, isMobile]);
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Compass, BookOpen, ShieldCheck, ChevronDown, Activity } from 'lucide-react';
+import { Sprout, Compass, BookOpen, ShieldCheck, ChevronDown, Activity } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export type ThoughtStage =
@@ -20,7 +20,7 @@ interface StreamingStatusPillProps {
 
 const STAGES: { id: ThoughtStage; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'connecting', label: 'Connecting to sacred scriptures…', icon: Compass },
-  { id: 'synthesizing', label: 'Synthesizing discourse teachings…', icon: Sparkles },
+  { id: 'synthesizing', label: 'Synthesizing discourse teachings…', icon: Sprout },
   { id: 'attributing', label: 'Finding sources…', icon: ShieldCheck },
   { id: 'composing', label: 'Composing compassionate guidance…', icon: BookOpen },
 ];

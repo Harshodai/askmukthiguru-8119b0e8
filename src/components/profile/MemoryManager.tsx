@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { List, Loader2, Mic, MicOff, Plus, Trash2, Brain, Sparkles, AlertCircle, Save, BookText, Pencil, Network, RotateCcw, Search, X, Moon, ShieldCheck } from 'lucide-react';
+import { List, Loader2, Mic, MicOff, Plus, Trash2, Brain, Sprout, AlertCircle, Save, BookText, Pencil, Network, RotateCcw, Search, X, Moon, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Card,
@@ -38,16 +38,15 @@ import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { KGConceptMap } from '@/components/kg/KGConceptMap';
 import { MemorySourceLink } from '@/components/common/MemorySourceLink';
 
-const formatDate = (iso: string): string => {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
+const formatDate = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 };
 
 export const MemoryManager = () => {
@@ -386,7 +385,13 @@ export const MemoryManager = () => {
     }
   };
 
-  const renderGraph = () => (
+  const renderGraph = () => hasConsent !== true ? (
+    // The approval banner at the top of this tab already asks for consent; do not ask again here.
+    <p className="flex items-center gap-2 rounded-2xl border border-hairline bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+      <Network className="h-4 w-4 shrink-0 text-ojas" aria-hidden="true" />
+      {t('memory.graphNeedsApproval', 'Approve memory above and your map will appear here as you reflect.')}
+    </p>
+  ) : (
     <div className="overflow-hidden rounded-2xl border border-hairline bg-card">
       <KGConceptMap
         initialQuery=""
@@ -456,7 +461,7 @@ export const MemoryManager = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-ojas/30 bg-ojas/10 text-ojas">
-                <Sparkles className="h-5 w-5" />
+                <Sprout className="h-5 w-5" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -479,7 +484,7 @@ export const MemoryManager = () => {
               onClick={handleApproveConsent}
               className="rounded-xl bg-ojas hover:bg-ojas-dark text-primary-foreground font-semibold shadow-md shrink-0 text-xs sm:self-center"
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+              <Sprout className="w-3.5 h-3.5 mr-1.5" />
               {t('memory.approveAndEnable', 'Approve & Enable Memory')}
             </Button>
           </div>
@@ -578,7 +583,7 @@ export const MemoryManager = () => {
         <Card className="rounded-2xl border-hairline shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-ojas" aria-hidden="true" /> {t('memory.guruRemembers', 'What the guru remembers')}
+              <Sprout className="w-5 h-5 text-ojas" aria-hidden="true" /> {t('memory.guruRemembers', 'What the guru remembers')}
             </CardTitle>
             <CardDescription>
               {t('memory.guruRemembersDesc', 'A living portrait drawn from your saved memories — refreshed as you share more.')}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Bot, ShieldCheck } from 'lucide-react';
+import { Sprout, Bot, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { OriginType, AIProvenanceManifest } from '@/types/provenance';
 
@@ -41,7 +41,7 @@ export const EuAiBadge: React.FC<EuAiBadgeProps> = ({
         return <ShieldCheck className={cn(size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5', 'text-ojas shrink-0')} aria-hidden="true" />;
       case 'ai_generated':
       default:
-        return <Sparkles className={cn(size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5', 'text-ojas shrink-0')} aria-hidden="true" />;
+        return <Sprout className={cn(size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5', 'text-ojas shrink-0')} aria-hidden="true" />;
     }
   };
 

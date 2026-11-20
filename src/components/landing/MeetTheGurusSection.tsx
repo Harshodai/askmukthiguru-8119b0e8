@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { BookOpenCheck, ExternalLink, Heart, HeartHandshake, ShieldCheck, Sparkles } from 'lucide-react';
+import { BookOpenCheck, ExternalLink, Heart, HeartHandshake, ShieldCheck, Sprout } from 'lucide-react';
 import gurusPhoto from '@/assets/gurus-photo.jpg';
 import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 
@@ -128,10 +128,15 @@ export const MeetTheGurusSection = () => {
                     href="https://www.ekam.org"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-ojas hover:text-ojas-light transition-colors group/ekam focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas rounded-sm"
+                    className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-ojas hover:text-ojas-light transition-colors group/ekam focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ojas rounded-sm"
                     aria-label={t('common.visitEkam', 'Visit Ekam World Centre')}
                     title={t('common.visitEkam', 'Visit Ekam World Centre')}
                   >
+                    <img
+                      src="/images/ekam-oneness-logo.png"
+                      alt="Ekam Oneness"
+                      className="h-6 sm:h-7 w-auto object-contain shrink-0"
+                    />
                     <span className="group-hover/ekam:underline underline-offset-4">
                       Ekam — World Centre for Enlightenment
                     </span>
@@ -160,7 +165,7 @@ export const MeetTheGurusSection = () => {
             {/* Teachings Quote */}
             <div className="mt-8 pt-8 border-t border-border">
               <div className="flex items-start gap-4">
-                <Sparkles className="w-6 h-6 text-ojas flex-shrink-0 mt-1" />
+                <Sprout className="w-6 h-6 text-ojas flex-shrink-0 mt-1" />
                 {/* No source backs this line as the teachers' verbatim words, so it
                     is shown as a paraphrase: no quotation marks, no <blockquote>. */}
                 <div>

@@ -2,7 +2,7 @@ import { KGConceptMap } from '@/components/kg/KGConceptMap';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { returnToOrigin } from '@/lib/workspaceNavigation';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sprout } from 'lucide-react';
 
 // Public — Wisdom Map is a discovery surface, no auth gate.
 export default function KnowledgeGraphPage() {
@@ -28,7 +28,7 @@ export default function KnowledgeGraphPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
             <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-ojas/25 bg-ojas/10 text-ojas shadow-inner">
-              <Sparkles className="h-5 w-5" />
+              <Sprout className="h-5 w-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -39,11 +39,18 @@ export default function KnowledgeGraphPage() {
                   {t('kg.consciousnessGraph', 'Consciousness Graph')}
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 max-w-xl">
-                {t(
-                  'kg.subtitle',
-                  'Explore how your personal inquiries, inner states, and sacred practices weave into the Ekam teachings.',
-                )}
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 max-w-xl inline-flex items-center gap-1.5 flex-wrap">
+                <span>
+                  {t(
+                    'kg.subtitle',
+                    'Explore how your personal inquiries, inner states, and sacred practices weave into the Ekam teachings.',
+                  )}
+                </span>
+                <img
+                  src="/images/ekam-oneness-logo.png"
+                  alt="Ekam Oneness"
+                  className="h-4 w-auto object-contain inline-block shrink-0"
+                />
               </p>
             </div>
           </div>

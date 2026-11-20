@@ -97,25 +97,23 @@ export const CookieConsentBanner = () => {
               <Cookie className="w-4 h-4 text-ojas" />
             </div>
             <div className="flex-1 space-y-1.5">
-              <p className="text-sm font-medium text-foreground">
-                {t('common.essentialCookies')}
-              </p>
               <p className="text-sm text-muted-foreground leading-snug">
+                <span className="font-medium text-foreground">{t('common.essentialCookies')}.</span>{' '}
                 {t('common.noThirdParty')}{' '}
                 <Link to="/privacy" className="text-foreground dark:text-cream font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">{t('common.privacy')}</Link>.
               </p>
               <div className="flex gap-2 pt-0.5">
-                <Button size="sm" variant="outline" className="min-h-[44px] text-sm px-4" onClick={() => decide('rejected')}>
+                <Button size="sm" variant="outline" className="min-h-[44px] flex-1 sm:flex-none text-sm px-4" onClick={() => decide('rejected')}>
                   {t('common.reject') === 'common.reject' ? 'Reject' : t('common.reject')}
                 </Button>
-                <Button size="sm" className="min-h-[44px] text-sm px-4 bg-ojas hover:bg-ojas-dark !text-primary-foreground" onClick={() => decide('accepted')}>
+                <Button size="sm" className="min-h-[44px] flex-1 sm:flex-none text-sm px-4 bg-ojas hover:bg-ojas-dark !text-primary-foreground" onClick={() => decide('accepted')}>
                   {t('common.accept') === 'common.accept' ? 'Accept' : t('common.accept')}
                 </Button>
               </div>
             </div>
             <button
               onClick={() => decide('rejected')}
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:bg-muted text-muted-foreground"
+              className="hidden sm:flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:bg-muted text-muted-foreground"
               aria-label={t('common.dismiss') === 'common.dismiss' ? 'Dismiss' : t('common.dismiss')}
             >
               <X className="w-3.5 h-3.5" />

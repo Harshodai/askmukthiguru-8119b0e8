@@ -52,6 +52,8 @@ export const MeditationStats = ({ compact = false }: { compact?: boolean }) => {
   ];
 
   if (stats.totalSessions === 0) {
+    // The sidebar must not nag newcomers to meditate on every visit; the full-size card stays.
+    if (compact) return null;
     return (
       <motion.div
         initial={{ opacity: 0, y: -10 }}

@@ -8,7 +8,7 @@ import {
   Compass,
   HeartPulse,
   MessageCircle,
-  Sparkles,
+  Sprout,
   X,
 } from 'lucide-react';
 import {
@@ -247,7 +247,7 @@ export const WelcomePrompt = ({ isVisible, onStartTour, onDismiss }: WelcomeProm
       className="fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-2xl border border-ojas/25 bg-background/95 p-4 shadow-xl backdrop-blur md:inset-x-auto md:right-4 md:mx-0"
     >
       <div className="flex gap-3">
-        <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-ojas" aria-hidden="true" />
+        <Sprout className="mt-0.5 h-5 w-5 shrink-0 text-ojas" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-foreground">{t('landing.demo.newHere', 'New here?')}</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">

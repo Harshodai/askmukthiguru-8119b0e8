@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Sparkles, Globe } from 'lucide-react';
+import { Sprout, Globe } from 'lucide-react';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 
 interface LanguageOnboardingStepProps {
@@ -31,7 +31,7 @@ export const LanguageOnboardingStep = ({ onComplete }: LanguageOnboardingStepPro
           className="text-center space-y-3 mb-8"
         >
           <div className="w-14 h-14 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto">
-            <Sparkles className="w-7 h-7 text-ojas" />
+            <Sprout className="w-7 h-7 text-ojas" />
           </div>
           <h1 className="text-2xl font-semibold text-foreground">
             {t('onboarding.language.title')}

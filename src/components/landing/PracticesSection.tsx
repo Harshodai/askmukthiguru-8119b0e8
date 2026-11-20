@@ -1,14 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Clock, Flame, Heart, Moon, Sparkles, Star } from 'lucide-react';
+import { ArrowRight, Clock, Flame, Heart, Moon, Sprout, Star } from 'lucide-react';
 import { practices, getLocalizedPractice, type Practice } from '@/lib/practicesContent';
 import { useFavorites } from '@/hooks/useFavorites';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 const iconFor: Record<Practice['slug'], typeof Flame> = {
-  'soul-sync': Sparkles,
+  'soul-sync': Sprout,
   'serene-mind': Flame,
   'beautiful-state': Heart,
   'daily-reflection': Moon,
@@ -41,7 +41,7 @@ export const PracticesSection = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
           {ordered.map((p, i) => {
-            const Icon = iconFor[p.slug as Practice['slug']] ?? Sparkles;
+            const Icon = iconFor[p.slug as Practice['slug']] ?? Sprout;
             const fav = isFavorited(p.slug);
             return (
               <motion.div

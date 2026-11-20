@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Lock, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Sprout, Lock, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useTranslation } from 'react-i18next';
 import { buildCanonical } from '@/lib/domain';
@@ -113,7 +113,7 @@ const ResetPasswordPage = () => {
       <div className="relative w-full max-w-[400px] mx-4 sm:mx-auto space-y-5 rounded-2xl backdrop-blur-2xl bg-card/60 ring-1 ring-border/40 shadow-2xl shadow-foreground/10 p-6 sm:p-8">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-full bg-ojas/15 border border-ojas/25 flex items-center justify-center mx-auto shadow-[0_0_24px_hsl(var(--ojas-gold)/0.35)]">
-            <Sparkles className="w-6 h-6 text-ojas" />
+            <Sprout className="w-6 h-6 text-ojas" />
           </div>
           <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">
             {t('auth.resetTitle', { defaultValue: 'Set a new password' })}

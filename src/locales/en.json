@@ -876,6 +876,8 @@
     "languageSwitchFailed": "The conversation language was updated, but some interface text could not be translated.",
     "dismissBanner": "Dismiss banner",
     "guruTeaching": {
+      "readFull": "Read full passage",
+      "showLess": "Show less",
       "personalizedBadge": "Personalized reflection",
       "conflictedBadge": "Conflicting sources — not reconciled",
       "verifiedBadge": "Verified",
@@ -967,6 +969,8 @@
     "signInTitle": "Sign in to AskMukthiGuru",
     "createAccount": "Create your account",
     "welcomeBack": "Welcome back!",
+    "signInToContinue": "Sign in to continue. We will take you back right after.",
+    "ageGateHint": "Confirm your age above to enable sign-up.",
     "profileSetupIncomplete": "Profile setup incomplete",
     "profileSetupIncompleteDesc": "We could not finish setting up your profile. Some features may be limited — please retry from Settings if needed.",
     "profileSetupServerError": "A server error occurred while provisioning your profile. Please retry later.",
@@ -1346,6 +1350,7 @@
     "untitled": "Untitled"
   },
   "memory": {
+    "graphNeedsApproval": "Approve memory above and your map will appear here as you reflect.",
     "loading": "Loading your memories…",
     "memory": "Memory",
     "memoryDesc": "What AskMukthiGuru remembers about you.",
@@ -1702,6 +1707,7 @@
       "advancedHint": "Deep philosophical terms",
       "guidancePreview": "Your guidance preview",
       "sourceAware": "Source-aware by design: verified quotations remain attributed; unsupported questions receive a clear limit or clarification.",
+      "verbatimUnchanged": "These settings shape the guide's own words only. The teachers' quotes always stay word for word, so they will not change.",
       "toneDirectPreview": "Clear, concise guidance that comes to the practical next step quickly.",
       "tonePoeticPreview": "Reflective language with imagery, while keeping the teaching clear and useful.",
       "toneGentlePreview": "Warm, steady guidance that makes room for your experience before offering a next step.",
@@ -2458,5 +2464,9 @@
   },
   "voice": {
     "errorMessage": "Unable to receive teaching right now. Please try again."
+  },
+  "events": {
+    "title": "Upcoming events",
+    "details": "Details"
   }
 }

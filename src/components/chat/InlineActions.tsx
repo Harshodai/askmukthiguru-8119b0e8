@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Lightbulb, Sparkles, User, X } from 'lucide-react';
+import { Lightbulb, MessageSquarePlus, User, X } from 'lucide-react';
 import { submitFeedbackToBackend } from '@/lib/chat';
 import { saveFeedback, isIncognitoMode } from '@/lib/chatStorage';
 
@@ -25,7 +25,7 @@ export function InlineActions({ messageContent, onAction }: InlineActionsProps) 
   const excerpt = truncateExcerpt(messageContent, 120);
 
   const ACTIONS = [
-    { label: t('chat.tellMeMore'), icon: Sparkles, getQuery: (content: string) => t('chat.tellMeMoreQuery', { content }) },
+    { label: t('chat.tellMeMore'), icon: MessageSquarePlus, getQuery: (content: string) => t('chat.tellMeMoreQuery', { content }) },
     { label: t('chat.explainSimply'), icon: Lightbulb, getQuery: (content: string) => t('chat.explainSimplyQuery', { content }) },
     { label: t('chat.howRelates'), icon: User, getQuery: (content: string) => t('chat.howRelatesQuery', { content }) },
   ];
@@ -152,7 +152,7 @@ export function EngagementCard({ messageId, messageContent, queryText, disabled,
                 onClick={() => handleChoice('yes')}
                 className="inline-flex items-center gap-1 rounded-full border border-border/60 min-h-[44px] sm:min-h-[32px] px-3 hover:border-ojas/40 hover:text-ojas active:scale-[0.98] transition-all duration-200 ease-out disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                🙏 {t('chat.engagement.yes')}
+                {t('chat.engagement.yes')}
               </button>
               <button
                 type="button"

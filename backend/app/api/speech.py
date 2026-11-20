@@ -147,7 +147,8 @@ async def speech_to_text_endpoint(
                 "api-subscription-key": api_key,
             }
             files = {
-                "file": (upload_file.filename or "audio.webm", content, upload_file.content_type or "audio/webm")
+                # Sarvam rejects parameters such as ";codecs=opus", which browsers always add.
+                "file": (upload_file.filename or "audio.webm", content, base_type)
             }
             data = {"model": model}
             if resolved_lang:

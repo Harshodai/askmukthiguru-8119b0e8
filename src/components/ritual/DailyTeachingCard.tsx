@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Bell, BookOpen, Check, Flame, Sparkles } from 'lucide-react';
+import { Bell, BookOpen, Check, Flame, Sprout } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { BACKEND_URL_OR_LOCAL } from '@/lib/backendUrl';
 import { getAccessToken } from '@/lib/chat/auth';
@@ -165,7 +165,7 @@ export const DailyTeachingCard = () => {
     <Card className="mb-10 overflow-hidden border border-ojas/20 bg-card/80 p-5 shadow-sm backdrop-blur-md">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
+          <Sprout className="w-3.5 h-3.5 text-ojas" aria-hidden="true" />
           <h2 className="text-xs font-semibold uppercase tracking-wide text-ojas-ink">
             {t('ritual.badge', "Today's Teaching")}
           </h2>

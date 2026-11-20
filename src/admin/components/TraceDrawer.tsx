@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { InlineSpinner } from "@/components/common/BrandedSpinner";
 import {
   Sheet,
   SheetContent,
@@ -76,7 +77,7 @@ export function TraceDrawer({ queryId, onClose }: Props) {
         </SheetHeader>
 
         {isLoading ? (
-          <div className="text-sm text-muted-foreground py-10 text-center">Loading…</div>
+          <InlineSpinner className="text-sm text-muted-foreground py-10 text-center" />
         ) : error ? (
           <div className="py-10 text-center space-y-3">
             <p className="text-sm text-destructive">

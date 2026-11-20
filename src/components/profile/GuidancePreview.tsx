@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react';
+import { Sprout } from 'lucide-react';
 
 export type GuidanceTone = 'gentle' | 'direct' | 'poetic';
 export type FamiliarityLevel = 'beginner' | 'practitioner' | 'advanced';
@@ -29,7 +29,7 @@ export function GuidancePreview({ guruTone, familiarityLevel }: GuidancePreviewP
       className="rounded-2xl border border-ojas/20 bg-gradient-to-br from-ojas/[0.08] via-card to-card px-4 py-3.5"
     >
       <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        <Sparkles className="h-4 w-4 text-ojas" aria-hidden="true" />
+        <Sprout className="h-4 w-4 text-ojas" aria-hidden="true" />
         Your guidance preview
       </div>
       <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">

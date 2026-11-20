@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { InlineSpinner } from "@/components/common/BrandedSpinner";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -285,7 +286,7 @@ export default function QueriesPage() {
               </Button>
             </div>
           ) : isLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+            <InlineSpinner className="p-6 text-sm text-muted-foreground" />
           ) : !sortedData.length ? (
             <EmptyState title="No queries match your filters" />
           ) : (

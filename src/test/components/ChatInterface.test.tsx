@@ -230,7 +230,7 @@ describe('ChatInterface (regression)', () => {
     expect(heading.textContent).toMatch(/^(Good|Welcome|A |The |quiet|still|fresh).*Test/i);
   });
 
-  it('switches the surrounding product UI language from the chat selector', async () => {
+  it('has no language dropdown in the composer (language is detected from speech)', async () => {
     render(
       <BrowserRouter>
         <ChatInterface />
@@ -239,13 +239,7 @@ describe('ChatInterface (regression)', () => {
 
     await screen.findByRole('heading', { level: 2, name: /Test/i });
 
-    const languageButton = screen.getByRole('button', { name: /Selected language:/i });
-    fireEvent.click(languageButton);
-    fireEvent.click(screen.getByText('हिन्दी'));
-
-    await waitFor(() => {
-      expect(mocks.changeUiLanguage).toHaveBeenCalledWith('hi');
-    });
+    expect(screen.queryByRole('button', { name: /Selected language:/i })).not.toBeInTheDocument();
   });
 
   it('allows user to type and sends a message via streaming', async () => {

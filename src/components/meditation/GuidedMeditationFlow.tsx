@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Play, Pause, SkipForward, RotateCcw, ChevronLeft,
-  HandHeart, Leaf, Feather, Lightbulb, Droplet, Zap, Sparkles, Headphones,
+  HandHeart, Leaf, Feather, Lightbulb, Droplet, Zap, Sprout, Headphones,
 } from 'lucide-react';
 import { GUIDED_STEPS, TOTAL_DURATION_SECONDS, type MeditationStep } from './meditationSteps';
 import { MeditationProgressIndicator } from './MeditationProgressIndicator';
@@ -506,7 +506,7 @@ export const GuidedMeditationFlow = ({
             {reflectionStep === 3 && (
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 mx-auto rounded-full bg-green-500/10 flex items-center justify-center">
-                  <Sparkles className="w-7 h-7 text-green-500" />
+                  <Sprout className="w-7 h-7 text-green-500" />
                 </div>
                 <h2 className="text-xl font-semibold text-foreground">{t('meditation.beautiful')}</h2>
                 <p className="text-sm text-muted-foreground">
@@ -537,7 +537,7 @@ export const GuidedMeditationFlow = ({
             >
               <Headphones className="w-3.5 h-3.5 text-ojas shrink-0" />
               <span>Guided by Sri Preethaji's Voice</span>
-              <Sparkles className="w-3 h-3 text-ojas/80 shrink-0" />
+              <Sprout className="w-3 h-3 text-ojas/80 shrink-0" />
             </div>
           )}
 

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sprout } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface DailyTeachingData {
@@ -169,7 +169,7 @@ export const DailyTeaching = () => {
           <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted/20">
             {imageError ? (
               <div className="w-full h-full bg-gradient-to-tr from-indigo-950 via-purple-950 to-amber-950/80 flex items-center justify-center pointer-events-none">
-                <Sparkles className="w-16 h-16 text-ojas/30 animate-pulse" />
+                <Sprout className="w-16 h-16 text-ojas/30 animate-pulse" />
               </div>
             ) : (
               <picture>
@@ -192,7 +192,7 @@ export const DailyTeaching = () => {
 
           <div className="p-6 sm:p-8 -mt-6 relative z-10">
             <div className="flex items-center gap-1.5 mb-3">
-              <Sparkles className="w-4 h-4 text-ojas animate-pulse" />
+              <Sprout className="w-4 h-4 text-ojas animate-pulse" />
               <span className="text-xs font-semibold text-ojas uppercase tracking-widest">
                 {t('chat.todaysWisdom')}
               </span>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, Sparkles, Youtube, ExternalLink, Maximize2, Volume2 } from 'lucide-react';
+import { Play, Pause, Sprout, Youtube, ExternalLink, Maximize2, Volume2 } from 'lucide-react';
 import type { Citation } from '@/lib/chat/types';
 import type { DiscourseCitation } from './CitationCard';
 import { resolveAttributionLabel } from '@/lib/chat/types';
@@ -175,7 +175,7 @@ export const DiscourseAudioStrip: React.FC<DiscourseAudioStripProps> = ({
           <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-saffron-gold to-amber-600 text-white shadow-sm ring-2 ring-saffron-gold/40">
             <span className="font-serif text-xs font-bold tracking-tight">{teacherInitials}</span>
             <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-background ring-1 ring-saffron-gold/50">
-              <Sparkles className="h-2 w-2 text-saffron-gold" aria-hidden="true" />
+              <Sprout className="h-2 w-2 text-saffron-gold" aria-hidden="true" />
             </span>
           </div>
 

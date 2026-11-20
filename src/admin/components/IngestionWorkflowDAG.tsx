@@ -15,7 +15,7 @@ import "@xyflow/react/dist/style.css";
 import {
   CheckCircle2,
   Clock,
-  Sparkles,
+  Sprout,
   ShieldCheck,
   Headphones,
   FileText,
@@ -163,7 +163,7 @@ const CATEGORY_THEMES: Record<
     text: "text-purple-600 dark:text-purple-400",
     glow: "shadow-[0_0_15px_rgba(168,85,247,0.12)]",
     badge: "bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30",
-    icon: Sparkles,
+    icon: Sprout,
   },
   Persistence: {
     bg: "bg-teal-500/10 dark:bg-teal-950/20",

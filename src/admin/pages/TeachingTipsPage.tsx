@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Quote, RefreshCw, AlertCircle, Plus, Sparkles, Trash2, BookOpen } from 'lucide-react';
+import { Quote, RefreshCw, AlertCircle, Plus, Sprout, Trash2, BookOpen } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -235,7 +235,7 @@ export default function TeachingTipsPage() {
           <CardHeader className="py-3 px-5 border-b border-border/50">
             <div className="flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-ojas" /> Live Seeker Chat Preview (While Answer Generates)
+                <Sprout className="w-3.5 h-3.5 text-ojas" /> Live Seeker Chat Preview (While Answer Generates)
               </span>
               <Badge variant="secondary" className="text-[10px]">Preview Mode</Badge>
             </div>
@@ -243,7 +243,7 @@ export default function TeachingTipsPage() {
           <CardContent className="p-5">
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-1.5 max-w-2xl">
               <div className="flex items-center gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sprout className="w-3.5 h-3.5" />
                 <span>Sacred Teaching</span>
                 <span className="text-muted-foreground font-normal">· {previewTip.teacher}</span>
               </div>

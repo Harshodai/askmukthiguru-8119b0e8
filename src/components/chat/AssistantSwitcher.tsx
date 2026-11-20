@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useState } from "react";
-import { Check, ChevronDown, Lock, Sparkles, Heart, Users } from "lucide-react";
+import { Check, ChevronDown, Lock, Compass, Heart, Users } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -15,8 +15,8 @@ import { BACKEND_URL } from "@/lib/backendUrl";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-const ICONS: Record<string, typeof Sparkles> = {
-  general: Sparkles,
+const ICONS: Record<string, typeof Compass> = {
+  general: Compass,
   relationship: Heart,
   sky: Lock,
 };

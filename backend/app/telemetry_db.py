@@ -1286,10 +1286,10 @@ async def get_annotations() -> list[dict[str, Any]]:
 
 
 async def get_admins() -> list[dict[str, Any]]:
-    """Get admin users."""
+    """Get admin users. Raises on a missing client or a failed query: an empty list means "no admins", never "error"."""
     client = _get_client()
     if not client:
-        return []
+        raise RuntimeError("Telemetry DB client is not configured; cannot list admins")
 
     try:
         # Join user_roles with auth_users to get email
@@ -1316,7 +1316,7 @@ async def get_admins() -> list[dict[str, Any]]:
         return result
     except Exception as e:
         logger.error(f"Failed to get admins: {e}")
-        return []
+        raise
 
 
 async def get_model_pricing() -> list[dict[str, Any]]:

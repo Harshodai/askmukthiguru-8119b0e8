@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { buildCanonical, PRODUCTION_DOMAIN } from '@/lib/domain';
-import { Sparkles, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon, Loader2, Check } from 'lucide-react';
+import { Sprout, Mail, Lock, Eye, EyeOff, AlertCircle, User as UserIcon, Loader2, Check } from 'lucide-react';
 import { setLanguage } from '@/lib/chat/config';
 import { LanguageOnboardingStep } from '@/components/onboarding/LanguageOnboardingStep';
 import { Capacitor } from '@capacitor/core';
@@ -113,6 +113,14 @@ const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  // True when a guarded page sent the user here; lets us say why they are seeing a login.
+  const [cameFromGuardedPage] = useState(() => {
+    try {
+      return !!sessionStorage.getItem('auth_redirect_path');
+    } catch {
+      return false;
+    }
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -854,7 +862,7 @@ const AuthPage = () => {
           } else {
             window.google.accounts.id.renderButton(googleButtonRef.current, {
               type: 'standard',
-              theme: 'outline',
+              theme: document.documentElement.classList.contains('dark') ? 'filled_black' : 'outline',
               size: 'large',
               text: 'continue_with',
               shape: 'rectangular',
@@ -994,10 +1002,15 @@ const AuthPage = () => {
               className="w-full h-full object-cover rounded-full"
             />
           </div>
-          <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">{t('auth.signInTitle')}</h1>
-          <p className="text-sm text-muted-foreground italic">
-            {isSignUp ? t('auth.createAccount') : t('auth.welcomeBack')}
-          </p>
+          <h1 className="text-xl font-display font-semibold tracking-tight text-foreground">{isSignUp ? t('auth.createAccount') : t('auth.signInTitle')}</h1>
+          {!isSignUp && (
+            <p className="text-sm text-muted-foreground italic">{t('auth.welcomeBack')}</p>
+          )}
+          {cameFromGuardedPage && (
+            <p className="text-xs text-muted-foreground" role="status">
+              {t('auth.signInToContinue', { defaultValue: 'Sign in to continue. We will take you back right after.' })}
+            </p>
+          )}
         </div>
 
         {error && (
@@ -1024,6 +1037,11 @@ const AuthPage = () => {
               {t('auth.ageConfirm', { defaultValue: 'I confirm I am 18 years of age or older.' })}
             </Label>
           </div>
+        )}
+        {isSignUp && !ageConfirmed && (
+          <p className="text-xs text-muted-foreground text-center" role="status">
+            {t('auth.ageGateHint', { defaultValue: 'Confirm your age above to enable sign-up.' })}
+          </p>
         )}
 
         <div

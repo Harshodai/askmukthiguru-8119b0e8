@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import i18n from '@/i18n';
 import { useTextToSpeech } from './useTextToSpeech';
+import { BACKEND_URL_OR_LOCAL } from '@/lib/backendUrl';
+import { getAccessToken } from '@/lib/chat/auth';
 
 export type VoiceConversationState = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -33,6 +35,18 @@ export interface UseVoiceConversationReturn {
 }
 
 const SILENCE_TIMEOUT_MS = 2000;
+// Recorded-audio fallback (browsers without working Web Speech, e.g. Brave).
+const FALLBACK_VOICE_LEVEL = 0.06; // same 0..1 scale as the visualizer
+const FALLBACK_SILENCE_MS = 1500;
+const FALLBACK_MAX_MS = 30000;
+const STT_LANGUAGES = new Set(['hi', 'te', 'ta', 'kn', 'ml', 'mr', 'bn', 'gu']);
+// Recognition errors that mean the browser cannot transcribe at all (Brave blocks the speech service).
+// Brave starts recognition without a single event (no start, no error), so detect it and use recording.
+const RECOGNITION_START_WATCHDOG_MS = 3500;
+const MIC_PERMISSION_HINT_MS = 4000;
+const isBraveBrowser = (): boolean =>
+  typeof navigator !== 'undefined' && Boolean((navigator as unknown as { brave?: unknown }).brave);
+const UNUSABLE_RECOGNITION_ERRORS = new Set(['network', 'service-not-allowed', 'language-not-supported']);
 
 // Minimal Web Speech API types (not in this project's lib.dom).
 interface WebSpeechResult {
@@ -53,6 +67,7 @@ interface WebSpeechRecognition {
   onresult: ((event: WebSpeechEvent) => void) | null;
   onerror: ((event: WebSpeechErrorEvent) => void) | null;
   onend: (() => void) | null;
+  onstart: (() => void) | null;
   start: () => void;
   stop: () => void;
 }
@@ -90,6 +105,11 @@ export function useVoiceConversation({
   const animFrameRef = useRef<number | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const activeRef = useRef(false);
+  const fallbackRecorderRef = useRef<MediaRecorder | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fallbackCancelledRef = useRef(false);
+  const useRecordedFallbackRef = useRef(false);
+  const listenAgainRef = useRef<() => void>(() => {});
   const lastSpokenTextRef = useRef('');
 
   // TTS Hook
@@ -132,6 +152,8 @@ export function useVoiceConversation({
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       audioContextRef.current = ctx;
+      // A context created outside a fresh gesture starts suspended and returns silence.
+      if (ctx.state === 'suspended') void ctx.resume();
 
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 64;
@@ -202,6 +224,97 @@ export function useVoiceConversation({
     }
   }, [onSendMessage]);
 
+  // Stop the recorded fallback. cancel=true discards what was recorded (we are about to speak or end).
+  const stopFallbackRecorder = useCallback((cancel: boolean) => {
+    if (fallbackTimerRef.current) {
+      clearInterval(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+    const recorder = fallbackRecorderRef.current;
+    fallbackRecorderRef.current = null;
+    if (recorder && recorder.state !== 'inactive') {
+      fallbackCancelledRef.current = cancel;
+      try {
+        recorder.stop();
+      } catch (err) {
+        warnStopFailed(err);
+      }
+    }
+  }, []);
+
+  // Browsers without working Web Speech: record, detect the end of speech from the mic level,
+  // then transcribe on the backend (/api/speech/stt).
+  const startRecordedListening = useCallback((stream: MediaStream) => {
+    if (typeof MediaRecorder === 'undefined' || !analyserRef.current) {
+      setError('Voice input is not supported in this browser. Please type your question.');
+      setState('idle');
+      return;
+    }
+    stopFallbackRecorder(true);
+    fallbackCancelledRef.current = false;
+    const chunks: Blob[] = [];
+    const recorder = new MediaRecorder(stream);
+    fallbackRecorderRef.current = recorder;
+    const analyser = analyserRef.current;
+    const buffer = new Uint8Array(analyser.frequencyBinCount);
+    const startedAt = Date.now();
+    let heardVoice = false;
+    let lastVoiceAt = startedAt;
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunks.push(event.data);
+    };
+    recorder.onstop = async () => {
+      if (fallbackCancelledRef.current || !activeRef.current) return;
+      if (!heardVoice) {
+        listenAgainRef.current();
+        return;
+      }
+      setState('thinking');
+      try {
+        const token = await getAccessToken();
+        const form = new FormData();
+        form.append('file', new Blob(chunks, { type: (recorder.mimeType || 'audio/webm').split(';')[0] }), 'voice.webm');
+        form.append('language_code', `${STT_LANGUAGES.has(currentLanguage) ? currentLanguage : 'en'}-IN`);
+        const resp = await fetch(`${BACKEND_URL_OR_LOCAL}/api/speech/stt`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: form,
+        });
+        if (!resp.ok) throw new Error(`Speech service unavailable (HTTP ${resp.status})`);
+        const data = await resp.json();
+        const text = String(data?.transcript || data?.text || '').trim();
+        if (!activeRef.current) return;
+        if (!text) {
+          setError("I didn't catch that. Please try again.");
+          listenAgainRef.current();
+          return;
+        }
+        submitSpeech(text);
+      } catch (err) {
+        setError((err instanceof Error && err.message) || 'Could not understand the recording.');
+        setState('idle');
+      }
+    };
+
+    recorder.start();
+    fallbackTimerRef.current = setInterval(() => {
+      analyser.getByteFrequencyData(buffer);
+      let sum = 0;
+      for (let i = 0; i < buffer.length; i++) sum += buffer[i];
+      const level = Math.min(1, Math.max(0, (sum / buffer.length / 128) * 1.2));
+      const now = Date.now();
+      if (level > FALLBACK_VOICE_LEVEL) {
+        heardVoice = true;
+        lastVoiceAt = now;
+      }
+      const spokeThenPaused = heardVoice && now - lastVoiceAt > FALLBACK_SILENCE_MS;
+      if (spokeThenPaused || now - startedAt > FALLBACK_MAX_MS) {
+        stopFallbackRecorder(false);
+      }
+    }, 100);
+  }, [currentLanguage, stopFallbackRecorder, submitSpeech]);
+
   const startListeningLoop = useCallback(async () => {
     if (!activeRef.current || isMuted) return;
 
@@ -213,11 +326,19 @@ export function useVoiceConversation({
 
     // Acquire mic for audio visualizer if not already active
     if (!mediaStreamRef.current) {
+      // If the browser is still waiting for the user to answer the permission prompt, say so
+      // instead of showing "Listening" over a dead microphone.
+      const permissionHint = window.setTimeout(() => {
+        setError('Waiting for microphone permission. Click Allow in the address bar (Brave: the lock icon, then Site settings, then Microphone).');
+      }, MIC_PERMISSION_HINT_MS);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        window.clearTimeout(permissionHint);
+        setError(null);
         mediaStreamRef.current = stream;
         startAudioMeter(stream);
       } catch {
+        window.clearTimeout(permissionHint);
         setError('Microphone access denied. Please grant permission to continue.');
         setState('idle');
         return;
@@ -227,6 +348,12 @@ export function useVoiceConversation({
     // Initialize Web Speech Recognition
     const SpeechRecognition =
       (window as unknown as SpeechWindow).SpeechRecognition || (window as unknown as SpeechWindow).webkitSpeechRecognition;
+
+    if (isBraveBrowser()) useRecordedFallbackRef.current = true;
+    if (!SpeechRecognition || useRecordedFallbackRef.current) {
+      if (mediaStreamRef.current) startRecordedListening(mediaStreamRef.current);
+      return;
+    }
 
     if (SpeechRecognition) {
       try {
@@ -254,8 +381,19 @@ export function useVoiceConversation({
             : 'en-IN';
 
         let accumulatedFinal = '';
+        let recognitionAlive = false;
+        recognition.onstart = () => { recognitionAlive = true; };
+        // Some browsers accept start() and then never produce any event. Switch to recording.
+        window.setTimeout(() => {
+          if (recognitionAlive || !activeRef.current || useRecordedFallbackRef.current || !mediaStreamRef.current) return;
+          useRecordedFallbackRef.current = true;
+          recognitionRef.current = null;
+          try { recognition.stop(); } catch (err) { warnStopFailed(err); }
+          startRecordedListening(mediaStreamRef.current);
+        }, RECOGNITION_START_WATCHDOG_MS);
 
         recognition.onresult = (event: WebSpeechEvent) => {
+          recognitionAlive = true;
           let interim = '';
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             const piece = event.results[i][0].transcript;
@@ -288,11 +426,18 @@ export function useVoiceConversation({
             return;
           }
           console.warn('[VoiceConversation] Recognition error:', e.error);
+          if (UNUSABLE_RECOGNITION_ERRORS.has(e.error) && mediaStreamRef.current) {
+            // The browser cannot transcribe (e.g. Brave). Switch to recorded audio for this session.
+            useRecordedFallbackRef.current = true;
+            recognitionRef.current = null;
+            try { recognition.stop(); } catch (err) { warnStopFailed(err); }
+            startRecordedListening(mediaStreamRef.current);
+          }
         };
 
         recognition.onend = () => {
           // If still in listening state and active, restart recognition
-          if (activeRef.current && state === 'listening' && !isMuted) {
+          if (activeRef.current && state === 'listening' && !isMuted && !useRecordedFallbackRef.current) {
             try {
               recognition.start();
             } catch (err) {
@@ -304,9 +449,13 @@ export function useVoiceConversation({
         recognition.start();
       } catch (err) {
         console.warn('[VoiceConversation] Failed to start SpeechRecognition:', err);
+        useRecordedFallbackRef.current = true;
+        if (mediaStreamRef.current) startRecordedListening(mediaStreamRef.current);
       }
     }
-  }, [currentLanguage, isMuted, state, stopSpeaking, startAudioMeter, submitSpeech]);
+  }, [currentLanguage, isMuted, state, stopSpeaking, startAudioMeter, submitSpeech, startRecordedListening]);
+
+  listenAgainRef.current = () => { void startListeningLoop(); };
 
   const speakText = useCallback((text: string) => {
     if (!text.trim()) return;
@@ -314,6 +463,7 @@ export function useVoiceConversation({
     setResponseTranscript(text);
     setState('speaking');
 
+    stopFallbackRecorder(true);
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -323,7 +473,7 @@ export function useVoiceConversation({
     }
 
     speak(text);
-  }, [speak]);
+  }, [speak, stopFallbackRecorder]);
 
   // When TTS stops speaking, transition back to listening if session is active
   useEffect(() => {
@@ -356,6 +506,8 @@ export function useVoiceConversation({
 
   const endSession = useCallback(() => {
     activeRef.current = false;
+    useRecordedFallbackRef.current = false;
+    stopFallbackRecorder(true);
     stopSpeaking();
     if (recognitionRef.current) {
       try {
@@ -369,12 +521,13 @@ export function useVoiceConversation({
     setState('idle');
     setTranscript('');
     setInterimTranscript('');
-  }, [stopSpeaking, cleanupAudio]);
+  }, [stopSpeaking, cleanupAudio, stopFallbackRecorder]);
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
       const next = !prev;
       if (next) {
+        stopFallbackRecorder(true);
         if (recognitionRef.current) {
           try {
             recognitionRef.current.stop();
@@ -388,7 +541,7 @@ export function useVoiceConversation({
       }
       return next;
     });
-  }, [startListeningLoop]);
+  }, [startListeningLoop, stopFallbackRecorder]);
 
   const submitCurrentSpeech = useCallback(() => {
     const text = (transcript + ' ' + interimTranscript).trim();

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
-import { ExternalLink, Heart, Sparkles } from 'lucide-react';
+import { ExternalLink, Heart, Sprout } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const Footer = forwardRef<HTMLElement>((_, ref) => {
@@ -17,7 +17,7 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
             viewport={{ once: true }}
             className="flex items-center gap-2 mb-4"
           >
-            <Sparkles className="w-6 h-6 text-ojas" />
+            <Sprout className="w-6 h-6 text-ojas" />
             <span className="text-h3 text-gradient-gold">{t('nav.appName')}</span>
           </motion.div>
 
@@ -50,10 +50,15 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
               href="https://www.ekam.org"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-caption hover:text-foreground transition-colors inline-flex items-center gap-1"
+              className="text-caption hover:text-foreground transition-colors inline-flex items-center gap-1.5"
               aria-label={t('common.visitEkam', 'Visit Ekam World Centre')}
               title={t('common.visitEkam', 'Visit Ekam World Centre')}
             >
+              <img
+                src="/images/ekam-oneness-logo.png"
+                alt="Ekam Oneness"
+                className="h-3.5 w-auto object-contain inline-block shrink-0"
+              />
               <span>Ekam (World Centre)</span>
               <ExternalLink className="w-3 h-3 text-muted-foreground/60" aria-hidden="true" />
             </a>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { InlineSpinner } from "@/components/common/BrandedSpinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +8,6 @@ import { promoteAdmin, demoteAdmin } from "@/admin/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import { fmtDate } from "@/admin/lib/formatters";
 import { Trash2, Loader2 } from "lucide-react";
-import { EmptyState } from "@/admin/components/EmptyState";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function AdminsPage() {
-  const { data, isLoading, isError, error } = useAdmins();
+  const { data, isLoading, isError, error, refetch } = useAdmins();
   const [email, setEmail] = useState("");
   const [isPromoting, setIsPromoting] = useState(false);
   const qc = useQueryClient();
@@ -90,13 +90,18 @@ export default function AdminsPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           {isLoading ? (
-            <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+            <InlineSpinner className="p-4 text-sm text-muted-foreground" />
           ) : isError ? (
             <div className="p-4 text-sm text-destructive">
               Failed to load admins: {(error as Error)?.message || "Unknown error"}
             </div>
           ) : !data?.length ? (
-            <EmptyState title="No admins found" />
+            // You are signed in as an admin, so an empty list means the server failed to read it
+            // (backend get_admins() swallows DB errors and returns []), not that there are no admins.
+            <div role="alert" className="p-4 text-sm text-destructive space-y-2">
+              <p>The admin list could not be loaded. The server returned no admins, which is not expected because you are signed in as one.</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+            </div>
           ) : (
             (data ?? []).map((a) => (
               <div

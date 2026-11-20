@@ -744,6 +744,7 @@ export async function listTelemetryEvents(
   } = filters;
 
   const { data, error } = await supabase.functions.invoke('admin-telemetry', {
+    timeout: 15000,
     body: {
       user_id,
       session_id,

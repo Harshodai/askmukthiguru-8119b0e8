@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { InlineSpinner } from "@/components/common/BrandedSpinner";
 import { csvEscape } from "@/admin/lib/csv";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -53,7 +54,7 @@ export default function TelemetryPage() {
   const [metricType, setMetricType] = useState<string | undefined>();
   const [page, setPage] = useState(0);
 
-  const { data, isLoading, isError, error } = useTelemetryEvents({
+  const { data, isLoading, isError, error, refetch, isFetching } = useTelemetryEvents({
     user_id: userId || undefined,
     session_id: sessionId || undefined,
     metric_type: metricType,
@@ -187,10 +188,16 @@ export default function TelemetryPage() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+            <InlineSpinner className="p-6 text-sm text-muted-foreground" />
           ) : isError ? (
-            <div className="p-6 text-sm text-destructive">
-              Failed to load telemetry events: {(error as Error)?.message || "Unknown error"}
+            <div role="alert" className="p-6 text-sm text-destructive space-y-3">
+              <p>
+                Failed to load telemetry events: {(error as Error)?.message || "Unknown error"}. The
+                telemetry service may be unavailable or slow to respond.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+                {isFetching ? "Retrying…" : "Retry"}
+              </Button>
             </div>
           ) : !data?.data?.length ? (
             <EmptyState title="No telemetry events match your filters" />

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LineChart, ExternalLink, RefreshCw, AlertCircle } from "lucide-react";
@@ -11,6 +11,22 @@ export default function MonitoringPage() {
   const rawGrafanaUrl = import.meta.env.VITE_GRAFANA_URL || "http://localhost:3000";
   const baseGrafanaUrl = typeof rawGrafanaUrl === "string" ? rawGrafanaUrl.trim().replace(/\/+$/, "") : "http://localhost:3000";
   const embedUrl = `${baseGrafanaUrl}/d/mukthiguru/mukthi-guru-performance-monitoring?orgId=1&kiosk=tv&theme=dark&refresh=5s&_t=${refreshKey}`;
+
+  // A cross-origin iframe never reports load failure, so probe the host (opaque no-cors response is enough).
+  const [reachable, setReachable] = useState<boolean | null>(null);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => ctrl.abort(), 5000);
+    setReachable(null);
+    fetch(baseGrafanaUrl, { mode: "no-cors", signal: ctrl.signal })
+      .then(() => setReachable(true))
+      .catch(() => setReachable(false))
+      .finally(() => window.clearTimeout(timer));
+    return () => {
+      ctrl.abort();
+      window.clearTimeout(timer);
+    };
+  }, [baseGrafanaUrl, refreshKey]);
 
   const handleRefresh = () => {
     setRefreshKey((prev) => prev + 1);
@@ -61,6 +77,26 @@ export default function MonitoringPage() {
       <Card className="border-border/40 bg-card/60 backdrop-blur-md overflow-hidden">
         <CardContent className="p-0">
           <div className="relative w-full" style={{ height: "680px" }}>
+            {reachable === false ? (
+              <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+                <p className="text-base font-medium">Grafana is not reachable</p>
+                <p className="max-w-md text-sm text-muted-foreground">
+                  Could not connect to {baseGrafanaUrl}. Check that Grafana is running, then refresh.
+                </p>
+                <Button variant="outline" asChild>
+                  <a
+                    href={`${baseGrafanaUrl}/d/mukthiguru/mukthi-guru-performance-monitoring?orgId=1`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open in Grafana
+                  </a>
+                </Button>
+              </div>
+            ) : (
             <iframe
               src={embedUrl}
               title="Grafana Performance Monitoring"
@@ -70,6 +106,7 @@ export default function MonitoringPage() {
               className="w-full h-full bg-card"
               allowFullScreen
             />
+            )}
           </div>
         </CardContent>
       </Card>

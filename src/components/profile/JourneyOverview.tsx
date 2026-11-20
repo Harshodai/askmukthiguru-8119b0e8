@@ -1,4 +1,4 @@
-import { ArrowRight, Flame, MessageCircle, Sparkles, Network, ExternalLink } from 'lucide-react';
+import { ArrowRight, Flame, MessageCircle, Sprout, Network, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -130,8 +130,13 @@ export const JourneyOverview = ({
           </div>
           <div className="min-w-0 flex-1 space-y-0.5">
             <div className="flex items-center justify-between gap-1.5">
-              <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-ojas truncate">
-                Ekam · World Centre
+              <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-ojas truncate flex items-center gap-1.5">
+                <img
+                  src="/images/ekam-oneness-logo.png"
+                  alt="Ekam Oneness"
+                  className="h-3.5 w-auto object-contain inline-block shrink-0"
+                />
+                <span>Ekam · World Centre</span>
               </p>
               <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-ojas transition-colors shrink-0" />
             </div>
@@ -149,7 +154,7 @@ export const JourneyOverview = ({
       <Card className="rounded-none border-0 border-t border-hairline bg-transparent shadow-none">
         <CardHeader className="px-0 pt-6 pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-ojas" aria-hidden="true" />
+            <Sprout className="w-4 h-4 text-ojas" aria-hidden="true" />
             {t('profile.journey.nextStep', 'Your next step')}
           </CardTitle>
           <CardDescription>
@@ -168,7 +173,7 @@ export const JourneyOverview = ({
             <div className="w-10 h-10 rounded-xl bg-ojas/10 flex items-center justify-center shrink-0">
               {hasPracticed
                 ? <Flame className="w-4 h-4 text-ojas" aria-hidden="true" />
-                : <Sparkles className="w-4 h-4 text-ojas" aria-hidden="true" />}
+                : <Sprout className="w-4 h-4 text-ojas" aria-hidden="true" />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-medium text-foreground">
@@ -232,7 +237,7 @@ export const JourneyOverview = ({
               ))}
               {insights.map((insight) => (
                 <div key={insight.kind} className="flex items-start gap-3 rounded-2xl border border-hairline bg-muted/25 px-4 py-3">
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-ojas/70" aria-hidden="true" />
+                  <Sprout className="mt-0.5 h-4 w-4 shrink-0 text-ojas/70" aria-hidden="true" />
                   <p className="text-sm leading-relaxed text-foreground/90">{insight.text}</p>
                 </div>
               ))}
@@ -258,7 +263,7 @@ export const JourneyOverview = ({
             ) : null}
             <div className="flex-1 p-5 flex flex-col justify-center">
               <div className="flex items-center gap-1.5 mb-2">
-                <Sparkles className="w-3.5 h-3.5 text-ojas" />
+                <Sprout className="w-3.5 h-3.5 text-ojas" />
                 <span className="text-[10px] font-semibold text-ojas uppercase tracking-[0.14em]">{t('profile.journey.wisdomOfDay', 'Wisdom of the Day')}</span>
               </div>
               <p className="text-base text-foreground/90 font-serif leading-relaxed italic">&ldquo;{dailyWisdom.caption}&rdquo;</p>

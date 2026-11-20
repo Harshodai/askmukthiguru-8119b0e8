@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { MessageCircle, Heart, Sparkles, Flower, Play, ArrowRight } from 'lucide-react';
+import { MessageCircle, Heart, Sprout, Flower, Play, ArrowRight } from 'lucide-react';
 import { DemoModal, recordTourOutcome } from './DemoModal';
 
 export const HowItWorksSection = () => {
@@ -21,7 +21,7 @@ export const HowItWorksSection = () => {
       description: t('landing.howItWorks.step2Desc'),
     },
     {
-      icon: Sparkles,
+      icon: Sprout,
       title: t('landing.howItWorks.step3Title'),
       description: t('landing.howItWorks.step3Desc'),
     },

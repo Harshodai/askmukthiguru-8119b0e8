@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { motion, MotionConfig, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Play, Sparkles, Cloud, Activity, Compass, Heart } from 'lucide-react';
+import { ArrowRight, Play, Sprout, Cloud, Activity, Compass, Heart } from 'lucide-react';
 import heroImage from '@/assets/hero-spiritual.webp';
 import { FloatingParticles } from './FloatingParticles';
 import { ContinuePracticeCard } from './ContinuePracticeCard';
@@ -91,7 +91,7 @@ export const HeroSection = () => {
             className="w-full h-full object-cover"
           />
 
-          <div className="absolute inset-0 bg-gradient-to-b from-black/38 via-black/20 to-background/82" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/38 to-background/82" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/14 via-transparent to-black/14" />
         </motion.div>
 
@@ -117,7 +117,7 @@ export const HeroSection = () => {
               transition={{ delay: 0.2, duration: 0.5 }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8 shadow-md"
             >
-              <Sparkles className="w-4 h-4 text-ojas" />
+              <Sprout className="w-4 h-4 text-ojas" />
               <span className="text-sm text-foreground font-medium">{t('landing.hero.badge')}</span>
             </motion.div>
 
@@ -151,7 +151,7 @@ export const HeroSection = () => {
             >
               <div className="flex justify-center mb-5">
                 <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/50 backdrop-blur-md border border-white/20 text-[11px] sm:text-xs uppercase tracking-[0.2em] font-medium text-amber-200 shadow-md">
-                  <Sparkles className="w-3.5 h-3.5 text-saffron-gold shrink-0" aria-hidden="true" />
+                  <Sprout className="w-3.5 h-3.5 text-saffron-gold shrink-0" aria-hidden="true" />
                   <span>{t('landing.hero.stateCheckIn', 'Select Your Current Inner State')}</span>
                 </span>
               </div>
@@ -226,9 +226,9 @@ export const HeroSection = () => {
                         <span className="font-mono text-[10px] uppercase tracking-wider text-saffron-gold">
                           {t('landing.hero.recommendedPractice', 'Recommended Sacred Practice')}
                         </span>
-                        <h4 className="font-display text-sm font-semibold text-white tracking-tight truncate mt-0.5">
+                        <h2 className="font-display text-sm font-semibold text-white tracking-tight truncate mt-0.5">
                           {current.title}
-                        </h4>
+                        </h2>
                         <p className="text-xs text-white/70 line-clamp-1 mt-0.5">
                           {current.subtitle}
                         </p>
