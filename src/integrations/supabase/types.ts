@@ -3340,6 +3340,7 @@ export type Database = {
       }
       waitlist_entries: {
         Row: {
+          consent_to_contact: boolean
           consented_at: string
           email: string
           email_key: string | null
@@ -3349,6 +3350,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          consent_to_contact?: boolean
           consented_at?: string
           email: string
           email_key?: string | null
@@ -3358,6 +3360,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          consent_to_contact?: boolean
           consented_at?: string
           email?: string
           email_key?: string | null
@@ -3618,6 +3621,10 @@ export type Database = {
         }
       }
       seed_admin_demo: { Args: never; Returns: Json }
+      subscribe_launch_updates: {
+        Args: { p_consent: boolean; p_email: string; p_source: string }
+        Returns: string
+      }
       upsert_canonical_memory: {
         Args: {
           p_confidence: number
