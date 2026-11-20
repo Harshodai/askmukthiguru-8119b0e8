@@ -43,6 +43,7 @@ from domain.first_person_safety import (
 # Only module-level constants are imported; no functions that may import
 # heavier dependencies (app.config, ingest.*, guardrails.*).
 # ---------------------------------------------------------------------------
+from services.first_person_content_assessment import _MENTAL_HEALTH_QUERY_RE
 from services.first_person_evidence_policy import (
     _CORE_WISDOM_OPENER_RE,
     _DANGLING_QUESTION_TAIL_RE,
@@ -56,26 +57,6 @@ from services.first_person_evidence_policy import (
 # ---------------------------------------------------------------------------
 # Additional local constants
 # ---------------------------------------------------------------------------
-
-# Queries that are explicitly about mental-health / safety / self-harm topics.
-# When a query touches these topics, self-harm content in a candidate may be
-# educational rather than unsolicited.
-_MENTAL_HEALTH_QUERY_RE: Final = re.compile(
-    r"\b(?:"
-    r"suicid\w*"
-    r"|self[\s\-]harm"
-    r"|mental\s+health"
-    r"|depression"
-    r"|anxiety"
-    r"|therapy"
-    r"|therapist"
-    r"|counseling"
-    r"|counselling"
-    r"|psychiatric"
-    r"|emotional\s+(?:health|wellbeing|wellness)"
-    r")\b",
-    re.IGNORECASE,
-)
 
 # Benign-topic queries: love, peace, joy, connection, relationships — topics
 # that should NEVER surface unsolicited self-harm clips.

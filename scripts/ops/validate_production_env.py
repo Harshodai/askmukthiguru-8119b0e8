@@ -3,12 +3,18 @@
 
 from __future__ import annotations
 
+import argparse
 import ast
+import base64
+import hashlib
+import json
 import os
+import re
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 @dataclass(frozen=True)
@@ -67,7 +73,78 @@ def _read_first_person_modes() -> tuple[str, ...] | None:
     return None
 
 
-def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResult:
+# 2026-11-19 never-again guards: a local .env copied onto Railway overwrote BRAIN_KEK
+# (vault rows unreadable) and carried dev hosts. Values are never echoed.
+_HOST_VARS = re.compile(r"(_URL|_URI|_HOST|_DSN)$")
+# Loopback, Docker-for-Mac, and bare compose service names (no dot = not a real host).
+_DEV_HOST_RE = re.compile(
+    r"^(localhost|127\.\d+\.\d+\.\d+|0\.0\.0\.0|\[?::1\]?|host\.docker\.internal|[a-z0-9_-]+)$",
+    re.IGNORECASE,
+)
+# Secrets that protect data already stored: changing one on a live service makes that
+# data unreadable (BRAIN_KEK) or invalidates every session (JWT secrets). Rotate via the
+# documented path (BRAIN_KEK_NEXT + scripts/ops/rotate_brain_kek.py), never by overwrite.
+PROTECTED_SECRETS = (
+    "BRAIN_KEK",
+    "JWT_SECRET",
+    "SUPABASE_JWT_SECRET",
+    "SUPABASE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "ANON_SESSION_HMAC_SECRET",
+)
+
+
+def _host_of(value: str) -> str:
+    if "://" in value:
+        try:
+            return urlsplit(value).hostname or ""
+        except ValueError:
+            return ""
+    rest = value.split("/", 1)[0].rsplit("@", 1)[-1]
+    if rest.startswith("["):
+        return rest.split("]", 1)[0] + "]"
+    return rest.rsplit(":", 1)[0] if rest.count(":") == 1 else rest
+
+
+def _jwt_issuer(token: str) -> str:
+    parts = token.split(".")
+    if len(parts) != 3:
+        return ""
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(parts[1] + "=" * (-len(parts[1]) % 4)))
+    except (ValueError, json.JSONDecodeError):
+        return ""
+    return str(payload.get("iss", "")) if isinstance(payload, dict) else ""
+
+
+def _digest(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _guard_errors(values: Mapping[str, str], current: Mapping[str, str] | None) -> list[str]:
+    errors: list[str] = []
+    for name, raw in values.items():
+        value = str(raw or "").strip()
+        if value and _HOST_VARS.search(name) and ("://" in value or name.endswith("_HOST")):
+            if _DEV_HOST_RE.match(_host_of(value)):
+                errors.append(f"{name} points at a development host (loopback/docker/service name)")
+    for name in ("SUPABASE_KEY", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"):
+        if _jwt_issuer(str(values.get(name, "") or "")) == "supabase-demo":
+            errors.append(f"{name} is the local Supabase demo key")
+    for name in PROTECTED_SECRETS:
+        old = str((current or {}).get(name, "") or "")
+        new = str(values.get(name, "") or "")
+        if old and new and _digest(old) != _digest(new):
+            errors.append(
+                f"{name} would overwrite a secret that protects stored data; rotate it, never overwrite"
+            )
+    return errors
+
+
+def validate_environment(
+    env: Mapping[str, str] | None = None, current: Mapping[str, str] | None = None
+) -> PreflightResult:
+    """``current``: the variables the target service holds now (None = not checked)."""
     values = env if env is not None else os.environ
     errors: list[str] = []
     warnings: list[str] = []
@@ -192,14 +269,59 @@ def validate_environment(env: Mapping[str, str] | None = None) -> PreflightResul
         lane = "v10-only context harness" if harness and terminal else "legacy clip store"
         warnings.append(f"FIRST_PERSON_SERVING_POSTURE is undeclared; the flags serve the {lane}")
 
-    redis_url = str(values.get("REDIS_URL", "") or "").lower()
-    if "localhost" in redis_url or "127.0.0.1" in redis_url:
-        warnings.append("REDIS_URL points at loopback; confirm this is intentional")
+    errors.extend(_guard_errors(values, current))
+    # e94c3ff2: a QUANTIZED_ONLY image does not bake all-MiniLM-L6-v2, but the on-device
+    # intent encoder defaults to on, so the first request tries an online download.
+    quantized_only = flag("QUANTIZED_ONLY", False)
+    on_device_intent = flag("ON_DEVICE_INTENT_ENCODER_ENABLED", True)
+    if quantized_only and on_device_intent:
+        warnings.append(
+            "QUANTIZED_ONLY image without all-MiniLM-L6-v2 but ON_DEVICE_INTENT_ENCODER_ENABLED "
+            "is on: the first request tries an online model download (owner decision: set it "
+            "false, or bake the model)"
+        )
     return PreflightResult(tuple(errors), tuple(warnings))
 
 
-def main() -> int:
-    result = validate_environment()
+def _read_env_file(path: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, val = line.partition("=")
+            val = val.strip()
+            if len(val) >= 2 and val[0] in "'\"":
+                quote = val[0]
+                close_idx = -1
+                i = 1
+                while i < len(val):
+                    if val[i] == "\\" and quote == '"' and i + 1 < len(val):
+                        i += 2
+                        continue
+                    if val[i] == quote:
+                        close_idx = i
+                        break
+                    i += 1
+                if close_idx != -1:
+                    val = val[1:close_idx]
+                else:
+                    val = val.split(" #", 1)[0].strip()
+            else:
+                val = val.split(" #", 1)[0].strip()  # an unquoted value drops an inline comment
+            out[key.strip().removeprefix("export ").strip()] = val
+    return out
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--env-file", help="proposed variables (default: this process env)")
+    parser.add_argument(
+        "--current-env-file", help="variables the target service holds now (overwrite guard)"
+    )
+    args = parser.parse_args(argv)
+    proposed = _read_env_file(args.env_file) if args.env_file else None
+    current = _read_env_file(args.current_env_file) if args.current_env_file else None
+    result = validate_environment(proposed, current=current)
     for warning in result.warnings:
         print(f"WARN: {warning}")
     if result.errors:

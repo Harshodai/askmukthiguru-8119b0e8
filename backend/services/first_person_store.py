@@ -64,6 +64,7 @@ FIRST_PERSON_NAMESPACE = uuid.UUID("b3f9479e-4e67-4a0b-9d48-6a5814e5f7a2")
 from services.guru_registry import (  # noqa: E402
     allowed_speaker_labels,
     canonical_guru_id,
+    label_for,
 )
 
 ALLOWED_SPEAKERS = set(allowed_speaker_labels())  # config/gurus.yaml
@@ -882,9 +883,10 @@ class FirstPersonStore:
         the configured legacy clip collection has no match. Context records must
         carry their own canonical rights stamp, legacy clearance, verified guru
         speaker, verbatim text and valid source coordinates; missing metadata
-        means no fallback clip. A display speaker is never synthesized from a
-        guru id. Qdrant errors propagate to the caller's infrastructure-decline
-        path.
+        means no fallback clip. A missing display speaker is filled from the
+        guru id only for a child already voice-verified as that guru
+        (``speaker_verified`` and ``speaker_role == "guru"`` are required).
+        Qdrant errors propagate to the caller's infrastructure-decline path.
         """
         if not str(collection or "").strip():
             return None
@@ -940,19 +942,9 @@ class FirstPersonStore:
         for point in points or []:
             payload = dict(getattr(point, "payload", None) or {})
             verbatim_text = str(payload.get("verbatim_text") or "").strip()
-            speaker = payload.get("speaker")
-            if not speaker:
-                if (
-                    str(payload.get("guru_id") or payload.get("teacher_id") or "").lower()
-                    == "preethaji"
-                ):
-                    speaker = "Sri Preethaji"
-                elif (
-                    str(payload.get("guru_id") or payload.get("teacher_id") or "").lower()
-                    == "krishnaji"
-                ):
-                    speaker = "Sri Krishnaji"
-            payload["speaker"] = speaker
+            # Only guru_id (the voice-verified identity) may name a missing speaker;
+            # teacher_id names the corpus/channel and is never a speaker (2026-11-20).
+            payload["speaker"] = payload.get("speaker") or label_for(payload.get("guru_id"))
             if (
                 payload.get("record_type") != "retrieval_child"
                 or payload.get("rights_cleared") is not True
@@ -971,8 +963,11 @@ class FirstPersonStore:
                 or video_is_blocked(payload.get("video_id"))
             ):
                 continue
+            # Fail closed: a child with no stored text hash cannot prove its text is
+            # unedited (2026-11-19: a missing hash used to pass). v10+ store it in
+            # source_text_hash (CLAUDE.md invariant 2).
             text_hash = payload.get("source_text_hash") or payload.get("transcript_hash")
-            if text_hash and text_hash != hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest():
+            if not text_hash or text_hash != hashlib.sha256(verbatim_text.encode("utf-8")).hexdigest():
                 continue
             if (
                 payload.get("boundary_status") == "uncertain"
@@ -993,6 +988,14 @@ class FirstPersonStore:
             payload["transcript_hash"] = hashlib.sha256(
                 str(verbatim_text).encode("utf-8")
             ).hexdigest()
+            # fp-context children carry no `first_person_eligible` field (0 of the v12
+            # children do); the checks above are the fp-context eligibility gate, so a
+            # child that passed them is marked eligible for the shared serve-time
+            # integrity gate instead of being declined for a field its schema lacks.
+            # If the field is present, reject unless strictly True.
+            if "first_person_eligible" in payload and payload["first_person_eligible"] is not True:
+                continue  # an explicit builder verdict is never overridden
+            payload["first_person_eligible"] = True
             candidates.append((diff_ms, payload))
 
         if not candidates:

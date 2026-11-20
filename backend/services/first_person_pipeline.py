@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import hashlib
+import inspect
 import json
 import logging
 import os
@@ -525,7 +526,7 @@ from services.first_person_evidence_policy import (
     _standalone_problem as _shared_standalone_problem,
 )
 from services.live_event_text import (
-    LIVE_EVENT_INSTRUCTION_RE as _LIVE_EVENT_INSTRUCTION_RE,  # noqa: E402
+    LIVE_EVENT_INSTRUCTION_RE as _LIVE_EVENT_INSTRUCTION_RE,
     is_live_event_instruction as _is_live_event_instruction,
 )
 
@@ -1024,6 +1025,62 @@ _RELEVANCE_JSON_SCHEMA: dict[str, Any] = {
 }
 
 
+def _exact_n_scorer_contract(n: int, use_json: bool) -> tuple[str, Optional[dict[str, Any]]]:
+    """(system prompt, response_format) that ask for exactly ``n`` scores.
+
+    Flag ``first_person_relevance_exact_n_enabled``. The default prompts' fixed
+    3-value example ("3,1,0" / [3, 1, 0]) is a length template a scorer can copy,
+    returning 3 scores for a 1-clip call, which the strict count check rightly
+    marks indeterminate ("try again"). The rubric and its examples stay
+    byte-identical (their digits anchor the scale; a different example digit
+    shifted scores in the 2026-11-19 battery); only an exact-count sentence is
+    appended. On the JSON path the schema has one required key per clip
+    (``clip_1`` .. ``clip_n``, integer enum 0-3, no extra keys), so a
+    schema-honouring endpoint cannot return the wrong count. Validation is unchanged.
+    """
+    keys = [f"clip_{i}" for i in range(1, n + 1)]
+    if not use_json:
+        return (
+            _RELEVANCE_SYSTEM_PROMPT
+            + f" This request has exactly {n} clip(s): reply with exactly {n} integer(s).",
+            None,
+        )
+    prompt = (
+        _RELEVANCE_RUBRIC_CORE
+        + f"There are exactly {n} clip(s). Reply ONLY with a JSON object with exactly these "
+        + f"keys: {', '.join(keys)}; each value is the integer score of that numbered clip. "
+        + "No other text."
+    )
+    schema = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "relevance_scores_keyed",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {k: {"type": "integer", "enum": [0, 1, 2, 3]} for k in keys},
+                "required": keys,
+                "additionalProperties": False,
+            },
+        },
+    }
+    return prompt, schema
+
+
+def _parse_keyed_scores(decoded: Any, n: int) -> list[int]:
+    """Scores from a {"clip_1": s, ...} object; ValueError unless exactly keys clip_1..clip_n."""
+    keys = [f"clip_{i}" for i in range(1, n + 1)]
+    if not isinstance(decoded, dict) or set(decoded) != set(keys):
+        raise ValueError("keys do not match clip_1..clip_n")
+    scores = []
+    for k in keys:
+        v = decoded[k]
+        if isinstance(v, bool) or not isinstance(v, int):
+            raise ValueError(f"non-integer score {v!r}")
+        scores.append(v)
+    return scores
+
+
 _RELEVANCE_INDETERMINATE = -1
 _OPENING_WINDOW_MS = 60_000
 _OPENING_MIN_SCORE = 3
@@ -1462,6 +1519,11 @@ async def _relevance_select_scored_async(
         system_prompt = (
             _RELEVANCE_JSON_SYSTEM_PROMPT if use_json_schema else _RELEVANCE_SYSTEM_PROMPT
         )
+        exact_n = bool(getattr(settings, "first_person_relevance_exact_n_enabled", False))
+        if exact_n:
+            system_prompt, keyed_schema = _exact_n_scorer_contract(len(clips), use_json_schema)
+            if keyed_schema is not None:
+                gen_kwargs["response_format"] = keyed_schema
 
         async def _call() -> str:
             res = llm_service.generate(
@@ -1552,15 +1614,18 @@ async def _relevance_select_scored_async(
             if not (clean_raw.startswith("{") and clean_raw.endswith("}")):
                 raise ValueError("response is not a JSON object")
             decoded = json.loads(clean_raw)
-            candidate = decoded.get("scores") if isinstance(decoded, dict) else None
-            if not isinstance(candidate, list):
-                raise ValueError("missing scores array")
-            scores = []
-            for v in candidate:
-                # bool is an int subclass — True must not pass as 1.
-                if isinstance(v, bool) or not isinstance(v, int):
-                    raise ValueError(f"non-integer score {v!r}")
-                scores.append(v)
+            if exact_n:
+                scores = _parse_keyed_scores(decoded, len(clips))
+            else:
+                candidate = decoded.get("scores") if isinstance(decoded, dict) else None
+                if not isinstance(candidate, list):
+                    raise ValueError("missing scores array")
+                scores = []
+                for v in candidate:
+                    # bool is an int subclass — True must not pass as 1.
+                    if isinstance(v, bool) or not isinstance(v, int):
+                        raise ValueError(f"non-integer score {v!r}")
+                    scores.append(v)
         except (ValueError, KeyError, TypeError, AttributeError) as json_err:
             logger.info(
                 "[FirstPersonPipeline] Relevance check unparseable JSON output %r (err=%s); abstaining",
@@ -1736,7 +1801,7 @@ def _llm_rerank_clips(
 # 12.0 s (was 6.0): matches FIRST_PERSON_RELEVANCE_TIMEOUT_S=12 so slow provider
 # responses on adversarial injection queries do not time out and log indeterminate.
 _ANSWERABILITY_TIMEOUT_S = 12.0
-# ponytail: U1 - at most 4 harness context judge calls in flight per request. Ceiling: the
+# ponytail: U1 - at most _HARNESS_JUDGE_CONCURRENCY (2 since d084cdb3, never above 4) harness context judge calls in flight per request. Ceiling: the
 # OpenRouter client limiter is 60 RPM per model, and an unbounded 16-24 burst measured 8-9 s
 # shared stalls. Raise only with a higher provider RPM, then re-measure.
 _HARNESS_JUDGE_CONCURRENCY = 2
@@ -3097,6 +3162,34 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
 
         return merged
 
+    @staticmethod
+    def _seen_contexts_last(
+        contexts: list[Any], memory_signals: Optional[dict[str, Any]]
+    ) -> list[Any]:
+        """Unseen contexts first, seen ones after (flag ``first_person_context_seen_rerank_enabled``).
+
+        Harness parity with ``_apply_memory_reranking`` on the legacy path: a stable
+        reorder of the candidate pool, nothing dropped, every gate still runs. A context
+        counts as seen when its video or any of its spans was served to this seeker.
+        """
+        if not getattr(settings, "first_person_context_seen_rerank_enabled", False):
+            return contexts
+        signals = memory_signals or {}
+        seen_videos = {str(v) for v in signals.get("seen_video_ids") or []}
+        seen_spans = {str(c) for c in signals.get("seen_clip_ids") or []}
+        if len(contexts) < 2 or not (seen_videos or seen_spans):
+            return contexts
+
+        def _seen(ctx: Any) -> bool:
+            video = str(getattr(getattr(ctx, "parent", None), "video_id", "") or "")
+            spans = {
+                str(getattr(s, "source_span_id", "") or "")
+                for s in getattr(ctx, "spans", None) or ()
+            }
+            return video in seen_videos or bool(spans & seen_spans)
+
+        return [c for c in contexts if not _seen(c)] + [c for c in contexts if _seen(c)]
+
     def _diversify_candidate_pool(self, contexts: list[Any]) -> list[Any]:
         """Cap how many candidates one video may contribute, MMR-ordered.
 
@@ -3794,6 +3887,12 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             + ",".join(sorted(_SCORER_JSON_SCHEMA_MODELS))
                         ).encode()
                     ).hexdigest()[:12]
+                ),
+                # Added only when on, so the key stays byte-identical with the flag off.
+                **(
+                    {"relevance_exact_n": "keyed_v2"}
+                    if getattr(settings, "first_person_relevance_exact_n_enabled", False)
+                    else {}
                 ),
                 "serve_weak_match": str(bool(settings.first_person_serve_weak_match)),
                 "standalone_gate": str(bool(settings.first_person_standalone_gate_enabled)),
@@ -4725,6 +4824,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         start_time: float,
         confidence_query_dense: Optional[list[float]] = None,
         is_distress: bool = False,
+        max_context_spans: Optional[int] = None,
+        memory_signals: Optional[dict[str, Any]] = None,
+        answerability_prefetch: Optional[Any] = None,
     ) -> Optional[FirstPersonPipelineResult]:
         """Step 2c: serve the question from the fp-context harness, else return None.
 
@@ -4878,6 +4980,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     int(getattr(settings, "first_person_context_max_spans", 3)),
                     self._get_context_harness()._policy.max_context_spans,
                 )
+                if max_context_spans:
+                    # Meta follow-up "shorter": a tighter cap only, never a wider one.
+                    max_spans = max(1, min(max_spans, int(max_context_spans)))
 
                 def _retrieve_contexts() -> list[ParentContext]:
                     # Sparse RRF fusion is gated on FIRST_PERSON_CONTEXT_USE_SPARSE
@@ -4905,7 +5010,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         max_spans=max_spans,
                     )
                     # Component 4: optional cross-video diversity cap (no-op when off).
-                    return self._diversify_candidate_pool(expanded)
+                    return self._seen_contexts_last(
+                        self._diversify_candidate_pool(expanded), memory_signals
+                    )
 
                 # T7-02: the sync Qdrant client must not block the event loop.
                 contexts = await _io_thread(_retrieve_contexts)
@@ -4930,7 +5037,16 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 context_answerability_enabled = bool(
                     getattr(settings, "first_person_answerability_check_enabled", False)
                 )
-                if context_answerability_enabled:
+                prefetched = _take_answerability_prefetch(
+                    answerability_prefetch, retrieval_query or query
+                )
+                if context_answerability_enabled and prefetched is not None:
+                    # Same call, started earlier by the bridge (concurrent with HyDE,
+                    # embedding and retrieval); its verdict is used unchanged.
+                    ans_verdict = await prefetched[0]
+                    fp_llm_tokens.extend(prefetched[1])
+                    ans_str = {True: "yes", False: "no"}.get(ans_verdict, "indeterminate")
+                elif context_answerability_enabled:
                     ans_verdict = await _acall(
                         _answerability_check,
                         retrieval_query or query,
@@ -5688,6 +5804,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         memory_signals: Optional[dict[str, Any]] = None,
         confidence_query_dense: Optional[list[float]] = None,
         is_distress: bool = False,
+        max_context_spans: Optional[int] = None,
+        answerability_prefetch: Optional[Any] = None,
     ) -> FirstPersonPipelineResult:
         """Sync entry point for offline callers, scripts and tests (T7-02).
 
@@ -5708,6 +5826,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             memory_signals=memory_signals,
             confidence_query_dense=confidence_query_dense,
             is_distress=is_distress,
+            max_context_spans=max_context_spans,
         )
         try:
             target = _stable_llm_loop(self._llm_loop)
@@ -5737,6 +5856,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         memory_signals: Optional[dict[str, Any]] = None,
         confidence_query_dense: Optional[list[float]] = None,
         is_distress: bool = False,
+        max_context_spans: Optional[int] = None,
+        answerability_prefetch: Optional[Any] = None,
     ) -> FirstPersonPipelineResult:
         """
         Execute the end-to-end first-person verbatim serving pipeline.
@@ -5910,6 +6031,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             start_time=start_time,
             confidence_query_dense=confidence_query_dense,
             is_distress=is_distress,
+            max_context_spans=max_context_spans,
+            memory_signals=memory_signals,
+            answerability_prefetch=answerability_prefetch,
         )
         if harness_result is not None:
             return harness_result
@@ -5946,13 +6070,68 @@ async def serve_first_person(pipeline: Any, **kwargs: Any) -> Any:
     duck-typed pipeline with only ``execute``) runs the sync entry point on a
     worker thread, as every route did before T7-02.
     """
-    if (
-        isinstance(pipeline, FirstPersonPipeline)
+    prefetch = kwargs.get("answerability_prefetch")
+    try:
+        if (
+            isinstance(pipeline, FirstPersonPipeline)
+            and pipeline._llm_loop is not None
+            and asyncio.get_running_loop() is pipeline._llm_loop
+        ):
+            return await pipeline.aexecute(**kwargs)
+        # A task on this loop cannot be awaited from the sync path's loop.
+        kwargs.pop("answerability_prefetch", None)
+        return await asyncio.to_thread(pipeline.execute, **kwargs)
+    finally:
+        # Unused (cache hit, crisis, contract refusal, no contexts): stop it.
+        if prefetch is not None and not prefetch[1].done():
+            prefetch[1].cancel()
+
+
+def start_answerability_prefetch(
+    pipeline: Any, question: str
+) -> Optional[tuple[str, asyncio.Future[Optional[bool]], list[int]]]:
+    """Start the question-only answerability gate now, or return None.
+
+    Flag ``first_person_answerability_prefetch_enabled`` (and the gate itself must be
+    on). The gate reads only the question, so the bridge can start it before HyDE,
+    embedding and retrieval; the harness then awaits this same call instead of
+    issuing it after retrieval. The verdict and its fail-closed contract are
+    unchanged. Cost: the call is wasted (and cancelled) when the turn never reaches
+    the gate, e.g. an exact-cache hit.
+    """
+    if not (
+        getattr(settings, "first_person_answerability_prefetch_enabled", False)
+        and getattr(settings, "first_person_answerability_check_enabled", False)
+        and isinstance(pipeline, FirstPersonPipeline)
+        and pipeline._llm_service is not None
         and pipeline._llm_loop is not None
         and asyncio.get_running_loop() is pipeline._llm_loop
     ):
-        return await pipeline.aexecute(**kwargs)
-    return await asyncio.to_thread(pipeline.execute, **kwargs)
+        return None
+    tokens: list[int] = []
+    task = asyncio.ensure_future(
+        _acall(
+            _answerability_check,
+            question,
+            pipeline._llm_service,
+            request_loop=pipeline._llm_loop,
+            token_sink=tokens,
+        )
+    )
+    return question, task, tokens
+
+
+def _take_answerability_prefetch(
+    prefetch: Optional[tuple[str, Any, list[int]]], question: str
+) -> Optional[tuple[Any, list[int]]]:
+    """The prefetched (task, tokens) when it was started for exactly this question."""
+    if prefetch is None:
+        return None
+    started_for, task, tokens = prefetch
+    if started_for != question:
+        task.cancel()
+        return None
+    return task, tokens
 
 
 if __name__ == "__main__":

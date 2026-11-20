@@ -2,7 +2,7 @@
   "events": [
     {
       "confidence": 0.95,
-      "llm_tokens": 966,
+      "llm_tokens": 1100,
       "n_citations": 1,
       "n_quarantined": 0,
       "reason": "none",

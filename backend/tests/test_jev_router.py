@@ -488,7 +488,9 @@ def test_jev_picker_only_reorders_and_scorer_decides(monkeypatch):
     monkeypatch.setattr(fpp, "_relevance_select_jev", lambda *a, **k: 2)
     seen: dict = {}
 
-    def fake_scorer(query, clips, llm, request_loop=None, token_sink=None, scores_out=None):
+    def fake_scorer(
+        query, clips, llm, request_loop=None, token_sink=None, scores_out=None, is_distress=False
+    ):
         seen["order"] = [c["id"] for c in clips]
         scores_out.extend([3, 1, 0])  # real scores, in scorer (reordered) order
         return 0

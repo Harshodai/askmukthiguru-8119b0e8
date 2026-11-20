@@ -150,20 +150,21 @@ class RhetoricalResegmentationEngine:
     def load_raw_segments(self, video_id: str) -> list[dict[str, Any]]:
         path = self.raw_dir / f"{video_id}_whisper.json"
         if not path.is_file():
-            # Check local test fixture if present
-            fixture_paths = [
-                REPO / "backend" / "tests" / "fixtures" / "resegmentation_transcripts.json",
-                REPO / "tests" / "fixtures" / "resegmentation_transcripts.json",
-                Path("/app/tests/fixtures/resegmentation_transcripts.json"),
-            ]
-            for fp in fixture_paths:
-                if fp.is_file():
-                    try:
-                        f_data = json.loads(fp.read_text(encoding="utf-8"))
-                        if video_id in f_data and "raw_segments" in f_data[video_id]:
-                            return f_data[video_id]["raw_segments"]
-                    except Exception:
-                        pass
+            # Check local test fixture if present (only for default directory)
+            if self.raw_dir == RAW_WHISPER_DIR:
+                fixture_paths = [
+                    REPO / "backend" / "tests" / "fixtures" / "resegmentation_transcripts.json",
+                    REPO / "tests" / "fixtures" / "resegmentation_transcripts.json",
+                    Path("/app/tests/fixtures/resegmentation_transcripts.json"),
+                ]
+                for fp in fixture_paths:
+                    if fp.is_file():
+                        try:
+                            f_data = json.loads(fp.read_text(encoding="utf-8"))
+                            if video_id in f_data and "raw_segments" in f_data[video_id]:
+                                return f_data[video_id]["raw_segments"]
+                        except Exception:
+                            pass
             # Fallback to local stub if running on an environment without external data
             return self._fallback_raw_segments(video_id)
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -172,21 +173,22 @@ class RhetoricalResegmentationEngine:
     def load_legacy_clips(self, video_id: str) -> list[dict[str, Any]]:
         path = self.passages_dir / f"{video_id}.json"
         if not path.is_file():
-            # Check local test fixture if present
-            fixture_paths = [
-                REPO / "backend" / "tests" / "fixtures" / "resegmentation_transcripts.json",
-                REPO / "tests" / "fixtures" / "resegmentation_transcripts.json",
-                Path("/app/tests/fixtures/resegmentation_transcripts.json"),
-            ]
-            for fp in fixture_paths:
-                if fp.is_file():
-                    try:
-                        f_data = json.loads(fp.read_text(encoding="utf-8"))
-                        if video_id in f_data and "legacy_clips" in f_data[video_id]:
-                            clips = f_data[video_id]["legacy_clips"]
-                            return clips if isinstance(clips, list) else clips.get("clips", [])
-                    except Exception:
-                        pass
+            # Check local test fixture if present (only for default directory)
+            if self.passages_dir == PASSAGES_C_DIR:
+                fixture_paths = [
+                    REPO / "backend" / "tests" / "fixtures" / "resegmentation_transcripts.json",
+                    REPO / "tests" / "fixtures" / "resegmentation_transcripts.json",
+                    Path("/app/tests/fixtures/resegmentation_transcripts.json"),
+                ]
+                for fp in fixture_paths:
+                    if fp.is_file():
+                        try:
+                            f_data = json.loads(fp.read_text(encoding="utf-8"))
+                            if video_id in f_data and "legacy_clips" in f_data[video_id]:
+                                clips = f_data[video_id]["legacy_clips"]
+                                return clips if isinstance(clips, list) else clips.get("clips", [])
+                        except Exception:
+                            pass
             return self._fallback_legacy_clips(video_id)
         data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, list) else data.get("clips", [])

@@ -183,7 +183,12 @@ VIOLENCE_WORDING_RE = re.compile(
     re.IGNORECASE,
 )
 
-SELF_HARM_RE = re.compile(r"\b(?:self\s*-\s*harm|suicid\w*)\b", re.IGNORECASE)
+SELF_HARM_RE = re.compile(
+    r"\b(?:self\s*-\s*harm|suicid\w*|thinking\s+of\s+dying|want(?:ing)?\s+to\s+die"
+    r"|end(?:ing)?\s+(?:my|your|his|her|their|one'?s)\s+(?:own\s+)?life"
+    r"|take\s+(?:my|your|his|her|their|one'?s)\s+own\s+life)\b",
+    re.IGNORECASE,
+)
 
 _STATISTICAL_SELF_HARM_RE = re.compile(
     r"\b(?:"

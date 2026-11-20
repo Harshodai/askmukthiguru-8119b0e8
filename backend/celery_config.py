@@ -64,6 +64,7 @@ celery_app = Celery(
         "tasks.cache_maintenance_tasks",
         "tasks.retention_tasks",
         "tasks.celery_metrics",
+        "tasks.web_ingest_tasks",
     ],
 )
 

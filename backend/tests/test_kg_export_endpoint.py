@@ -42,7 +42,9 @@ def client(monkeypatch):
     # Explicitly force kg_export_enabled=False so the 501 guard is active
     # regardless of any KG_EXPORT_ENABLED env override.
     monkeypatch.setattr(settings, "kg_export_enabled", False)
-    return TestClient(app)
+    monkeypatch.setattr(settings, "first_person_serving_posture", "")
+    with TestClient(app) as client:
+        yield client
 
 
 @requires_qdrant
@@ -56,12 +58,11 @@ def test_export_disabled_by_default(client):
 
 
 @requires_qdrant
-def test_export_invalid_title_rejected():
+def test_export_invalid_title_rejected(client):
     # Pydantic 422 fires at request-body validation, before kg_export_enabled or
     # auth are evaluated, so no monkeypatch needed here.
-    with TestClient(app) as c:
-        response = c.post(
-            "/api/memory/knowledge-graph/export",
-            json={"view": "ontology", "title": "Test<script>alert(1)</script>"},
-        )
+    response = client.post(
+        "/api/memory/knowledge-graph/export",
+        json={"view": "ontology", "title": "Test<script>alert(1)</script>"},
+    )
     assert response.status_code == 422

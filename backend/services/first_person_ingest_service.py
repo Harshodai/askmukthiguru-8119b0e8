@@ -68,6 +68,21 @@ class FPJobState:
         return d
 
 
+def _speaker_label_for(teacher_id: str) -> str:
+    """Display speaker for an ingest job from the guru registry (T8-02).
+
+    A registered single teacher gets its label; "both" or an unknown id gets the
+    shared-corpus labels joined with " & " (the label this job always wrote).
+    """
+    from services.guru_registry import label_for, shared_attribution
+
+    single = label_for(teacher_id)
+    if single:
+        return single
+    _, shared_ids = shared_attribution()
+    return " & ".join(label for label in map(label_for, shared_ids) if label)
+
+
 def extract_youtube_video_id(url: str) -> Optional[str]:
     """Extract a YouTube ID only from supported YouTube HTTPS URLs or a raw ID.
 
@@ -237,7 +252,7 @@ def execute_first_person_video_ingestion(
     1. Rights clearance assertion and YouTube video ID extraction.
     2. Audio acquisition via yt-dlp / ffmpeg to 16kHz mono WAV.
     3. Whisper ASR transcription with word-level timestamps.
-    4. Speaker verification via ECAPA-TDNN against Sri Krishnaji / Sri Preethaji anchors.
+    4. Speaker verification via ECAPA-TDNN against the registered teachers' voice anchors.
     5. Complete-thought sentence boundary chunking with quality gates.
     6. Multi-vector Qdrant indexing into the active first-person collection + Memgraph graph.
     7. Cache invalidation and atomic job progress updates.
@@ -356,12 +371,7 @@ def execute_first_person_video_ingestion(
         # 2. Transcribe & align
         _update_stage(FPJobStage.TRANSCRIBING_WHISPER, 40)
 
-        teacher_label_map = {
-            "preethaji": "Sri Preethaji",
-            "krishnaji": "Sri Krishnaji",
-            "both": "Sri Preethaji & Sri Krishnaji",
-        }
-        speaker_label = teacher_label_map.get(teacher_id.lower(), "Sri Preethaji & Sri Krishnaji")
+        speaker_label = _speaker_label_for(teacher_id)
 
         _update_stage(FPJobStage.SPEAKER_VERIFICATION, 65)
 

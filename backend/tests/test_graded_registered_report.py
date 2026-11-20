@@ -45,6 +45,7 @@ def make_run(
                 "answerable": True,
                 "citations": [{"url": f"u{c}", "t": c}],
                 "latency_ms": latency,
+                "query_class": "conceptual",
             }
         )
     for i in range(50):  # unanswerable core

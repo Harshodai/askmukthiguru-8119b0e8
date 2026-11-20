@@ -51,6 +51,7 @@ def test_chunker_version_names_the_algorithm(monkeypatch):
         rag_chunk_size = 500
         rag_chunk_overlap = 50
         use_adaptive_chunking = False
+        embedding_cache_size = 1000
 
     monkeypatch.setattr("app.config.settings", _Settings())
 

@@ -370,7 +370,8 @@ _QUESTION_SELF_HARM_CUE_RE = re.compile(
 )
 _CLIP_MENTIONS_SELF_HARM = re.compile(
     r"\b(?:self[\s-]*harm|suicid\w*|kill(?:ing)?\s+(?:my|your|him|her|them)self"
-    r"|end(?:ing)?\s+(?:my|your|his|her|their)\s+(?:own\s+)?life|take\s+(?:my|your)\s+own\s+life)\b",
+    r"|end(?:ing)?\s+(?:my|your|his|her|their|one'?s)\s+(?:own\s+)?life|take\s+(?:my|your|his|her|their|one'?s)\s+own\s+life"
+    r"|thinking\s+of\s+dying|want(?:ing)?\s+to\s+die)\b",
     re.IGNORECASE,
 )
 
@@ -648,6 +649,16 @@ def _dense_vector(encoded: object, expected_dimension: int) -> list[float] | Non
         return None
 
 
+# Arabic/Urdu and the Indic blocks (Devanagari .. Sinhala). Latin text, punctuation and
+# typographic quotes are not in these ranges.
+_NON_LATIN_SCRIPT_RE = re.compile(r"[\u0600-\u06FF\u0750-\u077F\u0900-\u0DFF]")
+
+
+def _retrieval_query_is_latin(text: str) -> bool:
+    """True when the retrieval query carries no Indic/Arabic script (HyDE language gate)."""
+    return not _NON_LATIN_SCRIPT_RE.search(text or "")
+
+
 def _hint_reads_calm(ctx: Any, hint: str) -> bool:
     """True only when the distress assessor rates the hint NONE.
 
@@ -666,6 +677,211 @@ def _hint_reads_calm(ctx: Any, hint: str) -> bool:
     level = getattr(assessment, "level", None)
     value = getattr(level, "value", level)
     return isinstance(value, int) and not isinstance(value, bool) and value == 0
+
+
+# Labelled assistant copy for a meta follow-up (rendered in safety_notices, never in
+# the evidence body). It describes the selection; it never teaches.
+_META_FOLLOWUP_NOTES = {
+    "shorter": "You asked for something shorter, so this is a shorter passage for your earlier question.",
+    "example": "You asked for an example; this passage was chosen for your earlier question.",
+    "elaborate": "This passage goes back to your earlier question.",
+    "ordinal": (
+        "I can't see which item you mean from here, so this passage was chosen for "
+        "your earlier question as a whole."
+    ),
+}
+
+
+def _resolve_meta_followup(
+    retrieval_query: str, chat_history: list
+) -> tuple[str, str | None, int | None] | None:
+    """(retrieval query, labelled note, span cap) for a topic shift or meta follow-up, else None.
+
+    Flag ``first_person_meta_followup_enabled``; deterministic, no LLM. A topic shift
+    returns the question without its marker and no note (history is never used). A
+    meta follow-up needs a prior user turn: that turn becomes the question that is
+    retrieved and scored, so the scorer never judges clips against "say it shorter".
+    """
+    if not getattr(settings, "first_person_meta_followup_enabled", False):
+        return None
+    from rag.resolve_followup import meta_followup_kind, names_new_topic, strip_topic_shift
+
+    shifted = strip_topic_shift(retrieval_query)
+    if shifted is not None:
+        return shifted, None, None
+    kind = meta_followup_kind(retrieval_query)
+    if kind is None or not chat_history:
+        return None
+    if kind != "ordinal" and names_new_topic(retrieval_query):
+        return None
+    current = retrieval_query.strip()
+    prior = next(
+        (
+            str(m.get("content") or "").strip()[:200]
+            for m in reversed(chat_history)
+            if isinstance(m, dict)
+            and m.get("role") == "user"
+            and str(m.get("content") or "").strip()
+            and str(m.get("content") or "").strip() != current
+            # A prior meta turn ("explain the second one") is not a question to retrieve.
+            and meta_followup_kind(str(m.get("content") or "")) is None
+        ),
+        "",
+    )
+    if not prior:
+        return None
+    resolved = {
+        "shorter": prior,
+        "elaborate": prior,
+        "example": f"{prior} — an example or story",
+        "ordinal": f"{prior} — {current}",
+    }[kind]
+    return resolved, _META_FOLLOWUP_NOTES[kind], 1 if kind == "shorter" else None
+
+
+_DIFFERENCE_RE = re.compile(
+    r"\bdifference\s+between\s+(?P<a>[\w' -]{2,40}?)\s+and\s+(?P<b>[\w' -]{2,40}?)(?=[,?.;]|\s+and\s+|$)",
+    re.IGNORECASE,
+)
+_PART_SPLIT_RE = re.compile(
+    r"\?\s+(?=\S)"
+    r"|,?\s+and\s+(?:then\s+|also\s+)?(?=(?:how|why|what|which|when|where|can|should|is|does|do)\b)",
+    re.IGNORECASE,
+)
+_PART_REFERENT_RE = re.compile(r"\b(?:it|this|that|they|them|those|these|one)\b", re.IGNORECASE)
+_MULTIPART_MAX_PARTS = 2
+_PART_MIN_WORDS = 3
+
+
+def _question_parts(question: str) -> list[str]:
+    """At most two sub-questions of a multi-part question, else [] (deterministic).
+
+    "difference between A and B" becomes "What is A?" / "What is B?"; otherwise the
+    question splits on a second question mark or a coordinated question clause
+    (", and then how ..."). A later part that only points back ("it", "that") keeps
+    the first part as its context. Parts are the seeker's own words.
+    """
+    q = " ".join((question or "").split())
+    m = _DIFFERENCE_RE.search(q)
+    if m:
+        a, b = m.group("a").strip(), m.group("b").strip()
+        if a and b and a.lower() != b.lower():
+            return [f"What is {a}?", f"What is {b}?"]
+    pieces = [p.strip(" ,;") for p in _PART_SPLIT_RE.split(q) if p and p.strip(" ,;")]
+    pieces = [p for p in pieces if len(p.split()) >= _PART_MIN_WORDS]
+    if len(pieces) < 2:
+        return []
+    first, second = pieces[0], pieces[1]
+    if _PART_REFERENT_RE.search(second):
+        second = f"{first} — {second}"
+    return [first, second][:_MULTIPART_MAX_PARTS]
+
+
+def _merge_part_results(results: list[Any]) -> Any:
+    """One pipeline result from the served part results (citations in part order)."""
+    from services.first_person_pipeline import FirstPersonPipelineResult
+
+    served = [r for r in results if r is not None]
+
+    def _all(attr: str) -> list:
+        return [x for r in served for x in (getattr(r, attr, None) or [])]
+
+    return FirstPersonPipelineResult(
+        answer_text="\n\n".join(str(r.answer_text or "").strip() for r in served),
+        citations=_all("citations"),
+        status="success" if all(r.status == "success" for r in served) else "weak_match",
+        is_direct_answer=all(bool(r.is_direct_answer) for r in served),
+        latency_ms=max(float(getattr(r, "latency_ms", 0.0) or 0.0) for r in served),
+        audio_playback_clips=_all("audio_playback_clips"),
+        related_clips_heading=next(
+            (h for r in served if (h := getattr(r, "related_clips_heading", None))), None
+        ),
+        fp_served=True,
+    )
+
+
+def _multipart_note(parts: list[str], served: list[bool]) -> str:
+    """Labelled assistant copy naming which part each passage was chosen for."""
+    shown = [p for p, ok in zip(parts, served) if ok]
+    if len(shown) == len(parts):
+        listed = " ".join(f"{i}. “{p}”" for i, p in enumerate(shown, 1))
+        return (
+            f"Your question has {len(parts)} parts, so each passage below was chosen for one "
+            f"part, in order: {listed} The passages are not a combined answer."
+        )
+    return (
+        f"I found a recorded passage for only one part of your question: “{shown[0]}”. "
+        "I don't have a verified passage for the rest."
+    )
+
+
+async def _serve_question_parts(
+    container: Any,
+    pipeline: Any,
+    parts: list[str],
+    whole_question: str,
+    **serve_kwargs: Any,
+) -> tuple[Any, str] | None:
+    """Serve each part through the full gate chain in parallel; None when no part serves.
+
+    Flag ``first_person_multipart_enabled``. Each part is embedded and served exactly
+    like a standalone question (no HyDE, to bound cost); only success/weak_match
+    results with citations are kept.
+    """
+    from services.first_person_pipeline import serve_first_person
+
+    async def _one(part: str) -> Any:
+        try:
+            encoded = await container.embedding.encode_single_full_async(part)
+        except (RuntimeError, ValueError, TimeoutError, OSError) as exc:  # noqa: BLE001 - a part that cannot embed is not served
+            logger.debug("[FirstPersonBridge] Part embed unavailable: %s", type(exc).__name__)
+            return None
+        dense = _dense_vector(encoded, settings.embedding_dimension)
+        if dense is None:
+            return None
+        sparse = _sparse_vector(encoded.get("sparse") if isinstance(encoded, dict) else None)
+        try:
+            res = await serve_first_person(
+                pipeline,
+                query=part,
+                retrieval_query=part,
+                query_dense_vector=dense,
+                confidence_query_dense=dense,
+                query_sparse_vector=sparse,
+                **serve_kwargs,
+            )
+        except asyncio.CancelledError:
+            raise
+        except (RuntimeError, ValueError, TypeError, KeyError, TimeoutError, OSError) as exc:
+            logger.debug("[FirstPersonBridge] Part serve failed: %s", type(exc).__name__)
+            return None
+        ok = str(getattr(res, "status", "")) in ("success", "weak_match") and bool(
+            getattr(res, "citations", None)
+        )
+        return res if ok else None
+
+    results = list(await asyncio.gather(*(_one(p) for p in parts)))
+    # A clip already chosen for an earlier part is not repeated for a later one.
+    seen_text: set[str] = set()
+    for i, r in enumerate(results):
+        text = str(getattr(r, "answer_text", "") or "").strip() if r is not None else ""
+        if r is not None and text in seen_text:
+            results[i] = None
+        seen_text.add(text)
+    if not any(r is not None for r in results):
+        return None
+    merged = _merge_part_results(results)
+    # Each part was gated alone; the combination is re-checked against the WHOLE
+    # question (external-teacher, self-harm and relationship context live there).
+    from services.first_person_evidence_policy import first_person_evidence_policy
+
+    decision = first_person_evidence_policy.assess_contextual_safety(
+        whole_question, merged.answer_text, retrieval_query=whole_question
+    )
+    if not decision.may_serve:
+        logger.info("[FirstPersonBridge] Multipart answer failed the whole-question safety check.")
+        return None
+    return merged, _multipart_note(parts, [r is not None for r in results])
 
 
 def _fp_pipeline(container: Any) -> Any:
@@ -952,7 +1168,19 @@ class FirstPersonBridgeStage(Stage):
         # A history-resolved retrieval query depends on the conversation, but the
         # exact cache key hashes only the bare question; such a turn must bypass it.
         followup_resolved = False
-        if (
+        history_prepended = False
+        meta_note: str | None = None
+        max_context_spans: int | None = None
+        meta = _resolve_meta_followup(retrieval_query, chat_history)
+        if meta is not None:
+            # Topic shift (note None): the marker is dropped, history is not used.
+            # Meta follow-up: the prior user turn is the question that is retrieved
+            # AND scored; the seeker's request only shapes the labelled note.
+            retrieval_query, meta_note, max_context_spans = meta
+            # Both shapes depend on this flag, not only on the bare question the exact
+            # cache key hashes, so neither may read or write that cache.
+            followup_resolved = True
+        elif (
             chat_history
             and _is_heuristic_followup(retrieval_query, chat_history)
             and not names_new_topic(retrieval_query)
@@ -961,6 +1189,7 @@ class FirstPersonBridgeStage(Stage):
             if last_user:
                 retrieval_query = f"{last_user} — {retrieval_query}"
                 followup_resolved = True
+                history_prepended = True
                 logger.info(
                     "[FirstPersonBridge] Resolved follow-up query (len=%d sha=%s)",
                     len(retrieval_query),
@@ -976,14 +1205,11 @@ class FirstPersonBridgeStage(Stage):
         # that is close to actual clip verbatim_text in vector space — dramatically
         # improving recall for abstract/conceptual questions.
         # Fail-open: any timeout or error falls back to the original retrieval_query.
-        # Not applied for Indic queries (separate flag) or distress queries (safety-first).
+        # Gated on the RETRIEVAL query's script, not the UI language (2026-11-20): an Indic
+        # turn retrieves with its English translation (user_msg_en), which HyDE can expand;
+        # a failed translation leaves native script there and HyDE stays off.
         _hyde_enabled = bool(getattr(settings, "first_person_hyde_enabled", False))
-        _is_en = (
-            str(getattr(ctx, "preferred_lang", "") or getattr(ctx, "language", "") or "en")
-            .lower()
-            .startswith("en")
-        )
-        _is_distress = distress_compassion  # already computed above
+        _is_en = _retrieval_query_is_latin(retrieval_query)
 
         # Always embed the original query first — this vector is used for
         # calibrated cosine confidence scoring and must not be replaced by HyDE.
@@ -1003,6 +1229,14 @@ class FirstPersonBridgeStage(Stage):
             return await self._decline(ctx, "error", compassion=distress_compassion)
         sparse = _sparse_vector(
             original_encoded.get("sparse") if isinstance(original_encoded, dict) else None
+        )
+        # Flag first_person_answerability_prefetch_enabled: the question-only gate
+        # starts now and overlaps HyDE + retrieval; serve_first_person cancels it if
+        # the turn never reaches the gate.
+        from services.first_person_pipeline import start_answerability_prefetch
+
+        answerability_prefetch = start_answerability_prefetch(
+            _fp_pipeline(container), retrieval_query
         )
 
         # HyDE (Hypothetical Document Embeddings) for first-person retrieval.
@@ -1133,35 +1367,72 @@ class FirstPersonBridgeStage(Stage):
         from services.first_person_pipeline import serve_first_person
 
         is_compound = _is_compound_question(query)
-        result = await serve_first_person(
-            pipeline,
-            query=query,
-            # retrieval_dense is the HyDE embedding when HyDE is active; otherwise
-            # identical to `dense`. `confidence_query_dense` carries the
-            # original-query vector separately so the calibrated confidence
-            # check still compares stored-clip vectors with the seeker's own
-            # question, never with the HyDE expansion.
-            query_dense_vector=retrieval_dense,
-            confidence_query_dense=dense,
-            query_sparse_vector=sparse,
-            teacher_id="both",
-            max_clips=4 if is_compound else 3,
-            retrieval_query=retrieval_query,
-            language=user_lang,
-            # The chat cache stages honour both flags; the first-person exact
-            # cache is a cache too, so it must honour them the same way.
-            cache_bypass=(
-                getattr(ctx, "cache_bypass", False) is True
-                or getattr(ctx, "incognito", False) is True
-                or followup_resolved
-                or bool(memory_signals and memory_signals.get("seen_video_ids"))
-            ),
-            memory_signals=memory_signals,
-            # Venting/suffering queries: allow score-2 foundational clips and
-            # honor HyDE expansion alignment in confidence (not raw colloquial cosine).
-            # Lesson: L-VENTING-CONFIDENCE-HONORS-HYDE-1, L-VENTING-SCORE2-FOUNDATIONAL-ELIGIBLE-1.
-            is_distress=distress_compassion,
+        _cache_bypass = (
+            getattr(ctx, "cache_bypass", False) is True
+            or getattr(ctx, "incognito", False) is True
+            or followup_resolved
+            or bool(memory_signals and memory_signals.get("seen_video_ids"))
         )
+        # Flag first_person_multipart_enabled: each part through the full gate chain;
+        # the whole question is served as before when no part serves.
+        # Skip when history was prepended or meta follow-up active; allow on topic-shift turns.
+        parts = (
+            _question_parts(retrieval_query)
+            if (
+                getattr(settings, "first_person_multipart_enabled", False)
+                and not history_prepended
+                and meta_note is None
+            )
+            else []
+        )
+        multipart = (
+            await _serve_question_parts(
+                container,
+                pipeline,
+                parts,
+                retrieval_query,
+                teacher_id="both",
+                max_clips=3,
+                language=user_lang,
+                cache_bypass=_cache_bypass,
+                memory_signals=memory_signals,
+                is_distress=distress_compassion,
+            )
+            if len(parts) >= 2
+            else None
+        )
+        part_note: str | None = None
+        if multipart is not None:
+            result, part_note = multipart
+            if answerability_prefetch is not None:
+                answerability_prefetch[1].cancel()
+        else:
+            result = await serve_first_person(
+                pipeline,
+                query=query,
+                # retrieval_dense is the HyDE embedding when HyDE is active; otherwise
+                # identical to `dense`. `confidence_query_dense` carries the
+                # original-query vector separately so the calibrated confidence
+                # check still compares stored-clip vectors with the seeker's own
+                # question, never with the HyDE expansion.
+                query_dense_vector=retrieval_dense,
+                confidence_query_dense=dense,
+                query_sparse_vector=sparse,
+                teacher_id="both",
+                max_clips=4 if is_compound else 3,
+                retrieval_query=retrieval_query,
+                language=user_lang,
+                # The chat cache stages honour both flags; the first-person exact
+                # cache is a cache too, so it must honour them the same way.
+                cache_bypass=_cache_bypass,
+                memory_signals=memory_signals,
+                # Venting/suffering queries: allow score-2 foundational clips and
+                # honor HyDE expansion alignment in confidence (not raw colloquial cosine).
+                # Lesson: L-VENTING-CONFIDENCE-HONORS-HYDE-1, L-VENTING-SCORE2-FOUNDATIONAL-ELIGIBLE-1.
+                is_distress=distress_compassion,
+                **({"max_context_spans": max_context_spans} if max_context_spans else {}),
+                **({"answerability_prefetch": answerability_prefetch} if answerability_prefetch else {}),
+            )
 
         # Calibrated gate: the pipeline's own is_direct decision (fitted
         # profile threshold — never an invented number) plus a real success
@@ -1403,6 +1674,9 @@ class FirstPersonBridgeStage(Stage):
             _text = str(_structure_copy or "").strip()
             if _text and _text not in safety_notices:
                 safety_notices.append(_text)
+        for _note in (meta_note, part_note):
+            if _note and _note not in safety_notices:
+                safety_notices.append(_note)
 
         # PipelineContext carries the seeker's text as `user_msg`; reading
         # `user_message` always returned "" and silently disabled the
@@ -1625,6 +1899,7 @@ class FirstPersonBridgeStage(Stage):
             verification=verification,
             release_manifest=get_release_manifest().to_dict(),
             route_metadata={
+                "route_decision": "first_person_bridge",
                 "requested_variant": "first_person",
                 "selected_variant": "verbatim_clip_bridge",
                 "decision_method": "calibrated_is_direct" if is_direct else "weak_match_opt_in",
@@ -1829,6 +2104,7 @@ class FirstPersonBridgeStage(Stage):
             },
             release_manifest=get_release_manifest().to_dict(),
             route_metadata={
+                "route_decision": "first_person_abstain",
                 "requested_variant": "first_person",
                 "selected_variant": "no_match_abstain",
                 "decision_method": method,

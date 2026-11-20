@@ -501,6 +501,26 @@ class Settings(BaseSettings):
     # state, preserving byte-for-byte legacy behavior. When True, queries namespaced
     # server-side store to avoid serving recently seen clips to returning seekers.
     first_person_server_seen_clips_enabled: bool = False
+    # 2026-11-19 serve-rate work (battery: conversation turns 9/32). All default off; each
+    # is read at its call site and fingerprinted in the serving policy.
+    # Meta follow-ups ("shorter", "an example", "explain more", "the second one") retrieve
+    # and score against the PRIOR user turn; an explicit topic-shift marker ("Unrelated,")
+    # is dropped and never inherits history. Deterministic, no LLM. Bridge only.
+    first_person_meta_followup_enabled: bool = False
+    # Relevance scorer asks for exactly N scores: a per-call JSON schema with required
+    # keys clip_1..clip_N (JSON path) or a length-N example (comma path). The strict
+    # count check is unchanged; a miscount stays indeterminate.
+    first_person_relevance_exact_n_enabled: bool = False
+    # Harness honours memory_signals (seen videos/clips) by trying unseen contexts first,
+    # as the legacy path already does. Reorder only; every gate still runs.
+    first_person_context_seen_rerank_enabled: bool = False
+    # Start the question-only answerability gate concurrently with HyDE/embedding/retrieval
+    # instead of after retrieval. Same call, same verdict; only its start time moves.
+    first_person_answerability_prefetch_enabled: bool = False
+    # Multi-part questions: split deterministically into at most 2 parts, serve each part
+    # through the full gate chain in parallel, combine only served parts. Cost: one
+    # gate chain per part, only for multi-part questions.
+    first_person_multipart_enabled: bool = False
     # Owner decision 2026-10-11 (ADR-FP-1): with no calibration profile every answer is
     # weak_match. When True the bridge serves the (answerability-gated) weak_match clip,
     # labelled "Related, not a direct answer", instead of declining. RP-A4/QBUG-2

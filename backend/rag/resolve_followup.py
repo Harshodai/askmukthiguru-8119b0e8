@@ -111,6 +111,7 @@ _TOPIC_STOPWORDS = frozenset(
         "to", "and", "or", "for", "with", "about", "me", "i", "is", "are", "be", "do",
         "does", "can", "you", "please", "tell", "more", "what", "how", "why", "say",
         "explain", "elaborate", "go", "deeper", "further", "detail", "into",
+        "give", "share", "show", "example", "examples", "story", "stories", "instance", "illustration",
     }
 )  # fmt: skip
 
@@ -130,6 +131,85 @@ def names_new_topic(question: str) -> bool:
         return False
     content = [w for w in words if w not in _TOPIC_STOPWORDS]
     return len(content) >= 2
+
+
+# Explicit topic shift: a closed set of leading markers (2026-11-19 battery:
+# "Unrelated, what is the purpose of meditation?" abstained while the bare
+# question served). The marker is dropped and history is never prepended.
+_TOPIC_SHIFT_RE = re.compile(
+    r"^\s*(?:(?:ok(?:ay)?|so|now|also)[,\s]+)?"
+    r"(?:unrelated(?:\s+question)?|(?:a\s+)?(?:new|different|separate|another)\s+(?:question|topic)"
+    r"|on\s+(?:a|an)\s+(?:different|unrelated|other|another)\s+(?:note|topic)"
+    r"|chang(?:e|ing)\s+(?:the\s+)?(?:topic|subject)|switching\s+(?:topics?|gears)"
+    r"|(?:totally\s+|completely\s+)?(?:something\s+)?different)"
+    r"\s*[,:;.!?\-–—]+\s*",
+    re.IGNORECASE,
+)
+
+
+def strip_topic_shift(question: str) -> Optional[str]:
+    """The question without its explicit topic-shift marker, or None when there is none."""
+    m = _TOPIC_SHIFT_RE.match(question or "")
+    if not m:
+        return None
+    rest = question[m.end() :].strip()
+    return rest if len(rest.split()) >= 2 else None
+
+
+# Meta follow-ups: a request about the PREVIOUS answer, with no topic of its own.
+# Order matters: the first match names the kind.
+_META_FOLLOWUP_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "shorter",
+        re.compile(
+            r"\b(?:shorter|briefer|briefly|too\s+long|in\s+short|summari[sz]e|tl;?dr"
+            r"|in\s+(?:one|a\s+few|fewer)\s+(?:line|sentence|word)s?)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "example",
+        re.compile(
+            r"\b(?:give|share|tell|show)\b.{0,20}\b(?:an?\s+)?(?:example|instance|story|illustration)\b"
+            r"|^\s*(?:an?\s+|any\s+)?(?:example|story)s?\b|\bfor\s+example\s*\?",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "ordinal",
+        re.compile(
+            r"\bthe\s+(?:first|second|third|fourth|fifth|last|1st|2nd|3rd|4th|5th)"
+            r"\s+(?:one|point|part|step|secret|thing|idea)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "elaborate",
+        re.compile(
+            r"\b(?:explain|say)\s+(?:it\s+|that\s+|this\s+)?(?:more|further|again|simpl[ey]r?|more\s+simply)\b"
+            r"|\bexplain\s+(?:it|that|this)\b|\b(?:simpler|more\s+simply|simplify|in\s+simple\s+(?:words|terms))\b"
+            r"|\bwhat\s+(?:did|do)\s+you\s+mean\b|\bgo\s+deeper\b|\belaborate\b|\btell\s+me\s+more\b"
+            r"|\bhow\s+(?:do|can|should)\s+i\s+(?:practi[sc]e|apply|do|use)\s+(?:it|that|this)\b",
+            re.IGNORECASE,
+        ),
+    ),
+)
+# A meta follow-up is short; a long turn carries its own question.
+_META_FOLLOWUP_MAX_WORDS = 14
+
+
+def meta_followup_kind(question: str) -> Optional[str]:
+    """"shorter" | "example" | "ordinal" | "elaborate" for a meta follow-up, else None.
+
+    Deterministic (no LLM). A turn with an explicit topic-shift marker is never meta.
+    """
+    q = (question or "").strip()
+    if not q or len(q.split()) > _META_FOLLOWUP_MAX_WORDS or strip_topic_shift(q) is not None:
+        return None
+    for kind, pattern in _META_FOLLOWUP_PATTERNS:
+        if pattern.search(q):
+            return kind
+    return None
 
 
 def _get_last_user_message(chat_history: list) -> str:

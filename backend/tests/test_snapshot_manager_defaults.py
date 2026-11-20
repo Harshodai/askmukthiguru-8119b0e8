@@ -45,6 +45,7 @@ def test_defaults_cover_the_live_corpus_and_the_clip_index(monkeypatch):
         "spiritual_wisdom_contextual",
         "first_person_v10",
         "first_person_v11",
+        "first_person_v12_shadow",
     ]
 
 

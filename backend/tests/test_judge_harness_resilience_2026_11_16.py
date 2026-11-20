@@ -208,5 +208,6 @@ def test_concurrency_never_exceeds_four(armed, monkeypatch):
     )
     pipe._serene_mind.assess_distress.return_value = None
     pipe.execute(query="What is suffering?", query_dense_vector=[0.1] * 1024, cache_bypass=True)
-    assert llm.calls >= 5  # enough to have exceeded 4 if unbounded
-    assert state["peak"] <= fpp._HARNESS_JUDGE_CONCURRENCY == 4
+    assert llm.calls >= 5  # enough to have exceeded concurrency limit if unbounded
+    # d084cdb3 lowered the cap 4 -> 2; the invariant this test names is "never above four".
+    assert state["peak"] <= fpp._HARNESS_JUDGE_CONCURRENCY <= 4

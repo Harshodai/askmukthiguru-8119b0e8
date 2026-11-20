@@ -909,34 +909,19 @@ class FirstPersonContextHarness:
             parent_status=context.parent.completeness_status,
         )
         state = enter(HarnessState.COMPLETENESS_GATE)
-        if not gates["completeness"]:
-            # Distinguish UNCERTAIN (imprecise boundary classification → still a real
-            # teaching) from true FRAGMENT (structurally incomplete, needs predecessor).
-            # Uncertain clips follow the same pattern as boundary_uncertain: serve as
-            # SERVE_RELATED_NOT_DIRECT (weak_match) so the seeker still gets value.
-            # True fragments without their antecedent present always hard-abstain.
-            # This is future-proof: any newly ingested video tagged "uncertain" by the
-            # boundary detector also surfaces via weak_match without further code changes.
-            if self._policy.allow_uncertain_completeness and self._spans_are_uncertain_completeness(
+        # UNCERTAIN completeness (ambiguous boundary at ingest, not a FRAGMENT) is relaxed
+        # to "related" (weak_match), like boundary_uncertain: AFTER every later gate runs.
+        # 2026-11-19: the first version returned _related() here, which skipped the
+        # contextual-safety gate, the answerability NO veto, coreference, the question-only
+        # check and reconstruction (tests/test_uncertain_completeness_keeps_gates_2026_11_19.py).
+        completeness_uncertain = (
+            not gates["completeness"]
+            and self._policy.allow_uncertain_completeness
+            and self._spans_are_uncertain_completeness(
                 spans, parent_status=context.parent.completeness_status
-            ):
-                # Let through — will be served as weak_match by _related() below.
-                # The coreference + boundary + answerability gates still run, so safety
-                # is not weakened. Mark completeness as "serving uncertain" in gates.
-                gates["completeness"] = False  # keep False so is_direct stays False
-                logger.info(
-                    "[FPContextHarness] completeness=uncertain → routing as weak_match (allow_uncertain_completeness=True)"
-                )
-                # Skip directly to _related path mirroring boundary_uncertain treatment.
-                return self._related(
-                    context,
-                    "completeness_uncertain",
-                    gates,
-                    (),
-                    spans=spans,
-                    state=state,
-                    state_path=tuple(states),
-                )
+            )
+        )
+        if not gates["completeness"] and not completeness_uncertain:
             return self._abstain(
                 context,
                 "fragment_without_antecedent",
@@ -1016,6 +1001,19 @@ class FirstPersonContextHarness:
                 context,
                 "question_only_clip",
                 gates=gates,
+                state=state,
+                state_path=tuple(states),
+            )
+
+        if completeness_uncertain:
+            # _related() verifies citations itself; gates["completeness"] stays False so
+            # the clip is never direct.
+            return self._related(
+                context,
+                "completeness_uncertain",
+                gates,
+                chains,
+                spans=spans,
                 state=state,
                 state_path=tuple(states),
             )

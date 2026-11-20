@@ -161,9 +161,9 @@ def test_warning_reaches_the_startup_log(caplog):
 
 _PROD_ENV = {
     "IS_PRODUCTION": "true",
-    "SUPABASE_URL": "https://x",
+    "SUPABASE_URL": "https://example.supabase.co",
     "SUPABASE_KEY": "k",
-    "REDIS_URL": "redis://r:6379/0",
+    "REDIS_URL": "redis://default:pw@redis.railway.internal:6379/0",
     "ANON_SESSION_HMAC_SECRET": "s",
     "FORWARDED_ALLOW_IPS": "10.0.0.0/8",
     "LLM_PROVIDER": "openrouter",

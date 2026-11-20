@@ -179,8 +179,9 @@ def test_canonical_and_second_brain_both_reach_context(monkeypatch):
     # AMK-B-006: Second Brain text must never become verification evidence.
     assert evidence == _CANON
     assert "job interview" not in evidence
-    assert profile is None
-    c.user_profile.get_or_create_profile.assert_not_awaited()
+    # DEF-R2-03: user_profile is preserved alongside canonical memory
+    assert profile is not None
+    c.user_profile.get_or_create_profile.assert_awaited_once_with(_UID)
 
 
 def test_only_canonical():

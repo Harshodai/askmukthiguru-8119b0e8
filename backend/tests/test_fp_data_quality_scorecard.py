@@ -359,7 +359,9 @@ def test_committed_v10_export_baseline_is_pinned() -> None:
     # D1: mixed-script / decoder-loop text is gating, so it is excluded from the
     # clean headline below.
     assert c["script_mixed_or_loop"]["count"] == 9
-    assert c["boundary_defect_rate"]["count"] == 670
+    # 670 -> 668: d084cdb3 (owner) added inhale/exhale/breathe/relax to the accepted
+    # short openers in ingest/verbatim/boundaries.py; the export did not change.
+    assert c["boundary_defect_rate"]["count"] == 668
     assert c["duration_out_of_band_rate"]["count"] == 723
     assert c["speech_rate_out_of_band_rate"]["count"] == 99
     assert c["text_edited_vs_source_rate"]["count"] == 1339
