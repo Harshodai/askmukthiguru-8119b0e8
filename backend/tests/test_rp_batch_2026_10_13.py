@@ -196,6 +196,9 @@ def test_abstain_reasons_are_a_fixed_bounded_set():
             "answerability_withheld",
             "relevance_below_min",
             "relevance_indeterminate",
+            # 2026-11-20: joint sufficiency judge (default-off flag). Deliberate additions.
+            "joint_insufficient",
+            "joint_sufficiency_indeterminate",
             "no_verified_clips",
             "topic_blocked",
             # 2026-10-22 (B4): the legacy store pointed at an fp-context

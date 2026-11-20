@@ -774,6 +774,8 @@ FIRST_PERSON_ABSTAIN_REASONS = frozenset(
         "answerability_withheld",  # question gate said NO or indeterminate
         "relevance_below_min",  # scored, best clip under the minimum
         "relevance_indeterminate",  # scorer itself failed (timeout/error/unparseable)
+        "joint_insufficient",  # joint sufficiency judge said INSUFFICIENT (flag-gated)
+        "joint_sufficiency_indeterminate",  # that judge failed or replied off-contract
         "no_verified_clips",  # nothing servable survived retrieval+gates
         "topic_blocked",  # topic rail refused the question
         # B4 (2026-10-22): the legacy store pointed at a collection whose

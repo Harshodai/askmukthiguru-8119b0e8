@@ -511,6 +511,9 @@ class Settings(BaseSettings):
     # keys clip_1..clip_N (JSON path) or a length-N example (comma path). The strict
     # count check is unchanged; a miscount stays indeterminate.
     first_person_relevance_exact_n_enabled: bool = False
+    # One extra judge call per served clip: SUFFICIENT/INSUFFICIENT for (question, clip).
+    # Anything but an exact SUFFICIENT abstains (joint_insufficient / joint_sufficiency_indeterminate).
+    first_person_joint_sufficiency_enabled: bool = False
     # Harness honours memory_signals (seen videos/clips) by trying unseen contexts first,
     # as the legacy path already does. Reorder only; every gate still runs.
     first_person_context_seen_rerank_enabled: bool = False
