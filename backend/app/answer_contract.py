@@ -11,6 +11,7 @@ from typing import Any
 _SYSTEM_REASONS = frozenset(
     {
         "relevance_indeterminate",
+        "joint_sufficiency_indeterminate",  # the sufficiency judge call failed, not "insufficient"
         "serving_contract_violation",
         "store_unavailable",
         "quote_contract_violation",

@@ -572,9 +572,9 @@ def _is_scorer_retryable(exc: BaseException) -> bool:
     failure that consumed most of the deadline is congestion, and repeating it only
     doubles the seeker's wait.
     """
-    from services.openrouter_service import ProviderRateLimitedError
+    from services.openrouter_service import ProviderAuthError, ProviderRateLimitedError
 
-    if isinstance(exc, ProviderRateLimitedError):
+    if isinstance(exc, (ProviderRateLimitedError, ProviderAuthError)):
         return False
     return (
         isinstance(exc, (TimeoutError, ProviderConnectionError))

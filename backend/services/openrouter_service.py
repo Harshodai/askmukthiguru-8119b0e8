@@ -93,7 +93,13 @@ def _is_retryable_openrouter_error(exc: BaseException) -> bool:
     404 again. 404s are handled one level up by failing over to
     fallback_model, not by retrying in place.
     """
-    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (401, 403, 404, 429):
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (
+        401,
+        402,
+        403,
+        404,
+        429,
+    ):
         return False
     return isinstance(exc, (httpx.HTTPError, asyncio.TimeoutError))
 
@@ -141,6 +147,12 @@ class ProviderConnectionError(RuntimeError):
     ``strict_gateway=True`` so the gateway circuit breaker can trip. The
     standalone path keeps returning the canned graceful-degradation string.
     """
+
+
+class ProviderAuthError(ProviderConnectionError):
+    """Key/credit failure (HTTP 401/402/403): every call fails until the owner fixes
+    the key or limit. Subclass of ProviderConnectionError so existing handlers still
+    catch it; callers that retry transient errors must not retry this one."""
 
 
 class ProviderRateLimitedError(ProviderConnectionError):
@@ -931,6 +943,7 @@ class OpenRouterService:
             # Only count service errors (5xx) and non-HTTP failures.
             is_auth_error = isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in (
                 401,
+                402,
                 403,
             )
             if is_auth_error:
@@ -942,7 +955,7 @@ class OpenRouterService:
                     f"OpenRouter auth error ({exc.response.status_code}) during {operation} (model={model}) — graceful degradation"
                 )
                 if strict_gateway:
-                    raise ProviderConnectionError(
+                    raise ProviderAuthError(
                         f"OpenRouter auth error ({exc.response.status_code}) during {operation}"
                     ) from exc
                 return await self._graceful_degradation(messages, operation=operation)
