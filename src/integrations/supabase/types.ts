@@ -1612,6 +1612,24 @@ export type Database = {
         }
         Relationships: []
       }
+      launch_signup_throttle: {
+        Row: {
+          bucket: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          id?: never
+        }
+        Relationships: []
+      }
       meditation_sessions: {
         Row: {
           breath_cycles: number | null
@@ -2710,6 +2728,54 @@ export type Database = {
           },
         ]
       }
+      upcoming_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string | null
+          id: string
+          image_url: string | null
+          link_url: string | null
+          location: string | null
+          media_path: string | null
+          media_type: string | null
+          media_url: string | null
+          starts_at: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          location?: string | null
+          media_path?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          starts_at: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          link_url?: string | null
+          location?: string | null
+          media_path?: string | null
+          media_type?: string | null
+          media_url?: string | null
+          starts_at?: string
+          title?: string
+        }
+        Relationships: []
+      }
       user_brain_edges: {
         Row: {
           created_at: string
@@ -2785,6 +2851,39 @@ export type Database = {
           version?: number
           wrap_mode?: string
           wrapped_dek?: string
+        }
+        Relationships: []
+      }
+      user_brain_keys_archive_20261119: {
+        Row: {
+          created_at: string | null
+          kdf: Json | null
+          rotated_at: string | null
+          updated_at: string | null
+          user_id: string | null
+          version: number | null
+          wrap_mode: string | null
+          wrapped_dek: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          kdf?: Json | null
+          rotated_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          version?: number | null
+          wrap_mode?: string | null
+          wrapped_dek?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          kdf?: Json | null
+          rotated_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          version?: number | null
+          wrap_mode?: string | null
+          wrapped_dek?: string | null
         }
         Relationships: []
       }
@@ -3481,6 +3580,11 @@ export type Database = {
       }
       demote_admin_by_id: { Args: { _user_id: string }; Returns: Json }
       ensure_profile_and_role: { Args: never; Returns: Json }
+      erase_launch_subscription: { Args: { p_email: string }; Returns: string }
+      erase_launch_subscription_with_token: {
+        Args: { p_email: string; p_token: string }
+        Returns: string
+      }
       has_active_memory_consent: {
         Args: { p_tenant_id: string; p_user_id: string }
         Returns: boolean
@@ -3491,6 +3595,11 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      launch_client_key: { Args: never; Returns: string }
+      launch_throttle_hit: {
+        Args: { p_bucket: string; p_limit: number }
+        Returns: undefined
       }
       list_admins: {
         Args: never
@@ -3523,6 +3632,10 @@ export type Database = {
         }[]
       }
       promote_admin_by_email: { Args: { _email: string }; Returns: Json }
+      purge_expired_launch_subscribers: {
+        Args: { p_months?: number }
+        Returns: number
+      }
       record_practice: {
         Args: { p_practice_date?: string; p_user_id: string }
         Returns: {
@@ -3590,12 +3703,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      erase_launch_subscription: { Args: { p_email: string }; Returns: string }
-      erase_launch_subscription_with_token: {
-        Args: { p_email: string; p_token: string }
-        Returns: string
-      }
-      purge_expired_launch_subscribers: { Args: { p_months?: number }; Returns: number }
       seed_admin_demo: { Args: never; Returns: Json }
       subscribe_launch_updates: {
         Args: { p_consent: boolean; p_email: string; p_source: string }
