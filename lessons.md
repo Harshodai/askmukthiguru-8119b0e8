@@ -1,6 +1,36 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 21, 2026 (late night) — Smoke abstain causes, anon token pacing, prerender check, migration boundary
+
+### L-SMOKE-BATTERY-ABSTAIN-CAUSE-PROVIDER-OUTAGE-1. Differentiating upstream outages from algorithmic abstains in smoke batteries.
+- **What:** When an upstream LLM provider is down or rate-limited (`system_unavailable`), smoke batteries must not report a generic abstain. `live_smoke_battery.py` now parses `verification.abstain_cause` and loudly fails with `[PROVIDER OUTAGE: ...]` on exit code 1.
+- **Rule:** Never mask provider unavailability as algorithmic confidence rejection (`no_evidence`). Batteries must surface provider outages immediately.
+
+### L-ANON-SESSION-MINT-PACING-EVAL-1. Pace anonymous session token minting at 12.5s for live quality evaluation.
+- **What:** The anonymous session endpoint (`/api/auth/anon-session`) enforces a strict 5/min/IP rate limit. Unpaced concurrent test runs hit 429 throttles immediately.
+- **Rule:** Live evaluation suites (`run_eval.py`) must pace session creation at >=12.5s intervals (or reuse existing session IDs across turns) to avoid IP throttling.
+
+### L-UI-SWEEP-PRERENDER-29-ROUTES-1. Full UI sweep verification requires explicit check of static SEO prerendered routes.
+- **What:** UI sweep changes can introduce client-only imports or missing chunk references that pass component tests but break static SEO route prerendering during production builds.
+- **Rule:** UI verification must execute `npm run build` to confirm all 29 static SEO routes prerender cleanly and verify lazy-loaded chunks (`UnsubscribePage`, `PrivacyPage`, `ChatPage`) via live HTTP 200 checks.
+
+### L-DPDP-MIGRATION-CONTRACT-BOUNDARY-CHECK-1. Avoid brittle repo-wide migration sorting assertions when adding feature migrations.
+- **What:** Contract tests asserting no migration exists after a specific timestamp (`assert not later`) break legitimately when subsequent feature migrations (`20261121090000_upcoming_events.sql`) merge.
+- **Rule:** Bound migration contract tests to their specific domain prefix or scope rather than asserting absolute repository-wide timestamp maxima.
+
+
+## Nov 21, 2026 (night) — UI sweep merge, pinned commit deploy, events migration
+
+### L-PINNED-COMMIT-DEPLOY-TRIGGER-1. Railway pinned commits require explicit serviceInstanceDeployV2 mutation.
+- **What:** When a service source is pinned to commit SHAs rather than tracking HEAD automatically, git push to GitHub does not trigger a Railway build/deploy. Deploying commit `9f2c89d4` required calling Railway's GraphQL mutation `serviceInstanceDeployV2(environmentId, serviceId, commitSha)` for both `askmukthiguru-8119b0e8` (`18690f24-5e2d-4fdb-95f6-42142111df7e`) and `celery-worker` (`9ac523d7-4eae-4db5-9b2a-37906634203b`).
+- **Rule:** When deploying after code is pushed to `main`, explicitly verify whether services are pinned. If pinned, trigger deploy via `serviceInstanceDeployV2` with the target `commitSha` and verify the boot log `Serving posture:` line matches expected parameters before running smoke batteries.
+
+### L-UI-SWEEP-EVENTS-MIGRATION-SYNC-1. Upcoming events feature adds Supabase table upcoming_events and storage bucket event-media.
+- **What:** The UI sweep in commit `9f2c89d4` added `upcoming_events` table and `event-media` bucket (`supabase/migrations/20261121090000_upcoming_events.sql`), plus Celery hourly media cleanup `event_media_tasks.py`.
+- **Rule:** Ensure migrations are applied in Supabase (or synced via Lovable push) and worker redeployed so scheduled Celery tasks register.
+
+
 ## Nov 21, 2026 (after midnight) — deploy, key outage, honest outage copy, handoff
 
 ### L-ONE-KEY-FOR-EVAL-AND-PROD-TAKES-PROD-DOWN-1. Measurement runs and production must not share an OpenRouter key.
