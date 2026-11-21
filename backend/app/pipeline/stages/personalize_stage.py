@@ -610,6 +610,23 @@ class PersonalizeStage(Stage):
             state["seeker_guidance"] = UnifiedPersonalizationEngine.format_prompt_guidance(
                 seeker_ctx
             )
+            # Bridge hydrated canonical memories to verifier evidence so LettuceDetect
+            # in verification.py:152 receives seeker realizations as valid reference evidence.
+            if seeker_ctx and seeker_ctx.second_brain and seeker_ctx.second_brain.canonical_memories:
+                mem_lines = []
+                for m in seeker_ctx.second_brain.canonical_memories:
+                    stmt = (
+                        m.get("statement")
+                        if isinstance(m, dict)
+                        else getattr(m, "statement", None)
+                    )
+                    if stmt and str(stmt).strip():
+                        mem_lines.append(f"- {str(stmt).strip()}")
+                if mem_lines:
+                    mem_evidence = "\n".join(mem_lines)
+                    state["canonical_memory_evidence"] = mem_evidence
+                    if hasattr(ctx, "state") and isinstance(ctx.state, dict):
+                        ctx.state["canonical_memory_evidence"] = mem_evidence
         except Exception as _pers_exc:
             logger.warning(
                 "[PersonalizeStage] Unified personalization hydration warning: %s", _pers_exc

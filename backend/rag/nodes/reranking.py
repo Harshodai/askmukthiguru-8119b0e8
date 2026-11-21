@@ -295,35 +295,49 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
         d.get("rerank_score") for d in reranked_docs if d.get("rerank_score") is not None
     ]
     min_score = getattr(settings, "rerank_min_score", 0.35)
+    fallback_floor = getattr(settings, "rerank_fallback_floor", 0.22)
 
     if rerank_scores:
         top_score = max(rerank_scores)
         if top_score < min_score:
-            logger.warning(
-                f"Confidence gate: top rerank score {top_score:.3f} < min {min_score}. "
-                f"Rejecting {len(reranked_docs)} docs."
-            )
-            return {
-                "relevant_docs": [],
-                "low_confidence_retrieval": True,
-                "evaluation_trace": _trace_update(
-                    state,
-                    relevant_count=0,
-                    low_confidence=True,
-                    top_rerank_score=round(top_score, 4),
-                ),
-            }
-
-        # CRAG relevance floor: drop docs that fall below a fraction of the top score
-        crag_floor = top_score * getattr(settings, "crag_score_delta_ratio", 0.5)
-        crag_floor = max(crag_floor, min_score)
-        before_count = len(reranked_docs)
-        reranked_docs = [doc for doc in reranked_docs if doc.get("rerank_score", 0.0) >= crag_floor]
-        if before_count != len(reranked_docs):
+            if top_score < fallback_floor:
+                logger.warning(
+                    f"Confidence gate: top rerank score {top_score:.3f} < fallback floor {fallback_floor:.3f}. "
+                    f"Rejecting {len(reranked_docs)} docs."
+                )
+                return {
+                    "relevant_docs": [],
+                    "low_confidence_retrieval": True,
+                    "evaluation_trace": _trace_update(
+                        state,
+                        relevant_count=0,
+                        low_confidence=True,
+                        top_rerank_score=round(top_score, 4),
+                    ),
+                }
             logger.info(
-                f"CRAG floor applied: top={top_score:.3f} floor={crag_floor:.3f} "
-                f"{before_count} -> {len(reranked_docs)} docs"
+                f"Confidence gate: top rerank score {top_score:.3f} < min {min_score}, "
+                f"but >= fallback floor {fallback_floor:.3f}. Preserving candidate documents for grading/generation."
             )
+            crag_floor = max(fallback_floor, top_score * getattr(settings, "crag_score_delta_ratio", 0.5))
+            before_count = len(reranked_docs)
+            reranked_docs = [doc for doc in reranked_docs if doc.get("rerank_score", 0.0) >= crag_floor]
+            if before_count != len(reranked_docs):
+                logger.info(
+                    f"Dynamic fallback floor applied: top={top_score:.3f} floor={crag_floor:.3f} "
+                    f"{before_count} -> {len(reranked_docs)} docs"
+                )
+        else:
+            # CRAG relevance floor: drop docs that fall below a fraction of the top score
+            crag_floor = top_score * getattr(settings, "crag_score_delta_ratio", 0.5)
+            crag_floor = max(crag_floor, min_score)
+            before_count = len(reranked_docs)
+            reranked_docs = [doc for doc in reranked_docs if doc.get("rerank_score", 0.0) >= crag_floor]
+            if before_count != len(reranked_docs):
+                logger.info(
+                    f"CRAG floor applied: top={top_score:.3f} floor={crag_floor:.3f} "
+                    f"{before_count} -> {len(reranked_docs)} docs"
+                )
 
     intent = state.get("intent", "FACTUAL")
     if intent == "DISTRESS":

@@ -1391,6 +1391,7 @@ class Settings(BaseSettings):
     rag_indic_max_rewrites: int = Field(default=1, ge=0, le=3)
     rag_context_window: int = 2  # Fetch N chunks before/after each retrieved chunk
     rerank_min_score: float = 0.35  # Min CrossEncoder score (sigmoid-normalized) to keep a doc
+    rerank_fallback_floor: float = 0.22  # Fallback CrossEncoder floor for candidate retention before CRAG grading
     rag_use_context_compression: bool = False  # Set to True to enable LLM-based context compression
     rag_context_compression_threshold: int = (
         20000  # Only compress context if character length exceeds this threshold

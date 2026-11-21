@@ -1612,7 +1612,13 @@ def _require_state(state: GraphState, required: list[str]) -> Optional[dict]:
     return None
 
 
-def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[str, bool, int]:
+def _verify_inline_citations(
+    answer: str,
+    retrieved_docs: list,
+    claims_verified_grounded: bool = False,
+    faithfulness_score: float | None = None,
+    unsupported_count: int | None = None,
+) -> tuple[str, bool, int]:
     """Resolve inline citation markers, strip orphans, and verify paragraph grounding.
 
     Supports both [[CITE:N]] and [N] marker patterns.  Delegates marker
@@ -1683,10 +1689,22 @@ def _verify_inline_citations(answer: str, retrieved_docs: list) -> tuple[str, bo
     orphan_citations_stripped = max(0, orig_markers - stripped_markers)
 
     # Phase 4: verify grounding on the remaining text
-    resolved = resolve(_normalize_in(stripped), retrieved_docs)
+    resolved = resolve(
+        _normalize_in(stripped),
+        retrieved_docs,
+        claims_verified_grounded=claims_verified_grounded,
+        faithfulness_score=faithfulness_score,
+        unsupported_count=unsupported_count,
+    )
     citations_verified = resolved.grounded
 
-    if citations_verified and not _check_grounding(_normalize_in(stripped), retrieved_docs):
+    if citations_verified and not _check_grounding(
+        _normalize_in(stripped),
+        retrieved_docs,
+        claims_verified_grounded=claims_verified_grounded,
+        faithfulness_score=faithfulness_score,
+        unsupported_count=unsupported_count,
+    ):
         citations_verified = False
 
     return stripped, citations_verified, orphan_citations_stripped

@@ -105,7 +105,12 @@ def format_reference(src: Source, style: CitationStyle = CitationStyle.INLINE_NU
 
 
 def resolve(
-    answer: str, context_items: list[Any], style: CitationStyle = CitationStyle.INLINE_NUMERIC
+    answer: str,
+    context_items: list[Any],
+    style: CitationStyle = CitationStyle.INLINE_NUMERIC,
+    claims_verified_grounded: bool = False,
+    faithfulness_score: float | None = None,
+    unsupported_count: int | None = None,
 ) -> CitedAnswer:
     """Map inline `[^n]` markers to sources and build the reference list.
 
@@ -130,7 +135,13 @@ def resolve(
         for n in seen_order
     ]
 
-    grounded = _check_grounding(answer, context_items)
+    grounded = _check_grounding(
+        answer,
+        context_items,
+        claims_verified_grounded=claims_verified_grounded,
+        faithfulness_score=faithfulness_score,
+        unsupported_count=unsupported_count,
+    )
 
     return CitedAnswer(
         text=answer,
@@ -161,21 +172,49 @@ def _to_source(item: Any, pos: int) -> Source:
     )
 
 
-def _check_grounding(answer: str, context_items: list[Any]) -> bool:
+def _check_grounding(
+    answer: str,
+    context_items: list[Any],
+    claims_verified_grounded: bool = False,
+    faithfulness_score: float | None = None,
+    unsupported_count: int | None = None,
+) -> bool:
     """Heuristic: an answer is 'grounded' if every substantive paragraph
     (exceeding 25 words) has at least one citation marker. Short answers
     (single paragraph <= 25 words) also require a citation. An answer with
     NO retrieved context cannot be grounded (nothing to verify against)
     — this closes the P1-AI-12 vacuous-truth gap where empty context
     reported "grounded" and hid ungrounded answers. An empty answer is
-    trivially grounded (nothing to verify)."""
+    trivially grounded (nothing to verify).
+
+    When LettuceDetect or claim verification has verified that all claims
+    are grounded (faithfulness_score >= 0.70 and 0 unsupported claims, or
+    claims_verified_grounded=True), do not reject citations_verified purely
+    because an introductory or concluding paragraph (> 25 words) lacks an
+    inline marker, provided the answer as a whole has valid citation markers.
+    """
     if not answer.strip():
         return True
     if not context_items:
         return False
+    if not _MARKER_RE.search(answer):
+        return False
+
+    is_verified_grounded = claims_verified_grounded or (
+        faithfulness_score is not None
+        and faithfulness_score >= 0.70
+        and (unsupported_count is None or unsupported_count == 0)
+    )
+
     paragraphs = [p for p in re.split(r"\n{2,}", answer) if p.strip()]
     if not paragraphs:
         return True
+
+    # If claim verification proved all claims grounded and valid markers exist,
+    # do not reject purely on paragraph-level marker absence.
+    if is_verified_grounded:
+        return True
+
     # Single short answer (<= 25 words) still requires a citation
     if len(paragraphs) == 1:
         word_count = len(paragraphs[0].split())

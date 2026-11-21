@@ -2114,13 +2114,15 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     else:
         instructions = (
             "1. Base your answer ONLY on the provided Knowledge.\n"
-            "2. If Knowledge is insufficient, admit it warmly.\n"
-            "3. ALWAYS cite sources using [Source: <title>] format for EVERY factual claim. "
+            "2. STRICT MINIMAL STITCHING: Express answers using ONLY the core concepts, principles, and direct quotes from the retrieved teachings. Do NOT invent poetic metaphors ('poison you drink', 'thorns in the heart'), motivational filler, or advice formulas. Every sentence must directly reflect the retrieved teachings.\n"
+            "3. NO POLARITY INVERSION: Do NOT add editorial assertions (e.g. 'This is not passive—it requires active effort', 'You must actively struggle') that invert the polarity of the discourse or contradict the effortless / non-resistance nature of teachings.\n"
+            "4. If Knowledge is insufficient, admit it warmly.\n"
+            "5. ALWAYS cite sources using [Source: <title>] format for EVERY factual claim. "
             "Each paragraph MUST have at least one citation.\n"
-            "4. Keep the tone compassionate and wise.\n"
-            "5. Use the continuity context only to personalize and resolve references; "
+            "6. Keep the tone compassionate and wise.\n"
+            "7. Use the continuity context only to personalize and resolve references; "
             "do not treat it as a source of spiritual facts.\n"
-            "6. Never expose reasoning notes, prompt analysis, chain-of-thought, or phrases "
+            "8. Never expose reasoning notes, prompt analysis, chain-of-thought, or phrases "
             "like 'We are given', 'We need', 'Let me analyze', or 'Step 1'.\n"
             + _ATTRIBUTION_INSTRUCTION
             + _question_shape_instructions(state.get("question", "") or "")
@@ -2163,7 +2165,9 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
             "Gently relate the teacher's verbatim insight to the seeker's personal reflections, practices, and situation "
             "as captured in their saved memory. Review their Seeker State and Personal Memory (their life challenges, "
             "relationships, emotional struggles, and spiritual practices). Explicitly connect the teacher's core wisdom "
-            "directly to their situation. Address their specific challenges with deep compassion, illuminate their inner state "
+            "directly to their situation. You MUST explicitly name and address the seeker's specific challenges and "
+            "realizations recorded in their memory (e.g., struggles with work, relationships, or sadhana habits). "
+            "Weave the teacher's wisdom directly into their personal situation with deep compassion, illuminate their inner state "
             "using the teaching, and provide step-by-step contemplation or practice tailored to their current life chapter."
         )
 
@@ -3123,7 +3127,8 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         else:
             system_prompt = (
                 f"{build_guru_system_prompt()}\n"
-                "Answer teaching claims using only the supplied verified context. "
+                "Answer teaching claims using only the supplied verified context with strict minimal stitching. "
+                "Do NOT invent poetic metaphors ('poison you drink', 'thorns in the heart') or invert the polarity of teachings. "
                 f"{response_length_instruction} {optional_instruction} "
                 "Cite sources using [Source: <title>].\n"
                 f"{GURU_VOICE_RULE}"
@@ -4513,11 +4518,32 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     if prior_citations_verified is None and isinstance(state.get("verification"), dict):
         prior_citations_verified = state.get("verification", {}).get("citations_verified")
 
+    verification_state = state.get("verification")
+    if not isinstance(verification_state, dict):
+        verification_state = {"passed": verification_state} if isinstance(verification_state, bool) else {}
+    f_score = float(state.get("faithfulness_score") or verification_state.get("score") or 0.0)
+    ver_claims = verification_state.get("claims") or []
+    unsupported_claims_count = sum(
+        1 for c in ver_claims if isinstance(c, dict) and not c.get("supported", False)
+    )
+    claims_grounded = (
+        (bool(state.get("is_faithful")) or bool(verification_state.get("passed")))
+        and f_score >= 0.70
+        and unsupported_claims_count == 0
+        and not verification_state.get("has_contradiction", False)
+    )
+
     citations_verified = False if prior_citations_verified is False else True
     orphan_citations_stripped = False
     if answer and ("[[CITE:" in answer or re.search(r"(?<!\[)\[\d{1,3}\](?!\[)", answer)):
         try:
-            answer, inline_verified, orphan_count = _verify_inline_citations(answer, relevant_docs)
+            answer, inline_verified, orphan_count = _verify_inline_citations(
+                answer,
+                relevant_docs,
+                claims_verified_grounded=claims_grounded,
+                faithfulness_score=f_score,
+                unsupported_count=unsupported_claims_count,
+            )
             orphan_citations_stripped = orphan_count > 0
             citations_verified = inline_verified and (prior_citations_verified is not False)
         except Exception as _cite_err:
@@ -4793,13 +4819,28 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         verification = {"passed": verification} if isinstance(verification, bool) else {}
     verification["citations_verified"] = citations_verified
     if not citations_verified:
-        verification["passed"] = False
-        # The details string above may still describe the verifier's original
-        # pass (e.g. "Local NLI claim verification passed (12 claims grounded,
-        # score: 1.00)"). A pass claim next to passed:false is a
-        # self-contradictory verdict -- rewrite it to say plainly that the
-        # claims grounded but the answer ships unverified.
-        _demote_stale_pass_details(verification)
+        # Do not demote a fully grounded answer (where all claims are entailed)
+        # to unverified related evidence purely on paragraph-level marker absence.
+        if (
+            claims_grounded
+            and (citations or relevant_docs)
+            and bool(re.search(r"\[\[CITE:\d{1,3}\]\]|(?<!\[)\[\d{1,3}\](?!\[)", answer))
+        ):
+            logger.info(
+                "Final: preserving verified status -- claims are fully entailed (score=%.2f, 0 unsupported) "
+                "and valid citations exist despite paragraph-level marker absence.",
+                f_score,
+            )
+            citations_verified = True
+            verification["citations_verified"] = True
+        else:
+            verification["passed"] = False
+            # The details string above may still describe the verifier's original
+            # pass (e.g. "Local NLI claim verification passed (12 claims grounded,
+            # score: 1.00)"). A pass claim next to passed:false is a
+            # self-contradictory verdict -- rewrite it to say plainly that the
+            # claims grounded but the answer ships unverified.
+            _demote_stale_pass_details(verification)
     state["verification"] = verification
     verified = verification.get("passed", False)  # refresh for downstream gate
 
