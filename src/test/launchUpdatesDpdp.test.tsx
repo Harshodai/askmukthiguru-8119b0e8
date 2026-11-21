@@ -23,17 +23,17 @@ describe('launch updates erase path', () => {
 
   it('sends only the normalized email and never echoes it', async () => {
     rpcMock.mockResolvedValue({ data: 'accepted', error: null });
-    const result = await submitLaunchErase('  Seeker@Example.COM ');
+    const result = await submitLaunchErase('  Seeker@Example.COM ', '11111111-1111-1111-1111-111111111111');
     expect(result).toEqual({ status: 'accepted' });
-    expect(rpcMock).toHaveBeenCalledWith('erase_launch_subscription', { p_email: 'seeker@example.com' });
+    expect(rpcMock).toHaveBeenCalledWith('erase_launch_subscription_with_token', { p_email: 'seeker@example.com', p_token: '11111111-1111-1111-1111-111111111111' });
     expect(JSON.stringify(result)).not.toContain('seeker');
   });
 
   it('does not call the database for a malformed address, and maps errors to one failure', async () => {
-    expect(await submitLaunchErase('nope')).toEqual({ status: 'failed', reason: 'invalid_email' });
+    expect(await submitLaunchErase('nope', '11111111-1111-1111-1111-111111111111')).toEqual({ status: 'failed', reason: 'invalid_email' });
     expect(rpcMock).not.toHaveBeenCalled();
     rpcMock.mockResolvedValue({ data: null, error: { message: 'Signup temporarily busy' } });
-    expect(await submitLaunchErase('seeker@example.com')).toEqual({ status: 'failed', reason: 'request_failed' });
+    expect(await submitLaunchErase('seeker@example.com', '11111111-1111-1111-1111-111111111111')).toEqual({ status: 'failed', reason: 'request_failed' });
   });
 });
 
@@ -55,7 +55,7 @@ describe('consent copy and unsubscribe UI', () => {
   it('erases and shows the same neutral confirmation', async () => {
     rpcMock.mockResolvedValue({ data: 'accepted', error: null });
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/unsubscribe?token=11111111-1111-1111-1111-111111111111"]}>
         <UnsubscribePage />
       </MemoryRouter>,
     );

@@ -72,12 +72,14 @@ export async function submitLaunchSignup({
  * list, so this never reveals membership. Interim design: there is no confirmation email yet
  * (PENDING), so the RPC is throttled server-side instead. Never logs or returns the address.
  */
-export async function submitLaunchErase(email: string): Promise<LaunchSignupResult> {
+export async function submitLaunchErase(email: string, token: string | null): Promise<LaunchSignupResult> {
   const normalized = sanitizeLaunchEmail(email);
   if (!isPlausibleLaunchEmail(normalized)) {
     return { status: 'failed', reason: 'invalid_email' };
   }
-  const { data, error } = await supabase.rpc('erase_launch_subscription', { p_email: normalized });
+  const t = (token ?? '').trim();
+  if (!/^[0-9a-f-]{36}$/i.test(t)) return { status: 'failed', reason: 'request_failed' };
+  const { data, error } = await supabase.rpc('erase_launch_subscription_with_token', { p_email: normalized, p_token: t });
   if (error) return { status: 'failed', reason: 'request_failed' };
   return data === 'accepted' ? { status: 'accepted' } : { status: 'failed', reason: 'request_failed' };
 }

@@ -1,6 +1,6 @@
 import { FormEvent, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +15,9 @@ type Status = 'idle' | 'working' | 'done' | 'error';
 const UnsubscribePage = () => {
   const { t } = useTranslation();
   const emailId = useId();
-  const [email, setEmail] = useState('');
+  const [params] = useSearchParams();
+  const token = params.get('token');
+  const [email, setEmail] = useState(params.get('email') ?? '');
   const [status, setStatus] = useState<Status>('idle');
 
   usePageMeta({
@@ -35,7 +37,7 @@ const UnsubscribePage = () => {
       return;
     }
     setStatus('working');
-    const result = await submitLaunchErase(email);
+    const result = await submitLaunchErase(email, token);
     setStatus(result.status === 'accepted' ? 'done' : 'error');
   };
 
