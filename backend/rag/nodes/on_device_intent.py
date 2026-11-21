@@ -572,6 +572,16 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
         r"\b(?:want\s+to\s+die|kill\s+myself|hurt\s+myself|self[-\s]?harm|suicid)\b",
         lower,
     )
+    from services.serene_mind_engine import is_doctrinal_topic_inquiry
+
+    if is_doctrinal_topic_inquiry(text):
+        logger.info(
+            "On-device classifier FACTUAL bypass (is_doctrinal_topic_inquiry) (len=%d sha=%s)",
+            len(text),
+            hashlib.sha256(text.encode()).hexdigest()[:12],
+        )
+        return "FACTUAL", "tier2_simple", "on_device_doctrine_distress_disambiguation"
+
     if doctrine_suffering and not first_person_distress and not acute_distress:
         logger.info(
             "On-device classifier FACTUAL bypass (doctrine-framed suffering) (len=%d sha=%s)",

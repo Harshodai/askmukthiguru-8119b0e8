@@ -23,3 +23,15 @@ def test_first_person_distress_still_routes_distress(no_encoder):
 
 def test_acute_phrase_still_routes_distress(no_encoder):
     assert odi.classify_with_embeddings("I want to die") == "DISTRESS"
+
+
+def test_classify_with_reason_doctrinal_inquiry_bypasses_distress():
+    intent, tier, reason = odi.classify_with_reason("How can I overcome anxiety and fear?")
+    assert intent == "FACTUAL"
+    assert tier == "tier2_simple"
+    assert reason == "on_device_doctrine_distress_disambiguation"
+
+
+def test_classify_with_reason_crisis_routes_distress():
+    intent, tier, _ = odi.classify_with_reason("I feel suicidal and want to end it all")
+    assert intent == "DISTRESS"
