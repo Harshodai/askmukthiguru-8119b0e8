@@ -295,7 +295,7 @@ class Settings(BaseSettings):
     # both slots on first_person_v10; "v8_bridge" requires both flags off. A mismatch
     # stops startup (services/first_person_serving_contract.assert_startup_safe).
     # "" = undeclared: unchanged behaviour, plus a production startup warning.
-    first_person_serving_posture: Literal["", "v10_only", "v12_shadow", "v8_bridge"] = ""
+    first_person_serving_posture: Literal["", "v10_only", "v12_shadow", "v13_shadow", "v8_bridge"] = ""
     # Admin video-approval page (services/first_person_video_decisions.py).
     # Directory for the human per-video decisions + audit log; empty uses
     # <backend>/data/fp_video_decisions (/app/data is the persisted Docker volume).
