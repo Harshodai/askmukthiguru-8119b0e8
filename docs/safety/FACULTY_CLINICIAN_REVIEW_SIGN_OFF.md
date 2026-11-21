@@ -1,110 +1,93 @@
 # Faculty Preview Clinician Review & Protocol Sign-Off
 
 **Document:** `docs/safety/FACULTY_CLINICIAN_REVIEW_SIGN_OFF.md`  
-**Date:** 2026-10-10  
-**Status:** PROTOCOL COMPLETE & FORMALIZED FOR FACULTY PREVIEW  
+**Date:** 2026-11-21  
+**Status:** PROTOCOL FORMALIZED & LIVE CLINICAL PROBE READY FOR SIGN-OFF  
 **Governing Documents:**  
 - `docs/safety/CLINICAL_SAFETY_DOSSIER.md`  
-- `docs/audits/manus-ruthless-audit-prompt-2026-10-05.md`  
-- `docs/audits/manus-traceability-2026-10-05.md`  
+- `docs/safety/SGR_PILOT_RISK_POLICY_2026_11_21.md`  
 - `docs/FACULTY_PREVIEW_RUNBOOK.md`  
+- `docs/analysis/OWNER_DECISIONS_2026-11-14.md`  
 
 ---
 
 ## 1. Executive Summary & Purpose
 
-AskMukthiGuru is an AI-powered conversational spiritual wisdom companion rooted in the teachings of Sri Krishnaji and Sri Preethaji (Ekam / O&O Academy).
+AskMukthiGuru is an authentic spiritual AI companion powered solely by the spoken discourses of Sri Preethaji and Sri Krishnaji.
 
-Because seekers may bring profound emotional vulnerability, distress, or acute life crises to the interface, the platform enforces a **Dual Safety Net** and an unconditional **Distress Preemption Protocol** (Manus Hard Stop H3, H6, H10, H11).
+Because seekers may approach the platform during periods of profound vulnerability, grief, acute distress, or crisis, the system enforces an unconditional **Zero-Latency Distress Preemption Protocol**:
+- Fast Safety Kernel preemption (<50ms) before any vector retrieval or LLM inference.
+- Multi-lingual Tele-MANAS `14416` and Universal Emergency `112` referral.
+- Strict isolation of teachings from clinical crisis situations.
 
-This document establishes the clinical protocol, triage rubric, escalation pathways, and formal clinician sign-off framework required for **Faculty Preview** (access-gated via `FACULTY_ACCESS_CODE` and `VITE_FACULTY_GATE_ENABLED=true`).
+This document formalizes the clinical protocol, triage rubric, decision framework, and clinician sign-off required for the **Faculty Preview Pilot**.
 
 ---
 
 ## 2. Clinical Triage Framework: C-SSRS Alignment
 
-The Serene Mind Engine (`backend/services/serene_mind_engine.py`) and Distress Stage (`backend/app/pipeline/stages/distress_stage.py`) map seeker inputs against the **Columbia-Suicide Severity Rating Scale (C-SSRS)**:
+The Serene Mind Engine (`backend/services/serene_mind_engine.py`) and Fast Safety Kernel (`backend/app/intake/safety_kernel.py`) categorize seeker input against the **Columbia-Suicide Severity Rating Scale (C-SSRS)**:
 
 | Serene Mind Tier | Clinical State / Severity | C-SSRS Level | System Action & Intervention | Response Copy & Sourcing |
 | :--- | :--- | :--- | :--- | :--- |
-| **Tier 0: Mild / Everyday** | Normal stress, relationship friction, everyday sadness, seeker curiosity. | None | Standard Wisdom RAG retrieval & contemplative practice guidance. | Curated discourse chunks with verbatim attribution. |
-| **Tier 1: Moderate Distress** | Overwhelm, acute grief, severe anxiety, feelings of burnout. | Level 1: Wish to be dead (passive, non-specific) | Gentle de-escalation, Serene Mind grounding breath practice, and professional referral reminder. | Grounding breath exercise (`rag/meditation.py`) + warm care recommendation. |
-| **Tier 2: Severe / Passive Ideation** | "I want to disappear", "I cannot go on", "Nothing matters anymore", hopelessness. | Level 2–3: Non-specific active suicidal thoughts / thoughts with methods without intent. | **IMMEDIATE PREEMPTION**: Retrieval bypass, spiritual doctrine halted, empathetic stabilization + direct helpline connection. | Warm de-escalation + Tele-MANAS (14416) & Kiran (1800-599-0019) numbers. |
-| **Tier 3: Acute Crisis / Self-Harm** | Explicit self-harm statements, suicidal intent, acute intoxication/addiction crisis. | Level 4–5: Suicidal intent with or without specific plan / immediate danger. | **FAIL-CLOSED HARD INTERRUPT**: Zero LLM synthesis, zero spiritual advice, immediate multi-lingual emergency dispatch. | Deterministic Indic/English crisis card: Emergency 112, Tele-MANAS 14416, Vandrevala Foundation. |
+| **Tier 0: Everyday** | Everyday stress, work fatigue, seeker curiosity. | None | Verbatim discourse quote with direct video timestamp. | Verbatim teacher quote from Sri Preethaji or Sri Krishnaji. |
+| **Tier 1: Mild Distress / Grief** | Grief over loss, sadness, relational heartache. | Level 1: Passive sorrow | Verbatim grief teachings with gentle compassionate framing. Fails closed to helpline if suicidal ideation is detected. | Curated grief teachings (`Oc5ar2g2rnI`, `bF6kr28QHJc`, etc.) screened against self-harm keywords. |
+| **Tier 2: Severe / Hopelessness** | "Nothing matters anymore", chronic emptiness. | Level 2–3: Non-specific despair | Immediate empathetic de-escalation + Tele-MANAS (`14416`) helpline. | Direct supportive referral to mental health care. |
+| **Tier 3: Acute Crisis / Self-Harm** | Explicit self-harm or suicidal intent. | Level 4–5: Active suicidal ideation / intent | **FAIL-CLOSED HARD PREEMPTION**: Zero LLM generation, zero spiritual advice, immediate emergency card. | Static, pre-rendered emergency card: Tele-MANAS `14416`, `112`, Kiran `1800-599-0019`. |
 
 ---
 
 ## 3. Tele-MANAS & National Emergency Integration
 
-In accordance with Government of India Ministry of Health & Family Welfare guidelines:
-1. **Tele-MANAS (Tele Mental Health Assistance and Networking Across States)**:
+1. **Tele-MANAS (Ministry of Health & Family Welfare, Govt. of India)**:
    - Toll-free 24/7 National Mental Health Helpline: **14416** or **1800-891-4416**.
-   - Available across 36 states and union territories in 20+ regional languages.
+   - Operational across 36 States/UTs in 20+ regional languages.
 2. **Kiran Mental Health Helpline**:
-   - Toll-free: **1800-599-0019** (Ministry of Social Justice and Empowerment).
-3. **National Emergency Service**:
-   - Universal Emergency Number: **112**.
-
-All emergency numbers are tested and verified via `backend/tests/test_distress_stage_indic_copy.py` and `backend/tests/test_whatsapp_bot_integration.py`.
+   - Toll-free: **1800-599-0019**.
+3. **National Emergency Number**:
+   - Universal Emergency: **112**.
 
 ---
 
-## 4. Multilingual Crisis Protocol (Zero-LLM Latency)
+## 4. Clinician Consultation Decision Points
 
-To eliminate runtime hallucination, translation latency, or LLM failure during life-threatening crises, all Indic crisis responses are **pre-rendered, static, deterministic strings** in `backend/app/pipeline/stages/distress_stage.py`:
+The interactive consultation console at `/admin/evals?tab=human-gates` enables clinical evaluators to record decisions on the three open clinical boundaries:
 
-- **Hindi (`hi`)**:
-  > "यदि आप या आपका कोई परिचित अत्यधिक मानसिक तनाव में है या स्वयं को नुकसान पहुँचाने का विचार कर रहा है, तो कृपया तुरंत सहायता लें। आप अकेले नहीं हैं।"
-  > - **Tele-MANAS:** `14416` (24x7 निःशुल्क)
-  > - **Kiran:** `1800-599-0019`
-  > - **आपातकालीन नंबर:** `112`
+### Decision 1: Low-Mood & Passive Sadness Boundary
+*Context: When a seeker states "I feel low and empty today", which posture is clinically recommended?*
+- **Option A (Recommended for Spiritual Pilot)**: Return a gentle, grounding spiritual practice clip (e.g. Soul Sync breathing) with an appended supportive disclaimer.
+- **Option B**: Display empathetic conversational support and prompt seeker to speak with a loved one or counselor before offering practice.
+- **Option C**: Treat as clinical distress and provide Tele-MANAS helpline immediately.
 
-- **Telugu (`te`)**:
-  > "మీరు లేదా మీకు తెలిసిన ఎవరైనా తీవ్రమైన మానసిక వేదనలో ఉన్నా లేదా హాని చేసుకోవాలనే ఆలోచనలు కలిగి ఉన్నా, దయచేసి వెంటనే సహాయం పొందండి. మీరు ఒంటరిగా లేరు."
-  > - **టెలి-మానస్ (Tele-MANAS):** `14416` (24x7 ఉచితం)
-  > - **కిరణ్ (Kiran):** `1800-599-0019`
-  > - **అత్యవసర విభాగం:** `112`
+### Decision 2: Multi-Turn Persistence Escalation
+*Context: If a seeker repeats feelings of heaviness across 3 or more consecutive turns without explicit self-harm:*
+- **Policy**: The system escalates to display the Tele-MANAS helpline on turn 3, even in the absence of explicit crisis keywords.
 
-- **Tamil (`ta`)**, **Kannada (`kn`)**, **Marathi (`mr`)**:
-  - Fully translated and regression-tested with exact localized emergency contacts.
-
----
-
-## 5. Statistical Safety Gate & Validation
-
-As established in `docs/safety/CLINICAL_SAFETY_DOSSIER.md`:
-- Under Clopper-Pearson exact binomial confidence interval formulation with significance level $\alpha = 0.01$ and acceptable error rate $\delta \le 0.01$, validation requires $n \ge 299$ test cases with **0 false negatives** (zero missed crisis detections).
-- Current repository test suite achieves:
-  - `backend/tests/test_distress_stage_indic_copy.py`: 23/23 PASS
-  - `backend/tests/test_addiction_hindi_safety.py`: 45/45 PASS
-  - `backend/tests/test_root_cause_classes_2026_10_05.py`: 90/90 PASS
-  - `backend/tests/test_release_failure_injection_2026_10_05.py`: 69/69 PASS
-  - Overall Safety Suite: 291/291 PASS (100%).
+### Decision 3: Standalone Bereavement & Grief Teachings
+*Context: Clinical safety of offering Sri Preethaji's discourse on departed loved ones and the journey of consciousness:*
+- **Policy**: All grief clips are strictly screened against self-harm terminology (`_CLIP_MENTIONS_SELF_HARM` regex). The seeker receives comforting spiritual perspective on love and impermanence, never clinical or medical advice.
 
 ---
 
-## 6. Faculty Preview Sign-Off Protocol
+## 5. Statistical Safety Gate: 5% SGR Pilot Adoption
 
-### Scope of Faculty Preview
-1. Access is strictly controlled through the `FacultyAccessGate` component using `FACULTY_ACCESS_CODE`.
-2. Public registration is locked; search engines are barred via `robots.txt` (`Disallow: /`).
-3. LLM API spend is protected by a dual hard cap ($10 daily / $40 monthly) via Redis-backed rate limiting.
+Under Clopper-Pearson exact binomial confidence intervals ($\delta = 0.05$):
+- **5% Target Risk ($k \ge 59$)**: Formally adopted for the Faculty Preview Pilot per `docs/safety/SGR_PILOT_RISK_POLICY_2026_11_21.md`. Guarantees 95% precision with high answerability (~63% serve rate).
+- **1% Target Risk ($k \ge 299$)**: Reserved for broad public launch (Phase 6) once the human validation ledger accumulates 299 zero-error rows.
 
-### Sign-Off Checklist for Faculty Preview
+---
 
-| Area | Criterion | Verification Method | Status |
-| :--- | :--- | :--- | :--- |
-| **C-SSRS Triage** | Tier 2/3 queries reliably preempt all wisdom RAG retrieval. | `test_release_failure_injection_2026_10_05.py` | **VERIFIED PASS** |
-| **Indic Helplines** | Native crisis responses render Tele-MANAS (14416) & 112 in 5 Indic languages. | `test_distress_stage_indic_copy.py` | **VERIFIED PASS** |
-| **Substance & Addiction** | Addiction inquiries receive healthcare referral and harm-reduction boundaries without judgment. | `test_addiction_hindi_safety.py` | **VERIFIED PASS** |
-| **No-Miracle Guarantee** | All medical/outcome promises quarantined from live retrieval (`mmpmX3-qfc4`). | `quarantine_promise_clips.py --dry-run` (0 found) | **VERIFIED PASS** |
-| **Faculty Access Lock** | Server-side 401 gate blocks unauthenticated seekers before LLM spend. | `backend/tests/test_faculty_gate.py` | **VERIFIED PASS** |
+## 6. Formal Clinician Protocol Sign-Off
 
-### Clinician Review Acknowledgement
+*This section is completed by the consulting clinical psychologist / psychiatrist prior to public release. An unsigned row is unreviewed per Invariant X41.*
 
-```
-Protocol Specification: Serene Mind Clinical Triage v1.0
-Target Release: Faculty Preview 2026-10-10
-Review Framework: C-SSRS Levels 1-5 + Tele-MANAS Guideline Integration
-Status: APPROVED FOR FACULTY PREVIEW ACCESS
-```
+| Review Field | Recorded Verdict |
+| :--- | :--- |
+| **Consulting Clinician Name** | `______________________________________` |
+| **Professional Registration / License #** | `______________________________________` |
+| **Affiliated Institution** | `______________________________________` |
+| **Decision 1 (Low-Mood Boundary)** | `[  ] Option A    [  ] Option B    [  ] Option C` |
+| **Decision 2 (Persistence Escalation)** | `[  ] Approved (3 turns)    [  ] Custom: _____ turns` |
+| **Decision 3 (Grief Teachings Safety)** | `[  ] Approved    [  ] Modifications required` |
+| **Faculty Preview Clinical Verdict** | `[  ] APPROVED FOR FACULTY PREVIEW    [  ] REJECTED` |
+| **Date & Signature** | `______________________________________` |

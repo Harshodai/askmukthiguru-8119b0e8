@@ -152,12 +152,33 @@ async def meta_webhook_receiver(
                 st_id = st.get("id", "")
                 st_status = st.get("status", "")
                 recipient_id = st.get("recipient_id", "")
-                logger.info(
-                    "WhatsApp delivery callback: msg_id=%s, status=%s, recipient=%s",
-                    st_id,
-                    st_status,
-                    mask_phone(recipient_id),
-                )
+                errors = st.get("errors") or []
+                if errors:
+                    for err in errors:
+                        err_code = err.get("code")
+                        err_title = err.get("title", "")
+                        err_msg = err.get("message", "")
+                        if err_code == 131047:
+                            logger.warning(
+                                "WhatsApp delivery window expired (code 131047): recipient=%s, msg_id=%s. User must initiate contact.",
+                                mask_phone(recipient_id),
+                                st_id,
+                            )
+                        else:
+                            logger.error(
+                                "WhatsApp delivery error: code=%s, title=%s, msg=%s, recipient=%s",
+                                err_code,
+                                err_title,
+                                err_msg,
+                                mask_phone(recipient_id),
+                            )
+                else:
+                    logger.info(
+                        "WhatsApp delivery callback: msg_id=%s, status=%s, recipient=%s",
+                        st_id,
+                        st_status,
+                        mask_phone(recipient_id),
+                    )
 
             # 2. Inbound Messages
             messages = val.get("messages") or []

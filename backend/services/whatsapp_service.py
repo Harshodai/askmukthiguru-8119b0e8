@@ -133,7 +133,24 @@ def format_whatsapp_message(text: str, citations: list[str] | None = None) -> st
 
     # Append citations if present
     if citations:
-        valid_cites = [c.strip() for c in citations if str(c or "").strip()]
+        valid_cites: list[str] = []
+        for c in citations:
+            if isinstance(c, str) and c.strip():
+                valid_cites.append(c.strip())
+            elif isinstance(c, dict):
+                url = c.get("url") or ""
+                title = c.get("title") or c.get("video_id") or "Discourse Clip"
+                if url:
+                    valid_cites.append(f"{title}: {url}")
+                elif title:
+                    valid_cites.append(str(title))
+            elif hasattr(c, "url"):
+                url = getattr(c, "url", "")
+                title = getattr(c, "title", None) or getattr(c, "video_id", None) or "Discourse Clip"
+                if url:
+                    valid_cites.append(f"{title}: {url}")
+                elif title:
+                    valid_cites.append(str(title))
         if valid_cites:
             cites_str = "\n".join(f"• {c}" for c in valid_cites[:3])
             formatted += f"\n\n*Sources & Teachings:*\n{cites_str}"

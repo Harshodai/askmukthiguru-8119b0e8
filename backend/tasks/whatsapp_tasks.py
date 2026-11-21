@@ -147,6 +147,7 @@ def process_whatsapp_turn_task(
     p_hash = hash_phone(clean_p)
     user_id: str | None = None
     sync_history = False
+    memory_write = False
 
     try:
         from app.dependencies import get_container
@@ -165,22 +166,27 @@ def process_whatsapp_turn_task(
             if rows:
                 user_id = rows[0].get("user_id")
                 sync_history = bool(rows[0].get("sync_history_consent", False))
-                logger.info("WhatsApp %s resolved to linked user %s (sync_history=%s)", mask_phone(clean_p), user_id, sync_history)
+                memory_write = bool(rows[0].get("memory_write_consent", False))
+                logger.info(
+                    "WhatsApp %s resolved to linked user %s (sync_history=%s, memory_write=%s)",
+                    mask_phone(clean_p),
+                    user_id,
+                    sync_history,
+                    memory_write,
+                )
     except Exception as exc:
         logger.warning("Failed checking account link for %s: %s", mask_phone(clean_p), exc)
 
-    # 3. Call core /api/chat orchestrator
+    # 3. Call core /api/chat orchestrator (?wait=true to block for synchronous result)
     import requests
 
     session_id = f"wa_{p_hash[:16]}"
-    chat_url = f"{BACKEND_INTERNAL_URL}/api/chat"
+    chat_url = f"{BACKEND_INTERNAL_URL}/api/chat?wait=true"
     payload = {
-        "message": user_message,
+        "user_message": user_message,
+        "messages": [],
         "session_id": session_id,
-        "channel": "whatsapp",
     }
-    if user_id:
-        payload["user_id"] = user_id
 
     try:
         resp = requests.post(chat_url, json=payload, timeout=30)
@@ -203,7 +209,7 @@ def process_whatsapp_turn_task(
     else:
         sent = _send_twilio_outbound(clean_p, answer_text)
 
-    # 5. DPDP-compliant sync (if user explicitly consented)
+    # 5. DPDP-compliant conversation sync (if user explicitly consented)
     if sync_history and user_id and db:
         try:
             db.table("chat_messages").insert({
@@ -215,6 +221,24 @@ def process_whatsapp_turn_task(
             }).execute()
         except Exception as e:
             logger.debug("History sync note: %s", e)
+
+    # 6. DPDP-compliant second-brain memory writing (if user explicitly opted-in)
+    if memory_write and user_id and db:
+        try:
+            from services.memory.canonical_memory_service import CanonicalMemoryStore
+            # Check for personal spiritual practice / reflection keywords
+            mem_triggers = ("remember", "my practice", "daily practice", "i feel", "struggling with", "my intent", "soul sync")
+            if any(t in user_message.lower() for t in mem_triggers):
+                store = CanonicalMemoryStore(db)
+                store.add_memory(
+                    user_id=user_id,
+                    fact=f"Shared via WhatsApp: {user_message[:280]}",
+                    category="reflection",
+                    source_turn=f"wa_turn_{session_id}",
+                )
+                logger.info("Saved consented second-brain memory for user %s from WhatsApp", user_id)
+        except Exception as e:
+            logger.debug("Memory write note: %s", e)
 
     return {
         "status": "delivered" if sent else "delivery_failed",
