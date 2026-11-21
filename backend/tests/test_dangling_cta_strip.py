@@ -12,6 +12,22 @@ def test_dangling_watch_more_here_is_stripped():
     assert "creates your destiny." in out
 
 
+def test_dangling_watch_more_here_and_is_stripped():
+    out = clean("Consistent action creates your destiny. Watch more here: and.")
+    assert "here:" not in out.lower()
+    assert "and." not in out.lower()
+    assert out == "Consistent action creates your destiny."
+
+
+def test_watch_more_here_multiple_urls_stripped():
+    out = clean(
+        "Consistent action creates your destiny. Watch more here: https://youtube.com/a and https://youtube.com/b."
+    )
+    assert "http" not in out
+    assert "here:" not in out.lower()
+    assert out == "Consistent action creates your destiny."
+
+
 def test_dangling_website_cta_is_stripped():
     out = clean("You'll find them on the Ekam website:")
     assert "website:" not in out.lower()

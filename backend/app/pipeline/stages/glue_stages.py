@@ -430,10 +430,11 @@ class TranslationStage(Stage):
             from app.language_utils import detect_message_lang
 
             detected = detect_message_lang(ctx.final_answer)
-            # Only translate if the model generated English despite the prompt suffix.
-            # If the model already produced native Indic script, re-translating with source_lang="en"
-            # causes grammar distortion, phrase duplication, and doubles request latency.
-            if detected == "en":
+            # Only translate if the model did not generate the preferred language.
+            # If the model already produced native Indic script matching ctx.preferred_lang,
+            # re-translating with source_lang="en" causes grammar distortion, phrase duplication,
+            # and doubles request latency.
+            if detected != ctx.preferred_lang:
                 translation_timeout = getattr(settings, "translation_timeout_s", 5.0)
                 translation_started = time.monotonic()
                 try:

@@ -143,6 +143,17 @@ class OpenRouterModelPolicy:
                         and str(settings.first_person_relevance_model).strip()
                         else []
                     )
+                    + (
+                        [
+                            _model_id(
+                                str(settings.gemini_model),
+                                "gemini_model",
+                            )
+                        ]
+                        if getattr(settings, "gemini_model", None)
+                        and str(settings.gemini_model).strip()
+                        else []
+                    )
                 )
             ),
         )

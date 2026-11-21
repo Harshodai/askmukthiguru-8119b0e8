@@ -781,7 +781,7 @@ class Settings(BaseSettings):
 
     # --- Gemini translation (layered ahead of Sarvam via OpenRouter) ---
     gemini_translation_enabled: bool = True
-    gemini_model: str = "google/gemini-3.6-flash"
+    gemini_model: str = "google/gemini-2.0-flash-001"
     gemini_fallback_to_sarvam: bool = True
 
     # --- Nvidia NIM (hosted API Catalog) ---

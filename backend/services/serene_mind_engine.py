@@ -944,19 +944,19 @@ def _get_doctrinal_inquiry_patterns() -> tuple[re.Pattern, ...]:
     return (
         re.compile(
             rf"\b(according\s+to|in\s+the\s+teachings|what\s+did\s+(the\s+)?({all_teachers})\s+say|"
-            rf"what\s+does\s+(the\s+)?({all_teachers})\s+(teach|say)|"
+            rf"what\s+(?:does|do)\s+(the\s+)?({all_teachers})\s+(teach|say)|"
             r"teachings?\s+on|teachings?\s+about|perspective\s+on)\b",
             re.IGNORECASE,
         ),
         re.compile(
-            r"^\s*(what\s+(is|are|does|causes?|creates?)|why\s+(do|does|is|are|we)|how\s+(does|do|can\s+one|to)|"
+            r"^\s*(what\s+(is|are|does|do|causes?|creates?)|why\s+(do|does|is|are|we)|how\s+(does|do|can(?:\s+(?:one|i|we))?|to)|"
             r"explain|can\s+you\s+explain|tell\s+me\s+about|teach\s+me\s+about|"
             r"what\s+is\s+the\s+(root\s+cause|nature|origin|definition|meaning|source)\s+of|"
             r"understanding\s+(of\s+)?|the\s+relationship\s+between)\b",
             re.IGNORECASE,
         ),
         re.compile(
-            r"\b(how\s+(to|can\s+one|do\s+we)\s+(transcend|overcome|handle|deal\s+with|dissolve|understand|be\s+free\s+from|heal)|"
+            r"\b(how\s+(to|can\s+(?:one|i|we)|do\s+(?:we|i)|does\s+one)\s+(transcend|overcome|handle|deal\s+with|dissolve|understand|be\s+free\s+from|heal|release|manage)|"
             r"meaning\s+of|nature\s+of|root\s+cause\s+of|freedom\s+from)\b",
             re.IGNORECASE,
         ),

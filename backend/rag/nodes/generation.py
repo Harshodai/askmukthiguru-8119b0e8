@@ -3296,7 +3296,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             f"{distress_section}"
             "INSTRUCTIONS:\n"
             "1. Formulate your answer based ONLY on the provided context, delivered as a warm, understanding Guru.\n"
-            '2. If the Context contains YouTube links or source URLs, ALWAYS suggest the relevant ones at the end of your response as "Watch more here: [URL]".\n'
+            "2. Do not insert raw URLs or markdown links directly in your response text; citations and video links are handled automatically by the platform UI.\n"
             '3. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one. If relevant context is present in another language, use it cautiously rather than refusing only because the wording is multilingual.\n'
             "4. NEVER fabricate teachings or add information from your training data.\n"
             "5. Maintain a warm, compassionate, and wise tone.\n"
@@ -3724,7 +3724,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                     f"{distress_section}"
                     "INSTRUCTIONS:\n"
                     "1. Formulate your answer based ONLY on the provided context, delivered as a warm, understanding Guru.\n"
-                    '2. If the Context contains YouTube links or source URLs, ALWAYS suggest the relevant ones at the end of your response as "Watch more here: [URL]".\n'
+                    "2. Do not insert raw URLs or markdown links directly in your response text; citations and video links are handled automatically by the platform UI.\n"
                     '3. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one. If relevant context is present in another language, use it cautiously rather than refusing only because the wording is multilingual.\n'
                     "4. NEVER fabricate teachings or add information from your training data.\n"
                     "5. Maintain a warm, compassionate, and wise tone.\n"
@@ -3981,17 +3981,21 @@ def _clean_inline_citations(text: str) -> str:
     text = re.sub(r"\(\s*https?://[^\)]+\)", "", text)
     # Remove bracketed URLs
     text = re.sub(r"\[\s*https?://[^\]]+\]", "", text)
-    # Remove "Watch more here" or "Read more here" phrases followed by URL
+    # Remove "Watch more here" or "Read more here" phrases followed by URLs and conjunctions
     text = re.sub(
-        r"(?i)(?:watch\s+more\s+here|read\s+more\s+here|source|sources):\s*https?://\S+", "", text
+        r"(?i)\b(?:you can\s+)?(?:watch|read|learn|see|find)\s+(?:out\s+)?more\s+here\s*:?\s*(?:https?://\S+|and|\s|,)*",
+        "",
+        text,
     )
+    # Remove (source|sources): https?://...
+    text = re.sub(r"(?i)(?:source|sources):\s*https?://\S+", "", text)
     # Remove any stray raw URLs
     text = re.sub(r"(?i)\bhttps?://\S+", "", text)
     # Remove dangling CTA phrases the model appends without an inline URL: the link is emitted
     # in the citations array, not the text, so "Watch more here:" / "…website:" survive the URL
     # strips above and leave the answer ending on a bare colon. Strip them at line/text end.
     text = re.sub(
-        r"(?im)[ \t]*\b(?:you can\s+)?(?:watch|read|learn|see|find)\s+(?:out\s+)?more\s+here\s*:?[ \t]*(?=\n|$)",
+        r"(?im)[ \t]*\b(?:you can\s+)?(?:watch|read|learn|see|find)\s+(?:out\s+)?more\s+here\s*:?[ \t]*(?:and[ \t.]*|&[ \t.]*)*(?=\n|$)",
         "",
         text,
     )
@@ -4000,6 +4004,9 @@ def _clean_inline_citations(text: str) -> str:
         "",
         text,
     )
+    # Clean up trailing orphaned conjunctions before punctuation or end of line (e.g. "and.", "and,")
+    text = re.sub(r"(?im)\b(?:and|or)\s*([.,!?;])(?=\s|$)", r"\1", text)
+    text = re.sub(r"(?im)\b(?:and|or)\s*$", "", text)
     # Output safety-net for doctrine-term transcription errors already baked into the corpus
     # (e.g. "Akam"->"Ekam"), for data ingested before the fix. Single source of truth:
     # services.doctrine_terms.apply_corrections (admin-editable, shared with whisper + corrector).
@@ -4010,6 +4017,8 @@ def _clean_inline_citations(text: str) -> str:
     text = re.sub(r" {2,}", " ", text)
     # Fix spaces before punctuation
     text = re.sub(r"\s+([.,!?;])", r"\1", text)
+    # Clean duplicate dots like '..' to single '.' while preserving '...' ellipsis
+    text = re.sub(r"(?<!\.)\.\.(?!\.)", ".", text)
     # Collapse multiple newlines
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()

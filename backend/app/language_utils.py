@@ -8,6 +8,7 @@ and text translation that are shared between chat endpoints.
 from __future__ import annotations
 
 import logging
+import unicodedata
 from collections import OrderedDict
 
 from services.language_detection import SCRIPT_RANGES
@@ -59,9 +60,15 @@ def detect_message_lang(text: str) -> str:
     for script, (start, end) in _ALL_SCRIPT_RANGES.items():
         if any(start <= c <= end for c in text):
             return _SCRIPT_TO_LANG.get(script, "en")
-    # Catch-all: any non-Latin codepoint above U+02FF (CJK, Cyrillic, Thai,
+    # Catch-all: any non-Latin letter above U+02FF (CJK, Cyrillic, Thai,
     # Greek, etc.) is non-English even if not in the enumerated Indic ranges.
-    if any(ord(c) > 0x02FF and not ("\u00c0" <= c <= "\u024f") for c in text):
+    # Exclude punctuation, symbols, emojis, and Latin Extended Additional (0x1E00-0x1EFF, used in IAST).
+    if any(
+        ord(c) > 0x02FF
+        and not (0x1E00 <= ord(c) <= 0x1EFF)
+        and unicodedata.category(c).startswith("L")
+        for c in text
+    ):
         return "non_en"
     try:
         detected = LanguageRouter().detect(text)
