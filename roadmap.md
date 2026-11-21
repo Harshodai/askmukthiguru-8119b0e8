@@ -1,5 +1,16 @@
 # Active UI and backend reliability roadmap
 
+## Current request — 2026-11-21: direct WhatsApp account-linked workflow
+
+- [ ] Research current Meta direct setup, business asset permissions, number coexistence and AI-use eligibility; no Lovable connector.
+- [ ] Audit existing WhatsApp bridge and plan secure website signup/account linking without exposing website sessions in WhatsApp.
+- [ ] Implement approved account linking, optional consented memory and Profile connection controls using existing services.
+- [ ] Verify signed inbound messages, real replies, delivery callbacks, account isolation, unlink/revoke and website readback.
+- [ ] Owner setup dependencies: Meta full-control access, eligible number registration/coexistence, credentials and deployed HTTPS receiver. Do not migrate number before owner decision.
+- Owner confirmed: keep the existing WhatsApp Business phone app working; reports Full control for both Meta assets. Exact Lovable error remains unverified.
+
+Owner reports Railway/backend ready on 2026-11-21; older off-state notes below are historical, not current runtime evidence.
+
 ## Current request — 2026-11-19: guide launch subscriptions and structured data
 
 - [ ] Add accessible, consent-based guide email signup with secure persistent storage and protected owner access.
