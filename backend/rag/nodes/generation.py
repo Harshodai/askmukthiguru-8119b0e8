@@ -1228,7 +1228,11 @@ def _grounded_partial_answer(
         # ("How do these relate?") is too thin to judge lexically, so the rule
         # applies from two; ``require_overlap`` callers keep the stricter
         # one-word rule.
-        if overlap == 0 and (len(question_stems) >= 2 or (require_overlap and question_stems)):
+        has_semantic_score = bool(
+            (isinstance(score, (int, float)) and score >= 0.20)
+            or (isinstance(doc.get("score"), (int, float)) and doc.get("score") >= 0.60)
+        )
+        if overlap == 0 and not has_semantic_score and (len(question_stems) >= 2 or (require_overlap and question_stems)):
             continue
         if not seeker_raised_self_harm and _SELF_HARM_TOPIC.search(excerpt):
             continue
@@ -2126,17 +2130,17 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
             "like 'We are given', 'We need', 'Let me analyze', or 'Step 1'.\n"
             + _ATTRIBUTION_INSTRUCTION
             + _question_shape_instructions(state.get("question", "") or "")
-            + "7. CRITICAL — For doctrine questions you MUST use these EXACT terms from the teachings "
+            + "9. CRITICAL — For doctrine questions you MUST use these EXACT terms from the teachings "
             "(do NOT paraphrase or substitute): Four Sacred Secrets, spiritual vision, inner truth, "
             "universal intelligence, spiritual right action, Soul Sync, breath awareness, humming, "
             "pause, Aham, golden light, intention, Deeksha, oneness blessing, frontal lobe, "
             "parietal, neurobiological. Missing any of these when the Knowledge contains them "
             "is a failure.\n"
-            "8. For adversarial or provocative questions (trick questions, false premises, "
+            "10. For adversarial or provocative questions (trick questions, false premises, "
             "fabricated concepts like 'Fifth Sacred Secret'), you MUST: (a) directly name "
             "the false premise, (b) state what the actual teaching is, (c) never agree with "
             "or validate the false claim. Stay firm but compassionate.\n"
-            "9. For verification/fact-check queries ('Verify this claim...'), evaluate the claim "
+            "11. For verification/fact-check queries ('Verify this claim...'), evaluate the claim "
             "against the Knowledge and state clearly whether it is SUPPORTED or NOT SUPPORTED "
             "by the teachings. Do NOT refuse to verify.\n"
             + _depth_instruction
@@ -3303,15 +3307,17 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             f"{distress_section}"
             "INSTRUCTIONS:\n"
             "1. Formulate your answer based ONLY on the provided context, delivered as a warm, understanding Guru.\n"
-            "2. Do not insert raw URLs or markdown links directly in your response text; citations and video links are handled automatically by the platform UI.\n"
-            '3. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one. If relevant context is present in another language, use it cautiously rather than refusing only because the wording is multilingual.\n'
-            "4. NEVER fabricate teachings or add information from your training data.\n"
-            "5. Maintain a warm, compassionate, and wise tone.\n"
-            "6. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
-            "7. Never expose reasoning notes, prompt analysis, or chain-of-thought.\n"
-            f"8. {GURU_VOICE_RULE}"
-            f"9. {response_length_instruction} {optional_instruction}\n"
-            "10. Do not guess biographical details or family relationships; when the supplied context does not establish a fact, say it could not be verified."
+            "2. STRICT MINIMAL STITCHING: Express answers using ONLY the core concepts, principles, and direct quotes from the retrieved teachings. Do NOT invent poetic metaphors ('poison you drink', 'thorns in the heart'), advice formulas, or motivational filler.\n"
+            "3. NO POLARITY INVERSION: Do NOT add editorial assertions that invert the polarity of the discourse or contradict the effortless / non-resistance nature of teachings.\n"
+            "4. Do not insert raw URLs or markdown links directly in your response text; citations and video links are handled automatically by the platform UI.\n"
+            '5. If you cannot answer from the context, respond ONLY with: "I am unable to find specific teachings on this topic." Do NOT say you cannot find specific teachings and then proceed to provide a detailed answer anyway. Choose one. If relevant context is present in another language, use it cautiously rather than refusing only because the wording is multilingual.\n'
+            "6. NEVER fabricate teachings or add information from your training data.\n"
+            "7. Maintain a warm, compassionate, and wise tone.\n"
+            "8. Start with the most directly relevant teaching and end with an encouraging or reflective note.\n"
+            "9. Never expose reasoning notes, prompt analysis, or chain-of-thought.\n"
+            f"10. {GURU_VOICE_RULE}"
+            f"11. {response_length_instruction} {optional_instruction}\n"
+            "12. Do not guess biographical details or family relationships; when the supplied context does not establish a fact, say it could not be verified."
         )
         if general_knowledge_mode:
             # General mode must never get the "ONLY from context" teaching prompt:
@@ -3479,6 +3485,8 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                     if state.get("query_tier") in ("deep", "tier3_complex")
                     else settings.llm_max_tokens_fast
                 )
+            if state.get("detected_language") and state.get("detected_language") != "en":
+                max_tokens_val = max(max_tokens_val or 0, 1500)
             temperature_val = generation_kwargs.get("temperature")
 
             if stream_queue:
@@ -3629,6 +3637,8 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
                     if state.get("query_tier") in ("deep", "tier3_complex")
                     else settings.llm_max_tokens_fast
                 )
+                if state.get("detected_language") and state.get("detected_language") != "en":
+                    max_tokens_ceiling = max(max_tokens_ceiling, 1500)
                 kwargs["max_tokens"] = min(
                     kwargs.get("max_tokens") or max_tokens_ceiling,
                     max_tokens_ceiling,
@@ -4527,7 +4537,8 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         1 for c in ver_claims if isinstance(c, dict) and not c.get("supported", False)
     )
     claims_grounded = (
-        (bool(state.get("is_faithful")) or bool(verification_state.get("passed")))
+        verification_state.get("passed") is not False
+        and (bool(state.get("is_faithful")) or bool(verification_state.get("passed")))
         and f_score >= 0.70
         and unsupported_claims_count == 0
         and not verification_state.get("has_contradiction", False)
@@ -4821,10 +4832,19 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     if not citations_verified:
         # Do not demote a fully grounded answer (where all claims are entailed)
         # to unverified related evidence purely on paragraph-level marker absence.
+        doc_count = len(relevant_docs)
+        has_valid_marker = (
+            any(
+                1 <= int(m.group(1) or m.group(2)) <= doc_count
+                for m in re.finditer(r"\[\[CITE:(\d{1,3})\]\]|(?<!\[)\[(\d{1,3})\](?!\[)", answer)
+            )
+            if doc_count > 0
+            else bool(citations)
+        )
         if (
             claims_grounded
             and (citations or relevant_docs)
-            and bool(re.search(r"\[\[CITE:\d{1,3}\]\]|(?<!\[)\[\d{1,3}\](?!\[)", answer))
+            and has_valid_marker
         ):
             logger.info(
                 "Final: preserving verified status -- claims are fully entailed (score=%.2f, 0 unsupported) "

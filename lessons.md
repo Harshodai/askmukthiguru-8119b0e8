@@ -1,6 +1,22 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 21, 2026 (night) — Ruthless 15-Domain Empirical QA Audit, Bare Numeric Bracket Normalization, and Self-Reflection Answer Preservation
+
+### L-CITATION-NUMERIC-BRACKET-NORMALIZATION-TRAP-1. Premature False exit on standard numeric bracket citations ([1], [2]).
+- **What:** In `rag/nodes/utils.py::_verify_inline_citations`, the presence check `if "[[CITE:" not in answer and "[^" not in answer:` prematurely returned `(answer, False, 0)` for any answer formatted with standard Perplexity-style numeric brackets `[1]`, `[2]`. Even when local NLI verified that 100% of claims were entailed (faithfulness score = 1.0, 0 unsupported claims), this false exit caused `citations_verified = False` and forced `format_final_answer` to demote authentic teachings (e.g. Beautiful State, Telugu Shanti) into `grounding_state = "abstained"`. Furthermore, `services/citation_service.py::_MARKER_RE` and `_marker_index` captured only `[[CITE:N]]` and `[^N]`, failing `_has_valid_marker` checks on bare brackets.
+- **Fix & Rule:** Include `(?<!\[)\[(\d{1,3})\](?!\[)` in `_MARKER_RE` and `_marker_index(match)` so that `[N]`, `[^N]`, and `[[CITE:N]]` are all first-class citation formats. In `_verify_inline_citations`, verify bare numeric brackets before returning `False`. Enforce that all captured indices satisfy `1 <= index <= len(context_items)` to prevent ghost citation bypass.
+
+### L-SELF-REFLECTION-FALLBACK-DISCARD-PREVENTION-1. Preserving generated discourse drafts across reflection rewrite exhaustion.
+- **What:** In `rag/graph_strategies.py::_route_after_reflection`, when `rewrite_count` reached `max_rewrites_for_state`, the router unconditionally returned `"fallback"`. If an answer had already been generated (e.g. 1259 chars with valid citations), this routing aborted directly to `handle_fallback` (`no_context_short_circuit`), throwing away the generated teaching and returning canonical refusal copy `"That one I cannot answer from the teachings I hold"`.
+- **Fix & Rule:** When `rewrite_count >= max_rewrites`, if `state.get("answer")` exists, route to `"verify"` rather than `"fallback"`. This gives `verify_answer` and `_redact_unsupported_sentences` the opportunity to evaluate claims, strip any ungrounded filler sentences, and ship the verified, cited core teaching rather than falling back to an unnecessary refusal.
+
+### L-INDIC-TOKEN-BUDGET-SUBWORD-EXPANSION-1. Indic subword token inflation and mid-word truncation avoidance.
+- **What:** Dravidian and Devanagari scripts (Telugu, Hindi, Kannada, Tamil) consume 3–5 subword tokens per syllable/character in modern BPE/SentencePiece tokenizers compared to Latin English prose. A default `max_tokens: 512` ceiling caused Telugu answers to truncate mid-word (e.g. `మరియు ప్రపం [1] [2] [3]`).
+- **Fix & Rule:** In `rag/nodes/generation.py`, dynamically scale `max_tokens` to at least 1500 whenever `detected_language != "en"` so multilingual Indic teachings can complete natural paragraphs without abrupt truncation.
+
+
+
 ## Nov 21, 2026 (night) — Personalize Memory Hydration, False-Abstention Recovery (/boost), and Multi-Topic Audit
 
 ### L-PERSONALIZE-STAGE-FICTITIOUS-SCHEMA-SESSION-NONE-1. Real Supabase hydration vs silent session=None abort in personalization.

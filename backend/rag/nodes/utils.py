@@ -1629,7 +1629,11 @@ def _verify_inline_citations(
     """
     if not answer:
         return answer, True, 0
-    if "[[CITE:" not in answer and "[^" not in answer:
+    if (
+        "[[CITE:" not in answer
+        and "[^" not in answer
+        and not re.search(r"(?<!\[)\[\d{1,3}\](?!\[)", answer)
+    ):
         # Loophole close: docs were retrieved but the answer cites none of
         # them — never report verified for an uncited grounded-context answer.
         if retrieved_docs:

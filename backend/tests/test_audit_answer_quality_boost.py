@@ -289,3 +289,148 @@ async def test_context_engineer_instructions_contain_minimal_stitching():
     instructions = result["context_layers"]["instructions"]
     assert "STRICT MINIMAL STITCHING" in instructions
     assert "NO POLARITY INVERSION" in instructions
+
+
+# ---------------------------------------------------------------------------
+# 5. Robustness & Edge Case Attack Surface Tests
+# ---------------------------------------------------------------------------
+
+def test_check_grounding_rejects_out_of_range_markers_even_when_claims_verified_grounded():
+    """When an answer contains citation markers that reference non-existent document IDs
+    (e.g. [^99] when only 1 doc exists), _check_grounding and resolve must reject grounding,
+    preventing hallucinated ghost citations from passing."""
+    docs = [{"title": "Discourse 1", "source_url": "https://youtube.com/watch?v=abc"}]
+    answer = (
+        "In the spiritual journey, anxiety troubles the human heart deeply and creates suffering.\n\n"
+        "According to Sri Preethaji, staying in anxiety is a curse you lay on yourself [^99].\n\n"
+        "When awareness arises, inner peace can naturally emerge without forcing or struggle."
+    )
+    # Even with claims_verified_grounded=True, marker 99 is invalid for 1 doc
+    assert _check_grounding(answer, docs, claims_verified_grounded=True) is False
+    assert _check_grounding(answer, docs, faithfulness_score=1.0, unsupported_count=0) is False
+
+    resolved = resolve(answer, docs, claims_verified_grounded=True)
+    assert resolved.grounded is False
+    assert resolved.references == []
+
+
+@pytest.mark.asyncio
+async def test_format_final_answer_rejects_out_of_range_markers_even_when_grounded():
+    """format_final_answer must NOT preserve verified status if the citations in the answer
+    only reference out-of-bounds document indices (e.g. [[CITE:99]] when len(docs)==1).
+    The answer must be rejected and trigger a retry or fallback."""
+    docs = [
+        {
+            "title": "Discourse on Anxiety",
+            "source_url": "https://youtube.com/watch?v=abc12345",
+            "text": "Staying in anxiety is a curse you lay on yourself.",
+        }
+    ]
+    answer = (
+        "When we explore the roots of fear and distress in human experience, the mind often creates suffering.\n\n"
+        "Staying in anxiety is a curse you lay on yourself [[CITE:99]].\n\n"
+        "Peace arises through non-resistance."
+    )
+    state = {
+        "question": "How do I overcome anxiety?",
+        "answer": answer,
+        "relevant_docs": docs,
+        "is_faithful": True,
+        "faithfulness_score": 1.0,
+        "verification": {"passed": True, "score": 1.0, "claims": []},
+        "query_tier": "tier3_complex",
+        "intent": "QUERY",
+        "retry_count": 0,
+    }
+    result = await format_final_answer(state)
+    # The answer was rejected: state verification was demoted to passed=False and citations_verified=False
+    assert state["verification"]["citations_verified"] is False
+    assert state["verification"]["passed"] is False
+    assert result.get("_needs_retry") is True
+
+
+@pytest.mark.asyncio
+async def test_format_final_answer_does_not_preserve_verified_when_verification_passed_is_false():
+    """If verification explicitly failed (passed: False), format_final_answer must never
+    treat claims as grounded or preserve verified status."""
+    docs = [
+        {
+            "title": "Discourse on Anxiety",
+            "source_url": "https://youtube.com/watch?v=abc12345",
+            "text": "Staying in anxiety is a curse you lay on yourself.",
+        }
+    ]
+    answer = (
+        "When we explore the roots of fear and distress in human experience, the mind often creates suffering.\n\n"
+        "Staying in anxiety is a curse you lay on yourself [[CITE:1]].\n\n"
+        "Peace arises through non-resistance."
+    )
+    state = {
+        "question": "How do I overcome anxiety?",
+        "answer": answer,
+        "relevant_docs": docs,
+        "is_faithful": False,
+        "faithfulness_score": 0.40,
+        "verification": {"passed": False, "score": 0.40, "claims": [{"claim": "xyz", "supported": False}]},
+        "query_tier": "tier3_complex",
+        "intent": "QUERY",
+        "retry_count": 0,
+    }
+    result = await format_final_answer(state)
+    assert state["verification"]["passed"] is False
+    assert result.get("_needs_retry") is True
+
+
+@pytest.mark.asyncio
+async def test_grade_documents_handles_none_rerank_score_without_type_error(monkeypatch):
+    """When reranked_docs contains documents with rerank_score: None, grade_documents
+    must safely treat them as 0.0 rather than crashing with TypeError."""
+    monkeypatch.setattr(settings, "rerank_min_score", 0.35)
+    monkeypatch.setattr(settings, "rerank_fallback_floor", 0.22)
+
+    state = {
+        "question": "What is the spiritual perspective on right action in career?",
+        "query_tier": "tier3_complex",
+        "reranked_docs": [
+            {"title": "Doc A", "source_url": "https://example.com/a", "rerank_score": 0.28, "text": "Action in a beautiful state."},
+            {"title": "Doc B", "source_url": "https://example.com/b", "rerank_score": None, "text": "Unscored excerpt."},
+            {"title": "Doc C", "source_url": "https://example.com/c", "text": "Missing key excerpt."},
+        ],
+        "intent": "QUERY",
+    }
+    # Must not raise TypeError: '>=' not supported between instances of 'NoneType' and 'float'
+    result = await grade_documents(state)
+    relevant = result.get("relevant_docs", [])
+    assert len(relevant) == 1
+    assert relevant[0]["title"] == "Doc A"
+
+
+def test_verify_inline_citations_bare_numeric_brackets():
+    """Bare [1] numeric markers are recognized and preserved without premature False exit."""
+    docs = [
+        {"title": "Doc 1", "source_url": "https://example.com/1", "text": "Peace is within you."},
+        {"title": "Doc 2", "source_url": "https://example.com/2", "text": "Living in a beautiful state."},
+    ]
+    answer = (
+        "Peace is within you [1].\n\n"
+        "Living in a beautiful state transforms your actions [2]."
+    )
+    cleaned, verified, stripped = _verify_inline_citations(
+        answer,
+        docs,
+        claims_verified_grounded=True,
+        faithfulness_score=1.0,
+        unsupported_count=0,
+    )
+    assert verified is True
+    assert stripped == 0
+
+
+def test_check_grounding_bare_numeric_brackets():
+    """_check_grounding recognizes bare [1] numeric markers."""
+    docs = [{"title": "Doc 1"}]
+    answer = "Staying in peace transforms life [1]."
+    assert _check_grounding(answer, docs, claims_verified_grounded=True) is True
+    assert _check_grounding(answer, docs, faithfulness_score=1.0, unsupported_count=0) is True
+
+

@@ -31,12 +31,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
 
-_MARKER_RE = re.compile(r"\[\[CITE:(\d{1,3})\]\]|\[\^(\d{1,3})\]")
+_MARKER_RE = re.compile(r"\[\[CITE:(\d{1,3})\]\]|\[\^(\d{1,3})\]|(?<!\[)\[(\d{1,3})\](?!\[)")
 
 
 def _marker_index(match: re.Match) -> int:
-    """Return the captured citation index from either [[CITE:N]] or [^N] markers."""
-    return int(match.group(1) or match.group(2))
+    """Return the captured citation index from either [[CITE:N]], [^N], or [N] markers."""
+    return int(match.group(1) or match.group(2) or match.group(3))
 
 
 class CitationStyle(Enum):
@@ -191,13 +191,23 @@ def _check_grounding(
     are grounded (faithfulness_score >= 0.70 and 0 unsupported claims, or
     claims_verified_grounded=True), do not reject citations_verified purely
     because an introductory or concluding paragraph (> 25 words) lacks an
-    inline marker, provided the answer as a whole has valid citation markers.
+    inline marker, provided the answer as a whole has valid citation markers
+    matching at least one context item.
     """
     if not answer.strip():
         return True
     if not context_items:
         return False
-    if not _MARKER_RE.search(answer):
+
+    num_items = len(context_items)
+
+    def _has_valid_marker(text: str) -> bool:
+        for m in _MARKER_RE.finditer(text):
+            if 1 <= _marker_index(m) <= num_items:
+                return True
+        return False
+
+    if not _has_valid_marker(answer):
         return False
 
     is_verified_grounded = claims_verified_grounded or (
@@ -219,12 +229,12 @@ def _check_grounding(
     if len(paragraphs) == 1:
         word_count = len(paragraphs[0].split())
         if word_count <= 25:
-            return bool(_MARKER_RE.search(paragraphs[0]))
+            return _has_valid_marker(paragraphs[0])
     # Multi-paragraph: each substantive paragraph (> 25 words) must have citation
     for p in paragraphs:
         word_count = len(p.split())
         if word_count > 25:
-            if not _MARKER_RE.search(p):
+            if not _has_valid_marker(p):
                 return False
     return True
 

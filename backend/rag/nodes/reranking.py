@@ -321,7 +321,10 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
             )
             crag_floor = max(fallback_floor, top_score * getattr(settings, "crag_score_delta_ratio", 0.5))
             before_count = len(reranked_docs)
-            reranked_docs = [doc for doc in reranked_docs if doc.get("rerank_score", 0.0) >= crag_floor]
+            reranked_docs = [
+                doc for doc in reranked_docs
+                if (float(doc.get("rerank_score") or 0.0)) >= crag_floor
+            ]
             if before_count != len(reranked_docs):
                 logger.info(
                     f"Dynamic fallback floor applied: top={top_score:.3f} floor={crag_floor:.3f} "
@@ -332,7 +335,10 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
             crag_floor = top_score * getattr(settings, "crag_score_delta_ratio", 0.5)
             crag_floor = max(crag_floor, min_score)
             before_count = len(reranked_docs)
-            reranked_docs = [doc for doc in reranked_docs if doc.get("rerank_score", 0.0) >= crag_floor]
+            reranked_docs = [
+                doc for doc in reranked_docs
+                if (float(doc.get("rerank_score") or 0.0)) >= crag_floor
+            ]
             if before_count != len(reranked_docs):
                 logger.info(
                     f"CRAG floor applied: top={top_score:.3f} floor={crag_floor:.3f} "
@@ -360,8 +366,14 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
     # 2. Ambiguous band: score < skip_conf -> escalate to LLM document grading
     skip_conf = getattr(settings, "crag_skip_confidence", 0.75)
 
-    high_conf_docs = [d for d in reranked_docs if d.get("rerank_score", 0.0) >= skip_conf]
-    ambiguous_docs = [d for d in reranked_docs if d.get("rerank_score", 0.0) < skip_conf]
+    high_conf_docs = [
+        d for d in reranked_docs
+        if (float(d.get("rerank_score") or 0.0)) >= skip_conf
+    ]
+    ambiguous_docs = [
+        d for d in reranked_docs
+        if (float(d.get("rerank_score") or 0.0)) < skip_conf
+    ]
 
     # If all retained docs have high confidence, or skip_conf is exceeded across sufficient docs:
     if len(ambiguous_docs) == 0 and len(high_conf_docs) > 0:
@@ -505,8 +517,8 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
     # Compute context sufficiency from grading results (replaces separate check_context_sufficiency node)
     context_sufficient = True
     if relevant:
-        high_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.65]
-        moderate_docs = [d for d in relevant if d.get("rerank_score", 0.0) >= 0.45]
+        high_docs = [d for d in relevant if (float(d.get("rerank_score") or 0.0)) >= 0.65]
+        moderate_docs = [d for d in relevant if (float(d.get("rerank_score") or 0.0)) >= 0.45]
         context_sufficient = len(high_docs) >= 1 or len(moderate_docs) >= 1
     else:
         context_sufficient = False

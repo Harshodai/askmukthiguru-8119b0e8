@@ -146,6 +146,11 @@ def _route_after_reflection(state: GraphState) -> str:
         # Same per-request budget as route_after_grading (Indic requests get a
         # tighter cap); reading the global setting here let Indic loop twice.
         if state.get("rewrite_count", 0) >= max_rewrites_for_state(state):
+            # If an answer has already been generated, do not discard it to a bare refusal fallback.
+            # Route to verification so LettuceDetect and _redact_unsupported_sentences can
+            # redact ungrounded sentences and keep the authentic verified core teaching.
+            if state.get("answer"):
+                return "verify"
             return "fallback"
         # Opt-in (default off, see app/config.py rag_regenerate_before_rewrite):
         # on the FIRST correction, try a cheap regenerate against the same
