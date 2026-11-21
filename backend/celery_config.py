@@ -66,6 +66,7 @@ celery_app = Celery(
         "tasks.event_media_tasks",
         "tasks.celery_metrics",
         "tasks.web_ingest_tasks",
+        "tasks.whatsapp_tasks",
     ],
 )
 

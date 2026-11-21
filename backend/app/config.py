@@ -649,6 +649,16 @@ class Settings(BaseSettings):
     memory_token_budget: int = 830
     memory_background_task_timeout_seconds: int = 30
 
+    # --- WhatsApp Channel & Meta Cloud API ---
+    whatsapp_enabled: bool = True
+    meta_app_id: str = ""
+    meta_app_secret: str = ""
+    meta_verify_token: str = ""
+    meta_access_token: str = ""
+    meta_phone_number_id: str = ""
+    whatsapp_link_base_url: str = "https://askmukthiguru.com"
+    whatsapp_link_expiry_minutes: int = 15
+
     # --- Semantic Model Router (embedding-based classification, zero-LLM) ---
     # Trust the semantic router's tier when its confidence exceeds this; below it,
     # routing defaults to the expensive "standard" path (orchestrator_utils.py:254).

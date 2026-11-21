@@ -1,6 +1,17 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 21, 2026 (mid-day) — WhatsApp Direct Companion Architecture, Audio Archive Foundation
+
+### L-WHATSAPP-TWO-CHANNEL-CHALLENGE-DPDP-1. Decoupling channel binding from memory permissions via cryptographic challenges.
+- **What:** Connecting an external messaging channel (WhatsApp) to a user's web account must never transmit web credentials, JWTs, or passwords over chat. We implemented a two-channel cryptographic handshake: `POST /api/whatsapp/link/start` creates a high-entropy single-use URL-safe token (hashed at rest with 15-minute expiry). Opening `askmukthiguru.com/link-whatsapp#code=...` validates via authenticated bearer session and binds the phone hash. Under DPDP, channel history sync and long-term spiritual memory permissions default `false` and must be toggled explicitly.
+- **Rule:** Never transmit authentication secrets across third-party chat APIs; require authenticated web-session verification and decouple channel binding from memory retention permissions.
+
+### L-AUDIO-ARCHIVE-SACRED-SECRETS-AUDIT-1. Physical audio archive audit confirms 2 of 3 missing Sacred Secrets videos already local.
+- **What:** Auditing `scripts/ops/audio_archive.py` revealed that `rRs__D_3mKY.wav` and `gMrOMT4mfno.wav` are already present in the local audio archive (`/Users/harshodaikolluru/mukthiguru_attribution_data/audio_archive/wavs/`). Only video `0z-IZ2ar4eA` is missing locally.
+- **Rule:** Always inspect physical audio archive paths before launching external yt-dlp download pipelines to prevent redundant network fetches and preserve rate limits.
+
+
 ## Nov 21, 2026 (morning) — Human Review Gates Tooling, Clopper-Pearson SGR Calibration
 
 ### L-HUMAN-REVIEW-GATES-TOOLING-PERSISTENCE-1. In-place audio-visual playback, local persistence, and deterministic export for human review gates.

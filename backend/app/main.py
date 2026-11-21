@@ -122,6 +122,7 @@ from app.api.srs import router as srs_router
 from app.api.support import router as support_router
 from app.api.teachings import router as teachings_router
 from app.api.waitlist import router as waitlist_router
+from app.api.whatsapp import router as whatsapp_router
 from app.core.limiter import limiter
 from routers.notebooks import router as notebooks_router
 
@@ -1736,6 +1737,7 @@ from app.api.first_person_local_review import router as first_person_local_revie
 
 app.include_router(first_person_router, prefix="/api")
 app.include_router(first_person_local_review_router, prefix="/api")
+app.include_router(whatsapp_router, prefix="/api/whatsapp")
 
 
 @app.get("/.well-known/jwks.json", tags=["auth"])

@@ -50,6 +50,7 @@ const SufferingToBeautifulStatePage = lazyWithRetry(() => import("./pages/guides
 const StudyNotebookPage = lazyWithRetry(() => import("./pages/StudyNotebookPage"));
 const KnowledgeGraphPage = lazyWithRetry(() => import("./pages/KnowledgeGraphPage"));
 const SecondBrainPage = lazyWithRetry(() => import("./pages/SecondBrainPage"));
+const LinkWhatsAppPage = lazyWithRetry(() => import("./pages/LinkWhatsAppPage"));
 
 // First-person verbatim teaching route — isolated behind its own flag so it
 // can ship independently of the rest of the app. Vite tree-shakes the import
@@ -392,6 +393,7 @@ const App = () => {
               <Route path="/profile" element={<Suspense fallback={<BrandedSpinner />}><ProfilePage /></Suspense>} />
               <Route path="/practices" element={<Suspense fallback={<BrandedSpinner />}><PracticesPage /></Suspense>} />
               <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
+              <Route path="/link-whatsapp" element={<Suspense fallback={<BrandedSpinner />}><LinkWhatsAppPage /></Suspense>} />
               {/* Compatibility entry points: keep shared public links from becoming hard 404s. */}
               <Route path="/guides" element={<Navigate to="/guides/spirit-guides" replace />} />
               <Route path="/support" element={<Navigate to="/profile?tab=settings" replace />} />

@@ -1,0 +1,223 @@
+"""
+Celery background tasks for durable WhatsApp message execution.
+==============================================================
+
+Ensures inbound WhatsApp messages are durably executed without risk of
+data loss during server restarts or container recycling.
+  1. Crisis Preemption: Detects acute distress and immediately dispatches
+     authoritative helplines (Tele-MANAS 14416 / 112).
+  2. Account Resolution: Resolves phone to linked user identity & DPDP consents.
+  3. Core Orchestrator Execution: Routes through /api/chat preserving verbatim quotes,
+     source citations, and safety notices.
+  4. Outbound Delivery: Pushes responses via Meta Cloud API or Twilio.
+  5. DPDP Consent Enforced: Only syncs conversation history when explicitly opted-in.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import logging
+import os
+import re
+import urllib.parse
+from typing import Any
+
+from celery_config import celery_app
+from services.whatsapp_service import (
+    CRISIS_HELPLINE_COPY,
+    clean_phone,
+    format_whatsapp_message,
+    hash_phone,
+    likely_crisis,
+    mask_phone,
+)
+
+logger = logging.getLogger(__name__)
+
+BACKEND_INTERNAL_URL = os.environ.get("BACKEND_INTERNAL_URL", "http://127.0.0.1:8000")
+META_GRAPH_HOST = "graph.facebook.com"
+_PHONE_NUMBER_ID_RE = re.compile(r"^\d{1,32}$")
+
+
+def _send_meta_outbound(phone_number_id: str, to_number: str, message_text: str) -> bool:
+    """Send message via Meta Cloud API with strict SSRF guard."""
+    import requests
+
+    token = os.environ.get("META_ACCESS_TOKEN", os.environ.get("WHATSAPP_TOKEN", ""))
+    if not token:
+        logger.error("Missing META_ACCESS_TOKEN; cannot send outbound WhatsApp message")
+        return False
+
+    clean_id = str(phone_number_id or os.environ.get("META_PHONE_NUMBER_ID", "")).strip()
+    if not clean_id.isdigit() or not _PHONE_NUMBER_ID_RE.match(clean_id):
+        logger.error("Invalid phone_number_id rejected: %s", clean_id)
+        return False
+
+    url = f"https://{META_GRAPH_HOST}/v18.0/{int(clean_id)}/messages"
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https" or parsed.netloc != META_GRAPH_HOST:
+        logger.error("SSRF guard blocked request to %s", url)
+        return False
+
+    target_phone = clean_phone(to_number)
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": target_phone,
+        "type": "text",
+        "text": {"body": message_text[:4096]},
+    }
+    try:
+        resp = requests.post(
+            url,
+            json=payload,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            timeout=10,
+        )
+        if resp.status_code in (200, 201):
+            logger.info("Outbound WhatsApp delivered to %s", mask_phone(target_phone))
+            return True
+        logger.error("Meta API error %d: %s", resp.status_code, resp.text)
+        return False
+    except Exception as exc:
+        logger.exception("Failed sending outbound WhatsApp to %s: %s", mask_phone(target_phone), exc)
+        return False
+
+
+def _send_twilio_outbound(to_number: str, message_text: str) -> bool:
+    """Send message via Twilio REST API."""
+    import requests
+
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    from_number = os.environ.get("TWILIO_FROM", "")
+    if not (account_sid and auth_token and from_number):
+        logger.warning("Twilio credentials not configured; skipping outbound send")
+        return False
+
+    target = f"whatsapp:{clean_phone(to_number)}"
+    sender = f"whatsapp:{clean_phone(from_number)}"
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+    try:
+        resp = requests.post(
+            url,
+            data={"From": sender, "To": target, "Body": message_text[:1600]},
+            auth=(account_sid, auth_token),
+            timeout=10,
+        )
+        return resp.status_code in (200, 201)
+    except Exception as exc:
+        logger.exception("Failed Twilio outbound to %s: %s", mask_phone(to_number), exc)
+        return False
+
+
+@celery_app.task(
+    bind=True,
+    name="tasks.whatsapp_tasks.process_whatsapp_turn_task",
+    max_retries=2,
+    default_retry_delay=5,
+)
+def process_whatsapp_turn_task(
+    self,
+    channel: str,
+    phone: str,
+    user_message: str,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Durable Celery task to execute a full WhatsApp turn.
+    Guarantees:
+      - Crisis preemption with Tele-MANAS (14416) / 112
+      - Verbatim quotes preservation
+      - Decoupled DPDP history consent
+    """
+    meta = metadata or {}
+    clean_p = clean_phone(phone)
+    phone_id = meta.get("phone_number_id") or os.environ.get("META_PHONE_NUMBER_ID", "")
+
+    # 1. Crisis Preemption
+    if likely_crisis(user_message):
+        logger.warning("Acute crisis detected for %s; preempting with helplines", mask_phone(clean_p))
+        if channel == "meta":
+            _send_meta_outbound(phone_id, clean_p, CRISIS_HELPLINE_COPY)
+        else:
+            _send_twilio_outbound(clean_p, CRISIS_HELPLINE_COPY)
+        return {"status": "crisis_preempted", "phone": mask_phone(clean_p)}
+
+    # 2. Check for linked account and DPDP consents in DB
+    p_hash = hash_phone(clean_p)
+    user_id: str | None = None
+    sync_history = False
+
+    try:
+        from app.dependencies import get_container
+        container = get_container()
+        db = getattr(container, "supabase_client", None)
+        if db:
+            res = (
+                db.table("whatsapp_account_links")
+                .select("user_id,sync_history_consent,memory_write_consent,status")
+                .eq("phone_number_hash", p_hash)
+                .eq("status", "active")
+                .limit(1)
+                .execute()
+            )
+            rows = getattr(res, "data", []) or []
+            if rows:
+                user_id = rows[0].get("user_id")
+                sync_history = bool(rows[0].get("sync_history_consent", False))
+                logger.info("WhatsApp %s resolved to linked user %s (sync_history=%s)", mask_phone(clean_p), user_id, sync_history)
+    except Exception as exc:
+        logger.warning("Failed checking account link for %s: %s", mask_phone(clean_p), exc)
+
+    # 3. Call core /api/chat orchestrator
+    import requests
+
+    session_id = f"wa_{p_hash[:16]}"
+    chat_url = f"{BACKEND_INTERNAL_URL}/api/chat"
+    payload = {
+        "message": user_message,
+        "session_id": session_id,
+        "channel": "whatsapp",
+    }
+    if user_id:
+        payload["user_id"] = user_id
+
+    try:
+        resp = requests.post(chat_url, json=payload, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        raw_response = data.get("response", "") or ""
+        citations = data.get("citations") or []
+        answer_text = format_whatsapp_message(raw_response, citations)
+    except Exception as exc:
+        logger.exception("Chat call failed for %s: %s", mask_phone(clean_p), exc)
+        answer_text = (
+            "🙏 I am momentarily unable to reach the teachings. "
+            "Please pause, take a deep breath, and try asking again shortly."
+        )
+
+    # 4. Outbound delivery
+    sent = False
+    if channel == "meta":
+        sent = _send_meta_outbound(phone_id, clean_p, answer_text)
+    else:
+        sent = _send_twilio_outbound(clean_p, answer_text)
+
+    # 5. DPDP-compliant sync (if user explicitly consented)
+    if sync_history and user_id and db:
+        try:
+            db.table("chat_messages").insert({
+                "user_id": user_id,
+                "session_id": session_id,
+                "message": user_message,
+                "response": answer_text,
+                "source": "whatsapp",
+            }).execute()
+        except Exception as e:
+            logger.debug("History sync note: %s", e)
+
+    return {
+        "status": "delivered" if sent else "delivery_failed",
+        "phone": mask_phone(clean_p),
+        "linked": bool(user_id),
+    }

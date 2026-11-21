@@ -70,7 +70,7 @@ def build_capability_manifest(container: Any) -> dict[str, Any]:
             "video_attachments": _state(True, media_runtime_available),
             "ocr": _state(True, ocr_available),
             "voice_input": "available",
-            "whatsapp": "disabled_by_policy",
+            "whatsapp": _state(settings.whatsapp_enabled),
             "support_attachments": "disabled_by_policy",
             "waitlist": _state(
                 settings.waitlist_enabled,

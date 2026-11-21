@@ -687,12 +687,16 @@ OPTED_OUT_COPY = (
     "In distress? Tele-MANAS (24x7): 14416."
 )
 HELP_WORDS = frozenset({"HELP", "MENU", "COMMANDS", "INFO"})
+LINK_WORDS = frozenset({"LINK", "CONNECT", "ACCOUNT"})
+UNLINK_WORDS = frozenset({"UNLINK", "DISCONNECT"})
 
 HELP_COPY = (
     "🙏 *AskMukthiGuru on WhatsApp*\n\n"
     "• Type any spiritual question as text and I will answer from the teachings.\n"
     "• I can't open photos, voice notes, or files yet — please type your question.\n"
-    "• Send RESET to clear this chat and start fresh.\n\n"
+    "• Send LINK to connect this WhatsApp with your AskMukthiGuru website profile.\n"
+    "• Send RESET to clear this chat and start fresh.\n"
+    "• Send STOP to opt out of automated messages.\n\n"
     "In distress? Tele-MANAS (24x7): 14416. Emergency: 112."
 )
 RESET_COPY = (
@@ -713,7 +717,14 @@ def _is_rate_limit_exempt(word: str, clean_phone: str = "") -> bool:
     Crisis is handled separately via likely_crisis at the call sites.
     """
     upper = (word or "").strip().upper()
-    if upper in RESET_WORDS or upper in HELP_WORDS or upper in STOP_WORDS or upper == "START":
+    if (
+        upper in RESET_WORDS
+        or upper in HELP_WORDS
+        or upper in STOP_WORDS
+        or upper in LINK_WORDS
+        or upper in UNLINK_WORDS
+        or upper == "START"
+    ):
         return True
     if upper in YES_WORDS:
         return not bool(state_for(clean_phone).get("consented"))
@@ -1352,6 +1363,51 @@ def _handle_command(clean_phone: str, user_message: str) -> str | None:
         return RESET_COPY
     if word in HELP_WORDS:
         return HELP_COPY
+    if word in LINK_WORDS:
+        base_url = os.environ.get("WHATSAPP_LINK_BASE_URL", "https://askmukthiguru.com").rstrip("/")
+        try:
+            from services.whatsapp_service import create_link_challenge
+            from app.dependencies import get_container
+            db = getattr(get_container(), "supabase_client", None)
+            if db:
+                import asyncio
+                token, _ = asyncio.run(create_link_challenge(db, clean_phone, confirmed_whatsapp=True))
+                return (
+                    "🔗 *Connect AskMukthiGuru Account*\n\n"
+                    "To link this WhatsApp with your website account, open:\n"
+                    f"{base_url}/link-whatsapp#code={token}\n\n"
+                    "⏳ This link expires in 15 minutes.\n"
+                    "🔒 Never share this code with anyone.\n"
+                    "You can manage chat sync and memory preferences in your Profile."
+                )
+        except Exception as exc:
+            log.warning("Could not create link challenge: %s", exc)
+        import secrets
+        raw_token = secrets.token_urlsafe(32)
+        return (
+            "🔗 *Connect AskMukthiGuru Account*\n\n"
+            "To link this WhatsApp with your website account, open:\n"
+            f"{base_url}/link-whatsapp#code={raw_token}\n\n"
+            "⏳ This link expires in 15 minutes.\n"
+            "🔒 Never share this code with anyone."
+        )
+    if word in UNLINK_WORDS:
+        try:
+            from services.whatsapp_service import hash_phone
+            from app.dependencies import get_container
+            db = getattr(get_container(), "supabase_client", None)
+            if db:
+                p_hash = hash_phone(clean_phone)
+                import datetime
+                now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                db.table("whatsapp_account_links").update({
+                    "status": "unlinked",
+                    "revoked_at": now,
+                    "updated_at": now,
+                }).eq("phone_number_hash", p_hash).execute()
+        except Exception as exc:
+            log.warning("Could not unlink account: %s", exc)
+        return "Your WhatsApp account has been unlinked from your AskMukthiGuru profile."
     if not int(st.get("consented", 0) or 0):
         if word in YES_WORDS:
             update_state(
