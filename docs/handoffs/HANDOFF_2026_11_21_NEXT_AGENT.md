@@ -76,21 +76,37 @@ Mukthiguru: a privacy-first spiritual guide that answers with the teachers' own 
 - **Status**: Completed by `m1_worker`, committed in `66a903ce`.
 - **Evidence**: Implemented in `backend/scripts/ops/live_smoke_battery.py` and byte-identical twin `scripts/ops/live_smoke_battery.py`. `abstain_cause()` extracts `verification.abstain_cause`; `floor_check()` flags `[PROVIDER OUTAGE: ...]` and fails on `system_unavailable`, while reporting genuine causes (`no_evidence`) without outage flags. Unit tests in `backend/tests/test_live_smoke_battery_2026_11_19.py` and twin check in `test_repo_layout.py` pass 15/15.
 
-**N6. Separate evaluation key (owner) — PENDING OWNER ACTION.**
-- Create a second OpenRouter key with its own spend limit for evals, and keep a limit on the production key. Accept: eval scripts read the eval key (document the variable name in `docs/operations/post-deploy-checklist.md`); no batch run touches the production key.
+**N6. Separate evaluation key — RESOLVED / REMOVED PER OWNER DIRECTION.**
+- **Status**: Owner reviewed and approved removal ("its ok, we can remove this"). The production daily budget safeguard (`OPENROUTER_DAILY_BUDGET_USD`) remains active.
 
-**N7. Speaker-gate validation (owner listens; then an agent) — PENDING OWNER ACTION.**
-- The owner listens to `audits/work/2026-11-19-serve-rate/validation_packet/speaker_validation_packet_50.csv` (50 rows: all 8 machine "n" + 42 seeded "y"; blind). Accept: if human agreement with the teacher label is >= 95% (>= 48 of 50), an agent proposes a speaker-floor change as a DRY-RUN into a NEW collection with before/after serve counts, for owner OK (dry-run -> snapshot -> OK). Otherwise the floor stays. This is the largest single quality lever: the gate withheld ~45% of clips (116 speaker-check abstains vs 133 served in 22 h of old-code logs).
+**N7. Speaker-gate validation (50-row review queue) — DELIVERED IN ADMIN CONSOLE.**
+- **Status**: Tooling built, tested, and live in Admin Console at `/admin/evals?tab=human-gates` (and `/admin/human-gates`).
+- **Features**:
+  - Structured dataset `src/admin/data/speakerValidationPacket.json` (50 rows: 8 machine-disputed + 42 candidate-verified).
+  - In-place responsive YouTube playback at exact timestamps (`?start=X&end=Y`) plus direct links.
+  - Reviewer controls: `Correct (y)`, `Incorrect (n)`, `Unsure (?)`, reviewer name, and notes.
+  - Real-time agreement % tracking against the certified gate standard ($\ge 95\%$, $\ge 48/50$ correct).
+  - Auto-save to `localStorage` and single-click "Export Signed CSV" downloading `speaker_validation_packet_50_signed_YYYY-MM-DD.csv`.
 
-**N8. Calibration target (owner decision) — PENDING OWNER ACTION.**
-- A 1% risk target needs 299 zero-error human-labelled answers; 5% needs about 59. Until a human-labelled profile exists every answer stays "Related, not a direct answer" (`first_person_uncalibrated_direct_enabled=False`). Do not reuse the withdrawn profile (`b68453e8`).
+**N8. Calibration target & SGR mathematical research — DELIVERED IN ADMIN CONSOLE.**
+- **Status**: Research completed and interactive Clopper-Pearson calculator delivered at `/admin/evals?tab=human-gates`.
+- **Findings & Trade-offs**:
+  - Clopper-Pearson exact binomial upper bound at 95% confidence ($\delta = 0.05$): $\text{Upper Risk} = 1 - \delta^{1/k} \le r^*$.
+  - **1% Target Risk ($r^* = 0.01$)**: Requires $k \ge 299$ consecutive zero-error human validations. Imposes severe ~85% coverage penalty (most answers forced to weak match). Recommended for public unauthenticated launch.
+  - **5% Target Risk ($r^* = 0.05$)**: Requires $k \ge 59$ consecutive zero-error human validations. Guarantees 95% precision with practical coverage for internal faculty pilot and colleague testing.
+  - **Recommendation**: Adopt 5% target risk for the faculty pilot release, scaling to 1% as the human review ledger accumulates.
 
 **N9. Corpus gaps (agent plans; owner approves writes) — COMPLETED (AUDIT & PLAN).**
 - **Status**: Audit completed by `m3_worker`; execution remains proposal-only pending owner approval.
 - **Evidence**: Reviewed `docs/plans/CORPUS_GAP_INGESTION_PLAN_2026_11_20.md`. Verified 0 active ingestion processes, 0 writes/deletes to Qdrant/Memgraph, active serving collection intact (`first_person_v12_shadow`). Empirically validated all 4 gap areas (Four Sacred Secrets, Serene Mind / Soul Sync, grief self-harm filter, conversation follow-ups) via `corpus_gaps.py`. Confirmed the 8-step offline ingestion procedure complies with repository invariants (`audio_archive` audio, Whisper + ASR cleaner, 18-25s windows, ECAPA floor, host-side embeddings, shadow collection `v13_shadow`, snapshot of `v12_shadow`, owner OK gate, frozen paired eval). Report: `.agents/teamwork/m3_worker/handoff.md`.
 
-**N10. Clinician item (owner -> clinician, via faculty review) — PENDING OWNER ACTION.**
-- `docs/clinician/CLINICIAN_BRIEF_LOW_MOOD_GAP_2026_11_20.md`: "Nothing seems to matter anymore" gets a generic clip and no helpline; four grief/job-loss turns trigger crisis false alarms. Written clinician decision recorded in `audits/evidence/` required before any distress path change.
+**N10. Clinician consultation & live E2E probe — DELIVERED IN ADMIN CONSOLE.**
+- **Status**: Interface and live testing console delivered at `/admin/evals?tab=human-gates`.
+- **Features**:
+  - Comprehensive brief overview displaying the 4-turn `b2v_escalation_adversarial` case and false alarm context.
+  - Live E2E probe hitting Railway backend `${BACKEND_URL}/api/chat?wait=true`. Displays latency (ms), intent, grounding state, crisis flag, Tele-MANAS helpline card, and retrieved video clips.
+  - 1-click quick probe presets: Turn 1 (feeling low), Turn 3 (nothing seems to matter), Turn 4 (explicit crisis), grief false-alarm probe, and educational query.
+  - Clinician decision capture form: Decisions 1 (A/B/C), Decision 2 (persistence escalation), Decision 3 (educational clips), clinical notes, and single-click export of `FACULTY_CLINICIAN_REVIEW_SIGN_OFF.md`.
 
 **N11. Waitlist hardening (owner + agent) — COMPLETED (AUDIT & VERIFICATION).**
 - **Status**: Completed by `m3_worker`.

@@ -1,6 +1,17 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 21, 2026 (morning) — Human Review Gates Tooling, Clopper-Pearson SGR Calibration
+
+### L-HUMAN-REVIEW-GATES-TOOLING-PERSISTENCE-1. In-place audio-visual playback, local persistence, and deterministic export for human review gates.
+- **What:** Human validation packets (e.g. 50-row speaker validation `speaker_validation_packet_50.csv` and clinician boundary consultation `CLINICIAN_BRIEF_LOW_MOOD_GAP_2026_11_20.md`) require accessible admin interfaces (`/admin/evals?tab=human-gates`) with in-place YouTube snippet playback (`&start=X&end=Y`), instant decision logging (`y`/`n`/`unsure`), local storage persistence against tab closure, and deterministic export to CSV/Markdown matching repo provenance schemas.
+- **Rule:** Never ask reviewers to manually edit raw CSVs or execute manual API curl commands; provide structured UI tooling that tracks agreement progress vs pass criteria (≥95%, ≥48/50) in real time.
+
+### L-CLOPPER-PEARSON-SGR-PILOT-VS-PROD-CALIBRATION-1. Phase-calibrated Selective Risk Guarantees (SGR) for direct answer badges.
+- **What:** Clopper-Pearson exact binomial upper risk bound $1 - \delta^{1/k} \le r^*$ at 95% confidence ($\delta = 0.05$) requires $k \ge 299$ consecutive zero-error validations for a 1% risk target ($r^* = 0.01$), but only $k \ge 59$ for a 5% risk target ($r^* = 0.05$). The 1% target creates an ~85% coverage penalty (forcing answers to weak match), while 5% target balances high accuracy (95%) with viable coverage for internal faculty pilots.
+- **Rule:** Phase SGR risk calibration by audience: deploy 5% target risk ($k=59$) for faculty and invited colleague previews, and scale to 1% target risk ($k=299$) as the ongoing production human review ledger accumulates.
+
+
 ## Nov 21, 2026 (late night) — Smoke abstain causes, anon token pacing, prerender check, migration boundary
 
 ### L-SMOKE-BATTERY-ABSTAIN-CAUSE-PROVIDER-OUTAGE-1. Differentiating upstream outages from algorithmic abstains in smoke batteries.

@@ -110,6 +110,7 @@ let SpeakerAttributionPage: ComponentType = NoopPage;
 let VideoApprovalPage: ComponentType = NoopPage;
 let ObservabilityDashboard: ComponentType = NoopPage;
 let WaitlistSubscribersPage: ComponentType = NoopPage;
+let HumanReviewGatesPage: ComponentType = NoopPage;
 
 
 if (ADMIN_ENABLED) {
@@ -147,6 +148,7 @@ if (ADMIN_ENABLED) {
   SpeakerAttributionPage = lazyWithRetry(() => import("./admin/pages/SpeakerAttributionPage"));
   VideoApprovalPage = lazyWithRetry(() => import("./admin/pages/VideoApprovalPage"));
   ObservabilityDashboard = lazyWithRetry(() => import("./admin/components/ObservabilityDashboard").then(m => ({ default: m.ObservabilityDashboard })));
+  HumanReviewGatesPage = lazyWithRetry(() => import("./admin/pages/HumanReviewGatesPage"));
 }
 
 const queryClient = new QueryClient({
@@ -313,12 +315,14 @@ const App = () => {
                   <Route path="topics" element={<Navigate to="/admin/content?tab=topics" replace />} />
                   <Route path="okf" element={<Navigate to="/admin/content?tab=okf" replace />} />
 
-                  {/* Evaluation: evals · prompts */}
+                  {/* Evaluation: evals · prompts · human-gates */}
                   <Route path="evals" element={<AdminRoute><GroupedPage tabs={[
                     { id: 'evals', label: 'Eval Runs', Component: EvalsPage },
                     { id: 'prompts', label: 'Prompts', Component: PromptsPage },
+                    { id: 'human-gates', label: 'Human Review Gates', Component: HumanReviewGatesPage },
                   ]} /></AdminRoute>} />
                   <Route path="prompts" element={<Navigate to="/admin/evals?tab=prompts" replace />} />
+                  <Route path="human-gates" element={<Navigate to="/admin/evals?tab=human-gates" replace />} />
 
                   {/* Reliability: alerts · triggers */}
                   <Route path="alerts" element={<AdminRoute><GroupedPage tabs={[
