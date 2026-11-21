@@ -13,11 +13,11 @@ const localeLoaders = import.meta.glob<{ default: Record<string, unknown> }>(
   ['./locales/*.json', '!./locales/en.json'],
 );
 
-const SUPPORTED = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'] as const;
+const SUPPORTED = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'ml'] as const;
 
 const baseLanguage = (lng?: string) => (lng ?? 'en').split('-')[0];
 
-const RTL_LANGUAGES = new Set(['ur']);
+const RTL_LANGUAGES = new Set<string>();
 
 const syncDocumentLanguage = (lng: string) => {
   if (typeof document === 'undefined') return;

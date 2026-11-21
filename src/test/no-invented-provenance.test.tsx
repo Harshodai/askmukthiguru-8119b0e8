@@ -34,7 +34,7 @@ describe('helpline numbers come only from the registry', () => {
   const files = readdirSync(LOCALES_DIR).filter((f) => f.endsWith('.json'));
 
   it('found every locale', () => {
-    expect(files.length).toBeGreaterThanOrEqual(14);
+    expect(files.length).toBeGreaterThanOrEqual(7);
   });
 
   it.each(files)('%s carries no phone numbers in translatable copy', (file) => {

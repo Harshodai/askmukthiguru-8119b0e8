@@ -165,6 +165,16 @@ const AuthPage = () => {
     if (error) errorRef.current?.focus();
   }, [error]);
 
+  // Capture post-auth redirect parameter (e.g. from WhatsApp handshake or deep-link)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const redirectParam = params.get('redirect') || params.get('redirect_to');
+    if (redirectParam && isSafeRelativePath(redirectParam)) {
+      setSessionItem('intendedPath', redirectParam);
+      sessionStorage.setItem('auth_redirect_path', redirectParam);
+    }
+  }, [location.search]);
+
   useEffect(() => {
     if (!isNativePlatform) return;
     let listenerHandle: PluginListenerHandle | null = null;

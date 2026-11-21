@@ -290,7 +290,7 @@ function ChatComposerInner({
                     : t('chat.inputPlaceholder')
             }
             rows={1}
-            dir={currentLanguage === 'ur' ? 'rtl' : 'auto'}
+            dir="auto"
             enterKeyHint="send"
             aria-label={t('chat.yourMessage') === 'chat.yourMessage' ? 'Your message' : t('chat.yourMessage')}
             className="!flex-none min-h-12 max-h-[240px] w-full cursor-text bg-transparent border-none outline-none resize-none px-4 py-3 text-foreground placeholder:text-muted-foreground/60 text-[15px] leading-relaxed scrollbar-spiritual rounded-xl focus-visible:ring-2 focus-visible:ring-ojas disabled:opacity-50 disabled:cursor-not-allowed"

@@ -35,7 +35,7 @@ _MASK_PHONE_RE = re.compile(r"^(\+?\d{1,3})(\d{2})\d+(\d{3})$")
 
 # Crisis regex matching acute self-harm / suicide
 _CRISIS_PATTERNS = [
-    re.compile(r"\b(suicid\w*|kill\s+myself|end\s+my\s+life|want\s+to\s+die|harm\s+myself)\b", re.IGNORECASE),
+    re.compile(r"\b(suicid\w*|kill\s+myself|end(?:ing)?\s+my\s+life|want\s+to\s+die|harm\s+myself)\b", re.IGNORECASE),
     re.compile(r"\b(no\s+reason\s+to\s+live|don'?t\s+want\s+to\s+live|better\s+off\s+dead)\b", re.IGNORECASE),
     re.compile(r"\b(can'?t\s+go\s+on\s+living|ending\s+it\s+all)\b", re.IGNORECASE),
     re.compile(r"(आत्महत्या|मरना\s*चाहता|जीने\s*की\s*इच्छा\s*नहीं)", re.IGNORECASE),

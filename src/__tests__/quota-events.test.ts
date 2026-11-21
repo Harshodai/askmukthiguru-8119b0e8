@@ -31,7 +31,7 @@ describe('UX-011 locale strings', () => {
   >;
   it('every locale has the counter and reset strings with their placeholders', () => {
     const entries = Object.entries(files);
-    expect(entries.length).toBeGreaterThanOrEqual(13);
+    expect(entries.length).toBeGreaterThanOrEqual(7);
     for (const [path, mod] of entries) {
       const chat = mod.default.chat ?? {};
       expect(chat.quotaLeft, path).toContain('{{remaining}}');

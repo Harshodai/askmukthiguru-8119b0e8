@@ -124,11 +124,12 @@ describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
     await waitFor(() => {
       expect(screen.getByText(/WhatsApp Connected/i)).toBeInTheDocument();
       expect(screen.getByText(/\+91 98\*\*\* \*\*210/i)).toBeInTheDocument();
+      expect(screen.getByText(/Return to WhatsApp/i)).toBeInTheDocument();
       expect(screen.getByText(/Sync Chat History/i)).toBeInTheDocument();
       expect(screen.getByText(/Spiritual Journey Memory/i)).toBeInTheDocument();
     });
 
-    // Verify verify payload called backend with Authorization header
+    // Verify verify payload called backend with Authorization header and DPDP flags
     expect(global.fetch).toHaveBeenCalledWith(
       'https://backend.test/api/whatsapp/link/verify',
       expect.objectContaining({
@@ -136,7 +137,11 @@ describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
         headers: expect.objectContaining({
           Authorization: 'Bearer fake-jwt-token',
         }),
-        body: JSON.stringify({ code: 'valid-token-789' }),
+        body: JSON.stringify({
+          code: 'valid-token-789',
+          sync_history_consent: true,
+          memory_write_consent: true,
+        }),
       })
     );
   });

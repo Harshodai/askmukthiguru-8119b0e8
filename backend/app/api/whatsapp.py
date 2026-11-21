@@ -35,6 +35,7 @@ from services.whatsapp_service import (
     clean_phone,
     create_link_challenge,
     format_whatsapp_message,
+    get_account_link_by_phone,
     get_link_status,
     likely_crisis,
     mask_phone,
@@ -77,6 +78,8 @@ class LinkStartRequest(BaseModel):
 
 class LinkVerifyRequest(BaseModel):
     code: str = Field(..., description="Single-use challenge token from WhatsApp")
+    sync_history_consent: bool | None = Field(None, description="DPDP consent for chat history sync")
+    memory_write_consent: bool | None = Field(None, description="DPDP consent for long-term spiritual memory")
 
 
 class LinkConsentRequest(BaseModel):
@@ -270,7 +273,56 @@ async def meta_webhook_receiver(
                     _send_meta_outbound(phone_number_id, clean_from, CRISIS_HELPLINE_COPY)
                     continue
 
-                # C. Dispatch to Celery for Durable Execution
+                # C. Account Linking Verification Gate
+                # Inbound spiritual conversations require web authentication to preserve seeker identity & memory
+                is_linked = False
+                if db:
+                    try:
+                        link_row = await get_account_link_by_phone(db, clean_from)
+                        if link_row and link_row.get("status") == "active":
+                            is_linked = True
+                    except Exception as exc:
+                        logger.warning("Error checking account link for %s: %s", mask_phone(clean_from), exc)
+
+                if not is_linked:
+                    logger.info("Unlinked user %s attempted conversation; issuing web auth challenge", mask_phone(clean_from))
+                    token = None
+                    if db:
+                        try:
+                            token, _ = await create_link_challenge(db, clean_from, confirmed_whatsapp=True)
+                        except Exception as exc:
+                            logger.exception("Failed generating link challenge: %s", exc)
+                    if not token:
+                        from services.whatsapp_service import generate_link_token
+                        token = generate_link_token()
+
+                    link_url = f"{base_url}/link-whatsapp#code={token}"
+                    auth_prompt_msg = (
+                        "🙏 *Welcome to AskMukthiGuru on WhatsApp*\n\n"
+                        "To converse with the wisdom of Sri Preethaji & Sri Krishnaji and access teachings, "
+                        "please authenticate and connect your AskMukthiGuru account:\n\n"
+                        "🔗 *Connect Your Account:*\n"
+                        f"{link_url}\n\n"
+                        "⏳ This secure link expires in 15 minutes.\n"
+                        "Once you sign in and confirm on our website, you will be automatically returned to WhatsApp to begin your conversation!"
+                    )
+                    from tasks.whatsapp_tasks import _send_meta_outbound
+                    _send_meta_outbound(phone_number_id, clean_from, auth_prompt_msg)
+                    continue
+
+                # D. Connected/Returning Greetings
+                if upper_body in ("START", "CONFIRM"):
+                    welcome_msg = (
+                        "🙏 *Welcome to AskMukthiGuru!*\n\n"
+                        "Your WhatsApp is connected to your AskMukthiGuru account. "
+                        "You can now ask questions on meditation, inner peace, and spiritual teachings—just like on our website.\n\n"
+                        "What reflection or inquiry is on your mind today?"
+                    )
+                    from tasks.whatsapp_tasks import _send_meta_outbound
+                    _send_meta_outbound(phone_number_id, clean_from, welcome_msg)
+                    continue
+
+                # E. Dispatch to Celery for Durable Execution
                 try:
                     from tasks.whatsapp_tasks import process_whatsapp_turn_task
                     process_whatsapp_turn_task.delay(
@@ -331,7 +383,8 @@ async def verify_account_link(
 ) -> dict[str, Any]:
     """
     Verify single-use token and bind phone number to the authenticated web user.
-    Enforces DPDP decoupling: channel history sync and long-term memory default to False.
+    Enforces DPDP decoupling: channel history sync and long-term memory default to False unless specified.
+    Returns return_url (wa.me deep link) to redirect back to WhatsApp.
     """
     db = getattr(container, "supabase_client", None)
     if not db:
@@ -343,12 +396,35 @@ async def verify_account_link(
 
     try:
         link = await verify_link_challenge(db, body.code, user_id)
+
+        sync_consent = False
+        memory_consent = False
+        if body.sync_history_consent is not None or body.memory_write_consent is not None:
+            updated = await update_link_consent(
+                db,
+                user_id,
+                sync_history_consent=body.sync_history_consent,
+                memory_write_consent=body.memory_write_consent,
+            )
+            sync_consent = updated.get("sync_history_consent", False)
+            memory_consent = updated.get("memory_write_consent", False)
+        else:
+            sync_consent = bool(link.get("sync_history_consent", False))
+            memory_consent = bool(link.get("memory_write_consent", False))
+
+        waba_phone = (
+            getattr(settings, "meta_phone_number", "")
+            or os.environ.get("META_PHONE_NUMBER", os.environ.get("WHATSAPP_PHONE_NUMBER", ""))
+        ).strip().lstrip("+")
+        return_url = f"https://wa.me/{waba_phone}?text=START" if waba_phone else "https://wa.me/?text=START"
+
         return {
             "success": True,
             "masked_phone": link.get("phone_number_masked"),
-            "sync_history_consent": False,
-            "memory_write_consent": False,
+            "sync_history_consent": sync_consent,
+            "memory_write_consent": memory_consent,
             "linked_at": link.get("linked_at"),
+            "return_url": return_url,
         }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))

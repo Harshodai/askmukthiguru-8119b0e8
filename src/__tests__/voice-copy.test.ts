@@ -64,7 +64,7 @@ describe('voice rules for UI copy (NEW-LOV-03)', () => {
   });
 
   it('scans every locale file', () => {
-    expect(localeFiles.length).toBeGreaterThanOrEqual(14);
+    expect(localeFiles.length).toBeGreaterThanOrEqual(7);
     expect(strings.length).toBeGreaterThan(1000);
   });
 

@@ -5,13 +5,12 @@
  */
 import { createHash } from 'node:crypto';
 
-export const LOCALES = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'];
+export const LOCALES = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'ml'];
 export const TARGET_LOCALES = LOCALES.filter((l) => l !== 'en');
 
 export const LOCALE_NAMES = {
   hi: 'Hindi (Devanagari)', te: 'Telugu', kn: 'Kannada', ta: 'Tamil', mr: 'Marathi (Devanagari)',
-  bn: 'Bengali', gu: 'Gujarati', ml: 'Malayalam', ur: 'Urdu (Perso-Arabic script)',
-  pa: 'Punjabi (Gurmukhi)', or: 'Odia', as: 'Assamese', sa: 'Sanskrit (Devanagari)',
+  ml: 'Malayalam',
 };
 
 // Values that legitimately stay identical to English (placeholders, contact

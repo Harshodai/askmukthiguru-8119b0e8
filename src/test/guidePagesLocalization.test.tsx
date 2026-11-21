@@ -40,7 +40,7 @@ describe('Guide Pages Localization', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(hiTitle);
   });
 
-  it('renders BeautifulStateMeditationPage in Telugu and Urdu', async () => {
+  it('renders BeautifulStateMeditationPage in Telugu and Marathi', async () => {
     await act(async () => {
       await changeUiLanguage('te');
     });
@@ -54,7 +54,7 @@ describe('Guide Pages Localization', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(teTitle);
 
     await act(async () => {
-      await changeUiLanguage('ur');
+      await changeUiLanguage('mr');
     });
     rerender(
       <MemoryRouter>
@@ -62,12 +62,12 @@ describe('Guide Pages Localization', () => {
       </MemoryRouter>
     );
 
-    const urTitle = i18n.t('guides.beautifulStateMeditation.header.title');
-    expect(urTitle).not.toEqual(teTitle);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(urTitle);
+    const mrTitle = i18n.t('guides.beautifulStateMeditation.header.title');
+    expect(mrTitle).not.toEqual(teTitle);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mrTitle);
   });
 
-  it('renders SelfCentricThinkingPage in Tamil and Punjabi', async () => {
+  it('renders SelfCentricThinkingPage in Tamil and Malayalam', async () => {
     await act(async () => {
       await changeUiLanguage('ta');
     });
@@ -81,7 +81,7 @@ describe('Guide Pages Localization', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(taTitle);
 
     await act(async () => {
-      await changeUiLanguage('pa');
+      await changeUiLanguage('ml');
     });
     rerender(
       <MemoryRouter>
@@ -89,12 +89,12 @@ describe('Guide Pages Localization', () => {
       </MemoryRouter>
     );
 
-    const paTitle = i18n.t('guides.selfCentricThinking.header.title');
-    expect(paTitle).not.toEqual(taTitle);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(paTitle);
+    const mlTitle = i18n.t('guides.selfCentricThinking.header.title');
+    expect(mlTitle).not.toEqual(taTitle);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mlTitle);
   });
 
-  it('renders SereneMindPracticePage in Kannada and Sanskrit', async () => {
+  it('renders SereneMindPracticePage in Kannada and Hindi', async () => {
     await act(async () => {
       await changeUiLanguage('kn');
     });
@@ -108,7 +108,7 @@ describe('Guide Pages Localization', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(knTitle);
 
     await act(async () => {
-      await changeUiLanguage('sa');
+      await changeUiLanguage('hi');
     });
     rerender(
       <MemoryRouter>
@@ -116,14 +116,14 @@ describe('Guide Pages Localization', () => {
       </MemoryRouter>
     );
 
-    const saTitle = i18n.t('guides.sereneMindPractice.header.title');
-    expect(saTitle).not.toEqual(knTitle);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(saTitle);
+    const hiTitle = i18n.t('guides.sereneMindPractice.header.title');
+    expect(hiTitle).not.toEqual(knTitle);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(hiTitle);
   });
 
-  it('renders SpiritualGuideForAnxietyPage in Bengali and Odia', async () => {
+  it('renders SpiritualGuideForAnxietyPage in Hindi and Telugu', async () => {
     await act(async () => {
-      await changeUiLanguage('bn');
+      await changeUiLanguage('hi');
     });
     const { rerender } = render(
       <MemoryRouter>
@@ -131,11 +131,11 @@ describe('Guide Pages Localization', () => {
       </MemoryRouter>
     );
 
-    const bnTitle = i18n.t('guides.spiritualGuideForAnxiety.header.title');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(bnTitle);
+    const hiTitle = i18n.t('guides.spiritualGuideForAnxiety.header.title');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(hiTitle);
 
     await act(async () => {
-      await changeUiLanguage('or');
+      await changeUiLanguage('te');
     });
     rerender(
       <MemoryRouter>
@@ -143,14 +143,14 @@ describe('Guide Pages Localization', () => {
       </MemoryRouter>
     );
 
-    const orTitle = i18n.t('guides.spiritualGuideForAnxiety.header.title');
-    expect(orTitle).not.toEqual(bnTitle);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(orTitle);
+    const teTitle = i18n.t('guides.spiritualGuideForAnxiety.header.title');
+    expect(teTitle).not.toEqual(hiTitle);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(teTitle);
   });
 
-  it('renders SufferingToBeautifulStatePage in Gujarati, Malayalam and Assamese', async () => {
+  it('renders SufferingToBeautifulStatePage in Kannada and Malayalam', async () => {
     await act(async () => {
-      await changeUiLanguage('gu');
+      await changeUiLanguage('kn');
     });
     const { rerender } = render(
       <MemoryRouter>
@@ -158,8 +158,8 @@ describe('Guide Pages Localization', () => {
       </MemoryRouter>
     );
 
-    const guTitle = i18n.t('guides.sufferingToBeautifulState.header.title');
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(guTitle);
+    const knTitle = i18n.t('guides.sufferingToBeautifulState.header.title');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(knTitle);
 
     await act(async () => {
       await changeUiLanguage('ml');
@@ -171,26 +171,13 @@ describe('Guide Pages Localization', () => {
     );
 
     const mlTitle = i18n.t('guides.sufferingToBeautifulState.header.title');
-    expect(mlTitle).not.toEqual(guTitle);
+    expect(mlTitle).not.toEqual(knTitle);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(mlTitle);
-
-    await act(async () => {
-      await changeUiLanguage('as');
-    });
-    rerender(
-      <MemoryRouter>
-        <SufferingToBeautifulStatePage />
-      </MemoryRouter>
-    );
-
-    const asTitle = i18n.t('guides.sufferingToBeautifulState.header.title');
-    expect(asTitle).not.toEqual(mlTitle);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(asTitle);
   });
 
-  const ALL_LOCALES = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'ur', 'pa', 'or', 'as', 'sa'] as const;
+  const ALL_LOCALES = ['en', 'hi', 'te', 'kn', 'ta', 'mr', 'ml'] as const;
 
-  it('renders all 6 guide page titles across all 14 supported locales without raw keys', async () => {
+  it('renders all 6 guide page titles across all 7 supported locales without raw keys', async () => {
     const guideKeys = [
       'guides.aiSpiritualCompanion.header.title',
       'guides.beautifulStateMeditation.header.title',

@@ -160,9 +160,9 @@ def run_e2e_verification() -> bool:
     passed_checks += 1
 
     # -------------------------------------------------------------------------
-    # Check 4: Immediate privacy commands (LINK, STOP, RESET)
+    # Check 4: Immediate privacy commands (LINK, STOP, RESET) and unlinked auth gate
     # -------------------------------------------------------------------------
-    print("\n[4/9] Verifying immediate privacy commands (LINK, STOP, RESET)...")
+    print("\n[4/9] Verifying immediate privacy commands (LINK, STOP, RESET) and unlinked auth gate...")
     for cmd in ("STOP", "RESET"):
         cmd_wamid = f"wamid.{cmd.lower()}.{uuid.uuid4().hex}"
         cmd_body = {
@@ -186,7 +186,35 @@ def run_e2e_verification() -> bool:
             res = client.post("/api/whatsapp/webhook", content=b_bytes, headers=hdrs)
             assert res.status_code == 200
             assert mock_send.call_count == 1
-    print("  ✓ Privacy commands executed immediately without queue latency")
+
+    # Unlinked user query intercepted with authentication challenge URL
+    unlinked_wamid = f"wamid.unlinked.{uuid.uuid4().hex}"
+    unlinked_body = {
+        "entry": [{
+            "changes": [{
+                "value": {
+                    "metadata": {"phone_number_id": "109876543210"},
+                    "messages": [{
+                        "id": unlinked_wamid,
+                        "from": "919876543210",
+                        "type": "text",
+                        "text": {"body": "How can I find peace?"},
+                    }],
+                }
+            }]
+        }]
+    }
+    b_bytes = json.dumps(unlinked_body).encode("utf-8")
+    hdrs = create_signed_headers(b_bytes, test_secret)
+    with patch("tasks.whatsapp_tasks._send_meta_outbound", return_value=True) as mock_send:
+        res = client.post("/api/whatsapp/webhook", content=b_bytes, headers=hdrs)
+        assert res.status_code == 200
+        assert mock_send.call_count == 1
+        sent_text = mock_send.call_args[0][2]
+        assert "/link-whatsapp#code=" in sent_text
+        assert "authenticate and connect" in sent_text
+
+    print("  ✓ Privacy commands and unlinked authentication gate verified")
     passed_checks += 1
 
     # -------------------------------------------------------------------------
@@ -329,7 +357,10 @@ def run_e2e_verification() -> bool:
     try:
         res_verify = client.post("/api/whatsapp/link/verify", json={"code": "TEST123456"})
         assert res_verify.status_code == 200
-        assert res_verify.json()["success"] is True
+        verify_data = res_verify.json()
+        assert verify_data["success"] is True
+        assert "return_url" in verify_data
+        assert "wa.me" in verify_data["return_url"]
 
         # Check status
         res_status = client.get("/api/whatsapp/link/status")

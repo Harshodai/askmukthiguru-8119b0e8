@@ -39,7 +39,7 @@ const SILENCE_TIMEOUT_MS = 2000;
 const FALLBACK_VOICE_LEVEL = 0.06; // same 0..1 scale as the visualizer
 const FALLBACK_SILENCE_MS = 1500;
 const FALLBACK_MAX_MS = 30000;
-const STT_LANGUAGES = new Set(['hi', 'te', 'ta', 'kn', 'ml', 'mr', 'bn', 'gu']);
+const STT_LANGUAGES = new Set(['hi', 'te', 'ta', 'kn', 'ml', 'mr']);
 // Recognition errors that mean the browser cannot transcribe at all (Brave blocks the speech service).
 // Brave starts recognition without a single event (no start, no error), so detect it and use recording.
 const RECOGNITION_START_WATCHDOG_MS = 3500;
@@ -374,10 +374,6 @@ export function useVoiceConversation({
             ? 'ml-IN'
             : currentLanguage === 'mr'
             ? 'mr-IN'
-            : currentLanguage === 'bn'
-            ? 'bn-IN'
-            : currentLanguage === 'gu'
-            ? 'gu-IN'
             : 'en-IN';
 
         let accumulatedFinal = '';

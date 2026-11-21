@@ -115,7 +115,14 @@
     "clear": "Clear",
     "erasing": "Erasing…",
     "send": "Send",
-    "readMore": "Read more"
+    "readMore": "Read more",
+    "downloadPng": "Download PNG",
+    "downloading": "Saving…",
+    "ekamWorldCentre": "Ekam · World Centre for Enlightenment",
+    "navigation": "Navigation",
+    "shared": "Shared!",
+    "unknown": "Unknown error",
+    "visitEkam": "Visit Ekam World Centre"
   },
   "crisisDialog": {
     "heading": "Crisis Support Resources",
@@ -145,7 +152,9 @@
     "secondBrainDesc": "Your personal spiritual memory vault",
     "aiMeditationGuide": "AI Meditation Guide",
     "spiritGuides": "Spirit Guides",
-    "newChat": "New chat"
+    "newChat": "New chat",
+    "ekamSubtitle": "World Centre for Enlightenment · India",
+    "wisdom": "Wisdom"
   },
   "landing": {
     "continuePractice": "Continue your practice",
@@ -228,7 +237,8 @@
       "principle2Title": "At your pace",
       "principle2Desc": "Choose a conversation, a short practice, or a personal reflection. There is no required path.",
       "principle3Title": "Clear boundaries",
-      "principle3Desc": "The companion supports spiritual reflection and makes its limits visible when professional help is the better next step."
+      "principle3Desc": "The companion supports spiritual reflection and makes its limits visible when professional help is the better next step.",
+      "paraphraseNote": "A paraphrase of the teaching, not a direct quotation."
     },
     "practices": {
       "heading": "Practices for the moment you are in",
@@ -381,7 +391,10 @@
     "openReflection": "Write a note",
     "dailyJourney": "Daily Journey",
     "skipJourney": "Skip for today",
-    "bannerDismiss": "Dismiss"
+    "bannerDismiss": "Dismiss",
+    "retry": "Try again",
+    "saveFailed": "Your check-in could not be saved. Your words are kept — please try again.",
+    "saving": "Saving…"
   },
   "chat": {
     "quotaLeft": "{{remaining}} of {{limit}} free questions left today",
@@ -763,7 +776,12 @@
     "guidance": {
       "tryNow": "Try this now",
       "goDeeper": "Go deeper",
-      "ariaLabel": "Optional guidance plan"
+      "ariaLabel": "Optional guidance plan",
+      "attribution": "Inspired by the teachings of Sri Preethaji & Sri Krishnaji",
+      "body": "Ask in the language that feels natural. Responses are attributed guidance, not an impersonation or a replacement for professional support.",
+      "howThisWorks": "How this guidance works",
+      "pathPrefix": "{{name}} is your selected guidance path. ",
+      "safety": "For immediate danger or severe distress, please seek local emergency or professional support."
     },
     "optionalPractice": "Optional practice",
     "sereneMindOfferAria": "Optional Serene Mind practice",
@@ -911,11 +929,41 @@
       "viewDetails": "AI Transparency & Provenance"
     },
     "editorialConflictDisclosure": "Conflicting source perspectives — shown separately; no synthesis",
-    "machineTranslationLabel": "Machine translation — not the teacher's words"
+    "machineTranslationLabel": "Machine translation — not the teacher's words",
+    "abstainHelp": {
+      "conceptsHeader": "Foundational Principles",
+      "practiceButton": "Practice 3-Minute Serene Mind Meditation",
+      "practiceDesc": "Return to a calm, centered inner state with a 3-minute guided practice.",
+      "practiceHeading": "Centering Practice",
+      "questionsHeader": "Verified Inquiries",
+      "subtitle": "While this specific question doesn't have an exact recorded discourse match, you can explore foundational principles or begin a centering practice:",
+      "title": "Explore Verified Teachings"
+    },
+    "allowActionStep": "Allow one action step",
+    "allowPractice": "Allow one optional practice",
+    "allowReflection": "Allow a reflective follow-up",
+    "chatOnWhatsApp": "Chat on WhatsApp",
+    "incognitoScope": "Not saved to history, personal memory, or your personal wisdom map.",
+    "noSearchResults": "No matching conversations",
+    "reflectionTip": "A reflection, in our words",
+    "resetResponsePreferences": "Reset response preferences",
+    "responsePreferences": "Response preferences",
+    "sacredTeaching": "Sacred Teaching",
+    "searchConversations": "Search conversations",
+    "searchResults": "Results",
+    "tabChat": "Chat",
+    "tabExplore": "Explore"
   },
   "notFound": {
     "message": "Oops! Page not found",
-    "returnHome": "Return to Home"
+    "returnHome": "Return to Home",
+    "guides": "guides",
+    "helpText": "Need help? Check our",
+    "orContact": "or contact",
+    "pageDescription": "The page you\\",
+    "pageTitle": "Page Not Found — AskMukthiGuru",
+    "startChat": "Start Chatting",
+    "suggestion": "It might have been moved or the URL was typed incorrectly."
   },
   "privacy": {
     "pageTitle": "Privacy Policy — AskMukthiGuru",
@@ -1041,7 +1089,47 @@
     "troubleSigningIn": "Trouble signing in?",
     "runDiagnostics": "Run diagnostics",
     "twoFactorTitle": "Two-Step Verification",
-    "verificationCode": "Verification code"
+    "verificationCode": "Verification code",
+    "ageConfirm": "I confirm I am 18 years of age or older.",
+    "ageConfirmFailed": "Failed to confirm age. Please try again.",
+    "ageConfirmRequired": "Please confirm you are 18 years of age or older to continue.",
+    "ageConfirmSubtitle": "AskMukthiGuru is for adults. Please confirm your age to continue.",
+    "ageConfirmTitle": "One quick check",
+    "backToSignIn": "Back to sign in",
+    "callbackFailed": "Sign-in could not be completed. Please try again.",
+    "continue": "Continue",
+    "continueWith": "Continue with",
+    "couldNotConnectApple": "Could not connect to Apple. Please try again.",
+    "errAlreadyRegistered": "An account with this email already exists. Try signing in instead.",
+    "errDatabase": "Database timeout. Please try again in a moment.",
+    "errEmailNotConfirmed": "Please verify your email before signing in. Check your inbox for a confirmation link.",
+    "errGeneric": "Something went wrong. Please try again.",
+    "errInvalidCredentials": "Incorrect email or password. Please check and try again.",
+    "errNetwork": "Network error — please check your connection and try again.",
+    "errRateLimit": "Too many attempts. Please wait a few minutes before trying again.",
+    "errWeakPassword": "Password must be at least 12 characters long.",
+    "mfaCancel": "Cancel and sign out",
+    "mfaLoadFailed": "Could not load MFA factors.",
+    "mfaNotReady": "MFA is not ready. Please refresh and try again.",
+    "mfaPrompt": "Enter the 6-digit code from your authenticator app.",
+    "mfaVerifyFailed": "Verification failed.",
+    "passwordInsecure": "Password Insecure",
+    "preferenceSaveFailed": "Could not save your language. Please retry.",
+    "resetConfirmPassword": "Confirm password",
+    "resetDoneDesc": "You can now sign in with your new password.",
+    "resetDoneTitle": "Password updated",
+    "resetFailed": "Failed to reset password. Please try again.",
+    "resetFailedTitle": "Password Reset Failed",
+    "resetLinkExpired": "Password reset link has expired. Please request a new one.",
+    "resetMinLength": "Password must be at least 12 characters.",
+    "resetMismatch": "Passwords do not match.",
+    "resetNewPassword": "New password",
+    "resetSubtitle": "Choose something memorable, dear seeker.",
+    "resetTitle": "Set a new password",
+    "resetUpdateBtn": "Update password",
+    "resetUpdating": "Updating…",
+    "resetVerifying": "Verifying your reset link… If nothing happens, request a new link from the sign-in page.",
+    "verify": "Verify"
   },
   "admin": {
     "dashboard": "Dashboard",
@@ -1186,7 +1274,8 @@
     "guideStepVideo4Title": "Focus on the Flame",
     "guideStepVideo4Desc": "Visualize a flame moving from eyebrow center to center of brain.",
     "guideStepVideo5Title": "Hold & Smile",
-    "guideStepVideo5Desc": "Hold attention on the flame, gently smile and open eyes."
+    "guideStepVideo5Desc": "Hold attention on the flame, gently smile and open eyes.",
+    "teachingUnavailable": "A verified recorded passage is currently unavailable."
   },
   "error": {
     "generic": "Something went wrong",
@@ -1262,7 +1351,10 @@
       "stepIndicator": "{{current}}/{{total}}",
       "next": "Next",
       "skip": "Skip tour",
-      "gotIt": "Got it"
+      "gotIt": "Got it",
+      "back": "Back to previous tour step",
+      "close": "Close tour",
+      "goToStep": "Go to step {{n}}"
     }
   },
   "kg": {
@@ -1297,7 +1389,57 @@
       "labelThreshold": "Label Threshold",
       "scaleByConnections": "Scale node size by connections",
       "colorByTeacher": "Color code by teacher"
-    }
+    },
+    "approveAndEnableMap": "Approve & Enable Personal Wisdom Map",
+    "associatedPractice": "Associated Practice",
+    "beginInquiry": "Begin an Inquiry with the Guru",
+    "bloomingDesc": "Begin your dialogue with the Guru or record study reflections to watch your consciousness map unfold with sacred teachings.",
+    "bloomingDescDetailed": "0 reflections recorded yet. Ask a question or share a reflection to begin.",
+    "bloomingTitle": "Your Personal Wisdom Map is Blooming",
+    "closeDetails": "Close node details",
+    "connectionCountOne": "{{count}} connection",
+    "connectionCountOther": "{{count}} connections",
+    "consciousnessEvolution": "Consciousness Evolution",
+    "consciousnessGraph": "Consciousness Graph",
+    "consciousnessState": "Consciousness State",
+    "continueInChat": "Continue in Chat",
+    "ekamWisdomEssence": "Ekam Wisdom Essence",
+    "exploreInChat": "Explore in Chat",
+    "focusedOn": "Focused on: {{query}}",
+    "graphSummary": "Wisdom graph containing {{nodeCount}} concepts and {{edgeCount}} connections.",
+    "guideStep1Text": "Your node (You) rests at the center. As you chat, the Guru observes your inquiries and spiritual states.",
+    "guideStep1Title": "Student-Teacher Dynamic",
+    "guideStep2Text": "Suffering states (red) show where resistance arises; beautiful states (green) and practices (indigo) reveal your path to freedom.",
+    "guideStep2Title": "States & Practices",
+    "guideStep3Text": "Click any node to reveal reflections, associated practices, and jump straight into dialogue with the Guru.",
+    "guideStep3Title": "Deepen Your Inquiry",
+    "guideTitle": "Sacred Map Guide",
+    "listView": "All concepts in list view",
+    "mandalaTitle": "Consciousness Mandala",
+    "masterTeacher": "Master Teacher",
+    "nodeDetails": "{{label}} details",
+    "overlayHint": "Drag to explore · Click any node for deeper wisdom",
+    "personalBadge": "Student-Teacher Consciousness Map",
+    "personalDesc": "Just as a master teacher observes the student to guide their inner journey, this sacred map connects your personal inquiries, spiritual states, and memories with the timeless wisdom of Ekam.",
+    "personalMapUnavailable": "Your personal wisdom map is unavailable right now. Please try again.",
+    "personalPausedDesc": "Allow Mukthi Guru to remember your reflections to weave your personal spiritual journey.",
+    "personalPausedTitle": "Personal Wisdom Map Paused",
+    "personalSubtitle": "Synthesized from your dialogues, reflections, and practices",
+    "personalTitle": "Your Personal Wisdom Map",
+    "quote": "\"Wisdom is not merely information; it is the lived transformation from a suffering self into the boundless freedom of connection.\" — Sri Krishnaji",
+    "reflectionExcerpt": "Reflection & Dialogue Excerpt",
+    "reflections": "Reflections",
+    "searchAriaLabel": "Knowledge graph query",
+    "searchPlaceholderGeneral": "Search a concept, teaching, or practice…",
+    "searchPlaceholderPersonal": "Focus your map: stillness, soul sync, anxiety, witnessing awareness, love…",
+    "signInRequired": "Please sign in to view your personal wisdom map.",
+    "teachings": "Teachings",
+    "viewGraph": "Map",
+    "viewGuidedPractice": "View Guided Practice",
+    "viewList": "List",
+    "viewMode": "View mode",
+    "weavingDesc": "Connecting your reflections, spiritual inquiries, and meditation practices with the sacred wisdom of Sri Krishnaji and Sri Preethaji.",
+    "weavingTitle": "Weaving Your Consciousness Map…"
   },
   "layout": {
     "navigate": "Navigate",
@@ -1308,7 +1450,8 @@
     "offlineMode": "Offline Mode",
     "connectedMode": "Connected",
     "aiService": "AI service: {{mode}}",
-    "sereneMindTitle": "Start Serene Mind meditation"
+    "sereneMindTitle": "Start Serene Mind meditation",
+    "backToChat": "Back to Chat"
   },
   "desktopSidebar": {
     "newConversation": "New Conversation",
@@ -1333,7 +1476,8 @@
     "deleteWarning": "This action cannot be undone and your teaching history will be lost.",
     "newIncognitoChat": "New incognito chat",
     "incognitoTooltip": "Start a private conversation that won't be saved",
-    "explore": "Explore"
+    "explore": "Explore",
+    "openMemories": "Open memories"
   },
   "notes": {
     "yourNotes": "Your Notes",
@@ -1357,7 +1501,14 @@
     "updated": "Note updated",
     "saved": "Note saved",
     "deleted": "Note deleted",
-    "untitled": "Untitled"
+    "untitled": "Untitled",
+    "bodyLabel": "Note body",
+    "deleteFailed": "Could not delete your note",
+    "draftKept": "Your draft is still here. Please retry.",
+    "openConversation": "Open original conversation",
+    "saveFailed": "Could not save your note",
+    "unavailable": "Your notes could not be loaded. Please retry.",
+    "updateFailed": "Could not update your note"
   },
   "memory": {
     "graphNeedsApproval": "Approve memory above and your map will appear here as you reflect.",
@@ -1405,7 +1556,69 @@
     "sessionReflections": "Session reflections",
     "sessionReflectionsDesc": "Short summaries AskMukthiGuru keeps from your past sessions.",
     "exitFullscreen": "Exit Fullscreen (Esc)",
-    "toggleInsights": "Toggle Consciousness Insights"
+    "toggleInsights": "Toggle Consciousness Insights",
+    "activePractices": "Active Sadhana / Practices",
+    "addFirstMemory": "Add a memory",
+    "approveAndEnable": "Approve & Enable Memory",
+    "consentActiveDesc": "Personal spiritual memory and wisdom map are now active.",
+    "consentActiveTitle": "Memory Active",
+    "consentApprovedDesc": "Personal spiritual memory and wisdom map are now active.",
+    "consentApprovedTitle": "Memory Enabled",
+    "consentConfirm": "Save memory",
+    "consentDesc": "Saved memories help personalize your guidance. You can review or forget them anytime from this page.",
+    "consentPausedDesc": "Personal spiritual memory and wisdom map collection are paused.",
+    "consentPausedTitle": "Memory Paused",
+    "consentTitle": "Save this memory?",
+    "consolidateNow": "Consolidate Memories",
+    "consolidationComplete": "Memory Consolidation Complete",
+    "consolidationFailed": "Consolidation Failed",
+    "consolidationReport": "Evaluated ${report.active_remaining} active memories. Evicted ${report.evicted_count} ungrounded claims, resolved ${report.superseded_count} updates, pruned ${report.decayed_count} expired.",
+    "couldNotClear": "Could not clear reflections",
+    "couldNotErase": "Could not erase memories",
+    "couldNotUpdate": "Could not update memory",
+    "currentInquiry": "Active Inquiry / Obstacle",
+    "deleteAllDescription": "This permanently deletes all your personal reflections, guiding notes, and knowledge graph connections across Qdrant, Neo4j, and Supabase. This action cannot be undone.",
+    "deleteAllTitle": "Erase All Memories & Wisdom Map?",
+    "deleteEntirely": "Delete Entirely",
+    "editAria": "Correct memory",
+    "enableConsentTooltip": "Click to enable personal memory collection",
+    "erasedDesc": "All personal memories and wisdom map connections have been permanently erased.",
+    "erasedTitle": "Memories Erased",
+    "guidingNote": "Guiding note",
+    "guruRemembers": "What the guru remembers",
+    "guruRemembersDesc": "A living portrait drawn from your saved memories — refreshed as you share more.",
+    "lastConsolidated": "Last Consolidated",
+    "noMemoriesYet": "Nothing saved yet — add your first memory above.",
+    "openConversation": "Open original conversation",
+    "openNotebook": "Open study notebook",
+    "pauseConsentTooltip": "Click to pause personal memory collection",
+    "pausedDesc": "Allow Mukthi Guru to remember your reflections and inquiries across conversations to weave your Personal Wisdom Map. Your data is private, encrypted, and never used to train public AI models.",
+    "pausedTitle": "Personal Spiritual Memory is Paused / Not Approved",
+    "persona": "Persona",
+    "personaRegenerateFailed": "Could not refresh persona",
+    "personaRegenerated": "Persona refreshed",
+    "pinAsGuidingNote": "Pin as guiding note",
+    "preferredLanguage": "Preferred Language",
+    "privateEncrypted": "Private & Encrypted",
+    "proficiency": "Proficiency",
+    "reflectionsCleared": "Reflections cleared",
+    "regenerate": "Regenerate",
+    "rememberThis": "What should the guru remember?",
+    "rememberThisDesc": "Share a reflection to save it. Pin it to also keep it as your guiding note.",
+    "retention": "Retention",
+    "retentionTooltip": "Fades from memory over time unless reinforced",
+    "seekerDashboard": "Seeker Core Dashboard",
+    "seekerDashboardDesc": "Layer 4 minimal context (≤120 tokens) safely preloaded on every turn.",
+    "skills": "Skills",
+    "skillsDesc": "Skills and techniques identified from your practice",
+    "skillsRegenerateFailed": "Could not refresh skills",
+    "skillsRegenerated": "Skills refreshed",
+    "sourceUnavailable": "Source unavailable",
+    "spiritualStage": "Spiritual Stage",
+    "statusActive": "🟢 Active",
+    "statusPaused": "⏸️ Paused",
+    "unavailable": "Your saved memories are unavailable right now. Please try again.",
+    "updated": "Memory updated"
   },
   "practices": {
     "title": "Practices",
@@ -1631,7 +1844,9 @@
       "cancelledBodyNoDate": "Your account is scheduled for deletion. You can reactivate anytime before then.",
       "reactivate": "A reactivation link has been sent to your email.",
       "close": "Close"
-    }
+    },
+    "offerApplied": "Offer applied",
+    "offerAppliedDesc": "Your preferences have been kept."
   },
   "language": {
     "searchPlaceholder": "Search {{count}} languages…",
@@ -1676,7 +1891,9 @@
       "notConfigured": "Reflections require the backend to be configured.",
       "signInRequired": "Sign in to access your reflections.",
       "requestFailed": "Reflections request failed ({{status}})."
-    }
+    },
+    "emptyCta": "Write your first reflection",
+    "emptyHeadline": "Your inner journey begins here"
   },
   "profileStatTiles": {
     "sessions": "Sessions",
@@ -1731,7 +1948,12 @@
       "avatarUpdated": "Avatar updated",
       "avatarError": "Could not set avatar",
       "saved": "Profile saved",
-      "savedDesc": "Your preferences are updated."
+      "savedDesc": "Your preferences are updated.",
+      "bioPlaceholder": "Share what brings you here or your current spiritual challenges...",
+      "displayNamePlaceholder": "How should I address you?",
+      "languageSwitchFailed": "Your preference was saved, but some interface text could not be translated.",
+      "removePhoto": "Remove photo",
+      "savedOnDevice": "Saved on this device."
     },
     "activitySummary": {
       "title": "Activity Summary",
@@ -1780,7 +2002,8 @@
       "scheduledFor": "Scheduled for",
       "test": "Send test reminder",
       "permissionsRequired": "Permissions required",
-      "permissionsDescription": "Please enable notifications in your browser settings to use reminders."
+      "permissionsDescription": "Please enable notifications in your browser settings to use reminders.",
+      "daily": "Daily reminder"
     },
     "danger": {
       "subtitle": "Export your data, or permanently delete your account.",
@@ -1807,7 +2030,12 @@
       "exportData": "Export data",
       "exportLocalData": "Export local data",
       "exportCloudData": "Export cloud data",
-      "zone": "Danger zone"
+      "zone": "Danger zone",
+      "accountDeleted": "Account deleted",
+      "cloudExported": "Cloud data exported",
+      "deleteAccountHint": "A short retention flow runs first — immediate deletion is one of its options.",
+      "deletionScheduledDesc": "Your account is scheduled for deletion. You can reactivate anytime before the deletion date.",
+      "exportFailed": "Export failed"
     },
     "support": {
       "title": "Contact Support",
@@ -1828,14 +2056,23 @@
       "category_Feedback": "Feedback",
       "category_BugReport": "Bug Report",
       "category_FeatureRequest": "Feature Request",
-      "category_Other": "Other"
+      "category_Other": "Other",
+      "authDiagnostics": "Open auth diagnostics",
+      "messageSent": "Message sent",
+      "responseTime": "We will get back to you within 24–48 hours.",
+      "sendAnother": "Send another message",
+      "sendFailed": "Failed to send",
+      "sentDescription": "We will get back to you within 24–48 hours. For urgent matters, please include \"URGENT\" in your subject line.",
+      "tryAgain": "Please try again."
     },
     "memory": {
       "mapTitle": "Consciousness Map",
       "stateInsights": "State Insights",
       "help": "Drag to pan · Scroll to zoom",
       "heading": "Your Consciousness Map",
-      "description": "Every dialogue, reflection, and question you share becomes a node in your evolving consciousness map."
+      "description": "Every dialogue, reflection, and question you share becomes a node in your evolving consciousness map.",
+      "guruMemory": "Guru's Living Memory & Graph",
+      "personalNotes": "Personal Reflections & Notes"
     },
     "cookieBanner": {
       "description": "We use cookies to improve your experience and analyze site traffic. By clicking \"Accept\", you consent to our use of cookies.",
@@ -1895,7 +2132,15 @@
       "courseProgress": "Course progress",
       "noActiveCourse": "No active healing course",
       "distress": "Distress",
-      "lastActive": "Last active"
+      "lastActive": "Last active",
+      "continuePractice": "Continue your practice",
+      "howPersonalizationWorks": "How personalization works",
+      "nextStep": "Your next step",
+      "nextStepContinueDesc": "Keep the rhythm going with a short practice.",
+      "nextStepStartDesc": "Begin with one small guided practice.",
+      "openChat": "Open chat",
+      "recentActivity": "Recent activity",
+      "wisdomMapTitle": "Living Wisdom Map"
     },
     "tone": {
       "gentle": "Gentle",
@@ -1931,7 +2176,28 @@
       "syncHistoryDesc": "Allow messages exchanged on WhatsApp to be visible in your web history.",
       "spiritualMemory": "Spiritual Journey Memory",
       "spiritualMemoryDesc": "Allow WhatsApp reflections to enrich your spiritual profile and tailored practices."
-    }
+    },
+    "devotedSeeker": "Devoted Seeker",
+    "preferences": {
+      "subtitle": "Theme, voice, and meditation reminders live here.",
+      "title": "Preferences"
+    },
+    "sadhana": {
+      "activePresence": "{{days}} Days Anchored in Presence",
+      "awakenRhythm": "Awaken Your Sacred Rhythm",
+      "bestRhythm": "Best: {{days}}d",
+      "circleOfPresence": "Circle of Presence",
+      "daysPracticed": "days",
+      "deepRhythm": "Deep practice rhythm — full GitHub matrix view",
+      "fullMatrix": "Full sadhana activity matrix",
+      "noPracticeYet": "Stillness awaits — arrive in meditation with Sri Preethaji & Sri Krishnaji.",
+      "rhythmTitle": "Sacred Sadhana Rhythm",
+      "streakActiveQuote": "Continuity in sadhana transforms awareness into the Beautiful State.",
+      "streakZeroQuote": "Every breath is an invitation to stillness. Step into sadhana today to awaken your inner rhythm.",
+      "viewCircle": "Switch to 7-Day Circle",
+      "viewHeatmap": "GitHub Matrix"
+    },
+    "seeker": "Seeker"
   },
   "commandPalette": {
     "searchPlaceholder": "Search AskMukthiGuru…",
@@ -1970,7 +2236,23 @@
       "dedicated": "Dedicated Practice",
       "deep": "Deep Sadhana",
       "rest": "Rest / Integration"
-    }
+    },
+    "completedSessions": "{{count}} completed sessions",
+    "dayAria": "{{date}}: {{label}}; {{minutes}} minutes, {{sessions}} sessions, {{cycles}} breath cycles",
+    "daysActiveLabel": "active days",
+    "hoursLabel": "hrs",
+    "intensity": {
+      "deep": "Deep sadhana",
+      "deepLegend": "Deep 20m+",
+      "rest": "Rest day",
+      "short": "Short sit",
+      "shortLegend": "Short <10m",
+      "steady": "Steady practice",
+      "steadyLegend": "Steady 10–19m"
+    },
+    "intensityLegend": "Practice intensity legend",
+    "practiceEvidence": "{{minutes}} min · {{sessions}} session(s) · {{cycles}} breath cycles",
+    "streakLabel": "day streak"
   },
   "guides": {
     "aiSpiritualCompanion": {
@@ -2491,10 +2773,35 @@
     "voiceHint_shubh": "Clear, default"
   },
   "voice": {
-    "errorMessage": "Unable to receive teaching right now. Please try again."
+    "errorMessage": "Unable to receive teaching right now. Please try again.",
+    "guruWisdom": "Guru Teaching",
+    "hearingYou": "Hearing your prayer...",
+    "interrupt": "Interrupt & Speak",
+    "mute": "Mute microphone",
+    "readySub": "Tap microphone to speak",
+    "sendNow": "Send inquiry now",
+    "speakPrompt": "Speak freely from your heart. The Guru is listening.",
+    "speakingLive": "Speaking",
+    "speakingSub": "Listen with an open heart",
+    "statusError": "Attention Needed",
+    "statusListening": "Listening...",
+    "statusMuted": "Microphone Muted",
+    "statusMutedSub": "Tap microphone below to resume",
+    "statusReady": "Ready",
+    "statusSpeaking": "Imparting Wisdom...",
+    "statusThinking": "Contemplating...",
+    "subtitle": "Direct verbal communion with Sri Preethaji & Sri Krishnaji teachings",
+    "thinkingSub": "Aligning with the sacred teachings...",
+    "title": "Sacred Voice Conversation",
+    "unmute": "Unmute microphone",
+    "yourQuestion": "Your Inquiry"
   },
   "events": {
     "title": "Upcoming events",
     "details": "Details"
+  },
+  "safety": {
+    "getHelpNow": "Get help now",
+    "getHelpNowBody": "If you are in danger or thinking of harming yourself, call one of these lines now. Mukthi Guru is not a crisis service."
   }
 }

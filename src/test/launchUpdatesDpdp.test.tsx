@@ -85,7 +85,7 @@ describe('locale coverage of the launch consent copy', () => {
     ['unsubscribe', 'done'],
     ['privacy', 'launchText'],
   ];
-  it.each(['hi', 'te', 'kn', 'ta', 'mr', 'bn', 'gu', 'ml', 'as', 'sa', 'or', 'pa', 'ur'])(
+  it.each(['hi', 'te', 'kn', 'ta', 'mr', 'ml'])(
     '%s has its own non-English consent, notice and privacy text',
     (code) => {
       const en = locale('en');

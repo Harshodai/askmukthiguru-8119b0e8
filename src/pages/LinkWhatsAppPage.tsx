@@ -17,6 +17,7 @@ interface LinkStatus {
   sync_history_consent: boolean;
   memory_write_consent: boolean;
   linked_at: string | null;
+  return_url?: string | null;
 }
 
 export default function LinkWhatsAppPage() {
@@ -31,6 +32,11 @@ export default function LinkWhatsAppPage() {
   const [code, setCode] = useState<string>("");
   const [linking, setLinking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+
+  // Initial DPDP consents selected on confirmation
+  const [initialSyncConsent, setInitialSyncConsent] = useState(true);
+  const [initialMemoryConsent, setInitialMemoryConsent] = useState(true);
+  const [justLinked, setJustLinked] = useState(false);
 
   // Current connection state
   const [status, setStatus] = useState<LinkStatus | null>(null);
@@ -50,6 +56,14 @@ export default function LinkWhatsAppPage() {
     }
     if (token) {
       setCode(token);
+      sessionStorage.setItem("intendedPath", `/link-whatsapp#code=${token}`);
+      sessionStorage.setItem("auth_redirect_path", `/link-whatsapp#code=${token}`);
+      sessionStorage.setItem("pending_whatsapp_token", token);
+    } else {
+      const savedToken = sessionStorage.getItem("pending_whatsapp_token");
+      if (savedToken) {
+        setCode(savedToken);
+      }
     }
   }, [location]);
 
@@ -103,7 +117,11 @@ export default function LinkWhatsAppPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({
+          code,
+          sync_history_consent: initialSyncConsent,
+          memory_write_consent: initialMemoryConsent,
+        }),
       });
 
       const data = await res.json();
@@ -115,11 +133,21 @@ export default function LinkWhatsAppPage() {
       setStatus({
         linked: true,
         masked_phone: data.masked_phone,
-        sync_history_consent: data.sync_history_consent ?? false,
-        memory_write_consent: data.memory_write_consent ?? false,
+        sync_history_consent: data.sync_history_consent ?? initialSyncConsent,
+        memory_write_consent: data.memory_write_consent ?? initialMemoryConsent,
         linked_at: data.linked_at,
+        return_url: data.return_url,
       });
+      setJustLinked(true);
       setCode("");
+      sessionStorage.removeItem("pending_whatsapp_token");
+
+      // Auto return to WhatsApp deep-link if provided
+      if (data.return_url) {
+        setTimeout(() => {
+          window.location.href = data.return_url;
+        }, 2500);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to link WhatsApp account";
       setLinkError(msg);
@@ -249,6 +277,26 @@ export default function LinkWhatsAppPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Return to WhatsApp Callout */}
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-2.5 text-center">
+              <div className="text-sm font-semibold text-emerald-900 dark:text-emerald-200 flex items-center justify-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                Connection Handshake Complete
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {justLinked ? "Returning you back to WhatsApp..." : "Your WhatsApp is linked and ready for full spiritual conversation."}
+              </p>
+              <Button
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
+                onClick={() => {
+                  window.location.href = status.return_url || "https://wa.me";
+                }}
+              >
+                <MessageSquare className="h-4 w-4 mr-1.5" />
+                Return to WhatsApp
+              </Button>
+            </div>
+
             {/* DPDP Consent Controls */}
             <div className="space-y-4 pt-2 border-t">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -318,10 +366,32 @@ export default function LinkWhatsAppPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {code ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="bg-muted/40 p-3 rounded-lg border text-xs space-y-1">
                   <span className="text-muted-foreground block">Verification Code:</span>
                   <code className="text-primary font-mono font-bold block truncate">{code}</code>
+                </div>
+
+                {/* DPDP Pre-consent toggles */}
+                <div className="space-y-2.5 pt-1 border-t">
+                  <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+                    <span>Consent Options (DPDP)</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg border bg-background text-xs">
+                    <div>
+                      <div className="font-medium">Sync Chat History</div>
+                      <div className="text-[11px] text-muted-foreground">Show WhatsApp messages on web</div>
+                    </div>
+                    <Switch checked={initialSyncConsent} onCheckedChange={setInitialSyncConsent} />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg border bg-background text-xs">
+                    <div>
+                      <div className="font-medium">Second Brain Memory</div>
+                      <div className="text-[11px] text-muted-foreground">Personalize teachings from WhatsApp reflections</div>
+                    </div>
+                    <Switch checked={initialMemoryConsent} onCheckedChange={setInitialMemoryConsent} />
+                  </div>
                 </div>
 
                 {linkError && (

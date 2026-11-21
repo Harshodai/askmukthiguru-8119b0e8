@@ -89,6 +89,7 @@ def test_meta_signature_validation():
 def test_crisis_preemption_detection():
     assert likely_crisis("I want to kill myself") is True
     assert likely_crisis("I want to end my life right now") is True
+    assert likely_crisis("I feel like ending my life, please help") is True
     assert likely_crisis("Feeling suicidal and hopeless") is True
     assert likely_crisis("मरना चाहता हूँ") is True
     assert likely_crisis("What is the nature of suffering according to Krishnaji?") is False
@@ -391,3 +392,92 @@ def test_celery_task_crisis_preemption():
         assert result["status"] == "crisis_preempted"
         assert mock_send.called
         assert "Tele-MANAS" in mock_send.call_args[0][2]
+
+
+def test_meta_webhook_unlinked_user_gated(client, monkeypatch):
+    from app.dependencies import get_container_async
+    from app.main import app
+
+    monkeypatch.setattr(settings, "meta_app_secret", "")
+
+    payload = {
+        "entry": [{
+            "changes": [{
+                "value": {
+                    "metadata": {"phone_number_id": "100200300"},
+                    "messages": [{
+                        "id": "wamid.unlinked_query_1",
+                        "from": "919876543210",
+                        "type": "text",
+                        "text": {"body": "How can I attain inner peace?"},
+                    }],
+                }
+            }]
+        }]
+    }
+
+    mock_db = MagicMock()
+    # No active link row
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(data=[])
+    # Challenge insert succeeds
+    mock_db.table.return_value.insert.return_value.execute.return_value = MagicMock(data=[{}])
+
+    mock_container = MagicMock()
+    mock_container.supabase_client = mock_db
+
+    app.dependency_overrides[get_container_async] = lambda: mock_container
+    try:
+        with patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
+            resp = client.post("/api/whatsapp/webhook", json=payload)
+            assert resp.status_code == 200
+            assert mock_send.called
+            sent_body = mock_send.call_args[0][2]
+            assert "Welcome to AskMukthiGuru on WhatsApp" in sent_body
+            assert "/link-whatsapp#code=" in sent_body
+            assert "authenticate and connect" in sent_body
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
+
+
+def test_meta_webhook_linked_user_start_greeting(client, monkeypatch):
+    from app.dependencies import get_container_async
+    from app.main import app
+
+    monkeypatch.setattr(settings, "meta_app_secret", "")
+
+    payload = {
+        "entry": [{
+            "changes": [{
+                "value": {
+                    "metadata": {"phone_number_id": "100200300"},
+                    "messages": [{
+                        "id": "wamid.linked_start_1",
+                        "from": "919876543210",
+                        "type": "text",
+                        "text": {"body": "START"},
+                    }],
+                }
+            }]
+        }]
+    }
+
+    mock_db = MagicMock()
+    # Active link exists
+    mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
+        data=[{"user_id": "usr-123", "status": "active"}]
+    )
+    mock_container = MagicMock()
+    mock_container.supabase_client = mock_db
+
+    app.dependency_overrides[get_container_async] = lambda: mock_container
+    try:
+        with patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
+            resp = client.post("/api/whatsapp/webhook", json=payload)
+            assert resp.status_code == 200
+            assert mock_send.called
+            sent_body = mock_send.call_args[0][2]
+            assert "Welcome to AskMukthiGuru!" in sent_body
+            assert "Your WhatsApp is connected to your AskMukthiGuru account" in sent_body
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
+

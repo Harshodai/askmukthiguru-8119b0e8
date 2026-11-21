@@ -32,7 +32,7 @@ describe('frontend crisis helplines mirror config/helplines.yaml', () => {
   });
 
   it('no locale carries its own copy of the safety-notice numbers', () => {
-    const locales = ['as', 'bn', 'en', 'gu', 'hi', 'kn', 'ml', 'mr', 'or', 'pa', 'sa', 'ta', 'te', 'ur'];
+    const locales = ['en', 'hi', 'kn', 'ml', 'mr', 'ta', 'te'];
     for (const lng of locales) {
       const raw = readFileSync(resolve(__dirname, `../locales/${lng}.json`), 'utf8');
       // The safety notice reads its numbers from crisisHelplines.ts now; a
