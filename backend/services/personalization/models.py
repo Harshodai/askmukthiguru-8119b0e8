@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from services.personalization.crypto import EncryptedFacet
 
@@ -139,7 +139,44 @@ class UnifiedSeekerContext(BaseModel):
     )
     mode_b_enabled: bool = False
     has_unlocked_vault: bool = False
+    has_state_memory: bool = False
     hydrated_at: float = Field(default_factory=time.time)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _remap_legacy_field_names(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "sadhana_practice" in data and "sadhana" not in data:
+                data["sadhana"] = data["sadhana_practice"]
+            if "pre_practice_log" in data and "pre_practice" not in data:
+                data["pre_practice"] = data["pre_practice_log"]
+            if "study_notebook" in data and "study_notebooks" not in data:
+                data["study_notebooks"] = data["study_notebook"]
+            if "mood_spiritual_journal" in data and "mood_journal" not in data:
+                data["mood_journal"] = data["mood_spiritual_journal"]
+            if "whatsapp_reflection" in data and "whatsapp_reflections" not in data:
+                data["whatsapp_reflections"] = data["whatsapp_reflection"]
+        return data
+
+    @property
+    def sadhana_practice(self) -> SadhanaPracticeContext:
+        return self.sadhana
+
+    @property
+    def pre_practice_log(self) -> PrePracticeLogContext:
+        return self.pre_practice
+
+    @property
+    def study_notebook(self) -> StudyNotebookContext:
+        return self.study_notebooks
+
+    @property
+    def mood_spiritual_journal(self) -> MoodSpiritualJournalContext:
+        return self.mood_journal
+
+    @property
+    def whatsapp_reflection(self) -> WhatsAppReflectionContext:
+        return self.whatsapp_reflections
 
     def format_prompt_guidance(self) -> str:
         """
@@ -165,6 +202,10 @@ class UnifiedSeekerContext(BaseModel):
                 f"- **Language**: {sp.language} | "
                 f"**Distress Level**: {sp.distress_level} (0=None, 4=Crisis)"
             )
+            topics = sp.custom_attributes.get("topics_of_interest")
+            if topics:
+                topics_str = ", ".join(topics) if isinstance(topics, list) else str(topics)
+                sections.append(f"- **Focus Areas**: {topics_str}")
 
         # 2. Sadhana & Practices Journey
         sad = self.sadhana
@@ -205,13 +246,14 @@ class UnifiedSeekerContext(BaseModel):
         else:
             if sb.canonical_memories:
                 mems = [
-                    m.get("statement", "") for m in sb.canonical_memories[:3] if m.get("statement")
+                    m.get("statement", "") for m in sb.canonical_memories[:5] if m.get("statement")
                 ]
                 sections.append(f"- **Canonical Realizations**: {'; '.join(mems)}")
             if sb.observations:
                 sections.append(f"- **Key Observations**: {'; '.join(sb.observations[:3])}")
             if not sb.canonical_memories and not sb.observations:
-                sections.append("- No canonical memories recorded yet.")
+                if not getattr(self, "has_state_memory", False):
+                    sections.append("- No canonical memories recorded yet.")
 
         # 5. Study Notebooks & Saved Teachings
         sn = self.study_notebooks
@@ -225,7 +267,8 @@ class UnifiedSeekerContext(BaseModel):
             if sn.study_tags:
                 sections.append(f"- **Study Focus Tags**: {', '.join(sn.study_tags[:5])}")
             if not sn.saved_teachings and not sn.study_tags:
-                sections.append("- No saved teachings in active notebook.")
+                if not getattr(self, "has_state_memory", False):
+                    sections.append("- No saved teachings in active notebook.")
 
         # 6. Mood Trajectory & Spiritual Journal
         mj = self.mood_journal

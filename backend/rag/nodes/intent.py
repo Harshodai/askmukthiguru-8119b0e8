@@ -91,7 +91,20 @@ def _fast_classify(question: str) -> dict | None:
             "query_tier": "tier2_simple",
             "confidence_tier": "high",
         }
-    if _FAST_CLASSIFY_MEDITATION_RE.search(lower_q) and is_meditation_imperative(question):
+    from app.pipeline.stages.first_person_bridge import (
+        _PRACTICE_HOWTO_RE,
+        _STEP_INSTRUCTION_RE,
+    )
+
+    if (
+        _FAST_CLASSIFY_MEDITATION_RE.search(lower_q)
+        or "soul sync" in lower_q
+        or "serene mind" in lower_q
+    ) and (
+        is_meditation_imperative(question)
+        or bool(_PRACTICE_HOWTO_RE.search(question))
+        or bool(_STEP_INSTRUCTION_RE.search(question))
+    ):
         return {
             "intent": "MEDITATION",
             "query_tier": "tier2_simple",
@@ -1135,7 +1148,15 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     # message is not imperative.
     active_meditation = meditation_step > 0
     if intent == "MEDITATION" and not active_meditation:
-        if not is_meditation_imperative(question):
+        from app.pipeline.stages.first_person_bridge import (
+            _PRACTICE_HOWTO_RE,
+            _STEP_INSTRUCTION_RE,
+        )
+
+        is_practice_howto = bool(_PRACTICE_HOWTO_RE.search(question)) or bool(
+            _STEP_INSTRUCTION_RE.search(question)
+        )
+        if not is_meditation_imperative(question) and not is_practice_howto:
             logger.info(
                 "Intent Router: demoting LLM-classified MEDITATION to FACTUAL "
                 "(no active session, query is interrogative or non-imperative): %s",
@@ -1780,11 +1801,20 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
     # graph routes it back to the general lane.
     from app.pipeline.stages.off_topic_stage import _is_general_task
 
-    if fresh and not is_interrogative and not _is_general_task(question):
+    from app.pipeline.stages.first_person_bridge import (
+        _PRACTICE_HOWTO_RE,
+        _STEP_INSTRUCTION_RE,
+    )
+
+    is_practice_instruction = bool(_PRACTICE_HOWTO_RE.search(question)) or bool(
+        _STEP_INSTRUCTION_RE.search(question)
+    )
+    if fresh and (not is_interrogative or is_practice_instruction) and not _is_general_task(question):
         if "soul sync" in question:
             response = format_meditation_script("soul_sync")
             return {
                 "final_answer": response,
+                "citations": meditation_script_citations("soul_sync"),
                 "meditation_step": 0,
                 "intent": "MEDITATION",
                 "route_decision": "meditation",

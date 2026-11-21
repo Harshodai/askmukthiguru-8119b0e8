@@ -302,6 +302,83 @@ describe('useTextToSpeech', () => {
 
     expect(result.current.currentSentence).toBe('How are you?');
   });
+
+  it('supports streaming pipelined synthesis with speakSentence and finishStream', async () => {
+    const fakeAudio = 'ZmFrZS1hdWRpbw==';
+    vi.mocked(window.fetch).mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ audio: fakeAudio }),
+    } as Response);
+
+    const { result } = renderHook(() => useTextToSpeech());
+
+    await act(async () => {
+      await result.current.speakSentence('First streaming sentence.');
+    });
+
+    expect(window.fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/api/speech/tts',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('First streaming sentence.'),
+      })
+    );
+
+    act(() => {
+      result.current.finishStream();
+    });
+  });
+
+  it('guarantees sequential in-order queueing even when network responses resolve out of order', async () => {
+    let resolveFirst!: (value: Response) => void;
+    let resolveSecond!: (value: Response) => void;
+
+    const firstPromise = new Promise<Response>((res) => { resolveFirst = res; });
+    const secondPromise = new Promise<Response>((res) => { resolveSecond = res; });
+
+    vi.mocked(window.fetch)
+      .mockImplementationOnce(() => firstPromise)
+      .mockImplementationOnce(() => secondPromise);
+
+    const { result } = renderHook(() => useTextToSpeech());
+
+    // Dispatch two sentences concurrently
+    let p1!: Promise<void>;
+    let p2!: Promise<void>;
+
+    act(() => {
+      p1 = result.current.speakSentence('Sentence One.');
+      p2 = result.current.speakSentence('Sentence Two.');
+    });
+
+    // Second response resolves BEFORE first response!
+    await act(async () => {
+      resolveSecond({
+        ok: true,
+        json: () => Promise.resolve({ audio: 'c2Vjb25k' }),
+      } as Response);
+      await p2;
+    });
+
+    // Sentence 2 should not be the current sentence yet because Sentence 1 is pending
+    expect(result.current.currentSentence).not.toBe('Sentence Two.');
+
+    // Now first response resolves
+    await act(async () => {
+      resolveFirst({
+        ok: true,
+        json: () => Promise.resolve({ audio: 'Zmlyc3Q=' }),
+      } as Response);
+      await p1;
+    });
+
+    // First sentence is queued and plays first!
+    expect(result.current.currentSentence).toBe('Sentence One.');
+
+    act(() => {
+      result.current.finishStream();
+    });
+  });
 });
 
 describe('useTextToSpeech language mappings', () => {

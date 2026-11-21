@@ -117,6 +117,16 @@ _PRACTICE_HOWTO_RE = re.compile(
     re.IGNORECASE,
 )
 
+_STEP_INSTRUCTION_RE = re.compile(
+    r"\b(steps?|instructions?|step-by-step)\b.{0,50}\b(practice|soul\s*sync|serene\s*mind|meditat\w*)|\b(soul\s*sync|serene\s*mind)\b.{0,50}\b(steps?|instructions?|step-by-step)\b",
+    re.IGNORECASE,
+)
+
+_DIFFERENCE_SYNTHESIS_RE = re.compile(
+    r"\bdifference\s+between\b|\bdiffer(?:s|ent)?\s+from\b|\bdistinction\s+(?:between|from)\b|\bvs\b\.?|\bversus\b|\bcompar\w*|\bcontrast\w*",
+    re.IGNORECASE,
+)
+
 _PROMISE_OR_OUTCOME_TRAP_RE = re.compile(
     r"\b(?:promise(?:\s+me)?|guarantee|will\s+definitely|definitely\s+(?:be\s+)?saved|cure\s+my)\b",
     re.IGNORECASE,
@@ -1000,7 +1010,14 @@ class FirstPersonBridgeStage(Stage):
             or needs_relationship_safety_boundary(msg_str)
             or needs_addiction_support_boundary(msg_str)
         )
-        if is_meditation_imperative(msg_str) and not _has_promise_or_boundary:
+        if (
+            is_meditation_imperative(msg_str)
+            or bool(_STEP_INSTRUCTION_RE.search(msg_str))
+            or bool(_DIFFERENCE_SYNTHESIS_RE.search(msg_str))
+        ) and not _has_promise_or_boundary:
+            logger.info(
+                "[FirstPersonBridge] Meditation instruction / difference inquiry declined for single clip; falling through to GraphStage."
+            )
             return None
         return await self._abstain(
             ctx,
@@ -1095,6 +1112,11 @@ class FirstPersonBridgeStage(Stage):
             logger.info(
                 "[FirstPersonBridge] Guided practice carries promise trap or safety boundary; evaluating under bridge safety."
             )
+        if _STEP_INSTRUCTION_RE.search(query) and not _has_promise_or_boundary:
+            logger.info(
+                "[FirstPersonBridge] Step-by-step meditation instruction inquiry; GraphStage runs."
+            )
+            return None
         if _PRACTICE_HOWTO_RE.search(query) and getattr(
             settings, "first_person_llm_fallback_enabled", False
         ):
@@ -1115,6 +1137,11 @@ class FirstPersonBridgeStage(Stage):
         boundaries: list[str] = []
         needs_rel = needs_relationship_safety_boundary(query)
         needs_add = needs_addiction_support_boundary(query)
+        if _DIFFERENCE_SYNTHESIS_RE.search(query) and not (needs_rel or needs_add or _has_promise_or_boundary):
+            logger.info(
+                "[FirstPersonBridge] Difference/comparative synthesis inquiry; GraphStage runs."
+            )
+            return None
         if _SYNTHESIS_SHAPE_RE.search(query) or needs_rel or needs_add:
             if not fp_only:
                 logger.info(
@@ -1499,7 +1526,14 @@ class FirstPersonBridgeStage(Stage):
                 # (e.g. "Promise me that if I do Soul Sync my marriage will be saved")
                 # must fail closed here too — never fall through to LLM generation.
                 _is_promise_trap = bool(_PROMISE_OR_OUTCOME_TRAP_RE.search(_query_str))
-                if not is_meditation_imperative(_query_str) or _is_promise_trap:
+                _is_allowed_practice_or_diff = (
+                    bool(_STEP_INSTRUCTION_RE.search(_query_str))
+                    or bool(_DIFFERENCE_SYNTHESIS_RE.search(_query_str))
+                ) and not (needs_rel or needs_add)
+                if (
+                    not is_meditation_imperative(_query_str)
+                    and not _is_allowed_practice_or_diff
+                ) or _is_promise_trap:
                     return await self._abstain(
                         ctx,
                         status,

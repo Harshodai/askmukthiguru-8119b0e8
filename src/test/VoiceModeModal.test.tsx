@@ -87,4 +87,20 @@ describe('VoiceModeModal', () => {
     fireEvent.click(interruptBtn);
     expect(onInterrupt).toHaveBeenCalledTimes(1);
   });
+
+  it('highlights currentSentence within the Guru response transcript when speaking', () => {
+    render(
+      <VoiceModeModal
+        {...defaultProps}
+        state="speaking"
+        isSpeaking={true}
+        responseTranscript="Peace begins within yourself. When you observe without judgment, clarity emerges."
+        currentSentence="When you observe without judgment, clarity emerges."
+      />,
+    );
+
+    const highlighted = screen.getByText('When you observe without judgment, clarity emerges.');
+    expect(highlighted).toBeDefined();
+    expect(highlighted.className).toContain('bg-amber-400/20');
+  });
 });

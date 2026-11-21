@@ -35,6 +35,7 @@ export interface VoiceModeModalProps {
   transcript: string;
   interimTranscript: string;
   responseTranscript: string;
+  currentSentence?: string | null;
   audioLevel: number;
   isMuted: boolean;
   isSpeaking: boolean;
@@ -63,6 +64,7 @@ export const VoiceModeModal: React.FC<VoiceModeModalProps> = ({
   transcript,
   interimTranscript,
   responseTranscript,
+  currentSentence,
   audioLevel,
   isMuted,
   isSpeaking,
@@ -273,7 +275,22 @@ export const VoiceModeModal: React.FC<VoiceModeModalProps> = ({
                       )}
                     </div>
                     <p className="text-sm sm:text-base text-foreground font-serif leading-relaxed">
-                      {responseTranscript}
+                      {(() => {
+                        if (!currentSentence) return responseTranscript;
+                        const matchIndex = responseTranscript.indexOf(currentSentence);
+                        if (matchIndex !== -1) {
+                          return (
+                            <>
+                              <span>{responseTranscript.slice(0, matchIndex)}</span>
+                              <span className="bg-amber-400/20 text-amber-300 dark:text-amber-200 rounded px-1 py-0.5 shadow-sm transition-colors font-medium">
+                                {currentSentence}
+                              </span>
+                              <span>{responseTranscript.slice(matchIndex + currentSentence.length)}</span>
+                            </>
+                          );
+                        }
+                        return responseTranscript;
+                      })()}
                     </p>
                   </motion.div>
                 )}

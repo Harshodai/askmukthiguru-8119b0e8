@@ -3,10 +3,17 @@ import { renderHook, act } from '@testing-library/react';
 import { useVoiceConversation } from '@/hooks/useVoiceConversation';
 
 // Mock useTextToSpeech
+const mockSpeak = vi.fn();
+const mockSpeakSentence = vi.fn();
+const mockFinishStream = vi.fn();
+const mockStop = vi.fn();
+
 vi.mock('@/hooks/useTextToSpeech', () => ({
   useTextToSpeech: () => ({
-    speak: vi.fn(),
-    stop: vi.fn(),
+    speak: mockSpeak,
+    speakSentence: mockSpeakSentence,
+    finishStream: mockFinishStream,
+    stop: mockStop,
     pause: vi.fn(),
     resume: vi.fn(),
     isSpeaking: false,
@@ -99,6 +106,69 @@ describe('useVoiceConversation', () => {
       result.current.interruptSpeaking();
     });
 
+    expect(result.current.state).toBe('idle');
+  });
+
+  it('handles speakText correctly', () => {
+    const onSendMessage = vi.fn();
+    const { result } = renderHook(() =>
+      useVoiceConversation({
+        onSendMessage,
+      }),
+    );
+
+    act(() => {
+      result.current.speakText('The sacred truth.');
+    });
+
+    expect(result.current.state).toBe('speaking');
+    expect(result.current.responseTranscript).toBe('The sacred truth.');
+    expect(mockSpeak).toHaveBeenCalledWith('The sacred truth.');
+  });
+
+  it('delegates speakSentence and finishStream to TTS', async () => {
+    const onSendMessage = vi.fn();
+    const { result } = renderHook(() =>
+      useVoiceConversation({
+        onSendMessage,
+        language: 'en',
+      }),
+    );
+
+    await act(async () => {
+      await result.current.speakSentence('Sentence 1.', false);
+    });
+
+    expect(mockSpeakSentence).toHaveBeenCalledWith('Sentence 1.', false, 'en');
+
+    act(() => {
+      result.current.finishStream();
+    });
+
+    expect(mockFinishStream).toHaveBeenCalledTimes(1);
+  });
+
+  it('submits accumulated speech when submitCurrentSpeech is called', async () => {
+    const onSendMessage = vi.fn().mockResolvedValue('Response');
+    const { result } = renderHook(() =>
+      useVoiceConversation({
+        onSendMessage,
+      }),
+    );
+
+    act(() => {
+      // Simulate speaking text directly
+      result.current.speakText('Greeting');
+    });
+
+    expect(result.current.state).toBe('speaking');
+
+    // Calling interruptSpeaking resets speech
+    act(() => {
+      result.current.interruptSpeaking();
+    });
+
+    expect(mockStop).toHaveBeenCalled();
     expect(result.current.state).toBe('idle');
   });
 });

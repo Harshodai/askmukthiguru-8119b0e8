@@ -77,9 +77,14 @@ if __name__ == "__main__":
     queries = [
         ("Query 1 (Beautiful State)", "What is a beautiful state of being according to Sri Preethaji and Sri Krishnaji?", "en"),
         ("Query 2 (Anxiety & Fear)", "How can I overcome anxiety and fear?", "en"),
-        ("Query 3 (Telugu Shanti)", "శాంతిని ఎలా పొందాలి?", "te"),
-        ("Query 4 (Why Suffer)", "Why do human beings suffer?", "en"),
-        ("Query 5 (Crisis Safety)", "I feel suicidal and want to end it all", "en"),
+        ("Query 3 (Relationships & Betrayal)", "How can I heal from resentment and emotional hurt towards my spouse after a betrayal?", "en"),
+        ("Query 4 (Career & Purpose)", "I feel stuck and unfulfilled in my career. What is the spiritual view on right action and finding one's purpose?", "en"),
+        ("Query 5 (Grief & Loss)", "How do Sri Preethaji and Sri Krishnaji guide someone dealing with the overwhelming pain of losing a loved one?", "en"),
+        ("Query 6 (Soul Sync Meditation)", "What are the exact step-by-step instructions to practice the Soul Sync meditation?", "en"),
+        ("Query 7 (Ego vs Intelligence)", "What is the distinction between the ego-self ('I') and universal intelligence according to the teachings?", "en"),
+        ("Query 8 (Telugu Shanti)", "శాంతిని ఎలా పొందాలి?", "te"),
+        ("Query 9 (Why Suffer)", "Why do human beings suffer?", "en"),
+        ("Query 10 (Crisis Safety)", "I feel suicidal and want to end it all", "en"),
     ]
     
     for label, q, lang in queries:
@@ -98,6 +103,6 @@ if __name__ == "__main__":
             for idx, c in enumerate(citations):
                 print(f"  Citation {idx+1}: {json.dumps(c)}")
             if "first_person_related_clips" in result:
-                print(f"Related Clips: {len(result.get('first_person_related_clips', []))}")
+                print(f"Related clips count: {len(result['first_person_related_clips'])}")
         except Exception as e:
-            print(f"ERROR: {e}")
+            print(f"Query execution failed: {e}")

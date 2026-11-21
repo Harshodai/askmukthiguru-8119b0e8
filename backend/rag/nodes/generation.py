@@ -2159,10 +2159,12 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     # DEF-R2-05: Personalization Generation Prompt Directive
     if state.get("personalize_clip"):
         instructions += (
-            "\nPERSONALIZATION DIRECTIVE: You are personalizing the provided teaching for this seeker. "
+            "\nPERSONALIZATION DIRECTIVE: You are personalizing the provided teaching for this specific seeker. "
             "Gently relate the teacher's verbatim insight to the seeker's personal reflections, practices, and situation "
-            "as captured in their saved memory. Clarify how the teaching illuminates their inner state without judging, "
-            "and offer practical contemplation based strictly on the teaching's principles."
+            "as captured in their saved memory. Review their Seeker State and Personal Memory (their life challenges, "
+            "relationships, emotional struggles, and spiritual practices). Explicitly connect the teacher's core wisdom "
+            "directly to their situation. Address their specific challenges with deep compassion, illuminate their inner state "
+            "using the teaching, and provide step-by-step contemplation or practice tailored to their current life chapter."
         )
 
     # The instructions are always English text, so they are budgeted as English.

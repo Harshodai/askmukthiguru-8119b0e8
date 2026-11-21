@@ -108,20 +108,32 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
          ========================================================================= */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         {radialBars.map((bar) => {
-          // Dynamic bar height based on speech intensity and state
-          let barHeight = 8;
+          // Dynamic bar height and animation based on speech intensity and state
           let barColor = 'bg-amber-400/40';
+          let barAnimation: { height?: number | number[]; opacity?: number | number[] } = { height: 8, opacity: 0.3 };
+          let barTransition: Record<string, unknown> = { duration: 0.15, ease: 'easeOut' };
 
           if (state === 'listening') {
             const dynamicBurst = 8 + clampedLevel * 34 * bar.harmonic;
-            barHeight = dynamicBurst;
             barColor = 'bg-gradient-to-t from-amber-500 to-amber-300';
+            barAnimation = { height: dynamicBurst, opacity: 0.85 };
           } else if (state === 'speaking') {
-            barHeight = 10 + Math.sin(bar.angle) * 12 + 8;
             barColor = 'bg-gradient-to-t from-violet-500 to-amber-400';
+            const baseH = 10 + bar.harmonic * 14;
+            const peakH = 20 + (1 - bar.harmonic) * 18;
+            barAnimation = {
+              height: [baseH, peakH, baseH * 0.85, peakH * 1.05, baseH],
+              opacity: [0.75, 0.95, 0.8, 1, 0.75],
+            };
+            barTransition = {
+              duration: 1.4 + (bar.id % 4) * 0.25,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              delay: (bar.id / 16) * 0.35,
+            };
           } else if (state === 'thinking') {
-            barHeight = 6;
             barColor = 'bg-purple-400/30';
+            barAnimation = { height: 6, opacity: 0.5 };
           }
 
           return (
@@ -136,18 +148,8 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
             >
               <motion.div
                 className={`w-1 rounded-full ${barColor} shadow-[0_0_6px_rgba(245,158,11,0.5)]`}
-                animate={
-                  shouldReduceMotion
-                    ? {}
-                    : {
-                        height: barHeight,
-                        opacity: state === 'idle' ? 0.3 : 0.85,
-                      }
-                }
-                transition={{
-                  duration: 0.15,
-                  ease: 'easeOut',
-                }}
+                animate={shouldReduceMotion ? {} : barAnimation}
+                transition={barTransition}
               />
             </div>
           );
@@ -202,17 +204,28 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({
         animate={
           shouldReduceMotion
             ? { scale: 1 }
+            : state === 'speaking'
+            ? { scale: [1.02, 1.06, 1.03, 1.05] }
             : {
                 scale: dynamicScale,
               }
         }
         whileHover={{ scale: 1.04 }}
         whileTap={{ scale: 0.95 }}
-        transition={{
-          type: 'spring',
-          stiffness: 280,
-          damping: 20,
-        }}
+        transition={
+          state === 'speaking'
+            ? {
+                duration: 2.2,
+                repeat: Infinity,
+                repeatType: 'reverse',
+                ease: 'easeInOut',
+              }
+            : {
+                type: 'spring',
+                stiffness: 280,
+                damping: 20,
+              }
+        }
       >
         {/* Authentic Sacred Ekam Golden Orb Photo */}
         <img

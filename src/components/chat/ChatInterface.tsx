@@ -104,7 +104,8 @@ import { useAutoTranslate } from '@/hooks/useAutoTranslate';
 
 import { buildPersonalisedWelcome } from './ChatHelpers';
 import { VoiceModeModal } from './VoiceModeModal';
-import { useVoiceConversation } from '@/hooks/useVoiceConversation';
+import { useVoiceConversation, type VoiceStreamHandlers } from '@/hooks/useVoiceConversation';
+import { SentenceAccumulator } from '@/lib/audio/spokenTextNormalizer';
 
 // ── Suggested starter prompt-cards (ChatGPT-style, spiritually themed) ──
 import { Flower2, Heart as HeartIcon, Compass } from 'lucide-react';
@@ -411,6 +412,7 @@ export const ChatInterface = () => {
   const voiceAwaitingPlaybackRef = useRef(false);
   const voiceSubmitRef = useRef<(text: string) => void>(() => {});
   const voiceResponseResolverRef = useRef<((text: string) => void) | null>(null);
+  const voiceStreamHandlersRef = useRef<VoiceStreamHandlers | null>(null);
   const isVoiceModeOpenRef = useRef(false);
   /** AbortController for the in-flight streaming request — Stop button calls .abort(). */
   const streamControllerRef = useRef<AbortController | null>(null);
@@ -1425,6 +1427,10 @@ export const ChatInterface = () => {
           },
         });
 
+        const voiceSentenceAccumulator = voiceStreamHandlersRef.current
+          ? new SentenceAccumulator(15)
+          : null;
+
         for await (const chunk of stream) {
           if (chunk.type === 'stage') {
             setShowInstantPill(false);
@@ -1578,11 +1584,28 @@ export const ChatInterface = () => {
           // Update the streaming message state locally with FluidTokenPacer
           fullContent += chunk.text;
           tokenPacer.push(chunk.text);
+
+          if (voiceSentenceAccumulator && voiceStreamHandlersRef.current) {
+            const newSentences = voiceSentenceAccumulator.push(chunk.text);
+            for (const sentence of newSentences) {
+              void voiceStreamHandlersRef.current.onSentence(sentence, false);
+            }
+          }
         }
 
         tokenPacer.flush();
         tokenBufferRef.current = fullContent;
         setStreamingContent(fullContent);
+
+        if (voiceSentenceAccumulator && voiceStreamHandlersRef.current) {
+          const flushed = voiceSentenceAccumulator.flush();
+          for (let i = 0; i < flushed.length; i++) {
+            const isLast = i === flushed.length - 1;
+            void voiceStreamHandlersRef.current.onSentence(flushed[i], isLast);
+          }
+          voiceStreamHandlersRef.current.onDone();
+          voiceStreamHandlersRef.current = null;
+        }
 
         if (streamedFinalText !== null) {
           fullContent = streamedFinalText;
@@ -1761,6 +1784,16 @@ openSereneMind('audio');
         };
         const wasAborted =
           err?.name === 'AbortError' || streamControllerRef.current?.signal.aborted;
+
+        if (voiceStreamHandlersRef.current) {
+          if (!wasAborted) {
+            voiceStreamHandlersRef.current.onError(
+              streamErr instanceof Error ? streamErr : new Error(String(streamErr))
+            );
+          }
+          voiceStreamHandlersRef.current = null;
+        }
+
         if (wasAborted) {
           streamAbortedByUser = true;
           // User clicked Stop — keep whatever streamed, append a clear marker.
@@ -2109,7 +2142,8 @@ voiceSubmitRef.current = (text) => {
 const [isVoiceModeOpen, setIsVoiceModeOpen] = useState(false);
 
 const handleVoiceSendMessage = useCallback(
-  async (text: string): Promise<string> => {
+  async (text: string, streamHandlers?: VoiceStreamHandlers): Promise<string> => {
+    voiceStreamHandlersRef.current = streamHandlers ?? null;
     return new Promise((resolve) => {
       voiceResponseResolverRef.current = resolve;
       const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
@@ -2136,6 +2170,7 @@ const handleOpenVoiceMode = useCallback(() => {
 const handleCloseVoiceMode = useCallback(() => {
   isVoiceModeOpenRef.current = false;
   setIsVoiceModeOpen(false);
+  voiceStreamHandlersRef.current = null;
   voiceConversation.endSession();
   if (voiceResponseResolverRef.current) {
     voiceResponseResolverRef.current = null;
@@ -3107,6 +3142,7 @@ return (
       transcript={voiceConversation.transcript}
       interimTranscript={voiceConversation.interimTranscript}
       responseTranscript={voiceConversation.responseTranscript}
+      currentSentence={voiceConversation.currentSentence}
       audioLevel={voiceConversation.audioLevel}
       isMuted={voiceConversation.isMuted}
       isSpeaking={voiceConversation.isSpeaking}
@@ -3114,7 +3150,10 @@ return (
       currentLanguage={voiceConversation.currentLanguage}
       currentSpeaker={voiceConversation.currentSpeaker}
       onToggleMute={voiceConversation.toggleMute}
-      onInterrupt={voiceConversation.interruptSpeaking}
+      onInterrupt={() => {
+        streamControllerRef.current?.abort();
+        voiceConversation.interruptSpeaking();
+      }}
       onSubmitSpeech={voiceConversation.submitCurrentSpeech}
       onLanguageChange={(lang) => {
         voiceConversation.setLanguage(lang);

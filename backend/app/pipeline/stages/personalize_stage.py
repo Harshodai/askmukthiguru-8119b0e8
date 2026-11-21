@@ -510,10 +510,102 @@ class PersonalizeStage(Stage):
             from services.personalization import UnifiedPersonalizationEngine
 
             vault_key = getattr(getattr(ctx, "request", None), "vault_key", None)
+            supabase = getattr(ctx.container, "supabase_client", None)
+            qdrant = getattr(ctx.container, "qdrant", None)
+            memgraph = getattr(ctx.container, "memgraph", None) or getattr(
+                ctx.container, "memgraph_driver", None
+            )
+
             seeker_ctx = await UnifiedPersonalizationEngine.hydrate_seeker_context(
                 user_id=getattr(ctx, "user_id", None),
                 client_vault_key=vault_key,
+                supabase_client=supabase,
+                qdrant_client=qdrant,
+                memgraph_driver=memgraph,
             )
+
+            # Fallback & enrichment: if ctx.state holds memory context from
+            # prepare_user_memory in RequestStateStage, merge into seeker_ctx
+            # so no seeker realizations are lost, and flag has_state_memory.
+            raw_mem_context = str(
+                state.get("memory_context") or state.get("canonical_memory_evidence") or ""
+            ).strip()
+            if raw_mem_context:
+                seeker_ctx.has_state_memory = True
+                import re
+
+                extracted_mems = []
+                for line in raw_mem_context.splitlines():
+                    line = line.strip()
+                    if line.startswith("- "):
+                        clean = re.sub(r"^-\s*(\[[^\]]+\]\s*)?", "", line)
+                        clean = re.sub(r"\s*\(confidence=.*?\)$", "", clean).strip()
+                        if clean and not clean.startswith("["):
+                            extracted_mems.append({"statement": clean, "category": "reflection"})
+
+                if extracted_mems:
+                    existing_statements = {
+                        str(m.get("statement", "")).strip()
+                        for m in seeker_ctx.second_brain.canonical_memories
+                        if m.get("statement")
+                    }
+                    for em in extracted_mems:
+                        if em["statement"] not in existing_statements:
+                            seeker_ctx.second_brain.canonical_memories.append(em)
+                            existing_statements.add(em["statement"])
+
+            # Merge user_profile from state (handles UserProfile dataclass or dict)
+            state_profile = state.get("user_profile")
+            if state_profile:
+                s_level = (
+                    getattr(state_profile, "spiritual_level", None)
+                    if hasattr(state_profile, "spiritual_level")
+                    else state_profile.get("spiritual_level")
+                    if isinstance(state_profile, dict)
+                    else None
+                )
+                if s_level:
+                    seeker_ctx.seeker_profile.spiritual_readiness = (
+                        s_level.value if hasattr(s_level, "value") else str(s_level)
+                    )
+
+                p_lang = (
+                    getattr(state_profile, "preferred_language", None)
+                    if hasattr(state_profile, "preferred_language")
+                    else state_profile.get("preferred_language")
+                    if isinstance(state_profile, dict)
+                    else None
+                )
+                if p_lang:
+                    seeker_ctx.seeker_profile.language = (
+                        p_lang.value if hasattr(p_lang, "value") else str(p_lang)
+                    )
+
+                topics = (
+                    getattr(state_profile, "topics_of_interest", None)
+                    if hasattr(state_profile, "topics_of_interest")
+                    else state_profile.get("topics_of_interest")
+                    if isinstance(state_profile, dict)
+                    else None
+                )
+                if topics:
+                    seeker_ctx.seeker_profile.custom_attributes["topics_of_interest"] = topics
+
+                distress = (
+                    getattr(state_profile, "last_distress_assessment", None)
+                    if hasattr(state_profile, "last_distress_assessment")
+                    else state_profile.get("last_distress_assessment")
+                    if isinstance(state_profile, dict)
+                    else None
+                )
+                if isinstance(distress, dict):
+                    seeker_ctx.seeker_profile.distress_level = int(distress.get("level", 0) or 0)
+                elif distress is not None:
+                    try:
+                        seeker_ctx.seeker_profile.distress_level = int(distress)
+                    except (ValueError, TypeError):
+                        pass
+
             state["seeker_context"] = seeker_ctx
             state["seeker_guidance"] = UnifiedPersonalizationEngine.format_prompt_guidance(
                 seeker_ctx

@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { LANGUAGES } from '@/components/chat/LanguageSelector';
 import { BACKEND_URL_OR_LOCAL } from '@/lib/backendUrl';
 import { getAccessToken } from '@/lib/chat/auth';
+import { normalizeForSpeech } from '@/lib/audio/spokenTextNormalizer';
+import { StreamingAudioQueue } from '@/lib/audio/StreamingAudioQueue';
 
-interface UseTextToSpeechOptions {
+export interface UseTextToSpeechOptions {
   lang?: string;
   rate?: number;
   pitch?: number;
@@ -12,8 +14,10 @@ interface UseTextToSpeechOptions {
   onError?: (error: string) => void;
 }
 
-interface UseTextToSpeechReturn {
+export interface UseTextToSpeechReturn {
   speak: (text: string, langOverride?: string) => void;
+  speakSentence: (sentence: string, isLast?: boolean, langOverride?: string) => Promise<void>;
+  finishStream: () => void;
   stop: () => void;
   pause: () => void;
   resume: () => void;
@@ -37,7 +41,6 @@ const languageMap: Record<string, string[]> = LANGUAGES.reduce(
 
 const splitIntoSentences = (text: string): string[] => {
   if (!text.trim()) return [];
-  // Split on sentence terminators followed by space or end of string, preserving the delimiter.
   return text
     .split(/(?<=[.!?।\n])\s+/)
     .map((s) => s.trim())
@@ -71,22 +74,67 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
   const sarvamAudioRef = useRef<HTMLAudioElement | null>(null);
   const currentTextRef = useRef<string>('');
   const sentencesRef = useRef<string[]>([]);
+  const streamingQueueRef = useRef<StreamingAudioQueue | null>(null);
 
   const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
   const onErrorRef = useRef(onError);
-  // Each speak() takes a generation; stop() and a newer speak() bump it and abort the
-  // in-flight TTS request, so a slow reply (Railway cold start: 25-40 s) never plays late.
+
+  // Each speak() or speakSentence() run takes a generation; stop() and a newer speak() bump it
   const generationRef = useRef(0);
-  const pendingRequestRef = useRef<AbortController | null>(null);
+  const pendingRequestsRef = useRef<Set<AbortController>>(new Set());
+
+  // Sequenced streaming synthesis state to guarantee in-order queueing and gapless chaining
+  const nextSeqRef = useRef(0);
+  const enqueuedSeqRef = useRef(0);
+  const pendingAudioMapRef = useRef<Map<number, { audioUrl: string; sentence: string }>>(new Map());
+  const totalSentencesRef = useRef<number | null>(null);
+
   const cancelPending = useCallback(() => {
     generationRef.current += 1;
-    pendingRequestRef.current?.abort();
-    pendingRequestRef.current = null;
+    pendingRequestsRef.current.forEach((controller) => {
+      try {
+        controller.abort();
+      } catch {
+        // Safe ignore
+      }
+    });
+    pendingRequestsRef.current.clear();
+    pendingAudioMapRef.current.clear();
+    nextSeqRef.current = 0;
+    enqueuedSeqRef.current = 0;
+    totalSentencesRef.current = null;
   }, []);
 
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
+
+  // Lazy-initialize the streaming audio queue
+  const getStreamingQueue = useCallback(() => {
+    if (!streamingQueueRef.current) {
+      streamingQueueRef.current = new StreamingAudioQueue({
+        onPlaybackStart: () => {
+          setIsSpeaking(true);
+          setIsPaused(false);
+        },
+        onPlaybackEnd: () => {
+          setIsSpeaking(false);
+          setIsPaused(false);
+          setCurrentSentence(null);
+        },
+        onSentenceChange: (sentence) => {
+          setCurrentSentence(sentence);
+        },
+        onError: (err) => {
+          console.warn('[useTextToSpeech] Streaming audio error:', err);
+          const errMsg = err.message || 'Streaming audio playback error';
+          setError(errMsg);
+          onErrorRef.current?.(errMsg);
+        },
+      });
+    }
+    return streamingQueueRef.current;
+  }, []);
 
   // Load available voices
   useEffect(() => {
@@ -98,8 +146,6 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     };
 
     loadVoices();
-
-    // Voices may load asynchronously
     window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
 
     return () => {
@@ -123,7 +169,6 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
       }
     }
 
-    // Fallback to any English voice
     const fallbackVoice = voices.find((voice) => voice.lang.startsWith('en'));
     setCurrentVoice(fallbackVoice || voices[0] || null);
   }, [lang, voices]);
@@ -176,7 +221,6 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     };
 
     utterance.onerror = (event) => {
-      // "interrupted"/"canceled" are a stop() or a newer utterance, not a failure.
       if (event.error !== 'interrupted' && event.error !== 'canceled') {
         const errMsg = `Speech synthesis failed (${event.error}).`;
         setError(errMsg);
@@ -204,15 +248,124 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     window.speechSynthesis.speak(utterance);
   }, [isSupported, findVoiceForLanguage, lang, rate, pitch, volume]);
 
+  const flushOrderedQueue = useCallback(() => {
+    const queue = getStreamingQueue();
+    while (pendingAudioMapRef.current.has(enqueuedSeqRef.current)) {
+      const item = pendingAudioMapRef.current.get(enqueuedSeqRef.current)!;
+      pendingAudioMapRef.current.delete(enqueuedSeqRef.current);
+      queue.enqueue(item.audioUrl, item.sentence);
+      enqueuedSeqRef.current += 1;
+    }
+
+    if (
+      totalSentencesRef.current !== null &&
+      enqueuedSeqRef.current >= totalSentencesRef.current
+    ) {
+      queue.markStreamComplete();
+    }
+  }, [getStreamingQueue]);
+
+  /**
+   * Synthesize and enqueue an individual sentence incrementally (streaming TTS).
+   * Guaranteed strictly in-order via pendingAudioMap and sequence counter.
+   */
+  const speakSentence = useCallback(
+    async (sentence: string, isLast = false, langOverride?: string): Promise<void> => {
+      const clean = normalizeForSpeech(sentence);
+      if (!clean) {
+        if (isLast) {
+          totalSentencesRef.current = nextSeqRef.current;
+          flushOrderedQueue();
+        }
+        return;
+      }
+
+      const seq = nextSeqRef.current++;
+      if (isLast) {
+        totalSentencesRef.current = nextSeqRef.current;
+      }
+
+      const generation = generationRef.current;
+      const controller = new AbortController();
+      pendingRequestsRef.current.add(controller);
+      const isSuperseded = () => generation !== generationRef.current;
+
+      setError(null);
+      setIsSpeaking(true);
+
+      try {
+        const backendUrl = BACKEND_URL_OR_LOCAL;
+        if (!backendUrl) throw new Error('Backend URL not configured');
+
+        const token = await getAccessToken();
+        if (isSuperseded()) return;
+
+        const res = await fetch(`${backendUrl}/api/speech/tts`, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            text: clean,
+            target_language_code: langOverride || lang,
+            speaker: speaker || 'shubh',
+          }),
+        });
+
+        pendingRequestsRef.current.delete(controller);
+
+        if (!res.ok) throw new Error(`TTS ${res.status}`);
+        const data = await res.json();
+        if (isSuperseded()) return;
+
+        if (!data?.audio) throw new Error('No audio payload in response');
+
+        const format = data.format || (data.audio?.startsWith('UklGR') ? 'wav' : 'mp3');
+        const audioUrl = `data:audio/${format};base64,${data.audio}`;
+
+        pendingAudioMapRef.current.set(seq, { audioUrl, sentence: clean });
+        flushOrderedQueue();
+      } catch (err) {
+        pendingRequestsRef.current.delete(controller);
+        if (isSuperseded()) return;
+
+        console.warn(`[useTextToSpeech] speakSentence (seq ${seq}) failed:`, err);
+        // Advance sequence so subsequent items don't stall waiting for this chunk
+        enqueuedSeqRef.current = Math.max(enqueuedSeqRef.current, seq + 1);
+        flushOrderedQueue();
+      }
+    },
+    [lang, speaker, flushOrderedQueue]
+  );
+
+  /**
+   * Finalizes streaming audio queue when all sentences have been dispatched.
+   */
+  const finishStream = useCallback(() => {
+    totalSentencesRef.current = nextSeqRef.current;
+    flushOrderedQueue();
+  }, [flushOrderedQueue]);
+
+  /**
+   * Monolithic speak: Cleans and speaks entire text block (backward-compatible).
+   */
   const speak = useCallback(
     async (text: string, langOverride?: string) => {
       cancelPending();
       const generation = generationRef.current;
       const controller = new AbortController();
-      pendingRequestRef.current = controller;
+      pendingRequestsRef.current.add(controller);
       const superseded = () => generation !== generationRef.current;
+
       setError(null);
       setCurrentSentence(null);
+
+      // Stop any existing streaming queue
+      if (streamingQueueRef.current) {
+        streamingQueueRef.current.stop();
+      }
 
       // Stop any existing Sarvam audio
       if (sarvamAudioRef.current) {
@@ -225,9 +378,9 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         window.speechSynthesis.cancel();
       }
 
-      if (!text.trim()) return;
+      const cleanText = normalizeForSpeech(text);
+      if (!cleanText.trim()) return;
 
-      // Sarvam neural TTS is the default for all languages.
       try {
         setIsSpeaking(true);
         const backendUrl = BACKEND_URL_OR_LOCAL;
@@ -236,6 +389,7 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
         }
         const token = await getAccessToken();
         if (superseded()) return;
+
         const res = await fetch(`${backendUrl}/api/speech/tts`, {
           method: 'POST',
           signal: controller.signal,
@@ -244,20 +398,21 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
-            text: text.slice(0, 5000),
+            text: cleanText.slice(0, 5000),
             target_language_code: langOverride || lang,
             speaker: speaker || 'shubh',
           }),
         });
 
+        pendingRequestsRef.current.delete(controller);
+
         if (!res.ok) throw new Error(`TTS ${res.status}`);
         const data = await res.json();
         if (superseded()) return;
         if (!data?.audio) throw new Error('No audio payload in response');
-        pendingRequestRef.current = null;
 
-        currentTextRef.current = text;
-        sentencesRef.current = splitIntoSentences(text);
+        currentTextRef.current = cleanText;
+        sentencesRef.current = splitIntoSentences(cleanText);
 
         const format = data.format || (data.audio?.startsWith('UklGR') ? 'wav' : 'mp3');
         const audioUrl = `data:audio/${format};base64,${data.audio}`;
@@ -310,12 +465,12 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
           setCurrentSentence(null);
         });
       } catch (err) {
-        if (superseded()) return; // stopped or replaced: the abort is not a failure
-        // Fall back to native speech synthesis on backend failure.
+        pendingRequestsRef.current.delete(controller);
+        if (superseded()) return;
         console.warn('Sarvam TTS failed, falling back to native TTS:', err);
         setIsSpeaking(false);
         setCurrentSentence(null);
-        playNativeTTS(text, langOverride);
+        playNativeTTS(cleanText, langOverride);
       }
     },
     [isSupported, playNativeTTS, lang, speaker, cancelPending]
@@ -323,6 +478,9 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
 
   const stop = useCallback(() => {
     cancelPending();
+    if (streamingQueueRef.current) {
+      streamingQueueRef.current.stop();
+    }
     if (sarvamAudioRef.current) {
       sarvamAudioRef.current.pause();
       sarvamAudioRef.current = null;
@@ -336,7 +494,10 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
   }, [isSupported, cancelPending]);
 
   const pause = useCallback(() => {
-    if (sarvamAudioRef.current) {
+    if (streamingQueueRef.current && streamingQueueRef.current.isPlaying) {
+      streamingQueueRef.current.pause();
+      setIsPaused(true);
+    } else if (sarvamAudioRef.current) {
       sarvamAudioRef.current.pause();
       setIsPaused(true);
     } else if (isSupported) {
@@ -346,7 +507,10 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
   }, [isSupported]);
 
   const resume = useCallback(() => {
-    if (sarvamAudioRef.current) {
+    if (streamingQueueRef.current && streamingQueueRef.current.isPaused) {
+      streamingQueueRef.current.resume();
+      setIsPaused(false);
+    } else if (sarvamAudioRef.current) {
       sarvamAudioRef.current.play().catch(() => {});
       setIsPaused(false);
     } else if (isSupported) {
@@ -355,10 +519,14 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
     }
   }, [isSupported]);
 
-  // Cleanup on unmount: also drop an in-flight TTS request so it never plays later.
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       cancelPending();
+      if (streamingQueueRef.current) {
+        streamingQueueRef.current.stop();
+        streamingQueueRef.current = null;
+      }
       if (sarvamAudioRef.current) {
         sarvamAudioRef.current.pause();
         sarvamAudioRef.current = null;
@@ -373,6 +541,8 @@ export const useTextToSpeech = (options: UseTextToSpeechOptions = {}): UseTextTo
 
   return {
     speak,
+    speakSentence,
+    finishStream,
     stop,
     pause,
     resume,
