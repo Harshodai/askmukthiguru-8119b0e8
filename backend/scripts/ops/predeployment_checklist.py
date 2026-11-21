@@ -76,8 +76,8 @@ def check_serving_contract() -> tuple[bool, str]:
         contract = sc.load_contract(contract_path)
         report = sc.validate_serving_contract(
             contract=contract,
-            legacy_collection=sc.V12_SHADOW_COLLECTION,
-            context_collection=sc.V12_SHADOW_COLLECTION,
+            legacy_collection=sc.V13_SHADOW_COLLECTION,
+            context_collection=sc.V13_SHADOW_COLLECTION,
             context_harness_enabled=True,
             context_terminal_enabled=True,
         )
@@ -86,12 +86,12 @@ def check_serving_contract() -> tuple[bool, str]:
         sc.assert_startup_safe(
             report,
             is_production=False,
-            serving_posture=sc.POSTURE_V12_SHADOW,
+            serving_posture=sc.POSTURE_V13_SHADOW,
             context_harness_enabled=True,
             context_terminal_enabled=True,
             legacy_route_enabled=True,
         )
-        return True, "v12_shadow serving contract valid and startup-safe"
+        return True, "v13_shadow serving contract valid and startup-safe"
     except Exception as exc:
         return False, f"Serving contract check failed: {exc}"
 

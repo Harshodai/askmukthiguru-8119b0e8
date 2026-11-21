@@ -738,20 +738,21 @@ def assert_startup_safe(
 
 V10_COLLECTION = "first_person_v10"
 V12_SHADOW_COLLECTION = "first_person_v12_shadow"
+V13_SHADOW_COLLECTION = "first_person_v13_shadow"
 POSTURE_V10_ONLY = "v10_only"
 POSTURE_V12_SHADOW = "v12_shadow"
+POSTURE_V13_SHADOW = "v13_shadow"
 POSTURE_V8_BRIDGE = "v8_bridge"
 
-# Production posture, owner decision 2026-11-20 (measured: min score 3 abstains on ~85% of
-# questions, docs/handoffs/LOOP_NOTES_2026_11_20.md "LEAD CORRECTION"). The single
-# machine-readable source; tests/test_production_posture_drift_2026_11_20.py compares
+# Production posture, owner decision 2026-11-20/21 (promoted to v13_shadow with corpus gaps added).
+# The single machine-readable source; tests/test_production_posture_drift_2026_11_20.py compares
 # .railway/railway.ts and backend/.env.example against it. Code defaults in app/config.py
 # (min score 3) and the frozen docker-compose.graded.yml are intentionally different.
 PRODUCTION_POSTURE: dict[str, str] = {
     "FIRST_PERSON_RELEVANCE_MIN_SCORE": "2",
     "FIRST_PERSON_RELEVANCE_MODEL": "anthropic/claude-haiku-5.5",
-    "FIRST_PERSON_SERVING_POSTURE": POSTURE_V12_SHADOW,
-    "FIRST_PERSON_ACTIVE_COLLECTION": V12_SHADOW_COLLECTION,
+    "FIRST_PERSON_SERVING_POSTURE": POSTURE_V13_SHADOW,
+    "FIRST_PERSON_ACTIVE_COLLECTION": V13_SHADOW_COLLECTION,
     "FIRST_PERSON_CONTEXT_HARNESS_ENABLED": "true",
     "FIRST_PERSON_CONTEXT_TERMINAL_ENABLED": "true",
     "FIRST_PERSON_ANSWERABILITY_CHECK_ENABLED": "true",
@@ -786,12 +787,20 @@ def _check_declared_posture(
             f"needs both flags true and both slots on {V12_SHADOW_COLLECTION!r}; got {flags}, "
             f"FIRST_PERSON_COLLECTION={slots[0]!r}, FIRST_PERSON_CONTEXT_COLLECTION={slots[1]!r}"
         )
+    elif serving_posture == POSTURE_V13_SHADOW:
+        slots = (report.legacy_collection, report.context_collection)
+        if context_harness_enabled and context_terminal_enabled and slots == (V13_SHADOW_COLLECTION,) * 2:
+            return
+        problem = (
+            f"needs both flags true and both slots on {V13_SHADOW_COLLECTION!r}; got {flags}, "
+            f"FIRST_PERSON_COLLECTION={slots[0]!r}, FIRST_PERSON_CONTEXT_COLLECTION={slots[1]!r}"
+        )
     elif serving_posture == POSTURE_V8_BRIDGE:
         if not context_harness_enabled and not context_terminal_enabled:
             return
         problem = f"needs both flags false; got {flags}"
     elif serving_posture:
-        problem = "must be 'v10_only', 'v12_shadow', 'v8_bridge' or empty"
+        problem = "must be 'v10_only', 'v12_shadow', 'v13_shadow', 'v8_bridge' or empty"
     else:
         return
     raise FirstPersonServingContractError(

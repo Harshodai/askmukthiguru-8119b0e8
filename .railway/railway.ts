@@ -44,8 +44,8 @@ export const partial = "askmukthiguru-8119b0e8";
 // (backend/app/main.py). "v8_bridge" stays as the rollback value.
 // "v10_only" stays as a selectable posture; "v12_shadow" was promoted 2026-11-20.
 // test_railway_iac.py pins this.
-type ServingPosture = "unset" | "v10_only" | "v12_shadow" | "v8_bridge";
-const SERVING_POSTURE: ServingPosture = "v12_shadow";
+type ServingPosture = "unset" | "v10_only" | "v12_shadow" | "v13_shadow" | "v8_bridge";
+const SERVING_POSTURE: ServingPosture = "v13_shadow";
 
 // D-30 decided 2026-11-07: worker and beat are ON in staging. This is the one
 // switch: set it to false to drop both services from the plan.
@@ -124,6 +124,17 @@ export default defineRailway((ctx) => {
           FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true",
           FIRST_PERSON_SERVING_POSTURE: SERVING_POSTURE,
         }
+      : SERVING_POSTURE === "v13_shadow"
+        ? {
+            // v13_shadow is the production posture (owner decision 2026-11-21).
+            // Includes 13 newly segmented corpus gap teachings on top of v12 baseline.
+            FIRST_PERSON_ACTIVE_COLLECTION: "first_person_v13_shadow",
+            FIRST_PERSON_COLLECTION: "first_person_v13_shadow",
+            FIRST_PERSON_CONTEXT_COLLECTION: "first_person_v13_shadow",
+            FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "true",
+            FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true",
+            FIRST_PERSON_SERVING_POSTURE: SERVING_POSTURE,
+          }
       : SERVING_POSTURE === "v12_shadow"
         ? {
             // v12_shadow is the production posture (owner decision 2026-11-20).

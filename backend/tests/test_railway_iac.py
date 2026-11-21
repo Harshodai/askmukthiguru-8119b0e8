@@ -102,13 +102,11 @@ def test_main_py_comments_state_the_real_drain_and_grace_values():
     assert "RAILWAY_DEPLOYMENT_DRAINING_SECONDS" in MAIN
 
 
-def test_serving_posture_is_v12_shadow_by_owner_decision_2026_11_20():
-    # D-14 decided 2026-11-07: v10-only. The active name is a literal, the two
-    # harness flags are literal "true", and no serving variable is preserve().
-    assert 'const SERVING_POSTURE: ServingPosture = "v12_shadow";' in IAC
-    assert "D-14 decided" in IAC
-    block = IAC.split('SERVING_POSTURE === "v12_shadow"')[1].split(": SERVING_POSTURE")[0]
-    assert 'FIRST_PERSON_ACTIVE_COLLECTION: "first_person_v12_shadow"' in block
+def test_serving_posture_is_v13_shadow_by_owner_decision_2026_11_21():
+    # Promoted to v13_shadow on 2026-11-21 (corpus gap teachings added to shadow collection).
+    assert 'const SERVING_POSTURE: ServingPosture = "v13_shadow";' in IAC
+    block = IAC.split('SERVING_POSTURE === "v13_shadow"')[1].split(": SERVING_POSTURE")[0]
+    assert 'FIRST_PERSON_ACTIVE_COLLECTION: "first_person_v13_shadow"' in block
     assert 'FIRST_PERSON_CONTEXT_HARNESS_ENABLED: "true"' in block
     assert 'FIRST_PERSON_CONTEXT_TERMINAL_ENABLED: "true"' in block
 
