@@ -219,8 +219,15 @@ def _get_client() -> Optional[Client]:
         return None
     try:
         opts = ClientOptions(postgrest_client_timeout=4, storage_client_timeout=4)
+        url = settings.supabase_url
+        if "host.docker.internal" in url:
+            import socket
+            try:
+                socket.gethostbyname("host.docker.internal")
+            except socket.gaierror:
+                url = url.replace("host.docker.internal", "127.0.0.1")
         _cached_supabase_client = create_client(
-            settings.supabase_url, settings.supabase_key, options=opts
+            url, settings.supabase_key, options=opts
         )
         return _cached_supabase_client
     except Exception as e:
