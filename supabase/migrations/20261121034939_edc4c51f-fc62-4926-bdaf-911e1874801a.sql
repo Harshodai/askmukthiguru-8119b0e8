@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "event_media_public_read" ON storage.objects;
