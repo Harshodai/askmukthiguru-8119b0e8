@@ -1104,7 +1104,7 @@ def _can_skip_llm_decomposition(question: str, query_tier: str | None) -> bool:
 async def decompose_query(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """Decompose complex queries, with a safe single-comparison fast path."""
     question = state["question"]
-    ollama = _services._ollama
+    llm = _services._llm_gateway or _services._ollama
 
     if state.get("query_tier") in ("fast", "tier2_simple"):
         return {"sub_queries": [question], "is_complex": False}
@@ -1113,9 +1113,16 @@ async def decompose_query(state: GraphState, config: Optional[RunnableConfig] = 
         logger.info("Decomposition bypass: explicit single comparison query")
         return {"sub_queries": [question], "is_complex": True}
 
+    if llm is None:
+        return {"sub_queries": [question], "is_complex": False}
+
     await emit_status(config, "Breaking the question into deeper parts...")
     t_out = get_node_timeout("decompose_query", 15)
-    sub_queries = await ollama.decompose_query(question=question, timeout=t_out)
+    try:
+        sub_queries = await llm.decompose_query(question=question, timeout=t_out)
+    except Exception as dec_exc:
+        logger.warning("LLM query decomposition failed (fallback to single): %s", dec_exc)
+        sub_queries = [question]
     is_complex = len(sub_queries) > 1
     assistant_slug = state.get("assistant_slug") or "default"
     expanded = [await expand_query_with_synonyms(q, assistant_slug) for q in sub_queries]
@@ -1126,9 +1133,12 @@ async def decompose_query(state: GraphState, config: Optional[RunnableConfig] = 
 @log_metrics
 async def generate_hyde(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """HyDE (Hypothetical Document Embeddings): Generate a fake answer."""
-    ollama = _services._ollama
+    llm = _services._llm_gateway or _services._ollama
 
     if state.get("query_tier") in ("fast", "tier2_simple"):
+        return {"hyde_text": None}
+
+    if llm is None:
         return {"hyde_text": None}
 
     question = state.get("rewritten_query") or state["question"]
@@ -1171,23 +1181,31 @@ async def generate_hyde(state: GraphState, config: Optional[RunnableConfig] = No
             f"Answer in {lang} in 1-2 sentences: write a short hypothetical "
             "passage that could answer the question, no preamble."
         )
-        # Signature-checked, not try/except TypeError: a TypeError raised INSIDE
-        # ollama.generate()'s own body (not from a signature mismatch) must
-        # propagate, not be silently swallowed as "wrong provider API" and
-        # retried without the Indic-language instruction.
-        if hasattr(ollama, "generate"):
-            hyde_text = await ollama.generate(
-                indic_system, question, timeout=t_out, operation="generate_hyde"
-            )
+        if hasattr(llm, "generate"):
+            try:
+                hyde_text = await llm.generate(
+                    indic_system, question, timeout=t_out, operation="generate_hyde"
+                )
+            except Exception as ind_exc:
+                logger.warning("Indic HyDE generation failed: %s", ind_exc)
+                hyde_text = ""
         else:
-            hyde_text = await ollama.generate_hyde(question=question, timeout=t_out)
+            try:
+                hyde_text = await llm.generate_hyde(question=question, timeout=t_out)
+            except Exception as ind_exc:
+                logger.warning("Indic HyDE generation failed: %s", ind_exc)
+                hyde_text = ""
         logger.info(
             f"Indic HyDE generated hypothetical answer ({len(hyde_text or '')} chars, lang={lang})"
         )
         return {"hyde_text": hyde_text}
 
     await emit_status(config, "Imagining the shape of the answer...")
-    hyde_text = await ollama.generate_hyde(question=question, timeout=t_out)
+    try:
+        hyde_text = await llm.generate_hyde(question=question, timeout=t_out)
+    except Exception as hyde_exc:
+        logger.warning("HyDE generation failed: %s", hyde_exc)
+        hyde_text = ""
     logger.info(f"HyDE generated hypothetical answer ({len(hyde_text)} chars)")
     return {"hyde_text": hyde_text}
 
@@ -2035,7 +2053,7 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
         # than leaving an orphaned provider request running in the background.
         soft_wait = max(
             0.0,
-            float(getattr(settings, "rag_retrieval_expansion_soft_wait_seconds", 0.35)),
+            float(getattr(settings, "rag_retrieval_expansion_soft_wait_seconds", 0.80)),
         )
         try:
             expansion_queries = await asyncio.wait_for(expansion_task, timeout=soft_wait)
@@ -2071,7 +2089,7 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
         logger.info(f"KG ontology expansion: +{len(kg_neighbors)} neighbor(s)")
 
     expansion_results: list = []
-    remaining_budget = max(0, 2 - len(primary_queries))
+    remaining_budget = max(1, 4 - len(primary_queries))
     if expansion_queries and remaining_budget == 0:
         # The knowledge-graph neighbours are appended LAST to expansion_queries,
         # so a query that decomposed into 2+ sub-queries spends the whole budget

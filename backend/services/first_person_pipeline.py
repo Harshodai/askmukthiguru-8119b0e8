@@ -370,6 +370,13 @@ _SEVERED_PREPOSITION_OPENER_RE = re.compile(
     re.IGNORECASE,
 )
 
+_TRY2_STOP_WORDS: frozenset[str] = frozenset({
+    "with", "without", "from", "that", "this", "what", "when",
+    "your", "have", "about", "into", "their", "there", "then",
+    "them", "these", "those", "over", "under", "after", "before",
+    "here", "some", "such", "only", "also", "most",
+})
+
 
 def _passes_integrity_gate(
     clip: dict[str, Any],
@@ -5094,6 +5101,74 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 contexts = []
             t_ctx_ret_ms = (time.monotonic() - t_ctx_start) * 1000.0
 
+            if not contexts and (
+                harness_enabled
+                and getattr(settings, "first_person_adaptive_try2_enabled", True) is True
+                and not is_distress
+                and ctx_store is not None
+                and query_dense_vector
+            ):
+                try:
+                    from services.spiritual_expansion import get_spiritual_concept_expansion
+
+                    expansion_svc = get_spiritual_concept_expansion(
+                        llm_gateway=self._llm_service,
+                        redis_client=self._redis,
+                    )
+                    expanded_anchors = await expansion_svc.expand_query(
+                        query=retrieval_query or query,
+                        query_dense_vector=query_dense_vector,
+                        teacher_id=editorial_teacher_id,
+                    )
+                    if expanded_anchors:
+                        logger.info(
+                            "[FirstPersonPipeline] Try 2 adaptive expansion generated anchors on empty initial pool: %s",
+                            expanded_anchors,
+                        )
+                        try2_concepts: list[str] = []
+                        for anchor in expanded_anchors:
+                            a_clean = anchor.strip().lower()
+                            if a_clean and a_clean not in try2_concepts:
+                                try2_concepts.append(a_clean)
+                            for token in a_clean.split():
+                                if (
+                                    len(token) > 3
+                                    and token not in _TRY2_STOP_WORDS
+                                    and token not in try2_concepts
+                                ):
+                                    try2_concepts.append(token)
+
+                        def _retrieve_try2_contexts() -> list[ParentContext]:
+                            _sparse = _context_sparse_query(query_sparse_vector)
+                            found_try2 = ctx_store.retrieve(
+                                query_dense=query_dense_vector,
+                                query_sparse=_sparse,
+                                guru_id=editorial_teacher_id,
+                                limit_parents=harness_candidate_limit,
+                                spans_per_parent=max_spans,
+                                concept_ids=try2_concepts,
+                            )
+                            expanded_try2 = self._expand_context_candidates(
+                                found_try2,
+                                ctx_store=ctx_store,
+                                query_dense_vector=query_dense_vector,
+                                query_sparse_vector=query_sparse_vector,
+                                retrieval_query=retrieval_query,
+                                teacher_id=editorial_teacher_id,
+                                max_clips=harness_candidate_limit,
+                                max_spans=max_spans,
+                            )
+                            return self._seen_contexts_last(
+                                self._diversify_candidate_pool(expanded_try2), memory_signals
+                            )
+
+                        contexts = await _io_thread(_retrieve_try2_contexts)
+                except Exception as try2_exc:
+                    logger.warning(
+                        "[FirstPersonPipeline] Try 2 adaptive expansion encountered error (non-fatal): %s",
+                        try2_exc,
+                    )
+
             if contexts:
                 t_ans_start = time.monotonic()
                 context_answerability_enabled = bool(
@@ -5166,6 +5241,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 )
 
                 _joint_reasons: list[str] = []
+                _try2_enabled = (
+                    harness_enabled
+                    and getattr(settings, "first_person_adaptive_try2_enabled", True) is True
+                    and not is_distress
+                    and ctx_store is not None
+                    and query_dense_vector
+                )
 
                 def _joint_abstain() -> FirstPersonPipelineResult:
                     # Indeterminate wins: an unjudged clip might have been sufficient.
@@ -5749,7 +5831,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             abstain_reason="relevance_indeterminate",
                             stage_timings={"total_ms": round(latency, 2)},
                         )
-                    if _joint_reasons:
+                    if _joint_reasons and not _try2_enabled:
                         return _joint_abstain()
                     # All contexts skipped → fall through to legacy below.
                 else:
@@ -5864,6 +5946,186 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             sum(fp_llm_tokens),
                         )
                         return _editorial_res
+
+                if _joint_reasons and not _try2_enabled:
+                    return _joint_abstain()
+
+                # Adaptive 2-Try Feedback Loop:
+                # When Try 1 yields zero passing direct clips, and query is not crisis/distress:
+                # Invoke SpiritualConceptExpansion to generate authentic doctrinal query anchors.
+                # Retrieve secondary candidate contexts from FirstPersonContextStore.
+                # Adjudicate candidates with Judge Claude Haiku.
+                # Ensure 100% verbatim authenticity of any served clip.
+                if _try2_enabled:
+                    try:
+                        from services.spiritual_expansion import get_spiritual_concept_expansion
+
+                        expansion_svc = get_spiritual_concept_expansion(
+                            llm_gateway=self._llm_service,
+                            redis_client=self._redis,
+                        )
+                        expanded_anchors = await expansion_svc.expand_query(
+                            query=retrieval_query or query,
+                            query_dense_vector=query_dense_vector,
+                            teacher_id=editorial_teacher_id,
+                        )
+                        if expanded_anchors:
+                            logger.info(
+                                "[FirstPersonPipeline] Try 2 adaptive expansion generated anchors: %s",
+                                expanded_anchors,
+                            )
+                            # Extract clean concept terms for Qdrant payload filtering
+                            try2_concepts: list[str] = []
+                            for anchor in expanded_anchors:
+                                a_clean = anchor.strip().lower()
+                                if a_clean and a_clean not in try2_concepts:
+                                    try2_concepts.append(a_clean)
+                                for token in a_clean.split():
+                                    if (
+                                        len(token) > 3
+                                        and token not in _TRY2_STOP_WORDS
+                                        and token not in try2_concepts
+                                    ):
+                                        try2_concepts.append(token)
+
+                            def _retrieve_try2_contexts() -> list[ParentContext]:
+                                _sparse = _context_sparse_query(query_sparse_vector)
+                                found_try2 = ctx_store.retrieve(
+                                    query_dense=query_dense_vector,
+                                    query_sparse=_sparse,
+                                    guru_id=editorial_teacher_id,
+                                    limit_parents=harness_candidate_limit,
+                                    spans_per_parent=max_spans,
+                                    concept_ids=try2_concepts,
+                                )
+                                expanded_try2 = self._expand_context_candidates(
+                                    found_try2,
+                                    ctx_store=ctx_store,
+                                    query_dense_vector=query_dense_vector,
+                                    query_sparse_vector=query_sparse_vector,
+                                    retrieval_query=retrieval_query,
+                                    teacher_id=editorial_teacher_id,
+                                    max_clips=harness_candidate_limit,
+                                    max_spans=max_spans,
+                                    )
+                                return self._seen_contexts_last(
+                                    self._diversify_candidate_pool(expanded_try2), memory_signals
+                                )
+
+                            try2_contexts_raw = await _io_thread(_retrieve_try2_contexts)
+                            seen_parent_ids = {
+                                str(getattr(getattr(c, "parent", None), "parent_unit_id", "") or "")
+                                for c in contexts
+                                if getattr(c, "parent", None)
+                            }
+                            try2_contexts = [
+                                c
+                                for c in try2_contexts_raw
+                                if str(getattr(getattr(c, "parent", None), "parent_unit_id", "") or "")
+                                not in seen_parent_ids
+                            ]
+
+                            if try2_contexts:
+                                logger.info(
+                                    "[FirstPersonPipeline] Try 2 retrieved %d secondary contexts; evaluating with judge",
+                                    len(try2_contexts),
+                                )
+                                _try2_parallel = (
+                                    bool(getattr(settings, "first_person_harness_parallel_enabled", True))
+                                    and len(try2_contexts) > 1
+                                )
+                                if _try2_parallel:
+                                    _try2_judge_sem = asyncio.Semaphore(_HARNESS_JUDGE_CONCURRENCY)
+
+                                    async def _bounded_try2_ctx(_c: Any) -> Any:
+                                        async with _try2_judge_sem:
+                                            return await _eval_ctx_worker(_c)
+
+                                    _try2_outcomes = await asyncio.gather(
+                                        *(_bounded_try2_ctx(c) for c in try2_contexts),
+                                        return_exceptions=True,
+                                    )
+                                    _try2_results: list[Optional[FirstPersonPipelineResult]] = [
+                                        None
+                                    ] * len(try2_contexts)
+                                    for idx, _outcome in enumerate(_try2_outcomes):
+                                        if isinstance(_outcome, _HarnessRelevanceIndeterminate):
+                                            fp_llm_tokens.extend(_outcome.tokens)
+                                        elif isinstance(_outcome, Exception):
+                                            logger.warning(
+                                                "[FirstPersonPipeline] Try 2 ctx[%d] raised: %s; skipping",
+                                                idx,
+                                                _outcome,
+                                            )
+                                        elif isinstance(_outcome, BaseException):
+                                            raise _outcome
+                                        else:
+                                            _t2_res, _t2_toks = _outcome
+                                            fp_llm_tokens.extend(_t2_toks)
+                                            _try2_results[idx] = _t2_res
+
+                                    _try2_winner = next((r for r in _try2_results if r is not None), None)
+                                    if _try2_winner is not None:
+                                        logger.info(
+                                            "[FirstPersonPipeline] Try 2 SUCCESS: served verified verbatim clip with %d citation(s)",
+                                            len(_try2_winner.citations),
+                                        )
+                                        if not cache_bypass:
+                                            await _io_thread(
+                                                self.set_exact_cache,
+                                                query,
+                                                _try2_winner.to_dict(),
+                                                teacher_id,
+                                                language=language,
+                                                allow_state=request_allow_state,
+                                                block_state=request_block_state,
+                                            )
+                                        self._log_and_count(
+                                            _try2_winner.status,
+                                            _try2_winner.latency_ms,
+                                            float(getattr(try2_contexts[0], "score", 1.0) or 1.0),
+                                            0,
+                                            len(_try2_winner.citations),
+                                            "none",
+                                            sum(fp_llm_tokens),
+                                        )
+                                        return _try2_winner
+                                else:
+                                    for c in try2_contexts:
+                                        try:
+                                            _seq_res, _seq_toks = await _eval_ctx_worker(c)
+                                            fp_llm_tokens.extend(_seq_toks)
+                                            if _seq_res is not None:
+                                                if not cache_bypass:
+                                                    await _io_thread(
+                                                        self.set_exact_cache,
+                                                        query,
+                                                        _seq_res.to_dict(),
+                                                        teacher_id,
+                                                        language=language,
+                                                        allow_state=request_allow_state,
+                                                        block_state=request_block_state,
+                                                    )
+                                                self._log_and_count(
+                                                    _seq_res.status,
+                                                    _seq_res.latency_ms,
+                                                    float(getattr(c, "score", 1.0) or 1.0),
+                                                    0,
+                                                    len(_seq_res.citations),
+                                                    "none",
+                                                    sum(fp_llm_tokens),
+                                                )
+                                                return _seq_res
+                                        except Exception as _t2_err:
+                                            logger.debug(
+                                                "[FirstPersonPipeline] Try 2 sequential error: %s",
+                                                _t2_err,
+                                            )
+                    except Exception as try2_exc:
+                        logger.warning(
+                            "[FirstPersonPipeline] Try 2 adaptive feedback loop encountered error (non-fatal): %s",
+                            try2_exc,
+                        )
 
                 if _joint_reasons:
                     return _joint_abstain()

@@ -898,47 +898,29 @@ def _trace_update(state: GraphState, **updates) -> dict:
 
 
 async def _llm_retrieval_expansions(state: GraphState) -> list[str]:
-    """Ask the model to propose retrieval-only reformulations without encoding doctrine in code."""
+    """Ask SpiritualConceptExpansion to propose dynamic retrieval-only reformulations."""
     if state.get("query_tier") in ("fast", "tier2_simple"):
         return []
 
-    ollama = _services._ollama
-    if ollama is None:
+    question = state.get("rewritten_query") or state.get("question") or ""
+    if not question.strip():
         return []
 
-    question = state.get("rewritten_query") or state["question"]
-    history = state.get("chat_history", [])[-6:]
-    history_lines = []
-    for msg in history:
-        role = msg.get("role", "user")
-        content = (msg.get("content") or "")[:300]
-        history_lines.append(f"{role}: {content}")
+    from services.spiritual_expansion import get_spiritual_concept_expansion
 
-    prompt = (
-        "You are the retrieval planner for Mukthi Guru. Generate up to 2 search queries "
-        "that would help retrieve source teachings for the user's question. Use only "
-        "terms implied by the question and conversation history. Do not answer the "
-        "question. Do not invent facts. Return one query per line, no numbering.\n\n"
-        f"Conversation history:\n{chr(10).join(history_lines) if history_lines else '(none)'}\n\n"
-        f"User question:\n{question}\n\nSearch queries:"
-    )
+    llm = _services._llm_gateway or _services._ollama
+    expansion_svc = get_spiritual_concept_expansion(llm_gateway=llm)
+
     try:
-        raw = await ollama._generate_fast(
-            system_prompt="You create concise retrieval search queries only.",
-            user_prompt=prompt,
-            timeout=get_node_timeout("default_fast", getattr(settings, "node_timeout_fast", 15)),
-            max_retries=1,
-        )
+        expansions = await expansion_svc.expand_query(question)
+        queries = [
+            q for q in expansions
+            if q and q.lower() != question.lower() and len(q) <= 240
+        ]
+        return list(dict.fromkeys(queries))[:2]
     except Exception as e:
         logger.warning(f"LLM retrieval expansion failed; continuing without expansion: {e}")
         return []
-
-    queries: list[str] = []
-    for line in raw.splitlines():
-        cleaned = re.sub(r"^\s*[-*\d.)]+\s*", "", line).strip().strip('"')
-        if cleaned and cleaned.lower() != question.lower() and len(cleaned) <= 240:
-            queries.append(cleaned)
-    return list(dict.fromkeys(queries))[:2]
 
 
 def strip_cot(text: str) -> str:

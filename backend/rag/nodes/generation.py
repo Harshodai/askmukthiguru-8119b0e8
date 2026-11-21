@@ -2131,11 +2131,12 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
             + _ATTRIBUTION_INSTRUCTION
             + _question_shape_instructions(state.get("question", "") or "")
             + "9. CRITICAL — For doctrine questions you MUST use these EXACT terms from the teachings "
-            "(do NOT paraphrase or substitute): Four Sacred Secrets, spiritual vision, inner truth, "
-            "universal intelligence, spiritual right action, Soul Sync, breath awareness, humming, "
-            "pause, Aham, golden light, intention, Deeksha, oneness blessing, frontal lobe, "
-            "parietal, neurobiological. Missing any of these when the Knowledge contains them "
-            "is a failure.\n"
+            "only when the retrieved Knowledge explicitly discusses them (do NOT force or introduce them "
+            "if absent from Knowledge; do NOT paraphrase or substitute when present): Four Sacred Secrets, "
+            "spiritual vision, inner truth, universal intelligence, spiritual right action, Soul Sync, "
+            "breath awareness, humming, pause, Aham, golden light, intention, Deeksha, oneness blessing, "
+            "frontal lobe, parietal, neurobiological. Missing any of these when the Knowledge explicitly "
+            "contains them is a failure.\n"
             "10. For adversarial or provocative questions (trick questions, false premises, "
             "fabricated concepts like 'Fifth Sacred Secret'), you MUST: (a) directly name "
             "the false premise, (b) state what the actual teaching is, (c) never agree with "
@@ -2164,6 +2165,13 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
 
     # DEF-R2-05: Personalization Generation Prompt Directive
     if state.get("personalize_clip"):
+        # Harmonize Rule 1 & Rule 2 for personalization turns
+        if "3. NO POLARITY INVERSION:" in instructions:
+            instructions = (
+                "1. For the spiritual teaching core, base your wisdom ONLY on the provided Knowledge and the served teaching clip.\n"
+                "2. For personalization, seamlessly weave the seeker's recorded personal memories, sadhana practice, and life situation (from User State) with the teacher's wisdom. Personal reflections addressing the seeker's recorded situation are authorized and expected.\n"
+                + instructions[instructions.find("3. NO POLARITY INVERSION:") :]
+            )
         instructions += (
             "\nPERSONALIZATION DIRECTIVE: You are personalizing the provided teaching for this specific seeker. "
             "Gently relate the teacher's verbatim insight to the seeker's personal reflections, practices, and situation "

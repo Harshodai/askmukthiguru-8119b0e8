@@ -190,9 +190,64 @@ class LLMGateway:
                 logger.debug(
                     "Primary generate_fast raised %s; falling back to standard generate", _exc
                 )
+        elif hasattr(self._primary, "_generate_fast"):
+            try:
+                return await self._primary._generate_fast(
+                    system_prompt, user_prompt, context, **kwargs
+                )
+            except Exception as _exc:
+                logger.debug(
+                    "Primary _generate_fast raised %s; falling back to standard generate", _exc
+                )
         return await self.generate(
             system_prompt, user_prompt, context, task="casual", use_cache=use_cache, **kwargs
         )
+
+    async def decompose_query(self, question: str, **kwargs: Any) -> list[str]:
+        """Split a complex query into atomic sub-queries."""
+        if hasattr(self._primary, "decompose_query"):
+            return await self._primary.decompose_query(question, **kwargs)
+        prompt = (
+            "Split this complex query into 2 to 3 atomic search sub-queries, one per line:\n"
+            f"{question}"
+        )
+        try:
+            raw = await self.generate(
+                system_prompt="You split complex queries into atomic sub-queries.",
+                user_prompt=prompt,
+                task="decompose",
+                **kwargs,
+            )
+            lines = [
+                line.strip().lstrip("-*123456789. ")
+                for line in (raw or "").splitlines()
+                if line.strip()
+            ]
+            return lines or [question]
+        except Exception as exc:
+            logger.debug("[LLMGateway] decompose_query fallback error: %s", exc)
+            return [question]
+
+    async def generate_hyde(self, question: str, **kwargs: Any) -> str:
+        """HyDE: Generate a hypothetical answer passage."""
+        if hasattr(self._primary, "generate_hyde"):
+            return await self._primary.generate_hyde(question, **kwargs)
+        if hasattr(self._primary, "generate_hypothetical_answer"):
+            return await self._primary.generate_hypothetical_answer(query=question, **kwargs)
+        prompt = (
+            "Write a short passage answering this question from Sri Preethaji & Sri Krishnaji's "
+            f"spiritual wisdom teachings:\n{question}"
+        )
+        try:
+            return await self.generate(
+                system_prompt="You write concise spiritual wisdom passages.",
+                user_prompt=prompt,
+                task="casual",
+                **kwargs,
+            )
+        except Exception as exc:
+            logger.debug("[LLMGateway] generate_hyde fallback error: %s", exc)
+            return ""
 
     async def stream(
         self,

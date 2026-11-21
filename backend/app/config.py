@@ -291,6 +291,10 @@ class Settings(BaseSettings):
     # v10-only serving: when True (and the context harness is on) a question the
     # harness cannot answer abstains instead of falling through to the legacy store.
     first_person_context_terminal_enabled: bool = False
+    # Adaptive 2-Try Feedback Loop: when Try 1 yields zero passing direct clips,
+    # invoke SpiritualConceptExpansion to retrieve secondary candidate contexts.
+    # Additive and off by default per Invariant 3; enable per environment.
+    first_person_adaptive_try2_enabled: bool = False
     # A-32: the declared serving posture. "v10_only" requires harness + terminal on and
     # both slots on first_person_v10; "v8_bridge" requires both flags off. A mismatch
     # stops startup (services/first_person_serving_contract.assert_startup_safe).
@@ -2180,7 +2184,7 @@ class Settings(BaseSettings):
     # expansion planner. A slow planner is cancelled and omitted; primary
     # retrieval remains authoritative. This is a generic soft deadline rather
     # than a language/query-specific bypass.
-    rag_retrieval_expansion_soft_wait_seconds: float = Field(default=0.35, ge=0.0, le=5.0)
+    rag_retrieval_expansion_soft_wait_seconds: float = Field(default=0.80, ge=0.0, le=5.0)
     # When True, use heuristic pronoun/reference matching instead of an LLM call
     # to detect and contextualize follow-up queries. Saves 1 LLM call per query
     # with chat history. Off by default to avoid changing generation behavior.

@@ -610,23 +610,114 @@ class PersonalizeStage(Stage):
             state["seeker_guidance"] = UnifiedPersonalizationEngine.format_prompt_guidance(
                 seeker_ctx
             )
-            # Bridge hydrated canonical memories to verifier evidence so LettuceDetect
-            # in verification.py:152 receives seeker realizations as valid reference evidence.
-            if seeker_ctx and seeker_ctx.second_brain and seeker_ctx.second_brain.canonical_memories:
-                mem_lines = []
-                for m in seeker_ctx.second_brain.canonical_memories:
-                    stmt = (
-                        m.get("statement")
-                        if isinstance(m, dict)
-                        else getattr(m, "statement", None)
+            # Bridge all 7 non-empty seeker facets into verifier evidence & memory_context
+            # so LettuceDetect and generation share comprehensive factual grounding.
+            if seeker_ctx:
+                facet_lines: list[str] = []
+
+                # 1. Canonical Memories & Observations
+                if seeker_ctx.second_brain:
+                    for m in seeker_ctx.second_brain.canonical_memories or []:
+                        stmt = (
+                            m.get("statement")
+                            if isinstance(m, dict)
+                            else getattr(m, "statement", None)
+                        )
+                        if stmt and str(stmt).strip():
+                            facet_lines.append(f"- [Realization] {str(stmt).strip()}")
+                    for obs in seeker_ctx.second_brain.observations or []:
+                        if obs and str(obs).strip():
+                            facet_lines.append(f"- [Observation] {str(obs).strip()}")
+
+                # 2. Sadhana Practice Journey
+                if seeker_ctx.sadhana:
+                    sad = seeker_ctx.sadhana
+                    if sad.streak_count > 0:
+                        facet_lines.append(
+                            f"- [Sadhana] Current streak: {sad.streak_count} days "
+                            f"(longest: {sad.longest_streak} days)"
+                        )
+                    if sad.daily_practices:
+                        facet_lines.append(f"- [Sadhana Practices] {', '.join(sad.daily_practices)}")
+                    if sad.minutes_meditated > 0:
+                        facet_lines.append(
+                            f"- [Sadhana Time] Total meditated: {sad.minutes_meditated} minutes"
+                        )
+
+                # 3. Pre-Practice State & Intentions
+                if seeker_ctx.pre_practice:
+                    pp = seeker_ctx.pre_practice
+                    if pp.mental_clarity or (pp.pre_session_state and pp.pre_session_state != "calm"):
+                        facet_lines.append(
+                            f"- [Pre-Practice State] Clarity: {pp.mental_clarity}/10, State: {pp.pre_session_state}"
+                        )
+                    if pp.intentions:
+                        facet_lines.append(f"- [Intentions] {'; '.join(pp.intentions)}")
+
+                # 4. Study Notebooks & Saved Teachings
+                if seeker_ctx.study_notebooks:
+                    sn = seeker_ctx.study_notebooks
+                    if sn.saved_teachings:
+                        teachings = [
+                            t.get("title", "Teaching") if isinstance(t, dict) else getattr(t, "title", "Teaching")
+                            for t in sn.saved_teachings
+                        ]
+                        facet_lines.append(f"- [Saved Teachings] {', '.join(teachings)}")
+                    if sn.study_tags:
+                        facet_lines.append(f"- [Study Focus] {', '.join(sn.study_tags)}")
+
+                # 5. Mood Trajectory & Spiritual Journal
+                if seeker_ctx.mood_journal:
+                    mj = seeker_ctx.mood_journal
+                    for reflection in mj.spiritual_growth_reflections or []:
+                        if reflection and str(reflection).strip():
+                            facet_lines.append(f"- [Journal Reflection] {str(reflection).strip()}")
+                    if mj.mood_trajectory:
+                        latest = mj.mood_trajectory[-1]
+                        dom = (
+                            latest.get("dominant_emotion")
+                            if isinstance(latest, dict)
+                            else getattr(latest, "dominant_emotion", None)
+                        )
+                        if dom:
+                            facet_lines.append(f"- [Emotional State] {dom}")
+
+                # 6. WhatsApp Reflections & Insights
+                if seeker_ctx.whatsapp_reflections:
+                    wa = seeker_ctx.whatsapp_reflections
+                    for vni in wa.voice_note_insights or []:
+                        if vni and str(vni).strip():
+                            facet_lines.append(f"- [WhatsApp Insight] {str(vni).strip()}")
+                    for wr in wa.reflections or []:
+                        wstmt = (
+                            wr.get("sadhana_reflection")
+                            if isinstance(wr, dict)
+                            else getattr(wr, "sadhana_reflection", None)
+                        )
+                        if wstmt and str(wstmt).strip():
+                            facet_lines.append(f"- [WhatsApp Reflection] {str(wstmt).strip()}")
+
+                # 7. Seeker Profile Focus Areas
+                if seeker_ctx.seeker_profile:
+                    sp = seeker_ctx.seeker_profile
+                    topics = (
+                        sp.custom_attributes.get("topics_of_interest")
+                        if hasattr(sp, "custom_attributes")
+                        else None
                     )
-                    if stmt and str(stmt).strip():
-                        mem_lines.append(f"- {str(stmt).strip()}")
-                if mem_lines:
-                    mem_evidence = "\n".join(mem_lines)
+                    if topics:
+                        top_str = ", ".join(topics) if isinstance(topics, list) else str(topics)
+                        facet_lines.append(f"- [Profile Focus Areas] {top_str}")
+                    if sp.spiritual_readiness and sp.spiritual_readiness != "intermediate":
+                        facet_lines.append(f"- [Spiritual Readiness] {sp.spiritual_readiness.title()}")
+
+                if facet_lines:
+                    mem_evidence = "\n".join(facet_lines)
                     state["canonical_memory_evidence"] = mem_evidence
+                    state["memory_context"] = mem_evidence
                     if hasattr(ctx, "state") and isinstance(ctx.state, dict):
                         ctx.state["canonical_memory_evidence"] = mem_evidence
+                        ctx.state["memory_context"] = mem_evidence
         except Exception as _pers_exc:
             logger.warning(
                 "[PersonalizeStage] Unified personalization hydration warning: %s", _pers_exc

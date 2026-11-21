@@ -251,9 +251,6 @@ class UnifiedSeekerContext(BaseModel):
                 sections.append(f"- **Canonical Realizations**: {'; '.join(mems)}")
             if sb.observations:
                 sections.append(f"- **Key Observations**: {'; '.join(sb.observations[:3])}")
-            if not sb.canonical_memories and not sb.observations:
-                if not getattr(self, "has_state_memory", False):
-                    sections.append("- No canonical memories recorded yet.")
 
         # 5. Study Notebooks & Saved Teachings
         sn = self.study_notebooks
@@ -266,9 +263,6 @@ class UnifiedSeekerContext(BaseModel):
                 sections.append(f"- **Saved Teachings**: {', '.join(teachings)}")
             if sn.study_tags:
                 sections.append(f"- **Study Focus Tags**: {', '.join(sn.study_tags[:5])}")
-            if not sn.saved_teachings and not sn.study_tags:
-                if not getattr(self, "has_state_memory", False):
-                    sections.append("- No saved teachings in active notebook.")
 
         # 6. Mood Trajectory & Spiritual Journal
         mj = self.mood_journal
@@ -283,8 +277,6 @@ class UnifiedSeekerContext(BaseModel):
             if mj.mood_trajectory:
                 latest_mood = mj.mood_trajectory[-1].get("dominant_emotion", "balanced")
                 sections.append(f"- **Dominant Emotional State**: {latest_mood}")
-            if not mj.spiritual_growth_reflections and not mj.mood_trajectory:
-                sections.append("- Mood history balanced.")
 
         # 7. WhatsApp Reflections & Voice Note Insights
         wa = self.whatsapp_reflections
@@ -303,8 +295,6 @@ class UnifiedSeekerContext(BaseModel):
                     if r.get("sadhana_reflection")
                 ]
                 sections.append(f"- **Reflections**: {'; '.join(snippets)}")
-            else:
-                sections.append("- No external messaging reflections.")
 
         if self.mode_b_enabled and not self.has_unlocked_vault:
             sections.append(
