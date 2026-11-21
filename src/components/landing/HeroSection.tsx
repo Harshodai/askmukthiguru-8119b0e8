@@ -41,7 +41,8 @@ export const HeroSection = () => {
   const [demoOpen, setDemoOpen] = useState(false);
   const [welcomeVisible, setWelcomeVisible] = useState(false);
   const [selectedMood, setSelectedMood] = useState('anxious');
-  const productDemoVideoUrl = import.meta.env.VITE_LANDING_DEMO_VIDEO_URL?.trim();
+  const configuredDemoVideoUrl = import.meta.env.VITE_LANDING_DEMO_VIDEO_URL?.trim();
+  const productDemoVideoUrl = configuredDemoVideoUrl || '/media/askmukthiguru-logo-reveal.mp4';
 
   useEffect(() => {
     // Both this prompt and the cookie banner anchor bottom-right — showing both at
@@ -428,7 +429,12 @@ export const HeroSection = () => {
         isOpen={demoOpen}
         onComplete={completeTour}
         onDismiss={skipTour}
-        productVideoUrl={productDemoVideoUrl || undefined}
+        productVideoUrl={productDemoVideoUrl}
+        videoCaption={
+          configuredDemoVideoUrl
+            ? undefined
+            : 'A short cinematic AskMukthiGuru brand reveal. The interactive tour below remains available if you prefer to explore at your own pace.'
+        }
       />
     </MotionConfig>
   );

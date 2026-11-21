@@ -46,6 +46,7 @@ interface DemoModalProps {
   onComplete: () => void;
   onDismiss: () => void;
   productVideoUrl?: string;
+  videoCaption?: string;
 }
 
 const STEPS = [
@@ -78,7 +79,7 @@ const STEPS = [
   },
 ] as const;
 
-export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: DemoModalProps) => {
+export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl, videoCaption }: DemoModalProps) => {
   const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
   const completionRef = useRef(false);
@@ -139,6 +140,7 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
               controls
               playsInline
               preload="metadata"
+              poster="/images/askmukthiguru-logo-reveal-poster.webp"
               className="aspect-video w-full"
               aria-label={t('landing.demo.videoAria', 'AskMukthiGuru product demo')}
             >
@@ -146,7 +148,7 @@ export const DemoModal = ({ isOpen, onComplete, onDismiss, productVideoUrl }: De
               {t('landing.demo.videoUnsupported', 'Your browser does not support the product demo video.')}
             </video>
             <p className="bg-background px-4 py-2.5 text-xs leading-relaxed text-muted-foreground">
-              {t('landing.demo.videoCaption', 'A short product walkthrough. The interactive tour below remains available if you prefer to explore at your own pace.')}
+              {videoCaption || t('landing.demo.videoCaption', 'A short product walkthrough. The interactive tour below remains available if you prefer to explore at your own pace.')}
             </p>
           </section>
         )}

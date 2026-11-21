@@ -7,7 +7,8 @@ import { DemoModal, recordTourOutcome } from './DemoModal';
 export const HowItWorksSection = () => {
   const { t } = useTranslation();
   const [tourOpen, setTourOpen] = useState(false);
-  const productDemoVideoUrl = import.meta.env.VITE_LANDING_DEMO_VIDEO_URL?.trim();
+  const configuredDemoVideoUrl = import.meta.env.VITE_LANDING_DEMO_VIDEO_URL?.trim();
+  const productDemoVideoUrl = configuredDemoVideoUrl || '/media/askmukthiguru-logo-reveal.mp4';
 
   const steps = [
     {
@@ -126,7 +127,12 @@ export const HowItWorksSection = () => {
         isOpen={tourOpen}
         onComplete={() => closeTour('completed')}
         onDismiss={() => closeTour('skipped')}
-        productVideoUrl={productDemoVideoUrl || undefined}
+        productVideoUrl={productDemoVideoUrl}
+        videoCaption={
+          configuredDemoVideoUrl
+            ? undefined
+            : 'A short cinematic AskMukthiGuru brand reveal. The interactive tour below remains available if you prefer to explore at your own pace.'
+        }
       />
     </>
   );
