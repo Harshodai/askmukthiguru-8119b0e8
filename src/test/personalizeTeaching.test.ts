@@ -18,6 +18,7 @@ describe('personalize teaching helper (T-B14)', () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it('is off unless the build flag is exactly "true"', () => {
+    vi.stubEnv('VITE_PERSONALIZE_TEACHING_ENABLED', 'false');
     expect(personalizeTeachingEnabled()).toBe(false);
     vi.stubEnv('VITE_PERSONALIZE_TEACHING_ENABLED', '1');
     expect(personalizeTeachingEnabled()).toBe(false);

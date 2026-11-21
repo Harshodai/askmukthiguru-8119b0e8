@@ -42,6 +42,7 @@ import { AiTransparencyBanner } from '@/components/compliance/AiTransparencyBann
 import { MoodBanner } from '@/components/mood/MoodBanner';
 import { MemoryConsentBanner } from './MemoryConsentBanner';
 import { MemorySettingsModal } from './MemorySettingsModal';
+import { PersonalizeTeachingModal, type PersonalizeModalMode } from './PersonalizeTeachingModal';
 import { memoryApi } from '@/lib/memoryApi';
 import { hapticAudio } from '@/lib/audio/hapticAudio';
 
@@ -247,6 +248,8 @@ export const ChatInterface = () => {
   );
   const [sourcesPanelOpen, setSourcesPanelOpen] = useState(false);
   const [sourcesFilterMessageId, setSourcesFilterMessageId] = useState<string | null>(null);
+  const [showPersonalizeModal, setShowPersonalizeModal] = useState(false);
+  const [personalizeModalMode, setPersonalizeModalMode] = useState<PersonalizeModalMode>('auth_required');
   const uniqueSourcesCount = useMemo(() => {
     const set = new Set<string>();
     for (const m of messages) {
@@ -2223,17 +2226,35 @@ const handleInlineAction = (query: string) => {
   });
 };
 
-// Explicit opt-in (T-B14): the seeker asked to personalize one served teaching. The backend
-// decides whether they have a graph; this only identifies the clip and skips the local cache.
-const handlePersonalizeTeaching = (ref: PersonalizeTeachingRef) => {
-  // Guard against accidental double-fire while a response is already in flight.
-  if (isStreaming || isTyping) return;
-  const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-  handleSubmit(fakeEvent, PERSONALIZE_TEACHING_PROMPT, {
-    bypassCache: true,
-    personalizeTeaching: ref,
-  });
-};
+// Explicit opt-in (T-B14): the seeker asked to personalize one served teaching.
+// If unauthenticated, prompts sign-in. If 0 memories, prompts Second Brain onboarding.
+// Otherwise passes clip reference to PersonalizeStage.
+const handlePersonalizeTeaching = useCallback(
+  async (ref: PersonalizeTeachingRef) => {
+    // Guard against accidental double-fire while a response is already in flight.
+    if (isStreaming || isTyping) return;
+
+    if (!hasAuthenticatedSession) {
+      setPersonalizeModalMode('auth_required');
+      setShowPersonalizeModal(true);
+      return;
+    }
+
+    const hasMemories = await memoryApi.hasSavedMemories();
+    if (!hasMemories) {
+      setPersonalizeModalMode('memory_empty');
+      setShowPersonalizeModal(true);
+      return;
+    }
+
+    const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+    handleSubmit(fakeEvent, PERSONALIZE_TEACHING_PROMPT, {
+      bypassCache: true,
+      personalizeTeaching: ref,
+    });
+  },
+  [isStreaming, isTyping, hasAuthenticatedSession, handleSubmit]
+);
 
 // ── Regenerate last guru response ─────────────────────────────────
 const handleRegenerate = useCallback(() => {
@@ -2800,7 +2821,7 @@ return (
                   onSubmitEdit={handleSubmitEdit}
                   onAction={handleInlineAction}
                   onPersonalizeTeaching={
-                    personalizeTeachingEnabled() && hasAuthenticatedSession && !isIncognito
+                    personalizeTeachingEnabled() && !isIncognito
                       ? handlePersonalizeTeaching
                       : undefined
                   }
@@ -3145,6 +3166,13 @@ return (
       onMemoriesErased={() => {
         setMemoryConsent(false);
       }}
+    />
+
+    {/* Personalize Teaching Onboarding / Auth Modal */}
+    <PersonalizeTeachingModal
+      open={showPersonalizeModal}
+      onOpenChange={setShowPersonalizeModal}
+      mode={personalizeModalMode}
     />
 
   </div>

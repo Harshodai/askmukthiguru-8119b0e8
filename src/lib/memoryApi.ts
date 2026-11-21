@@ -258,6 +258,24 @@ export const memoryApi = {
     return true;
   },
 
+  /**
+   * Fast probe to check if the current user has at least one saved memory in Second Brain.
+   * Returns true if count > 0.
+   */
+  async hasSavedMemories(): Promise<boolean> {
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session?.user) return false;
+      const { count, error } = await supabase
+        .from('guru_memories')
+        .select('id', { count: 'exact', head: true });
+      if (error) return false;
+      return (count ?? 0) > 0;
+    } catch {
+      return false;
+    }
+  },
+
   /** List all episodic memories for the current user, newest first. */
   async list(page = 1, pageSize = 50): Promise<MemoryListResponse> {
     await requireSession();

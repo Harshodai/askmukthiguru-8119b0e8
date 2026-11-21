@@ -3,6 +3,7 @@
     "save": "Save",
     "cancel": "Cancel",
     "close": "Close",
+    "maybeLater": "Maybe later",
     "back": "Back",
     "next": "Next",
     "done": "Done",
@@ -897,6 +898,15 @@
     "personalizeTeaching": "Personalize this teaching",
     "personalizeNote": "Uses only memories you chose to save.",
     "personalizeManage": "Review what is saved",
+    "personalizeAuthModalTitle": "Tune This Wisdom to Your Life",
+    "personalizeAuthModalDesc": "Sign in to connect Sri Bhagavan and Sri Amma's teachings with your personal reflections and life journey.",
+    "personalizeAuthBenefit1": "Tailored reflections on what teachings mean for your unique challenges.",
+    "personalizeAuthBenefit2": "Private, encrypted reflections with complete control to pause or delete anytime.",
+    "personalizeAuthModalCta": "Sign In or Sign Up",
+    "personalizeMemoryModalTitle": "Make This Teaching Yours",
+    "personalizeMemoryModalDesc": "Personalization tailors teachings using reflections and insights you save in your Second Brain. You haven't saved any reflections yet.",
+    "personalizeMemoryBenefit": "Save reflections from your conversations or add personal insights in Second Brain to unlock tailored guidance.",
+    "personalizeMemoryModalCta": "Go to Second Brain",
     "provenance": {
       "viewDetails": "AI Transparency & Provenance"
     },
