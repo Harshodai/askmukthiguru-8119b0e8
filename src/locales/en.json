@@ -1913,6 +1913,24 @@
     "page": {
       "title": "My Profile",
       "welcome": "Welcome, Seeker"
+    },
+    "whatsapp": {
+      "title": "WhatsApp Companion",
+      "description": "Connect your WhatsApp account to receive morning wisdom, reflection check-ins, and ask questions on the go.",
+      "connected": "Connected",
+      "notLinked": "Not Connected",
+      "linkedNumber": "Linked Number",
+      "connectNow": "Connect WhatsApp",
+      "connectPrompt": "Link your phone number to converse with MukthiGuru directly from WhatsApp.",
+      "disconnect": "Disconnect",
+      "disconnected": "WhatsApp disconnected",
+      "confirmDisconnect": "Disconnect your WhatsApp number from this account?",
+      "preferenceUpdated": "WhatsApp privacy preference updated",
+      "privacyControls": "Privacy & Data Controls (DPDP)",
+      "syncHistory": "Sync Chat History",
+      "syncHistoryDesc": "Allow messages exchanged on WhatsApp to be visible in your web history.",
+      "spiritualMemory": "Spiritual Journey Memory",
+      "spiritualMemoryDesc": "Allow WhatsApp reflections to enrich your spiritual profile and tailored practices."
     }
   },
   "commandPalette": {

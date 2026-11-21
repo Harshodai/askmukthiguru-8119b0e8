@@ -33,6 +33,8 @@ from unittest.mock import MagicMock, patch
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "../.."))
 BACKEND_DIR = os.path.join(REPO_ROOT, "backend")
+if os.path.isdir(BACKEND_DIR):
+    os.chdir(BACKEND_DIR)
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 

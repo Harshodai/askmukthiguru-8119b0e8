@@ -114,7 +114,8 @@
     "clear": "صاف کریں",
     "erasing": "مٹا رہے ہیں…",
     "send": "بھیجیں",
-    "readMore": "مزید پڑھیں"
+    "readMore": "مزید پڑھیں",
+    "maybeLater": "شاید بعد میں"
   },
   "crisisDialog": {
     "heading": "بحرانی مدد کے وسائل",
@@ -896,7 +897,16 @@
       "viewDetails": "AI شفافیت اور ماخذ"
     },
     "editorialConflictDisclosure": "متضاد ماخذ نقطہ نظر — الگ الگ دکھائے گئے؛ کوئی ترکیب نہیں",
-    "machineTranslationLabel": "مشینی ترجمہ — استاد کے الفاظ نہیں"
+    "machineTranslationLabel": "مشینی ترجمہ — استاد کے الفاظ نہیں",
+    "personalizeAuthModalTitle": "اس حکمت کو اپنی زندگی کے مطابق ڈھالیں",
+    "personalizeAuthModalDesc": "سائن ان کریں تاکہ سری بھگوان اور سری اما کی تعلیمات کو اپنی ذاتی عکاسیوں اور زندگی کے سفر سے جوڑ سکیں۔",
+    "personalizeAuthBenefit1": "آپ کے منفرد چیلنجز کے لیے تعلیمات کا مخصوص عکاسی۔",
+    "personalizeAuthBenefit2": "نجی، محفوظ عکاسیوں کے ساتھ مکمل کنٹرول کہ کسی بھی وقت روکیں یا حذف کریں۔",
+    "personalizeAuthModalCta": "سائن ان کریں یا سائن اپ کریں",
+    "personalizeMemoryModalTitle": "اس تعلیم کو اپنا بنائیں",
+    "personalizeMemoryModalDesc": "ذاتی نوعیت کی تعلیمات آپ کے محفوظ کردہ عکاسیوں اور بصیرتوں کا استعمال کرتے ہوئے تیار کی جاتی ہیں۔ آپ نے ابھی تک کوئی عکاسی محفوظ نہیں کی ہے۔",
+    "personalizeMemoryBenefit": "اپنی گفتگو سے عکاسیوں کو محفوظ کریں یا دوسرے دماغ میں ذاتی بصیرتیں شامل کریں تاکہ مخصوص رہنمائی حاصل کر سکیں۔",
+    "personalizeMemoryModalCta": "دوسرے دماغ پر جائیں"
   },
   "notFound": {
     "message": "اوہو! صفحہ نہیں ملا",
@@ -1810,6 +1820,24 @@
     "page": {
       "title": "میرا پروفائل",
       "welcome": "خوش آمدید، سالک"
+    },
+    "whatsapp": {
+      "title": "WhatsApp ساتھی",
+      "description": "اپنے WhatsApp اکاؤنٹ کو جوڑیں تاکہ صبح کی حکمت، عکاسی کی جانچ، اور چلتے پھرتے سوالات پوچھ سکیں۔",
+      "connected": "متصل",
+      "notLinked": "متصل نہیں",
+      "linkedNumber": "منسلک نمبر",
+      "connectNow": "WhatsApp کو جوڑیں",
+      "connectPrompt": "اپنے فون نمبر کو لنک کریں تاکہ آپ MukthiGuru سے براہ راست WhatsApp پر بات چیت کر سکیں۔",
+      "disconnect": "منقطع کریں",
+      "disconnected": "WhatsApp منقطع ہو گیا",
+      "confirmDisconnect": "کیا آپ اپنے WhatsApp نمبر کو اس اکاؤنٹ سے منقطع کرنا چاہتے ہیں؟",
+      "preferenceUpdated": "WhatsApp کی رازداری کی ترجیحات کو اپ ڈیٹ کیا گیا",
+      "privacyControls": "رازداری اور ڈیٹا کنٹرول (DPDP)",
+      "syncHistory": "چیٹ کی تاریخ ہم آہنگ کریں",
+      "syncHistoryDesc": "WhatsApp پر تبادلہ خیال کردہ پیغامات کو آپ کی ویب تاریخ میں نظر آنے کی اجازت دیں۔",
+      "spiritualMemory": "روحانی سفر کی یادداشت",
+      "spiritualMemoryDesc": "WhatsApp کی عکاسیوں کو آپ کے روحانی پروفائل اور مخصوص طریقوں کو مالا مال کرنے کی اجازت دیں۔"
     }
   },
   "commandPalette": {
