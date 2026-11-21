@@ -53,6 +53,7 @@ PROBED_TABLES = [
     "assistant_scope_metadata",
     "memory_outbox",
     "canonical_memories",
+    "whatsapp_account_links",
 ]
 
 
@@ -1100,6 +1101,63 @@ def run_verification() -> dict[str, Any]:
             if not _is_permission_or_rls_error(exc):
                 failures.append({"table": "memory_outbox", "error": str(exc)})
 
+        # 13. whatsapp_account_links
+        try:
+            link_resp = (
+                service_client.table("whatsapp_account_links")
+                .insert(
+                    {
+                        "user_id": alice_id,
+                        "tenant_id": "oneness",
+                        "phone_number_hash": f"hash_{uuid.uuid4().hex}",
+                        "phone_number_masked": "+91 98*** **111",
+                        "status": "active",
+                    }
+                )
+                .execute()
+            )
+            link_id = link_resp.data[0]["id"]
+            seeded_ids["whatsapp_account_links"].append(link_id)
+
+            bob_select = bob_client.table("whatsapp_account_links").select("*").eq("id", link_id).execute()
+            bob_update = (
+                bob_client.table("whatsapp_account_links")
+                .update({"status": "revoked"})
+                .eq("id", link_id)
+                .execute()
+            )
+            bob_delete = bob_client.table("whatsapp_account_links").delete().eq("id", link_id).execute()
+            if bob_select.data:
+                failures.append(
+                    {
+                        "table": "whatsapp_account_links",
+                        "op": "select",
+                        "expected": [],
+                        "got": bob_select.data,
+                    }
+                )
+            if bob_update.data:
+                failures.append(
+                    {
+                        "table": "whatsapp_account_links",
+                        "op": "update",
+                        "expected": 0,
+                        "got": len(bob_update.data),
+                    }
+                )
+            if bob_delete.data:
+                failures.append(
+                    {
+                        "table": "whatsapp_account_links",
+                        "op": "delete",
+                        "expected": 0,
+                        "got": len(bob_delete.data),
+                    }
+                )
+        except Exception as exc:
+            if not _is_permission_or_rls_error(exc):
+                failures.append({"table": "whatsapp_account_links", "error": str(exc)})
+
     finally:
         # Guaranteed cleanup in reverse FK dependency order so constraints never block deletion.
         cleanup_order = [
@@ -1111,6 +1169,7 @@ def run_verification() -> dict[str, Any]:
             "user_episodes",
             "memory_outbox",
             "canonical_memories",
+            "whatsapp_account_links",
             "meditation_sessions",
             "conversations",
             "user_streaks",
