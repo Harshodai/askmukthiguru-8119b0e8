@@ -549,8 +549,12 @@ class FirstPersonContextStore:
             FieldCondition(key="record_type", match=MatchValue(value=RECORD_TYPE_CHILD)),
             FieldCondition(key="rights_cleared", match=MatchValue(value=True)),
             FieldCondition(key="domain_rights_status", match=MatchValue(value="licensed")),
-            FieldCondition(key="speaker_verified", match=MatchValue(value=True)),
         ]
+        from app.config import settings
+
+        require_speaker_verified = getattr(settings, "first_person_require_speaker_verified", False)
+        if require_speaker_verified:
+            conditions.append(FieldCondition(key="speaker_verified", match=MatchValue(value=True)))
         if guru_id and guru_id.lower() not in ("both", "all", ""):
             canonical = canonical_guru_id(guru_id) or guru_id.lower()
             conditions.append(FieldCondition(key="guru_id", match=MatchValue(value=canonical)))
@@ -612,7 +616,8 @@ class FirstPersonContextStore:
                 teacher_spans = tuple(
                     span
                     for span in context.spans
-                    if span.guru_id == context.parent.guru_id and span.speaker_verified is True
+                    if span.guru_id == context.parent.guru_id
+                    and (span.speaker_verified is True if require_speaker_verified else True)
                 )
                 if not teacher_spans:
                     continue
@@ -1240,9 +1245,14 @@ class FirstPersonContextStore:
     @staticmethod
     def _adjacency_span_is_servable(span: SourceSpan) -> bool:
         """Apply the narrow fail-closed gates required for sibling stitching."""
+        from app.config import settings
+
+        require_speaker_verified = getattr(
+            settings, "first_person_require_speaker_verified", False
+        )
         if (
             span.speaker_role is not SpeakerRole.GURU
-            or span.speaker_verified is not True
+            or (require_speaker_verified and span.speaker_verified is not True)
             or span.rights_cleared is not True
             or not source_is_authoritatively_licensed(
                 source_url=span.source_url,
@@ -1257,7 +1267,7 @@ class FirstPersonContextStore:
             return False
         if _span_is_blocked_promise(span):
             return False
-        if speaker_write_violations(span.to_payload()):
+        if require_speaker_verified and speaker_write_violations(span.to_payload()):
             return False
         if clip_text_hash(span.verbatim_text) != span.source_text_hash:
             return False
@@ -1394,13 +1404,18 @@ class FirstPersonContextStore:
 
         spans_by_id = {span.source_span_id: span for span in hydrated.spans}
         fresh_spans: list[SourceSpan] = []
+        from app.config import settings
+
+        require_speaker_verified = getattr(
+            settings, "first_person_require_speaker_verified", False
+        )
         for span_id in authoritative_ids:
             span = spans_by_id.get(span_id)
             if span is None:
                 return None
             if (
                 span.speaker_role is not SpeakerRole.GURU
-                or span.speaker_verified is not True
+                or (require_speaker_verified and span.speaker_verified is not True)
                 or span.rights_cleared is not True
                 or not source_is_authoritatively_licensed(
                     source_url=span.source_url,
@@ -1410,7 +1425,7 @@ class FirstPersonContextStore:
                 or not span.video_id
                 or self._span_is_quarantined(span)
                 or video_is_blocked(span.video_id)
-                or speaker_write_violations(span.to_payload())
+                or (require_speaker_verified and speaker_write_violations(span.to_payload()))
             ):
                 return None
             point_id = point_id_for_record(span.source_span_id)
@@ -1459,6 +1474,11 @@ class FirstPersonContextStore:
             return False
         if {str(record.id) for record in records} != set(unique):
             return False
+        from app.config import settings
+
+        require_speaker_verified = getattr(
+            settings, "first_person_require_speaker_verified", False
+        )
         for record in records:
             payload = record.payload or {}
             point_id = str(record.id)
@@ -1468,7 +1488,7 @@ class FirstPersonContextStore:
                 return False
             if payload.get("speaker_role") != SpeakerRole.GURU.value:
                 return False
-            if payload.get("speaker_verified") is not True:
+            if require_speaker_verified and payload.get("speaker_verified") is not True:
                 return False
             if payload.get("rights_cleared") is not True:
                 return False

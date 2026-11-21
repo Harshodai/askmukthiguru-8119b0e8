@@ -38,7 +38,7 @@ def _sentence_has_citation(sentence: str) -> bool:
 
 _SYCHOPHANTIC_OPENERS = [
     (
-        r"^\s*(Certainly!|Of course!|Absolutely!|Great question!|Sure!|Happy to help!|What a (wonderful|lovely|great) question!)\s*",
+        r"^\s*(Certainly!|Of course!|Absolutely!|Great question!|Sure!|Happy to help!|What a (wonderful|lovely|great) question!|Hello seeker,?|Greetings seeker,?|Dear seeker,?|Dear one,?|In the wisdom of Ekam,?)\s*",
         "",
         "sycophantic opener",
     ),
@@ -104,6 +104,11 @@ _COLLAB_ARTIFACTS = [
     ),
     (r"\s*Would you like (me to|more)[^.!]*[.!]?", "", "collab artifact"),
     (r"^\s*Here is an? (overview|summary|breakdown)[^.!]*[.:]\s*", "", "collab artifact"),
+    (
+        r"\s*(May you walk in peace|Feel free to ask more|May peace be with you|May you be blessed)[.!]?",
+        "",
+        "collab artifact",
+    ),
 ]
 
 _HEDGING = [

@@ -1540,6 +1540,18 @@ class FirstPersonBridgeStage(Stage):
                 error=getattr(result, "error", None),
             )
 
+        # Faculty dual-mode: when not a direct answer and LLM fallback is enabled,
+        # pass related clips to state as faculty citations and route to LangGraph synthesis
+        if not is_direct and getattr(settings, "first_person_llm_fallback_enabled", False):
+            if hasattr(ctx, "state") and isinstance(ctx.state, dict):
+                ctx.state["first_person_related_clips"] = citations
+            logger.debug(
+                "[FirstPersonBridge] Weak match / not direct (status=%s) with LLM fallback enabled; passing %d related clips to state and allowing fallthrough to LangGraph.",
+                status,
+                len(citations),
+            )
+            return None
+
         # Sub-task 2 (verbatim-only assembly): the served answer must contain
         # the exact clip text it cites. Anything assembled by paraphrase fails
         # this check and falls through instead of being rendered as teacher

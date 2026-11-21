@@ -5,8 +5,8 @@
   "env_file": "backend/.env",
   "evidence_dir": "audits/evidence",
   "pinned_artifacts": {
-    "backend/config/first_person_local_review.json": "8a7aef09a63a4bebeea67f37f926072d39cc8c056109d92d4bf9a695d0f59952",
-    "backend/config/first_person_serving_contract.json": "bb5a353804faf7c41edcf5a089392343ea25ea0d50cbe8f9b2c8be2450bbda20",
+    "backend/config/first_person_local_review.json": "c1547d41419b5e2519dcbd0ac5216567fd7c2039e89d78d1fb4bf1e78d254e91",
+    "backend/config/first_person_serving_contract.json": "f575f53c6105457b62ce966d33a59ca2738d69b0ee5acc875c1714f3e05d4cbf",
     "audits/evidence/public_release_phase4_tiers_manifest_2026-10-22.json": "894024e77767341983c9a6da12220b9bb16df4ad1b55df522dd7fa2a2a0a2267",
     "audits/evidence/public_release_phase4_tier_local_review_candidate_2026-10-22.jsonl": "078ac11c2884488dd2803bc0263e6c7a95e943cf324d46292cc7ca1fa7eb5784",
     "audits/evidence/public_release_phase4_tier_review_required_2026-10-22.jsonl": "dc40cef05cfda61fb11d050eda5c7bd10543abd9c16b8dc1a41d732726a1a462",

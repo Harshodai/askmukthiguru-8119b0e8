@@ -394,7 +394,7 @@ class Settings(BaseSettings):
     # Without it a single-span window can only serve text already inside the
     # truncated retrieval window. Costs one extra scroll per parent per request;
     # OFF by default until measured (master plan RAG-2).
-    first_person_enrichment_window_enabled: bool = False
+    first_person_enrichment_window_enabled: bool = True
     # Hard timeout (seconds) for one enrichment-window re-hydration. Fail-open:
     # a slow parent read keeps the retrieved span instead of delaying the answer
     # (the window is an addition, never a reason to wait — same policy as the
@@ -405,7 +405,7 @@ class Settings(BaseSettings):
     # retrieval over spans already tagged with those concepts. The extra pool is
     # appended AFTER the vector results and still passes every harness gate, so
     # this is additive only. OFF by default; it is never LLM generation.
-    first_person_graph_expansion_enabled: bool = False
+    first_person_graph_expansion_enabled: bool = True
     # Maximum ontology neighbours requested from the graph per query.
     first_person_graph_expansion_max_neighbors: int = 8
     # Hard timeout (seconds) for the graph expansion lookup. Fail-open: a slow or
@@ -418,7 +418,7 @@ class Settings(BaseSettings):
     # extra parents are appended AFTER the vector results and still pass every harness
     # gate, so this is additive only and never LLM generation (serving invariant #3).
     # OFF by default for the same reason the other two expansion features are.
-    first_person_okf_expansion_enabled: bool = False
+    first_person_okf_expansion_enabled: bool = True
     # Ceiling on distinct concept terms one query may contribute.
     first_person_okf_expansion_max_concepts: int = 8
     # Cosine floor for an OKF entry to count as a concept match. 0.40 was measured on
@@ -430,7 +430,7 @@ class Settings(BaseSettings):
     # one long discourse cannot occupy every candidate slot. Candidates already retrieved
     # for a new video are never dropped; only a duplicate beyond the cap is deferred to the
     # tail. OFF by default; a no-op pass-through for the same list otherwise.
-    first_person_cross_video_diversity_enabled: bool = False
+    first_person_cross_video_diversity_enabled: bool = True
     # Maximum parents one video may contribute inside the candidate pool (>=1).
     first_person_cross_video_max_per_video: int = Field(default=2, ge=1)
     # MMR trade-off: 1.0 = relevance only, 0.0 = maximum diversity.
@@ -2711,7 +2711,7 @@ class Settings(BaseSettings):
     # Judge prompt version. "v1" is the prompt of the registered runs; "v2" adds strict
     # completeness rules (theme-only, unfinished list/analogy, dangling reference, mid-argument).
     # Changes served answers: switch to v2 only through a registered graded run.
-    first_person_judge_rubric: Literal["v1", "v2"] = "v1"
+    first_person_judge_rubric: Literal["v1", "v2"] = "v2"
     # Warm the FAQ cache inside the server process at startup (docker-entrypoint.sh
     # sets it). A separate warmer process loaded a second model stack (1.9 GB) and
     # the backend was OOM-killed at 6 GB on its first requests (2026-11-16).

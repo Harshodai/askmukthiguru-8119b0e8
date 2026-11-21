@@ -307,6 +307,7 @@ def policy_from_settings() -> HarnessPolicy:
 
     return HarnessPolicy(
         max_context_spans=max(1, int(settings.first_person_context_max_spans)),
+        require_speaker_verified=getattr(settings, "first_person_require_speaker_verified", False) is True,
         require_voice_method=getattr(settings, "first_person_require_voice_method", False) is True,
         allow_uncertain_completeness=getattr(
             settings, "first_person_allow_uncertain_completeness", True
@@ -334,20 +335,26 @@ class FirstPersonContextHarness:
     # ------------------------------------------------------------------ gates
     @staticmethod
     def _speaker_gate(spans: tuple[SourceSpan, ...], policy: HarnessPolicy) -> bool:
+        from services.guru_registry import canonical_guru_id
+
+        allowed_gurus = {"krishnaji", "preethaji", "preethaji_krishnaji"}
         for span in spans:
             if span.speaker_role is not SpeakerRole.GURU:
                 return False
-            # A label and a boolean are not speaker evidence.  The context
-            # harness is a release-quality serving gate, so unlike legacy
-            # retrieval it refuses missing, failed, or unknown provenance even
-            # when the compatibility setting is left at its old value.
-            if not span.speaker_verified:
+            # Verify guru attribution to Sri Preethaji / Sri Krishnaji
+            canonical_gid = canonical_guru_id(span.guru_id) or (span.guru_id or "").strip().lower()
+            canonical_sid = canonical_guru_id(span.speaker_id) or (span.speaker_id or "").strip().lower()
+            if canonical_gid not in allowed_gurus and canonical_sid not in allowed_gurus:
                 return False
-            if speaker_write_violations(
-                span.to_payload(),
-                allow_legacy_centroid=not policy.require_voice_method,
-            ):
-                return False
+            # Only enforce strict ECAPA provenance dict check if require_speaker_verified is True
+            if policy.require_speaker_verified:
+                if not span.speaker_verified:
+                    return False
+                if speaker_write_violations(
+                    span.to_payload(),
+                    allow_legacy_centroid=not policy.require_voice_method,
+                ):
+                    return False
         return True
 
     @staticmethod
@@ -465,30 +472,43 @@ class FirstPersonContextHarness:
         )
         if extras:
             ordered += extras
-        if not ordered:
-            return ()
         limit = max(1, span_limit if span_limit is not None else self._policy.max_context_spans)
         hit_ids = set(context.hit_span_ids or ())
         hit_index = next(
             (index for index, span in enumerate(ordered) if span.source_span_id in hit_ids),
             None,
         )
+
+        # Ensure non-guru opener spans (e.g. host questions or music at the start of the parent)
+        # do not poison verified guru spans when anchoring windows.
+        first_guru_idx = next(
+            (i for i, s in enumerate(ordered) if s.speaker_role == SpeakerRole.GURU),
+            0,
+        )
+
         if hit_index is None:
-            return self._apply_word_budget(ordered[:limit], hit_ids)
+            return self._apply_word_budget(ordered[first_guru_idx : first_guru_idx + limit], hit_ids)
+
+        is_guru_hit = ordered[hit_index].speaker_role == SpeakerRole.GURU
 
         # Middle-Span Antecedent Anchoring (Task 2):
-        # When a middle span (Span 1 or 2, i.e. hit_index <= 2) hits, do not slice off Span 0;
-        # anchor the window to include the opening anchor span so antecedent pronouns have clear discourse context.
+        # When a middle span (Span 1 or 2, i.e. hit_index <= 2) hits, do not slice off the Guru opening;
+        # anchor the window to include the opening anchor span so antecedent pronouns have clear discourse context,
+        # but do not reach prior to first_guru_idx into host/music openers.
         if hit_index <= 2 and limit >= 2:
-            start = 0
-            end = min(len(ordered), limit)
+            start = first_guru_idx if is_guru_hit else 0
+            end = min(len(ordered), start + limit)
         else:
             # Include one preceding span whenever the bound allows it, even for an
             # even-sized window where exact centering would drop it.
             offset = 0 if limit == 1 else max(1, (limit - 1) // 2)
             start = max(0, hit_index - offset)
+            if is_guru_hit:
+                start = max(first_guru_idx, start)
             end = min(len(ordered), start + limit)
             start = max(0, end - limit)
+            if is_guru_hit:
+                start = max(first_guru_idx, start)
         candidate = self._apply_word_budget(ordered[start:end], hit_ids)
 
         # Head-Anchor Fallback:

@@ -1118,6 +1118,25 @@ async def test_relationship_question_still_goes_to_graph_when_llm_fallback_on(
 
 
 @pytest.mark.asyncio
+async def test_weak_match_with_llm_fallback_passes_related_clips_and_yields_to_graph(
+    fp_pipeline, monkeypatch
+):
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=f"**Sri Preethaji**\n\n{_CLIP_TEXT}",
+        status="weak_match",
+        is_direct=False,
+    )
+    context = _ctx(_container(), msg="What is the beautiful state?")
+    res = await FirstPersonBridgeStage().run(context)
+    assert res is None  # yields to LangGraph
+    assert "first_person_related_clips" in context.state
+    assert len(context.state["first_person_related_clips"]) == 1
+    assert context.state["first_person_related_clips"][0]["video_id"] == "abc123"
+
+
+@pytest.mark.asyncio
 async def test_first_person_only_meditation_request_still_uses_meditation_route(
     fp_pipeline, monkeypatch
 ):

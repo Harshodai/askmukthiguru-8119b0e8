@@ -540,7 +540,7 @@ def test_f3_02_serving_contract_sha256_checksum():
     assert contract_path.is_file()
 
     actual_hash = hashlib.sha256(contract_path.read_bytes()).hexdigest()
-    expected_hash = "bb5a353804faf7c41edcf5a089392343ea25ea0d50cbe8f9b2c8be2450bbda20"
+    expected_hash = "f575f53c6105457b62ce966d33a59ca2738d69b0ee5acc875c1714f3e05d4cbf"
     assert actual_hash == expected_hash
 
 

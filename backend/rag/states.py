@@ -256,6 +256,7 @@ class GraphState(TypedDict):
     # PipelineResult the pre-refactor bridge stage returned — parity by
     # construction. Never serialized (returned top-level from the coalescer).
     first_person_result: Optional[Any]
+    first_person_related_clips: Annotated[Optional[list], keep_latest]
 
     # T-B14 explicit personalize opt-in: the server-looked-up served clip this
     # turn personalizes (bounded identity fields + verbatim text, resolved by

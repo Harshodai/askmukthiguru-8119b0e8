@@ -796,6 +796,49 @@ def test_policy_from_settings_reads_the_voice_method_flag(monkeypatch):
     assert policy_from_settings().require_voice_method is False
 
 
+def test_policy_from_settings_reads_require_speaker_verified_flag(monkeypatch):
+    from app.config import settings
+    from services.first_person_context_harness import policy_from_settings
+
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", True)
+    assert policy_from_settings().require_speaker_verified is True
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", False)
+    assert policy_from_settings().require_speaker_verified is False
+
+
+def test_unverified_speaker_served_when_require_speaker_verified_is_false():
+    policy = HarnessPolicy(require_speaker_verified=False)
+    # Authentic Sri Krishnaji span with unrecorded voice method / bare flag
+    s = span(0, speaker_verified=False, voice_verification_method=None)
+    decision = FirstPersonContextHarness(policy).decide(context([s]), answerability="yes")
+    assert decision.decision is HarnessDecision.SERVE_SINGLE_SPAN
+    assert decision.gates["speaker"] is True
+
+
+def test_host_opener_does_not_poison_guru_hit_span():
+    # Span 0 is a HOST question, Span 1 is Guru answer (the hit)
+    host_opener = span(
+        0,
+        text="Can you explain what suffering is?",
+        speaker_role=SpeakerRole.HOST,
+        speaker_id="interviewer",
+    )
+    guru_answer = span(
+        1,
+        text="Suffering is a call to awaken from the illusion of separation.",
+        speaker_role=SpeakerRole.GURU,
+        speaker_id="krishnaji",
+    )
+    ctx = context([host_opener, guru_answer])
+    ctx = ctx.model_copy(update={"hit_span_ids": (guru_answer.source_span_id,)})
+    decision = FirstPersonContextHarness().decide(ctx, answerability="yes")
+    # Verified Guru span is served cleanly without host poison
+    assert decision.decision in (HarnessDecision.SERVE_SINGLE_SPAN, HarnessDecision.SERVE_PARENT_CONTEXT)
+    assert decision.gates["speaker"] is True
+    assert all(c.guru_id == "krishnaji" for c in decision.citations)
+    assert all(c.source_span_id == guru_answer.source_span_id for c in decision.citations)
+
+
 def _cross_parent_harness_pair(**opener_overrides):
     predecessor = span(
         0,

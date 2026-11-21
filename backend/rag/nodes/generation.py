@@ -3090,7 +3090,10 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
             "Keep the answer to 220-400 words; explain unfamiliar terms and give one example."
         )
     else:
-        response_length_instruction = f"Keep the answer to {('80-150' if _cs < 0.30 else '150-300' if _cs < 0.55 else '300-500')} words."
+        response_length_instruction = (
+            "Provide a complete, comprehensive, and clear explanation grounded in the provided sources. "
+            "Do not truncate or omit essential spiritual teachings or practices. Avoid conversational fluff."
+        )
     optional_sections = []
     if not general_knowledge_mode:
         if response_preferences.get("include_practice", True):
@@ -4215,6 +4218,25 @@ def _answer_shape_floor(answer: str, question: str) -> tuple[str, list[str]]:
     return answer, applied
 
 
+def _merge_fp_related_clips(citations: list, state: GraphState) -> list:
+    related = state.get("first_person_related_clips") or []
+    if not related:
+        return citations
+    out = list(citations)
+    seen = {
+        c.get("url") or c.get("source_url") or c.get("videoId") or c.get("video_id")
+        for c in out
+        if isinstance(c, dict)
+    }
+    for clip in related:
+        if isinstance(clip, dict):
+            key = clip.get("url") or clip.get("source_url") or clip.get("videoId") or clip.get("video_id")
+            if key and key not in seen:
+                out.append(clip)
+                seen.add(key)
+    return out
+
+
 def _label_synthesis(answer: str, state: GraphState, final_citations: list | None = None) -> str:
     """Post-check a generated teaching answer, then append SYNTHESIS_LABEL
     (idempotent).
@@ -4896,6 +4918,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             citations = _inject_canonical_citations(answer, citations)
             citations = enforce_source_diversity(citations, min_distinct=2)
             citations = _sanitize_citations(citations, docs=relevant_docs)
+            citations = _merge_fp_related_clips(citations, state)
             answer = remap_citation_markers(answer, relevant_docs, citations)
             answer = _label_synthesis(scrub(answer), state, citations)
             # Unmeasured gets no confidence at all. It used to get 8.0, which
@@ -4905,6 +4928,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             return {
                 "final_answer": answer,
                 "citations": citations,
+                "first_person_related_clips": state.get("first_person_related_clips"),
                 "intent": intent,
                 "_needs_retry": not fast_passed,
                 "is_faithful": fast_faithful,
@@ -4948,6 +4972,7 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
     citations = _inject_canonical_citations(answer, citations)
     citations = enforce_source_diversity(citations, min_distinct=2)
     citations = _sanitize_citations(citations, docs=relevant_docs)
+    citations = _merge_fp_related_clips(citations, state)
     answer = remap_citation_markers(answer, relevant_docs, citations)
 
     if _is_bounded_refusal(answer):
@@ -5285,9 +5310,12 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
         or (intent.lower() if intent else "query")
     )
 
+    citations = _merge_fp_related_clips(citations, state)
+
     result = {
         "final_answer": answer,
         "citations": citations,
+        "first_person_related_clips": state.get("first_person_related_clips"),
         "intent": intent,
         "route_decision": resolved_route,
         "follow_up_suggestions": follow_up_suggestions,

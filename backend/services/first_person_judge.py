@@ -88,7 +88,7 @@ def judge_rubric() -> str:
     """Active rubric, read per call so the flag is live."""
     from app.config import settings
 
-    return str(getattr(settings, "first_person_judge_rubric", "v1") or "v1")
+    return str(getattr(settings, "first_person_judge_rubric", "v2") or "v2")
 
 
 def judge_system_prompt(rubric: Optional[str] = None) -> str:

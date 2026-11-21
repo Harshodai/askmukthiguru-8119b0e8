@@ -83,6 +83,12 @@ async def first_person_node(
 
         result: Any = await run_first_person_bridge(ctx)
         if result is None:
+            if (
+                hasattr(ctx, "state")
+                and isinstance(ctx.state, dict)
+                and "first_person_related_clips" in ctx.state
+            ):
+                return {"first_person_related_clips": ctx.state["first_person_related_clips"]}
             return {}
         return {"first_person_result": result}
     except Exception:  # noqa: BLE001 - bridge infra never fails chat

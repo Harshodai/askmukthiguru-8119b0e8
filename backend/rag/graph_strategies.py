@@ -192,6 +192,14 @@ def _route_after_first_person(state: GraphState):
     result = state.get("first_person_result")
     if result is None:
         return parallel_start(state)
+    verification = getattr(result, "verification", None) or {}
+    if not verification.get("direct", True) and getattr(
+        settings, "first_person_llm_fallback_enabled", False
+    ):
+        citations = getattr(result, "citations", None) or []
+        if citations and "first_person_related_clips" not in state:
+            state["first_person_related_clips"] = citations
+        return parallel_start(state)
     metadata = getattr(result, "route_metadata", None) or {}
     if metadata.get("fp_served"):
         return END
