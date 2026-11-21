@@ -3440,6 +3440,93 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_account_links: {
+        Row: {
+          created_at: string
+          id: string
+          linked_at: string
+          memory_write_consent: boolean
+          phone_number_encrypted: string | null
+          phone_number_hash: string
+          phone_number_masked: string
+          revoked_at: string | null
+          status: string
+          sync_history_consent: boolean
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          linked_at?: string
+          memory_write_consent?: boolean
+          phone_number_encrypted?: string | null
+          phone_number_hash: string
+          phone_number_masked: string
+          revoked_at?: string | null
+          status?: string
+          sync_history_consent?: boolean
+          tenant_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          linked_at?: string
+          memory_write_consent?: boolean
+          phone_number_encrypted?: string | null
+          phone_number_hash?: string
+          phone_number_masked?: string
+          revoked_at?: string | null
+          status?: string
+          sync_history_consent?: boolean
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_link_challenges: {
+        Row: {
+          challenge_token_hash: string
+          confirmed_web_user_id: string | null
+          confirmed_whatsapp: boolean
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          phone_number_hash: string
+          phone_number_masked: string
+          phone_number_raw: string
+        }
+        Insert: {
+          challenge_token_hash: string
+          confirmed_web_user_id?: string | null
+          confirmed_whatsapp?: boolean
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          phone_number_hash: string
+          phone_number_masked: string
+          phone_number_raw: string
+        }
+        Update: {
+          challenge_token_hash?: string
+          confirmed_web_user_id?: string | null
+          confirmed_whatsapp?: boolean
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          phone_number_hash?: string
+          phone_number_masked?: string
+          phone_number_raw?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       v_chat_queries_by_assistant: {
