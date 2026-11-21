@@ -162,3 +162,29 @@ Calibration target 1% vs 5% (N8); clinician item (N10); speaker validation outco
 - Production logs: Railway MCP `get-logs` with `deploymentId` and a content filter (`osture`, `Traceback`, `403`); classify by content, not severity.
 - Anonymous test client: `backend/scripts/ops/live_smoke_battery.py` (`Client.session()`, `Client.ask()`); anon-session is limited to 5/min/IP.
 - Tools: codebase-memory MCP (`index_repository` first), Context7 for library behaviour (cite the doc version), blind judges per `audits/work/2026-11-20-quality/JUDGE_BRIEF.md`.
+
+## 11. Addendum (2026-11-21 Morning Session: Phase 4 & Phase 5 Completed)
+1. **Audio Archive Gap Resolution (Phase 4 Step 1)**:
+   - Missing Four Sacred Secrets video `0z-IZ2ar4eA` downloaded as 16kHz mono PCM WAV via `yt-dlp` and saved to `~/mukthiguru_attribution_data/audio_archive/wavs/0z-IZ2ar4eA.wav`.
+   - Verified metadata: duration = 1544.40s, sample rate = 16000 Hz, channels = 1, size = 49,420,878 bytes, SHA256 = `3448dc5eddf7b4ab2d12e1c1e1ecd338c28edb4b3de6ad2e0550461011cf8146`.
+   - Manifest updated at `~/mukthiguru_attribution_data/audio_archive/manifest.json`. Total archived count increased to 681 videos (68.99 hours).
+   - All 3 Four Sacred Secrets videos (`rRs__D_3mKY`, `0z-IZ2ar4eA`, `gMrOMT4mfno`) verified to resolve cleanly via `scripts/ops/audio_archive.py get-path <video_id>`.
+
+2. **Standalone Grief & Loss Teachings Search (Phase 4 Step 2)**:
+   - Executed systematic search across transcripts (`transcripts/*.md` and `transcripts/transcripts.json`) for standalone teachings addressing grief, bereavement, mortality, and loss of loved ones.
+   - Strictly screened against runtime self-harm filter (`_CLIP_MENTIONS_SELF_HARM` regex) ensuring zero suicide / despair keywords.
+   - Compiled 7 high-value candidate teachings into `audits/evidence/grief_standalone_candidates.json` and human review packet `audits/evidence/grief_standalone_candidates.md` covering:
+     - `Oc5ar2g2rnI` (3 spans: life after death, releasing departed ancestors, Mahaprasthana / loving without reserve)
+     - `bF6kr28QHJc` (1 span: suffering from death of a parent and emergence of higher consciousness)
+     - `odXq5g-Y7gM` (1 span: healing heartache and relational presence)
+     - `DmzZPgTh7_M` (1 span: freedom from ancestral and chronic sorrow)
+     - `XzS56RqIxeE` (1 span: oneness in shared sorrow and awakening to compassion)
+   - Created twin scripts `scripts/ops/mine_grief_candidates.py` and `backend/scripts/ops/mine_grief_candidates.py` (`test_repo_layout.py` passing 5/5).
+
+3. **WhatsApp Direct Companion (Phase 5 Completed)**:
+   - Meta Cloud API Webhook (`GET`/`POST /api/whatsapp/webhook`) with HMAC-SHA256 signature verification and message deduplication.
+   - Cryptographic account linking challenge (`/api/whatsapp/link/*`) and DPDP consent controls (decoupling chat sync and long-term memory).
+   - Crisis preemption routing (Tele-MANAS `14416` / `112`).
+   - Web linking page (`src/pages/LinkWhatsAppPage.tsx`) and profile settings card (`src/components/profile/settings/WhatsAppCard.tsx`).
+   - Test suites: 16/16 backend tests pass (`test_whatsapp_api.py`), 4/4 frontend tests pass (`whatsappIntegration.test.tsx`), `tsc` clean (0 errors), `npm run build` succeeds (29 routes prerendered).
+
