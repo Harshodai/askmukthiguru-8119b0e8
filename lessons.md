@@ -1,6 +1,25 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 21, 2026 (night) — Personalize Memory Hydration, False-Abstention Recovery (/boost), and Multi-Topic Audit
+
+### L-PERSONALIZE-STAGE-FICTITIOUS-SCHEMA-SESSION-NONE-1. Real Supabase hydration vs silent session=None abort in personalization.
+- **What:** In `PersonalizeStage`, `UnifiedPersonalizationEngine.hydrate_seeker_context` was invoked with `session=None`. Inside `hydrate_seeker_context`, all 7 facet tasks (`_fetch_profile`, `_fetch_brain`, `_fetch_sadhana`, `_fetch_pre_practice`, `_fetch_notebook`, `_fetch_mood`, `_fetch_whatsapp`) began with `if not session: return`, silently returning empty defaults without querying Postgres. Furthermore, queries referenced non-existent tables (`user_sadhana`, `user_saved_teachings`, `mood_entries`, `user_reflections`) rather than the application's actual Supabase schema (`canonical_memories`, `user_profiles`, `user_streaks`, `meditation_sessions`, `study_notebooks` + `study_notebook_items`, and `whatsapp_account_links`).
+- **Fix & Rule:** Pass `supabase_client=ctx.container.supabase_client` into `hydrate_seeker_context` and query real Supabase tables via `asyncio.to_thread`. If database queries return empty but `ctx.state["memory_context"]` already holds memories from `RequestStateStage`, merge them into `seeker_ctx` so user realizations are never lost.
+
+### L-PERSONALIZE-PROMPT-POISONING-PREPARED-MEMORY-FALLBACK-1. Eliminating empty memory defaults from prompt guidance.
+- **What:** When `seeker_ctx` had empty memory defaults, `format_prompt_guidance` emitted toxic strings into the prompt: `- No canonical memories recorded yet.` and `- No saved teachings in active notebook.`. When injected into `<seeker_guidance>` directly beneath `<user_memory>`, the model was explicitly told the user had no memories, suppressing memory-grounded personalization. In addition, `UserProfile` dataclass instances in `ctx.state["user_profile"]` were skipped because `isinstance(state_profile, dict)` evaluated to `False`.
+- **Fix & Rule:** Suppress `- No canonical memories recorded yet.` whenever `has_state_memory` is `True`. Support extracting profile attributes from both `UserProfile` dataclasses and dictionaries. Strengthen the `PERSONALIZATION DIRECTIVE` in `generation.py` to command explicit integration of user challenges and sadhana.
+
+### L-MEDITATION-PRACTICE-STEP-INQUIRY-FALSE-ABSTAIN-1. Recovering step-by-step meditation & synthesis inquiries from single-clip hard-abstains (/boost).
+- **What:** Step-by-step practice inquiries (e.g. "What are the exact step-by-step instructions to practice the Soul Sync meditation?") and conceptual synthesis questions (e.g. "What is the distinction between ego and universal intelligence?") failed the single-clip first-person bridge because a 30s video clip cannot cover a 6-stage practice or multi-concept contrast. Because `first_person_llm_fallback_enabled` is `False`, the bridge hard-abstained before `intent.py` or `GraphStage` could answer, resulting in false abstentions on valid core teachings.
+- **Fix & Rule:** In `first_person_bridge.py`, allow step-by-step practice inquiries (`_STEP_INSTRUCTION_RE`) and conceptual synthesis questions (`_DIFFERENCE_SYNTHESIS_RE`) to hand off cleanly to `GraphStage` and `handle_meditation` (`format_meditation_script("soul_sync")`). Verified on live Railway production: Soul Sync practice returned the complete 6-stage meditation with 4 citations, and Ego vs Intelligence returned 100% grounded synthesis with 3 citations.
+
+### L-FIRST-PERSON-INDIC-QUOTE-PRESERVATION-VS-BILINGUAL-1. Verbatim quote provenance vs Indic translation boundary.
+- **What:** In `first_person_bridge.py`, `_translate_glue_only` intentionally protects verbatim quotes from translation to satisfy the core invariant `sha256(verbatim_text) == transcript_hash` (translating living teachers' words alters the quote). However, in first-person mode where 100% of the answer is the quote, this resulted in raw English transcripts being returned for Telugu questions (`శాంతిని ఎలా పొందాలి?`).
+- **Fix & Rule:** Verbatim quotes must remain untranslated to preserve byte-identical transcript hashes for contract tests, while the RAG/synthesis lane translates the answer body into the seeker's native script. For first-person mode, provide a bilingual presentation (authentic English quote + localized contemplation/framing) or retrieve native Indic discourses from the corpus.
+
+
 ## Nov 21, 2026 (mid-day) — WhatsApp Direct Companion Architecture, Audio Archive Foundation
 
 ### L-WHATSAPP-TWO-CHANNEL-CHALLENGE-DPDP-1. Decoupling channel binding from memory permissions via cryptographic challenges.
