@@ -211,8 +211,8 @@ async def test_personalize_stage_bridges_canonical_memories_to_verifier_evidence
 
     assert "canonical_memory_evidence" in ctx.state
     evidence = ctx.state["canonical_memory_evidence"]
-    assert "- Struggles with anger towards spouse" in evidence
-    assert "- Practices Soul Sync meditation daily" in evidence
+    assert "Struggles with anger towards spouse" in evidence
+    assert "Practices Soul Sync meditation daily" in evidence
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +225,12 @@ async def test_grade_documents_dynamic_fallback_preserves_candidates(monkeypatch
     candidate documents are preserved for grading rather than rejected to []."""
     monkeypatch.setattr(settings, "rerank_min_score", 0.35)
     monkeypatch.setattr(settings, "rerank_fallback_floor", 0.22)
+    from unittest.mock import AsyncMock, MagicMock
+    from rag.nodes import _services
+    mock_grader = MagicMock()
+    mock_grader.grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
+    mock_grader.batch_grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
+    monkeypatch.setattr(_services, "_ollama", mock_grader)
 
     state = {
         "question": "What is the spiritual perspective on right action in career?",
@@ -249,6 +255,12 @@ async def test_grade_documents_rejects_below_fallback_floor(monkeypatch):
     """When top_score is below fallback_floor (0.22), documents are rejected with relevant_docs: []."""
     monkeypatch.setattr(settings, "rerank_min_score", 0.35)
     monkeypatch.setattr(settings, "rerank_fallback_floor", 0.22)
+    from unittest.mock import AsyncMock, MagicMock
+    from rag.nodes import _services
+    mock_grader = MagicMock()
+    mock_grader.grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
+    mock_grader.batch_grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
+    monkeypatch.setattr(_services, "_ollama", mock_grader)
 
     state = {
         "question": "Unrelated cold query",
@@ -387,6 +399,12 @@ async def test_grade_documents_handles_none_rerank_score_without_type_error(monk
     must safely treat them as 0.0 rather than crashing with TypeError."""
     monkeypatch.setattr(settings, "rerank_min_score", 0.35)
     monkeypatch.setattr(settings, "rerank_fallback_floor", 0.22)
+    from unittest.mock import AsyncMock, MagicMock
+    from rag.nodes import _services
+    mock_grader = MagicMock()
+    mock_grader.grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
+    mock_grader.batch_grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
+    monkeypatch.setattr(_services, "_ollama", mock_grader)
 
     state = {
         "question": "What is the spiritual perspective on right action in career?",

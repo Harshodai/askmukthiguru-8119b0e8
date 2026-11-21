@@ -453,13 +453,19 @@ class PersonalizeStage(Stage):
                 "wisdom map. Please sign in and ask again.",
             )
         if getattr(ctx, "personal_context_confirmed", False) is not True:
-            return _decline(
-                ctx,
-                "no_graph",
-                "I don't have personal context to personalize this teaching with yet. "
-                "As you chat and save reflections, I'll be able to tailor teachings "
-                "to you.",
+            ctx_state = getattr(ctx, "state", None) or {}
+            has_memory_evidence = bool(
+                ctx_state.get("memory_context") or ctx_state.get("canonical_memory_evidence")
             )
+            if not has_memory_evidence:
+                return _decline(
+                    ctx,
+                    "no_graph",
+                    "I don't have personal context to personalize this teaching with yet. "
+                    "As you chat and save reflections, I'll be able to tailor teachings "
+                    "to you.",
+                )
+            ctx.personal_context_confirmed = True
         try:
             clip = await asyncio.to_thread(_lookup_servable_clip, ref)
         except Exception as exc:

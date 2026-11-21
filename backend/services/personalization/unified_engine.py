@@ -200,6 +200,29 @@ class UnifiedPersonalizationEngine:
                             })
                     if mems:
                         brain_ctx.canonical_memories = mems
+                    else:
+                        # Fallback: check guru_memories for user's saved episodic reflections
+                        def _q_guru_mem():
+                            return (
+                                supabase_client.table("guru_memories")
+                                .select("id, memory_text, state_category")
+                                .eq("user_id", user_id)
+                                .order("created_at", desc=True)
+                                .limit(10)
+                                .execute()
+                            )
+                        gres = await asyncio.to_thread(_q_guru_mem)
+                        grows = getattr(gres, "data", []) or []
+                        for gr in grows:
+                            mt = gr.get("memory_text")
+                            if mt:
+                                mems.append({
+                                    "id": str(gr.get("id", "")),
+                                    "statement": str(mt),
+                                    "category": str(gr.get("state_category", "reflection")),
+                                })
+                        if mems:
+                            brain_ctx.canonical_memories = mems
                     return
                 except Exception as e:
                     logger.debug("Unified engine: supabase brain query exception: %s", e)
@@ -225,6 +248,22 @@ class UnifiedPersonalizationEngine:
                             "statement": str(st),
                             "category": str(getattr(m, "memory_type", "") or getattr(m, "category", "")),
                         })
+                if not mems:
+                    stmt2 = text(
+                        "SELECT id, memory_text, state_category FROM guru_memories "
+                        "WHERE user_id = :uid ORDER BY created_at DESC LIMIT 10"
+                    )
+                    res2 = await session.execute(stmt2, {"uid": user_id})
+                    rows2 = await _safe_fetchall(res2)
+                    for r in rows2:
+                        m = getattr(r, "_mapping", r)
+                        mt = getattr(m, "memory_text", None)
+                        if mt:
+                            mems.append({
+                                "id": str(getattr(m, "id", "")),
+                                "statement": str(mt),
+                                "category": str(getattr(m, "state_category", "reflection")),
+                            })
                 if mems:
                     brain_ctx.canonical_memories = mems
             except Exception as e:

@@ -259,18 +259,21 @@ export const memoryApi = {
   },
 
   /**
-   * Fast probe to check if the current user has at least one saved memory in Second Brain.
-   * Returns true if count > 0.
+   * Fast probe to check if the current user has at least one saved memory in Second Brain,
+   * canonical memories, or active sadhana streak. Returns true if count > 0.
    */
   async hasSavedMemories(): Promise<boolean> {
     try {
       const { data } = await supabase.auth.getSession();
       if (!data?.session?.user) return false;
-      const { count, error } = await supabase
-        .from('guru_memories')
-        .select('id', { count: 'exact', head: true });
-      if (error) return false;
-      return (count ?? 0) > 0;
+      const uid = data.session.user.id;
+      const [gRes, cRes] = await Promise.all([
+        supabase.from('guru_memories').select('id', { count: 'exact', head: true }).eq('user_id', uid),
+        supabase.from('canonical_memories').select('id', { count: 'exact', head: true }).eq('user_id', uid),
+      ]);
+      if ((gRes.count ?? 0) > 0 || (cRes.count ?? 0) > 0) return true;
+      const sRes = await supabase.from('user_streaks').select('user_id', { count: 'exact', head: true }).eq('user_id', uid);
+      return (sRes.count ?? 0) > 0;
     } catch {
       return false;
     }

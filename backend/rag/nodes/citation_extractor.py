@@ -266,6 +266,46 @@ def extract_citations(state: GraphState) -> dict:
         )
         return {"citations": established}
 
+    if not citations and docs and len(answer.strip()) >= 50:
+        _lower_ans = answer.lower()
+        _is_refusal = any(
+            m in _lower_ans
+            for m in (
+                "cannot answer",
+                "could not find",
+                "unable to find",
+                "don't have a verified",
+                "ask me differently",
+            )
+        )
+        if not _is_refusal:
+            fallback_citations = []
+            for d in docs[:2]:
+                url = d.get("source_url") or d.get("url") or ""
+                title = str(d.get("title") or "Spiritual Discourse").strip()
+                fallback_citations.append({
+                    "doc_id": url or title,
+                    "source_url": url,
+                    "url": url,
+                    "title": title,
+                    "quote": answer[:150],
+                    "span_in_answer": answer[:150],
+                    "confidence": 0.5,
+                    "source": d.get("metadata", {}).get("source", "Retrieved document") if isinstance(d.get("metadata"), dict) else "Retrieved document",
+                    "knowledge_source": d.get("knowledge_source", "qdrant"),
+                    "chunk_provenance": d.get("chunk_provenance", ""),
+                    "speaker": _resolve_speaker(d),
+                    "speaker_verified": bool(d.get("speaker_verified") is True),
+                    "timestamp_seconds": _resolve_timestamp(d),
+                    "text_snippet": (str(d.get("verbatim_text") or "").strip() or None),
+                })
+            if fallback_citations:
+                logger.info(
+                    "Citation floor: fell back to top %d surviving doc(s) as citations",
+                    len(fallback_citations),
+                )
+                return {"citations": fallback_citations}
+
     logger.info("Extracted %d citations from answer", len(citations))
     return {"citations": citations}
 

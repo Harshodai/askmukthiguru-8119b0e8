@@ -496,8 +496,8 @@ class PipelineCoordinator:
             if db is None:
                 return False
             try:
-                resp = await asyncio.to_thread(
-                    lambda: (
+                def _check_db():
+                    resp = (
                         db.table("canonical_memories")
                         .select("id")
                         .eq("user_id", user_id)
@@ -505,8 +505,35 @@ class PipelineCoordinator:
                         .limit(1)
                         .execute()
                     )
-                )
-                return bool(getattr(resp, "data", None))
+                    data = getattr(resp, "data", None)
+                    if isinstance(data, list) and len(data) > 0:
+                        return True
+                    # Check guru_memories (Second Brain reflections)
+                    g_resp = (
+                        db.table("guru_memories")
+                        .select("id")
+                        .eq("user_id", user_id)
+                        .limit(1)
+                        .execute()
+                    )
+                    g_data = getattr(g_resp, "data", None)
+                    if isinstance(g_data, list) and len(g_data) > 0:
+                        return True
+                    # Check user_streaks (active sadhana journey)
+                    s_resp = (
+                        db.table("user_streaks")
+                        .select("current_streak")
+                        .eq("user_id", user_id)
+                        .gt("current_streak", 0)
+                        .limit(1)
+                        .execute()
+                    )
+                    s_data = getattr(s_resp, "data", None)
+                    if isinstance(s_data, list) and len(s_data) > 0:
+                        return True
+                    return False
+
+                return await asyncio.to_thread(_check_db)
             except Exception as exc:
                 logger.debug(
                     "canonical_memories probe failed for user %s, treating as has-memory: %s",
