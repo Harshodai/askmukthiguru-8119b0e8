@@ -20,6 +20,7 @@ import logging
 import os
 import re
 import urllib.parse
+import uuid
 from typing import Any
 
 from celery_config import celery_app
@@ -180,7 +181,7 @@ def process_whatsapp_turn_task(
     # 3. Call core /api/chat orchestrator (?wait=true to block for synchronous result)
     import requests
 
-    session_id = f"wa_{p_hash[:16]}"
+    session_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"whatsapp:{p_hash}"))
     chat_url = f"{BACKEND_INTERNAL_URL}/api/chat?wait=true"
     payload = {
         "user_message": user_message,
@@ -212,15 +213,46 @@ def process_whatsapp_turn_task(
     # 5. DPDP-compliant conversation sync (if user explicitly consented)
     if sync_history and user_id and db:
         try:
-            db.table("chat_messages").insert({
-                "user_id": user_id,
-                "session_id": session_id,
-                "message": user_message,
-                "response": answer_text,
-                "source": "whatsapp",
-            }).execute()
+            conv_res = (
+                db.table("conversations")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("title", "WhatsApp Companion")
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            rows = getattr(conv_res, "data", []) or []
+            if rows:
+                conv_id = rows[0]["id"]
+            else:
+                new_conv = (
+                    db.table("conversations")
+                    .insert({
+                        "user_id": user_id,
+                        "title": "WhatsApp Companion",
+                        "preview": user_message[:120],
+                    })
+                    .execute()
+                )
+                conv_id = (getattr(new_conv, "data", []) or [{}])[0].get("id")
+
+            if conv_id:
+                db.table("chat_messages").insert([
+                    {
+                        "conversation_id": conv_id,
+                        "role": "user",
+                        "content": user_message,
+                    },
+                    {
+                        "conversation_id": conv_id,
+                        "role": "guru",
+                        "content": answer_text,
+                    },
+                ]).execute()
+                logger.info("Synced WhatsApp conversation turn into chat_messages for user %s", user_id)
         except Exception as e:
-            logger.debug("History sync note: %s", e)
+            logger.warning("History sync note: %s", e)
 
     # 6. DPDP-compliant second-brain memory writing (if user explicitly opted-in)
     if memory_write and user_id and db:

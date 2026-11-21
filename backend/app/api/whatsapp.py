@@ -132,6 +132,9 @@ async def meta_webhook_receiver(
         if not validate_meta_signature(raw_body, x_hub_signature_256, app_secret):
             logger.warning("Meta signature validation failed — rejecting request")
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid signature")
+    elif getattr(settings, "is_production", False):
+        logger.error("META_APP_SECRET is not configured in production — rejecting unverified webhook")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Signature verification required")
 
     try:
         payload = await request.json()
