@@ -75,6 +75,11 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
                             "parent_id": parent_id,
                             "parent_text": text,
                             "is_child": True,
+                            "domain_rights_status": "licensed",
+                            "rights_cleared": True,
+                            "chunker_version": "boundary_v1:hierarchical",
+                            "teacher_id": "sri-preethaji-krishnaji",
+                            "teacher_ids": ["sri-preethaji", "sri-krishnaji"],
                         },
                     }
                 )
@@ -94,6 +99,11 @@ def flatten_tree(nodes, parent_title="", level=0, cluster_id=1):
                         "raptor_level": 1,
                         "cluster_id": cluster_id,
                         "node_id": node.get("node_id", ""),
+                        "domain_rights_status": "licensed",
+                        "rights_cleared": True,
+                        "chunker_version": "boundary_v1:hierarchical",
+                        "teacher_id": "sri-preethaji-krishnaji",
+                        "teacher_ids": ["sri-preethaji", "sri-krishnaji"],
                     },
                 }
             )
