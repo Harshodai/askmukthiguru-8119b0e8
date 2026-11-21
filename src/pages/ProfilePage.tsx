@@ -55,6 +55,7 @@ import { MemoryManager } from '@/components/profile/MemoryManager';
 import { JourneyOverview } from '@/components/profile/JourneyOverview';
 import { PreferencesCard } from '@/components/profile/settings/PreferencesCard';
 import { SecurityCard } from '@/components/profile/settings/SecurityCard';
+import { WhatsAppCard } from '@/components/profile/settings/WhatsAppCard';
 import { AccountDataCard } from '@/components/profile/settings/AccountDataCard';
 import { SupportCard } from '@/components/profile/settings/SupportCard';
 import { useToast } from '@/hooks/use-toast';
@@ -584,6 +585,7 @@ const ProfilePage = () => {
             <TabsContent value="settings" className="space-y-6 mt-0">
               <SecurityCard setupMfaRedirect={setupMfaRedirect} />
               <PreferencesCard form={form} patch={patch} applyThemeNow={applyThemeNow} />
+              <WhatsAppCard />
               <AccountDataCard />
               <SupportCard defaultName={resolveName()} defaultEmail={resolveEmail()} />
             </TabsContent>
