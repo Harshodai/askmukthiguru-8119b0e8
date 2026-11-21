@@ -247,6 +247,15 @@ Built and unit-tested, but with NO call site in the request path, so they are no
 - `app/streaming/*` (admission router, SSE generator), `src/lib/streaming/ResilientStreamTransport.ts`, `app/intake/short_circuit.py` (second greeting grammar), `rag/retrieval/federated_engine.py` (4-lane retrieval).
 - Rule: wire a dormant module only together with a new default-off `Settings` flag read at its call site, tests for both flag states, and a graded-run comparison. A flag with no reader is not allowed. Engine 3 (generation) must additionally stay off whenever `FIRST_PERSON_LLM_FALLBACK_ENABLED=false`. Deleting any of them is Harsha's separate decision after the graded run.
 
+## Human Operational Next Steps (Pending Owner Action — 2026-11-21)
+
+All code, vector ingestion, serving contract updates, and deployments are complete. The remaining gates require human-in-the-loop action per repository invariants:
+
+1. **Faculty Preview Invitations**: Send the invitations in `docs/reviews/FACULTY_PREVIEW_INVITATION_PACKET.md` to the 12 faculty reviewers recorded in `docs/reviews/faculty_preview_roster.json` using the configured `FACULTY_ACCESS_CODE`.
+2. **Speaker Gate Human Sign-Off (Invariant X41)**: In the Admin Console (`/admin/evals?tab=human-gates`), listen to and sign off on the 50 speaker verification rows in `docs/safety/SPEAKER_GATE_SIGNOFF_LEDGER_2026_11_21.md`. AI agents are strictly forbidden from authoring human gate decisions.
+3. **Meta WhatsApp Live Credentials**: When ready to enable real WhatsApp messaging, follow `docs/whatsapp/META_COEXISTENCE_ONBOARDING_GUIDE.md` to set `META_APP_ID`, `META_APP_SECRET`, `META_VERIFY_TOKEN`, and `META_PHONE_NUMBER_ID` in Railway.
+4. **Active Serving Posture**: Running `v13_shadow` on `first_person_v13_shadow` (4,099 points) and `spiritual_wisdom_contextual` (14,080 points) locally and on Railway.
+
 ## Open work (read before answering "what's pending?")
 
 - Single open-work list (status source; edit it when an item closes or appears, never start another plan file): `docs/plans/PROD_READINESS_TASK_LIST_2026-10-11.md`, start at "Ruthless order of work" and "Start here". The SessionStart hook `scripts/guards/open_work_reminder.sh` prints its age and warns at 3+ days stale.
