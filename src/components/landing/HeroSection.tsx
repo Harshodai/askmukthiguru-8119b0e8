@@ -1,12 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, MotionConfig, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Play, Sprout, Cloud, Activity, Compass, Heart, ChevronDown } from 'lucide-react';
 import heroImage from '@/assets/hero-spiritual.webp';
 import { ContinuePracticeCard } from './ContinuePracticeCard';
-import { DemoModal, hasSeenTour, recordTourOutcome, WelcomePrompt } from './DemoModal';
-import { getConsent } from '@/components/common/CookieConsentBanner';
+import { DemoModal, recordTourOutcome } from './DemoModal';
 import { WaitlistForm } from './WaitlistForm';
 
 const MandalaSVG = ({ className }: { className?: string }) => (
@@ -38,20 +37,13 @@ const MandalaSVG = ({ className }: { className?: string }) => (
 export const HeroSection = () => {
   const { t } = useTranslation();
   const [demoOpen, setDemoOpen] = useState(false);
-  const [welcomeVisible, setWelcomeVisible] = useState(false);
   const [moodsOpen, setMoodsOpen] = useState(false);
   const [selectedMood, setSelectedMood] = useState('anxious');
   const configuredDemoVideoUrl = import.meta.env.VITE_LANDING_DEMO_VIDEO_URL?.trim();
   const productDemoVideoUrl = configuredDemoVideoUrl || '/media/askmukthiguru-logo-reveal.mp4';
 
   const startTour = () => {
-    setWelcomeVisible(false);
     setDemoOpen(true);
-  };
-
-  const dismissWelcome = () => {
-    recordTourOutcome('dismissed');
-    setWelcomeVisible(false);
   };
 
   const skipTour = () => {
@@ -303,7 +295,7 @@ export const HeroSection = () => {
               transition={{ delay: 1, duration: 0.5 }}
               className="mt-8 inline-flex items-center gap-2 text-xs text-white/90 bg-black/35 ring-1 ring-white/20 backdrop-blur-md px-4 py-2.5 rounded-full"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 motion-safe:animate-pulse" />
               <span>{t('landing.hero.disclaimer')}</span>
             </motion.div>
 
@@ -327,11 +319,6 @@ export const HeroSection = () => {
         </motion.div>
       </section>
 
-      <WelcomePrompt
-        isVisible={welcomeVisible}
-        onStartTour={startTour}
-        onDismiss={dismissWelcome}
-      />
       <DemoModal
         isOpen={demoOpen}
         onComplete={completeTour}

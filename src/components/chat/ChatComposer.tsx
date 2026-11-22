@@ -362,6 +362,12 @@ function ChatComposerInner({
                       )}
                     </DropdownMenuItem>
                   )}
+                  {onOpenVoiceMode && (
+                    <DropdownMenuItem onClick={onOpenVoiceMode}>
+                      <AudioLines className="w-4 h-4 mr-2 text-ojas" />
+                      {t('chat.voiceMode', 'Voice Mode')}
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -393,30 +399,12 @@ function ChatComposerInner({
                 >
                   {isListening ? (
                     <span className="relative flex items-center justify-center">
-                      <span className="absolute inline-flex h-5 w-5 rounded-full bg-red-500/30 animate-ping" />
+                      <span className="absolute inline-flex h-5 w-5 rounded-full bg-red-500/30 motion-safe:animate-ping" />
                       <Mic className="w-4 h-4 relative" />
                     </span>
                   ) : (
                     <Mic className="w-4 h-4" />
                   )}
-                </Button>
-              </motion.div>
-            )}
-
-            {/* Voice Mode button - positioned directly beside the Send button */}
-            {onOpenVoiceMode && (
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.94 }} className="inline-flex">
-                <Button
-                  data-testid="composer-voice-mode-button"
-                  type="button"
-                  size="icon-sm"
-                  variant="outline"
-                  onClick={onOpenVoiceMode}
-                  aria-label={t('chat.voiceMode', 'Voice Mode')}
-                  title={t('chat.voiceMode', 'Voice Mode (Hands-free Sacred Audio)')}
-                  className="min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 rounded-xl border-ojas/30 bg-ojas/10 text-ojas-ink dark:text-ojas hover:bg-ojas/20 hover:text-ojas-dark transition-all flex items-center justify-center shadow-sm"
-                >
-                  <AudioLines className="w-4 h-4 text-ojas" />
                 </Button>
               </motion.div>
             )}

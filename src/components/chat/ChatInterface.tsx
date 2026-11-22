@@ -2365,6 +2365,12 @@ const handleRegenerate = useCallback(() => {
 }, [isStreaming, isTyping, messages, handleSubmit]);
 // ─────────────────────────────────────────────────────────────────
 
+useEffect(() => {
+  const retryLastMessage = () => handleRegenerate();
+  window.addEventListener('chat:retry-last', retryLastMessage);
+  return () => window.removeEventListener('chat:retry-last', retryLastMessage);
+}, [handleRegenerate]);
+
 // Legacy fallback (kept for API stability): copy message text into composer.
 // No longer wired into MessageList — inline edit (handleSubmitEdit) is preferred.
 
@@ -2405,7 +2411,7 @@ const handleNewConversation = useCallback(async (continuationSummary?: string) =
     clearResponseCache();
     try {
       sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
-    } catch {}
+    } catch { /* sessionStorage may be unavailable in private browsing */ }
     setIsIncognito(false);
     setIncognitoMode(false);
   }
@@ -2450,7 +2456,7 @@ const handleNewIncognitoConversation = async () => {
   clearResponseCache();
   try {
     sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
-  } catch {}
+  } catch { /* sessionStorage may be unavailable in private browsing */ }
   setIsIncognito(true);
   setIncognitoMode(true);
   const newConversation = createNewConversation({ temporary: true });
@@ -2477,7 +2483,7 @@ const handleCloseIncognito = async () => {
   clearResponseCache();
   try {
     sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
-  } catch {}
+  } catch { /* sessionStorage may be unavailable in private browsing */ }
   setIsIncognito(false);
   setIncognitoMode(false);
   await handleNewConversation();
@@ -2489,7 +2495,7 @@ const handleSelectConversation = useCallback(async (conversation: Conversation) 
     clearResponseCache();
     try {
       sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
-    } catch {}
+    } catch { /* sessionStorage may be unavailable in private browsing */ }
     setIsIncognito(false);
     setIncognitoMode(false);
   }
@@ -3085,7 +3091,7 @@ return (
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 <span className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase">

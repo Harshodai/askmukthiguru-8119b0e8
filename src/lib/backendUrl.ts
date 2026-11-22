@@ -3,7 +3,7 @@
  *
  * Priority:
  *   1. VITE_BACKEND_URL env var (self-hosted / staging overrides).
- *   2. Production Railway URL when running on an exact prod host.
+ *   2. Production Railway URL when running on an owned exact prod host.
  *   3. Empty string — callers fall back to relative /api or dev localhost.
  *
  * Every module that hits the FastAPI backend should import `BACKEND_URL` from
@@ -16,19 +16,16 @@ import { Capacitor } from '@capacitor/core';
 export const PROD_RAILWAY_URL =
   'https://askmukthiguru-8119b0e8-production.up.railway.app';
 
-/** Exact prod frontend hostnames. Any other host (staging branches,
- *  previews, localhost) must NOT resolve to the prod backend. */
+/** Exact owned production hostnames. Any other host (staging branches,
+ * previews, localhost, or third-party deployments) must NOT resolve to prod. */
 const PROD_HOSTNAMES: ReadonlySet<string> = new Set([
   'askmukthiguru-8119b0e8-production.up.railway.app',
   'www.askmukthiguru.com',
   'askmukthiguru.com',
-  'askmukthiguru-8119b0e8.vercel.app',
 ]);
 
 export function isProdHost(hostname: string): boolean {
-  if (PROD_HOSTNAMES.has(hostname)) return true;
-  if (hostname.endsWith('.vercel.app')) return true;
-  return false;
+  return PROD_HOSTNAMES.has(hostname);
 }
 
 const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();

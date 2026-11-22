@@ -44,6 +44,10 @@ const BackendHealthBanner = () => {
     try {
       const status = await requestBackendHealth(`${BACKEND_URL}/api/chat`, AbortSignal.timeout(6000));
       setHealth(status);
+      if (status === 'ok') {
+        // ChatInterface owns the last-message retry and its request state.
+        window.dispatchEvent(new Event('chat:retry-last'));
+      }
     } catch {
       setHealth('unreachable');
     } finally {
@@ -58,7 +62,7 @@ const BackendHealthBanner = () => {
     >
       <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-center sm:text-left">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+          <span className="w-2 h-2 rounded-full bg-amber-500 motion-safe:animate-pulse shrink-0" />
           <span>
             {health === 'degraded'
               ? t('chat.backendDegraded', 'The teaching service is currently reconnecting. Saved conversations and all meditative practices remain fully available.')
@@ -77,6 +81,7 @@ const BackendHealthBanner = () => {
             type="button"
             onClick={handleRetry}
             disabled={retrying}
+            aria-label={retrying ? t('chat.checkingHealth', 'Checking service') : t('chat.retryConnection', 'Retry connection')}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/80 hover:bg-background border border-border/50 text-muted-foreground hover:text-foreground transition-colors text-[11px]"
           >
             <RefreshCw className={cn("w-3 h-3", retrying && "animate-spin")} />
