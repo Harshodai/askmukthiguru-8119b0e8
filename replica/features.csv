@@ -1,0 +1,30 @@
+feature,area,priority,original,clone,notes
+Kill Switch stage ahead of cache and provider circuits,guardrails,must,yes,yes,Tripped kill switch must refuse turn before any cache read or LLM call (X38)
+Deterministic exact cache with 6-factor cryptographic fingerprint,caching,must,yes,yes,Binds model revision collection version rights hash prompt template and schema (X13)
+Token bucket rate limiter bound to server-resolved tenant and IP,security,must,yes,yes,Secondary rate limiter strictly rejects spoofed identity headers like X-User-Id
+Deterministic input guardrails and safety rail validation,guardrails,must,yes,yes,Runs ahead of provider circuits so acute safety violations never hit LLM
+Acute distress and crisis classifier with clinician-reviewed thresholds,safety,must,yes,yes,Intercepts self-harm and distress; provides immediate verified helpline support (X27)
+Provider circuit breaker with graceful fail-closed degradation,resilience,must,yes,yes,Prevents cascading failure when upstream LLMs time out or fail (X39)
+Independent rights register and pre-ingest validation,governance,must,yes,yes,Rights originate strictly in content rights register; never default to licensed (X40)
+Persistent quality gate rejections in public.corpus_gate_rejections,governance,must,yes,yes,All rejected items stored with tier source coordinates and reason code (X40)
+Deterministic UUID5 point and parent unit generation,data plane,must,yes,yes,Deterministic IDs ensure idempotent re-ingest without vector ID drift
+Dual-lane hybrid retrieval with dense BGE-M3 and sparse SPLADE,retrieval,must,yes,yes,Single model encoder powering both semantic dense and lexical sparse vectors
+Verbatim-only quote serving with metadata-driven directness labels,serving,must,yes,yes,Body contains strictly verbatim words; directness is carried in metadata (X24)
+Transport jitter retry policy for relevance scorer,serving,must,yes,yes,Single fast retry (< 50% timeout) on dropped connections; congestion fails closed
+Blue-green collection promotion with atomic alias swapping,deployment,must,yes,yes,Zero in-place mutations on active collections; zero-downtime upgrades via Qdrant aliases
+Dual-pass ASR ingestion with Whisper v3 and Parakeet,ingestion,should,yes,yes,Cross-verification of spoken words with word-level timestamp alignment
+ECAPA-TDNN speaker voiceprint verification against anchor moments,ingestion,should,yes,yes,Cosine similarity match against human-certified anchor moments before attribution (X18)
+Boundary and verse-snapped chunking grammar,ingestion,should,yes,yes,Chunker version strictly adheres to declared grammar (boundary_v1 adaptive_v1) (X40)
+Parent window context enrichment at serving time,retrieval,should,yes,yes,Re-hydrates retrieved chunk to full parent discourse unit without altering quote
+Cross-encoder reranking stack with ONNX and BGE-Reranker-v2,retrieval,should,yes,yes,Re-scores top-k candidates before final evidence gating
+Knowledge graph ontology prefetch channel in Qdrant,retrieval,should,yes,yes,Fetches doctrine concepts via single query roundtrip without fan-out latency
+Human review packets with immutable provenance hashes for speaker conflicts,governance,should,yes,yes,Blank decision columns; signed off exclusively by authorized reviewers (X41)
+Corpus observability with optimizer snapshot age and drift metrics,observability,should,yes,yes,Maintains optimizer_status==1 and deleted_points_ratio < 0.20
+Offline evaluation runner sharing 100% execution graph parity with serving,evals,should,yes,yes,Prevents eval skew by running identical stage contracts and verification
+Cross-video MMR diversity re-ordering,retrieval,could,yes,yes,Avoids clustering candidate pool from a single broadcast; defers excess clips
+RAPTOR two-level hierarchical summary tree traversal,retrieval,could,yes,yes,Table of contents navigation across macro-themes in spiritual discourses
+LightRAG sub-graph contextual expansion,retrieval,could,yes,yes,Expands philosophical doctrine nodes into adjacent spiritual teachings
+Direct audio slice waveform scrubber in chat interface,ui,could,yes,yes,Allows seekers to listen to the exact guru audio slice referenced by the quote
+Proposition chunking,ingestion,skip,yes,skip,Permanently retired (D3/X40); writes unverified synthetic text into corpus as doctrine
+In-place collection mutation,data plane,skip,yes,skip,Forbidden; violates collection immutability and provenance tracking
+LLM-authored teaching prose in production,serving,skip,yes,skip,Forbidden; production operates strictly in retrieval_only mode (X24)

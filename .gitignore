@@ -380,6 +380,8 @@ tmp_chrome/
 
 # Disposable benchmark/audit scratch logs
 audits/work/*.log
+audits/work/2026-11-20-quality/*/
+manus-slides/
 
 # Claude Code local settings
 .claude/settings.local.json
