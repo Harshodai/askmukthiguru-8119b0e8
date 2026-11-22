@@ -109,3 +109,30 @@ def record_routing_decision(ctx: object, provenance: RoutingProvenance) -> None:
     if isinstance(chain, list):
         provenance.decision = canonicalize_route_decision(provenance.decision)
         chain.append(provenance.to_dict())
+
+
+class SafetyDisposition(str, Enum):
+    """3-level safety disposition hierarchy.
+
+    - ACUTE_CRISIS: Imminent self-harm / suicide -> crisis-only contacts, zero doctrine, zero practice CTAs.
+    - ELEVATED_SAFETY_SUPPORT: Coercion, abuse, violence -> physical safety boundaries and specialized helplines.
+    - ORDINARY_HARDSHIP: Workplace stress, relationship betrayal, burnout, sadness -> grounded teachings or reflection.
+    """
+
+    ACUTE_CRISIS = "acute_crisis"
+    ELEVATED_SAFETY_SUPPORT = "elevated_safety_support"
+    ORDINARY_HARDSHIP = "ordinary_hardship"
+
+
+def classify_safety_disposition(
+    *,
+    is_crisis: bool = False,
+    is_violence_or_abuse: bool = False,
+    is_ordinary_distress: bool = False,
+) -> SafetyDisposition:
+    """Classify input into the 3-level safety disposition hierarchy."""
+    if is_crisis:
+        return SafetyDisposition.ACUTE_CRISIS
+    if is_violence_or_abuse:
+        return SafetyDisposition.ELEVATED_SAFETY_SUPPORT
+    return SafetyDisposition.ORDINARY_HARDSHIP

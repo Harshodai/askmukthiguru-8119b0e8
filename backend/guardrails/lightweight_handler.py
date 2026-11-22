@@ -478,26 +478,22 @@ _BLOCK_RESPONSES = {
         "future predictions, or fortune-telling. How may I guide your inner journey today? 🙏"
     ),
     "domestic_abuse_safety": (
-        "Beloved, your physical safety and life are the absolute priority. "
-        "Abuse and violence are never acceptable, and you do not have to face this alone. "
+        "Your physical safety and wellbeing are the absolute priority. "
+        "Abuse and violence are never acceptable, and support is available. "
         "Please reach out immediately to safety and domestic violence support services:\n\n"
         "__DOMESTIC_VIOLENCE_HELPLINES__\n\n"
         "If you are in immediate physical danger, please call emergency services (112 in India, 911 in US, 999 in UK) "
-        "or go to a safe location now. 🙏"
+        "or go to a safe location now."
     ),
     "self_harm": (
-        "I can feel that you're going through something deeply painful right now. "
-        "You are not alone, and your life matters deeply. 🙏\n\n"
-        "Please reach out to a crisis helpline:\n"
+        "Please connect directly with verified, confidential crisis support. You do not have to face this alone:\n\n"
         "__HELPLINES__\n\n"
-        "While you wait, may I guide you through a calming Serene Mind breathing practice? "
-        "It can help settle the storm within. 🕊️"
+        "If you or someone nearby is in immediate danger, please contact emergency services (112 in India, 911 in US, 999 in UK) immediately."
     ),
     "substance_abuse": (
-        "I sense you may be exploring something that could cause harm. "
-        "I care about your wellbeing and can only guide you on the path of inner transformation. "
-        "If you're struggling, please reach out to a professional. "
-        "Would you like to try a calming Serene Mind practice instead? 🙏"
+        "Mukthi Guru provides spiritual teachings and does not provide addiction treatment. "
+        "If you are struggling with substance use or chemical dependency, please reach out to "
+        "qualified medical professionals or addiction support services.__ADDICTION_BOUNDARY__"
     ),
     "manipulation": (
         "The teachings of Sri Preethaji and Sri Krishnaji guide us toward connection, not control. "
@@ -505,9 +501,9 @@ _BLOCK_RESPONSES = {
         "Would you like to explore what the Beautiful State means? 🙏"
     ),
     "prompt_injection": (
-        "I sense this message is trying to redirect my purpose. "
-        "I am Mukthi Guru, and my sole purpose is to share the sacred teachings of "
-        "Sri Preethaji and Sri Krishnaji. How may I guide you on your spiritual journey? 🙏"
+        "I am an AI assistant designed to explore teachings from Sri Preethaji and Sri Krishnaji. "
+        "I cannot alter my core instructions, disclose system prompts, or adopt external personas. "
+        "How may I assist you with teachings today?"
     ),
     "medical_emergency": (
         "Please do not wait on this. Chest pain, trouble breathing, or a feeling that something is "
@@ -516,10 +512,10 @@ _BLOCK_RESPONSES = {
         "emergency room. Peace practices can come after you are safe and have been seen by a doctor. 🙏"
     ),
     "medical_advice_broad": (
-        "I care deeply about your health. Mukthi Guru shares spiritual wisdom for inner peace, "
-        "which is strictly complementary to and NEVER a replacement for qualified medical treatment, "
-        "psychotherapy, or psychiatric care. For physical or mental health conditions, please consult "
-        "a licensed healthcare professional. 🙏"
+        "Mukthi Guru provides spiritual insights rooted in the teachings of Sri Preethaji and Sri Krishnaji. "
+        "Spiritual practices are strictly complementary to and never a substitute for qualified medical treatment, "
+        "diagnosis, therapy, or medication. For physical or mental health concerns, please consult "
+        "a licensed healthcare professional."
     ),
     "violence": (
         "I cannot and will not provide guidance on harming others. "
@@ -618,6 +614,13 @@ def _resolve_block_response(category: str, default_message: str, text: str = "")
         except Exception:  # noqa: BLE001
             logger.exception("Failed to render domestic violence helplines; using template as-is.")
             template = template.replace("__DOMESTIC_VIOLENCE_HELPLINES__", "")
+
+    if "__ADDICTION_BOUNDARY__" in template:
+        try:
+            boundary = addiction_support_boundary()
+            template = template.replace("__ADDICTION_BOUNDARY__", f" {boundary}" if boundary else "")
+        except Exception:  # noqa: BLE001
+            template = template.replace("__ADDICTION_BOUNDARY__", "")
 
     return template
 
@@ -917,16 +920,6 @@ _SPIRITUAL_DOMAIN_ALLOWLIST = frozenset(
     ]
 )
 
-# Emotional Wellness Patterns (redirect to Serene Mind)
-_EMOTIONAL_WELLNESS_PATTERNS = [
-    r"\b(?:stressed|stressful)\b.*\b(?:day|week|work|life|job)\b",
-    r"\b(?:rough|hard|difficult|tough)\s+(?:day|week|time)\b",
-    r"\b(?:feel|feeling|felt)\s+(?:anxious|overwhelmed|burnout|burned\s*out|exhausted|low|down|tired)\b",
-    r"\bhow\s+(?:to|can\s+i)\s+(?:calm\s+down|relax|de-stress|unwind|destress)\b",
-    r"\bcannot\s+(?:sleep|focus|concentrate)\b.*\b(?:stress|anxiety|worry|worried)\b",
-    r"\banxious\b.*\b(?:day|lately|recently|work|life)\b",
-]
-
 # Knowledge trap phrases: questions about non-existent doctrines
 _KNOWLEDGE_TRAP_PATTERNS = [
     r"\b(?:fifth|6th|seventh|8th|other)\s+sacred\s+secret\b",
@@ -994,24 +987,12 @@ class LightweightGuardrailHandler(BaseGuardrailHandler):
                     "redirect_to": None,
                 }
 
-        # Check emotional wellness redirect FIRST — before the spiritual-domain
-        # allowlist. A distressed seeker mentioning a spiritual term (e.g. "ekam",
-        # "preethaji") must still get the Serene Mind redirect; the allowlist may
-        # only bypass *topic* checks, never the wellness redirect (finding P1-AI-6).
-        for pattern in _EMOTIONAL_WELLNESS_PATTERNS:
-            if re.search(pattern, message_lower):
-                logger.info("Emotional wellness pattern matched -> serene_mind redirect")
-                return {
-                    "blocked": True,
-                    "reason": "Emotional wellness: serene_mind redirect",
-                    "response": (
-                        "Beloved, I can sense there's some heaviness in your heart right now. "
-                        "The teachings of Sri Preethaji and Sri Krishnaji offer a beautiful practice "
-                        "for moments like these — the Serene Mind breathing. "
-                        "Shall I guide you through it? 🙏"
-                    ),
-                    "redirect_to": "serene_mind",
-                }
+        # Ordinary emotional distress is not a safety violation.  It continues
+        # through DistressStage, which assesses severity and only preempts
+        # SEVERE/CRISIS turns.  Hard-blocking phrases such as "rough day" or
+        # "feeling overwhelmed" previously turned ordinary work and relationship
+        # support requests into a generic breathing CTA with no opportunity for
+        # grounded retrieval or a compassionate response.
 
         # LLM Guard via Instructor
         if getattr(settings, "guardrails_llm_enabled", False):

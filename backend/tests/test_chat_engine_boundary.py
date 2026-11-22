@@ -192,6 +192,109 @@ async def test_chat_engine_telemetry_fired():
     assert args[0].final_answer == "Telemetry check"
 
 
+@pytest.mark.asyncio
+async def test_incognito_batch_chat_never_schedules_content_telemetry():
+    """The temporary-chat contract suppresses telemetry even after success."""
+    engine = _new_engine()
+    mock_coord = MagicMock()
+    mock_coord.execute = AsyncMock(return_value=_make_pipeline_result("Private response"))
+    engine._coordinator = mock_coord
+
+    telemetry_mock = AsyncMock()
+    request = _basic_request("private question")
+    request.incognito = True
+    with (
+        patch("app.coalescer.build_coalescer", return_value=_DirectCoalescer()),
+        patch.object(ChatEngine, "_log_telemetry", telemetry_mock),
+    ):
+        await engine.chat_advanced(request, user={"id": "u-private"})
+        for _ in range(3):
+            await asyncio.sleep(0)
+
+    telemetry_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_incognito_stream_never_schedules_content_telemetry():
+    """Streaming Temporary Chat also suppresses content telemetry."""
+    engine = _new_engine()
+
+    async def _fake_execute(*, stream_queue, **_kw):
+        await stream_queue.put({"text": "private ", "is_final": False})
+        await stream_queue.put({"text": "stream", "is_final": True})
+        return _make_pipeline_result("private stream")
+
+    mock_stream_host = MagicMock()
+    mock_stream_host.coordinator.execute = _fake_execute
+    engine._stream_coordinator = mock_stream_host
+
+    telemetry_mock = AsyncMock()
+    request = _basic_request("private streaming question")
+    request.incognito = True
+    with patch.object(ChatEngine, "_log_telemetry", telemetry_mock):
+        chunks = [
+            chunk
+            async for chunk in engine.chat_advanced_stream(
+                request, user={"id": "u-private-stream"}
+            )
+        ]
+        for _ in range(3):
+            await asyncio.sleep(0)
+
+    assert chunks[-1].is_final is True
+    telemetry_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_incognito_stream_failure_never_schedules_content_telemetry():
+    """Failure or cancellation during incognito stream never persists content."""
+    engine = _new_engine()
+
+    async def _failing_execute(*, stream_queue, **_kw):
+        await stream_queue.put({"text": "partial private text", "is_final": False})
+        raise RuntimeError("simulated stream failure")
+
+    mock_stream_host = MagicMock()
+    mock_stream_host.coordinator.execute = _failing_execute
+    engine._stream_coordinator = mock_stream_host
+
+    telemetry_mock = AsyncMock()
+    request = _basic_request("TEMP-20261122-ALPHA-9471 failure test")
+    request.incognito = True
+    with patch.object(ChatEngine, "_log_telemetry", telemetry_mock):
+        chunks = [
+            chunk
+            async for chunk in engine.chat_advanced_stream(request, user={"id": "u-fail"})
+        ]
+        for _ in range(3):
+            await asyncio.sleep(0)
+
+    assert len(chunks) > 0
+    telemetry_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_ordinary_chat_positive_control_schedules_telemetry():
+    """Positive control: ordinary non-incognito batch chat schedules telemetry."""
+    engine = _new_engine()
+    mock_coord = MagicMock()
+    mock_coord.execute = AsyncMock(return_value=_make_pipeline_result("Ordinary response"))
+    engine._coordinator = mock_coord
+
+    telemetry_mock = AsyncMock()
+    request = _basic_request("ordinary question")
+    request.incognito = False
+    with (
+        patch("app.coalescer.build_coalescer", return_value=_DirectCoalescer()),
+        patch.object(ChatEngine, "_log_telemetry", telemetry_mock),
+    ):
+        await engine.chat_advanced(request, user={"id": "u-ordinary"})
+        for _ in range(3):
+            await asyncio.sleep(0)
+
+    telemetry_mock.assert_awaited_once()
+
+
 # ---------------------------------------------------------------------------
 # 6. Streaming final chunk normalizes dict citations same as the batch path
 # ---------------------------------------------------------------------------

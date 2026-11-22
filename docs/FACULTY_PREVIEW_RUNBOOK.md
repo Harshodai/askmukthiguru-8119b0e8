@@ -1,9 +1,36 @@
-# Faculty preview runbook (2026-10-09)
+# Faculty preview runbook (updated 2026-11-22)
 
 What exists in code today for putting the app in front of faculty, what is proven, and what is not.
 Nothing below was run against a live backend: Railway is stopped by decision. Items marked UNPROVEN have tests or config but no live run behind them.
 
-## 1. Access gate (new)
+## 1. Access gate and reviewer identity
+
+**Current release verdict: NO-GO.** The older passcode gate below is a useful
+traffic/cost throttle, but it is not a faculty identity system: everyone who
+knows its value is indistinguishable and cannot be individually revoked. It
+must never be the sole control for teachers, volunteers, or reviewers.
+
+The faculty-label surface now requires the trusted JWT claim
+`app_metadata.role = "faculty_reviewer"`, and migration
+`20261122000000_faculty_labels_reviewer_role.sql` makes the same claim and
+`auth.uid() = user_id` mandatory at the database row-security boundary. The
+client-side role check is only a visibility convenience; it is not authority.
+The migration has focused static tests, but has **not** been applied or proven
+against a disposable or hosted Supabase database in this run.
+
+Before any controlled beta, an owner must:
+
+1. create isolated, named test accounts and obtain their consent;
+2. set the reviewer claim with the Supabase admin API (never `user_metadata`);
+3. apply the migration to staging and prove allow/deny/revocation with two
+   reviewer identities and one ordinary signed-in identity;
+4. record the migration version, test date, and revocation result; and
+5. give teachers and volunteers only the role and synthetic packet they need.
+
+Do not set `FACULTY_GATE_DISABLED=true` as a shortcut around these controls.
+It disables the traffic gate; it does not establish a permitted cohort.
+
+### Legacy passcode traffic gate
 
 Two halves, both off by default.
 
@@ -18,11 +45,15 @@ Behaviour:
 - The browser build shows a passcode screen, checks the code against the backend, keeps it in `sessionStorage` (cleared when the tab closes) and adds the header to backend requests.
 - The frontend flag alone protects nothing: the Vite bundle is public. Always set the server code too. Never put the code in a `VITE_*` variable.
 
-Turn on for faculty: set `FACULTY_ACCESS_CODE` on the backend (generate with `python3 -c 'import secrets; print(secrets.token_urlsafe(16))'`), build the frontend with `VITE_FACULTY_GATE_ENABLED=true`, share the code with faculty out of band. Turn off for real users by unsetting both.
+If it is retained for a short, isolated staging exercise, set
+`FACULTY_ACCESS_CODE` on the backend and build with
+`VITE_FACULTY_GATE_ENABLED=true`. Treat it only as an outer traffic gate; do
+not distribute it as reviewer authorization and do not use it to grant access
+to labels or user data. Turn it off for real users by unsetting both.
 
 Evidence: `backend/tests/test_faculty_gate.py` (11 tests: missing/wrong/right code, SSE streaming, health open, preflight, CORS on the 401) and `src/test/facultyAccess.test.tsx` (4 tests) pass. UNPROVEN: behaviour on the deployed stack behind Railway or Lovable, and whether any other client (mobile app, admin console) calls gated routes without the header; a gated build would break those until they send it. The `/api/auth/anon-session` and other routes outside the three prefixes are not gated.
 
-Limit: one shared code, no per-person revocation. Rotate it after faculty feedback closes.
+Limit: one shared code, no per-person revocation. Rotate it after any exposure.
 
 ## 2. Cost caps (already in code; nothing changed here)
 

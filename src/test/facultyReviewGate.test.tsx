@@ -8,13 +8,13 @@ vi.mock('@/integrations/supabase/client', () => ({
 }));
 vi.mock('@/lib/chatStorage', () => ({ isIncognitoMode: incognito }));
 
-import { FacultyReviewGate } from '@/components/chat/FacultyReviewGate';
+import { FacultyReviewGate, hasFacultyReviewerRole } from '@/components/chat/FacultyReviewGate';
 
 describe('FacultyReviewGate', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     incognito.mockReturnValue(false);
-    getUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    getUser.mockResolvedValue({ data: { user: { id: 'u1', app_metadata: { role: 'faculty_reviewer' } } } });
   });
   afterEach(() => vi.unstubAllEnvs());
 
@@ -51,5 +51,11 @@ describe('FacultyReviewGate', () => {
     vi.stubEnv('VITE_FACULTY_REVIEW_ENABLED', 'true');
     render(<FacultyReviewGate crisis={false} traceId="t1" />);
     expect(await screen.findByRole('group', { name: 'Faculty label' })).toBeInTheDocument();
+  });
+
+  it('never treats an ordinary account or user-editable metadata as a reviewer', () => {
+    expect(hasFacultyReviewerRole({ app_metadata: {}, user_metadata: { role: 'faculty_reviewer' } })).toBe(false);
+    expect(hasFacultyReviewerRole({ app_metadata: { role: 'teacher' } })).toBe(false);
+    expect(hasFacultyReviewerRole({ app_metadata: { role: 'faculty_reviewer' } })).toBe(true);
   });
 });

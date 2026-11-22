@@ -40,9 +40,6 @@ export const Footer = forwardRef<HTMLElement>((_, ref) => {
             <Link to="/guides/ai-spiritual-companion" className="text-caption hover:text-foreground transition-colors">
               {t('nav.aiMeditationGuide')}
             </Link>
-            <Link to="/guides/spirit-guides" className="text-caption hover:text-foreground transition-colors">
-              {t('nav.spiritGuides')}
-            </Link>
             <a href="#gurus" className="text-caption hover:text-foreground transition-colors">
               {t('nav.about')}
             </a>

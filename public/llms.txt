@@ -9,7 +9,7 @@ AskMukthiGuru offers spiritual reflection, guided practices (including Serene Mi
 - [Home](https://askmukthiguru.lovable.app/): Landing page, product overview, meet the gurus.
 - [Chat](https://askmukthiguru.lovable.app/chat): Talk with the AI spiritual guide.
 - [Practices](https://askmukthiguru.lovable.app/practices): Meditation and reflection practices catalog.
-- [Spirit Guides](https://askmukthiguru.lovable.app/guides/spirit-guides): Types of spirit guides and how to connect.
+- [AI Spiritual Companion](https://askmukthiguru.lovable.app/guides/ai-spiritual-companion): Source-linked teaching limits and how to use the companion safely.
 - [Trust](https://askmukthiguru.lovable.app/trust): Source attribution, response labels, safety, and limitations.
 
 ## Guides

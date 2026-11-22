@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { forwardRef, useState, useCallback, memo, useRef, useEffect, Suspense, useMemo, Children, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CALL_VERIFIED_CRISIS_LINES } from '@/lib/crisisHelplines';
+import { CALL_VERIFIED_CRISIS_LINES, INDIA_CRISIS_LINES } from '@/lib/crisisHelplines';
+import { CrisisLines } from '@/components/common/CrisisLines';
 import { Compass, Lightbulb, Flower2, Eye, ShieldCheck, ExternalLink, Share2, Shield, Copy, Check, RotateCcw, Pencil, BookOpen, Play, AlertTriangle, LogIn, RefreshCw, Bookmark, StickyNote, Languages, Volume2, VolumeX, MoreHorizontal, ChevronDown, Youtube } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -176,7 +177,7 @@ const isUsableSourceUrl = (url: string): boolean => {
  * 🆘 intro; we also match a bare helpline heading defensively.
  */
 const isCrisisAnswer = (content: string): boolean =>
-  /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline/i.test(content);
+  /🆘/.test(content) || /immediate crisis|crisis, please reach out|helpline|suicide\s*&\s*crisis\s*lifeline/i.test(content);
 
 /**
  * Detects whether a guru response is a first-person abstain
@@ -252,7 +253,10 @@ const TeachingGroundingCard = ({
         return {
           title: tp.title,
           teacher: tp.teacher ?? null,
-          url: tp.url ?? null,
+          // A citation's playback URL carries the exact recorded moment.
+          // Preserve it for the visible source link instead of silently
+          // degrading a coordinate-bearing citation to the whole video.
+          url: matching?.playbackUrl ?? tp.url ?? null,
           excerpt: tp.excerpt ?? null,
           timestampSeconds: matching?.timestampSeconds,
           playbackStartSeconds: matching?.playbackStartSeconds,
@@ -265,7 +269,9 @@ const TeachingGroundingCard = ({
         .map((citation) => ({
           title: citation.title || citation.source || t('chat.references'),
           teacher: resolveAttributionLabel(citation) ?? null,
-          url: citation.url || null,
+          // `playbackUrl` is present only when a real source timestamp exists.
+          // Do not manufacture a time for citations that have no coordinates.
+          url: citation.playbackUrl ?? citation.url ?? null,
           excerpt: citation.quote || citation.textSnippet || null,
           timestampSeconds: citation.timestampSeconds,
           playbackStartSeconds: citation.playbackStartSeconds,
@@ -415,13 +421,13 @@ const TeachingGroundingCard = ({
                   channelName={item.channel_name}
                   size="sm"
                 />
-                <div className="text-[14px] sm:text-[15px] leading-5 font-semibold text-foreground truncate flex-1 min-w-[140px]">
+                <div className="text-[14px] sm:text-[15px] leading-5 font-semibold text-foreground break-words flex-1 min-w-0">
                   {safeUrl ? (
                     <a
                       href={safeUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-ojas hover:underline underline-offset-2 inline-flex items-center gap-1.5"
+                      className="hover:text-ojas hover:underline underline-offset-2 inline-flex max-w-full items-start gap-1.5"
                       aria-label={t('chat.openSourceAria', {
                         number: index + 1,
                         domain: (() => {
@@ -433,7 +439,7 @@ const TeachingGroundingCard = ({
                         })(),
                       })}
                     >
-                      <span className="truncate">{item.title}</span>
+                      <span className="break-words">{item.title}</span>
                       <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground/70" aria-hidden="true" />
                     </a>
                   ) : (
@@ -673,7 +679,7 @@ export const GuruTeachingCard = ({
           </a>
         )}
         <a
-          href={safeUrlTransform(citation.url)}
+          href={safeUrlTransform(playbackUrl)}
           target="_blank"
           rel="noopener noreferrer"
           aria-label={t('chat.guruTeaching.openSourceAria', 'Open source teaching')}
@@ -947,18 +953,37 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const citations: Citation[] = (message.citations && message.citations.length > 0)
       ? message.citations.filter((c) => isUsableSourceUrl(c.url))
       : inlineCitations;
+    const groundingState = message.groundingState ?? 'abstained';
+    // The structured server outcome is authoritative.  Copy-based detection
+    // remains only as a fallback for old responses which predate
+    // `groundingState`; generic safety copy must never acquire a meditation or
+    // reflective-practice CTA merely because it does not contain a legacy
+    // crisis keyword.
+    const isSafetyRedirect = groundingState === 'safety_redirect';
+    // Do not turn retrieval remnants into evidence.  A first-person clip can
+    // be intentionally labelled "related, not direct" while still being a
+    // verified source artifact; every other abstained result must hide its
+    // candidate citations rather than offering "closest passages" as proof.
+    const isVerifiedServedClip =
+      citations.length > 0
+      && message.citationsVerified === true
+      && message.verification?.passed === true
+      && message.verification?.partial !== true
+      && citations.some((citation) => Boolean(citation.quote || citation.textSnippet));
+    const visibleCitations = message.groundingState === 'abstained' && !isVerifiedServedClip
+      ? []
+      : citations;
     // First served clip with a real YouTube id and start second; null hides the button.
     const personalizeRef = onPersonalizeTeaching && isGuru && !isStreaming
-      ? citations.map((c) => buildPersonalizeRef(c)).find((r) => r !== null) ?? null
+      ? visibleCitations.map((c) => buildPersonalizeRef(c)).find((r) => r !== null) ?? null
       : null;
     // Backend flag authoritative: when citations exist, only the backend's
     // personalize marker decides. Content-sniff is a fallback solely for
     // citation-less legacy bubbles whose flags were never persisted.
     const isAlreadyPersonalized =
-      citations.length > 0
-        ? citations.some(isPersonalizedCitation)
+      visibleCitations.length > 0
+        ? visibleCitations.some(isPersonalizedCitation)
         : Boolean(message.content?.includes(PERSONALIZED_LABEL));
-    const groundingState = message.groundingState ?? 'abstained';
     const editorialSet = parseEditorialSetMetadata(message.verification?.editorial_set);
 
     // Attribution integrity: a quoted teacher statement with no linked source
@@ -991,10 +1016,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
     const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
     const primaryDiscourseCitation = useMemo<DiscourseCitation | null>(() => {
-      if (citations && citations.length > 0) {
-        const ytCitation = citations.find((c) => isUsableSourceUrl(c.url) && isYouTubeUrl(c.url));
+      if (visibleCitations.length > 0) {
+        const ytCitation = visibleCitations.find((c) => isUsableSourceUrl(c.url) && isYouTubeUrl(c.url));
         if (ytCitation) {
-          const idx = citations.indexOf(ytCitation) + 1;
+          const idx = visibleCitations.indexOf(ytCitation) + 1;
           return {
             index: idx > 0 ? idx : 1,
             url: ytCitation.url,
@@ -1009,24 +1034,24 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         }
       }
       return null;
-    }, [citations]);
+    }, [visibleCitations]);
 
     // Served-teaching artifact: the first quote-bearing citation becomes the
     // distinct guru-teaching card. Suppressed while streaming, on errors, and
     // on crisis answers (same guards as the audio strip below).
     const guruTeachingGroups = useMemo<EditorialTeachingCitationGroup[]>(() => {
-      if (!isGuru || isStreaming || message.error) return [];
-      if (isCrisisAnswer(message.content)) return [];
+      if (!isGuru || isStreaming || message.error || visibleCitations.length === 0) return [];
+      if (isSafetyRedirect || isCrisisAnswer(message.content)) return [];
       if (editorialSet) {
-        return groupEditorialTeachingCitations(citations).filter(
+        return groupEditorialTeachingCitations(visibleCitations).filter(
           (group) => selectGuruTeachingCitation([group.citation]) !== null,
         );
       }
-      const citation = selectGuruTeachingCitation(citations);
+      const citation = selectGuruTeachingCitation(visibleCitations);
       return citation
-        ? [{ citation, citationIndex: citations.indexOf(citation) }]
+        ? [{ citation, citationIndex: visibleCitations.indexOf(citation) }]
         : [];
-    }, [isGuru, isStreaming, message.error, message.content, citations, editorialSet]);
+    }, [isGuru, isStreaming, message.error, message.content, visibleCitations, editorialSet, isSafetyRedirect]);
     const guruTeachingCitation = guruTeachingGroups[0]?.citation ?? null;
 
     // Verified only on the strict path: backend citationsVerified plus no
@@ -1037,6 +1062,10 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         citation.isVerbatim === true
         && citation.rightsCleared === true
         && citation.speakerVerified === true
+        // A "verified" quote must be independently checkable at the quoted
+        // moment.  Without a source coordinate it can be supporting context,
+        // but it cannot carry the verified-teaching badge.
+        && (typeof citation.timestampSeconds === 'number' || typeof citation.playbackStartSeconds === 'number')
         && (citation.quoteSegments?.length ?? Number(Boolean(citation.quote || citation.textSnippet))) > 0);
     const isGuruTeachingVerified = guruTeachingCitation !== null
       && everySelectedCitationHasIntegrity
@@ -1203,7 +1232,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
         const match = typeof href === 'string' ? href.match(/^#cite-(\d+)$/) : null;
         if (match) {
           const n = parseInt(match[1], 10);
-          const citationData = (message.citations ?? [])[n - 1];
+          const citationData = visibleCitations[n - 1];
           const discourseCitation: DiscourseCitation = {
             index: n,
             url: citationData?.url || '#',
@@ -1232,7 +1261,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
           </a>
         );
       },
-    }), [message.citations, message.id, onCitationClick]);
+    }), [visibleCitations, message.id, onCitationClick]);
 
     // Auto-resize + cursor-end when editing opens or text changes
     useEffect(() => {
@@ -1455,7 +1484,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     <>
                       {!guruTeachingCitation && (
                         <TeachingGroundingCard
-                          citations={citations}
+                          citations={visibleCitations}
                           teachingPreview={message.teachingPreview}
                           groundingState={message.groundingState}
                           citationsVerified={message.citationsVerified}
@@ -1554,7 +1583,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                 urlTransform={safeUrlTransform}
                                 components={markdownComponents}
                               >
-                                {injectCitationLinks(teachingBody, (message.citations ?? []).length)}
+                                {injectCitationLinks(teachingBody, visibleCitations.length)}
                               </ReactMarkdown>
                             </div>
                           )}
@@ -1618,7 +1647,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                   urlTransform={safeUrlTransform}
                                   components={markdownComponents}
                                 >
-                                  {injectCitationLinks(inquiryBody, (message.citations ?? []).length)}
+                                  {injectCitationLinks(inquiryBody, visibleCitations.length)}
                                 </ReactMarkdown>
                               </div>
                             </aside>
@@ -1804,7 +1833,11 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
 
                   {/* Right: Practice button + Action icons */}
                   <div className="flex items-center gap-1 ml-auto opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 max-md:opacity-100 transition-opacity duration-200">
-                    {isLastGuru && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
+                    {/* A generic practice affordance below an abstention reads as if
+                        the unavailable teaching supplied that practice.  It is only
+                        safe after an actual grounded response; callers can offer a
+                        separately labelled reflective exercise in a future flow. */}
+                    {isLastGuru && !message.blocked && groundingState !== 'abstained' && !isSafetyRedirect && !isCrisisAnswer(message.content) && !isFirstPersonAbstainMessage(message) && (
                       <button
                         type="button"
                         onClick={() => openSereneMind('audio', true)}
@@ -1886,7 +1919,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
             </div>
 
             {/* Contextual Disclosures & Non-Grouped Citations (only when present and not already displayed in GuruTeachingCard) */}
-            {isGuru && !message.error && (message.content || !isStreaming) && (editorialSet?.status === 'conflicted' || (citations.length > 0 && guruTeachingGroups.length === 0)) && (
+            {isGuru && !message.error && (message.content || !isStreaming) && (editorialSet?.status === 'conflicted' || (visibleCitations.length > 0 && guruTeachingGroups.length === 0)) && (
               <div className="mt-1.5 select-none flex flex-wrap items-center justify-between gap-2 px-1">
                 <div className="flex items-center gap-2">
                 {editorialSet?.status === 'conflicted' && (
@@ -1901,7 +1934,7 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     )}
                   </span>
                 )}
-                {citations.length > 0 && guruTeachingGroups.length === 0 && (
+                {visibleCitations.length > 0 && guruTeachingGroups.length === 0 && (
                   <button
                     type="button"
                     onClick={() => setSourcesOpen(true)}
@@ -1909,14 +1942,14 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                     aria-label={t('chat.viewSources')}
                     title={t('chat.references')}
                   >
-                    {citations.some((c) => isYouTubeUrl(c?.url)) ? (
+                    {visibleCitations.some((c) => isYouTubeUrl(c?.url)) ? (
                       <Youtube className="w-3.5 h-3.5 text-red-600 dark:text-red-400 shrink-0" aria-hidden="true" />
                     ) : (
                       <BookOpen className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden="true" />
                     )}
                     <span className="sr-only">{t('chat.references')}</span>
                     <span className="font-medium text-foreground">
-                      {t('chat.sourcesCitedCount', { count: citations.length, defaultValue: `${citations.length} Sources` })}
+                      {t('chat.sourcesCitedCount', { count: visibleCitations.length, defaultValue: `${visibleCitations.length} Sources` })}
                     </span>
                     <span className="text-muted-foreground/60">·</span>
                     <span className="text-muted-foreground truncate max-w-[200px]">
@@ -1927,6 +1960,16 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 )}
                 </div>
               </div>
+            )}
+            {isGuru && !isStreaming && isSafetyRedirect && isCrisisAnswer(message.content) && (
+              <aside
+                data-testid="crisis-call-actions"
+                aria-label="Call crisis support"
+                className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
+              >
+                <p className="mb-2 font-medium text-foreground">If you are in immediate danger or might harm yourself, call now:</p>
+                <CrisisLines lines={INDIA_CRISIS_LINES} />
+              </aside>
             )}
 
             {/* User hover actions */}
@@ -2046,19 +2089,19 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                 only render this card when it carries actionable content. */}
             {isGuru && !isStreaming && message.guidancePlan
               && (message.guidancePlan.action_step || message.guidancePlan.reflection_prompt)
-              && !isCrisisAnswer(message.content) && (
+              && !isSafetyRedirect && !isCrisisAnswer(message.content) && (
               <GuidancePlanCard plan={message.guidancePlan} />
             )}
-            {isGuru && !isStreaming && message.sereneMindOffer?.triggered && !isCrisisAnswer(message.content) && (
+            {isGuru && !isStreaming && message.sereneMindOffer?.triggered && !isSafetyRedirect && !isCrisisAnswer(message.content) && (
               <SereneMindOfferCard offer={message.sereneMindOffer} />
             )}
 
             {/* ponytail: CitationPanel = richer source view (YouTube embeds + quotes) triggered from References badge */}
-            {isGuru && citations.length > 0 && (
+            {isGuru && visibleCitations.length > 0 && (
               <CitationPanel
                 isOpen={sourcesOpen}
                 onClose={() => setSourcesOpen(false)}
-                citations={citations}
+                citations={visibleCitations}
               />
             )}
 

@@ -1,13 +1,8 @@
-"""
-P1-AI-6 — emotional wellness must run before the spiritual-domain allowlist.
+"""Ordinary distress must not be converted into a terminal safety redirect.
 
-A distressed seeker whose message contains a spiritual allowlist term (e.g.
-"ekam", "preethaji") must still receive the Serene Mind wellness redirect.
-The allowlist may only bypass *topic* checks — never the wellness redirect.
-
-Tests pin:
-  - Distress + spiritual term -> emotional wellness redirect (not allowlist pass).
-  - Pure doctrinal query with spiritual term -> passes (not blocked).
+Severity is owned by ``DistressStage``. These input-guard tests ensure broad,
+non-acute wellbeing language—including when a teacher is named—remains eligible
+for that calibrated path instead of being replaced with a generic breathing CTA.
 """
 
 import asyncio
@@ -26,35 +21,32 @@ def guardrails():
     return LightweightGuardrails()
 
 
-class TestAllowlistEmotionalWellness:
-    def test_distress_with_spiritual_term_still_redirects(self, guardrails):
-        """'I feel anxious about ekam' -> serene_mind wellness redirect, NOT allowlist pass."""
+class TestOrdinaryDistressPassesToDistressStage:
+    def test_distress_with_spiritual_term_is_not_terminally_blocked(self, guardrails):
+        """Mentioning a teacher must not turn ordinary anxiety into a safety block."""
         result = run(guardrails.check_input("I feel anxious about ekam"))
 
-        assert result["blocked"] is True
-        assert "Emotional wellness" in result["reason"], (
-            f"expected emotional wellness reason, got {result['reason']!r}"
-        )
-        assert result["redirect_to"] == "serene_mind", (
-            f"expected serene_mind redirect, got {result['redirect_to']!r}"
-        )
-        assert "Serene Mind" in result["response"], (
-            f"expected Serene Mind wellness response, got {result['response']!r}"
-        )
+        assert result["blocked"] is False
+        assert result["reason"] is None
 
-    def test_distress_with_teacher_name_still_redirects(self, guardrails):
-        """A second spiritual term variant — 'preethaji' — must behave identically."""
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "I am overwhelmed by a big change at work. What can help me meet it?",
+            "My father betrayed my trust and I feel lost. How can I be with this?",
+            "I have been feeling overwhelmed lately, even with preethaji's guidance",
+        ],
+    )
+    def test_observed_ordinary_distress_personas_are_not_terminally_blocked(
+        self, guardrails, message
+    ):
+        """Live-audit personas need assessment/grounding, not a forced CTA."""
         result = run(
-            guardrails.check_input(
-                "I have been feeling overwhelmed lately, even with preethaji's guidance"
-            )
+            guardrails.check_input(message)
         )
 
-        assert result["blocked"] is True
-        assert "Emotional wellness" in result["reason"], (
-            f"expected emotional wellness reason, got {result['reason']!r}"
-        )
-        assert result["redirect_to"] == "serene_mind"
+        assert result["blocked"] is False
+        assert result["reason"] is None
 
     def test_doctrinal_query_with_spiritual_term_passes(self, guardrails):
         """'Tell me about ekam' (no distress) -> not blocked (allowlist pass)."""

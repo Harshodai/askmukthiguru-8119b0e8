@@ -1,4 +1,14 @@
-# Faculty review packet — what to send, what is proven, what is open (2026-10-15)
+# Faculty review packet — historical packet, superseded for release use (2026-10-15)
+
+> **Do not send this packet as an approval to begin review.** Its measurements
+> are historical, and its former account/gate language is superseded by
+> `docs/FACULTY_PREVIEW_RUNBOOK.md` (updated 2026-11-22) and
+> `docs/plans/2026-11-22-live-product-release-remediation.md` Workstream 8.
+> The current verdict is **NO-GO** pending temporary-chat privacy evidence,
+> safety/human calibration, source and locale review, and a deployed proof that
+> reviewer-only RLS and revocation work. Faculty means internal teachers,
+> volunteers, and reviewers with narrow, separate permissions—not an automatic
+> clinical, data-administration, or public-endorsement role.
 
 Goal: give the owner a sendable package for faculty review, built from outside practice
 (4 sources, gathered 2026-10-15) mapped honestly against what this repo has actually

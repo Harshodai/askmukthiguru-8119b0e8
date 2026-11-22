@@ -139,6 +139,40 @@ describe('incognito stream request propagation', () => {
     expect(JSON.parse(options.body).incognito).toBe(true);
   });
 
+  it('does not transmit durable-profile or prior-session context in incognito', async () => {
+    fetchWithRetryMock.mockClear();
+    fetchWithRetryMock.mockResolvedValue(sseResponse('event: done\ndata: {"intent":"CASUAL","citations":[]}\n\ndata: [DONE]\n\n'));
+
+    for await (const _chunk of sendMessageStreaming(
+      [{ role: 'user', content: 'a prior local turn' }],
+      'private question',
+      0,
+      'durable summary',
+      'session-id',
+      123_000,
+      'private memory context',
+      true,
+      undefined,
+      undefined,
+      undefined,
+      { mode: 'concise', includePractice: true, includeReflection: true, actionDepth: 'one_step' },
+      'private attachment context',
+      'en',
+      { video_id: 'vARTudIEq30', timestamp_seconds: 12 },
+    )) {
+      // Consume the completion event.
+    }
+
+    const [, options] = fetchWithRetryMock.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body).not.toHaveProperty('conversation_summary');
+    expect(body).not.toHaveProperty('last_serene_mind_at');
+    expect(body).not.toHaveProperty('seeker_context');
+    expect(body).not.toHaveProperty('attachment_context');
+    expect(body).not.toHaveProperty('personalize_teaching');
+    expect(body).not.toHaveProperty('response_preferences');
+  });
+
   it('sends guru_tone from user profile to the streaming endpoint when not incognito', async () => {
     fetchWithRetryMock.mockClear();
     fetchWithRetryMock.mockResolvedValue(sseResponse('event: done\ndata: {"intent":"CASUAL","citations":[]}\n\ndata: [DONE]\n\n'));

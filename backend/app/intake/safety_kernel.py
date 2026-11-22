@@ -23,6 +23,9 @@ class SafetyVerdict:
     reason: Optional[str] = None
     matched_pattern: Optional[str] = None
     helpline_response: Optional[str] = None
+    disposition: Optional[str] = None
+    is_injection: bool = False
+    refusal_response: Optional[str] = None
 
 
 class _AhoCorasickNode:
@@ -233,11 +236,42 @@ _HELPLINE_MESSAGE = (
     "• Tele-MANAS (India): 14416 / 1800 891 4416 (24/7 Toll-Free Mental Health Helpline)\n"
     "• Emergency Services: 112 (India) or your local emergency number\n"
     "• Vandrevala Foundation (India): +91 9999 666 555 (24/7 Free & Confidential Counseling)\n\n"
-    "I care deeply about your wellbeing. Please know that you are valued, and there "
-    "are compassionate people who want to support you right now. You do not have to "
-    "walk through this alone. If you or someone nearby is in immediate danger, please reach "
-    "out to emergency services immediately."
+    "Support is available and trained professionals are ready to help. You do not have to "
+    "face this alone. If you or someone nearby is in immediate danger, please contact "
+    "emergency services immediately."
 )
+
+_INJECTION_REFUSAL_MESSAGE = (
+    "I am an AI assistant designed to explore teachings from Sri Preethaji and Sri Krishnaji. "
+    "I cannot alter my core instructions, disclose system prompts, or adopt external personas. "
+    "How may I assist you with teachings today?"
+)
+
+_PROMPT_INJECTION_PATTERNS = [
+    r"\b(ignore|disregard|forget)\b.*\b(previous|above|prior|all)\b.*\b(instructions?|rules?|prompts?)\b",
+    r"\b(you\s+are\s+now|act\s+as|pretend\s+to\s+be|roleplay\s+as)\b",
+    r"\b(system\s+prompt|reveal\s+your|show\s+me\s+your)\b.*\b(instructions?|prompt|rules?)\b",
+    r"\bdan\s+mode\b",
+    r"\bjailbreak\b",
+    r"\bdo\s+anything\s+now\b",
+    r"\bdeveloper\s*mode\b|डेवलपर\s*मोड|డెవలపర్\s*మోడ్",
+    r"प्रतिबंध\s*हटा",
+    r"\byou\s+are\s+(?:now\s+)?no\s+longer\s+(?:an?\s+)?(?:ai|guru|assistant|bot)\b",
+    r"(?:तुम|आप)\s*अब\s*(?:कोई\s*)?ai\s*नहीं",
+    r"\bSYSTEM\s*:\s*.+\b(override|guardrails?|safety|instructions?|rules?)\b",
+    r"\boverride\s+(mode|system|safety|guardrails?|instructions?)\b",
+    r"(?:सिस्टम|సిస్టమ్|சிஸ்டம்)\s*(?:प्रॉम्प्ट|प्रांप्ट|ప్రాంప్ట్|ப்ராம்ப்ட்)",
+    r"(?:पिछ(?:ली|ले)|पहले\s+के|मागील|మునుపటి|முந்தைய)\s*(?:सारे\s+|सभी\s+)?(?:निर्देश|सूचना\w*|సూచన\w*|அறிவுறுத்தல்\w*)",
+    r"\bpichh?le\b.{0,25}\binstructions?\b.{0,25}\b(?:ignore|bhool|bhul)\w*",
+    r"\b(?:ignore|bhool|bhul)\w*\b.{0,30}\b(?:pichh?le|pehle|previous)\b.{0,25}\binstructions?\b",
+    r"स्वतंत्र\s*(?:AI|एआई|ए\s*आई)",
+    r"सुरक्षा\s*(?:नियम|नीति)\s*(?:के\s+)?बिना",
+    r"(?:सभी|सारे)\s+(?:नियम|प्रतिबंध)\s*(?:तोड़|हटा|बदल)\w*",
+    r"बिना\s+(?:किसी\s+)?(?:सीमा|प्रतिबंध|नियम)\s+के\s+(?:जवाब|बता|बोल)\w*",
+    r"(?:భద్రత|రక్షణ)\s*(?:నియమాలు|నీతి)\s*(?:లేకుండా|తొలగించు)",
+    r"స్వతంత్ర\s*(?:AI|ఏఐ)",
+]
+_PROMPT_INJECTION_RES = [re.compile(p, re.IGNORECASE) for p in _PROMPT_INJECTION_PATTERNS]
 
 
 _SINGLE_CHAR_RUN_RE = re.compile(r"(?:^| )[a-z0-9](?: [a-z0-9]){2,}(?: |$)")
@@ -254,15 +288,28 @@ class FastSafetyKernel:
         # Whole-word matching: " end it all " must not fire inside "send it all".
         self._automaton = _AhoCorasickAutomaton([f" {p} " for p in _CRISIS_PATTERNS])
         self._despaced_automaton = _AhoCorasickAutomaton(_DESPACED_CRISIS_NEEDLES)
+        self._injection_regexes = _PROMPT_INJECTION_RES
 
     def evaluate(self, text: str) -> SafetyVerdict:
-        """Scan input query for acute crisis indicators in <2ms."""
+        """Scan input query for acute crisis or prompt-injection indicators in <2ms."""
         if not text or not isinstance(text, str):
-            return SafetyVerdict(is_crisis=False)
+            return SafetyVerdict(is_crisis=False, disposition="ordinary_hardship")
 
         raw = text.strip()
         if not raw:
-            return SafetyVerdict(is_crisis=False)
+            return SafetyVerdict(is_crisis=False, disposition="ordinary_hardship")
+
+        # 0. Deterministic fast prompt-injection refusal before retrieval (<0.1ms)
+        for pat in self._injection_regexes:
+            if pat.search(raw):
+                return SafetyVerdict(
+                    is_crisis=False,
+                    is_injection=True,
+                    disposition="elevated_safety_support",
+                    reason="prompt_injection",
+                    matched_pattern=pat.pattern,
+                    refusal_response=_INJECTION_REFUSAL_MESSAGE,
+                )
 
         lower = raw.lower()
 
@@ -274,6 +321,7 @@ class FastSafetyKernel:
             matched = matched.strip()
             return SafetyVerdict(
                 is_crisis=True,
+                disposition="acute_crisis",
                 reason="acute_self_harm_preemption",
                 matched_pattern=matched,
                 helpline_response=_HELPLINE_MESSAGE,
@@ -284,18 +332,19 @@ class FastSafetyKernel:
         # prose glues words together ("send it all to me" -> "enditall", "I want to diet" ->
         # "wanttodie") and flagged benign messages.
         if not _SINGLE_CHAR_RUN_RE.search(normalized):
-            return SafetyVerdict(is_crisis=False)
+            return SafetyVerdict(is_crisis=False, disposition="ordinary_hardship")
         despaced = re.sub(r"[^a-z0-9]", "", lower)
         matched_despaced = self._despaced_automaton.search_first(despaced)
         if matched_despaced:
             return SafetyVerdict(
                 is_crisis=True,
+                disposition="acute_crisis",
                 reason="obfuscated_self_harm_preemption",
                 matched_pattern=matched_despaced,
                 helpline_response=_HELPLINE_MESSAGE,
             )
 
-        return SafetyVerdict(is_crisis=False)
+        return SafetyVerdict(is_crisis=False, disposition="ordinary_hardship")
 
 
 @lru_cache(maxsize=1)

@@ -11,6 +11,7 @@ import pytest
 
 from app import orchestrator_utils as utils
 from app.config import settings
+from app.schemas import ChatRequest, MessagePayload
 
 
 def _container(consent):
@@ -113,3 +114,42 @@ async def test_anonymous_identity_skips_the_uuid_consent_lookup():
     c = _container(consent={"granted": True})
     assert await utils.has_active_memory_consent(c, "anon:eyJhbGciOi.payload") is False
     c.memory_outbox.active_consent.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_temporary_request_drops_memory_and_summary_context(monkeypatch):
+    """Temporary Chat must not read or carry durable personalization context."""
+    body = ChatRequest(
+        user_message="TEMPORARY-MARKER-DO-NOT-PERSIST",
+        messages=[
+            MessagePayload(
+                role="user",
+                content="A prior private turn that must not become durable context",
+            )
+        ],
+        conversation_summary="A private summary that must be ignored",
+        incognito=True,
+    )
+    container = SimpleNamespace()
+    memory_mock = AsyncMock(
+        return_value=("durable memory", [{"level": "old"}], {"name": "profile"}, "evidence")
+    )
+    monkeypatch.setattr(
+        utils, "detect_and_prepare_language_info", lambda *_args: (None, "en", False, False)
+    )
+    monkeypatch.setattr(utils, "prepare_user_memory", memory_mock)
+    monkeypatch.setattr(settings, "proactive_course_assignment_enabled", True)
+
+    state = await utils.prepare_request_state(
+        container,
+        body,
+        "en",
+        user={"id": str(uuid.uuid4())},
+    )
+
+    assert state["memory_context"] == ""
+    assert state["canonical_memory_evidence"] == ""
+    assert state["distress_history"] == []
+    assert state["user_profile"] is None
+    assert state["conversation_summary"] == ""
+    memory_mock.assert_not_awaited()

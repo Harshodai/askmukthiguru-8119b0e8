@@ -163,6 +163,48 @@ class InputGuardrailStage(Stage):
                     _verdict.reason,
                 )
                 return None
+            if getattr(_verdict, "is_injection", False):
+                record_routing_decision(
+                    ctx,
+                    RoutingProvenance(
+                        layer="INPUT_GUARDRAILS",
+                        decision="blocked",
+                        method="fast_injection_preemption",
+                        confidence=1.0,
+                        reason="prompt_injection",
+                    ),
+                )
+                ctx.last_stage_status = "error"
+                refusal = _verdict.refusal_response or (
+                    "I am an AI assistant designed to explore teachings from Sri Preethaji and Sri Krishnaji. "
+                    "I cannot alter my core instructions, disclose system prompts, or adopt external personas. "
+                    "How may I assist you with teachings today?"
+                )
+                if is_indic:
+                    try:
+                        refusal = await container.translation.translate_text(
+                            text=refusal, source_lang="en", target_lang=preferred_lang
+                        )
+                    except Exception:
+                        pass
+                return PipelineResult(
+                    final_answer=refusal,
+                    intent="SAFETY_VIOLATION",
+                    blocked=True,
+                    block_reason="Off-topic: prompt_injection",
+                    latency_ms=int((time.time() - ctx.start_time) * 1000),
+                    trace_id=ctx.trace_id,
+                    model_used=None,
+                    model_provider=None,
+                    route_decision="blocked",
+                    route_metadata={
+                        "requested_variant": "input_check",
+                        "selected_variant": "blocked",
+                        "decision_method": "fast_injection_preemption",
+                        "routing_chain": list(getattr(ctx, "routing_chain", [])),
+                    },
+                    release_manifest=get_release_manifest().to_dict(),
+                )
         except Exception as _kernel_exc:
             logger.warning(
                 "[InputGuardrailStage] Fast safety kernel pre-check failed: %s", _kernel_exc
@@ -313,7 +355,7 @@ class InputGuardrailStage(Stage):
                 intent, route_decision = "DISTRESS", "distress"
             elif "emotional_dependency" in reason:
                 intent, route_decision = "EMOTIONAL_DEPENDENCY", "emotional_dependency_guard"
-            elif "Medical advice" in reason or "Harmful pattern" in reason:
+            elif "Medical advice" in reason or "Harmful pattern" in reason or "prompt_injection" in reason or "persona_escape" in reason:
                 intent, route_decision = "SAFETY_VIOLATION", "blocked"
             else:
                 intent, route_decision = "ERROR", "blocked"

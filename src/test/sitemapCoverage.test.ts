@@ -10,8 +10,8 @@ describe('public discovery coverage', () => {
   it('includes the existing Trust page', () => {
     expect(urls).toContain(`${PUBLIC_APP_URL}/trust`);
   });
-  it('includes the existing Spirit Guides page', () => {
-    expect(urls).toContain(`${PUBLIC_APP_URL}/guides/spirit-guides`);
+  it('does not discover the quarantined Spirit Guides page', () => {
+    expect(urls).not.toContain(`${PUBLIC_APP_URL}/guides/spirit-guides`);
   });
   it('keeps each public URL unique', () => {
     expect(new Set(urls).size).toBe(urls.length);

@@ -510,7 +510,6 @@ def test_route_manifest_is_internal_and_allowlisted(coordinator):
         # DistressStage's crisis pre-emption (the same terminal handler every
         # other language's ideation already used) instead of being blocked at
         # this stage with a weaker helpline template.
-        ("Emotional wellness: serene_mind redirect", "DISTRESS", "distress"),
         ("Medical advice requested", "SAFETY_VIOLATION", "blocked"),
         ("Harmful pattern detected", "SAFETY_VIOLATION", "blocked"),
         ("Off-topic: flight_booking", "ERROR", "blocked"),

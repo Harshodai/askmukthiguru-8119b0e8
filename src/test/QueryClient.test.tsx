@@ -22,7 +22,6 @@ vi.mock('@/pages/TTSVerificationPage', () => ({ default: () => <div data-testid=
 vi.mock('@/pages/MFAChallengePage', () => ({ default: () => <div data-testid="mfa-page">MFA</div> }));
 vi.mock('@/pages/AuthDiagnosticsPage', () => ({ default: () => <div data-testid="auth-diag-page">Auth Diagnostics</div> }));
 vi.mock('@/pages/AuthLatencyDashboard', () => ({ default: () => <div data-testid="auth-latency-page">Latency</div> }));
-vi.mock('@/pages/guides/SpiritGuidesPage', () => ({ default: () => <div data-testid="spirit-guides-page">Guides</div> }));
 vi.mock('@/pages/guides/AiSpiritualCompanionPage', () => ({ default: () => <div data-testid="companion-page">Companion</div> }));
 vi.mock('@/pages/guides/BeautifulStateMeditationPage', () => ({ default: () => <div data-testid="beautiful-page">Beautiful</div> }));
 vi.mock('@/pages/guides/SereneMindPracticePage', () => ({ default: () => <div data-testid="serene-page">Serene</div> }));
@@ -82,7 +81,7 @@ describe('public compatibility routes', () => {
   it('routes /guides to the public guides landing content', async () => {
     window.history.pushState({}, '', '/guides');
     render(<App />);
-    await waitFor(() => expect(screen.getByTestId('spirit-guides-page')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('companion-page')).toBeInTheDocument());
     expect(screen.queryByTestId('notfound-page')).not.toBeInTheDocument();
   });
 

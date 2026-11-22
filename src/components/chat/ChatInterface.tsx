@@ -251,14 +251,28 @@ export const ChatInterface = () => {
   const [sourcesFilterMessageId, setSourcesFilterMessageId] = useState<string | null>(null);
   const [showPersonalizeModal, setShowPersonalizeModal] = useState(false);
   const [personalizeModalMode, setPersonalizeModalMode] = useState<PersonalizeModalMode>('auth_required');
+  const sourceVisibleMessages = useMemo(() => messages.map((message) => {
+    const citations = message.citations ?? [];
+    const isVerifiedServedClip =
+      citations.length > 0
+      && message.citationsVerified === true
+      && message.verification?.passed === true
+      && message.verification?.partial !== true
+      && citations.some((citation) => Boolean(citation.quote || citation.textSnippet));
+    return {
+      id: message.id,
+      role: message.role,
+      citations: message.groundingState === 'abstained' && !isVerifiedServedClip ? [] : citations,
+    };
+  }), [messages]);
   const uniqueSourcesCount = useMemo(() => {
     const set = new Set<string>();
-    for (const m of messages) {
+    for (const m of sourceVisibleMessages) {
       if (m.role !== 'guru') continue;
       for (const c of m.citations ?? []) if (c?.url) set.add(c.url);
     }
     return set.size;
-  }, [messages]);
+  }, [sourceVisibleMessages]);
   const jumpToMessage = useCallback((id: string) => {
     const el = document.querySelector<HTMLElement>(`[data-message-id="${id}"]`);
     if (!el) return;
@@ -394,6 +408,7 @@ export const ChatInterface = () => {
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
   const queuedMessagesRef = useRef<QueuedMessage[]>([]);
   const lastSubmitRef = useRef<{ text: string; at: number } | null>(null);
+  const isSubmittingRef = useRef(false);
   useEffect(() => {
     queuedMessagesRef.current = queuedMessages;
   }, [queuedMessages]);
@@ -1059,6 +1074,9 @@ export const ChatInterface = () => {
     if (e && 'preventDefault' in e) {
       e.preventDefault();
     }
+    if (isSubmittingRef.current && !options.forceImmediate) {
+      return;
+    }
     const textToSend = overrideText ?? inputValue;
     const turnLanguage = options.languageOverride ?? currentLanguage;
     const decision = decideSubmit({
@@ -1097,8 +1115,15 @@ export const ChatInterface = () => {
       lastSubmitRef.current = { text: textToSend, at: Date.now() };
     }
 
+    if (!overrideText) {
+      setInputValue('');
+      setAttachedFiles([]);
+    }
+    isSubmittingRef.current = true;
+
     // Message queueing (Claude / Manus style): If currently generating and not forced immediate, enqueue!
     if (decision === 'queue') {
+      isSubmittingRef.current = false;
       const newQueued: QueuedMessage = {
         id: generateId(),
         text: textToSend.trim(),
@@ -1107,10 +1132,6 @@ export const ChatInterface = () => {
         timestamp: Date.now(),
       };
       setQueuedMessages((prev) => [...prev, newQueued]);
-      if (!overrideText) {
-        setInputValue('');
-        setAttachedFiles([]);
-      }
       hapticAudio.playTapTick();
       return;
     }
@@ -1243,7 +1264,8 @@ export const ChatInterface = () => {
       }, 350);
     };
 
-    const cached = options.bypassCache ? null : getCachedResponse(cacheKey);
+    const isTempChat = isIncognito || currentConversation?.isTemporary;
+    const cached = (options.bypassCache || isTempChat) ? null : getCachedResponse(cacheKey);
 
     // The backend owns durable history/personalization. The client still sends a
     // bounded fallback history for new/racy conversations where the server-side
@@ -1269,11 +1291,17 @@ export const ChatInterface = () => {
       return;
     }
 
-    if (isFirstUserMessage && currentConversation?.id && !titleGenerationRef.current.has(currentConversation.id)) {
+    if (
+      isFirstUserMessage &&
+      currentConversation?.id &&
+      !isIncognito &&
+      !currentConversation.isTemporary &&
+      !titleGenerationRef.current.has(currentConversation.id)
+    ) {
       titleGenerationRef.current.add(currentConversation.id);
       // Title generation uses the original user text (their language), which is more natural
       generateConversationTitle(userMessage.content).then(async (title) => {
-        if (currentConversationRef.current?.id === currentConversation.id) {
+        if (currentConversationRef.current?.id === currentConversation.id && !currentConversationRef.current?.isTemporary) {
           const updated = { ...currentConversationRef.current, preview: title, updatedAt: new Date() };
           setCurrentConversation(updated);
           await saveConversation(updated);
@@ -1357,7 +1385,7 @@ export const ChatInterface = () => {
         // sessionStorage would leak "confidential" content the incognito
         // banner explicitly promises not to save.
         checkpointInterval = setInterval(() => {
-          if (!isIncognito && fullContent.length > 20) {
+          if (!isIncognito && !currentConversation?.isTemporary && fullContent.length > 20) {
             try {
               sessionStorage.setItem('askmukthiguru_stream_checkpoint', JSON.stringify({
                 conversationId: currentConversation?.id ?? '',
@@ -1669,6 +1697,8 @@ export const ChatInterface = () => {
                     queryTier: streamedQueryTier,
                     isFirstPersonAbstain: streamedIsFirstPersonAbstain,
                     routeDecision: streamedRouteDecision,
+                    blocked: streamedBlocked,
+                    blockReason: streamedBlockReason,
                     safetyNotices: streamedSafetyNotices.length > 0 ? streamedSafetyNotices : undefined,
                   }
                 : m
@@ -1678,7 +1708,9 @@ export const ChatInterface = () => {
           setStreamingMessageId(undefined);
           setStreamingContent('');
 
-          setCachedResponse(cacheKey, fullContent, streamedCitations.length > 0 ? streamedCitations : undefined);
+          if (!isIncognito && !currentConversation?.isTemporary) {
+            setCachedResponse(cacheKey, fullContent, streamedCitations.length > 0 ? streamedCitations : undefined);
+          }
 
           // Update meditation step from streaming metadata
           if (streamedMedStep !== undefined) {
@@ -1940,6 +1972,9 @@ openSereneMind('audio');
           role: 'guru',
           content: response.content || t('chat.messageBlocked', 'Message blocked: {{reason}}', { reason: response.blockReason }),
           timestamp: new Date(),
+          blocked: true,
+          blockReason: response.blockReason,
+          groundingState: response.groundingState ?? 'safety_redirect',
         };
         setMessages((prev) => [...prev, blockedMessage]);
         // Gate (modal + chat lock) only for backend SEVERE/CRISIS distress.
@@ -2010,6 +2045,8 @@ openSereneMind('audio');
           queryTier: response.queryTier ?? null,
           isFirstPersonAbstain: response.isFirstPersonAbstain ?? null,
           routeDecision: response.routeDecision ?? null,
+          blocked: response.blocked ?? false,
+          blockReason: response.blockReason ?? null,
           safetyNotices:
             response.safetyNotices && response.safetyNotices.length > 0
               ? response.safetyNotices
@@ -2018,7 +2055,9 @@ openSereneMind('audio');
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {
           jsonCompletedSuccessfully = !response.blocked && Boolean(response.content);
-          setCachedResponse(cacheKey, response.content, guruMessage.citations);
+          if (!isIncognito && !currentConversation?.isTemporary) {
+            setCachedResponse(cacheKey, response.content, guruMessage.citations);
+          }
           if (response.content && isPushPromptEligible({
             blocked: response.blocked,
             groundingState: response.groundingState,
@@ -2116,6 +2155,7 @@ openSereneMind('audio');
   } finally {
     setIsTyping(false);
     setShowInstantPill(false);
+    isSubmittingRef.current = false;
     if (jsonCompletedSuccessfully) {
       drainNextQueuedMessage();
     }
@@ -2354,19 +2394,24 @@ const handleSubmitEdit = useCallback((messageId: string, newContent: string) => 
 }, [isStreaming, isTyping, messages, handleSubmit]);
 
 const handleNewConversation = useCallback(async (continuationSummary?: string) => {
+  const wasTemp = isIncognito || currentConversation?.isTemporary;
   // Already on a fresh chat (nothing asked yet): reuse it instead of piling up empty ones.
   // Click handlers pass an event as the first argument, so only a string counts as a summary.
-  if (typeof continuationSummary !== 'string' && !isIncognito && messages.length > 0 && messages.every((m) => m.role !== 'user')) {
+  if (typeof continuationSummary !== 'string' && !wasTemp && messages.length > 0 && messages.every((m) => m.role !== 'user')) {
     setInputValue('');
     return;
   }
   stopSpeaking();
   if (isIncognito) {
+    clearResponseCache();
+    try {
+      sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
+    } catch {}
     setIsIncognito(false);
     setIncognitoMode(false);
   }
   const newConversation = createNewConversation();
-  const safeContinuationSummary = isIncognito ? undefined : continuationSummary;
+  const safeContinuationSummary = wasTemp ? undefined : continuationSummary;
 
   const welcomeMessage: Message = {
     id: generateId(),
@@ -2399,18 +2444,22 @@ const handleNewConversation = useCallback(async (continuationSummary?: string) =
   setConversationContextExhausted(false);
   setInputValue('');
   setRefreshTrigger(prev => prev + 1);
-}, [stopSpeaking, isIncognito, messages, profile.prePracticeLog, selected?.slug]);
+}, [stopSpeaking, isIncognito, currentConversation?.isTemporary, messages, profile.prePracticeLog, selected?.slug]);
 
 const handleNewIncognitoConversation = async () => {
   stopSpeaking();
+  clearResponseCache();
+  try {
+    sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
+  } catch {}
   setIsIncognito(true);
   setIncognitoMode(true);
-  const newConversation = createNewConversation();
+  const newConversation = createNewConversation({ temporary: true });
 
   const welcomeMessage: Message = {
     id: generateId(),
     role: 'guru',
-    content: t('chat.incognitoWelcome', 'Your questions remain confidential. Nothing from this session will be saved. What would you like to explore?'),
+    content: t('chat.incognitoWelcome', 'This temporary chat is not saved to your chat history, personal memory, or wisdom map. Your message is still processed to provide a response. What would you like to explore?'),
     timestamp: new Date(),
   };
 
@@ -2426,6 +2475,10 @@ const handleNewIncognitoConversation = async () => {
 
 const handleCloseIncognito = async () => {
   stopSpeaking();
+  clearResponseCache();
+  try {
+    sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
+  } catch {}
   setIsIncognito(false);
   setIncognitoMode(false);
   await handleNewConversation();
@@ -2433,6 +2486,14 @@ const handleCloseIncognito = async () => {
 
 const handleSelectConversation = useCallback(async (conversation: Conversation) => {
   stopSpeaking();
+  if (isIncognito) {
+    clearResponseCache();
+    try {
+      sessionStorage.removeItem('askmukthiguru_stream_checkpoint');
+    } catch {}
+    setIsIncognito(false);
+    setIncognitoMode(false);
+  }
   setCurrentConversation(conversation);
   await setCurrentConversationId(conversation.id);
   setMessages(conversation.messages);
@@ -2445,7 +2506,7 @@ const handleSelectConversation = useCallback(async (conversation: Conversation) 
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   });
-}, [stopSpeaking]);
+}, [stopSpeaking, isIncognito]);
 
 // Deep link: /chat?conversation=<id>. ChatPage's multi-device "Continue here"
 // prompt navigates to this URL while /chat is already mounted, so React Router
@@ -2482,6 +2543,9 @@ const handleDeleteConversation = async (id: string) => {
 };
 
 const handleExportConversation = useCallback(() => {
+  if (isIncognito || currentConversation?.isTemporary) {
+    return;
+  }
   if (!currentConversation || messages.length === 0) {
     toast({ title: t('chat.noSources'), description: t('chat.sendMessageFirst', 'Send a message first.') });
     return;
@@ -2496,7 +2560,7 @@ const handleExportConversation = useCallback(() => {
       variant: 'destructive',
     });
   }
-}, [currentConversation, messages, toast]);
+}, [currentConversation, messages, isIncognito, toast, t]);
 
 const runSlashCommand = useCallback(
   (id: SlashCommandId) => {
@@ -2642,7 +2706,7 @@ return (
       onOpenSereneMind={() => openSereneMind()}
       onSelectConversation={handleSelectConversation}
       onDeleteConversation={handleDeleteConversation}
-      currentConversationId={currentConversation?.id}
+      currentConversationId={isIncognito || currentConversation?.isTemporary ? undefined : currentConversation?.id}
     />
 
     {/* Main Chat Area */}
@@ -2655,7 +2719,7 @@ return (
         onOpenMobileMenu={() => setShowMobileSheet(true)}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={toggleSidebar}
-        onExport={handleExportConversation}
+        onExport={isIncognito || currentConversation?.isTemporary ? undefined : handleExportConversation}
         onOpenSources={() => setSourcesPanelOpen(true)}
         sourcesCount={uniqueSourcesCount}
         hasMessages={messages.some(m => m.role === 'user')}
@@ -2674,6 +2738,10 @@ return (
 
       {/* Global chat error banner */}
       <ChatErrorBanner onRetry={handleRegenerate} onStartNewChat={async () => {
+        if (isIncognito || currentConversation?.isTemporary) {
+          await handleNewConversation();
+          return;
+        }
         const priorMessages = messages;
         let continuationSummary = currentConversation?.summary?.trim() || '';
         if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
@@ -2839,6 +2907,10 @@ return (
                   streamingContent={deferredStreamingContent}
                   onRegenerate={handleRegenerate}
                   onStartNewChat={async () => {
+                    if (isIncognito || currentConversation?.isTemporary) {
+                      await handleNewConversation();
+                      return;
+                    }
                     const priorMessages = messages;
                     let continuationSummary = currentConversation?.summary?.trim() || '';
                     if (!continuationSummary && priorMessages.some((m) => m.role === 'user')) {
@@ -3101,7 +3173,7 @@ return (
       onNewIncognitoConversation={handleNewIncognitoConversation}
       onOpenSereneMind={() => openSereneMind()}
       onSelectConversation={handleSelectConversation}
-      currentConversationId={currentConversation?.id}
+      currentConversationId={isIncognito || currentConversation?.isTemporary ? undefined : currentConversation?.id}
     />
 
     {/* Starter prompt mobile preview bottom-sheet */}
@@ -3190,7 +3262,7 @@ return (
     <ConversationSourcesPanel
       isOpen={sourcesPanelOpen}
       onClose={() => { setSourcesPanelOpen(false); setSourcesFilterMessageId(null); }}
-      messages={messages.map((m) => ({ id: m.id, role: m.role, citations: m.citations }))}
+      messages={sourceVisibleMessages}
       onJumpToMessage={jumpToMessage}
       filterMessageId={sourcesFilterMessageId}
       onClearFilter={() => setSourcesFilterMessageId(null)}

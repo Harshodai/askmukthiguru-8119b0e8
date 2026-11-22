@@ -40,7 +40,6 @@ const TrustPage = lazyWithRetry(() => import("./pages/TrustPage"));
 const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 const UnsubscribePage = lazyWithRetry(() => import("./pages/UnsubscribePage"));
 const TTSVerificationPage = lazyWithRetry(() => import("./pages/TTSVerificationPage"));
-const SpiritGuidesPage = lazyWithRetry(() => import("./pages/guides/SpiritGuidesPage"));
 const AiSpiritualCompanionPage = lazyWithRetry(() => import("./pages/guides/AiSpiritualCompanionPage"));
 const BeautifulStateMeditationPage = lazyWithRetry(() => import("./pages/guides/BeautifulStateMeditationPage"));
 const SereneMindPracticePage = lazyWithRetry(() => import("./pages/guides/SereneMindPracticePage"));
@@ -395,9 +394,10 @@ const App = () => {
               <Route path="/practices/:slug" element={<Suspense fallback={<BrandedSpinner />}><PracticeDetailPage /></Suspense>} />
               <Route path="/link-whatsapp" element={<Suspense fallback={<BrandedSpinner />}><LinkWhatsAppPage /></Suspense>} />
               {/* Compatibility entry points: keep shared public links from becoming hard 404s. */}
-              <Route path="/guides" element={<Navigate to="/guides/spirit-guides" replace />} />
+              <Route path="/guides" element={<Navigate to="/guides/ai-spiritual-companion" replace />} />
               <Route path="/support" element={<Navigate to="/profile?tab=settings" replace />} />
-              <Route path="/guides/spirit-guides" element={<Suspense fallback={<BrandedSpinner />}><SpiritGuidesPage /></Suspense>} />
+              {/* Quarantined until an owner-approved, source-backed content register exists. */}
+              <Route path="/guides/spirit-guides" element={<Navigate to="/guides/ai-spiritual-companion" replace />} />
               <Route path="/guides/ai-spiritual-companion" element={<Suspense fallback={<BrandedSpinner />}><AiSpiritualCompanionPage /></Suspense>} />
               <Route path="/guides/beautiful-state-meditation" element={<Suspense fallback={<BrandedSpinner />}><BeautifulStateMeditationPage /></Suspense>} />
               <Route path="/guides/serene-mind-practice" element={<Suspense fallback={<BrandedSpinner />}><SereneMindPracticePage /></Suspense>} />

@@ -68,12 +68,6 @@ const ROUTES = [
     jsonLdType: 'Article',
   },
   {
-    path: '/guides/spirit-guides',
-    title: 'Spirit Guides — AI, Gurus, and Spiritual Companionship',
-    description: 'What is a spirit guide? How AI, human gurus, and inner guidance differ. Grounded in Sri Preethaji & Sri Krishnaji\'s teachings.',
-    jsonLdType: 'Article',
-  },
-  {
     path: '/guides/ai-spiritual-companion',
     title: 'AI Spiritual Companion — 24/7 Guidance Grounded in Doctrine',
     description: 'How an AI spiritual companion differs from a chatbot: zero-hallucination, doctrine-grounded, always available.',

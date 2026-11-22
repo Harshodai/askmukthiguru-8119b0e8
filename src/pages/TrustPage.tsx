@@ -20,7 +20,7 @@ const TrustPage = () => {
     canonical: buildCanonical('/trust'),
   });
 
-  const TRUST_REVISION_DATE = '2026-10-04';
+  const TRUST_REVISION_DATE = '2026-11-22';
 
   return (
     <PublicShell>

@@ -60,8 +60,7 @@ const NotFound = () => {
         
         <p className="text-xs text-muted-foreground/60 pt-4 border-t border-border/50">
           {t('notFound.helpText', 'Need help? Check our')}{' '}
-          {/* /guides has no route — it would bounce the user back to this 404. */}
-          <Link to="/guides/spirit-guides" className="text-ojas hover:underline">
+          <Link to="/guides/ai-spiritual-companion" className="text-ojas hover:underline">
             {t('notFound.guides', 'guides')}
           </Link>
           {' '}{t('notFound.orContact', 'or contact')}{' '}

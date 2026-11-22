@@ -113,6 +113,11 @@ export interface Message {
   queryTier?: string | null;
   isFirstPersonAbstain?: boolean | null;
   routeDecision?: string | null;
+  /** Server-side input/output guardrail outcome.  Persist this structured state
+   * so a reloaded safety/medical boundary cannot acquire ordinary engagement
+   * affordances based on its prose alone. */
+  blocked?: boolean;
+  blockReason?: string | null;
   /** Platform copy served beside a verbatim clip (compassion framing, safety
    *  boundaries, the support line). Persisted so a reload keeps the notice. */
   safetyNotices?: string[];
@@ -248,6 +253,13 @@ const ConversationSchema = z.object({
   messageCount: z.number(),
   messages: z.array(MessageSchema),
   summary: z.string().optional(),
+  /**
+   * A temporary conversation is an in-memory-only object.  This travels with
+   * the conversation rather than relying only on the mutable module-level
+   * mode flag: async work (for example title generation) may finish after the
+   * user has closed temporary mode.
+   */
+  isTemporary: z.literal(true).optional(),
 });
 
 export const loadAllFeedback = (): Record<string, MessageFeedback> => {
@@ -282,6 +294,8 @@ export interface Conversation {
   messageCount: number;
   messages: Message[];
   summary?: string;
+  /** Never persist a temporary conversation to local or cloud history. */
+  isTemporary?: true;
 }
 
 const STORAGE_KEY = 'askmukthiguru_chat_history';
@@ -360,6 +374,7 @@ export const generateId = (): string => {
 
 // Legacy functions for backward compatibility
 export const saveChatHistory = (messages: Message[]): void => {
+  if (_incognito) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
   } catch (error) {
@@ -414,6 +429,9 @@ export function citationLedgerFlags(c: Pick<Citation, 'rightsCleared' | 'speaker
 // Mirrors a conversation + its messages into Supabase for authenticated users.
 // Fire-and-forget: never blocks the local-first save. Failures are logged only.
 async function syncConversationToDb(conversation: Conversation): Promise<void> {
+  // Defense in depth: callers normally reach this only through
+  // saveConversation, but cloud sync is itself a persistence boundary.
+  if (conversation.isTemporary) return;
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const userId = session?.user?.id;
@@ -536,6 +554,10 @@ async function writeCurrentIdRaw(value: string): Promise<void> {
   await storage.setItem(CURRENT_CONVERSATION_KEY, value);
 }
 
+async function removeCurrentIdRaw(): Promise<void> {
+  await storage.removeItem(CURRENT_CONVERSATION_KEY);
+}
+
 type StoredMessageRecord = Record<string, unknown> & { id?: string };
 type StoredConversationRecord = Record<string, unknown> & { id?: string; messages?: StoredMessageRecord[] };
 
@@ -565,6 +587,24 @@ export const loadConversations = async (): Promise<Conversation[]> => {
       console.error('Parsed conversations is not an array — clearing corrupted data');
       await removeConversationsRaw().catch(() => {});
       return [];
+    }
+
+    // A temporary conversation should never remain in the browser's durable
+    // store, even if it was written by an older build before the immutable
+    // conversation marker existed. Hiding it from the sidebar alone would
+    // leave its title, preview, and messages recoverable from localStorage.
+    const temporaryIds = new Set(
+      parsed
+        .filter((conv) => conv.isTemporary === true && typeof conv.id === 'string')
+        .map((conv) => conv.id as string),
+    );
+    if (temporaryIds.size > 0) {
+      parsed = parsed.filter((conv) => conv.isTemporary !== true);
+      await writeConversationsRaw(JSON.stringify(parsed));
+      if (currentId && temporaryIds.has(currentId)) {
+        await removeCurrentIdRaw();
+        currentId = null;
+      }
     }
 
     let migrated = false;
@@ -637,7 +677,7 @@ export const loadConversations = async (): Promise<Conversation[]> => {
       await removeConversationsRaw().catch(() => {});
       return [];
     }
-    return result.data as Conversation[];
+    return (result.data as Conversation[]).filter((c) => !c.isTemporary);
   }
 
   // Fallback for authenticated users on fresh devices / cleared local storage
@@ -683,13 +723,13 @@ export async function syncConversationsFromCloud(): Promise<Conversation[]> {
     if (rawLocal) {
       try {
         const parsed = JSON.parse(rawLocal);
-        if (Array.isArray(parsed)) local = parsed;
+        if (Array.isArray(parsed)) local = parsed.filter(c => !c.isTemporary);
       } catch {
         local = [];
       }
     }
 
-    const localMap = new Map<string, Conversation>(local.map(c => [c.id, c]));
+    const localMap = new Map<string, Conversation>(local.filter(c => !c.isTemporary).map(c => [c.id, c]));
     const missingIds = cloudConvs.filter(c => !localMap.has(c.id)).map(c => c.id);
 
     if (missingIds.length > 0) {
@@ -731,9 +771,9 @@ export async function syncConversationsFromCloud(): Promise<Conversation[]> {
       }
     }
 
-    const merged = Array.from(localMap.values()).sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
+    const merged = Array.from(localMap.values())
+      .filter((c) => !c.isTemporary)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     await writeConversationsRaw(JSON.stringify(merged));
     return merged;
   } catch (err) {
@@ -753,7 +793,9 @@ export const loadConversation = async (id: string): Promise<Conversation | null>
 };
 
 export const saveConversation = async (conversation: Conversation, notify: boolean = true): Promise<void> => {
-  if (_incognito) return;
+  // `_incognito` protects normal in-mode saves.  The object marker protects
+  // delayed callbacks that resolve after temporary mode has been closed.
+  if (_incognito || conversation.isTemporary) return;
   try {
     const conversations = await loadConversations();
     const existingIndex = conversations.findIndex(c => c.id === conversation.id);
@@ -860,9 +902,10 @@ export const setCurrentConversationId = async (id: string): Promise<void> => {
   }
 };
 
-export const createNewConversation = (): Conversation => {
+export const createNewConversation = (options?: { temporary?: boolean }): Conversation => {
   const id = generateId();
   const now = new Date();
+  const isTemp = options?.temporary ?? _incognito;
   return {
     id,
     startedAt: now,
@@ -870,6 +913,7 @@ export const createNewConversation = (): Conversation => {
     preview: '',
     messageCount: 0,
     messages: [],
+    ...(isTemp ? { isTemporary: true as const } : {}),
   };
 };
 

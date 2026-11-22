@@ -133,7 +133,7 @@ function SourceRow({
               ) : (
                 <Globe className="w-3.5 h-3.5 text-ojas shrink-0" aria-hidden />
               )}
-              <span className="truncate underline-offset-2 group-hover:underline">{source.title || source.domain}</span>
+              <span className="break-words underline-offset-2 group-hover:underline">{source.title || source.domain}</span>
               <ExternalLink className="w-3 h-3 opacity-70 shrink-0" aria-hidden />
             </a>
             <button

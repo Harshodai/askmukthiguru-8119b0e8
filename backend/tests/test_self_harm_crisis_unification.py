@@ -87,26 +87,6 @@ async def test_input_guardrail_defers_self_harm_instead_of_blocking():
 
 
 @pytest.mark.asyncio
-async def test_emotional_wellness_reason_is_unaffected():
-    """Only the self_harm topic defers; the softer 'Emotional wellness' redirect
-    (e.g. 'I had a rough day') keeps its existing terminal behavior."""
-    container = _mock_container(
-        {
-            "blocked": True,
-            "reason": "Emotional wellness: serene_mind redirect",
-            "response": "Shall I guide you through a breathing practice?",
-        }
-    )
-    ctx = _build_ctx(container, "I had such a rough day")
-
-    result = await InputGuardrailStage().run(ctx)
-
-    assert result is not None
-    assert result.blocked is True
-    assert result.intent == "DISTRESS"
-    assert result.route_decision == "distress"
-
-
 @pytest.mark.asyncio
 async def test_english_ideation_reaches_full_crisis_preemption_via_distress_stage():
     """End-to-end (guardrail defers -> DistressStage): English 'I want to end

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sprout, Brain, Check, RefreshCw } from 'lucide-react';
 import { BACKEND_URL } from '@/lib/backendUrl';
 import { supabase } from '@/integrations/supabase/client';
+import { Link } from 'react-router-dom';
 
 interface Flashcard {
   id: string;
@@ -22,12 +23,14 @@ export const FlashcardPractice = () => {
   const [submitting, setSubmitting] = useState(false);
   const [fetchState, setFetchState] = useState<'initial' | 'success' | 'error'>('initial');
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [signInRequired, setSignInRequired] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchDueCards = async () => {
     setLoading(true);
     setFetchState('initial');
     setFetchError(null);
+    setSignInRequired(false);
     try {
       // Get auth session to call endpoint
       const { data: { session } } = await supabase.auth.getSession();
@@ -36,7 +39,7 @@ export const FlashcardPractice = () => {
       if (!token) {
         setCards([]);
         setFetchState('error');
-        setFetchError('Sign in to start your active recall practice.');
+        setSignInRequired(true);
         setLoading(false);
         return;
       }
@@ -55,9 +58,11 @@ export const FlashcardPractice = () => {
       } else {
         setCards([]);
         setFetchState('error');
-        setFetchError(response.status === 401
-          ? 'Your session expired. Please sign in again.'
-          : 'Could not load your reflection cards right now.');
+        if (response.status === 401) {
+          setSignInRequired(true);
+        } else {
+          setFetchError('Could not load your reflection cards right now.');
+        }
       }
     } catch (error) {
       console.error('Failed to load due flashcards:', error);
@@ -130,13 +135,23 @@ export const FlashcardPractice = () => {
           {fetchState === 'error' ? (
             <>
               <Sprout className="w-8 h-8 text-ojas/80 mx-auto" />
-              <h3 className="text-sm font-medium text-foreground">Practice unavailable</h3>
+              <h3 className="text-sm font-medium text-foreground">
+                {signInRequired ? 'Sign in to use active recall' : 'Practice unavailable'}
+              </h3>
               <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                {fetchError ?? 'Could not load your reflection cards.'}
+                {signInRequired
+                  ? 'Active recall saves your progress to your account. Your reflection above is still available without signing in.'
+                  : fetchError ?? 'Could not load your reflection cards.'}
               </p>
-              <Button variant="outline" size="sm" onClick={fetchDueCards} className="mt-2 text-xs">
-                <RefreshCw className="w-3 h-3 mr-1.5" /> Try again
-              </Button>
+              {signInRequired ? (
+                <Button asChild variant="outline" size="sm" className="mt-2 text-xs">
+                  <Link to="/auth">Sign in</Link>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={fetchDueCards} className="mt-2 text-xs">
+                  <RefreshCw className="w-3 h-3 mr-1.5" /> Try again
+                </Button>
+              )}
             </>
           ) : (
             <>

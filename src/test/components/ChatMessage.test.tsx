@@ -236,6 +236,29 @@ describe('ChatMessage (regression)', () => {
     expect(quotes).toHaveLength(1);
   });
 
+  it('does not call a quote verified when its source timestamp is absent', () => {
+    render(
+      <ChatMessage
+        message={makeGuruMessage({
+          citations: [{
+            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            title: 'Source without a coordinate',
+            quote: 'A quote that cannot be checked at a moment in the recording.',
+            speaker: 'Sri Preethaji',
+            speakerVerified: true,
+            isVerbatim: true,
+            rightsCleared: true,
+          }],
+          citationsVerified: true,
+          verification: { passed: true, citation_integrity_verified: true, evidence_set_supported: true },
+        })}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
+  });
+
   it('renders citations section with source count', () => {
     const message = makeGuruMessage({
       citations: [
@@ -328,6 +351,8 @@ describe('ChatMessage (regression)', () => {
     render(<ChatMessage message={message} />, { wrapper });
     expect(screen.queryByText(/could not verify the quoted teaching/i)).not.toBeInTheDocument();
     expect(screen.getByText(/988 Suicide & Crisis Lifeline/i)).toBeInTheDocument();
+    expect(screen.getByTestId('crisis-call-actions')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /call tele-manas at 14416/i })).toHaveAttribute('href', 'tel:14416');
   });
 
   it("treats ungrounded responses with no linked source as abstained (reflective guidance)", () => {
@@ -355,6 +380,29 @@ describe('ChatMessage (regression)', () => {
     render(<ChatMessage message={message} />, { wrapper });
     expect(screen.queryByTestId("response-provenance")).not.toBeInTheDocument();
     expect(screen.getByTestId("teaching-grounding")).toBeInTheDocument();
+  });
+
+  it("does not imply an abstained answer supplied a practice", () => {
+    const message = makeGuruMessage({
+      content: 'I could not find a verified teaching for this question.',
+      citations: [],
+      groundingState: 'abstained',
+    });
+    render(<ChatMessage message={message} isLastGuru />, { wrapper });
+
+    expect(screen.queryByRole('button', { name: /begin practice/i })).not.toBeInTheDocument();
+  });
+
+  it("does not place a practice CTA below a blocked medical-boundary answer", () => {
+    const message = makeGuruMessage({
+      content: 'I cannot replace medical care, diagnosis, or prescribed treatment.',
+      blocked: true,
+      blockReason: 'Medical advice request',
+      groundingState: 'grounded',
+    });
+    render(<ChatMessage message={message} isLastGuru />, { wrapper });
+
+    expect(screen.queryByRole('button', { name: /begin practice/i })).not.toBeInTheDocument();
   });
 });
 
@@ -386,6 +434,26 @@ describe('ChatMessage guidance plan', () => {
   it('suppresses the guidance plan for a crisis response', () => {
     render(<ChatMessage message={makeGuruMessage({ content: '🆘 Please contact a helpline now.', guidancePlan })} />, { wrapper });
     expect(screen.queryByTestId('guidance-plan')).not.toBeInTheDocument();
+  });
+
+  it('suppresses practice CTAs for a structured safety redirect even when the copy is generic', () => {
+    render(
+      <ChatMessage
+        isLastGuru
+        message={makeGuruMessage({
+          content: 'You deserve support from someone you trust today.',
+          groundingState: 'safety_redirect',
+          guidancePlan,
+          sereneMindOffer: { triggered: true, offer_reason: 'Take a practice break.' },
+        })}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.queryByTestId('guidance-plan')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('serene-mind-offer')).not.toBeInTheDocument();
+    expect(screen.queryByTitle(/practice/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('crisis-call-actions')).not.toBeInTheDocument();
   });
 
   it('never executes or renders raw HTML/script from LLM-generated content (react-markdown must stay rehype-raw-free)', () => {
@@ -422,6 +490,30 @@ describe('ChatMessage guidance plan', () => {
       expect(screen.getByText('Verified Sacred Teaching')).toBeInTheDocument();
     });
 
+    it('keeps a coordinate-bearing source link pointed at its cited moment', () => {
+      render(
+        <ChatMessage
+          message={makeGuruMessage({
+            citations: [{
+              url: 'https://www.youtube.com/watch?v=vARTudIEq30',
+              playbackUrl: 'https://www.youtube.com/watch?v=vARTudIEq30&t=76s',
+              title: 'A recorded teaching',
+              quote: 'A source-backed teaching excerpt.',
+              timestampSeconds: 76,
+              speakerVerified: true,
+            }],
+            citationsVerified: true,
+          })}
+        />,
+        { wrapper },
+      );
+
+      expect(screen.getByRole('link', { name: /open source teaching/i })).toHaveAttribute(
+        'href',
+        'https://www.youtube.com/watch?v=vARTudIEq30&t=76s',
+      );
+    });
+
     it('never labels source-only partial evidence as Verified, even when citationsVerified is true', () => {
       render(
         <ChatMessage
@@ -437,7 +529,7 @@ describe('ChatMessage guidance plan', () => {
       expect(screen.queryByText('Verified Sacred Teaching')).not.toBeInTheDocument();
     });
 
-    it('live partial-evidence payload shape (bare-URL citations, abstained, partial) claims nothing as verified', () => {
+    it('hides partial-evidence candidates from an abstained answer', () => {
       // Shape captured live 2026-10-11: titles/snippets/speakers all null.
       const { container } = render(
         <ChatMessage
@@ -460,9 +552,9 @@ describe('ChatMessage guidance plan', () => {
       expect(text).not.toMatch(/authentic discourse/i);
       // Backend now sends partial evidence as `abstained`: the card must say partial, and must
       // not claim there are no citations while the references block lists sources.
-      expect(text).not.toMatch(/without direct discourse citations/i);
-      expect(text).not.toMatch(/no direct discourse match/i);
-      expect(screen.getByText('Closest passages (not verified)')).toBeInTheDocument();
+      expect(text).not.toMatch(/sources cited/i);
+      expect(text).not.toMatch(/closest passages/i);
+      expect(screen.queryByTestId('discourse-audio-strip')).not.toBeInTheDocument();
     });
 
     it('first-person weak match (verification.direct=false) is never badged Verified', () => {

@@ -101,9 +101,9 @@ export function CitationPanel({ isOpen, onClose, citations }: CitationPanelProps
                           href={c.playbackUrl || c.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm font-medium text-ojas-ink dark:text-ojas hover:underline inline-flex items-center gap-1.5 min-h-[44px] py-1"
+                          className="text-sm font-medium text-ojas-ink dark:text-ojas hover:underline inline-flex items-start gap-1.5 min-h-[44px] py-1"
                         >
-                          <span className="truncate">{c.title || getDomain(c.url)}</span>
+                          <span className="break-words">{c.title || getDomain(c.url)}</span>
                           <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
                         </a>
                         <p className="text-xs text-muted-foreground mt-0.5">{getDomain(c.url)}</p>

@@ -45,13 +45,15 @@ const buildRequestBody = (
     incognito,
     // Profile voice preference; backend applies it as a generation-time persona hint.
     ...(!incognito ? { guru_tone: loadProfile().guruTone } : {}),
-    ...(responsePreferences ? { response_preferences: { mode: responsePreferences.mode, include_practice: responsePreferences.includePractice, include_reflection: responsePreferences.includeReflection, action_depth: responsePreferences.actionDepth } } : {}),
-    ...(lastSereneMindAt != null
+    // Keep a temporary request self-contained: no durable-profile or prior
+    // session context is sent alongside its current message.
+    ...(!incognito && responsePreferences ? { response_preferences: { mode: responsePreferences.mode, include_practice: responsePreferences.includePractice, include_reflection: responsePreferences.includeReflection, action_depth: responsePreferences.actionDepth } } : {}),
+    ...(!incognito && lastSereneMindAt != null
       ? { last_serene_mind_at: lastSereneMindAt / 1000 }
       : {}),
-    ...(seekerContext ? { seeker_context: seekerContext } : {}),
-    ...(attachmentContext ? { attachment_context: attachmentContext.slice(0, 8000) } : {}),
-    ...(personalizeTeaching ? { personalize_teaching: personalizeTeaching } : {}),
+    ...(!incognito && seekerContext ? { seeker_context: seekerContext } : {}),
+    ...(!incognito && attachmentContext ? { attachment_context: attachmentContext.slice(0, 8000) } : {}),
+    ...(!incognito && personalizeTeaching ? { personalize_teaching: personalizeTeaching } : {}),
     ...buildAssistantContext(),
   });
 };
