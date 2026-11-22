@@ -116,16 +116,16 @@ def test_strip_topic_shift_removes_marker(raw_query: str, expected_clean: str):
     assert stripped == expected_clean
 
 
-def test_resolve_meta_followup_topic_shift(monkeypatch):
-    """Topic shifts must return clean query with no note and no history prepend."""
+def test_resolve_topic_shift_is_its_own_control(monkeypatch):
+    """Topic shifts return a clean query with no note and no history prepend (2026-11-22 split)."""
     monkeypatch.setattr(settings, "first_person_meta_followup_enabled", True)
-    history = [{"role": "user", "content": "Tell me about anger"}]
-    res = _resolve_meta_followup("Unrelated: what is meditation?", history)
-    assert res is not None
-    clean_query, note, cap = res
-    assert clean_query == "what is meditation?"
-    assert note is None
-    assert cap is None
+    monkeypatch.setattr(settings, "first_person_topic_shift_enabled", True)
+    from app.pipeline.stages.first_person_bridge import _resolve_topic_shift
+
+    shifted = _resolve_topic_shift("Unrelated: what is meditation?")
+    assert shifted is not None and shifted.retrieval_query == "what is meditation?"
+    # The meta lane does not claim the same turn, so nothing is scored against history.
+    assert _resolve_meta_followup("Unrelated: what is meditation?", []) is None
 
 
 @pytest.mark.parametrize(
@@ -157,26 +157,24 @@ def test_resolve_meta_followup_kinds(monkeypatch):
     # 1. Shorter: re-retrieves prior question, caps context spans to 1
     shorter_res = _resolve_meta_followup("can you make it shorter?", history)
     assert shorter_res is not None
-    q, note, cap = shorter_res
-    assert q == "What is the Beautiful State?"
-    assert cap == 1
-    assert "shorter passage" in note
+    assert shorter_res.retrieval_query == "What is the Beautiful State?"
+    assert shorter_res.max_context_spans == 1
+    assert "shorter passage" in shorter_res.note
+    assert (shorter_res.kind, shorter_res.reason_code) == ("shorter", "meta_shorter_request")
 
     # 2. Example: appends example prompt
     ex_res = _resolve_meta_followup("give me an example", history)
     assert ex_res is not None
-    q, note, cap = ex_res
-    assert q == "What is the Beautiful State? — an example or story"
-    assert cap is None
-    assert "example" in note
+    assert ex_res.retrieval_query == "What is the Beautiful State? — an example or story"
+    assert ex_res.max_context_spans is None
+    assert "example" in ex_res.note
 
     # 3. Elaborate: re-retrieves prior question
     elab_res = _resolve_meta_followup("elaborate on that", history)
     assert elab_res is not None
-    q, note, cap = elab_res
-    assert q == "What is the Beautiful State?"
-    assert cap is None
-    assert "goes back to your earlier question" in note
+    assert elab_res.retrieval_query == "What is the Beautiful State?"
+    assert elab_res.max_context_spans is None
+    assert "goes back to your earlier question" in elab_res.note
 
 
 def test_names_new_topic_prevents_history_pollution():
@@ -439,7 +437,7 @@ def test_meta_followup_names_new_topic_shielding(monkeypatch):
     # Ordinal is exempt -> resolves against history
     ordinal_res = _resolve_meta_followup("explain the second one", history)
     assert ordinal_res is not None
-    assert ordinal_res[0] == "What is suffering? — explain the second one"
+    assert ordinal_res.retrieval_query == "What is suffering? — explain the second one"
 
 
 @pytest.mark.asyncio

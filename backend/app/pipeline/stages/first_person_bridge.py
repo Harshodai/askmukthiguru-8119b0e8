@@ -50,6 +50,7 @@ from app.route_taxonomy import RoutingProvenance, record_routing_decision
 from rag.resolve_followup import (
     _get_last_user_message,
     _is_heuristic_followup,
+    followup_metadata,
     names_new_topic,
 )
 from services.first_person_public_projection import (
@@ -702,23 +703,43 @@ _META_FOLLOWUP_NOTES = {
 }
 
 
+def _resolve_topic_shift(retrieval_query: str) -> FollowupResolution | None:
+    """The question without an explicit topic-shift marker, else None.
+
+    Flag ``first_person_topic_shift_enabled``, independent of the meta lane: dropping
+    "Unrelated," is a mis-serve protection, not a meta behaviour. Deterministic; the
+    marker is dropped and history is never prepended.
+    """
+    if not getattr(settings, "first_person_topic_shift_enabled", False):
+        return None
+    from rag.resolve_followup import FollowupResolution, strip_topic_shift
+
+    shifted = strip_topic_shift(retrieval_query)
+    if shifted is None:
+        return None
+    return FollowupResolution(
+        retrieval_query=shifted,
+        kind="topic_shift",
+        reason_code="explicit_topic_shift_marker",
+        history_used=False,
+    )
+
+
 def _resolve_meta_followup(
     retrieval_query: str, chat_history: list
-) -> tuple[str, str | None, int | None] | None:
-    """(retrieval query, labelled note, span cap) for a topic shift or meta follow-up, else None.
+) -> FollowupResolution | None:
+    """Typed resolution for a meta follow-up, else None.
 
-    Flag ``first_person_meta_followup_enabled``; deterministic, no LLM. A topic shift
-    returns the question without its marker and no note (history is never used). A
-    meta follow-up needs a prior user turn: that turn becomes the question that is
-    retrieved and scored, so the scorer never judges clips against "say it shorter".
+    Flag ``first_person_meta_followup_enabled``; deterministic, no LLM. A meta follow-up
+    needs a prior user turn: that turn becomes the question that is retrieved and scored,
+    so the scorer never judges clips against "say it shorter". An explicit topic shift is
+    handled by :func:`_resolve_topic_shift`, before this; ``meta_followup_kind`` itself
+    refuses a turn that carries a shift marker.
     """
     if not getattr(settings, "first_person_meta_followup_enabled", False):
         return None
-    from rag.resolve_followup import meta_followup_kind, names_new_topic, strip_topic_shift
+    from rag.resolve_followup import FollowupResolution, meta_followup_kind, names_new_topic
 
-    shifted = strip_topic_shift(retrieval_query)
-    if shifted is not None:
-        return shifted, None, None
     kind = meta_followup_kind(retrieval_query)
     if kind is None or not chat_history:
         return None
@@ -746,7 +767,13 @@ def _resolve_meta_followup(
         "example": f"{prior} — an example or story",
         "ordinal": f"{prior} — {current}",
     }[kind]
-    return resolved, _META_FOLLOWUP_NOTES[kind], 1 if kind == "shorter" else None
+    return FollowupResolution(
+        retrieval_query=resolved,
+        kind=kind,
+        reason_code=f"meta_{kind}_request",
+        note=_META_FOLLOWUP_NOTES[kind],
+        max_context_spans=1 if kind == "shorter" else None,
+    )
 
 
 _DIFFERENCE_RE = re.compile(
@@ -1198,14 +1225,23 @@ class FirstPersonBridgeStage(Stage):
         history_prepended = False
         meta_note: str | None = None
         max_context_spans: int | None = None
-        meta = _resolve_meta_followup(retrieval_query, chat_history)
-        if meta is not None:
-            # Topic shift (note None): the marker is dropped, history is not used.
+        _followup_input = retrieval_query
+        shifted = _resolve_topic_shift(retrieval_query)
+        meta = None if shifted is not None else _resolve_meta_followup(retrieval_query, chat_history)
+        if shifted is not None:
+            # Explicit topic shift: the marker is dropped and history is never used.
+            retrieval_query = shifted.retrieval_query
+            followup_resolved = True
+        elif meta is not None:
             # Meta follow-up: the prior user turn is the question that is retrieved
             # AND scored; the seeker's request only shapes the labelled note.
-            retrieval_query, meta_note, max_context_spans = meta
-            # Both shapes depend on this flag, not only on the bare question the exact
-            # cache key hashes, so neither may read or write that cache.
+            retrieval_query, meta_note, max_context_spans = (
+                meta.retrieval_query,
+                meta.note,
+                meta.max_context_spans,
+            )
+            # The resolved query depends on this flag, not only on the bare question the
+            # exact cache key hashes, so it may not read or write that cache.
             followup_resolved = True
         elif (
             chat_history
@@ -1222,6 +1258,20 @@ class FirstPersonBridgeStage(Stage):
                     len(retrieval_query),
                     hashlib.sha256(retrieval_query.encode()).hexdigest()[:12],
                 )
+
+        # Routing metadata for this turn: the kind and the rule that matched, logged as
+        # primitives and a hash (SEC-003). It never reaches the answer body, a citation,
+        # or a gate — a classifier label cannot make a clip eligible or a turn safe.
+        followup_meta = (
+            shifted
+            or meta
+            or followup_metadata(_followup_input, chat_history, continuation=history_prepended)
+        )
+        logger.info(
+            "[FirstPersonBridge] Follow-up resolution %s hist_turns=%d",
+            " ".join(f"{k}={v}" for k, v in followup_meta.log_fields(_followup_input).items()),
+            min(len(chat_history), 10),
+        )
 
         container = ctx.container
 

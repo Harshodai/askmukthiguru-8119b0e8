@@ -19,13 +19,13 @@ Examples:
 import hashlib
 import logging
 import re
+from dataclasses import dataclass
 from typing import Optional
 
 from langchain_core.runnables import RunnableConfig
 
 from app.config import settings
 from rag.states import GraphState
-from rag.timeout_utils import get_node_timeout
 
 
 def _q_tag(text: str) -> str:
@@ -36,15 +36,6 @@ def _q_tag(text: str) -> str:
 
 
 logger = logging.getLogger(__name__)
-
-# Module-level service reference (injected via init_services)
-_ollama = None
-
-
-def set_ollama(ollama_service):
-    """Inject the OllamaService instance."""
-    global _ollama
-    _ollama = ollama_service
 
 
 _FOLLOWUP_PHRASES = [
@@ -221,42 +212,114 @@ def _get_last_user_message(chat_history: list) -> str:
     return ""
 
 
-RESOLVE_FOLLOWUP_PROMPT = """You are a query resolver for a multi-turn spiritual chat system.
+@dataclass(frozen=True)
+class FollowupResolution:
+    """What the follow-up resolver decided for one turn. Routing metadata only.
 
-Given the conversation history and the user's latest question, determine if the question
-is a follow-up that refers to previous context (using words like "that", "it", "this",
-"more", "also", "what about", pronouns, or continuations).
+    ``kind`` / ``reason_code`` name the deterministic rule that matched. Nothing here
+    may change what a gate decides: ``retrieval_query`` feeds retrieval and scoring
+    exactly as the raw query did, and no answer text is ever built from this object.
+    """
 
-If it IS a follow-up: Rewrite it as a STANDALONE question that includes all necessary
-context from the history. Return ONLY the rewritten question, nothing else.
+    retrieval_query: str
+    kind: str
+    reason_code: str
+    note: str | None = None
+    max_context_spans: int | None = None
+    history_used: bool = True
 
-If it is NOT a follow-up (it's a completely new topic): Return the original question unchanged.
+    def log_fields(self, raw_query: str) -> dict[str, object]:
+        """Primitives for telemetry: the kind, the rule, and a hash — never the words."""
+        text = raw_query or ""
+        return {
+            "kind": self.kind,
+            "reason": self.reason_code,
+            "history_used": self.history_used,
+            "raw_len": len(text),
+            "raw_sha": hashlib.sha256(text.encode("utf-8")).hexdigest()[:12],
+        }
 
-CONVERSATION HISTORY:
-{history}
 
-LATEST QUESTION: {question}
+FOLLOWUP_KINDS = frozenset(
+    {
+        "topic_shift",
+        "continuation",
+        "shorter",
+        "example",
+        "ordinal",
+        "elaborate",
+        "new_topic",
+        "unknown",
+    }
+)
 
-STANDALONE QUESTION:"""
+
+def followup_metadata(
+    raw_query: str,
+    chat_history: list,
+    *,
+    continuation: bool = False,
+) -> FollowupResolution:
+    """The non-resolving half of the classification: why nothing was resolved.
+
+    Used when neither a topic shift nor a meta follow-up fired. ``continuation`` is the
+    history-prepended branch the bridge already took; the rest are the honest
+    "no rewrite happened" reasons. Deterministic, no LLM.
+    """
+    if continuation:
+        return FollowupResolution(
+            retrieval_query=raw_query,
+            kind="continuation",
+            reason_code="referential_followup",
+        )
+    if not chat_history:
+        return FollowupResolution(
+            retrieval_query=raw_query,
+            kind="unknown",
+            reason_code="no_history",
+            history_used=False,
+        )
+    if names_new_topic(raw_query):
+        return FollowupResolution(
+            retrieval_query=raw_query,
+            kind="new_topic",
+            reason_code="topic_named_in_followup",
+            history_used=False,
+        )
+    return FollowupResolution(
+        retrieval_query=raw_query,
+        kind="unknown",
+        reason_code="no_rule_matched",
+        history_used=False,
+    )
 
 
 async def resolve_followup(state: GraphState, config: Optional[RunnableConfig] = None) -> dict:
     """
-    Resolve follow-up queries into standalone questions.
+    Resolve follow-up queries into standalone questions (general graph tier).
 
     This node sits between intent_router and decompose_query in the RAG pipeline.
-    It examines the conversation history and, if the current question appears to
-    be a follow-up (uses pronouns, references prior context), rewrites it into
-    a standalone question that can be searched independently.
+    It examines the conversation history and, if the current question appears to be
+    a follow-up (pronouns, references to prior context), rewrites it into a
+    standalone question that can be searched independently.
 
-    When rag_heuristic_followup is True, uses pronoun/regex matching instead of
-    an LLM call — saves 1 LLM call per follow-up query.
+    Two documented behaviours only:
+
+    - ``rag_heuristic_followup=True``: pronoun/regex matching rewrites the query
+      with the previous user turn. No LLM call.
+    - ``rag_heuristic_followup=False`` (default): a documented no-op. The LLM
+      rewrite path was retired on 2026-11-22 — its provider (Ollama) was removed
+      2026-11-16, so the node only logged "OllamaService not initialized" and
+      returned ``{}`` on every call. Behaviour is byte-identical to that path.
+
+    The first-person lane does not use this node; it resolves follow-ups in
+    ``app/pipeline/stages/first_person_bridge.py``.
 
     Returns:
         dict with updated 'question' if resolved, or empty dict if no change needed.
     """
     if state.get("query_tier") in ("fast", "tier2_simple"):
-        logger.info("Resolve Follow-up: fast path query, skipping LLM resolution.")
+        logger.info("Resolve Follow-up: fast path query, skipping resolution.")
         return {}
 
     # DEF-R2-02: Bypass follow-up resolution on personalize turns to preserve
@@ -292,69 +355,8 @@ async def resolve_followup(state: GraphState, config: Optional[RunnableConfig] =
         logger.info("Follow-up resolution (heuristic): no change needed for %s", _q_tag(question))
         return {}
 
-    # --- LLM path (legacy) ---
-    # SSE status — let the user see that we're consulting the prior turn
-    try:
-        from rag.nodes.utils import emit_status
-
-        await emit_status(config, "Connecting this to your previous question...")
-    except Exception as _e:
-        logger.debug("[followup resolution] suppressed non-critical error: %s", _e)
-
-    # Build history string from last 10 messages (5 turns) so benchmark follow-ups
-    # retain the doctrine anchors from earlier answers.
-    recent = chat_history[-10:]
-    history_lines = []
-    for msg in recent:
-        role = msg.get("role", "user").capitalize()
-        limit = 400 if role == "Assistant" else 260
-        content = msg.get("content", "")[:limit]
-        history_lines.append(f"{role}: {content}")
-
-    history_str = "\n".join(history_lines)
-
-    if _ollama is None:
-        logger.warning("resolve_followup: OllamaService not initialized, skipping")
-        return {}
-
-    try:
-        prompt = RESOLVE_FOLLOWUP_PROMPT.format(
-            history=history_str,
-            question=question,
-        )
-
-        t_out = get_node_timeout("resolve_followup", 15)
-        resolved = await _ollama._generate_fast(
-            system_prompt="",
-            user_prompt=prompt,
-            timeout=t_out,
-            max_retries=1,
-        )
-
-        resolved = resolved.strip()
-
-        # Guard against models that emit code/markup instead of the rewritten question.
-        # Treat the LLM output as unusable and fall back to the original question.
-        if (
-            resolved.startswith("def ")
-            or resolved.startswith("class ")
-            or "```" in resolved
-            or "import " in resolved
-        ):
-            logger.warning(
-                f"Follow-up resolution returned code/markup instead of text; using original question. "
-                f"Output preview: {resolved[:80]!r}"
-            )
-            return {}
-
-        # Only update if the LLM actually changed the question
-        if resolved and resolved != question and len(resolved) > 3:
-            logger.info("Follow-up resolved: %s -> %s", _q_tag(question), _q_tag(resolved))
-            return {"question": resolved}
-        else:
-            logger.info("Follow-up resolution: no change needed for %s", _q_tag(question))
-            return {}
-
-    except Exception as e:
-        logger.warning(f"Follow-up resolution failed (non-fatal): {e}")
-        return {}  # Graceful fallback — proceed with original question
+    # --- No-op path (LLM rewrite retired 2026-11-22) ---
+    logger.info(
+        "Follow-up resolution: disabled (rag_heuristic_followup=false) for %s", _q_tag(question)
+    )
+    return {}

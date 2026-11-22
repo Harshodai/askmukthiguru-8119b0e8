@@ -508,9 +508,15 @@ class Settings(BaseSettings):
     # 2026-11-19 serve-rate work (battery: conversation turns 9/32). All default off; each
     # is read at its call site and fingerprinted in the serving policy.
     # Meta follow-ups ("shorter", "an example", "explain more", "the second one") retrieve
-    # and score against the PRIOR user turn; an explicit topic-shift marker ("Unrelated,")
-    # is dropped and never inherits history. Deterministic, no LLM. Bridge only.
+    # and score against the PRIOR user turn. Deterministic, no LLM. Bridge only.
     first_person_meta_followup_enabled: bool = False
+    # Explicit topic-shift markers ("Unrelated, what is karma?", "New question: ...") are
+    # dropped before retrieval so the marker never joins the previous topic, and history is
+    # never prepended. Split out of first_person_meta_followup_enabled (2026-11-22): a
+    # mis-serve protection must not depend on whether the meta lane has been measured.
+    # False preserves the pre-split live behaviour exactly; enabling it alone never turns a
+    # meta follow-up on, and it bypasses the shared exact cache like any resolved turn.
+    first_person_topic_shift_enabled: bool = False
     # Relevance scorer asks for exactly N scores: a per-call JSON schema with required
     # keys clip_1..clip_N (JSON path) or a length-N example (comma path). The strict
     # count check is unchanged; a miscount stays indeterminate.

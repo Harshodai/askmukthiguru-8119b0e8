@@ -380,7 +380,7 @@ def _read_text_or_none(path: Path) -> str | None:
 def _call_names(tree: ast.AST) -> set[str]:
     """Names actually invoked as calls in this module, with ``from x import y
     as z`` aliases resolved back to ``y`` so a re-exported setter (e.g.
-    ``from rag.resolve_followup import set_ollama as set_followup_ollama``)
+    ``from x import set_y as set_z``)
     isn't misread as uncalled."""
     alias_of: dict[str, str] = {}
     for node in ast.walk(tree):

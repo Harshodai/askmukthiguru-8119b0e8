@@ -28,6 +28,7 @@ from tests.test_first_person_bridge import (  # noqa: F401 - fixtures
 
 _FLAGS = (
     "first_person_meta_followup_enabled",
+    "first_person_topic_shift_enabled",
     "first_person_relevance_exact_n_enabled",
     "first_person_context_seen_rerank_enabled",
     "first_person_answerability_prefetch_enabled",
@@ -91,22 +92,32 @@ _HIST = [
 def test_resolve_meta_followup_is_inert_with_flag_off(monkeypatch):
     monkeypatch.setattr(settings, "first_person_meta_followup_enabled", False)
     assert bridge._resolve_meta_followup("can you say it shorter?", _HIST) is None
+
+
+def test_topic_shift_is_independent_of_the_meta_flag(monkeypatch):
+    """Split 2026-11-22: a mis-serve protection must not ride on the meta lane's flag."""
+    monkeypatch.setattr(settings, "first_person_meta_followup_enabled", False)
+    monkeypatch.setattr(settings, "first_person_topic_shift_enabled", True)
+    shifted = bridge._resolve_topic_shift("Unrelated, what is karma?")
+    assert shifted is not None and shifted.retrieval_query == "what is karma?"
+    # ...and the meta lane stays inert on the same turn.
     assert bridge._resolve_meta_followup("Unrelated, what is karma?", _HIST) is None
+    # With the topic-shift flag off, nothing is stripped (pre-split behaviour).
+    monkeypatch.setattr(settings, "first_person_topic_shift_enabled", False)
+    assert bridge._resolve_topic_shift("Unrelated, what is karma?") is None
 
 
 def test_resolve_meta_followup_targets_the_prior_turn(monkeypatch):
     monkeypatch.setattr(settings, "first_person_meta_followup_enabled", True)
     prior = _HIST[0]["content"]
-    q, note, spans = bridge._resolve_meta_followup("That is too long, can you say it shorter?", _HIST)
-    assert (q, spans) == (prior, 1) and "shorter" in note
-    q, note, spans = bridge._resolve_meta_followup("Give me an example?", _HIST)
-    assert q.startswith(prior) and spans is None and "example" in note
-    # A topic shift drops its marker and never uses history.
-    assert bridge._resolve_meta_followup("Unrelated, what is karma?", _HIST) == (
-        "what is karma?",
-        None,
-        None,
-    )
+    res = bridge._resolve_meta_followup("That is too long, can you say it shorter?", _HIST)
+    assert (res.retrieval_query, res.max_context_spans) == (prior, 1)
+    assert "shorter" in res.note and res.kind == "shorter"
+    res = bridge._resolve_meta_followup("Give me an example?", _HIST)
+    assert res.retrieval_query.startswith(prior) and res.max_context_spans is None
+    assert "example" in res.note and res.kind == "example"
+    # A topic shift is no longer this function's job (see _resolve_topic_shift).
+    assert bridge._resolve_meta_followup("Unrelated, what is karma?", _HIST) is None
     # No prior user turn (or only the current one): nothing to resolve against.
     assert bridge._resolve_meta_followup("say it shorter", []) is None
     assert (
@@ -119,6 +130,7 @@ def test_resolve_meta_followup_targets_the_prior_turn(monkeypatch):
 @pytest.mark.asyncio
 async def test_bridge_meta_followup_query_note_and_span_cap(monkeypatch, fp_pipeline, flag):  # noqa: F811
     monkeypatch.setattr(settings, "first_person_meta_followup_enabled", flag)
+    monkeypatch.setattr(settings, "first_person_topic_shift_enabled", False)
     ctx = _ctx(_container(), msg="That is too long, can you say it shorter?")
     ctx.chat_body_messages = list(_HIST)
     result = await FirstPersonBridgeStage().run(ctx)
@@ -138,13 +150,28 @@ async def test_bridge_meta_followup_query_note_and_span_cap(monkeypatch, fp_pipe
 
 @pytest.mark.asyncio
 async def test_bridge_topic_shift_strips_marker_and_ignores_history(monkeypatch, fp_pipeline):  # noqa: F811
-    monkeypatch.setattr(settings, "first_person_meta_followup_enabled", True)
+    # The topic-shift flag alone: the meta lane stays off (2026-11-22 split).
+    monkeypatch.setattr(settings, "first_person_meta_followup_enabled", False)
+    monkeypatch.setattr(settings, "first_person_topic_shift_enabled", True)
     ctx = _ctx(_container(), msg="Unrelated, what is the purpose of meditation?")
     ctx.chat_body_messages = [{"role": "user", "content": "How do I forgive my father?"}]
     await FirstPersonBridgeStage().run(ctx)
     kw = fp_pipeline.execute.call_args.kwargs
     assert kw["retrieval_query"] == "what is the purpose of meditation?"
     assert kw["query"] == "Unrelated, what is the purpose of meditation?"  # safety sees it raw
+
+
+@pytest.mark.asyncio
+async def test_both_followup_flags_off_keep_the_pre_split_behaviour(monkeypatch, fp_pipeline):  # noqa: F811
+    """Behaviour-neutral split: with both flags off nothing is rewritten and no cache is bypassed."""
+    monkeypatch.setattr(settings, "first_person_meta_followup_enabled", False)
+    monkeypatch.setattr(settings, "first_person_topic_shift_enabled", False)
+    ctx = _ctx(_container(), msg="Unrelated, what is the purpose of meditation?")
+    ctx.chat_body_messages = [{"role": "user", "content": "How do I forgive my father?"}]
+    await FirstPersonBridgeStage().run(ctx)
+    kw = fp_pipeline.execute.call_args.kwargs
+    assert kw["retrieval_query"] == "Unrelated, what is the purpose of meditation?"
+    assert kw["cache_bypass"] is False
 
 
 # --- (b) multi-part questions --------------------------------------------------------
@@ -417,7 +444,8 @@ def test_bridge_with_real_pipeline_serves_with_every_flag(flags_on, monkeypatch)
 
 @pytest.mark.asyncio
 async def test_topic_shift_bypasses_the_exact_cache(monkeypatch, fp_pipeline):  # noqa: F811
-    monkeypatch.setattr(settings, "first_person_meta_followup_enabled", True)
+    monkeypatch.setattr(settings, "first_person_meta_followup_enabled", False)
+    monkeypatch.setattr(settings, "first_person_topic_shift_enabled", True)
     await FirstPersonBridgeStage().run(_ctx(_container(), msg="Unrelated, what is the purpose of meditation?"))
     assert fp_pipeline.execute.call_args.kwargs["cache_bypass"] is True
 
@@ -464,7 +492,7 @@ def test_meta_followup_skips_a_prior_turn_that_is_itself_meta(monkeypatch):
         {"role": "assistant", "content": "(abstain)"},
         {"role": "user", "content": "Can you explain the second one?"},
     ]
-    q, _note, _spans = bridge._resolve_meta_followup("What did you mean by that?", hist)
-    assert q == "What are the four sacred secrets?"
+    res = bridge._resolve_meta_followup("What did you mean by that?", hist)
+    assert res.retrieval_query == "What are the four sacred secrets?"
     # Anonymous turns carry only the last prior user turn: a meta-only chain resolves to nothing.
     assert bridge._resolve_meta_followup("What did you mean by that?", hist[2:]) is None

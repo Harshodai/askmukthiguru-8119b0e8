@@ -1,6 +1,24 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 22, 2026 — Follow-up lane delta: one flag per risk, a dead resolver retired, and a posture named before measuring
+
+### L-ONE-FLAG-CANNOT-GATE-A-MEASURED-BEHAVIOUR-AND-A-PROTECTION-1. A mis-serve guard must not ride on the flag of the unmeasured feature next to it.
+- **What:** `first_person_meta_followup_enabled` gated two different things in `_resolve_meta_followup`: meta follow-ups ("say it shorter") — unmeasured, default off — and explicit topic-shift stripping ("Unrelated, what is karma?") — a correctness fix that stops a marker from joining the previous topic. Disabling the unmeasured lane therefore also disabled the protection, and no test distinguished them.
+- **Fix:** `first_person_topic_shift_enabled` (`app/config.py`, default `False` = the pre-split live behaviour) with `_resolve_topic_shift()` in the bridge, called before the meta lane. `_resolve_meta_followup` no longer sees a shift marker at all (`meta_followup_kind` already refuses one). Both branches still set `followup_resolved`, so a shift turn bypasses the shared exact cache exactly as before.
+- **Rule:** before measuring a feature, split every correctness guard out of its flag and default the new flag to the current behaviour, so the split itself is provably behaviour-neutral (`test_both_followup_flags_off_keep_the_pre_split_behaviour`). A regression test must fail if the measured feature's flag is reused to disable the guard.
+
+### L-DEAD-PROVIDER-PATH-IS-A-COMPETING-SPEC-1. A rewrite prompt whose provider was removed still reads as the documented behaviour.
+- **What:** `rag/resolve_followup.py` kept `RESOLVE_FOLLOWUP_PROMPT`, `set_ollama` and an `_generate_fast` rewrite after Ollama was removed (2026-11-16). Nothing injected `_ollama`, so the node logged "OllamaService not initialized" and returned `{}` on every call — a second, advertised follow-up resolver that never ran, and the reason the general graph looked like it resolved follow-ups.
+- **Fix:** the LLM surface and its injection (`rag/nodes/_services.py`) are gone. The node keeps its wiring and is now a documented no-op when `rag_heuristic_followup=False` (the default), so general-graph behaviour is byte-identical. Enabling the heuristic there is a separate decision: it would need a cache-bypass rule for the graph tier, which only the bridge has (`L-HISTORY-RESOLVED-QUERY-NEEDS-ITS-OWN-CACHE-RULE-1`).
+- **Rule:** when a provider is removed, retire its prompt and injection in the same sweep; a documented no-op beats an unreachable code path, and never enable an adjacent behaviour (the heuristic) as a side effect of cleanup.
+
+### L-DOC-CODE-POSTURE-DRIFT-BLOCKS-MEASUREMENT-1. Name the effective posture and fingerprint it before judging quality.
+- **What:** AGENTS.md serving invariant 3, the `app/config.py` comments and `backend/.env.example` all say the additive expansions (`enrichment_window`, `graph_expansion`, `okf_expansion`, `cross_video_diversity`, `teaching_unit_graph`) are off until measured. The code defaults and `backend/.env` say on. Any follow-up latency/cost number taken in that state describes an unnamed configuration.
+- **Fix:** `app/runtime_budget.expansion_posture()` / `expansion_posture_warnings()` / `expansion_posture_fingerprint()` report each effective value at startup (INFO line with a 12-hex digest, WARNING per flag that contradicts the docs). Read-only: it changes no default and chooses no side — the owner decision is still open.
+- **Rule:** when docs and configuration disagree, do not silently pick one. Report the effective values in the units of the setting, emit a digest to record beside the run, and treat quality numbers from that posture as unmeasured until the owner names it.
+
+
 ## Nov 22, 2026 (morning) — Personalization Multi-Table Bridge, Frontend/Backend Memory Table Parity, and Citation Floor Fallback
 
 ### L-PERSONALIZE-FRONTEND-BACKEND-TABLE-DISCONNECT-1. Resolving the frontend guru_memories vs backend canonical_memories isolation trap.

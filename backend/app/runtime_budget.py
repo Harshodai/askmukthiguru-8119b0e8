@@ -15,6 +15,7 @@ Nothing here changes behaviour. It only reports.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 from typing import Any
@@ -257,15 +258,76 @@ async def log_budget_headroom(logger: logging.Logger, settings: Any) -> None:
         logger.debug("budget headroom log failed", exc_info=True)
 
 
+#: Additive retrieval expansions and the posture the repository documents for them
+#: (AGENTS.md first-person serving invariant 3, the `app/config.py` comments and
+#: `backend/.env.example`). Reported, never changed: the 2026-11-22 follow-up plan
+#: requires the effective posture to be named and fingerprinted before any quality
+#: measurement, because the code defaults and `.env` currently disagree with the docs.
+_EXPANSION_POSTURE: tuple[tuple[str, str], ...] = (
+    ("first_person_enrichment_window_enabled", "FIRST_PERSON_ENRICHMENT_WINDOW_ENABLED"),
+    ("first_person_graph_expansion_enabled", "FIRST_PERSON_GRAPH_EXPANSION_ENABLED"),
+    ("first_person_okf_expansion_enabled", "FIRST_PERSON_OKF_EXPANSION_ENABLED"),
+    ("first_person_cross_video_diversity_enabled", "FIRST_PERSON_CROSS_VIDEO_DIVERSITY_ENABLED"),
+    ("first_person_teaching_unit_graph_enabled", "FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED"),
+)
+
+
+def expansion_posture(settings: Any) -> list[dict[str, Any]]:
+    """Effective value of each additive expansion flag, with the documented default.
+
+    The documented default is ``False`` for every row: the config comments, `.env.example`
+    and serving invariant 3 all describe these as off until measured. A row whose
+    ``effective`` differs is a posture the owner has to name, not something this reports
+    as an error.
+    """
+    return [
+        {
+            "name": name,
+            "env": env,
+            "effective": bool(getattr(settings, name, False)),
+            "documented_default": False,
+        }
+        for name, env in _EXPANSION_POSTURE
+    ]
+
+
+def expansion_posture_fingerprint(settings: Any) -> str:
+    """Bounded digest of the effective expansion posture, for recording next to a run."""
+    pairs = sorted(f"{row['name']}={int(row['effective'])}" for row in expansion_posture(settings))
+    return hashlib.sha256("|".join(pairs).encode("utf-8")).hexdigest()[:12]
+
+
+def expansion_posture_warnings(settings: Any) -> list[str]:
+    """One warning per expansion flag that is ON while the repository documents it off."""
+    return [
+        f"{row['env']}=true but AGENTS.md serving invariant 3 and the config comment document "
+        f"it as off until measured ({row['name']}); record the owner decision and fingerprint "
+        "the posture before measuring follow-up quality"
+        for row in expansion_posture(settings)
+        if row["effective"]
+    ]
+
+
 def log_runtime_budget(logger: logging.Logger, settings: Any) -> None:
     """Log the budget table and the capacity line. Never raises."""
     try:
         for warning in serving_gate_warnings(settings):
             logger.warning("Serving gate posture: %s", warning)
+        for warning in expansion_posture_warnings(settings):
+            logger.warning("Context expansion posture: %s", warning)
         table = " ".join(f"{row['name']}={row['value']}" for row in llm_budget_table(settings))
         logger.info("LLM budget table: %s", table)
         cap = capacity_snapshot(settings)
         logger.info("Capacity: %s", " ".join(f"{k}={v}" for k, v in cap.items()))
+        posture = " ".join(
+            f"{row['name']}={'on' if row['effective'] else 'off'}"
+            for row in expansion_posture(settings)
+        )
+        logger.info(
+            "Context expansion posture: %s fingerprint=%s",
+            posture,
+            expansion_posture_fingerprint(settings),
+        )
     except (
         TypeError,
         ValueError,

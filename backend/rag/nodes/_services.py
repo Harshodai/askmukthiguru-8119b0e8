@@ -75,7 +75,6 @@ def init_services(
             missing.append("qdrant")
         raise ValueError(f"init_services: missing services: {', '.join(missing)}")
 
-    from rag.resolve_followup import set_ollama as set_followup_ollama
     from services.lettuce_detect_service import LettuceDetectService
     from services.reranker_service import RerankerService
 
@@ -110,9 +109,6 @@ def init_services(
         _reranker = RerankerService()
     if _lettuce_detect is None:
         _lettuce_detect = LettuceDetectService(embedder)
-
-    # Inject ollama into follow-up resolver
-    set_followup_ollama(ollama)
 
     # Prime the YAML-driven SemanticRouter (Phase A — de-hardcoding).
     # The router replaces the hardcoded keyword lists (`_CAPABILITY_PATTERNS`,
