@@ -2175,7 +2175,8 @@
       "syncHistory": "Sync Chat History",
       "syncHistoryDesc": "Allow messages exchanged on WhatsApp to be visible in your web history.",
       "spiritualMemory": "Spiritual Journey Memory",
-      "spiritualMemoryDesc": "Allow WhatsApp reflections to enrich your spiritual profile and tailored practices."
+      "spiritualMemoryDesc": "Allow WhatsApp reflections to enrich your spiritual profile and tailored practices.",
+      "unavailable": "WhatsApp service temporarily unavailable"
     },
     "devotedSeeker": "Devoted Seeker",
     "preferences": {
