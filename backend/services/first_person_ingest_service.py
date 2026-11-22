@@ -242,6 +242,7 @@ def execute_first_person_video_ingestion(
     job_id: str,
     teacher_id: str = "both",
     collection: Optional[str] = None,
+    graph_namespace: Optional[str] = None,
     rights_cleared: bool = False,
     redis_client: Optional[Any] = None,
     on_progress: Optional[Callable[[FPJobStage, int], None]] = None,
@@ -391,6 +392,7 @@ def execute_first_person_video_ingestion(
                     video_id=video_id,
                     audio_path=resolved_wav,
                     collection_name=target_collection,
+                    graph_namespace=graph_namespace,
                 )
             )
 

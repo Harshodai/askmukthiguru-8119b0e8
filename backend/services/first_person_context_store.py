@@ -166,6 +166,7 @@ def _span_is_blocked_promise(span: SourceSpan) -> bool:
 SPAN_INDEXES: tuple[tuple[str, str], ...] = (
     ("guru_id", "keyword"),
     ("video_id", "keyword"),
+    ("ingest_namespace", "keyword"),
     ("parent_unit_id", "keyword"),
     ("source_span_id", "keyword"),
     ("record_type", "keyword"),

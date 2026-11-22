@@ -74,9 +74,15 @@ class QdrantUtils:
 
     @staticmethod
     def sparse_dict_to_vector(sparse_dict: dict) -> SparseVector:
-        """Convert bge-m3 lexical_weights dict to Qdrant SparseVector."""
+        """Convert bge-m3 lexical_weights dict or {indices, values} dict to Qdrant SparseVector."""
         if not sparse_dict:
             return SparseVector(indices=[], values=[])
+        if isinstance(sparse_dict, SparseVector):
+            return sparse_dict
+        if "indices" in sparse_dict and "values" in sparse_dict:
+            indices = [int(k) for k in sparse_dict["indices"]]
+            values = [float(v) for v in sparse_dict["values"]]
+            return SparseVector(indices=indices, values=values)
         indices = [int(k) for k in sparse_dict.keys()]
         values = [float(v) for v in sparse_dict.values()]
         return SparseVector(indices=indices, values=values)

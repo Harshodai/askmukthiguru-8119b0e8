@@ -272,3 +272,9 @@ When compacting, keep: the current task and files modified, test commands run an
 ## Subagent model routing
 
 Pass `model: "haiku"` to read-only search, locate, count and file-listing subagents (Explore, cavecrew-investigator, ecc:code-explorer). Sonnet for edits and implementation. Opus only for safety/crisis code, red-team and final independent review. Never haiku for anything that edits files or judges safety.
+
+## Local official-channel first-person shadow ingestion (2026-11-22)
+- The official source is `https://www.youtube.com/@theonenessmovement`; inventory includes both `/videos` and `/shorts`.
+- `scripts/ops/prepare_official_channel_inventory_20261122.py` is the read-only inventory/diff tool. It treats `spiritual_wisdom_contextual` as legacy-only and must not suppress first-person candidates.
+- `scripts/ops/ingest_official_channel_first_person_shadow_20261122.py` is the approved local batch runner. It targets only `first_person_v13_shadow`, uses Memgraph namespace `official_channel_shadow_20261122`, and emits draft-only OKF source manifests. It must never mutate `memory/okf/compiled.json`, serving aliases, Railway, DNS, or production flags.
+- Speaker verification remains conservative and unverified clips remain withheld; official-channel identity is not speaker verification.

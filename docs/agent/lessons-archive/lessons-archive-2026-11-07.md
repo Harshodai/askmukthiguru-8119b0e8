@@ -1,3 +1,154 @@
+## Nov 5, 2026 — Batch 7: Builder replace, schema snapshot CI, and continuous data audit (T3-04, T3-08, T3-05)
+
+### L-BUILDER-PER-VIDEO-REPLACE-1. Rebuilding a single video must purge prior points to prevent duplicate and orphaned spans.
+- **What:** Without `--replace-existing` and a pre-upsert delete by `video_id`, rebuilding an asset resulted in point duplication, broken chain continuity, and conflicting span boundaries (DATA-05).
+- **Fix:** Added `--replace-existing` to `build_full_corpus_v10.py` which scrolls existing points for the video and deletes them before new span upsert, refused empty builds with non-zero exit, and enforced taking a pre-build snapshot before the first write.
+- **Rule:** Incremental index builders must delete existing points for target asset IDs prior to upserting new spans and snapshot the collection before writing.
+
+### L-SCHEMA-SNAPSHOT-MIGRATION-LINT-1. Database schema drift originates from unchecked duplicate CREATE TABLE statements across authoring tools.
+- **What:** Mixing independent authoring tools (Lovable UUID migrations and hand-written scripts) produced 32 tables created more than once via `CREATE TABLE IF NOT EXISTS` (DATA-11), causing silent column divergence on fresh databases.
+- **Fix:** Dumped verified clean public schema to `supabase/schema_snapshot.sql`, built `scripts/guards/migration_lint.py` enforcing zero duplicate table definitions after baseline, and added `.github/workflows/supabase-schema-snapshot.yml` to diff fresh migration dumps against the committed snapshot.
+- **Rule:** All database schema changes past the baseline must be unified in a single table definition and guarded by CI schema snapshot comparison.
+
+### L-SCORECARD-PROMOTION-GATE-1. Promotion of vector corpora requires continuous data-quality gates and approved=served verification.
+- **What:** Serving collections could drift silently without continuous verification, and candidate collections could be served even while failing gating scorecard checks or declaring mismatched corpus versions (DATA-14, DATA-15, DATA-16).
+- **Fix:** Added `evaluate_promotion_gate` in `fp_data_quality_scorecard.py` (enforcing 0 BLOCKER/HIGH failures and strict clean >= 60%), added `approved_corpus_version` validation to `first_person_serving_contract.py`, extended `data_quality_audit.py` to audit first-person points (verifying digests and flagging `verified_without_method`), and wired checks into nightly CI.
+- **Rule:** Never promote a corpus without passing the data-quality scorecard, and strictly verify at startup that the served collection matches the approved release record's corpus version and signed digest.
+
+
+## Nov 5, 2026 — Batch 6: Config lint and Qdrant write governance (T2-06, T3-02)
+
+### L-CONFIG-LINT-UNDECLARED-SETTINGS-1. Unvalidated getattr(settings, ...) reads create invisible configuration debt.
+- **What:** Fourteen attributes in backend and ops scripts were read via `getattr(settings, "xxx", default)` without being declared in `app.config.Settings`. Pydantic ignored them in `.env`, so operators setting `QDRANT_TIMEOUT` or `LLM_GENERATE_TIMEOUT` saw the default silently win.
+- **Fix:** Declared all 14 fields on `Settings` with typed defaults, and built `scripts/guards/config_lint.py` + `backend/tests/test_config_lint.py` (3 passed) asserting 0 undeclared `getattr(settings, ...)` in repo code.
+- **Rule:** Every setting read in the codebase must be explicitly declared on `Settings`; never use `getattr` as a backdoor for ad-hoc configuration.
+
+### L-QDRANT-WRITE-GOVERNANCE-1. Backend service containers must never hold write credentials to vector stores.
+- **What:** Without key separation (DATA-06), any code in the serving backend could accidentally or maliciously mutate collection payloads, causing incidents like the v11 speaker re-marking.
+- **Fix:** Added `qdrant_read_only_api_key` and `qdrant_write_api_key`. Pinned `docker-compose.yml` so the backend container receives only read-only credentials, while Qdrant enforces read-only access for queries and rejects writes with 403 Forbidden.
+- **Rule:** Datastores must run with least privilege; runtime web backends receive read-only keys, while write keys are restricted to offline build/migration harnesses.
+
+### L-SERVING-CONTRACT-SIGNED-DIGEST-1. Signed collection digests prevent silent drift of vetted teaching corpora.
+- **What:** Serving contracts declared schemas and models, but could not detect out-of-band point mutations or additions to approved collections.
+- **Fix:** Added `compute_collection_digest` (deterministic SHA-256 over sorted point ID and text hashes) and wired `collection_digest` validation into `validate_serving_contract` and `assert_startup_safe`. Mismatched digests fail production startup closed.
+- **Rule:** An approved collection must be pinned by a cryptographic digest of its contents, verified before traffic is admitted.
+
+
+## Nov 5, 2026 — Batch 5: Fixture stores, outcome telemetry, and offline PR eval suite (T2-05, T2-03, T2-01)
+
+### L-OFFLINE-EVAL-GATE-1. Quality gates must never be inert in PRs: run deterministic suites in-process.
+- **What:** Without a live `BACKEND_URL`, eval gates historically skipped entirely with "This PR received no live quality proof". This left PRs unguarded against routing regressions, voice impersonations, and quote tampering.
+- **Fix:** Added `evals/pr_suite/` containing deterministic routing, benign/crisis distress, abstain null cases, quote integrity, and voice lint, wired directly into `eval-gate.yml` so every PR runs offline tests in <1s.
+- **Rule:** Every CI gate must have an in-process offline tier that exercises deterministic routing, safety pre-screens, quote integrity, and voice governance without requiring live network secrets.
+
+### L-TELEMETRY-PER-CALL-ACCOUNTING-1. Granular LLM accounting and stage latencies belong in the turn outcome.
+- **What:** Measuring cost per useful answer (SYS-011) requires per-call `prompt_id@version`, token in/out, and cost_usd, alongside stage latencies, without ever logging seeker or answer text.
+- **Fix:** Extended `TokenAccumulator` to capture individual calls, wired `OpenRouterService` to record operation metadata, and surfaced stage latencies and engagement feedback (`compute_useful_answer`) in `answer_outcome`.
+- **Rule:** Never aggregate token usage into a single opaque integer; record per-call operation and model metadata in the request context and funnel it into the failure-tolerant outcome event.
+
+### L-FIXTURE-STORE-STRICT-CI-1. Store-level contracts must run against real engine containers.
+- **What:** Mocked vector and cache clients cannot prove that Qdrant filters out unlicensed clips at retrieval time or that Redis exact-cache replay validates citation integrity on deserialize.
+- **Fix:** Added `.github/workflows/fixture-stores.yml` running real Qdrant and Redis service containers with `FIXTURE_STORES_REQUIRED=1` so an unreachable store is a hard failure, not a silent skip.
+- **Rule:** When testing rights filters and cache security invariants, execute against pinned engine containers. Locally skip gracefully if docker is absent, but fail closed in CI.
+
+
+
+## Nov 5, 2026 — T7-01 split of `FirstPersonPipeline.execute`
+
+### L-SPLIT-BY-INDENTATION-1. A behaviour-identical split is a relocation, and a relocation can be proven byte-for-byte.
+- **What:** 2,146 lines of `FirstPersonPipeline.execute` moved into 15 named methods. A method body inside a class sits at the same 8-space indentation the block already had, so each slice could be a literal cut-and-paste: only the signature, docstring, call site, the wrapper around a terminal `return` and a closing `return None` were typed by hand.
+- **Fix:** For every slice, an AST comparison of the moved body against the pre-slice file (after unwrapping the returned outcome) returned identical, and `git status` showed no golden-file change.
+- **Rule:** Split a giant function by moving contiguous regions at their existing indentation and prove each move with an AST equality check. Do not retype a body "cleanly" — a retyped move cannot be distinguished from a rewrite in review.
+
+### L-SPLIT-GOLDENS-FIRST-1. Record the goldens before the first move, and freeze them.
+- **What:** The golden module (`backend/tests/test_first_person_pipeline_golden.py`, 17 scenarios) was recorded on the untouched function and never re-recorded. Any behavioural drift would have appeared as a JSON diff in `git status`.
+- **Rule:** Characterization tests come before the first extraction, their fixtures pin every flag the function reads, and a changed golden file is treated as a behaviour change, not an expected update.
+
+### L-SPLIT-SHARED-LOCALS-1. Enumerate a block's free variables before moving it, and mind the ones it *writes*.
+- **What:** Most extracted steps read execute's locals; a few also wrote them — `_ans_box` (a tri-state dict), the `fp_llm_tokens` list, `_ans_future`, `verified_clips`, `early_verdict`. Missing a write would have silently changed a later step.
+- **Fix:** Free-variable extraction (`ast` walk over the block) plus a separate list of the names the block assigns, before writing the signature. Mutable objects travel as parameters; plain values come back in a small outcome dataclass.
+- **Rule:** Never infer a parameter list from a grep of names — compute loaded-minus-assigned for the exact block, and decide per name whether it is read, written, or both.
+
+### L-SPLIT-EXIT-PARITY-1. Every early return is a behaviour, and each one needs the same output shape.
+- **What:** The steps contain ten terminal exits (crisis, topic rail, contract, cache replay, compound, harness abstain, answerability NO/indeterminate, retrieval error, relevance below minimum, zero candidates). All of them are covered by the matrix and all of them had to keep their exact answer text, reason code and stage timings.
+- **Rule:** Count the early returns before a split and map each to a golden scenario; a split that changes one branch's returned shape is a behaviour change even if the happy path is identical.
+
+
+## Nov 4, 2026 — Remediation batches: CI, telemetry and agent orchestration
+
+### L-INTENDED-CHANGE-BREAKS-OLD-TESTS-1. Changing a safety default breaks tests that encoded the old default.
+- **What:** T1-05 (fail-closed teaching route) and SEC-010 (redacted public `/api/health`) broke 15 existing tests (12,480 passed) that asserted the old fall-through and the full health payload.
+- **Fix:** Each test was classified as "intended change" and updated with a task-ID comment; the old behaviour stays asserted only behind its rollback flag.
+- **Rule:** Before pushing a default change, `rg` for tests asserting the old behaviour and decide per test: intended change (update with a task-ID comment) or regression (fix the code).
+
+### L-FORMAT-AND-HOOKS-BEFORE-PUSH-1. Agent commits failed CI on formatting, not logic.
+- **What:** "Backend Lint & Test" failed only on `ruff format --check` (12 files), and "Validate Pre-commit Hooks" on trailing whitespace and missing end-of-file newlines.
+- **Rule:** Run `ruff format --check` with the CI version and the pre-commit whitespace/end-of-file hooks on changed files before every push. Keep ops-script twins byte-identical after formatting.
+
+### L-HASH-PINNED-EVIDENCE-1. A pinned evidence file cannot be edited without re-pinning it everywhere.
+- **What:** The rights register copied into the backend images contains the owner's `/Users/...` paths, but its sha256 is pinned in `backend/config/first_person_public_release_gate.json`, `backend/config/first_person_local_review.json` and `scripts/guards/publication_baseline.txt`.
+- **Rule:** Scrubbing a pinned file is an owner decision that changes all pins in one commit. Check for pins (`rg` the file name and its digest) before editing any evidence file.
+
+### L-TELEMETRY-EVERY-TERMINAL-PATH-1. An outcome event at one assembly point misses early returns.
+- **What:** The new `answer_outcome` record is emitted in `ResultAssemblyStage`; exact-cache and doctrine-cache hits return earlier and emit nothing, so `cache_hit` is always false.
+- **Rule:** Emit outcome telemetry from every terminal path, or from one wrapper around the whole pipeline. Never put text or identity in the record.
+
+### L-LEAD-CONTEXT-COST-1. A large lead context makes every orchestration turn expensive.
+- **What:** With ~700K tokens of context, each lead turn cost about one dollar; background pollers and per-agent notifications multiplied that.
+- **Fix:** Cheaper-model agents in isolated worktrees with disjoint files; agents fetch, rebase their own commit and push (never force); stop pollers that only wake the lead.
+- **Rule:** Keep the lead for decisions and integration. Delegate reading and coding, and batch wake-ups.
+
+
+## Nov 4, 2026 — Architecture audit and first remediation batches
+
+### L-RELEASE-GATE-CLEAN-CHECKOUT-1. A release status is the output of a command on a clean checkout.
+- **What:** Commit `26209a3b` recorded "24/24" while CI on the same tree computed `OWNER_ACTION_REQUIRED`; the gold check depended on two gitignored annotator sheets, and the repository test had been edited to expect the wanted status.
+- **Fix:** T0-04 restored the computed assertion; T1-11 hardened the gate (independence, SHA ancestry, human certifiers, helpline age, scope-versus-note conflicts).
+- **Rule:** Never edit a gate test to match a desired status. If CI and a laptop disagree, the laptop depends on untracked evidence.
+
+### L-GOLD-INDEPENDENCE-1. Self-described non-independent labels are not gold.
+- **What:** The 303-row "gold" reports say `independent_review: false` and `curated_consensus_alignment`, with agreement and kappa exactly 1.0; the calibration profile is still the n=14 pilot.
+- **Rule:** Gold means two independent humans, recomputed agreement, and an adjudication record. Perfect agreement over hundreds of items is a red flag, not a pass.
+
+### L-DISTRESS-TOPIC-VS-STATE-1. Asking about anxiety is not being in distress.
+- **What:** "What is the cause of my anxiety?" matches the MODERATE regex (`serene_mind_engine.py` ~368); the bridge declines and the seeker gets a template with helplines, no teaching. MILD always upgrades to MODERATE, and topic words in history can escalate to SEVERE.
+- **Rule:** Separate topic from state before routing to the distress lane. Any change needs clinician-reviewed sets and written sign-off (T4-04); never weaken SEVERE handling.
+
+### L-KILL-SWITCH-FAIL-OPEN-1. Turning the first-person bridge off must not turn generation on.
+- **What:** With the bridge flag off, teaching questions fell through to the generating "warm Guru" prompt.
+- **Fix:** T1-05 adds `teaching_generation_allowed()`; bridge off or node faults now return a static abstain (`fp_disabled`, `fp_node_error`) unless `FIRST_PERSON_LLM_FALLBACK_ENABLED=true` is set deliberately.
+- **Rule:** Every kill switch must fail toward the safe lane. Test the switch itself.
+
+### L-VACUOUS-ANON-TEST-1. A gate test that never reaches the gate passes for the wrong reason.
+- **What:** New consent tests passed the user id as the third positional argument (`preferred_lang`), so every call ran anonymous, the gated block was skipped, and the "no consent" test passed vacuously.
+- **Rule:** Every gate test pairs the negative case with a positive case that proves the gated branch runs. Pass identity by keyword.
+
+### L-DOCS-DRIFT-CODE-WINS-1. Agent guidance drifted from code in at least five places.
+- **What:** Stage order, default served collection (v8 at code defaults), LLM calls per turn (3), relevance-scorer timeout (12/15/25 s across sources) and the CancelFlow status all differed between documents and code. An independent review refuted 1 of 16 specialist claims and partly corrected 5.
+- **Rule:** Code is the truth. Put a code-backed check behind any documented invariant, and run an independent read-only review before acting on an audit.
+
+### L-REPLACE-BEFORE-REMOVE-1. The churn funnel is the only UI path to account deletion.
+- **What:** `ProfilePage.tsx` → `AccountDataCard` → `CancelFlow` is the only way to reach `delete-my-account`; scheduled deletions never run.
+- **Rule:** Ship the direct deletion path first, then remove the funnel (T1-12, owner decision D-19).
+
+### L-PARALLEL-WORKTREE-AGENTS-1. Disjoint files and one commit per task make parallel agents safe.
+- **What:** Six Sonnet agents in isolated worktrees produced 19 task commits that cherry-picked onto one branch with zero conflicts. The full backend requirements install did not finish within 30 minutes in the cloud container, so most backend tests ran only in CI.
+- **Rule:** Assign disjoint file sets, integrate in a fixed order, run guards on the integrated branch, and treat CI as the full-suite verifier when a local install is impractical.
+
+
+## Nov 4, 2026 — First-person editorial evidence ordering and safety-policy versioning
+
+### L-FP-EDITORIAL-EVIDENCE-ORDER-1. Editorial citation grouping must preserve source identity and parent-local order.
+- **What:** Grouping spans by video alone can join unrelated parent units, speakers, unverified attributions, or noncontiguous excerpts into text that looks like one continuous teaching.
+- **Fix:** Require a canonical YouTube ID that agrees with the citation URL, the same parent unit, teacher/speaker identity and verification state, and adjacent parent-local `source_span_index` values. Sort spans by that index. Keep different parents, gaps, source videos, identities, and conflicting positions as separately attributed cards; carry weak/conflicted labels in UI metadata, never inside the quote.
+- **Rule:** Frontend evidence grouping is a display convenience, not a semantic stitcher. A missing or mismatched identity fails closed to ungrouped citations.
+
+### L-FP-SAFETY-QUESTION-TAIL-VERSION-1. Exercise exact rhetorical forms and version every decision change.
+- **What:** A broader rhetorical-question detector matched `How can we ...?` but missed `Why should we ...?`; a neighboring regex looked plausible but required the question mark immediately after `we/you`.
+- **Fix:** Test each intended modal/subject/tail form through both the safety policy and the shared evidence-policy facade. Bump `SAFETY_POLICY_VERSION` whenever detector behavior changes so exact-cache fingerprints cannot reuse stale decisions.
+- **Rule:** Regex comments and names do not prove behavior; pin the full phrase matrix with end-to-end facade assertions.
+
+
 ## Nov 3, 2026 — Docker Stack Stale Image Rebuild, Serene Mind Authentic Voice & Context Harness Multi-Span Serving
 
 ### L-DOCKER-FRONTEND-STALE-REBUILD-1. Containerized SPAs served behind reverse proxies (Nginx) must be explicitly rebuilt and redeployed whenever client assets or API contracts change, or seekers will experience silent drift between the live backend and stale frontend images.

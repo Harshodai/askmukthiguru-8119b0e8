@@ -205,7 +205,13 @@ def retry_with_backoff(max_retries=3, initial_delay=1):
 class QdrantIndexer:
     """Handles chunk upsert, source-level deletion, backup, and counts."""
 
-    def __init__(self, client: QdrantClient, collection: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        client: QdrantClient,
+        collection: Optional[str] = None,
+        dense_vector_name: Optional[str] = None,
+        sparse_vector_name: Optional[str] = None,
+    ) -> None:
 
         self._client = client
         if collection:
@@ -214,6 +220,58 @@ class QdrantIndexer:
             # Use tenant context for collection name to support multi-tenancy
             self._collection = get_tenant_collection(settings.qdrant_collection)
         self._utils = QdrantUtils()
+        self._dense_vector_name = dense_vector_name
+        self._sparse_vector_name = sparse_vector_name
+
+    def _get_vector_names(self) -> tuple[Optional[str], Optional[str]]:
+        """Resolve (dense_name, sparse_name) for points in this collection.
+
+        If dense_name is None, collection uses an unnamed vector (single vector).
+        If dense_name is a string (e.g. 'dense', 'passage_dense'), named vectors are used.
+        """
+        dense_name = getattr(self, "_dense_vector_name", None)
+        sparse_name = getattr(self, "_sparse_vector_name", None)
+        if dense_name is not None:
+            return dense_name, sparse_name
+
+        dense_name = "dense"
+        sparse_name = "sparse"
+        collection_name = getattr(self, "_collection", None) or ""
+        try:
+            info = self._client.get_collection(collection_name)
+            params = getattr(getattr(info, "config", None), "params", None)
+            if params:
+                vectors = getattr(params, "vectors", None)
+                if isinstance(vectors, dict):
+                    if "passage_dense" in vectors:
+                        dense_name = "passage_dense"
+                    elif "dense" in vectors:
+                        dense_name = "dense"
+                    elif vectors:
+                        dense_name = next(iter(vectors.keys()))
+                elif vectors is not None:
+                    dense_name = None
+
+                sparse_vectors = getattr(params, "sparse_vectors", None)
+                if isinstance(sparse_vectors, dict):
+                    if "passage_sparse" in sparse_vectors:
+                        sparse_name = "passage_sparse"
+                    elif "sparse" in sparse_vectors:
+                        sparse_name = "sparse"
+                    elif sparse_vectors:
+                        sparse_name = next(iter(sparse_vectors.keys()))
+                elif sparse_vectors is None:
+                    sparse_name = None
+        except Exception:
+            if collection_name and (
+                "first_person" in collection_name or "fp_context" in collection_name
+            ):
+                dense_name = "passage_dense"
+                sparse_name = "passage_sparse"
+
+        self._dense_vector_name = dense_name
+        self._sparse_vector_name = sparse_name
+        return dense_name, sparse_name
 
     @enforce_multitenancy
     @retry_with_backoff(max_retries=3)
@@ -356,17 +414,21 @@ class QdrantIndexer:
                     sparse_vectors[i] if i < len(sparse_vectors) else {} for i in keep_unique
                 ]
 
+        dense_name, sparse_name = self._get_vector_names()
         points = []
         for i, (text, vector, meta, point_id) in enumerate(
             zip(texts, vectors, metadatas, point_ids)
         ):
-            # Build named vector dict
-            vector_dict = {"dense": vector}
-            if sparse_vectors and i < len(sparse_vectors):
-                sparse_vec = sparse_vectors[i]
-                # Only include sparse if it has meaningful data to avoid 400 Bad Request
-                if sparse_vec and (len(sparse_vec.get("indices", [])) > 0 or len(sparse_vec) > 0):
-                    vector_dict["sparse"] = self._utils.sparse_dict_to_vector(sparse_vec)
+            # Build vector payload (named vs unnamed single vector)
+            if dense_name is None:
+                vector_dict = vector
+            else:
+                vector_dict = {dense_name: vector}
+                if sparse_vectors and i < len(sparse_vectors) and sparse_name:
+                    sparse_vec = sparse_vectors[i]
+                    # Only include sparse if it has meaningful data to avoid 400 Bad Request
+                    if sparse_vec and (len(sparse_vec.get("indices", [])) > 0 or len(sparse_vec) > 0):
+                        vector_dict[sparse_name] = self._utils.sparse_dict_to_vector(sparse_vec)
 
             # `phonetic_tokens` is no longer written. It existed to feed a
             # phonetic prefetch in QdrantSearcher that was removed for latency

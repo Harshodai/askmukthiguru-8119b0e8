@@ -497,3 +497,8 @@ The sandbox has no `pytest` or `pydantic-settings`. Do not install packages for 
 - The observed 30-minute memory averages were approximately 8.07 GB backend, 2.45 GB Neo4j, and 154 MB worker. Do not reduce worker concurrency without queue/SLA evidence.
 - Graph parallelization overlaps vector and graph calls but does not automatically reduce billable work. Require graph-on/off cost-per-successful-answer, quality, timeout, p95/p99, and resource evidence before broadening it.
 - OpenRouter provider-reported cost, known-rate estimates, and unknown costs must remain separate. The configured Gemini generation model is not covered by the fallback-rate table; missing provider cost must never silently aggregate as zero.
+
+## Approved local official-channel first-person shadow operation (2026-11-22)
+- Source inventory: `scripts/ops/prepare_official_channel_inventory_20261122.py`; include both official Videos and Shorts. `spiritual_wisdom_contextual` is legacy-only and is never a first-person coverage signal.
+- Shadow runner: `scripts/ops/ingest_official_channel_first_person_shadow_20261122.py`; explicit Qdrant target `first_person_v13_shadow`, isolated Memgraph namespace `official_channel_shadow_20261122`, and OKF draft source manifests only. `memory/okf/compiled.json` must remain unchanged.
+- The runner may process official-channel candidates locally after owner approval, but must preserve rights-register stamping, quality-gate rejection persistence, real chunker naming, conservative speaker verification, and no public serving/alias/deployment mutations.

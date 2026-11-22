@@ -62,6 +62,7 @@ class VideoPipeline:
         video_id: Optional[str] = None,
         audio_path: Optional[str] = None,
         collection_name: Optional[str] = None,
+        graph_namespace: Optional[str] = None,
     ) -> VideoIngestResult:
         """Ingest a single video file.
 
@@ -116,6 +117,7 @@ class VideoPipeline:
                 chunker_version=chunker_version,
                 audio_path=resolved_audio,
                 collection_name=collection_name,
+                graph_namespace=graph_namespace,
             )
 
         if written == 0:
@@ -424,6 +426,7 @@ class VideoPipeline:
         chunker_version: str = "unknown_legacy",
         audio_path: Optional[str] = None,
         collection_name: Optional[str] = None,
+        graph_namespace: Optional[str] = None,
     ) -> tuple[int, list[str]]:
         """Embed and upsert chunks to Qdrant with modality:video.
 
@@ -493,9 +496,23 @@ class VideoPipeline:
             logger.warning("video_pipeline: speaker gate failed for %s: %s", source, exc)
             chunk_voice = []
 
-        embeddings = self._embedder.embed(chunks)
+        # EmbeddingService exposes ``encode_batch`` (dense + sparse), while a
+        # few lightweight callers still provide the older dense-only ``encode``
+        # or test-only ``embed`` shape. Prefer the canonical hybrid API and
+        # preserve the compatibility fallbacks without changing production
+        # vector dimensions or inventing sparse values.
+        sparse_vectors = None
+        if hasattr(self._embedder, "encode_batch"):
+            encoded = self._embedder.encode_batch(chunks)
+            vectors = encoded["dense"]
+            sparse_vectors = encoded.get("sparse")
+        elif hasattr(self._embedder, "encode"):
+            vectors = self._embedder.encode(chunks)
+        elif hasattr(self._embedder, "embed"):
+            vectors = self._embedder.embed(chunks)
+        else:
+            raise TypeError("embedding service must expose encode_batch(), encode(), or embed()")
         texts = chunks
-        vectors = embeddings
         # Rights are resolved once per file, from the curated register, and fail
         # closed to "unverified". A caller must never overwrite this with a
         # hardcoded "licensed" (X40: register -> stamp -> filter -> enforce).
@@ -521,13 +538,20 @@ class VideoPipeline:
                 "parent_id_scheme": "url_hash",
                 "modality": "video",
                 "rights_status": rights_status,
+                "domain_rights_status": rights_status,
                 "content_hash": content_hash,
                 "point_id": point_id,
                 "video_id": video_id,
+                "ingest_namespace": graph_namespace or "default",
                 # D2 timing: real ASR bounds when known, None otherwise. Never
                 # interpolated — the speaker gate reads these same bounds.
                 "chunk_start": chunk_starts[i] if chunk_starts and i < len(chunk_starts) else None,
                 "chunk_end": chunk_ends[i] if chunk_ends and i < len(chunk_ends) else None,
+                "start_ms": int(chunk_starts[i] * 1000) if (chunk_starts and i < len(chunk_starts) and chunk_starts[i] is not None) else None,
+                "end_ms": int(chunk_ends[i] * 1000) if (chunk_ends and i < len(chunk_ends) and chunk_ends[i] is not None) else None,
+                "verbatim_text": chunk,
+                "is_verbatim": True,
+                "provenance_kind": "speech_turn_clip",
             }
             if chunk_voice and i < len(chunk_voice) and chunk_voice[i]:
                 metadata.update(chunk_voice[i])
@@ -555,36 +579,44 @@ class VideoPipeline:
             texts=texts,
             vectors=vectors,
             metadatas=metadatas,
+            sparse_vectors=sparse_vectors,
             replace_source_url=source,
         )
         logger.info("Upserted %d video chunks to %s via QdrantIndexer", written, target_collection)
 
         # Best-effort Memgraph dual-write for relational ontology
         try:
-            from app.container import ServiceContainer
+            from app.dependencies import get_container
 
-            container = ServiceContainer()
+            container = get_container()
             memgraph_driver = getattr(container, "memgraph_driver", None)
             if memgraph_driver:
                 with memgraph_driver.session() as session:
+                    graph_video_id = (
+                        f"{graph_namespace}:{video_id or source}"
+                        if graph_namespace else str(video_id or source)
+                    )
                     session.run(
                         "MERGE (v:Video {video_id: $video_id}) "
-                        "SET v.title = $title, v.speaker = $speaker, v.source_url = $source_url",
-                        video_id=str(video_id or source),
+                        "SET v.title = $title, v.speaker = $speaker, v.source_url = $source_url, "
+                        "v.ingest_namespace = $ingest_namespace",
+                        video_id=graph_video_id,
                         title=str(title or ""),
                         speaker=str(speaker or "Unknown"),
                         source_url=str(source),
+                        ingest_namespace=graph_namespace or "default",
                     )
                     for meta in metadatas:
                         session.run(
-                            "CREATE (tu:TeachingUnit {point_id: $point_id, text: $text, chunk_index: $chunk_index, rights: $rights}) "
+                            "CREATE (tu:TeachingUnit {point_id: $point_id, text: $text, chunk_index: $chunk_index, rights: $rights, ingest_namespace: $ingest_namespace}) "
                             "WITH tu MATCH (v:Video {video_id: $video_id}) "
                             "MERGE (v)-[:HAS_TEACHING_UNIT]->(tu)",
                             point_id=meta.get("point_id"),
                             text=meta.get("text", "")[:250],
                             chunk_index=meta.get("chunk_index", 0),
                             rights=meta.get("rights_status"),
-                            video_id=str(video_id or source),
+                            video_id=graph_video_id,
+                            ingest_namespace=graph_namespace or "default",
                         )
                 logger.info("Indexed %d TeachingUnits in Memgraph for video %s", len(metadatas), video_id)
         except Exception as mg_exc:

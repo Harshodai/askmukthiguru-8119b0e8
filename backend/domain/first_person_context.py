@@ -189,6 +189,8 @@ class SourceSpan(BaseModel):
 
     schema_version: Literal["fp-context-v1", "fp-context-v2"] = SCHEMA_VERSION
     corpus_version: str = Field(min_length=1)
+    # Operational isolation tag for shadow batches; None preserves historical payloads.
+    ingest_namespace: str | None = None
     guru_id: str = Field(min_length=1)
     video_id: str = Field(min_length=1)
     source_asset_id: str = Field(min_length=1)
@@ -219,6 +221,9 @@ class SourceSpan(BaseModel):
     span_text_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     video_transcript_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     is_verbatim: Literal[True] = True
+    first_person_eligible: bool = True
+    # X40: payload must name the actual chunker; legacy payloads remain honest.
+    chunker_version: str = "unknown_legacy"
     boundary_status: BoundaryStatus
     completeness_status: CompletenessStatus
     rights_cleared: bool
@@ -292,6 +297,13 @@ class SourceSpan(BaseModel):
     # could hash (a payload carry-over).
     source_artifact_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
+    @field_validator("ingest_namespace")
+    @classmethod
+    def _namespace_must_not_be_blank(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("ingest_namespace must be non-empty when supplied")
+        return value
+
     @field_validator("end_ms")
     @classmethod
     def _end_after_start(cls, value: int, info: Any) -> int:
@@ -356,6 +368,8 @@ class SourceSpan(BaseModel):
 
     def to_payload(self) -> dict[str, Any]:
         payload = self.model_dump(mode="json")
+        if self.ingest_namespace is None:
+            payload.pop("ingest_namespace", None)
         payload["record_type"] = "retrieval_child"
         if self.schema_version == SCHEMA_VERSION_V2:
             if not payload.get("span_text_sha256") and self.source_text_hash:
@@ -402,6 +416,8 @@ class ParentUnit(BaseModel):
 
     schema_version: Literal["fp-context-v1"] = SCHEMA_VERSION
     corpus_version: str = Field(min_length=1)
+    # Operational isolation tag for shadow batches; None preserves historical payloads.
+    ingest_namespace: str | None = None
     guru_id: str = Field(min_length=1)
     video_id: str = Field(min_length=1)
     parent_unit_id: str = Field(min_length=1)
@@ -419,6 +435,13 @@ class ParentUnit(BaseModel):
     tags: tuple[str, ...] = ()
     category: str | None = None
 
+    @field_validator("ingest_namespace")
+    @classmethod
+    def _namespace_must_not_be_blank(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("ingest_namespace must be non-empty when supplied")
+        return value
+
     @model_validator(mode="after")
     def _ordered_spans_unique(self) -> ParentUnit:
         if len(set(self.ordered_source_span_ids)) != len(self.ordered_source_span_ids):
@@ -429,6 +452,8 @@ class ParentUnit(BaseModel):
 
     def to_payload(self) -> dict[str, Any]:
         payload = self.model_dump(mode="json")
+        if self.ingest_namespace is None:
+            payload.pop("ingest_namespace", None)
         payload["record_type"] = "parent_unit"
         return payload
 
