@@ -32,13 +32,21 @@ from app.dependencies import ServiceContainer, get_container_async
 from services.auth_service import get_current_user_from_supabase
 from services.whatsapp_service import (
     CRISIS_HELPLINE_COPY,
+    build_meta_interactive_buttons,
     clean_phone,
+    clear_whatsapp_session,
     create_link_challenge,
     format_whatsapp_message,
     get_account_link_by_phone,
     get_link_status,
+    hash_phone,
+    is_whatsapp_ai_paused,
     likely_crisis,
     mask_phone,
+    optout_account_by_phone,
+    pause_whatsapp_ai,
+    resume_account_by_phone,
+    resume_whatsapp_ai,
     unlink_account,
     update_link_consent,
     validate_meta_signature,
@@ -151,6 +159,17 @@ async def meta_webhook_receiver(
         for change in changes:
             val = change.get("value") or {}
             phone_number_id = (val.get("metadata") or {}).get("phone_number_id", "")
+            configured_phone_id = (
+                getattr(settings, "meta_phone_number_id", "")
+                or os.environ.get("META_PHONE_NUMBER_ID", "")
+            ).strip()
+            if configured_phone_id and phone_number_id and str(phone_number_id).strip() != configured_phone_id:
+                logger.warning(
+                    "Mismatched phone_number_id rejected: received=%s, configured=%s",
+                    phone_number_id,
+                    configured_phone_id,
+                )
+                continue
 
             # 1. Status / Delivery callbacks
             statuses = val.get("statuses") or []
@@ -197,18 +216,26 @@ async def meta_webhook_receiver(
                     logger.info("Ignoring duplicate WhatsApp message %s", wamid)
                     continue
 
-                if msg_type != "text":
+                text_body = ""
+                if msg_type == "interactive":
+                    interactive_obj = msg.get("interactive") or {}
+                    reply_obj = interactive_obj.get("button_reply") or interactive_obj.get("list_reply") or {}
+                    text_body = (reply_obj.get("id") or reply_obj.get("title") or "").strip()
+                    logger.info("WhatsApp interactive reply received: %s from %s", text_body, mask_phone(from_number))
+                elif msg_type == "text":
+                    text_body = ((msg.get("text") or {}).get("body") or "").strip()
+                else:
                     logger.info("Non-text WhatsApp message (%s) from %s", msg_type, mask_phone(from_number))
                     continue
 
-                text_body = ((msg.get("text") or {}).get("body") or "").strip()
                 if not text_body:
                     continue
 
                 clean_from = clean_phone(from_number)
+                p_hash = hash_phone(clean_from)
                 upper_body = text_body.upper().strip()
 
-                # A. Immediate Privacy Commands
+                # A. Immediate Privacy & Coexistence Commands
                 db = getattr(container, "supabase_client", None)
                 base_url = getattr(settings, "whatsapp_link_base_url", "https://askmukthiguru.com").rstrip("/")
 
@@ -239,6 +266,12 @@ async def meta_webhook_receiver(
 
                 if upper_body in ("STOP", "OPTOUT", "UNSUBSCRIBE"):
                     logger.info("WhatsApp user %s sent STOP", mask_phone(clean_from))
+                    if db:
+                        try:
+                            await optout_account_by_phone(db, clean_from)
+                        except Exception as e:
+                            logger.error("Failed persisting STOP opt-out: %s", e)
+                    clear_whatsapp_session(p_hash)
                     stop_msg = (
                         "🛑 You have opted out of AskMukthiGuru messages on WhatsApp. "
                         "No further automated messages will be sent. Send START at any time to resume."
@@ -248,9 +281,36 @@ async def meta_webhook_receiver(
                     continue
 
                 if upper_body in ("RESET", "CLEAR"):
+                    clear_whatsapp_session(p_hash)
                     reset_msg = "🧹 Fresh page. Your WhatsApp conversation context has been reset. What would you like to ask?"
                     from tasks.whatsapp_tasks import _send_meta_outbound
                     _send_meta_outbound(phone_number_id, clean_from, reset_msg)
+                    continue
+
+                # Human Coexistence Handoff: Pause automated AI for 60 min to let phone app operator reply directly
+                if upper_body in ("HUMAN", "SUPPORT", "AGENT", "HELP_HUMAN", "BTN_HUMAN"):
+                    pause_whatsapp_ai(p_hash, duration_seconds=3600)
+                    human_msg = (
+                        "🤝 *Connecting you to a Guide / Team Member*\n\n"
+                        "Automated AI responses are paused for the next 60 minutes so our team can personally assist you directly on this chat.\n\n"
+                        "To resume automated wisdom guidance sooner at any point, simply send *RESUME*."
+                    )
+                    from tasks.whatsapp_tasks import _send_meta_outbound
+                    _send_meta_outbound(phone_number_id, clean_from, human_msg)
+                    continue
+
+                if upper_body in ("RESUME", "BTN_RESUME"):
+                    resume_whatsapp_ai(p_hash)
+                    resume_msg = (
+                        "🙏 Welcome back! Automated guidance has been resumed. What reflection or inquiry is on your mind?"
+                    )
+                    from tasks.whatsapp_tasks import _send_meta_outbound
+                    _send_meta_outbound(phone_number_id, clean_from, resume_msg)
+                    continue
+
+                # If AI is currently paused for human coexistence, ignore inbound turns
+                if is_whatsapp_ai_paused(p_hash):
+                    logger.info("WhatsApp AI paused for human coexistence on %s; ignoring turn", mask_phone(clean_from))
                     continue
 
                 if upper_body in ("HELP", "INFO"):
@@ -259,12 +319,39 @@ async def meta_webhook_receiver(
                         "Ask any question regarding meditation, spiritual teachings, or inner peace.\n\n"
                         "• *LINK*: Connect your WhatsApp with your AskMukthiGuru web account.\n"
                         "• *RESET*: Clear active conversation context.\n"
+                        "• *HUMAN*: Pause AI to speak with a human team member.\n"
                         "• *STOP*: Opt out from automated messages.\n\n"
-                        "For urgent support, call Tele-MANAS at *14416* (24/7, India)."
+                        "For urgent crisis support, call Tele-MANAS at *14416* (24/7, toll-free India)."
                     )
                     from tasks.whatsapp_tasks import _send_meta_outbound
                     _send_meta_outbound(phone_number_id, clean_from, help_msg)
                     continue
+
+                # Interactive Quick Menu
+                if upper_body in ("MENU", "OPTIONS"):
+                    buttons = [
+                        ("btn_ask", "Ask a Question"),
+                        ("btn_practice", "Today's Practice"),
+                        ("btn_human", "Human Help"),
+                    ]
+                    btn_payload = build_meta_interactive_buttons(
+                        to_number=clean_from,
+                        header_text="🙏 AskMukthiGuru Menu",
+                        body_text="Choose an option below or type your spiritual question directly:",
+                        buttons=buttons,
+                    )
+                    from tasks.whatsapp_tasks import _send_meta_interactive
+                    _send_meta_interactive(phone_number_id, btn_payload)
+                    continue
+
+                if upper_body in ("BTN_ASK", "ASK A QUESTION"):
+                    prompt_msg = "Please type any question you have on meditation, relationships, stress, or spiritual teachings from Sri Preethaji and Sri Krishnaji."
+                    from tasks.whatsapp_tasks import _send_meta_outbound
+                    _send_meta_outbound(phone_number_id, clean_from, prompt_msg)
+                    continue
+
+                if upper_body in ("BTN_PRACTICE", "TODAY'S PRACTICE"):
+                    text_body = "Can you share today's 3-minute Soul Sync meditation practice?"
 
                 # B. Crisis Preemption
                 if likely_crisis(text_body):
@@ -274,7 +361,6 @@ async def meta_webhook_receiver(
                     continue
 
                 # C. Account Linking Verification Gate
-                # Inbound spiritual conversations require web authentication to preserve seeker identity & memory
                 is_linked = False
                 if db:
                     try:
@@ -312,14 +398,28 @@ async def meta_webhook_receiver(
 
                 # D. Connected/Returning Greetings
                 if upper_body in ("START", "CONFIRM"):
-                    welcome_msg = (
-                        "🙏 *Welcome to AskMukthiGuru!*\n\n"
-                        "Your WhatsApp is connected to your AskMukthiGuru account. "
-                        "You can now ask questions on meditation, inner peace, and spiritual teachings—just like on our website.\n\n"
-                        "What reflection or inquiry is on your mind today?"
+                    if db:
+                        try:
+                            await resume_account_by_phone(db, clean_from)
+                        except Exception as e:
+                            logger.debug("Resume status note: %s", e)
+                    buttons = [
+                        ("btn_ask", "Ask a Question"),
+                        ("btn_practice", "Today's Practice"),
+                        ("btn_human", "Human Help"),
+                    ]
+                    welcome_btn_payload = build_meta_interactive_buttons(
+                        to_number=clean_from,
+                        header_text="🙏 Welcome to AskMukthiGuru",
+                        body_text=(
+                            "Your WhatsApp is connected to your AskMukthiGuru account.\n\n"
+                            "You can now ask questions on meditation, inner peace, and spiritual teachings—just like on our website.\n\n"
+                            "Choose an option below or type your inquiry directly:"
+                        ),
+                        buttons=buttons,
                     )
-                    from tasks.whatsapp_tasks import _send_meta_outbound
-                    _send_meta_outbound(phone_number_id, clean_from, welcome_msg)
+                    from tasks.whatsapp_tasks import _send_meta_interactive
+                    _send_meta_interactive(phone_number_id, welcome_btn_payload)
                     continue
 
                 # E. Dispatch to Celery for Durable Execution
@@ -492,6 +592,13 @@ async def disconnect_account(
     user_id = user.get("id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Authentication required")
+
+    try:
+        link_status = await get_link_status(db, user_id)
+        if link_status.get("masked_phone"):
+            clear_whatsapp_session(user_id)
+    except Exception as exc:
+        logger.debug("Unlink session clearing note: %s", exc)
 
     success = await unlink_account(db, user_id)
     return {"success": success, "status": "unlinked"}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, ShieldCheck, CheckCircle2, ArrowRight, Loader2, LogOut } from 'lucide-react';
+import { MessageSquare, ShieldCheck, CheckCircle2, ArrowRight, Loader2, LogOut, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -25,6 +25,7 @@ export const WhatsAppCard = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<LinkStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUnavailable, setIsUnavailable] = useState(false);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
@@ -51,6 +52,8 @@ export const WhatsAppCard = () => {
   }, []);
 
   const fetchStatus = async (token: string) => {
+    setLoading(true);
+    setIsUnavailable(false);
     try {
       const res = await fetch(`${BACKEND_URL}/api/whatsapp/link/status`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -58,9 +61,12 @@ export const WhatsAppCard = () => {
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
+      } else {
+        setIsUnavailable(true);
       }
     } catch (e) {
       console.error('Failed fetching WhatsApp connection status', e);
+      setIsUnavailable(true);
     } finally {
       setLoading(false);
     }
@@ -159,6 +165,23 @@ export const WhatsAppCard = () => {
           <div className="py-4 flex items-center justify-center text-xs text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
             {t('common.loading', 'Loading…')}
+          </div>
+        ) : isUnavailable ? (
+          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs space-y-2">
+            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{t('profile.whatsapp.unavailable', 'WhatsApp service temporarily unavailable')}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs h-7"
+              onClick={() => session && fetchStatus(session.access_token)}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              {t('common.retry', 'Retry')}
+            </Button>
           </div>
         ) : status?.linked ? (
           <div className="space-y-4">

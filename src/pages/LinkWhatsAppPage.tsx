@@ -33,14 +33,15 @@ export default function LinkWhatsAppPage() {
   const [linking, setLinking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
 
-  // Initial DPDP consents selected on confirmation
-  const [initialSyncConsent, setInitialSyncConsent] = useState(true);
-  const [initialMemoryConsent, setInitialMemoryConsent] = useState(true);
+  // Initial DPDP consents selected on confirmation — MUST start unchecked (false) by default
+  const [initialSyncConsent, setInitialSyncConsent] = useState(false);
+  const [initialMemoryConsent, setInitialMemoryConsent] = useState(false);
   const [justLinked, setJustLinked] = useState(false);
 
   // Current connection state
   const [status, setStatus] = useState<LinkStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [isUnavailable, setIsUnavailable] = useState(false);
   const [updatingConsent, setUpdatingConsent] = useState(false);
 
   // Extract challenge token from hash #code=... or query ?code=...
@@ -59,6 +60,10 @@ export default function LinkWhatsAppPage() {
       sessionStorage.setItem("intendedPath", `/link-whatsapp#code=${token}`);
       sessionStorage.setItem("auth_redirect_path", `/link-whatsapp#code=${token}`);
       sessionStorage.setItem("pending_whatsapp_token", token);
+      // Strip token from browser address bar immediately to prevent history/referrer leakage
+      if (typeof window !== "undefined" && window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     } else {
       const savedToken = sessionStorage.getItem("pending_whatsapp_token");
       if (savedToken) {
@@ -90,6 +95,7 @@ export default function LinkWhatsAppPage() {
 
   const fetchStatus = async (token: string) => {
     setStatusLoading(true);
+    setIsUnavailable(false);
     try {
       const res = await fetch(`${BACKEND_URL}/api/whatsapp/link/status`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -97,9 +103,12 @@ export default function LinkWhatsAppPage() {
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
+      } else {
+        setIsUnavailable(true);
       }
     } catch (e) {
       console.error("Failed fetching WhatsApp status", e);
+      setIsUnavailable(true);
     } finally {
       setStatusLoading(false);
     }
@@ -235,6 +244,32 @@ export default function LinkWhatsAppPage() {
           Connect your WhatsApp to receive teachings, practice check-ins, and continue your spiritual journey seamlessly.
         </p>
       </div>
+
+      {/* Service Unavailable Banner */}
+      {isUnavailable && (
+        <Card className="border-amber-500/30 bg-amber-500/[0.03] shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
+              <CardTitle className="text-base">WhatsApp Service Temporarily Unavailable</CardTitle>
+            </div>
+            <CardDescription className="text-xs">
+              Unable to communicate with the WhatsApp companion service. Please check your connection and retry.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => session && fetchStatus(session.access_token)}
+              disabled={statusLoading}
+            >
+              {statusLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              Retry Connection
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Case 1: Unauthenticated */}
       {!session ? (

@@ -462,22 +462,221 @@ def test_meta_webhook_linked_user_start_greeting(client, monkeypatch):
     }
 
     mock_db = MagicMock()
-    # Active link exists
     mock_db.table.return_value.select.return_value.eq.return_value.eq.return_value.limit.return_value.execute.return_value = MagicMock(
         data=[{"user_id": "usr-123", "status": "active"}]
     )
+    mock_db.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[{}])
     mock_container = MagicMock()
     mock_container.supabase_client = mock_db
 
     app.dependency_overrides[get_container_async] = lambda: mock_container
     try:
-        with patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
+        with patch("tasks.whatsapp_tasks._send_meta_interactive") as mock_send_interactive:
             resp = client.post("/api/whatsapp/webhook", json=payload)
             assert resp.status_code == 200
-            assert mock_send.called
-            sent_body = mock_send.call_args[0][2]
-            assert "Welcome to AskMukthiGuru!" in sent_body
-            assert "Your WhatsApp is connected to your AskMukthiGuru account" in sent_body
+            assert mock_send_interactive.called
+            call_args = mock_send_interactive.call_args[0]
+            interactive_payload = call_args[1]
+            header_text = interactive_payload["interactive"]["header"]["text"]
+            body_text = interactive_payload["interactive"]["body"]["text"]
+            assert "Welcome to AskMukthiGuru" in header_text
+            assert "Your WhatsApp is connected" in body_text
     finally:
         app.dependency_overrides.pop(get_container_async, None)
+
+
+# ---------------------------------------------------------------------------
+# Unit & Integration Tests: Message Splitting, Interactive Buttons, Coexistence & Pause
+# ---------------------------------------------------------------------------
+
+def test_split_whatsapp_message():
+    from tasks.whatsapp_tasks import _split_whatsapp_message
+
+    # 1. Short text -> 1 chunk
+    short = "This is a brief spiritual response."
+    assert _split_whatsapp_message(short, max_chars=100) == [short]
+
+    # 2. Paragraph split
+    p1 = "First teaching paragraph." * 5  # ~125 chars
+    p2 = "Second teaching paragraph." * 5  # ~130 chars
+    text = f"{p1}\n\n{p2}"
+    chunks = _split_whatsapp_message(text, max_chars=150)
+    assert len(chunks) == 2
+    assert chunks[0] == p1
+    assert chunks[1] == p2
+
+    # 3. Empty text
+    assert _split_whatsapp_message("") == []
+
+
+def test_build_meta_interactive_buttons():
+    from services.whatsapp_service import build_meta_interactive_buttons
+
+    payload = build_meta_interactive_buttons(
+        to_number="+919876543210",
+        header_text="Header Title",
+        body_text="Please select an option:",
+        buttons=[
+            ("btn_1", "Option 1"),
+            ("btn_2", "Option 2 with very long title that exceeds twenty chars"),
+            ("btn_3", "Option 3"),
+            ("btn_4", "Ignored 4th Option"),
+        ],
+    )
+    assert payload["messaging_product"] == "whatsapp"
+    assert payload["type"] == "interactive"
+    action_btns = payload["interactive"]["action"]["buttons"]
+    assert len(action_btns) == 3  # Capped at 3
+    assert action_btns[0]["reply"]["id"] == "btn_1"
+    assert action_btns[0]["reply"]["title"] == "Option 1"
+    # Title truncated to 20 chars
+    assert len(action_btns[1]["reply"]["title"]) <= 20
+    assert payload["interactive"]["header"]["text"] == "Header Title"
+
+
+def test_whatsapp_ai_pause_and_resume():
+    from services.whatsapp_service import is_whatsapp_ai_paused, pause_whatsapp_ai, resume_whatsapp_ai
+
+    fake_store = {}
+
+    class MockRedis:
+        def set(self, key, val, ex=None):
+            fake_store[key] = val
+        def exists(self, key):
+            return 1 if key in fake_store else 0
+        def delete(self, *keys):
+            for k in keys:
+                fake_store.pop(k, None)
+
+    with patch("services.whatsapp_service.get_whatsapp_redis", return_value=MockRedis()):
+        p_hash = "fake_phone_hash_12345"
+        assert is_whatsapp_ai_paused(p_hash) is False
+        pause_whatsapp_ai(p_hash, duration_seconds=3600)
+        assert is_whatsapp_ai_paused(p_hash) is True
+        resume_whatsapp_ai(p_hash)
+        assert is_whatsapp_ai_paused(p_hash) is False
+
+
+@pytest.mark.asyncio
+async def test_optout_and_resume_account_by_phone():
+    from services.whatsapp_service import optout_account_by_phone, resume_account_by_phone
+
+    mock_db = MagicMock()
+    mock_db.table.return_value.update.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"status": "opted_out"}])
+    mock_db.table.return_value.update.return_value.eq.return_value.eq.return_value.execute.return_value = MagicMock(data=[{"status": "active"}])
+
+    res_opt = await optout_account_by_phone(mock_db, "+919876543210")
+    assert res_opt is True
+
+    res_res = await resume_account_by_phone(mock_db, "+919876543210")
+    assert res_res is True
+
+
+def test_meta_webhook_human_coexistence_pause(client, monkeypatch):
+    from app.dependencies import get_container_async
+    from app.main import app
+
+    monkeypatch.setattr(settings, "meta_app_secret", "")
+
+    payload = {
+        "entry": [{
+            "changes": [{
+                "value": {
+                    "metadata": {"phone_number_id": "100200300"},
+                    "messages": [{
+                        "id": "wamid.human_req_1",
+                        "from": "919876543210",
+                        "type": "text",
+                        "text": {"body": "HUMAN"},
+                    }],
+                }
+            }]
+        }]
+    }
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container_async] = lambda: mock_container
+    try:
+        with patch("app.api.whatsapp.pause_whatsapp_ai") as mock_pause, \
+             patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
+            resp = client.post("/api/whatsapp/webhook", json=payload)
+            assert resp.status_code == 200
+            assert mock_pause.called
+            assert mock_send.called
+            sent_body = mock_send.call_args[0][2]
+            assert "Connecting you to a Guide / Team Member" in sent_body
+            assert "Automated AI responses are paused" in sent_body
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
+
+
+def test_meta_webhook_interactive_reply_received(client, monkeypatch):
+    from app.dependencies import get_container_async
+    from app.main import app
+
+    monkeypatch.setattr(settings, "meta_app_secret", "")
+
+    payload = {
+        "entry": [{
+            "changes": [{
+                "value": {
+                    "metadata": {"phone_number_id": "100200300"},
+                    "messages": [{
+                        "id": "wamid.btn_reply_1",
+                        "from": "919876543210",
+                        "type": "interactive",
+                        "interactive": {
+                            "type": "button_reply",
+                            "button_reply": {
+                                "id": "btn_human",
+                                "title": "Human Help",
+                            },
+                        },
+                    }],
+                }
+            }]
+        }]
+    }
+
+    mock_container = MagicMock()
+    app.dependency_overrides[get_container_async] = lambda: mock_container
+    try:
+        with patch("app.api.whatsapp.pause_whatsapp_ai") as mock_pause, \
+             patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
+            resp = client.post("/api/whatsapp/webhook", json=payload)
+            assert resp.status_code == 200
+            assert mock_pause.called
+            assert mock_send.called
+            sent_body = mock_send.call_args[0][2]
+            assert "Connecting you to a Guide / Team Member" in sent_body
+    finally:
+        app.dependency_overrides.pop(get_container_async, None)
+
+
+def test_meta_webhook_mismatched_phone_id_rejected(client, monkeypatch):
+    monkeypatch.setattr(settings, "meta_app_secret", "")
+    monkeypatch.setattr(settings, "meta_phone_number_id", "999888777")
+
+    payload = {
+        "entry": [{
+            "changes": [{
+                "value": {
+                    "metadata": {"phone_number_id": "100200300"},  # Mismatched ID
+                    "messages": [{
+                        "id": "wamid.spoof_1",
+                        "from": "919876543210",
+                        "type": "text",
+                        "text": {"body": "HELP"},
+                    }],
+                }
+            }]
+        }]
+    }
+
+    with patch("tasks.whatsapp_tasks._send_meta_outbound") as mock_send:
+        resp = client.post("/api/whatsapp/webhook", json=payload)
+        assert resp.status_code == 200
+        # Mismatched phone_number_id was ignored
+        assert not mock_send.called
+
 

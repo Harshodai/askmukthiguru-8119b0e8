@@ -406,3 +406,156 @@ async def get_account_link_by_phone(supabase: Any, phone: str) -> dict[str, Any]
     res = await asyncio.to_thread(_query)
     rows = getattr(res, "data", []) or []
     return rows[0] if rows else None
+
+
+async def optout_account_by_phone(supabase: Any, phone: str) -> bool:
+    """Mark WhatsApp account link as opted_out when user sends STOP."""
+    p_hash = hash_phone(phone)
+    if not p_hash or not supabase:
+        return False
+    now = datetime.now(timezone.utc).isoformat()
+
+    def _optout():
+        return (
+            supabase.table("whatsapp_account_links")
+            .update({"status": "opted_out", "updated_at": now})
+            .eq("phone_number_hash", p_hash)
+            .execute()
+        )
+
+    res = await asyncio.to_thread(_optout)
+    rows = getattr(res, "data", []) or []
+    logger.info("Opted out WhatsApp account for phone hash %s (rows affected: %d)", p_hash[:8], len(rows))
+    return len(rows) > 0
+
+
+async def resume_account_by_phone(supabase: Any, phone: str) -> bool:
+    """Restore WhatsApp account link from opted_out back to active when user sends START."""
+    p_hash = hash_phone(phone)
+    if not p_hash or not supabase:
+        return False
+    now = datetime.now(timezone.utc).isoformat()
+
+    def _resume():
+        return (
+            supabase.table("whatsapp_account_links")
+            .update({"status": "active", "updated_at": now})
+            .eq("phone_number_hash", p_hash)
+            .eq("status", "opted_out")
+            .execute()
+        )
+
+    res = await asyncio.to_thread(_resume)
+    rows = getattr(res, "data", []) or []
+    logger.info("Resumed WhatsApp account for phone hash %s (rows affected: %d)", p_hash[:8], len(rows))
+    return len(rows) > 0
+
+
+def get_whatsapp_redis():
+    """Get Redis client for WhatsApp session and pause state management."""
+    import os
+    redis_url = getattr(settings, "redis_url", None) or os.environ.get("REDIS_URL")
+    if not redis_url:
+        return None
+    try:
+        import redis
+        return redis.Redis.from_url(redis_url, decode_responses=True)
+    except Exception as exc:
+        logger.warning("Failed to initialize Redis for WhatsApp: %s", exc)
+        return None
+
+
+def pause_whatsapp_ai(phone_hash: str, duration_seconds: int = 3600) -> bool:
+    """Pause automated AI replies for phone_hash to allow manual human coexistence on phone app."""
+    r = get_whatsapp_redis()
+    if not r:
+        return False
+    try:
+        r.set(f"wa:pause:{phone_hash}", "1", ex=duration_seconds)
+        logger.info("WhatsApp AI paused for %s for %d seconds", phone_hash[:8], duration_seconds)
+        return True
+    except Exception as exc:
+        logger.warning("Failed setting WhatsApp AI pause: %s", exc)
+        return False
+
+
+def is_whatsapp_ai_paused(phone_hash: str) -> bool:
+    """Check if automated AI replies are currently paused for human handoff."""
+    r = get_whatsapp_redis()
+    if not r:
+        return False
+    try:
+        return bool(r.exists(f"wa:pause:{phone_hash}"))
+    except Exception as exc:
+        logger.warning("Failed checking WhatsApp AI pause: %s", exc)
+        return False
+
+
+def resume_whatsapp_ai(phone_hash: str) -> bool:
+    """Resume automated AI replies immediately."""
+    r = get_whatsapp_redis()
+    if not r:
+        return False
+    try:
+        r.delete(f"wa:pause:{phone_hash}")
+        logger.info("WhatsApp AI resumed for %s", phone_hash[:8])
+        return True
+    except Exception as exc:
+        logger.warning("Failed deleting WhatsApp AI pause: %s", exc)
+        return False
+
+
+def clear_whatsapp_session(phone_hash: str) -> bool:
+    """Clear conversation session cache in Redis when user sends RESET/CLEAR."""
+    r = get_whatsapp_redis()
+    if not r:
+        return False
+    try:
+        r.delete(f"wa:session:{phone_hash}", f"whatsapp:session:{phone_hash}")
+        logger.info("Cleared WhatsApp session for %s", phone_hash[:8])
+        return True
+    except Exception as exc:
+        logger.warning("Failed clearing WhatsApp session: %s", exc)
+        return False
+
+
+def build_meta_interactive_buttons(
+    to_number: str,
+    body_text: str,
+    buttons: list[tuple[str, str]],
+    header_text: str | None = None,
+    footer_text: str = "AskMukthiGuru",
+) -> dict[str, Any]:
+    """
+    Build Meta WhatsApp Cloud API interactive quick-reply button payload.
+    Supports up to 3 buttons (Meta limit).
+    buttons: list of (button_id, button_title) where title <= 20 chars, id <= 256 chars.
+    """
+    target_phone = clean_phone(to_number)
+    button_objs = [
+        {
+            "type": "reply",
+            "reply": {
+                "id": str(b_id)[:256],
+                "title": str(b_title)[:20],
+            },
+        }
+        for b_id, b_title in buttons[:3]
+    ]
+    payload: dict[str, Any] = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": target_phone,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {"text": body_text[:1024]},
+            "action": {"buttons": button_objs},
+        },
+    }
+    if header_text:
+        payload["interactive"]["header"] = {"type": "text", "text": header_text[:60]}
+    if footer_text:
+        payload["interactive"]["footer"] = {"text": footer_text[:60]}
+    return payload
+

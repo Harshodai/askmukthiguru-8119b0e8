@@ -129,7 +129,7 @@ describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
       expect(screen.getByText(/Spiritual Journey Memory/i)).toBeInTheDocument();
     });
 
-    // Verify verify payload called backend with Authorization header and DPDP flags
+    // Verify verify payload called backend with Authorization header and DPDP flags (default false)
     expect(global.fetch).toHaveBeenCalledWith(
       'https://backend.test/api/whatsapp/link/verify',
       expect.objectContaining({
@@ -139,8 +139,8 @@ describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
         }),
         body: JSON.stringify({
           code: 'valid-token-789',
-          sync_history_consent: true,
-          memory_write_consent: true,
+          sync_history_consent: false,
+          memory_write_consent: false,
         }),
       })
     );
@@ -177,6 +177,36 @@ describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
       expect(screen.getByText(/WhatsApp Companion/i)).toBeInTheDocument();
       expect(screen.getByText(/\+91 99\*\*\* \*\*333/i)).toBeInTheDocument();
       expect(screen.getByText(/Disconnect/i)).toBeInTheDocument();
+    });
+  });
+
+  it('renders unavailable banner with retry button on service failure', async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'fake-jwt-token',
+          user: { id: 'usr-123', email: 'seeker@example.com' },
+        },
+      },
+    });
+
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({ detail: 'Service unavailable' }),
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/link-whatsapp']}>
+        <Routes>
+          <Route path="/link-whatsapp" element={<LinkWhatsAppPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/WhatsApp Service Temporarily Unavailable/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Retry Connection/i })).toBeInTheDocument();
     });
   });
 });

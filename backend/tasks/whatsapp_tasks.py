@@ -29,6 +29,7 @@ from services.whatsapp_service import (
     clean_phone,
     format_whatsapp_message,
     hash_phone,
+    is_whatsapp_ai_paused,
     likely_crisis,
     mask_phone,
 )
@@ -37,11 +38,51 @@ logger = logging.getLogger(__name__)
 
 BACKEND_INTERNAL_URL = os.environ.get("BACKEND_INTERNAL_URL", "http://127.0.0.1:8000")
 META_GRAPH_HOST = "graph.facebook.com"
+META_GRAPH_VERSION = os.environ.get("META_GRAPH_VERSION", "v21.0")
 _PHONE_NUMBER_ID_RE = re.compile(r"^\d{1,32}$")
 
 
+def _split_whatsapp_message(text: str, max_chars: int = 4000) -> list[str]:
+    """Split message into WhatsApp-friendly chunks without splitting sentences or quotes."""
+    if not text:
+        return []
+    if len(text) <= max_chars:
+        return [text]
+
+    chunks: list[str] = []
+    current_chunk = ""
+    paragraphs = text.split("\n\n")
+
+    for para in paragraphs:
+        if len(current_chunk) + len(para) + 2 <= max_chars:
+            current_chunk = f"{current_chunk}\n\n{para}" if current_chunk else para
+        else:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+                current_chunk = ""
+            if len(para) <= max_chars:
+                current_chunk = para
+            else:
+                lines = para.split("\n")
+                for line in lines:
+                    if len(current_chunk) + len(line) + 1 <= max_chars:
+                        current_chunk = f"{current_chunk}\n{line}" if current_chunk else line
+                    else:
+                        if current_chunk:
+                            chunks.append(current_chunk.strip())
+                            current_chunk = ""
+                        while len(line) > max_chars:
+                            chunks.append(line[:max_chars])
+                            line = line[max_chars:]
+                        current_chunk = line
+
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    return [c for c in chunks if c]
+
+
 def _send_meta_outbound(phone_number_id: str, to_number: str, message_text: str) -> bool:
-    """Send message via Meta Cloud API with strict SSRF guard."""
+    """Send message via Meta Cloud API with strict SSRF guard and Graph v21+."""
     import requests
 
     token = os.environ.get("META_ACCESS_TOKEN", os.environ.get("WHATSAPP_TOKEN", ""))
@@ -54,7 +95,7 @@ def _send_meta_outbound(phone_number_id: str, to_number: str, message_text: str)
         logger.error("Invalid phone_number_id rejected: %s", clean_id)
         return False
 
-    url = f"https://{META_GRAPH_HOST}/v18.0/{int(clean_id)}/messages"
+    url = f"https://{META_GRAPH_HOST}/{META_GRAPH_VERSION}/{int(clean_id)}/messages"
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https" or parsed.netloc != META_GRAPH_HOST:
         logger.error("SSRF guard blocked request to %s", url)
@@ -75,12 +116,45 @@ def _send_meta_outbound(phone_number_id: str, to_number: str, message_text: str)
             timeout=10,
         )
         if resp.status_code in (200, 201):
-            logger.info("Outbound WhatsApp delivered to %s", mask_phone(target_phone))
+            data = resp.json() if resp.content else {}
+            msg_id = (data.get("messages") or [{}])[0].get("id", "unknown")
+            logger.info("Outbound WhatsApp accepted by Meta API (id=%s) for %s", msg_id, mask_phone(target_phone))
             return True
         logger.error("Meta API error %d: %s", resp.status_code, resp.text)
         return False
     except Exception as exc:
         logger.exception("Failed sending outbound WhatsApp to %s: %s", mask_phone(target_phone), exc)
+        return False
+
+
+def _send_meta_interactive(phone_number_id: str, payload: dict[str, Any]) -> bool:
+    """Send interactive message (e.g. quick reply buttons) via Meta Cloud API."""
+    import requests
+
+    token = os.environ.get("META_ACCESS_TOKEN", os.environ.get("WHATSAPP_TOKEN", ""))
+    if not token:
+        logger.error("Missing META_ACCESS_TOKEN; cannot send interactive WhatsApp message")
+        return False
+
+    clean_id = str(phone_number_id or os.environ.get("META_PHONE_NUMBER_ID", "")).strip()
+    if not clean_id.isdigit() or not _PHONE_NUMBER_ID_RE.match(clean_id):
+        logger.error("Invalid phone_number_id rejected: %s", clean_id)
+        return False
+
+    url = f"https://{META_GRAPH_HOST}/{META_GRAPH_VERSION}/{int(clean_id)}/messages"
+    try:
+        resp = requests.post(
+            url,
+            json=payload,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            timeout=10,
+        )
+        if resp.status_code in (200, 201):
+            return True
+        logger.error("Meta API interactive error %d: %s", resp.status_code, resp.text)
+        return False
+    except Exception as exc:
+        logger.exception("Failed sending interactive WhatsApp: %s", exc)
         return False
 
 
@@ -146,6 +220,12 @@ def process_whatsapp_turn_task(
 
     # 2. Check for linked account and DPDP consents in DB
     p_hash = hash_phone(clean_p)
+
+    # Preempt if automated AI is temporarily paused for human handoff
+    if is_whatsapp_ai_paused(p_hash):
+        logger.info("WhatsApp AI is paused for human interaction on %s; skipping automated turn", mask_phone(clean_p))
+        return {"status": "ai_paused_for_human", "phone": mask_phone(clean_p)}
+
     user_id: str | None = None
     sync_history = False
     memory_write = False
@@ -178,37 +258,92 @@ def process_whatsapp_turn_task(
     except Exception as exc:
         logger.warning("Failed checking account link for %s: %s", mask_phone(clean_p), exc)
 
-    # 3. Call core /api/chat orchestrator (?wait=true to block for synchronous result)
-    import requests
+    # 3. Execute teaching turn via internal PipelineCoordinator or fallback HTTP
+    effective_user = (
+        {"id": user_id, "is_anonymous": False}
+        if user_id
+        else {"id": "anonymous", "is_anonymous": True}
+    )
+    session_id = f"wa_{user_id}" if user_id else f"wa_{p_hash[:16]}"
+    incognito_mode = not memory_write
 
-    session_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"whatsapp:{p_hash}"))
-    chat_url = f"{BACKEND_INTERNAL_URL}/api/chat?wait=true"
-    payload = {
-        "user_message": user_message,
-        "messages": [],
-        "session_id": session_id,
-    }
-
+    answer_text = ""
     try:
-        resp = requests.post(chat_url, json=payload, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        raw_response = data.get("response", "") or ""
-        citations = data.get("citations") or []
-        answer_text = format_whatsapp_message(raw_response, citations)
-    except Exception as exc:
-        logger.exception("Chat call failed for %s: %s", mask_phone(clean_p), exc)
-        answer_text = (
-            "🙏 I am momentarily unable to reach the teachings. "
-            "Please pause, take a deep breath, and try asking again shortly."
+        import asyncio
+        from app.pipeline.pipeline_coordinator import PipelineCoordinator
+        from app.schemas import ChatRequest
+
+        container = get_container()
+        coordinator = PipelineCoordinator(container)
+        chat_req = ChatRequest(
+            user_message=user_message,
+            session_id=session_id,
+            messages=[],
+            incognito=incognito_mode,
         )
 
-    # 4. Outbound delivery
-    sent = False
-    if channel == "meta":
-        sent = _send_meta_outbound(phone_id, clean_p, answer_text)
-    else:
-        sent = _send_twilio_outbound(clean_p, answer_text)
+        async def _run_pipeline():
+            return await coordinator.execute(
+                user_msg=user_message,
+                preferred_lang="en",
+                chat_body=chat_req,
+                session_id=session_id,
+                user=effective_user,
+            )
+
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import nest_asyncio
+                nest_asyncio.apply()
+                pipeline_res = loop.run_until_complete(_run_pipeline())
+            else:
+                pipeline_res = loop.run_until_complete(_run_pipeline())
+        except RuntimeError:
+            pipeline_res = asyncio.run(_run_pipeline())
+
+        raw_response = getattr(pipeline_res, "final_answer", "") or ""
+        citations = getattr(pipeline_res, "citations", []) or []
+        answer_text = format_whatsapp_message(raw_response, citations)
+    except Exception as exc:
+        logger.warning(
+            "In-process pipeline execution failed for %s (%s); falling back to internal HTTP",
+            mask_phone(clean_p),
+            exc,
+        )
+        try:
+            import requests
+
+            chat_url = f"{BACKEND_INTERNAL_URL}/api/chat?wait=true"
+            payload = {
+                "user_message": user_message,
+                "messages": [],
+                "session_id": session_id,
+                "incognito": incognito_mode,
+            }
+            resp = requests.post(chat_url, json=payload, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            raw_response = data.get("response", "") or ""
+            citations = data.get("citations") or []
+            answer_text = format_whatsapp_message(raw_response, citations)
+        except Exception as http_exc:
+            logger.exception("HTTP fallback also failed for %s: %s", mask_phone(clean_p), http_exc)
+            answer_text = (
+                "🙏 I am momentarily unable to reach the teachings. "
+                "Please pause, take a deep breath, and try asking again shortly."
+            )
+
+    # 4. Outbound delivery in WhatsApp-sized chunks
+    chunks = _split_whatsapp_message(answer_text)
+    sent = True
+    for chunk in chunks:
+        if channel == "meta":
+            ok = _send_meta_outbound(phone_id, clean_p, chunk)
+        else:
+            ok = _send_twilio_outbound(clean_p, chunk)
+        if not ok:
+            sent = False
 
     # 5. DPDP-compliant conversation sync (if user explicitly consented)
     if sync_history and user_id and db:

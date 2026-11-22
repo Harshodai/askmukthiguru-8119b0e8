@@ -21,12 +21,47 @@ Standard Cloud API registration commands typically deregister a phone number fro
 Meta officially supports WhatsApp Business App and Cloud API coexistence under specific conditions:
 1. **WhatsApp Business App Version**: The physical phone must run WhatsApp Business version **2.24.17 or newer** (iOS or Android).
 2. **Meta Business Portfolio Access**: The owner must have **Full Control** over the Meta Business Portfolio that owns the WhatsApp Business Account (WABA).
-3. **Onboarding Method**: Coexistence requires onboarding via **Meta Embedded Signup v4** (Session Logging enabled). Direct manual registration via Graph API endpoint `/v18.0/{phone_number_id}/register` will deregister the physical SIM.
+3. **Onboarding Method**: Coexistence requires onboarding via **Meta Embedded Signup v4** (Session Logging enabled) through an eligible Tech Provider. Direct manual registration via Graph API endpoint `/v21.0/{phone_number_id}/register` or standard console "Add phone number" will deregister the physical SIM and disconnect the phone app.
 4. **24-Hour Service Window**: Free-form replies can only be sent within the customer's 24-hour service window (initiated when the seeker messages the business). Template messages are required outside this window.
+
+### 2.1 Reality Check: Owner Setup & The Two Safe Operational Paths
+
+> **Owner Context:** The owner currently operates an active physical WhatsApp Business mobile app on their phone. They do not yet have a Meta Developer App.
+
+To protect the phone app from being disconnected, choose one of these two safe paths:
+
+#### Path A: Official Meta Coexistence (Embedded Signup v4 via Tech Provider)
+- Requires onboarding through an authorized Meta Business Solution Partner / Tech Provider implementing Embedded Signup v4 with Session Logging.
+- The phone app displays the coexistence banner: *"This number is connected to an automated cloud service."*
+- Incoming messages are delivered to both the physical phone app and the AskMukthiGuru webhook simultaneously.
+
+#### Path B: Dedicated AI Companion Number (Recommended for Independent Setup)
+- Keep the existing WhatsApp Business phone number exclusively on the physical phone for personal/business interactions.
+- Provision a separate dedicated business number (virtual number or secondary SIM) specifically for the AskMukthiGuru AI Companion.
+- Zero risk to the primary number, zero dependency on third-party Tech Provider approvals, and 100% clean channel separation.
 
 ---
 
-## 3. Step-by-Step Meta Business Portal Setup
+## 3. Human Coexistence Handoff & Bank-Style Interactive Menu
+
+To ensure manual phone replies and AI automation never compete or collide:
+
+### Human Handoff (The 60-Minute AI Pause)
+- When a user texts `HUMAN`, `SUPPORT`, `AGENT`, or clicks the native **Human Help** button:
+  1. AskMukthiGuru immediately pauses automated AI responses for **60 minutes** via Redis key `wa:pause:{phone_hash}`.
+  2. The seeker receives: *"🤝 Connecting you to a Guide / Team Member. Automated AI responses are paused for the next 60 minutes..."*
+  3. The owner can reply directly from their WhatsApp Business mobile app without AI bot interruption.
+  4. The seeker can text `RESUME` at any time to resume AI guidance immediately.
+
+### Native Interactive Buttons (Meta Cloud API)
+- Upon connecting or texting `MENU`, AskMukthiGuru serves interactive quick-reply buttons:
+  - **Ask a Question**: Prompts user for spiritual inquiries.
+  - **Today's Practice**: Delivers the authentic 3-minute Soul Sync meditation practice.
+  - **Human Help**: Activates the 60-minute human coexistence handoff.
+
+---
+
+## 4. Step-by-Step Meta Business Portal Setup
 
 ### Step 1: Meta Developer App Configuration
 1. Log in to [Meta for Developers](https://developers.facebook.com/) with the Business Portfolio admin account.
