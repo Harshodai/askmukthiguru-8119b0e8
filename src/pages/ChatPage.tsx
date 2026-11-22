@@ -84,7 +84,7 @@ const BackendHealthBanner = () => {
             aria-label={retrying ? t('chat.checkingHealth', 'Checking service') : t('chat.retryConnection', 'Retry connection')}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/80 hover:bg-background border border-border/50 text-muted-foreground hover:text-foreground transition-colors text-[11px]"
           >
-            <RefreshCw className={cn("w-3 h-3", retrying && "animate-spin")} />
+            <RefreshCw className={cn("w-3 h-3", retrying && "motion-safe:animate-spin")} />
             <span>{retrying ? t('chat.checkingHealth', 'Checking…') : t('chat.retryConnection', 'Retry')}</span>
           </button>
         </div>

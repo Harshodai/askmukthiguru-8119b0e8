@@ -61,6 +61,8 @@ describe('isProdHost (exact-match prod hostnames)', () => {
     expect(isProdHost('askmukthiguru.lovable.dev')).toBe(false);
     expect(isProdHost('askmukthiguru-8119b0e8.vercel.app')).toBe(false);
     expect(isProdHost('untrusted-preview.vercel.app')).toBe(false);
+    expect(isProdHost('feature-123-team.vercel.app')).toBe(false);
+    expect(isProdHost('otherproject.vercel.app')).toBe(false);
   });
 });
 

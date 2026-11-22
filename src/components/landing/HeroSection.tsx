@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
-import { motion, MotionConfig, AnimatePresence } from 'framer-motion';
+import { motion, MotionConfig, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Play, Sprout, Cloud, Activity, Compass, Heart, ChevronDown } from 'lucide-react';
 import heroImage from '@/assets/hero-spiritual.webp';
@@ -36,6 +36,7 @@ const MandalaSVG = ({ className }: { className?: string }) => (
 
 export const HeroSection = () => {
   const { t } = useTranslation();
+  const shouldReduceMotion = useReducedMotion();
   const [demoOpen, setDemoOpen] = useState(false);
   const [moodsOpen, setMoodsOpen] = useState(false);
   const [selectedMood, setSelectedMood] = useState('anxious');
@@ -310,8 +311,8 @@ export const HeroSection = () => {
           className="absolute bottom-8 left-1/2 -translate-x-1/2"
         >
           <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
+            animate={shouldReduceMotion ? undefined : { y: [0, 10, 0] }}
+            transition={shouldReduceMotion ? undefined : { duration: 2, repeat: Infinity }}
             className="w-6 h-10 border-2 border-ojas/40 rounded-full flex justify-center pt-2"
           >
             <motion.div className="w-1.5 h-1.5 bg-ojas rounded-full" />
