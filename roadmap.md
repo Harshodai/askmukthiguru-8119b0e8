@@ -1,5 +1,14 @@
 # Active UI and backend reliability roadmap
 
+## Current request — 2026-11-22: public WhatsApp companion with familiar menu experience
+
+- [x] Recheck direct Meta coexistence and AI-use rules; current India general-purpose-assistant eligibility is not established.
+- [x] Inspect current linking/Profile/receiver/worker code; identify consent defaults, ineffective STOP/RESET, unsigned chat identity and nonpersistent delivery tracking.
+- [ ] Approve revised reuse-focused plan and repair account linking, menu/privacy controls, trusted teaching execution and durable receiving/delivery.
+- [ ] Confirm Meta Developer app and eligible coexistence onboarding; keep Business phone app working, no Lovable connector.
+- [ ] Run isolated regressions and authenticated website checks, then authorized real WhatsApp incoming → reply → delivered → save/readback → unlink.
+- External blockers: Meta app/account access, use-case eligibility, secure deployed-runtime credentials, approved deployment and real human-help destination. Number alone is insufficient; no connection or public activation performed.
+
 ## Current request — 2026-11-21: direct WhatsApp account-linked workflow
 
 - [ ] Research current Meta direct setup, business asset permissions, number coexistence and AI-use eligibility; no Lovable connector.

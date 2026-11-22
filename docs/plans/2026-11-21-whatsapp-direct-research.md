@@ -2,6 +2,16 @@
 
 Reviewed 2026-11-21. Research and design only; no Meta account access, message send, deployment, credential change or number migration performed.
 
+## 2026-11-22 current-branch follow-up
+
+The older implementation inventory below is historical. Current branch also contains `backend/app/api/whatsapp.py`, `backend/tasks/whatsapp_tasks.py`, `src/pages/LinkWhatsAppPage.tsx` and Profile's `WhatsAppCard`. These provide integration scaffolding, not verified public service.
+
+Source inspection found optional history/memory checked by default in the linking page; STOP/RESET confirmations without persisted changes; an unauthenticated worker call to `/api/chat` with a deterministic unsigned session; hardcoded Graph v18 sending with redirects enabled by default; and acceptance logged as delivery without durable callback tracking. Recipient phone metadata is read but not checked against configured identity. Repair the existing route/worker rather than duplicating bots.
+
+Official coexistence and Tech Provider documents were rechecked through web search. Meta's [official AI-provider page](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/ai-providers) was fetched directly with HTTP 200: permitted general-purpose-assistant markets do not include India. This establishes a restriction, not whether AskMukthiGuru qualifies for another use-case category; classification still needs confirmation before activation. A bank-style interface does not change eligibility.
+
+Owner requests familiar menus and reliable profile continuity while keeping the Business phone app. Revised plan covers concise native navigation, ordinary question entry, sourced teaching replies, separate unchecked privacy choices, persistent opt-out, handoff and delivery evidence. No Meta credentials were available in inspected shell variables; deployed-runtime credential presence was not inspected. No live message test or deployment occurred.
+
 ## Owner requirements
 
 - No Lovable connector. WhatsApp is another channel for the existing website account and teaching service.
