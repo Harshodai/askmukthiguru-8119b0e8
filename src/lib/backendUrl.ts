@@ -22,10 +22,13 @@ const PROD_HOSTNAMES: ReadonlySet<string> = new Set([
   'askmukthiguru-8119b0e8-production.up.railway.app',
   'www.askmukthiguru.com',
   'askmukthiguru.com',
+  'askmukthiguru-8119b0e8.vercel.app',
 ]);
 
 export function isProdHost(hostname: string): boolean {
-  return PROD_HOSTNAMES.has(hostname);
+  if (PROD_HOSTNAMES.has(hostname)) return true;
+  if (hostname.endsWith('.vercel.app')) return true;
+  return false;
 }
 
 const isNative = typeof Capacitor !== 'undefined' && Capacitor.isNativePlatform();

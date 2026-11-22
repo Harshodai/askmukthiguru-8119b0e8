@@ -32,7 +32,6 @@ import { NavLink } from '@/components/NavLink';
 import { UserMenu } from '@/components/common/UserMenu';
 import { CommandPalette } from '@/components/common/CommandPalette';
 import { ChatErrorBoundary } from '@/components/common/ChatErrorBoundary';
-import { FloatingParticles } from '@/components/landing/FloatingParticles';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/hooks/useProfile';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -291,7 +290,6 @@ export const AppShell = ({ children, title }: AppShellProps) => {
     <SidebarProvider>
       <div className={cn("min-h-dvh flex w-full bg-background relative", location.pathname === '/profile' && 'ask-profile-shell')}>
         <div className="fixed inset-0 bg-spiritual-gradient pointer-events-none" />
-        <FloatingParticles />
 
         <AppSidebar onOpenSearch={() => setPaletteOpen(true)} />
 

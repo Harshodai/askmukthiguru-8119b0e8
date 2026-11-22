@@ -79,18 +79,9 @@ export const PracticesSection = () => {
                   to={`/practices/${p.slug}`}
                   className="relative p-5 h-full flex flex-col group rounded-3xl border border-border/40 bg-card/80 backdrop-blur-md hover:border-saffron-gold/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:-translate-y-1 overflow-hidden"
                 >
-                  {/* Breath Pacing Orb on Hover */}
-                  <motion.div
-                    animate={{
-                      scale: [1, 1.4, 1],
-                      opacity: [0.08, 0.22, 0.08],
-                    }}
-                    transition={{
-                      duration: 6,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                    }}
-                    className="absolute -right-12 -top-12 w-36 h-36 rounded-full bg-saffron-gold blur-2xl pointer-events-none group-hover:opacity-40 transition-opacity"
+                  {/* Subtle highlight on hover */}
+                  <div
+                    className="absolute -right-12 -top-12 w-36 h-36 rounded-full bg-saffron-gold blur-2xl pointer-events-none opacity-0 group-hover:opacity-25 transition-opacity duration-500"
                   />
 
                   <div className="w-12 h-12 rounded-2xl bg-saffron-gold/15 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">

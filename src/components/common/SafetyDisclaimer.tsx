@@ -103,20 +103,20 @@ export const SafetyDisclaimer = () => {
                 {t('common.disclaimerDesc')}
               </p>
 
-              <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-6">
+              <div className="bg-muted/40 border border-border/60 rounded-xl p-4 mb-5 text-left">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium text-red-800 dark:text-red-300 mb-1">{t('common.importantNotice')}</p>
-                    <p className="text-muted-foreground">
+                  <AlertCircle className="w-5 h-5 text-ojas flex-shrink-0 mt-0.5" />
+                  <div className="text-xs sm:text-sm">
+                    <p className="font-semibold text-foreground mb-1">{t('common.importantNotice')}</p>
+                    <p className="text-muted-foreground leading-relaxed">
                       {t('common.disclaimerWarning')}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="text-xs text-muted-foreground text-center mb-6 bg-muted/30 rounded-lg p-3">
-                <p className="font-medium mb-1">{t('common.crisisSupport')}</p>
+              <div className="text-xs text-muted-foreground text-center mb-6 bg-muted/20 border border-border/40 rounded-lg p-3">
+                <p className="font-medium mb-1.5 text-foreground/80">{t('common.crisisSupport')}</p>
                 <CrisisLines lines={INDIA_CRISIS_LINES} />
               </div>
 
@@ -124,7 +124,7 @@ export const SafetyDisclaimer = () => {
                 ref={acceptRef}
                 type="button"
                 onClick={handleAccept}
-                className="w-full py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-medium rounded-full transition-all duration-300 hover:scale-[1.02] shadow-md"
+                className="w-full py-3 bg-gradient-to-r from-ojas to-ojas-light text-primary-foreground font-semibold rounded-full transition-all duration-300 hover:scale-[1.01] shadow-md min-h-[48px]"
               >
                 {t('common.beginJourney')}
               </button>

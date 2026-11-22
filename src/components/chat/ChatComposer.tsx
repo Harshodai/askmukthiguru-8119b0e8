@@ -321,24 +321,6 @@ function ChatComposerInner({
 
         <PromptInputFooter className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 pb-2.5 sm:pb-3 pt-2">
           <PromptInputTools>
-            {onTtsToggle && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={onTtsToggle}
-                aria-pressed={ttsEnabled}
-                aria-label={ttsEnabled ? t('chat.disableVoiceOutput', 'Disable voice output') : t('chat.enableVoiceOutput', 'Enable voice output')}
-                title={ttsEnabled ? t('chat.disableVoiceOutput', 'Disable voice output') : t('chat.enableVoiceOutput', 'Enable voice output')}
-                className="min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 rounded-full text-muted-foreground hover:text-foreground"
-              >
-                {ttsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              </Button>
-            )}
-            <div className="hidden sm:block">
-              <AssistantSwitcher variant="chip" />
-            </div>
-
             {hasMoreActions && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -352,7 +334,7 @@ function ChatComposerInner({
                     <Plus className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" side="top" className="w-48">
+                <DropdownMenuContent align="start" side="top" className="w-56">
                   {attachmentsAvailable && (
                     <DropdownMenuItem disabled={isUploading} onClick={() => fileInputRef.current?.click()}>
                       <FileText className="w-4 h-4 mr-2 text-ojas" />
@@ -365,9 +347,28 @@ function ChatComposerInner({
                       {isHandsFreeVoice ? t('chat.turnOffVoiceConversation', 'Turn off voice conversation') : t('chat.voiceConversation', 'Voice conversation')}
                     </DropdownMenuItem>
                   )}
+                  {onTtsToggle && (
+                    <DropdownMenuItem onClick={onTtsToggle}>
+                      {ttsEnabled ? (
+                        <>
+                          <VolumeX className="w-4 h-4 mr-2 text-ojas" />
+                          <span>{t('chat.disableVoiceOutput', 'Disable voice output')}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-4 h-4 mr-2 text-ojas" />
+                          <span>{t('chat.enableVoiceOutput', 'Enable voice output')}</span>
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+
+            <div className="hidden sm:block">
+              <AssistantSwitcher variant="chip" />
+            </div>
           </PromptInputTools>
 
           <div className="flex-1" />

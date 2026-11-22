@@ -191,7 +191,7 @@
         "gratitude": {
           "label": "Cultivating Love",
           "title": "Radiating from the Beautiful State",
-          "subtitle": "Transmute disconnection into profound love and heartfelt presence.",
+          "subtitle": "A quiet reflection on heartfelt presence, gratitude, and connection.",
           "cta": "Begin Beautiful State"
         }
       },
@@ -265,7 +265,7 @@
       "heading2": "Serene Mind",
       "heading3": "Meditation",
       "para1": "When life feels overwhelming, AskMukthiGuru can guide you through Serene Mind, a 3-minute breath and awareness practice taught by Sri Preethaji and Sri Krishnaji.",
-      "para2": "This technique, rooted in the teachings of Sri Preethaji & Sri Krishnaji, uses focused breathing and visualization to shift your consciousness from agitation to peace. A tiny flame visualization at your eyebrow center becomes your anchor to the present moment.",
+      "para2": "This short practice, rooted in the teachings of Sri Preethaji & Sri Krishnaji, pairs gentle breath awareness and quiet visualization to help you meet moments of stress with greater space and stillness. A steady inner flame visualization serves as a calm anchor to the present moment.",
       "benefit1": "Slow down a racing mind",
       "benefit2": "Notice and soften emotional tension",
       "benefit3": "Settle into slow, steady breathing",
@@ -859,8 +859,11 @@
     "sourceLabel": "Source {{number}}",
     "sourcesCitedCount": "Sources cited: {{count}}",
     "aiDisclosure": "AskMukthiGuru is an AI. It draws on recorded teachings where it can find them, and it can make mistakes.",
-    "backendDegraded": "The teaching service is not ready right now. You can still explore practices or return to a saved conversation.",
-    "backendUnreachable": "AskMukthiGuru cannot reach its teaching service right now, so new answers may not arrive. Practices and your saved conversations still work.",
+    "backendDegraded": "The teaching service is currently reconnecting. Saved conversations and all meditative practices remain fully available.",
+    "backendUnreachable": "AskMukthiGuru cannot reach its teaching service right now. Meditative practices and your saved conversations still work.",
+    "tryPracticeFallback": "Start 3-Min Practice",
+    "checkingHealth": "Checking…",
+    "retryConnection": "Retry",
     "attachmentMaxFiles": "You can upload a maximum of {{max}} files.",
     "attachmentSingleLimit": "Each extracted attachment must be under {{size}}.",
     "attachmentTotalLimit": "Total attachment context cannot exceed {{size}}.",
@@ -1770,8 +1773,16 @@
     },
     "sections": {
       "favorites": "Your favorites",
-      "all": "All practices"
-    }
+      "all": "All practices",
+      "dailyAndEvents": "Daily Ritual & Community Wisdom"
+    },
+    "filterByTime": "Filter by duration",
+    "filterAll": "All",
+    "filterQuick": "3 min (Quick)",
+    "filterMedium": "5–10 min",
+    "filterDeep": "15–20 min",
+    "boundaryNoticeTitle": "What these practices are and are not",
+    "boundaryNoticeBody": "These guided meditations and breathing practices are contemplative spiritual exercises rooted in the wisdom of Sri Preethaji & Sri Krishnaji. They are designed for inner reflection and peaceful awareness, not as medical, clinical, psychiatric, or therapeutic treatments."
   },
   "seo": {
     "practicesTitle": "Daily Practices — Guided Meditations | AskMukthiGuru",

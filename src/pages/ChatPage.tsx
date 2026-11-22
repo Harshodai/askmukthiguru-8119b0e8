@@ -1,13 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { ChatInterface } from '@/components/chat/ChatInterface';
 import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
 import { useOptionalAuth } from '@/hooks/useOptionalAuth';
 import { useBackendHealth } from '@/hooks/useBackendHealth';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { Loader2, ArrowRight } from 'lucide-react';
+import { Loader2, ArrowRight, Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { BACKEND_URL } from '@/lib/backendUrl';
+import { requestBackendHealth } from '@/lib/chat/health';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -25,17 +28,62 @@ const TOUR_SHOWN_COUNT_KEY = 'askmukthiguru_tour_shown_count';
 const ONBOARDED_KEY = 'askmukthiguru_onboarded';
 
 const BackendHealthBanner = () => {
-  const health = useBackendHealth();
+  const initialHealth = useBackendHealth();
   const { t } = useTranslation();
+  const [health, setHealth] = useState(initialHealth);
+  const [retrying, setRetrying] = useState(false);
+
+  useEffect(() => {
+    setHealth(initialHealth);
+  }, [initialHealth]);
+
   if (health !== 'degraded' && health !== 'unreachable') return null;
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      const status = await requestBackendHealth(`${BACKEND_URL}/api/chat`, AbortSignal.timeout(6000));
+      setHealth(status);
+    } catch {
+      setHealth('unreachable');
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   return (
     <div
       role="status"
-      className="w-full bg-ojas/10 border-b border-ojas/30 text-foreground text-xs px-4 py-2 text-center"
+      className="w-full bg-ojas/10 border-b border-ojas/30 text-foreground px-4 py-2.5 shadow-sm transition-all"
     >
-      {health === 'degraded'
-        ? t('chat.backendDegraded', 'The teaching service is not ready right now. You can still explore practices or return to a saved conversation.')
-        : t('chat.backendUnreachable', 'AskMukthiGuru cannot reach its teaching service right now, so new answers may not arrive. Practices and your saved conversations still work.')}
+      <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-center sm:text-left">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+          <span>
+            {health === 'degraded'
+              ? t('chat.backendDegraded', 'The teaching service is currently reconnecting. Saved conversations and all meditative practices remain fully available.')
+              : t('chat.backendUnreachable', 'AskMukthiGuru cannot reach its teaching service right now. Meditative practices and your saved conversations still work.')}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            to="/practices/serene-mind"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ojas text-primary-foreground font-medium hover:bg-ojas-light transition-colors text-[11px]"
+          >
+            <Sparkles className="w-3 h-3" />
+            <span>{t('chat.tryPracticeFallback', 'Start 3-Min Practice')}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={handleRetry}
+            disabled={retrying}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/80 hover:bg-background border border-border/50 text-muted-foreground hover:text-foreground transition-colors text-[11px]"
+          >
+            <RefreshCw className={cn("w-3 h-3", retrying && "animate-spin")} />
+            <span>{retrying ? t('chat.checkingHealth', 'Checking…') : t('chat.retryConnection', 'Retry')}</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Clock, Sprout, Flame, Heart, Moon, Star } from 'lucide-react';
@@ -108,10 +109,22 @@ const PracticesPage = () => {
   const { t, i18n } = useTranslation();
   const { favorites, toggle, isFavorited } = useFavorites();
   const { teaching: dailyTeaching } = useDailyTeaching();
+  const [durationFilter, setDurationFilter] = useState<'all' | '3min' | '10min' | '20min'>('all');
   const lang = i18n.language;
   const localizedPractices = practices.map((p) => getLocalizedPractice(p, t, lang));
   const favoritePractices = localizedPractices.filter((p) => favorites.includes(p.slug));
   const otherPractices = localizedPractices.filter((p) => !favorites.includes(p.slug));
+
+  const matchesFilter = (p: Practice) => {
+    if (durationFilter === 'all') return true;
+    if (durationFilter === '3min') return p.slug === 'serene-mind' || p.slug === 'wisdom-reflection';
+    if (durationFilter === '10min') return p.slug === 'daily-reflection' || p.slug === 'beautiful-state';
+    if (durationFilter === '20min') return p.slug === 'soul-sync';
+    return true;
+  };
+
+  const filteredFavorites = favoritePractices.filter(matchesFilter);
+  const filteredOther = otherPractices.filter(matchesFilter);
 
   usePageMeta({
     title: t('seo.practicesTitle') || 'Daily Practices — Guided Meditations | AskMukthiGuru',
@@ -121,7 +134,6 @@ const PracticesPage = () => {
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'ItemList',
-      name: 'AskMukthiGuru Practices',
       itemListElement: practices.map((p, i) => ({
         '@type': 'ListItem',
         position: i + 1,
@@ -144,63 +156,57 @@ const PracticesPage = () => {
           <p className="text-sm sm:text-base text-muted-foreground mt-2 max-w-2xl">
             {t('practices.subtitle')}
           </p>
+
+          {/* Quick Decision Filter by Duration */}
+          <div className="flex items-center gap-2 flex-wrap mt-5 pt-3 border-t border-border/40">
+            <span className="text-xs font-medium text-muted-foreground mr-1">
+              {t('practices.filterByTime', 'Filter by duration')}:
+            </span>
+            {(
+              [
+                { id: 'all', label: t('practices.filterAll', 'All') },
+                { id: '3min', label: t('practices.filterQuick', '3 min (Quick)') },
+                { id: '10min', label: t('practices.filterMedium', '5–10 min') },
+                { id: '20min', label: t('practices.filterDeep', '15–20 min') },
+              ] as const
+            ).map((filter) => {
+              const active = durationFilter === filter.id;
+              return (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => setDurationFilter(filter.id)}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[36px]",
+                    active
+                      ? "bg-ojas text-primary-foreground font-semibold shadow-sm"
+                      : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
         </motion.header>
 
-        {/* Today's Wisdom — Daily Teaching Card */}
-        {dailyTeaching && (
-          <motion.section
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="mb-10"
-          >
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('chat.todaysWisdom')}
-            </h2>
-            <Card className="overflow-hidden border border-ojas/20 bg-card/80 shadow-xl backdrop-blur-lg">
-              <div className="flex flex-col md:flex-row">
-                {/* Image side */}
-                <div className="relative w-full md:w-2/5 aspect-[16/9] md:aspect-auto md:min-h-[220px] overflow-hidden bg-muted/20">
-                  <img
-                    src={dailyTeaching.image_url}
-                    alt={t('chat.teachingAlt')}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  {/* Gradient overlay to blend image into card */}
-                  <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-card/80 via-transparent to-transparent pointer-events-none" />
-                </div>
-                {/* Text side */}
-                <div className="flex-1 p-6 sm:p-8 flex flex-col justify-center">
-                  <div className="flex items-center gap-1.5 mb-3">
-                    <Sprout className="w-3.5 h-3.5 text-ojas" />
-                    <span className="text-xs font-semibold text-ojas-ink uppercase tracking-widest">
-                      {t('practices.dailyWisdom.badge', 'Wisdom of the Day')}
-                    </span>
-                  </div>
-                  {dailyTeaching.caption && (
-                    <p className="text-lg sm:text-xl text-foreground/90 font-serif leading-relaxed italic">
-                      &ldquo;{dailyTeaching.caption}&rdquo;
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-4">
-                    {t('common.gurusName', '— Sri Preethaji & Sri Krishnaji')}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </motion.section>
-        )}
-
-        {/* Today's Teaching — ritual card (deterministic teaching + streak + reminder) */}
-        <DailyTeachingCard />
-
-        {/* Events published by admins; renders nothing when there are none */}
-        <div className="mb-8 empty:hidden">
-          <UpcomingEventsCard />
+        {/* Boundary Notice — Non-Clinical Spiritual Wisdom */}
+        <div className="mb-8 rounded-2xl border border-border/50 bg-card/60 backdrop-blur-md p-4 sm:p-5 text-left">
+          <div className="flex items-start gap-3">
+            <Sprout className="w-5 h-5 text-ojas flex-shrink-0 mt-0.5" />
+            <div>
+              <h2 className="text-xs sm:text-sm font-semibold text-foreground uppercase tracking-wider">
+                {t('practices.boundaryNoticeTitle', 'What these practices are and are not')}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
+                {t('practices.boundaryNoticeBody', 'These guided meditations and breathing practices are contemplative spiritual exercises rooted in the wisdom of Sri Preethaji & Sri Krishnaji. They are designed for inner reflection and peaceful awareness, not as medical, clinical, psychiatric, or therapeutic treatments.')}
+              </p>
+            </div>
+          </div>
         </div>
 
-        {favoritePractices.length > 0 && (
+        {/* Core Practice Cards First */}
+        {filteredFavorites.length > 0 && (
           <section className="mb-10">
             <div className="flex items-center gap-2 mb-3">
               <Star className="w-4 h-4 fill-ojas text-ojas" />
@@ -209,7 +215,7 @@ const PracticesPage = () => {
               </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-              {favoritePractices.map((p, i) => (
+              {filteredFavorites.map((p, i) => (
                 <PracticeCard
                   key={p.slug}
                   practice={p}
@@ -222,15 +228,15 @@ const PracticesPage = () => {
           </section>
         )}
 
-        {otherPractices.length > 0 && (
-          <section>
-            {favoritePractices.length > 0 && (
+        {filteredOther.length > 0 && (
+          <section className="mb-12">
+            {filteredFavorites.length > 0 && (
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-3">
                 {t('practices.sections.all', 'All practices')}
               </h2>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-              {otherPractices.map((p, i) => (
+              {filteredOther.map((p, i) => (
                 <PracticeCard
                   key={p.slug}
                   practice={p}
@@ -242,6 +248,61 @@ const PracticesPage = () => {
             </div>
           </section>
         )}
+
+        {/* Daily Ritual & Events Section — Placed below core library */}
+        <section className="mt-14 pt-8 border-t border-border/50">
+          <h2 className="text-base sm:text-lg font-semibold text-foreground mb-6">
+            {t('practices.sections.dailyAndEvents', 'Daily Ritual & Community Wisdom')}
+          </h2>
+
+          {/* Today's Wisdom — Daily Teaching Card */}
+          {dailyTeaching && (
+            <div className="mb-8">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('chat.todaysWisdom')}
+              </h3>
+              <Card className="overflow-hidden border border-ojas/20 bg-card/80 shadow-lg backdrop-blur-lg">
+                <div className="flex flex-col md:flex-row">
+                  <div className="relative w-full md:w-2/5 aspect-[16/9] md:aspect-auto md:min-h-[200px] overflow-hidden bg-muted/20">
+                    <img
+                      src={dailyTeaching.image_url}
+                      alt={t('chat.teachingAlt')}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-card/80 via-transparent to-transparent pointer-events-none" />
+                  </div>
+                  <div className="flex-1 p-5 sm:p-6 flex flex-col justify-center">
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <Sprout className="w-3.5 h-3.5 text-ojas" />
+                      <span className="text-xs font-semibold text-ojas-ink uppercase tracking-widest">
+                        {t('practices.dailyWisdom.badge', 'Wisdom of the Day')}
+                      </span>
+                    </div>
+                    {dailyTeaching.caption && (
+                      <p className="text-base sm:text-lg text-foreground/90 font-serif leading-relaxed italic">
+                        &ldquo;{dailyTeaching.caption}&rdquo;
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-3">
+                      {t('common.gurusName', '— Sri Preethaji & Sri Krishnaji')}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Today's Teaching ritual card */}
+          <div className="mb-6">
+            <DailyTeachingCard />
+          </div>
+
+          {/* Upcoming Events */}
+          <div className="mb-6 empty:hidden">
+            <UpcomingEventsCard />
+          </div>
+        </section>
       </div>
     </PublicShell>
   );

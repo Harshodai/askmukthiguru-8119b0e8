@@ -92,7 +92,7 @@ export const practices: Practice[] = [
   {
     slug: 'serene-mind',
     title: 'Serene Mind',
-    tagline: 'A 3-minute pause for an agitated heart.',
+    tagline: 'A 3-minute pause when thoughts feel racing or overwhelmed.',
     durationLabel: '3 min',
     intentions: ['Stress relief', 'Quick pause', 'Breath awareness'],
     purpose:
@@ -119,7 +119,7 @@ export const practices: Practice[] = [
   {
     slug: 'beautiful-state',
     title: 'Beautiful State',
-    tagline: 'Step out of suffering, into love and connection.',
+    tagline: 'Cultivating love, connection, and heartfelt presence.',
     durationLabel: '10–15 min',
     intentions: ['Compassion', 'Joy', 'Connection'],
     purpose:
