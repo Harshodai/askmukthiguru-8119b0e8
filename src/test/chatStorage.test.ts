@@ -156,9 +156,11 @@ describe('chatStorage', () => {
         timestamp: new Date(),
       }];
 
+      setIncognitoMode(true);
       await saveConversation(temporary);
       saveChatHistory(temporary.messages);
       saveFeedback('temporary-message', { vote: 'down', tags: [], timestamp: new Date() });
+      setIncognitoMode(false);
 
       expect(await loadConversations()).toEqual([]);
       expect(localStorage.getItem('askmukthiguru_conversations')).toBeNull();
