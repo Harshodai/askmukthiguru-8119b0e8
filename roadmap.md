@@ -8,6 +8,7 @@
 - [ ] Confirm Meta Developer app and eligible coexistence onboarding; keep Business phone app working, no Lovable connector.
 - [ ] Run isolated regressions and authenticated website checks, then authorized real WhatsApp incoming → reply → delivered → save/readback → unlink.
 - External blockers: Meta app/account access, use-case eligibility, secure deployed-runtime credentials, approved deployment and real human-help destination. Number alone is insufficient; no connection or public activation performed.
+- Owner confirmed 2026-11-22: only WhatsApp Business phone app exists; prepare Meta Developer/eligible coexistence setup, not a reconnect or ordinary API number registration.
 
 ## Current request — 2026-11-21: direct WhatsApp account-linked workflow
 
