@@ -297,8 +297,8 @@ async def grade_documents(state: GraphState, config: Optional[RunnableConfig] = 
     rerank_scores = [
         d.get("rerank_score") for d in reranked_docs if d.get("rerank_score") is not None
     ]
-    min_score = getattr(settings, "rerank_min_score", 0.35)
-    fallback_floor = getattr(settings, "rerank_fallback_floor", 0.22)
+    min_score = float(getattr(settings, "rerank_min_score", 0.20))
+    fallback_floor = float(getattr(settings, "rerank_fallback_floor", 0.12))
 
     if rerank_scores:
         top_score = max(rerank_scores)

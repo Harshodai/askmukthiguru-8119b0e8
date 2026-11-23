@@ -1048,7 +1048,7 @@ async def combined_grade_and_verify(
 
     # --- Fast-path: skip LLM verification when local checks are confident ---
     confidence_score = faithfulness_score * 10.0
-    if claim_level_passed and faithfulness_score >= 0.9 and confidence_score >= 8.0:
+    if claim_level_passed and faithfulness_score >= 0.80 and confidence_score >= 7.0:
         logger.info(
             "Combined grade+verify: HIGH CONFIDENCE — skipping LLM verification "
             "(faithfulness=%.2f, confidence=%.1f)",

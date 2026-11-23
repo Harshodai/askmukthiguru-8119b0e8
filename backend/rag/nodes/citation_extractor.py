@@ -249,8 +249,12 @@ def extract_citations(state: GraphState) -> dict:
                 sec = int(ts_seconds)
                 if "t=" not in clean_url:
                     clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+            elif clean_url and ("amazon." in clean_url or "1846046319" in clean_url):
+                clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
 
             c_type = str(best_doc.get("content_type") or meta.get("content_type") or "").strip().lower()
+            if not clean_url and c_type in ("book", "concept_summary"):
+                clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
             is_verified = bool(
                 best_doc.get("speaker_verified") is True
                 or meta.get("speaker_verified") is True

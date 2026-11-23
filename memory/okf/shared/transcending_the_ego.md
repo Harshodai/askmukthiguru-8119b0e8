@@ -1,17 +1,10 @@
 ---
 type: teaching
-title: Transcending the Ego
-source: https://www.youtube.com/watch?v=UlOt31lBhLY
+title: "Transcending the Ego"
+source: "https://www.youtube.com/watch?v=UlOt31lBhLY"
 video_id: UlOt31lBhLY
-tags:
-- ego
-- presence
-- spiritual action
-- suffering state
-teacher: both
-description: Sri Preethaji and Sri Krishnaji teach that transcending the ego involves
-  moving beyond rigid, mechanical ideals and connecting deeply with the present moment
-  and universal consciousness.
+tags: [ego, presence, spiritual action, suffering state]
+teacher: "both"
 ---
 
 # Transcending the Ego
@@ -32,4 +25,4 @@ Sri Preethaji and Sri Krishnaji teach that transcending the ego involves moving 
 
 ## Related Concepts
 - Suffering State: A state of being where actions are driven by ego and mechanical ideals, leading to disconnection and poor decision-making.
--**Beautiful State** ([[sri-preethaji/beautiful_state]]): A state of inner joy, calm, and peace that naturally arises when self-obsessed thoughts are dissolved through mindful awareness.
+- Beautiful State: A state of inner joy, calm, and peace that naturally arises when self-obsessed thoughts are dissolved through mindful awareness.
