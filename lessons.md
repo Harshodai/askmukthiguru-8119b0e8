@@ -1480,8 +1480,10 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Fix:** Ingested 578 high-res PageIndex book chunks and master doctrine summaries into `spiritual_wisdom_contextual`, compiled OKF master nodes, enforced author-verified speaker attribution on published books, and bound `min_keep` fallback to `rerank_threshold_simple: 0.12`.
 - **Rule:** Published book doctrine requires hierarchical PageIndex chunks and author verification. Reranking `min_keep` must never retain documents below the quality threshold.
 
-
-
+### L-POLARITY-CONTRADICTION-CLAUSE-BOUND-1. Claim clause splitting and quote boundaries prevent false polarity-inversion contradictions.
+- **What:** In `services/lettuce_detect_service.py`, `_split_claims` failed to split sentences terminating with quotes (`."`), gluing full quotes to trailing explanatory sentences with `not`. Comparing entire multi-clause claims against single context clauses flagged direct quotes and contrastive phrases ("not as a goal separate from growth") as polarity-inversion contradictions, forcing hard-rejection fallback (`FALLBACK_RESPONSE`).
+- **Fix:** Updated `_split_claims` sentence regex with quote boundary lookbehinds `(?<=[.!?])\s+|(?<=[.!?][\"\'\u201d\u2019])\s+`, split claims into fine-grained clauses before polarity comparison, and bypassed false inversions when one clause is a verbatim substring of the other.
+- **Rule:** Never evaluate polarity inversion between multi-clause claims and single context clauses; align clause-to-clause and treat direct quote substrings as non-inverting.
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point

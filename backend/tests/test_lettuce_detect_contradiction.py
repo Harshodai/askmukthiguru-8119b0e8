@@ -166,3 +166,26 @@ def test_without_vs_affirmed_presence_is_a_real_contradiction():
 
     assert result.get("has_contradiction") is True
     assert result["score"] == 0.0
+
+
+def test_quoted_source_and_contrastive_clauses_not_false_polarity_inversion():
+    """Contrastive clauses ('not as a...', 'not about...') and quoted sources
+    must not trigger false polarity inversion contradictions.
+    """
+    svc = LettuceDetectService(embedder=None)
+
+    # 1. Quoted source with trailing clause with 'not'
+    ctx1 = "The fundamental path to achieving world peace lies in each individual's awakening to peace consciousness."
+    ans1 = (
+        'As shared in the sources, "The fundamental path to achieving world peace lies in each individual\'s awakening to peace consciousness." '
+        "This inner awakening is not passive - it requires your active participation."
+    )
+    res1 = svc.score_faithfulness("How to achieve peace?", ctx1, ans1)
+    assert res1.get("has_contradiction") is False
+
+    # 2. Contrastive clause with 'not as a goal'
+    ctx2 = "Abundance is a natural flow from spiritual alignment."
+    ans2 = "The key is recognizing abundance as a natural flow from spiritual alignment, not as a goal separate from growth."
+    res2 = svc.score_faithfulness("What is abundance?", ctx2, ans2)
+    assert res2.get("has_contradiction") is False
+

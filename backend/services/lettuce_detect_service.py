@@ -280,7 +280,11 @@ def _split_claims(text: str) -> list[str]:
     an answer made entirely of non-assertions has not been *verified*, and
     returning zero claims would score it a perfect 1.0.
     """
-    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", text) if len(s.strip()) > 10]
+    sentences = [
+        s.strip()
+        for s in re.split(r"(?<=[.!?])\s+|(?<=[.!?][\"\'\u201d\u2019])\s+", text)
+        if len(s.strip()) > 10
+    ]
     assertions = [s for s in sentences if _is_assertion(s)]
     return assertions or sentences
 
@@ -523,16 +527,6 @@ def _detect_contradiction(
     if not context:
         return False, None
 
-    claim_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", clean_claim)]
-    claim_negations = [w for w in claim_tokens if w in _NEGATION_WORDS]
-    claim_content = set(
-        w for w in claim_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
-    )
-    if len(claim_content) < 3:
-        return False, None
-
-    claim_neg = len(claim_negations) % 2 == 1
-
     # Split context into sentences and clauses for fine-grained alignment
     ctx_sentences = [
         s.strip()
@@ -540,49 +534,85 @@ def _detect_contradiction(
         if len(s.strip()) > 10
     ]
 
-    for ctx_sent in ctx_sentences:
-        ctx_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", ctx_sent)]
-        ctx_negations = [w for w in ctx_tokens if w in _NEGATION_WORDS]
-        ctx_content = set(
-            w for w in ctx_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
+    # Split claim into clauses so contrastive clauses ('not as a...', 'not about...')
+    # or secondary clauses do not falsely invert the polarity of an affirmed clause.
+    claim_clauses = [
+        s.strip()
+        for s in re.split(
+            r"[.!?\n]+|;\s*|,\s+(?:and|but|while|whereas|rather\s+than|not\s+(?:as|merely|only|just|about))\s+|,\s+not\s+",
+            clean_claim,
         )
-        if len(ctx_content) < 3:
+        if len(s.strip()) > 10
+    ] or [clean_claim]
+
+    for c_clause in claim_clauses:
+        c_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", c_clause)]
+        c_negations = [w for w in c_tokens if w in _NEGATION_WORDS]
+        c_content = set(
+            w for w in c_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
+        )
+        if len(c_content) < 3:
             continue
+        c_neg = len(c_negations) % 2 == 1
 
-        overlap = claim_content & ctx_content
-        recall = len(overlap) / len(claim_content)
-        jaccard = (
-            len(overlap) / len(claim_content | ctx_content)
-            if (claim_content | ctx_content)
-            else 0.0
-        )
+        for ctx_sent in ctx_sentences:
+            ctx_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", ctx_sent)]
+            ctx_negations = [w for w in ctx_tokens if w in _NEGATION_WORDS]
+            ctx_content = set(
+                w for w in ctx_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
+            )
+            if len(ctx_content) < 3:
+                continue
 
-        # High lexical overlap means both sentences make a claim about the same core entities/predicates
-        if len(overlap) >= 3 and (recall >= 0.70 or jaccard >= 0.50):
-            ctx_neg = len(ctx_negations) % 2 == 1
-            if claim_neg != ctx_neg:
-                return (
-                    True,
-                    f"Polarity inversion contradiction: context states '{ctx_sent}', "
-                    f"but claim asserts opposite polarity: '{clean_claim}'",
-                )
+            overlap = c_content & ctx_content
+            recall = len(overlap) / len(c_content)
+            jaccard = (
+                len(overlap) / len(c_content | ctx_content)
+                if (c_content | ctx_content)
+                else 0.0
+            )
 
-        # Antonym opposition check
-        for ant1, ant2 in _ANTONYM_PAIRS:
-            matched_c = ant1 if ant1 in claim_content else (ant2 if ant2 in claim_content else None)
-            matched_ctx = ant2 if matched_c == ant1 else (ant1 if matched_c == ant2 else None)
-            if matched_c and matched_ctx and matched_ctx in ctx_content:
-                rem_c = claim_content - {matched_c}
-                rem_ctx = ctx_content - {matched_ctx}
-                rem_overlap = rem_c & rem_ctx
-                if len(rem_overlap) >= 2 and (len(rem_overlap) / len(rem_c) >= 0.60):
-                    ctx_neg = len(ctx_negations) % 2 == 1
-                    if claim_neg == ctx_neg:
-                        return (
-                            True,
-                            f"Antonym contradiction on '{matched_c}' vs '{matched_ctx}': "
-                            f"context states '{ctx_sent}', but claim asserts '{clean_claim}'",
-                        )
+            # High lexical overlap means both sentences make a claim about the same core entities/predicates
+            if len(overlap) >= 3 and (recall >= 0.70 or jaccard >= 0.50):
+                ctx_neg = len(ctx_negations) % 2 == 1
+                if c_neg != ctx_neg:
+                    if c_clause.lower() in ctx_sent.lower() or ctx_sent.lower() in c_clause.lower():
+                        continue
+                    return (
+                        True,
+                        f"Polarity inversion contradiction: context states '{ctx_sent}', "
+                        f"but claim asserts opposite polarity: '{c_clause}'",
+                    )
+
+    # Antonym opposition check
+    claim_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", clean_claim)]
+    claim_negations = [w for w in claim_tokens if w in _NEGATION_WORDS]
+    claim_content = set(
+        w for w in claim_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
+    )
+    if len(claim_content) >= 3:
+        claim_neg = len(claim_negations) % 2 == 1
+        for ctx_sent in ctx_sentences:
+            ctx_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", ctx_sent)]
+            ctx_negations = [w for w in ctx_tokens if w in _NEGATION_WORDS]
+            ctx_content = set(
+                w for w in ctx_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
+            )
+            for ant1, ant2 in _ANTONYM_PAIRS:
+                matched_c = ant1 if ant1 in claim_content else (ant2 if ant2 in claim_content else None)
+                matched_ctx = ant2 if matched_c == ant1 else (ant1 if matched_c == ant2 else None)
+                if matched_c and matched_ctx and matched_ctx in ctx_content:
+                    rem_c = claim_content - {matched_c}
+                    rem_ctx = ctx_content - {matched_ctx}
+                    rem_overlap = rem_c & rem_ctx
+                    if len(rem_overlap) >= 2 and (len(rem_overlap) / len(rem_c) >= 0.60):
+                        ctx_neg = len(ctx_negations) % 2 == 1
+                        if claim_neg == ctx_neg:
+                            return (
+                                True,
+                                f"Antonym contradiction on '{matched_c}' vs '{matched_ctx}': "
+                                f"context states '{ctx_sent}', but claim asserts '{clean_claim}'",
+                            )
 
     return False, None
 
