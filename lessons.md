@@ -1475,6 +1475,12 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Fix:** Extended `FirstPersonPipeline.execute` and `_rerank_and_balance_candidates` with `memory_signals` and `_apply_memory_reranking`, prioritizing unseen clips from the verified candidate pool for returning seekers and bypassing the shared cache for personalized queries. The verbatim quote text and metadata remain 100% byte-identical.
 - **Rule:** When applying personalization to verbatim or immutable teaching lanes, use memory signals strictly to re-rank pre-verified candidates (e.g. promoting unseen content) without ever generating, paraphrasing, or altering the underlying source words.
 
+### L-BOOK-DOCTRINE-PAGEINDEX-RERANK-1. High-resolution book chunking and elevated rerank thresholds prevent cross-topic citation contamination.
+- **What:** Fragmented 400-char book chunks and a low rerank threshold (0.05) with unconditional `min_keep` caused retrieval of epilogue stubs and irrelevant videos (e.g., relationship clips on anxiety).
+- **Fix:** Ingested 578 high-res PageIndex book chunks and master doctrine summaries into `spiritual_wisdom_contextual`, compiled OKF master nodes, enforced author-verified speaker attribution on published books, and bound `min_keep` fallback to `rerank_threshold_simple: 0.12`.
+- **Rule:** Published book doctrine requires hierarchical PageIndex chunks and author verification. Reranking `min_keep` must never retain documents below the quality threshold.
+
+
 
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
