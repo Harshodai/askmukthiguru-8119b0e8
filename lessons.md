@@ -1485,6 +1485,11 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Fix:** Updated `_split_claims` sentence regex with quote boundary lookbehinds `(?<=[.!?])\s+|(?<=[.!?][\"\'\u201d\u2019])\s+`, split claims into fine-grained clauses before polarity comparison, and bypassed false inversions when one clause is a verbatim substring of the other.
 - **Rule:** Never evaluate polarity inversion between multi-clause claims and single context clauses; align clause-to-clause and treat direct quote substrings as non-inverting.
 
+### L-MULTIPART-DIFFERENCE-DEFLECTION-1. Preemptive deflection of difference inquiries must gate on multipart eligibility.
+- **What:** In `first_person_bridge.py`, `_DIFFERENCE_SYNTHESIS_RE` unconditionally returned `None`, sending "difference between X and Y" queries to GraphStage to produce third-person AI essays with `SYNTHESIS_LABEL` instead of letting `_serve_question_parts` retrieve authentic speech clips for both X and Y.
+- **Fix:** Gated `_DIFFERENCE_SYNTHESIS_RE` deflection on `not (multipart_enabled and len(_question_parts(query)) >= 2)` and `if not fp_only`.
+- **Rule:** A multi-part serving lane must never deflect compound inquiries to general RAG before verifying whether parallel part retrieval can answer each facet.
+
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.

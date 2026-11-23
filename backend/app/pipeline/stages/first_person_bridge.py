@@ -1165,11 +1165,19 @@ class FirstPersonBridgeStage(Stage):
         boundaries: list[str] = []
         needs_rel = needs_relationship_safety_boundary(query)
         needs_add = needs_addiction_support_boundary(query)
-        if _DIFFERENCE_SYNTHESIS_RE.search(query) and not (needs_rel or needs_add or _has_promise_or_boundary):
-            logger.info(
-                "[FirstPersonBridge] Difference/comparative synthesis inquiry; GraphStage runs."
+        if (
+            _DIFFERENCE_SYNTHESIS_RE.search(query)
+            and not (needs_rel or needs_add or _has_promise_or_boundary)
+            and not (
+                getattr(settings, "first_person_multipart_enabled", False)
+                and len(_question_parts(query)) >= 2
             )
-            return None
+        ):
+            if not fp_only:
+                logger.info(
+                    "[FirstPersonBridge] Difference/comparative synthesis inquiry; GraphStage runs."
+                )
+                return None
         if _SYNTHESIS_SHAPE_RE.search(query) or needs_rel or needs_add:
             if not fp_only:
                 logger.info(

@@ -25,6 +25,9 @@ Cross-video MMR diversity re-ordering,retrieval,could,yes,yes,Avoids clustering 
 RAPTOR two-level hierarchical summary tree traversal,retrieval,could,yes,yes,Table of contents navigation across macro-themes in spiritual discourses
 LightRAG sub-graph contextual expansion,retrieval,could,yes,yes,Expands philosophical doctrine nodes into adjacent spiritual teachings
 Direct audio slice waveform scrubber in chat interface,ui,could,yes,yes,Allows seekers to listen to the exact guru audio slice referenced by the quote
+Multi-clip verbatim fusion across videos via QuoteWeaver,serving,must,yes,yes,Combines verbatim spans from multiple videos to answer multi-facet questions instead of abstaining
+Sub-query ontological concept decomposition via OKF and Graph,retrieval,must,yes,yes,Deconstructs complex seeker inquiries into 2-3 concept sub-queries for parallel retrieval
+Authentic Guru voice without third-person AI disclaimers,serving,must,yes,yes,Direct spoken discourse of Sri Krishnaji and Sri Preethaji; purges SYNTHESIS_LABEL from verified quotes
 Proposition chunking,ingestion,skip,yes,skip,Permanently retired (D3/X40); writes unverified synthetic text into corpus as doctrine
 In-place collection mutation,data plane,skip,yes,skip,Forbidden; violates collection immutability and provenance tracking
 LLM-authored teaching prose in production,serving,skip,yes,skip,Forbidden; production operates strictly in retrieval_only mode (X24)
