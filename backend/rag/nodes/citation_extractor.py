@@ -19,22 +19,43 @@ from services.guru_registry import requested_gurus
 
 logger = logging.getLogger(__name__)
 
-_TIMESTAMP_KEYS = ("timestamp_seconds", "start", "start_time", "timestamp", "start_sec")
+_TIMESTAMP_KEYS = (
+    "timestamp_seconds",
+    "start",
+    "start_time",
+    "timestamp",
+    "start_sec",
+    "start_seconds",
+    "chunk_start",
+    "chunk_start_sec",
+    "chunk_start_seconds",
+)
 # Millisecond offsets: converted to seconds on read. Kept separate so a
 # start_ms of 99000 surfaces as 99.0, never as a fabricated 99000s offset.
-_TIMESTAMP_MS_KEYS = ("start_ms",)
+_TIMESTAMP_MS_KEYS = ("start_ms", "audio_start_ms", "chunk_start_ms")
 
 
 def _resolve_speaker(doc: dict) -> Optional[str]:
-    """Name a teacher only when the payload's speaker is voice-verified.
+    """Name a teacher when voice-verified, or author-verified (published books/summaries).
 
     Title/metadata-derived speaker and teacher_id labels contradict the voice
     census on about a third of points (L-TEACHER-TAG-1), and a wrongly named
     speaker is worse than none, so unverified docs get no speaker.
+    Published book and concept summary chunks are authored doctrine and carry
+    authentic teacher attribution.
     """
-    if doc.get("speaker_verified") is not True:
+    meta = doc.get("metadata") or {}
+    content_type = str(doc.get("content_type") or meta.get("content_type") or "").strip().lower()
+
+    if content_type in ("book", "concept_summary", "summary"):
+        raw_speaker = str(doc.get("speaker") or meta.get("speaker") or "Sri Preethaji & Sri Krishnaji").strip()
+        if requested_gurus(raw_speaker):
+            return raw_speaker
+        return "Sri Preethaji & Sri Krishnaji"
+
+    if doc.get("speaker_verified") is not True and meta.get("speaker_verified") is not True:
         return None
-    raw_speaker = str(doc.get("speaker") or "").strip()
+    raw_speaker = str(doc.get("speaker") or meta.get("speaker") or "").strip()
     if requested_gurus(raw_speaker):
         return raw_speaker
     return None
@@ -222,11 +243,34 @@ def extract_citations(state: GraphState) -> dict:
                 or "Spiritual Discourse"
             )
 
+            ts_seconds = _resolve_timestamp(best_doc)
+            clean_url = url
+            if clean_url and ts_seconds is not None and ts_seconds > 0 and _is_youtube_url(clean_url):
+                sec = int(ts_seconds)
+                if "t=" not in clean_url:
+                    clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+
+            c_type = str(best_doc.get("content_type") or meta.get("content_type") or "").strip().lower()
+            is_verified = bool(
+                best_doc.get("speaker_verified") is True
+                or meta.get("speaker_verified") is True
+                or c_type in ("book", "concept_summary", "summary")
+            )
+
+            # Only true verbatim layer or published book text may be shown as the teacher's words
+            text_snippet = None
+            if best_doc.get("verbatim_text"):
+                text_snippet = str(best_doc.get("verbatim_text")).strip() or None
+            elif c_type in ("book", "concept_summary"):
+                raw_snip = str(best_doc.get("text") or meta.get("text") or "").strip()
+                cleaned_snip = re.sub(r"^\[Source:[^\]]+\]\s*", "", raw_snip)[:350]
+                text_snippet = cleaned_snip or None
+
             citations.append(
                 {
                     "doc_id": doc_identifier,
-                    "source_url": url,
-                    "url": url,
+                    "source_url": clean_url,
+                    "url": clean_url,
                     "title": title or meta.get("source", "Spiritual Teaching"),
                     "quote": sent,
                     "span_in_answer": sent,
@@ -245,11 +289,9 @@ def extract_citations(state: GraphState) -> dict:
                     # Qdrant for the chunk that produced it.
                     "chunk_provenance": best_doc.get("chunk_provenance", ""),
                     "speaker": _resolve_speaker(best_doc),
-                    "speaker_verified": bool(best_doc.get("speaker_verified") is True),
-                    "timestamp_seconds": _resolve_timestamp(best_doc),
-                    # Only a true verbatim layer may be shown as the teacher's words;
-                    # chunk `text` is often machine-rewritten search text.
-                    "text_snippet": (str(best_doc.get("verbatim_text") or "").strip() or None),
+                    "speaker_verified": is_verified,
+                    "timestamp_seconds": ts_seconds,
+                    "text_snippet": text_snippet,
                 }
             )
 

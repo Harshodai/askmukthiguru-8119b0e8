@@ -88,9 +88,12 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
             return docs
         floor = top_score * effective_ratio
         filtered = [doc for doc in docs if doc.get(score_key, 0.0) >= floor]
-        # Preserve multi-chunk doctrine context (e.g. relationship defense teachings)
+        # Preserve multi-chunk doctrine context only for documents meeting minimum threshold
         if len(filtered) < min_keep and len(docs) >= min_keep:
-            filtered = docs[:min_keep]
+            threshold_cutoff = float(getattr(settings, "rerank_threshold_simple", 0.12))
+            valid_subset = [d for d in docs[:min_keep] if d.get(score_key, 0.0) >= threshold_cutoff]
+            if valid_subset:
+                filtered = valid_subset
         logger.debug(
             f"Rerank score-delta: top={top_score:.3f} floor={floor:.3f} {len(docs)} -> {len(filtered)}"
         )

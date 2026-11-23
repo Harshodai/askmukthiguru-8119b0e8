@@ -2127,8 +2127,8 @@ class Settings(BaseSettings):
     # floor). Do not raise without re-measuring the score distribution.
     faithfulness_floor: float = 0.6
     confidence_gating_floor: float = 6.5
-    rerank_threshold_complex: float = 0.01
-    rerank_threshold_simple: float = 0.05
+    rerank_threshold_complex: float = 0.08
+    rerank_threshold_simple: float = 0.12
     rerank_floor: float = 0.3
     cross_encoder_cutoff: int = 20  # Use cross-encoder primary path when <= this many docs
     # Adaptive-RAG confidence gate: when >=3 reranked docs score at or above this
