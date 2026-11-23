@@ -1,470 +1,137 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
-import type { Session } from "@supabase/supabase-js";
-import { BACKEND_URL } from "@/lib/backendUrl";
-import { MessageSquare, ShieldCheck, CheckCircle2, AlertCircle, Loader2, ArrowRight, Smartphone, LogOut } from "lucide-react";
-import { toast } from "sonner";
-import { usePageMeta } from "@/hooks/usePageMeta";
-
-interface LinkStatus {
-  linked: boolean;
-  masked_phone: string | null;
-  sync_history_consent: boolean;
-  memory_write_consent: boolean;
-  linked_at: string | null;
-  return_url?: string | null;
-}
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { AlertCircle, ArrowRight, CheckCircle2, Loader2, LogOut, MessageSquare, ShieldCheck, Smartphone } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { usePageMeta } from '@/hooks/usePageMeta';
+import { useWhatsAppConnection } from '@/hooks/useWhatsAppConnection';
+import { clearWhatsAppChallenge, readWhatsAppChallenge, rememberWhatsAppChallenge, safeWhatsAppReturnUrl } from '@/lib/whatsappConnection';
+import { toast } from 'sonner';
 
 export default function LinkWhatsAppPage() {
-  usePageMeta({ title: "Connect WhatsApp — AskMukthiGuru" });
+  usePageMeta({ title: 'Connect WhatsApp — AskMukthiGuru' });
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [session, setSession] = useState<Session | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-
-  // Link token from URL
-  const [code, setCode] = useState<string>("");
-  const [linking, setLinking] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
-
-  // Initial DPDP consents selected on confirmation — MUST start unchecked (false) by default
+  const connection = useWhatsAppConnection();
+  const { session, authLoading, status, loading, busy, error } = connection;
+  const [code, setCode] = useState('');
+  const [invalidLink, setInvalidLink] = useState(false);
   const [initialSyncConsent, setInitialSyncConsent] = useState(false);
   const [initialMemoryConsent, setInitialMemoryConsent] = useState(false);
-  const [justLinked, setJustLinked] = useState(false);
 
-  // Current connection state
-  const [status, setStatus] = useState<LinkStatus | null>(null);
-  const [statusLoading, setStatusLoading] = useState(false);
-  const [isUnavailable, setIsUnavailable] = useState(false);
-  const [updatingConsent, setUpdatingConsent] = useState(false);
-
-  // Extract challenge token from hash #code=... or query ?code=...
   useEffect(() => {
-    let token = "";
-    if (location.hash) {
-      const match = location.hash.match(/code=([^&]+)/);
-      if (match) token = decodeURIComponent(match[1]);
-    }
-    if (!token && location.search) {
-      const params = new URLSearchParams(location.search);
-      token = params.get("code") || "";
-    }
-    if (token) {
-      setCode(token);
-      sessionStorage.setItem("intendedPath", `/link-whatsapp#code=${token}`);
-      sessionStorage.setItem("auth_redirect_path", `/link-whatsapp#code=${token}`);
-      sessionStorage.setItem("pending_whatsapp_token", token);
-      // Strip token from browser address bar immediately to prevent history/referrer leakage
-      if (typeof window !== "undefined" && window.history && window.history.replaceState) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
+    const fragment = new URLSearchParams(location.hash.replace(/^#/, ''));
+    const query = new URLSearchParams(location.search);
+    const token = fragment.get('code') || query.get('code');
+    if (token !== null) {
+      clearWhatsAppChallenge();
+      const valid = rememberWhatsAppChallenge(token);
+      setCode(valid ? token : '');
+      setInvalidLink(!valid);
+      // Auth return paths carry no challenge. Retain it only in expiring session storage.
+      navigate('/link-whatsapp', { replace: true });
     } else {
-      const savedToken = sessionStorage.getItem("pending_whatsapp_token");
-      if (savedToken) {
-        setCode(savedToken);
-      }
+      setCode(readWhatsAppChallenge());
     }
-  }, [location]);
-
-  // Auth session tracking
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthLoading(false);
-      if (session) {
-        fetchStatus(session.access_token);
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setAuthLoading(false);
-      if (session) {
-        fetchStatus(session.access_token);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchStatus = async (token: string) => {
-    setStatusLoading(true);
-    setIsUnavailable(false);
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/whatsapp/link/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setStatus(data);
-      } else {
-        setIsUnavailable(true);
-      }
-    } catch (e) {
-      console.error("Failed fetching WhatsApp status", e);
-      setIsUnavailable(true);
-    } finally {
-      setStatusLoading(false);
-    }
-  };
+  }, [location.hash, location.search, navigate]);
 
   const handleVerify = async () => {
-    if (!code.trim() || !session) return;
-    setLinking(true);
-    setLinkError(null);
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/whatsapp/link/verify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          code,
-          sync_history_consent: initialSyncConsent,
-          memory_write_consent: initialMemoryConsent,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || "Verification failed");
-      }
-
-      toast.success("WhatsApp number connected successfully!");
-      setStatus({
-        linked: true,
-        masked_phone: data.masked_phone,
-        sync_history_consent: data.sync_history_consent ?? initialSyncConsent,
-        memory_write_consent: data.memory_write_consent ?? initialMemoryConsent,
-        linked_at: data.linked_at,
-        return_url: data.return_url,
-      });
-      setJustLinked(true);
-      setCode("");
-      sessionStorage.removeItem("pending_whatsapp_token");
-
-      // Auto return to WhatsApp deep-link if provided
-      if (data.return_url) {
-        setTimeout(() => {
-          window.location.href = data.return_url;
-        }, 2500);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to link WhatsApp account";
-      setLinkError(msg);
-      toast.error(msg);
-    } finally {
-      setLinking(false);
+    const pending = readWhatsAppChallenge();
+    if (!pending || pending !== code) { setCode(''); setInvalidLink(true); return; }
+    if (await connection.verify(pending, initialSyncConsent, initialMemoryConsent)) {
+      setCode('');
+      toast.success('WhatsApp number connected successfully!');
     }
   };
 
-  const handleConsentToggle = async (key: "sync_history_consent" | "memory_write_consent", val: boolean) => {
-    if (!session || !status) return;
-    setUpdatingConsent(true);
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/whatsapp/link/consent`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ [key]: val }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Update failed");
-      }
-
-      setStatus((prev) => prev ? { ...prev, [key]: val } : null);
-      toast.success("Privacy preference updated");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to update preference";
-      toast.error(msg);
-    } finally {
-      setUpdatingConsent(false);
-    }
+  const handleConsent = async (key: 'sync_history_consent' | 'memory_write_consent', value: boolean) => {
+    if (await connection.updateConsent(key, value)) toast.success('Privacy preference updated');
   };
 
   const handleUnlink = async () => {
-    if (!session) return;
-    if (!window.confirm("Disconnect your WhatsApp number from this account?")) return;
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/whatsapp/link/unlink`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (!res.ok) {
-        throw new Error("Failed to unlink");
-      }
-
-      toast.info("WhatsApp disconnected");
-      setStatus({
-        linked: false,
-        masked_phone: null,
-        sync_history_consent: false,
-        memory_write_consent: false,
-        linked_at: null,
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error unlinking account";
-      toast.error(msg);
-    }
+    if (!window.confirm('Disconnect your WhatsApp number from this account? Your phone app will not be disconnected.')) return;
+    if (await connection.unlink()) { setCode(''); toast.info('WhatsApp disconnected'); }
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  if (authLoading) return <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-label="Checking sign-in"><Loader2 className="h-7 w-7 animate-spin motion-reduce:animate-none text-primary" /></div>;
+  const returnUrl = safeWhatsAppReturnUrl(status?.return_url);
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-12 space-y-6">
-      {/* Top Banner */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex p-3 rounded-full bg-emerald-500/10 text-emerald-600 mb-2">
-          <MessageSquare className="h-8 w-8" />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight">WhatsApp Companion Connection</h1>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          Connect your WhatsApp to receive teachings, practice check-ins, and continue your spiritual journey seamlessly.
-        </p>
-      </div>
+    <main className="max-w-xl mx-auto px-4 py-8 sm:py-12 space-y-6">
+      <header className="space-y-3">
+        <MessageSquare className="h-8 w-8 text-primary" aria-hidden="true" />
+        <h1 className="text-2xl font-semibold">AskMukthiGuru on WhatsApp</h1>
+      </header>
 
-      {/* Service Unavailable Banner */}
-      {isUnavailable && (
-        <Card className="border-amber-500/30 bg-amber-500/[0.03] shadow-sm">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600" />
-              <CardTitle className="text-base">WhatsApp Service Temporarily Unavailable</CardTitle>
-            </div>
-            <CardDescription className="text-xs">
-              Unable to communicate with the WhatsApp companion service. Please check your connection and retry.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => session && fetchStatus(session.access_token)}
-              disabled={statusLoading}
-            >
-              {statusLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-              Retry Connection
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Case 1: Unauthenticated */}
       {!session ? (
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-lg">Sign in to complete linking</CardTitle>
-            <CardDescription className="text-xs">
-              To bind your WhatsApp number securely, please sign in or create your AskMukthiGuru account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button
-              className="w-full bg-primary"
-              onClick={() => {
-                const target = code ? `/auth?redirect=${encodeURIComponent(`/link-whatsapp#code=${code}`)}` : "/auth";
-                navigate(target);
-              }}
-            >
-              Sign In or Create Account
-              <ArrowRight className="h-4 w-4 ml-1.5" />
-            </Button>
-            <p className="text-[11px] text-center text-muted-foreground">
-              Your credentials are never shared with or sent through WhatsApp.
-            </p>
-          </CardContent>
-        </Card>
-      ) : status?.linked ? (
-        /* Case 2: Already Linked / Successful Link */
-        <Card className="border-emerald-500/30 bg-emerald-500/[0.02] shadow-sm">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                <CardTitle className="text-lg">WhatsApp Connected</CardTitle>
-              </div>
-              <Badge className="bg-emerald-600 text-white text-xs">Active</Badge>
-            </div>
-            <CardDescription className="text-xs">
-              Linked to <span className="font-mono font-semibold text-foreground">{status.masked_phone}</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Return to WhatsApp Callout */}
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-2.5 text-center">
-              <div className="text-sm font-semibold text-emerald-900 dark:text-emerald-200 flex items-center justify-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                Connection Handshake Complete
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {justLinked ? "Returning you back to WhatsApp..." : "Your WhatsApp is linked and ready for full spiritual conversation."}
-              </p>
-              <Button
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                onClick={() => {
-                  window.location.href = status.return_url || "https://wa.me";
-                }}
-              >
-                <MessageSquare className="h-4 w-4 mr-1.5" />
-                Return to WhatsApp
-              </Button>
-            </div>
-
-            {/* DPDP Consent Controls */}
-            <div className="space-y-4 pt-2 border-t">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <ShieldCheck className="h-4 w-4 text-primary" />
-                <span>Privacy & Consent Controls (DPDP)</span>
-              </div>
-
-              {/* Consent 1: History Sync */}
-              <div className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-background">
-                <div className="space-y-0.5">
-                  <div className="text-sm font-medium">Sync Chat History</div>
-                  <div className="text-xs text-muted-foreground">
-                    Allow messages sent on WhatsApp to appear in your Web conversation history.
-                  </div>
-                </div>
-                <Switch
-                  checked={status.sync_history_consent}
-                  disabled={updatingConsent}
-                  onCheckedChange={(val) => handleConsentToggle("sync_history_consent", val)}
-                />
-              </div>
-
-              {/* Consent 2: Memory Write */}
-              <div className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-background">
-                <div className="space-y-0.5">
-                  <div className="text-sm font-medium">Spiritual Journey Memory</div>
-                  <div className="text-xs text-muted-foreground">
-                    Allow reflections shared via WhatsApp to personalize future guidance and practices.
-                  </div>
-                </div>
-                <Switch
-                  checked={status.memory_write_consent}
-                  disabled={updatingConsent}
-                  onCheckedChange={(val) => handleConsentToggle("memory_write_consent", val)}
-                />
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t">
-              <Button variant="outline" size="sm" className="w-full sm:w-auto text-xs" onClick={() => navigate("/chat")}>
-                Return to Chat
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full sm:w-auto text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-                onClick={handleUnlink}
-              >
-                <LogOut className="h-3.5 w-3.5 mr-1" />
-                Disconnect WhatsApp
-              </Button>
-            </div>
-          </CardContent>
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Sign in to complete linking</CardTitle><CardDescription>Use your AskMukthiGuru account. Never share your password or this private link in WhatsApp.</CardDescription></CardHeader>
+          <CardContent><Button className="w-full" onClick={() => navigate('/auth?redirect=%2Flink-whatsapp')}>Sign In or Create Account<ArrowRight className="h-4 w-4 ml-2" /></Button></CardContent>
         </Card>
       ) : (
-        /* Case 3: Authenticated with Pending Code */
-        <Card className="border-border/60 shadow-sm">
+        <Card aria-busy={loading || busy}>
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Smartphone className="h-5 w-5 text-primary" />
-              Confirm Connection
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Confirm linking your WhatsApp number to your active account ({session.user.email || "Signed In"}).
-            </CardDescription>
+            <div className="flex items-center gap-2">
+              {status?.linked ? <CheckCircle2 className="h-5 w-5 text-primary shrink-0" /> : <Smartphone className="h-5 w-5 text-primary shrink-0" />}
+              <CardTitle className="text-lg min-w-0">{status?.linked ? 'WhatsApp Connected' : loading ? 'Checking connection' : 'Confirm Connection'}</CardTitle>
+            </div>
+            {status?.linked && <CardDescription>Linked to <span className="font-mono text-foreground break-words">{status.masked_phone}</span></CardDescription>}
           </CardHeader>
-          <CardContent className="space-y-4">
-            {code ? (
+          <CardContent className="space-y-5">
+            {error && <div role="alert" className="space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
+              <div className="flex items-start gap-2"><AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" /><span>{error}</span></div>
+              {!status && <Button variant="outline" disabled={loading} onClick={connection.retry}>Retry Connection</Button>}
+            </div>}
+            {loading ? <div role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />Checking your connected number…</div> : status?.linked ? (
+              <>
+                <Badge variant="outline">Account linked</Badge>
+                {returnUrl && <Button asChild className="w-full"><a href={returnUrl} rel="noreferrer"><MessageSquare className="h-4 w-4 mr-2" />Return to WhatsApp</a></Button>}
+                <section className="space-y-4 border-t pt-4" aria-label="Privacy controls">
+                  <h2 className="text-sm font-semibold flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" />Privacy & Consent Controls</h2>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-1"><label htmlFor="linked-history" className="text-sm font-medium">Sync Chat History</label><p className="text-xs text-muted-foreground">Show WhatsApp messages in website history.</p></div>
+                    <Switch id="linked-history" aria-label="Sync Chat History" checked={status.sync_history_consent} disabled={busy} onCheckedChange={value => handleConsent('sync_history_consent', value)} />
+                  </div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-1"><label htmlFor="linked-memory" className="text-sm font-medium">Spiritual Journey Memory</label><p className="text-xs text-muted-foreground">Allow WhatsApp reflections to be saved through your memory consent settings.</p></div>
+                    <Switch id="linked-memory" aria-label="Spiritual Journey Memory" checked={status.memory_write_consent} disabled={busy} onCheckedChange={value => handleConsent('memory_write_consent', value)} />
+                  </div>
+                </section>
+                <div className="flex flex-col sm:flex-row gap-3 border-t pt-4">
+                  <Button variant="outline" onClick={() => navigate('/chat')}>Return to Chat</Button>
+                  <Button variant="ghost" className="text-destructive" disabled={busy} onClick={handleUnlink}><LogOut className="h-4 w-4 mr-2" />Disconnect WhatsApp</Button>
+                </div>
+              </>
+            ) : status && code ? (
+              <>
+                <p className="text-sm text-muted-foreground">Only continue if you requested this link from your own WhatsApp conversation.</p>
+                <section className="space-y-4 border-t pt-4" aria-label="Optional privacy choices">
+                  <h2 className="text-sm font-semibold">Optional privacy choices</h2>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-1"><label htmlFor="initial-history" className="text-sm font-medium">Sync Chat History</label><p className="text-xs text-muted-foreground">Show WhatsApp messages in website history.</p></div>
+                    <Switch id="initial-history" aria-label="Sync Chat History" checked={initialSyncConsent} disabled={busy} onCheckedChange={setInitialSyncConsent} />
+                  </div>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-1"><label htmlFor="initial-memory" className="text-sm font-medium">Spiritual Journey Memory</label><p className="text-xs text-muted-foreground">Allow saved WhatsApp reflections under your memory consent settings.</p></div>
+                    <Switch id="initial-memory" aria-label="Spiritual Journey Memory" checked={initialMemoryConsent} disabled={busy} onCheckedChange={setInitialMemoryConsent} />
+                  </div>
+                </section>
+                <Button className="w-full" disabled={busy} onClick={handleVerify}>{busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin motion-reduce:animate-none" /> : <ShieldCheck className="h-4 w-4 mr-2" />}Confirm & Link WhatsApp</Button>
+              </>
+            ) : status && (
               <div className="space-y-4">
-                <div className="bg-muted/40 p-3 rounded-lg border text-xs space-y-1">
-                  <span className="text-muted-foreground block">Verification Code:</span>
-                  <code className="text-primary font-mono font-bold block truncate">{code}</code>
-                </div>
-
-                {/* DPDP Pre-consent toggles */}
-                <div className="space-y-2.5 pt-1 border-t">
-                  <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                    <span>Consent Options (DPDP)</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg border bg-background text-xs">
-                    <div>
-                      <div className="font-medium">Sync Chat History</div>
-                      <div className="text-[11px] text-muted-foreground">Show WhatsApp messages on web</div>
-                    </div>
-                    <Switch checked={initialSyncConsent} onCheckedChange={setInitialSyncConsent} />
-                  </div>
-                  <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg border bg-background text-xs">
-                    <div>
-                      <div className="font-medium">Second Brain Memory</div>
-                      <div className="text-[11px] text-muted-foreground">Personalize teachings from WhatsApp reflections</div>
-                    </div>
-                    <Switch checked={initialMemoryConsent} onCheckedChange={setInitialMemoryConsent} />
-                  </div>
-                </div>
-
-                {linkError && (
-                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-400 text-xs rounded-lg flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{linkError}</span>
-                  </div>
-                )}
-
-                <Button className="w-full bg-primary" disabled={linking} onClick={handleVerify}>
-                  {linking ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <ShieldCheck className="h-4 w-4 mr-1.5" />}
-                  Confirm & Link WhatsApp
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4 text-center py-4">
-                <p className="text-xs text-muted-foreground">
-                  To connect, text <code className="bg-muted px-1.5 py-0.5 rounded font-mono font-bold">LINK</code> to our WhatsApp companion number. You will receive a direct link to open on this device.
-                </p>
-                <Button variant="outline" size="sm" onClick={() => navigate("/chat")}>
-                  Return to Chat
-                </Button>
+                <p role={invalidLink ? 'alert' : undefined} className="text-sm text-muted-foreground">{invalidLink ? 'This connection link is invalid or expired. Request a fresh link from your WhatsApp conversation.' : 'No active connection link.'}</p>
+                <Button variant="outline" onClick={() => navigate('/profile?tab=settings')}>Return to Profile</Button>
               </div>
             )}
           </CardContent>
         </Card>
       )}
-
-      {/* Safety Notice */}
-      <div className="bg-muted/30 border rounded-xl p-4 text-xs text-muted-foreground space-y-1.5">
-        <span className="font-semibold text-foreground flex items-center gap-1.5">
-          <ShieldCheck className="h-4 w-4 text-primary" />
-          Two-Channel Security Invariant
-        </span>
-        <p className="leading-relaxed">
-          AskMukthiGuru uses cryptographic single-use challenges to bind channels. We never ask for your password on WhatsApp, and authentication tokens are never transmitted via chat. You can text <code className="font-mono">STOP</code> or <code className="font-mono">RESET</code> on WhatsApp at any time.
-        </p>
-      </div>
-    </div>
+      <footer className="border-t pt-4 text-xs leading-relaxed text-muted-foreground">
+        Linking your account is separate from saving history or memory. Disconnecting here does not remove WhatsApp from your phone.
+      </footer>
+    </main>
   );
 }

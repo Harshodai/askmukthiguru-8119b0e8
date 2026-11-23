@@ -25,6 +25,7 @@ vi.mock('@/lib/backendUrl', () => ({
 describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     global.fetch = vi.fn();
   });
 
@@ -74,7 +75,7 @@ describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Confirm Connection/i)).toBeInTheDocument();
-      expect(screen.getByText(/my-secret-token-456/i)).toBeInTheDocument();
+      expect(screen.queryByText(/my-secret-token-456/i)).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Confirm & Link WhatsApp/i })).toBeInTheDocument();
     });
   });
@@ -104,11 +105,12 @@ describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
         sync_history_consent: false,
         memory_write_consent: false,
         linked_at: new Date().toISOString(),
+        return_url: 'https://wa.me/919000000000?text=START',
       }),
     });
 
     render(
-      <MemoryRouter initialEntries={['/link-whatsapp#code=valid-token-789']}>
+      <MemoryRouter initialEntries={['/link-whatsapp#code=valid-token-789012']}>
         <Routes>
           <Route path="/link-whatsapp" element={<LinkWhatsAppPage />} />
         </Routes>
@@ -138,7 +140,7 @@ describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
           Authorization: 'Bearer fake-jwt-token',
         }),
         body: JSON.stringify({
-          code: 'valid-token-789',
+          code: 'valid-token-789012',
           sync_history_consent: false,
           memory_write_consent: false,
         }),
@@ -205,7 +207,7 @@ describe('WhatsApp Two-Channel Account Linking & DPDP Consent', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/WhatsApp Service Temporarily Unavailable/i)).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Retry Connection/i })).toBeInTheDocument();
     });
   });

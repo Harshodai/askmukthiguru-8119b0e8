@@ -14,12 +14,17 @@ export function useWhatsAppConnection() {
   const [refresh, setRefresh] = useState(0);
   const current = useRef<Session | null>(null);
   const alive = useRef(true);
+  const mutation = useRef<symbol | null>(null);
 
   useEffect(() => {
     alive.current = true;
     let authEventSeen = false;
     const apply = (next: Session | null) => {
       if (!alive.current) return;
+      if (current.current?.access_token !== next?.access_token) {
+        mutation.current = null;
+        setBusy(false);
+      }
       if (current.current?.user.id !== next?.user.id) {
         setStatus(null);
         setError(null);
@@ -33,7 +38,7 @@ export function useWhatsAppConnection() {
     supabase.auth.getSession().then(({ data }) => {
       if (!authEventSeen) apply(data.session);
     }).catch(() => {
-      if (!authEventSeen) { apply(null); setError('Unable to check sign-in. Please reload this page.'); }
+      if (!authEventSeen && alive.current) { apply(null); setError('Unable to check sign-in. Please reload this page.'); }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
       authEventSeen = true;
@@ -46,24 +51,27 @@ export function useWhatsAppConnection() {
     if (authLoading) return;
     if (!session) { setLoading(false); return; }
     const controller = new AbortController();
+    const stillCurrent = () => !controller.signal.aborted && current.current?.access_token === session.access_token;
     setLoading(true);
     setError(null);
     whatsappRequest('status', session.access_token, undefined, controller.signal)
-      .then(data => { if (!controller.signal.aborted) setStatus(normalizeWhatsAppStatus(data)); })
+      .then(data => { if (stillCurrent()) setStatus(normalizeWhatsAppStatus(data)); })
       .catch(() => {
-        if (!controller.signal.aborted) { setStatus(null); setError('Unable to check WhatsApp connection. Please try again.'); }
+        if (stillCurrent()) { setStatus(null); setError('Unable to check WhatsApp connection. Please try again.'); }
       })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .finally(() => { if (stillCurrent()) setLoading(false); });
     return () => controller.abort();
   }, [session, authLoading, refresh]);
 
   async function change(path: string, body: Record<string, unknown>) {
     const owner = current.current;
-    if (!owner || busy) return null;
+    if (!owner || mutation.current) return null;
+    const requestId = Symbol();
+    mutation.current = requestId;
     setBusy(true);
     setError(null);
     const isCurrent = () => alive.current && current.current?.user.id === owner.user.id
-      && current.current?.access_token === owner.access_token;
+      && current.current?.access_token === owner.access_token && mutation.current === requestId;
     try {
       const data = await whatsappRequest(path, owner.access_token, body);
       if (!isCurrent()) return null;
@@ -71,7 +79,7 @@ export function useWhatsAppConnection() {
     } catch (err) {
       if (isCurrent()) setError(err instanceof Error ? err.message : 'Unable to confirm this change. Please try again.');
       return null;
-    } finally { if (isCurrent()) setBusy(false); }
+    } finally { if (isCurrent()) { mutation.current = null; setBusy(false); } }
   }
 
   async function verify(code: string, sync: boolean, memory: boolean) {
