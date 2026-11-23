@@ -520,6 +520,12 @@ class QdrantSearcher:
                 # unambiguous key instead; do NOT rename it back to "provenance".
                 "chunk_provenance": hit.payload.get("provenance", ""),
                 "score": getattr(hit, "score", 0.0),
+                "fused_score": getattr(hit, "score", 0.0),
+                "dense_score": hit.payload.get("dense_score") or getattr(hit, "dense_score", None),
+                "sparse_score": hit.payload.get("sparse_score") or getattr(hit, "sparse_score", None),
+                "dense_rank": hit.payload.get("dense_rank") or getattr(hit, "dense_rank", None),
+                "sparse_rank": hit.payload.get("sparse_rank") or getattr(hit, "sparse_rank", None),
+                "hybrid_channel": hit.payload.get("hybrid_channel", "hybrid_fused" if sparse_vector else "dense_only"),
                 "parent_id": hit.payload.get("parent_id"),
                 "parent_text": hit.payload.get("parent_text"),
                 "group_id": hit.payload.get("group_id"),
@@ -622,20 +628,32 @@ class QdrantSearcher:
             should=should if should else None,
         )
 
-    def _dense_quantization_search_params(self) -> Optional[SearchParams]:
-        """Return search params with rescore + oversampling for non-scalar quantizers.
+    def _dense_quantization_search_params(self, hnsw_ef: Optional[int] = None) -> Optional[SearchParams]:
+        """Return search params with hnsw_ef and rescore + oversampling for non-scalar quantizers."""
+        ef_val: Optional[int] = None
+        if isinstance(hnsw_ef, int) and hnsw_ef > 0:
+            ef_val = hnsw_ef
+        else:
+            cfg_ef = getattr(settings, "qdrant_hnsw_ef_search", None)
+            if isinstance(cfg_ef, int) and cfg_ef > 0:
+                ef_val = cfg_ef
 
-        Scalar INT8 is Qdrant's default quantization baseline and does not need
-        extra search-time parameters. Binary and TurboQuant benefit from
-        oversampling + rescoring against the original full-precision vectors.
-        """
-        if settings.qdrant_quantization == "scalar_int8":
-            return None
-        return SearchParams(
-            quantization=QuantizationSearchParams(
+        quant_params = None
+        if getattr(settings, "qdrant_quantization", "") != "scalar_int8":
+            oversampling = getattr(settings, "qdrant_quantization_oversampling", 3.0)
+            if not isinstance(oversampling, (int, float)):
+                oversampling = 3.0
+            quant_params = QuantizationSearchParams(
                 rescore=True,
-                oversampling=settings.qdrant_quantization_oversampling,
+                oversampling=float(oversampling),
             )
+
+        if ef_val is None and quant_params is None:
+            return None
+
+        return SearchParams(
+            hnsw_ef=ef_val,
+            quantization=quant_params,
         )
 
     def _dense_search(

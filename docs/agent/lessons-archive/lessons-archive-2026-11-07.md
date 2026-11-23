@@ -1,3 +1,21 @@
+## Nov 5, 2026 — Batch 8: Hash field semantics, gate-first-then-dedup, and v10 hybrid retrieval (T3-03, T4-01, T4-02)
+
+### L-HASH-FIELDS-DISAMBIGUATION-1. Disambiguate hash field semantics across video and span granularities in data schemas.
+- **What:** The field name `transcript_hash` historically denoted video-level transcript hash in v10 context spans, but clip-level text hash in legacy v8 and ingestion dual-index (DATA-03). This created confusion during writes and schema verification.
+- **Fix:** Introduced canonical helpers in `backend/domain/hash_fields.py` and defined schema `fp-context-v2` in `SourceSpan`, enforcing explicit `video_transcript_sha256` (SHA-256 of full video transcript) and `span_text_sha256` (SHA-256 of span verbatim text), while supporting backwards compatibility.
+- **Rule:** Never reuse a single hash field name across different semantic scopes; explicitly distinguish video-level transcript hashes from span-level text hashes in schemas and contracts.
+
+### L-GATE-FIRST-THEN-DEDUP-1. Apply quality and integrity gates to the entire retrieved candidate pool before per-video deduplication.
+- **What:** When per-video deduplication ran inside `search_hybrid` before quality gates (RET-01), disqualifying the top-ranked span of a relevant video (e.g. for length or promise flags) discarded all other valid spans of that same video, causing avoidable abstentions.
+- **Fix:** Extended `FirstPersonStore.search_hybrid` with `deduplicate: bool = True` allowing the retrieval of the raw candidate pool (`deduplicate=False`). Updated `FirstPersonPipeline._verify_candidates` to run integrity, content quality, speaker verification, and contextual safety gates first, and then deduplicate per video capped at `dedup_limit`.
+- **Rule:** Candidate pools must pass all quality and integrity gates before deduplication is applied, ensuring that surviving valid spans from the same asset are not prematurely discarded.
+
+### L-V10-HYBRID-RETRIEVAL-1. Context-level retrieval must prefetch both dense and sparse vectors fused with RRF before parent grouping.
+- **What:** The v10 context retrieval path accepted `query_sparse` but silently ignored it in `_query_groups` and `_group_in_python`, searching only `passage_dense` (RET-02) and sacrificing exact lexical matches for sacred Sanskrit terms and proper names.
+- **Fix:** Implemented dual prefetches (`passage_dense` and `passage_sparse`) fused with `FusionQuery(Fusion.RRF)` in both `query_points_groups` and the `query_points` fallback in `FirstPersonContextStore`, preserving parent grouping and rights filters.
+- **Rule:** In hybrid retrieval pipelines, both dense and sparse vectors must be prefetched and fused via RRF before grouping or ranking to ensure both semantic depth and lexical precision.
+
+
 ## Nov 5, 2026 — Batch 7: Builder replace, schema snapshot CI, and continuous data audit (T3-04, T3-08, T3-05)
 
 ### L-BUILDER-PER-VIDEO-REPLACE-1. Rebuilding a single video must purge prior points to prevent duplicate and orphaned spans.

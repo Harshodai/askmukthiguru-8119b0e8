@@ -1129,15 +1129,15 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       const normBody = normalize(teachingBody);
       const normQuote = normalize(quote);
       if (!normBody || !normQuote) return false;
-      if (editorialSet) return normBody === normQuote || normQuote.includes(normBody) || normBody.includes(normQuote);
+      // Only suppress when the body is strictly quote-only (exact duplicate).
+      // If synthesis prose, explanation, commentary, or multiple paragraphs are present,
+      // the body MUST remain visible alongside the video citation card.
+      const lengthDiff = Math.abs(normBody.length - normQuote.length);
       return (
         normBody === normQuote ||
-        normQuote.startsWith(normBody) ||
-        normBody.startsWith(normQuote) ||
-        normBody.includes(normQuote) ||
-        normQuote.includes(normBody)
+        (lengthDiff <= 5 && (normQuote.startsWith(normBody) || normBody.startsWith(normQuote)))
       );
-    }, [guruTeachingGroups, editorialSet, teachingBody]);
+    }, [guruTeachingGroups, teachingBody]);
 
     const markdownComponents = useMemo(() => ({
       p: ({ children }: { children?: ReactNode }) => {

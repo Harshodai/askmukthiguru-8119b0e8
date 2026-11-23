@@ -1624,6 +1624,58 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
             }
         ]
 
+    # Mode 2 Grounded Synthesis: Map first_person_related_clips into structured evidence documents
+    fp_related_clips = state.get("first_person_related_clips") or []
+    fp_docs = []
+    if (
+        getattr(settings, "first_person_grounded_synthesis_enabled", False)
+        and fp_related_clips
+        and isinstance(fp_related_clips, list)
+    ):
+        for clip in fp_related_clips:
+            if isinstance(clip, dict):
+                text = str(clip.get("verbatim_text") or clip.get("text_snippet") or "").strip()
+                if not text:
+                    continue
+                # Verify eligibility gates per Invariants A & E
+                if clip.get("is_verbatim") is not True:
+                    continue
+                if clip.get("domain_rights_status") != "licensed" or clip.get("rights_cleared") is not True:
+                    continue
+                if getattr(settings, "first_person_require_speaker_verified", False):
+                    is_verified = (
+                        clip.get("speaker_verified") is True
+                        or clip.get("quality_status") == "verified_verbatim"
+                        or bool(clip.get("voice_verification_method"))
+                    )
+                    if not is_verified:
+                        continue
+                raw_score = clip.get("confidence") if clip.get("confidence") is not None else clip.get("score")
+                score_val = float(raw_score) if raw_score is not None else 0.0
+                fp_docs.append({
+                    "text": text,
+                    "content": text,
+                    "title": clip.get("title") or "First-Person Teaching Transcript",
+                    "source_url": clip.get("source_url") or clip.get("url") or (f"https://www.youtube.com/watch?v={clip.get('video_id')}" if clip.get("video_id") else ""),
+                    "video_id": clip.get("video_id"),
+                    "point_id": clip.get("clip_id") or clip.get("point_id"),
+                    "clip_id": clip.get("clip_id") or clip.get("point_id"),
+                    "speaker": clip.get("speaker"),
+                    "teacher_id": clip.get("teacher_id") or clip.get("speaker"),
+                    "is_verbatim": True,
+                    "knowledge_source": "first_person_transcript",
+                    "speaker_verified": clip.get("speaker_verified", False),
+                    "voice_verification_method": clip.get("voice_verification_method"),
+                    "domain_rights_status": clip.get("domain_rights_status"),
+                    "rights_cleared": clip.get("rights_cleared", False),
+                    "first_person_eligible": clip.get("first_person_eligible", False),
+                    "playback_start_seconds": clip.get("playback_start_seconds"),
+                    "playback_end_seconds": clip.get("playback_end_seconds"),
+                    "transcript_hash": clip.get("transcript_hash") or clip.get("source_text_hash"),
+                    "score": score_val,
+                    "rerank_score": score_val,
+                })
+
     query_tier = state.get("query_tier", "standard")
     retrieval_started = time.perf_counter()
     retrieval_stage_times: dict[str, Any] = {}
@@ -1693,6 +1745,8 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
         tour_docs = await query_neo4j_guided_tour(base_question)
         if personalize_docs:
             tour_docs = personalize_docs + [d for d in tour_docs if d not in personalize_docs]
+        if fp_docs:
+            tour_docs = fp_docs + [d for d in tour_docs if d not in fp_docs]
         lane_consumed = round((time.perf_counter() - retrieval_started) * 1000, 1)
         retrieval_stage_times["total_logged_ms"] = lane_consumed
         retrieval_stage_times["retrieval_lane"] = retrieval_lane
@@ -1760,6 +1814,8 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
         )
         if personalize_docs:
             general_docs = personalize_docs + [d for d in general_docs if d not in personalize_docs]
+        if fp_docs:
+            general_docs = fp_docs + [d for d in general_docs if d not in fp_docs]
         logger.info(
             "General-knowledge retrieval completed with %d approved web result(s) in %.1fms",
             len(general_docs),
@@ -2773,6 +2829,8 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
 
     if personalize_docs:
         all_docs = personalize_docs + [d for d in all_docs if d not in personalize_docs]
+    if fp_docs:
+        all_docs = fp_docs + [d for d in all_docs if d not in fp_docs]
 
     await emit_teaching_preview(config, all_docs)
 
@@ -2803,5 +2861,8 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
     }
     if personalize_docs:
         existing_rel = [d for d in (state.get("relevant_docs") or []) if d not in personalize_docs]
-        res_dict["relevant_docs"] = personalize_docs + existing_rel
+        res_dict["relevant_docs"] = personalize_docs + [d for d in fp_docs if d not in personalize_docs] + existing_rel
+    elif fp_docs:
+        existing_rel = [d for d in (res_dict.get("relevant_docs") or state.get("relevant_docs") or []) if d not in fp_docs]
+        res_dict["relevant_docs"] = fp_docs + existing_rel
     return res_dict

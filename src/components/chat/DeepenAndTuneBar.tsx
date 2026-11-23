@@ -252,7 +252,7 @@ export const DeepenAndTuneBar: React.FC<DeepenAndTuneBarProps> = ({
   };
 
   const handleOpenDiscourseWindow = () => {
-    if (!citation || !onOpenSearchModal) return;
+    if (!citation) return;
     const discourseCitation: DiscourseCitation = {
       index: 1,
       url: citation.url,
@@ -262,7 +262,11 @@ export const DeepenAndTuneBar: React.FC<DeepenAndTuneBarProps> = ({
       playbackStartSeconds: citation.playbackStartSeconds,
       playbackEndSeconds: citation.playbackEndSeconds,
     };
-    onOpenSearchModal(discourseCitation);
+    if (onOpenSearchModal) {
+      onOpenSearchModal(discourseCitation);
+    } else if (onOpenVideoModal) {
+      onOpenVideoModal(discourseCitation);
+    }
   };
 
   // Build @xyflow nodes and edges for selected concept

@@ -579,7 +579,13 @@ async def _append_relationship_boundary(ctx: PipelineContext) -> None:
 
     question = (ctx.state or {}).get("user_msg_en") or ctx.user_msg or ""
     answer = ctx.final_answer or ""
-    if not answer.strip() or not needs_relationship_safety_boundary(question):
+    from app.config import settings
+
+    if (
+        not answer.strip()
+        or not getattr(settings, "relationship_safety_boundary_enabled", False)
+        or not needs_relationship_safety_boundary(question)
+    ):
         return
     boundary = RELATIONSHIP_SAFETY_BOUNDARY
     if ctx.is_indic:

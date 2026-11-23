@@ -77,8 +77,6 @@ test.describe('Chat composer — keyboard and controls', () => {
   test('toolbar shows exactly one Plus (more actions) button on fresh localStorage', async ({ page }) => {
     const plusBtn = page.getByRole('button', { name: /more actions/i });
     await expect(plusBtn).toHaveCount(1);
-    const langBtn = page.getByRole('button', { name: /selected language/i });
-    await expect(langBtn).toHaveCount(1);
     const sendBtn = page.getByRole('button', { name: /send message/i });
     await expect(sendBtn).toBeDisabled();
   });

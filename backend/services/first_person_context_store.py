@@ -291,24 +291,34 @@ def parent_point_id(parent_unit_id: str) -> str:
 def _strip_record_type(payload: dict[str, Any]) -> dict[str, Any]:
     data = dict(payload)
     data.pop("record_type", None)
+    data.pop("audio_start_ms", None)
+    data.pop("audio_end_ms", None)
+    data.pop("speaker", None)
     return data
 
 
 def _clean_concept_ids(values: Optional[Sequence[str]]) -> list[str]:
-    """Strip blanks and case-insensitive duplicates, preserving order."""
+    """Strip blanks and expand case variants (lower and title) plus constituent tokens
+    so Qdrant keyword MatchAny reliably hits both topic_ids (lowercase) and entity_ids (capitalized)."""
     if not values:
         return []
     out: list[str] = []
     seen: set[str] = set()
+    _STOP_WORDS = frozenset({"and", "the", "for", "with", "into", "from", "that", "this", "your"})
     for value in values:
         text = str(value).strip() if value is not None else ""
         if not text:
             continue
-        key = text.lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(text)
+        variants = [text, text.lower(), text.title(), text.capitalize()]
+        words = text.split()
+        if len(words) > 1:
+            for w in words:
+                if len(w) >= 3 and w.lower() not in _STOP_WORDS:
+                    variants.extend([w, w.lower(), w.title()])
+        for var in variants:
+            if var not in seen:
+                seen.add(var)
+                out.append(var)
     return out
 
 
@@ -868,7 +878,7 @@ class FirstPersonContextStore:
         spans: list[SourceSpan] = []
         for span_id in parent.ordered_source_span_ids:
             try:
-                span = SourceSpan.model_validate(by_id[span_id])
+                span = SourceSpan.model_validate(_strip_record_type(by_id[span_id]))
             except Exception as exc:
                 raise FirstPersonContextStoreError(
                     f"invalid span payload {span_id}: {exc}"

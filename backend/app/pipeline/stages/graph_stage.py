@@ -208,6 +208,12 @@ class GraphStage(Stage):
             )
             initial_state["corpus_id"] = scope.corpus_id
             initial_state["teacher_id"] = scope.teacher_id
+            # Mode 2 Grounded Synthesis: forward eligible first-person speech spans
+            # from FirstPersonBridgeStage into initial graph state for synthesis & verification
+            if getattr(settings, "first_person_grounded_synthesis_enabled", False):
+                fp_clips = (ctx.state or {}).get("first_person_related_clips")
+                if fp_clips and isinstance(fp_clips, list):
+                    initial_state["first_person_related_clips"] = list(fp_clips)
             # T-B14: a validated personalize turn carries the server-looked-up
             # served clip (PersonalizeStage stashed it on ctx.state). Seed it
             # into graph state so the first-person entry router yields, and

@@ -1004,7 +1004,15 @@ export const PromptInputTextarea = forwardRef<
           return;
         }
 
-        form?.requestSubmit();
+        try {
+          if (typeof form?.requestSubmit === "function") {
+            form.requestSubmit();
+          } else {
+            form?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+          }
+        } catch {
+          form?.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+        }
       }
 
       // Remove last attachment when Backspace is pressed and textarea is empty

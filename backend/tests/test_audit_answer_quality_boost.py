@@ -3,12 +3,12 @@ Memory-to-Verifier Bridge, Minimal Stitching Directives, and Dynamic Reranker Fa
 """
 
 import pytest
+
 from app.config import settings
-from rag.nodes.generation import format_final_answer, context_engineer
+from rag.nodes.generation import context_engineer, format_final_answer
 from rag.nodes.reranking import grade_documents
 from rag.nodes.utils import _verify_inline_citations
 from services.citation_service import _check_grounding, resolve
-
 
 # ---------------------------------------------------------------------------
 # 1. Inline Citation Grounding Trap Remediation Tests
@@ -131,14 +131,15 @@ async def test_personalize_stage_bridges_canonical_memories_to_verifier_evidence
     state['canonical_memory_evidence'] and ctx.state['canonical_memory_evidence']."""
     import hashlib
     from unittest.mock import AsyncMock, MagicMock
+
     from app.pipeline.stages import personalize_stage as stage_module
+    from app.pipeline.stages.context import PipelineContext
     from app.pipeline.stages.personalize_stage import PersonalizeStage
     from app.schemas import ChatRequest
-    from app.pipeline.stages.context import PipelineContext
     from services.personalization.models import (
         SecondBrainContext,
-        UnifiedSeekerContext,
         SeekerProfileContext,
+        UnifiedSeekerContext,
     )
 
     clip_text = "Stillness is not the absence of thought, but freedom from its grip."
@@ -226,6 +227,7 @@ async def test_grade_documents_dynamic_fallback_preserves_candidates(monkeypatch
     monkeypatch.setattr(settings, "rerank_min_score", 0.35)
     monkeypatch.setattr(settings, "rerank_fallback_floor", 0.22)
     from unittest.mock import AsyncMock, MagicMock
+
     from rag.nodes import _services
     mock_grader = MagicMock()
     mock_grader.grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
@@ -256,6 +258,7 @@ async def test_grade_documents_rejects_below_fallback_floor(monkeypatch):
     monkeypatch.setattr(settings, "rerank_min_score", 0.35)
     monkeypatch.setattr(settings, "rerank_fallback_floor", 0.22)
     from unittest.mock import AsyncMock, MagicMock
+
     from rag.nodes import _services
     mock_grader = MagicMock()
     mock_grader.grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
@@ -400,6 +403,7 @@ async def test_grade_documents_handles_none_rerank_score_without_type_error(monk
     monkeypatch.setattr(settings, "rerank_min_score", 0.35)
     monkeypatch.setattr(settings, "rerank_fallback_floor", 0.22)
     from unittest.mock import AsyncMock, MagicMock
+
     from rag.nodes import _services
     mock_grader = MagicMock()
     mock_grader.grade_relevance = AsyncMock(return_value=[{"relevant": True}, {"relevant": True}])
@@ -450,5 +454,275 @@ def test_check_grounding_bare_numeric_brackets():
     answer = "Staying in peace transforms life [1]."
     assert _check_grounding(answer, docs, claims_verified_grounded=True) is True
     assert _check_grounding(answer, docs, faithfulness_score=1.0, unsupported_count=0) is True
+
+
+# ---------------------------------------------------------------------------
+# 6. Mode 2 Grounded Synthesis Evidence Injection & Prompting Tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_context_engineer_injects_first_person_synthesis_evidence_and_directives(monkeypatch):
+    """When first_person_grounded_synthesis_enabled is True and first_person_related_clips
+    is in state, context_engineer maps it to relevant_docs with knowledge_source='first_person_transcript',
+    is_verbatim=True, and injects the grounded synthesis prompt directive mandating blockquotes,
+    strict minimal stitching, and the synthesis disclosure label."""
+    from rag.nodes.generation import SYNTHESIS_LABEL
+
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", True)
+
+    clip = {
+        "clip_id": "clip_42",
+        "video_id": "vid_xyz",
+        "speaker": "Sri Preethaji",
+        "speaker_verified": True,
+        "is_verbatim": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+        "first_person_eligible": True,
+        "verbatim_text": "To be free of suffering, one must observe without conflict.",
+        "source_url": "https://www.youtube.com/watch?v=vid_xyz&t=42s",
+        "title": "On Freedom",
+        "confidence": 0.88,
+    }
+    state = {
+        "question": "How to be free from suffering?",
+        "relevant_docs": [],
+        "first_person_related_clips": [clip],
+        "chat_history": [],
+        "detected_language": "en",
+    }
+    res = await context_engineer(state)
+
+    # 1. Evidence injection in selected_docs
+    selected = res.get("selected_docs", [])
+    assert any(
+        d.get("knowledge_source") == "first_person_transcript"
+        and d.get("is_verbatim") is True
+        and "observe without conflict" in d.get("text", "")
+        and d.get("score") == 0.88
+        for d in selected
+    )
+
+    # 2. Prompt directive in instructions
+    instructions = res["context_layers"]["instructions"]
+    assert "GROUNDED TEACHING SYNTHESIS DIRECTIVE" in instructions
+    assert 'markdown blockquotes (> "...")' in instructions
+    assert "STRICT MINIMAL STITCHING" in instructions
+    assert SYNTHESIS_LABEL in instructions
+
+
+@pytest.mark.asyncio
+async def test_context_engineer_fails_closed_when_synthesis_disabled(monkeypatch):
+    """When first_person_grounded_synthesis_enabled is False (default), context_engineer
+    refuses to inject first_person_related_clips and omits synthesis prompt directives."""
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", False)
+
+    clip = {
+        "clip_id": "clip_42",
+        "video_id": "vid_xyz",
+        "speaker": "Sri Preethaji",
+        "speaker_verified": True,
+        "is_verbatim": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+        "first_person_eligible": True,
+        "verbatim_text": "To be free of suffering, one must observe without conflict.",
+        "source_url": "https://www.youtube.com/watch?v=vid_xyz&t=42s",
+        "title": "On Freedom",
+        "confidence": 0.88,
+    }
+    state = {
+        "question": "How to be free from suffering?",
+        "relevant_docs": [],
+        "first_person_related_clips": [clip],
+        "chat_history": [],
+        "detected_language": "en",
+    }
+    res = await context_engineer(state)
+
+    selected = res.get("selected_docs", [])
+    assert not any(
+        d.get("knowledge_source") == "first_person_transcript"
+        for d in selected
+    )
+    instructions = res["context_layers"]["instructions"]
+    assert "GROUNDED TEACHING SYNTHESIS DIRECTIVE" not in instructions
+
+
+@pytest.mark.asyncio
+async def test_context_engineer_rejects_unverified_voice_spans(monkeypatch):
+    """When first_person_require_speaker_verified is True, context_engineer drops unverified spans."""
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", True)
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", True)
+
+    clip = {
+        "clip_id": "clip_unverified",
+        "video_id": "vid_bad",
+        "speaker": "Sri Preethaji",
+        "speaker_verified": False,
+        "voice_verification_method": None,
+        "is_verbatim": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+        "first_person_eligible": True,
+        "verbatim_text": "Unverified words.",
+    }
+    state = {
+        "question": "Test unverified",
+        "relevant_docs": [],
+        "first_person_related_clips": [clip],
+        "chat_history": [],
+        "detected_language": "en",
+    }
+    res = await context_engineer(state)
+    selected = res.get("selected_docs", [])
+    assert not any(d.get("clip_id") == "clip_unverified" for d in selected)
+
+
+@pytest.mark.asyncio
+async def test_retrieval_injects_first_person_related_clips_into_documents_and_relevant_docs(monkeypatch):
+    """retrieve_documents maps first_person_related_clips into documents and relevant_docs
+    with real scores (no synthetic 0.85) when first_person_grounded_synthesis_enabled is True."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from rag.nodes import _services
+    from rag.nodes.retrieval import retrieve_documents
+
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", True)
+
+    mock_embedder = MagicMock()
+    mock_embedder.encode_single_full.return_value = {"dense": [0.1] * 1024, "sparse": {"1": 0.5}}
+    mock_embedder.encode_batch.return_value = {"dense": [[0.1] * 1024], "sparse": [{"1": 0.5}]}
+    mock_qdrant = MagicMock()
+    mock_qdrant.search.return_value = []
+    monkeypatch.setattr(_services, "_embedder", mock_embedder)
+    monkeypatch.setattr(_services, "_qdrant", mock_qdrant)
+    monkeypatch.setattr(_services, "_ollama", AsyncMock())
+    monkeypatch.setattr("rag.nodes.retrieval.query_neo4j_subgraph", AsyncMock(return_value=[]))
+
+    clip = {
+        "clip_id": "clip_99",
+        "video_id": "vid_abc",
+        "speaker": "Sri Krishnaji",
+        "speaker_verified": True,
+        "is_verbatim": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+        "first_person_eligible": True,
+        "verbatim_text": "Awakening is a shift from separation to oneness.",
+        "source_url": "https://www.youtube.com/watch?v=vid_abc&t=99s",
+        "title": "On Awakening",
+        "confidence": 0.92,
+    }
+    state = {
+        "question": "What is awakening?",
+        "query_tier": "fast",
+        "documents": [],
+        "relevant_docs": [],
+        "first_person_related_clips": [clip],
+    }
+    res = await retrieve_documents(state)
+    docs = res.get("documents", [])
+    rel_docs = res.get("relevant_docs", [])
+
+    matching_doc = next(
+        (d for d in docs if d.get("knowledge_source") == "first_person_transcript" and d.get("video_id") == "vid_abc"),
+        None,
+    )
+    assert matching_doc is not None
+    assert matching_doc.get("is_verbatim") is True
+    assert matching_doc.get("score") == 0.92
+
+    assert any(
+        d.get("knowledge_source") == "first_person_transcript"
+        and d.get("video_id") == "vid_abc"
+        for d in rel_docs
+    )
+
+
+@pytest.mark.asyncio
+async def test_retrieval_refuses_injection_when_synthesis_disabled(monkeypatch):
+    """retrieve_documents skips first_person_related_clips when synthesis is disabled."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from rag.nodes import _services
+    from rag.nodes.retrieval import retrieve_documents
+
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", False)
+
+    mock_embedder = MagicMock()
+    mock_embedder.encode_single_full.return_value = {"dense": [0.1] * 1024, "sparse": {"1": 0.5}}
+    mock_embedder.encode_batch.return_value = {"dense": [[0.1] * 1024], "sparse": [{"1": 0.5}]}
+    mock_qdrant = MagicMock()
+    mock_qdrant.search.return_value = []
+    monkeypatch.setattr(_services, "_embedder", mock_embedder)
+    monkeypatch.setattr(_services, "_qdrant", mock_qdrant)
+    monkeypatch.setattr(_services, "_ollama", AsyncMock())
+    monkeypatch.setattr("rag.nodes.retrieval.query_neo4j_subgraph", AsyncMock(return_value=[]))
+
+    clip = {
+        "clip_id": "clip_99",
+        "video_id": "vid_abc",
+        "speaker": "Sri Krishnaji",
+        "speaker_verified": True,
+        "is_verbatim": True,
+        "rights_cleared": True,
+        "domain_rights_status": "licensed",
+        "first_person_eligible": True,
+        "verbatim_text": "Awakening is a shift from separation to oneness.",
+        "source_url": "https://www.youtube.com/watch?v=vid_abc&t=99s",
+        "confidence": 0.92,
+    }
+    state = {
+        "question": "What is awakening?",
+        "query_tier": "fast",
+        "documents": [],
+        "relevant_docs": [],
+        "first_person_related_clips": [clip],
+    }
+    res = await retrieve_documents(state)
+    docs = res.get("documents", [])
+    assert not any(d.get("knowledge_source") == "first_person_transcript" for d in docs)
+
+
+def test_first_person_grounded_synthesis_setting_defaults_to_false():
+    """first_person_grounded_synthesis_enabled defaults to False per Mode 2 invariant."""
+    from app.config import Settings
+
+    assert "first_person_grounded_synthesis_enabled" in Settings.model_fields
+    assert Settings.model_fields["first_person_grounded_synthesis_enabled"].default is False
+
+
+def test_route_after_first_person_enforces_soft_allowlist_and_fallback(monkeypatch):
+    """_route_after_first_person stops at END on hard abstains or when fallback is disabled."""
+    from unittest.mock import MagicMock
+
+    from langgraph.graph import END
+
+    from rag.graph_strategies import _route_after_first_person
+
+    # 1. Hard abstain (safety cause) -> END even if fallback is enabled
+    res_safety = MagicMock()
+    res_safety.route_metadata = {"abstain_cause": "safety"}
+    res_safety.verification = {"direct": False}
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    assert _route_after_first_person({"first_person_result": res_safety}) == END
+
+    # 2. Soft abstain (no_evidence), but fallback is False -> END
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    res_soft = MagicMock()
+    res_soft.route_metadata = {"abstain_cause": "no_evidence"}
+    res_soft.verification = {"direct": False}
+    res_soft.citations = []
+    assert _route_after_first_person({"first_person_result": res_soft}) == END
+
+    # 3. Soft abstain with fallback enabled -> parallel_start
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    state = {
+        "first_person_result": res_soft,
+    }
+    out = _route_after_first_person(state)
+    assert out != END
+
 
 

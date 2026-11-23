@@ -1750,8 +1750,8 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
     raw_docs = state.get("relevant_docs", [])
 
     # DEF-R2-01 / DEF-R2-05: Ensure personalize_doc is present in relevant_docs
-    if state.get("personalize_clip"):
-        p_clip = state["personalize_clip"]
+    p_clip = state.get("personalize_clip")
+    if p_clip and isinstance(p_clip, dict):
         has_p_doc = any(
             isinstance(d, dict) and d.get("knowledge_source") == "personalize_clip"
             for d in raw_docs
@@ -1771,6 +1771,70 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
                 "rerank_score": 1.0,
             }
             raw_docs = [p_doc] + list(raw_docs)
+
+    # Mode 2 Grounded Synthesis: Ensure first_person_related_clips are mapped to relevant_docs
+    fp_clips = state.get("first_person_related_clips") or []
+    if (
+        getattr(settings, "first_person_grounded_synthesis_enabled", False)
+        and fp_clips
+        and isinstance(fp_clips, list)
+    ):
+        fp_docs_to_add = []
+        for clip in fp_clips:
+            if isinstance(clip, dict):
+                text = str(clip.get("verbatim_text") or clip.get("text_snippet") or "").strip()
+                if not text:
+                    continue
+                # Verify eligibility gates per Invariants A & E
+                if clip.get("is_verbatim") is not True:
+                    continue
+                if clip.get("domain_rights_status") != "licensed" or clip.get("rights_cleared") is not True:
+                    continue
+                if getattr(settings, "first_person_require_speaker_verified", False):
+                    is_verified = (
+                        clip.get("speaker_verified") is True
+                        or clip.get("quality_status") == "verified_verbatim"
+                        or bool(clip.get("voice_verification_method"))
+                    )
+                    if not is_verified:
+                        continue
+                clip_id = clip.get("clip_id") or clip.get("point_id")
+                already_in_docs = any(
+                    (d.get("clip_id") == clip_id or d.get("point_id") == clip_id or d.get("text") == text)
+                    for d in raw_docs
+                    if isinstance(d, dict)
+                )
+                if not already_in_docs:
+                    raw_score = clip.get("confidence") if clip.get("confidence") is not None else clip.get("score")
+                    score_val = float(raw_score) if raw_score is not None else 0.0
+                    fp_docs_to_add.append({
+                        "text": text,
+                        "content": text,
+                        "title": clip.get("title") or "First-Person Teaching Transcript",
+                        "source_url": clip.get("source_url") or clip.get("url") or (f"https://www.youtube.com/watch?v={clip.get('video_id')}" if clip.get("video_id") else ""),
+                        "video_id": clip.get("video_id"),
+                        "point_id": clip_id,
+                        "clip_id": clip_id,
+                        "speaker": clip.get("speaker"),
+                        "teacher_id": clip.get("teacher_id") or clip.get("speaker"),
+                        "is_verbatim": True,
+                        "knowledge_source": "first_person_transcript",
+                        "speaker_verified": clip.get("speaker_verified", False),
+                        "voice_verification_method": clip.get("voice_verification_method"),
+                        "domain_rights_status": clip.get("domain_rights_status"),
+                        "rights_cleared": clip.get("rights_cleared", False),
+                        "first_person_eligible": clip.get("first_person_eligible", False),
+                        "playback_start_seconds": clip.get("playback_start_seconds"),
+                        "playback_end_seconds": clip.get("playback_end_seconds"),
+                        "transcript_hash": clip.get("transcript_hash") or clip.get("source_text_hash"),
+                        "score": score_val,
+                        "rerank_score": score_val,
+                    })
+        if fp_docs_to_add:
+            if p_clip and raw_docs and raw_docs[0].get("knowledge_source") == "personalize_clip":
+                raw_docs = [raw_docs[0]] + fp_docs_to_add + list(raw_docs[1:])
+            else:
+                raw_docs = fp_docs_to_add + list(raw_docs)
 
     relevant_docs = sort_docs_litm_aware(raw_docs)
     chat_history = state.get("chat_history", [])
@@ -2183,10 +2247,34 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
             "using the teaching, and provide step-by-step contemplation or practice tailored to their current life chapter."
         )
 
+    # Mode 2 Grounded Synthesis Directive: verbatim quotes in blockquotes, strict minimal stitching
+    has_fp_evidence = any(
+        isinstance(d, dict) and d.get("knowledge_source") == "first_person_transcript"
+        for d in raw_docs
+    ) or bool(state.get("first_person_related_clips"))
+    if (
+        getattr(settings, "first_person_grounded_synthesis_enabled", False)
+        and has_fp_evidence
+        and not general_knowledge_mode
+    ):
+        instructions += (
+            "\nGROUNDED TEACHING SYNTHESIS DIRECTIVE:\n"
+            "You are synthesizing verified teachings from the teachers' exact spoken transcripts.\n"
+            "1. VERBATIM BLOCKQUOTES ONLY: You MUST present all verbatim teacher quotes using markdown blockquotes (> \"...\") on their own line. "
+            "Quote the teachers' exact words directly from the transcripts without altering, paraphrasing, or embedding unclosed quotes inline.\n"
+            "2. STRICT MINIMAL STITCHING: Write only minimal, concise connective prose (1-2 sentences) to frame the teachings. "
+            "Do NOT invent poetic metaphors, motivational filler, or advice formulas. Every statement must reflect the core teachings.\n"
+            "3. GRAMMATICAL INTEGRITY: Use clean, natural grammar. Never stack modal verbs (e.g. NEVER write \"begins to can\"). "
+            "Always identify the teacher by name (\"Sri Krishnaji\" / \"Sri Preethaji\") before using third-person pronouns.\n"
+            "4. NO CONVERSATIONAL FLUFF: Never conclude with conversational questions (e.g. do NOT ask \"Would you like to explore...\"). End cleanly.\n"
+            "5. Conclude the synthesis with the explicit disclosure label on its own line:\n"
+            + SYNTHESIS_LABEL
+        )
+
     # The instructions are always English text, so they are budgeted as English.
     # Budgeting them with the seeker's language ratio (e.g. Kannada) cut every
     # item after 8 -- the adversarial-premise and CCR rules -- for Indic seekers.
-    instructions = cap_to_token_budget(instructions, 1200, "en")
+    instructions = cap_to_token_budget(instructions, 1600, "en")
 
     # -------------------------------------------------------------------------
     # 1.9 Structured Prompt Assembly — labeled sections built from relevant_docs
@@ -4226,9 +4314,10 @@ def _answer_shape_floor(answer: str, question: str) -> tuple[str, list[str]]:
             applied.append("contrast_not_answered")
 
     # S2: relationship repair -- inner work first, contact only if safe.
+    from app.config import settings
     from guardrails.lightweight_handler import needs_relationship_safety_boundary
 
-    if needs_relationship_safety_boundary(question):
+    if getattr(settings, "relationship_safety_boundary_enabled", False) and needs_relationship_safety_boundary(question):
         before = len(paragraphs)
         paragraphs = _relationship_floor(paragraphs)
         if len(paragraphs) != before:
@@ -4271,6 +4360,40 @@ def _merge_fp_related_clips(citations: list, state: GraphState) -> list:
     return out
 
 
+def _clean_synthesis_syntax_and_fluff(text: str) -> str:
+    """Clean common LLM synthesis grammar glitches, broken quotes, and trailing conversational fluff."""
+    if not text:
+        return text
+    # 1. Fix modal stacking (e.g., 'begins to can resolve' -> 'begins to resolve')
+    text = re.sub(
+        r"\b(begins?|starts?)\s+to\s+can\s+([a-z]+)\b",
+        r"\1 to \2",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\b(begin|start)\s+to\s+can\s+([a-z]+)\b",
+        r"\1 to \2",
+        text,
+        flags=re.IGNORECASE,
+    )
+    # 2. Strip trailing conversational chatbot platitudes before disclosure labels
+    text = re.sub(
+        r"\n+\s*(?:Would you like to explore|Shall we explore|Feel free to ask|Let me know if you would like)[^\n]*\??(?=\n\n_|\n_$|$)",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    # 3. Clean unbalanced lone quotes within non-blockquote paragraphs
+    paragraphs = text.split("\n\n")
+    cleaned_paras: list[str] = []
+    for p in paragraphs:
+        if p.count('"') % 2 != 0 and not p.strip().startswith(">"):
+            p = re.sub(r'(?<=\s)"([A-Za-z0-9\s]+?)(?=[,\.\n]|$)', r"\1", p, count=1)
+        cleaned_paras.append(p)
+    return "\n\n".join(cleaned_paras).strip()
+
+
 def _label_synthesis(answer: str, state: GraphState, final_citations: list | None = None) -> str:
     """Post-check a generated teaching answer, then append SYNTHESIS_LABEL
     (idempotent).
@@ -4301,6 +4424,7 @@ def _label_synthesis(answer: str, state: GraphState, final_citations: list | Non
     # any note added below.
     had_label = SYNTHESIS_LABEL in answer
     answer = answer.replace(SYNTHESIS_LABEL, "").rstrip()
+    answer = _clean_synthesis_syntax_and_fluff(answer)
     relevant_docs = state.get("relevant_docs") or []
     answer, neutralized = _neutralize_unsupported_teacher_attribution(
         answer,

@@ -500,6 +500,11 @@ class Settings(BaseSettings):
     # Env: SPECULATIVE_GENERATION_ENABLED.
     speculative_generation_enabled: bool = False
     first_person_llm_fallback_enabled: bool = False
+    # Mode 2 Grounded Synthesis (2026-11-23): when True and first_person_llm_fallback_enabled
+    # is True, eligible speech spans from FirstPersonBridgeStage may be synthesized with
+    # minimal connective prose by LangGraph. When False (default), the product serves only
+    # verbatim clips or honest static abstentions; no generated teaching prose is produced.
+    first_person_grounded_synthesis_enabled: bool = False
     # T6-02 / MEM-002 / D-PM4: Server-side authoritative seen-clip tracking.
     # When False (default), first-person retrieval does not query server-side seen-clip
     # state, preserving byte-for-byte legacy behavior. When True, queries namespaced
@@ -699,6 +704,11 @@ class Settings(BaseSettings):
     # (flashcard content). Rollback = set False (restores raw-text scan at all
     # three sites; srs guardrail reverts to its prior latent-dead-code state).
     multilingual_guardrails: bool = True
+    # Owner directive 2026-11-23: Relationship safety boundary boilerplate
+    # ("If anyone in this relationship hurts, threatens or controls you...")
+    # should NOT be appended to spiritual inquiries about relationship healing.
+    # Keep False by default. Genuine abuse/violence is caught by domestic_abuse_safety.
+    relationship_safety_boundary_enabled: bool = False
 
     # --- OpenRouter (free tier for simple queries) ---
     openrouter_api_key: str = ""
@@ -826,6 +836,9 @@ class Settings(BaseSettings):
     # Oversampling factor used for non-scalar quantizers (binary / TurboQuant).
     # Higher values improve recall at the cost of extra compute during search.
     qdrant_quantization_oversampling: float = 3.0
+    # Search-time HNSW beam size (ef_search). Recommended: 32-128 for medium collections.
+    # Default 64 balances search latency with high recall (>0.95). 0 disables custom ef_search.
+    qdrant_hnsw_ef_search: int = 64
 
     # Hybrid search fusion strategy: "rrf" (Reciprocal Rank Fusion, rank-based,
     # unweighted — Qdrant's Fusion enum has no weight parameter) or "dbsf"

@@ -61,9 +61,9 @@ vi.mock('@/hooks/useTextToSpeech', () => ({
   }),
 }));
 
-// Mock local storage access functions
+let msgIdCounter = 0;
 vi.mock('@/lib/chatStorage', () => ({
-  generateId: () => 'test-msg-id',
+  generateId: () => `test-msg-id-${++msgIdCounter}`,
   saveConversation: vi.fn(),
   loadConversation: vi.fn().mockReturnValue(null),
   loadConversations: vi.fn().mockReturnValue([]),
@@ -134,14 +134,22 @@ vi.mock('@/components/meditation/GuidedMeditationFlow', () => ({
 }));
 
 vi.mock('./ChatComposer', () => ({
-  ChatComposer: ({ inputValue, onInputChange, onSubmit }: {
+  ChatComposer: ({ inputValue, onInputChange, onSubmit, isStreaming, isTyping }: {
     inputValue: string;
     onInputChange: (event: { target: { value: string } }) => void;
-    onSubmit: (event: { preventDefault: () => void }) => void;
+    onSubmit: (event: { preventDefault: () => void }, text?: string) => void;
+    isStreaming?: boolean;
+    isTyping?: boolean;
   }) => (
     <div>
       <textarea aria-label="Your message" value={inputValue} onChange={onInputChange} />
-      <button aria-label="Send message" type="button" onClick={() => onSubmit({ preventDefault: () => {} })}>Send</button>
+      <button
+        aria-label={isStreaming || isTyping ? 'Queue message' : 'Send message'}
+        type="button"
+        onClick={() => onSubmit({ preventDefault: () => {} }, inputValue)}
+      >
+        {isStreaming || isTyping ? 'Queue' : 'Send'}
+      </button>
     </div>
   ),
 }));
@@ -321,5 +329,88 @@ describe('ChatInterface', () => {
       expect(guruBubbles).toHaveLength(2);
       expect(guruBubbles[1]).toHaveTextContent('Peace arises in witnessing.');
     });
+  });
+
+  it('queues multiple follow-up questions while streaming and drains them sequentially', async () => {
+    let callCount = 0;
+    let resolveStream1!: () => void;
+    const stream1Promise = new Promise<void>((resolve) => {
+      resolveStream1 = resolve;
+    });
+
+    vi.mocked(sendMessageStreaming).mockImplementation((_history, text) => {
+      callCount++;
+      const currentCall = callCount;
+      return {
+        [Symbol.asyncIterator]: async function* () {
+          yield { type: 'token', text: `Response ${currentCall} for ${text}` };
+          if (currentCall === 1) {
+            await stream1Promise;
+          }
+          yield {
+            type: 'done',
+            blocked: false,
+            intent: 'QUERY',
+            citations: [],
+            meditationStep: 0,
+            followUpSuggestions: [],
+          };
+        },
+      } as any;
+    });
+
+    render(
+      <BrowserRouter>
+        <ChatInterface />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(setCurrentConversationId).toHaveBeenCalledWith('test-conv-id');
+    });
+
+    const input = await screen.findByLabelText('Your message');
+
+    // 1. Send first message
+    const landingInput = await screen.findByLabelText('Your message');
+    fireEvent.change(landingInput, { target: { value: 'Question 1' } });
+    fireEvent.click(await screen.findByLabelText('Send message'));
+
+    // Wait until stream 1 is active (stop button is present)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /stop generating/i })).toBeInTheDocument();
+    });
+
+    // 2. Queue second message while stream 1 is generating (using active sticky composer textarea)
+    const activeInput = await screen.findByLabelText('Your message');
+    fireEvent.change(activeInput, { target: { value: 'Question 2' } });
+    const queueBtn1 = await screen.findByRole('button', { name: /queue message/i });
+    fireEvent.click(queueBtn1);
+
+    // Verify QueuedMessagesTray appears with Question 2
+    await waitFor(() => {
+      expect(screen.getByText('Question 2')).toBeInTheDocument();
+    });
+
+    // 3. Queue third message while stream 1 is still generating
+    fireEvent.change(activeInput, { target: { value: 'Question 3' } });
+    const queueBtn2 = await screen.findByRole('button', { name: /queue message/i });
+    fireEvent.click(queueBtn2);
+
+    // Verify QueuedMessagesTray updates to contain both queued items
+    await waitFor(() => {
+      expect(screen.getByText('Question 2')).toBeInTheDocument();
+      expect(screen.getByText('Question 3')).toBeInTheDocument();
+    });
+
+    // 4. Resolve stream 1 and verify that stream 1 completes and auto-drains Question 2 and Question 3
+    resolveStream1();
+
+    await waitFor(
+      () => {
+        expect(callCount).toBe(3);
+      },
+      { timeout: 4000 }
+    );
   });
 });

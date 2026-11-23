@@ -67,11 +67,7 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
       <button
         type="button"
         onClick={() => {
-          if (onOpenSearchModal) {
-            onOpenSearchModal(citation);
-          } else {
-            onOpenVideoModal(citation);
-          }
+          onOpenVideoModal(citation);
         }}
         aria-label={`Citation ${citation.index}: ${citation.title}`}
         className="mx-0.5 inline-flex h-4 min-w-4 items-center justify-center gap-0.5 rounded-md border border-saffron-gold/40 bg-saffron-gold/10 px-1 font-mono text-[10px] font-semibold text-ojas-ink transition-all hover:scale-110 hover:bg-saffron-gold/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
@@ -127,13 +123,13 @@ export const CitationBadge: React.FC<CitationBadgeProps> = ({
               </p>
             )}
 
-            <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+            <div className={`mt-2.5 ${onOpenSearchModal ? 'grid grid-cols-2 gap-1.5' : ''}`}>
               <button
                 type="button"
                 onClick={() => onOpenVideoModal(citation)}
-                className="flex items-center justify-center gap-1 rounded-xl bg-saffron-gold/15 py-1.5 text-xs font-medium text-ojas-ink hover:bg-saffron-gold/25 transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-saffron-gold/15 py-1.5 text-xs font-medium text-ojas-ink hover:bg-saffron-gold/25 transition-colors"
               >
-                <Play className="h-3 w-3 fill-current" /> Video
+                <Play className="h-3 w-3 fill-current" /> Watch Video
               </button>
 
               {onOpenSearchModal && (

@@ -1,6 +1,80 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 23, 2026 (night) — Dynamic LLM Ontology Concept Extraction, Dual-Anchor Provenance Stamping, & Monotonic Chronological Invariants
+
+### L-DYNAMIC-ONTOLOGY-RESOLVER-1. Replace static concept regexes with dynamic LLM structured concept extraction and Neo4j graph neighborhood traversal.
+- **What:** In `backend/rag/kg_expansion.py` and `backend/rag/nodes/utils.py`, concept expansion relied on hardcoded lists (`_SEEDED_CONCEPTS` with ~35 terms and `DOCTRINE_SYNONYMS`). When seekers phrased queries using emotional states or natural language synonyms (e.g. "resentment", "bitterness", "spousal conflict", "healing emotional hurt", "forgiveness"), static string matching failed to detect entities, causing graph expansion and doctrine tagging to completely fail for these inquiries.
+- **Fix:** Implemented `backend/services/ontology_resolver.py` providing `resolve_query_concepts_llm` and `resolve_query_concepts_llm_async`. The resolver dynamically extracts core spiritual concepts, underlying inner states, and meditation practices using structured LLM inference, caches results in memory/Redis, and traverses 1-hop Neo4j graph relationships (`MATCH (c:Concept)-[]-(n)`). Wired this directly into `resolve_concepts_in_query()` in `backend/rag/kg_expansion.py` with fail-open bounds to prevent retrieval stalls.
+- **Rule:** Never rely on static, hardcoded string lists to map natural language queries to ontology nodes. Use dynamic LLM-driven structured concept extraction with bounded timeouts, fail-open fallbacks, and graph neighborhood traversal.
+
+### L-PROVENANCE-KEYS-SPEAKER-GATE-1. Verified first-person spans must carry all 8 automated ECAPA provenance attributes; unverified points must declare ecapa_failed.
+- **What:** When reverifying first-person context points in `first_person_v13_shadow`, setting `speaker_verified=True` without the full automated provenance metadata caused `FirstPersonContextHarness` to reject retrieved spans with `speaker_write_violations=['speaker_verified_without_method']`. Furthermore, setting `speaker_verification_status="unverified"` failed Pydantic schema validation because `SourceSpan` requires a literal of `verified`, `ecapa_failed`, `pending_voice_check`, or `pending_listen`.
+- **Fix:** Stamped all 8 required provenance keys on verified spans: `voice_verification_method="ecapa_voxceleb_windowed_v1"`, `voice_model_revision`, `voice_calibration_id`, `voice_threshold_applied`, `voice_score`, `voice_margin`, `voice_window_check="pass"`, and `speaker_verification_status="verified"`. For unverified or rejected spans, stamped `speaker_verified=False` and `speaker_verification_status="ecapa_failed"`. Added validation tests ensuring zero payload violations across Qdrant and Pydantic models.
+- **Rule:** A point marked `speaker_verified=True` must unconditionally carry all 8 cryptographic and calibration provenance keys. Non-verified audio points must declare `speaker_verification_status="ecapa_failed"` to satisfy the serving contract and Pydantic schema constraints.
+
+### L-CHRONOLOGICAL-COORDINATES-1. Transcript segment offsets must strictly preserve monotonicity to avoid parent context validation errors.
+- **What:** On video `f-IpkGOOzYU`, an introductory title card with music delayed teacher speech until 15.34s, leading to an audio window of 15340–27480 ms for ECAPA scoring. When span 0 coordinates in Qdrant were set to 15340 while span 1 began at 12661, `FirstPersonContextStore` threw `FirstPersonContextStoreError: parent ordered spans are not strictly chronological`, completely blocking context retrieval for that video.
+- **Fix:** Separated audio evaluation windows from transcript boundary coordinates. Preserved monotonic span coordinates (`0 .. 12661` for span 0, `12661 .. 22887` for span 1) in the Qdrant payload to satisfy the chronological ordering invariant, while using the precise speech window (`15340 .. 27480`) strictly for ECAPA voice verification scoring.
+- **Rule:** In parent-child context stores, transcript span boundaries must remain strictly monotonic and continuous. Never alter structural transcript coordinates for audio window alignment; keep audio scoring offsets strictly internal to verification harnesses.
+
+
+## Nov 23, 2026 (evening) — Grounded Synthesis Gate Enforcement, Provenance Score Integrity, and Modal Preservation
+
+### L-GROUNDED-SYNTHESIS-GATE-AND-SCORE-INTEGRITY-1. New serving flags must actively gate routing and document injection; fallback evidence must never inject synthetic scores.
+- **What:** In restoring Mode 2 Grounded Synthesis, `first_person_grounded_synthesis_enabled: bool = False` was added to `Settings` but was never referenced in `FirstPersonBridgeStage`, `GraphStage`, `_route_after_first_person`, `retrieval.py`, or `generation.py`. This caused synthesis and document injection to trigger whenever `first_person_llm_fallback_enabled` was True even while synthesis was disabled by default. Simultaneously, `retrieval.py` and `generation.py` injected a synthetic hardcoded `0.85` score whenever confidence or score was absent from retrieved clips (violating Invariant E), while `_route_after_first_person` bypassed the soft-abstain allowlist on non-direct turns, allowing hard abstentions (`safety`, `topic_boundary`) to fall through to `parallel_start()`. In `ChatMessage.tsx`, `LinkSearchModal` was accidentally removed.
+- **Fix:** Enforced `first_person_grounded_synthesis_enabled` at all boundaries: bridge forwarding, graph initial state seeding, retrieval/generation evidence document creation, and prompt directive inclusion. Replaced synthetic 0.85 scores with actual clip scores (`float(clip.get("confidence") or clip.get("score") or 0.0)`). Gated `_route_after_first_person` strictly behind `_SOFT_ABSTAIN_CAUSES` and `teaching_generation_allowed()`. Restored `LinkSearchModal` and its event wiring in `ChatMessage.tsx`.
+- **Rule:** A configuration flag is not implemented until it actively guards every execution branch and document injection path. Evidence documents must never carry synthetic fallback scores that inflate relevance or bypass downstream quality gates.
+
+## Nov 23, 2026 (afternoon) — Landing View Composer Restoration, Practice Autonomy, & Multi-Question Enter Queueing
+
+### L-LANDING-COMPOSER-HERO-INTEGRITY-1. The landing view prompt bar belongs in the centered hero card, not detached in an overflowing sticky footer.
+- **What:** In `ChatInterface.tsx`, an earlier attempt to deduplicate the composer removed `<ChatComposer isLandingMode={true} />` from the landing container, leaving the only composer in a detached `sticky bottom-0` footer. In Google Chrome and inside Lovable iframe layouts, CSS flex constraints (`h-dvh max-h-dvh overflow-hidden` with `min-h-full justify-center`) pushed the bottom composer off-screen or separated it from starter suggestion cards by 430px of empty black void.
+- **Fix:** Restored `<ChatComposer isLandingMode={true} />` centered directly inside the landing hero card between the teacher guidance/daily wisdom panel and starter cards (`STARTER_CARDS`). Guarded the bottom sticky container with `{!isLandingMode && ( ... )}` and set `exit={{ opacity: 0, transition: { duration: 0 } }}` to prevent dual-composer DOM collision during transition.
+- **Rule:** On empty landing states, the primary prompt bar must reside inside the visible hero layout above suggestion cards. Never delegate landing input solely to a detached sticky footer.
+
+### L-POST-ANSWER-PRACTICE-AUTONOMY-1. An answered question must deliver the teaching cleanly without automated practice takeover.
+- **What:** Once a response finished streaming or returned from the backend, `streamedProactiveSereneMind?.triggered` / `response.proactiveSereneMind?.triggered` automatically appended an unsolicited follow-up Guru message ("Sri Krishnaji teaches that every obstacle is a teacher. Please do Serene Mind now to continue") with an offer card. Simultaneously, a heuristic text scanner (`looksLikeSereneMind`) automatically popped open the Serene Mind audio modal whenever the generated answer mentioned words like "meditation" or "breath".
+- **Fix:** Removed automated post-answer `proactiveSereneMind` message injection and deleted the heuristic `looksLikeSereneMind` auto-open triggers in both streaming and non-streaming response handlers. Kept voluntary practice pathways (the Action menu, "Meditate" starter pills, and explicit user voice/text requests) fully functional.
+- **Rule:** Never pop modals or append mandatory practice mandates uninvited after answering a seeker's query. Teachings come first; meditative practices must remain strictly user-initiated.
+
+### L-ENTER-SUBMISSION-DOM-RACE-AND-QUEUE-LOCKOUT-1. Enter keypresses and follow-up question queueing must never be dropped by stale DOM checks or un-reset re-entrancy gates.
+- **What:** Pressing Enter frequently failed to submit messages in Google Chrome, and entering multiple questions while an answer streamed failed to queue. Four defects compounded:
+  1. `isSubmittingRef.current` was set to `true` at the start of a turn, but in the streaming path (and cache path), `isSubmittingRef.current = false` was never executed (it was only in the non-streaming fallback `finally` block). Any subsequent regular submission was permanently blocked by `if (isSubmittingRef.current && !options.forceImmediate) return;`.
+  2. `PromptInputTextarea.handleKeyDown` called `e.preventDefault()` immediately, followed by `if (submitButton?.disabled) return;`. Because React batches state updates, rapid typing left `submitButton.disabled` reading `true` from the previous render, silently swallowing Enter.
+  3. The queue submit button was conditionally unmounted with `{inputValue.trim() && ( ... )}`, so `form.querySelector('button[type="submit"]')` was null during fast typing.
+  4. `queuedMessagesRef.current` was only updated asynchronously in a `useEffect([queuedMessages])`. Rapid consecutive Enters before React flushed its next render caused `queuedMessagesRef.current` to be out of sync, and `drainNextQueuedMessage` relied on closed-over stale `messages`.
+- **Fix:**
+  1. Guaranteed `isSubmittingRef.current = false;` on all exits (stream `finally`, stream completion, cache hit, stop generation, and top-level try/finally).
+  2. Wrapped `PromptInputTextarea` Enter handling in safe `form.requestSubmit()` with `dispatchEvent` fallback without dropping keystrokes on stale button attributes.
+  3. Kept the submit button permanently in the DOM during generation (disabled via prop when empty rather than unmounted), and forwarded submitted text directly through `onSubmit(e, text)` into `handleSubmit(e, text)` as `overrideText`.
+  4. Synchronously assigned `queuedMessagesRef.current = [...queuedMessagesRef.current, newQueued];` at the exact microsecond of enqueueing, synchronously sliced it on drain, and passed `baseMessages: messagesRef.current` for 100% transcript continuity.
+- **Rule:** Never conditionally unmount form submit elements in interactive composers; never leave re-entrancy refs un-reset on stream or cache exit paths; never gate message queueing behind generation re-entrancy locks; and ensure Enter keydown handlers fail open to form submission when text is present in the DOM.
+
+## Nov 23, 2026 (authoritative) — Production Certification Closure & Evidence Hardening
+
+### L-PROVENANCE-TAMPER-EVIDENT-VALIDATION-1. External dataset certification requires cryptographic tamper-evident provenance validated at the contract boundary.
+- **What:** Keyword research previously accepted a caller-supplied `production_certified=True` flag while relying on synthetic or simulated data. Payloads lacked cryptographic SHA-256 request/response digests, retrieval timestamps, and metric sanity checks.
+- **Fix:** Extended `validate_keyword_research_payload` to strictly distinguish uncertified baselines from external production payloads. For certified data, the validator enforces non-empty verified provider, valid http/https source URL, ISO-8601 UTC timestamp, 64-char lowercase hex request/response SHA-256 hashes, exact requested keyword count, and non-simulated flag. Contradictory payloads (`production_certified=True` with `is_simulated=True`) or negative/out-of-range metrics fail closed with `KeywordValidationError`.
+- **Rule:** Never trust a caller-supplied certification flag without validating cryptographic provenance at the schema boundary; reject contradictory or untracked claims immediately.
+
+### L-MEDIA-ARTIFACT-ATOMIC-CLEANUP-1. Media processing pipelines must fail closed and purge partial artifacts on intermediate failures.
+- **What:** When FFmpeg cutting, translation batching, or subtitle burn failed midway through chapter processing, intermediate files (`clip.mp4`, `.srt`) remained on disk in the output directory, creating dirty state that could be mistaken for successful output.
+- **Fix:** Wrapped `process_chapter` and `download_transcript` in atomic fail-closed cleanup blocks. Any exception during cutting, slicing, translation, or burning purges all partially created files and empty directories before re-raising. Deterministic manifests (`manifest.json`) are written only after every required artifact exists and has non-zero size, with verified SHA-256 hashes.
+- **Rule:** Media artifact pipelines must be strictly atomic: all required deliverables succeed with verified non-zero bytes and SHA-256 manifests, or zero intermediate files remain on disk.
+
+### L-NATIVE-HNSW-BENCHMARK-CERTIFICATION-1. Index tuning and recall claims require native C++ graph execution against exact brute-force ground truth.
+- **What:** HNSW sweeps previously used analytical simulation when `hnswlib` was missing, while defaults (`M=32`, `ef_construction=200`, `ef_search=64`) were set without retained native ground-truth benchmarks.
+- **Fix:** Executed `hnsw_tuning_sweep.py --require-native` with native `hnswlib==0.8.0` on Apple Silicon arm64 against exact brute-force cosine ground truth. Generated tamper-evident `hnsw_certification_manifest.json` recording dataset SHA-256, query SHA-256, matrix SHA-256, and evaluated Qdrant production defaults: `M=32, ef_construction=200, ef_search=64` achieved recall@10 = 0.97 (exceeding 0.95 target) with p95 latency = 0.811ms (< 10ms SLO), empirically confirming production defaults.
+- **Rule:** Never base index configuration claims on analytical simulations; require native C++ indexing benchmarked against brute-force ground truth with retained cryptographic manifests.
+
+## Nov 23, 2026 — Verification evidence boundaries for the six-skill remediation
+
+### L-CONTRACT-TESTS-ARE-NOT-PRODUCTION-EVIDENCE-1. Passing shape tests cannot certify external data, media artifacts, or live-index performance.
+- **What:** The focused Docker suite passed `28 passed in 0.57s`, syntax compilation passed, the three root/backend standalone CLI copies were byte-identical, and `git diff --check` passed. Those checks validate interfaces and deterministic local helpers, but they do not establish that the new workflows are production-grade. The keyword engine still creates volumes, CPC, KD, competitor traffic, and gap metrics from seeded/random or hard-coded values (and seeds with Python `hash()`, whose value is process-randomized). The transcript Whisper branch writes a fixed synthetic VTT rather than running Whisper. The bilingual clipper uses `[译]` placeholders without a translator, and its chapter processor records success-shaped artifacts without visibly failing closed when FFmpeg fails. The HNSW sweep uses a simulated recall/latency/build-time model when `hnswlib` is unavailable, so those numbers are not live index measurements.
+- **Fix/evidence boundary:** Keep the 28-test result as contract evidence only. Before production release, require reproducible external SEO provenance, an actual consent-gated Whisper transcription artifact, a real translation provider or an explicit non-production mode, fail-closed artifact orchestration with deterministic manifests, and a native HNSW run against representative vectors with exact-ground-truth comparison. Never promote simulated, placeholder, mocked, or hard-coded values into a production-readiness score.
+- **Rule:** Separate “the interface and local contract pass” from “the system has measured real-world quality.” A green focused suite is necessary but insufficient when the implementation can manufacture plausible-looking data or artifacts.
+
 ## Nov 22, 2026 (afternoon) — Live Product Release Remediation: Temporary Chat Privacy, Fast Prompt-Injection Preemption, and 3-Level Safety Calibration
 
 ### L-TEMPORARY-TITLE-ASYNC-LEAK-AND-CACHE-ISOLATION-1. Async title generation and response caching must strictly honor temporary chat boundaries.
@@ -1401,24 +1475,6 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Fix:** Extended `FirstPersonPipeline.execute` and `_rerank_and_balance_candidates` with `memory_signals` and `_apply_memory_reranking`, prioritizing unseen clips from the verified candidate pool for returning seekers and bypassing the shared cache for personalized queries. The verbatim quote text and metadata remain 100% byte-identical.
 - **Rule:** When applying personalization to verbatim or immutable teaching lanes, use memory signals strictly to re-rank pre-verified candidates (e.g. promoting unseen content) without ever generating, paraphrasing, or altering the underlying source words.
 
-
-
-## Nov 5, 2026 — Batch 8: Hash field semantics, gate-first-then-dedup, and v10 hybrid retrieval (T3-03, T4-01, T4-02)
-
-### L-HASH-FIELDS-DISAMBIGUATION-1. Disambiguate hash field semantics across video and span granularities in data schemas.
-- **What:** The field name `transcript_hash` historically denoted video-level transcript hash in v10 context spans, but clip-level text hash in legacy v8 and ingestion dual-index (DATA-03). This created confusion during writes and schema verification.
-- **Fix:** Introduced canonical helpers in `backend/domain/hash_fields.py` and defined schema `fp-context-v2` in `SourceSpan`, enforcing explicit `video_transcript_sha256` (SHA-256 of full video transcript) and `span_text_sha256` (SHA-256 of span verbatim text), while supporting backwards compatibility.
-- **Rule:** Never reuse a single hash field name across different semantic scopes; explicitly distinguish video-level transcript hashes from span-level text hashes in schemas and contracts.
-
-### L-GATE-FIRST-THEN-DEDUP-1. Apply quality and integrity gates to the entire retrieved candidate pool before per-video deduplication.
-- **What:** When per-video deduplication ran inside `search_hybrid` before quality gates (RET-01), disqualifying the top-ranked span of a relevant video (e.g. for length or promise flags) discarded all other valid spans of that same video, causing avoidable abstentions.
-- **Fix:** Extended `FirstPersonStore.search_hybrid` with `deduplicate: bool = True` allowing the retrieval of the raw candidate pool (`deduplicate=False`). Updated `FirstPersonPipeline._verify_candidates` to run integrity, content quality, speaker verification, and contextual safety gates first, and then deduplicate per video capped at `dedup_limit`.
-- **Rule:** Candidate pools must pass all quality and integrity gates before deduplication is applied, ensuring that surviving valid spans from the same asset are not prematurely discarded.
-
-### L-V10-HYBRID-RETRIEVAL-1. Context-level retrieval must prefetch both dense and sparse vectors fused with RRF before parent grouping.
-- **What:** The v10 context retrieval path accepted `query_sparse` but silently ignored it in `_query_groups` and `_group_in_python`, searching only `passage_dense` (RET-02) and sacrificing exact lexical matches for sacred Sanskrit terms and proper names.
-- **Fix:** Implemented dual prefetches (`passage_dense` and `passage_sparse`) fused with `FusionQuery(Fusion.RRF)` in both `query_points_groups` and the `query_points` fallback in `FirstPersonContextStore`, preserving parent grouping and rights filters.
-- **Rule:** In hybrid retrieval pipelines, both dense and sparse vectors must be prefetched and fused via RRF before grouping or ranking to ensure both semantic depth and lexical precision.
 
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with

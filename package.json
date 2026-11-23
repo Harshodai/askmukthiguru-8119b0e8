@@ -13,6 +13,8 @@
     "typecheck": "tsc -b --pretty false",
     "preview": "vite preview",
     "test": "vitest run --coverage",
+    "test:unit": "vitest run --coverage=false",
+    "test:focused": "vitest run --coverage=false",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

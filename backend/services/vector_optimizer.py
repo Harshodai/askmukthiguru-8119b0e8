@@ -188,8 +188,8 @@ class VectorIndexOptimizer:
         if triggered:
             actions.append("optimizer_triggered")
 
-        # Also update HNSW to better defaults for 1024-dim vectors
-        hnsw_updated = await loop.run_in_executor(None, self.update_hnsw_config, 16, 100, 10_000)
+        # Also update HNSW to aligned production defaults (m=32, ef_construct=200 for 1024-dim vectors)
+        hnsw_updated = await loop.run_in_executor(None, self.update_hnsw_config, 32, 200, 10_000)
         if hnsw_updated:
             actions.append("hnsw_updated")
 

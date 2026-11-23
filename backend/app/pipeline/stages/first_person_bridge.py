@@ -48,6 +48,7 @@ from app.pipeline.stages.base import Stage
 from app.release_manifest import get_release_manifest
 from app.route_taxonomy import RoutingProvenance, record_routing_decision
 from rag.resolve_followup import (
+    FollowupResolution,
     _get_last_user_message,
     _is_heuristic_followup,
     followup_metadata,
@@ -1182,7 +1183,7 @@ class FirstPersonBridgeStage(Stage):
                 addiction_support_boundary,
             )
 
-            if needs_rel:
+            if needs_rel and getattr(settings, "relationship_safety_boundary_enabled", False):
                 boundaries.append(RELATIONSHIP_SAFETY_BOUNDARY)
             if needs_add:
                 boundaries.append(addiction_support_boundary())
@@ -1566,16 +1567,25 @@ class FirstPersonBridgeStage(Stage):
             else "none",
         )
         if not serve_decision.serves:
-            if status != "crisis_redirect" and not getattr(
-                settings, "first_person_llm_fallback_enabled", False
-            ):
+            _query_str = query
+            _is_promise_trap = bool(_PROMISE_OR_OUTCOME_TRAP_RE.search(_query_str))
+            if _is_promise_trap:
+                return await self._abstain(
+                    ctx,
+                    status,
+                    boundaries,
+                    compassion=distress_compassion,
+                    related=await self._safe_related(ctx, related, distress_compassion),
+                    reason=getattr(result, "abstain_reason", None),
+                    answerability=getattr(result, "answerability", None),
+                    error=getattr(result, "error", None),
+                )
+            if status == "crisis_redirect":
+                return None
+
+            if not getattr(settings, "first_person_llm_fallback_enabled", False):
                 from rag.meditation import is_meditation_imperative
 
-                _query_str = query
-                # A meditation imperative that also carries a promise / guarantee trap
-                # (e.g. "Promise me that if I do Soul Sync my marriage will be saved")
-                # must fail closed here too — never fall through to LLM generation.
-                _is_promise_trap = bool(_PROMISE_OR_OUTCOME_TRAP_RE.search(_query_str))
                 _is_allowed_practice_or_diff = (
                     bool(_STEP_INSTRUCTION_RE.search(_query_str))
                     or bool(_DIFFERENCE_SYNTHESIS_RE.search(_query_str))
@@ -1583,7 +1593,7 @@ class FirstPersonBridgeStage(Stage):
                 if (
                     not is_meditation_imperative(_query_str)
                     and not _is_allowed_practice_or_diff
-                ) or _is_promise_trap:
+                ):
                     return await self._abstain(
                         ctx,
                         status,
@@ -1595,6 +1605,14 @@ class FirstPersonBridgeStage(Stage):
                         answerability=getattr(result, "answerability", None),
                         error=getattr(result, "error", None),
                     )
+
+            # When fallback is enabled, safely forward any verified eligible citations to state
+            # only if Mode 2 Grounded Synthesis is enabled.
+            if getattr(settings, "first_person_grounded_synthesis_enabled", False):
+                raw_citations = getattr(result, "citations", None)
+                eligible_cits = _eligible_citations(raw_citations)
+                if eligible_cits and hasattr(ctx, "state") and isinstance(ctx.state, dict):
+                    ctx.state["first_person_related_clips"] = eligible_cits
             logger.debug(
                 "[FirstPersonBridge] No direct answer (status=%s, posture=%s); GraphStage runs.",
                 status or "unknown",
@@ -1627,7 +1645,11 @@ class FirstPersonBridgeStage(Stage):
         # Faculty dual-mode: when not a direct answer and LLM fallback is enabled,
         # pass related clips to state as faculty citations and route to LangGraph synthesis
         if not is_direct and getattr(settings, "first_person_llm_fallback_enabled", False):
-            if hasattr(ctx, "state") and isinstance(ctx.state, dict):
+            if (
+                getattr(settings, "first_person_grounded_synthesis_enabled", False)
+                and hasattr(ctx, "state")
+                and isinstance(ctx.state, dict)
+            ):
                 ctx.state["first_person_related_clips"] = citations
             logger.debug(
                 "[FirstPersonBridge] Weak match / not direct (status=%s) with LLM fallback enabled; passing %d related clips to state and allowing fallthrough to LangGraph.",

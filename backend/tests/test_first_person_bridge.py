@@ -1066,6 +1066,7 @@ async def test_weak_match_is_declined_by_default(fp_pipeline, monkeypatch):
 async def test_weak_match_is_served_labelled_when_owner_opts_in(fp_pipeline, monkeypatch):
     monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    monkeypatch.setattr(settings, "relationship_safety_boundary_enabled", True)
     fp_pipeline.execute.return_value = _fp_result(
         answer=f"**Sri Preethaji**\n\n{_CLIP_TEXT}",
         status="weak_match",
@@ -1094,6 +1095,7 @@ async def test_first_person_only_relationship_question_gets_clip_plus_safety_bou
 
     monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    monkeypatch.setattr(settings, "relationship_safety_boundary_enabled", True)
     fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
     msg = "How can I heal from self-judgment and the wall of defense in my relationships?"
 
@@ -1583,6 +1585,7 @@ async def test_clip_that_raises_self_harm_carries_the_support_line_even_without_
 
     monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    monkeypatch.setattr(settings, "relationship_safety_boundary_enabled", True)
     clip = (
         "Did you know self-harm is the leading cause of death in a certain age group? "
         "Do you know why? Because we live as strangers under the same roof."
@@ -1611,6 +1614,7 @@ async def test_ordinary_clip_gets_no_extra_support_line(fp_pipeline, monkeypatch
 
     monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    monkeypatch.setattr(settings, "relationship_safety_boundary_enabled", True)
     fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
 
     result = await FirstPersonBridgeStage().run(_ctx(_container(), msg="What is stillness?"))
@@ -1692,6 +1696,7 @@ async def test_turn_the_distress_llm_could_not_check_carries_the_support_line(
 
     monkeypatch.setattr(settings, "first_person_serve_weak_match", True)
     monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    monkeypatch.setattr(settings, "relationship_safety_boundary_enabled", True)
     fp_pipeline.execute.return_value = _fp_result(status="weak_match", is_direct=False)
     ctx = _ctx(_container(), msg="What is stillness?")
     ctx.assessment = SimpleNamespace(
@@ -1845,4 +1850,113 @@ def test_hyde_cache_stores_and_returns_deterministic_vector():
     text, vec = cached
     assert text == "hypothetical teaching"
     assert vec == sample_vec
+
+
+@pytest.mark.asyncio
+async def test_soft_unserved_with_llm_fallback_forwards_eligible_citations_to_state(
+    fp_pipeline, monkeypatch
+):
+    """When a candidate answer cannot be served directly, but fallback and synthesis
+    are both enabled, eligible citations are safely forwarded to ctx.state['first_person_related_clips']."""
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", False)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", True)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=f"**Sri Preethaji**\n\n{_CLIP_TEXT}",
+        status="weak_match",
+        is_direct=False,
+    )
+    context = _ctx(_container(), msg="What is the beautiful state?")
+    res = await FirstPersonBridgeStage().run(context)
+    assert res is None  # yields to LangGraph
+    assert "first_person_related_clips" in context.state
+    assert len(context.state["first_person_related_clips"]) == 1
+    assert context.state["first_person_related_clips"][0]["video_id"] == "abc123"
+
+
+@pytest.mark.asyncio
+async def test_soft_unserved_fails_closed_when_synthesis_disabled(
+    fp_pipeline, monkeypatch
+):
+    """When first_person_grounded_synthesis_enabled is False, candidate fallback yields to graph
+    but never forwards clips to state for synthesis."""
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", False)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=f"**Sri Preethaji**\n\n{_CLIP_TEXT}",
+        status="weak_match",
+        is_direct=False,
+    )
+    context = _ctx(_container(), msg="What is the beautiful state?")
+    res = await FirstPersonBridgeStage().run(context)
+    assert res is None  # yields to LangGraph
+    assert "first_person_related_clips" not in context.state
+
+
+@pytest.mark.asyncio
+async def test_promise_trap_abstains_even_with_fallback_and_synthesis_enabled(
+    fp_pipeline, monkeypatch
+):
+    """Promise traps must fail closed immediately and never yield to LLM generation."""
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", False)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", True)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=f"**Sri Preethaji**\n\n{_CLIP_TEXT}",
+        status="weak_match",
+        is_direct=False,
+    )
+    context = _ctx(
+        _container(),
+        msg="Promise me that meditation will definitely solve everything",
+    )
+    res = await FirstPersonBridgeStage().run(context)
+    assert res is not None  # abstains
+    assert res.route_decision == "first_person_abstain"
+    assert "first_person_related_clips" not in context.state
+
+
+@pytest.mark.asyncio
+async def test_crisis_redirect_does_not_forward_clips_to_state(
+    fp_pipeline, monkeypatch
+):
+    """Crisis redirect yields to distress handling but never sets synthesis clips."""
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", True)
+    fp_pipeline.execute.return_value = _fp_result(
+        answer="",
+        status="crisis_redirect",
+        is_direct=False,
+    )
+    context = _ctx(_container(), msg="I want to end my life")
+    res = await FirstPersonBridgeStage().run(context)
+    assert res is None  # yields to distress handling
+    assert "first_person_related_clips" not in context.state
+
+
+@pytest.mark.asyncio
+async def test_soft_unserved_with_unverified_citations_drops_them_from_state(
+    fp_pipeline, monkeypatch
+):
+    """Unverified citations fail the eligibility gate and are never forwarded to state."""
+    monkeypatch.setattr(settings, "first_person_serve_weak_match", False)
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", True)
+    monkeypatch.setattr(settings, "first_person_grounded_synthesis_enabled", True)
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", True)
+    unverified_cit = _clip_citation(
+        speaker_verified=False,
+        quality_status="unverified",
+        voice_verification_method=None,
+    )
+    fp_pipeline.execute.return_value = _fp_result(
+        answer=f"**Sri Preethaji**\n\n{_CLIP_TEXT}",
+        status="weak_match",
+        is_direct=False,
+        citations=[unverified_cit],
+    )
+    context = _ctx(_container(), msg="What is the beautiful state?")
+    res = await FirstPersonBridgeStage().run(context)
+    assert res is None  # yields to LangGraph
+    assert "first_person_related_clips" not in context.state
 

@@ -197,22 +197,22 @@ def _route_after_first_person(state: GraphState):
     result = state.get("first_person_result")
     if result is None:
         return parallel_start(state)
-    verification = getattr(result, "verification", None) or {}
-    if not verification.get("direct", True) and getattr(
-        settings, "first_person_llm_fallback_enabled", False
-    ):
-        citations = getattr(result, "citations", None) or []
-        if citations and "first_person_related_clips" not in state:
-            state["first_person_related_clips"] = citations
-        return parallel_start(state)
     metadata = getattr(result, "route_metadata", None) or {}
     if metadata.get("fp_served"):
         return END
-    cause = str(metadata.get("abstain_cause", "") or "")
+
+    cause = str(metadata.get("abstain_cause", "") or getattr(result, "abstain_reason", "") or "")
     if cause in _SOFT_ABSTAIN_CAUSES:
         from services.fp_fail_closed import teaching_generation_allowed
 
         if teaching_generation_allowed():
+            citations = getattr(result, "citations", None) or []
+            if citations and "first_person_related_clips" not in state:
+                from app.pipeline.stages.first_person_bridge import _eligible_citations
+
+                eligible = _eligible_citations(citations)
+                if eligible:
+                    state["first_person_related_clips"] = eligible
             return parallel_start(state)
     return END
 

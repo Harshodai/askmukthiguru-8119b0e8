@@ -74,6 +74,17 @@ _SEEDED_CONCEPTS = [
     "Soul Sync",
     "Three Questions",
     "Serene Mind Flame",
+    "Relationship",
+    "Relationships",
+    "Relationship Healing",
+    "True Relationships",
+    "Hurt",
+    "Emotional Hurt",
+    "Dissolving Hurt",
+    "Overcoming Hurt",
+    "Forgiveness",
+    "Healing",
+    "Connection",
 ]
 _SEEDED_PRACTICES = [
     "Meditation",
@@ -118,11 +129,20 @@ def _concept_token(name: str) -> str:
 def resolve_concepts_in_query(query: str) -> list[str]:
     """Return canonical ontology entity IDs mentioned in a user query.
 
-    The resolver is deterministic and intentionally does not call an LLM. It
-    is safe to use as the first stage of context-graph retrieval and keeps
-    aliases aligned with the existing ontology expansion behavior.
+    Combines deterministic keyword matching with dynamic LLM-driven ontology concept
+    resolution (services.ontology_resolver) so natural language synonyms, emotional states,
+    and situational queries dynamically map to Neo4j concepts without brittle hardcoding.
     """
-    return _find_concepts_in_query(query)
+    found = list(_find_concepts_in_query(query))
+    try:
+        from services.ontology_resolver import resolve_query_concepts_llm
+        llm_concepts = resolve_query_concepts_llm(query)
+        for c in llm_concepts:
+            if c not in found:
+                found.append(c)
+    except Exception as exc:
+        logger.debug("[KGExpansion] Dynamic LLM concept resolution failed: %s", exc)
+    return found
 
 
 def _find_concepts_in_query(query: str) -> list[str]:

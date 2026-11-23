@@ -236,6 +236,138 @@ describe('ChatMessage (regression)', () => {
     expect(quotes).toHaveLength(1);
   });
 
+  it('renders synthesis prose alongside GuruTeachingCard when synthesis plus exact quote is present', () => {
+    const verbatimQuote = 'To us every human experience is sacred, we see that there is one human experience.';
+    const synthesisProse = 'When we observe our experiences with awareness, a deeper truth emerges.';
+    render(
+      <ChatMessage
+        message={makeGuruMessage({
+          content: `${synthesisProse}\n\n> "${verbatimQuote}"\n\n*[Synthesis from Sri Preethaji teachings]*`,
+          citations: [
+            {
+              url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+              title: 'Sacred Oneness Discourse',
+              quote: verbatimQuote,
+              speaker: 'Sri Preethaji',
+              speakerVerified: true,
+              timestampSeconds: 3,
+            },
+          ],
+          citationsVerified: true,
+          verification: { direct: false, passed: true },
+        })}
+      />,
+      { wrapper },
+    );
+
+    // GuruTeachingCard renders hero card
+    expect(screen.getByTestId('guru-teaching-card')).toBeInTheDocument();
+    expect(screen.getByTestId('guru-teaching-quote')).toHaveTextContent(verbatimQuote);
+
+    // Synthesis prose and label remain visible in the markdown body
+    expect(screen.getByText(new RegExp(synthesisProse, 'i'))).toBeInTheDocument();
+    expect(screen.getByText(/Synthesis from Sri Preethaji teachings/i)).toBeInTheDocument();
+  });
+
+  it('renders a short synthesis prefix under 25 normalized characters without suppression', () => {
+    const verbatimQuote = 'To us every human experience is sacred, we see that there is one human experience.';
+    const shortPrefix = 'Reflect on this:';
+    render(
+      <ChatMessage
+        message={makeGuruMessage({
+          content: `${shortPrefix}\n\n"${verbatimQuote}"`,
+          citations: [
+            {
+              url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+              title: 'Sacred Oneness Discourse',
+              quote: verbatimQuote,
+              speaker: 'Sri Preethaji',
+              speakerVerified: true,
+              timestampSeconds: 3,
+            },
+          ],
+          citationsVerified: true,
+          verification: { direct: false, passed: true },
+        })}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByTestId('guru-teaching-card')).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(shortPrefix, 'i'))).toBeInTheDocument();
+  });
+
+  it('multiple source cards do not hide distinct synthesis in markdown body', () => {
+    const quote1 = 'Peace is the cessation of inner conflict.';
+    const quote2 = 'Awakening is a shift in consciousness.';
+    const synthesisText = 'These two teachings together reveal how inner conflict ceases when consciousness shifts.';
+    render(
+      <ChatMessage
+        message={makeGuruMessage({
+          content: `${synthesisText}\n\n> "${quote1}"\n\n> "${quote2}"`,
+          citations: [
+            {
+              url: 'https://www.youtube.com/watch?v=vARTudIEq30&t=10s',
+              videoId: 'vARTudIEq30',
+              teacherId: 'krishnaji',
+              speakerId: 'speaker-k',
+              parentUnitId: 'parent-peace-k',
+              sourceSpanId: 'span-peace-k-0',
+              sourceSpanIndex: 0,
+              isVerbatim: true,
+              rightsCleared: true,
+              title: 'Discourse on Peace',
+              quote: quote1,
+              speaker: 'Sri Krishnaji',
+              speakerVerified: true,
+              timestampSeconds: 10,
+              playbackStartSeconds: 10,
+              playbackEndSeconds: 14,
+            },
+            {
+              url: 'https://www.youtube.com/watch?v=_GEMrEWCiXw&t=20s',
+              videoId: '_GEMrEWCiXw',
+              teacherId: 'preethaji',
+              speakerId: 'speaker-p',
+              parentUnitId: 'parent-awake-p',
+              sourceSpanId: 'span-awake-p-0',
+              sourceSpanIndex: 0,
+              isVerbatim: true,
+              rightsCleared: true,
+              title: 'Discourse on Awakening',
+              quote: quote2,
+              speaker: 'Sri Preethaji',
+              speakerVerified: true,
+              timestampSeconds: 20,
+              playbackStartSeconds: 20,
+              playbackEndSeconds: 24,
+            },
+          ],
+          citationsVerified: true,
+          verification: {
+            direct: false,
+            passed: true,
+            method: 'first_person_verbatim_clip_gate',
+            editorial_set: {
+              status: 'partial',
+              primary_intent: 'definition',
+              candidate_facets: ['peace', 'awakening'],
+              facet_coverage: { peace: 'direct', awakening: 'direct' },
+              candidate_contexts: 2,
+              selected_contexts: 2,
+              planner_version: 'first_person_facets_v1',
+              selector_version: 'first_person_set_selector_v3',
+            },
+          },
+        })}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getAllByTestId('guru-teaching-card')).toHaveLength(2);
+    expect(screen.getByText(new RegExp(synthesisText, 'i'))).toBeInTheDocument();
+  });
+
   it('does not call a quote verified when its source timestamp is absent', () => {
     render(
       <ChatMessage

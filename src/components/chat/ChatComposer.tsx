@@ -38,7 +38,7 @@ interface ChatComposerProps {
   onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onSubmit: (e?: React.FormEvent) => void;
+  onSubmit: (e?: React.FormEvent, text?: string) => void;
   onStop: () => void;
   isTyping: boolean;
   isStreaming: boolean;
@@ -113,6 +113,8 @@ function ChatComposerInner({
   const { t } = useTranslation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lastSubmitTimeRef = useRef(0);
+  const lastSubmittedTextRef = useRef('');
   const [isUploading, setIsUploading] = useState(false);
 
   // Auto-resize long drafts, then let the textarea itself scroll naturally.
@@ -184,8 +186,18 @@ function ChatComposerInner({
 
   const handleFormSubmit = (_message: PromptInputMessage, e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const textToSubmit = _message?.text?.trim() || inputValue.trim() || inputRef?.current?.value?.trim() || '';
+    if (!textToSubmit) {
+      return;
+    }
+    const now = Date.now();
+    if (lastSubmittedTextRef.current === textToSubmit && now - lastSubmitTimeRef.current < 400) {
+      return; // prevent duplicate double-click / double-enter on identical text
+    }
+    lastSubmittedTextRef.current = textToSubmit;
+    lastSubmitTimeRef.current = now;
     if (!(isTyping || isStreaming)) hapticAudio.playDispatchChime();
-    onSubmit(e);
+    onSubmit(e, textToSubmit);
   };
 
   return (
@@ -424,19 +436,18 @@ function ChatComposerInner({
                   </PromptInputSubmit>
                 </motion.div>
 
-                {inputValue.trim() && (
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className="inline-flex">
-                    <PromptInputSubmit
-                      type="submit"
-                      size="icon-sm"
-                      className="min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-dark shadow-sm hover:shadow-md transition-all duration-200 ease-out flex items-center justify-center"
-                      aria-label={t('chat.queueMessage', 'Queue follow-up message')}
-                      title={t('chat.queueMessage', 'Queue follow-up (sends automatically after current response)')}
-                    >
-                      <Send className="w-4 h-4" />
-                    </PromptInputSubmit>
-                  </motion.div>
-                )}
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.92 }} className="inline-flex">
+                  <PromptInputSubmit
+                    type="submit"
+                    size="icon-sm"
+                    disabled={!inputValue.trim() || isAwaitingSereneMind || isQuotaExceeded || isUploading}
+                    className="min-h-[44px] min-w-[44px] sm:min-h-[36px] sm:min-w-[36px] sm:h-9 sm:w-9 rounded-xl bg-ojas text-primary-foreground hover:bg-ojas-dark disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all duration-200 ease-out flex items-center justify-center"
+                    aria-label={t('chat.queueMessage', 'Queue follow-up message')}
+                    title={t('chat.queueMessage', 'Queue follow-up (sends automatically after current response)')}
+                  >
+                    <Send className="w-4 h-4" />
+                  </PromptInputSubmit>
+                </motion.div>
               </div>
             ) : (
               <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.94 }} className="inline-flex">

@@ -131,4 +131,116 @@ describe('ChatComposer keyboard behavior', () => {
     expect(textarea).toHaveValue(longDraft);
     expect(screen.queryByRole('button', { name: /go to start/i })).not.toBeInTheDocument();
   });
+
+  it('debounces rapid double-submits of identical text to prevent duplicate messages', async () => {
+    const { onSubmit } = renderComposer();
+    const sendButton = screen.getByRole('button', { name: /send message/i });
+
+    await act(async () => {
+      fireEvent.click(sendButton);
+      fireEvent.click(sendButton);
+    });
+
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it('permits rapid consecutive submissions when the text is different (queueing follow-ups)', async () => {
+    const onSubmit = vi.fn();
+    const { rerender } = render(
+      <ChatComposer
+        inputValue="Question 1"
+        inputRef={{ current: null }}
+        attachedFiles={[]}
+        onAddFile={vi.fn()}
+        onRemoveFile={vi.fn()}
+        onInputChange={vi.fn()}
+        onKeyDown={vi.fn()}
+        onSubmit={onSubmit}
+        onStop={vi.fn()}
+        isTyping={false}
+        isStreaming={false}
+        isAwaitingSereneMind={false}
+        isQuotaExceeded={false}
+        isListening={false}
+        isHandsFreeVoice={false}
+        currentLanguage="en"
+        voiceEnabled={false}
+        ttsEnabled={false}
+        isSpeaking={false}
+        inputFocused={false}
+        isLandingMode={false}
+        onVoiceToggle={vi.fn()}
+        onHandsFreeVoiceToggle={vi.fn()}
+        onTtsToggle={vi.fn()}
+        onLanguageChange={vi.fn()}
+        capabilities={{
+          sereneMind: false,
+          guidedMeditation: false,
+          textAttachments: false,
+          voiceInput: false,
+        }}
+        onSereneMind={vi.fn()}
+        onGuidedMeditation={vi.fn()}
+        onFocus={vi.fn()}
+        onBlur={vi.fn()}
+        onSlashCommand={vi.fn()}
+      />
+    );
+
+    const button1 = screen.getByRole('button', { name: /send message/i });
+    await act(async () => {
+      fireEvent.click(button1);
+    });
+    expect(onSubmit).toHaveBeenCalledWith(expect.anything(), 'Question 1');
+
+    // Rerender immediately with different text and generation active
+    rerender(
+      <ChatComposer
+        inputValue="Question 2"
+        inputRef={{ current: null }}
+        attachedFiles={[]}
+        onAddFile={vi.fn()}
+        onRemoveFile={vi.fn()}
+        onInputChange={vi.fn()}
+        onKeyDown={vi.fn()}
+        onSubmit={onSubmit}
+        onStop={vi.fn()}
+        isTyping={true}
+        isStreaming={true}
+        isAwaitingSereneMind={false}
+        isQuotaExceeded={false}
+        isListening={false}
+        isHandsFreeVoice={false}
+        currentLanguage="en"
+        voiceEnabled={false}
+        ttsEnabled={false}
+        isSpeaking={false}
+        inputFocused={false}
+        isLandingMode={false}
+        onVoiceToggle={vi.fn()}
+        onHandsFreeVoiceToggle={vi.fn()}
+        onTtsToggle={vi.fn()}
+        onLanguageChange={vi.fn()}
+        capabilities={{
+          sereneMind: false,
+          guidedMeditation: false,
+          textAttachments: false,
+          voiceInput: false,
+        }}
+        onSereneMind={vi.fn()}
+        onGuidedMeditation={vi.fn()}
+        onFocus={vi.fn()}
+        onBlur={vi.fn()}
+        onSlashCommand={vi.fn()}
+      />
+    );
+
+    const queueButton = screen.getByRole('button', { name: /queue message/i });
+    await act(async () => {
+      fireEvent.click(queueButton);
+    });
+
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+    expect(onSubmit).toHaveBeenLastCalledWith(expect.anything(), 'Question 2');
+  });
 });

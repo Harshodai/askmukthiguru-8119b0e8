@@ -11,6 +11,7 @@ Folder-level guidance for the FastAPI backend. The root `CLAUDE.md` documents th
 > - Quotes are pointers rendered from that layer, and are exact-substring checked before display.
 > - Every Qdrant/OKF/Memgraph write goes dry-run → snapshot → ask → apply.
 > - The data gate is `scripts/ops/data_quality_audit.py`.
+> - **BINDING INVARIANT (reconfirmed 2026-11-23):** `FIRST_PERSON_LLM_FALLBACK_ENABLED=false` MUST remain false. When no qualifying verbatim teacher clips are found, the pipeline fails closed and abstains honestly (*"I don't have a verified verbatim teaching that directly answers this..."*). If fallback is enabled, the system improvises ungrounded LLM synthesis ("if we enable we will get lost"). Never set fallback to true to hide retrieval or verification gaps.
 
 ## Commands (run from backend/)
 

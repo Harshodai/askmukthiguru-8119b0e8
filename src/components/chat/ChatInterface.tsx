@@ -408,9 +408,13 @@ export const ChatInterface = () => {
   const queuedMessagesRef = useRef<QueuedMessage[]>([]);
   const lastSubmitRef = useRef<{ text: string; at: number } | null>(null);
   const isSubmittingRef = useRef(false);
+  const messagesRef = useRef<Message[]>(messages);
   useEffect(() => {
     queuedMessagesRef.current = queuedMessages;
   }, [queuedMessages]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const { teaching: dailyTeaching } = useDailyTeaching();
   const [teachingBannerDismissed, setTeachingBannerDismissed] = useState(isTeachingBannerDismissed);
@@ -485,6 +489,7 @@ export const ChatInterface = () => {
   // ── Unified stop handler (Esc key, Stop button, onStop prop) ─────
   const handleStopGeneration = useCallback(() => {
     streamControllerRef.current?.abort();
+    isSubmittingRef.current = false;
     if (currentJobIdRef.current) {
       const { endpoint } = getAIConfig();
       const baseUrl = endpoint?.replace(/\/api\/chat\/?$/, '') || '';
@@ -1073,10 +1078,7 @@ export const ChatInterface = () => {
     if (e && 'preventDefault' in e) {
       e.preventDefault();
     }
-    if (isSubmittingRef.current && !options.forceImmediate) {
-      return;
-    }
-    const textToSend = overrideText ?? inputValue;
+    const textToSend = (overrideText !== undefined && overrideText !== '') ? overrideText : inputValue;
     const turnLanguage = options.languageOverride ?? currentLanguage;
     const decision = decideSubmit({
       text: textToSend,
@@ -1105,6 +1107,27 @@ export const ChatInterface = () => {
       return;
     }
 
+    // Message queueing (Claude / Manus style): If currently generating and not forced immediate, enqueue!
+    if (decision === 'queue') {
+      const newQueued: QueuedMessage = {
+        id: generateId(),
+        text: textToSend.trim(),
+        language: currentLanguage,
+        attachedFiles: attachedFiles.map((f) => ({ name: f.name, content: f.content })),
+        timestamp: Date.now(),
+      };
+      queuedMessagesRef.current = [...queuedMessagesRef.current, newQueued];
+      setQueuedMessages((prev) => [...prev, newQueued]);
+      setInputValue('');
+      setAttachedFiles([]);
+      hapticAudio.playTapTick();
+      return;
+    }
+
+    if (isSubmittingRef.current && !options.forceImmediate) {
+      return;
+    }
+
     // Rapid repeated sends (double tap, key repeat, Enter + button) reach here
     // before React re-renders the cleared composer; drop the identical repeat.
     if (overrideText === undefined) {
@@ -1114,26 +1137,9 @@ export const ChatInterface = () => {
       lastSubmitRef.current = { text: textToSend, at: Date.now() };
     }
 
-    if (!overrideText) {
-      setInputValue('');
-      setAttachedFiles([]);
-    }
+    setInputValue('');
+    setAttachedFiles([]);
     isSubmittingRef.current = true;
-
-    // Message queueing (Claude / Manus style): If currently generating and not forced immediate, enqueue!
-    if (decision === 'queue') {
-      isSubmittingRef.current = false;
-      const newQueued: QueuedMessage = {
-        id: generateId(),
-        text: textToSend.trim(),
-        language: currentLanguage,
-        attachedFiles: attachedFiles.map((f) => ({ name: f.name, content: f.content })),
-        timestamp: Date.now(),
-      };
-      setQueuedMessages((prev) => [...prev, newQueued]);
-      hapticAudio.playTapTick();
-      return;
-    }
 
     // If forced immediate or new turn: if active, abort previous request before starting new one
     if (decision === 'interrupt') {
@@ -1175,9 +1181,14 @@ export const ChatInterface = () => {
     };
 
     if (appendUser) {
-      setMessages((prev) => [...prev, userMessage]);
+      setMessages((prev) => {
+        const next = [...prev, userMessage];
+        messagesRef.current = next;
+        return next;
+      });
     } else if (options.baseMessages) {
       setMessages(options.baseMessages);
+      messagesRef.current = options.baseMessages;
     }
     if (!overrideText) {
       setInputValue('');
@@ -1253,14 +1264,16 @@ export const ChatInterface = () => {
     const drainNextQueuedMessage = () => {
       const nextMsg = queuedMessagesRef.current[0];
       if (!nextMsg) return;
+      queuedMessagesRef.current = queuedMessagesRef.current.slice(1);
       setQueuedMessages((prev) => prev.slice(1));
       setTimeout(() => {
         submitImplRef.current(undefined, nextMsg.text, {
           forceImmediate: true,
           languageOverride: nextMsg.language,
           attachmentOverride: nextMsg.attachedFiles,
+          baseMessages: messagesRef.current,
         });
-      }, 350);
+      }, 250);
     };
 
     const isTempChat = isIncognito || currentConversation?.isTemporary;
@@ -1282,8 +1295,14 @@ export const ChatInterface = () => {
         citations: cached.citations,
         teachingPreview: teachingPreviewsFromCitations(cached.citations),
       };
-      setMessages((prev) => [...prev, guruMessage]);
+      setMessages((prev) => {
+        const next = [...prev, guruMessage];
+        messagesRef.current = next;
+        return next;
+      });
       setIsTyping(false);
+      setShowInstantPill(false);
+      isSubmittingRef.current = false;
       // Cached completions are real completions too: continue draining the
       // queue so a cached first queued turn cannot strand the remaining turns.
       drainNextQueuedMessage();
@@ -1652,8 +1671,8 @@ export const ChatInterface = () => {
             window.dispatchEvent(new CustomEvent('askmukthiguru:chat_response_success'));
           }
           // Commit the final streamed content to the message list
-          setMessages((prev) =>
-            prev.map((m) =>
+          setMessages((prev) => {
+            const next = prev.map((m) =>
               m.id === streamingGuruId
                 ? {
                     ...m,
@@ -1701,8 +1720,10 @@ export const ChatInterface = () => {
                     safetyNotices: streamedSafetyNotices.length > 0 ? streamedSafetyNotices : undefined,
                   }
                 : m
-            )
-          );
+            );
+            messagesRef.current = next;
+            return next;
+          });
 
           setStreamingMessageId(undefined);
           setStreamingContent('');
@@ -1768,40 +1789,8 @@ openSereneMind('audio', true);
             // Voluntary request: open without gating — user asked for it
             openSereneMind('audio');
           } else if (finalIntent === 'DISTRESS' && meditationStep > 0) {
-            // Continue an already active practice only. A first distress answer
-            // must teach and offer Serene Mind; it must not open a modal uninvited.
+            // Continue an already active practice only.
             openSereneMind('audio');
-          } else if (streamedProactiveSereneMind?.triggered) {
-            // Teach first, then offer practice explicitly. Never auto-open a modal
-            // from a model signal; the user must choose Start Serene Mind.
-            const preludeText =
-              streamedProactiveSereneMind.teachings_prelude ||
-              t('chat.proactivePrelude.streaming');
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: generateId(),
-                role: 'guru',
-                content: preludeText,
-                sereneMindOffer: streamedProactiveSereneMind,
-                timestamp: new Date(),
-              },
-            ]);
-          }
-
-          // Heuristic fallback: if LLM text explicitly describes a Serene Mind session
-          // but backend didn't flag DISTRESS (e.g. serene_mind module not running),
-          // open the modal so the real guided session plays alongside the text.
-          if (finalIntent !== 'DISTRESS' && !streamedProactiveSereneMind?.triggered) {
-            const t = fullContent.toLowerCase();
-            const looksLikeSereneMind =
-              t.includes('serene mind') ||
-              t.includes('step 1/') ||
-              (t.includes('close your eyes') && t.includes('breath')) ||
-              (t.includes('meditation') && (t.includes('step 1') || t.includes('settling in')));
-            if (looksLikeSereneMind && meditationStep === 0) {
-openSereneMind('audio');
-            }
           }
         }
       } catch (streamErr) {
@@ -1888,6 +1877,7 @@ openSereneMind('audio');
         setPipelineHeartbeat(false);
         streamControllerRef.current = null;
         currentJobIdRef.current = null;
+        isSubmittingRef.current = false;
         if (inputRef.current) {
           inputRef.current.focus();
         }
@@ -1901,6 +1891,7 @@ openSereneMind('audio');
 
     if (streamingWorked) {
       if (contextExhaustedThisTurn) {
+        isSubmittingRef.current = false;
         return;
       }
 
@@ -1921,6 +1912,7 @@ openSereneMind('audio');
         hapticAudio.playCompletionChime();
         drainNextQueuedMessage();
       }
+      isSubmittingRef.current = false;
       return;
     }
 
@@ -2079,38 +2071,8 @@ openSereneMind('audio');
           // Voluntary request: non-gated
           openSereneMind('audio');
         } else if (response.intent === 'DISTRESS' && meditationStep > 0) {
-          // Continue an already active practice only. A first distress answer
-          // must teach and offer Serene Mind; it must not open a modal uninvited.
+          // Continue an already active practice only.
           openSereneMind('audio');
-        } else if (response.proactiveSereneMind?.triggered) {
-          // Teach first, then offer practice explicitly. Never auto-open a modal
-          // from a model signal; the user must choose Start Serene Mind.
-          const preludeText =
-            response.proactiveSereneMind?.teachings_prelude ||
-            t('chat.proactivePrelude.standard');
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: generateId(),
-              role: 'guru',
-              content: preludeText,
-              sereneMindOffer: response.proactiveSereneMind,
-              timestamp: new Date(),
-            },
-          ]);
-        }
-
-        // Heuristic fallback for non-streaming path (same logic as streaming)
-        if (response.intent !== 'DISTRESS' && !response.proactiveSereneMind?.triggered) {
-          const t = (response.content || '').toLowerCase();
-          const looksLikeSereneMind =
-            t.includes('serene mind') ||
-            t.includes('step 1/') ||
-            (t.includes('close your eyes') && t.includes('breath')) ||
-            (t.includes('meditation') && (t.includes('step 1') || t.includes('settling in')));
-          if (looksLikeSereneMind && meditationStep === 0) {
-            openSereneMind('audio');
-          }
         }
       }
 
@@ -2220,6 +2182,7 @@ const handleCloseVoiceMode = useCallback(() => {
 const handleSendNowQueued = useCallback((id: string) => {
   const target = queuedMessagesRef.current.find((m) => m.id === id);
   if (!target) return;
+  queuedMessagesRef.current = queuedMessagesRef.current.filter((m) => m.id !== id);
   setQueuedMessages((prev) => prev.filter((m) => m.id !== id));
   streamControllerRef.current?.abort();
   if (currentJobIdRef.current) {
@@ -2231,6 +2194,7 @@ const handleSendNowQueued = useCallback((id: string) => {
     forceImmediate: true,
     languageOverride: target.language,
     attachmentOverride: target.attachedFiles,
+    baseMessages: messagesRef.current,
   });
 }, []);
 
@@ -2247,15 +2211,18 @@ const handleEditQueued = useCallback((id: string) => {
   if (target.attachedFiles) {
     setAttachedFiles(target.attachedFiles.map((f) => ({ id: crypto.randomUUID(), ...f })));
   }
+  queuedMessagesRef.current = queuedMessagesRef.current.filter((m) => m.id !== id);
   setQueuedMessages((prev) => prev.filter((m) => m.id !== id));
   inputRef.current?.focus();
 }, []);
 
 const handleRemoveQueued = useCallback((id: string) => {
+  queuedMessagesRef.current = queuedMessagesRef.current.filter((m) => m.id !== id);
   setQueuedMessages((prev) => prev.filter((m) => m.id !== id));
 }, []);
 
 const handleClearAllQueued = useCallback(() => {
+  queuedMessagesRef.current = [];
   setQueuedMessages([]);
 }, []);
 
@@ -2799,7 +2766,7 @@ return (
                 key="landing-mode"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0, y: -12, transition: { duration: 0.18 } }}
+                exit={{ opacity: 0, transition: { duration: 0 } }}
                 className="flex flex-col items-center justify-center py-6 sm:py-12 max-w-2xl mx-auto w-full"
               >
               <div className="text-center px-4 w-full">
@@ -2871,6 +2838,53 @@ return (
                     </div>
                   </motion.div>
                 )}
+
+                {/* Landing Chat Composer */}
+                <div className="w-full max-w-2xl mx-auto mt-4 mb-2 px-2 sm:px-4">
+                  <ChatComposer
+                    inputValue={inputValue}
+                    inputRef={inputRef}
+                    attachedFiles={attachedFiles}
+                    onAddFile={handleAddFile}
+                    onRemoveFile={handleRemoveFile}
+                    onInputChange={handleInputChange}
+                    onPaste={handlePaste}
+                    onKeyDown={handleKeyDown}
+                    onSubmit={(e, text) => handleSubmit(e, text)}
+                    onStop={handleStopGeneration}
+                    isTyping={isTyping}
+                    isStreaming={isStreaming}
+                    isAwaitingSereneMind={isAwaitingSereneMind}
+                    isQuotaExceeded={quotaExceeded}
+                    isListening={isListening}
+                    isHandsFreeVoice={isHandsFreeVoice}
+                    currentLanguage={currentLanguage}
+                    voiceEnabled={voiceEnabled}
+                    ttsEnabled={ttsEnabled}
+                    isSpeaking={isSpeaking}
+                    inputFocused={inputFocused}
+                    isLandingMode={true}
+                    onVoiceToggle={handleVoiceToggle}
+                    onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
+                    onOpenVoiceMode={handleOpenVoiceMode}
+                    onTtsToggle={handleTtsToggle}
+                    onLanguageChange={handleLanguageChange}
+                    capabilities={chatCapabilities}
+                    onSereneMind={() => openSereneMind()}
+                    onGuidedMeditation={() => setShowGuidedMeditation(true)}
+                    onFocus={() => setInputFocused(true)}
+                    onBlur={() => setInputFocused(false)}
+                    onSlashCommand={(cmd) => {
+                      setInputValue('');
+                      switch (cmd) {
+                        case 'serene': openSereneMind(); break;
+                        case 'meditate': setShowGuidedMeditation(true); break;
+                        case 'retry': if (messages.length > 0) handleRegenerate(); break;
+                        case 'clear': handleNewConversation(); break;
+                      }
+                    }}
+                  />
+                </div>
 
                 {/* Compact starter actions */}
                 <motion.div
@@ -2992,80 +3006,82 @@ return (
         </div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="sticky bottom-0 z-30 shrink-0 w-full px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-gradient-to-t from-background via-background/90 to-transparent"
-      >
-        {!quotaExceeded && <QuotaCounter />}
-        {quotaExceeded && (
-          <QuotaAuthPrompt
-            remaining={quotaMeta.remaining}
-            totalLimit={quotaMeta.totalLimit}
-            retryAfterSeconds={quotaMeta.retryAfterSeconds}
+      {!isLandingMode && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="sticky bottom-0 z-30 shrink-0 w-full px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-gradient-to-t from-background via-background/90 to-transparent"
+        >
+          {!quotaExceeded && <QuotaCounter />}
+          {quotaExceeded && (
+            <QuotaAuthPrompt
+              remaining={quotaMeta.remaining}
+              totalLimit={quotaMeta.totalLimit}
+              retryAfterSeconds={quotaMeta.retryAfterSeconds}
+            />
+          )}
+          {!isTyping && !isStreaming && !showInstantPill && (
+            <HealingPathCard
+              lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
+              recommendedCourse={recommendedCourse}
+              userTurnHistory={userTurnHistory}
+              onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
+              onOpenSereneMind={() => openSereneMind('audio')}
+            />
+          )}
+          <QueuedMessagesTray
+            queue={queuedMessages}
+            onSendNow={handleSendNowQueued}
+            onEdit={handleEditQueued}
+            onRemove={handleRemoveQueued}
+            onClearAll={handleClearAllQueued}
           />
-        )}
-        {!isLandingMode && !isTyping && !isStreaming && !showInstantPill && (
-          <HealingPathCard
-            lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
-            recommendedCourse={recommendedCourse}
-            userTurnHistory={userTurnHistory}
-            onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
-            onOpenSereneMind={() => openSereneMind('audio')}
+          <ChatComposer
+            inputValue={inputValue}
+            inputRef={inputRef}
+            attachedFiles={attachedFiles}
+            onAddFile={handleAddFile}
+            onRemoveFile={handleRemoveFile}
+            onInputChange={handleInputChange}
+            onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
+            onSubmit={(e, text) => handleSubmit(e, text)}
+            onStop={handleStopGeneration}
+            isTyping={isTyping}
+            isStreaming={isStreaming}
+            isAwaitingSereneMind={isAwaitingSereneMind}
+            isQuotaExceeded={quotaExceeded}
+            isListening={isListening}
+            isHandsFreeVoice={isHandsFreeVoice}
+            currentLanguage={currentLanguage}
+            voiceEnabled={voiceEnabled}
+            ttsEnabled={ttsEnabled}
+            isSpeaking={isSpeaking}
+            inputFocused={inputFocused}
+            isLandingMode={false}
+            onVoiceToggle={handleVoiceToggle}
+            onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
+            onOpenVoiceMode={handleOpenVoiceMode}
+            onTtsToggle={handleTtsToggle}
+            onLanguageChange={handleLanguageChange}
+            capabilities={chatCapabilities}
+            onSereneMind={() => openSereneMind()}
+            onGuidedMeditation={() => setShowGuidedMeditation(true)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
+            onSlashCommand={(cmd) => {
+              setInputValue('');
+              switch (cmd) {
+                case 'serene': openSereneMind(); break;
+                case 'meditate': setShowGuidedMeditation(true); break;
+                case 'retry': if (messages.length > 0) handleRegenerate(); break;
+                case 'clear': handleNewConversation(); break;
+              }
+            }}
           />
-        )}
-        <QueuedMessagesTray
-          queue={queuedMessages}
-          onSendNow={handleSendNowQueued}
-          onEdit={handleEditQueued}
-          onRemove={handleRemoveQueued}
-          onClearAll={handleClearAllQueued}
-        />
-        <ChatComposer
-          inputValue={inputValue}
-          inputRef={inputRef}
-          attachedFiles={attachedFiles}
-          onAddFile={handleAddFile}
-          onRemoveFile={handleRemoveFile}
-          onInputChange={handleInputChange}
-          onPaste={handlePaste}
-          onKeyDown={handleKeyDown}
-          onSubmit={(e) => handleSubmit(e)}
-          onStop={handleStopGeneration}
-          isTyping={isTyping}
-          isStreaming={isStreaming}
-          isAwaitingSereneMind={isAwaitingSereneMind}
-          isQuotaExceeded={quotaExceeded}
-          isListening={isListening}
-          isHandsFreeVoice={isHandsFreeVoice}
-          currentLanguage={currentLanguage}
-          voiceEnabled={voiceEnabled}
-          ttsEnabled={ttsEnabled}
-          isSpeaking={isSpeaking}
-          inputFocused={inputFocused}
-          isLandingMode={isLandingMode}
-          onVoiceToggle={handleVoiceToggle}
-          onHandsFreeVoiceToggle={handleHandsFreeVoiceToggle}
-          onOpenVoiceMode={handleOpenVoiceMode}
-          onTtsToggle={handleTtsToggle}
-          onLanguageChange={handleLanguageChange}
-          capabilities={chatCapabilities}
-          onSereneMind={() => openSereneMind()}
-          onGuidedMeditation={() => setShowGuidedMeditation(true)}
-          onFocus={() => setInputFocused(true)}
-          onBlur={() => setInputFocused(false)}
-          onSlashCommand={(cmd) => {
-            setInputValue('');
-            switch (cmd) {
-              case 'serene': openSereneMind(); break;
-              case 'meditate': setShowGuidedMeditation(true); break;
-              case 'retry': if (messages.length > 0) handleRegenerate(); break;
-              case 'clear': handleNewConversation(); break;
-            }
-          }}
-        />
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* Scroll-to-bottom FAB — positioned relative to the chat column.
           Only meaningful once there's an actual conversation to scroll

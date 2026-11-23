@@ -165,6 +165,11 @@ class QdrantClientManager:
         if q == "binary":
             return BinaryQuantization(binary=BinaryQuantizationConfig(always_ram=True))
         if q.startswith("turboquant_"):
+            if q not in ("turboquant_1bit", "turboquant_2bit", "turboquant_4bit"):
+                raise ValueError(
+                    f"Unsupported turboquant setting: {quantization}. "
+                    "Use turboquant_1bit, turboquant_2bit, or turboquant_4bit."
+                )
             if (
                 TurboQuantBitSize is None
                 or TurboQuantization is None
@@ -179,11 +184,6 @@ class QdrantClientManager:
                 "turboquant_2bit": TurboQuantBitSize.BITS2,
                 "turboquant_4bit": TurboQuantBitSize.BITS4,
             }
-            if q not in bit_map:
-                raise ValueError(
-                    f"Unsupported turboquant setting: {quantization}. "
-                    "Use turboquant_1bit, turboquant_2bit, or turboquant_4bit."
-                )
             return TurboQuantization(
                 turbo=TurboQuantQuantizationConfig(
                     bits=bit_map[q],

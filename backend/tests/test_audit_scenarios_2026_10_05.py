@@ -194,11 +194,20 @@ def _output_ctx(question: str, answer: str, *, is_indic: bool = False) -> Pipeli
 
 
 @pytest.mark.asyncio
-async def test_relationship_repair_answer_carries_the_boundary():
+async def test_relationship_repair_answer_carries_the_boundary(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "relationship_safety_boundary_enabled", True)
     ctx = _output_ctx(SCENARIO_2, "Notice the defensive state first.")
     assert await OutputGuardrailStage().run(ctx) is None
     assert ctx.final_answer.startswith("Notice the defensive state first.")
     assert ctx.final_answer.rstrip().endswith(RELATIONSHIP_SAFETY_BOUNDARY)
+
+
+@pytest.mark.asyncio
+async def test_relationship_repair_answer_omits_boundary_by_default():
+    ctx = _output_ctx(SCENARIO_2, "Notice the defensive state first.")
+    assert await OutputGuardrailStage().run(ctx) is None
+    assert ctx.final_answer == "Notice the defensive state first."
 
 
 @pytest.mark.asyncio
@@ -209,7 +218,9 @@ async def test_non_relationship_answer_does_not_get_the_boundary():
 
 
 @pytest.mark.asyncio
-async def test_indic_seeker_gets_the_translated_boundary():
+async def test_indic_seeker_gets_the_translated_boundary(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "relationship_safety_boundary_enabled", True)
     ctx = _output_ctx(SCENARIO_2, "उत्तर", is_indic=True)
     await OutputGuardrailStage().run(ctx)
     assert ctx.final_answer.endswith("[hi] boundary")
