@@ -85,3 +85,23 @@ async def test_polish_and_weave_clips_skips_crisis_and_refusals():
     result = await _polish_and_weave_clips(crisis_answer, source_docs, question, provider=mock_llm)
     assert result == crisis_answer
     mock_llm.generate_fast.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_polish_and_weave_clips_strips_conversational_preamble():
+    source_docs = [{"text": "The Four Sacred Secrets are profound spiritual shifts."}]
+    question = "What are the secrets?"
+    draft_answer = "The Four Sacred Secrets according to the teachings are profound spiritual shifts."
+
+    mock_llm = MagicMock()
+    mock_llm.generate_fast = AsyncMock(
+        return_value=(
+            "Here is the polished response with seamless transitions and grammatical refinement while preserving all sacred teachings verbatim:\n\n"
+            "The Four Sacred Secrets according to the teachings are profound spiritual shifts."
+        )
+    )
+
+    result = await _polish_and_weave_clips(draft_answer, source_docs, question, provider=mock_llm)
+    assert not result.startswith("Here is")
+    assert result == "The Four Sacred Secrets according to the teachings are profound spiritual shifts."
+

@@ -4266,6 +4266,13 @@ async def _polish_and_weave_clips(
         polished = await asyncio.wait_for(_call(), timeout=timeout_s)
         polished = polished.strip()
 
+        # Strip conversational LLM preambles if emitted
+        polished = re.sub(
+            r"(?i)^(?:\s*(?:certainly|sure)[!,.]*\s*)?(?:here\s+(?:is|are)|here's|below\s+is)[^\n]*:?\s*\n+",
+            "",
+            polished,
+        ).strip()
+
         # Sanity check: must not be empty or ridiculously short compared to body
         if not polished or len(polished) < len(body_to_polish) * 0.5:
             return answer

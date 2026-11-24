@@ -66,6 +66,10 @@ AUDIT_QUERIES = [
         "query": "What are the four sacred secrets according to Sri Preethaji and Sri Krishnaji?"
     },
     {
+        "category": "Book & Sacred Secrets Synthesis",
+        "query": "What are the four sacred secrets and how do they lead to spiritual right action?"
+    },
+    {
         "category": "Book Link & Navigation",
         "query": "Where can I find and read The Four Sacred Secrets by Sri Preethaji and Sri Krishnaji?"
     },
