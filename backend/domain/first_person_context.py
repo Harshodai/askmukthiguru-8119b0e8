@@ -45,14 +45,42 @@ def _shared_guru_scope() -> frozenset[str]:
             primary = str(data.get("shared_primary_teacher_id") or "").strip().lower()
             if primary:
                 ids.add(primary)
+            # Expand with common prefixes/aliases so canonicalization drift doesn't break comparisons
+            for item in list(ids):
+                ids.add(f"sri_{item}")
+                ids.add(f"sri-{item}")
+                ids.add(f"sri {item}")
             return frozenset(ids)
     except (OSError, ValueError, ImportError):
         pass
     return frozenset()
 
 
+def _is_same_or_shared_guru(gid1: str | None, gid2: str | None) -> bool:
+    """True if gid1 and gid2 match or both belong to the configured co-guru scope."""
+    g1 = str(gid1 or "").strip().lower()
+    g2 = str(gid2 or "").strip().lower()
+    if not g1 or not g2:
+        return False
+    if g1 == g2:
+        return True
+    try:
+        from services.guru_registry import canonical_guru_id
+
+        c1 = canonical_guru_id(g1) or g1
+        c2 = canonical_guru_id(g2) or g2
+        if c1 == c2:
+            return True
+        shared = _shared_guru_scope()
+        return (g1 in shared or c1 in shared) and (g2 in shared or c2 in shared)
+    except (ImportError, ValueError, KeyError):
+        shared = _shared_guru_scope()
+        return g1 in shared and g2 in shared
+
+
 class SpeakerRole(StrEnum):
     GURU = "guru"
+    TEACHER = "teacher"
     HOST = "host"
     GUEST = "guest"
     UNKNOWN = "unknown"
@@ -534,13 +562,9 @@ class ParentContext(BaseModel):
             raise ValueError("every span must belong to the parent unit")
         # Co-guru founders belong to the shared parent context.
         # Derived dynamically from gurus.yaml to avoid hardcoding teacher names.
-        shared_set = _shared_guru_scope()
         for s in self.spans:
-            if s.guru_id != self.parent.guru_id:
-                if not (
-                    s.guru_id.lower() in shared_set and self.parent.guru_id.lower() in shared_set
-                ):
-                    raise ValueError("every span must belong to the parent guru")
+            if not _is_same_or_shared_guru(s.guru_id, self.parent.guru_id):
+                raise ValueError("every span must belong to the parent guru")
         if any(s.video_id != self.parent.video_id for s in self.spans):
             raise ValueError("every span must belong to the parent video")
         if any(s.corpus_version != self.parent.corpus_version for s in self.spans):

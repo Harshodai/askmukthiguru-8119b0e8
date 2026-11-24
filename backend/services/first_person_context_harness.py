@@ -338,9 +338,10 @@ class FirstPersonContextHarness:
         from services.guru_registry import canonical_guru_id
 
         allowed_gurus = {"krishnaji", "preethaji", "preethaji_krishnaji", "ekam"}
+        guru_roles = {"guru", "teacher", "krishnaji", "preethaji", "sri_krishnaji", "sri_preethaji"}
         for span in spans:
             role = str(getattr(span, "speaker_role", "") or "").lower()
-            if role != "guru" and span.speaker_role != SpeakerRole.GURU:
+            if role not in guru_roles and span.speaker_role not in (SpeakerRole.GURU, SpeakerRole.TEACHER):
                 return False
             # Verify guru attribution to Sri Preethaji / Sri Krishnaji
             canonical_gid = canonical_guru_id(span.guru_id) or (span.guru_id or "").strip().lower()
@@ -803,14 +804,16 @@ class FirstPersonContextHarness:
         # Cross-guru contamination check:
         # Founders are co-teachers (one common Guru).
         # Spans across both are explicitly permitted; foreign/unregistered teachers are refused.
-        if len(span_gurus) > 1 and not span_gurus.issubset(shared_set):
-            return self._abstain(
-                context,
-                "cross_guru_contamination",
-                gates={"guru_isolation": False},
-                state=state,
-                state_path=tuple(states),
-            )
+        if len(span_gurus) > 1:
+            g_list = list(span_gurus)
+            if not all(_is_same_or_shared_guru(g, g_list[0]) for g in g_list[1:]):
+                return self._abstain(
+                    context,
+                    "cross_guru_contamination",
+                    gates={"guru_isolation": False},
+                    state=state,
+                    state_path=tuple(states),
+                )
 
         # Explicit teacher request filter:
         # If the seeker explicitly requested one specific teacher,
@@ -828,9 +831,7 @@ class FirstPersonContextHarness:
         else:
             parent_gid = (context.parent.guru_id or "").lower()
             first_gid = (spans[0].guru_id or "").lower()
-            if first_gid != parent_gid and not (
-                first_gid in shared_set and parent_gid in shared_set
-            ):
+            if not _is_same_or_shared_guru(first_gid, parent_gid):
                 return self._abstain(
                     context,
                     "cross_guru_contamination",

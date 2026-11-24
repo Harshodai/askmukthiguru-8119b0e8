@@ -37,6 +37,7 @@ from qdrant_client.http.models import (
 from app.config import settings
 from domain.first_person_context import (
     _VALIDATED_EDGE_ISSUE_TOKEN,
+    _is_same_or_shared_guru,
     BoundaryStatus,
     CompletenessStatus,
     ParentContext,
@@ -519,7 +520,7 @@ class FirstPersonContextStore:
     def _assert_belongs(parent: ParentUnit, span: SourceSpan) -> None:
         if span.parent_unit_id != parent.parent_unit_id:
             raise FirstPersonContextStoreError("span does not belong to parent")
-        if span.guru_id != parent.guru_id:
+        if not _is_same_or_shared_guru(span.guru_id, parent.guru_id):
             raise FirstPersonContextStoreError("span guru_id differs from parent")
         if span.video_id != parent.video_id:
             raise FirstPersonContextStoreError("span video_id differs from parent")
@@ -627,7 +628,7 @@ class FirstPersonContextStore:
                 teacher_spans = tuple(
                     span
                     for span in context.spans
-                    if span.guru_id == context.parent.guru_id
+                    if _is_same_or_shared_guru(span.guru_id, context.parent.guru_id)
                     and (span.speaker_verified is True if require_speaker_verified else True)
                 )
                 if not teacher_spans:

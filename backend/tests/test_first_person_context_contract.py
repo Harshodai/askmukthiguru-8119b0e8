@@ -27,6 +27,7 @@ from domain.first_person_context import (
     ProvenanceKind,
     SourceSpan,
     SpeakerRole,
+    _is_same_or_shared_guru,
     clip_text_hash,
     make_edge_id,
     make_parent_unit_id,
@@ -42,13 +43,15 @@ def span(**overrides):
     text = overrides.pop("verbatim_text", TEXT)
     word_start = overrides.pop("word_start", n * 10)
     word_end = overrides.pop("word_end", word_start + 6)
+    guru_id = overrides.get("guru_id", "krishnaji")
+    speaker_id = overrides.get("speaker_id", guru_id)
     data = {
         "corpus_version": "ctx-v1",
-        "guru_id": "krishnaji",
+        "guru_id": guru_id,
         "video_id": "vidA",
         "source_asset_id": "vidA",
         "source_span_id": make_source_span_id(
-            guru_id="krishnaji",
+            guru_id=guru_id,
             video_id="vidA",
             corpus_version="ctx-v1",
             word_start=word_start,
@@ -63,7 +66,7 @@ def span(**overrides):
         "end_ms": 1000 * n + 900,
         "word_start": word_start,
         "word_end": word_end,
-        "speaker_id": "krishnaji",
+        "speaker_id": speaker_id,
         "speaker_role": SpeakerRole.GURU,
         "speaker_verified": True,
         "source_transcript_text": text,
@@ -132,6 +135,30 @@ def test_ids_are_deterministic_and_position_sensitive():
     assert edge_id == make_edge_id(
         corpus_version="ctx-v1", from_span_id="a", to_span_id="b", edge_type="next"
     )
+
+
+def test_shared_guru_identity_accepts_canonical_aliases_but_not_ekam():
+    assert _is_same_or_shared_guru("sri-krishnaji", "krishnaji")
+    assert _is_same_or_shared_guru("preethaji", "krishnaji")
+    assert not _is_same_or_shared_guru("ekam", "krishnaji")
+
+
+def test_parent_context_accepts_shared_founder_aliases():
+    krishna = span()
+    preethaji = span(n=1, guru_id="sri_preethaji", speaker_id="sri_preethaji")
+    shared_parent = parent(
+        [krishna, preethaji],
+        guru_id="preethaji_krishnaji",
+        speaker_ids=("krishnaji", "sri_preethaji"),
+    )
+
+    context = ParentContext(
+        parent=shared_parent,
+        spans=(krishna, preethaji),
+        hit_span_ids=(krishna.source_span_id, preethaji.source_span_id),
+    )
+
+    assert context.spans == (krishna, preethaji)
 
 
 def test_span_rejects_wrong_deterministic_id():
