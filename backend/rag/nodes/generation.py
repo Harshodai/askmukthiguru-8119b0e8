@@ -4142,6 +4142,153 @@ def _clean_inline_citations(text: str) -> str:
     return text.strip()
 
 
+def verify_verbatim_spans(
+    polished_text: str,
+    source_docs: list[dict],
+    original_answer: str,
+) -> tuple[bool, str]:
+    """Verify that any direct quotation in polished_text physically exists in retrieved documents or original text.
+
+    Uses normalized-whitespace substring matching. If any quoted span of significant length
+    (>= 15 characters) fails to match, returns (False, original_answer) to prevent quote drift.
+    """
+    if not polished_text or not source_docs:
+        return True, polished_text
+
+    def _normalize(s: str) -> str:
+        return re.sub(r"\s+", " ", re.sub(r"[\"“”'‘’]", "", s)).strip().lower()
+
+    # Build haystack of all source texts + original answer
+    haystack_pieces = [original_answer]
+    for d in source_docs:
+        if isinstance(d, dict):
+            haystack_pieces.append(d.get("text") or d.get("verbatim_text") or "")
+            if isinstance(d.get("metadata"), dict):
+                haystack_pieces.append(d["metadata"].get("text") or "")
+    normalized_haystack = " ".join(_normalize(p) for p in haystack_pieces if p)
+
+    # Extract all quoted spans from polished_text
+    quotes = re.findall(r'["“]([^"”]{15,})["”]|>\s*["“]?([^"\n]{15,})["”]?', polished_text)
+    for q_tuple in quotes:
+        quote = q_tuple[0] or q_tuple[1]
+        if not quote:
+            continue
+        norm_q = _normalize(quote)
+        if len(norm_q) >= 15 and norm_q not in normalized_haystack:
+            logger.warning(
+                "Verbatim integrity check failed for polished span: '%s...'. Reverting to unpolished text.",
+                quote[:40],
+            )
+            return False, original_answer
+
+    return True, polished_text
+
+
+async def _polish_and_weave_clips(
+    answer: str,
+    source_docs: list[dict],
+    question: str,
+    provider: Any = None,
+    *,
+    timeout_s: float = 10.0,
+) -> str:
+    """LLM-powered boundary polishing, grammar repair, and multi-clip weaving.
+
+    Runs via the low-latency LLM gateway path with a strict timeout (max 10.0s).
+    Preserves all verbatim quotes, cleans up URL-stripping debris (e.g. trailing 'at'),
+    and weaves multi-clip paragraphs smoothly.
+    """
+    if not answer or len(answer.strip()) < 40 or not source_docs:
+        return answer
+
+    # Skip on obvious system refusals, errors, or crisis messages
+    _lower = answer.lower()
+    if any(m in _lower for m in ("14416", "vandrevala", "emergency services", "cannot answer", "outside my area of wisdom")):
+        return answer
+
+    # Detach known footer disclaimers before polishing
+    disclaimers = []
+    lines = answer.split("\n\n")
+    clean_lines = []
+    for l in lines:
+        stripped_l = l.strip()
+        if stripped_l.startswith("_") and stripped_l.endswith("_") and len(stripped_l) > 20:
+            disclaimers.append(stripped_l)
+        else:
+            clean_lines.append(l)
+
+    body_to_polish = "\n\n".join(clean_lines).strip()
+    if len(body_to_polish) < 30:
+        return answer
+
+    system_prompt = (
+        "You are the Mukthi Guru Transcript Boundary & Continuity Polisher.\n"
+        "Your role is to fix grammar, remove broken fragments left by URL stripping, "
+        "and seamlessly weave transitions between multi-clip paragraphs:\n\n"
+        "STRICT RULES:\n"
+        "1. VERBATIM SACRED PRESERVATION: Any teaching or quote in quotation marks or blockquotes "
+        "MUST remain 100% verbatim. Do NOT alter, summarize, or paraphrase the teachers' words.\n"
+        "2. GRAMMAR & FRAGMENT CLEANUP: Fix trailing prepositions or broken conjunctions left after "
+        "URLs were removed (e.g., change '...on Amazon.in at this link:.' or '...on Amazon.in at' "
+        "to a clean, natural sentence like '...on Amazon.in.').\n"
+        "3. SEAMLESS MULTI-CLIP WEAVING: Ensure smooth connective transitions between paragraphs so the "
+        "response flows as a unified spiritual discourse.\n"
+        "4. ABSOLUTE FORBIDDEN: NEVER add synthetic tags like [SYNTHESIS NOTE], [Source], or [CITE]. "
+        "NEVER invent new teachings. Output ONLY the polished response with no conversational intro."
+    )
+
+    user_prompt = f"User Question: {question}\n\nDraft Response to Polish:\n{body_to_polish}"
+
+    try:
+        active_llm = provider
+        if active_llm is None:
+            try:
+                from app.dependencies import get_container
+                container = get_container()
+                active_llm = getattr(container, "llm_gateway", None) or getattr(container, "llm", None)
+            except Exception:
+                active_llm = None
+
+        if active_llm is None:
+            return answer
+
+        async def _call():
+            if hasattr(active_llm, "generate_fast"):
+                return await active_llm.generate_fast(
+                    system_prompt, user_prompt, max_tokens=1024, temperature=0.0
+                )
+            elif hasattr(active_llm, "generate"):
+                return await active_llm.generate(
+                    system_prompt, user_prompt, task="casual", max_tokens=1024, temperature=0.0
+                )
+            return body_to_polish
+
+        polished = await asyncio.wait_for(_call(), timeout=timeout_s)
+        polished = polished.strip()
+
+        # Sanity check: must not be empty or ridiculously short compared to body
+        if not polished or len(polished) < len(body_to_polish) * 0.5:
+            return answer
+
+        # Substring quote verification gate
+        is_valid, verified_text = verify_verbatim_spans(polished, source_docs, body_to_polish)
+        if not is_valid:
+            logger.warning("Polished text failed verbatim verification; preserving original text")
+            return answer
+
+        # Re-attach disclaimers
+        if disclaimers:
+            verified_text = f"{verified_text}\n\n" + "\n\n".join(disclaimers)
+        return verified_text
+
+    except asyncio.TimeoutError:
+        logger.warning("LLM polishing timed out after %.1fs; falling back to original answer", timeout_s)
+        return answer
+    except Exception as e:
+        logger.warning("LLM polishing failed (non-fatal): %s; falling back to original answer", e)
+        return answer
+
+
 def _enforce_attribution_floor(fn):
     """Structural invariant: no attributed claim ships without a source.
 
@@ -5496,6 +5643,16 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
 
     # Citations are returned in the citations field, we do not append them to the answer text.
     pass
+
+    # Polish sentence boundaries, remove URL-stripping debris, and weave multi-clip transitions
+    llm_provider = state.get("llm_provider")
+    answer = await _polish_and_weave_clips(
+        answer,
+        relevant_docs,
+        state.get("question", ""),
+        provider=llm_provider,
+        timeout_s=10.0,
+    )
 
     # Last line of defence on attribution: a quoted span that is not verbatim in
     # the retrieved context is not a quotation, whatever the faithfulness score
