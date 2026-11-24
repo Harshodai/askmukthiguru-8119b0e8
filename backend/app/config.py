@@ -576,7 +576,7 @@ class Settings(BaseSettings):
     # topic_blocked, crisis_redirect) and every safety lane still abstain with nothing.
     # Off by default: the abstain payload is byte-identical to before until an owner
     # sets it (production-safe flip). Env: FIRST_PERSON_ABSTAIN_RELATED_CLIPS_ENABLED.
-    first_person_abstain_related_clips_enabled: bool = False
+    first_person_abstain_related_clips_enabled: bool = True
     # 2026-10-11 quality gates (Opus judge: 10/24 served clips were not worth showing).
     # Relevance: LLM scores (question, clip) 0-3 per candidate, never prose; serve the best
     # clip scoring >= min_score or abstain (fail closed). Standalone: deterministic backstop

@@ -1,3 +1,12 @@
+## Nov 24, 2026 — Batch 12: Anthropic gateway opt-in and synchronous Memgraph driver session
+
+### L-ANTHROPIC-OPT-IN-1 (2026-11-24)
+- **Rule:** Never gate live LLM provider activation on API-key presence alone. `ANTHROPIC_API_KEY` is required for offline batch grading, so `AnthropicGateway.enabled` MUST require both `anthropic_gateway_enabled=True` AND a non-empty `anthropic_api_key`.
+
+### L-SYNC-ASYNC-MEMGRAPH-1 (2026-11-24)
+- **Rule:** `container.neo4j_driver` returns a synchronous `neo4j.GraphDatabase.driver`. Any async expansion helper (`expand_teaching_units`) must inspect the session context manager and execute sync sessions via `asyncio.to_thread` rather than `async with driver.session()`.
+
+
 ## Nov 5, 2026 — Batch 10: Persona preferences, honest copy and controls, and one LLM gateway (T6-03, T6-10, T7-03)
 
 ### L-USER-PREFERENCES-NO-PSYCHOLOGICAL-PROFILING-1. Group user-stated facts and explicit preferences; strictly ban speculative psychological or spiritual profiling.

@@ -4120,9 +4120,11 @@ def _clean_inline_citations(text: str) -> str:
         "",
         text,
     )
-    # Clean up trailing orphaned conjunctions before punctuation or end of line (e.g. "and.", "and,")
+    # Clean up trailing orphaned conjunctions and prepositions before punctuation or end of line
     text = re.sub(r"(?im)\b(?:and|or)\s*([.,!?;])(?=\s|$)", r"\1", text)
     text = re.sub(r"(?im)\b(?:and|or)\s*$", "", text)
+    text = re.sub(r"(?im)\s+\b(?:at|on|from|via)\s*:\s*$", ".", text)
+    text = re.sub(r"(?im)\s+\b(?:at|via)\s*$", ".", text)
     # Output safety-net for doctrine-term transcription errors already baked into the corpus
     # (e.g. "Akam"->"Ekam"), for data ingested before the fix. Single source of truth:
     # services.doctrine_terms.apply_corrections (admin-editable, shared with whisper + corrector).

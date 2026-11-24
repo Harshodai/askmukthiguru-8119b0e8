@@ -1492,10 +1492,3 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
 > into the archive. `backend/tests/test_lessons_archive.py` fails if a cited `L-` ID is in neither file.
-
-
-### L-ANTHROPIC-OPT-IN-1 (2026-11-24)
-- **Rule:** Never gate live LLM provider activation on API-key presence alone. `ANTHROPIC_API_KEY` is required for offline batch grading, so `AnthropicGateway.enabled` MUST require both `anthropic_gateway_enabled=True` AND a non-empty `anthropic_api_key`.
-
-### L-SYNC-ASYNC-MEMGRAPH-1 (2026-11-24)
-- **Rule:** `container.neo4j_driver` returns a synchronous `neo4j.GraphDatabase.driver`. Any async expansion helper (`expand_teaching_units`) must inspect the session context manager and execute sync sessions via `asyncio.to_thread` rather than `async with driver.session()`.
