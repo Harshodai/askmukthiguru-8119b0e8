@@ -1160,6 +1160,18 @@ class OpenRouterService:
             **kwargs,
         )
 
+    async def generate_fast(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context: str = "",
+        **kwargs,
+    ) -> str:
+        """Fast generation using the fast/classification model (e.g. llama-3.1-8b)."""
+        if context:
+            user_prompt = f"Context:\n{context}\n\n{user_prompt}"
+        return await self._generate_fast(system_prompt, user_prompt, **kwargs)
+
     async def _generate_fast(
         self,
         system_prompt: str,

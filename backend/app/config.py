@@ -2205,9 +2205,8 @@ class Settings(BaseSettings):
     agentic_graph_fast_model: str = "nim:meta/llama-3.1-8b-instruct"
     agentic_graph_timeout_per_step: int = 15
     # When True, skip the LLM-based retrieval expansion call (parallel-fire from
-    # retrieve_documents). Saves 1 LLM call on the standard/deep paths. Off by
-    # default to avoid changing generation behavior.
-    rag_skip_retrieval_expansions: bool = False
+    # retrieve_documents). Saves 1 LLM call on the standard/deep paths.
+    rag_skip_retrieval_expansions: bool = True
     # Maximum time, after primary retrieval completes, to wait for the optional
     # expansion planner. A slow planner is cancelled and omitted; primary
     # retrieval remains authoritative. This is a generic soft deadline rather
@@ -2215,8 +2214,8 @@ class Settings(BaseSettings):
     rag_retrieval_expansion_soft_wait_seconds: float = Field(default=0.80, ge=0.0, le=5.0)
     # When True, use heuristic pronoun/reference matching instead of an LLM call
     # to detect and contextualize follow-up queries. Saves 1 LLM call per query
-    # with chat history. Off by default to avoid changing generation behavior.
-    rag_heuristic_followup: bool = False
+    # with chat history.
+    rag_heuristic_followup: bool = True
     # B23 (2026-09-12 latency audit): rewrite_query is the only CRAG helper
     # still calling the "main" model (ollama_service.py, since removed) while
     # every sibling (decompose_query, batch grader, faithfulness check, HyDE)

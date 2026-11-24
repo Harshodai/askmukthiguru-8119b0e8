@@ -4295,15 +4295,16 @@ async def _polish_and_weave_clips(
         async def _call():
             if hasattr(active_llm, "generate_fast"):
                 return await active_llm.generate_fast(
-                    system_prompt, user_prompt, max_tokens=1024, temperature=0.0
+                    system_prompt, user_prompt, max_tokens=512, temperature=0.0
                 )
             elif hasattr(active_llm, "generate"):
                 return await active_llm.generate(
-                    system_prompt, user_prompt, task="casual", max_tokens=1024, temperature=0.0
+                    system_prompt, user_prompt, task="casual", max_tokens=512, temperature=0.0
                 )
             return body_to_polish
 
-        polished = await asyncio.wait_for(_call(), timeout=timeout_s)
+        effective_timeout = min(float(timeout_s or 2.5), 2.5)
+        polished = await asyncio.wait_for(_call(), timeout=effective_timeout)
         polished = polished.strip()
 
         # Strip conversational LLM preambles if emitted

@@ -1683,9 +1683,14 @@ class FirstPersonBridgeStage(Stage):
                 error=getattr(result, "error", None),
             )
 
-        # Faculty dual-mode: when not a direct answer and LLM fallback is enabled,
-        # pass related clips to state as faculty citations and route to LangGraph synthesis
-        if not is_direct and getattr(settings, "first_person_llm_fallback_enabled", False):
+        # Faculty dual-mode: when not a direct answer and primary mode is disabled (or weak matches disabled)
+        # while LLM fallback is enabled, pass related clips to state and route to LangGraph synthesis.
+        # When primary mode is on, a clean weak_match is terminal per Invariant 2 (the generating graph never runs).
+        if (
+            not is_direct
+            and not (primary_mode and getattr(settings, "first_person_serve_weak_match", True))
+            and getattr(settings, "first_person_llm_fallback_enabled", False)
+        ):
             if (
                 getattr(settings, "first_person_grounded_synthesis_enabled", False)
                 and hasattr(ctx, "state")
