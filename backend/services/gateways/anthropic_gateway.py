@@ -143,9 +143,12 @@ class AnthropicGatewayConfig:
             settings = None  # type: ignore[assignment]
 
         def _get(name: str, default: Any) -> Any:
+            env_val = os.environ.get(name.upper())
+            if env_val is not None:
+                return env_val
             if settings is not None and hasattr(settings, name):
                 return getattr(settings, name)
-            return os.environ.get(name.upper(), default)
+            return default
 
         ttl = str(_get("anthropic_gateway_cache_ttl", "1h"))
         raw_enabled = _get("anthropic_gateway_enabled", False)

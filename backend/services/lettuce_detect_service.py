@@ -392,8 +392,15 @@ def _parse_num(tok: str) -> Optional[int]:
     return _NUM_WORDS.get(tok_clean)
 
 
-def _extract_num_phrases(text: str) -> list[tuple[int, str]]:
-    phrases: list[tuple[int, str]] = []
+_SUBSET_PREFIX_RE = re.compile(
+    r"\b(?:the\s+)?(?:first|second|third|fourth|these|those|remaining|other|next|last)\s+$|"
+    r"\b(?:one|two|three|four|five|\d+)\s+of\s+(?:the|these|those)\s+$",
+    re.IGNORECASE,
+)
+
+
+def _extract_num_phrases(text: str) -> list[tuple[int, str, bool]]:
+    phrases: list[tuple[int, str, bool]] = []
     for match in _NUM_PHRASE_RE.finditer(text):
         num_str, entity = match.group(1), match.group(2)
         num_val = _parse_num(num_str)
@@ -403,7 +410,9 @@ def _extract_num_phrases(text: str) -> list[tuple[int, str]]:
         first_word = norm_entity.split()[0]
         if first_word in _NUM_IGNORED_ENTITIES or norm_entity in _NUM_IGNORED_ENTITIES:
             continue
-        phrases.append((num_val, norm_entity))
+        prefix = text[: match.start()].rstrip()
+        is_subset = bool(_SUBSET_PREFIX_RE.search(prefix))
+        phrases.append((num_val, norm_entity, is_subset))
     return phrases
 
 
@@ -510,9 +519,14 @@ def _is_phrase_negated(text: str, target_words: set[str]) -> bool:
             last_b = max(boundaries) if boundaries else 0
             clause_prefix = prefix[last_b:]
             tokens = re.findall(r"\b[a-zA-Z]{2,}\b", clause_prefix)
-            if any(t in _NEGATION_WORDS for t in tokens):
-                return True
-            if any(p.search(clause_prefix) for p in _CONTRASTIVE_PATTERNS):
+            neg_count = sum(1 for t in tokens if t in _NEGATION_WORDS)
+            # Count non-overlapping contrastive exclusion markers that do not double-count 'not'
+            contrastive_count = sum(
+                1
+                for p in _CONTRASTIVE_PATTERNS
+                if p.search(clause_prefix) and not p.pattern.startswith(r"\bnot\s+")
+            )
+            if (neg_count + contrastive_count) % 2 == 1:
                 return True
     return False
 
@@ -544,9 +558,14 @@ def _detect_contradiction(
     claim_nums = _extract_num_phrases(clean_claim)
     if claim_nums and context:
         ctx_nums = _extract_num_phrases(context)
-        for c_val, c_ent in claim_nums:
-            for ctx_val, ctx_ent in ctx_nums:
+        for c_val, c_ent, c_is_subset in claim_nums:
+            for ctx_val, ctx_ent, _ in ctx_nums:
                 if c_val != ctx_val:
+                    # If the claim explicitly refers to a subset of the context total,
+                    # e.g. 'these three secrets', 'the first three secrets', it is not
+                    # a mutual exclusivity contradiction.
+                    if c_is_subset and c_val < ctx_val:
+                        continue
                     # Match exact entity or substantial substring overlap
                     if c_ent == ctx_ent or (
                         len(c_ent) >= 6 and (c_ent in ctx_ent or ctx_ent in c_ent)

@@ -583,8 +583,8 @@ class Settings(BaseSettings):
     # list — so the abstain screen can offer the closest related clips instead of
     # nothing. Out-of-scope / blocked / crisis turns (answerability_withheld,
     # topic_blocked, crisis_redirect) and every safety lane still abstain with nothing.
-    # Off by default: the abstain payload is byte-identical to before until an owner
-    # sets it (production-safe flip). Env: FIRST_PERSON_ABSTAIN_RELATED_CLIPS_ENABLED.
+    # Enabled by default since 2026-11-24 (086feef2): abstain payload carries bounded
+    # related clips on integrity-verified below-min turns. Env: FIRST_PERSON_ABSTAIN_RELATED_CLIPS_ENABLED.
     first_person_abstain_related_clips_enabled: bool = True
     # 2026-10-11 quality gates (Opus judge: 10/24 served clips were not worth showing).
     # Relevance: LLM scores (question, clip) 0-3 per candidate, never prose; serve the best
@@ -2225,6 +2225,10 @@ class Settings(BaseSettings):
     # regression check (docs/RUTHLESS_PRODUCTION_EXECUTION.md B23) before
     # changing default generation behavior.
     rag_rewrite_query_fast_model: bool = True
+    # Explicit gate for LLM-powered verbatim boundary smoothing in format_final_answer
+    # (7d054246). Bounded by rag_verbatim_polishing_timeout_s (N6 cost/latency control).
+    rag_verbatim_polishing_enabled: bool = True
+    rag_verbatim_polishing_timeout_s: float = 10.0
 
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
     # Explicit opt-in activation contract: setting ANTHROPIC_API_KEY alone (e.g. for

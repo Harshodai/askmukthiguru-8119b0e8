@@ -4158,17 +4158,28 @@ def verify_verbatim_spans(
     def _normalize(s: str) -> str:
         return re.sub(r"\s+", " ", re.sub(r"[\"“”'‘’]", "", s)).strip().lower()
 
-    # Build haystack of all source texts + original answer
+    # Build haystack of all source texts + original answer (supports dicts and Document objects)
     haystack_pieces = [original_answer]
     for d in source_docs:
         if isinstance(d, dict):
-            haystack_pieces.append(d.get("text") or d.get("verbatim_text") or "")
+            haystack_pieces.append(
+                d.get("text") or d.get("verbatim_text") or d.get("page_content") or ""
+            )
             if isinstance(d.get("metadata"), dict):
                 haystack_pieces.append(d["metadata"].get("text") or "")
+        else:
+            page_content = getattr(d, "page_content", None) or getattr(d, "text", None) or ""
+            if page_content:
+                haystack_pieces.append(str(page_content))
+            meta = getattr(d, "metadata", None)
+            if isinstance(meta, dict) and meta.get("text"):
+                haystack_pieces.append(str(meta["text"]))
     normalized_haystack = " ".join(_normalize(p) for p in haystack_pieces if p)
 
-    # Extract all quoted spans from polished_text
-    quotes = re.findall(r'["“]([^"”]{15,})["”]|>\s*["“]?([^"\n]{15,})["”]?', polished_text)
+    quote_pattern = r'["“]([^"”]{15,})["”]|>\s*["“]?([^"\n]{15,})["”]?'
+
+    # 1) Every quoted span in polished_text must exist verbatim in retrieved sources or original answer
+    quotes = re.findall(quote_pattern, polished_text)
     for q_tuple in quotes:
         quote = q_tuple[0] or q_tuple[1]
         if not quote:
@@ -4176,8 +4187,24 @@ def verify_verbatim_spans(
         norm_q = _normalize(quote)
         if len(norm_q) >= 15 and norm_q not in normalized_haystack:
             logger.warning(
-                "Verbatim integrity check failed for polished span: '%s...'. Reverting to unpolished text.",
-                quote[:40],
+                "Verbatim integrity check failed for polished span (len=%d). Reverting to unpolished text.",
+                len(norm_q),
+            )
+            return False, original_answer
+
+    # 2) Prevent silent quote deletion or unquoted paraphrasing: every verbatim quote present
+    #    in original_answer must remain intact in polished_text.
+    orig_quotes = re.findall(quote_pattern, original_answer)
+    normalized_polished = _normalize(polished_text)
+    for q_tuple in orig_quotes:
+        orig_quote = q_tuple[0] or q_tuple[1]
+        if not orig_quote:
+            continue
+        norm_orig = _normalize(orig_quote)
+        if len(norm_orig) >= 15 and norm_orig not in normalized_polished:
+            logger.warning(
+                "Verbatim integrity check failed: original quoted span (len=%d) was altered or dropped. Reverting.",
+                len(norm_orig),
             )
             return False, original_answer
 
@@ -4198,6 +4225,9 @@ async def _polish_and_weave_clips(
     Preserves all verbatim quotes, cleans up URL-stripping debris (e.g. trailing 'at'),
     and weaves multi-clip paragraphs smoothly.
     """
+    if not getattr(settings, "rag_verbatim_polishing_enabled", True):
+        return answer
+
     if not answer or len(answer.strip()) < 40 or not source_docs:
         return answer
 
@@ -4237,10 +4267,20 @@ async def _polish_and_weave_clips(
         "NEVER invent new teachings. Output ONLY the polished response with no conversational intro."
     )
 
-    user_prompt = f"User Question: {question}\n\nDraft Response to Polish:\n{body_to_polish}"
+    safe_question = re.sub(r"[\x00-\x1f\x7f]+", " ", str(question or "")).strip()[:500]
+    safe_question = safe_question.replace("```", "'''")
+    user_prompt = (
+        f"<seeker_question>{safe_question}</seeker_question>\n\n"
+        f"<draft_response>\n{body_to_polish}\n</draft_response>"
+    )
 
     try:
-        active_llm = provider
+        # Only accept provider if it is an actual LLM client (state["llm_provider"] may be a str name)
+        active_llm = (
+            provider
+            if (provider is not None and (hasattr(provider, "generate_fast") or hasattr(provider, "generate")))
+            else None
+        )
         if active_llm is None:
             try:
                 from app.dependencies import get_container
@@ -5503,8 +5543,19 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
                 and state.get("verification", {}).get("method") == "no_context_short_circuit"
             )
         )
-        if retry_count < 1 and not is_no_context_abstention:
-            logger.info(f"Final: Answer rejected, retrying (retry_count={retry_count})")
+        turn_start = float(state.get("start_time") or state.get("turn_start_time") or 0.0)
+        elapsed_s = (time.monotonic() - turn_start) if turn_start > 0 else 0.0
+        fast_mode = bool(getattr(settings, "reflection_fast_mode_enabled", False))
+        may_retry = (
+            retry_count < 1
+            and not is_no_context_abstention
+            and (not fast_mode or elapsed_s < 4.5)
+            and (elapsed_s < 6.0 if turn_start > 0 else True)
+        )
+        if may_retry:
+            logger.info(
+                f"Final: Answer rejected, retrying (retry_count={retry_count}, elapsed={elapsed_s:.2f}s)"
+            )
             return {
                 "retry_count": retry_count + 1,
                 "_needs_retry": True,
