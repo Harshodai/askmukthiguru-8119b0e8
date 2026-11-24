@@ -248,7 +248,12 @@ def expand_teaching_units(
     limit = int(max_nodes)
     seed_set = set(unique_seeds)
 
-    tenant_id = "oneness"
+    try:
+        from services.tenant_context import TenantContext  # noqa: PLC0415
+
+        tenant_id = TenantContext.get() or "oneness"
+    except Exception:
+        tenant_id = "oneness"
 
     def _collect_row(row: Any, results: list[str], seen: set[str]) -> bool:
         span_id_val = row.get("span_id") if hasattr(row, "get") else None

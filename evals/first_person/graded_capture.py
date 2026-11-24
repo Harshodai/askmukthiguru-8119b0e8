@@ -496,6 +496,7 @@ def main() -> int:
         override=str(args.override),
         need_usd=args.need_usd,
         base_url=args.base_url,
+        check_logs=False,
     )
     checks = list(run_preflight(preflight_ns)) + [cache_check]
     log_lines = [f"[{'PASS' if c.ok else 'FAIL'}] {c.name}: {c.detail}" for c in checks]

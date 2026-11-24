@@ -515,9 +515,23 @@ class PersonalizeStage(Stage):
         _outbox = getattr(ctx.container, "memory_outbox", None)
         _uid = getattr(ctx, "user_id", None)
         if _outbox is not None and _uid and hasattr(_outbox, "active_consent"):
+            import inspect as _inspect
+
             try:
-                _tenant_id = getattr(ctx.container, "tenant_id", None) or "default"
-                _receipt = _outbox.active_consent(str(_uid), str(_tenant_id))
+                from services.tenant_context import TenantContext
+
+                _tenant_id = TenantContext.get() or "default"
+            except Exception:
+                _tenant_id = "default"
+            try:
+                _maybe_receipt = _outbox.active_consent(
+                    user_id=str(_uid), tenant_id=str(_tenant_id)
+                )
+                _receipt = (
+                    await _maybe_receipt
+                    if _inspect.isawaitable(_maybe_receipt)
+                    else _maybe_receipt
+                )
                 if not _receipt:
                     return _decline(
                         ctx,

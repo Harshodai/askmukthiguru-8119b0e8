@@ -3713,7 +3713,7 @@ class IngestionPipeline:
             if sl_prob:
                 reasons.append(sl_prob)
             reasons.extend(asr_cleaner_flags(text))
-            reasons.extend(boundary_defects(text))
+            reasons.extend(boundary_defects(text.split()))
             if reasons:
                 for r in reasons:
                     rejected_reasons[r] = rejected_reasons.get(r, 0) + 1

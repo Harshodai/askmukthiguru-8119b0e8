@@ -1277,7 +1277,9 @@ class CorrelationIDMiddleware:
             cid = str(uuid.uuid4())[:8]
 
         cid_token = correlation_id_var.set(cid)
-        set_request_id(cid)
+        from app.context import request_id_var as _req_id_var
+
+        req_token = _req_id_var.set(cid)
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
@@ -1290,6 +1292,7 @@ class CorrelationIDMiddleware:
             await self.app(scope, receive, send_wrapper)
         finally:
             correlation_id_var.reset(cid_token)
+            _req_id_var.reset(req_token)
 
 
 if settings.enable_correlation_ids:

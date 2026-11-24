@@ -126,7 +126,7 @@ def serving_gate_warnings(settings: Any) -> list[str]:
         v10 = bool(getattr(settings, "first_person_context_harness_enabled", False)) and (
             getattr(settings, "first_person_context_terminal_enabled", False) is True
         )
-        lane = "context harness (terminal)" if v10 else "legacy clip store"
+        lane = "v10-only context harness" if v10 else "legacy clip store"
         warnings.append(
             "FIRST_PERSON_SERVING_POSTURE is undeclared: the resolved flags serve the "
             f"{lane} (collection "
