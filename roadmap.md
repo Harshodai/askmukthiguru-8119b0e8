@@ -4,11 +4,14 @@
 
 - [x] Recheck direct Meta coexistence and AI-use rules; current India general-purpose-assistant eligibility is not established.
 - [x] Inspect current linking/Profile/receiver/worker code; identify consent defaults, ineffective STOP/RESET, unsigned chat identity and nonpersistent delivery tracking.
-- [ ] Approve revised reuse-focused plan and repair account linking, menu/privacy controls, trusted teaching execution and durable receiving/delivery.
+- [x] Approved revised plan; repair linking/Profile privacy defaults, private challenge expiry, safe return links, confirmed mutations and account-switch isolation. 23 focused frontend tests passed.
+- [x] Check public linking/sign-in return at 384px and 1280px: no horizontal overflow or page errors; private link removed. Authenticated live checks unavailable on external unmanaged Supabase.
+- [ ] Complete real channel menus, trusted teaching execution, fresh two-channel confirmation and durable receiving/delivery; requires authorized hosted runtime and persistence verification, not frontend-only checks.
 - [ ] Confirm Meta Developer app and eligible coexistence onboarding; keep Business phone app working, no Lovable connector.
 - [ ] Run isolated regressions and authenticated website checks, then authorized real WhatsApp incoming → reply → delivered → save/readback → unlink.
 - External blockers: Meta app/account access, use-case eligibility, secure deployed-runtime credentials, approved deployment and real human-help destination. Number alone is insufficient; no connection or public activation performed.
 - Owner confirmed 2026-11-22: only WhatsApp Business phone app exists; prepare Meta Developer/eligible coexistence setup, not a reconnect or ordinary API number registration.
+- Setup guide corrected: existing-number coexistence only, no separate-number workaround, current `messages` callback subscription, no ordinary Add Number instructions. No deployment, credentials or messages changed.
 
 ## Current request — 2026-11-21: direct WhatsApp account-linked workflow
 

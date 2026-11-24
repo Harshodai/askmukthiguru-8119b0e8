@@ -85,6 +85,10 @@ Model-route column: which tier to hand the fix to — `haiku` mechanical, `sonne
 
 # Roadmap — Execution Strategy
 
+## WhatsApp connection privacy — approved November 2026 follow-up
+- Reused linking/Profile screens with shared account-scoped connection handling: optional consent off, expiring opaque challenge, clean auth-return URLs, safe specific-number return, confirmed consent/unlink changes, timeout/retry and stale-account response denial. Focused frontend regressions: 23 passed.
+- Public phone/desktop linking navigation checked; authenticated production readback and real WhatsApp delivery remain unverified. Meta Developer app, eligible coexistence, India use-case classification and runtime credentials still required. Do not treat bank-style menus or a new number as policy exemptions.
+
 ## Visitor discovery — 2026-11-19
 - Added existing Trust and Spirit Guides routes to sitemap; strengthened AI guide sourcing/limitations and practice-first navigation; added official Oneness resource link to existing Serene Mind guide.
 - Chat recovery and custom domain remain owner-led. Vercel consolidation, affiliation wording, directory submissions, Search Console recrawl, and community promotion require external access or factual approval. Draft distribution materials saved in Files; nothing sent or paid.

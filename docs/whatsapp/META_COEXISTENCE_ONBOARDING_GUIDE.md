@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary & Coexistence Invariant
 
-AskMukthiGuru provides a direct companion channel over WhatsApp using the official Meta WhatsApp Cloud API.
+AskMukthiGuru has integration scaffolding for a direct WhatsApp channel using the official Meta Cloud API. Public receiving, replies and delivery remain unverified; this guide is not an activation certificate.
 A critical repository and operational invariant is **Zero Disconnection of the Mobile Phone App**:
 > The existing WhatsApp Business app on the physical phone must remain 100% operational for day-to-day manual conversations, voice calls, and customer contacts.
 
@@ -35,25 +35,31 @@ To protect the phone app from being disconnected, choose one of these two safe p
 - The phone app displays the coexistence banner: *"This number is connected to an automated cloud service."*
 - Incoming messages are delivered to both the physical phone app and the AskMukthiGuru webhook simultaneously.
 
-#### Path B: Dedicated AI Companion Number (Recommended for Independent Setup)
-- Keep the existing WhatsApp Business phone number exclusively on the physical phone for personal/business interactions.
-- Provision a separate dedicated business number (virtual number or secondary SIM) specifically for the AskMukthiGuru AI Companion.
-- Zero risk to the primary number, zero dependency on third-party Tech Provider approvals, and 100% clean channel separation.
+The approved scope uses the existing number with coexistence. A separate number is not authorized and would not exempt the companion from Meta's AI-use terms.
+
+### Owner next steps — only the Business phone app exists
+
+1. Open [Meta for Developers](https://developers.facebook.com/) and complete developer registration under the account with portfolio control. Create an app with the WhatsApp use case and associate the correct portfolio; dashboard wording can vary.
+2. Do not register the live number through ordinary API setup. Start with Meta's test sender where available.
+3. Coexistence requires an eligible provider's [Embedded Signup v4](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users), or completion of applicable [Tech Provider onboarding](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers), including business verification and App Review. Provider choice and costs require approval; no Lovable connector is used.
+4. Confirm classification of the actual companion use case before activation. Meta's [official AI-provider policy](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing/ai-providers), fetched 2026-11-22, does not list India among permitted general-purpose-assistant markets. Spiritual scope or banking-style menus do not establish an exemption. Do not disguise the companion as customer support.
+5. Supply approved credentials only through receiver/worker hosting service secure variables, never chat. An app ID and phone-number ID are identifiers, not the phone display name.
+6. Deploy and verify the approved receiver, then perform supported coexistence onboarding and real incoming-message/reply/delivery checks. Keep the Business phone app intact. HTTP health alone does not establish live operation.
 
 ---
 
 ## 3. Human Coexistence Handoff & Bank-Style Interactive Menu
 
-To ensure manual phone replies and AI automation never compete or collide:
+The following is intended behavior, not delivery evidence. Offer human help only after a real operator and availability are configured. No public activation was performed in this pass.
 
-### Human Handoff (The 60-Minute AI Pause)
+### Proposed human handoff (not live-verified)
 - When a user texts `HUMAN`, `SUPPORT`, `AGENT`, or clicks the native **Human Help** button:
   1. AskMukthiGuru immediately pauses automated AI responses for **60 minutes** via Redis key `wa:pause:{phone_hash}`.
   2. The seeker receives: *"🤝 Connecting you to a Guide / Team Member. Automated AI responses are paused for the next 60 minutes..."*
   3. The owner can reply directly from their WhatsApp Business mobile app without AI bot interruption.
   4. The seeker can text `RESUME` at any time to resume AI guidance immediately.
 
-### Native Interactive Buttons (Meta Cloud API)
+### Proposed native interactive buttons (not live-verified)
 - Upon connecting or texting `MENU`, AskMukthiGuru serves interactive quick-reply buttons:
   - **Ask a Question**: Prompts user for spiritual inquiries.
   - **Today's Practice**: Delivers the authentic 3-minute Soul Sync meditation practice.
@@ -77,17 +83,13 @@ To ensure manual phone replies and AI automation never compete or collide:
    - **Verify Token**:  
      A secure random string (must match `WHATSAPP_VERIFY_TOKEN` in Railway, e.g. generate via `openssl rand -hex 24`).
 3. Click **Verify and Save**. Meta will issue a GET request with `hub.mode=subscribe` and `hub.verify_token`.
-4. Click **Manage** under Webhook fields, and subscribe to:
-   - `messages` (Inbound user messages)
-   - `message_deliveries` (Delivery status receipts)
-   - `message_reads` (Read receipts)
+4. Subscribe to the WhatsApp `messages` webhook field. Inbound messages and `sent`, `delivered`, `read`, `failed` callbacks arrive under that field; do not copy Messenger's separate delivery/read field names. Confirm coexistence-specific subscriptions with the eligible provider. Historical sync is not enabled by default.
 
 ### Step 3: Coexistence Embedded Signup Flow
-1. In **WhatsApp** $\rightarrow$ **Quickstart** or **API Setup**, navigate to **Phone Numbers**.
-2. Select **Add Phone Number**.
-3. When prompted to connect your existing WhatsApp Business number, choose **Use Existing Number (Coexistence)**.
-4. Verify the 6-digit SMS/voice challenge sent to your phone.
-5. **CRITICAL**: Confirm that the mobile app displays the coexistence banner: *"This number is connected to an automated cloud service."* Do not click "Migrate to Cloud API only".
+1. Launch the eligible provider's configured Embedded Signup v4 flow with session logging, not ordinary dashboard Add Number registration.
+2. Select the supported existing Business app account option and follow Meta's current phone-app confirmation prompts.
+3. Exchange the returned authorization code server-side and complete the asset/subscription steps in Meta's current onboarding documentation.
+4. Confirm the number still sends and receives through the phone app and approved receiver. Never delete/disconnect the phone account or choose API-only migration as a workaround.
 
 ### Step 4: System User & Permanent Token Generation
 1. In [Meta Business Suite](https://business.facebook.com/) $\rightarrow$ **Business Settings** $\rightarrow$ **Users** $\rightarrow$ **System Users**.

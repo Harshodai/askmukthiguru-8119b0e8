@@ -188,3 +188,13 @@ A critical repository and operational invariant is **Zero Disconnection of the M
   - Detailed the two safe paths: Path A (Embedded Signup v4 via Tech Provider) vs Path B (Dedicated Companion Number).
   - Documented the 60-minute Human Coexistence Handoff and native interactive button capabilities.
 
+## Follow-up verification and corrected setup guidance
+
+The implementation log above records earlier work, not live Meta acceptance. This pass reused `useWhatsAppConnection` and `whatsappConnection` for linking/Profile state: optional choices start off; challenge storage expires at 15 minutes; sign-in return URLs contain no challenge; private codes are not rendered; external return URLs must identify a specific `https://wa.me` number; status and mutations are validated; stale-account responses and duplicate changes are denied.
+
+Validation rerun: `bunx vitest run src/test/whatsappIntegration.test.tsx src/test/whatsappConnection.test.ts src/test/useWhatsAppConnection.test.ts` — 23 tests passed. Public browser flow at 384×681 and 1280×1800 checked private-link stripping, no horizontal overflow, clean sign-in return and no page errors. Preview build log is green. Tooling emitted the existing Vite SWC recommendation; this is not zero-warning release evidence.
+
+Corrected coexistence guide removes the unapproved separate-number recommendation and ordinary Add Number instructions, uses the `messages` callback field, and marks menus/handoff as unverified live behavior. Owner has only the Business phone app: Meta Developer setup, eligible coexistence and actual AI-use classification must precede activation. A separate number or narrow domain does not waive India's general-purpose-assistant restrictions.
+
+Still open: fresh two-channel proof against forwarded links; durable inbound/outbound acceptance, callback persistence and restart recovery; full trusted-context and revoke-race verification; authorized hosted persistence checks; configured human operator; live Meta incoming/reply/delivered/readback/unlink. Authenticated browser checks are unavailable on external unmanaged Supabase. No Meta credential change, number migration, message send, production schema change or deployment occurred in this pass. Existing backend log claims must be independently verified in the locked test image and live receiver before public readiness.
+

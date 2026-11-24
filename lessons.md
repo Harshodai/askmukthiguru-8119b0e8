@@ -1,6 +1,12 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## WhatsApp linking privacy follow-up — November 2026
+
+- Verified frontend pattern: preserve only an expiring opaque challenge across sign-in; do not put it in auth-return query strings or render it. Optional storage choices start off. Confirm returned consent/unlink outcomes before changing local state, and ignore responses from a previous signed-in account.
+- `src/test/whatsappConnection.test.ts`, `useWhatsAppConnection.test.ts` and `whatsappIntegration.test.tsx` cover expiry, consent confirmation, safe returns, duplicate changes and account switching (23 passing tests). Public browser navigation is not evidence of authenticated channel operation.
+- Corrected setup documentation: existing-number coexistence requires eligible Embedded Signup v4 onboarding; ordinary Add Number instructions and separate-number policy workarounds must not be presented as an approved path. Meta eligibility and actual delivery remain external checks.
+
 ## Nov 23, 2026 (night) — Dynamic LLM Ontology Concept Extraction, Dual-Anchor Provenance Stamping, & Monotonic Chronological Invariants
 
 ### L-DYNAMIC-ONTOLOGY-RESOLVER-1. Replace static concept regexes with dynamic LLM structured concept extraction and Neo4j graph neighborhood traversal.
