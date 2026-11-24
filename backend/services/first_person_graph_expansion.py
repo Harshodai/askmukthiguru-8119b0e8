@@ -264,7 +264,7 @@ def expand_teaching_units(
                 return True
         return False
 
-    def _fetch_sync() -> list[str]:
+    async def _fetch() -> list[str]:
         """Execute the Cypher query against either a sync or async Neo4j/Memgraph driver."""
         results: list[str] = []
         seen: set[str] = set()
@@ -272,61 +272,59 @@ def expand_teaching_units(
 
         # Standard synchronous neo4j.GraphDatabase.driver (container.neo4j_driver)
         if hasattr(sess_cm, "__enter__") and not hasattr(sess_cm, "__aenter__"):
-            with sess_cm as session:
-                if len(unique_seeds) > 1 and max_hops <= 1:
-                    records = session.run(
-                        query_template,
-                        span_ids=unique_seeds,
-                        limit=limit,
-                        tenant_id=tenant_id,
-                    )
-                    for row in records:
-                        if _collect_row(row, results, seen):
-                            break
-                else:
-                    for seed in unique_seeds:
+            def _run_sync() -> list[str]:
+                with sess_cm as session:
+                    if len(unique_seeds) > 1 and max_hops <= 1:
                         records = session.run(
                             query_template,
-                            span_id=seed,
+                            span_ids=unique_seeds,
                             limit=limit,
                             tenant_id=tenant_id,
                         )
                         for row in records:
                             if _collect_row(row, results, seen):
-                                return results
-            return results
+                                break
+                    else:
+                        for seed in unique_seeds:
+                            records = session.run(
+                                query_template,
+                                span_id=seed,
+                                limit=limit,
+                                tenant_id=tenant_id,
+                            )
+                            for row in records:
+                                if _collect_row(row, results, seen):
+                                    return results
+                return results
+
+            return await asyncio.to_thread(_run_sync)
 
         # Async driver fallback (e.g. AsyncGraphDatabase or async mock in tests)
-        import asyncio as _asyncio
-
-        async def _run_async() -> list[str]:
-            async with sess_cm as session:
-                if len(unique_seeds) > 1 and max_hops <= 1:
+        async with sess_cm as session:
+            if len(unique_seeds) > 1 and max_hops <= 1:
+                records = await session.run(
+                    query_template,
+                    span_ids=unique_seeds,
+                    limit=limit,
+                    tenant_id=tenant_id,
+                )
+                async for row in records:
+                    if _collect_row(row, results, seen):
+                        break
+            else:
+                for seed in unique_seeds:
                     records = await session.run(
                         query_template,
-                        span_ids=unique_seeds,
+                        span_id=seed,
                         limit=limit,
                         tenant_id=tenant_id,
                     )
                     async for row in records:
                         if _collect_row(row, results, seen):
-                            break
-                else:
-                    for seed in unique_seeds:
-                        records = await session.run(
-                            query_template,
-                            span_id=seed,
-                            limit=limit,
-                            tenant_id=tenant_id,
-                        )
-                        async for row in records:
-                            if _collect_row(row, results, seen):
-                                return results
-            return results
+                            return results
+        return results
 
-        return _asyncio.run(_run_async())
-
-    neighbors = _run_bounded(_fetch_sync, timeout_val)
+    neighbors = _run_bounded(lambda: _fetch(), timeout_val)
     # Final dedup + cap (defensive, _fetch already deduplicates)
     out: list[str] = []
     seen_final: set[str] = set()
