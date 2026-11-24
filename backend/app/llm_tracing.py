@@ -223,7 +223,14 @@ def record_llm_error(span: Optional[Any], exc: BaseException) -> None:
         from opentelemetry.trace import Status, StatusCode
 
         span.set_attribute("error.type", type(exc).__name__)
-        span.set_status(Status(StatusCode.ERROR, str(exc)[:200]))
+        raw_err = str(exc)[:200]
+        try:
+            from app.observability import _sanitize_value
+
+            safe_err = str(_sanitize_value(raw_err))[:200]
+        except Exception:
+            safe_err = type(exc).__name__
+        span.set_status(Status(StatusCode.ERROR, safe_err))
     except Exception as inner:  # pragma: no cover - defensive
         logger.debug("record_llm_error failed: %s", inner)
 

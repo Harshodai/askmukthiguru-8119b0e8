@@ -174,7 +174,7 @@ class InputGuardrailStage(Stage):
                         reason="prompt_injection",
                     ),
                 )
-                ctx.last_stage_status = "error"
+                ctx.last_stage_status = "short_circuit"
                 refusal = _verdict.refusal_response or (
                     "I am an AI assistant designed to explore teachings from Sri Preethaji and Sri Krishnaji. "
                     "I cannot alter my core instructions, disclose system prompts, or adopt external personas. "

@@ -125,7 +125,7 @@ class UnifiedSeekerContext(BaseModel):
     is_authenticated: bool = True
     tenant_id: str = "default"
     consent_flags: dict[str, bool] = Field(
-        default_factory=lambda: {"personalization": True, "analytics": True, "storage": True}
+        default_factory=lambda: {"personalization": False, "analytics": False, "storage": False}
     )
     hydration_latency_ms: float = 0.0
     seeker_profile: SeekerProfileContext = Field(default_factory=SeekerProfileContext)

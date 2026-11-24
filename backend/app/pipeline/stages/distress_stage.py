@@ -748,15 +748,19 @@ class DistressStage(Stage):
                 if _db_ts and (_now - _db_ts) < _COOLDOWN:
                     _skip = True
 
+            from app.log_safe import q_tag as _q_tag
+
+            _uid_tag = _q_tag(str(user_id))
             if _skip:
                 logger.info(
-                    f"Proactive Serene Mind skipped for {user_id} — within 15-min cooldown."
+                    "Proactive Serene Mind skipped for user(%s) — within 15-min cooldown.",
+                    _uid_tag,
                 )
                 return {"triggered": False}
 
             logger.info(
-                "Proactive Serene Mind triggered for user %s: level=%s, confidence=%.2f",
-                user_id,
+                "Proactive Serene Mind triggered for user(%s): level=%s, confidence=%.2f",
+                _uid_tag,
                 proactive.level.name,
                 proactive.confidence,
             )

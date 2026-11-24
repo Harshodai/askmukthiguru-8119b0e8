@@ -491,12 +491,14 @@ def main() -> int:
     run_dir.mkdir(parents=True, exist_ok=True)
 
     cache_check = _run_cache_proof()
-    checks, log_lines = run_preflight(
+    preflight_ns = argparse.Namespace(
         container=args.container,
-        override_compose=Path(args.override),
+        override=str(args.override),
         need_usd=args.need_usd,
-        extra_checks=[cache_check],
+        base_url=args.base_url,
     )
+    checks = list(run_preflight(preflight_ns)) + [cache_check]
+    log_lines = [f"[{'PASS' if c.ok else 'FAIL'}] {c.name}: {c.detail}" for c in checks]
     preflight_ok = all(c.ok for c in checks)
     (run_dir / "preflight.txt").write_text("\n".join(log_lines) + "\n", encoding="utf-8")
     for line in log_lines:

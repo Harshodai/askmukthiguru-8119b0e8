@@ -161,11 +161,12 @@ class JSONFormatter(logging.Formatter):
             "logger": record.name,
             "message": msg,
         }
-        # Include correlation ID if available
+        # Include correlation ID and request ID if available
         try:
             cid = correlation_id_var.get()
             if cid != "-":
                 log_obj["correlation_id"] = cid
+                log_obj["request_id"] = cid
         except Exception as _e:
             logger.debug("[startup/shutdown] suppressed non-critical error: %s", _e)
         if record.exc_info:
@@ -1260,15 +1261,22 @@ class CorrelationIDMiddleware:
             return
 
         headers = scope.get("headers", [])
-        cid = None
+        raw_cid = None
         for k, v in headers:
-            if k.lower() == b"x-correlation-id":
-                cid = v.decode("utf-8", errors="replace")
+            kl = k.lower()
+            if kl == b"x-correlation-id":
+                raw_cid = v.decode("utf-8", errors="replace")
                 break
+            if kl == b"x-request-id" and raw_cid is None:
+                raw_cid = v.decode("utf-8", errors="replace")
+
+        from app.security_utils import validate_correlation_id
+
+        cid = validate_correlation_id(raw_cid) if raw_cid else None
         if not cid:
             cid = str(uuid.uuid4())[:8]
 
-        correlation_id_var.set(cid)
+        cid_token = correlation_id_var.set(cid)
         set_request_id(cid)
 
         async def send_wrapper(message):
@@ -1278,7 +1286,10 @@ class CorrelationIDMiddleware:
                 message["headers"] = msg_headers
             await send(message)
 
-        await self.app(scope, receive, send_wrapper)
+        try:
+            await self.app(scope, receive, send_wrapper)
+        finally:
+            correlation_id_var.reset(cid_token)
 
 
 if settings.enable_correlation_ids:

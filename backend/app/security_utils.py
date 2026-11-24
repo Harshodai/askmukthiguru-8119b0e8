@@ -210,7 +210,10 @@ def validate_csrf_token(
         timestamp = int(timestamp_str)
     except ValueError:
         return False
-    if time.time() - timestamp > ttl:
+    now = time.time()
+    if now - timestamp > ttl or timestamp > now + 60:
+        return False
+    if not hmac.compare_digest(token_user, str(session_or_user_id or "anonymous")):
         return False
     payload = f"{timestamp_str}.{random_bits}.{token_user}"
     expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()[:32]

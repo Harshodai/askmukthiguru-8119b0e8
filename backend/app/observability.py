@@ -496,6 +496,11 @@ def init_observability(app: FastAPI) -> bool:
 
         current_provider = trace.get_tracer_provider()
         if isinstance(current_provider, TracerProvider):
+            existing_processors = getattr(
+                getattr(current_provider, "_active_span_processor", None), "_span_processors", ()
+            )
+            if not any(isinstance(p, PrivacyRedactionSpanProcessor) for p in existing_processors):
+                current_provider.add_span_processor(PrivacyRedactionSpanProcessor())
             logger.info(
                 "OpenTelemetry TracerProvider already registered globally; reusing existing provider."
             )

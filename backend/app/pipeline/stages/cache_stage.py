@@ -622,7 +622,9 @@ class CacheUpdateStage(Stage):
                     "Cache update: personalized query — writing to user-scoped exact cache."
                 )
                 # Invalidate any stale shared entry that would shadow the user-scoped key
-                await _invalidate_shared_entries(container, cache_key)
+                await _invalidate_shared_entries(
+                    container, cache_key, semantic_query=semantic_query
+                )
                 # Fall through to exact_cache.put with user_id below
             else:
                 logger.info(
@@ -633,7 +635,9 @@ class CacheUpdateStage(Stage):
                 # the next memory-bearing seeker straight from the cache, shadowing their
                 # personalization. Purge it on the skip path so a later shared lookup can
                 # never serve a stale cross-user answer.
-                await _invalidate_shared_entries(container, cache_key)
+                await _invalidate_shared_entries(
+                    container, cache_key, semantic_query=semantic_query
+                )
                 return None
 
         # Mirror of CacheCheckStage's read guard: a response generated under a

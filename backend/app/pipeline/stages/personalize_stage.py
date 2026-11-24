@@ -511,6 +511,29 @@ class PersonalizeStage(Stage):
             "provenance_kind": clip.get("provenance_kind"),
         }
 
+        # Verify active server-side memory consent before hydrating personal data stores.
+        _outbox = getattr(ctx.container, "memory_outbox", None)
+        _uid = getattr(ctx, "user_id", None)
+        if _outbox is not None and _uid and hasattr(_outbox, "active_consent"):
+            try:
+                _tenant_id = getattr(ctx.container, "tenant_id", None) or "default"
+                _receipt = _outbox.active_consent(str(_uid), str(_tenant_id))
+                if not _receipt:
+                    return _decline(
+                        ctx,
+                        "no_consent",
+                        "Personalization requires active memory consent. You can enable it in your privacy settings.",
+                    )
+            except Exception as _consent_err:
+                logger.warning(
+                    "[PersonalizeStage] Consent lookup failed (fail-closed): %s", _consent_err
+                )
+                return _decline(
+                    ctx,
+                    "consent_unavailable",
+                    "Could not verify memory consent right now, so personalization was skipped.",
+                )
+
         # Hydrate Unified Seeker Personalization Context across all 7 facets
         try:
             from services.personalization import UnifiedPersonalizationEngine
