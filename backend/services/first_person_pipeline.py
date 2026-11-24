@@ -4102,6 +4102,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 "multipart_enabled": str(
                     bool(getattr(settings, "first_person_multipart_enabled", False))
                 ),
+                "abstain_related_clips_enabled": str(
+                    bool(getattr(settings, "first_person_abstain_related_clips_enabled", True))
+                ),
             }.items()
         )
         return dict(pairs)

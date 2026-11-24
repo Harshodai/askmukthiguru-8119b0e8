@@ -77,7 +77,7 @@ class UnifiedPersonalizationEngine:
             return UnifiedSeekerContext(
                 user_id="anonymous",
                 is_authenticated=False,
-                consent_flags={"personalization": True, "analytics": False, "storage": True},
+                consent_flags={"personalization": False, "analytics": False, "storage": False},
             )
 
         # Initialize default facet contexts
@@ -620,7 +620,7 @@ class UnifiedPersonalizationEngine:
         return UnifiedSeekerContext(
             user_id=user_id,
             is_authenticated=True,
-            consent_flags={"personalization": True, "analytics": True, "storage": True},
+            consent_flags={"personalization": False, "analytics": False, "storage": False},
             seeker_profile=profile_ctx,
             second_brain=brain_ctx,
             sadhana=sadhana_ctx,

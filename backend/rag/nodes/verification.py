@@ -1023,10 +1023,11 @@ async def combined_grade_and_verify(
     # 3. LettuceDetect faithfulness (local model, no LLM call)
     lettuce_detect = _services._lettuce_detect
     ld_result = state.get("lettuce_detect_result")
-    if ld_result is None or not ld_result.get("semantic"):
+    fast_mode = bool(getattr(settings, "reflection_fast_mode_enabled", False))
+    if ld_result is None or (not fast_mode and not ld_result.get("semantic")):
         await emit_status(config, "Verifying alignment with the teachings...")
         ld_result = await _score_faithfulness_bounded(
-            lettuce_detect, question, context, answer, semantic=True
+            lettuce_detect, question, context, answer, semantic=not fast_mode
         )
     else:
         logger.info("Combined grade+verify: reusing cached lettuce_detect_result")
