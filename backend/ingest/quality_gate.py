@@ -814,15 +814,18 @@ class DataQualityGate:
             from app.metrics import INGEST_QUALITY_GATE_REJECTIONS_TOTAL
 
             primary = reasons[0] if reasons else "unknown"
-            if "TOO_SHORT" in primary:
+            primary_lower = primary.lower()
+            if "too_short" in primary_lower or "text too short" in primary_lower or "too few words" in primary_lower:
                 reason_label = "too_short"
-            elif "HIGH_HTML_RATIO" in primary:
+            elif "high_html_ratio" in primary_lower or "html pollution" in primary_lower:
                 reason_label = "high_html_ratio"
-            elif "HIGH_REPETITION_RATIO" in primary:
+            elif "high_repetition_ratio" in primary_lower or "repetitive" in primary_lower:
                 reason_label = "high_repetition_ratio"
-            elif "QUALITY_UNKNOWN" in primary:
+            elif "third-party" in primary_lower or "third_party" in primary_lower:
+                reason_label = "third_party_channel"
+            elif "quality_unknown" in primary_lower:
                 reason_label = "scorer_unknown"
-            elif "artifact" in primary.lower():
+            elif "artifact" in primary_lower:
                 reason_label = "artifact_detected"
             else:
                 reason_label = "low_spiritual_score"

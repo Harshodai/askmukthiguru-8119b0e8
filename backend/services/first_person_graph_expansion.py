@@ -195,9 +195,11 @@ def expand_teaching_units(
     # string if the config file is unavailable (test / offline environments).
     _FALLBACK_ONE_HOP = (
         "MATCH (seed:TUTeachingUnit) WHERE seed.span_id = $span_id "
+        "AND coalesce(seed.tenant_id, $tenant_id) = $tenant_id "
         "MATCH (seed)-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-"
         "(neighbor:TUTeachingUnit) "
         "WHERE neighbor.span_id <> $span_id "
+        "AND coalesce(neighbor.tenant_id, $tenant_id) = $tenant_id "
         "AND neighbor.rights_status = 'licensed' "
         "AND NOT (seed)-[:TU_DUPLICATE_OF]-(neighbor) "
         "RETURN DISTINCT neighbor.span_id AS span_id LIMIT $limit"
@@ -206,9 +208,11 @@ def expand_teaching_units(
     _FALLBACK_MULTI_ONE_HOP = (
         "UNWIND $span_ids AS sid "
         "MATCH (seed:TUTeachingUnit) WHERE seed.span_id = sid "
+        "AND coalesce(seed.tenant_id, $tenant_id) = $tenant_id "
         "MATCH (seed)-[:TU_CONTINUES|TU_HAS_TOPIC|TU_HAS_CONCEPT*1..1]-"
         "(neighbor:TUTeachingUnit) "
         "WHERE neighbor.rights_status = 'licensed' "
+        "AND coalesce(neighbor.tenant_id, $tenant_id) = $tenant_id "
         "AND NOT neighbor.span_id IN $span_ids "
         "AND NOT (seed)-[:TU_DUPLICATE_OF]-(neighbor) "
         "RETURN DISTINCT neighbor.span_id AS span_id LIMIT $limit"
@@ -244,52 +248,85 @@ def expand_teaching_units(
     limit = int(max_nodes)
     seed_set = set(unique_seeds)
 
-    async def _fetch() -> list[str]:
-        """Execute the Cypher query inside a bounded async session."""
+    tenant_id = "oneness"
+
+    def _collect_row(row: Any, results: list[str], seen: set[str]) -> bool:
+        span_id_val = row.get("span_id") if hasattr(row, "get") else None
+        if (
+            isinstance(span_id_val, str)
+            and span_id_val
+            and span_id_val not in seed_set
+            and span_id_val not in seen
+        ):
+            seen.add(span_id_val)
+            results.append(span_id_val)
+            if len(results) >= limit:
+                return True
+        return False
+
+    def _fetch_sync() -> list[str]:
+        """Execute the Cypher query against either a sync or async Neo4j/Memgraph driver."""
         results: list[str] = []
         seen: set[str] = set()
+        sess_cm = driver.session()  # type: ignore[attr-defined]
 
-        async with driver.session() as session:  # type: ignore[attr-defined]
-            if len(unique_seeds) > 1 and max_hops <= 1:
-                records = await session.run(
-                    query_template,
-                    span_ids=unique_seeds,
-                    limit=limit,
-                )
-            else:
-                # Per-seed loop for multi-hop or single-seed paths.
-                for seed in unique_seeds:
-                    r = await session.run(query_template, span_id=seed, limit=limit)
-                    async for row in r:
-                        span_id_val = row.get("span_id")
-                        if (
-                            isinstance(span_id_val, str)
-                            and span_id_val
-                            and span_id_val not in seed_set
-                            and span_id_val not in seen
-                        ):
-                            seen.add(span_id_val)
-                            results.append(span_id_val)
-                            if len(results) >= limit:
+        # Standard synchronous neo4j.GraphDatabase.driver (container.neo4j_driver)
+        if hasattr(sess_cm, "__enter__") and not hasattr(sess_cm, "__aenter__"):
+            with sess_cm as session:
+                if len(unique_seeds) > 1 and max_hops <= 1:
+                    records = session.run(
+                        query_template,
+                        span_ids=unique_seeds,
+                        limit=limit,
+                        tenant_id=tenant_id,
+                    )
+                    for row in records:
+                        if _collect_row(row, results, seen):
+                            break
+                else:
+                    for seed in unique_seeds:
+                        records = session.run(
+                            query_template,
+                            span_id=seed,
+                            limit=limit,
+                            tenant_id=tenant_id,
+                        )
+                        for row in records:
+                            if _collect_row(row, results, seen):
                                 return results
-                return results
+            return results
 
-            async for row in records:
-                span_id_val = row.get("span_id")
-                if (
-                    isinstance(span_id_val, str)
-                    and span_id_val
-                    and span_id_val not in seed_set
-                    and span_id_val not in seen
-                ):
-                    seen.add(span_id_val)
-                    results.append(span_id_val)
-                    if len(results) >= limit:
-                        break
+        # Async driver fallback (e.g. AsyncGraphDatabase or async mock in tests)
+        import asyncio as _asyncio
 
-        return results
+        async def _run_async() -> list[str]:
+            async with sess_cm as session:
+                if len(unique_seeds) > 1 and max_hops <= 1:
+                    records = await session.run(
+                        query_template,
+                        span_ids=unique_seeds,
+                        limit=limit,
+                        tenant_id=tenant_id,
+                    )
+                    async for row in records:
+                        if _collect_row(row, results, seen):
+                            break
+                else:
+                    for seed in unique_seeds:
+                        records = await session.run(
+                            query_template,
+                            span_id=seed,
+                            limit=limit,
+                            tenant_id=tenant_id,
+                        )
+                        async for row in records:
+                            if _collect_row(row, results, seen):
+                                return results
+            return results
 
-    neighbors = _run_bounded(lambda: _fetch(), timeout_val)
+        return _asyncio.run(_run_async())
+
+    neighbors = _run_bounded(_fetch_sync, timeout_val)
     # Final dedup + cap (defensive, _fetch already deduplicates)
     out: list[str] = []
     seen_final: set[str] = set()

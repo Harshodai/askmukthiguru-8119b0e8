@@ -20,6 +20,7 @@ CHECK_MUTUAL_EXCLUSIVITY_CYPHER = """
 MATCH (a:base)-[:MUTUALLY_EXCLUSIVE]-(b:base)
 WHERE (a.entity_id IN $entities OR a.name IN $entities)
   AND (b.entity_id IN $entities OR b.name IN $entities)
+  AND coalesce(a.entity_id, a.name) < coalesce(b.entity_id, b.name)
 RETURN a.name AS concept_a,
        b.name AS concept_b,
        'MUTUALLY_EXCLUSIVE_COOCCURRENCE' AS violation,
@@ -246,6 +247,15 @@ class OntologyConstraintChecker:
 
         except Exception as e:
             logger.error(f"OntologyConstraintChecker failed: {e}")
+            violations.append(
+                ConstraintViolation(
+                    violation_type="ONTOLOGY_CHECK_ERROR",
+                    subject="ontology_guardrails",
+                    target="graph_driver",
+                    description="Ontology constraint verification failed due to database error.",
+                    remedy_hint="Check Memgraph connectivity and retry constraint verification.",
+                )
+            )
 
         is_valid = len(violations) == 0
         return GuardrailReport(

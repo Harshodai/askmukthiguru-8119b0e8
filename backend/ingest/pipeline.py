@@ -3665,6 +3665,82 @@ class IngestionPipeline:
 
         return upserted
 
+    def run_verbatim_stage(
+        self,
+        video_id: str,
+        paths: Any,
+        cfg: Any = None,
+        *,
+        dry_run: bool = True,
+        quality_report_path: Any = None,
+    ) -> dict[str, Any]:
+        """Run the resumable first-person verbatim pipeline stage (Workstream D).
+
+        Wires ``ingest.verbatim.pipeline.run_verbatim_pipeline`` into ``IngestionPipeline``
+        with deterministic ASR cleanup, atomic dual-hash stamping (``transcript_hash`` +
+        ``source_text_hash``), script/loop/boundary quality checks, and structured corpus
+        quality reporting. Defaults to ``dry_run=True`` (zero Qdrant/Memgraph writes).
+        """
+        import json as _json
+        from pathlib import Path as _Path
+
+        from ingest.verbatim.asr_cleaner import asr_cleaner_flags, clean_clips
+        from ingest.verbatim.boundaries import boundary_defects
+        from ingest.verbatim.gates import script_and_loop_problem
+        from ingest.verbatim.pipeline import run_verbatim_pipeline
+
+        summary = run_verbatim_pipeline(video_id, paths, cfg)
+
+        # Inspect produced clips (if present on disk) and compute corpus quality metrics.
+        clips_path = getattr(paths, "clips_json", None)
+        clips: list[dict[str, Any]] = []
+        if clips_path and _Path(clips_path).exists():
+            raw_clips = _json.loads(_Path(clips_path).read_text(encoding="utf-8"))
+            if isinstance(raw_clips, list):
+                clips = raw_clips
+            elif isinstance(raw_clips, dict) and isinstance(raw_clips.get("clips"), list):
+                clips = raw_clips["clips"]
+
+        if clips:
+            clean_clips(clips)
+
+        rejected_reasons: dict[str, int] = {}
+        clean_count = 0
+        for clip in clips:
+            text = str(clip.get("verbatim_text") or "")
+            reasons: list[str] = []
+            sl_prob = script_and_loop_problem(text)
+            if sl_prob:
+                reasons.append(sl_prob)
+            reasons.extend(asr_cleaner_flags(text))
+            reasons.extend(boundary_defects(text))
+            if reasons:
+                for r in reasons:
+                    rejected_reasons[r] = rejected_reasons.get(r, 0) + 1
+            else:
+                clean_count += 1
+
+        report = {
+            "video_id": video_id,
+            "dry_run": bool(dry_run),
+            "verbatim_summary": summary,
+            "clips_total": len(clips),
+            "clips_clean": clean_count,
+            "clips_flagged": len(clips) - clean_count,
+            "rejection_reasons": rejected_reasons,
+            "asr_agreement_gate_reason": summary.get("asr_agreement_gate_reason")
+            if isinstance(summary, dict)
+            else None,
+            "index_written": False,
+        }
+
+        if quality_report_path is not None:
+            out_path = _Path(quality_report_path)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_text(_json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+
+        return report
+
     def _invalidate_answer_caches(self, source_url: str) -> None:
         """Drop cached answers that predate this source landing in the corpus.
 

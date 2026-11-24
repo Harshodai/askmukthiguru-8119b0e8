@@ -206,9 +206,19 @@ def asr_cleaner_notes(text: str) -> list[str]:
 
 
 def clean_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    import hashlib
+
     for clip in clips:
         if "verbatim_text" in clip:
-            clip["verbatim_text"] = clean_verbatim_text(clip["verbatim_text"])
+            cleaned = clean_verbatim_text(clip["verbatim_text"])
+            clip["verbatim_text"] = cleaned
+            # Invariant #13: every text-changing cleanup updates transcript_hash,
+            # source_text_hash, and span_text_sha256 in the same transaction.
+            digest = hashlib.sha256(cleaned.encode("utf-8")).hexdigest()
+            clip["transcript_hash"] = digest
+            clip["source_text_hash"] = digest
+            if "span_text_sha256" in clip:
+                clip["span_text_sha256"] = digest
     return clips
 
 

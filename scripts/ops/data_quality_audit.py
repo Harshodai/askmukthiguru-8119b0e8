@@ -278,8 +278,8 @@ def audit_qdrant(
         "digest_matches": (computed_digest == expected_digest) if expected_digest else True,
         "expected_corpus_version": expected_corpus_version,
         "corpus_version_matches": (
-            (corpus_versions == {expected_corpus_version})
-            if (expected_corpus_version and corpus_versions)
+            (bool(corpus_versions) and corpus_versions == {expected_corpus_version})
+            if expected_corpus_version
             else True
         ),
     }
