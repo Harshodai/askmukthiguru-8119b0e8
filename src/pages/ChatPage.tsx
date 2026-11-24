@@ -6,7 +6,7 @@ import { PrePracticeGate } from '@/components/chat/PrePracticeGate';
 import { useOptionalAuth } from '@/hooks/useOptionalAuth';
 import { useBackendHealth } from '@/hooks/useBackendHealth';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { Loader2, ArrowRight, Sparkles, RefreshCw } from 'lucide-react';
+import { ArrowRight, Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BACKEND_URL } from '@/lib/backendUrl';
 import { requestBackendHealth } from '@/lib/chat/health';
@@ -207,17 +207,10 @@ const ChatPage = () => {
     setShowContinuePrompt(false);
   };
 
-  if (loading) {
-    return (
-      <div className="h-dvh flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-6 h-6 text-ojas animate-spin" />
-          <p className="text-sm text-muted-foreground">{t('chat.loadingSession')}</p>
-        </div>
-      </div>
-    );
-  }
-
+  // No `loading` gate here: useOptionalAuth() resolves async and its anon-session
+  // mint can wait on a cold backend, so a full-screen spinner used to replace the
+  // whole chat — composer included — indefinitely. The UI renders immediately and
+  // auth resolves in the background; the effects above already wait on `loading`.
   return (
     <PrePracticeGate>
       <h1 className="sr-only">{t('chat.srOnlyTitle')}</h1>

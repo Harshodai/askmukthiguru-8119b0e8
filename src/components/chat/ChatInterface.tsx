@@ -3011,32 +3011,43 @@ return (
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="sticky bottom-0 z-30 shrink-0 w-full px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-gradient-to-t from-background via-background/90 to-transparent"
+          className="sticky bottom-0 z-30 shrink-0 w-full px-3 sm:px-6 lg:px-8 pt-3 pb-[calc(max(0.75rem,env(safe-area-inset-bottom))+var(--cookie-banner-h,0px))] bg-gradient-to-t from-background via-background/90 to-transparent flex flex-col max-h-[calc(100dvh-8rem)]"
         >
-          {!quotaExceeded && <QuotaCounter />}
-          {quotaExceeded && (
-            <QuotaAuthPrompt
-              remaining={quotaMeta.remaining}
-              totalLimit={quotaMeta.totalLimit}
-              retryAfterSeconds={quotaMeta.retryAfterSeconds}
+          {/* Flex column with a viewport-derived cap: this column is
+              overflow-hidden, so an uncapped healing card / quota prompt / queue
+              stack on a short viewport (or with the mobile keyboard open) pushed
+              the composer below the fold with no way to scroll it back. The cap
+              can only ever shrink the card stack — it scrolls internally via
+              min-h-0 + overflow-y-auto — while the composer stays shrink-0, so
+              the prompt bar is never the part that gets clipped. 8rem covers the
+              64px header plus the health banner (~44px). */}
+          <div className="min-h-0 overflow-y-auto overscroll-contain scrollbar-spiritual">
+            {!quotaExceeded && <QuotaCounter />}
+            {quotaExceeded && (
+              <QuotaAuthPrompt
+                remaining={quotaMeta.remaining}
+                totalLimit={quotaMeta.totalLimit}
+                retryAfterSeconds={quotaMeta.retryAfterSeconds}
+              />
+            )}
+            {!isTyping && !isStreaming && !showInstantPill && (
+              <HealingPathCard
+                lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
+                recommendedCourse={recommendedCourse}
+                userTurnHistory={userTurnHistory}
+                onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
+                onOpenSereneMind={() => openSereneMind('audio')}
+              />
+            )}
+            <QueuedMessagesTray
+              queue={queuedMessages}
+              onSendNow={handleSendNowQueued}
+              onEdit={handleEditQueued}
+              onRemove={handleRemoveQueued}
+              onClearAll={handleClearAllQueued}
             />
-          )}
-          {!isTyping && !isStreaming && !showInstantPill && (
-            <HealingPathCard
-              lastUserText={[...messages].reverse().find((m) => m.role === 'user')?.content ?? ''}
-              recommendedCourse={recommendedCourse}
-              userTurnHistory={userTurnHistory}
-              onAskGuru={(prompt) => handleSubmit(undefined, prompt)}
-              onOpenSereneMind={() => openSereneMind('audio')}
-            />
-          )}
-          <QueuedMessagesTray
-            queue={queuedMessages}
-            onSendNow={handleSendNowQueued}
-            onEdit={handleEditQueued}
-            onRemove={handleRemoveQueued}
-            onClearAll={handleClearAllQueued}
-          />
+          </div>
+          <div className="shrink-0">
           <ChatComposer
             inputValue={inputValue}
             inputRef={inputRef}
@@ -3080,6 +3091,7 @@ return (
               }
             }}
           />
+          </div>
         </motion.div>
       )}
 

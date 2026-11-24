@@ -21,6 +21,11 @@ async function mintAnonSessionToken(): Promise<string | null> {
     const res = await fetch(`${baseUrl}/api/auth/anon-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // Bounded: this promise gates auth state, so a cold/sleeping backend must
+      // not hang callers forever (the chat composer used to wait on it with no
+      // prompt bar on screen). Timeout takes the same path as "backend
+      // unreachable" below — null, caller falls back to the legacy session id.
+      signal: AbortSignal.timeout(8_000),
     });
     if (!res.ok) return null;
     const data = await res.json();
