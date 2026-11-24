@@ -482,6 +482,40 @@ _ANTONYM_PAIRS = {
     ("separable", "inseparable"),
 }
 
+_CONTRASTIVE_PATTERNS = [
+    re.compile(r"\brather\s+than\b", re.IGNORECASE),
+    re.compile(r"\binstead\s+of\b", re.IGNORECASE),
+    re.compile(r"\bas\s+opposed\s+to\b", re.IGNORECASE),
+    re.compile(r"\bnot\s+(?:as|merely|only|just|about)\b", re.IGNORECASE),
+    re.compile(r"\bfree\s+from\b", re.IGNORECASE),
+    re.compile(r"\bdevoid\s+of\b", re.IGNORECASE),
+]
+
+
+def _is_phrase_negated(text: str, target_words: set[str]) -> bool:
+    """Return True if target_words in text fall within the syntactic scope of a
+    negation or contrastive exclusion marker (e.g. 'without X', 'never out of X',
+    'not X', 'rather than X').
+    """
+    lower = text.lower()
+    for tw in target_words:
+        for m in re.finditer(rf"\b{re.escape(tw)}\b", lower):
+            prefix = lower[: m.start()]
+            boundaries = [
+                b.end()
+                for b in re.finditer(
+                    r"[.!?;—–\n]|\s+--\s+|,\s+(?:and|but|while|whereas)\s+", prefix
+                )
+            ]
+            last_b = max(boundaries) if boundaries else 0
+            clause_prefix = prefix[last_b:]
+            tokens = re.findall(r"\b[a-zA-Z]{2,}\b", clause_prefix)
+            if any(t in _NEGATION_WORDS for t in tokens):
+                return True
+            if any(p.search(clause_prefix) for p in _CONTRASTIVE_PATTERNS):
+                return True
+    return False
+
 
 def _detect_contradiction(
     claim: str,
@@ -530,7 +564,10 @@ def _detect_contradiction(
     # Split context into sentences and clauses for fine-grained alignment
     ctx_sentences = [
         s.strip()
-        for s in re.split(r"[.!?\n]+|;\s*|,\s+(?:and|but|while|whereas)\s+", context)
+        for s in re.split(
+            r"[.!?\n]+|;\s*|[—–]|\s+--\s+|,\s+(?:and|but|while|whereas)\s+",
+            context,
+        )
         if len(s.strip()) > 10
     ]
 
@@ -539,31 +576,22 @@ def _detect_contradiction(
     claim_clauses = [
         s.strip()
         for s in re.split(
-            r"[.!?\n]+|;\s*|,\s+(?:and|but|while|whereas|not\s+(?:as|merely|only|just|about))\s+|,\s+not\s+|(?:,\s*)?(?:rather\s+than|instead\s+of|as\s+opposed\s+to)\s+",
+            r"[.!?\n]+|;\s*|[—–]|\s+--\s+|,\s+(?:and|but|while|whereas)\s+|,\s+not\s+|(?:,\s*)?(?=(?:rather\s+than|instead\s+of|as\s+opposed\s+to|not\s+(?:as|merely|only|just|about))\b)",
             clean_claim,
         )
         if len(s.strip()) > 10
     ] or [clean_claim]
 
     for c_clause in claim_clauses:
-        c_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", c_clause)]
-        c_negations = [w for w in c_tokens if w in _NEGATION_WORDS]
+        c_tokens = [w.lower() for w in re.findall(r"\b[a-zA-Z]{2,}\b", c_clause)]
         c_content = set(
             w for w in c_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
         )
         if len(c_content) < 3:
             continue
-        c_neg = len(c_negations) % 2 == 1
-        if re.search(
-            rf"(?:rather\s+than|instead\s+of|as\s+opposed\s+to|not\s+(?:as|merely|only|just|about)?\s*)\s+{re.escape(c_clause)}",
-            clean_claim,
-            re.IGNORECASE,
-        ):
-            c_neg = not c_neg
 
         for ctx_sent in ctx_sentences:
-            ctx_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", ctx_sent)]
-            ctx_negations = [w for w in ctx_tokens if w in _NEGATION_WORDS]
+            ctx_tokens = [w.lower() for w in re.findall(r"\b[a-zA-Z]{2,}\b", ctx_sent)]
             ctx_content = set(
                 w for w in ctx_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
             )
@@ -578,9 +606,11 @@ def _detect_contradiction(
                 else 0.0
             )
 
-            # High lexical overlap means both sentences make a claim about the same core entities/predicates
-            if len(overlap) >= 3 and (recall >= 0.70 or jaccard >= 0.50):
-                ctx_neg = len(ctx_negations) % 2 == 1
+            # Substantial lexical overlap means both sentences make a claim about the same core entities/predicates
+            if len(overlap) >= 3 and (recall >= 0.65 or jaccard >= 0.40 or len(overlap) >= 5):
+                c_neg = _is_phrase_negated(c_clause, overlap)
+                ctx_neg = _is_phrase_negated(ctx_sent, overlap)
+
                 if c_neg != ctx_neg:
                     if (
                         c_clause.lower() in ctx_sent.lower()
@@ -609,16 +639,13 @@ def _detect_contradiction(
                     )
 
     # Antonym opposition check
-    claim_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", clean_claim)]
-    claim_negations = [w for w in claim_tokens if w in _NEGATION_WORDS]
+    claim_tokens = [w.lower() for w in re.findall(r"\b[a-zA-Z]{2,}\b", clean_claim)]
     claim_content = set(
         w for w in claim_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
     )
     if len(claim_content) >= 3:
-        claim_neg = len(claim_negations) % 2 == 1
         for ctx_sent in ctx_sentences:
-            ctx_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", ctx_sent)]
-            ctx_negations = [w for w in ctx_tokens if w in _NEGATION_WORDS]
+            ctx_tokens = [w.lower() for w in re.findall(r"\b[a-zA-Z]{2,}\b", ctx_sent)]
             ctx_content = set(
                 w for w in ctx_tokens if w not in _STOP_WORDS and w not in _NEGATION_WORDS
             )
@@ -630,7 +657,8 @@ def _detect_contradiction(
                     rem_ctx = ctx_content - {matched_ctx}
                     rem_overlap = rem_c & rem_ctx
                     if len(rem_overlap) >= 2 and (len(rem_overlap) / len(rem_c) >= 0.60):
-                        ctx_neg = len(ctx_negations) % 2 == 1
+                        claim_neg = _is_phrase_negated(clean_claim, {matched_c})
+                        ctx_neg = _is_phrase_negated(ctx_sent, {matched_ctx})
                         if claim_neg == ctx_neg:
                             return (
                                 True,

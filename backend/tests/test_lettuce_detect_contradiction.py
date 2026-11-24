@@ -195,4 +195,16 @@ def test_quoted_source_and_contrastive_clauses_not_false_polarity_inversion():
     res3 = svc.score_faithfulness("What is spiritual right action?", ctx3, ans3)
     assert res3.get("has_contradiction") is False
 
+    # 4. Excluded condition in context ('without guilt...') affirmed positively ('Radical inner honesty is essential...')
+    ctx4 = "- True greatness and transformation begin with radical inner honesty—seeing the reality of your inner emotional state without guilt, justification, or self-deception"
+    ans4 = "**Discover Your Inner Truth**: Radical inner honesty is essential for transformation"
+    res4 = svc.score_faithfulness("What are the secrets?", ctx4, ans4)
+    assert res4.get("has_contradiction") is False
+
+    # 5. Genuine contradiction affirming the negated complement (acting from inner division)
+    ans5 = "Practice Spiritual Right Action by acting from inner division, anger, or reactivity."
+    res5 = svc.score_faithfulness("What is spiritual right action?", ctx3, ans5)
+    assert res5.get("has_contradiction") is True
+
+
 
