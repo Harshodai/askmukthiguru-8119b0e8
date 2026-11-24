@@ -460,6 +460,9 @@ async def reflect_on_answer(state: GraphState, config: Optional[RunnableConfig] 
         "tier3_complex",
         "deep",
     ) and not state.get("high_confidence_retrieval", False)
+    # SLA Latency Protection: skip redundant CPU-heavy reflection embedding when fast mode is configured
+    if getattr(settings, "reflection_fast_mode_enabled", False):
+        reflection_semantic = False
     ld_result = await _score_faithfulness_bounded(
         lettuce_detect,
         question,

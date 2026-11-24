@@ -5653,12 +5653,13 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
 
     # Polish sentence boundaries, remove URL-stripping debris, and weave multi-clip transitions
     llm_provider = state.get("llm_provider")
+    _weave_timeout = float(getattr(settings, "polish_and_weave_timeout_s", 2.5) or 2.5)
     answer = await _polish_and_weave_clips(
         answer,
         relevant_docs,
         state.get("question", ""),
         provider=llm_provider,
-        timeout_s=10.0,
+        timeout_s=_weave_timeout,
     )
 
     # Last line of defence on attribution: a quoted span that is not verbatim in

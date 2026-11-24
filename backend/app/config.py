@@ -324,6 +324,15 @@ class Settings(BaseSettings):
     first_person_context_max_spans: int = 3
     # Candidate parent units retrieved for harness evaluation (0 = use max_clips default)
     first_person_context_candidate_limit: int = 16
+    # Maximum candidate parent contexts adjudicated by the LLM judge/relevance scorer per turn.
+    # Enforces hard bounding against unbounded fan-out / 80-call stalls. Target: sub-10s SLA.
+    first_person_max_evaluated_contexts: int = 4
+    # Hard elapsed time budget (seconds) from turn start after which Try 2 is skipped to preserve sub-10s SLA.
+    first_person_try2_budget_ceiling_s: float = 2.5
+    # Fast SLA timeout for LLM extractive boundary smoothing and multi-clip weaving (< 2.5s)
+    polish_and_weave_timeout_s: float = 2.5
+    # Fast SLA reflection mode: skips redundant CPU-heavy embedding in reflect_on_answer (< 10ms)
+    reflection_fast_mode_enabled: bool = False
     # Enable sparse RRF fusion in context retrieval. Default True (2026-11-10, SOTA plan WS2):
     # the live fp-context collection carries a named ``passage_sparse`` vector, and named
     # doctrinal terms ("Four Sacred Secrets", "Soul Sync", "Ananya") are lexical, not

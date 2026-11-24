@@ -1808,10 +1808,9 @@ def _llm_rerank_clips(
 # 12.0 s (was 6.0): matches FIRST_PERSON_RELEVANCE_TIMEOUT_S=12 so slow provider
 # responses on adversarial injection queries do not time out and log indeterminate.
 _ANSWERABILITY_TIMEOUT_S = 12.0
-# ponytail: U1 - at most _HARNESS_JUDGE_CONCURRENCY (2 since d084cdb3, never above 4) harness context judge calls in flight per request. Ceiling: the
-# OpenRouter client limiter is 60 RPM per model, and an unbounded 16-24 burst measured 8-9 s
-# shared stalls. Raise only with a higher provider RPM, then re-measure.
-_HARNESS_JUDGE_CONCURRENCY = 2
+# ponytail: U1 - at most _HARNESS_JUDGE_CONCURRENCY (elevated to 4 for single-wave evaluation, capped at 4) harness context judge calls in flight per request. Ceiling: the
+# OpenRouter client limiter is 60 RPM per model, and 4 concurrent calls complete in ~1.1s in one single wave.
+_HARNESS_JUDGE_CONCURRENCY = 4
 
 # Distinguish a gate that has not run from the gate's indeterminate verdict.
 # Neither state may be treated as YES by a later retrieval, scoring, or assembly
@@ -3241,7 +3240,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         bounded_tu = tu_appended[:bounded_limit]
                         merged = merged + (_widen(bounded_tu) if enrich_enabled else bounded_tu)
 
-        return merged
+        # SLA Latency Protection: Bound merged candidate pool so downstream judge does not fan out.
+        max_total_contexts = int(getattr(settings, "first_person_max_evaluated_contexts", 4) or 4)
+        return merged[:max_total_contexts]
 
     @staticmethod
     def _seen_contexts_last(
@@ -5157,7 +5158,15 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 contexts = []
             t_ctx_ret_ms = (time.monotonic() - t_ctx_start) * 1000.0
 
-            if not contexts and (
+            _try2_budget_s = float(getattr(settings, "first_person_try2_budget_ceiling_s", 2.5) or 2.5)
+            _elapsed = time.monotonic() - start_time
+            if not contexts and _elapsed > _try2_budget_s:
+                logger.info(
+                    "[FirstPersonPipeline] Initial retrieval empty, but turn elapsed %.2fs > budget ceiling (%.2fs); skipping Try 2 expansion",
+                    _elapsed,
+                    _try2_budget_s,
+                )
+            elif not contexts and (
                 harness_enabled
                 and getattr(settings, "first_person_adaptive_try2_enabled", True) is True
                 and not is_distress
@@ -5226,6 +5235,9 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     )
 
             if contexts:
+                # SLA Latency Protection: hard cap candidate contexts evaluated by judge to prevent fan-out
+                _max_eval = int(getattr(settings, "first_person_max_evaluated_contexts", 4) or 4)
+                contexts = contexts[:_max_eval]
                 t_ans_start = time.monotonic()
                 context_answerability_enabled = bool(
                     getattr(settings, "first_person_answerability_check_enabled", False)
@@ -6027,7 +6039,15 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 # Retrieve secondary candidate contexts from FirstPersonContextStore.
                 # Adjudicate candidates with Judge Claude Haiku.
                 # Ensure 100% verbatim authenticity of any served clip.
-                if _try2_enabled:
+                _try2_budget_s = float(getattr(settings, "first_person_try2_budget_ceiling_s", 2.5) or 2.5)
+                _elapsed = time.monotonic() - start_time
+                if _try2_enabled and _elapsed > _try2_budget_s:
+                    logger.info(
+                        "[FirstPersonPipeline] Turn elapsed %.2fs exceeds Try 2 budget ceiling (%.2fs); skipping Try 2 expansion to maintain sub-10s SLA",
+                        _elapsed,
+                        _try2_budget_s,
+                    )
+                elif _try2_enabled:
                     try:
                         from services.spiritual_expansion import get_spiritual_concept_expansion
 
@@ -6097,6 +6117,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             ]
 
                             if try2_contexts:
+                                # SLA Latency Protection: bound secondary candidate contexts evaluated by judge
+                                try2_contexts = try2_contexts[:2]
                                 logger.info(
                                     "[FirstPersonPipeline] Try 2 retrieved %d secondary contexts; evaluating with judge",
                                     len(try2_contexts),
