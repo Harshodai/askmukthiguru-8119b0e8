@@ -77,3 +77,28 @@ def test_short_sentences_filtered() -> None:
     }
     result = extract_citations(state)
     assert result["citations"] == []
+
+
+@pytest.mark.unit
+def test_book_citation_canonicalized_to_amzn() -> None:
+    from app.constants import BOOK_FOUR_SACRED_SECRETS_URL
+
+    state = {
+        "answer": "The four sacred secrets reveal the path to living in a beautiful state.",
+        "relevant_docs": [
+            {
+                "text": "The four sacred secrets reveal the path to living in a beautiful state of inner joy and connection.",
+                "url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+                "content_type": "book",
+                "title": "The Four Sacred Secrets",
+                "metadata": {"source_url": "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319"},
+            }
+        ],
+    }
+    result = extract_citations(state)
+    citations = result["citations"]
+    assert len(citations) == 1
+    assert citations[0]["url"] == BOOK_FOUR_SACRED_SECRETS_URL
+    assert citations[0]["source_url"] == BOOK_FOUR_SACRED_SECRETS_URL
+    assert citations[0]["speaker_verified"] is True
+

@@ -2267,8 +2267,7 @@ async def context_engineer(state: GraphState, config: Optional[RunnableConfig] =
             "3. GRAMMATICAL INTEGRITY: Use clean, natural grammar. Never stack modal verbs (e.g. NEVER write \"begins to can\"). "
             "Always identify the teacher by name (\"Sri Krishnaji\" / \"Sri Preethaji\") before using third-person pronouns.\n"
             "4. NO CONVERSATIONAL FLUFF: Never conclude with conversational questions (e.g. do NOT ask \"Would you like to explore...\"). End cleanly.\n"
-            "5. Conclude the synthesis with the explicit disclosure label on its own line:\n"
-            + SYNTHESIS_LABEL
+            "5. SACRED PRESENCE & REVERENCE: Speak with profound calm and clarity, addressing the seeker with direct compassion and grounding every teaching in the Gurus' spoken truth.\n"
         )
 
     # The instructions are always English text, so they are budgeted as English.
@@ -4459,7 +4458,7 @@ def _label_synthesis(answer: str, state: GraphState, final_citations: list | Non
 
     answer = voice_register.append_scope_note(question, answer, outcome_rewritten=bool(promises))
 
-    has_quotes = bool(re.search(r'["“][^"”]{10,}["”]|^\s*>', answer, re.M))
+    has_quotes = bool(re.search(r'["“][^"”]{5,}["”]|^\s*>|—\s*Sri (?:Krishnaji|Preethaji)', answer, re.M))
     fp_enabled = bool(
         getattr(settings, "first_person_route_enabled", False)
         or getattr(settings, "first_person_grounded_synthesis_enabled", False)

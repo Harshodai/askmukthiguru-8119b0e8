@@ -1,3 +1,21 @@
+## Nov 5, 2026 — Batch 10: Persona preferences, honest copy and controls, and one LLM gateway (T6-03, T6-10, T7-03)
+
+### L-USER-PREFERENCES-NO-PSYCHOLOGICAL-PROFILING-1. Group user-stated facts and explicit preferences; strictly ban speculative psychological or spiritual profiling.
+- **What:** In `services/layered_memory/l3_persona_generator.py`, the prompt previously instructed the LLM to invent an interpretive spiritual persona ("Core Traits, Preferences, Spiritual Practice, Evolution Notes") (MEM-004), diagnosing seeker mental states and speculating on spiritual maturity in violation of India's DPDP Act.
+- **Fix:** Replaced interpretive persona profiling with user-stated factual preferences synthesis. Created `compile_user_preferences` to extract factual topics, explicit preferences, and practices directly from memory atoms without inferring emotional diagnoses or psychological stages.
+- **Rule:** Memory synthesis must strictly synthesize user-stated facts and explicit preferences; never prompt an LLM to profile or diagnose a seeker's spiritual stage or emotional state.
+
+### L-HONEST-PRODUCT-COPY-THREE-OUTCOMES-1. Welcome and landing copy must explain the real 3 outcomes (clip, abstain, care) and never simulate guru persona.
+- **What:** The initial chat message greeted seekers as a simulated guru ("I am here to guide you toward your beautiful state … I hold space for your heart") before disclosing the clip model (PRD-010), while landing copy promised an "AI companion trained on spiritual teachings". Quota reset times and remaining counts were hidden from anonymous users (UX-011), and tone/depth preview copy promised unused effects on recorded teaching clips (UX-009).
+- **Fix:** Rewrote `WELCOME_MESSAGE` and `buildPersonalisedWelcome` in `ChatHelpers.tsx` to provide an honest first-use explainer of the three outcomes: matching verbatim recorded clip, honest abstain with practice, or crisis support lines. Updated `GuidancePreview.tsx` to explicitly clarify that tone/depth preferences apply to practice prompts and reflections, while recorded teaching clips of Sri Krishnaji and Sri Preethaji are always delivered verbatim. Wired `retryAfterSeconds` into `QuotaAuthPrompt.tsx` and `streaming.ts` to show reset duration on quota exhaustion.
+- **Rule:** Product copy and welcome prompts must clearly articulate the actual mechanism of the product (verbatim recorded teaching clips, honest abstention, crisis support) and never impersonate teachers or simulate a conversational guru persona.
+
+### L-ONE-LLM-GATEWAY-UNIFIED-INTERFACES-1. Unify provider abstractions under one LLM gateway with canonical container naming and backward-compatible properties.
+- **What:** The repository held multiple overlapping LLM abstraction modules (CQ-002), with misleading names such as `container.ollama` actually housing the OpenRouter strategy (CQ-014 / AI-005). Call sites in health, coordinator, and services reached into `container.ollama` directly instead of a unified gateway.
+- **Fix:** Extended `LLMGateway` in `backend/services/llm_gateway.py` with `generate_fast` (for latency-critical auxiliary tasks) and `stream` (streaming generator alias). In `backend/app/container.py`, renamed canonical provider to `container.llm` and implemented `@property def ollama` as a backward-compatible alias. Added `get_llm_provider` helper to transparently resolve active providers across both live containers and test mocks.
+- **Rule:** Core platforms must expose a single unified LLM gateway providing standard, fast, and streaming interfaces with circuit breakers and fallback. Container properties must use canonical naming with safe deprecation aliases for legacy consumers.
+
+
 ## Nov 5, 2026 — Batch 8: Hash field semantics, gate-first-then-dedup, and v10 hybrid retrieval (T3-03, T4-01, T4-02)
 
 ### L-HASH-FIELDS-DISAMBIGUATION-1. Disambiguate hash field semantics across video and span granularities in data schemas.

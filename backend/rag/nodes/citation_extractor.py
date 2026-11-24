@@ -13,6 +13,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from app.config import settings
+from app.constants import BOOK_FOUR_SACRED_SECRETS_URL, canonicalize_book_url, is_book_source
 from rag.nodes.utils import log_metrics
 from rag.states import GraphState
 from services.guru_registry import requested_gurus
@@ -249,12 +250,12 @@ def extract_citations(state: GraphState) -> dict:
                 sec = int(ts_seconds)
                 if "t=" not in clean_url:
                     clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
-            elif clean_url and ("amazon." in clean_url or "1846046319" in clean_url):
-                clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+            elif is_book_source(clean_url):
+                clean_url = BOOK_FOUR_SACRED_SECRETS_URL
 
             c_type = str(best_doc.get("content_type") or meta.get("content_type") or "").strip().lower()
-            if not clean_url and c_type in ("book", "concept_summary"):
-                clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+            if not clean_url and is_book_source(c_type):
+                clean_url = BOOK_FOUR_SACRED_SECRETS_URL
             is_verified = bool(
                 best_doc.get("speaker_verified") is True
                 or meta.get("speaker_verified") is True
@@ -325,8 +326,8 @@ def extract_citations(state: GraphState) -> dict:
                         sec = int(ts_seconds)
                         if "t=" not in clean_url:
                             clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
-                    elif clean_url and ("amazon." in clean_url or "1846046319" in clean_url):
-                        clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+                    elif is_book_source(clean_url):
+                        clean_url = BOOK_FOUR_SACRED_SECRETS_URL
                     d_meta = (
                         matched_doc.get("metadata", {})
                         if isinstance(matched_doc.get("metadata"), dict)
@@ -363,8 +364,8 @@ def extract_citations(state: GraphState) -> dict:
                         sec = int(ts_seconds)
                         if "t=" not in clean_url:
                             clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
-                    elif clean_url and ("amazon." in clean_url or "1846046319" in clean_url):
-                        clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+                    elif is_book_source(clean_url):
+                        clean_url = BOOK_FOUR_SACRED_SECRETS_URL
                     d_meta = (
                         matched_doc.get("metadata", {})
                         if isinstance(matched_doc.get("metadata"), dict)
@@ -415,13 +416,13 @@ def extract_citations(state: GraphState) -> dict:
                     sec = int(ts_seconds)
                     if "t=" not in clean_url:
                         clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
-                elif clean_url and ("amazon." in clean_url or "1846046319" in clean_url):
-                    clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+                elif is_book_source(clean_url):
+                    clean_url = BOOK_FOUR_SACRED_SECRETS_URL
 
                 d_meta = d.get("metadata", {}) if isinstance(d.get("metadata"), dict) else {}
                 c_type = str(d.get("content_type") or d_meta.get("content_type") or "").strip().lower()
-                if not clean_url and c_type in ("book", "concept_summary"):
-                    clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+                if not clean_url and is_book_source(c_type):
+                    clean_url = BOOK_FOUR_SACRED_SECRETS_URL
 
                 is_verified = bool(
                     d.get("speaker_verified") is True

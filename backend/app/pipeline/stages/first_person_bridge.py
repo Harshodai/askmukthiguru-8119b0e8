@@ -787,12 +787,12 @@ _PART_SPLIT_RE = re.compile(
     re.IGNORECASE,
 )
 _PART_REFERENT_RE = re.compile(r"\b(?:it|this|that|they|them|those|these|one)\b", re.IGNORECASE)
-_MULTIPART_MAX_PARTS = 2
+_MULTIPART_MAX_PARTS = 4
 _PART_MIN_WORDS = 3
 
 
 def _question_parts(question: str) -> list[str]:
-    """At most two sub-questions of a multi-part question, else [] (deterministic).
+    """At most sub-questions of a multi-part question, else [] (deterministic).
 
     "difference between A and B" becomes "What is A?" / "What is B?"; otherwise the
     question splits on a second question mark or a coordinated question clause
@@ -816,10 +816,7 @@ def _question_parts(question: str) -> list[str]:
 
 
 async def _resolve_question_parts(container: Any, question: str) -> list[str]:
-    """Resolve sub-questions of a multi-part question: deterministic regex first, then LLM decomposition."""
-    parts = _question_parts(question)
-    if len(parts) >= 2:
-        return parts
+    """Resolve sub-questions of a multi-part question: LLM decomposition first, then deterministic regex."""
     provider = _hyde_provider(container)
     if provider is not None and hasattr(provider, "decompose_query"):
         try:
@@ -831,7 +828,11 @@ async def _resolve_question_parts(container: Any, question: str) -> list[str]:
                 if len(distinct) >= 2:
                     return distinct[:_MULTIPART_MAX_PARTS]
         except Exception as exc:
-            logger.debug("[FirstPersonBridge] LLM query decomposition fell back to single query: %s", exc)
+            logger.debug("[FirstPersonBridge] LLM query decomposition fell back to regex: %s", exc)
+
+    parts = _question_parts(question)
+    if len(parts) >= 2:
+        return parts
     return []
 
 

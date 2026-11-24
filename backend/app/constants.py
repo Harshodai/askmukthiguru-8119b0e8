@@ -178,3 +178,41 @@ NIM_API_KEY_ENV = "NIM_API_KEY"
 OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY"
 SARVAM_API_KEY_ENV = "SARVAM_API_KEY"
 KRUTRIM_API_KEY_ENV = "KRUTRIM_API_KEY"
+
+# ==============================================================================
+# Canonical Literature & Source Constants
+# ==============================================================================
+
+BOOK_FOUR_SACRED_SECRETS_URL = "https://amzn.in/d/02dZXIDm"
+BOOK_FOUR_SACRED_SECRETS_TITLE = (
+    "The Four Sacred Secrets: For Love and Prosperity, A Guide to Living in a Beautiful State"
+)
+
+# Substrings identifying published book sources across metadata and URLs
+BOOK_URL_MATCH_IDENTIFIERS: tuple[str, ...] = (
+    "amazon.",
+    "amzn.in",
+    "1846046319",
+    "02dzxidm",
+    "four-sacred-secrets",
+    "the-four-sacred-secrets",
+    "ekam.org/books",
+)
+
+
+def is_book_source(url_or_content_type: str | None) -> bool:
+    """Return True if the URL or content type matches published literature."""
+    if not url_or_content_type:
+        return False
+    lowered = str(url_or_content_type).strip().lower()
+    if lowered in ("book", "concept_summary"):
+        return True
+    return any(ident in lowered for ident in BOOK_URL_MATCH_IDENTIFIERS)
+
+
+def canonicalize_book_url(raw_url: str | None, content_type: str | None = None) -> str:
+    """Resolve a raw source URL or content type into the canonical book URL if applicable."""
+    if is_book_source(raw_url) or is_book_source(content_type):
+        return BOOK_FOUR_SACRED_SECRETS_URL
+    return raw_url or ""
+

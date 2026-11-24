@@ -32,6 +32,7 @@ settings = SettingsProxy()
 
 from datetime import UTC
 
+from app.constants import BOOK_FOUR_SACRED_SECRETS_URL
 from app.metrics import PIPELINE_STAGE_LATENCY
 from domain.spiritual_ontology import (  # noqa: F401
     CANONICAL_ENTITY_ALIASES,
@@ -408,7 +409,7 @@ _CANONICAL_URL_MAP: list[tuple[list[str], str]] = [
             "universal intelligence",
             "connected consciousness",
         ],
-        "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+        BOOK_FOUR_SACRED_SECRETS_URL,
     ),
     (
         [
@@ -453,15 +454,15 @@ _CANONICAL_URL_MAP: list[tuple[list[str], str]] = [
     (["theonenessmovement.org", "oneness movement"], "https://theonenessmovement.org/"),
     (
         ["amazon.com/Four-Sacred-Secrets", "amazon"],
-        "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+        BOOK_FOUR_SACRED_SECRETS_URL,
     ),
     (
         ["amazon.in/Four-Sacred-Secrets", "amazon.in", "amazon india"],
-        "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+        BOOK_FOUR_SACRED_SECRETS_URL,
     ),
     (
         ["simon & schuster", "simonandschuster.com", "simon and schuster"],
-        "https://www.amazon.in/Four-Sacred-Secrets-Prosperity-Beautiful/dp/1846046319",
+        BOOK_FOUR_SACRED_SECRETS_URL,
     ),
 ]
 
