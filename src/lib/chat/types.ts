@@ -306,6 +306,21 @@ export const resolveAttributionLabel = (c: AttributionInput): string | undefined
 };
 
 
+/** Abstain related clips (backend `route_metadata.related_clips`). The backend already
+ *  resolved the attribution label (`attribution`); it replaces the bare speaker so an
+ *  unverified clip never shows a teacher name. Items without a URL are dropped. */
+export const normalizeRelatedClips = (raw: unknown): Citation[] =>
+  normalizeCitations(
+    Array.isArray(raw)
+      ? raw.map((e) =>
+          e && typeof e === 'object'
+            ? { ...e, speaker: (e as { attribution?: string }).attribution ?? (e as { speaker?: string }).speaker }
+            : e,
+        )
+      : [],
+  );
+
+
 export interface TeachingPreview {
   title: string;
   teacher?: string | null;
@@ -357,6 +372,8 @@ export interface AIResponse {
    *  boundaries, the human support line). Rendered as its own block after the
    *  answer; never concatenated into the answer body. */
   safetyNotices?: string[];
+  /** Abstain only: verbatim clips that relate to the question but do not answer it. */
+  relatedClips?: Citation[];
   /** Seconds the client should wait before retrying (429 responses). */
   retryAfterSeconds?: number;
   /** Anonymous quota state from a 429 quota_exceeded response, for the "X of Y used" caption. */
@@ -441,6 +458,7 @@ export type StreamChunk =
       isFirstPersonAbstain?: boolean | null;
       routeDecision?: string | null;
       safetyNotices?: string[];
+      relatedClips?: Citation[];
     }
   | { type: 'error'; text: string; errorCode?: AIErrorCode };
 

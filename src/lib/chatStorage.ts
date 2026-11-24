@@ -121,6 +121,8 @@ export interface Message {
   /** Platform copy served beside a verbatim clip (compassion framing, safety
    *  boundaries, the support line). Persisted so a reload keeps the notice. */
   safetyNotices?: string[];
+  /** Abstain-only related clips (not answers); persisted so a reload keeps them. */
+  relatedClips?: Citation[];
 }
 
 // ── Feedback helpers ──────────────────────────────────────────────
@@ -220,6 +222,7 @@ const MessageSchema = z.object({
   routeDecision: z.string().nullable().optional(),
   // Must be declared here or z.object's default strip removes it on reload.
   safetyNotices: z.array(z.string()).optional(),
+  relatedClips: z.array(CitationSchema).optional(),
   sereneMindOffer: z.object({
     triggered: z.boolean(),
     level: z.string().optional(),

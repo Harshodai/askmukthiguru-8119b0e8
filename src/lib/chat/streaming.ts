@@ -8,7 +8,7 @@ import { fetchWithRetry, SERVER_BUSY_HELPLINE_MESSAGE } from './fetchWithRetry';
 import { recordMetric } from './telemetry';
 import { loadProfile } from '@/lib/profileStorage';
 import type { MessagePayload, ResponsePreferences, StreamChunk } from './types';
-import { normalizeCitations } from './types';
+import { normalizeCitations, normalizeRelatedClips } from './types';
 import type { PersonalizeTeachingRef } from './personalize';
 
 /** Error augmented with HTTP/transport metadata for caller telemetry. */
@@ -394,6 +394,7 @@ export async function* sendMessageStreaming(
               safetyNotices: Array.isArray(meta.safety_notices)
                 ? (meta.safety_notices as unknown[]).filter((n): n is string => typeof n === 'string' && n.trim().length > 0)
                 : [],
+              relatedClips: normalizeRelatedClips(meta.related_clips),
             };
           } catch {
             // Ignore malformed done payload

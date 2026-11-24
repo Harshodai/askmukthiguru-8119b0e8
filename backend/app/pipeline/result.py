@@ -338,4 +338,5 @@ class PipelineResult:
             # human support line). It is rendered as its own block by the client so
             # the answer body stays pure evidence. Empty list = nothing extra.
             "safety_notices": list((self.route_metadata or {}).get("safety_notices") or []),
+            "related_clips": list((self.route_metadata or {}).get("related_clips") or []),
         }

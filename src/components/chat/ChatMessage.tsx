@@ -41,6 +41,7 @@ import { ProvenanceDrawer } from '@/components/compliance/ProvenanceDrawer';
 import { CitationBadge, DiscourseVideoModal, type DiscourseCitation } from './CitationCard';
 import { LinkSearchModal } from './LinkSearchModal';
 import { SacredPracticeWidget } from './SacredPracticeWidget';
+import RelatedTeachings from './RelatedTeachings';
 import { DiscourseAudioStrip } from './DiscourseAudioStrip';
 import { DeepenAndTuneBar } from './DeepenAndTuneBar';
 import { buildPersonalizeRef, type PersonalizeTeachingRef } from '@/lib/chat/personalize';
@@ -1612,6 +1613,13 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                             message.verification?.method !== 'first_person_distress_compassion' &&
                             !isServiceUnavailableMethod(message.verification?.method) && (
                             <AbstainHelpCard onAction={onAction} className="mt-3.5" />
+                          )}
+
+                          {isGuru && !isStreaming && !message.error && !isCrisisAnswer(message.content) && (
+                            <RelatedTeachings
+                              clips={message.relatedClips}
+                              onOpenVideoModal={(c) => setActiveVideoCitation(c)}
+                            />
                           )}
 
                           {/* Attached directly beneath Guru words: Playable source-recording strip (only when not already in GuruTeachingCard) */}

@@ -11,7 +11,7 @@ import { publishQuota } from './quotaEvents';
 import { placeholderReply } from './placeholder';
 import { checkBackendHealth, getHealthStatus } from './health';
 import type { AIErrorCode, AIResponse, MessagePayload, ResponsePreferences } from './types';
-import { normalizeCitations } from './types';
+import { normalizeCitations, normalizeRelatedClips } from './types';
 import type { PersonalizeTeachingRef } from './personalize';
 
 // ponytail: word-list heuristic, not an LLM call — cheap enough to run on every send.
@@ -280,6 +280,7 @@ export const sendMessage = async (
                         (n): n is string => typeof n === 'string' && n.trim().length > 0,
                       )
                     : [],
+                  relatedClips: normalizeRelatedClips(result.related_clips),
                 };
               }
               if (job.status === 'failed') {
@@ -379,6 +380,7 @@ export const sendMessage = async (
               (n): n is string => typeof n === 'string' && n.trim().length > 0,
             )
           : [],
+        relatedClips: normalizeRelatedClips(data.related_clips),
       };
     } catch (err: unknown) {
       const error = err as Error;

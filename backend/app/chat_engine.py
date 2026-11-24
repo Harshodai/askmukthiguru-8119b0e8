@@ -101,6 +101,7 @@ class ChatResult:
         # Platform copy (support line, safety boundaries) that no longer rides in
         # the answer body; the response model must carry it to the client.
         self.safety_notices: list[str] = []
+        self.related_clips: list[dict] = []
         self.live_logistics_events: list[dict] = []
         self.answer_evidence: Optional[AnswerEvidence] = None
         self.guidance_plan: Optional[GuidancePlan] = None
@@ -334,6 +335,9 @@ class ChatEngine:
         result.verification = getattr(pipeline_result, "verification", None)
         result.safety_notices = list(
             (getattr(pipeline_result, "route_metadata", None) or {}).get("safety_notices") or []
+        )
+        result.related_clips = list(
+            (getattr(pipeline_result, "route_metadata", None) or {}).get("related_clips") or []
         )
         result.live_logistics_events = list(
             getattr(pipeline_result, "live_logistics_events", None) or []

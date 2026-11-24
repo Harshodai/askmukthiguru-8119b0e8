@@ -2625,6 +2625,27 @@ def _related_clips_for(
     return out
 
 
+def _harness_related_clips(scored: list[tuple[int, dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Related-clip offer for the context-harness terminal abstain (flag-gated).
+
+    ``scored`` holds (relevance score, clip dict) for contexts that passed every
+    serve-time gate but scored below the minimum. Only score >= 2 ("related /
+    partial") is offered; best first, capped, never an answer.
+    """
+    if not getattr(settings, "first_person_abstain_related_clips_enabled", False):
+        return []
+    out: list[dict[str, Any]] = []
+    seen: set[Any] = set()
+    for score, clip in sorted(scored, key=lambda t: -t[0]):
+        if score < 2 or clip.get("point_id") in seen or len(out) >= _RELATED_CLIPS_CAP:
+            continue
+        entry = _build_related_clip(clip, float(score))
+        if entry is not None:
+            seen.add(clip.get("point_id"))
+            out.append(entry)
+    return out
+
+
 _COMPOUND_SPLIT_RE = re.compile(
     r"(?:\s*,\s*and\s+(?:how|why|what|can|does|is|will|should|could)\b"
     r"|\s+and\s+(?:how|why|what|can|does|is|will|should|could)\b"
@@ -4967,6 +4988,8 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         # the public-release NO-GO forbids. Store presence is configuration, not
         # permission.
         harness_enabled = bool(getattr(settings, "first_person_context_harness_enabled", False))
+        # Gated-but-below-min contexts, for the terminal abstain's related clips.
+        _h_related: list[tuple[int, dict[str, Any]]] = []
         editorial_set_enabled = _editorial_set_enabled()
         editorial_facets = (
             get_default_planner().plan(retrieval_query or query) if editorial_set_enabled else None
@@ -5600,6 +5623,22 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 _h_scores,
                                 _harness_rejection_reasons(_h_judge_meta),
                             )
+                            if _h_scores:
+                                # Every gate above passed; text is the served-body join.
+                                _h_related.append(
+                                    (
+                                        _h_scores[0],
+                                        {
+                                            **citations[0],
+                                            "verbatim_text": assembled_answer_text,
+                                            "start_ms": min(c["start_ms"] for c in citations),
+                                            "end_ms": max(c["end_ms"] for c in citations),
+                                            "speaker_verified": all(
+                                                c.get("speaker_verified") is True for c in citations
+                                            ),
+                                        },
+                                    )
+                                )
                             return None, _local_tokens
                         _h_rel_score = _h_scores[0] if _h_scores else None
                         logger.info(
@@ -6166,6 +6205,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 abstain_reason="no_verified_clips",
                 error=_ctx_retrieval_error,
                 stage_timings={"total_ms": round(latency, 2)},
+                related_clips=_harness_related_clips(_h_related),
             )
 
         return None

@@ -108,6 +108,9 @@ def build_public_answer_fields(result: Any) -> dict[str, Any]:
     safety_notices = list(
         route_meta.get("safety_notices") or getattr(result, "safety_notices", []) or []
     )
+    related_clips = list(
+        route_meta.get("related_clips") or getattr(result, "related_clips", []) or []
+    )
 
     return {
         "intent": getattr(result, "intent", None),
@@ -131,6 +134,7 @@ def build_public_answer_fields(result: Any) -> dict[str, Any]:
         "answer_evidence": _to_dict_safe(answer_evidence),
         "guidance_plan": _to_dict_safe(guidance_plan),
         "safety_notices": safety_notices,
+        "related_clips": related_clips,
         "verification": getattr(result, "verification", None),
         "route_metadata": route_meta,
     }

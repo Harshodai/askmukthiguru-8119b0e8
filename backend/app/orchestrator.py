@@ -194,6 +194,9 @@ class ChatRequestOrchestrator:
             safety_notices=list(
                 (getattr(result, "route_metadata", None) or {}).get("safety_notices") or []
             ),
+            related_clips=list(
+                (getattr(result, "route_metadata", None) or {}).get("related_clips") or []
+            ),
         )
 
     async def _log_telemetry(
@@ -732,6 +735,9 @@ def _stream_done_metadata(result) -> dict:
             "release_manifest": getattr(result, "release_manifest", None)
             or get_release_manifest().to_dict(),
             "provenance_manifest": _provenance_manifest_for_result(result),
+            "related_clips": list(
+                (getattr(result, "route_metadata", None) or {}).get("related_clips") or []
+            ),
         }
     )
     return fields

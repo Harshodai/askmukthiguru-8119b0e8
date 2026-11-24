@@ -1451,6 +1451,7 @@ export const ChatInterface = () => {
         let streamedIsFirstPersonAbstain: boolean | null = null;
         let streamedRouteDecision: string | null = null;
         let streamedSafetyNotices: string[] = [];
+        let streamedRelatedClips: Citation[] = [];
 
         let pacerContent = '';
         const tokenPacer = new FluidTokenPacer({
@@ -1599,6 +1600,7 @@ export const ChatInterface = () => {
             streamedIsFirstPersonAbstain = chunk.isFirstPersonAbstain ?? null;
             streamedRouteDecision = chunk.routeDecision ?? null;
             streamedSafetyNotices = chunk.safetyNotices ?? [];
+            streamedRelatedClips = chunk.relatedClips ?? [];
             continue;
           }
 
@@ -1718,6 +1720,7 @@ export const ChatInterface = () => {
                     blocked: streamedBlocked,
                     blockReason: streamedBlockReason,
                     safetyNotices: streamedSafetyNotices.length > 0 ? streamedSafetyNotices : undefined,
+                    relatedClips: streamedRelatedClips.length > 0 ? streamedRelatedClips : undefined,
                   }
                 : m
             );
@@ -2042,6 +2045,7 @@ openSereneMind('audio', true);
             response.safetyNotices && response.safetyNotices.length > 0
               ? response.safetyNotices
               : undefined,
+          relatedClips: response.relatedClips?.length ? response.relatedClips : undefined,
         };
         setMessages((prev) => [...prev, guruMessage]);
         if (!responseError) {

@@ -425,6 +425,13 @@ class ChatResponse(BaseModel):
             "never concatenated into the answer body."
         ),
     )
+    related_clips: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "Abstain only (flag-gated): verbatim clips scored 'related / partial', each "
+            "marked is_answer=False. Never citations, never an answer."
+        ),
+    )
     personalization_provenance: Optional[dict[str, Any]] = Field(
         default=None,
         description="Public-safe explanation of personal context classes provided to this answer; never includes raw private memory text.",
