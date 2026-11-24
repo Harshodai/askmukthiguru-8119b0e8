@@ -60,21 +60,23 @@ def ask_query(query: str):
         return {"error": "timeout"}, time.time() - t0
     return data, time.time() - t0
 
-queries = [
-    "What are the four sacred secrets according to Sri Preethaji and Sri Krishnaji?",
-    "Where can I find and read The Four Sacred Secrets by Sri Preethaji and Sri Krishnaji?"
-]
+if __name__ == "__main__":
+    queries = [
+        "What are the four sacred secrets according to Sri Preethaji and Sri Krishnaji?",
+        "Where can I find and read The Four Sacred Secrets by Sri Preethaji and Sri Krishnaji?"
+    ]
 
-for q in queries:
-    print("\n" + "=" * 60)
-    print(f"Testing: {q}")
-    print("-" * 60)
-    res, elapsed = ask_query(q)
-    print(f"Elapsed: {elapsed:.2f}s")
-    print(f"Grounding State: {res.get('grounding_state')}")
-    print(f"Faithfulness Score: {res.get('faithfulness_score')}")
-    print(f"Response:\n{res.get('response')}\n")
-    citations = res.get("citations", [])
-    print(f"Citations count: {len(citations)}")
-    for i, c in enumerate(citations, 1):
-        print(f"  Citation {i}: {c.get('url')} | Title: {c.get('title')} | Speaker: {c.get('speaker')}")
+    for q in queries:
+        print("\n" + "=" * 60)
+        print(f"Testing: {q}")
+        print("-" * 60)
+        res, elapsed = ask_query(q)
+        print(f"Elapsed: {elapsed:.2f}s")
+        print(f"Grounding State: {res.get('grounding_state')}")
+        print(f"Faithfulness Score: {res.get('faithfulness_score')}")
+        print(f"Response:\n{res.get('response')}\n")
+        citations = res.get("citations", [])
+        print(f"Citations count: {len(citations)}")
+        for i, c in enumerate(citations, 1):
+            print(f"  Citation {i}: {c.get('url')} | Title: {c.get('title')} | Speaker: {c.get('speaker')}")
+
