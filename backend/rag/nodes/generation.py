@@ -4459,7 +4459,12 @@ def _label_synthesis(answer: str, state: GraphState, final_citations: list | Non
 
     answer = voice_register.append_scope_note(question, answer, outcome_rewritten=bool(promises))
 
-    if intent in _UNLABELLED_INTENTS and not had_label:
+    if (
+        (intent in _UNLABELLED_INTENTS and not had_label)
+        or state.get("is_verbatim")
+        or state.get("first_person_served")
+        or state.get("suppress_synthesis_label")
+    ):
         return answer
     return f"{answer.rstrip()}\n\n{SYNTHESIS_LABEL}"
 

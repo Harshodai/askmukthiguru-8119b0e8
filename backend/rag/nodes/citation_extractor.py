@@ -327,23 +327,51 @@ def extract_citations(state: GraphState) -> dict:
         if not _is_refusal:
             fallback_citations = []
             for d in docs[:2]:
-                url = d.get("source_url") or d.get("url") or ""
+                raw_url = d.get("source_url") or d.get("url") or ""
                 title = str(d.get("title") or "Spiritual Discourse").strip()
+                ts_seconds = _resolve_timestamp(d)
+                clean_url = raw_url
+                if clean_url and ts_seconds is not None and ts_seconds > 0 and _is_youtube_url(clean_url):
+                    sec = int(ts_seconds)
+                    if "t=" not in clean_url:
+                        clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+                elif clean_url and ("amazon." in clean_url or "1846046319" in clean_url):
+                    clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+
+                d_meta = d.get("metadata", {}) if isinstance(d.get("metadata"), dict) else {}
+                c_type = str(d.get("content_type") or d_meta.get("content_type") or "").strip().lower()
+                if not clean_url and c_type in ("book", "concept_summary"):
+                    clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+
+                is_verified = bool(
+                    d.get("speaker_verified") is True
+                    or d_meta.get("speaker_verified") is True
+                    or c_type in ("book", "concept_summary", "summary")
+                )
+
+                text_snippet = None
+                if d.get("verbatim_text"):
+                    text_snippet = str(d.get("verbatim_text")).strip() or None
+                elif c_type in ("book", "concept_summary"):
+                    raw_snip = str(d.get("text") or d_meta.get("text") or "").strip()
+                    cleaned_snip = re.sub(r"^\[Source:[^\]]+\]\s*", "", raw_snip)[:350]
+                    text_snippet = cleaned_snip or None
+
                 fallback_citations.append({
-                    "doc_id": url or title,
-                    "source_url": url,
-                    "url": url,
+                    "doc_id": clean_url or title,
+                    "source_url": clean_url,
+                    "url": clean_url,
                     "title": title,
                     "quote": answer[:150],
                     "span_in_answer": answer[:150],
                     "confidence": 0.5,
-                    "source": d.get("metadata", {}).get("source", "Retrieved document") if isinstance(d.get("metadata"), dict) else "Retrieved document",
+                    "source": d_meta.get("source", "Retrieved document"),
                     "knowledge_source": d.get("knowledge_source", "qdrant"),
                     "chunk_provenance": d.get("chunk_provenance", ""),
                     "speaker": _resolve_speaker(d),
-                    "speaker_verified": bool(d.get("speaker_verified") is True),
-                    "timestamp_seconds": _resolve_timestamp(d),
-                    "text_snippet": (str(d.get("verbatim_text") or "").strip() or None),
+                    "speaker_verified": is_verified,
+                    "timestamp_seconds": ts_seconds,
+                    "text_snippet": text_snippet,
                 })
             if fallback_citations:
                 logger.info(

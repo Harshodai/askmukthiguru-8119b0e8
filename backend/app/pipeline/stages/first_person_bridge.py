@@ -815,6 +815,26 @@ def _question_parts(question: str) -> list[str]:
     return [first, second][:_MULTIPART_MAX_PARTS]
 
 
+async def _resolve_question_parts(container: Any, question: str) -> list[str]:
+    """Resolve sub-questions of a multi-part question: deterministic regex first, then LLM decomposition."""
+    parts = _question_parts(question)
+    if len(parts) >= 2:
+        return parts
+    provider = _hyde_provider(container)
+    if provider is not None and hasattr(provider, "decompose_query"):
+        try:
+            sub_queries = await asyncio.wait_for(provider.decompose_query(question), timeout=2.5)
+            if isinstance(sub_queries, list):
+                valid = [q.strip() for q in sub_queries if q and len(q.split()) >= _PART_MIN_WORDS]
+                clean_q = " ".join((question or "").split()).lower().rstrip("?.!")
+                distinct = [q for q in valid if " ".join(q.split()).lower().rstrip("?.!") != clean_q]
+                if len(distinct) >= 2:
+                    return distinct[:_MULTIPART_MAX_PARTS]
+        except Exception as exc:
+            logger.debug("[FirstPersonBridge] LLM query decomposition fell back to single query: %s", exc)
+    return []
+
+
 def _merge_part_results(results: list[Any]) -> Any:
     """One pipeline result from the served part results (citations in part order)."""
     from services.first_person_pipeline import FirstPersonPipelineResult
@@ -1165,27 +1185,25 @@ class FirstPersonBridgeStage(Stage):
         boundaries: list[str] = []
         needs_rel = needs_relationship_safety_boundary(query)
         needs_add = needs_addiction_support_boundary(query)
+        multipart_enabled = getattr(settings, "first_person_multipart_enabled", False)
+        has_multipart = multipart_enabled and len(_question_parts(query)) >= 2
         if (
             _DIFFERENCE_SYNTHESIS_RE.search(query)
             and not (needs_rel or needs_add or _has_promise_or_boundary)
-            and not (
-                getattr(settings, "first_person_multipart_enabled", False)
-                and len(_question_parts(query)) >= 2
-            )
+            and not has_multipart
         ):
             if not fp_only:
                 logger.info(
                     "[FirstPersonBridge] Difference/comparative synthesis inquiry; GraphStage runs."
                 )
                 return None
-        if _SYNTHESIS_SHAPE_RE.search(query) or needs_rel or needs_add:
+        if (_SYNTHESIS_SHAPE_RE.search(query) or needs_rel or needs_add) and not has_multipart:
             if not fp_only:
                 logger.info(
                     "[FirstPersonBridge] Question needs synthesis, not one clip; GraphStage runs."
                 )
                 return None
-            # First-person-only: never hand the question to the generating graph.
-            # Serve a clip and carry the same safety boundary the graph path appends.
+            # First-person-only: carry the same safety boundary the graph path appends.
             from guardrails.lightweight_handler import (
                 RELATIONSHIP_SAFETY_BOUNDARY,
                 addiction_support_boundary,
@@ -1463,7 +1481,7 @@ class FirstPersonBridgeStage(Stage):
         # the whole question is served as before when no part serves.
         # Skip when history was prepended or meta follow-up active; allow on topic-shift turns.
         parts = (
-            _question_parts(retrieval_query)
+            await _resolve_question_parts(container, retrieval_query)
             if (
                 getattr(settings, "first_person_multipart_enabled", False)
                 and not history_prepended
