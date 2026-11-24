@@ -123,16 +123,23 @@ def resolve_query_concepts_llm(
         return list(_RESOLVER_CACHE[cache_key])
 
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # Already inside a running loop, run in a worker thread
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                return pool.submit(
-                    lambda: asyncio.run(resolve_query_concepts_llm_async(clean_query, llm_service, timeout_s=timeout_s))
-                ).result(timeout=timeout_s + 0.3)
-        else:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            # If called synchronously while an event loop is already running on this thread,
+            # do not spawn a threadpool running asyncio.run(), which creates a secondary event loop
+            # and breaks connection pools (Redis/aiohttp Future attached to different loop).
+            # Instead, use the zero-dependency instant token extractor.
+            return _fallback_token_concepts(clean_query)
+        elif loop:
             return loop.run_until_complete(
+                resolve_query_concepts_llm_async(clean_query, llm_service, timeout_s=timeout_s)
+            )
+        else:
+            return asyncio.run(
                 resolve_query_concepts_llm_async(clean_query, llm_service, timeout_s=timeout_s)
             )
     except Exception as exc:

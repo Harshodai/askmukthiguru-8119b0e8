@@ -337,9 +337,10 @@ class FirstPersonContextHarness:
     def _speaker_gate(spans: tuple[SourceSpan, ...], policy: HarnessPolicy) -> bool:
         from services.guru_registry import canonical_guru_id
 
-        allowed_gurus = {"krishnaji", "preethaji", "preethaji_krishnaji"}
+        allowed_gurus = {"krishnaji", "preethaji", "preethaji_krishnaji", "ekam"}
         for span in spans:
-            if span.speaker_role is not SpeakerRole.GURU:
+            role = str(getattr(span, "speaker_role", "") or "").lower()
+            if role != "guru" and span.speaker_role != SpeakerRole.GURU:
                 return False
             # Verify guru attribution to Sri Preethaji / Sri Krishnaji
             canonical_gid = canonical_guru_id(span.guru_id) or (span.guru_id or "").strip().lower()

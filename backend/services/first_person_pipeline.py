@@ -5636,6 +5636,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     # Relevance gate: score (question, assembled answer) with the
                     # same scorer/min score as the legacy path.
                     _h_rel_score: Optional[int] = None
+                    _h_judge_meta: dict[str, Any] = {}
                     if getattr(settings, "first_person_relevance_gate_enabled", True):
                         _h_scores: list[int] = []
                         _first_span = (
@@ -5643,7 +5644,6 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             if served_spans
                             else None
                         )
-                        _h_judge_meta: dict[str, Any] = {}
                         _h_pick = await _acall(
                             _relevance_select,
                             retrieval_query or query,
@@ -5720,7 +5720,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
 
                     t_assembly_ms = (time.monotonic() - t_asm_start) * 1000.0
                     latency = (time.monotonic() - start_time) * 1000.0
-                    if decision.decision == HarnessDecision.SERVE_RELATED_NOT_DIRECT:
+                    if (
+                        decision.decision == HarnessDecision.SERVE_RELATED_NOT_DIRECT
+                        or _h_judge_meta.get("is_direct") is False
+                    ):
                         is_direct = False
                     else:
                         is_direct = _resolve_served_directness(

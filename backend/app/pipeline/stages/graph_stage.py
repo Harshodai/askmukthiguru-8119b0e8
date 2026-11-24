@@ -208,6 +208,9 @@ class GraphStage(Stage):
             )
             initial_state["corpus_id"] = scope.corpus_id
             initial_state["teacher_id"] = scope.teacher_id
+            t_start = float(getattr(ctx, "start_time", 0.0) or time.monotonic())
+            initial_state["start_time"] = t_start
+            initial_state["turn_start_time"] = t_start
             # Mode 2 Grounded Synthesis: forward eligible first-person speech spans
             # from FirstPersonBridgeStage into initial graph state for synthesis & verification
             if getattr(settings, "first_person_grounded_synthesis_enabled", False):

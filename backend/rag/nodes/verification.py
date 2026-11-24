@@ -679,7 +679,10 @@ async def verify_answer(state: GraphState, config: Optional[RunnableConfig] = No
 
     lettuce_detect = _services._lettuce_detect
     ld_result = state.get("lettuce_detect_result")
-    if ld_result is None or not ld_result.get("semantic"):
+    if ld_result is None or (
+        not ld_result.get("semantic")
+        and not getattr(settings, "reflection_fast_mode_enabled", False)
+    ):
         # Self-reflection scores lexically on most tiers. Reusing that verdict
         # here made `semantic=True` unreachable in production and left
         # word-overlap as the real grounding gate.

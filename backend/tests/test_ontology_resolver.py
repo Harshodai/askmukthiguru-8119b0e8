@@ -2,11 +2,18 @@ from __future__ import annotations
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from backend.services.ontology_resolver import (
-    resolve_query_concepts_llm,
-    resolve_query_concepts_llm_async,
-    _fallback_token_concepts,
-)
+try:
+    from services.ontology_resolver import (
+        resolve_query_concepts_llm,
+        resolve_query_concepts_llm_async,
+        _fallback_token_concepts,
+    )
+except ImportError:
+    from backend.services.ontology_resolver import (
+        resolve_query_concepts_llm,
+        resolve_query_concepts_llm_async,
+        _fallback_token_concepts,
+    )
 
 
 @pytest.mark.asyncio

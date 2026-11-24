@@ -671,22 +671,24 @@ class OpenRouterService:
             else:
                 payload_messages.append(msg)
 
+        provider_prefs = dict(self._policy.provider_preferences())
+        if isinstance(provider_prefs.get("sort"), dict):
+            provider_prefs["sort"] = provider_prefs["sort"].get("by") or "throughput"
+
         payload = {
             "model": model,
             "messages": payload_messages,
             "max_tokens": max_tokens,
-            "provider": self._policy.provider_preferences(),
+            "provider": provider_prefs,
         }
-        if max_tokens > 32:
-            payload["reasoning"] = {"max_tokens": max(64, max_tokens // 4)}
-        # Anthropic models through OpenRouter take reasoning as an effort level,
-        # not a small token budget: the documented minimum budget is 1024 and
-        # max_tokens must exceed it, so the quarter-of-ceiling cap above (200 for
-        # the relevance scorer) can leave the visible reply empty. A caller that
-        # passes ``reasoning_effort`` ("low"/"medium"/"high") gets that instead.
         reasoning_effort = kwargs.get("reasoning_effort")
         if reasoning_effort in ("low", "medium", "high"):
             payload["reasoning"] = {"effort": reasoning_effort}
+        elif kwargs.get("reasoning"):
+            payload["reasoning"] = kwargs["reasoning"]
+        elif any(k in str(model).lower() for k in ("thinking", "r1", "-r1", "reasoner")):
+            if max_tokens > 32:
+                payload["reasoning"] = {"max_tokens": max(64, max_tokens // 4)}
         if temperature is not None:
             payload["temperature"] = temperature
 
@@ -1251,14 +1253,21 @@ class OpenRouterService:
             full_prompt = user_prompt
         messages.append({"role": "user", "content": full_prompt})
 
-        max_tokens = min(kwargs.get("max_tokens", 8192), self._policy.output_ceiling(operation))
+        max_tokens = min(
+            kwargs.get("max_tokens") or kwargs.get("num_predict") or 8192,
+            self._policy.output_ceiling(operation),
+        )
         temperature = kwargs.get("temperature", 0.1)
+
+        provider_prefs = dict(self._policy.provider_preferences())
+        if isinstance(provider_prefs.get("sort"), dict):
+            provider_prefs["sort"] = provider_prefs["sort"].get("by") or "throughput"
 
         payload = {
             "model": model,
             "messages": messages,
             "max_tokens": max_tokens,
-            "provider": self._policy.provider_preferences(),
+            "provider": provider_prefs,
             "stream": True,
             "stream_options": {"include_usage": True},
         }
@@ -1545,11 +1554,15 @@ class OpenRouterService:
         max_tokens = min(kwargs.get("max_tokens", 2048), self._policy.output_ceiling(operation))
         temperature = kwargs.get("temperature", 0.1)
 
+        provider_prefs = dict(self._policy.provider_preferences())
+        if isinstance(provider_prefs.get("sort"), dict):
+            provider_prefs["sort"] = provider_prefs["sort"].get("by") or "throughput"
+
         payload = {
             "model": model,
             "messages": messages,
             "max_tokens": max_tokens,
-            "provider": self._policy.provider_preferences(),
+            "provider": provider_prefs,
             "stream": True,
             "stream_options": {"include_usage": True},
         }

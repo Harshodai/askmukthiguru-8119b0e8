@@ -1059,6 +1059,8 @@ def _generation_kwargs(state: GraphState) -> dict:
     else:
         base["num_predict"] = 400
 
+    base["max_tokens"] = base["num_predict"]
+
     # Temperature per graph mode (Phase 2.1)
     if query_tier in ("fast", "tier2_simple"):
         base["temperature"] = settings.generation_temp_fast

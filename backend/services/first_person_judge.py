@@ -301,7 +301,13 @@ def rejection_reason(scores: list[dict[str, Any]], answerable: bool, minimum: in
     return " ".join(parts) or "no_scores"
 
 
-def select_index(scores: list[dict[str, Any]], answerable: bool, minimum: int) -> Optional[int]:
+def select_index(
+    scores: list[dict[str, Any]],
+    answerable: bool,
+    minimum: int,
+    *,
+    allow_weak_match: bool = False,
+) -> Optional[int]:
     """Serve rule (§3.4). None means no clip qualifies (abstain below minimum)."""
     if not answerable:
         return None
@@ -314,10 +320,24 @@ def select_index(scores: list[dict[str, Any]], answerable: bool, minimum: int) -
         and s.get("is_complete_thought", True)
         and s.get("is_standalone", True)
     ]
-    if not eligible:
-        return None
-    best = max(eligible, key=lambda s: (s["relevance"], -s["i"]))
-    return int(best["i"])
+    if eligible:
+        best = max(eligible, key=lambda s: (s["relevance"], -s["i"]))
+        return int(best["i"])
+    if allow_weak_match:
+        # Under weak-match serving (Invariant 2 in AGENTS.md), if direct answer is absent
+        # but a clean, standalone clip has relevance >= minimum, select it as weak match.
+        weak_eligible = [
+            s
+            for s in scores
+            if s["relevance"] >= minimum
+            and s.get("content_safety", "clean") in ("clean", "safe", "wellbeing_notice")
+            and s.get("is_complete_thought", True)
+            and s.get("is_standalone", True)
+        ]
+        if weak_eligible:
+            best_weak = max(weak_eligible, key=lambda s: (s["relevance"], -s["i"]))
+            return int(best_weak["i"])
+    return None
 
 
 def build_editorial_set_from_judge(
@@ -431,16 +451,21 @@ async def judge_select_async(
     scores, answerable = parsed
     if scores_out is not None:
         scores_out[:] = [int(s["relevance"]) for s in scores]
-    chosen = select_index(scores, answerable, minimum)
+    from app.config import settings
+
+    allow_weak = bool(getattr(settings, "first_person_serve_weak_match", True))
+    chosen = select_index(scores, answerable, minimum, allow_weak_match=allow_weak)
+    is_direct = bool(scores[chosen]["answers"]) if chosen is not None and 0 <= chosen < len(scores) else False
     if judge_meta_out is not None:
         judge_meta_out.update(
             {
                 "scores": scores,
                 "question_answerable": answerable,
                 "selected": chosen,
+                "is_direct": is_direct,
             }
         )
-        editorial_set = build_editorial_set_from_judge(judge_meta_out, query=question)
+        editorial_set = build_editorial_set_from_judge(judge_meta_out, query=question, is_direct=is_direct)
         if editorial_set is not None:
             judge_meta_out["editorial_set"] = editorial_set
     return chosen

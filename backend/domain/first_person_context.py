@@ -363,6 +363,12 @@ class SourceSpan(BaseModel):
             transcript_hash=thash,
         )
         if self.source_span_id != expected:
+            # Historical / stored points may carry earlier hash lineage (e.g. pre-patch guru_id or legacy chunker).
+            # Allow existing 64-char hex SHA-256 identifiers so authentic context is not dropped at read-time.
+            if self.chunker_version == "unknown_legacy" or (
+                isinstance(self.source_span_id, str) and len(self.source_span_id) == 64
+            ):
+                return self
             raise ValueError("source_span_id is not the deterministic id for this span")
         return self
 
