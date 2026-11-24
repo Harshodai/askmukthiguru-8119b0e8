@@ -320,3 +320,28 @@ column empty, source hashes in `PROVENANCE.json`, regenerable with
 - **U-03 FIXED (UI outage after a backend restart):** nginx resolved the backend hostname once, so any backend recreate with a new IP left the UI on 502 "cannot reach its teaching service" until the frontend restarted. It now re-resolves via Docker DNS (an IP change has not yet been observed in a test).
 - Anonymous quota is 5 questions per day: a faculty presenter should sign in, or staging must raise `ANON_QUOTA_MESSAGES`.
 - A verified teacher clip still carries an "AI Generated" chip beneath it; consider whether that label reads correctly to faculty.
+
+
+---
+
+## 10. Antigravity Master Remediation (2026-11-24, branch `fix/antigravity-master-remediation` from `b7af8159`)
+
+- **Config & LLM Provider Activation (Workstreams A & B):**
+  - Added explicit `anthropic_gateway_enabled: bool = False` opt-in in `backend/app/config.py` and `backend/services/gateways/anthropic_gateway.py` so `ANTHROPIC_API_KEY` alone never hijacks live generation away from `LLM_PROVIDER`. Guarded DSPy branch against AnthropicGateway overwrite (`backend/rag/nodes/generation.py`).
+  - Reconciled `first_person_enrichment_window_enabled`, `first_person_graph_expansion_enabled`, `first_person_okf_expansion_enabled`, and `first_person_cross_video_diversity_enabled` defaults to `False` in `backend/app/config.py` (preserving graded compose overrides). Added `runtime_config_fingerprint()` in `backend/app/runtime_budget.py`.
+  - Exposed explicit `provider_name` and `model` properties on `OpenRouterService`, `SarvamCloudService`, and `services/llm/*_provider.py`, removing the hardcoded `"ollama"` fallback in `generation.py`.
+- **First-Person Pipeline & Retrieval (Workstreams C & E):**
+  - Completed `_serving_policy_components()` exact-cache fingerprint (`first_person_serving_posture`, `first_person_active_collection`, OKF/TU/diversity/sparse/try2/seen-rerank/multipart flags).
+  - Fixed blocklist-only fail-closed bug (`first_person_pipeline.py`), `tu_graph_enabled` unreachability, sparse-query bypass on expansion passes, `_original_query_confidence()` `is_distress` handling, `first_person.py` fail-closed `_context_free_abstain()`, duplicate `_resolve_question_parts()` call (`first_person_bridge.py`), and `personalize_docs` prompt-injection screening (`retrieval.py`).
+- **Ingestion, Verbatim & Knowledge Graph (Workstreams D & F):**
+  - Wired resumable dry-run `IngestionPipeline.run_verbatim_stage()` (`backend/ingest/pipeline.py`) with token-level `boundary_defects(text.split())`, `script_and_loop_problem()`, and atomic dual-hash stamping (`transcript_hash`, `source_text_hash`, `span_text_sha256`) in `asr_cleaner.clean_clips()`.
+  - Fixed `DataQualityGate._record_rejection_metric()` label mismatches and fail-closed `corpus_version_matches` in synced `data_quality_audit.py`.
+  - Fixed Memgraph sync/async driver crash and `$tenant_id` filtering in `first_person_graph_expansion.py` + `teaching_unit_graph_queries.json`; hardened `OntologyConstraintChecker` to deduplicate pairs and fail closed on DB errors.
+- **Security, Consent, Observability, Eval, Frontend & Infra (Workstreams G–L):**
+  - Bound `validate_csrf_token()` to `session_or_user_id` with future-timestamp rejection (`security_utils.py`).
+  - Added async server-side consent verification (`TenantContext.get()`) in `PersonalizeStage`, defaulted `UnifiedSeekerContext.consent_flags` to `False`, and fixed `semantic_query` invalidation in `cache_stage.py`.
+  - Hardened `CorrelationIDMiddleware` (`validate_correlation_id` + `ContextVar` reset for both `correlation_id_var` and `request_id_var`), emitted `request_id` in `JSONFormatter`, redacted `user_id` via `q_tag` in `distress_stage.py`, and redacted exception strings in `record_llm_error()`.
+  - Fixed `evals/first_person/graded_capture.py` `run_preflight()` `Namespace` call (`check_logs=False`).
+  - Fixed `ChatMessage.tsx` `"Related, not a direct answer"` badge when `editorialSet == null && verification.direct === false`, removed unused `EuAiBadge` import, and updated `provenance.ts` verbatim clip notice.
+  - Updated `Dockerfile` `HEALTHCHECK` to `/api/healthz` and hardened `docker-compose.prod.yml` (`WEB_CONCURRENCY=${WEB_CONCURRENCY:-1}`, `4G` memory limit, `REDISCLI_AUTH`, `LLM_PROVIDER=${LLM_PROVIDER:-openrouter}`, `condition: service_healthy`).
+- **Verification note:** `python3 -m unittest -v backend/tests/test_antigravity_remediation_2026_11_24.py` (18/18 PASS), verbatim self-checks (PASS), `py_compile` (PASS), and `lesson_guards.py` (PASS) ran locally in Python 3.11. Full `pytest` (Python 3.12), `vitest`, `tsc`, Playwright E2E, and live Docker/Qdrant/Memgraph integration tests were **NOT RUN** in this offline sandbox and must execute in CI / staging before any release decision. All human gates in §4 remain **UNSIGNED**.

@@ -290,5 +290,77 @@ class TestInfraAndScriptParity(unittest.TestCase):
         self.assertEqual(a, b)
 
 
+
+class TestIndependentReviewRegressions(unittest.TestCase):
+    """Covers blockers & warnings caught during Phase 4 independent review."""
+
+    def test_anthropic_gateway_from_settings_respects_env_opt_in(self):
+        import importlib.util
+
+        if "aiohttp" not in sys.modules:
+            sys.modules["aiohttp"] = types.ModuleType("aiohttp")
+        gw_path = BACKEND_DIR / "services" / "gateways" / "anthropic_gateway.py"
+        spec = importlib.util.spec_from_file_location("_test_anthropic_gw_env", gw_path)
+        assert spec and spec.loader
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = mod
+        spec.loader.exec_module(mod)
+
+        old_key = os.environ.get("ANTHROPIC_API_KEY")
+        old_en = os.environ.get("ANTHROPIC_GATEWAY_ENABLED")
+        try:
+            os.environ["ANTHROPIC_API_KEY"] = "sk-ant-env-test"
+            os.environ["ANTHROPIC_GATEWAY_ENABLED"] = "false"
+            gw = mod.AnthropicGateway.from_settings()
+            self.assertFalse(gw.enabled)
+
+            os.environ["ANTHROPIC_GATEWAY_ENABLED"] = "true"
+            gw2 = mod.AnthropicGateway.from_settings()
+            self.assertTrue(gw2.enabled)
+        finally:
+            if old_key is None:
+                os.environ.pop("ANTHROPIC_API_KEY", None)
+            else:
+                os.environ["ANTHROPIC_API_KEY"] = old_key
+            if old_en is None:
+                os.environ.pop("ANTHROPIC_GATEWAY_ENABLED", None)
+            else:
+                os.environ["ANTHROPIC_GATEWAY_ENABLED"] = old_en
+
+    def test_boundary_defects_receives_tokens_and_catches_dangling_conjunction(self):
+        from ingest.verbatim.boundaries import boundary_defects
+
+        defects = boundary_defects("The mind settles and".split())
+        self.assertIn("tail_dangling_word", defects)
+
+    def test_teaching_unit_graph_queries_enforce_tenant_id(self):
+        import json
+
+        qpath = BACKEND_DIR / "config" / "teaching_unit_graph_queries.json"
+        if qpath.exists():
+            data = json.loads(qpath.read_text(encoding="utf-8"))
+            for key, cypher in data.get("queries", {}).items():
+                if "neighbor:TUTeachingUnit" in cypher:
+                    self.assertIn("$tenant_id", cypher, f"Query {key} missing $tenant_id filter")
+
+    def test_ontology_mutual_exclusivity_query_deduplicates_pairs(self):
+        from services.ontology_guardrails import CHECK_MUTUAL_EXCLUSIVITY_CYPHER
+
+        self.assertIn("coalesce(a.entity_id, a.name) < coalesce(b.entity_id, b.name)", CHECK_MUTUAL_EXCLUSIVITY_CYPHER)
+
+    def test_runtime_budget_preserves_v10_only_warning_label(self):
+        from app import runtime_budget
+
+        s = SimpleNamespace(
+            first_person_answerability_check_enabled=True,
+            is_production=True,
+            first_person_serving_posture="",
+            first_person_context_harness_enabled=True,
+            first_person_context_terminal_enabled=True,
+            first_person_collection="first_person_v10",
+        )
+        warnings = runtime_budget.serving_gate_warnings(s)
+        self.assertTrue(any("v10-only context harness" in w for w in warnings))
+
 if __name__ == "__main__":
     unittest.main()
