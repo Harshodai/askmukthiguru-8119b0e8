@@ -277,10 +277,18 @@ def test_upsert_rejects_span_from_another_parent():
 
 def test_upsert_rejects_span_from_another_guru():
     s1 = span(0)
-    other = span(1, guru_id="preethaji", speaker_id="preethaji")
+    other = span(1, guru_id="sadhguru", speaker_id="sadhguru")
     ordered = parent([s1], ordered_source_span_ids=(s1.source_span_id, other.source_span_id))
     with pytest.raises(FirstPersonContextStoreError, match="guru_id"):
         store().upsert(ordered, [s1, other])
+
+
+def test_upsert_accepts_span_from_shared_co_guru():
+    s1 = span(0)
+    other = span(1, guru_id="preethaji", speaker_id="preethaji")
+    ordered = parent([s1], ordered_source_span_ids=(s1.source_span_id, other.source_span_id))
+    # Should not raise FirstPersonContextStoreError for co-guru founders
+    store().upsert(ordered, [s1, other])
 
 
 def test_ensure_indexes_creates_expected_keys():

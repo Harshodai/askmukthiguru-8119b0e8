@@ -1526,6 +1526,22 @@ class FirstPersonBridgeStage(Stage):
             if answerability_prefetch is not None:
                 answerability_prefetch[1].cancel()
         else:
+            turn_start = getattr(ctx, "start_time", 0.0)
+            elapsed_so_far = (time.time() - turn_start) if turn_start > 0 else 0.0
+            if parts and len(parts) >= 2 and elapsed_so_far >= 3.5:
+                logger.info(
+                    "[FirstPersonBridge] Turn elapsed %.2fs exceeds bridge budget after multipart; declining to graph to keep sub-10s SLA",
+                    elapsed_so_far,
+                )
+                if answerability_prefetch is not None:
+                    answerability_prefetch[1].cancel()
+                return await self._decline(
+                    ctx,
+                    "abstain_below_min",
+                    reason="turn_budget_ceiling_after_multipart",
+                    compassion=distress_compassion,
+                )
+
             result = await serve_first_person(
                 pipeline,
                 query=query,

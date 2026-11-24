@@ -27,8 +27,8 @@ _CROSS_LINGUAL_RESCUE_MIN_RERANK = 0.40
 
 
 def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dict]:
-    """Bound cross-encoder input for simple tiers without changing retrieval order."""
-    cap = 8 if query_tier == "tier2_simple" else None
+    """Bound cross-encoder input for tiers without changing retrieval order."""
+    cap = 8 if query_tier == "tier2_simple" else (10 if query_tier == "standard" else None)
     if cap is None or len(documents) <= cap:
         return documents
     logger.debug(

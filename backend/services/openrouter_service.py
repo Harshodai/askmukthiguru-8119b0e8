@@ -1187,13 +1187,14 @@ class OpenRouterService:
         temperature = kwargs.pop("temperature", 0.0)
         max_tokens = kwargs.pop("max_tokens", 2048)
         model = kwargs.pop("model", self._cls_model)
+        operation = kwargs.pop("operation", "classification")
 
         return await self._call_api(
             messages=messages,
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
-            operation="classification",
+            operation=operation,
             **kwargs,
         )
 

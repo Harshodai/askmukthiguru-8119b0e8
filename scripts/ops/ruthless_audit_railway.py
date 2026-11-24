@@ -50,8 +50,8 @@ def ask_query(query: str):
     if "job_id" in data:
         job_id = data["job_id"]
         poll_url = f"{BASE_URL}/api/jobs/{job_id}"
-        for _ in range(60):
-            time.sleep(2.0)
+        for _ in range(240):
+            time.sleep(0.25)
             j_data = http_get(poll_url, headers)
             if j_data.get("status") == "completed":
                 return j_data.get("result", j_data), time.time() - t0
