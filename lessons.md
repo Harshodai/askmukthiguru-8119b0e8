@@ -1464,8 +1464,6 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Fix:** Extended `LLMGateway` in `backend/services/llm_gateway.py` with `generate_fast` (for latency-critical auxiliary tasks) and `stream` (streaming generator alias). In `backend/app/container.py`, renamed canonical provider to `container.llm` and implemented `@property def ollama` as a backward-compatible alias. Added `get_llm_provider` helper to transparently resolve active providers across both live containers and test mocks.
 - **Rule:** Core platforms must expose a single unified LLM gateway providing standard, fast, and streaming interfaces with circuit breakers and fallback. Container properties must use canonical naming with safe deprecation aliases for legacy consumers.
 
-
-
 ### L-STREAM-CONTRACT-DONE-BEFORE-FINAL-1. Deliver metadata before final text and discard unlabelled teacher text on stream disconnects.
 - **What:** In streaming responses, emitting `final` text before `done` metadata meant a connection drop between `final` and `done` left verbatim quotes on the client without citations, speaker labels, or safety notices (UX-005), which were then persisted to local storage. Additionally, SSE lacked a client inactivity timeout.
 - **Fix:** Reversed emission order in `backend/app/orchestrator.py` and `stream_orchestrator.py` so `done` metadata is delivered before or with `final` text. Added a 30s inactivity timeout in `src/lib/chat/streaming.ts` and threw `stream_interrupted` on done-less end. In `ChatInterface.tsx`, replaced keeping recovered text with clearing content and presenting the retryable error card with verified helplines.

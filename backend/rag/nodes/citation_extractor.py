@@ -310,7 +310,87 @@ def extract_citations(state: GraphState) -> dict:
             len(docs),
             len(established),
         )
-        return {"citations": established}
+        enriched_established = []
+        for item in established:
+            if isinstance(item, str):
+                url = item
+                matched_doc = next(
+                    (d for d in docs if (d.get("source_url") == url or d.get("url") == url)),
+                    None,
+                )
+                if matched_doc:
+                    ts_seconds = _resolve_timestamp(matched_doc)
+                    clean_url = url
+                    if clean_url and ts_seconds is not None and ts_seconds > 0 and _is_youtube_url(clean_url):
+                        sec = int(ts_seconds)
+                        if "t=" not in clean_url:
+                            clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+                    elif clean_url and ("amazon." in clean_url or "1846046319" in clean_url):
+                        clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+                    d_meta = (
+                        matched_doc.get("metadata", {})
+                        if isinstance(matched_doc.get("metadata"), dict)
+                        else {}
+                    )
+                    c_type = str(
+                        matched_doc.get("content_type") or d_meta.get("content_type") or ""
+                    ).strip().lower()
+                    enriched_established.append({
+                        "url": clean_url,
+                        "source_url": clean_url,
+                        "title": matched_doc.get("title") or d_meta.get("title") or "Spiritual Discourse",
+                        "timestamp_seconds": ts_seconds,
+                        "speaker": _resolve_speaker(matched_doc),
+                        "speaker_verified": bool(
+                            matched_doc.get("speaker_verified") is True
+                            or d_meta.get("speaker_verified") is True
+                            or c_type in ("book", "concept_summary", "summary")
+                        ),
+                        "chunk_provenance": matched_doc.get("chunk_provenance", ""),
+                    })
+                else:
+                    enriched_established.append({"url": url})
+            elif isinstance(item, dict):
+                url = item.get("url") or item.get("source_url") or ""
+                matched_doc = next(
+                    (d for d in docs if (d.get("source_url") == url or d.get("url") == url)),
+                    None,
+                )
+                if matched_doc:
+                    ts_seconds = item.get("timestamp_seconds") or _resolve_timestamp(matched_doc)
+                    clean_url = url
+                    if clean_url and ts_seconds is not None and ts_seconds > 0 and _is_youtube_url(clean_url):
+                        sec = int(ts_seconds)
+                        if "t=" not in clean_url:
+                            clean_url = f"{clean_url}&t={sec}" if "?" in clean_url else f"{clean_url}?t={sec}"
+                    elif clean_url and ("amazon." in clean_url or "1846046319" in clean_url):
+                        clean_url = "https://www.ekam.org/books/the-four-sacred-secrets"
+                    d_meta = (
+                        matched_doc.get("metadata", {})
+                        if isinstance(matched_doc.get("metadata"), dict)
+                        else {}
+                    )
+                    c_type = str(
+                        matched_doc.get("content_type") or d_meta.get("content_type") or ""
+                    ).strip().lower()
+                    item["url"] = clean_url
+                    item["source_url"] = clean_url
+                    if not item.get("timestamp_seconds"):
+                        item["timestamp_seconds"] = ts_seconds
+                    if not item.get("speaker"):
+                        item["speaker"] = _resolve_speaker(matched_doc)
+                    if not item.get("speaker_verified"):
+                        item["speaker_verified"] = bool(
+                            matched_doc.get("speaker_verified") is True
+                            or d_meta.get("speaker_verified") is True
+                            or c_type in ("book", "concept_summary", "summary")
+                        )
+                    if not item.get("title"):
+                        item["title"] = matched_doc.get("title") or d_meta.get("title") or "Spiritual Discourse"
+                enriched_established.append(item)
+            else:
+                enriched_established.append(item)
+        return {"citations": enriched_established}
 
     if not citations and docs and len(answer.strip()) >= 50:
         _lower_ans = answer.lower()

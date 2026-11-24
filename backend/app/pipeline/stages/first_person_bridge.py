@@ -1186,7 +1186,12 @@ class FirstPersonBridgeStage(Stage):
         needs_rel = needs_relationship_safety_boundary(query)
         needs_add = needs_addiction_support_boundary(query)
         multipart_enabled = getattr(settings, "first_person_multipart_enabled", False)
-        has_multipart = multipart_enabled and len(_question_parts(query)) >= 2
+        resolved_parts = (
+            await _resolve_question_parts(ctx.container, query)
+            if multipart_enabled
+            else []
+        )
+        has_multipart = len(resolved_parts) >= 2
         if (
             _DIFFERENCE_SYNTHESIS_RE.search(query)
             and not (needs_rel or needs_add or _has_promise_or_boundary)
@@ -1481,13 +1486,21 @@ class FirstPersonBridgeStage(Stage):
         # the whole question is served as before when no part serves.
         # Skip when history was prepended or meta follow-up active; allow on topic-shift turns.
         parts = (
-            await _resolve_question_parts(container, retrieval_query)
+            resolved_parts
             if (
-                getattr(settings, "first_person_multipart_enabled", False)
+                resolved_parts
                 and not history_prepended
                 and meta_note is None
             )
-            else []
+            else (
+                await _resolve_question_parts(container, retrieval_query)
+                if (
+                    getattr(settings, "first_person_multipart_enabled", False)
+                    and not history_prepended
+                    and meta_note is None
+                )
+                else []
+            )
         )
         multipart = (
             await _serve_question_parts(

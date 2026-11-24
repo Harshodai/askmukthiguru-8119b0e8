@@ -576,7 +576,15 @@ def _detect_contradiction(
             if len(overlap) >= 3 and (recall >= 0.70 or jaccard >= 0.50):
                 ctx_neg = len(ctx_negations) % 2 == 1
                 if c_neg != ctx_neg:
-                    if c_clause.lower() in ctx_sent.lower() or ctx_sent.lower() in c_clause.lower():
+                    if (
+                        c_clause.lower() in ctx_sent.lower()
+                        or ctx_sent.lower() in c_clause.lower()
+                        or c_clause.lower() in context.lower()
+                        or clean_claim.lower() in context.lower()
+                    ):
+                        continue
+                    clean_c_clause = re.sub(r"[\"'“”‘’]", "", c_clause).strip().lower()
+                    if clean_c_clause and (clean_c_clause in context.lower() or context.lower() in clean_c_clause):
                         continue
                     return (
                         True,
