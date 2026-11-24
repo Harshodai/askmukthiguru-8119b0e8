@@ -284,7 +284,7 @@ class QueuedLLMProvider:
 
     async def generate_hyde(self, *args, **kwargs):
         return await self._queue.execute(
-            LLMPriority.GENERATE,
+            LLMPriority.CLASSIFY,
             self._provider.generate_hyde,
             *args,
             operation="generate_hyde",

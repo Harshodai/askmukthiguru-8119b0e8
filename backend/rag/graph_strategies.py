@@ -18,6 +18,7 @@ from __future__ import annotations
 import abc
 import asyncio
 import logging
+import time
 from functools import lru_cache
 from typing import TYPE_CHECKING, Optional
 
@@ -232,8 +233,9 @@ def route_after_formatting(state: GraphState) -> str:
         return "end"
     if state.get("_needs_retry", False) and state.get("retry_count", 0) < 2:
         turn_start = float(state.get("start_time") or 0.0)
-        if turn_start > 0 and (time.monotonic() - turn_start) >= 6.0:
-            logger.info("route_after_formatting: elapsed time >= 6.0s, skipping retry to enforce sub-10s SLA")
+        elapsed_s = (time.time() - turn_start) if turn_start > 1e8 else ((time.monotonic() - turn_start) if turn_start > 0 else 0.0)
+        if turn_start > 0 and elapsed_s >= 6.0:
+            logger.info("route_after_formatting: elapsed time (%.2fs) >= 6.0s, skipping retry to enforce sub-10s SLA", elapsed_s)
             return "end"
         return "retry_generate"
     return "end"

@@ -5545,13 +5545,13 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
             )
         )
         turn_start = float(state.get("start_time") or state.get("turn_start_time") or 0.0)
-        elapsed_s = (time.monotonic() - turn_start) if turn_start > 0 else 0.0
+        elapsed_s = (time.time() - turn_start) if turn_start > 1e8 else ((time.monotonic() - turn_start) if turn_start > 0 else 0.0)
         fast_mode = bool(getattr(settings, "reflection_fast_mode_enabled", False))
         may_retry = (
             retry_count < 1
             and not is_no_context_abstention
             and (not fast_mode or elapsed_s < 4.5)
-            and (elapsed_s < 6.0 if turn_start > 0 else True)
+            and elapsed_s < 6.0
         )
         if may_retry:
             logger.info(

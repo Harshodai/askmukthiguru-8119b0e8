@@ -241,7 +241,7 @@ class Settings(BaseSettings):
     # 2026-10-26: declared for latency-optimisation + quality improvement sweep.
     # 2026-11-17: ON by default to bridge situational seeker vocabulary into EKAM spiritual terminology.
     first_person_hyde_enabled: bool = True
-    first_person_hyde_timeout_s: float = 15.0
+    first_person_hyde_timeout_s: float = 2.5
     # Quarantine clips whose verbatim text has no sentence end or opens on orphan
     # punctuation (ingest.verbatim.boundaries). OFF: on 2026-09-28 it would have
     # removed 59% of first_person_v2 and 68% of v5. Enable only with a
@@ -723,8 +723,8 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_fast_model: str = "meta-llama/llama-3.1-8b-instruct"
-    openrouter_generation_model: str = "deepseek/deepseek-chat"
-    openrouter_generation_model_fallback: str = "meta-llama/llama-3.3-70b-instruct"
+    openrouter_generation_model: str = "meta-llama/llama-3.3-70b-instruct"
+    openrouter_generation_model_fallback: str = "deepseek/deepseek-chat"
     openrouter_classify_model: str = "meta-llama/llama-3.1-8b-instruct"
     openrouter_rpm_limit: int = 120
     # L-LLM-429-RETRY-1: bounded in-place retries on an OpenRouter 429 before degrading.
