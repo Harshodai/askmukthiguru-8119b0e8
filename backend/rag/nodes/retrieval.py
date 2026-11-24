@@ -2828,6 +2828,7 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
         logger.warning("[retrieval] Invariant X40 rights gate warning: %s", _rg_err)
 
     if personalize_docs:
+        personalize_docs = _screen_prompt_injection(personalize_docs)
         all_docs = personalize_docs + [d for d in all_docs if d not in personalize_docs]
     if fp_docs:
         all_docs = fp_docs + [d for d in all_docs if d not in fp_docs]

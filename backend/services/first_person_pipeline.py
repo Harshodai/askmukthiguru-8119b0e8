@@ -1152,7 +1152,7 @@ def _original_query_confidence(
             if best is None or sim > best:
                 best = sim
     if best is not None:
-        return float(best)
+        return float(max(best, fallback)) if is_distress else float(best)
     return float(fallback)
 
 
@@ -3121,62 +3121,58 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     bounded_okf = okf_appended[:bounded_limit]
                     merged = merged + (_widen(bounded_okf) if enrich_enabled else bounded_okf)
 
-        if not graph_enabled:
-            return merged
+        if graph_enabled:
+            try:
+                concepts = expand_query_concepts(
+                    retrieval_query,
+                    max_neighbors=int(
+                        getattr(settings, "first_person_graph_expansion_max_neighbors", 8)
+                    ),
+                    timeout_s=float(getattr(settings, "first_person_graph_expansion_timeout_s", 1.5)),
+                )
+            except Exception as exc:
+                logger.debug(
+                    "[FirstPersonPipeline] expand_query_concepts failed: %s; no graph concepts",
+                    exc,
+                )
+                concepts = []
 
-        try:
-            concepts = expand_query_concepts(
-                retrieval_query,
-                max_neighbors=int(
-                    getattr(settings, "first_person_graph_expansion_max_neighbors", 8)
-                ),
-                timeout_s=float(getattr(settings, "first_person_graph_expansion_timeout_s", 1.5)),
-            )
-        except Exception as exc:
-            logger.debug(
-                "[FirstPersonPipeline] expand_query_concepts failed: %s; no graph concepts",
-                exc,
-            )
-            concepts = []
-        if not concepts:
-            # Common path (no graph / no neighbours): this cost nothing else.
-            return merged
+            if concepts:
+                # Additive filter: the primary unfiltered pass above stays authoritative,
+                # because an untagged span would never match a concept filter.
+                try:
+                    extra_contexts: list[ParentContext] = ctx_store.retrieve(
+                        query_dense=query_dense_vector,
+                        query_sparse=query_sparse_vector,
+                        guru_id=teacher_id,
+                        limit_parents=max_clips,
+                        spans_per_parent=max_spans,
+                        concept_ids=concepts,
+                    )
+                except Exception as exc:
+                    logger.debug(
+                        "[FirstPersonPipeline] graph-expanded retrieval failed: %s; keeping primary contexts",
+                        exc,
+                    )
+                    extra_contexts = []
 
-        # Additive filter: the primary unfiltered pass above stays authoritative,
-        # because an untagged span would never match a concept filter.
-        try:
-            extra_contexts: list[ParentContext] = ctx_store.retrieve(
-                query_dense=query_dense_vector,
-                query_sparse=query_sparse_vector,
-                guru_id=teacher_id,
-                limit_parents=max_clips,
-                spans_per_parent=max_spans,
-                concept_ids=concepts,
-            )
-        except Exception as exc:
-            logger.debug(
-                "[FirstPersonPipeline] graph-expanded retrieval failed: %s; keeping primary contexts",
-                exc,
-            )
-            extra_contexts = []
-
-        seen_parent_ids = {_parent_id(ctx) for ctx in merged if _parent_id(ctx)}
-        appended: list[ParentContext] = []
-        for ctx in extra_contexts or []:
-            parent_id = _parent_id(ctx)
-            if parent_id and parent_id in seen_parent_ids:
-                continue
-            if parent_id:
-                seen_parent_ids.add(parent_id)
-            appended.append(ctx)
-        logger.debug(
-            "[FirstPersonPipeline] graph expansion: %d concept(s) -> %d extra context(s) appended",
-            len(concepts),
-            len(appended),
-        )
-        if appended:
-            bounded_extras = appended[:bounded_limit]
-            merged = merged + (_widen(bounded_extras) if enrich_enabled else bounded_extras)
+                seen_parent_ids = {_parent_id(ctx) for ctx in merged if _parent_id(ctx)}
+                appended: list[ParentContext] = []
+                for ctx in extra_contexts or []:
+                    parent_id = _parent_id(ctx)
+                    if parent_id and parent_id in seen_parent_ids:
+                        continue
+                    if parent_id:
+                        seen_parent_ids.add(parent_id)
+                    appended.append(ctx)
+                logger.debug(
+                    "[FirstPersonPipeline] graph expansion: %d concept(s) -> %d extra context(s) appended",
+                    len(concepts),
+                    len(appended),
+                )
+                if appended:
+                    bounded_extras = appended[:bounded_limit]
+                    merged = merged + (_widen(bounded_extras) if enrich_enabled else bounded_extras)
 
         # --- Phase-5 TeachingUnit graph expansion (flag-gated, default OFF) ---
         tu_graph_enabled = bool(
@@ -4068,6 +4064,43 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 # cached with HyDE on must not replay when HyDE is off (or
                 # vice-versa): the flag rides in the exact-cache fingerprint.
                 "hyde_enabled": str(bool(getattr(settings, "first_person_hyde_enabled", False))),
+                # Serving posture & additive retrieval/ranking flags that alter
+                # the candidate pool or served answer must re-key the exact cache.
+                "serving_posture": str(getattr(settings, "first_person_serving_posture", "") or ""),
+                "active_collection": str(getattr(settings, "first_person_active_collection", "") or ""),
+                "context_use_sparse": str(
+                    bool(getattr(settings, "first_person_context_use_sparse", True))
+                ),
+                "okf_expansion_enabled": str(
+                    bool(getattr(settings, "first_person_okf_expansion_enabled", False))
+                ),
+                "okf_expansion_max_concepts": str(
+                    int(getattr(settings, "first_person_okf_expansion_max_concepts", 8))
+                ),
+                "okf_expansion_min_similarity": str(
+                    float(getattr(settings, "first_person_okf_expansion_min_similarity", 0.40))
+                ),
+                "tu_graph_expansion_enabled": str(
+                    bool(getattr(settings, "first_person_teaching_unit_graph_enabled", False))
+                ),
+                "cross_video_diversity_enabled": str(
+                    bool(getattr(settings, "first_person_cross_video_diversity_enabled", False))
+                ),
+                "cross_video_max_per_video": str(
+                    int(getattr(settings, "first_person_cross_video_max_per_video", 2))
+                ),
+                "cross_video_mmr_lambda": str(
+                    float(getattr(settings, "first_person_cross_video_mmr_lambda", 0.7))
+                ),
+                "adaptive_try2_enabled": str(
+                    bool(getattr(settings, "first_person_adaptive_try2_enabled", False))
+                ),
+                "context_seen_rerank_enabled": str(
+                    bool(getattr(settings, "first_person_context_seen_rerank_enabled", False))
+                ),
+                "multipart_enabled": str(
+                    bool(getattr(settings, "first_person_multipart_enabled", False))
+                ),
             }.items()
         )
         return dict(pairs)
@@ -5095,7 +5128,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         found,
                         ctx_store=ctx_store,
                         query_dense_vector=query_dense_vector,
-                        query_sparse_vector=query_sparse_vector,
+                        query_sparse_vector=_sparse,
                         retrieval_query=retrieval_query,
                         teacher_id=editorial_teacher_id,
                         max_clips=harness_candidate_limit,
@@ -5175,7 +5208,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                                 found_try2,
                                 ctx_store=ctx_store,
                                 query_dense_vector=query_dense_vector,
-                                query_sparse_vector=query_sparse_vector,
+                                query_sparse_vector=_sparse,
                                 retrieval_query=retrieval_query,
                                 teacher_id=editorial_teacher_id,
                                 max_clips=harness_candidate_limit,
@@ -5487,14 +5520,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                             _span_failed_gate = True
                             break
                         if _harness_blocked is not None:
-                            if point_id in _harness_blocked:
+                            if not point_id:
+                                logger.warning(
+                                    "[FirstPersonPipeline] Context harness span lacks point_id while quality blocklist is configured; failing closed",
+                                )
                                 _span_failed_gate = True
                                 break
-                            if _harness_allow is None:
-                                logger.warning(
-                                    "[FirstPersonPipeline] Context harness span %s cannot be matched against the configured quality blocklist; failing closed",
-                                    point_id,
-                                )
+                            if point_id in _harness_blocked:
                                 _span_failed_gate = True
                                 break
                         elif _harness_blocklist_configured:

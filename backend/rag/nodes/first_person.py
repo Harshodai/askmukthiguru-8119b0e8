@@ -93,15 +93,21 @@ async def first_person_node(
         return {"first_person_result": result}
     except Exception:  # noqa: BLE001 - bridge infra never fails chat
         logger.exception("[FirstPersonNode] Bridge failed.")
+        _must_fail_closed = False
         try:
             from services.fp_fail_closed import fail_closed_active
 
-            if ctx is not None and fail_closed_active():
-                from app.pipeline.stages.first_person_bridge import fail_closed_result
+            _must_fail_closed = bool(fail_closed_active())
+            if _must_fail_closed:
+                if ctx is not None:
+                    from app.pipeline.stages.first_person_bridge import fail_closed_result
 
-                return {"first_person_result": await fail_closed_result(ctx, "fp_node_error")}
+                    return {"first_person_result": await fail_closed_result(ctx, "fp_node_error")}
+                return _context_free_abstain()
         except Exception:  # noqa: BLE001
             logger.exception("[FirstPersonNode] Fail-closed abstain failed.")
+            if _must_fail_closed:
+                return _context_free_abstain()
         return {}
 
 

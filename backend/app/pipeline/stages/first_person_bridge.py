@@ -1497,6 +1497,7 @@ class FirstPersonBridgeStage(Stage):
                 await _resolve_question_parts(container, retrieval_query)
                 if (
                     getattr(settings, "first_person_multipart_enabled", False)
+                    and retrieval_query != query
                     and not history_prepended
                     and meta_note is None
                 )
