@@ -398,7 +398,7 @@ class Settings(BaseSettings):
     # Without it a single-span window can only serve text already inside the
     # truncated retrieval window. Costs one extra scroll per parent per request;
     # OFF by default until measured (master plan RAG-2).
-    first_person_enrichment_window_enabled: bool = True
+    first_person_enrichment_window_enabled: bool = False
     # Hard timeout (seconds) for one enrichment-window re-hydration. Fail-open:
     # a slow parent read keeps the retrieved span instead of delaying the answer
     # (the window is an addition, never a reason to wait — same policy as the
@@ -409,7 +409,7 @@ class Settings(BaseSettings):
     # retrieval over spans already tagged with those concepts. The extra pool is
     # appended AFTER the vector results and still passes every harness gate, so
     # this is additive only. OFF by default; it is never LLM generation.
-    first_person_graph_expansion_enabled: bool = True
+    first_person_graph_expansion_enabled: bool = False
     # Maximum ontology neighbours requested from the graph per query.
     first_person_graph_expansion_max_neighbors: int = 8
     # Hard timeout (seconds) for the graph expansion lookup. Fail-open: a slow or
@@ -422,7 +422,7 @@ class Settings(BaseSettings):
     # extra parents are appended AFTER the vector results and still pass every harness
     # gate, so this is additive only and never LLM generation (serving invariant #3).
     # OFF by default for the same reason the other two expansion features are.
-    first_person_okf_expansion_enabled: bool = True
+    first_person_okf_expansion_enabled: bool = False
     # Ceiling on distinct concept terms one query may contribute.
     first_person_okf_expansion_max_concepts: int = 8
     # Cosine floor for an OKF entry to count as a concept match. 0.40 was measured on
@@ -434,7 +434,7 @@ class Settings(BaseSettings):
     # one long discourse cannot occupy every candidate slot. Candidates already retrieved
     # for a new video are never dropped; only a duplicate beyond the cap is deferred to the
     # tail. OFF by default; a no-op pass-through for the same list otherwise.
-    first_person_cross_video_diversity_enabled: bool = True
+    first_person_cross_video_diversity_enabled: bool = False
     # Maximum parents one video may contribute inside the candidate pool (>=1).
     first_person_cross_video_max_per_video: int = Field(default=2, ge=1)
     # MMR trade-off: 1.0 = relevance only, 0.0 = maximum diversity.
@@ -2218,8 +2218,11 @@ class Settings(BaseSettings):
     rag_rewrite_query_fast_model: bool = True
 
     # --- Anthropic Gateway (Phase A7 — direct API with prompt caching + Citations) ---
-    # All values env-overridable. Empty api_key disables the gateway and the
-    # consumer code is expected to fall back to the legacy LLM stack.
+    # Explicit opt-in activation contract: setting ANTHROPIC_API_KEY alone (e.g. for
+    # offline batch grading) MUST NOT silently hijack live chat generation away from
+    # LLM_PROVIDER. Both anthropic_gateway_enabled=True AND a non-empty api_key are
+    # required to activate direct Anthropic generation.
+    anthropic_gateway_enabled: bool = False
     anthropic_api_key: str = ""
     anthropic_base_url: str = "https://api.anthropic.com/v1"
     anthropic_api_version: str = "2023-06-01"

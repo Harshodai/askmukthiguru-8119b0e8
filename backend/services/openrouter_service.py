@@ -222,6 +222,14 @@ if TYPE_CHECKING:
 
 
 class OpenRouterService:
+    @property
+    def provider_name(self) -> str:
+        return "openrouter"
+
+    @property
+    def model(self) -> str:
+        return getattr(self, "_gen_model", getattr(settings, "openrouter_generation_model", ""))
+
     """Gateway to all LLM operations via OpenRouter Cloud API."""
 
     # 2026-10-15: windows and 429 backoff are keyed PER MODEL (`_rate_limit_key`),

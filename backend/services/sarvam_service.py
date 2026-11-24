@@ -82,6 +82,14 @@ from services.sarvam_exceptions import QuotaExceededError
 
 
 class SarvamCloudService:
+    @property
+    def provider_name(self) -> str:
+        return "sarvam_cloud"
+
+    @property
+    def model(self) -> str:
+        return getattr(self, "_gen_model", getattr(settings, "sarvam_generation_model", ""))
+
     """
     Gateway to all LLM operations via Sarvam Cloud API.
 

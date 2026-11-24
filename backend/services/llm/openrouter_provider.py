@@ -12,6 +12,14 @@ from services.openrouter_service import OpenRouterService
 class OpenRouterProvider(LLMProvider):
     """Adapter strategy wrapping OpenRouterService to match the LLMProvider/LLMService contract."""
 
+    @property
+    def provider_name(self) -> str:
+        return "openrouter"
+
+    @property
+    def model(self) -> str:
+        return getattr(self._service, "model", getattr(self._service, "_gen_model", ""))
+
     def __init__(self, service: OpenRouterService) -> None:
         self._service = service
 

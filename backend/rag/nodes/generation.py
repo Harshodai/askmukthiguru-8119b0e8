@@ -3544,7 +3544,7 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
         except Exception as exc:
             logger.warning(f"DSPy generation failed, falling back to legacy path: {exc}")
 
-    if gateway and gateway.enabled:
+    if not used_gateway and gateway and gateway.enabled:
         try:
             logger.info("Using AnthropicGateway for generation")
             # Strip manual citation instructions
@@ -3759,11 +3759,15 @@ async def generate_answer(state: GraphState, config: Optional[RunnableConfig] = 
 
             # Use the universal provider (ollama = configured LLM provider)
             # sarvam_cloud is only for STT/TTS/Translation, not for generation
-            prov_name = getattr(ollama, "provider_name", "ollama")
+            prov_name = getattr(ollama, "provider_name", None) or getattr(
+                settings, "llm_provider", "unknown"
+            )
             route_metadata.setdefault("model_provider", prov_name)
             route_metadata.setdefault(
                 "model_used",
-                getattr(ollama, "model", getattr(settings, "model_for_generation", "default")),
+                getattr(ollama, "model", None)
+                or getattr(ollama, "_gen_model", None)
+                or getattr(settings, "model_for_generation", "default"),
             )
             answer = await _generate_with(ollama, add_timeout=True)
             if answer is None:

@@ -126,12 +126,12 @@ def serving_gate_warnings(settings: Any) -> list[str]:
         v10 = bool(getattr(settings, "first_person_context_harness_enabled", False)) and (
             getattr(settings, "first_person_context_terminal_enabled", False) is True
         )
-        lane = "v10-only context harness" if v10 else "legacy clip store"
+        lane = "context harness (terminal)" if v10 else "legacy clip store"
         warnings.append(
             "FIRST_PERSON_SERVING_POSTURE is undeclared: the resolved flags serve the "
             f"{lane} (collection "
-            f"{getattr(settings, 'first_person_collection', '')!r}); set it to v10_only "
-            "or v8_bridge so a mismatch stops startup"
+            f"{getattr(settings, 'first_person_collection', '')!r}); set it to v10_only, "
+            "v12_shadow, v13_shadow, or v8_bridge so a mismatch stops startup"
         )
     return warnings
 
@@ -295,6 +295,41 @@ def expansion_posture_fingerprint(settings: Any) -> str:
     """Bounded digest of the effective expansion posture, for recording next to a run."""
     pairs = sorted(f"{row['name']}={int(row['effective'])}" for row in expansion_posture(settings))
     return hashlib.sha256("|".join(pairs).encode("utf-8")).hexdigest()[:12]
+
+
+_RUNTIME_CONFIG_FINGERPRINT_FIELDS: tuple[str, ...] = (
+    "llm_provider",
+    "anthropic_gateway_enabled",
+    "anthropic_gateway_model",
+    "first_person_serving_posture",
+    "first_person_mode",
+    "first_person_collection",
+    "first_person_context_collection",
+    "first_person_context_harness_enabled",
+    "first_person_context_terminal_enabled",
+    "first_person_llm_fallback_enabled",
+    "first_person_answerability_check_enabled",
+    "first_person_relevance_min_score",
+    "first_person_relevance_model",
+    "first_person_context_use_sparse",
+    "first_person_hyde_enabled",
+    "first_person_comparative_judge_enabled",
+    "first_person_enrichment_window_enabled",
+    "first_person_graph_expansion_enabled",
+    "first_person_okf_expansion_enabled",
+    "first_person_cross_video_diversity_enabled",
+    "first_person_teaching_unit_graph_enabled",
+    "first_person_multipart_enabled",
+)
+
+
+def runtime_config_fingerprint(settings: Any) -> str:
+    """Deterministic SHA-256 prefix over effective serving, provider, and retrieval flags."""
+    pairs = [
+        f"{name}={getattr(settings, name, None)!r}"
+        for name in sorted(_RUNTIME_CONFIG_FINGERPRINT_FIELDS)
+    ]
+    return hashlib.sha256("|".join(pairs).encode("utf-8")).hexdigest()[:16]
 
 
 def expansion_posture_warnings(settings: Any) -> list[str]:

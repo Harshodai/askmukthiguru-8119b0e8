@@ -12,6 +12,14 @@ from services.sarvam_service import SarvamCloudService
 class SarvamProvider(LLMProvider):
     """Adapter strategy wrapping SarvamCloudService to match the LLMProvider/LLMService contract."""
 
+    @property
+    def provider_name(self) -> str:
+        return "sarvam_cloud"
+
+    @property
+    def model(self) -> str:
+        return getattr(self._service, "model", getattr(self._service, "_gen_model", ""))
+
     def __init__(self, service: SarvamCloudService) -> None:
         self._service = service
 

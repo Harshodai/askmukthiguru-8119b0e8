@@ -128,6 +128,7 @@ class AnthropicGatewayConfig:
     system_cache_ttl: str  # "5m" | "1h" | "" (no cache)
     extended_thinking_enabled: bool
     extended_thinking_budget_tokens: int
+    enabled: bool = False
 
     @classmethod
     def from_settings(cls) -> AnthropicGatewayConfig:
@@ -147,7 +148,13 @@ class AnthropicGatewayConfig:
             return os.environ.get(name.upper(), default)
 
         ttl = str(_get("anthropic_gateway_cache_ttl", "1h"))
+        raw_enabled = _get("anthropic_gateway_enabled", False)
+        if isinstance(raw_enabled, str):
+            gateway_enabled = raw_enabled.strip().lower() in ("1", "true", "yes", "on")
+        else:
+            gateway_enabled = bool(raw_enabled)
         return cls(
+            enabled=gateway_enabled,
             api_key=str(_get("anthropic_api_key", "")),
             base_url=str(_get("anthropic_base_url", "https://api.anthropic.com/v1")),
             model=str(_get("anthropic_gateway_model", "claude-sonnet-4-6")),
@@ -200,7 +207,8 @@ class AnthropicGateway:
     def __init__(self, config: AnthropicGatewayConfig | None = None) -> None:
         self.config = config or AnthropicGatewayConfig.from_settings()
         self._session: aiohttp.ClientSession | None = None
-        self._enabled = bool(self.config.api_key)
+        # Explicit opt-in contract: a secret alone never silently activates the gateway.
+        self._enabled = bool(self.config.enabled and self.config.api_key)
 
     @classmethod
     def from_settings(cls) -> AnthropicGateway:
@@ -208,9 +216,8 @@ class AnthropicGateway:
 
     @property
     def enabled(self) -> bool:
-        """Returns True iff an API key is configured. Callers should check
-        this before issuing requests and fall back to the legacy stack
-        otherwise."""
+        """Returns True iff anthropic_gateway_enabled is True AND an API key is
+        configured. A secret alone never activates direct Anthropic generation."""
         return self._enabled
 
     async def _get_session(self) -> aiohttp.ClientSession:

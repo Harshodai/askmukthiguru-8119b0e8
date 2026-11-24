@@ -12,6 +12,14 @@ from services.nim_service import NimService
 class NimProvider(LLMProvider):
     """Adapter strategy wrapping NimService to match the LLMProvider/LLMService contract."""
 
+    @property
+    def provider_name(self) -> str:
+        return "nim"
+
+    @property
+    def model(self) -> str:
+        return getattr(self._service, "model", getattr(self._service, "_gen_model", ""))
+
     def __init__(self, service: NimService) -> None:
         self._service = service
 
