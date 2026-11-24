@@ -35,7 +35,6 @@ import { memoryApi } from '@/lib/memoryApi';
 import { useToast } from '@/hooks/use-toast';
 import { CitationPanel, type Citation } from './CitationPanel';
 import { LiveLogisticsCards } from './LiveLogisticsCards';
-import { EuAiBadge } from '@/components/compliance/EuAiBadge';
 import type { OriginType } from '@/types/provenance';
 import { ProvenanceDrawer } from '@/components/compliance/ProvenanceDrawer';
 import { CitationBadge, DiscourseVideoModal, type DiscourseCitation } from './CitationCard';
@@ -1075,6 +1074,7 @@ const ChatMessageInner = forwardRef<HTMLDivElement, ChatMessageProps>(
       && message.verification?.citation_integrity_verified === true
       && message.verification?.evidence_set_supported === true
       && message.verification?.partial !== true
+      && message.verification?.direct !== false
       && (!editorialSet || editorialSet.status === 'supported')
       && message.guidancePlan?.attribution?.source_backed !== false;
 
@@ -1554,11 +1554,9 @@ className={`relative ${isGuru ? 'w-full' : 'w-fit'} transition-all duration-200 
                                 && citation.speakerVerified === true}
                               conflicted={editorialSet?.status === 'conflicted'}
                               related={
-                                editorialSet != null
-                                  ? (message.verification?.direct === false
-                                    || editorialSet?.status === 'conflicted'
-                                    || editorialSet?.status === 'insufficient')
-                                  : false
+                                message.verification?.direct === false
+                                || editorialSet?.status === 'conflicted'
+                                || editorialSet?.status === 'insufficient'
                               }
                               index={citationIndex + 1}
                               onPlay={(c) => {

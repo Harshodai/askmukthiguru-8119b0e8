@@ -11,7 +11,7 @@
 #   JWT_SECRET        — JWT signing secret
 #   LLM_PROVIDER      — LLM provider (openrouter | sarvam_cloud)
 #   SARVAM_API_KEY    — Sarvam API key (if using sarvam_cloud)
-#   NEOREJ_URI      — Neo4j Bolt URI (optional; defaults to managed/external instance)
+#   NEO4J_URI       — Memgraph/Neo4j Bolt URI (optional; defaults to managed/external instance)
 #
 # NOTE: Neo4j is NOT included in this prod compose. Production uses an external
 # managed Neo4j instance (Aura or self-hosted on a dedicated node) reachable
@@ -40,7 +40,8 @@ services:
       - VITE_SUPABASE_URL=${SUPABASE_URL}
       - VITE_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - mukthiguru
     healthcheck:
@@ -71,8 +72,11 @@ services:
       - BRAIN_KEK=${BRAIN_KEK:?set BRAIN_KEK (required in production)}
       # Empty is allowed only with FACULTY_GATE_DISABLED=true; otherwise settings fail closed.
       - FACULTY_ACCESS_CODE=${FACULTY_ACCESS_CODE:-}
-      - LLM_PROVIDER=${LLM_PROVIDER:-sarvam_cloud}
-      - SARVAM_API_KEY=${SARVAM_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - SARVAM_API_KEY=${SARVAM_API_KEY:-}
+      - ANTHROPIC_GATEWAY_ENABLED=${ANTHROPIC_GATEWAY_ENABLED:-false}
+      - FIRST_PERSON_LLM_FALLBACK_ENABLED=false
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
       - QDRANT_URL=http://qdrant:6333
@@ -95,9 +99,8 @@ services:
       - LMCACHE_REMOTE_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       # Memory limit for Python process (set in main.py via resource.setrlimit)
       - PYTHON_MEMORY_LIMIT_MB=${PYTHON_MEMORY_LIMIT_MB:-2048}
-      # Workers: 2 for production. Each loads the embedding model (~1.4GB each).
-      # Ensure the host has ≥4GB RAM available.
-      - WEB_CONCURRENCY=2
+      # Workers: default 1 to stay safely within the 4G memory limit (each worker loads ~1.4GB embedding model).
+      - WEB_CONCURRENCY=${WEB_CONCURRENCY:-1}
     # Owner video decisions (services/first_person_video_decisions.py writes
     # /app/data/fp_video_decisions). Without a volume a redeploy forgot every
     # rejected video and the audit log, so the video was served again.
@@ -132,7 +135,7 @@ services:
       resources:
         limits:
           cpus: "2.0"
-          memory: 3G
+          memory: 4G
         reservations:
           memory: 512M
 
@@ -187,7 +190,7 @@ services:
     networks:
       - mukthiguru
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"${REDIS_PASSWORD}\" redis-cli ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -223,7 +226,8 @@ services:
     volumes:
       - whatsapp_data:/data
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - mukthiguru
     healthcheck:

@@ -271,7 +271,10 @@ export function createProvenanceManifestFromMessage(
     },
     disclosure: {
       article: 'Article 50(1)',
-      notice: asString(raw?.disclosure_statement) || 'AI-Generated Content: This response was synthesized by AskMukthiGuru artificial intelligence.',
+      notice: asString(raw?.disclosure_statement)
+        || (message.verification?.method === 'first_person_verbatim_clip_gate'
+          ? 'Verbatim Teaching Clip: Retrieved directly from archived source recordings of Sri Preethaji and Sri Krishnaji without AI-generated teacher speech.'
+          : 'AI-Generated Content: This response was synthesized by AskMukthiGuru artificial intelligence.'),
       plainLanguageDisclosure: asString(raw?.disclaimer) || asString(raw?.disclosure_statement) || 'In compliance with EU AI Act Article 50: You are interacting with an AI assistant grounded in spiritual wisdom teachings. Responses do not replace human spiritual masters, mental health professionals, or medical practitioners.'
     },
     ...options
