@@ -539,7 +539,7 @@ def _detect_contradiction(
     claim_clauses = [
         s.strip()
         for s in re.split(
-            r"[.!?\n]+|;\s*|,\s+(?:and|but|while|whereas|rather\s+than|not\s+(?:as|merely|only|just|about))\s+|,\s+not\s+",
+            r"[.!?\n]+|;\s*|,\s+(?:and|but|while|whereas|not\s+(?:as|merely|only|just|about))\s+|,\s+not\s+|(?:,\s*)?(?:rather\s+than|instead\s+of|as\s+opposed\s+to)\s+",
             clean_claim,
         )
         if len(s.strip()) > 10
@@ -554,6 +554,12 @@ def _detect_contradiction(
         if len(c_content) < 3:
             continue
         c_neg = len(c_negations) % 2 == 1
+        if re.search(
+            rf"(?:rather\s+than|instead\s+of|as\s+opposed\s+to|not\s+(?:as|merely|only|just|about)?\s*)\s+{re.escape(c_clause)}",
+            clean_claim,
+            re.IGNORECASE,
+        ):
+            c_neg = not c_neg
 
         for ctx_sent in ctx_sentences:
             ctx_tokens = [w.lower() for w in re.findall(r"\b[a-z]{2,}\b", ctx_sent)]
@@ -585,6 +591,16 @@ def _detect_contradiction(
                         continue
                     clean_c_clause = re.sub(r"[\"'“”‘’]", "", c_clause).strip().lower()
                     if clean_c_clause and (clean_c_clause in context.lower() or context.lower() in clean_c_clause):
+                        continue
+                    if re.search(
+                        r"\b(?:rather\s+than|instead\s+of|as\s+opposed\s+to|free\s+from|devoid\s+of)\b",
+                        c_clause,
+                        re.IGNORECASE,
+                    ) or re.search(
+                        r"\b(?:rather\s+than|instead\s+of|as\s+opposed\s+to|free\s+from|devoid\s+of)\b",
+                        ctx_sent,
+                        re.IGNORECASE,
+                    ):
                         continue
                     return (
                         True,

@@ -189,3 +189,10 @@ def test_quoted_source_and_contrastive_clauses_not_false_polarity_inversion():
     res2 = svc.score_faithfulness("What is abundance?", ctx2, ans2)
     assert res2.get("has_contradiction") is False
 
+    # 3. Contrastive preposition with 'rather than' matching context 'never out of'
+    ctx3 = "Spiritual right action is action born out of connection and love, never out of inner division, anger, or reactive panic."
+    ans3 = "Practice Spiritual Right Action by acting from connection and love rather than inner division, anger, or reactivity."
+    res3 = svc.score_faithfulness("What is spiritual right action?", ctx3, ans3)
+    assert res3.get("has_contradiction") is False
+
+
