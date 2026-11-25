@@ -12,12 +12,14 @@ Features:
 """
 
 import asyncio
+import fcntl
 import json
 import os
 import re
 import sys
 import time
 from pathlib import Path
+from contextlib import contextmanager
 
 # Add backend and project root to sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -120,175 +122,238 @@ def chunk_sentences(text: str, size: int = LIGHTRAG_PIECE_SIZE) -> list[str]:
     return chunks or [text]
 
 
-def load_checkpoint():
-    if CHECKPOINT_FILE.exists():
+CHECKPOINT_SCHEMA_VERSION = 2
+DEFAULT_LIGHTRAG_SOURCE_COLLECTION = "spiritual_wisdom"
+
+
+def resolve_source_collection() -> str:
+    """Resolve the source explicitly; never inherit serving's QDRANT_COLLECTION."""
+    source = os.getenv(
+        "LIGHTRAG_SOURCE_COLLECTION", DEFAULT_LIGHTRAG_SOURCE_COLLECTION
+    ).strip()
+    if not source:
+        raise ValueError("LIGHTRAG_SOURCE_COLLECTION must be a non-empty Qdrant collection name")
+    return source
+
+
+@contextmanager
+def checkpoint_process_lock(checkpoint_file: Path | None = None):
+    """Hold an OS lock for the entire run; kernel releases it if the process dies."""
+    path = checkpoint_file or CHECKPOINT_FILE
+    lock_path = Path(f"{path}.lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock_handle:
         try:
-            with open(CHECKPOINT_FILE) as f:
-                data = json.load(f)
-                return data.get("next_offset"), data.get("processed_count", 0)
-        except Exception as e:
-            print(f"⚠️ Warning loading checkpoint: {e}")
-    return None, 0
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise RuntimeError(
+                f"Another LightRAG ingestion process holds checkpoint lock {lock_path}"
+            ) from exc
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
 
 
-def save_checkpoint_atomic(next_offset, processed_count):
-    tmp_file = CHECKPOINT_FILE.with_suffix(".json.tmp")
+def load_checkpoint(
+    source_collection: str,
+    source_point_count: int,
+    working_dir: str,
+    checkpoint_file: Path | None = None,
+) -> tuple[object | None, dict[str, int]]:
+    """Load only a v2 checkpoint proven to belong to this exact source/target."""
+    path = checkpoint_file or CHECKPOINT_FILE
+    if not path.exists():
+        return None, {"processed": 0, "success": 0, "skipped": 0, "rejected": 0, "failed": 0}
+
     try:
-        with open(tmp_file, "w") as f:
-            json.dump(
-                {
-                    "next_offset": next_offset,
-                    "processed_count": processed_count,
-                    "timestamp": time.time(),
-                },
-                f,
-                indent=2,
-            )
-        os.replace(tmp_file, CHECKPOINT_FILE)
-    except Exception as e:
-        print(f"⚠️ Warning saving atomic checkpoint: {e}")
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            f"LightRAG checkpoint {path} is unreadable; inspect and repair it explicitly"
+        ) from exc
+
+    if data.get("schema_version") != CHECKPOINT_SCHEMA_VERSION:
+        raise RuntimeError(
+            f"Legacy/incompatible LightRAG checkpoint at {path}. "
+            "It has no trustworthy source-collection identity. Do not resume it blindly; "
+            "inspect the old run and choose a new LIGHTRAG_CHECKPOINT_FILE or explicitly "
+            "migrate the checkpoint after reconciling the graph store."
+        )
+
+    expected = {
+        "source_collection": source_collection,
+        "source_point_count": source_point_count,
+        "working_dir": str(Path(working_dir).resolve()),
+    }
+    mismatches = {
+        key: (data.get(key), value)
+        for key, value in expected.items()
+        if data.get(key) != value
+    }
+    if mismatches:
+        details = ", ".join(
+            f"{key}: checkpoint={actual!r}, current={wanted!r}"
+            for key, (actual, wanted) in mismatches.items()
+        )
+        raise RuntimeError(
+            f"LightRAG checkpoint target mismatch ({details}). "
+            "Use a separate LIGHTRAG_CHECKPOINT_FILE for a different ingestion target."
+        )
+
+    counters = {
+        "processed": int(data.get("processed_count", 0)),
+        "success": int(data.get("success_count", 0)),
+        "skipped": int(data.get("skipped_count", 0)),
+        "rejected": int(data.get("rejected_count", 0)),
+        "failed": 0,
+    }
+    if min(counters.values()) < 0:
+        raise RuntimeError(f"LightRAG checkpoint contains negative counters: {path}")
+    if counters["processed"] != counters["success"] + counters["skipped"] + counters["rejected"]:
+        raise RuntimeError(
+            f"LightRAG checkpoint counters do not reconcile at {path}; "
+            "refusing to resume from an ambiguous offset"
+        )
+    if counters["processed"] > source_point_count:
+        raise RuntimeError(
+            f"LightRAG checkpoint processed_count={counters['processed']} exceeds "
+            f"current source point count={source_point_count}"
+        )
+    return data.get("next_offset"), counters
+
+
+def save_checkpoint_atomic(
+    next_offset: object | None,
+    counters: dict[str, int],
+    source_collection: str,
+    source_point_count: int,
+    working_dir: str,
+    checkpoint_file: Path | None = None,
+) -> None:
+    """Durably persist a cursor only after every point in the batch is accounted for."""
+    path = checkpoint_file or CHECKPOINT_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_file = path.with_suffix(path.suffix + ".tmp")
+    data = {
+        "schema_version": CHECKPOINT_SCHEMA_VERSION,
+        "source_collection": source_collection,
+        "source_point_count": source_point_count,
+        "working_dir": str(Path(working_dir).resolve()),
+        "next_offset": next_offset,
+        "processed_count": counters["processed"],
+        "success_count": counters["success"],
+        "skipped_count": counters["skipped"],
+        "rejected_count": counters["rejected"],
+        "timestamp": time.time(),
+    }
+    with tmp_file.open("w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=2)
+        handle.flush()
+        os.fsync(handle.fileno())
+    os.replace(tmp_file, path)
 
 
 async def process_single_point(
-    lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats
-):
-    """Process one Qdrant point through LightRAG safe_ainsert.
+    lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats, total_points
+) -> str:
+    """Process one source point; failed inserts are retryable, quality rejects are explicit."""
+    async def _record(status: str) -> None:
+        async with counter_lock:
+            counters["processed"] += 1
+            counters[status] += 1
 
-    Every failure path (payload access, preprocessing, async exceptions
-    outside safe_ainsert) is caught. counters["processed"] is incremented
-    exactly once; counters["failed"] is updated for unrecoverable points.
-    Returns False after accounting so asyncio.gather cannot silently drop
-    points (return_exceptions=True would otherwise swallow the exception
-    without incrementing counters).
-    """
-    accounted = False
-    ok = False
     try:
-        try:
-            payload = point.payload or {}
-            text = payload.get("text") or payload.get("page_content") or ""
-            source = payload.get("source_url") or payload.get("title") or f"point-{point.id}"
+        payload = point.payload or {}
+        text = payload.get("text") or payload.get("page_content") or ""
+        source = payload.get("source_url") or payload.get("title") or f"point-{point.id}"
 
-            if isinstance(text, str):
-                import unicodedata
+        if isinstance(text, str):
+            import unicodedata
 
-                text = (
-                    text.replace("\x00", "")
-                    .replace("<|begin_of_text|>", "")
-                    .replace("<|eot_id|>", "")
-                    .replace("<|end_of_text|>", "")
-                )
-                text = unicodedata.normalize("NFC", text).strip()
-                try:
-                    from services.doctrine_terms import apply_corrections
+            text = (
+                text.replace("\x00", "")
+                .replace("<|begin_of_text|>", "")
+                .replace("<|eot_id|>", "")
+                .replace("<|end_of_text|>", "")
+            )
+            text = unicodedata.normalize("NFC", text).strip()
+            try:
+                from services.doctrine_terms import apply_corrections
 
-                    text = apply_corrections(text)
-                except Exception:
-                    pass
-        except Exception as e:
-            # Payload access failure — record as failed, count once, return.
-            async with counter_lock:
-                if not accounted:
-                    counters["processed"] += 1
-                    counters["failed"] += 1
-                    accounted = True
+                text = apply_corrections(text)
+            except Exception as exc:
+                print(f"⚠️ Doctrine correction unavailable for {point.id}: {exc}", flush=True)
+
+        if not isinstance(text, str) or len(text.strip()) < 50:
+            await _record("skipped")
+            return "skipped"
+
+        # Never feed known prompt/ASR/provider artefacts into graph extraction.
+        from services.text_quality_filter import find_artifact
+
+        artifact = find_artifact(text)
+        if artifact is not None:
+            await _record("rejected")
             _pid = str(getattr(point, "id", "?"))[:8]
-            print(f"⚠️ Point {_pid}... payload access failed: {e}", flush=True)
-            return False
-
-        if not text or len(text.strip()) < 50:
-            # Too-short / empty text — counted as processed (skipped), not failed.
-            async with counter_lock:
-                if not accounted:
-                    counters["processed"] += 1
-                    accounted = True
-            return False
-
-        # Ingestion safety invariant (L-INGEST-1): gate every point through
-        # find_artifact() before graph ingestion so LLM/ASR/provider artifacts
-        # already sitting in Qdrant payloads never reach the graph.
-        try:
-            from services.text_quality_filter import find_artifact
-        except ImportError:
-            find_artifact = None
-        if find_artifact is not None:
-            artifact = find_artifact(text)
-            if artifact is not None:
-                async with counter_lock:
-                    if not accounted:
-                        counters["processed"] += 1
-                        counters["failed"] += 1
-                        accounted = True
-                _pid = str(getattr(point, "id", "?"))[:8]
-                print(f"⚠️ Point {_pid}... rejected by quality gate: {artifact[:80]!r}", flush=True)
-                return False
+            print(f"⚠️ Point {_pid}... rejected by quality gate: {artifact[:80]!r}", flush=True)
+            return "rejected"
 
         pieces = chunk_sentences(text)
-
         async with sem:
             t0 = time.time()
             insert_timeout = float(os.getenv("LIGHTRAG_INSERT_TIMEOUT", "60.0"))
-            ok = True
-            for piece in pieces:
-                retry_count = 0
+            for piece_index, piece in enumerate(pieces):
                 piece_ok = False
-                while retry_count < 2:
+                last_error = "safe_ainsert returned false"
+                for attempt in range(1, 3):
                     try:
                         piece_ok = await lightrag_svc.safe_ainsert(
                             text=piece, file_paths=[source], timeout=insert_timeout
-                        )
-                        break
-                    except Exception as e:
-                        retry_count += 1
-                        if "rate limit" in str(e).lower() or "429" in str(e):
+                        ) is True
+                        if piece_ok:
+                            break
+                        last_error = "safe_ainsert returned false"
+                    except Exception as exc:
+                        last_error = str(exc)
+                        if "rate limit" in last_error.lower() or "429" in last_error:
                             rate_stats["rate_limit_hits"] += 1
-                            await asyncio.sleep(2.0 * retry_count)
-                        else:
-                            await asyncio.sleep(0.5)
-                else:
-                    # Both retries exhausted — mark this piece as failed.
-                    piece_ok = False
+                        print(
+                            f"⚠️ Retry {attempt}/2 for point {str(point.id)[:8]} "
+                            f"piece {piece_index + 1}/{len(pieces)}: {last_error[:160]}",
+                            flush=True,
+                        )
+                    if attempt < 2:
+                        await asyncio.sleep(2.0 * attempt)
                 if not piece_ok:
-                    ok = False
+                    await _record("failed")
+                    _pid = str(getattr(point, "id", "?"))[:8]
+                    print(
+                        f"❌ Point {_pid}... piece {piece_index + 1}/{len(pieces)} "
+                        f"failed after retries: {last_error[:200]}",
+                        flush=True,
+                    )
+                    return "failed"
 
             elapsed = time.time() - t0
             await asyncio.sleep(0.05)
 
-        async with counter_lock:
-            if not accounted:
-                counters["processed"] += 1
-                accounted = True
-            if ok:
-                counters["success"] += 1
-            else:
-                counters["failed"] += 1
-
-            curr_processed = counters["processed"]
-            elapsed_total = time.time() - start_time
-            rate = (curr_processed / elapsed_total) * 60.0 if elapsed_total > 0 else 0.0
-            pct = (curr_processed / 89053.0) * 100.0
-
-            preview = text.strip()[:40].replace("\n", " ")
-            status_str = "✅ Success" if ok else "⚠️ Failed"
-            _point_id_str = str(point.id)
-            print(
-                f'[{curr_processed}/89053 ({pct:.2f}%)] Point {_point_id_str[:8]}... ("{preview}...") {status_str} ({elapsed:.1f}s) | Rate: {rate:.1f} pts/min',
-                flush=True,
-            )
-
-        return ok
-    except Exception as e:
-        # Catch any unexpected exception (including outside safe_ainsert) so
-        # asyncio.gather(return_exceptions=True) cannot silently drop the point
-        # without incrementing counters.
-        async with counter_lock:
-            if not accounted:
-                counters["processed"] += 1
-                counters["failed"] += 1
-                accounted = True
+        await _record("success")
+        rate = (counters["processed"] / max(time.time() - start_time, 0.001)) * 60.0
+        pct = (counters["processed"] / max(total_points, 1)) * 100.0
+        preview = text[:40].replace("\n", " ")
+        print(
+            f'[{counters["processed"]}/{total_points} ({pct:.2f}%)] '
+            f'Point {str(point.id)[:8]}... ("{preview}...") '
+            f"✅ Success ({elapsed:.1f}s) | Rate: {rate:.1f} pts/min",
+            flush=True,
+        )
+        return "success"
+    except Exception as exc:
+        await _record("failed")
         _pid = str(getattr(point, "id", "?"))[:8]
-        print(f"⚠️ Point {_pid}... unhandled exception: {e}", flush=True)
-        return False
+        print(f"❌ Point {_pid}... unhandled ingestion error: {exc}", flush=True)
+        return "failed"
 
 
 async def main():
@@ -296,112 +361,150 @@ async def main():
     from services.lightrag_service import LightRAGService
     from services.qdrant_service import QdrantService
 
+    source_collection = resolve_source_collection()
     target_concurrency = int(os.getenv("CONCURRENCY_WORKERS", "8"))
+    if not 1 <= target_concurrency <= 12:
+        raise ValueError("CONCURRENCY_WORKERS must be between 1 and 12")
     insert_timeout = float(os.getenv("LIGHTRAG_INSERT_TIMEOUT", "60.0"))
-
-    print("🚀 Initializing Auto-Scaling LightRAG Full-Collection Ingestion...")
-    print(f"   Extraction Model: OpenRouter inference ({settings.openrouter_classify_model})")
-    print(f"   Target Concurrency: {target_concurrency} Workers | Fast Timeout: {insert_timeout}s")
-    print("   Source Collection: Qdrant `spiritual_wisdom` (All 89,053 points)")
-
-    saved_offset, saved_count = load_checkpoint()
-    if saved_offset:
-        _offset_str = str(saved_offset)
-        print(
-            f"🔄 Resuming from Checkpoint Offset: '{_offset_str[:8]}...' (Processed so far: {saved_count} points)"
-        )
-    else:
-        print("🆕 Starting fresh ingestion run from beginning of collection.")
+    working_dir = os.getenv("LIGHTRAG_WORKING_DIR", "data/lightrag")
 
     qdrant_svc = QdrantService()
-    lightrag_svc = LightRAGService()
-    await lightrag_svc.initialize()
-    if not lightrag_svc._initialized:
+    try:
+        source_info = qdrant_svc._client.get_collection(collection_name=source_collection)
+    except Exception as exc:
         raise RuntimeError(
-            "LightRAGService failed to initialize (Neo4j/Qdrant unreachable) — "
-            "aborting rather than looping over 89,053 points against a broken service."
+            f"Cannot open LightRAG source collection {source_collection!r}; refusing to start"
+        ) from exc
+    total_points = int(source_info.points_count or 0)
+    if total_points <= 0:
+        raise RuntimeError(
+            f"LightRAG source collection {source_collection!r} has no points; refusing an empty run"
         )
 
-    batch_size = 50
-    sem = asyncio.Semaphore(target_concurrency)
-    semaphore_lock = asyncio.Lock()
-    counter_lock = asyncio.Lock()
-    rate_stats = {"rate_limit_hits": 0}
+    # A kernel-managed lock prevents two processes from consuming the same cursor.
+    with checkpoint_process_lock():
+        saved_offset, counters = load_checkpoint(
+            source_collection=source_collection,
+            source_point_count=total_points,
+            working_dir=working_dir,
+        )
 
-    next_offset = saved_offset
-    counters = {"processed": saved_count, "success": saved_count, "failed": 0}
-    start_time = time.time()
+        print("🚀 Initializing LightRAG source-to-graph ingestion...")
+        print(f"   Source Qdrant collection: {source_collection} ({total_points:,} points)")
+        print(f"   LightRAG working directory: {Path(working_dir).resolve()}")
+        print(f"   Extraction model: OpenRouter inference ({settings.openrouter_classify_model})")
+        print(f"   Target concurrency: {target_concurrency} workers | insert timeout: {insert_timeout}s")
+        print(
+            "   Checkpoint: "
+            f"{counters['processed']:,}/{total_points:,} processed "
+            f"(success={counters['success']:,}, skipped={counters['skipped']:,}, "
+            f"rejected={counters['rejected']:,})"
+        )
+        if saved_offset is not None:
+            print(f"🔄 Resuming from checkpoint offset {str(saved_offset)[:80]}")
+        else:
+            print("🆕 Starting from the beginning; no compatible checkpoint exists.")
 
-    print(f"⚙️ Running auto-scaling worker pool ({target_concurrency} workers max)...")
-
-    while True:
-        _scroll_retries = 0
-        _max_scroll_retries = 5
-        while _scroll_retries < _max_scroll_retries:
-            try:
-                target_coll = os.getenv("QDRANT_COLLECTION", settings.qdrant_collection)
-                scroll_res, next_offset = qdrant_svc._client.scroll(
-                    collection_name=target_coll,
-                    limit=batch_size,
-                    offset=next_offset,
-                    with_payload=True,
-                    with_vectors=False,
-                )
-                break
-            except Exception as e:
-                _scroll_retries += 1
-                _backoff = 2.0**_scroll_retries
-                print(
-                    f"❌ Failed to scroll points from Qdrant (attempt {_scroll_retries}/{_max_scroll_retries}): {e}"
-                )
-                if _scroll_retries >= _max_scroll_retries:
-                    raise RuntimeError(f"Qdrant scroll failed after {_max_scroll_retries} attempts")
-                await asyncio.sleep(_backoff)
-
-        if not scroll_res:
-            print("🏁 Reached end of Qdrant collection. All points processed!")
-            break
-
-        # Process batch concurrently under semaphore & lock protection
-        tasks = [
-            process_single_point(
-                lightrag_svc, point, sem, counter_lock, counters, start_time, rate_stats
+        lightrag_svc = LightRAGService()
+        await lightrag_svc.initialize()
+        if not lightrag_svc._initialized:
+            raise RuntimeError(
+                "LightRAGService failed to initialize (Memgraph/Qdrant unreachable); aborting."
             )
-            for point in scroll_res
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for i, r in enumerate(results):
-            if isinstance(r, Exception):
-                print(f"⚠️ Task {i} unhandled exception: {r}")
 
-        # Auto-scale concurrency between 4 and 12 based on rate limits
-        async with semaphore_lock:
-            _elapsed_batch = time.time() - start_time
-            if _elapsed_batch > 30:
-                _new_target = target_concurrency
-                if rate_stats["rate_limit_hits"] > 5:
-                    _new_target = max(4, target_concurrency - 1)
-                elif rate_stats["rate_limit_hits"] == 0:
-                    _new_target = min(12, target_concurrency + 1)
-                if _new_target != target_concurrency:
-                    target_concurrency = _new_target
-                    sem = asyncio.Semaphore(target_concurrency)
-                    print(f"⚡ Auto-scaling: adjusted concurrency to {target_concurrency}")
+        batch_size = int(os.getenv("LIGHTRAG_BATCH_SIZE", "50"))
+        if not 1 <= batch_size <= 500:
+            raise ValueError("LIGHTRAG_BATCH_SIZE must be between 1 and 500")
+
+        sem = asyncio.Semaphore(target_concurrency)
+        semaphore_lock = asyncio.Lock()
+        counter_lock = asyncio.Lock()
+        rate_stats = {"rate_limit_hits": 0}
+        next_offset = saved_offset
+        start_time = time.time()
+
+        while True:
+            scroll_res, batch_next_offset = qdrant_svc._client.scroll(
+                collection_name=source_collection,
+                limit=batch_size,
+                offset=next_offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            if not scroll_res:
+                print("🏁 Reached end of the selected source collection.")
+                break
+
+            results = await asyncio.gather(
+                *[
+                    process_single_point(
+                        lightrag_svc,
+                        point,
+                        sem,
+                        counter_lock,
+                        counters,
+                        start_time,
+                        rate_stats,
+                        total_points,
+                    )
+                    for point in scroll_res
+                ],
+                return_exceptions=True,
+            )
+            failed_count = sum(
+                1 for result in results if isinstance(result, Exception) or result == "failed"
+            )
+            if failed_count:
+                # Do not move the cursor. The entire batch will replay on restart;
+                # successful document inserts are deduplicated by LightRAG doc status.
+                raise RuntimeError(
+                    f"LightRAG batch at offset {str(next_offset)[:80]} had "
+                    f"{failed_count}/{len(scroll_res)} retryable failures. "
+                    "Checkpoint was NOT advanced; resolve provider/store failures and resume."
+                )
+
+            # Only a fully accounted batch advances the durable cursor.
+            save_checkpoint_atomic(
+                next_offset=batch_next_offset,
+                counters=counters,
+                source_collection=source_collection,
+                source_point_count=total_points,
+                working_dir=working_dir,
+            )
+            next_offset = batch_next_offset
+
+            async with semaphore_lock:
+                if time.time() - start_time > 30:
+                    if rate_stats["rate_limit_hits"] > 5:
+                        new_target = max(1, target_concurrency - 1)
+                    elif rate_stats["rate_limit_hits"] == 0:
+                        new_target = min(12, target_concurrency + 1)
+                    else:
+                        new_target = target_concurrency
+                    if new_target != target_concurrency:
+                        target_concurrency = new_target
+                        sem = asyncio.Semaphore(target_concurrency)
+                        print(f"⚡ Auto-scaling concurrency to {target_concurrency}")
                     rate_stats["rate_limit_hits"] = 0
 
-        # Atomically save checkpoint state after each batch
-        async with counter_lock:
-            save_checkpoint_atomic(next_offset, counters["processed"])
+            print(
+                f"💾 Checkpoint saved: {counters['processed']:,}/{total_points:,} "
+                f"(success={counters['success']:,}, skipped={counters['skipped']:,}, "
+                f"rejected={counters['rejected']:,})"
+            )
+            if next_offset is None:
+                print("🏁 Reached end of the selected source collection.")
+                break
 
-        if next_offset is None:
-            print("🏁 Reached end of Qdrant collection. All points processed!")
-            break
-
-    total_time = time.time() - start_time
-    print("\n" + "=" * 80)
-    print(f"🎉 Auto-Scaling High-Throughput Ingestion Completed in {total_time:.1f}s")
-    print(f"   Total Processed Points: {counters['processed']} / 89,053")
-    print("=" * 80)
+        elapsed = time.time() - start_time
+        print("\n" + "=" * 80)
+        print(f"LightRAG ingestion completed in {elapsed:.1f}s")
+        print(f"Source: {source_collection} ({total_points:,} points)")
+        print(
+            f"Processed: {counters['processed']:,} | success: {counters['success']:,} | "
+            f"skipped: {counters['skipped']:,} | rejected: {counters['rejected']:,}"
+        )
+        print("=" * 80)
 
 
 if __name__ == "__main__":
