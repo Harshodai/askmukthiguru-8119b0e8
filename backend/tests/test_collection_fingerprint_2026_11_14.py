@@ -66,11 +66,61 @@ def test_empty_collection_is_zero_points_not_an_error() -> None:
 def test_write_records_the_fingerprint_in_a_pending_run(tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
-        json.dumps({"run_id": "r", "collection_fingerprint": None}), encoding="utf-8"
+        json.dumps(
+            {
+                "run_id": "r",
+                "flags": {"FIRST_PERSON_ACTIVE_COLLECTION": "c"},
+                "collection_fingerprint": None,
+            }
+        ),
+        encoding="utf-8",
     )
     fp = {"points": 3, "ids_sha256": "0" * 64, "collection": "c"}
     cf.write_fingerprint(tmp_path, fp)
     assert json.loads(manifest.read_text(encoding="utf-8"))["collection_fingerprint"] == fp
+
+
+def test_write_is_idempotent_for_the_same_fingerprint(tmp_path: Path) -> None:
+    (tmp_path / "manifest.json").write_text(
+        json.dumps({"collection_fingerprint": None}), encoding="utf-8"
+    )
+    fp = {"points": 1, "ids_sha256": "0" * 64, "collection": "c"}
+    cf.write_fingerprint(tmp_path, fp)
+    cf.write_fingerprint(tmp_path, fp)
+    assert json.loads((tmp_path / "manifest.json").read_text())["collection_fingerprint"] == fp
+
+
+def test_write_refuses_a_conflicting_fingerprint(tmp_path: Path) -> None:
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "collection_fingerprint": {
+                    "points": 1,
+                    "ids_sha256": "0" * 64,
+                    "collection": "c",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    try:
+        cf.write_fingerprint(
+            tmp_path, {"points": 2, "ids_sha256": "1" * 64, "collection": "c"}
+        )
+    except ValueError as exc:
+        assert "different" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("a conflicting fingerprint was accepted")
+
+
+def test_write_rejects_incomplete_fingerprint(tmp_path: Path) -> None:
+    (tmp_path / "manifest.json").write_text(json.dumps({}), encoding="utf-8")
+    try:
+        cf.write_fingerprint(tmp_path, {"points": 1})
+    except ValueError as exc:
+        assert "invalid fingerprint" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("an incomplete fingerprint was accepted")
 
 
 def test_write_refuses_a_finished_run(tmp_path: Path) -> None:

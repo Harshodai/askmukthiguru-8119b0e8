@@ -99,7 +99,11 @@ def make_run(
                 "sha": "s",
                 "valid": True,
                 "flags": FLAGS,
-                "collection_fingerprint": {"points": 1},
+                "collection_fingerprint": {
+                    "collection": "x",
+                    "points": 1,
+                    "ids_sha256": "0" * 64,
+                },
                 "spend_before": {"day": 1.0, "month": 2.0},
                 "spend_after": {"day": 2.5, "month": 3.5},
             }
@@ -245,3 +249,21 @@ def test_capture_marked_invalid_run_never_reads_pass(tmp_path):
     (run / "manifest.json").write_text(json.dumps(m))
     rep = evaluate(run)
     assert rep["run_valid"] is False and rep["overall"] != "PASS"
+
+
+@pytest.mark.parametrize(
+    ("fingerprint", "needle"),
+    [
+        ({"collection": "x", "points": 1}, "ids_sha256"),
+        ({"collection": "x", "points": -1, "ids_sha256": "0" * 64}, "points"),
+        ({"collection": "other", "points": 1, "ids_sha256": "0" * 64}, "expected 'x'"),
+    ],
+)
+def test_malformed_or_cross_collection_fingerprint_invalidates_run(tmp_path, fingerprint, needle):
+    run = make_run(tmp_path, n=60)
+    manifest = json.loads((run / "manifest.json").read_text())
+    manifest["collection_fingerprint"] = fingerprint
+    (run / "manifest.json").write_text(json.dumps(manifest))
+    rep = evaluate(run)
+    assert not rep["run_valid"]
+    assert any(needle in reason for reason in rep["invalid_reasons"])

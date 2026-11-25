@@ -18,6 +18,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -52,6 +53,35 @@ ECHO_FLAGS = REQUIRED_FLAGS + (
     "FIRST_PERSON_LLM_FALLBACK_ENABLED",
     "INTENT_ROUTER_AMBIGUOUS_DOMAIN_ENABLED",
 )
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def validate_collection_fingerprint(
+    fingerprint: Any, *, expected_collection: str | None = None
+) -> list[str]:
+    """Return reasons why a manifest fingerprint cannot be release evidence."""
+    if not isinstance(fingerprint, dict):
+        return ["manifest collection fingerprint is not an object"]
+    reasons: list[str] = []
+    required = {"collection", "points", "ids_sha256"}
+    missing = sorted(required - set(fingerprint))
+    if missing:
+        reasons.append("collection fingerprint missing: " + ", ".join(missing))
+    collection = fingerprint.get("collection")
+    if not isinstance(collection, str) or not collection.strip():
+        reasons.append("collection fingerprint has no non-empty collection name")
+    elif expected_collection and collection != expected_collection:
+        reasons.append(
+            f"collection fingerprint names {collection!r}, expected {expected_collection!r}"
+        )
+    points = fingerprint.get("points")
+    if isinstance(points, bool) or not isinstance(points, int) or points < 0:
+        reasons.append("collection fingerprint points must be a non-negative integer")
+    digest = fingerprint.get("ids_sha256")
+    if not isinstance(digest, str) or not _SHA256_RE.fullmatch(digest):
+        reasons.append("collection fingerprint ids_sha256 must be a lowercase SHA-256 hex digest")
+    return reasons
 
 
 def wilson_interval(k: int, n: int, z: float = Z95) -> tuple[float, float] | None:
@@ -447,8 +477,14 @@ def manifest_facts(
         return {}, ["manifest.json missing"]
     flags = m.get("flags") or {}
     invalid = [f"manifest lacks pinned value {k}" for k in REQUIRED_FLAGS if k not in flags]
-    if "collection_fingerprint" not in m or m.get("collection_fingerprint") is None:
-        invalid.append("manifest lacks collection fingerprint (points count + id sha)")
+    expected_collection = flags.get("FIRST_PERSON_ACTIVE_COLLECTION") or flags.get(
+        "FIRST_PERSON_COLLECTION"
+    )
+    invalid.extend(
+        validate_collection_fingerprint(
+            m.get("collection_fingerprint"), expected_collection=expected_collection
+        )
+    )
     if m.get("valid") is False:
         invalid.append("capture marked the run invalid: " + "; ".join(m.get("reasons") or []))
     sb, sa = m.get("spend_before") or {}, m.get("spend_after") or {}
