@@ -950,7 +950,10 @@
     "searchConversations": "ಸಂಭಾಷಣೆಗಳನ್ನು ಹುಡುಕಿ",
     "searchResults": "ಫಲಿತಾಂಶಗಳು",
     "tabChat": "ಚಾಟ್",
-    "tabExplore": "ಅನ್ವೇಷಣೆ"
+    "tabExplore": "ಅನ್ವೇಷಣೆ",
+    "relatedTeachings": {
+      "heading": "ಸಂಬಂಧಿತ ಬೋಧನೆಗಳು, ನೇರ ಉತ್ತರವಲ್ಲ"
+    }
   },
   "notFound": {
     "message": "ಹೇಳಿಕೊಳ್ಳಲು ಸಾಧ್ಯವಿಲ್ಲ!",

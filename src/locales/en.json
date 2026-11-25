@@ -955,7 +955,10 @@
     "searchConversations": "Search conversations",
     "searchResults": "Results",
     "tabChat": "Chat",
-    "tabExplore": "Explore"
+    "tabExplore": "Explore",
+    "relatedTeachings": {
+      "heading": "Related teachings, not a direct answer"
+    }
   },
   "notFound": {
     "message": "Oops! Page not found",

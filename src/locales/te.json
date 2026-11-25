@@ -950,7 +950,10 @@
     "searchConversations": "సంభాషణలను శోధించండి",
     "searchResults": "ఫలితాలు",
     "tabChat": "చాట్",
-    "tabExplore": "అన్వేషించండి"
+    "tabExplore": "అన్వేషించండి",
+    "relatedTeachings": {
+      "heading": "సంబంధిత బోధనలు, నేరుగా జవాబు కాదు"
+    }
   },
   "notFound": {
     "message": "అప్పుడు! పేజీ కనుగొనబడలేదు",

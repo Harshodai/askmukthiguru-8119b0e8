@@ -112,13 +112,22 @@ async def test_polish_and_weave_clips_timeout_falls_back():
     assert result == original
 
 
-def test_expand_context_candidates_is_bounded():
+def test_expand_context_candidates_is_bounded(monkeypatch):
     """_expand_context_candidates bounds total returned contexts to first_person_max_evaluated_contexts."""
+    monkeypatch.setattr(settings, "first_person_memgraph_sizing_enabled", False)
+    monkeypatch.setattr(settings, "first_person_enrichment_window_enabled", True)
+    monkeypatch.setattr(settings, "first_person_graph_expansion_enabled", False)
+    monkeypatch.setattr(settings, "first_person_okf_expansion_enabled", False)
+    monkeypatch.setattr(settings, "first_person_teaching_unit_graph_enabled", False)
+
+    mock_store = MagicMock()
+    mock_store.enrich_to_parent_window.side_effect = lambda c: c
+
     pipeline = FirstPersonPipeline.__new__(FirstPersonPipeline)
     contexts = [MagicMock(parent=MagicMock(parent_unit_id=f"parent_{i}")) for i in range(10)]
     bounded = pipeline._expand_context_candidates(
         contexts,
-        ctx_store=MagicMock(),
+        ctx_store=mock_store,
         query_dense_vector=[0.1] * 128,
         query_sparse_vector=None,
         retrieval_query="test",

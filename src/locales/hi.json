@@ -950,7 +950,10 @@
     "searchConversations": "बातचीत खोजें",
     "searchResults": "परिणाम",
     "tabChat": "चैट",
-    "tabExplore": "अन्वेषण करें"
+    "tabExplore": "अन्वेषण करें",
+    "relatedTeachings": {
+      "heading": "संबंधित शिक्षाएँ, प्रत्यक्ष उत्तर नहीं"
+    }
   },
   "notFound": {
     "message": "अरे! पृष्ठ नहीं मिला",

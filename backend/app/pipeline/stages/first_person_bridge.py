@@ -144,8 +144,9 @@ _SYNTHESIS_SHAPE_RE = re.compile(
     r"\bdifference\s+between\b|\bdiffer(?:s|ent)?\s+from\b|\bvs\b\.?|\bversus\b"
     r"|\bcompar\w*|\bcontrast\w*"
     r"|\broot\s+causes?\b|\bwhat\s+causes?\b|\bwhy\s+(?:do|does|am)\b(?!\s+you\b)"
-    # "is X the only cause", "the cause of" (2026-10-05, live rt3)
-    r"|\b(?:only|real|main|true)\s+causes?\b|\bthe\s+causes?\s+of\b"
+    # "is X the only cause" (2026-10-05, live rt3); "the cause of" removed 2026-11-25:
+    # it blocked clips about causation itself — keep only the opinionated quantifiers
+    r"|\b(?:only|real|main|true)\s+causes?\b"
     r"|\bhow\s+(?:(?:can|do|should|could)\s+(?:i|we)|to)\b.{0,40}?"
     r"\b(?:heal|overcome|stop|deal|let\s+go|repair|fix|forgive|cope|handle|get\s+over"
     r"|break\s+free|release|reconcile|move\s+on)\b"
@@ -1699,14 +1700,13 @@ class FirstPersonBridgeStage(Stage):
                 error=getattr(result, "error", None),
             )
 
-        # Faculty dual-mode: when not a direct answer and primary mode is disabled (or weak matches disabled)
-        # while LLM fallback is enabled, pass related clips to state and route to LangGraph synthesis.
-        # When primary mode is on, a clean weak_match is terminal per Invariant 2 (the generating graph never runs).
-        if (
-            not is_direct
-            and not (primary_mode and getattr(settings, "first_person_serve_weak_match", True))
-            and getattr(settings, "first_person_llm_fallback_enabled", False)
-        ):
+        # Faculty dual-mode: when not a direct answer and LLM fallback is enabled, pass
+        # related clips to state and route to LangGraph synthesis (multi-clip grounded weaving).
+        # Grounded synthesis (first_person_grounded_synthesis_enabled) gates whether clips
+        # are injected into state; the yield-to-graph is unconditional when llm_fallback_enabled.
+        # Note: primary_mode + serve_weak_match govern the SERVE path above; they do NOT block
+        # the LangGraph fallback path — that is governed solely by first_person_llm_fallback_enabled.
+        if not is_direct and getattr(settings, "first_person_llm_fallback_enabled", False):
             if (
                 getattr(settings, "first_person_grounded_synthesis_enabled", False)
                 and hasattr(ctx, "state")

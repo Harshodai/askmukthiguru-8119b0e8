@@ -950,7 +950,10 @@
     "searchConversations": "സംഭാഷണങ്ങൾ തിരയുക",
     "searchResults": "ഫലങ്ങൾ",
     "tabChat": "ചാറ്റ്",
-    "tabExplore": "അന്വേഷിക്കുക"
+    "tabExplore": "അന്വേഷിക്കുക",
+    "relatedTeachings": {
+      "heading": "ബന്ധപ്പെട്ട ഉപദേശങ്ങൾ, നേരിട്ടുള്ള ഉത്തരമല്ല"
+    }
   },
   "notFound": {
     "message": "ക്ഷമിക്കണം! പേജ് കണ്ടെത്താനായില്ല",

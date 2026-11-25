@@ -508,7 +508,9 @@ async def test_context_engineer_injects_first_person_synthesis_evidence_and_dire
     assert "GROUNDED TEACHING SYNTHESIS DIRECTIVE" in instructions
     assert 'markdown blockquotes (> "...")' in instructions
     assert "STRICT MINIMAL STITCHING" in instructions
-    assert SYNTHESIS_LABEL in instructions
+    # Faculty design: verified teacher blockquotes are presented directly — no synthesis disclaimer.
+    # The GROUNDED TEACHING SYNTHESIS DIRECTIVE replaces SYNTHESIS_LABEL intentionally (L-GROUNDED-SYNTHESIS-NO-DISCLAIMER-1).
+    assert SYNTHESIS_LABEL not in instructions
 
 
 @pytest.mark.asyncio
