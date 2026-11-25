@@ -725,6 +725,12 @@ def _verified_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
     speaker cannot be shown as a teacher's words. This is defence in depth --
     provenance itself comes from FirstPersonPipeline's integrity gate over the
     Qdrant payload; a caller that hashes its own invented text still passes.
+
+    A multi-video answer is one evidence set, not a collection of independent
+    best-effort suggestions. If any requested clip fails this gate, returning
+    the remaining clips would make the response look like a complete joined
+    answer while silently dropping an unverifiable part. Return no clips so the
+    caller takes its existing no-hero/fail-closed path instead.
     """
     kept = []
     for c in clips or []:
@@ -734,9 +740,11 @@ def _verified_clips(clips: list[dict[str, Any]]) -> list[dict[str, Any]]:
             kept.append(c)
     if len(kept) != len(clips or []):
         logger.warning(
-            "[QuoteWeaver] Dropped %d clip(s) failing hash/speaker verification",
+            "[QuoteWeaver] Refusing evidence set: %d/%d clip(s) failed hash/speaker verification",
             len(clips or []) - len(kept),
+            len(clips or []),
         )
+        return []
     return kept
 
 
