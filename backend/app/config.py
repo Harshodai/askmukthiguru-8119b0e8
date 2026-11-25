@@ -1354,7 +1354,7 @@ class Settings(BaseSettings):
     health_check_max_process_rss_mb: float = 5000.0
     # --- Anonymous Quota (Progressive Auth) ---
     # Max user turns allowed per anonymous session within the window.
-    anon_quota_messages: int = Field(default=5, gt=0)
+    anon_quota_messages: int = Field(default=25, gt=0)
     anon_quota_window_hours: float = Field(default=24.0, gt=0)
     anon_quota_enabled: bool = True
     anon_quota_degraded_limit: int = Field(default=3, gt=0)
