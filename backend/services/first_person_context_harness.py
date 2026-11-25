@@ -336,15 +336,17 @@ class FirstPersonContextHarness:
     # ------------------------------------------------------------------ gates
     @staticmethod
     def _speaker_gate(spans: tuple[SourceSpan, ...], policy: HarnessPolicy) -> bool:
-        from services.guru_registry import canonical_guru_id
+        from services.guru_registry import canonical_guru_id, founder_ids, shared_attribution
 
-        allowed_gurus = {"krishnaji", "preethaji", "preethaji_krishnaji", "ekam"}
-        guru_roles = {"guru", "teacher", "krishnaji", "preethaji", "sri_krishnaji", "sri_preethaji"}
+        _founders = founder_ids()
+        _shared_id, _ = shared_attribution()
+        allowed_gurus = set(_founders) | {gid for gid in (_shared_id, "ekam") if gid}
+        guru_roles = {"guru", "teacher"} | set(_founders) | {f"sri_{gid}" for gid in _founders}
         for span in spans:
             role = str(getattr(span, "speaker_role", "") or "").lower()
             if role not in guru_roles and span.speaker_role not in (SpeakerRole.GURU, SpeakerRole.TEACHER):
                 return False
-            # Verify guru attribution to Sri Preethaji / Sri Krishnaji
+            # Verify founder teacher attribution
             canonical_gid = canonical_guru_id(span.guru_id) or (span.guru_id or "").strip().lower()
             canonical_sid = canonical_guru_id(span.speaker_id) or (span.speaker_id or "").strip().lower()
             if canonical_gid not in allowed_gurus and canonical_sid not in allowed_gurus:

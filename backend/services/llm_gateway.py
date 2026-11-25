@@ -234,8 +234,10 @@ class LLMGateway:
             return await self._primary.generate_hyde(question, **kwargs)
         if hasattr(self._primary, "generate_hypothetical_answer"):
             return await self._primary.generate_hypothetical_answer(query=question, **kwargs)
+        from services.guru_registry import default_founders_label
+
         prompt = (
-            "Write a short passage answering this question from Sri Preethaji & Sri Krishnaji's "
+            f"Write a short passage answering this question from {default_founders_label()}'s "
             f"spiritual wisdom teachings:\n{question}"
         )
         try:

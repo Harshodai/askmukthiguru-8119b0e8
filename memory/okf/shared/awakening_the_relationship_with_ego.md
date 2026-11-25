@@ -1,7 +1,7 @@
 ---
 type: teaching
 title: "Awakening the Relationship with EGO"
-source: "Awaken your mystical hidden KUNDALINI SHAKTI with Oneness Yoga Challenge 2022 | Speaker: Ekam / O&O Academy | Topic: Relationship with EGO"
+source: "https://www.youtube.com/watch?v=EBBd2MOeOIU"
 video_id: EBBd2MOeOIU
 tags: [oo academy, ego, relationship, spiritual]
 teacher: "both"

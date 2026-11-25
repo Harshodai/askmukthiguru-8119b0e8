@@ -183,6 +183,9 @@ def generate_keyword_research(
         for d, ts, tv, dr, obs in competitor_domains
     ]
 
+    from services.guru_registry import default_founders_label
+
+    _founders = default_founders_label()
     # Exactly 20 high-value keyword gaps
     gap_data = [
         ("dissolving anxiety in 3 minutes", "headspace.com", 8100, 24, "Publish dedicated interactive practice guide with embedded audio timer."),
@@ -194,7 +197,7 @@ def generate_keyword_research(
         ("dharma vs career ambition", "chopra.com", 4900, 26, "Create video discussion on aligning modern career with inner calling."),
         ("meditation for overthinking at night", "calm.com", 12000, 34, "Produce evening wind-down reflective audio practice."),
         ("how to be present in difficult conversations", "mindful.org", 3100, 25, "Draft practical communication checklist for seekers."),
-        ("transcending suffering ancient teachings", "lionsroar.com", 2900, 27, "Synthesize core Sri Preethaji & Sri Krishnaji discourses into a pillar guide."),
+        ("transcending suffering ancient teachings", "lionsroar.com", 2900, 27, f"Synthesize core {_founders} discourses into a pillar guide."),
         ("signs of conscious relationship", "mindful.org", 7200, 32, "Publish 7-pillar conscious partnership assessment and article."),
         ("morning mindfulness without meditation", "tenpercent.com", 4100, 23, "Provide micro-practice guide for busy professionals."),
         ("what is inner stillness", "soundstrue.com", 3600, 21, "Create beginner-friendly conceptual glossary entry and discourse."),
@@ -231,7 +234,7 @@ def generate_keyword_research(
         "1. Build Pillar Pages Around the 5 Topic Clusters: Create 5 comprehensive thematic hubs linking directly to relevant authentic video discourses.",
         "2. Capture the 20 High-Value Keyword Gaps First: Prioritize content creation for the 20 identified low-KD/high-intent competitor gap terms within 60 days.",
         "3. Embed Interactive 3-Minute Practice Modules: Directly address the high-volume 'instant relief' search intent with interactive timers and breathing guides.",
-        "4. Leverage Sri Preethaji & Sri Krishnaji Discourses: Target philosophical long-tail terms with exact verbatim video excerpts and deep-link citations.",
+        f"4. Leverage {_founders} Discourses: Target philosophical long-tail terms with exact verbatim video excerpts and deep-link citations.",
         "5. Monitor International Search Volume: Expand beyond the US to UK, Canada, and India where interest in authentic Eastern spiritual philosophy is expanding rapidly.",
     ]
 

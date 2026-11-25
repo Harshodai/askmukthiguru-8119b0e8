@@ -1,6 +1,39 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 26, 2026 — Candidate Pre-Screening, Quadratic MMR, Meditation Pre-Intent Precedence & Try-2 Anchor Embedding
+- **L-SCREEN-BEFORE-MAX-EVAL-1:** Slicing `contexts[:_max_eval]` (`k=6`) before deterministic `harness.decide` / `boundary_defects` (`head_fragment`, `not_standalone`) lets 2–3 dead items burn the LLM judge budget; run deterministic gates first and slice `k` over surviving candidates (`first_person_pipeline.py`).
+- **L-MMR-SCALE-MISMATCH-1:** Subtracting raw `0.3 * Jaccard` from tightly clustered Qdrant cosine scores (`~0.04` spread) pushes multi-paragraph on-topic teachings behind off-topic short snippets; squaring bounded redundancy keeps duplicate-sibling suppression while preserving distinct teachings (`cross_video_diversity.py`).
+- **L-MEDITATION-INTENT-PRECEDENCE-1:** Both `on_device_intent` (`is_doctrinal_topic_inquiry`) and `intent.py` (`_is_ordinary_multilingual_faq`) clobbered `"What are the steps of Soul Sync meditation?"` into `FACTUAL` (`STATIC_ABSTAIN_TEXT`); share `is_meditation_practice_query()` in `rag/meditation.py` cleanly below both layers and guard `on_device_intent._get_encoder()` with `getattr`.
+- **L-TRY2-BUDGET-AND-EMBED-1:** `first_person_try2_budget_ceiling_s=2.5` skipped Try-2 after Try-1 (`~5s`), and Try-2 re-used Try-1 vectors with brittle `topic_ids` filtering; raise ceiling to `7.5s` and blend re-embedded `SpiritualConceptExpansion` anchors (`embed_query_fn`) in `first_person_pipeline.py`.
+
+## Nov 25, 2026 — Faculty Readiness Fixes: Phantom Multipart, Cache Abstain Guard, ASR Cleaning, Relevance Score, Reranking Budget
+
+### L-PHANTOM-MULTIPART-LLM-GATE-1. Gate LLM query decompose on structural multi-part signals; never call it for single-topic queries.
+- **What:** `_resolve_question_parts()` in `first_person_bridge.py` called `provider.decompose_query()` unconditionally, so the LLM hallucinated a second sub-question for simple single-topic queries like "What is the beautiful state?" (split into 2 phantom parts). The bridge then emitted a `safety_notices` multipart note attributing the LLM-fabricated part text to the user.
+- **Rule:** Before calling LLM decomposition, check for structural multi-part signals: `q.count("?") >= 2 OR _PART_SPLIT_RE match OR _DIFFERENCE_RE match`. If none → return `[]` immediately. Never call an LLM decomposer on a structurally single-topic query. This eliminates phantom `safety_notices` and prevents serving wrong clips under a fabricated second part.
+
+### L-CACHE-ABSTAIN-WRITE-GUARD-1. Skip semantic/vector cache writes for `first_person_abstain` route decisions.
+- **What:** `CacheUpdateStage.run()` correctly skips semantic cache writes for `is_teaching` responses but had no guard for `first_person_abstain`. An abstain response (no clip found) would be written to the semantic cache, so a later identical query returned a semantic hit with `grounding_state=abstained` + `synthesis` content — the split-brain cache anti-pattern.
+- **Rule:** Add `is_fp_abstain = str(getattr(ctx, "route_decision", "") or "") == "first_person_abstain"` guard to both the semantic-cache write block and the vector-cache write block in `CacheUpdateStage`. Abstain responses must never populate semantic or vector caches — a later repeat must re-run the full pipeline so a newly available clip can be served.
+
+### L-ASR-LEADING-FRAGMENT-CLEAN-1. Strip leading ASR partial sentences from verbatim clip text before serving.
+- **What:** Corpus clips sometimes start mid-sentence due to ASR segment boundary misalignment (e.g. "them? Then it's about..."). The bridge assembled verbatim clips without cleaning, so the served answer began with the ASR artifact fragment.
+- **Rule:** After `answer = "\n\n".join(verbatim_quotes)`, apply `_LEADING_FRAG_RE = re.compile(r'^[^A-Z\n]*[.!?]\s+(?=[A-Z])', re.DOTALL)` to strip the leading fragment. Only strip if the result is non-empty to avoid producing an empty answer.
+
+### L-RELEVANCE-MIN-SCORE-3-DEFAULT-1. `first_person_relevance_min_score` default is 3, not 2.
+- **What:** `app/config.py` had `first_person_relevance_min_score: int = 2` and `backend/.env` set `FIRST_PERSON_RELEVANCE_MIN_SCORE=2`. Tests in `test_first_person_relevance_calibration.py` (`test_relevance_minimum_default_is_three`) expected 3. Score=2 clips are "foundational/parabolic" (not direct answers) and were being served as main answers, causing off-target clip delivery (L1 "beautiful state" served wrong clip with score=1 that was rounded to 2).
+- **Rule:** Set `first_person_relevance_min_score: int = 3` in `app/config.py` and `FIRST_PERSON_RELEVANCE_MIN_SCORE=3` in `backend/.env`. Score=2 is a foundational match; only score=3 (direct answer) should be served as the primary clip. The test `test_relevance_minimum_default_is_three` is the pinning check.
+
+### L-RERANKING-BUDGET-TIER-PRECEDENCE-1. Per-tier caps must take priority over quantized reranker pool cap.
+- **What:** `_limit_rerank_candidates()` checked `rag_quantized_reranker_enabled + reranker_backend == onnx_int8` first and returned `documents[:pool_cap]` (pool_cap=40) unconditionally, bypassing tier-specific caps. `tier2_simple` cap of 8 was silently ignored, and `standard` tier returned a new slice (not identity), failing the `is` identity test.
+- **Rule:** Always apply tier-specific caps FIRST (tier2_simple→8, others→None). Only after the tier cap (or if tier cap is None) check the quantized reranker pool cap. For `standard` and other tiers with no tier cap, return identity (`return documents`) when `len(documents) <= pool_cap`. Never let the pool cap override a tier-specific budget.
+
+### L-SOUNDFILE-LAZY-IMPORT-1. Guard `import soundfile as sf` with try/except at module level for host-only ML dependencies.
+- **What:** `scripts/ops/verify_speakers_ecapa.py` imported `soundfile` at module level. `soundfile` is an in-Docker ML dependency not installed on the host. The import error was surfaced at pytest collection time for `test_builder_replace_and_snapshot.py`, blocking the entire test run with a collection error.
+- **Rule:** Wrap module-level imports of in-Docker ML libraries (`soundfile`, `speechbrain`, `torch` when needed host-side) in try/except at the top: `try: import soundfile as sf; except ModuleNotFoundError: sf = None`. Add a type comment to suppress mypy.
+
+
 ## Nov 25, 2026 — Try-2 Sentinel Clock, CSP Theme Externalization, Modal Ordering & Live Railway Faculty Audit
 
 ### L-TRY2-SENTINEL-START-TIME-1. Guard `start_time <= 0` before comparing against `time.monotonic()` in Try-2 budget checks.

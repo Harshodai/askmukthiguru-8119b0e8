@@ -39,6 +39,7 @@ class MockDriver:
 
 def test_memgraph_sizing_disabled(monkeypatch):
     monkeypatch.setattr(settings, "first_person_memgraph_sizing_enabled", False)
+    monkeypatch.setattr(settings, "first_person_memgraph_sizing_min_k", 3)
     sizer = MemgraphHarnessSizer()
     decision = sizer.calculate_candidate_size_sync(["span_1"], "What is suffering?")
     assert decision.k == 4
@@ -47,6 +48,7 @@ def test_memgraph_sizing_disabled(monkeypatch):
 
 def test_memgraph_sizing_driver_unavailable(monkeypatch):
     monkeypatch.setattr(settings, "first_person_memgraph_sizing_enabled", True)
+    monkeypatch.setattr(settings, "first_person_memgraph_sizing_min_k", 3)
     sizer = MemgraphHarnessSizer(driver=None)
     with patch.object(sizer, "_get_driver", return_value=None):
         decision = sizer.calculate_candidate_size_sync(["span_1"], "What is suffering?")
@@ -104,6 +106,7 @@ def test_memgraph_sizing_atomic_isolated(monkeypatch):
 @pytest.mark.asyncio
 async def test_memgraph_sizing_async_wrapper(monkeypatch):
     monkeypatch.setattr(settings, "first_person_memgraph_sizing_enabled", True)
+    monkeypatch.setattr(settings, "first_person_memgraph_sizing_min_k", 3)
     driver = MockDriver({"chain_count": 1, "concept_count": 2, "guru_count": 1})
     sizer = MemgraphHarnessSizer(driver=driver)
 

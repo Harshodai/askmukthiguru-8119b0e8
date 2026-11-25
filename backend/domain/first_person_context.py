@@ -41,7 +41,7 @@ def _shared_guru_scope() -> frozenset[str]:
 
         if _GURUS_CONFIG.is_file():
             data = yaml.safe_load(_GURUS_CONFIG.read_text(encoding="utf-8")) or {}
-            ids = set(str(x).lower() for x in (data.get("shared_attribution_ids") or []))
+            ids = {str(x).strip().lower() for x in (data.get("shared_attribution_ids") or []) if str(x).strip()}
             primary = str(data.get("shared_primary_teacher_id") or "").strip().lower()
             if primary:
                 ids.add(primary)
@@ -56,6 +56,39 @@ def _shared_guru_scope() -> frozenset[str]:
     return frozenset()
 
 
+def _guru_alias_map() -> dict[str, str]:
+    """Build {normalized_alias_or_id: canonical_guru_id} directly from gurus.yaml (layer-pure)."""
+    mapping: dict[str, str] = {}
+    try:
+        import re as _re
+        import yaml
+
+        if _GURUS_CONFIG.is_file():
+            data = yaml.safe_load(_GURUS_CONFIG.read_text(encoding="utf-8")) or {}
+            for entry in data.get("gurus") or []:
+                if not isinstance(entry, dict) or not entry.get("id"):
+                    continue
+                gid = str(entry["id"]).strip().lower()
+                label = str(entry.get("label") or "").strip().lower()
+                for cand in (gid, f"sri_{gid}", f"sri-{gid}", f"sri {gid}", label):
+                    if cand:
+                        mapping[cand] = gid
+                        mapping[_re.sub(r"[\s_-]+", "", cand)] = gid
+    except (OSError, ValueError, ImportError):
+        pass
+    return mapping
+
+
+def _canonical_guru_id(gid: str | None) -> str:
+    raw = str(gid or "").strip().lower()
+    if not raw:
+        return ""
+    import re as _re
+
+    amap = _guru_alias_map()
+    return amap.get(raw) or amap.get(_re.sub(r"[\s_-]+", "", raw)) or raw
+
+
 def _is_same_or_shared_guru(gid1: str | None, gid2: str | None) -> bool:
     """True if gid1 and gid2 match or both belong to the configured co-guru scope."""
     g1 = str(gid1 or "").strip().lower()
@@ -64,18 +97,12 @@ def _is_same_or_shared_guru(gid1: str | None, gid2: str | None) -> bool:
         return False
     if g1 == g2:
         return True
-    try:
-        from services.guru_registry import canonical_guru_id
-
-        c1 = canonical_guru_id(g1) or g1
-        c2 = canonical_guru_id(g2) or g2
-        if c1 == c2:
-            return True
-        shared = _shared_guru_scope()
-        return (g1 in shared or c1 in shared) and (g2 in shared or c2 in shared)
-    except (ImportError, ValueError, KeyError):
-        shared = _shared_guru_scope()
-        return g1 in shared and g2 in shared
+    c1 = _canonical_guru_id(g1)
+    c2 = _canonical_guru_id(g2)
+    if c1 == c2:
+        return True
+    shared = _shared_guru_scope()
+    return (g1 in shared or c1 in shared) and (g2 in shared or c2 in shared)
 
 
 class SpeakerRole(StrEnum):
@@ -391,10 +418,24 @@ class SourceSpan(BaseModel):
             transcript_hash=thash,
         )
         if self.source_span_id != expected:
-            # Historical / stored points may carry earlier hash lineage (e.g. pre-patch guru_id or legacy chunker).
-            # Allow existing 64-char hex SHA-256 identifiers so authentic context is not dropped at read-time.
-            if self.chunker_version == "unknown_legacy" or (
-                isinstance(self.source_span_id, str) and len(self.source_span_id) == 64
+            # Historical / stored points may carry an id computed under a canonical alias or
+            # the shared primary teacher id before per-founder re-attribution.
+            alias_candidates = {
+                alias
+                for alias in _shared_guru_scope() | {_canonical_guru_id(self.guru_id)}
+                if alias and alias != self.guru_id and _is_same_or_shared_guru(alias, self.guru_id)
+            }
+            if any(
+                self.source_span_id
+                == make_source_span_id(
+                    guru_id=alias,
+                    video_id=self.video_id,
+                    corpus_version=self.corpus_version,
+                    word_start=self.word_start,
+                    word_end=self.word_end,
+                    transcript_hash=thash,
+                )
+                for alias in alias_candidates
             ):
                 return self
             raise ValueError("source_span_id is not the deterministic id for this span")

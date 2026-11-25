@@ -228,7 +228,7 @@ def record_llm_error(span: Optional[Any], exc: BaseException) -> None:
             from app.observability import _sanitize_value
 
             safe_err = str(_sanitize_value(raw_err))[:200]
-        except Exception:
+        except (ImportError, ValueError, TypeError, AttributeError):
             safe_err = type(exc).__name__
         span.set_status(Status(StatusCode.ERROR, safe_err))
     except Exception as inner:  # pragma: no cover - defensive

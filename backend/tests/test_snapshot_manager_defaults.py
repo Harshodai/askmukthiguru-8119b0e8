@@ -46,6 +46,7 @@ def test_defaults_cover_the_live_corpus_and_the_clip_index(monkeypatch):
         "first_person_v10",
         "first_person_v11",
         "first_person_v12_shadow",
+        "first_person_v13_shadow",
     ]
 
 

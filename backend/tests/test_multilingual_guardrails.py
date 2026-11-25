@@ -84,6 +84,23 @@ def _clear_translation_cache():
     _GUARDRAIL_TRANSLATION_CACHE.clear()
 
 
+@pytest.fixture(autouse=True)
+def _bypass_fast_safety_kernel(monkeypatch):
+    """The fast safety kernel (Aho-Corasick) intercepts prompt injections before
+    check_input is called, short-circuiting the multilingual translation path.
+    For tests that verify the multilingual guardrail path, we bypass the kernel so
+    the full InputGuardrailStage multilingual flow reaches check_input.
+    Tests that explicitly test the kernel behavior keep it real.
+    """
+    from app.intake.safety_kernel import SafetyVerdict
+
+    ordinary = SafetyVerdict(is_crisis=False, is_injection=False, disposition="ordinary_hardship")
+    monkeypatch.setattr(
+        "app.intake.safety_kernel.get_safety_kernel",
+        lambda: type("_K", (), {"evaluate": lambda self, text: ordinary})(),
+    )
+
+
 @pytest.mark.asyncio
 async def test_hindi_injection_blocked():
     """EN-pref user types Devanagari injection → translated EN hits the regex → blocked."""

@@ -243,12 +243,15 @@ def fp_pipeline(monkeypatch):
 
 
 def test_flag_defaults_off_and_is_declared():
-    """Breaks if the flag name changes, is removed, or its default flips to ON:
-    an accidental ON would add the related-clips block to every abstain payload."""
+    """Pins Settings declaration and documented post-2026-11-24 default (086feef2).
+
+    Off/on runtime behaviour stays covered separately in test_flag_off_* and
+    test_flag_on_*.
+    """
     from app.config import Settings
 
     assert "first_person_abstain_related_clips_enabled" in Settings.model_fields
-    assert Settings.model_fields["first_person_abstain_related_clips_enabled"].default is False
+    assert Settings.model_fields["first_person_abstain_related_clips_enabled"].default is True
 
 
 # ---------------------------------------------------------------------------

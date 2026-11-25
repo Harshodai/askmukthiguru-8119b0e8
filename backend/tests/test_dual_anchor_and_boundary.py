@@ -90,9 +90,22 @@ def test_clean_concept_ids_expands_case_and_tokens():
     assert "Meditation" in cleaned
 
 
-def test_expand_query_concepts_includes_relational_seeds():
+def test_expand_query_concepts_includes_relational_seeds(monkeypatch):
+    from types import SimpleNamespace
+    from rag.kg_expansion import resolve_concepts_in_query
+
     query = "How do I heal hurt in my relationships?"
+    seeds = resolve_concepts_in_query(query)
+    assert any("relationship" in c.lower() for c in seeds)
+    assert any("hurt" in c.lower() for c in seeds)
+
+    # With graph driver present, expand_query_concepts forwards normalized neighbors fail-open.
+    monkeypatch.setattr("app.dependencies.get_container", lambda: SimpleNamespace(neo4j_driver=object()))
+
+    async def _mock_expand(q, driver, **kwargs):
+        return [*resolve_concepts_in_query(q), "Relationship Healing"]
+
+    monkeypatch.setattr("rag.kg_expansion.expand_query_via_kg", _mock_expand)
     concepts = expand_query_concepts(query)
-    # Should include both Relationship and Hurt seeds
     assert any("relationship" in c.lower() for c in concepts)
     assert any("hurt" in c.lower() for c in concepts)

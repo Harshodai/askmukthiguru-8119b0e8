@@ -513,7 +513,8 @@ def _is_phrase_negated(text: str, target_words: set[str]) -> bool:
             boundaries = [
                 b.end()
                 for b in re.finditer(
-                    r"[.!?;—–\n]|\s+--\s+|,\s+(?:and|but|while|whereas)\s+", prefix
+                    r"[.!?;—–\n]|\s+--\s+|(?:,\s+)?\bbut\s+|,\s+(?:and|while|whereas)\s+",
+                    prefix,
                 )
             ]
             last_b = max(boundaries) if boundaries else 0
@@ -584,7 +585,7 @@ def _detect_contradiction(
     ctx_sentences = [
         s.strip()
         for s in re.split(
-            r"[.!?\n]+|;\s*|[—–]|\s+--\s+|,\s+(?:and|but|while|whereas)\s+",
+            r"[.!?\n]+|;\s*|[—–]|\s+--\s+|(?:,\s+)?\bbut\s+|,\s+(?:and|while|whereas)\s+",
             context,
         )
         if len(s.strip()) > 10
@@ -595,7 +596,7 @@ def _detect_contradiction(
     claim_clauses = [
         s.strip()
         for s in re.split(
-            r"[.!?\n]+|;\s*|[—–]|\s+--\s+|,\s+(?:and|but|while|whereas)\s+|,\s+not\s+|(?:,\s*)?(?=(?:rather\s+than|instead\s+of|as\s+opposed\s+to|not\s+(?:as|merely|only|just|about))\b)",
+            r"[.!?\n]+|;\s*|[—–]|\s+--\s+|(?:,\s+)?\bbut\s+|,\s+(?:and|while|whereas)\s+|,\s+not\s+|(?:,\s*)?(?=(?:rather\s+than|instead\s+of|as\s+opposed\s+to|not\s+(?:as|merely|only|just|about))\b)",
             clean_claim,
         )
         if len(s.strip()) > 10
@@ -641,14 +642,14 @@ def _detect_contradiction(
                     clean_c_clause = re.sub(r"[\"'“”‘’]", "", c_clause).strip().lower()
                     if clean_c_clause and (clean_c_clause in context.lower() or context.lower() in clean_c_clause):
                         continue
-                    if re.search(
-                        r"\b(?:rather\s+than|instead\s+of|as\s+opposed\s+to|free\s+from|devoid\s+of)\b",
-                        c_clause,
-                        re.IGNORECASE,
-                    ) or re.search(
-                        r"\b(?:rather\s+than|instead\s+of|as\s+opposed\s+to|free\s+from|devoid\s+of)\b",
-                        ctx_sent,
-                        re.IGNORECASE,
+                    _NON_CONTRADICT_RE = (
+                        r"\b(?:rather\s+than|instead\s+of|as\s+opposed\s+to|free\s+from|devoid\s+of"
+                        r"|independent\s+of|regardless\s+of|irrespective\s+of)\b"
+                        r"|\b(?:cannot|can\s+never|could\s+not|do(?:es)?\s+not|will\s+not|never)\s+"
+                        r"(?:replace|match|equal|rival|diminish|subtract\s+from|compare\s+(?:to|with))\b"
+                    )
+                    if re.search(_NON_CONTRADICT_RE, c_clause, re.IGNORECASE) or re.search(
+                        _NON_CONTRADICT_RE, ctx_sent, re.IGNORECASE
                     ):
                         continue
                     return (

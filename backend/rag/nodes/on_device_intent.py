@@ -271,14 +271,16 @@ def _get_encoder():
         return _ENCODER
     from app.config import settings
 
-    if not settings.on_device_intent_encoder_enabled:
+    if not getattr(settings, "on_device_intent_encoder_enabled", True):
         logger.info("On-device classifier: encoder disabled by config; keyword path only")
         _ENCODER = False
         return _ENCODER
     try:
         from sentence_transformers import SentenceTransformer
 
-        _cache_dir = settings.sentence_transformers_home or settings.hf_home
+        _cache_dir = getattr(settings, "sentence_transformers_home", None) or getattr(
+            settings, "hf_home", None
+        )
         # The full org-scoped name is what download_models.py caches; use it so
         # SentenceTransformer finds the pre-baked snapshot rather than creating
         # a new model from scratch (which logs a spurious "Creating a new one" warning).
@@ -572,6 +574,16 @@ def classify_with_reason(text: str, *, threshold: float = 0.45) -> tuple[str, st
         r"\b(?:want\s+to\s+die|kill\s+myself|hurt\s+myself|self[-\s]?harm|suicid)\b",
         lower,
     )
+    # Match _fast_classify / handle_meditation before is_doctrinal_topic_inquiry:
+    # practice-step inquiries ("What are the steps of Soul Sync meditation?") start
+    # with "what are", so the doctrinal distress heuristic otherwise forces FACTUAL
+    # and causes GraphStage -> _intent_router_impl to skip _fast_classify.
+    if not first_person_distress and not acute_distress:
+        from rag.meditation import is_meditation_practice_query
+
+        if is_meditation_practice_query(text):
+            return "MEDITATION", "tier2_simple", "on_device_meditation_practice"
+
     from services.serene_mind_engine import is_doctrinal_topic_inquiry
 
     if is_doctrinal_topic_inquiry(text):

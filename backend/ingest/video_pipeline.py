@@ -525,8 +525,10 @@ class VideoPipeline:
             speaker=speaker or "",
             chunks=chunks[:3] if chunks else None,
         )
+        from services.guru_registry import is_founder_or_shared
+
         canon_gid = canonical_guru_id(primary_teacher_id or speaker or "")
-        is_founder = canon_gid in ("preethaji", "krishnaji", "preethaji_krishnaji")
+        is_founder = is_founder_or_shared(canon_gid)
         determined_role = "guru" if is_founder else ("teacher" if canon_gid else "unknown")
         metadatas = []
         point_ids: list[str] = []

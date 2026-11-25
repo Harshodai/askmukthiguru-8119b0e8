@@ -175,8 +175,10 @@ class InputGuardrailStage(Stage):
                     ),
                 )
                 ctx.last_stage_status = "short_circuit"
+                from services.guru_registry import default_founders_label
+
                 refusal = _verdict.refusal_response or (
-                    "I am an AI assistant designed to explore teachings from Sri Preethaji and Sri Krishnaji. "
+                    f"I am an AI assistant designed to explore teachings from {default_founders_label(' and ')}. "
                     "I cannot alter my core instructions, disclose system prompts, or adopt external personas. "
                     "How may I assist you with teachings today?"
                 )
@@ -185,8 +187,11 @@ class InputGuardrailStage(Stage):
                         refusal = await container.translation.translate_text(
                             text=refusal, source_lang="en", target_lang=preferred_lang
                         )
-                    except Exception:
-                        pass
+                    except (RuntimeError, ValueError, OSError) as _trans_exc:
+                        logger.warning(
+                            "[InputGuardrail] Prompt injection refusal translation failed: %s",
+                            _trans_exc,
+                        )
                 return PipelineResult(
                     final_answer=refusal,
                     intent="SAFETY_VIOLATION",

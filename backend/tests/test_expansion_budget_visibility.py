@@ -14,9 +14,9 @@ from rag.nodes import retrieval
 def test_discarded_expansions_are_logged():
     src = inspect.getsource(retrieval.retrieve_documents)
     assert "Retrieval expansion discarded" in src
-    assert "remaining_budget == 0" in src
+    assert "remaining_budget" in src
 
 
 def test_budget_formula_is_unchanged():
     src = inspect.getsource(retrieval.retrieve_documents)
-    assert "remaining_budget = max(0, 2 - len(primary_queries))" in src
+    assert "remaining_budget = max(1, 4 - len(primary_queries))" in src

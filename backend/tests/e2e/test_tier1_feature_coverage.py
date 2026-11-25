@@ -131,7 +131,23 @@ class TestCoreTeachingsServed:
 
     def test_q8_soul_sync_steps(self, ask):
         body = ask("What are the steps of Soul Sync meditation?")
-        assert _grounded(body), f"q8 should be grounded: {body}"
+        route = _route(body)
+        ans_lower = _answer_text(body).lower()
+        ver = body.get("verification") or {}
+        # Commit a59fa436a routed step-by-step practice queries via handle_meditation
+        # (deterministic 7-step Soul Sync script, method='meditation_short_circuit')
+        # or first_person_bridge (clip + citations).
+        is_meditation_steps = (
+            route == "meditation"
+            and "soul sync" in ans_lower
+            and "1." in ans_lower
+            and ("breathe" in ans_lower or "aham" in ans_lower)
+            and ver.get("passed") is True
+            and not body.get("blocked")
+        )
+        assert _grounded(body) or is_meditation_steps, (
+            f"q8 should be grounded or return Soul Sync steps: {body}"
+        )
 
     def test_q9_anger_at_work(self, ask):
         body = ask("How should one deal with sudden bursts of anger at work without hurting others?")

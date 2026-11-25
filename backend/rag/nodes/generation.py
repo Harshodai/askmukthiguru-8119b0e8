@@ -4341,9 +4341,9 @@ async def _polish_and_weave_clips(
 def _enforce_attribution_floor(fn):
     """Structural invariant: no attributed claim ships without a source.
 
-    GURU_DEMO_READINESS F2 — the product returned "Sri Preethaji & Sri
-    Krishnaji teach that this state is not dependent on external achievements
-    ..." with `citations=[]` and `source_count=0`. A doctrinal claim was put in
+    GURU_DEMO_READINESS F2 — the product previously attributed an uncited
+    doctrinal claim about inner state not depending on external achievements
+    with `citations=[]` and `source_count=0`. A doctrinal claim was put in
     the living Gurus' mouths with nothing behind it, and the rendered answer
     said nothing about that.
 
@@ -4660,7 +4660,19 @@ def _label_synthesis(answer: str, state: GraphState, final_citations: list | Non
 
     answer = voice_register.append_scope_note(question, answer, outcome_rewritten=bool(promises))
 
-    has_quotes = bool(re.search(r'["“][^"”]{5,}["”]|^\s*>|—\s*Sri (?:Krishnaji|Preethaji)', answer, re.M))
+    from services.guru_registry import get_gurus
+
+    _label_alts = "|".join(re.escape(g.label) for g in get_gurus() if g.label)
+    _attr_pat = rf"|\u2014\s*(?:{_label_alts})" if _label_alts else ""
+    # Require >=3 words inside quotation marks so short quoted terms (e.g. "detachment")
+    # in a limitation disclaimer never falsely suppress SYNTHESIS_LABEL.
+    has_quotes = bool(
+        re.search(
+            rf'["\u201c][^"\u201d\s]+(?:\s+[^"\u201d\s]+){{2,}}["\u201d]|^\s*>{_attr_pat}',
+            answer,
+            re.M,
+        )
+    )
     fp_enabled = bool(
         getattr(settings, "first_person_route_enabled", False)
         or getattr(settings, "first_person_grounded_synthesis_enabled", False)

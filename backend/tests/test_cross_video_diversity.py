@@ -102,3 +102,14 @@ def test_jaccard_similarity_bounds():
     assert jaccard_similarity("", "anything") == 0.0
     assert jaccard_similarity("the same words here", "the same words here") == 1.0
     assert 0.0 < jaccard_similarity("love and fear", "love and anger") < 1.0
+
+
+def test_mmr_does_not_demote_topical_teaching_over_small_domain_overlap():
+    """Modest topic overlap (~0.14 Jaccard) must not let an off-topic low-score clip win."""
+    pool = [
+        _candidate(VID_A, 0.74, "anger aggression state hurting people words actions"),
+        _candidate(VID_B, 0.71, "anger stressful state beautiful state workplace decision"),
+        _candidate(VID_C, 0.68, "flowers silent moon ocean breeze mountains"),
+    ]
+    ordered, _ = apply_cross_video_diversity(pool, max_per_video=2, mmr_lambda=0.7)
+    assert ordered[1]["video_id"] == VID_B, ordered

@@ -1,6 +1,6 @@
 # T8-02 / GURU-010: lines naming a teacher in runtime code, per file.
 # RATCHET: counts may only go down. Format: <path><TAB><count>.
-# Total at write time: 583 lines in 124 files.
+# Total at write time: 575 lines in 121 files.
 backend/app/api/first_person.py	3
 backend/app/api/first_person_local_review.py	1
 backend/app/api/ingest.py	3
@@ -20,13 +20,12 @@ backend/domain/first_person_facets.py	5
 backend/domain/first_person_graph.py	1
 backend/domain/speaker_provenance.py	3
 backend/domain/spiritual_ontology.py	20
-backend/guardrails/lightweight_handler.py	22
+backend/guardrails/lightweight_handler.py	21
 backend/guardrails/rejection_handler.py	1
 backend/ingest/book_ingest.py	2
 backend/ingest/corrector.py	2
 backend/ingest/hyper_extract_adapter.py	6
 backend/ingest/ontology_writer.py	5
-backend/ingest/pipeline.py	1
 backend/ingest/quality_gate.py	6
 backend/ingest/triple_extractor.py	2
 backend/ingest/verbatim/clips.py	1
@@ -38,7 +37,7 @@ backend/rag/doc_utils.py	1
 backend/rag/kg_expansion.py	2
 backend/rag/nodes/cross_teacher_reasoning.py	7
 backend/rag/nodes/entity_linking.py	24
-backend/rag/nodes/generation.py	9
+backend/rag/nodes/generation.py	8
 backend/rag/nodes/intent.py	4
 backend/rag/nodes/keyword_injection.py	7
 backend/rag/nodes/on_device_intent.py	3
@@ -117,11 +116,9 @@ src/lib/healingCourses.ts	1
 src/lib/practicesContent.ts	1
 src/pages/ChatPage.tsx	1
 src/pages/Index.tsx	4
-src/pages/PracticesPage.tsx	2
 src/pages/ProfilePage.tsx	1
 src/pages/TeacherWords.tsx	1
 src/pages/guides/BeautifulStateMeditationPage.tsx	1
 src/pages/guides/SelfCentricThinkingPage.tsx	1
 src/pages/guides/SereneMindPracticePage.tsx	1
-src/pages/guides/SpiritGuidesPage.tsx	3
 src/pages/guides/SufferingToBeautifulStatePage.tsx	1

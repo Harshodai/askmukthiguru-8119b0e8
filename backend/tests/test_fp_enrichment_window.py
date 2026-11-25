@@ -292,10 +292,13 @@ def test_retrieve_with_concept_ids_adds_should_match_any_over_tags():
     for condition in query_filter.should:
         assert isinstance(condition.match, MatchAny)
     topic_any = query_filter.should[0].match.any
-    assert topic_any == ["anger", "Karma"]
+    assert topic_any == ["anger", "Anger", "Karma", "karma"]
 
 
-def test_retrieve_without_concept_ids_keeps_todays_filter():
+def test_retrieve_without_concept_ids_keeps_todays_filter(monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "first_person_require_speaker_verified", True)
     s0 = span(0)
     adapter, client = store_with([s0])
 

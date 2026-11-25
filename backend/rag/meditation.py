@@ -12,6 +12,7 @@ This is the meditation flow triggered by DISTRESS intent detection.
 """
 
 import logging
+import re
 from typing import Optional
 
 from app.config import settings
@@ -367,3 +368,37 @@ def is_meditation_imperative(message: str) -> bool:
 
     # Must have an imperative verb signal.
     return any(verb in text for verb in _IMPERATIVE_VERBS)
+
+
+_PRACTICE_HOWTO_RE = re.compile(
+    r"\b(how|steps?|guide|teach me|instructions?|walk\s+(?:me\s+)?through)\b.{0,40}"
+    r"\b(soul\s*sync|serene\s*mind|meditat\w*|breath\w*)",
+    re.IGNORECASE,
+)
+
+_STEP_INSTRUCTION_RE = re.compile(
+    r"\b(steps?|instructions?|step-by-step|stages?|phases?|sequence)\b.{0,50}\b(practice|soul\s*sync|serene\s*mind|meditat\w*)|\b(soul\s*sync|serene\s*mind)\b.{0,50}\b(steps?|instructions?|step-by-step|stages?|phases?|sequence)\b",
+    re.IGNORECASE,
+)
+
+_MEDITATION_PRACTICE_TOPIC_RE = re.compile(
+    r"\b(?:soul\s*sync|serene\s*mind|meditat\w*|breathwork|breathing\s+(?:practice|exercise))\b",
+    re.IGNORECASE,
+)
+_GENERAL_CODING_TASK_RE = re.compile(
+    r"\b(?:write\s+(?:python|code|a\s+script)|python|javascript|typescript|sql|html|css|regex|program|software)\b",
+    re.IGNORECASE,
+)
+
+
+def is_meditation_practice_query(message: str) -> bool:
+    """True when ``message`` asks to start or follow a named/guided practice's steps."""
+    if not message or _GENERAL_CODING_TASK_RE.search(message):
+        return False
+    if not _MEDITATION_PRACTICE_TOPIC_RE.search(message):
+        return False
+    return (
+        is_meditation_imperative(message)
+        or bool(_PRACTICE_HOWTO_RE.search(message))
+        or bool(_STEP_INSTRUCTION_RE.search(message))
+    )

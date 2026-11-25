@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from rag.kg_expansion import resolve_concepts_in_query
+from rag.kg_expansion import _find_concepts_in_query
 
 
 @dataclass(frozen=True)
@@ -38,7 +38,7 @@ def plan_context_graph(
     normalized_tier = (query_tier or "").lower()
     if normalized_tier in {"fast", "tier2_simple"}:
         return ContextGraphPlan("none", [], 0, 0, "fast_lane_bypass")
-    entities = resolve_concepts_in_query(question)[:8]
+    entities = _find_concepts_in_query(question)[:8]
     normalized_intent = (intent or "").upper()
     if not entities:
         return ContextGraphPlan("none", [], 0, 0, "no_canonical_entity_match")

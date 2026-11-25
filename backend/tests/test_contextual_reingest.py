@@ -117,6 +117,10 @@ async def test_dry_run(engine, sample_payloads, monkeypatch):
 async def test_reingest_writes_points(engine, sample_payloads, monkeypatch, tmp_path):
     from qdrant_client.http.models import PointStruct
 
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "reingest_late_chunking", False)
+
     records = [MagicMock(id=f"id-{i}", payload=p) for i, p in enumerate(sample_payloads)]
     engine._client().scroll.return_value = (records, None)
 

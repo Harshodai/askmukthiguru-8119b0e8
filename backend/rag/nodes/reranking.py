@@ -27,20 +27,49 @@ _CROSS_LINGUAL_RESCUE_MIN_RERANK = 0.40
 
 
 def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dict]:
-    """Bound cross-encoder input for tiers without changing retrieval order."""
-    if getattr(settings, "rag_quantized_reranker_enabled", True) and getattr(settings, "reranker_backend", "") == "onnx_int8":
+    """Bound cross-encoder input for tiers without changing retrieval order.
+
+    Per-tier caps:
+      tier2_simple → 8 candidates max (keeps latency tight for simple queries)
+      standard     → identity when quantized reranker is active (pool_cap governs);
+                     capped at 10 when falling back to the legacy flagembedding path
+      anything else → identity
+
+    When the ONNX quantized reranker is active, an additional pool_cap
+    (rag_stage1_candidate_pool, default 40) is applied. tier2_simple cap (8) still
+    takes priority over pool_cap when pool_cap would be larger.
+    """
+    is_quantized = (
+        getattr(settings, "rag_quantized_reranker_enabled", True)
+        and getattr(settings, "reranker_backend", "") == "onnx_int8"
+    )
+
+    if is_quantized:
+        # tier2_simple still gets its per-tier cap; everything else defers to pool_cap
+        if query_tier == "tier2_simple":
+            tier_cap = 8
+            if len(documents) <= tier_cap:
+                return documents
+            logger.debug(
+                "Rerank candidate budget: tier=%s %d -> %d documents",
+                query_tier, len(documents), tier_cap,
+            )
+            return documents[:tier_cap]
+        # Standard / complex: pool_cap governs
         pool_cap = int(getattr(settings, "rag_stage1_candidate_pool", 40) or 40)
+        if len(documents) <= pool_cap:
+            return documents  # identity preserved when already within pool cap
         return documents[:pool_cap]
-    cap = 8 if query_tier == "tier2_simple" else (10 if query_tier == "standard" else None)
-    if cap is None or len(documents) <= cap:
-        return documents
+
+    # Legacy (non-quantized) path: apply per-tier caps
+    tier_cap = 8 if query_tier == "tier2_simple" else (10 if query_tier == "standard" else None)
+    if tier_cap is None or len(documents) <= tier_cap:
+        return documents  # identity for tier3_complex and anything within budget
     logger.debug(
         "Rerank candidate budget: tier=%s %d -> %d documents",
-        query_tier,
-        len(documents),
-        cap,
+        query_tier, len(documents), tier_cap,
     )
-    return documents[:cap]
+    return documents[:tier_cap]
 
 
 def _sanitize_web_docs_rerank_scores(web_docs: list[dict]) -> list[dict]:

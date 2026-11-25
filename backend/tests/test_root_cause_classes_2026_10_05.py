@@ -554,7 +554,7 @@ async def test_output_stage_appends_addiction_boundary():
     [
         "I am addicted to my phone, what do the teachings say?",
         "Is anger the only cause of my suffering?",
-        "What is the cause of loneliness?",
+        "What is the main cause of loneliness?",
     ],
 )
 async def test_bridge_declines_addiction_and_cause_questions(monkeypatch, q):

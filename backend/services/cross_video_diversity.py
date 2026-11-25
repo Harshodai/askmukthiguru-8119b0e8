@@ -137,10 +137,13 @@ def apply_cross_video_diversity(
             redundancy = 0.0
             if selected_texts and text:
                 try:
-                    redundancy = max(sim(text, prior) for prior in selected_texts)
+                    redundancy = max(0.0, float(max(sim(text, prior) for prior in selected_texts)))
                 except Exception:  # noqa: BLE001 - diversity must never break serving
                     redundancy = 0.0
-            value = lam * relevance - (1.0 - lam) * redundancy
+            # Dense cosine scores typically cluster within a ~0.04 band; squaring the
+            # bounded [0, 1] overlap suppresses true near-duplicate siblings (0.7..1.0 ->
+            # 0.49..1.0) without penalizing distinct teachings over shared domain words (~0.15 -> 0.02).
+            value = lam * relevance - (1.0 - lam) * (redundancy * redundancy)
             if value > best_value:
                 best_value = value
                 best_pair = (position, candidate)

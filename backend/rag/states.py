@@ -310,6 +310,7 @@ class GraphState(TypedDict):
     parallel_distress_level: Optional[str]
 
     # Reject-and-retry loop
+    start_time: Annotated[Optional[float], keep_latest]
     retry_count: int
     _needs_retry: bool
     # NEW-AI-1 (AI-011): set by handle_meditation, read by route_after_meditation.

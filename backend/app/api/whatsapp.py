@@ -143,7 +143,7 @@ async def meta_webhook_receiver(
 
     try:
         payload = await request.json()
-    except Exception:
+    except (ValueError, RuntimeError, UnicodeDecodeError):
         logger.warning("Malformed JSON in WhatsApp webhook")
         return {"status": "malformed_json"}
 
@@ -336,7 +336,9 @@ async def meta_webhook_receiver(
                     continue
 
                 if upper_body in ("BTN_ASK", "ASK A QUESTION"):
-                    prompt_msg = "Please type any question you have on meditation, relationships, stress, or spiritual teachings from Sri Preethaji and Sri Krishnaji."
+                    from services.guru_registry import default_founders_label
+
+                    prompt_msg = f"Please type any question you have on meditation, relationships, stress, or spiritual teachings from {default_founders_label(' and ')}."
                     from tasks.whatsapp_tasks import _send_meta_outbound
                     _send_meta_outbound(phone_number_id, clean_from, prompt_msg)
                     continue
@@ -373,10 +375,12 @@ async def meta_webhook_receiver(
                         from services.whatsapp_service import generate_link_token
                         token = generate_link_token()
 
+                    from services.guru_registry import default_founders_label
+
                     link_url = f"{base_url}/link-whatsapp#code={token}"
                     auth_prompt_msg = (
                         "🙏 *Welcome to AskMukthiGuru on WhatsApp*\n\n"
-                        "To converse with the wisdom of Sri Preethaji & Sri Krishnaji and access teachings, "
+                        f"To converse with the wisdom of {default_founders_label()} and access teachings, "
                         "please authenticate and connect your AskMukthiGuru account:\n\n"
                         "🔗 *Connect Your Account:*\n"
                         f"{link_url}\n\n"

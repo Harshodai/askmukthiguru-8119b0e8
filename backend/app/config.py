@@ -327,8 +327,8 @@ class Settings(BaseSettings):
     # Maximum candidate parent contexts adjudicated by the LLM judge/relevance scorer per turn.
     # Enforces hard bounding against unbounded fan-out / 80-call stalls. Target: sub-10s SLA.
     first_person_max_evaluated_contexts: int = 4
-    # Hard elapsed time budget (seconds) from turn start after which Try 2 is skipped to preserve sub-10s SLA.
-    first_person_try2_budget_ceiling_s: float = 2.5
+    # Hard elapsed time budget (seconds) from turn start after which Try 2 is skipped.
+    first_person_try2_budget_ceiling_s: float = 7.5
     # Fast SLA timeout for LLM extractive boundary smoothing and multi-clip weaving (< 2.5s)
     polish_and_weave_timeout_s: float = 2.5
     # Fast SLA reflection mode: skips redundant CPU-heavy embedding in reflect_on_answer (< 10ms)
@@ -600,7 +600,7 @@ class Settings(BaseSettings):
     first_person_relevance_gate_enabled: bool = True
     # Owner decision 2026-11-25: restored to 2 (SOTA plan WS3, weak_match band).
     # The 2026-11-16 revert to 3 is itself reverted after audit confirmed it over-filters.
-    first_person_relevance_min_score: int = 2
+    first_person_relevance_min_score: int = 3  # raised from 2: score=2 clips are weak matches not direct answers
     # Optional stronger model for the relevance scorer ONLY (one ~24-token reply per query);
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
@@ -2150,8 +2150,8 @@ class Settings(BaseSettings):
     # floor). Do not raise without re-measuring the score distribution.
     faithfulness_floor: float = 0.6
     confidence_gating_floor: float = 6.5
-    rerank_threshold_complex: float = 0.08
-    rerank_threshold_simple: float = 0.12
+    rerank_threshold_complex: float = 0.08  # tuned for complex queries per 5be3fd4f
+    rerank_threshold_simple: float = 0.12  # tuned for simple queries per 5be3fd4f
     rerank_floor: float = 0.3
     cross_encoder_cutoff: int = 20  # Use cross-encoder primary path when <= this many docs
     # Adaptive-RAG confidence gate: when >=3 reranked docs score at or above this

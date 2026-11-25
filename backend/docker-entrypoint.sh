@@ -60,7 +60,9 @@ fi
 if [[ "$1" == 'python' ]] || [[ "$1" == 'uvicorn' ]]; then
     # Warm the FAQ cache inside the server process (shares its models). A separate
     # warmer process loaded a second model stack and the container was OOM-killed.
-    export WARM_CACHE_ON_START=true
+    if [ -z "${WARM_CACHE_ON_START:-}" ]; then
+        export WARM_CACHE_ON_START=true
+    fi
 
     echo "Starting server with WEB_CONCURRENCY=${WEB_CONCURRENCY} workers..."
     if [ -n "$GOSU_PREFIX" ]; then

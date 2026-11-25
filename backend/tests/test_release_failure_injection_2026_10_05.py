@@ -597,7 +597,9 @@ def test_case12_benign_relationship_question_untouched(q):
 def test_case13_addiction_routes_to_professional_care(q):
     topic, response = match_blocked_topic(q)
     assert topic == "medical_advice_broad"
-    assert "professional" in response.lower() and "never a replacement" in response.lower()
+    assert "professional" in response.lower() and (
+        "never a substitute" in response.lower() or "never a replacement" in response.lower()
+    )
 
 
 def test_case13_plain_vasana_question_untouched():

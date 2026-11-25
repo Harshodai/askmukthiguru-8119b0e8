@@ -549,6 +549,28 @@ def validate_guru_registry_schema(doc: dict[str, Any] | None = None) -> list[str
     return errors
 
 
+def default_founders_label(separator: str = " & ") -> str:
+    """Return display labels of registered founder teachers joined by separator."""
+    labels = [g.label for g in get_gurus() if g.label]
+    if labels:
+        return separator.join(labels)
+    shared_lbl, _ = shared_attribution()
+    return shared_lbl or "the teachers"
+
+
+def founder_ids() -> frozenset[str]:
+    """Return canonical IDs of registered founder teachers."""
+    return frozenset(g.id for g in get_gurus() if g.id)
+
+
+def is_founder_or_shared(guru_id: str | None) -> bool:
+    """True when guru_id resolves to a registered founder or the shared attribution scope."""
+    canon = canonical_guru_id(guru_id)
+    if not canon:
+        return False
+    return canon in founder_ids() or is_shared_guru_scope(canon)
+
+
 if __name__ == "__main__":
     assert requested_gurus("What does Sri Preethaji say?") == ["preethaji"]
     assert requested_gurus("Preethaji and Krishnaji on love") == ["preethaji", "krishnaji"]

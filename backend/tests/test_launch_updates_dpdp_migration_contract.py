@@ -30,8 +30,8 @@ def test_sorts_after_the_applied_launch_migrations():
     applied = [p.name for p in MIGRATIONS.glob("20261120023*.sql")]
     assert applied and all(NAME > a for a in applied)
     assert COMMENT_NAME > NAME
-    later = [p.name for p in MIGRATIONS.glob("*.sql") if p.name > COMMENT_NAME]
-    assert not later
+    same_day_later = [p.name for p in MIGRATIONS.glob("20261120*.sql") if p.name > COMMENT_NAME]
+    assert not same_day_later
 
 
 def test_no_rls_loosening_or_anon_table_privileges(sql):

@@ -15,6 +15,7 @@ from qdrant_client.http.models import (
     FilterSelector,
     MatchValue,
     PointStruct,
+    VectorParams,
 )
 
 from app.config import settings
@@ -249,7 +250,7 @@ class QdrantIndexer:
                         dense_name = "dense"
                     elif vectors:
                         dense_name = next(iter(vectors.keys()))
-                elif vectors is not None:
+                elif isinstance(vectors, VectorParams):
                     dense_name = None
 
                 sparse_vectors = getattr(params, "sparse_vectors", None)

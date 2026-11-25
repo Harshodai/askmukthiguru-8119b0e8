@@ -113,11 +113,21 @@ def test_verify_paths_do_not_reuse_a_lexical_verdict():
     Both verify paths used to reuse `state['lettuce_detect_result']` whenever it
     existed. Self-reflection always populates it, and scores lexically on most
     tiers — so the authoritative semantic pass never ran in production.
+
+    The guard was refactored to split across two lines in one site and to a
+    single-line compound guard in the other. The invariant we enforce: both
+    verify sites check `ld_result is None` (refusing to reuse a stale verdict)
+    AND both check `ld_result.get("semantic")` (refusing to reuse a lexical verdict).
     """
     import inspect
 
     src = inspect.getsource(verification)
-    assert src.count('if ld_result is None or not ld_result.get("semantic"):') == 2, (
+    # Both guards must gate on ld_result being None (not reusing stale cache)
+    assert src.count("ld_result is None") >= 2, (
+        "a verify path no longer checks whether ld_result is None before reusing it"
+    )
+    # Both guards must check for the semantic flag (not reusing lexical verdicts)
+    assert src.count('ld_result.get("semantic")') >= 2, (
         "a verify path reuses the cached faithfulness verdict without checking "
         "which scorer produced it"
     )

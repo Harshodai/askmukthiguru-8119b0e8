@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { TEACHERS_DISPLAY_NAME } from "@/lib/greetingConstants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -557,7 +558,9 @@ ${clinicianForm.clinicalRationale}
                           </Badge>
                           <Badge
                             className={
-                              item.claimed_teacher.toLowerCase() === "krishnaji"
+                              TEACHERS_DISPLAY_NAME.toLowerCase().endsWith(
+                                item.claimed_teacher.trim().toLowerCase()
+                              )
                                 ? "bg-blue-600 hover:bg-blue-700 text-white"
                                 : "bg-purple-600 hover:bg-purple-700 text-white"
                             }

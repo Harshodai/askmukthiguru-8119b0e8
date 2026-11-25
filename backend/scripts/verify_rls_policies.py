@@ -133,6 +133,7 @@ def list_rls_tables(migrations_dir: Path | str | None = None) -> list[str]:
         "user_skills",
         "user_streaks",
         "waitlist_entries",
+        "whatsapp_account_links",
     }
 
     if migrations_dir is None:

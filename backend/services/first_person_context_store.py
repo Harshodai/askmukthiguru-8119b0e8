@@ -161,6 +161,56 @@ def _span_is_blocked_promise(span: SourceSpan) -> bool:
     return is_blocked_promise_clip(dict(_span_promise_clip(span)))
 
 
+def _dense_cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
+    """Cosine similarity for Python-side dense rescoring of hybrid RRF groups."""
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for x, y in zip(a, b):
+        fx = float(x)
+        fy = float(y)
+        dot += fx * fy
+        na += fx * fx
+        nb += fy * fy
+    if na <= 0.0 or nb <= 0.0:
+        return 0.0
+    return dot / ((na ** 0.5) * (nb ** 0.5))
+
+
+def _hit_dense_vector(hit: Any) -> Optional[list[float]]:
+    vec = getattr(hit, "vector", None)
+    if isinstance(vec, dict):
+        v = vec.get("passage_dense")
+        if isinstance(v, (list, tuple)) and v:
+            return list(v)
+    elif isinstance(vec, (list, tuple)) and vec:
+        return list(vec)
+    return None
+
+
+def _group_hybrid_rescore(
+    query_dense: list[float],
+    hits: Sequence[Any],
+    rrf_rank_idx: int,
+) -> float:
+    """Rank hybrid groups by dense semantic similarity with a bounded RRF tiebreaker.
+
+    Prevents unselective sparse tokens (common verbs/nouns in BM25) from promoting
+    low-similarity spans above strong (>=0.75) semantic matches while keeping genuine
+    lexical coined-term matches competitive within the top candidate pool.
+    """
+    dense_scores: list[float] = []
+    for h in hits:
+        vec = _hit_dense_vector(h)
+        if vec is not None and len(vec) == len(query_dense):
+            dense_scores.append(_dense_cosine_similarity(query_dense, vec))
+    if dense_scores:
+        return max(dense_scores) + (0.015 / (1.0 + float(rrf_rank_idx)))
+    return max(_ranking_score(h) for h in hits)
+
+
 # Payload indexes required by the harness filters. Keep in sync with
 # SourceSpan/ParentUnit fields; a missing keyword index makes a filtered search
 # fall back to a full scan on large collections.
@@ -669,7 +719,7 @@ class FirstPersonContextStore:
         if hasattr(self._client, "query_points_groups"):
             try:
                 if has_sparse:
-                    prefetch_limit = max(limit_parents * spans_per_parent * 3, 40)
+                    prefetch_limit = max(limit_parents * spans_per_parent * 4, 80)
                     indices, values = parsed_sparse
                     sp_vector = SparseVector(
                         indices=indices,
@@ -694,9 +744,10 @@ class FirstPersonContextStore:
                         prefetch=prefetch_queries,
                         query=FusionQuery(fusion=Fusion.RRF),
                         group_by="parent_unit_id",
-                        limit=limit_parents * 3,
+                        limit=max(limit_parents * 4, 32),
                         group_size=max(spans_per_parent, 8),
                         with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
+                        with_vectors=["passage_dense"],
                     )
                 else:
                     response = self._client.query_points_groups(
@@ -710,14 +761,18 @@ class FirstPersonContextStore:
                         with_payload=["source_span_id", "start_ms", "end_ms", "verbatim_text"],
                     )
                 out: list[tuple[str, tuple[str, ...], float]] = []
-                for group in getattr(response, "groups", []) or []:
+                for rank_idx, group in enumerate(getattr(response, "groups", []) or []):
                     hits = list(getattr(group, "hits", []) or [])
                     if not hits:
                         continue
                     span_ids = tuple(
                         str((hit.payload or {}).get("source_span_id") or hit.id) for hit in hits
                     )
-                    score = max(_ranking_score(h) for h in hits)
+                    score = (
+                        _group_hybrid_rescore(query_dense, hits, rank_idx)
+                        if has_sparse
+                        else max(_ranking_score(h) for h in hits)
+                    )
                     out.append((str(group.id), span_ids, score))
                 if out:
                     out.sort(key=lambda item: item[2], reverse=True)
@@ -745,7 +800,7 @@ class FirstPersonContextStore:
         parsed_sparse = _normalize_sparse_query(query_sparse)
         has_sparse = parsed_sparse is not None
         if has_sparse:
-            prefetch_limit = max(limit_parents * spans_per_parent * 3, 40)
+            prefetch_limit = max(limit_parents * spans_per_parent * 4, 80)
             indices, values = parsed_sparse
             sp_vector = SparseVector(
                 indices=indices,
@@ -770,7 +825,7 @@ class FirstPersonContextStore:
                     collection_name=self._collection,
                     prefetch=prefetch_queries,
                     query=FusionQuery(fusion=Fusion.RRF),
-                    limit=limit_parents * spans_per_parent * 3,
+                    limit=max(limit_parents * spans_per_parent * 4, 80),
                     with_payload=[
                         "parent_unit_id",
                         "source_span_id",
@@ -778,6 +833,7 @@ class FirstPersonContextStore:
                         "end_ms",
                         "verbatim_text",
                     ],
+                    with_vectors=["passage_dense"],
                 )
             except Exception as exc:  # noqa: BLE001 - a collection may have no sparse vector
                 # The sparse lane is an addition, never a reason to fail retrieval: a
@@ -828,9 +884,11 @@ class FirstPersonContextStore:
             (
                 parent_id,
                 tuple(str((hit.payload or {}).get("source_span_id") or hit.id) for hit in bucket),
-                max(_ranking_score(hit) for hit in bucket),
+                _group_hybrid_rescore(query_dense, bucket, rank_idx)
+                if has_sparse
+                else max(_ranking_score(hit) for hit in bucket),
             )
-            for parent_id, bucket in grouped.items()
+            for rank_idx, (parent_id, bucket) in enumerate(grouped.items())
         ]
         out.sort(key=lambda item: item[2], reverse=True)
         return out

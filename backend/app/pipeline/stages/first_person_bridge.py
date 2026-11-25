@@ -113,15 +113,9 @@ def _hyde_provider(container: Any) -> Any:
     return None
 
 
-_PRACTICE_HOWTO_RE = re.compile(
-    r"\b(how|steps?|guide|teach me|instructions?)\b.{0,40}"
-    r"\b(soul\s*sync|serene\s*mind|meditat\w*|breath\w*)",
-    re.IGNORECASE,
-)
-
-_STEP_INSTRUCTION_RE = re.compile(
-    r"\b(steps?|instructions?|step-by-step)\b.{0,50}\b(practice|soul\s*sync|serene\s*mind|meditat\w*)|\b(soul\s*sync|serene\s*mind)\b.{0,50}\b(steps?|instructions?|step-by-step)\b",
-    re.IGNORECASE,
+from rag.meditation import (
+    _PRACTICE_HOWTO_RE,
+    _STEP_INSTRUCTION_RE,
 )
 
 _DIFFERENCE_SYNTHESIS_RE = re.compile(
@@ -817,7 +811,30 @@ def _question_parts(question: str) -> list[str]:
 
 
 async def _resolve_question_parts(container: Any, question: str) -> list[str]:
-    """Resolve sub-questions of a multi-part question: LLM decomposition first, then deterministic regex."""
+    """Resolve sub-questions of a multi-part question: LLM decomposition first, then deterministic regex.
+
+    LLM decomposition is gated on structural multi-part signals to prevent the LLM
+    from hallucinating a second sub-question for simple single-topic queries like
+    "What is the beautiful state?" or "What is consciousness?".  We only call the
+    LLM decomposer when the question text carries at least one of:
+      - multiple question marks (≥2 '?')
+      - a deterministic split pattern (_PART_SPLIT_RE)
+      - a 'difference between X and Y' pattern (_DIFFERENCE_RE)
+    Without any of those signals the query is single-topic and we return [] immediately
+    so no phantom multipart safety_notice is ever attached.
+    """
+    q = " ".join((question or "").split())
+
+    # Guard: skip LLM decompose for structurally single-topic queries.
+    # Structural multi-part = at least 2 question marks, OR regex split match.
+    is_structurally_multipart = (
+        q.count("?") >= 2
+        or bool(_PART_SPLIT_RE.search(q))
+        or bool(_DIFFERENCE_RE.search(q))
+    )
+    if not is_structurally_multipart:
+        return []  # single-topic — no LLM call, no phantom parts
+
     provider = _hyde_provider(container)
     if provider is not None and hasattr(provider, "decompose_query"):
         try:
@@ -1352,18 +1369,25 @@ class FirstPersonBridgeStage(Stage):
 
         # HyDE (Hypothetical Document Embeddings) for first-person retrieval.
         # When enabled, generate a short hypothetical spiritual teaching that answers
-        # the query, then embed THAT text instead of the raw query for Qdrant retrieval.
-        # The HyDE embedding is passed only to pipeline.execute(); `dense` (original-query
-        # embedding) is kept intact for all cosine confidence scoring so the calibration
-        # contract is unchanged. Fail-open: timeout or error falls back to original.
+        # the query. On non-distress conceptual queries, blend heavily toward original
+        # query embedding (75% original / 25% HyDE) so lexical/semantic accuracy stays
+        # anchored; full HyDE substitution is reserved for distress/colloquial venting.
         retrieval_dense = dense  # default: retrieval uses original-query vector
+
+        def _blend_hyde_vec(orig: list[float], hyde: list[float]) -> list[float]:
+            if distress_compassion or len(orig) != len(hyde) or not orig:
+                return hyde
+            blended = [0.75 * float(a) + 0.25 * float(b) for a, b in zip(orig, hyde)]
+            norm = sum(x * x for x in blended) ** 0.5
+            return [x / norm for x in blended] if norm > 0.0 else orig
+
         if _hyde_enabled and _is_en:
             _q_norm = retrieval_query.strip().lower()
             _q_hash = hashlib.sha256(_q_norm.encode("utf-8")).hexdigest()
             _cached = _get_cached_hyde(_q_hash)
             if _cached is not None:
                 _, cached_vec = _cached
-                retrieval_dense = cached_vec
+                retrieval_dense = _blend_hyde_vec(dense, cached_vec)
                 logger.info(
                     "[FirstPersonBridge] HyDE cache hit for query hash %s; using deterministic cached vector.",
                     _q_hash[:8],
@@ -1397,11 +1421,11 @@ class FirstPersonBridgeStage(Stage):
                             )
                             _hyde_dense = _dense_vector(_hyde_encoded, settings.embedding_dimension)
                             if _hyde_dense is not None:
-                                retrieval_dense = _hyde_dense
                                 _set_cached_hyde(_q_hash, hyde_text.strip(), _hyde_dense)
+                                retrieval_dense = _blend_hyde_vec(dense, _hyde_dense)
                                 logger.info(
                                     "[FirstPersonBridge] HyDE hypothetical generated (%d chars); "
-                                    "cached and using HyDE embedding for retrieval only.",
+                                    "cached and applied HyDE embedding for retrieval only.",
                                     len(hyde_text),
                                 )
                 except Exception as _hyde_exc:
@@ -1566,6 +1590,9 @@ class FirstPersonBridgeStage(Stage):
                 # honor HyDE expansion alignment in confidence (not raw colloquial cosine).
                 # Lesson: L-VENTING-CONFIDENCE-HONORS-HYDE-1, L-VENTING-SCORE2-FOUNDATIONAL-ELIGIBLE-1.
                 is_distress=distress_compassion,
+                embed_query_fn=getattr(
+                    getattr(ctx.container, "embedding", None), "encode_single_full_async", None
+                ),
                 **({"max_context_spans": max_context_spans} if max_context_spans else {}),
                 **({"answerability_prefetch": answerability_prefetch} if answerability_prefetch else {}),
             )
@@ -1956,6 +1983,12 @@ class FirstPersonBridgeStage(Stage):
 
         # Sub-task 5: quotes never translated — only glue, fail-open.
         if getattr(ctx, "is_indic", False):
+            indic_quote_notice = (
+                "Note: The direct quote above is presented in the teacher's original "
+                "English words for authenticity."
+            )
+            if answer and indic_quote_notice not in safety_notices:
+                safety_notices.append(indic_quote_notice)
             answer = await _translate_glue_only(
                 answer,
                 verbatim_quotes,

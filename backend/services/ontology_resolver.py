@@ -20,6 +20,7 @@ _RESOLVER_CACHE: dict[str, list[str]] = {}
 _MAX_CACHE_ENTRIES = 2048
 _REDIS_KEY_PREFIX = "ontology:concepts:v1:"
 _REDIS_TTL_SECONDS = 86400  # 24h cache per query hash
+_MAIN_LOOP: Optional[asyncio.AbstractEventLoop] = None
 
 
 def _get_redis_client() -> Optional[Any]:
@@ -97,6 +98,13 @@ async def resolve_query_concepts_llm_async(
     timeout_s: float = 1.2,
 ) -> list[str]:
     """Dynamically resolve query concepts using a fast structured LLM call."""
+    global _MAIN_LOOP
+    try:
+        running = asyncio.get_running_loop()
+        if running.is_running():
+            _MAIN_LOOP = running
+    except RuntimeError:
+        pass
     clean_query = query.strip()
     if not clean_query:
         return []
@@ -206,6 +214,16 @@ def resolve_query_concepts_llm(
             return loop.run_until_complete(
                 resolve_query_concepts_llm_async(clean_query, llm_service, timeout_s=timeout_s)
             )
+        elif _MAIN_LOOP is not None and _MAIN_LOOP.is_running():
+            fut = asyncio.run_coroutine_threadsafe(
+                resolve_query_concepts_llm_async(clean_query, llm_service, timeout_s=timeout_s),
+                _MAIN_LOOP,
+            )
+            return fut.result(timeout=timeout_s + 0.5)
+        elif llm_service is None:
+            # Avoid creating a throwaway asyncio.run() loop for a shared container client
+            # whose Redis/httpx pool is bound to the main server event loop.
+            return _fallback_token_concepts(clean_query)
         else:
             return asyncio.run(
                 resolve_query_concepts_llm_async(clean_query, llm_service, timeout_s=timeout_s)
@@ -218,9 +236,14 @@ def resolve_query_concepts_llm(
 def _fallback_token_concepts(query: str) -> list[str]:
     """Zero-dependency fallback extracting key Title-case tokens from query."""
     stop_words = {
-        "how", "what", "why", "when", "where", "who", "do", "i", "can", "to", "in", "my",
-        "the", "a", "an", "is", "are", "of", "and", "or", "for", "with", "about", "according",
-        "teachings", "teach", "guru", "say"
+        "how", "what", "why", "when", "where", "who", "do", "does", "did", "done",
+        "can", "could", "should", "would", "will", "shall", "may", "might", "must",
+        "the", "this", "that", "these", "those", "there", "here", "then", "than",
+        "are", "was", "were", "been", "being", "have", "has", "had", "for", "and",
+        "with", "about", "into", "from", "according", "teachings", "teach", "guru",
+        "say", "said", "tell", "please", "just", "very", "much", "more", "most",
+        "some", "any", "get", "got", "make", "made", "take", "give", "want", "need",
+        "morning", "evening", "night", "today", "tomorrow", "yesterday", "day",
     }
     words = re.findall(r"\b[A-Za-z]{3,}\b", query)
     meaningful = [w.capitalize() for w in words if w.lower() not in stop_words]

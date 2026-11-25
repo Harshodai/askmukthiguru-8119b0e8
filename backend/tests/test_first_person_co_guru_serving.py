@@ -13,6 +13,7 @@ from domain.first_person_context import (
     SourceSpan,
     SpeakerRole,
     clip_text_hash,
+    make_source_span_id,
 )
 from services.first_person_context_store import (
     FirstPersonContextStore,
@@ -33,20 +34,34 @@ def _dummy_span(
     **overrides,
 ) -> SourceSpan:
     text = "The four sacred secrets lead to a life of inner freedom."
+    span_index = overrides.pop("source_span_index", 0 if span_id == "s1" else abs(hash(span_id)) % 1000 + 1)
+    word_start = overrides.pop("word_start", span_index * 10)
+    word_end = overrides.pop("word_end", word_start + 10)
+    corpus_version = overrides.get("corpus_version", "fp-context-v1")
+    video_id = overrides.get("video_id", "vid_test_123")
+    thash = overrides.get("transcript_hash", "a" * 64)
+    deterministic_id = make_source_span_id(
+        guru_id=guru_id,
+        video_id=video_id,
+        corpus_version=corpus_version,
+        word_start=word_start,
+        word_end=word_end,
+        transcript_hash=thash,
+    )
     data = {
-        "source_span_id": span_id,
+        "source_span_id": deterministic_id,
         "source_asset_id": "asset_123",
         "parent_unit_id": parent_id,
-        "corpus_version": "fp-context-v1",
-        "video_id": "vid_test_123",
+        "corpus_version": corpus_version,
+        "video_id": video_id,
         "guru_id": guru_id,
         "turn_id": "turn_001",
-        "turn_index": 0,
-        "source_span_index": 0,
-        "start_ms": 1000,
-        "end_ms": 30000,
-        "word_start": 0,
-        "word_end": 10,
+        "turn_index": span_index,
+        "source_span_index": span_index,
+        "start_ms": 1000 + span_index * 1000,
+        "end_ms": 30000 + span_index * 1000,
+        "word_start": word_start,
+        "word_end": word_end,
         "speaker_id": guru_id,
         "speaker_role": role,
         "speaker_verified": True,
@@ -61,7 +76,7 @@ def _dummy_span(
         "speaker_verification_status": "verified",
         "source_transcript_text": text,
         "verbatim_text": text,
-        "transcript_hash": "a" * 64,
+        "transcript_hash": thash,
         "source_text_hash": clip_text_hash(text),
         "boundary_status": BoundaryStatus.VERIFIED,
         "completeness_status": CompletenessStatus.COMPLETE,
@@ -125,7 +140,7 @@ def test_parent_context_pydantic_co_guru_validation():
     s2 = _dummy_span(span_id="s2", parent_id="p1", guru_id="preethaji")
     parent = _dummy_parent((s1, s2), guru_id="krishnaji")
 
-    ctx = ParentContext(parent=parent, spans=(s1, s2), hit_span_ids=("s1",))
+    ctx = ParentContext(parent=parent, spans=(s1, s2), hit_span_ids=(s1.source_span_id,))
     assert len(ctx.spans) == 2
     assert ctx.parent.guru_id == "krishnaji"
 
@@ -144,8 +159,11 @@ def test_speaker_gate_accepts_teacher_and_guru_roles():
     assert harness._speaker_gate((span_teacher, span_host), policy) is False
 
 
-def test_rerank_candidates_cap_standard_tier():
+def test_rerank_candidates_cap_standard_tier(monkeypatch):
     """_limit_rerank_candidates bounds standard tier to 10 candidates."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "rag_quantized_reranker_enabled", False)
     docs = [{"id": i, "score": 1.0 - i * 0.05} for i in range(20)]
     capped = _limit_rerank_candidates(docs, "standard")
     assert len(capped) == 10

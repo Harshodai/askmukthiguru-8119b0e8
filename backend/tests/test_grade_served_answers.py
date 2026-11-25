@@ -626,6 +626,7 @@ def test_missing_key_records_blocked_credentials_report(tmp_path, monkeypatch):
     from scripts.ops import grade_served_answers as mod
 
     monkeypatch.setattr(settings, "openrouter_api_key", "")
+    monkeypatch.setattr(settings, "first_person_relevance_model", "")
     rows, bar = _write_full_run(tmp_path)
     out = tmp_path / "report.json"
 
@@ -667,6 +668,7 @@ def test_openrouter_401_records_blocked_credentials_report(tmp_path, monkeypatch
     from scripts.ops import grade_served_answers as mod
 
     monkeypatch.setattr(settings, "openrouter_api_key", "sk-or-invalid-key")
+    monkeypatch.setattr(settings, "first_person_relevance_model", "")
     rows, bar = _write_full_run(tmp_path)
     out = tmp_path / "report.json"
 
@@ -716,6 +718,7 @@ def test_openrouter_connection_error_records_unavailable_report(tmp_path, monkey
     from scripts.ops import grade_served_answers as mod
 
     monkeypatch.setattr(settings, "openrouter_api_key", "sk-or-test-key")
+    monkeypatch.setattr(settings, "first_person_relevance_model", "")
     rows, bar = _write_full_run(tmp_path)
     out = tmp_path / "report.json"
 
@@ -757,6 +760,7 @@ def test_offline_fallback_flag_runs_deterministic_evaluation(tmp_path, monkeypat
     from scripts.ops import grade_served_answers as mod
 
     monkeypatch.setattr(settings, "openrouter_api_key", "")
+    monkeypatch.setattr(settings, "first_person_relevance_model", "")
     rows, bar = _write_full_run(tmp_path)
     out = tmp_path / "report.json"
 
@@ -929,6 +933,7 @@ def test_subprocess_missing_key_blocked_report_and_offline_fallback(tmp_path):
 
     env = os.environ.copy()
     env["OPENROUTER_API_KEY"] = ""
+    env["FIRST_PERSON_RELEVANCE_MODEL"] = ""
     env["LLM_PROVIDER"] = "openrouter"
     backend_path = str(repo_root / "backend")
     env["PYTHONPATH"] = backend_path + (f":{env['PYTHONPATH']}" if "PYTHONPATH" in env else "")

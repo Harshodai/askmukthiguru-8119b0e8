@@ -34,7 +34,10 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import soundfile as sf
+try:
+    import soundfile as sf
+except ModuleNotFoundError:  # host-only: soundfile is an in-Docker ML dependency
+    sf = None  # type: ignore[assignment]
 import torch
 
 try:

@@ -1,7 +1,7 @@
 """Dynamic LLM-based Spiritual Concept Expansion Service.
 
 Maps colloquial seeker inquiries (grief, parenting, betrayal/resentment, career/purpose, illness/pain)
-to Sri Preethaji & Sri Krishnaji's authentic spiritual concepts and doctrine search phrases.
+to the registered founder teachers' authentic spiritual concepts and doctrine search phrases.
 
 Invariants:
 - High-speed execution (<400ms target, fail-open fallback on error or timeout >800ms).
@@ -23,10 +23,14 @@ import threading
 import time
 from typing import Any, Optional
 
+from services.guru_registry import default_founders_label
+
 logger = logging.getLogger(__name__)
 
-DOCTRINAL_EXPANSION_SYSTEM_PROMPT = """You are the spiritual retrieval planner for Sri Preethaji & Sri Krishnaji's wisdom teachings.
-Given any colloquial seeker question, emotional crisis, or life dilemma, identify the 2 to 3 core spiritual principles, inner state dynamics, or sacred practices taught by Sri Preethaji & Sri Krishnaji that directly address this human condition.
+_FOUNDERS_LABEL = default_founders_label()
+
+DOCTRINAL_EXPANSION_SYSTEM_PROMPT = f"""You are the spiritual retrieval planner for {_FOUNDERS_LABEL}'s wisdom teachings.
+Given any colloquial seeker question, emotional crisis, or life dilemma, identify the 2 to 3 core spiritual principles, inner state dynamics, or sacred practices taught by {_FOUNDERS_LABEL} that directly address this human condition.
 
 Key Doctrinal Frameworks to Anchor On:
 - Two States of Being: Beautiful State (peace, joy, connection) vs. Suffering State (hurt, anger, fear, loneliness, self-centered obsession with the 'I').
@@ -163,7 +167,7 @@ class SpiritualConceptExpansion:
         Args:
             query: The seeker's natural language question.
             query_dense_vector: Optional 1024-dim dense vector for OKF fallback.
-            teacher_id: Optional guru filter ("preethaji", "krishnaji").
+            teacher_id: Optional canonical teacher ID filter from guru_registry.
             timeout: Optional per-call timeout override (defaults to 0.80s).
 
         Returns:

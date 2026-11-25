@@ -8,7 +8,7 @@ evaluation to a fixed integer (e.g. 4), the harness queries Memgraph in real-tim
 evaluation size (k) based on:
   1. Discourse Chaining: presence of TU_CONTINUES / TU_PRECEDES sequences across teaching units.
   2. Ontological Degree & Concept Density: multi-concept intersections across doctrine nodes.
-  3. Comparative / Multi-Teacher Breadth: presence of both Sri Krishnaji and Sri Preethaji.
+  3. Comparative / Multi-Teacher Breadth: presence of both founder teachers.
 
 Fail-open by contract: on timeout, connection error, or missing graph driver,
 smoothly returns a deterministic fallback size without dropping or failing turns.
@@ -82,7 +82,7 @@ class MemgraphHarnessSizer:
                 container, "neo4j_driver", None
             )
             return driver
-        except Exception as exc:
+        except (ImportError, AttributeError, RuntimeError) as exc:
             logger.debug("[MemgraphHarnessSizer] container driver lookup failed: %r", exc)
             return None
 
@@ -177,10 +177,12 @@ class MemgraphHarnessSizer:
         elif concept_count == 0 and chain_count == 0:
             density_delta = -1  # isolated atomic insight, tighten pool
 
+        from services.guru_registry import is_shared_guru_scope
+
         comparative_delta = 0
         is_comp = (
             guru_count > 1
-            or (teacher_id and teacher_id.strip().lower() in ("both", "all", "preethaji_krishnaji", "shared"))
+            or (teacher_id and (teacher_id.strip().lower() in ("both", "all", "shared") or is_shared_guru_scope(teacher_id)))
             or ("difference" in query.lower() or "compare" in query.lower())
         )
         if is_comp:

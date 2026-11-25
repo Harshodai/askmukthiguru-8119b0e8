@@ -14,7 +14,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
-from app.main import app
 from services.whatsapp_service import (
     CRISIS_HELPLINE_COPY,
     clean_phone,
@@ -36,7 +35,9 @@ from tasks.whatsapp_tasks import process_whatsapp_turn_task
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    from app.main import app as current_app
+
+    return TestClient(current_app)
 
 
 # ---------------------------------------------------------------------------

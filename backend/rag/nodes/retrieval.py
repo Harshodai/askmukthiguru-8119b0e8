@@ -2146,22 +2146,18 @@ async def retrieve_documents(state: GraphState, config: Optional[RunnableConfig]
 
     expansion_results: list = []
     remaining_budget = max(1, 4 - len(primary_queries))
-    if expansion_queries and remaining_budget == 0:
-        # The knowledge-graph neighbours are appended LAST to expansion_queries,
-        # so a query that decomposed into 2+ sub-queries spends the whole budget
-        # on primaries and throws the graph work away after paying for it. That
-        # waste was silent, which is why "is the graph helping?" could not be
-        # answered from telemetry. Count it before deciding to invest in Neo4j.
-        logger.info(
-            "Retrieval expansion discarded: %d expansion query/queries dropped "
-            "(primary_queries=%d already fills the budget of 2)",
-            len(expansion_queries),
-            len(primary_queries),
-        )
-    if expansion_queries and remaining_budget > 0:
-        # Dedupe against the queries we already ran
+    if expansion_queries:
         already = set(primary_queries)
-        novel_expansions = [q for q in expansion_queries if q not in already][:remaining_budget]
+        novel_candidates = [q for q in expansion_queries if q not in already]
+        if len(novel_candidates) > remaining_budget:
+            logger.info(
+                "Retrieval expansion discarded: %d expansion query/queries dropped "
+                "(primary_queries=%d, remaining_budget=%d)",
+                len(novel_candidates) - remaining_budget,
+                len(primary_queries),
+                remaining_budget,
+            )
+        novel_expansions = novel_candidates[:remaining_budget]
         if novel_expansions:
             logger.info(
                 f"LLM retrieval planner: adding {len(novel_expansions)} expansion query/queries "

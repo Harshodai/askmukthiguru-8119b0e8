@@ -241,11 +241,17 @@ _HELPLINE_MESSAGE = (
     "emergency services immediately."
 )
 
-_INJECTION_REFUSAL_MESSAGE = (
-    "I am an AI assistant designed to explore teachings from Sri Preethaji and Sri Krishnaji. "
-    "I cannot alter my core instructions, disclose system prompts, or adopt external personas. "
-    "How may I assist you with teachings today?"
-)
+def _injection_refusal_message() -> str:
+    from services.guru_registry import default_founders_label
+
+    return (
+        f"I am an AI assistant designed to explore teachings from {default_founders_label(' and ')}. "
+        "I cannot alter my core instructions, disclose system prompts, or adopt external personas. "
+        "How may I assist you with teachings today?"
+    )
+
+
+_INJECTION_REFUSAL_MESSAGE = _injection_refusal_message()
 
 _PROMPT_INJECTION_PATTERNS = [
     r"\b(ignore|disregard|forget)\b.*\b(previous|above|prior|all)\b.*\b(instructions?|rules?|prompts?)\b",

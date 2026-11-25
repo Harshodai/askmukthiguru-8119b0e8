@@ -31,9 +31,11 @@ from ingest.verbatim.boundaries import boundary_defects
 from services.qdrant.indexer import resolve_source_rights_status
 from services.text_quality_filter import find_artifact
 
+from services.guru_registry import shared_attribution
+
 CORPUS_VERSION = "fp-context-resegment-v2"
 CHUNKER_VERSION = "boundary_v1:sentence_closing_18-25s"
-SHARED_GURU_ID = "preethaji_krishnaji"
+SHARED_GURU_ID = shared_attribution()[0] or "shared"
 SHARED_SPEAKER_ID = "shared_unverified"
 MIN_WINDOW_MS = 18_000
 MAX_WINDOW_MS = 25_000

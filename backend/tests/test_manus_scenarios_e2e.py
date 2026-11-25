@@ -500,6 +500,10 @@ def llm(monkeypatch):
     from services.gateways.anthropic_gateway import AnthropicGatewayError
 
     monkeypatch.setattr(app_settings, "llm_provider", "openrouter")
+    # Manus S1-S4 baseline tests pre-first-person synthesis mode & legacy S2 safety boundary.
+    monkeypatch.setattr(app_settings, "relationship_safety_boundary_enabled", True)
+    monkeypatch.setattr(app_settings, "first_person_route_enabled", False)
+    monkeypatch.setattr(app_settings, "first_person_grounded_synthesis_enabled", False)
 
     def _no_gateway(cls):
         raise AnthropicGatewayError("not configured in tests")

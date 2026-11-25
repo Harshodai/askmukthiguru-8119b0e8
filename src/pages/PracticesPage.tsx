@@ -13,6 +13,7 @@ import { UpcomingEventsCard } from '@/components/ritual/UpcomingEventsCard';
 import { cn } from '@/lib/utils';
 import { usePageMeta } from '@/hooks/usePageMeta';
 import { useToast } from '@/hooks/use-toast';
+import { TEACHERS_DISPLAY_NAME } from '@/lib/greetingConstants';
 import { useTranslation } from 'react-i18next';
 import { buildCanonical, PRODUCTION_OG_IMAGE } from '@/lib/domain';
 
@@ -128,7 +129,7 @@ const PracticesPage = () => {
 
   usePageMeta({
     title: t('seo.practicesTitle') || 'Daily Practices — Guided Meditations | AskMukthiGuru',
-    description: t('seo.practicesDescription') || 'Soul Sync, Serene Mind, Beautiful State, and Daily Reflection — short guided practices rooted in the teachings of Sri Preethaji & Sri Krishnaji.',
+    description: t('seo.practicesDescription') || `Soul Sync, Serene Mind, Beautiful State, and Daily Reflection — short guided practices rooted in the teachings of ${TEACHERS_DISPLAY_NAME}.`,
     canonical: buildCanonical('/practices'),
     ogImage: PRODUCTION_OG_IMAGE,
     jsonLd: {
@@ -199,7 +200,7 @@ const PracticesPage = () => {
                 {t('practices.boundaryNoticeTitle', 'What these practices are and are not')}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed">
-                {t('practices.boundaryNoticeBody', 'These guided meditations and breathing practices are contemplative spiritual exercises rooted in the wisdom of Sri Preethaji & Sri Krishnaji. They are designed for inner reflection and peaceful awareness, not as medical, clinical, psychiatric, or therapeutic treatments.')}
+                {t('practices.boundaryNoticeBody', `These guided meditations and breathing practices are contemplative spiritual exercises rooted in the wisdom of ${TEACHERS_DISPLAY_NAME}. They are designed for inner reflection and peaceful awareness, not as medical, clinical, psychiatric, or therapeutic treatments.`)}
               </p>
             </div>
           </div>
@@ -285,7 +286,7 @@ const PracticesPage = () => {
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground mt-3">
-                      {t('common.gurusName', '— Sri Preethaji & Sri Krishnaji')}
+                      {t('common.gurusName', `— ${TEACHERS_DISPLAY_NAME}`)}
                     </p>
                   </div>
                 </div>

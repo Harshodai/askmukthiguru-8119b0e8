@@ -153,7 +153,8 @@ def test_extract_citations_preserves_established_citations_on_zero_matches():
         "citations": list(GROUNDED),
     }
     out = ce.extract_citations(state)
-    assert out["citations"] == GROUNDED
+    assert len(out["citations"]) == len(GROUNDED)
+    assert [c["url"] if isinstance(c, dict) else c for c in out["citations"]] == GROUNDED
 
 
 def test_extract_citations_does_not_invent_sources_when_nothing_was_retrieved():

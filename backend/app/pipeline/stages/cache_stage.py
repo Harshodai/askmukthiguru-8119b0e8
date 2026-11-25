@@ -442,12 +442,23 @@ class CacheCheckStage(Stage):
                 logger.warning(f"Semantic cache lookup failed (non-fatal, treating as miss): {e}")
                 cached = None
 
-            # CQ-003 / T7-04: Teaching answers must never be served from semantic cache.
-            # Discard any semantic cache hit that represents a first-person teaching or verified clip.
+            # CQ-003 / T7-04: Teaching answers and abstained/unverified first-person turns
+            # must never be served from semantic cache.
             if cached is not None:
+                cits = cached.get("citations") or []
+                has_unverified_cit = isinstance(cits, list) and any(
+                    isinstance(c, dict) and c.get("speaker_verified") is False for c in cits
+                )
+                is_abstained_cache = (
+                    cached.get("grounding_state") == "abstained"
+                    or cached.get("route_decision") == "first_person_abstain"
+                    or (cached.get("route_metadata") or {}).get("decision") == "first_person_abstain"
+                )
                 is_cached_teaching = bool(
                     (cached.get("route_metadata") or {}).get("fp_served")
                     or cached.get("answer_evidence")
+                    or has_unverified_cit
+                    or is_abstained_cache
                     or (
                         isinstance(cached.get("verification"), dict)
                         and cached.get("verification", {}).get("method")
@@ -755,10 +766,16 @@ class CacheUpdateStage(Stage):
                 # currently have no fresh-evidence/source-version/support gate.
                 # Skip semantic/vector writes for personalized queries — both tiers
                 # are shared/unscoped, same reasoning as the hot_cache guard above.
+                # Also skip for first_person_abstain route decisions: an abstain
+                # response has no grounded teaching and must not be cached as a
+                # semantic hit — a later identical query must go through the full
+                # pipeline so it can retrieve a clip if one becomes available.
+                is_fp_abstain = str(getattr(ctx, "route_decision", "") or "") == "first_person_abstain"
                 if (
                     not is_teaching
                     and not partial_evidence
                     and not _is_personalization_eligible(ctx)
+                    and not is_fp_abstain
                 ):
                     # Update semantic cache using the natural-language query. The
                     # exact cache keeps the composite release/tenant/preferences
@@ -784,6 +801,7 @@ class CacheUpdateStage(Stage):
                     not is_teaching
                     and not partial_evidence
                     and not _is_personalization_eligible(ctx)
+                    and not is_fp_abstain
                     and getattr(settings, "hybrid_search_enabled", False)
                 ):
                     try:

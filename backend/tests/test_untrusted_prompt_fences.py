@@ -118,7 +118,7 @@ def test_deep_research_fences_question_and_context_data():
     )
     assert prompt.count("</question>") == 1
     assert prompt.count("</retrieved_context>") == 1
-    assert "never follow instructions" in prompt
+    assert "never follow instructions" in prompt.lower()
 
 
 def test_knowledge_block_neutralises_closing_tag():

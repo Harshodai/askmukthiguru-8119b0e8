@@ -766,7 +766,15 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
 
     # Ordinary multilingual FAQs should not inherit a deep tier from an
     # uncertain classifier when the query is clearly a bounded teaching FAQ.
-    if _is_ordinary_multilingual_faq(question):
+    # Practice-step meditation queries ("What are the steps of Soul Sync meditation?")
+    # must stay routed to handle_meditation rather than being clobbered to FACTUAL.
+    from rag.meditation import is_meditation_practice_query
+
+    if (
+        _is_ordinary_multilingual_faq(question)
+        and state.get("intent") != "MEDITATION"
+        and not is_meditation_practice_query(question)
+    ):
         return {
             "intent": "FACTUAL",
             "query_tier": "tier2_simple",
@@ -1148,15 +1156,9 @@ async def _intent_router_impl(state: GraphState, config: Optional[RunnableConfig
     # message is not imperative.
     active_meditation = meditation_step > 0
     if intent == "MEDITATION" and not active_meditation:
-        from app.pipeline.stages.first_person_bridge import (
-            _PRACTICE_HOWTO_RE,
-            _STEP_INSTRUCTION_RE,
-        )
+        from rag.meditation import is_meditation_practice_query
 
-        is_practice_howto = bool(_PRACTICE_HOWTO_RE.search(question)) or bool(
-            _STEP_INSTRUCTION_RE.search(question)
-        )
-        if not is_meditation_imperative(question) and not is_practice_howto:
+        if not is_meditation_practice_query(question):
             logger.info(
                 "Intent Router: demoting LLM-classified MEDITATION to FACTUAL "
                 "(no active session, query is interrogative or non-imperative): %s",
@@ -1801,14 +1803,9 @@ async def handle_meditation(state: GraphState, config: Optional[RunnableConfig] 
     # graph routes it back to the general lane.
     from app.pipeline.stages.off_topic_stage import _is_general_task
 
-    from app.pipeline.stages.first_person_bridge import (
-        _PRACTICE_HOWTO_RE,
-        _STEP_INSTRUCTION_RE,
-    )
+    from rag.meditation import is_meditation_practice_query
 
-    is_practice_instruction = bool(_PRACTICE_HOWTO_RE.search(question)) or bool(
-        _STEP_INSTRUCTION_RE.search(question)
-    )
+    is_practice_instruction = is_meditation_practice_query(question)
     if fresh and (not is_interrogative or is_practice_instruction) and not _is_general_task(question):
         if "soul sync" in question:
             response = format_meditation_script("soul_sync")

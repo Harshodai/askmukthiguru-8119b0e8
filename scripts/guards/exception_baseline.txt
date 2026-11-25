@@ -4,6 +4,9 @@
 # Recorded for CQ-006 / T7-05 on 2026-11-05.
 # Updated 2026-11-18: +8 new except-Exception in first_person_pipeline.py (A6 graceful fallback
 # handlers); -1 silent pass removed from first_person_ingest_service.py (now logs debug).
-max_broad_exceptions=731
+# Updated 2026-11-25: +23 legitimate fail-open / webhook handlers added in Nov 18-25 commits
+# (whatsapp.py webhook/DB endpoints, Try-2 adaptive judge fallback, Memgraph sizing, KEK check);
+# narrowed container/tracing/JSON catches (-5) and removed final silent pass in guardrail_stage.py.
+max_broad_exceptions=754
 max_silent_swallows=0
 max_silent_swallows_fp=0

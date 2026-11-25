@@ -34,6 +34,14 @@ _CLIPS = [
 ]
 
 
+@pytest.fixture(autouse=True)
+def _isolate_relevance_scorer(monkeypatch):
+    """Pin comma-separated scorer contract independent of local .env model/threshold overrides."""
+    monkeypatch.setattr(settings, "first_person_relevance_model", "")
+    monkeypatch.setattr(settings, "first_person_relevance_min_score", 3)
+    monkeypatch.setattr(settings, "first_person_relevance_exact_n_enabled", False)
+
+
 class _ScriptedScorer:
     """Fake provider: plays a scripted outcome per call, records the call count."""
 

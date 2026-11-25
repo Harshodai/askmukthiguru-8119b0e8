@@ -8,8 +8,8 @@ def test_settings_thresholds_defaults():
     assert settings.cove_supported_threshold == 0.8
     assert settings.cove_partial_threshold == 0.5
     assert settings.faithfulness_floor == 0.6  # migrated default (b5399e48); 0.8 was stale
-    assert settings.rerank_threshold_complex == 0.01
-    assert settings.rerank_threshold_simple == 0.05
+    assert settings.rerank_threshold_complex == 0.08
+    assert settings.rerank_threshold_simple == 0.12
     assert settings.rerank_floor == 0.3
     # H1: safety / quality dials promoted from inline literals to settings.
     assert settings.semantic_distress_threshold == 0.72

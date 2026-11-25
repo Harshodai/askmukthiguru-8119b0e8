@@ -360,6 +360,25 @@ async def test_false_abstention_recovery_soul_sync_instructions():
     assert fast_res is not None
     assert fast_res["intent"] == "MEDITATION"
 
+    from rag.nodes.on_device_intent import classify_with_reason
+
+    on_dev = classify_with_reason("What are the steps of Soul Sync meditation?")
+    assert on_dev is not None
+    assert on_dev[0] == "MEDITATION"
+
+    from rag.nodes.intent import _intent_router_impl
+
+    routed = await _intent_router_impl(
+        {
+            "question": "What are the steps of Soul Sync meditation?",
+            "intent": "MEDITATION",
+            "query_tier": "tier2_simple",
+            "chat_history": [],
+            "meditation_step": 0,
+        }
+    )
+    assert routed["intent"] == "MEDITATION"
+
     # 3. handle_meditation produces the 7-step Soul Sync script
     med_res = await handle_meditation({"question": query, "meditation_step": 0})
     assert med_res["intent"] == "MEDITATION"
@@ -542,6 +561,25 @@ async def test_false_abstention_recovery_step_instructions_soul_sync():
     fast_res = _fast_classify(query)
     assert fast_res is not None
     assert fast_res["intent"] == "MEDITATION"
+
+    from rag.nodes.on_device_intent import classify_with_reason
+
+    on_dev = classify_with_reason("What are the steps of Soul Sync meditation?")
+    assert on_dev is not None
+    assert on_dev[0] == "MEDITATION"
+
+    from rag.nodes.intent import _intent_router_impl
+
+    routed = await _intent_router_impl(
+        {
+            "question": "What are the steps of Soul Sync meditation?",
+            "intent": "MEDITATION",
+            "query_tier": "tier2_simple",
+            "chat_history": [],
+            "meditation_step": 0,
+        }
+    )
+    assert routed["intent"] == "MEDITATION"
 
     med_res = await handle_meditation({"question": query, "meditation_step": 0})
     assert med_res["intent"] == "MEDITATION"

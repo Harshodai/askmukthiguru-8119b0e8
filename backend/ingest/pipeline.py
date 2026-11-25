@@ -2853,7 +2853,7 @@ class IngestionPipeline:
 
     async def _consolidate_graph_entities(self) -> None:
         """
-        Consolidate duplicate entities in Neo4j (e.g. Krishnaji vs Sri Krishnaji)
+        Consolidate duplicate founder teacher entities in Neo4j (e.g. short vs honorific names)
         and runs the self-healing sequence to prune orphans and synchronize Qdrant.
         Runs as a post-ingestion cleanup to maintain high graph data quality.
         """
@@ -3511,8 +3511,10 @@ class IngestionPipeline:
             content_chk = hashlib.sha256("\n".join(clean_chunks).encode("utf-8")).hexdigest()
 
         metadatas = []
+        from services.guru_registry import is_founder_or_shared
+
         canon_gid = canonical_guru_id(primary_teacher_id or speaker or "")
-        is_founder = canon_gid in ("preethaji", "krishnaji", "preethaji_krishnaji")
+        is_founder = is_founder_or_shared(canon_gid)
         determined_role = "guru" if is_founder else ("teacher" if canon_gid else "unknown")
         for i in range(len(clean_chunks)):
             base_meta = {

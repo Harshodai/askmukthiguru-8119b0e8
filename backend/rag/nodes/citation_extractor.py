@@ -49,10 +49,13 @@ def _resolve_speaker(doc: dict) -> Optional[str]:
     content_type = str(doc.get("content_type") or meta.get("content_type") or "").strip().lower()
 
     if content_type in ("book", "concept_summary", "summary"):
-        raw_speaker = str(doc.get("speaker") or meta.get("speaker") or "Sri Preethaji & Sri Krishnaji").strip()
+        from services.guru_registry import default_founders_label
+
+        default_founders = default_founders_label()
+        raw_speaker = str(doc.get("speaker") or meta.get("speaker") or default_founders).strip()
         if requested_gurus(raw_speaker):
             return raw_speaker
-        return "Sri Preethaji & Sri Krishnaji"
+        return default_founders
 
     if doc.get("speaker_verified") is not True and meta.get("speaker_verified") is not True:
         return None

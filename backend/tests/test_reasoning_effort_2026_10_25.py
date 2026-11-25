@@ -53,11 +53,16 @@ async def test_reasoning_effort_replaces_token_cap(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_default_reasoning_cap_is_unchanged(monkeypatch):
+    # Per commit 1b0e40fcc, automatic reasoning token caps only apply to explicit
+    # reasoning/thinking models ("thinking", "r1", "reasoner"); standard non-thinking
+    # models omit auto-reasoning unless reasoning_effort/reasoning is explicitly passed.
+    monkeypatch.setattr(settings, "openrouter_generation_model", "deepseek/deepseek-r1")
     payload, _ = await _payload_for(monkeypatch, max_tokens=800)
     assert payload["reasoning"] == {"max_tokens": 200}
 
 
 @pytest.mark.asyncio
 async def test_unknown_effort_value_is_ignored(monkeypatch):
+    monkeypatch.setattr(settings, "openrouter_generation_model", "deepseek/deepseek-chat")
     payload, _ = await _payload_for(monkeypatch, max_tokens=800, reasoning_effort="ultra")
-    assert payload["reasoning"] == {"max_tokens": 200}
+    assert "reasoning" not in payload
