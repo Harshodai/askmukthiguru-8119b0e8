@@ -48,6 +48,7 @@ import hashlib
 import json
 import os
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from collections.abc import Iterable
@@ -67,6 +68,27 @@ def fingerprint_from_ids(ids: Iterable[str | int]) -> dict[str, Any]:
     as_strings = sorted(str(i) for i in ids)
     digest = hashlib.sha256("\n".join(as_strings).encode("utf-8")).hexdigest()
     return {"points": len(as_strings), "ids_sha256": digest}
+
+
+def validate_fingerprint(fingerprint: Any) -> list[str]:
+    """Return reasons why a computed fingerprint is not safe to persist."""
+    if not isinstance(fingerprint, dict):
+        return ["fingerprint is not an object"]
+    reasons: list[str] = []
+    collection = fingerprint.get("collection")
+    if not isinstance(collection, str) or not collection.strip():
+        reasons.append("collection must be a non-empty string")
+    points = fingerprint.get("points")
+    if isinstance(points, bool) or not isinstance(points, int) or points < 0:
+        reasons.append("points must be a non-negative integer")
+    digest = fingerprint.get("ids_sha256")
+    if (
+        not isinstance(digest, str)
+        or len(digest) != 64
+        or any(c not in "0123456789abcdef" for c in digest)
+    ):
+        reasons.append("ids_sha256 must be a lowercase SHA-256 hex digest")
+    return reasons
 
 
 class QdrantError(RuntimeError):
@@ -130,12 +152,49 @@ def write_fingerprint(run_dir: Path, fingerprint: dict[str, Any]) -> Path:
             f"{run_dir} already has a registered report; refusing to retro-fit a fingerprint "
             "onto a finished run. Re-run the capture instead."
         )
+    reasons = validate_fingerprint(fingerprint)
+    if reasons:
+        raise ValueError("invalid fingerprint: " + "; ".join(reasons))
     path = _manifest_path(run_dir)
     if not path.is_file():
         raise ValueError(f"{path} does not exist")
-    manifest = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path} is not valid JSON") from exc
+    if not isinstance(manifest, dict):
+        raise ValueError(f"{path} must contain a JSON object")
+    existing = manifest.get("collection_fingerprint")
+    if existing is not None:
+        if existing != fingerprint:
+            raise ValueError("manifest already has a different collection fingerprint")
+        return path
+    flags = manifest.get("flags") or {}
+    expected = flags.get("FIRST_PERSON_ACTIVE_COLLECTION") or flags.get("FIRST_PERSON_COLLECTION")
+    if expected and expected != fingerprint["collection"]:
+        raise ValueError(
+            f"fingerprint collection {fingerprint['collection']!r} does not match manifest {expected!r}"
+        )
     manifest["collection_fingerprint"] = fingerprint
-    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    payload = (json.dumps(manifest, indent=2) + "\n").encode("utf-8")
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as tmp:
+            tmp.write(payload)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(temp_name, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except Exception:
+        try:
+            os.unlink(temp_name)
+        except FileNotFoundError:
+            pass
+        raise
     return path
 
 

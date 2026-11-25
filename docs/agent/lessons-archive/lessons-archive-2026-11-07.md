@@ -7,6 +7,68 @@
 - **Rule:** `container.neo4j_driver` returns a synchronous `neo4j.GraphDatabase.driver`. Any async expansion helper (`expand_teaching_units`) must inspect the session context manager and execute sync sessions via `asyncio.to_thread` rather than `async with driver.session()`.
 
 
+## Nov 5, 2026 — Final verification pass: budget and spec completeness
+
+- **L-COMPACTION-BUDGET-1.** A context compaction late in a long session can use the remaining budget before any new work starts. Evidence: the session meter read 93.29 USD before the compaction and 100.02 USD right after it, against a 100 USD budget. Rule: write the handoff file before a long session nears its budget, and read the meter again after every compaction before you plan work. Ref: `audits/audit-output-2026-11-04/FINAL_USAGE_AND_VERIFICATION_LOG.md` §1 (values from `get_session` `cost_usd`).
+- **L-DOCS-ARE-NOT-SPECS-1.** A large audit package still left the most visible product feature unbuildable: the generated-explanation form of multi-video synthesis (Variant B) conflicts with the zero-generated-text invariants (CLAUDE.md invariants 15 and 21) and needs owner decision D-03. Only the verbatim multi-clip form (Variant A) can proceed, and serving it still needs D-PQ2. Rule: before you call a spec ready, check it against the invariants and list the decisions it depends on. Ref: `audits/audit-output-2026-11-04/FINAL_SPECIFICATION_COMPLETENESS_MATRIX.md` §3; `FINAL_AUDIT_GAP_ANALYSIS.md` §1.
+
+
+## Nov 5, 2026 — Batch 13: Verified helplines, clip reporting & saved answers, and canonical teacher IDs (T4-07, T6-04, T3-07)
+
+### L-HELPLINE-FRESHNESS-CALL-VERIFIED-1. Display only call-verified helplines within the freshness window and preserve national emergency lines.
+- **What:** In SAFE-004, `config/helplines.yaml` contained 15 entries with only one call-verified line (Tele-MANAS); the other 14 entries had `last_verified_by_call: null` and were served to seekers in MODERATE distress templates, risking displaying numbers that nobody had dialled.
+- **Fix:** Added `helpline_max_verified_age_days: int = 180` to `Settings`. In `backend/services/crisis_helplines.py`, added `_is_call_verified_and_fresh()` to strictly enforce call verification within the freshness window (exempting national 112 which must never be test-called), and fall back cleanly to the verified national line (Tele-MANAS/112) so a crisis block is never empty or displaying unverified contacts. Updated `rag/meditation.py` and `format_support_line()` to enforce `verified_only=True`.
+- **Rule:** Every displayed helpline must have `last_verified_by_call` within the configured freshness window, preserving official national emergency lines as immutable fallbacks. Never display unverified or stale numbers to seekers in crisis.
+
+### L-CLIP-REPORTING-SAVED-ANSWERS-1. Provide structured clip reporting categories and personal saved answer collections.
+- **What:** In PRD-006 and FR-SAVE-01, seekers watching a discourse video had no in-modal control to report errors (misattribution, irrelevant topic, cut mid-thought), and chat lacked the ability to save an answer to a personal collection with notes for later review.
+- **Fix:** In `src/components/chat/CitationCard.tsx`, added a "Report clip issue" control with 4 canonical categories (`wrong teacher`, `wrong topic`, `cut mid-thought`, `other`) submitting to `/api/feedback/clip-report`. Updated `backend/app/api/feedback.py` with `reason_category` support. Created `src/lib/savedAnswersStorage.ts` and added backend endpoints `/api/feedback/saved-answers` (POST, GET by collection, DELETE) allowing seekers to save answers to personal collections with notes.
+- **Rule:** Seekers must be empowered to flag video and clip attribution defects directly from the playback interface across standard categories, and must be able to curate personal collections of helpful teachings.
+
+### L-TEACHER-ID-CANONICAL-NORMALIZATION-1. Normalize cross-store teacher vocabularies to canonical registry IDs at retrieval boundaries.
+- **What:** In DATA-13 and GURU-013, teacher identifiers drifted across chat (`sri-krishnaji`, `sri_krishnaji`, `ekam`), v8/v10 schemas (`guru_id`, `teacher_id`), and Postgres tables (`gurus`), causing queries with variant names to fail Qdrant match filters and miss relevant teachings.
+- **Fix:** Added `canonical_guru_id` and recognized shared founder pairs in `backend/services/guru_registry.py`. In `FirstPersonContextStore.retrieve` and `FirstPersonStore.search_hybrid`, normalized input `guru_id`/`teacher_id` filters using `canonical_guru_id`, ensuring variant teacher names resolve to canonical IDs (`krishnaji`, `preethaji`). Added `scripts/ops/check_legacy_guru_tables.py` auditing database usage and confirming 0 active runtime dependencies on legacy Postgres `kb_chunks` and `gurus` tables.
+- **Rule:** Stores and retrieval engines must normalize teacher filters to canonical registry IDs (`gurus.yaml`) at the retrieval boundary so vocabulary variations never cause false retrieval misses.
+
+
+## Nov 5, 2026 — Batch 12: Docker image pinning, pipeline order AST guard, and memory plane inventory (T1-14, T1-15, T6-01 / ADV-06)
+
+### L-DOCKER-PIN-ALL-IMAGES-1. Pin exact image tags on all infrastructure sidecars; ban unpinned latest in compose.
+- **What:** In SEC-006, `docker-compose.yml` referenced unpinned `:latest` tags for Memgraph (`memgraph/memgraph-mage:latest`) and Autoheal (`willfarrell/autoheal:latest`), allowing upstream image mutations to break local development or introduce unvetted binaries.
+- **Fix:** Pinned `memgraph/memgraph-mage:2.20.1` and `willfarrell/autoheal:1.2.0` in `backend/docker-compose.yml`, establishing immutable, reproducible image coordinates across all docker-compose datastores and sidecars.
+- **Rule:** Every image in docker-compose must pin an explicit version tag; `:latest` is strictly forbidden across all development and production container definitions.
+
+### L-DOC-VS-CODE-PIPELINE-ORDER-GUARD-1. Guard documented pipeline stage sequences with automated AST linting.
+- **What:** In CQ-009, `CLAUDE.md` maintained an outdated 17-stage pipeline sequence that documented `DistressStage` after `CircuitBreakerStage`, conflicting with runtime `build_default_pipeline()` where input safety and kill switches precede circuit breakers.
+- **Fix:** Corrected the documented stage list in `CLAUDE.md` to match runtime `build_default_pipeline()`, and added `scripts/guards/pipeline_order_guard.py` (tested via `backend/tests/test_pipeline_order_guard.py`) to parse `backend/app/pipeline/stages/pipeline_builder.py` using AST and enforce exact alignment against docstrings and documentation.
+- **Rule:** Documentation describing execution-critical pipelines must be verified by automated AST-based doc-vs-code guards to prevent architectural documentation drift.
+
+### L-MEMORY-PLANE-EXHAUSTIVE-INVENTORY-1. Account for every persistent plane, including local client and edge states, in ethical retention governance.
+- **What:** In ADV-06, the ethical retention and personal mentor memory inventory (`12-personal-mentor-memory-ethical-retention.md`) tracked 8 storage planes but omitted the WhatsApp bot SQLite database (`wa_messages`/`wa_state`) and edge extraction workers, creating a blind spot in user data retention and erasure completeness.
+- **Fix:** Updated `12-personal-mentor-memory-ethical-retention.md` with Plane 9 (WhatsApp SQLite store) and Plane 10 (Edge extraction worker), documenting their retention periods, encryption status, and inclusion under user deletion requests.
+- **Rule:** Personal memory and mentor inventories must account for every persistence plane across channels and edge workers to ensure compliance with DPDP erasure and retention policies.
+
+
+## Nov 5, 2026 — Batch 11: Cache consolidation, exception/import ratchets, and teacher extensibility (T7-04, T7-05, T8-01)
+
+### L-CACHE-VERSIONING-COLLECTION-BOUND-1. Bind collection version, prompt version, and cache version into exact cache keys; ban semantic cache on teachings.
+- **What:** In CQ-003, exact-match and semantic caching were decoupled from collection versions and prompt versions. Changing collections or prompt versions left stale doctrine answers in Redis that survived for 7 days unless flushed. Teaching answers were also written to similarity-based semantic caches, causing cross-question paraphrase bleed.
+- **Fix:** In `backend/app/pipeline/pipeline_coordinator.py`, bound `:col:{collection}:pv:{prompt_version}:cv:{cache_version}` directly into `_build_context_aware_cache_key`, automatically invalidating exact cache entries upon collection repointing or cache version bump without requiring a manual Redis flush. In `backend/app/pipeline/stages/cache_stage.py`, strictly excluded first-person teachings and verified clips from semantic and vector cache writes, and added a guard in `CacheCheckStage` to discard any legacy semantic cache hit containing teaching indicators or citations.
+- **Rule:** Exact cache keys must always bind collection, prompt, and cache version identifiers. Teaching answers and verbatim clips must be exact-cache only; never write or serve them from similarity-based semantic caches.
+
+### L-EXCEPTION-RATCHET-ZERO-FP-SWALLOW-1. Enforce zero silent swallows in core serving and track broad exceptions with decreasing ratchets.
+- **What:** In CQ-006, 1,513 broad `except Exception` blocks and silent `pass` swallows hid downstream errors in background ingestion, gateway fallbacks, and graph queries, causing silent failures and "fail open" regressions.
+- **Fix:** In `backend/services/first_person_pipeline.py`, `first_person_graph_expansion.py`, `first_person_ingest_service.py`, and `llm_gateway.py`, eliminated silent exception swallows, replacing `pass` with debug logging. Added `scripts/guards/exception_ratchet.py` and `scripts/guards/exception_baseline.txt` to enforce 0 silent swallows in `services/first_person*` and pin the broad exception ceiling (729) as a ratchet that may only decrease. Added `scripts/guards/import_layer_lint.py` (CQ-007) to enforce layer boundaries (`domain` -> `services` -> `rag` -> `app.pipeline` -> `app.api`) and bound grandfathered cross-layer imports (21 <= 50).
+- **Rule:** Silent `pass` in exception handlers is forbidden across first-person serving and pipeline paths. Broad exception counts and cross-layer imports must be enforced by automated ratchet guards that fail on regression.
+
+### L-TEACHER-REGISTRY-DATA-DRIVEN-GUARD-1. Drive serving, attribution, rights, and impersonation guardrails from one authoritative teacher registry.
+- **What:** In GURU-010, `backend/config/gurus.yaml` defined teachers for serving, but impersonation guardrails in `lightweight_handler.py` hardcoded regexes for only two founders (`krishnaji|preethaji`), leaving new registered teachers unprotected against persona escape.
+- **Fix:** Extended `backend/config/gurus.yaml` with `rights_policy`, `attribution_policy`, `sources`, `voice_refs`, and `allowed_surfaces`. Extended `Guru` dataclass in `backend/services/guru_registry.py`, added schema validation (`validate_guru_registry_schema`), and created dynamic impersonation pattern generator `get_impersonation_patterns()`. Wired dynamic patterns into `persona_escape` in `backend/guardrails/lightweight_handler.py`, and added `scripts/guards/guru_literal_guard.py` to ensure all configured teachers generate safety boundaries.
+- **Rule:** One authoritative registry (`gurus.yaml`) must drive both serving filters and guardrail refusal patterns. Safety rails must dynamically compile impersonation boundaries from the registry rather than hardcoding names.
+
+
+
+
 ## Nov 5, 2026 — Batch 10: Persona preferences, honest copy and controls, and one LLM gateway (T6-03, T6-10, T7-03)
 
 ### L-USER-PREFERENCES-NO-PSYCHOLOGICAL-PROFILING-1. Group user-stated facts and explicit preferences; strictly ban speculative psychological or spiritual profiling.
