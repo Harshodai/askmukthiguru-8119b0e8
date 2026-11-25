@@ -586,13 +586,15 @@ def test_weave_never_renders_unverified_clip(sample_clip, sample_okf_entry, muta
     assert "No direct teaching found" in res.text
 
 
-def test_weave_keeps_verified_clip_and_drops_bad_sibling(sample_clip, sample_okf_entry):
+def test_weave_abstains_on_mixed_verified_and_bad_siblings(sample_clip, sample_okf_entry):
     bad = dict(sample_clip, verbatim_text="Invented words.", video_id="vid_fake")
     res = QuoteWeaverService(llm_service=None).weave(
         "What is suffering?", [sample_clip, bad], [sample_okf_entry], sources=_src(sample_clip)
     )
-    assert sample_clip["verbatim_text"] in res.text
+    assert res.passed_gate is False
+    assert sample_clip["verbatim_text"] not in res.text
     assert "Invented words." not in res.text and "vid_fake" not in res.text
+    assert "No direct teaching found" in res.text
 
 
 @pytest.mark.parametrize(
