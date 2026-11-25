@@ -220,7 +220,13 @@ def load_checkpoint(
             f"LightRAG checkpoint processed_count={counters['processed']} exceeds "
             f"current source point count={source_point_count}"
         )
-    return data.get("next_offset"), counters
+    completed = bool(data.get("completed", False))
+    if completed and counters["processed"] != source_point_count:
+        raise RuntimeError(
+            f"LightRAG checkpoint is marked complete but processed_count={counters['processed']} "
+            f"does not equal source_point_count={source_point_count}"
+        )
+    return data.get("next_offset"), counters, completed
 
 
 def save_checkpoint_atomic(
@@ -229,6 +235,7 @@ def save_checkpoint_atomic(
     source_collection: str,
     source_point_count: int,
     working_dir: str,
+    completed: bool = False,
     checkpoint_file: Path | None = None,
 ) -> None:
     """Durably persist a cursor only after every point in the batch is accounted for."""
@@ -241,6 +248,7 @@ def save_checkpoint_atomic(
         "source_point_count": source_point_count,
         "working_dir": str(Path(working_dir).resolve()),
         "next_offset": next_offset,
+        "completed": completed,
         "processed_count": counters["processed"],
         "success_count": counters["success"],
         "skipped_count": counters["skipped"],
@@ -383,11 +391,18 @@ async def main():
 
     # A kernel-managed lock prevents two processes from consuming the same cursor.
     with checkpoint_process_lock():
-        saved_offset, counters = load_checkpoint(
+        saved_offset, counters, already_completed = load_checkpoint(
             source_collection=source_collection,
             source_point_count=total_points,
             working_dir=working_dir,
         )
+
+        if already_completed:
+            print(
+                f"✅ LightRAG ingestion already completed for {source_collection} "
+                f"({counters['processed']:,}/{total_points:,}); no work required."
+            )
+            return
 
         print("🚀 Initializing LightRAG source-to-graph ingestion...")
         print(f"   Source Qdrant collection: {source_collection} ({total_points:,} points)")
@@ -470,6 +485,7 @@ async def main():
                 source_collection=source_collection,
                 source_point_count=total_points,
                 working_dir=working_dir,
+                completed=batch_next_offset is None,
             )
             next_offset = batch_next_offset
 
