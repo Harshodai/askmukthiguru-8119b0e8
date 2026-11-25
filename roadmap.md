@@ -1,5 +1,16 @@
 # Active UI and backend reliability roadmap
 
+## Current request — 2026-11-25: launch emails, WhatsApp, funnel and search
+
+- [ ] Connect an approved dedicated email service and verified sender; send signup confirmations with private unsubscribe links to the two owner-supplied test addresses and verify send outcomes.
+- [ ] Reuse the launch-list intake, add durable confirmation delivery/retry and suppression, and verify unsubscribe/readback without exposing subscriber membership.
+- [ ] Complete the existing WhatsApp linked-account bot, consented profile continuity, two-channel confirmation and durable receive/send/status handling; preserve the phone app.
+- [ ] Keep current Meta coexistence setup guidance ready; live activation waits on approved onboarding, use-case eligibility, secure runtime credentials and real delivery evidence.
+- [ ] Add a branded launch funnel with primary guide CTA and existing consent-first signup; verify guide → signup → confirmation → unsubscribe.
+- [ ] Research and update guide/Chat search titles, descriptions and keyword targeting without unsupported health, teacher-voice or availability claims.
+- [ ] Run focused security/journey tests and phone/tablet/desktop checks; report live-service blockers separately from mocked checks.
+- Planning uses Ponytail and Token Optimization: reuse existing signup, linking, teaching and metadata paths; no parallel bot or whole-app migration.
+
 ## Current request — 2026-11-22: public WhatsApp companion with familiar menu experience
 
 - [x] Recheck direct Meta coexistence and AI-use rules; current India general-purpose-assistant eligibility is not established.
