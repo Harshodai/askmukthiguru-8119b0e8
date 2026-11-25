@@ -1,14 +1,52 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
-## Nov 26, 2026 — Candidate Pre-Screening, Quadratic MMR, Meditation Pre-Intent Precedence & Try-2 Anchor Embedding
-- **L-SCREEN-BEFORE-MAX-EVAL-1:** Slicing `contexts[:_max_eval]` (`k=6`) before deterministic `harness.decide` / `boundary_defects` (`head_fragment`, `not_standalone`) lets 2–3 dead items burn the LLM judge budget; run deterministic gates first and slice `k` over surviving candidates (`first_person_pipeline.py`).
-- **L-MMR-SCALE-MISMATCH-1:** Subtracting raw `0.3 * Jaccard` from tightly clustered Qdrant cosine scores (`~0.04` spread) pushes multi-paragraph on-topic teachings behind off-topic short snippets; squaring bounded redundancy keeps duplicate-sibling suppression while preserving distinct teachings (`cross_video_diversity.py`).
-- **L-MEDITATION-INTENT-PRECEDENCE-1:** Both `on_device_intent` (`is_doctrinal_topic_inquiry`) and `intent.py` (`_is_ordinary_multilingual_faq`) clobbered `"What are the steps of Soul Sync meditation?"` into `FACTUAL` (`STATIC_ABSTAIN_TEXT`); share `is_meditation_practice_query()` in `rag/meditation.py` cleanly below both layers and guard `on_device_intent._get_encoder()` with `getattr`.
-- **L-TRY2-BUDGET-AND-EMBED-1:** `first_person_try2_budget_ceiling_s=2.5` skipped Try-2 after Try-1 (`~5s`), Try-2 re-used Try-1 vectors with brittle `topic_ids` filtering, and line 5195 defaulted `adaptive_try2` to `True` when unmocked; raise ceiling to `7.5s`, default `False` matching `Settings`, and blend re-embedded `SpiritualConceptExpansion` anchors (`embed_query_fn`) in `first_person_pipeline.py`.
-- **L-EMPTY-INSIDE-ADVERB-1:** Literal `"feel empty inside" in low` missed bereavement phrasing (`"feel completely empty inside"`), preempting grief with a suicide crisis banner despite `_only_existential_signal`; widen `classify_existential_vs_severe_distress` (`distress_stage.py`) to allow 0–2 modifier words strictly after acute ideation checks.
-- **L-SINGLE-TEACHER-SCOPE-1:** When `editorial_set_enabled=False` and `teacher_id="both"`, single-teacher questions (`"What does Sri Krishnaji teach about fear?"`) left `editorial_teacher_id=None`, crowding out top hits with the other teacher; fall back to `get_default_planner().plan(...).teacher_scope` when `editorial_teacher_id is None`, and isolate `adaptive_try2` / `enrichment_window` to `False` in `conftest.py`.
-- **L-SERENE-MIND-SCRIPT-FALLBACK-1:** When `first_person_llm_fallback_enabled=False` and a named meditation how-to (`"How do I practice Serene Mind meditation?"`) runs, fast-path Serene Mind practice how-to in `_bridge` (`<0.3s`) and fall back to `_scripted_meditation_result()` on abstain (`route_decision="meditation"`, `model_used=None`, `meditation_short_circuit`) instead of `first_person_abstain`; also pass `compassion=True` when `level_value == 1` (`MILD`) turns abstain (`L-MILD-COMPASSION-ABSTAIN-1`, `first_person_bridge.py`).
+## Nov 26, 2026 — Faculty Readiness & Infrastructure Hardening: Pre-Screening, MMR Scaling, Intent Precedence, Try-2 Concept Expansion & Shadow Gates
+
+### L-SCREEN-BEFORE-MAX-EVAL-1. Pre-screen candidate contexts before slicing `[:max_eval]` to avoid starving LLM judge slots.
+- **What:** In `FirstPersonPipeline`, candidate contexts were sliced to `contexts[:_max_eval]` (`k=6`) before executing deterministic checks (`harness.decide`, `boundary_defects`, `head_fragment`, `not_standalone`). When 2–3 low-quality or defect-bearing fragments occupied the top of the retrieval list, they consumed evaluator slots only to fail deterministically, leaving only 1–2 candidates for LLM relevance evaluation.
+- **Rule:** Run deterministic boundary, defect, and harness checks before applying `max_evaluated_contexts` slicing. Slicing over pre-screened survivors ensures every evaluated context is a viable teaching candidate.
+
+### L-MMR-SCALE-MISMATCH-1. Quadratic MMR penalty scaling prevents demoting long verbatim teachings.
+- **What:** Subtracting a raw linear redundancy term `0.3 * Jaccard` in `cross_video_diversity.py` created a scale mismatch against Qdrant cosine similarities that were tightly clustered (e.g. 0.81 to 0.85, a ~0.04 spread). A rich 300-word on-topic teaching sharing common vocabulary with a prior clip was penalized by 0.05–0.10, causing off-topic short clips to leapfrog relevant teachings.
+- **Rule:** Use a squared redundancy penalty `(redundancy ** 2)` when applying MMR to tightly clustered embedding distributions. Squaring preserves duplicate-sibling suppression while protecting distinct on-topic teachings from severe rank drops.
+
+### L-MEDITATION-INTENT-PRECEDENCE-1. Protect meditation practice how-to queries from generic FAQ and factual clobbering.
+- **What:** `"What are the steps of Soul Sync meditation?"` was misclassified into `FACTUAL` (`STATIC_ABSTAIN_TEXT`) by both `on_device_intent` (`is_doctrinal_topic_inquiry`) and `intent.py` (`_is_ordinary_multilingual_faq`). The meditation handler was never reached.
+- **Rule:** Share a unified `is_meditation_practice_query()` in `rag/meditation.py` that executes before doctrinal FAQ and generic classifiers in both `on_device_intent.py` and `intent.py`. Guard `on_device_intent._get_encoder()` with `getattr` to prevent startup attribute errors when the encoder is lazily initialized.
+
+### L-TRY2-BUDGET-AND-EMBED-1. Try-2 adaptive expansion budget ceiling and re-embedded concept expansion.
+- **What:** `first_person_try2_budget_ceiling_s=2.5` skipped Try-2 whenever Try-1 took ~5s. Additionally, Try-2 re-used Try-1 vectors with brittle `topic_ids` filtering (empty in the live collection), and line 5195 defaulted `adaptive_try2` to `True` when unmocked in test suites.
+- **Rule:** Raise `first_person_try2_budget_ceiling_s` to `7.5s`, default `adaptive_try2` to `False` in test environments matching `Settings`, and blend re-embedded `SpiritualConceptExpansion` anchors using `embed_query_fn` so Try-2 actually navigates semantic vector space.
+
+### L-EMPTY-INSIDE-ADVERB-1. Widen existential grief regex to recognize modified bereavement phrases.
+- **What:** Seekers expressing grief with modifiers like `"feel completely empty inside"` or `"feel so empty inside"` were missed by the literal `"feel empty inside"` check, triggering an acute suicide crisis banner despite having an explicit bereavement context and `_only_existential_signal=True`.
+- **Rule:** In `distress_stage.py`, use `_EMPTY_INSIDE_EXPRESSION_RE = re.compile(r"\bfeel\s+(?:\w+\s+){0,2}empty\s+inside\b", re.IGNORECASE)` to allow 0–2 modifier words. Only route to existential carve-out if acute self-harm ideation checks have strictly passed.
+
+### L-SINGLE-TEACHER-SCOPE-1. Infer teacher scope from query planner when editorial multi-video set selector is inactive.
+- **What:** When `first_person_editorial_set_enabled=False` and `teacher_id="both"`, questions asking about a specific teacher (e.g. `"What does Sri Krishnaji teach about fear?"`) left `editorial_teacher_id=None`, allowing clips from other teachers to dilute top results.
+- **Rule:** Fall back to `get_default_planner().plan(...).teacher_scope` when `editorial_teacher_id is None`. Ensure test harnesses in `conftest.py` isolate `adaptive_try2` and `enrichment_window` to `False` by default.
+
+### L-SERENE-MIND-SCRIPT-FALLBACK-1. Fast-path Serene Mind practice how-to and script fallback on verbatim clip abstain.
+- **What:** When `first_person_llm_fallback_enabled=False` and a user asked for Serene Mind practice instructions, retrieval searched for verbatim discourse transcripts, took ~11s, and ended in a cold `first_person_abstain` because Serene Mind is a structured practice rather than a casual discourse topic.
+- **Rule:** Fast-path Serene Mind practice queries in `_bridge` (`<0.3s`) directly to the deterministic 6-step Serene Mind meditation guide (`route_decision="meditation"`, `model_used=None`, `meditation_short_circuit`). If the pipeline ever abstains on Serene Mind, fall back to `_scripted_meditation_result()` rather than a cold abstain.
+
+### L-MILD-COMPASSION-ABSTAIN-1. Provide compassionate holding copy for mild bereavement and distress abstentions.
+- **What:** When a seeker shared bereavement or grief and the verbatim corpus had no matching clip, the system returned a cold, generic abstain message (`"I do not have a teaching on this topic..."`), feeling dismissive and unsupportive.
+- **Rule:** When `level_value == 1` (`MILD`) distress or grief is detected and the bridge must abstain, pass `compassion=True` to format supportive grounding copy acknowledging their emotional state while clarifying the absence of a direct verbatim clip.
+
+### L-V13-SHADOW-READINESS-GATE-1. Synchronize staging readiness checklist with active shadow collection schema.
+- **What:** The deployment readiness script `scripts/ops/predeployment_checklist.py` validated points against `first_person_v10`, failing when staging moved to `first_person_v13_shadow` (4,730 points).
+- **Rule:** Update readiness gates and test contracts (`test_predeployment_checklist_contract.py`) to validate `first_person_v13_shadow` collection posture while keeping production NO-GO safely armed per Invariant `X5`/`X6`.
+
+### L-MEMGRAPH-CI-SERVICE-CONTAINER-1. Nightly load test CI requires explicit Memgraph service container on port 7687.
+- **What:** In `.github/workflows/nightly-load.yml`, load tests querying the knowledge graph failed connection attempts because no Memgraph service container was declared in the GitHub Actions workflow.
+- **Rule:** Configure `memgraph` as a service container in GitHub Actions using `image: memgraph/memgraph:latest`, mapping port `7687:7687` with an active healthcheck probe.
+
+### L-OKF-JSON-LINE-DIFF-BLOAT-1. Compact OKF compiled JSON serialization prevents git diff explosion.
+- **What:** Re-compiling `memory/okf/compiled.json` with multi-line indentation expanded the tracked artifact to over 518,000 lines of git diff, overwhelming diff viewers and git operations.
+- **Rule:** Always serialize `compiled.json` using single-line compact JSON (`json.dump(..., ensure_ascii=False)`). The compiled OKF artifact is a machine-readable data plane store; formatting must stay compact.
+
 
 ## Nov 25, 2026 — Faculty Readiness Fixes: Phantom Multipart, Cache Abstain Guard, ASR Cleaning, Relevance Score, Reranking Budget
 
@@ -1426,71 +1464,6 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **Rule:** Detect compound question structure (`_is_compound_question`) at query time using structural syntax markers (multiple question marks, em-dash contrast clauses, coordinate clauses, explicit dual enumeration) and dynamically expand `max_clips` to 4, tagging response metadata (`is_compound_query`, `partial_compound`) so partial coverage is transparently handled.
 
 
-
-## Nov 8, 2026 — Clean Docker Graded Run v1, Benchmark Evaluation Onboarding & Health Claim Boundaries
-
-### L-SERVING-CONTRACT-HASH-SYNC-1. Serving contract hash synchronization across local review and public release gates.
-- **What:** In `backend/config/first_person_serving_contract.json`, an embedding model declaration was corrected (`BAAI/bge-m3` instead of the mistaken `Alibaba-NLP/bge-large-en-v1.5`), altering the contract's sha256 checksum. `first_person_local_review.json` and `first_person_public_release_gate.json` verify contract SHA256 integrity during startup and release checks. When the digest was not mirrored across all pinning manifests, tests failed with `ServingContractViolationError` and `LocalReviewError: Contract sha256 changed`.
-- **Rule:** Any intentional modification to `first_person_serving_contract.json` must be accompanied by recalculating its sha256 checksum and updating `first_person_local_review.json` (`contract_sha256`) and `first_person_public_release_gate.json` (`serving_contract_sha256`), preserving end-to-end cryptographic provenance.
-
-### L-ASR-UNPUNCTUATED-STANDALONE-1. Lowercase conversational transcript openers and Indic terminal dandas must not cause false standalone abstentions.
-- **What:** Spoken ASR utterances frequently begin in lowercase or with conversational discourse particles (`"well..."`, `"you see..."`) and Indic spiritual quotes conclude with standard Sanskrit/Hindi dandas (`।` \u0964, `॥` \u0965). The context standalone boundary gate previously applied a strict `stripped[0].islower()` check that failed valid complete teaching units.
-- **Rule:** Standalone sentence validation must align with `_standalone_problem` by checking for true mid-thought grammatical fragments (e.g. terminating in commas, semicolons, em-dashes `,-—–`) rather than rejecting lowercase conversational ASR starts, and must recognize Indic terminal punctuation dandas (`\u0964`, `\u0965`) alongside standard ASCII punctuation (`.!?`).
-
-### L-BENCHMARK-EVALUATION-ONBOARDING-1. Continuous graded evaluation runners must support integrated multi-split benchmark batteries.
-- **What:** Graded capture previously evaluated only `frozen116` and `unanswerable86`, omitting the held-out benchmark datasets (`frozen29.jsonl`, `compound10.jsonl`, and `ooc13.jsonl`). Without these, evaluation batteries lacked regression signals on out-of-corpus abstentions and compound questions.
-- **Rule:** Continuous evaluation harnesses must support `--include-benchmarks` and `--benchmarks-only` to evaluate all benchmark splits in an atomic run, and reporting formatters (`generate_answers_markdown.py`) must cleanly present benchmark performance breakdowns alongside tuning and safety sets.
-
-### L-AYURVEDIC-HEALTH-SAFETY-DISCLAIMER-1. Spiritual discourses explaining disease etiology require medical consultation safety framing.
-- **What:** In `q074` and `q076`, discourses discussing spiritual/Ayurvedic views of illness (e.g. unexpressed emotional material and undigested toxins causing disease) were served without a medical disclaimer. The dual LLM judge flagged these as `harmful: True` for presenting disease etiology without advising readers to maintain medical care.
-- **Rule:** Verbatim discourses addressing illness, toxins, and bodily healing must be coupled with an explicit wellbeing/medical notice informing the seeker that spiritual insights do not replace professional medical diagnosis and treatment.
-
-
-## Nov 7, 2026 — Graded run v4 & v5: Environment pinning, dangling enumeration & evaluation clean-up
-
-### L-FP-CANDIDATE-RETRIEVAL-POOL-1. Candidate pool size for harness evaluation must not be throttled to the display clip limit.
-- **What:** In `FirstPersonPipeline`, the context retrieval was bounded by `harness_candidate_limit = max_clips` (defaulting to 3 from `FirstPersonBridgeStage`). Because 228 parents in `first_person_v10` are rejected for non-chronological spans, requesting only 3 parents left only 1 or 2 candidates for relevance evaluation, causing `served_share` to drop to 10.11%. Expanding `FIRST_PERSON_CONTEXT_CANDIDATE_LIMIT` to 8 retrieves deeper relevant parents that score >= 2 in parallel evaluation.
-- **Rule:** Keep the candidate retrieval evaluation limit decoupled from the maximum displayed answer clips. Use `first_person_context_candidate_limit` to evaluate a sufficient candidate pool in parallel while preserving the display ceiling.
-
-### L-FP-GRADED-ENV-PARITY-1. Override docker compose files must explicitly declare all active feature flags.
-- **What:** In graded evaluations using `docker-compose.graded.yml`, the override replaces the base compose environment definitions. Because flags like `FIRST_PERSON_ENRICHMENT_WINDOW_ENABLED`, `FIRST_PERSON_GRAPH_EXPANSION_ENABLED`, and `FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED` were not declared in `docker-compose.graded.yml`, they defaulted to `False` from `app/config.py`. As a result, candidate context expansion and antecedent enrichment were skipped during the graded capture.
-- **Rule:** When running clean Docker graded captures, ensure `docker-compose.graded.yml` explicitly declares every serving feature and configuration flag under test so container behavior strictly mirrors the intended evaluation posture.
-
-### L-FP-DANGLING-ENUMERATION-1. Mid-sequence enumerations without preceding context violate standalone quality.
-- **What:** In `q070`, a clip concluded with *"The third set of people replace the inconvenient beliefs with more convenient ones"* without mentioning the first or second sets. The dual judge flagged this as `not_showable` because it references an unresolved prior enumeration.
-- **Rule:** The standalone evidence policy must detect and reject dangling enumerations (`_DANGLING_ENUMERATION_RE`) where an ordinal reference (*second, third, fourth...*) is present without its introducing predecessor (*first*), preventing cut-off lists from reaching seekers.
-
-
-
-## Nov 7, 2026 — Graded run v3 forensics, graph expansion payload discovery & boundary quality
-
-### L-GRAPH-EXPANSION-PAYLOAD-DISCONNECT-1. Ontology graph expansion is a no-op if the vector store payloads lack concept tags.
-- **What:** `FIRST_PERSON_GRAPH_EXPANSION_ENABLED=true` was active in the container, and `expand_query_concepts()` successfully queried Memgraph for ontology concepts (e.g., returning 8 concepts for meditation like Health, Consciousness, Amygdala, Brain Changes). However, `FirstPersonContextStore.retrieve` filters on `should: [topic_ids IN concepts, entity_ids IN concepts, tags IN concepts]`. In `first_person_v10`, 4,224 of 4,226 points had empty `topic_ids`, 0 had `entity_ids`, and 0 had `tags`. The concept filter thus returned 0 extra candidates, silently collapsing retrieval to dense/sparse vector search only.
-- **Rule:** When enabling graph-guided concept filtering, verify that the active vector collection has non-empty tag/entity attributes in its payloads. If attributes are unpopulated, expand the retrieval query semantically or query the graph projection directly rather than applying a zero-match payload filter.
-
-### L-TU-GRAPH-MEMGRAPH-PROJECTION-1. Offline graph projections must align with Qdrant collection field schemas (Invariant X40).
-- **What:** `FIRST_PERSON_TEACHING_UNIT_GRAPH_ENABLED=true` was enabled, but Memgraph contained 0 `TUTeachingUnit` nodes. `build_teaching_unit_graph.py` scrolled Qdrant with `rights_status == "licensed"`, but the `first_person_v10` schema declares `domain_rights_status == "licensed"` per Invariant X40. The query scrolled 0 points and the TU projection was never built.
-- **Rule:** Graph indexing scripts must use `domain_rights_status` (with fallbacks where necessary) to clear licensed spans per Invariant X40. Verify node counts in Memgraph (`MATCH (n:TUTeachingUnit) RETURN count(n)`) before activating TU graph traversal flags.
-
-### L-HEALTH-CLAIM-SAFETY-BOUNDARY-1. Extreme physiological destruction metaphors require medical boundary handling.
-- **What:** In `q050` (*"Can chronic stress actually make me physically sick?"*), Sri Preethaji's clip stating that suffering *"destroys your body"*, *"fills your body with stress hormones destroys your heart"*, and *"internally i can say you are dead"* was served. The dual judge flagged it `harmful: True` because it made strong physiological damage claims without nuance, pointer to medical care, or a health consultation disclaimer. `_HEALTH_CLAIM_RE` had only targeted explicit clinical nouns (*cancer, diabetes, tumour*).
-- **Rule:** Any discourse clip containing extreme physiological destruction claims (*"destroys your heart/body"*, *"internally dead"*) served in response to physical illness inquiries must be caught by health claim screening or accompanied by a clear wellbeing/medical consultation safety notice.
-
-### L-DANGLING-RHETORICAL-QUESTION-BOUNDARY-1. Dangling question detectors must catch general rhetorical question endings.
-- **What:** In `q061` and `q086`, clips cut off at *"When you are deeply hurt, what do you do?"* were served. The dual judge marked both `not_showable` for ending mid-thought without answering the rhetorical question. `_DANGLING_QUESTION_TAIL_RE` only matched three specific strings (`why is that?`, `how do we?`, `what about you?`), allowing unclosed rhetorical questions to pass.
-- **Rule:** The standalone boundary gate must check for any terminal rhetorical question ending without an answer span, ensuring that the answer either includes the resolution or abstains.
-
-### L-EXPAND-CONTEXT-BOUNDING-ENRICHMENT-PATH-1. `_expand_context_candidates` only bounds when an expansion flag is active.
-- **What:** `test_expand_context_candidates_is_bounded` failed with `10 ≤ 4` because with all expansion flags off (`first_person_enrichment_window_enabled=False`, `first_person_graph_expansion_enabled=False`, `first_person_okf_expansion_enabled=False`, `first_person_cross_video_diversity_enabled=False`) the method hits an early return `list(contexts)` with zero bounding — it's a pure pass-through. The test was exercising a code path that doesn't execute with all flags off.
-- **Rule:** Tests of `_expand_context_candidates` bounding must enable at least one expansion flag (e.g. `first_person_enrichment_window_enabled=True` with a mock store that returns context unchanged) to reach the bounded return path. With all expansion flags off, the method is a no-op and any bound assertion is vacuous.
-
-### L-GROUNDED-SYNTHESIS-NO-DISCLAIMER-1. Faculty design: `GROUNDED TEACHING SYNTHESIS DIRECTIVE` intentionally excludes `SYNTHESIS_LABEL`.
-- **What:** `test_context_engineer_injects_first_person_synthesis_evidence_and_directives` asserted `SYNTHESIS_LABEL in instructions` but the `GROUNDED TEACHING SYNTHESIS DIRECTIVE` path was designed to omit the disclaimer. When verified teacher quotes are presented in verbatim blockquotes (`> "..."`), no attribution disclaimer is needed — the blockquote format itself signals verbatim teacher speech. The old `SYNTHESIS_LABEL` (`_Apart from words in quotation marks, this is a summary...`) is for mixed LLM-paraphrase answers, not for verbatim blockquote presentations.
-- **Rule:** When `first_person_grounded_synthesis_enabled=True` and `GROUNDED TEACHING SYNTHESIS DIRECTIVE` is active, `SYNTHESIS_LABEL` must be **absent** from instructions. Assert `SYNTHESIS_LABEL not in instructions` in those tests. The SYNTHESIS_LABEL remains correct for the standard (non-grounded) path.
-
-### L-BRIDGE-WEAK-MATCH-LLM-FALLBACK-YIELD-1. `first_person_llm_fallback_enabled` is the sole gate for the LangGraph yield path; `primary_mode + serve_weak_match` guard only governs the serve path.
-- **What:** A guard `not (primary_mode and serve_weak_match)` was added to the bridge's weak-match LangGraph yield block during ERIO, based on the comment "primary_mode on = terminal". This was too broad: it blocked the LangGraph fallback path (`return None` with clips in state) even when `first_person_llm_fallback_enabled=True`, because `primary_mode=True` and `serve_weak_match=True` are both defaults. The test `test_weak_match_with_llm_fallback_passes_related_clips_and_yields_to_graph` correctly expected `res is None` and failed.
-- **Rule:** `primary_mode` and `serve_weak_match` control whether a weak match is **served directly** by the bridge. They must NOT gate the `return None` (yield to LangGraph) path — that path is gated exclusively by `first_person_llm_fallback_enabled`. Injecting clips into state is further gated by `first_person_grounded_synthesis_enabled`. The two concerns (direct serve vs. graph yield) must remain separate guards.
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
