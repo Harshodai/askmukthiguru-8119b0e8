@@ -1,16 +1,15 @@
 # ============================================================
 # Mukthi Guru — Monthly Backup/Restore Drill Reminder
-# Opens a GitHub issue on the first Monday of each month to
-# track the backup/restore drill described in
-# docs/runbooks/BACKUP_RESTORE_DRILL.md.
+# Opens exactly one GitHub issue per calendar month.
 # ============================================================
 
 name: Monthly Backup Restore Drill Reminder
 
 on:
+  # Cron day-of-month/day-of-week fields are ORed by standard cron.
+  # Run each Monday, then enforce "first Monday" in the script below.
   schedule:
-    # First Monday of every month at 09:00 UTC
-    - cron: '0 9 1-7 * 1'
+    - cron: '0 9 * * 1'
   workflow_dispatch:
 
 jobs:
@@ -19,10 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Open monthly drill issue
+      - name: Test monthly reminder logic
+        run: node --test .github/scripts/monthly_backup_reminder.test.js
+
+      - name: Open monthly drill issue once
         uses: actions/github-script@v7
         env:
           ISSUE_BODY: |
@@ -34,7 +37,7 @@ jobs:
             - [ ] Postgres schema restore
             - [ ] Postgres data restore (critical tables)
             - [ ] Qdrant snapshot restore
-            - [ ] Neo4j dump restore
+            - [ ] Memgraph dump restore
             - [ ] Redis RDB restore
             - [ ] Smoke tests pass
             - [ ] Backup freshness verified
@@ -45,12 +48,39 @@ jobs:
             - If any step fails, file a P1 incident issue and do not close this issue until re-run passes.
         with:
           script: |
-            const title = `[OPS] Monthly backup/restore drill — ${new Date().toISOString().slice(0, 10)}`;
+            const {
+              monthKey,
+              isFirstMondayUtc,
+              findExistingMonthlyIssue,
+            } = require('./.github/scripts/monthly_backup_reminder');
+            const now = new Date();
+            const targetMonth = monthKey(now);
+
+            if (context.eventName === 'schedule' && !isFirstMondayUtc(now)) {
+              core.notice(`Not the first Monday of ${targetMonth}; no issue created.`);
+              return;
+            }
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100,
+            });
+            const existing = findExistingMonthlyIssue(issues, now);
+
+            if (existing) {
+              core.notice(`Monthly drill already tracked by #${existing.number} (${existing.state}); no duplicate created.`);
+              return;
+            }
+
+            const title = `[OPS] Monthly backup/restore drill — ${targetMonth}`;
             const labels = ['ops', 'backup', 'drill'];
-            await github.rest.issues.create({
+            const created = await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title,
               body: process.env.ISSUE_BODY,
-              labels
+              labels,
             });
+            core.notice(`Created monthly backup/restore drill #${created.data.number} for ${targetMonth}.`);
