@@ -79,6 +79,30 @@ def test_qdrant_requests_support_legacy_api_key_fallback(monkeypatch):
     assert captured["request"].get_header("Api-key") == "legacy-token"
 
 
+def test_qdrant_restore_upload_uses_authenticated_request(monkeypatch, tmp_path):
+    snapshot = tmp_path / "collection.snapshot"
+    snapshot.write_bytes(b"snapshot-bytes")
+    monkeypatch.setattr(SNAPSHOT, "qdrant_backup_path", lambda _name: str(snapshot))
+    monkeypatch.setattr(SNAPSHOT, "QDRANT_HOST_URL", "http://qdrant.test:6333")
+    monkeypatch.setenv("QDRANT_WRITE_API_KEY", "write-token")
+    captured = {}
+
+    class UploadResponse(_Response):
+        def read(self):
+            return b'{"status":"ok"}'
+
+    def fake_open(request, timeout=120):
+        captured["request"] = request
+        captured["timeout"] = timeout
+        return UploadResponse()
+
+    monkeypatch.setattr(SNAPSHOT, "_qdrant_open", fake_open)
+
+    assert SNAPSHOT.restore_qdrant("collection") is True
+    assert captured["request"].get_header("Api-key") == "write-token"
+    assert captured["timeout"] == 120
+
+
 def test_graph_backup_manifest_contains_both_counts():
     text = (
         "// engine=memgraph nodes=17 relationships=29 taken=2026-11-26T00:00:00\n"
