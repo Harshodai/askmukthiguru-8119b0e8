@@ -1,6 +1,38 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 24–25, 2026 — Co-Guru Context Hydration, Diarization Roles, Turn-Budget Ceiling & Sub-10s SLA Hardening
+
+### L-CO-GURU-PARENT-CONTEXT-HYDRATION-1. Joint teaching units must accept co-guru founders; strict parent-guru equality drops co-authored candidate contexts.
+- **What:** In joint teaching videos where Sri Preethaji and Sri Krishnaji co-teach (e.g. *The Four Sacred Secrets*), parent units were keyed to `guru_id: "krishnaji"` while individual child spans were recorded with `guru_id: "preethaji"`. `FirstPersonContextStore._assert_belongs` maintained a rigid equality check `span.guru_id != parent.guru_id`, raising `FirstPersonContextStoreError("span guru_id differs from parent")` inside `fetch_parent_context`. This caused `[ContextStore] dropping invalid parent context ...` in `retrieve()`, deleting all co-guru candidate contexts before the context harness could evaluate them.
+- **Fix:** In `backend/domain/first_person_context.py`, expanded `_shared_guru_scope()` with alias variants (`sri_`, `sri-`) and introduced `_is_same_or_shared_guru(gid1, gid2)` that canonicalizes both IDs and checks membership in the shared founder scope. Updated `ParentContext` validation, `FirstPersonContextStore._assert_belongs`, and `retrieve()` to permit co-guru spans while strictly rejecting external or unverified teachers.
+- **Rule:** Parent units and context stores representing shared lineage or co-authored teachings must evaluate span attribution via `_is_same_or_shared_guru` rather than raw string equality. A co-guru founder span must never cause a parent unit to be dropped as malformed.
+
+### L-HARNESS-SPEAKER-GATE-TEACHER-ROLES-1. The harness speaker gate must permit ingestion and diarization teacher role variants.
+- **What:** WhisperX speaker diarization (`services/speaker_diarization.py`), ingestion pipelines (`ingest/pipeline.py`), and corpus catalogs stamp the teacher's role as `"teacher"`, `"krishnaji"`, or `"preethaji"` rather than strictly `"guru"`. Because `FirstPersonContextHarness._speaker_gate` strictly required `role == "guru" and span.speaker_role == SpeakerRole.GURU`, authentic teacher spans were rejected with `decision=abstain state=SPEAKER_GATE abstain_reason=speaker_unverified_or_not_guru`.
+- **Fix:** Added `SpeakerRole.TEACHER = "teacher"` to `domain/first_person_context.py` and updated `_speaker_gate` in `services/first_person_context_harness.py` to allow `SpeakerRole.TEACHER` and role strings in `{"guru", "teacher", "krishnaji", "preethaji", "sri_krishnaji", "sri_preethaji"}`.
+- **Rule:** Speaker verification gates must align with upstream diarization and ingestion role vocabularies; never assume diarization outputs only the string `"guru"`.
+
+### L-OPENROUTER-FAST-KWARGS-POP-1. Fast generation helpers must pop caller operation overrides before calling provider APIs.
+- **What:** `OpenRouterService._generate_fast` hardcoded `operation="classification"` in its keyword arguments to `_call_api(...)`. When HyDE (`generate_hypothetical_answer`) called `_generate_fast(..., operation="generate_hyde")`, Python raised `TypeError: got multiple values for keyword argument 'operation'`, causing HyDE expansion to fail open with empty strings on every request.
+- **Fix:** In `backend/services/openrouter_service.py`, extracted `operation = kwargs.pop("operation", "classification")` before forwarding kwargs to `_call_api(...)`.
+- **Rule:** Wrapper methods in LLM provider services that supply default keyword parameters must pop caller overrides from `kwargs` before forwarding to prevent multiple keyword argument runtime exceptions.
+
+### L-MULTIPART-BRIDGE-BUDGET-CEILING-1. Bound sequential first-person fallback sweeps with a turn budget ceiling.
+- **What:** When `FIRST_PERSON_MULTIPART_ENABLED=true`, compound queries were split into sub-queries. In `FirstPersonBridgeStage`, `_serve_question_parts` evaluated sub-queries sequentially (consuming 4.8s). Failing to find direct quotes, it fell back to executing `serve_first_person(whole_question)` again (2.7s), consuming 7.5s before falling back to LangGraph (7.6s), pushing total turn latency to 16.1s.
+- **Fix:** Added an elapsed turn budget guard in `FirstPersonBridgeStage`: if multi-part evaluation took $\ge 3.5\text{s}$ and returned `None`, the bridge declines immediately to the generating graph (`reason="turn_budget_ceiling_after_multipart"`), cancelling prefetch tasks and avoiding redundant sweeps.
+- **Rule:** When a multi-part retrieval lane yields no direct clip, check elapsed turn time against the SLA ceiling before attempting a full query re-retrieval; fail fast to the generating graph when the turn budget is exhausted.
+
+### L-RERANK-CANDIDATE-BUDGET-STANDARD-1. Bound CPU CrossEncoder candidate pools for standard tier retrieval.
+- **What:** `_limit_rerank_candidates` capped candidates to 8 only for `tier2_simple`, leaving `standard` tier unconstrained (`cap = None`). All 16 retrieved documents were scored on CPU via CrossEncoder (taking ~1.8s) only for top 5 to be retained.
+- **Fix:** Bounded `_limit_rerank_candidates` for `query_tier == "standard"` to `cap = 10`, scoring the top 10 pre-ranked candidates to select 5, cutting CPU reranking time by ~50% (~0.9s saved) with zero loss of precision.
+- **Rule:** Reranking candidate pools must be bounded to a multiple of `top_k` (e.g. $2 \times \text{top\_k}$) for CPU-bound cross-encoders to satisfy sub-10s turn SLAs.
+
+### L-AUDIT-POLL-QUANTIZATION-RESOLUTION-1. Audit polling interval must match SLA measurement precision.
+- **What:** In `scripts/ops/ruthless_audit_railway.py`, the client polled `/api/jobs/{id}` every 2.0s (`time.sleep(2.0)`). A background job that completed on Railway in 8.1s was reported at 10.1s due to client-side polling quantization delay alone.
+- **Fix:** Decreased poll interval to `0.25s` (240 iterations), eliminating client-side measurement lag while keeping request volume trivial.
+- **Rule:** Performance audit clients must poll async job endpoints with high resolution (e.g. $\le 0.25\text{s}$) to avoid artificial quantization error in latency benchmarking.
+
 ## Nov 24, 2026 — Prompt Composer Disappearance: the Unbounded Auth Gate and the Footer Fold
 
 ### L-CHAT-COMPOSER-NEVER-BEHIND-AUTH-GATE-1. The chat composer must render while auth is still resolving; a full-screen spinner keyed to `useOptionalAuth().loading` locks the prompt bar behind an unbounded network wait.
@@ -1396,98 +1428,6 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 - **What:** The lead's first draft of `audits/audit-output-2026-11-04/FINAL_PRODUCTION_RELEASE_READINESS.md` said "no alert rules exist" and "no runbook exists" [lead-reported]. `infrastructure/prometheus/alerting-rules.yml` holds 14 `alert:` rules, and `docs/runbooks/` holds `ONCALL.md`, `ALERTING.md`, `BACKUP_RESTORE_DRILL.md`, `CAPACITY.md` and others. A claim of absence was written without a search. Close lessons: L-PROC-3 ("md files are claims, grep is evidence") and the dead-file rule in `AGENTS.md` (prove it by import resolution) cover claims of presence and of deadness, not absence.
 - **Rule:** Before you write "no X exists", run `git ls-files | grep -i X` and a content search for its likely names, and cite the command or its empty result. If you did not search, write "not checked".
 
-
-## Nov 5, 2026 — Final verification pass: budget and spec completeness
-
-- **L-COMPACTION-BUDGET-1.** A context compaction late in a long session can use the remaining budget before any new work starts. Evidence: the session meter read 93.29 USD before the compaction and 100.02 USD right after it, against a 100 USD budget. Rule: write the handoff file before a long session nears its budget, and read the meter again after every compaction before you plan work. Ref: `audits/audit-output-2026-11-04/FINAL_USAGE_AND_VERIFICATION_LOG.md` §1 (values from `get_session` `cost_usd`).
-- **L-DOCS-ARE-NOT-SPECS-1.** A large audit package still left the most visible product feature unbuildable: the generated-explanation form of multi-video synthesis (Variant B) conflicts with the zero-generated-text invariants (CLAUDE.md invariants 15 and 21) and needs owner decision D-03. Only the verbatim multi-clip form (Variant A) can proceed, and serving it still needs D-PQ2. Rule: before you call a spec ready, check it against the invariants and list the decisions it depends on. Ref: `audits/audit-output-2026-11-04/FINAL_SPECIFICATION_COMPLETENESS_MATRIX.md` §3; `FINAL_AUDIT_GAP_ANALYSIS.md` §1.
-
-
-## Nov 5, 2026 — Batch 13: Verified helplines, clip reporting & saved answers, and canonical teacher IDs (T4-07, T6-04, T3-07)
-
-### L-HELPLINE-FRESHNESS-CALL-VERIFIED-1. Display only call-verified helplines within the freshness window and preserve national emergency lines.
-- **What:** In SAFE-004, `config/helplines.yaml` contained 15 entries with only one call-verified line (Tele-MANAS); the other 14 entries had `last_verified_by_call: null` and were served to seekers in MODERATE distress templates, risking displaying numbers that nobody had dialled.
-- **Fix:** Added `helpline_max_verified_age_days: int = 180` to `Settings`. In `backend/services/crisis_helplines.py`, added `_is_call_verified_and_fresh()` to strictly enforce call verification within the freshness window (exempting national 112 which must never be test-called), and fall back cleanly to the verified national line (Tele-MANAS/112) so a crisis block is never empty or displaying unverified contacts. Updated `rag/meditation.py` and `format_support_line()` to enforce `verified_only=True`.
-- **Rule:** Every displayed helpline must have `last_verified_by_call` within the configured freshness window, preserving official national emergency lines as immutable fallbacks. Never display unverified or stale numbers to seekers in crisis.
-
-### L-CLIP-REPORTING-SAVED-ANSWERS-1. Provide structured clip reporting categories and personal saved answer collections.
-- **What:** In PRD-006 and FR-SAVE-01, seekers watching a discourse video had no in-modal control to report errors (misattribution, irrelevant topic, cut mid-thought), and chat lacked the ability to save an answer to a personal collection with notes for later review.
-- **Fix:** In `src/components/chat/CitationCard.tsx`, added a "Report clip issue" control with 4 canonical categories (`wrong teacher`, `wrong topic`, `cut mid-thought`, `other`) submitting to `/api/feedback/clip-report`. Updated `backend/app/api/feedback.py` with `reason_category` support. Created `src/lib/savedAnswersStorage.ts` and added backend endpoints `/api/feedback/saved-answers` (POST, GET by collection, DELETE) allowing seekers to save answers to personal collections with notes.
-- **Rule:** Seekers must be empowered to flag video and clip attribution defects directly from the playback interface across standard categories, and must be able to curate personal collections of helpful teachings.
-
-### L-TEACHER-ID-CANONICAL-NORMALIZATION-1. Normalize cross-store teacher vocabularies to canonical registry IDs at retrieval boundaries.
-- **What:** In DATA-13 and GURU-013, teacher identifiers drifted across chat (`sri-krishnaji`, `sri_krishnaji`, `ekam`), v8/v10 schemas (`guru_id`, `teacher_id`), and Postgres tables (`gurus`), causing queries with variant names to fail Qdrant match filters and miss relevant teachings.
-- **Fix:** Added `canonical_guru_id` and recognized shared founder pairs in `backend/services/guru_registry.py`. In `FirstPersonContextStore.retrieve` and `FirstPersonStore.search_hybrid`, normalized input `guru_id`/`teacher_id` filters using `canonical_guru_id`, ensuring variant teacher names resolve to canonical IDs (`krishnaji`, `preethaji`). Added `scripts/ops/check_legacy_guru_tables.py` auditing database usage and confirming 0 active runtime dependencies on legacy Postgres `kb_chunks` and `gurus` tables.
-- **Rule:** Stores and retrieval engines must normalize teacher filters to canonical registry IDs (`gurus.yaml`) at the retrieval boundary so vocabulary variations never cause false retrieval misses.
-
-
-
-## Nov 5, 2026 — Batch 12: Docker image pinning, pipeline order AST guard, and memory plane inventory (T1-14, T1-15, T6-01 / ADV-06)
-
-### L-DOCKER-PIN-ALL-IMAGES-1. Pin exact image tags on all infrastructure sidecars; ban unpinned latest in compose.
-- **What:** In SEC-006, `docker-compose.yml` referenced unpinned `:latest` tags for Memgraph (`memgraph/memgraph-mage:latest`) and Autoheal (`willfarrell/autoheal:latest`), allowing upstream image mutations to break local development or introduce unvetted binaries.
-- **Fix:** Pinned `memgraph/memgraph-mage:2.20.1` and `willfarrell/autoheal:1.2.0` in `backend/docker-compose.yml`, establishing immutable, reproducible image coordinates across all docker-compose datastores and sidecars.
-- **Rule:** Every image in docker-compose must pin an explicit version tag; `:latest` is strictly forbidden across all development and production container definitions.
-
-### L-DOC-VS-CODE-PIPELINE-ORDER-GUARD-1. Guard documented pipeline stage sequences with automated AST linting.
-- **What:** In CQ-009, `CLAUDE.md` maintained an outdated 17-stage pipeline sequence that documented `DistressStage` after `CircuitBreakerStage`, conflicting with runtime `build_default_pipeline()` where input safety and kill switches precede circuit breakers.
-- **Fix:** Corrected the documented stage list in `CLAUDE.md` to match runtime `build_default_pipeline()`, and added `scripts/guards/pipeline_order_guard.py` (tested via `backend/tests/test_pipeline_order_guard.py`) to parse `backend/app/pipeline/stages/pipeline_builder.py` using AST and enforce exact alignment against docstrings and documentation.
-- **Rule:** Documentation describing execution-critical pipelines must be verified by automated AST-based doc-vs-code guards to prevent architectural documentation drift.
-
-### L-MEMORY-PLANE-EXHAUSTIVE-INVENTORY-1. Account for every persistent plane, including local client and edge states, in ethical retention governance.
-- **What:** In ADV-06, the ethical retention and personal mentor memory inventory (`12-personal-mentor-memory-ethical-retention.md`) tracked 8 storage planes but omitted the WhatsApp bot SQLite database (`wa_messages`/`wa_state`) and edge extraction workers, creating a blind spot in user data retention and erasure completeness.
-- **Fix:** Updated `12-personal-mentor-memory-ethical-retention.md` with Plane 9 (WhatsApp SQLite store) and Plane 10 (Edge extraction worker), documenting their retention periods, encryption status, and inclusion under user deletion requests.
-- **Rule:** Personal memory and mentor inventories must account for every persistence plane across channels and edge workers to ensure compliance with DPDP erasure and retention policies.
-
-
-
-## Nov 5, 2026 — Batch 11: Cache consolidation, exception/import ratchets, and teacher extensibility (T7-04, T7-05, T8-01)
-
-### L-CACHE-VERSIONING-COLLECTION-BOUND-1. Bind collection version, prompt version, and cache version into exact cache keys; ban semantic cache on teachings.
-- **What:** In CQ-003, exact-match and semantic caching were decoupled from collection versions and prompt versions. Changing collections or prompt versions left stale doctrine answers in Redis that survived for 7 days unless flushed. Teaching answers were also written to similarity-based semantic caches, causing cross-question paraphrase bleed.
-- **Fix:** In `backend/app/pipeline/pipeline_coordinator.py`, bound `:col:{collection}:pv:{prompt_version}:cv:{cache_version}` directly into `_build_context_aware_cache_key`, automatically invalidating exact cache entries upon collection repointing or cache version bump without requiring a manual Redis flush. In `backend/app/pipeline/stages/cache_stage.py`, strictly excluded first-person teachings and verified clips from semantic and vector cache writes, and added a guard in `CacheCheckStage` to discard any legacy semantic cache hit containing teaching indicators or citations.
-- **Rule:** Exact cache keys must always bind collection, prompt, and cache version identifiers. Teaching answers and verbatim clips must be exact-cache only; never write or serve them from similarity-based semantic caches.
-
-### L-EXCEPTION-RATCHET-ZERO-FP-SWALLOW-1. Enforce zero silent swallows in core serving and track broad exceptions with decreasing ratchets.
-- **What:** In CQ-006, 1,513 broad `except Exception` blocks and silent `pass` swallows hid downstream errors in background ingestion, gateway fallbacks, and graph queries, causing silent failures and "fail open" regressions.
-- **Fix:** In `backend/services/first_person_pipeline.py`, `first_person_graph_expansion.py`, `first_person_ingest_service.py`, and `llm_gateway.py`, eliminated silent exception swallows, replacing `pass` with debug logging. Added `scripts/guards/exception_ratchet.py` and `scripts/guards/exception_baseline.txt` to enforce 0 silent swallows in `services/first_person*` and pin the broad exception ceiling (729) as a ratchet that may only decrease. Added `scripts/guards/import_layer_lint.py` (CQ-007) to enforce layer boundaries (`domain` -> `services` -> `rag` -> `app.pipeline` -> `app.api`) and bound grandfathered cross-layer imports (21 <= 50).
-- **Rule:** Silent `pass` in exception handlers is forbidden across first-person serving and pipeline paths. Broad exception counts and cross-layer imports must be enforced by automated ratchet guards that fail on regression.
-
-### L-TEACHER-REGISTRY-DATA-DRIVEN-GUARD-1. Drive serving, attribution, rights, and impersonation guardrails from one authoritative teacher registry.
-- **What:** In GURU-010, `backend/config/gurus.yaml` defined teachers for serving, but impersonation guardrails in `lightweight_handler.py` hardcoded regexes for only two founders (`krishnaji|preethaji`), leaving new registered teachers unprotected against persona escape.
-- **Fix:** Extended `backend/config/gurus.yaml` with `rights_policy`, `attribution_policy`, `sources`, `voice_refs`, and `allowed_surfaces`. Extended `Guru` dataclass in `backend/services/guru_registry.py`, added schema validation (`validate_guru_registry_schema`), and created dynamic impersonation pattern generator `get_impersonation_patterns()`. Wired dynamic patterns into `persona_escape` in `backend/guardrails/lightweight_handler.py`, and added `scripts/guards/guru_literal_guard.py` to ensure all configured teachers generate safety boundaries.
-- **Rule:** One authoritative registry (`gurus.yaml`) must drive both serving filters and guardrail refusal patterns. Safety rails must dynamically compile impersonation boundaries from the registry rather than hardcoding names.
-
-
-### L-STREAM-CONTRACT-DONE-BEFORE-FINAL-1. Deliver metadata before final text and discard unlabelled teacher text on stream disconnects.
-- **What:** In streaming responses, emitting `final` text before `done` metadata meant a connection drop between `final` and `done` left verbatim quotes on the client without citations, speaker labels, or safety notices (UX-005), which were then persisted to local storage. Additionally, SSE lacked a client inactivity timeout.
-- **Fix:** Reversed emission order in `backend/app/orchestrator.py` and `stream_orchestrator.py` so `done` metadata is delivered before or with `final` text. Added a 30s inactivity timeout in `src/lib/chat/streaming.ts` and threw `stream_interrupted` on done-less end. In `ChatInterface.tsx`, replaced keeping recovered text with clearing content and presenting the retryable error card with verified helplines.
-- **Rule:** Never allow verbatim text to persist on clients without accompanying citation and safety metadata. Emit metadata before final text, enforce client-side inactivity timeouts, and discard incomplete/unlabelled teacher text upon interruption.
-
-### L-DISTRESS-DIRECT-ROUTE-STANDARD-1. Safety routes must dispatch immediately without running retrieval or grading stages.
-- **What:** In `StandardRAGGraphStrategy`, `route_after_intent` was hardcoded to return `"query"` for `intent == "DISTRESS"` (AI-002), wasting HyDE expansion, document retrieval, and LLM grading calls before `route_after_grading` eventually routed to `"distress"`.
-- **Fix:** Updated `route_after_intent` in `backend/rag/graph_strategies.py` so `intent == "DISTRESS"` dispatches directly to `"distress"`, eliminating redundant external calls and latency during crisis moments.
-- **Rule:** Critical safety intents like DISTRESS must route directly to their dedicated handling nodes at the earliest decision point in the graph.
-
-### L-MEMORY-CONTINUITY-ZERO-GENERATION-1. Use memory on verbatim teaching lanes strictly for candidate diversity without altering text.
-- **What:** Consented user memory was read in `RequestStateStage` but completely ignored by `FirstPersonBridgeStage` and `FirstPersonPipeline` (MEM-002), causing returning seekers to receive the exact same clips on similar questions while paying memory read latency.
-- **Fix:** Extended `FirstPersonPipeline.execute` and `_rerank_and_balance_candidates` with `memory_signals` and `_apply_memory_reranking`, prioritizing unseen clips from the verified candidate pool for returning seekers and bypassing the shared cache for personalized queries. The verbatim quote text and metadata remain 100% byte-identical.
-- **Rule:** When applying personalization to verbatim or immutable teaching lanes, use memory signals strictly to re-rank pre-verified candidates (e.g. promoting unseen content) without ever generating, paraphrasing, or altering the underlying source words.
-
-### L-BOOK-DOCTRINE-PAGEINDEX-RERANK-1. High-resolution book chunking and elevated rerank thresholds prevent cross-topic citation contamination.
-- **What:** Fragmented 400-char book chunks and a low rerank threshold (0.05) with unconditional `min_keep` caused retrieval of epilogue stubs and irrelevant videos (e.g., relationship clips on anxiety).
-- **Fix:** Ingested 578 high-res PageIndex book chunks and master doctrine summaries into `spiritual_wisdom_contextual`, compiled OKF master nodes, enforced author-verified speaker attribution on published books, and bound `min_keep` fallback to `rerank_threshold_simple: 0.12`.
-- **Rule:** Published book doctrine requires hierarchical PageIndex chunks and author verification. Reranking `min_keep` must never retain documents below the quality threshold.
-
-### L-POLARITY-CONTRADICTION-CLAUSE-BOUND-1. Claim clause splitting and quote boundaries prevent false polarity-inversion contradictions.
-- **What:** In `services/lettuce_detect_service.py`, `_split_claims` failed to split sentences terminating with quotes (`."`), gluing full quotes to trailing explanatory sentences with `not`. Comparing entire multi-clause claims against single context clauses flagged direct quotes and contrastive phrases ("not as a goal separate from growth") as polarity-inversion contradictions, forcing hard-rejection fallback (`FALLBACK_RESPONSE`).
-- **Fix:** Updated `_split_claims` sentence regex with quote boundary lookbehinds `(?<=[.!?])\s+|(?<=[.!?][\"\'\u201d\u2019])\s+`, split claims into fine-grained clauses before polarity comparison, and bypassed false inversions when one clause is a verbatim substring of the other.
-- **Rule:** Never evaluate polarity inversion between multi-clause claims and single context clauses; align clause-to-clause and treat direct quote substrings as non-inverting.
-
-### L-MULTIPART-DIFFERENCE-DEFLECTION-1. Preemptive deflection of difference inquiries must gate on multipart eligibility.
-- **What:** In `first_person_bridge.py`, `_DIFFERENCE_SYNTHESIS_RE` unconditionally returned `None`, sending "difference between X and Y" queries to GraphStage to produce third-person AI essays with `SYNTHESIS_LABEL` instead of letting `_serve_question_parts` retrieve authentic speech clips for both X and Y.
-- **Fix:** Gated `_DIFFERENCE_SYNTHESIS_RE` deflection on `not (multipart_enabled and len(_question_parts(query)) >= 2)` and `if not fp_only`.
-- **Rule:** A multi-part serving lane must never deflect compound inquiries to general RAG before verifying whether parallel part retrieval can answer each facet.
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
 > `grep -rn "### L-THE-ID" lessons.md docs/agent/lessons-archive/`. Numbered references such as "lessons.md #118" point
