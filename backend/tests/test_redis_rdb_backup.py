@@ -107,14 +107,16 @@ def test_backup_copies_only_after_confirmed_new_bgsave(monkeypatch, tmp_path):
         ping=MagicMock(),
         info=MagicMock(
             side_effect=[
-                {"rdb_bgsave_in_progress": 0},
-                {"rdb_saves": 10},
-                {"rdb_bgsave_in_progress": 0, "rdb_last_bgsave_status": "ok"},
-                {"rdb_saves": 11},
+                {"rdb_bgsave_in_progress": 0, "rdb_saves": 10},
+                {
+                    "rdb_bgsave_in_progress": 0,
+                    "rdb_last_bgsave_status": "ok",
+                    "rdb_saves": 11,
+                },
             ]
         ),
         config_get=MagicMock(side_effect=[{"dir": "/data"}, {"dbfilename": "dump.rdb"}]),
-        bgsave=MagicMock(return_value=True),
+        bgsave=MagicMock(return_value="Background saving started"),
     )
     monkeypatch.setattr(REDIS_BACKUP, "_build_redis_client", lambda **_kwargs: client)
     monkeypatch.setattr(REDIS_BACKUP.time, "sleep", lambda _seconds: None)
@@ -140,7 +142,7 @@ def test_backup_fails_when_bgsave_not_acknowledged(monkeypatch, tmp_path):
             ]
         ),
         config_get=MagicMock(side_effect=[{"dir": "/data"}, {"dbfilename": "dump.rdb"}]),
-        bgsave=MagicMock(return_value=False),
+        bgsave=MagicMock(return_value="ERR background save failed"),
     )
     monkeypatch.setattr(REDIS_BACKUP, "_build_redis_client", lambda **_kwargs: client)
     with pytest.raises(REDIS_BACKUP.RedisBackupError, match="did not acknowledge"):
