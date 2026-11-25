@@ -103,7 +103,12 @@ def main():
     parser.add_argument("--video-id", type=str, default="", help="Optional single video ID to process")
     args = parser.parse_args()
 
-    client = QdrantClient(url=QDRANT_URL)
+    qdrant_api_key = (
+        os.environ.get("QDRANT_WRITE_API_KEY")
+        or os.environ.get("QDRANT_API_KEY")
+        or ""
+    )
+    client = QdrantClient(url=QDRANT_URL, api_key=qdrant_api_key or None)
     cal = load_calibration()
     cosine_floor = float(cal["cosine_floor"])
     margin_threshold = float(cal["margin_threshold"])
@@ -154,7 +159,7 @@ def main():
                 collection_name=COLLECTION,
                 payload=patch,
                 points=[pt.id],
-                wait=False,
+                wait=True,
             )
         pending_count += 1
         updated_points += 1
@@ -279,7 +284,7 @@ def main():
                 collection_name=COLLECTION,
                 payload=patch,
                 points=[pt.id],
-                wait=False,
+                wait=True,
             )
         updated_points += 1
 
