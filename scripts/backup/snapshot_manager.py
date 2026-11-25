@@ -290,7 +290,7 @@ def restore_qdrant(collection_name=None):
         )
 
         print("  [*] Uploading snapshot to Qdrant collection...")
-        with urllib.request.urlopen(req) as res:  # nosec B310
+        with _qdrant_open(req) as res:
             resp_data = json.loads(res.read().decode())
             if resp_data.get("status") == "ok":
                 print(
