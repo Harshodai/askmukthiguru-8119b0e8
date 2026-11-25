@@ -1669,7 +1669,15 @@ class FirstPersonBridgeStage(Stage):
                 return None
 
             if not getattr(settings, "first_person_llm_fallback_enabled", False):
-                from rag.meditation import is_meditation_imperative
+                from rag.meditation import is_meditation_imperative, is_meditation_practice_query
+
+                if (
+                    status != "error"
+                    and not distress_compassion
+                    and is_meditation_practice_query(_query_str)
+                    and not (needs_rel or needs_add)
+                ):
+                    return self._scripted_meditation_result(ctx, _query_str)
 
                 _is_allowed_practice_or_diff = (
                     bool(_STEP_INSTRUCTION_RE.search(_query_str))
@@ -2334,6 +2342,55 @@ class FirstPersonBridgeStage(Stage):
                 # A25: empty {} unless the flag is on, the pipeline offered
                 # related clips, and this abstain is not a safety/blocked turn.
                 **related_block,
+            },
+        )
+
+    @staticmethod
+    def _scripted_meditation_result(ctx: PipelineContext, query: str) -> PipelineResult:
+        """Return deterministic guided meditation steps when no verbatim clip answers a practice how-to."""
+        from rag.meditation import format_meditation_script, meditation_script_citations
+
+        script_key = "soul_sync" if "soul sync" in (query or "").lower() else "serene_mind"
+        answer = format_meditation_script(script_key)
+        cits = meditation_script_citations(script_key)
+        record_routing_decision(
+            ctx,
+            RoutingProvenance(
+                layer="FIRST_PERSON_BRIDGE",
+                decision="meditation",
+                method="meditation_short_circuit",
+                confidence=1.0,
+                reason=f"Deterministic guided script fallback for {script_key}",
+                latency_ms=0.0,
+            ),
+        )
+        return PipelineResult(
+            final_answer=answer,
+            intent="MEDITATION",
+            trace_id=getattr(ctx, "trace_id", ""),
+            latency_ms=int((time.time() - getattr(ctx, "start_time", time.time())) * 1000),
+            model_used=None,
+            model_provider=None,
+            route_decision="meditation",
+            query_tier="fast",
+            citations=cits,
+            faithfulness_score=1.0,
+            hallucination_flag=False,
+            citations_verified=bool(cits),
+            verification={
+                "passed": True,
+                "method": "meditation_short_circuit",
+                "faithfulness": 1.0,
+                "citations_verified": bool(cits),
+                "direct": True,
+            },
+            release_manifest=get_release_manifest().to_dict(),
+            route_metadata={
+                "route_decision": "meditation",
+                "decision_method": "meditation_short_circuit",
+                "script_key": script_key,
+                "llm_fallback_enabled": False,
+                "routing_chain": list(getattr(ctx, "routing_chain", [])),
             },
         )
 

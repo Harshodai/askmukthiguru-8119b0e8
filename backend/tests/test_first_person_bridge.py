@@ -1193,6 +1193,25 @@ async def test_first_person_only_practice_howto_never_reaches_the_llm_graph(
 
 
 @pytest.mark.asyncio
+async def test_first_person_only_serene_mind_howto_abstain_serves_scripted_meditation(
+    fp_pipeline, monkeypatch
+):
+    """When first-person finds no verbatim clip for a named practice how-to, serve deterministic guided steps."""
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(status="abstained", is_direct=False)
+
+    result = await FirstPersonBridgeStage().run(
+        _ctx(_container(), msg="How do I practice Serene Mind meditation?")
+    )
+
+    assert result is not None
+    assert result.route_decision == "meditation"
+    assert result.model_used is None
+    assert result.verification["method"] == "meditation_short_circuit"
+    assert "Serene Mind Meditation" in result.final_answer
+
+
+@pytest.mark.asyncio
 async def test_first_person_only_infra_failure_abstains_instead_of_falling_to_the_graph(
     fp_pipeline, monkeypatch
 ):

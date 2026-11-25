@@ -329,7 +329,7 @@ async def test_personalize_stage_fallback_to_state_memory(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_false_abstention_recovery_soul_sync_instructions():
+async def test_false_abstention_recovery_soul_sync_instructions(monkeypatch):
     """Test step-by-step meditation instruction query falls through to meditation handler instead of abstaining."""
     from app.pipeline.stages.context import PipelineContext
     from app.pipeline.stages.first_person_bridge import FirstPersonBridgeStage
