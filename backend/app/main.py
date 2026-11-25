@@ -1742,6 +1742,7 @@ from app.api.search_routes import router as search_router
 
 app.include_router(search_router)
 
+from app.api.editorial import router as editorial_router
 from app.api.first_person import router as first_person_router
 
 # Owner-only, file-backed first-person review candidate preview. The route
@@ -1751,6 +1752,7 @@ from app.api.first_person_local_review import router as first_person_local_revie
 
 app.include_router(first_person_router, prefix="/api")
 app.include_router(first_person_local_review_router, prefix="/api")
+app.include_router(editorial_router)
 app.include_router(whatsapp_router, prefix="/api/whatsapp")
 
 

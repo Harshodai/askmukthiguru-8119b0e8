@@ -327,6 +327,25 @@ class DistressStage(Stage):
             logger.info("De-escalating existential burnout to MILD (Query A17)")
             assessment.level = DistressLevel.MILD
             assessment.recommended_response_type = "compassionate"
+        elif (
+            not guardrail_self_harm
+            and not state.get("guardrail_block_deferred_to_distress")
+            and assessment
+            and getattr(assessment, "level", None) is DistressLevel.SEVERE
+            and classify_existential_vs_severe_distress(user_msg_en) == "NONE"
+        ):
+            # Bereavement vs acute crisis guard: genuine grief without suicidal ideation
+            # receives compassionate teachings rather than acute Tele-MANAS preemption.
+            try:
+                from services.semantic_understanding import SemanticUnderstandingEngine
+
+                sem = SemanticUnderstandingEngine().interpret(user_msg_en)
+                if sem.intent == "grief_bereavement":
+                    logger.info("De-escalating bereavement grief without ideation from SEVERE to MODERATE")
+                    assessment.level = DistressLevel.MODERATE
+                    assessment.recommended_response_type = "compassionate"
+            except Exception:
+                logger.debug("Semantic bereavement refinement skipped cleanly")
 
         ctx.assessment = assessment
         if assessment is not None:

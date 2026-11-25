@@ -53,7 +53,8 @@ function guardMock(label: string): void {
 }
 
 /* ── Auth helper ─────────────────────────────────────────────────────────── */
-async function fetchWithAuth(path: string, options: RequestInit = {}) {
+// T defaults to `any` so untyped callers keep the pre-generic behaviour (response.json() was `any`).
+export async function fetchWithAuth<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   let { data: { session } } = await supabase.auth.getSession();
   if (session && session.expires_at && session.expires_at * 1000 < Date.now() + 60000) {
     try {
@@ -84,7 +85,7 @@ async function fetchWithAuth(path: string, options: RequestInit = {}) {
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
 
-  return response.json();
+  return (await response.json()) as T;
 }
 
 /* ── Wisdom Tips (teachings shown while answers generate) ────────────────── */

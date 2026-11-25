@@ -53,6 +53,31 @@ def ndcg_at_k(hits: list[bool], k: int = NDCG_K) -> float:
     return round(dcg, 4)
 
 
+def graded_dcg_at_k(grades: list[int], k: int = NDCG_K) -> float:
+    """Graded DCG@K for relevance grades 0-3: sum((2^rel_i - 1) / log2(i + 2))."""
+    if not grades or k <= 0:
+        return 0.0
+    dcg = 0.0
+    for i, rel in enumerate(grades[:k]):
+        r = max(0, int(rel))
+        dcg += ((2**r) - 1) / math.log2(i + 2)
+    return round(dcg, 6)
+
+
+def graded_ndcg_at_k(
+    retrieved_grades: list[int],
+    ideal_grades: list[int] | None = None,
+    k: int = NDCG_K,
+) -> float:
+    """True graded nDCG@K = DCG@K / IDCG@K over 0-3 relevance judgments."""
+    ideal = sorted((ideal_grades if ideal_grades is not None else retrieved_grades), reverse=True)
+    idcg = graded_dcg_at_k(ideal, k=k)
+    if idcg <= 0.0:
+        return 0.0
+    dcg = graded_dcg_at_k(retrieved_grades, k=k)
+    return round(min(1.0, dcg / idcg), 4)
+
+
 def average_precision_at_k(
     hits: list[bool],
     k: int = 10,

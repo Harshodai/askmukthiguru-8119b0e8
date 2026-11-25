@@ -1,6 +1,6 @@
 # AskMukthiGuru — AI Spiritual Guide & Knowledge Platform
 
-> **Active release baseline — verified 2026-08-12.** The supported frontend gate is `npm run build`; source lint is expected to have zero errors; `npm audit --omit=dev` must be clean. See the [release evidence pack](docs/operations/release-evidence-pack.md) for the complete safety, documentation, and privileged-integration checklist. Historical counts elsewhere in this document are architectural context, not live service assertions.
+> **Reading this repository:** This README describes capabilities and historical architecture; it is not a current readiness verdict. For local setup see [SETUP.md](SETUP.md), for faculty access and outstanding gates see the dated [faculty preview runbook](docs/FACULTY_PREVIEW_RUNBOOK.md), and for binding operational constraints see [AGENTS.md](AGENTS.md). Verify current behavior and configuration in source and the running environment. Dated audits, plans, counts, and test results are snapshots, not proof of current readiness.
 
 An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri Krishnaji**. Built with a 12-layer RAG pipeline, dual-level LightRAG knowledge graph, second-brain memory vault, real-time guardrails, and cross-platform native mobile & web UI.
 
@@ -34,9 +34,9 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 ## Core Platform Capabilities
 
 ### 1. First-Person Sacred Wisdom Synthesis
-- **Authentic "I" Voice**: Answers are delivered directly in the intimate, compassionate first-person presence of **Sri Krishnaji** and **Sri Preethaji** ("I invite you to see...", "When I speak of the Beautiful State..."), eliminating detached 3rd-person clinical analysis ("According to the teachings...").
-- **Speaker Attribution & Persona Discrimination**: Automatically discerns whether Sri Krishnaji or Sri Preethaji is speaking based on canonical video discourse attribution (`services/guru_brain/persona_discriminator.py`).
-- **Quote Weaver & Faithfulness**: Weaves authentic verbatim excerpts into pastoral guidance without disjointed quote dumps, strictly governed by Ontological Knowledge Framework (OKF) invariants.
+- **First-person clips**: The default first-person posture is retrieval-only: served teaching text must remain verbatim evidence with attribution. A weak match is identified in metadata rather than adding a heading to the quote. See [AGENTS.md](AGENTS.md) for the serving invariants and release restrictions.
+- **Speaker attribution**: Attribution and source rights require evidence and verification; an unverified speaker must not be presented as verified. See [content rights](docs/rights/CONTENT-RIGHTS.md).
+- **Other response paths**: The system also contains generation and verification components; their presence does not establish that a particular response or corpus is verified.
 - **Fail-Closed Safety Rails**: Preserves reverent spiritual boundaries while instantly rerouting acute distress, self-harm, or clinical emergencies to verified helplines.
 
 ### 2. LightRAG & Knowledge Base Ingestion
@@ -90,7 +90,7 @@ An AI-powered spiritual guide rooted in the teachings of **Sri Preethaji & Sri K
 | `make docker-up` | Build and start full Docker stack |
 | `make docker-rebuild-web` | Rebuild and restart stateless frontend & backend services |
 | `make docker-down` | Stop all running Docker services |
-| `make flush-cache` | Clear Redis response/semantic/first-person caches and the Qdrant semantic cache, then restart the backend |
+| `make flush-cache` | Mutates Redis and the Qdrant semantic cache; use only when explicitly authorized and appropriate for the target environment |
 | `make verify-cache-empty` | Prove those caches are empty. Exit 0 = empty, 1 = something cached, 2 = Redis/Qdrant unreachable (unreachable is not empty). Add `VERIFY_CACHE_ARGS="--redis-via docker"` when Redis is password-protected and not reachable from the host |
 | `bash scripts/prelaunch.sh` | Pre-launch gate against your local Docker stack; fails with named `PRELAUNCH-Exxx` errors before building |
 
@@ -242,7 +242,7 @@ Populate key environment variables in `backend/.env`:
 
 | Variable | Description | Example / Default |
 |---|---|---|
-| `LLM_PROVIDER` | Active LLM provider (`openrouter`, `sarvam_cloud`, `ollama`) | `openrouter` (live default since 2026-09-12) |
+| `LLM_PROVIDER` | Active LLM provider; see `backend/app/config.py` for supported mappings | `openrouter` (code default) |
 | `OPENROUTER_API_KEY` | Key for OpenRouter inference & LightRAG graph extraction | `sk-or-v1-...` |
 | `OPENROUTER_PROVIDER_SORT` | Optional server-side provider ordering (`latency`, `throughput`, or `price`); empty preserves normal OpenRouter load balancing | empty |
 | `OPENROUTER_PREFERRED_MAX_LATENCY_P90` | Optional soft provider preference for p90 latency in seconds; requires provider sorting | `0` (disabled) |
