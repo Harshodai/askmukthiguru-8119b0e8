@@ -2,177 +2,227 @@
 
 ## Purpose
 
-Verify monthly that critical project data in the `backups/` subdirectories can be restored and that the application still passes basic smoke tests after restore. This runbook also defines the issue template used by the monthly GitHub Actions reminder.
+Verify that each stateful store has a real, readable backup and that a restore succeeds into an isolated, non-production target. A file existing on disk is not restore evidence.
 
-## Scope
+This runbook distinguishes local Docker backups from hosted-service backups. Do not report a store as covered merely because a script or checklist exists.
 
-The drill covers all backup subdirectories under `backups/`:
+## Coverage and current limitations
 
-- `backups/supabase/` — Postgres logical dumps (`pg_dump`), schema-only exports, table-level exports.
-- `backups/qdrant/` — Qdrant collection snapshot files and vector metadata exports.
-- `backups/neo4j/` — Neo4j dump files produced by `neo4j-admin dump`.
-- `backups/redis/` — Redis `SAVE`/`BGSAVE` `.rdb` dumps.
-- `backups/s3/` *(if used)* — Object-storage manifests / critical bucket exports.
+| Store | Backup mechanism | Restore evidence / limitation |
+| --- | --- | --- |
+| Qdrant | \`scripts/ops/backup_qdrant.py\` creates a collection snapshot, downloads it, verifies its checksum/archive, and performs a scratch-restore check. It sends \`QDRANT_WRITE_API_KEY\` (or \`QDRANT_API_KEY\`) when configured. | Restore into an isolated Qdrant instance/collection and compare point count, vector config and a sample scroll. A snapshot upload is asynchronous; wait for the collection to become green. |
+| Memgraph | \`scripts/backup/snapshot_manager.py\` uses \`mgconsole\` and \`DUMP DATABASE;\`. New backups include SHA-256, node count and relationship count. | Restore only into an empty isolated Memgraph container using the same snapshot manager. It must reject a non-empty target. Verify both counts. \`scripts/ops/backup_neo4j.py\` is a legacy Neo4j/APOC/neo4j-admin utility; it is not the Memgraph backup path. |
+| Redis | \`scripts/backup/redis_rdb_backup.py backup\` requests and waits for a completed \`BGSAVE\`, copies the configured RDB file from the Redis container, and writes/verifies a SHA-256 sidecar. | Restore manually into a fresh isolated Redis instance with AOF disabled, then verify Redis loads the RDB and key counts are plausible. The utility deliberately has no automatic restore command. This is not currently scheduled. |
+| Local Supabase/Postgres | \`scripts/backup/snapshot_manager.py\` can export local Supabase container data only. It is a data-only seed export, not a complete roles + schema + data database backup. | Restore only into a disposable local Postgres/Supabase target and verify the selected tables. |
+| Hosted Supabase/Postgres | \`.github/workflows/backup.yml\` is intended to dump roles, schema and data. | The workflow correctly fails while this GitHub repository is public, because unencrypted database dumps must not be stored as public workflow artifacts. Hosted database backup coverage is therefore **not verified** until a private encrypted destination is approved and the workflow completes. |
+| Hosted Railway graph / Qdrant / Redis | No scheduled off-host backup has been verified from this repository state. | Do not infer coverage from local Docker backups. A Railway backup/restore drill and measured RPO/RTO remain open. |
 
-If a subdirectory does not exist in a given deployment, the drill still verifies that the absence is intentional and documented.
+The backup directory is gitignored. Never commit RDBs, database dumps, Qdrant snapshots, credentials or user data.
 
 ## Schedule
 
-Run the drill on the first Monday of every month. The GitHub Actions workflow `.github/workflows/backup-drill-reminder.yml` opens a tracking issue automatically.
+Run on the first Monday of each month. The GitHub Actions reminder opens at most one issue per UTC calendar month, including when manually dispatched. The automation creates a tracking issue; it does not run the restore drill.
 
 ## Prerequisites
 
-- Access to a non-production restore target (local Docker Compose stack, staging Railway environment, or an isolated cloud Postgres/Qdrant/Neo4j instance).
-- Read access to the backup storage location (local disk, S3 bucket, Railway volume, etc.).
-- Current `.env` or environment overrides for the restore target.
+- An isolated local Docker target or disposable cloud database project.
+- Correct source environment values supplied through a local secret manager or shell environment.
+- Docker access to the local Qdrant, Memgraph and Redis containers.
+- Enough disk space for snapshots and scratch restores.
+- Never point restore commands at a live production service.
 
-## Step-by-Step Procedure
+## 1. Preflight
 
-### 1. Prepare the restore target
+From the repository root:
 
-1.1. Spin up a clean restore environment matching the production versions documented in `docker-compose.yml` or Railway service config.
+\`\`\`bash
+docker compose -f backend/docker-compose.yml ps
+docker inspect mukthiguru-qdrant mukthiguru-memgraph mukthiguru-redis
+\`\`\`
 
-1.2. Confirm service endpoints and credentials are isolated from production. Use non-production ports/hostnames only.
+Record the exact image versions, source collection names, current Qdrant point counts, Memgraph node/relationship counts, and Redis \`DBSIZE\`. Confirm that the restore targets are separate from source containers and have separate volumes.
 
-### 2. Restore each backup type
+Do not run \`docker compose down -v\`, \`FLUSHALL\`, \`FLUSHDB\`, \`DROP DATABASE\`, or any restore command against the source services.
 
-#### Supabase / Postgres
+## 2. Create backups
 
-```bash
-# Schema-only restore (run first to create objects)
-psql -h <restore-host> -U <restore-user> -d <restore-db> -f backups/supabase/schema_<date>.sql
+### Qdrant
 
-# Data restore for selected critical tables (adjust list as schema evolves)
-pg_restore -h <restore-host> -U <restore-user> -d <restore-db> --data-only \
-  -t chat_sessions -t chat_messages -t user_profiles -t user_brain_nodes \
-  backups/supabase/data_<date>.dump
-```
+Run once for each collection that must be recoverable. Use the write-scoped key because snapshot creation requires write permission:
 
-If restore fails on ownership or extensions, fix with:
+\`\`\`bash
+QDRANT_URL="$QDRANT_URL" \
+QDRANT_WRITE_API_KEY="$QDRANT_WRITE_API_KEY" \
+python scripts/ops/backup_qdrant.py \
+  --collection spiritual_wisdom_contextual \
+  --retention 7
+\`\`\`
 
-```sql
-ALTER SCHEMA public OWNER TO <restore-user>;
-CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
-```
+Repeat for the active first-person serving and context collections declared by the current serving contract. Do not hardcode an old version such as v10 or v12.
 
-#### Qdrant
+Pass criteria: the script prints \`Backup verified\`, creates a \`.sha256\` sidecar, and its internal test restore succeeds. Record source point count and snapshot path.
 
-```bash
-# Restore a collection snapshot into the target Qdrant instance
-curl -X POST "http://<restore-qdrant>:6333/collections/<collection_name>/snapshots/upload" \
-  -H "api-key: <restore-key>" \
-  -F "snapshot=@backups/qdrant/<collection_name>_<date>.snapshot"
-```
+### Memgraph
 
-Verify collection count and vector dimensions:
+The comprehensive local snapshot manager also attempts Qdrant and local Supabase. For a graph-only backup:
 
-```bash
-curl "http://<restore-qdrant>:6333/collections/<collection_name>" -H "api-key: <restore-key>"
-```
+\`\`\`bash
+GRAPH_CONTAINER=mukthiguru-memgraph \
+NEO4J_PASSWORD="$NEO4J_PASSWORD" \
+python -c '
+from scripts.backup.snapshot_manager import setup_directories, backup_neo4j
+setup_directories()
+raise SystemExit(0 if backup_neo4j() else 1)
+'
+\`\`\`
 
-#### Neo4j
+The output is stored under \`backups/neo4j/backup.cypher\` with a \`.sha256\` sidecar. The filename is retained for compatibility; the default graph engine is Memgraph.
 
-```bash
-# Stop the target Neo4j container, then load the dump
-neo4j-admin load --from=backups/neo4j/neo4j_<date>.dump --database=neo4j --force
-```
+Pass criteria: the output reports both node and relationship counts, a non-empty graph yields a non-empty dump, and a checksum sidecar is written.
 
-Restart the target Neo4j service and run a smoke Cypher query:
+### Redis
 
-```cypher
-MATCH (n) RETURN count(n) AS nodes;
-```
+\`\`\`bash
+REDIS_PASSWORD="$REDIS_PASSWORD" \
+python scripts/backup/redis_rdb_backup.py backup \
+  --container mukthiguru-redis \
+  --output-dir backups/redis
+\`\`\`
 
-#### Redis
+Verify the new artifact:
 
-```bash
-# Stop target Redis, replace .rdb, restart
-sudo systemctl stop redis
-sudo cp backups/redis/dump_<date>.rdb /var/lib/redis/dump.rdb
-sudo systemctl start redis
-redis-cli ping
-```
+\`\`\`bash
+python scripts/backup/redis_rdb_backup.py verify backups/redis/<artifact>.rdb
+\`\`\`
 
-### 3. Smoke tests after restore
+Pass criteria: BGSAVE completes successfully, the RDB header is valid, and the SHA-256 sidecar matches. The helper does not claim a restore merely because the RDB header is present; the isolated restore below is still required.
 
-Run these checks and record results in the monthly issue:
+### Local Supabase/Postgres
 
-| Check | Command / Step | Expected result |
+Only when the local Supabase stack is running:
+
+\`\`\`bash
+NEO4J_PASSWORD="$NEO4J_PASSWORD" \
+QDRANT_URL="$QDRANT_URL" \
+python scripts/backup/snapshot_manager.py backup
+\`\`\`
+
+This command also backs up the Qdrant collections declared by the serving configuration and the local graph. Its Supabase path is data-only and optional; it is not a substitute for the hosted roles/schema/data workflow.
+
+## 3. Restore into isolated targets
+
+### Qdrant
+
+Use a separate Qdrant instance or a uniquely named scratch collection. Restore the snapshot with the upload endpoint using \`priority=snapshot\` and the write key. Wait until the collection reports green. Compare point count and vector dimensions with the recorded source values, then scroll a sample and verify payload/vector availability.
+
+Do not restore over the live collection.
+
+### Memgraph
+
+Create an empty scratch Memgraph container and point the snapshot manager at it:
+
+\`\`\`bash
+GRAPH_CONTAINER=mukthiguru-memgraph-restore \
+NEO4J_PASSWORD="$RESTORE_NEO4J_PASSWORD" \
+python -c '
+from scripts.backup.snapshot_manager import setup_directories, restore_neo4j
+setup_directories()
+raise SystemExit(0 if restore_neo4j() else 1)
+'
+\`\`\`
+
+The restore implementation refuses to replay over a non-empty graph. A new-format backup is checked against its checksum, node count and relationship count. The scratch graph must match both counts. A populated target being left untouched is a **failed drill**, not a successful restore.
+
+### Redis
+
+Use a fresh, disposable Docker volume and Redis container. Do not copy the RDB into the running source Redis instance.
+
+1. Verify the backup and checksum with \`redis_rdb_backup.py verify\`.
+2. Copy the verified RDB to \`/data/dump.rdb\` in a fresh volume before starting a disposable Redis container.
+3. Start that container with AOF disabled so Redis loads the RDB at startup.
+4. Check startup logs for successful RDB loading, then run \`redis-cli DBSIZE\` and compare a bounded sample of expected keys.
+5. Destroy only the scratch container and scratch volume after recording the result.
+
+Do not treat Redis AOF, a running process, or the source \`redis_data\` volume as an independent backup artifact.
+
+### Postgres
+
+Restore local data-only exports only into a disposable local database with the matching schema already applied. For hosted Supabase, no restore drill is permitted until a complete private roles/schema/data artifact exists and its checksum has been verified.
+
+## 4. Smoke tests after restore
+
+| Check | Evidence required | Expected result |
 | --- | --- | --- |
-| Postgres reachable | `pg_isready -h <host>` | `accepting connections` |
-| Critical tables present | `\dt public.*` in `psql` | Core tables exist |
-| Row counts plausible | `SELECT count(*) FROM chat_sessions;` | Non-negative, matches backup metadata |
-| Qdrant healthy | `GET /` on `:6333` | `status: "ok"` |
-| Collection count | `GET /collections/<name>` | Matches source |
-| Neo4j reachable | `bolt` ping or browser | Connected |
-| Node count | `MATCH (n) RETURN count(n)` | Plausible |
-| Redis reachable | `redis-cli ping` | `PONG` |
-| Backend health | `GET http://localhost:8000/api/health` | `ready: true` |
-| Frontend serves | Open `http://localhost` | Page loads, no blank screen |
-| Sign-in page renders | Open `/auth` | Form visible |
-| Chat query returns | POST `/api/chat` with test query | 200 and non-empty response |
+| Qdrant reachable | Health endpoint | HTTP success |
+| Qdrant collection | Point count + vector config | Matches backup manifest |
+| Qdrant sample | Scroll selected points | Payloads and vectors present |
+| Memgraph reachable | Bolt query | Connected |
+| Memgraph nodes | \`MATCH (n) RETURN count(n)\` | Exact manifest count |
+| Memgraph relationships | \`MATCH ()-[r]->() RETURN count(r)\` | Exact manifest count |
+| Redis reachable | \`redis-cli PING\` | \`PONG\` |
+| Redis loaded | Startup log + \`DBSIZE\` | RDB load completed; plausible key count |
+| Postgres reachable | \`pg_isready\` | Accepting connections |
+| Critical tables | \`\\dt public.*\` and selected counts | Expected schema and plausible rows |
+| Backend | \`GET /api/healthz\` | Healthy on the isolated stack |
+| Frontend | Open local app | Page renders |
+| Chat | One safe smoke question | Expected response from the isolated restored stack |
 
-### 4. Validate backup freshness
+## 5. Backup freshness and evidence
 
-Confirm each backup used in the drill is no older than the retention window:
+Record per store:
 
-- Postgres: 7 days for daily, 30 days for weekly, 90 days for monthly.
-- Qdrant snapshots: same as Postgres.
-- Neo4j: weekly.
-- Redis: daily (`.rdb` written by `save` config).
+- Backup timestamp and age.
+- Source image/version and collection/database name.
+- Artifact path, byte size and SHA-256.
+- Source and restored counts.
+- Restore target identity.
+- Exact commands and exit statuses.
+- Missing stores and reasons.
 
-If any backup is stale, file an ops issue immediately.
+A missing backup or absent hosted backup is **FAIL / NOT COVERED**, not SKIPPED-as-success.
 
-### 5. Log results
+## 6. Log results in the monthly issue
 
-Append a result block to the monthly tracking issue created by the reminder workflow:
-
-```markdown
+\`\`\`markdown
 ## Backup/Restore Drill — YYYY-MM-DD
 
 Engineer: @<handle>
-Environment: <local/staging>
+Environment: <isolated local / disposable staging>
 
-### Restored
-- [ ] Postgres schema
-- [ ] Postgres data (critical tables)
-- [ ] Qdrant snapshot(s)
-- [ ] Neo4j dump
-- [ ] Redis RDB
+| Store | Backup artifact | SHA-256 | Restore result | Counts verified |
+| --- | --- | --- | --- | --- |
+| Qdrant | <path> | <hash> | PASS/FAIL | <points> |
+| Memgraph | <path> | <hash> | PASS/FAIL | <nodes>/<relationships> |
+| Redis | <path> | <hash> | PASS/FAIL | <keys> |
+| Local Postgres | <path / absent> | <hash / n/a> | PASS/FAIL/NOT COVERED | <tables/rows> |
+| Hosted Postgres | <artifact / blocked> | <hash / n/a> | PASS/FAIL/NOT COVERED | <tables/rows> |
+| Railway stores | <evidence / absent> | <hash / n/a> | PASS/FAIL/NOT COVERED | <counts> |
 
 ### Smoke-test results
-| Check | Result |
-| --- | --- |
-| Postgres reachable | PASS / FAIL |
-| Critical tables present | PASS / FAIL |
-| Row counts plausible | PASS / FAIL |
-| Qdrant healthy | PASS / FAIL |
-| Collection count | PASS / FAIL |
-| Neo4j reachable | PASS / FAIL |
-| Node count | PASS / FAIL |
-| Redis reachable | PASS / FAIL |
-| Backend health | PASS / FAIL |
-| Frontend serves | PASS / FAIL |
-| Sign-in page | PASS / FAIL |
-| Chat query returns | PASS / FAIL |
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Qdrant | PASS/FAIL | <count/config> |
+| Memgraph | PASS/FAIL | <nodes/rels> |
+| Redis | PASS/FAIL | <DBSIZE/log> |
+| Postgres | PASS/FAIL/NOT COVERED | <tables> |
+| Backend / frontend / chat | PASS/FAIL | <evidence> |
 
-### Issues found
-- <none / list>
-
-### Follow-up tickets
-- #<issue>
-```
+### Gaps and follow-up tickets
+- <list>
+\`\`\`
 
 ## Escalation
 
-If any restore step fails or smoke tests do not pass:
+If any required local restore fails, stop and preserve logs. File a P1 operations issue. Do not close the monthly drill until the restore passes.
 
-1. Stop the drill and preserve logs.
-2. File a P1 incident issue with label `ops` and `backup`.
-3. Do not mark the monthly reminder issue as complete until the root cause is fixed and the drill is re-run.
+Hosted Supabase, Railway Qdrant/Memgraph/Redis, off-host storage and measured RPO/RTO remain explicit coverage gaps until separate backup artifacts and restore evidence exist.
 
 ## References
 
-- `docs/runbooks/INCIDENT_RESPONSE.md`
-- `docs/runbooks/SECRET_ROTATION.md`
-- `.github/workflows/backup-drill-reminder.yml`
+- \`docs/BACKUP_RESTORE.md\`
+- \`scripts/backup/snapshot_manager.py\`
+- \`scripts/backup/redis_rdb_backup.py\`
+- \`scripts/ops/backup_qdrant.py\`
+- \`.github/workflows/backup.yml\`
+- \`.github/workflows/backup-drill-reminder.yml\`
+- \`docs/runbooks/INCIDENT_RESPONSE.md\`
