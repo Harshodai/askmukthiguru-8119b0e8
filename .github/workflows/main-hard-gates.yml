@@ -60,7 +60,7 @@ jobs:
           python-version: '3.12'
       - name: Install lightweight contract test dependencies
         run: |
-          pip install pytest pytest-asyncio pydantic pydantic-settings pyyaml numpy python-dotenv qdrant-client==1.20.0
+          pip install pytest pytest-asyncio pydantic pydantic-settings pyyaml numpy python-dotenv qdrant-client==1.20.0 fastapi==0.142.2
       - name: Validate required source contracts and execute active test suites
         run: |
           set -euo pipefail
