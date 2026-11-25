@@ -91,12 +91,13 @@ def test_qdrant_restore_upload_uses_authenticated_request(monkeypatch, tmp_path)
         def read(self):
             return b'{"status":"ok"}'
 
-    def fake_open(request, timeout=120):
+    def fake_urlopen(request, timeout):
         captured["request"] = request
         captured["timeout"] = timeout
         return UploadResponse()
 
-    monkeypatch.setattr(SNAPSHOT, "_qdrant_open", fake_open)
+    # Patch the transport, not _qdrant_open: that function is what adds the key.
+    monkeypatch.setattr(SNAPSHOT.urllib.request, "urlopen", fake_urlopen)
 
     assert SNAPSHOT.restore_qdrant("collection") is True
     assert captured["request"].get_header("Api-key") == "write-token"
