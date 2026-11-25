@@ -262,6 +262,8 @@ def main():
             patch["speaker_verification_status"] = (
                 "pending_voice_check" if best_verdict == "indeterminate_no_windows" else "ecapa_failed"
             )
+            if best_verdict == "indeterminate_no_windows":
+                pending_count += 1
             patch["voice_verification_method"] = "ecapa_voxceleb_windowed_v1"
             patch["voice_model_revision"] = "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286"
             patch["voice_calibration_id"] = "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e"
