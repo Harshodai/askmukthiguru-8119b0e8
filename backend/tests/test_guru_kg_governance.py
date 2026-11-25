@@ -264,3 +264,20 @@ def test_source_arc_rejects_unlicensed_status_even_when_authorizer_is_present() 
         speaker_verification_reference="speaker-review-123",
     )
     assert driver.calls == []
+
+def test_guru_kg_service_import_does_not_eagerly_load_qdrant_backed_guru_brain(monkeypatch):
+    import importlib
+    import sys
+
+    sys.modules.pop("services.guru_brain", None)
+    sys.modules.pop("services.guru_brain.guru_brain_service", None)
+    monkeypatch.delitem(sys.modules, "qdrant_client", raising=False)
+
+    package = importlib.import_module("services.guru_brain")
+    assert "services.guru_brain.guru_brain_service" not in sys.modules
+
+    from services.guru_brain.guru_kg_service import GuruKGService
+
+    assert GuruKGService is not None
+    assert "services.guru_brain.guru_brain_service" not in sys.modules
+    assert hasattr(package, "ToneExtractor")
