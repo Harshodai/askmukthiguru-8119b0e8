@@ -7,11 +7,9 @@ Memgraph (``bolt://127.0.0.1:7687``), and OKF (``memory/okf/compiled.json``).
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
-from dotenv import dotenv_values
 from neo4j import GraphDatabase
 from qdrant_client import QdrantClient
 
@@ -49,9 +47,10 @@ def run_live_benchmark(dataset_path: Path | None = None) -> dict[str, Any]:
         if line.strip()
     ]
 
-    env = dotenv_values(root / "backend" / ".env")
-    mg_user = env.get("NEO4J_USER") or os.getenv("NEO4J_USER") or ""
-    mg_pass = env.get("NEO4J_PASSWORD") or os.getenv("NEO4J_PASSWORD") or ""
+    from app.config import settings  # config only via settings; imported lazily (validates env)
+
+    mg_user = settings.neo4j_user or ""
+    mg_pass = settings.neo4j_password or ""
     driver = GraphDatabase.driver(
         "bolt://127.0.0.1:7687",
         auth=(mg_user, mg_pass) if (mg_user or mg_pass) else None,

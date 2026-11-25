@@ -1466,6 +1466,8 @@ class Settings(BaseSettings):
     # cost on held-out graph queries before enabling it in a deployed posture.
     kg_dynamic_concept_resolution_enabled: bool = False
     kg_dynamic_concept_resolution_timeout_s: float = Field(default=0.75, gt=0.0, le=1.2)
+    # Folded into the shared cache-key scope (pipeline_coordinator); bump when the ontology changes.
+    ontology_version: str = "v1"
     contradiction_resolution_enabled: bool = True
 
     # --- Retrieval Quality Gates ---
