@@ -242,6 +242,30 @@ def is_verified_windowed_verdict(verdict: object) -> bool:
     return isinstance(verdict, str) and verdict.strip().lower() == VERDICT_VERIFIED
 
 
+def pending_voice_check_patch(
+    cosine_floor: float,
+    margin_threshold: float,
+    *,
+    reason: str,
+) -> dict[str, Any]:
+    """Revoke any stale positive when span audio cannot be independently scored."""
+    return {
+        "speaker_verified": False,
+        "speaker_verification_status": "pending_voice_check",
+        "voice_verification_method": "ecapa_voxceleb_windowed_v1",
+        "voice_model_revision": "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286",
+        "voice_calibration_id": "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e",
+        "voice_threshold_applied": {
+            "cosine_floor": float(cosine_floor),
+            "margin_threshold": float(margin_threshold),
+        },
+        "voice_score": None,
+        "voice_margin": None,
+        "voice_window_check": "indeterminate",
+        "voice_pending_reason": str(reason)[:160],
+    }
+
+
 def calibrate_windowed_floor(
     positive_windows: list[dict[str, Any]],
     negative_windows: list[dict[str, Any]],
