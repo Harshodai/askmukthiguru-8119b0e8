@@ -154,6 +154,7 @@ To resume or execute full LightRAG knowledge graph ingestion directly from Qdran
 ```bash
 LIGHTRAG_SOURCE_COLLECTION=spiritual_wisdom \
 LIGHTRAG_CHECKPOINT_FILE=data/lightrag_checkpoint_v2_spiritual_wisdom.json \
+QDRANT_WRITE_API_KEY="$QDRANT_WRITE_API_KEY" \
 CONCURRENCY_WORKERS=8 \
 backend/.venv/bin/python scripts/ingest_lightrag_data.py
 ```
