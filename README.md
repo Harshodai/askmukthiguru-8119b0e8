@@ -152,11 +152,19 @@ npm run dev
 To resume or execute full LightRAG knowledge graph ingestion directly from Qdrant:
 
 ```bash
-CONCURRENCY_WORKERS=8 backend/.venv/bin/python scripts/ingest_lightrag_data.py
+LIGHTRAG_SOURCE_COLLECTION=spiritual_wisdom \
+LIGHTRAG_CHECKPOINT_FILE=data/lightrag_checkpoint_v2_spiritual_wisdom.json \
+QDRANT_WRITE_API_KEY="$QDRANT_WRITE_API_KEY" \
+CONCURRENCY_WORKERS=8 \
+backend/.venv/bin/python scripts/ingest_lightrag_data.py
 ```
 
-- Progress is stored atomically in `data/lightrag_checkpoint.json`.
-- Logs stream to stdout and append to `data/lightrag_ingestion.log`.
+- The source is selected explicitly with `LIGHTRAG_SOURCE_COLLECTION`; the serving default `QDRANT_COLLECTION` is never used as an ingestion-source fallback.
+- Use a new v2 checkpoint path for the first run (`data/lightrag_checkpoint_v2_spiritual_wisdom.json`). Existing cursor-only checkpoints are intentionally rejected and left untouched; reconcile the old cursor against the live graph/doc-status store before any explicit migration. Do not rename or copy a legacy cursor into the v2 path.
+- A process-level lock prevents concurrent runs from sharing the same checkpoint.
+- A batch cursor advances only after every point is successfully inserted, explicitly skipped as too short, or explicitly rejected by the content-quality gate. Retryable insert failures stop the run without advancing the cursor, so the failed batch is replayed.
+- Progress is written atomically to `data/lightrag_checkpoint.json`; a failed checkpoint write aborts the run.
+- Logs stream to stdout.
 
 ### Automated Inactive User Memory Cleanup
 To purge inactive user data (>365 days inactive):
