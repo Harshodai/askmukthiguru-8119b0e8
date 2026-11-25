@@ -528,3 +528,36 @@ def test_recommend_next_teachings() -> None:
     assert "vid_current_1" not in [r["video_id"] for r in recs]
     assert recs[0]["video_id"] == "vid_next_1"
     assert recs[0]["title"] == "Serene Mind Practice"
+
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("speaker_verified", "false"),
+        ("speaker_verified", 1),
+        ("speaker_verified", None),
+        ("rights_cleared", "false"),
+        ("rights_cleared", 1),
+        ("rights_cleared", None),
+    ],
+)
+def test_manifest_rejects_non_boolean_source_evidence(field: str, value: object) -> None:
+    clip = {
+        "point_id": "pt_strict_evidence",
+        "video_id": "vid_strict_evidence",
+        "source_url": "https://youtu.be/vid_strict_evidence",
+        "start_ms": 1000,
+        "end_ms": 9000,
+        "speaker": "Sri Preethaji",
+        "verbatim_text": "Awareness begins with observation.",
+        "speaker_verified": True,
+        "rights_cleared": True,
+    }
+    clip[field] = value
+
+    with pytest.raises(TypeError, match="must be booleans"):
+        build_composition_manifest(
+            query="What is awareness?",
+            clips=[clip],
+        )
