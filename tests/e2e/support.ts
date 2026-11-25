@@ -2,9 +2,10 @@ import { expect, type Page } from '@playwright/test';
 
 export async function dismissSafetyDisclaimer(page: Page): Promise<void> {
   const dialog = page.locator('[role="dialog"][aria-labelledby="safety-disclaimer-title"]');
+  await dialog.waitFor({ state: 'visible', timeout: 1_500 }).catch(() => {});
   if (!(await dialog.isVisible().catch(() => false))) return;
 
-  const begin = dialog.getByRole('button', { name: /begin journey/i });
+  const begin = dialog.getByRole('button', { name: /begin.*journey|i understand/i });
   const close = dialog.getByRole('button', { name: /close/i });
   if (await begin.isVisible().catch(() => false)) {
     await begin.click();

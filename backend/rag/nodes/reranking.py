@@ -165,7 +165,7 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
                 reverse=True,
             )[:rerank_top_k]
             rerank_bypassed = True
-        elif (settings.use_flashrank or settings.reranker_backend == "onnx_int8") and reranker is not None:
+        elif (getattr(settings, "use_flashrank", False) or getattr(settings, "reranker_backend", "") == "onnx_int8") and reranker is not None:
             reranked_db = await reranker.rerank(
                 question,
                 rerank_candidates,

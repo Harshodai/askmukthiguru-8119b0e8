@@ -10,6 +10,7 @@ import { ArrowRight, Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BACKEND_URL } from '@/lib/backendUrl';
 import { requestBackendHealth } from '@/lib/chat/health';
+import { DISCLAIMER_ACCEPTED_EVENT, isDisclaimerAccepted } from '@/components/common/SafetyDisclaimer';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -134,13 +135,25 @@ const ChatPage = () => {
     const tourDone = localStorage.getItem(TOUR_COMPLETED_KEY) === '1';
 
     // Show tour for authenticated users only; never prompt anonymous users to onboard.
+    // Wait for SafetyDisclaimer acceptance so first-run overlays never stack.
     const shouldShow = !!user && !tourDone && !onboarded;
     if (shouldShow) {
-      localStorage.setItem(ONBOARDED_KEY, '1');
-      localStorage.setItem(TOUR_SHOWN_COUNT_KEY, '1');
-      // Small delay so the chat UI renders before the tour positions itself
-      const t = setTimeout(() => setTourOpen(true), 600);
-      return () => clearTimeout(t);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const scheduleTour = () => {
+        localStorage.setItem(ONBOARDED_KEY, '1');
+        localStorage.setItem(TOUR_SHOWN_COUNT_KEY, '1');
+        // Small delay so the chat UI renders before the tour positions itself
+        timer = setTimeout(() => setTourOpen(true), 600);
+      };
+      if (isDisclaimerAccepted()) {
+        scheduleTour();
+        return () => clearTimeout(timer);
+      }
+      window.addEventListener(DISCLAIMER_ACCEPTED_EVENT, scheduleTour, { once: true });
+      return () => {
+        window.removeEventListener(DISCLAIMER_ACCEPTED_EVENT, scheduleTour);
+        clearTimeout(timer);
+      };
     }
   }, [loading, user]);
 

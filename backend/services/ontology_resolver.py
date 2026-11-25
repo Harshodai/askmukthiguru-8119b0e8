@@ -18,6 +18,61 @@ logger = logging.getLogger(__name__)
 
 _RESOLVER_CACHE: dict[str, list[str]] = {}
 _MAX_CACHE_ENTRIES = 2048
+_REDIS_KEY_PREFIX = "ontology:concepts:v1:"
+_REDIS_TTL_SECONDS = 86400  # 24h cache per query hash
+
+
+def _get_redis_client() -> Optional[Any]:
+    """Return shared Redis client if available, failing open with None."""
+    try:
+        from app.dependencies import get_container
+
+        container = get_container()
+        for attr in ("redis_client", "redis"):
+            client = getattr(container, attr, None)
+            if client is not None:
+                return client
+        cache_svc = getattr(container, "cache_service", None) or getattr(container, "exact_cache", None)
+        if cache_svc is not None:
+            for attr in ("redis_client", "client", "_client", "_redis"):
+                client = getattr(cache_svc, attr, None)
+                if client is not None:
+                    return client
+    except (ImportError, AttributeError, RuntimeError):
+        return None
+    return None
+
+
+def _redis_get_concepts(cache_key: str) -> Optional[list[str]]:
+    client = _get_redis_client()
+    if client is None or not hasattr(client, "get"):
+        return None
+    try:
+        raw = client.get(f"{_REDIS_KEY_PREFIX}{cache_key}")
+        if not raw:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8")
+        data = json.loads(raw)
+        if isinstance(data, list) and all(isinstance(x, str) and x for x in data):
+            return data
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        logger.debug("[OntologyResolver] Redis get failed (non-fatal): %s", exc)
+    return None
+
+
+def _redis_set_concepts(cache_key: str, concepts: list[str]) -> None:
+    client = _get_redis_client()
+    if client is None or not concepts:
+        return
+    try:
+        payload = json.dumps(concepts)
+        if hasattr(client, "setex"):
+            client.setex(f"{_REDIS_KEY_PREFIX}{cache_key}", _REDIS_TTL_SECONDS, payload)
+        elif hasattr(client, "set"):
+            client.set(f"{_REDIS_KEY_PREFIX}{cache_key}", payload, ex=_REDIS_TTL_SECONDS)
+    except (OSError, ValueError, TypeError) as exc:
+        logger.debug("[OntologyResolver] Redis set failed (non-fatal): %s", exc)
 
 _SYSTEM_PROMPT = (
     "You are an expert ontology concept resolver for a spiritual wisdom archive.\n"
@@ -49,6 +104,12 @@ async def resolve_query_concepts_llm_async(
     cache_key = hashlib.sha256(clean_query.lower().encode("utf-8")).hexdigest()[:16]
     if cache_key in _RESOLVER_CACHE:
         return list(_RESOLVER_CACHE[cache_key])
+    redis_cached = _redis_get_concepts(cache_key)
+    if redis_cached:
+        if len(_RESOLVER_CACHE) >= _MAX_CACHE_ENTRIES:
+            _RESOLVER_CACHE.clear()
+        _RESOLVER_CACHE[cache_key] = redis_cached
+        return list(redis_cached)
 
     # Try resolving LLM service from container if not provided
     if llm_service is None:
@@ -99,6 +160,7 @@ async def resolve_query_concepts_llm_async(
                 if len(_RESOLVER_CACHE) >= _MAX_CACHE_ENTRIES:
                     _RESOLVER_CACHE.clear()
                 _RESOLVER_CACHE[cache_key] = concepts
+                _redis_set_concepts(cache_key, concepts)
                 return concepts
 
     except Exception as exc:
@@ -121,6 +183,12 @@ def resolve_query_concepts_llm(
     cache_key = hashlib.sha256(clean_query.lower().encode("utf-8")).hexdigest()[:16]
     if cache_key in _RESOLVER_CACHE:
         return list(_RESOLVER_CACHE[cache_key])
+    redis_cached = _redis_get_concepts(cache_key)
+    if redis_cached:
+        if len(_RESOLVER_CACHE) >= _MAX_CACHE_ENTRIES:
+            _RESOLVER_CACHE.clear()
+        _RESOLVER_CACHE[cache_key] = redis_cached
+        return list(redis_cached)
 
     try:
         try:

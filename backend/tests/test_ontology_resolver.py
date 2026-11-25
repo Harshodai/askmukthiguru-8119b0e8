@@ -41,3 +41,35 @@ def test_resolve_query_concepts_llm_sync_fallback():
     concepts = resolve_query_concepts_llm("How to dissolve suffering in relationships?", llm_service=None)
     assert len(concepts) > 0
     assert any("Suffering" in c or "Relationships" in c for c in concepts)
+
+
+@pytest.mark.asyncio
+async def test_ontology_resolver_24h_redis_cache_roundtrip(monkeypatch):
+    import services.ontology_resolver as mod
+
+    mod._RESOLVER_CACHE.clear()
+    fake_store: dict[str, tuple[int, str]] = {}
+
+    class _FakeRedis:
+        def get(self, key: str):
+            entry = fake_store.get(key)
+            return entry[1] if entry else None
+
+        def setex(self, key: str, ttl: int, val: str):
+            fake_store[key] = (ttl, val)
+
+    monkeypatch.setattr(mod, "_get_redis_client", lambda: _FakeRedis())
+    mock_llm = MagicMock()
+    mock_llm.generate = AsyncMock(return_value='{"concepts": ["Forgiveness", "Relationship"]}')
+
+    first = await mod.resolve_query_concepts_llm_async("How do I forgive my partner?", llm_service=mock_llm)
+    assert first == ["Forgiveness", "Relationship"]
+    assert len(fake_store) == 1
+    ttl, _ = next(iter(fake_store.values()))
+    assert ttl == 86400
+
+    # Clear in-memory cache and confirm hit comes from Redis without calling LLM again
+    mod._RESOLVER_CACHE.clear()
+    second = await mod.resolve_query_concepts_llm_async("How do I forgive my partner?", llm_service=mock_llm)
+    assert second == ["Forgiveness", "Relationship"]
+    assert mock_llm.generate.await_count == 1

@@ -207,8 +207,14 @@ def _route_after_first_person(state: GraphState):
         from services.fp_fail_closed import teaching_generation_allowed
 
         if teaching_generation_allowed():
+            from app.config import settings
+
             citations = getattr(result, "citations", None) or []
-            if citations and "first_person_related_clips" not in state:
+            if (
+                getattr(settings, "first_person_grounded_synthesis_enabled", False)
+                and citations
+                and "first_person_related_clips" not in state
+            ):
                 from app.pipeline.stages.first_person_bridge import _eligible_citations
 
                 eligible = _eligible_citations(citations)

@@ -118,13 +118,14 @@ def expand_query_concepts(
         return []
 
     try:
-        from rag.kg_expansion import expand_query_via_kg
+        from rag.kg_expansion import expand_query_via_kg, resolve_concepts_in_query
     except Exception as exc:  # pragma: no cover - import-regression guard
         logger.debug("[FPGraphExpansion] kg expansion unavailable: %r", exc)
         return []
 
     timeout_val = max(0.01, float(timeout_s))
     limit = int(max_neighbors)
+    seeds = resolve_concepts_in_query(text)
     neighbors = _run_bounded(
         lambda: expand_query_via_kg(
             text,
@@ -135,7 +136,8 @@ def expand_query_concepts(
         ),
         timeout_val,
     )
-    return _normalise(neighbors, text, limit)
+    all_terms = list(seeds) + list(neighbors)
+    return _normalise(all_terms, text, limit)
 
 
 def expand_teaching_units(

@@ -5173,7 +5173,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             t_ctx_ret_ms = (time.monotonic() - t_ctx_start) * 1000.0
 
             _try2_budget_s = float(getattr(settings, "first_person_try2_budget_ceiling_s", 2.5) or 2.5)
-            _elapsed = time.monotonic() - start_time
+            _elapsed = (time.monotonic() - start_time) if start_time > 0 else 0.0
             if not contexts and _elapsed > _try2_budget_s:
                 logger.info(
                     "[FirstPersonPipeline] Initial retrieval empty, but turn elapsed %.2fs > budget ceiling (%.2fs); skipping Try 2 expansion",
@@ -6078,7 +6078,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 # Adjudicate candidates with Judge Claude Haiku.
                 # Ensure 100% verbatim authenticity of any served clip.
                 _try2_budget_s = float(getattr(settings, "first_person_try2_budget_ceiling_s", 2.5) or 2.5)
-                _elapsed = time.monotonic() - start_time
+                _elapsed = (time.monotonic() - start_time) if start_time > 0 else 0.0
                 if _try2_enabled and _elapsed > _try2_budget_s:
                     logger.info(
                         "[FirstPersonPipeline] Turn elapsed %.2fs exceeds Try 2 budget ceiling (%.2fs); skipping Try 2 expansion to maintain sub-10s SLA",

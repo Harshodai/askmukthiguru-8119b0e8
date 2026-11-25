@@ -1,6 +1,28 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 25, 2026 — Try-2 Sentinel Clock, CSP Theme Externalization, Modal Ordering & Live Railway Faculty Audit
+
+### L-TRY2-SENTINEL-START-TIME-1. Guard `start_time <= 0` before comparing against `time.monotonic()` in Try-2 budget checks.
+- **What:** `FirstPersonPipeline._serve_from_context_harness` computed `_elapsed = time.monotonic() - start_time` unconditionally, so callers/tests passing `start_time=0.0` observed machine uptime (~`199254s > 2.50s`) and skipped every Try-2 adaptive expansion (`test_spiritual_expansion.py`).
+- **Rule:** Compute `(time.monotonic() - start_time) if start_time > 0 else 0.0` at both Try-2 SLA checks and guard optional `settings` attributes (e.g. `reranker_backend` in `rag/nodes/reranking.py`) with `getattr` for mocked test namespaces.
+
+### L-SYNTH-CLIP-YIELD-PARITY-1. Gate `_route_after_first_person()` related-clip injection on `first_person_grounded_synthesis_enabled`.
+- **What:** `first_person_bridge.py` gated `first_person_related_clips` state injection behind `first_person_grounded_synthesis_enabled`, whereas `_route_after_first_person()` in `rag/graph_strategies.py` injected clips unconditionally whenever `teaching_generation_allowed()` held.
+- **Rule:** Keep state injection of `first_person_related_clips` strictly gated by `first_person_grounded_synthesis_enabled` across both bridge stage and graph edge router, and pair `ontology_resolver.py` in-memory cache with 24h fail-open Redis caching (`ontology:concepts:v1:*`).
+
+### L-CSP-EXTERNAL-THEME-INIT-1. Move pre-paint theme initialization to `public/theme-init.js` for strict `script-src 'self'` CSP compliance.
+- **What:** `index.html` executed an inline `<script>` for pre-paint dark/light class application while `nginx.conf` enforced `script-src 'self'` without `'unsafe-inline'`, breaking CSP on Nginx builds.
+- **Rule:** Never place executable inline scripts in `index.html`; serve static pre-paint scripts via `public/theme-init.js` (`<script src="/theme-init.js"></script>`).
+
+### L-FIRST-RUN-MODAL-ORDERING-1. Gate `GuidedTour` auto-start behind `isDisclaimerAccepted()` (`DISCLAIMER_ACCEPTED_EVENT`).
+- **What:** `ChatPage.tsx` fired a 600ms `setTimeout(() => setTourOpen(true))` without checking `isDisclaimerAccepted()`, stacking `GuidedTour` alongside `SafetyDisclaimer`, while WebKit E2E tests raced `SafetyDisclaimer` hydration against `"I Understand — Begin My Journey"`.
+- **Rule:** All secondary first-run onboarding prompts (`GuidedTour`, `CookieConsentBanner`) must wait for `isDisclaimerAccepted()` / `DISCLAIMER_ACCEPTED_EVENT` before opening, and E2E dismissal helpers must wait briefly for hydration visibility.
+
+### L-RAILWAY-FACULTY-GATE-LIVE-2026-11-25. Live Railway probe exposes NO-GO blockers for general faculty release despite green safety rails.
+- **What:** A 15-query live Railway sweep confirmed sub-second intake/medical/injection guardrails and accurate `tier2_simple` meditation guidance, but exposed: transient HTTP `502` on relationship anger, `weak_match` off-target clips (`verification.passed=false`, `min_score=2`), phantom multipart `safety_notices`, split-brain `semantic_cache` (`grounding_state="abstained"` with 4-paragraph synthesis), inconsistent `DISTRESS` routing, Hindi query returning English transcript, and 61 backend test/ratchet failures (`first_person_relevance_min_score`, `_SYNTHESIS_SHAPE_RE`, `test_manus_scenarios_e2e`, `test_guru_literal_scan`, `test_supabase_types_lint`, missing host `soundfile`).
+- **Rule:** Never declare faculty readiness from targeted smoke tests alone; gate sign-off on deterministic cold+cached live probes and a green full backend invariant run.
+
 ## Nov 25, 2026 — Two-Stage Quantized ONNX Cascade, Memgraph Sizing, Atomic Multi-Video Verification & Scope Separation
 
 ### L-COLBERT-DECOMMISSION-ONNX-CASCADE-1. Decommission unoptimized CPU late-interaction token models in favor of two-stage quantized CrossEncoder cascades.

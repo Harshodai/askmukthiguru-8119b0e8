@@ -45,17 +45,7 @@
     <link rel="dns-prefetch" href="https://oauth.askmukthiguru.lovable.app" />
     <link rel="preconnect" href="https://accounts.google.com" crossorigin />
     <link rel="dns-prefetch" href="https://accounts.google.com" />
-    <script>
-      // Apply the saved theme before first paint so the page never flashes the wrong one.
-      (function () {
-        try {
-          var pref = (JSON.parse(localStorage.getItem('askmukthiguru_profile') || '{}') || {}).theme || 'system';
-          var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          document.documentElement.classList.toggle('dark', dark);
-          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-        } catch (e) { /* storage unavailable: keep the default */ }
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
