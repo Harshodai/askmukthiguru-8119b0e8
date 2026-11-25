@@ -301,3 +301,22 @@ def test_completed_checkpoint_requires_all_source_points_accounted_for(tmp_path)
         INGEST.load_checkpoint(
             "spiritual_wisdom", 10, str(tmp_path / "lightrag"), checkpoint
         )
+
+
+
+def test_qdrant_write_key_is_mapped_only_inside_ingestion_process(monkeypatch):
+    monkeypatch.setenv("QDRANT_WRITE_API_KEY", "operator-write-token")
+    monkeypatch.setenv("QDRANT_API_KEY", "old-read-token")
+
+    INGEST.configure_qdrant_ingest_auth()
+
+    assert INGEST.os.environ["QDRANT_API_KEY"] == "operator-write-token"
+
+
+def test_missing_qdrant_write_key_preserves_existing_client_key(monkeypatch):
+    monkeypatch.delenv("QDRANT_WRITE_API_KEY", raising=False)
+    monkeypatch.setenv("QDRANT_API_KEY", "existing-client-token")
+
+    INGEST.configure_qdrant_ingest_auth()
+
+    assert INGEST.os.environ["QDRANT_API_KEY"] == "existing-client-token"
