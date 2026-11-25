@@ -155,3 +155,32 @@ def test_checkpoint_write_failure_is_not_silenced(monkeypatch, tmp_path):
         INGEST.save_checkpoint_atomic(
             "point-1", counters, "spiritual_wisdom", 1, str(tmp_path / "lightrag"), checkpoint_file=checkpoint
         )
+
+
+
+def test_missing_checkpoint_starts_from_zero_with_not_completed_false(tmp_path):
+    offset, counters, completed = INGEST.load_checkpoint(
+        "spiritual_wisdom", 10, str(tmp_path / "lightrag"), tmp_path / "missing.json"
+    )
+    assert offset is None
+    assert counters == {"processed": 0, "success": 0, "skipped": 0, "rejected": 0, "failed": 0}
+    assert completed is False
+
+
+def test_completed_checkpoint_requires_all_source_points_accounted_for(tmp_path):
+    checkpoint = tmp_path / "checkpoint.json"
+    data = {
+        "schema_version": 2,
+        "source_collection": "spiritual_wisdom",
+        "source_point_count": 10,
+        "working_dir": str((tmp_path / "lightrag").resolve()),
+        "next_offset": None,
+        "completed": True,
+        "processed_count": 9,
+        "success_count": 9,
+        "skipped_count": 0,
+        "rejected_count": 0,
+    }
+    checkpoint.write_text(json.dumps(data))
+    with pytest.raises(RuntimeError, match="marked complete"):
+        INGEST.load_checkpoint("spiritual_wisdom", 10, str(tmp_path / "lightrag"), checkpoint)
