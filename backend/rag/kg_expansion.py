@@ -158,10 +158,18 @@ async def resolve_concepts_in_query_async(
     additive, never a replacement for the known ontology matches.
     """
     found = list(_find_concepts_in_query(query))
-    enabled = bool(
-        settings
-        and getattr(settings, "kg_dynamic_concept_resolution_enabled", False)
-    )
+    try:
+        from app.config import settings as app_settings
+
+        enabled = bool(
+            getattr(app_settings, "kg_dynamic_concept_resolution_enabled", False)
+        )
+    except Exception as exc:
+        logger.debug(
+            "[KGExpansion] Dynamic concept setting unavailable; using token matches: %s",
+            exc,
+        )
+        enabled = False
     if not allow_dynamic or not enabled or not query.strip():
         return found
 
