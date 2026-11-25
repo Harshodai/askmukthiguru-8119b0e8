@@ -437,13 +437,25 @@ async def main():
         start_time = time.time()
 
         while True:
-            scroll_res, batch_next_offset = qdrant_svc._client.scroll(
-                collection_name=source_collection,
-                limit=batch_size,
-                offset=next_offset,
-                with_payload=True,
-                with_vectors=False,
-            )
+            scroll_res = None
+            batch_next_offset = next_offset
+            for attempt in range(1, 6):
+                try:
+                    scroll_res, batch_next_offset = qdrant_svc._client.scroll(
+                        collection_name=source_collection,
+                        limit=batch_size,
+                        offset=next_offset,
+                        with_payload=True,
+                        with_vectors=False,
+                    )
+                    break
+                except Exception as exc:
+                    if attempt == 5:
+                        raise RuntimeError(
+                            f"Qdrant scroll failed 5 times for source {source_collection!r}; "
+                            "checkpoint was not advanced"
+                        ) from exc
+                    await asyncio.sleep(2 ** attempt)
             if not scroll_res:
                 print("🏁 Reached end of the selected source collection.")
                 break
