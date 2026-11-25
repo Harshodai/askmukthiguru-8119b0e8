@@ -158,7 +158,7 @@ def load_checkpoint(
     source_point_count: int,
     working_dir: str,
     checkpoint_file: Path | None = None,
-) -> tuple[object | None, dict[str, int]]:
+) -> tuple[object | None, dict[str, int], bool]:
     """Load only a v2 checkpoint proven to belong to this exact source/target."""
     path = checkpoint_file or CHECKPOINT_FILE
     if not path.exists():
@@ -465,7 +465,7 @@ async def main():
                 return_exceptions=True,
             )
             failed_count = sum(
-                1 for result in results if isinstance(result, Exception) or result == "failed"
+                1 for result in results if result not in ("success", "skipped", "rejected")
             )
             if failed_count:
                 # Do not move the cursor. The entire batch will replay on restart;
