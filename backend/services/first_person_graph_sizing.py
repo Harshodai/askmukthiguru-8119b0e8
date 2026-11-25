@@ -180,7 +180,7 @@ class MemgraphHarnessSizer:
         comparative_delta = 0
         is_comp = (
             guru_count > 1
-            or (teacher_id and teacher_id.strip().lower() in ("both", "all"))
+            or (teacher_id and teacher_id.strip().lower() in ("both", "all", "preethaji_krishnaji", "shared"))
             or ("difference" in query.lower() or "compare" in query.lower())
         )
         if is_comp:

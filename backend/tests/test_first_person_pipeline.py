@@ -1817,7 +1817,7 @@ def test_context_harness_recomputes_confidence_only_when_retrieval_vector_differ
     ).parameters
 
 
-def test_original_query_confidence_distress_returns_raw_cosine_when_readable():
+def test_original_query_confidence_distress_honors_hyde_expansion():
     """L-VENTING-CONFIDENCE-HONORS-HYDE-1: for distress/venting queries, the HyDE
     retrieval score (fallback) is honored when it exceeds the raw-query cosine.
     A seeker who says "I'm so depressed today" gets a low raw-query cosine against
@@ -1835,7 +1835,7 @@ def test_original_query_confidence_distress_returns_raw_cosine_when_readable():
     )
     assert low_raw_cosine == pytest.approx(0.0), "non-distress must use raw cosine"
 
-    # With is_distress=True, readable original-query vectors are returned directly without raising via HyDE
+    # With is_distress=True, HyDE fallback is honored when it exceeds the raw cosine
     distress_confidence = _original_query_confidence(
         original_query_dense=[1.0, 0.0],
         span_ids=["span-a"],
@@ -1843,8 +1843,8 @@ def test_original_query_confidence_distress_returns_raw_cosine_when_readable():
         fallback=0.78,  # HyDE retrieval score
         is_distress=True,
     )
-    assert distress_confidence == pytest.approx(0.0), (
-        "distress must return readable original-query cosine (0.0) without HyDE raising"
+    assert distress_confidence == pytest.approx(0.78), (
+        "distress must honor HyDE fallback (0.78) when it exceeds raw cosine (0.0)"
     )
 
 

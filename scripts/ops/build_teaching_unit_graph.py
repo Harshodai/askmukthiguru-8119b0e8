@@ -54,6 +54,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("build_teaching_unit_graph")
 
+try:
+    from services.guru_registry import canonical_guru_id, shared_attribution
+except ImportError:
+    canonical_guru_id = lambda g: g.lower().replace("-", "_") if g else g  # type: ignore
+    shared_attribution = lambda: ("preethaji_krishnaji", ["preethaji", "krishnaji"])  # type: ignore
+
 # ---------------------------------------------------------------------------
 # Production guard — must be the first check after logging is up.
 # ---------------------------------------------------------------------------
@@ -357,7 +363,8 @@ def build_graph(
         for i, payload in enumerate(valid):
             span_id: str = payload["source_span_id"]
             video_id: str = payload["video_id"]
-            guru_id: str = payload["guru_id"]
+            raw_guru_id: str = payload["guru_id"]
+            guru_id: str = canonical_guru_id(raw_guru_id) or raw_guru_id
             parent_id: str = payload.get("parent_unit_id") or ""
             corpus_version = payload.get("corpus_version") or "unknown"
             rights_status: str = (
@@ -408,6 +415,19 @@ def build_graph(
                 dict(span_id=span_id, guru_id=guru_id, epistemic_state="observed"),
             )
             edge_count += 1
+
+            # Collective lineage edge for shared founder tradition
+            shared_primary, shared_founders = shared_attribution()
+            if guru_id in shared_founders and shared_primary and "merge_shared_founder_edge" in queries:
+                _merge_node(
+                    driver, queries["merge_guru"], dict(guru_id=shared_primary, schema_version=schema_version)
+                )
+                _merge_edge(
+                    driver,
+                    queries["merge_shared_founder_edge"],
+                    dict(guru_id=guru_id, collective_id=shared_primary, epistemic_state="observed"),
+                )
+                edge_count += 1
 
             # Topic nodes + TU_HAS_TOPIC edges
             for topic in topics:

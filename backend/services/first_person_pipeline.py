@@ -59,6 +59,7 @@ from domain.first_person_context import (
     SpeakerRole,
     ValidatedCrossParentEdge,
     clip_text_hash,
+    _is_same_or_shared_guru,
 )
 from domain.first_person_facets import FACET_PLANNER_VERSION, QueryFacets
 from domain.speaker_provenance import AUTOMATED_PROVENANCE_KEYS, HUMAN_REVIEW_KEYS
@@ -3379,7 +3380,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 or not speaker_id
                 or not parent_id
                 or str(getattr(parent, "video_id", "")) != video_id
-                or str(getattr(parent, "guru_id", "")) != guru_id
+                or not _is_same_or_shared_guru(getattr(parent, "guru_id", ""), guru_id)
             ):
                 continue
             span_ids: list[str] = []
@@ -3399,12 +3400,12 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     or isinstance(raw_index, bool)
                     or not isinstance(raw_index, int)
                     or str(citation.get("video_id") or "") != video_id
-                    or str(citation.get("guru_id") or "") != guru_id
-                    or str(citation.get("teacher_id") or "") != guru_id
+                    or not _is_same_or_shared_guru(citation.get("guru_id") or "", guru_id)
+                    or not _is_same_or_shared_guru(citation.get("teacher_id") or "", guru_id)
                     or (str(citation.get("parent_unit_id") or "") != parent_id and not is_predecessor)
                     or str(citation.get("speaker_id") or "") != speaker_id
                     or citation.get("speaker_verified") is not True
-                    or citation.get("speaker_role") != "guru"
+                    or citation.get("speaker_role") not in ("guru", "teacher")
                     or citation.get("video_url") != expected_video_url
                     or _youtube_video_id_from_url(citation.get("source_url") or citation.get("url"))
                     != video_id
@@ -3628,7 +3629,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
             "rights_cleared": span.rights_cleared,
             "domain_rights_status": span.domain_rights_status,
             "first_person_eligible": bool(
-                span.speaker_role is SpeakerRole.GURU
+                span.speaker_role in (SpeakerRole.GURU, SpeakerRole.TEACHER)
                 and span.speaker_verified is True
                 and span.rights_cleared is True
                 and span.is_verbatim is True

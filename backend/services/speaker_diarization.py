@@ -415,6 +415,9 @@ def apply_speaker_attribution_to_segments(
 
         if best_spk in ("P", "K"):
             spk_evidence["detected_speaker"] = TEACHER_NAME_MAP[best_spk]
+            spk_evidence["canonical_guru_id"] = _RUN_TEACHER_LABELS[best_spk]
+            spk_evidence["guru_id"] = _RUN_TEACHER_LABELS[best_spk]
+            spk_evidence["canonical_speaker_role"] = "guru"
             spk_evidence["speaker_identity_source"] = "diarization"
             spk_evidence["speaker_role"] = "teacher"
             spk_evidence["speaker_role_source"] = "diarization"

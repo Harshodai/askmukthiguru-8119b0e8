@@ -450,6 +450,7 @@ async def _okf_extract_for_video(video_id: str) -> None:
 
 from services.provenance import classify_chunk_provenance
 from services.teacher_attribution import resolve_teacher_attribution
+from services.guru_registry import canonical_guru_id
 
 
 def is_url_safe(url: str) -> bool:
@@ -3510,6 +3511,9 @@ class IngestionPipeline:
             content_chk = hashlib.sha256("\n".join(clean_chunks).encode("utf-8")).hexdigest()
 
         metadatas = []
+        canon_gid = canonical_guru_id(primary_teacher_id or speaker or "")
+        is_founder = canon_gid in ("preethaji", "krishnaji", "preethaji_krishnaji")
+        determined_role = "guru" if is_founder else ("teacher" if canon_gid else "unknown")
         for i in range(len(clean_chunks)):
             base_meta = {
                 "source_url": source_url,
@@ -3520,8 +3524,10 @@ class IngestionPipeline:
                 "source_type": source_type or content_type,
                 "language": language,
                 "tags": tags or [],
-                "teacher_id": primary_teacher_id,
+                "teacher_id": canon_gid or primary_teacher_id,
+                "guru_id": canon_gid or primary_teacher_id,
                 "teacher_ids": attributed_teacher_ids,
+                "speaker_role": determined_role,
                 "chunk_index": i,
                 "raptor_level": 0,  # Leaf node
                 # Re-ingestion metadata

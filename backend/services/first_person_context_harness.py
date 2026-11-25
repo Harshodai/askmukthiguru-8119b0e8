@@ -485,14 +485,14 @@ class FirstPersonContextHarness:
         # Ensure non-guru opener spans (e.g. host questions or music at the start of the parent)
         # do not poison verified guru spans when anchoring windows.
         first_guru_idx = next(
-            (i for i, s in enumerate(ordered) if s.speaker_role == SpeakerRole.GURU),
+            (i for i, s in enumerate(ordered) if s.speaker_role in (SpeakerRole.GURU, SpeakerRole.TEACHER)),
             0,
         )
 
         if hit_index is None:
             return self._apply_word_budget(ordered[first_guru_idx : first_guru_idx + limit], hit_ids)
 
-        is_guru_hit = ordered[hit_index].speaker_role == SpeakerRole.GURU
+        is_guru_hit = ordered[hit_index].speaker_role in (SpeakerRole.GURU, SpeakerRole.TEACHER)
 
         # Middle-Span Antecedent Anchoring (Task 2):
         # When a middle span (Span 1 or 2, i.e. hit_index <= 2) hits, do not slice off the Guru opening;

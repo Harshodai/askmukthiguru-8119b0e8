@@ -14,6 +14,8 @@ from typing import Any, Optional
 from ingest.cleaner import clean_transcript
 from services.embedding_service import EmbeddingService
 from services.qdrant_service import QdrantService
+from services.teacher_attribution import resolve_teacher_attribution
+from services.guru_registry import canonical_guru_id
 
 logger = logging.getLogger(__name__)
 
@@ -517,6 +519,15 @@ class VideoPipeline:
         # closed to "unverified". A caller must never overwrite this with a
         # hardcoded "licensed" (X40: register -> stamp -> filter -> enforce).
         rights_status = resolve_source_rights_status(source)
+        teacher_tags, primary_teacher_id, attributed_teacher_ids = resolve_teacher_attribution(
+            title=title or "",
+            source_url=source or "",
+            speaker=speaker or "",
+            chunks=chunks[:3] if chunks else None,
+        )
+        canon_gid = canonical_guru_id(primary_teacher_id or speaker or "")
+        is_founder = canon_gid in ("preethaji", "krishnaji", "preethaji_krishnaji")
+        determined_role = "guru" if is_founder else ("teacher" if canon_gid else "unknown")
         metadatas = []
         point_ids: list[str] = []
         voice_verified = 0
@@ -529,6 +540,10 @@ class VideoPipeline:
                 "source_url": source,
                 "title": title or "",
                 "speaker": speaker or "Unknown",
+                "guru_id": canon_gid or primary_teacher_id or "unknown",
+                "teacher_id": canon_gid or primary_teacher_id or "unknown",
+                "teacher_ids": attributed_teacher_ids or ([canon_gid] if canon_gid else []),
+                "speaker_role": determined_role,
                 "topic": "Spiritual",
                 "chunk_index": i,
                 "content_type": "video_transcript",

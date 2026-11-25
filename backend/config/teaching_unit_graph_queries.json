@@ -22,6 +22,7 @@
     "merge_concept": "MERGE (c:TUConcept {name: $name}) SET c.schema_version = $schema_version",
     "merge_from_video_edge": "MATCH (n:TUTeachingUnit {span_id: $span_id}), (v:TUVideoSource {video_id: $video_id}) MERGE (n)-[:TU_FROM_VIDEO {epistemic_state: $epistemic_state}]->(v)",
     "merge_spoken_by_edge": "MATCH (n:TUTeachingUnit {span_id: $span_id}), (g:TUGuru {guru_id: $guru_id}) MERGE (n)-[:TU_SPOKEN_BY {epistemic_state: $epistemic_state}]->(g)",
+    "merge_shared_founder_edge": "MATCH (g:TUGuru {guru_id: $guru_id}), (c:TUGuru {guru_id: $collective_id}) MERGE (g)-[:TU_SHARED_FOUNDER_OF {epistemic_state: $epistemic_state}]->(c)",
     "merge_has_topic_edge": "MATCH (n:TUTeachingUnit {span_id: $span_id}), (t:TUTopic {name: $topic}) MERGE (n)-[:TU_HAS_TOPIC {epistemic_state: $epistemic_state}]->(t)",
     "merge_has_concept_edge": "MATCH (n:TUTeachingUnit {span_id: $span_id}), (c:TUConcept {name: $concept}) MERGE (n)-[:TU_HAS_CONCEPT {epistemic_state: $epistemic_state}]->(c)",
     "merge_continues_edge": "MATCH (a:TUTeachingUnit {span_id: $from_span_id}), (b:TUTeachingUnit {span_id: $to_span_id}) MERGE (a)-[:TU_CONTINUES {epistemic_state: $epistemic_state}]->(b)",

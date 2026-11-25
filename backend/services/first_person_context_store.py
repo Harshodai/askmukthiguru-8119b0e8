@@ -1263,7 +1263,7 @@ class FirstPersonContextStore:
             settings, "first_person_require_speaker_verified", False
         )
         if (
-            span.speaker_role is not SpeakerRole.GURU
+            span.speaker_role not in (SpeakerRole.GURU, SpeakerRole.TEACHER)
             or (require_speaker_verified and span.speaker_verified is not True)
             or span.rights_cleared is not True
             or not source_is_authoritatively_licensed(
@@ -1426,7 +1426,7 @@ class FirstPersonContextStore:
             if span is None:
                 return None
             if (
-                span.speaker_role is not SpeakerRole.GURU
+                span.speaker_role not in (SpeakerRole.GURU, SpeakerRole.TEACHER)
                 or (require_speaker_verified and span.speaker_verified is not True)
                 or span.rights_cleared is not True
                 or not source_is_authoritatively_licensed(
@@ -1498,7 +1498,7 @@ class FirstPersonContextStore:
                 return False
             if point_id not in unique:
                 return False
-            if payload.get("speaker_role") != SpeakerRole.GURU.value:
+            if payload.get("speaker_role") not in (SpeakerRole.GURU.value, SpeakerRole.TEACHER.value):
                 return False
             if require_speaker_verified and payload.get("speaker_verified") is not True:
                 return False
