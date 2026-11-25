@@ -22,6 +22,7 @@ from rag.prompts.deep_research_prompts import (
     SUFFICIENCY_CHECK_USER,
 )
 from rag.timeout_utils import get_node_timeout
+from services.untrusted import fence as untrusted_fence
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,14 @@ def _context_summary(docs: list[dict], top_k: int = 5, per_doc: int = 300) -> st
         if t:
             chunks.append(t[:per_doc])
     return "\n---\n".join(chunks) if chunks else "(no context gathered)"
+
+
+def _build_sufficiency_user_prompt(question: str, context_summary: str) -> str:
+    """Build a judge prompt where both caller-controlled fields are data, not commands."""
+    return SUFFICIENCY_CHECK_USER.format(
+        question=untrusted_fence("question", question),
+        context_summary=untrusted_fence("retrieved_context", context_summary),
+    )
 
 
 def _deep_research_active(state: dict) -> bool:
@@ -117,7 +126,7 @@ async def conduct_deep_research(
     try:
         raw = await ollama._generate_fast(
             system_prompt=SUFFICIENCY_CHECK_SYSTEM,
-            user_prompt=SUFFICIENCY_CHECK_USER.format(question=question, context_summary=summary),
+            user_prompt=_build_sufficiency_user_prompt(question, summary),
             timeout=get_node_timeout("default_fast", getattr(settings, "node_timeout_fast", 15)),
             max_retries=1,
         )
