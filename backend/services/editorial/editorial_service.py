@@ -73,6 +73,16 @@ class ClipRecommendation(BaseModel):
     corroborating_sources: list[str] = Field(default_factory=list)
 
 
+class LaneResults(list):  # type: ignore[type-arg]
+    """Search result list that also carries per-lane failure messages."""
+
+    lane_errors: list[str]
+
+    def __init__(self, items: Any = (), lane_errors: list[str] | None = None) -> None:
+        super().__init__(items)
+        self.lane_errors = list(lane_errors or [])
+
+
 class EditorialDossier(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -87,6 +97,7 @@ class EditorialDossier(BaseModel):
     source_type_coverage: dict[str, int] = Field(default_factory=dict)
     underexplored_angles: list[str] = Field(default_factory=list)
     provenance_versions: dict[str, str] = Field(default_factory=dict)
+    lane_errors: list[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -222,6 +233,7 @@ class EditorialIntelligenceService:
         max_evidence: int = 20,
     ) -> EditorialDossier:
         evidence = self._search_fn(topic, teacher_scope, max_evidence)
+        lane_errors = list(getattr(evidence, "lane_errors", []))
         clips: list[ClipRecommendation] = []
         teacher_counts: dict[str, int] = {}
         type_counts: dict[str, int] = {}
@@ -278,6 +290,7 @@ class EditorialIntelligenceService:
             source_type_coverage=type_counts,
             underexplored_angles=angles,
             provenance_versions=dict(self._provenance),
+            lane_errors=lane_errors,
         )
 
     def discover_opportunities(self, *, limit: int = 10) -> list[ContentOpportunity]:

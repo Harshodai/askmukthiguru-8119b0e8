@@ -28,6 +28,7 @@ interface DossierResponse {
   source_type_coverage: Record<string, number>;
   underexplored_angles: string[];
   evidence_items: EvidenceItem[];
+  lane_errors?: string[];
 }
 
 interface OpportunityItem {
@@ -111,6 +112,9 @@ export default function EditorialWorkbenchPage() {
         }),
       });
       setDossier(res);
+      if (res.lane_errors && res.lane_errors.length > 0) {
+        setError(`Some evidence lanes failed: ${res.lane_errors.join("; ")}`);
+      }
       if (res.evidence_items.length > 0) {
         setSelectedEvidenceId(res.evidence_items[0].evidence_id);
       }

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -15,6 +16,7 @@ from domain.evidence_contract import EvidenceCandidate
 from services.editorial.editorial_service import (
     EditorialApprovalError,
     EditorialIntelligenceService,
+    LaneResults,
     ScriptBlock,
 )
 from services.evidence_adapters import (
@@ -31,6 +33,10 @@ router = APIRouter(prefix="/api/editorial", tags=["editorial"])
 _EDITORIAL_SINGLETON: EditorialIntelligenceService | None = None
 
 
+def _lane_err(lane: str, exc: Exception) -> str:
+    return f"{lane}: {type(exc).__name__}: {str(exc)[:200]}"
+
+
 def get_editorial_service(container: ServiceContainer) -> EditorialIntelligenceService:
     global _EDITORIAL_SINGLETON
     if _EDITORIAL_SINGLETON is not None:
@@ -38,38 +44,61 @@ def get_editorial_service(container: ServiceContainer) -> EditorialIntelligenceS
 
     def _search_fn(topic: str, teacher_scope: str | None, limit: int) -> list[EvidenceCandidate]:
         ranked: dict[str, list[EvidenceCandidate]] = {}
-        try:
-            q_vec = (
-                container.embeddings.encode([topic])[0]
-                if getattr(container, "embeddings", None)
-                else []
-            )
-            if q_vec and getattr(container, "qdrant", None):
+        lane_errors: list[str] = []
+        q_vec: list[float] = []
+        embedding = getattr(container, "embedding", None)
+        if embedding is not None:
+            try:
+                q_vec = list(embedding.encode([topic])[0])
+            except Exception as exc:
+                logger.warning("[EditorialAPI] embedding lane failed: %s", exc, exc_info=True)
+                lane_errors.append(_lane_err("embedding", exc))
+        else:
+            lane_errors.append("embedding: service unavailable")
+
+        qdrant_client = getattr(container, "qdrant_client", None)
+        if q_vec and qdrant_client is not None:
+            try:
                 col = settings.first_person_context_collection or settings.first_person_collection
-                q_adapter = QdrantEvidenceAdapter(container.qdrant, col)
-                ranked["qdrant"] = q_adapter.search(
-                    query_dense=list(q_vec),
+                ranked["qdrant"] = QdrantEvidenceAdapter(qdrant_client, col).search(
+                    query_dense=q_vec,
                     teacher_id=teacher_scope,
                     limit=limit,
+                    raise_on_error=True,
                 )
-            if getattr(container, "memgraph_driver", None):
-                m_adapter = MemgraphEvidenceAdapter(container.memgraph_driver)
+            except Exception as exc:
+                logger.warning("[EditorialAPI] qdrant lane failed: %s", exc, exc_info=True)
+                lane_errors.append(_lane_err("qdrant", exc))
+        elif q_vec:
+            lane_errors.append("qdrant: client unavailable")
+
+        if getattr(container, "memgraph_driver", None):
+            try:
                 terms = [w for w in topic.split() if len(w) > 3][:5]
-                ranked["memgraph"] = m_adapter.discover_by_concepts(
-                    terms or [topic],
-                    limit=limit,
-                    teacher_id=teacher_scope,
+                ranked["memgraph"] = MemgraphEvidenceAdapter(
+                    container.memgraph_driver
+                ).discover_by_concepts(
+                    terms or [topic], limit=limit, teacher_id=teacher_scope, raise_on_error=True
                 )
-            if q_vec:
-                o_adapter = OKFEvidenceAdapter()
-                ranked["okf"] = o_adapter.search(
-                    query_dense=list(q_vec),
+            except Exception as exc:
+                logger.warning("[EditorialAPI] memgraph lane failed: %s", exc, exc_info=True)
+                lane_errors.append(_lane_err("memgraph", exc))
+        else:
+            lane_errors.append("memgraph: driver unavailable")
+
+        if q_vec:
+            try:
+                ranked["okf"] = OKFEvidenceAdapter().search(
+                    query_dense=q_vec,
                     teacher_id=teacher_scope,
                     limit=min(5, limit),
+                    raise_on_error=True,
                 )
-        except Exception as exc:
-            logger.debug("[EditorialAPI] search fallback error: %s", exc)
-        return EvidenceFusionEngine().fuse(ranked, limit=limit)
+            except Exception as exc:
+                logger.warning("[EditorialAPI] okf lane failed: %s", exc, exc_info=True)
+                lane_errors.append(_lane_err("okf", exc))
+
+        return LaneResults(EvidenceFusionEngine().fuse(ranked, limit=limit), lane_errors)
 
     def _graph_fn(concepts: list[str]) -> list[dict[str, Any]]:
         if not getattr(container, "memgraph_driver", None):
@@ -172,7 +201,8 @@ async def create_research_dossier(
     container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     svc = get_editorial_service(container)
-    dossier = svc.generate_dossier(
+    dossier = await asyncio.to_thread(
+        svc.generate_dossier,
         topic=body.topic,
         objective=body.objective,
         teacher_scope=body.teacher_scope,
@@ -188,7 +218,7 @@ async def discover_content_opportunities(
     container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
     svc = get_editorial_service(container)
-    opps = svc.discover_opportunities(limit=max(1, min(limit, 30)))
+    opps = await asyncio.to_thread(svc.discover_opportunities, limit=max(1, min(limit, 30)))
     return {"opportunities": [o.model_dump(mode="json") for o in opps]}
 
 
@@ -198,9 +228,12 @@ async def fact_check_script(
     _admin: dict = Depends(_require_admin),
     container: ServiceContainer = Depends(get_container_async),
 ) -> dict[str, Any]:
+    # SECURITY NOTE (not fixed yet): the evidence pool is client-supplied, so retrieval_source and
+    # speaker_verified are client-asserted. An admin could fake an exact quote. Verification must
+    # move to server-held dossier evidence; until then responses carry evidence_pool_trust.
     svc = get_editorial_service(container)
     report = svc.fact_check_blocks(body.blocks, body.evidence_pool)
-    return report.model_dump(mode="json")
+    return {**report.model_dump(mode="json"), "evidence_pool_trust": "client_supplied"}
 
 
 @router.get("/projects")
@@ -252,6 +285,10 @@ async def attach_editorial_script(
     proj = svc.get_project(project_id)
     if proj is None:
         raise HTTPException(status_code=404, detail="Editorial project not found")
+    # SECURITY NOTE (not fixed yet): the evidence pool is client-supplied, so retrieval_source and
+    # speaker_verified are client-asserted. An admin could fake an exact quote. Verification must
+    # move to server-held dossier evidence; until then responses carry evidence_pool_trust.
+    client_supplied = bool(body.evidence_pool)
     pool = body.evidence_pool or (proj.dossier.evidence_items if proj.dossier else [])
     script = svc.build_verified_script(
         title=body.title,
@@ -260,7 +297,9 @@ async def attach_editorial_script(
         evidence_pool=pool,
     )
     updated = svc.attach_script(project_id, script)
-    return updated.model_dump(mode="json")
+    out = updated.model_dump(mode="json")
+    out["evidence_pool_trust"] = "client_supplied" if client_supplied else "server"
+    return out
 
 
 @router.post("/projects/{project_id}/dossier")
@@ -273,7 +312,8 @@ async def build_and_attach_dossier(
     svc = get_editorial_service(container)
     if svc.get_project(project_id) is None:
         raise HTTPException(status_code=404, detail="Editorial project not found")
-    dossier = svc.generate_dossier(
+    dossier = await asyncio.to_thread(
+        svc.generate_dossier,
         topic=body.topic,
         objective=body.objective,
         teacher_scope=body.teacher_scope,
@@ -292,8 +332,8 @@ async def build_and_attach_brief(
     proj = svc.get_project(project_id)
     if proj is None:
         raise HTTPException(status_code=404, detail="Editorial project not found")
-    dossier = proj.dossier or svc.generate_dossier(
-        topic=proj.topic, objective=proj.objective, max_evidence=15
+    dossier = proj.dossier or await asyncio.to_thread(
+        svc.generate_dossier, topic=proj.topic, objective=proj.objective, max_evidence=15
     )
     brief = svc.generate_brief(dossier=dossier, target_format=proj.target_format)
     return svc.attach_brief(project_id, brief).model_dump(mode="json")
@@ -309,8 +349,8 @@ async def build_and_attach_outline(
     proj = svc.get_project(project_id)
     if proj is None:
         raise HTTPException(status_code=404, detail="Editorial project not found")
-    dossier = proj.dossier or svc.generate_dossier(
-        topic=proj.topic, objective=proj.objective, max_evidence=15
+    dossier = proj.dossier or await asyncio.to_thread(
+        svc.generate_dossier, topic=proj.topic, objective=proj.objective, max_evidence=15
     )
     outline = svc.generate_outline(title=proj.title, dossier=dossier, brief=proj.brief)
     return svc.attach_outline(project_id, outline).model_dump(mode="json")

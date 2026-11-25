@@ -148,6 +148,28 @@ class ClaimVerificationService:
                 continue
 
             if claim.epistemic_category == EpistemicCategory.VERBATIM_EVIDENCE:
+                # Only Qdrant-sourced spans with a verified speaker can back an exact quote:
+                # OKF is LLM-extracted summary (CLAUDE.md invariant 12) and graph rows are not
+                # speaker-verified clips. Field used: EvidenceCandidate.speaker_verified is True.
+                matched = [
+                    ev
+                    for ev in matched
+                    if ev.retrieval_source == "qdrant" and ev.speaker_verified is True
+                ]
+                if not matched:
+                    quote_mismatch += 1
+                    results.append(
+                        claim.model_copy(
+                            update={
+                                "verification_status": "quote_mismatch",
+                                "notes": (
+                                    "Exact quote requires a Qdrant span with a verified speaker; "
+                                    "OKF, Memgraph and unverified-speaker evidence are not verbatim."
+                                ),
+                            }
+                        )
+                    )
+                    continue
                 q_norm = _PUNCT_EDGE_RE.sub("", _norm(claim.claim_text))
                 if not q_norm or not any(
                     q_norm in _norm(f"{ev.text} {ev.surrounding_context or ''}") for ev in matched

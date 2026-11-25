@@ -21,15 +21,22 @@ class OKFEvidenceAdapter:
     def __init__(self, compiled_entries: list[dict[str, Any]] | None = None) -> None:
         self._entries = compiled_entries
 
-    def _load_entries(self, *, include_unverified: bool = False) -> list[dict[str, Any]]:
+    def _load_entries(
+        self, *, include_unverified: bool = False, raise_on_error: bool = False
+    ) -> list[dict[str, Any]]:
         if self._entries is not None:
             pool = self._entries
         else:
             try:
                 from services.memory.okf_store import OKF_DIR, _load_compiled_matrix
 
-                pool, _ = _load_compiled_matrix(OKF_DIR / "compiled.json")
+                pool, matrix = _load_compiled_matrix(OKF_DIR / "compiled.json")
+                if raise_on_error and matrix is None:
+                    raise RuntimeError("OKF compiled index unavailable")
             except Exception as exc:
+                if raise_on_error:
+                    logger.warning("[OKFEvidenceAdapter] _load_compiled_matrix failed: %s", exc)
+                    raise
                 logger.debug("[OKFEvidenceAdapter] _load_compiled_matrix failed: %s", exc)
                 return []
 
@@ -50,8 +57,11 @@ class OKFEvidenceAdapter:
         limit: int = 5,
         min_similarity: float = 0.40,
         include_unverified: bool = False,
+        raise_on_error: bool = False,
     ) -> list[EvidenceCandidate]:
-        entries = self._load_entries(include_unverified=include_unverified)
+        entries = self._load_entries(
+            include_unverified=include_unverified, raise_on_error=raise_on_error
+        )
         if not entries or not query_dense or limit <= 0:
             return []
 

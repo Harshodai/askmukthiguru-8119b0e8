@@ -76,6 +76,7 @@ class MemgraphEvidenceAdapter:
         *,
         limit: int = 12,
         teacher_id: str | None = None,
+        raise_on_error: bool = False,
     ) -> list[EvidenceCandidate]:
         if self._driver is None or not concepts or limit <= 0:
             return []
@@ -95,6 +96,9 @@ class MemgraphEvidenceAdapter:
                 ]
             return self._rows_to_candidates(rows, teacher_id=teacher_id, limit=limit)
         except Exception as exc:
+            if raise_on_error:
+                logger.warning("[MemgraphEvidenceAdapter] concept traversal failed: %s", exc)
+                raise
             logger.debug("[MemgraphEvidenceAdapter] concept traversal failed: %s", exc)
             return []
 

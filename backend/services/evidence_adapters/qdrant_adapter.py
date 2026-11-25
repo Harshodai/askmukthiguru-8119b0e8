@@ -39,6 +39,7 @@ class QdrantEvidenceAdapter:
         limit: int = 20,
         require_licensed: bool = True,
         require_speaker_verified: bool = False,
+        raise_on_error: bool = False,
     ) -> list[EvidenceCandidate]:
         if self._client is None or not query_dense or limit <= 0:
             return []
@@ -64,7 +65,11 @@ class QdrantEvidenceAdapter:
 
         qfilter = Filter(must=must_conditions) if must_conditions else None
         hits = self._execute_query(
-            query_dense=query_dense, query_sparse=query_sparse, qfilter=qfilter, limit=limit
+            query_dense=query_dense,
+            query_sparse=query_sparse,
+            qfilter=qfilter,
+            limit=limit,
+            raise_on_error=raise_on_error,
         )
         return self._normalize_hits(hits, require_licensed=require_licensed)
 
@@ -75,6 +80,7 @@ class QdrantEvidenceAdapter:
         query_sparse: dict[str, Any] | None,
         qfilter: Filter | None,
         limit: int,
+        raise_on_error: bool = False,
     ) -> list[Any]:
         try:
             if query_sparse and query_sparse.get("indices") and query_sparse.get("values"):
@@ -102,6 +108,8 @@ class QdrantEvidenceAdapter:
             logger.debug(
                 "[QdrantEvidenceAdapter] hybrid RRF query failed, falling back to dense: %s", exc
             )
+        first_exc: Exception | None = None
+        last_exc: Exception | None = None
 
         for vector_name in ("passage_dense", "dense", None):
             try:
@@ -116,8 +124,13 @@ class QdrantEvidenceAdapter:
                     kwargs["using"] = vector_name
                 res = self._client.query_points(**kwargs)
                 return list(getattr(res, "points", None) or [])
-            except Exception:
+            except Exception as exc:
+                first_exc = first_exc or exc
+                last_exc = exc
                 continue
+        if raise_on_error and last_exc is not None:
+            logger.warning("[QdrantEvidenceAdapter] all query variants failed: %s", first_exc)
+            raise first_exc if first_exc is last_exc else last_exc from first_exc
         return []
 
     def _normalize_hits(
