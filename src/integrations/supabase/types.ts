@@ -1612,6 +1612,50 @@ export type Database = {
         }
         Relationships: []
       }
+      launch_email_deliveries: {
+        Row: {
+          attempts: number
+          created_at: string
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          provider_message_id: string | null
+          state: string
+          subscriber_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          provider_message_id?: string | null
+          state?: string
+          subscriber_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          provider_message_id?: string | null
+          state?: string
+          subscriber_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "launch_email_deliveries_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: true
+            referencedRelation: "waitlist_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       launch_signup_throttle: {
         Row: {
           bucket: string
@@ -3611,6 +3655,15 @@ export type Database = {
         }
       }
       brain_touch: { Args: { p_id: string }; Returns: undefined }
+      claim_launch_confirmations: {
+        Args: { p_email?: string; p_limit?: number }
+        Returns: {
+          attempts: number
+          email: string
+          subscriber_id: string
+          unsubscribe_token: string
+        }[]
+      }
       claim_memory_outbox: {
         Args: { p_limit?: number; p_worker_id: string }
         Returns: {
@@ -3722,6 +3775,10 @@ export type Database = {
       purge_expired_launch_subscribers: {
         Args: { p_months?: number }
         Returns: number
+      }
+      queue_existing_launch_confirmation: {
+        Args: { p_email: string }
+        Returns: undefined
       }
       record_practice: {
         Args: { p_practice_date?: string; p_user_id: string }
