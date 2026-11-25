@@ -22,8 +22,10 @@ Usage:
 """
 
 import argparse
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -125,6 +127,19 @@ except BackupConfigError as exc:  # keep the non-zero exit and a readable messag
 BACKUP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "backups"))
 
 
+def _qdrant_open(target, timeout: float = 120):
+    """Open a Qdrant request with the write-capable API key when authentication is enabled."""
+    req = (
+        target
+        if isinstance(target, urllib.request.Request)
+        else urllib.request.Request(target)
+    )
+    key = os.environ.get("QDRANT_WRITE_API_KEY") or os.environ.get("QDRANT_API_KEY") or ""
+    if key:
+        req.add_header("api-key", key)
+    return urllib.request.urlopen(req, timeout=timeout)  # nosec B310 - operator backup tool
+
+
 def qdrant_backup_path(collection_name):
     """One snapshot file per collection, named after it."""
     return os.path.join(BACKUP_DIR, "qdrant", f"{collection_name}.snapshot")
@@ -196,7 +211,7 @@ def backup_qdrant(collection_name=None):
     req = urllib.request.Request(snapshot_url, method="POST")
 
     try:
-        with urllib.request.urlopen(req) as res:  # nosec B310
+        with _qdrant_open(req) as res:
             resp_data = json.loads(res.read().decode())
             snapshot_name = resp_data["result"]["name"]
             print(f"  [+] Snapshot successfully created: {snapshot_name}")
@@ -219,7 +234,9 @@ def backup_qdrant(collection_name=None):
     print(f"  [*] Downloading snapshot from Qdrant: {download_url}")
 
     try:
-        urllib.request.urlretrieve(download_url, snapshot_path)  # nosec B310
+        with _qdrant_open(download_url, timeout=600) as response:
+            with open(snapshot_path, "wb") as output:
+                shutil.copyfileobj(response, output)
         print(
             f"  [✅] Qdrant backup saved: {snapshot_path} ({os.path.getsize(snapshot_path) / 1024 / 1024:.2f} MB)"
         )
@@ -299,6 +316,7 @@ def restore_qdrant(collection_name=None):
 
 GRAPH_USER = os.environ.get("NEO4J_USER", "neo4j")
 _COUNT_QUERY = "MATCH (n) RETURN count(n) AS c;"
+_REL_COUNT_QUERY = "MATCH ()-[r]->() RETURN count(r) AS c;"
 
 
 def _container_running(name):
@@ -382,6 +400,20 @@ def _graph_node_count(engine):
             return int(token)
     return None
 
+def _graph_relationship_count(engine):
+    """Live relationship count, or None when the query itself fails."""
+    extra = ("--output-format=csv",) if engine == "memgraph" else ("--format", "plain")
+    try:
+        out = _graph_run(engine, _REL_COUNT_QUERY, *extra)
+    except subprocess.CalledProcessError as e:
+        print(f"  [-] Graph relationship-count query failed: {(e.stderr or e.stdout).strip()}")
+        return None
+    for line in reversed(out.stdout.strip().splitlines()):
+        token = line.strip().strip('"')
+        if token.isdigit():
+            return int(token)
+    return None
+
 
 def _recorded_node_count(text):
     first = text.splitlines()[0] if text else ""
@@ -391,6 +423,25 @@ def _recorded_node_count(text):
         if value.isdigit():
             return int(value)
     return None
+
+def _recorded_graph_counts(text: str) -> tuple[int | None, int | None]:
+    """Read node and relationship counts from a graph backup provenance header."""
+    first = text.splitlines()[0] if text else ""
+    if not first.startswith("//"):
+        return None, None
+    values: dict[str, int] = {}
+    for key in ("nodes", "relationships"):
+        marker = f"{key}="
+        if marker not in first:
+            continue
+        value = first.split(marker, 1)[1].split()[0]
+        if value.isdigit():
+            values[key] = int(value)
+    return values.get("nodes"), values.get("relationships")
+
+
+def _graph_backup_checksum(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def _neo4j_apoc_export():
@@ -431,8 +482,9 @@ def backup_neo4j():
         return False
 
     nodes = _graph_node_count(engine)
-    if nodes is None:
-        print("  [-] Could not count graph nodes (check NEO4J_PASSWORD / NEO4J_USER).")
+    relationships = _graph_relationship_count(engine)
+    if nodes is None or relationships is None:
+        print("  [-] Could not count graph nodes/relationships (check graph credentials and connection).")
         return False
 
     try:
@@ -450,9 +502,15 @@ def backup_neo4j():
         )
         return False
 
-    header = f"// engine={engine} nodes={nodes} taken={time.strftime('%Y-%m-%dT%H:%M:%S')}\n"
+    header = (
+        f"// engine={engine} nodes={nodes} relationships={relationships} "
+        f"taken={time.strftime('%Y-%m-%dT%H:%M:%S')}\n"
+    )
+    backup_text = header + dump
     with open(NEO4J_BACKUP_PATH, "w", encoding="utf-8") as f:
-        f.write(header + dump)
+        f.write(backup_text)
+    with open(f"{NEO4J_BACKUP_PATH}.sha256", "w", encoding="utf-8") as f:
+        f.write(f"{_graph_backup_checksum(backup_text)}  {os.path.basename(NEO4J_BACKUP_PATH)}\n"
     print(
         f"  [✅] Graph backup saved: {NEO4J_BACKUP_PATH} "
         f"({nodes} nodes, {len(dump.splitlines())} statements, engine={engine})"
@@ -461,24 +519,26 @@ def backup_neo4j():
 
 
 def restore_neo4j():
-    """Replay the dump into an EMPTY graph, then check the node count came back.
-
-    Replaying into a populated graph would duplicate every node, so a graph that
-    already holds data is left alone (reported, not overwritten).
-    """
+    """Replay a graph backup into an EMPTY scratch graph and verify its manifest."""
     print("\n[Graph] Restoring from backup...")
     if not os.path.exists(NEO4J_BACKUP_PATH):
         print(f"  [-] Graph backup not found at {NEO4J_BACKUP_PATH}.")
         return False
+
     with open(NEO4J_BACKUP_PATH, encoding="utf-8") as f:
         content = f.read()
-    expected = _recorded_node_count(content)
+    checksum_path = f"{NEO4J_BACKUP_PATH}.sha256"
+    if os.path.exists(checksum_path):
+        with open(checksum_path, encoding="utf-8") as f:
+            expected_checksum = f.read().strip().split()[0]
+        if _graph_backup_checksum(content) != expected_checksum:
+            print("  [-] Graph backup checksum mismatch; refusing to restore.")
+            return False
+
+    expected_nodes, expected_relationships = _recorded_graph_counts(content)
     statements = "\n".join(
         line for line in content.splitlines() if line.strip() and not line.startswith("//")
     )
-    if not statements:
-        print("  [*] Backup records an empty graph; nothing to replay.")
-        return True
 
     if not _container_running(NEO4J_CONTAINER):
         print(f"  [-] Container '{NEO4J_CONTAINER}' is not running.")
@@ -488,15 +548,29 @@ def restore_neo4j():
         print(f"  [-] '{NEO4J_CONTAINER}' ships neither mgconsole nor cypher-shell.")
         return False
 
-    current = _graph_node_count(engine)
-    if current is None:
+    current_nodes = _graph_node_count(engine)
+    current_relationships = _graph_relationship_count(engine)
+    if current_nodes is None or current_relationships is None:
+        print("  [-] Could not read graph counts; refusing to restore.")
         return False
-    if current > 0:
+
+    if not statements:
+        if expected_nodes == 0 and current_nodes == 0 and current_relationships == 0:
+            print("  [✅] Empty graph backup verified against an empty restore target.")
+            return True
         print(
-            f"  [*] Graph already holds {current} nodes; not replaying over it "
-            "(that would duplicate every node)."
+            f"  [-] Empty backup/target mismatch (expected nodes={expected_nodes}, "
+            f"target nodes={current_nodes}, relationships={current_relationships})."
         )
-        return True
+        return False
+
+    if current_nodes > 0 or current_relationships > 0:
+        print(
+            f"  [-] Restore target is not empty ({current_nodes} nodes, "
+            f"{current_relationships} relationships); no data changed. "
+            "Use an isolated empty scratch graph."
+        )
+        return False
 
     try:
         _graph_run(engine, statements)
@@ -504,11 +578,21 @@ def restore_neo4j():
         print(f"  [-] Graph replay failed: {(e.stderr or e.stdout).strip()}")
         return False
 
-    after = _graph_node_count(engine)
-    if expected is not None and (after is None or after < expected):
-        print(f"  [-] Replay finished but the graph has {after} nodes; backup recorded {expected}.")
+    after_nodes = _graph_node_count(engine)
+    after_relationships = _graph_relationship_count(engine)
+    if expected_nodes is not None and after_nodes != expected_nodes:
+        print(f"  [-] Replay node count mismatch: expected {expected_nodes}, got {after_nodes}.")
         return False
-    print(f"  [✅] Graph restored ({after} nodes).")
+    if expected_relationships is not None and after_relationships != expected_relationships:
+        print(
+            f"  [-] Replay relationship count mismatch: expected {expected_relationships}, "
+            f"got {after_relationships}."
+        )
+        return False
+    print(
+        f"  [✅] Graph restored and verified ({after_nodes} nodes, "
+        f"{after_relationships} relationships)."
+    )
     return True
 
 
