@@ -125,14 +125,16 @@ def backup(
     timeout: float = 180.0,
 ) -> Path:
     client = _build_redis_client(redis_url=redis_url, password=password)
-    info_before = client.info("persistence")
+    try:
+        info_before = client.info("persistence")
+    except Exception as exc:
+        raise RedisBackupError(f"Cannot read Redis persistence state: {exc}") from exc
     if int(info_before.get("rdb_bgsave_in_progress", 0)) == 1:
         raise RedisBackupError(
             "A Redis background save is already in progress; retry after it completes"
         )
 
-    stats_before = client.info("stats")
-    before_saves = int(stats_before.get("rdb_saves", 0))
+    before_saves = int(info_before.get("rdb_saves", 0))
     config = client.config_get("dir")
     directory = config.get("dir")
     if not isinstance(directory, str) or not directory:
@@ -145,15 +147,25 @@ def backup(
         raise RedisBackupError(f"Redis dbfilename must be a simple filename, got {filename!r}")
     source_path = str(PurePosixPath(directory) / filename)
 
-    response = client.bgsave()
-    if response is not True:
+    try:
+        response = client.bgsave()
+    except Exception as exc:
+        raise RedisBackupError(f"Redis BGSAVE request failed: {exc}") from exc
+    if response not in {
+        True,
+        "OK",
+        "Background saving started",
+        "Background saving scheduled",
+    }:
         raise RedisBackupError(f"Redis did not acknowledge BGSAVE: {response!r}")
 
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         time.sleep(1)
-        info = client.info("persistence")
-        stats = client.info("stats")
+        try:
+            info = client.info("persistence")
+        except Exception as exc:
+            raise RedisBackupError(f"Cannot poll Redis persistence state: {exc}") from exc
         if int(info.get("rdb_bgsave_in_progress", 0)) == 1:
             continue
         if info.get("rdb_last_bgsave_status") != "ok":
@@ -161,7 +173,7 @@ def backup(
                 "Redis background save did not finish successfully: "
                 f"{info.get('rdb_last_bgsave_status', 'unknown')}"
             )
-        if int(stats.get("rdb_saves", 0)) > before_saves:
+        if int(info.get("rdb_saves", 0)) > before_saves:
             break
     else:
         raise RedisBackupError("Timed out waiting for a confirmed new Redis BGSAVE")
@@ -223,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"SHA-256 {result['sha256']})"
             )
         return 0
-    except (RedisBackupError, OSError, subprocess.TimeoutExpired) as exc:
+    except Exception as exc:
         print(f"Redis backup failed: {exc}", file=sys.stderr)
         return 1
 
