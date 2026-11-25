@@ -42,39 +42,81 @@ def test_legacy_cursor_only_checkpoint_is_not_trusted(tmp_path):
     checkpoint = tmp_path / "checkpoint.json"
     checkpoint.write_text(json.dumps({"next_offset": "point-12", "processed_count": 12}))
     with pytest.raises(RuntimeError, match="Legacy/incompatible"):
-        INGEST.load_checkpoint("spiritual_wisdom", 100, str(tmp_path / "lightrag"), checkpoint)
+        INGEST.load_checkpoint(
+            "spiritual_wisdom", 100, str(tmp_path / "lightrag"), checkpoint
+        )
 
 
 def test_checkpoint_is_bound_to_source_collection(tmp_path):
     checkpoint = tmp_path / "checkpoint.json"
-    counters = {"processed": 10, "success": 9, "skipped": 1, "rejected": 0, "failed": 0}
+    counters = {
+        "processed": 10,
+        "success": 9,
+        "skipped": 1,
+        "rejected": 0,
+        "failed": 0,
+    }
     INGEST.save_checkpoint_atomic(
-        "point-10", counters, "spiritual_wisdom", 100, str(tmp_path / "lightrag"), checkpoint_file=checkpoint
+        "point-10",
+        counters,
+        "spiritual_wisdom",
+        100,
+        str(tmp_path / "lightrag"),
+        checkpoint_file=checkpoint,
     )
     with pytest.raises(RuntimeError, match="source_collection"):
-        INGEST.load_checkpoint("spiritual_wisdom_contextual", 100, str(tmp_path / "lightrag"), checkpoint)
+        INGEST.load_checkpoint(
+            "spiritual_wisdom_contextual",
+            100,
+            str(tmp_path / "lightrag"),
+            checkpoint,
+        )
 
 
 def test_checkpoint_is_bound_to_source_point_count_and_working_directory(tmp_path):
     checkpoint = tmp_path / "checkpoint.json"
     working_dir = str(tmp_path / "lightrag")
-    counters = {"processed": 10, "success": 10, "skipped": 0, "rejected": 0, "failed": 0}
+    counters = {
+        "processed": 10,
+        "success": 10,
+        "skipped": 0,
+        "rejected": 0,
+        "failed": 0,
+    }
     INGEST.save_checkpoint_atomic(
-        "point-10", counters, "spiritual_wisdom", 100, working_dir, checkpoint_file=checkpoint
+        "point-10",
+        counters,
+        "spiritual_wisdom",
+        100,
+        working_dir,
+        checkpoint_file=checkpoint,
     )
     with pytest.raises(RuntimeError, match="source_point_count"):
         INGEST.load_checkpoint("spiritual_wisdom", 101, working_dir, checkpoint)
     with pytest.raises(RuntimeError, match="working_dir"):
-        INGEST.load_checkpoint("spiritual_wisdom", 100, str(tmp_path / "other"), checkpoint)
+        INGEST.load_checkpoint(
+            "spiritual_wisdom", 100, str(tmp_path / "other"), checkpoint
+        )
 
 
 def test_checkpoint_round_trips_completed_state_without_restarting(tmp_path):
     checkpoint = tmp_path / "checkpoint.json"
     working_dir = str(tmp_path / "lightrag")
-    counters = {"processed": 100, "success": 98, "skipped": 1, "rejected": 1, "failed": 0}
+    counters = {
+        "processed": 100,
+        "success": 98,
+        "skipped": 1,
+        "rejected": 1,
+        "failed": 0,
+    }
     INGEST.save_checkpoint_atomic(
-        None, counters, "spiritual_wisdom", 100, working_dir,
-        completed=True, checkpoint_file=checkpoint
+        None,
+        counters,
+        "spiritual_wisdom",
+        100,
+        working_dir,
+        completed=True,
+        checkpoint_file=checkpoint,
     )
     offset, loaded, completed = INGEST.load_checkpoint(
         "spiritual_wisdom", 100, working_dir, checkpoint
@@ -100,7 +142,9 @@ def test_checkpoint_counter_drift_is_rejected(tmp_path):
     }
     checkpoint.write_text(json.dumps(data))
     with pytest.raises(RuntimeError, match="do not reconcile"):
-        INGEST.load_checkpoint("spiritual_wisdom", 100, str(tmp_path / "lightrag"), checkpoint)
+        INGEST.load_checkpoint(
+            "spiritual_wisdom", 100, str(tmp_path / "lightrag"), checkpoint
+        )
 
 
 def test_process_lock_rejects_a_second_concurrent_run(tmp_path):
@@ -113,57 +157,128 @@ def test_process_lock_rejects_a_second_concurrent_run(tmp_path):
 
 @pytest.mark.asyncio
 async def test_safe_insert_false_is_retried_before_marking_success(monkeypatch):
-    monkeypatch.setattr(INGEST, "chunk_sentences", lambda _text: ["A sufficiently long teaching chunk."])
+    monkeypatch.setattr(
+        INGEST, "chunk_sentences", lambda _text: ["A sufficiently long teaching chunk."]
+    )
     monkeypatch.setattr(INGEST.asyncio, "sleep", AsyncMock())
     svc = SimpleNamespace(safe_ainsert=AsyncMock(side_effect=[False, True]))
     point = SimpleNamespace(
         id="point-1",
-        payload={"text": "A sufficiently long teaching transcript about presence and awareness.", "source_url": "video-1"},
+        payload={
+            "text": "A sufficiently long teaching transcript about presence and awareness.",
+            "source_url": "video-1",
+        },
     )
-    counters = {"processed": 0, "success": 0, "skipped": 0, "rejected": 0, "failed": 0}
+    counters = {
+        "processed": 0,
+        "success": 0,
+        "skipped": 0,
+        "rejected": 0,
+        "failed": 0,
+    }
     result = await INGEST.process_single_point(
-        svc, point, asyncio.Semaphore(1), asyncio.Lock(), counters, INGEST.time.time(), {"rate_limit_hits": 0}, 1
+        svc,
+        point,
+        asyncio.Semaphore(1),
+        asyncio.Lock(),
+        counters,
+        INGEST.time.time(),
+        {"rate_limit_hits": 0},
+        1,
     )
     assert result == "success"
     assert svc.safe_ainsert.await_count == 2
-    assert counters == {"processed": 1, "success": 1, "skipped": 0, "rejected": 0, "failed": 0}
+    assert counters == {
+        "processed": 1,
+        "success": 1,
+        "skipped": 0,
+        "rejected": 0,
+        "failed": 0,
+    }
 
 
 @pytest.mark.asyncio
 async def test_persistent_safe_insert_false_is_marked_retryable_failure(monkeypatch):
-    monkeypatch.setattr(INGEST, "chunk_sentences", lambda _text: ["A sufficiently long teaching chunk."])
+    monkeypatch.setattr(
+        INGEST, "chunk_sentences", lambda _text: ["A sufficiently long teaching chunk."]
+    )
     monkeypatch.setattr(INGEST.asyncio, "sleep", AsyncMock())
     svc = SimpleNamespace(safe_ainsert=AsyncMock(return_value=False))
     point = SimpleNamespace(
         id="point-2",
-        payload={"text": "A sufficiently long teaching transcript about presence and awareness.", "source_url": "video-2"},
+        payload={
+            "text": "A sufficiently long teaching transcript about presence and awareness.",
+            "source_url": "video-2",
+        },
     )
-    counters = {"processed": 0, "success": 0, "skipped": 0, "rejected": 0, "failed": 0}
+    counters = {
+        "processed": 0,
+        "success": 0,
+        "skipped": 0,
+        "rejected": 0,
+        "failed": 0,
+    }
     result = await INGEST.process_single_point(
-        svc, point, asyncio.Semaphore(1), asyncio.Lock(), counters, INGEST.time.time(), {"rate_limit_hits": 0}, 1
+        svc,
+        point,
+        asyncio.Semaphore(1),
+        asyncio.Lock(),
+        counters,
+        INGEST.time.time(),
+        {"rate_limit_hits": 0},
+        1,
     )
     assert result == "failed"
     assert svc.safe_ainsert.await_count == 2
-    assert counters == {"processed": 1, "success": 0, "skipped": 0, "rejected": 0, "failed": 1}
+    assert counters == {
+        "processed": 1,
+        "success": 0,
+        "skipped": 0,
+        "rejected": 0,
+        "failed": 1,
+    }
 
 
 def test_checkpoint_write_failure_is_not_silenced(monkeypatch, tmp_path):
     checkpoint = tmp_path / "checkpoint.json"
-    monkeypatch.setattr(INGEST.os, "replace", lambda *_args: (_ for _ in ()).throw(OSError("disk full")))
-    counters = {"processed": 1, "success": 1, "skipped": 0, "rejected": 0, "failed": 0}
+
+    def fail_replace(*_args):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(INGEST.os, "replace", fail_replace)
+    counters = {
+        "processed": 1,
+        "success": 1,
+        "skipped": 0,
+        "rejected": 0,
+        "failed": 0,
+    }
     with pytest.raises(OSError, match="disk full"):
         INGEST.save_checkpoint_atomic(
-            "point-1", counters, "spiritual_wisdom", 1, str(tmp_path / "lightrag"), checkpoint_file=checkpoint
+            "point-1",
+            counters,
+            "spiritual_wisdom",
+            1,
+            str(tmp_path / "lightrag"),
+            checkpoint_file=checkpoint,
         )
-
 
 
 def test_missing_checkpoint_starts_from_zero_with_not_completed_false(tmp_path):
     offset, counters, completed = INGEST.load_checkpoint(
-        "spiritual_wisdom", 10, str(tmp_path / "lightrag"), tmp_path / "missing.json"
+        "spiritual_wisdom",
+        10,
+        str(tmp_path / "lightrag"),
+        tmp_path / "missing.json",
     )
     assert offset is None
-    assert counters == {"processed": 0, "success": 0, "skipped": 0, "rejected": 0, "failed": 0}
+    assert counters == {
+        "processed": 0,
+        "success": 0,
+        "skipped": 0,
+        "rejected": 0,
+        "failed": 0,
+    }
     assert completed is False
 
 
@@ -183,4 +298,6 @@ def test_completed_checkpoint_requires_all_source_points_accounted_for(tmp_path)
     }
     checkpoint.write_text(json.dumps(data))
     with pytest.raises(RuntimeError, match="marked complete"):
-        INGEST.load_checkpoint("spiritual_wisdom", 10, str(tmp_path / "lightrag"), checkpoint)
+        INGEST.load_checkpoint(
+            "spiritual_wisdom", 10, str(tmp_path / "lightrag"), checkpoint
+        )
