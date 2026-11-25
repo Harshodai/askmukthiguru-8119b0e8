@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from celery_config import celery_app
 
@@ -29,53 +30,72 @@ def purge_launch_subscribers(
 
 
 @celery_app.task(name="tasks.retention_tasks.cleanup_retention_data")
-def cleanup_retention_data(days_retention: int = 90) -> dict[str, int]:
-    """Purge expired Supabase telemetry/chat logs and local compliance audit files."""
-    from scripts.ops.cleanup_inactive_user_data import cleanup_telemetry_logs
+def cleanup_retention_data(
+    days_retention: int = 90, days_inactivity: int = 365
+) -> dict[str, int]:
+    """Run every scheduled retention surface documented in ``RETENTION.md``.
+
+    Each surface is isolated so one unavailable dependency does not prevent the
+    remaining legal-retention jobs from running. Failed surfaces return zero and
+    are logged; the task result keeps per-surface counts for operational alerts.
+    ``corpus_gate_rejections`` is intentionally absent because X40 requires its
+    rejection ledger to remain recorded.
+    """
+    from scripts.ops.cleanup_inactive_user_data import (
+        cleanup_anonymous_session_summaries,
+        cleanup_redis_keys,
+        cleanup_stale_qdrant_memories,
+        cleanup_staging_quality_queue,
+        cleanup_telemetry_logs,
+    )
     from services.compliance_logger import cleanup_compliance_audit_files
 
-    telemetry_purged = 0
-    audit_files_purged = 0
-    staging_purged = 0
+    counts: dict[str, int] = {}
+
+    def run_surface(name: str, fn: Callable[..., int], **kwargs: object) -> None:
+        try:
+            counts[name] = int(fn(**kwargs))
+        except Exception as exc:
+            counts[name] = 0
+            logger.warning("Retention surface %s failed: %s", name, exc)
+
+    run_surface("redis_keys_purged", cleanup_redis_keys)
+    run_surface(
+        "qdrant_memory_vectors_purged",
+        cleanup_stale_qdrant_memories,
+        days_inactivity=days_inactivity,
+    )
+    run_surface("telemetry_purged", cleanup_telemetry_logs, days_retention=days_retention)
+    run_surface(
+        "anonymous_session_summaries_purged",
+        cleanup_anonymous_session_summaries,
+    )
+    run_surface(
+        "audit_files_purged",
+        cleanup_compliance_audit_files,
+        retention_days=days_retention,
+    )
+    run_surface(
+        "staging_purged",
+        cleanup_staging_quality_queue,
+        days_retention=days_retention,
+    )
 
     try:
-        telemetry_purged = cleanup_telemetry_logs(days_retention=days_retention)
-    except Exception as e:
-        logger.warning("Telemetry cleanup failed: %s", e)
-
-    try:
-        audit_files_purged = cleanup_compliance_audit_files(retention_days=days_retention)
-    except Exception as e:
-        logger.warning("Compliance audit files cleanup failed: %s", e)
-
-    try:
-        from scripts.ops.cleanup_inactive_user_data import cleanup_staging_quality_queue
-
-        staging_purged = cleanup_staging_quality_queue(days_retention=days_retention)
-    except Exception as e:
-        logger.warning("Staging queue cleanup failed: %s", e)
-
-    launch_subscribers_purged = 0
-    try:
-        launch_subscribers_purged = purge_launch_subscribers()
-    except Exception:
+        counts["launch_subscribers_purged"] = purge_launch_subscribers()
+    except Exception as exc:
+        counts["launch_subscribers_purged"] = 0
         # Retention is a legal duty: log at error level so an alert can see it.
-        logger.exception("Launch subscriber purge failed")
+        logger.exception("Launch subscriber purge failed: %s", exc)
 
     # corpus_gate_rejections is deliberately NOT purged here: X40 requires every
     # rejected item to stay recorded (reason, tier, source coordinates). Any
     # future expiry must archive first; it is not an automatic retention job.
 
     logger.info(
-        "Data retention cleanup finished: %d telemetry rows, %d audit files, %d staging rows purged (retention=%dd)",
-        telemetry_purged,
-        audit_files_purged,
-        staging_purged,
+        "Data retention cleanup finished: %s (telemetry_retention=%dd, inactivity=%dd)",
+        counts,
         days_retention,
+        days_inactivity,
     )
-    return {
-        "telemetry_purged": telemetry_purged,
-        "audit_files_purged": audit_files_purged,
-        "staging_purged": staging_purged,
-        "launch_subscribers_purged": launch_subscribers_purged,
-    }
+    return counts

@@ -190,12 +190,24 @@ def test_corpus_gate_rejections_dry_run_never_deletes():
 
 
 def test_end_to_end_retention_task_orchestration():
-    """cleanup_retention_data coordinates telemetry, audit, staging, and rejections."""
+    """cleanup_retention_data coordinates every scheduled surface, not rejections."""
     with (
+        patch(
+            "scripts.ops.cleanup_inactive_user_data.cleanup_redis_keys",
+            return_value=1,
+        ) as mock_redis,
+        patch(
+            "scripts.ops.cleanup_inactive_user_data.cleanup_stale_qdrant_memories",
+            return_value=2,
+        ) as mock_qdrant,
         patch(
             "scripts.ops.cleanup_inactive_user_data.cleanup_telemetry_logs",
             return_value=100,
         ) as mock_telemetry,
+        patch(
+            "scripts.ops.cleanup_inactive_user_data.cleanup_anonymous_session_summaries",
+            return_value=3,
+        ) as mock_anonymous,
         patch(
             "services.compliance_logger.cleanup_compliance_audit_files",
             return_value=12,
@@ -204,20 +216,29 @@ def test_end_to_end_retention_task_orchestration():
             "scripts.ops.cleanup_inactive_user_data.cleanup_staging_quality_queue",
             return_value=30,
         ) as mock_staging,
+        patch("tasks.retention_tasks.purge_launch_subscribers", return_value=4) as mock_launch,
         patch(
             "scripts.ops.cleanup_inactive_user_data.cleanup_corpus_gate_rejections",
             return_value=50,
         ) as mock_rejections,
     ):
-        result = cleanup_retention_data(days_retention=90)
+        result = cleanup_retention_data(days_retention=90, days_inactivity=365)
 
+    assert result["redis_keys_purged"] == 1
+    assert result["qdrant_memory_vectors_purged"] == 2
     assert result["telemetry_purged"] == 100
+    assert result["anonymous_session_summaries_purged"] == 3
     assert result["audit_files_purged"] == 12
     assert result["staging_purged"] == 30
+    assert result["launch_subscribers_purged"] == 4
     # X40: the rejection ledger is never purged by automatic retention.
     assert "rejections_purged" not in result
 
+    mock_redis.assert_called_once_with()
+    mock_qdrant.assert_called_once_with(days_inactivity=365)
     mock_telemetry.assert_called_once_with(days_retention=90)
+    mock_anonymous.assert_called_once_with()
     mock_audit.assert_called_once_with(retention_days=90)
     mock_staging.assert_called_once_with(days_retention=90)
+    mock_launch.assert_called_once_with()
     mock_rejections.assert_not_called()

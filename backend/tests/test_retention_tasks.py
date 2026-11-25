@@ -42,22 +42,49 @@ def test_cleanup_compliance_audit_files(tmp_path: Path):
 
 
 def test_cleanup_retention_data_task_invokes_both():
-    """Verify that cleanup_retention_data task runs telemetry and audit cleanups."""
+    """Verify that cleanup_retention_data invokes every scheduled surface."""
     from tasks.retention_tasks import cleanup_retention_data
 
     with (
+        patch(
+            "scripts.ops.cleanup_inactive_user_data.cleanup_redis_keys",
+            return_value=1,
+        ) as mock_redis,
+        patch(
+            "scripts.ops.cleanup_inactive_user_data.cleanup_stale_qdrant_memories",
+            return_value=2,
+        ) as mock_qdrant,
         patch(
             "scripts.ops.cleanup_inactive_user_data.cleanup_telemetry_logs",
             return_value=42,
         ) as mock_telemetry,
         patch(
+            "scripts.ops.cleanup_inactive_user_data.cleanup_anonymous_session_summaries",
+            return_value=3,
+        ) as mock_anonymous,
+        patch(
             "services.compliance_logger.cleanup_compliance_audit_files",
             return_value=5,
         ) as mock_audit,
+        patch(
+            "scripts.ops.cleanup_inactive_user_data.cleanup_staging_quality_queue",
+            return_value=6,
+        ) as mock_staging,
+        patch("tasks.retention_tasks.purge_launch_subscribers", return_value=7) as mock_launch,
     ):
-        result = cleanup_retention_data(days_retention=90)
+        result = cleanup_retention_data(days_retention=90, days_inactivity=365)
 
+    assert result["redis_keys_purged"] == 1
+    assert result["qdrant_memory_vectors_purged"] == 2
     assert result["telemetry_purged"] == 42
+    assert result["anonymous_session_summaries_purged"] == 3
     assert result["audit_files_purged"] == 5
+    assert result["staging_purged"] == 6
+    assert result["launch_subscribers_purged"] == 7
+    mock_redis.assert_called_once_with()
+    mock_qdrant.assert_called_once_with(days_inactivity=365)
     mock_telemetry.assert_called_once_with(days_retention=90)
+    mock_anonymous.assert_called_once_with()
     mock_audit.assert_called_once_with(retention_days=90)
+    mock_staging.assert_called_once_with(days_retention=90)
+    mock_launch.assert_called_once_with()

@@ -1,0 +1,89 @@
+{
+  "schema_version": "memory-plane-inventory-v1",
+  "authority": "docs/runbooks/RETENTION.md",
+  "scheduler": {
+    "kind": "celery_beat",
+    "task": "tasks.retention_tasks.cleanup_retention_data",
+    "interval_seconds": 86400,
+    "worker_queue": "celery",
+    "destructive": true,
+    "dry_run_default": false
+  },
+  "planes": [
+    {
+      "id": "redis_ephemeral",
+      "store": "redis",
+      "scope": "session:* and ephemeral:*",
+      "retention_days": 1,
+      "condition": "idle_seconds >= 86400",
+      "executor": "scripts.ops.cleanup_inactive_user_data.cleanup_redis_keys",
+      "result_key": "redis_keys_purged"
+    },
+    {
+      "id": "telemetry",
+      "store": "supabase",
+      "scope": "chat_queries, chat_responses, retrieval_events, trace_spans, trigger_events, safety_events, app_logs, token_usage, router_decisions",
+      "retention_days": 90,
+      "condition": "created_at older than telemetry cutoff",
+      "executor": "scripts.ops.cleanup_inactive_user_data.cleanup_telemetry_logs",
+      "result_key": "telemetry_purged"
+    },
+    {
+      "id": "user_memory_vectors",
+      "store": "qdrant",
+      "scope": "user memory collections excluding spiritual_wisdom, global_memory, and second_brain_vault",
+      "retention_days": 365,
+      "condition": "profile inactive and point updated_at older than inactivity cutoff",
+      "executor": "scripts.ops.cleanup_inactive_user_data.cleanup_stale_qdrant_memories",
+      "result_key": "qdrant_memory_vectors_purged"
+    },
+    {
+      "id": "anonymous_session_summaries",
+      "store": "supabase",
+      "scope": "guru_session_summaries where user_id is null",
+      "retention_days": 30,
+      "condition": "created_at older than orphan cutoff",
+      "executor": "scripts.ops.cleanup_inactive_user_data.cleanup_anonymous_session_summaries",
+      "result_key": "anonymous_session_summaries_purged"
+    },
+    {
+      "id": "compliance_audit_files",
+      "store": "local filesystem",
+      "scope": "compliance audit files",
+      "retention_days": 90,
+      "condition": "file date older than retention cutoff",
+      "executor": "services.compliance_logger.cleanup_compliance_audit_files",
+      "result_key": "audit_files_purged"
+    },
+    {
+      "id": "staging_quality_queue",
+      "store": "supabase",
+      "scope": "staging_quality_queue",
+      "retention_days": 90,
+      "condition": "created_at older than telemetry cutoff",
+      "executor": "scripts.ops.cleanup_inactive_user_data.cleanup_staging_quality_queue",
+      "result_key": "staging_purged"
+    },
+    {
+      "id": "launch_subscribers",
+      "store": "supabase",
+      "scope": "launch update subscribers",
+      "retention_months": 12,
+      "condition": "subscriber record older than launch retention window",
+      "executor": "tasks.retention_tasks.purge_launch_subscribers",
+      "result_key": "launch_subscribers_purged"
+    }
+  ],
+  "protected": [
+    {
+      "id": "corpus_gate_rejections",
+      "store": "supabase",
+      "reason": "X40 requires every rejection to remain recorded unless explicitly archived through a separate approved process"
+    },
+    {
+      "id": "core_memory_and_vault",
+      "store": "supabase and qdrant",
+      "reason": "protected while the account is active; user deletion follows the explicit account-erasure orchestrator"
+    }
+  ]
+}

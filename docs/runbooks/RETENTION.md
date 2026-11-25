@@ -1,6 +1,9 @@
 # Data Retention Runbook
 
-Source of truth for retention windows and purge scheduling. Executor: `backend/scripts/ops/cleanup_inactive_user_data.py`.
+Source of truth for retention windows and purge scheduling. The machine-readable inventory is
+[`docs/operations/memory-plane-inventory.json`](../operations/memory-plane-inventory.json).
+The scheduled executor is `backend/tasks/retention_tasks.py`, which delegates to
+`scripts/ops/cleanup_inactive_user_data.py` and the compliance/launch-subscriber services.
 
 ## Retention windows
 
@@ -19,7 +22,11 @@ Overrides: `TELEMETRY_RETENTION_DAYS` (module constant), `--days-telemetry`, `--
 
 ## Scheduling
 
-Run nightly. Local: cron; Railway: job/service cron `0 3 * * *`. The script is a dry run unless `--apply` is passed; review the dry-run output before scheduling `--apply`. `corpus_gate_rejections` is never purged automatically (X40: rejections must stay recorded).
+The production scheduler is Celery Beat task
+`tasks.retention_tasks.cleanup_retention_data`, every 86,400 seconds, consumed by the
+`celery` queue. The direct cleanup script remains an operator-invoked dry-run/live-purge
+tool; do not schedule it alongside Beat or the same rows may be processed twice.
+`corpus_gate_rejections` is never purged automatically (X40: rejections must stay recorded).
 
 ## Dry run
 
@@ -31,7 +38,7 @@ cd backend
 
 ## Verification
 
-1. Confirm counts printed per table/collection.
+1. Confirm the per-surface result keys from the task or the counts printed per table/collection.
 2. Spot-check a purged table: `SELECT count(*) FROM chat_responses WHERE created_at < now() - interval '90 days';` → 0.
 3. Confirm protected data untouched: user profiles, `user_brain_nodes`, `second_brain_vault`, `guru_memories`.
 
