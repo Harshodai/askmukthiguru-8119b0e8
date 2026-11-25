@@ -55,6 +55,13 @@ if "host.docker.internal" in os.getenv("SUPABASE_URL", ""):
         "host.docker.internal", "127.0.0.1"
     )
 
+# Offline LightRAG ingestion is an operator write path, not the read-only serving
+# path. The service's Qdrant client reads QDRANT_API_KEY; prefer the separately
+# scoped write credential when it is supplied to this CLI process.
+if os.getenv("QDRANT_WRITE_API_KEY"):
+    os.environ["QDRANT_API_KEY"] = os.environ["QDRANT_WRITE_API_KEY"]
+
+
 CHECKPOINT_FILE = Path(
     os.getenv("LIGHTRAG_CHECKPOINT_FILE", str(PROJECT_ROOT / "data" / "lightrag_checkpoint.json"))
 )
