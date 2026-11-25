@@ -79,8 +79,27 @@ def test_config_url_rejects_invalid_scheme(monkeypatch):
         REDIS_BACKUP._build_redis_client(redis_url="http://localhost:6379")
 
 
-def test_parse_config_pair_requires_expected_key():
-    assert REDIS_BACKUP._parse_config_pair({"dir": "/data"}, "dir") == "/data"
+def test_host_redis_client_uses_password_from_environment(monkeypatch):
+    client = SimpleNamespace(ping=MagicMock())
+    redis_module = SimpleNamespace(Redis=MagicMock(return_value=client))
+    monkeypatch.setitem(sys.modules, "redis", redis_module)
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    monkeypatch.setenv("REDIS_HOST", "127.0.0.1")
+    monkeypatch.setenv("REDIS_PORT", "16379")
+    monkeypatch.setenv("REDIS_PASSWORD", "host-secret")
+
+    actual = REDIS_BACKUP._build_redis_client()
+
+    assert actual is client
+    redis_module.Redis.assert_called_once_with(
+        host="127.0.0.1",
+        port=16379,
+        db=0,
+        password="host-secret",
+        decode_responses=True,
+        socket_timeout=10,
+    )
+    client.ping.assert_called_once()
 
 
 def test_backup_copies_only_after_confirmed_new_bgsave(monkeypatch, tmp_path):
