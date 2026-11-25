@@ -30,17 +30,34 @@ class OKFTransformationArc:
     target_state: str
     practice_step: str
     guru_speaker: str
+    tenant_id: str = ""
+    source_asset_id: str = ""
+    source_url: str = ""
+    video_id: str = ""
+    domain_rights_status: str = ""
+    speaker_verified: bool = False
+    speaker_verification_reference: str = ""
 
 
 class GuruKGService:
     """Neo4j Knowledge Graph & OKF 5-Node Ontology Engine."""
 
     def __init__(
-        self, neo4j_driver: Any = None, neo4j_driver_accessor: Optional[Callable[[], Any]] = None
+        self,
+        neo4j_driver: Any = None,
+        neo4j_driver_accessor: Optional[Callable[[], Any]] = None,
+        *,
+        source_write_authorizer: Optional[Callable[..., bool]] = None,
+        user_state_write_authorizer: Optional[Callable[..., bool]] = None,
     ) -> None:
         self.neo4j_driver = neo4j_driver
         self._neo4j_driver_accessor = neo4j_driver_accessor
-        self._in_memory_graph: list[OKFTransformationArc] = []
+        # Database writes are disabled unless the caller injects an authority
+        # that checks the current source-rights register or active user consent.
+        # A Neo4j driver alone is never permission to mutate governed data.
+        self._source_write_authorizer = source_write_authorizer
+        self._user_state_write_authorizer = user_state_write_authorizer
+        self._in_memory_graph: dict[str, list[OKFTransformationArc]] = {}
 
     @property
     def _resolved_driver(self):
@@ -56,8 +73,67 @@ class GuruKGService:
         target_state: str,
         practice_step: str,
         guru_speaker: str = "Sri Preethaji & Sri Krishnaji",
-    ) -> None:
-        """Add a 5-node spiritual transformation arc entry into Knowledge Graph."""
+        *,
+        tenant_id: str = "",
+        source_asset_id: str = "",
+        source_url: str = "",
+        video_id: str = "",
+        domain_rights_status: str = "",
+        speaker_verified: bool = False,
+        speaker_verification_reference: str = "",
+    ) -> bool:
+        """Persist a source-bound ontology arc only after authoritative clearance.
+
+        This legacy writer is deliberately inert by default. Callers must supply
+        source identity and an injected authorizer that re-checks the current
+        rights register; a Bolt driver or a payload string is not clearance.
+        The stored graph edge retains the source identity that justified it.
+        """
+        required_source_values = (
+            str(tenant_id or "").strip(),
+            str(source_asset_id or "").strip(),
+            str(source_url or "").strip(),
+            str(video_id or "").strip(),
+            str(domain_rights_status or "").strip(),
+            str(speaker_verification_reference or "").strip(),
+        )
+        if (
+            not all(required_source_values)
+            or str(domain_rights_status or "").strip().lower() != "licensed"
+            or speaker_verified is not True
+            or self._source_write_authorizer is None
+        ):
+            logger.warning(
+                "GuruKGService: ontology write refused; tenant, source provenance, "
+                "and a current rights authorizer are required."
+            )
+            return False
+
+        try:
+            authorized = bool(
+                self._source_write_authorizer(
+                    tenant_id=str(tenant_id or "").strip(),
+                    source_asset_id=str(source_asset_id or "").strip(),
+                    source_url=str(source_url or "").strip(),
+                    video_id=str(video_id or "").strip(),
+                    domain_rights_status=str(domain_rights_status or "").strip(),
+                    speaker_verified=speaker_verified is True,
+                    speaker_verification_reference=str(speaker_verification_reference or "").strip(),
+                    guru_speaker=guru_speaker,
+                )
+            )
+        except Exception as exc:
+            logger.warning("GuruKGService: source authorization failed closed: %s", exc)
+            return False
+        if not authorized:
+            logger.warning("GuruKGService: ontology write refused by source-rights authorizer.")
+            return False
+
+        driver = self._resolved_driver
+        if driver is None:
+            logger.warning("GuruKGService: ontology write refused; graph driver unavailable.")
+            return False
+
         arc = OKFTransformationArc(
             seeker_dilemma=seeker_dilemma,
             limiting_belief=limiting_belief,
@@ -65,48 +141,85 @@ class GuruKGService:
             target_state=target_state,
             practice_step=practice_step,
             guru_speaker=guru_speaker,
+            tenant_id=str(tenant_id or "").strip(),
+            source_asset_id=str(source_asset_id or "").strip(),
+            source_url=str(source_url or "").strip(),
+            video_id=str(video_id or "").strip(),
+            domain_rights_status=str(domain_rights_status or "").strip(),
+            speaker_verified=True,
+            speaker_verification_reference=str(speaker_verification_reference or "").strip(),
         )
-        self._in_memory_graph.append(arc)
-
-        if self._resolved_driver:
-            try:
-                with self._resolved_driver.session() as session:
-                    cypher = """
-                    MERGE (g:GuruSpeaker {name: $guru})
-                    MERGE (d:SeekerDilemma {name: $dilemma})
-                    ON CREATE SET d.created_at = timestamp()
-                    MERGE (b:RootLimitingBelief {name: $belief})
-                    ON CREATE SET b.created_at = timestamp()
-                    MERGE (t:GuruTeaching {name: $teaching})
-                    ON CREATE SET t.created_at = timestamp()
-                    MERGE (s:BeautifulState {name: $state})
-                    ON CREATE SET s.created_at = timestamp()
-                    MERGE (p:PracticeStep {name: $practice})
-                    ON CREATE SET p.created_at = timestamp()
-                    MERGE (d)-[r1:DRIVEN_BY]->(b)
-                    ON CREATE SET r1.valid_at = timestamp()
-                    MERGE (t)-[r2:DISMANTLES]->(b)
-                    ON CREATE SET r2.valid_at = timestamp()
-                    MERGE (t)-[r3:TRANSFORMS_TO]->(s)
-                    ON CREATE SET r3.valid_at = timestamp()
-                    MERGE (t)-[r4:PRESCRIBES]->(p)
-                    ON CREATE SET r4.valid_at = timestamp()
-                    MERGE (g)-[r5:TEACHES]->(t)
-                    ON CREATE SET r5.valid_at = timestamp()
-                    """
-                    session.run(
-                        cypher,
-                        guru=guru_speaker,
-                        dilemma=seeker_dilemma,
-                        belief=limiting_belief,
-                        teaching=teaching,
-                        state=target_state,
-                        practice=practice_step,
-                    )
-            except Exception as exc:
-                logger.warning(
-                    f"GuruKGService: Neo4j Cypher write failed ({exc}), stored in graph memory fallback."
+        cypher = """
+        MERGE (g:GuruSpeaker {tenant_id: $tenant_id, name: $guru})
+        MERGE (d:SeekerDilemma {tenant_id: $tenant_id, name: $dilemma})
+        ON CREATE SET d.created_at = timestamp()
+        MERGE (b:RootLimitingBelief {tenant_id: $tenant_id, name: $belief})
+        ON CREATE SET b.created_at = timestamp()
+        MERGE (t:GuruTeaching {tenant_id: $tenant_id, name: $teaching})
+        ON CREATE SET t.created_at = timestamp()
+        MERGE (s:BeautifulState {tenant_id: $tenant_id, name: $state})
+        ON CREATE SET s.created_at = timestamp()
+        MERGE (p:PracticeStep {tenant_id: $tenant_id, name: $practice})
+        ON CREATE SET p.created_at = timestamp()
+        MERGE (d)-[r1:DRIVEN_BY {
+            tenant_id: $tenant_id, source_asset_id: $source_asset_id
+        }]->(b)
+        ON CREATE SET r1.valid_at = timestamp(), r1.source_url = $source_url,
+                      r1.video_id = $video_id, r1.domain_rights_status = $rights_status,
+                      r1.speaker_verified = $speaker_verified,
+                      r1.speaker_verification_reference = $speaker_verification_reference
+        MERGE (t)-[r2:DISMANTLES {
+            tenant_id: $tenant_id, source_asset_id: $source_asset_id
+        }]->(b)
+        ON CREATE SET r2.valid_at = timestamp(), r2.source_url = $source_url,
+                      r2.video_id = $video_id, r2.domain_rights_status = $rights_status,
+                      r2.speaker_verified = $speaker_verified,
+                      r2.speaker_verification_reference = $speaker_verification_reference
+        MERGE (t)-[r3:TRANSFORMS_TO {
+            tenant_id: $tenant_id, source_asset_id: $source_asset_id
+        }]->(s)
+        ON CREATE SET r3.valid_at = timestamp(), r3.source_url = $source_url,
+                      r3.video_id = $video_id, r3.domain_rights_status = $rights_status,
+                      r3.speaker_verified = $speaker_verified,
+                      r3.speaker_verification_reference = $speaker_verification_reference
+        MERGE (t)-[r4:PRESCRIBES {
+            tenant_id: $tenant_id, source_asset_id: $source_asset_id
+        }]->(p)
+        ON CREATE SET r4.valid_at = timestamp(), r4.source_url = $source_url,
+                      r4.video_id = $video_id, r4.domain_rights_status = $rights_status,
+                      r4.speaker_verified = $speaker_verified,
+                      r4.speaker_verification_reference = $speaker_verification_reference
+        MERGE (g)-[r5:TEACHES {
+            tenant_id: $tenant_id, source_asset_id: $source_asset_id
+        }]->(t)
+        ON CREATE SET r5.valid_at = timestamp(), r5.source_url = $source_url,
+                      r5.video_id = $video_id, r5.domain_rights_status = $rights_status,
+                      r5.speaker_verified = $speaker_verified,
+                      r5.speaker_verification_reference = $speaker_verification_reference
+        """
+        try:
+            with driver.session() as session:
+                session.run(
+                    cypher,
+                    tenant_id=str(tenant_id or "").strip(),
+                    source_asset_id=str(source_asset_id or "").strip(),
+                    source_url=str(source_url or "").strip(),
+                    video_id=str(video_id or "").strip(),
+                    rights_status=str(domain_rights_status or "").strip(),
+                    speaker_verified=speaker_verified is True,
+                    speaker_verification_reference=str(speaker_verification_reference or "").strip(),
+                    guru=guru_speaker,
+                    dilemma=seeker_dilemma,
+                    belief=limiting_belief,
+                    teaching=teaching,
+                    state=target_state,
+                    practice=practice_step,
                 )
+            self._in_memory_graph.setdefault(str(tenant_id or "").strip(), []).append(arc)
+            return True
+        except Exception as exc:
+            logger.warning("GuruKGService: governed ontology write failed: %s", exc)
+            return False
 
     def record_user_state_transition(
         self,
@@ -114,125 +227,222 @@ class GuruKGService:
         from_state: str,
         to_state: str,
         trigger_context: str = "",
-    ) -> None:
-        """Record temporal user state transition arc in Neo4j graph."""
-        if not self._resolved_driver or not user_id:
-            return
+        *,
+        tenant_id: str = "",
+        consent_receipt_id: str = "",
+    ) -> bool:
+        """Persist a seeker-state transition only after a caller proves consent.
+
+        A configured authorizer must validate the active, tenant-scoped consent
+        receipt. No graph driver or user ID alone authorizes a durable write.
+        `trigger_context` is accepted for compatibility but never persisted:
+        private reflections belong in the consent-managed memory plane.
+        """
+        if (
+            not str(user_id or "").strip()
+            or not str(tenant_id or "").strip()
+            or not str(consent_receipt_id or "").strip()
+            or not str(from_state or "").strip()
+            or not str(to_state or "").strip()
+            or self._user_state_write_authorizer is None
+        ):
+            logger.info(
+                "GuruKGService: user-state write skipped; tenant-scoped consent proof is missing."
+            )
+            return False
         try:
-            with self._resolved_driver.session() as session:
+            authorized = bool(
+                self._user_state_write_authorizer(
+                    user_id=str(user_id or "").strip(),
+                    tenant_id=str(tenant_id or "").strip(),
+                    consent_receipt_id=str(consent_receipt_id or "").strip(),
+                )
+            )
+        except Exception as exc:
+            logger.warning("GuruKGService: user-state consent check failed closed: %s", exc)
+            return False
+        if not authorized:
+            logger.info("GuruKGService: user-state write refused by consent authorizer.")
+            return False
+
+        driver = self._resolved_driver
+        if driver is None:
+            return False
+        try:
+            with driver.session() as session:
                 cypher = """
-                MERGE (u:User {id: $user_id})
-                MERGE (s1:State {name: $from_state})
-                MERGE (s2:State {name: $to_state})
+                MERGE (u:User {tenant_id: $tenant_id, id: $user_id})
+                MERGE (s1:State {tenant_id: $tenant_id, name: $from_state})
+                MERGE (s2:State {tenant_id: $tenant_id, name: $to_state})
                 CREATE (u)-[:TRANSITIONED {
+                    tenant_id: $tenant_id,
+                    consent_receipt_id: $consent_receipt_id,
                     from_state: $from_state,
                     to_state: $to_state,
-                    context: $context,
                     timestamp: timestamp()
                 }]->(s2)
-                MERGE (s1)-[:TRANSITIONS_TO]->(s2)
+                MERGE (s1)-[:TRANSITIONS_TO {tenant_id: $tenant_id}]->(s2)
                 """
                 session.run(
                     cypher,
-                    user_id=user_id,
-                    from_state=from_state,
-                    to_state=to_state,
-                    context=trigger_context,
+                    tenant_id=str(tenant_id or "").strip(),
+                    user_id=str(user_id or "").strip(),
+                    consent_receipt_id=str(consent_receipt_id or "").strip(),
+                    from_state=str(from_state or "").strip()[:160],
+                    to_state=str(to_state or "").strip()[:160],
                 )
-                logger.info(
-                    f"GuruKGService: Recorded state transition for user {user_id}: {from_state} -> {to_state}"
-                )
+            logger.info("GuruKGService: consented user-state transition recorded.")
+            return True
         except Exception as exc:
-            logger.warning(f"GuruKGService: Failed to record state transition ({exc})")
+            logger.warning("GuruKGService: Failed to record consented user-state transition: %s", exc)
+            return False
 
     def traverse_guru_ontology(
-        self, query: str, limit: int = 3, timeout: float | None = None
+        self,
+        query: str,
+        limit: int = 3,
+        timeout: float | None = 2.0,
+        *,
+        tenant_id: str = "",
     ) -> list[OKFTransformationArc]:
-        """Perform 5-node multi-hop graph traversal to discover spiritual transformation arcs."""
-        if self._resolved_driver:
+        """Perform tenant-scoped graph traversal with a real Bolt transaction timeout.
+
+        Missing tenant scope, blank queries, and non-positive budgets fail closed.
+        Legacy nodes/edges without tenant metadata are intentionally invisible.
+        """
+        query = str(query or "").strip()
+        tenant = str(tenant_id or "").strip()
+        limit = min(max(int(limit), 0), 50)
+        if not query or not tenant or limit == 0:
+            return []
+        if timeout is not None and float(timeout) <= 0:
+            return []
+
+        driver = self._resolved_driver
+        if driver is not None:
+            cypher = """
+            MATCH (d:SeekerDilemma {tenant_id: $tenant_id})
+                -[driven:DRIVEN_BY]->
+                (b:RootLimitingBelief {tenant_id: $tenant_id})
+            MATCH (t:GuruTeaching {tenant_id: $tenant_id})
+                -[dismantles:DISMANTLES]->(b)
+            MATCH (t)-[transforms:TRANSFORMS_TO]->(s:BeautifulState {tenant_id: $tenant_id})
+            MATCH (t)-[prescribes:PRESCRIBES]->(p:PracticeStep {tenant_id: $tenant_id})
+            MATCH (g:GuruSpeaker {tenant_id: $tenant_id})-[teaches:TEACHES]->(t)
+            WHERE driven.tenant_id = $tenant_id
+              AND dismantles.tenant_id = $tenant_id
+              AND transforms.tenant_id = $tenant_id
+              AND prescribes.tenant_id = $tenant_id
+              AND teaches.tenant_id = $tenant_id
+              AND driven.source_asset_id = dismantles.source_asset_id
+              AND driven.source_asset_id = transforms.source_asset_id
+              AND driven.source_asset_id = prescribes.source_asset_id
+              AND driven.source_asset_id = teaches.source_asset_id
+              AND driven.domain_rights_status = 'licensed'
+              AND dismantles.domain_rights_status = 'licensed'
+              AND transforms.domain_rights_status = 'licensed'
+              AND prescribes.domain_rights_status = 'licensed'
+              AND teaches.domain_rights_status = 'licensed'
+              AND driven.speaker_verified = true
+              AND dismantles.speaker_verified = true
+              AND transforms.speaker_verified = true
+              AND prescribes.speaker_verified = true
+              AND teaches.speaker_verified = true
+              AND driven.speaker_verification_reference =
+                  dismantles.speaker_verification_reference
+              AND driven.speaker_verification_reference =
+                  transforms.speaker_verification_reference
+              AND driven.speaker_verification_reference =
+                  prescribes.speaker_verification_reference
+              AND driven.speaker_verification_reference =
+                  teaches.speaker_verification_reference
+              AND (
+                toLower(d.name) CONTAINS toLower($q)
+                OR toLower(t.name) CONTAINS toLower($q)
+              )
+            RETURN DISTINCT
+                d.name AS dilemma,
+                b.name AS belief,
+                t.name AS teaching,
+                s.name AS state,
+                p.name AS practice,
+                g.name AS guru,
+                driven.tenant_id AS tenant_id,
+                driven.source_asset_id AS source_asset_id,
+                driven.source_url AS source_url,
+                driven.video_id AS video_id,
+                driven.domain_rights_status AS domain_rights_status,
+                driven.speaker_verified AS speaker_verified,
+                driven.speaker_verification_reference AS speaker_verification_reference
+            LIMIT $limit
+            """
+            tx = None
             try:
-                with self._resolved_driver.session() as session:
-                    cypher = """
-                    MATCH (d:SeekerDilemma)-[:DRIVEN_BY*1..2]->(b:RootLimitingBelief)
-                    MATCH (t:GuruTeaching)-[:DISMANTLES*1..2]->(b)
-                    MATCH (t)-[:TRANSFORMS_TO]->(s:BeautifulState)
-                    MATCH (t)-[:PRESCRIBES]->(p:PracticeStep)
-                    MATCH (g:GuruSpeaker)-[:TEACHES]->(t)
-                    WHERE toLower(d.name) CONTAINS toLower($q) OR toLower(t.name) CONTAINS toLower($q)
-                    RETURN d.name AS dilemma, b.name AS belief, t.name AS teaching, s.name AS state, p.name AS practice, g.name AS guru
-                    LIMIT $limit
-                    """
-                    run_kwargs = {"q": query, "limit": limit}
-                    if timeout is not None:
-                        run_kwargs["timeout"] = timeout
-                    result = session.run(cypher, **run_kwargs)
-                    arcs = []
-                    for record in result:
-                        arcs.append(
-                            OKFTransformationArc(
-                                seeker_dilemma=record["dilemma"],
-                                limiting_belief=record["belief"],
-                                teaching=record["teaching"],
-                                target_state=record["state"],
-                                practice_step=record["practice"],
-                                guru_speaker=record["guru"],
-                            )
+                with driver.session() as session:
+                    # session.run(timeout=...) forwards a query parameter. The
+                    # Bolt transaction API is what enforces the server deadline.
+                    tx = (
+                        session.begin_transaction(timeout=float(timeout))
+                        if timeout is not None
+                        else session.begin_transaction()
+                    )
+                    result = tx.run(cypher, q=query, limit=limit, tenant_id=tenant)
+                    arcs = [
+                        OKFTransformationArc(
+                            seeker_dilemma=record["dilemma"],
+                            limiting_belief=record["belief"],
+                            teaching=record["teaching"],
+                            target_state=record["state"],
+                            practice_step=record["practice"],
+                            guru_speaker=record["guru"],
+                            tenant_id=record["tenant_id"],
+                            source_asset_id=record["source_asset_id"],
+                            source_url=record["source_url"],
+                            video_id=record["video_id"],
+                            domain_rights_status=record["domain_rights_status"],
+                            speaker_verified=bool(record["speaker_verified"]),
+                            speaker_verification_reference=record["speaker_verification_reference"],
                         )
-                    if len(arcs) > 50:
-                        arcs = arcs[:50]
-                        logger.info(
-                            "GuruKGService: truncated traversal from >50 to top 50 arcs (query_len=%d)",
-                            len(query),
-                        )
+                        for record in result
+                    ]
+                    tx.commit()
                     if arcs:
                         logger.info(
-                            "GuruKGService: traversal found %d arcs (query_len=%d)",
+                            "GuruKGService: tenant-scoped source-certified traversal found %d arcs (query_len=%d)",
                             len(arcs),
                             len(query),
                         )
-                        return arcs
+                        return arcs[:limit]
             except Exception as exc:
+                if tx is not None:
+                    try:
+                        tx.rollback()
+                    except Exception:
+                        pass
                 logger.warning(
-                    f"GuruKGService: Neo4j traversal failed ({exc}), falling back to in-memory graph."
+                    "GuruKGService: tenant-scoped traversal failed (fail-open): %s",
+                    exc,
                 )
 
-        # Fallback in-memory graph traversal
-        matched = []
-        q_lower = query.lower()
-        for arc in self._in_memory_graph:
-            if any(
-                w in arc.seeker_dilemma.lower() or w in arc.teaching.lower()
-                for w in q_lower.split()
-            ):
-                matched.append(arc)
-            if len(matched) >= limit:
-                break
-
-        if not matched:
-            matched = [
-                OKFTransformationArc(
-                    seeker_dilemma="Experiencing anxiety, stress, or lack of peace",
-                    limiting_belief="Belief that peace depends on external outcomes or controlling thoughts",
-                    teaching="Present Moment Awareness & Witnessing Consciousness",
-                    target_state="Beautiful State (Serene Mind)",
-                    practice_step="Observe thoughts as cloud formations passing across awareness without judgment",
-                    guru_speaker="Sri Preethaji & Sri Krishnaji",
-                )
-            ]
-
-        return matched[:limit]
+        # Fallback contains only arcs accepted by the governed write path and
+        # stored under the same tenant key. It never fabricates a default arc.
+        return list(self._in_memory_graph.get(tenant, []))[:limit]
 
     def format_kg_ontology_context(self, arcs: list[OKFTransformationArc]) -> str:
         """Format retrieved 5-node OKF Knowledge Graph arcs into prompt context."""
         if not arcs:
             return ""
 
-        blocks = ["=== 5-NODE NEO4J KNOWLEDGE GRAPH & OKF ONTOLOGY ARCS ==="]
+        blocks = [
+            "=== STRUCTURED ONTOLOGY RELATIONSHIPS (not verbatim teacher quotations) ==="
+        ]
         for i, a in enumerate(arcs, 1):
             blocks.append(
                 f"Arc {i}: [Dilemma: {a.seeker_dilemma}] -> [Limiting Belief: {a.limiting_belief}]\n"
-                f"  Teaching ({a.guru_speaker}): {a.teaching}\n"
-                f"  Target State: {a.target_state} | Practice: {a.practice_step}"
+                f"  Teaching concept ({a.guru_speaker}): {a.teaching}\n"
+                f"  Target state concept: {a.target_state} | Practice concept: {a.practice_step}\n"
+                f"  Source: {a.source_asset_id or 'unavailable'} | Rights: {a.domain_rights_status or 'unknown'} | "
+                f"Speaker verified: {a.speaker_verified}"
             )
 
         return "\n".join(blocks)

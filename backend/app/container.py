@@ -647,13 +647,13 @@ class ServiceContainer:
             translation_service=self.translation,
         )
 
-        # --- Canonical memory: read path ---
-        # The store, its API, audit trail and RLS all worked, but nothing in the
-        # request pipeline ever read it — the only import of chat_integration
-        # outside its own package was a test. Built here so
-        # `prepare_user_memory` can serve canonical memories as the generation
-        # prompt's memory context. Read-only: extractor/judge/resolver belong to
-        # the write path and stay unwired until memory_write is designed for.
+        # --- Canonical memory: consent-gated read and post-response write paths ---
+        # prepare_user_memory reads user-scoped canonical facts only after the
+        # memory outbox confirms an active tenant-scoped consent receipt. When
+        # memory_write is enabled, the adapters below construct the extractor,
+        # consent-gated judge and resolver used by the asynchronous post-response
+        # write stage. Settings alone are not consent: read and write paths
+        # re-check the receipt at their request boundaries.
         self.canonical_memory_integration = None
         if settings.canonical_memory_enabled and self.supabase_client is not None:
             try:

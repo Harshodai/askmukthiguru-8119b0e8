@@ -61,16 +61,17 @@ Full API reference: [docs/canonical_memory_api.md](../../docs/canonical_memory_a
 
 ## Configuration
 
-Environment variables:
+Environment variables (names and defaults below match `backend/app/config.py`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FEATURE_CANONICAL_MEMORY` | `false` | Enable canonical memory pipeline |
-| `FEATURE_CANONICAL_MEMORY_RETRIEVAL` | `false` | Enable canonical retrieval |
-| `FEATURE_MEMORY_SHADOW` | `false` | Enable shadow comparison |
-| `CANONICAL_MEMORY_BUDGET_USD` | `10.0` | Daily cost budget |
-| `CANONICAL_MEMORY_MAX_RESULTS` | `20` | Retrieval limit |
-| `CANONICAL_MEMORY_MAX_TOKENS` | `2000` | Context token budget |
+| `CANONICAL_MEMORY_ENABLED` | `true` | Construct the canonical memory integration |
+| `CANONICAL_MEMORY_RETRIEVAL` | `true` | Read user-scoped canonical memories into eligible chat context |
+| `MEMORY_SHADOW` | `false` | Compare canonical and legacy reads without serving canonical results |
+| `MEMORY_WRITE` | `true` | Run post-response extraction; every durable write still requires an active consent receipt |
+| `MEMORY_INFLUENCE` | `true` | Permit consented canonical memory to influence the prompt |
+| `CANONICAL_MEMORY_TIMEOUT` | `2.0` | Bound canonical retrieval latency in seconds |
+| `CANONICAL_MEMORY_WRITE_TIMEOUT` | `30.0` | Bound asynchronous post-response extraction/write latency in seconds |
 
 ## Data Model
 
@@ -106,6 +107,8 @@ Environment variables:
 | `EXPIRE` | Temporal context expired |
 | `DELETE` | User requested deletion |
 | `ESCALATE` | Needs human review |
+
+**Consent boundary:** the boolean settings above do not grant consent. Durable reads and writes are still guarded by the user's active, tenant-scoped consent receipt; missing or unavailable consent state fails closed. Anonymous sessions do not receive cross-session canonical memory.
 
 ## Safety & Security
 

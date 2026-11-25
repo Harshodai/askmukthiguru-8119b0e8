@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """
-seed_neo4j_okf.py — One-shot seeder for the OKF 5-node Ontology in Neo4j.
+seed_neo4j_okf.py — Legacy OKF ontology draft inventory (writes disabled).
 
-Populates the following schema (used by GuruKGService.traverse_guru_ontology):
+Describes the historical graph schema, but does not seed it:
   (:SeekerDilemma)-[:DRIVEN_BY]->(:RootLimitingBelief)
   (:GuruTeaching)-[:DISMANTLES]->(:RootLimitingBelief)
   (:GuruTeaching)-[:TRANSFORMS_TO]->(:BeautifulState)
   (:GuruTeaching)-[:PRESCRIBES]->(:PracticeStep)
   (:GuruSpeaker)-[:TEACHES]->(:GuruTeaching)
 
-Derived from Sri Krishnaji & Sri Preethaji approved teachings.
-Uses MERGE — safe to re-run (idempotent).
+Historical draft statements retained for review only. The entries do not carry
+per-asset rights evidence, verified speaker spans, or reviewer sign-off. They
+must not be written to a knowledge graph or used as teacher evidence.
 
 Usage:
   cd backend
@@ -19,27 +20,9 @@ Usage:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-backend_dir = Path(__file__).resolve().parents[1]
-
-# Load .env BEFORE importing any app modules so pydantic Settings can validate
-env_path = backend_dir / ".env"
-if env_path.exists():
-    try:
-        from dotenv import load_dotenv
-
-        load_dotenv(env_path, override=False)
-    except ImportError:
-        pass
-
-sys.path.insert(0, str(backend_dir))
-
-from services.guru_brain.guru_kg_service import GuruKGService
-
 # ── 20 curated OKF Transformation Arcs ────────────────────────────────────────
-# Source: UlOt31lBhLY transcript (Marie Forleo interview) + Four Sacred Secrets doctrine
+# Historical source note only: no per-arc source spans, timestamps, or attribution
+# packets are pinned here. Treat every row as an unverified editorial proposal.
 OKF_ARCS = [
     {
         "seeker_dilemma": "Experiencing anxiety, stress, or lack of peace",
@@ -204,53 +187,19 @@ OKF_ARCS = [
 ]
 
 
-def seed(neo4j_uri: str, neo4j_user: str, neo4j_password: str) -> int:
-    """Connect to Neo4j and seed all OKF arcs. Returns number seeded."""
-    try:
-        from neo4j import GraphDatabase
-    except ImportError:
-        print("❌ neo4j driver not installed. Run: pip install neo4j")
-        return 0
-
-    driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
-    count = 0
-    try:
-        kg = GuruKGService(neo4j_driver=driver)
-        for arc in OKF_ARCS:
-            try:
-                kg.populate_ontology_arc(
-                    seeker_dilemma=arc["seeker_dilemma"],
-                    limiting_belief=arc["limiting_belief"],
-                    teaching=arc["teaching"],
-                    target_state=arc["target_state"],
-                    practice_step=arc["practice_step"],
-                    guru_speaker=arc["guru"],
-                )
-                count += 1
-            except Exception as e:
-                print(f"  ⚠️  Arc failed: {arc['teaching'][:50]} — {e}")
-    finally:
-        driver.close()
-    return count
+def seed() -> tuple[int, int]:
+    """Return (written, pending_review); this legacy draft has no write path."""
+    return 0, len(OKF_ARCS)
 
 
 if __name__ == "__main__":
-    from app.config import settings
-
-    neo4j_uri = settings.neo4j_uri
-    neo4j_user = settings.neo4j_user
-    neo4j_password = settings.neo4j_password
-
-    if not neo4j_password:
-        raise ValueError("NEO4J_PASSWORD environment variable or settings value is required.")
-
-    print(f"🌱 Seeding OKF ontology into Neo4j at {neo4j_uri}...")
-    n = seed(neo4j_uri, neo4j_user, neo4j_password)
-    if n > 0:
-        print(f"✅ Seeded {n}/{len(OKF_ARCS)} OKF transformation arcs into Neo4j.")
-        print(
-            "   Labels created: SeekerDilemma, RootLimitingBelief, GuruTeaching, BeautifulState, PracticeStep, GuruSpeaker"
-        )
-        print("   Relations: DRIVEN_BY, DISMANTLES, TRANSFORMS_TO, PRESCRIBES, TEACHES")
-    else:
-        print("❌ Seeding failed. Check Neo4j connection and credentials.")
+    written, pending = seed()
+    print(
+        f"Read-only legacy OKF inventory: {written} graph writes, "
+        f"{pending} draft arcs remain unapproved."
+    )
+    print(
+        "No Memgraph/Neo4j connection was opened. Each arc needs source-span "
+        "provenance, an authoritative rights decision, tenant scope, and "
+        "human review before a governed seeding tool may write it."
+    )
