@@ -55,11 +55,17 @@ if "host.docker.internal" in os.getenv("SUPABASE_URL", ""):
         "host.docker.internal", "127.0.0.1"
     )
 
+def configure_qdrant_ingest_auth() -> None:
+    """Map the scoped ingestion write key to the Qdrant service client's env."""
+    key = os.getenv("QDRANT_WRITE_API_KEY") or ""
+    if key:
+        os.environ["QDRANT_API_KEY"] = key
+
+
 # Offline LightRAG ingestion is an operator write path, not the read-only serving
-# path. The service's Qdrant client reads QDRANT_API_KEY; prefer the separately
-# scoped write credential when it is supplied to this CLI process.
-if os.getenv("QDRANT_WRITE_API_KEY"):
-    os.environ["QDRANT_API_KEY"] = os.environ["QDRANT_WRITE_API_KEY"]
+# path. The service's Qdrant client reads QDRANT_API_KEY; use the scoped write
+# credential only inside this short-lived CLI process.
+configure_qdrant_ingest_auth()
 
 
 CHECKPOINT_FILE = Path(
