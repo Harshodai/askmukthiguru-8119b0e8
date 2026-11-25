@@ -7,6 +7,62 @@
 - **Rule:** `container.neo4j_driver` returns a synchronous `neo4j.GraphDatabase.driver`. Any async expansion helper (`expand_teaching_units`) must inspect the session context manager and execute sync sessions via `asyncio.to_thread` rather than `async with driver.session()`.
 
 
+
+## Nov 7, 2026 - Sonnet platform thread
+
+### L-PLAYWRIGHT-REDUCEDMOTION-BEFORE-EVIDENCE-1. A "before" run proves nothing until the setting is shown to take effect.
+- **What:** `test.use({ reducedMotion: "reduce" })` did not change `matchMedia("(prefers-reduced-motion: reduce)")` in this setup, so the first "before the fix" run of the reduced-motion test measured a normal-motion page and could not have shown the defect.
+- **Rule:** When a test depends on a browser setting, assert the setting inside the test (`page.evaluate(() => matchMedia(...).matches)`) and use `page.emulateMedia({ reducedMotion: "reduce" })`. Take the failing "before" run against the real unfixed code with that assertion in place.
+
+
+
+## Nov 6, 2026 — Opus final review of the audit branch
+
+### L-ASYNC-WAIT-OUTER-CANCEL-1. `asyncio.wait` does not cancel what it waits on when the caller is cancelled.
+- **What:** T7-02's `_bounded` awaited the provider call with `asyncio.wait(..., timeout=...)`. A pipeline timeout, the breath route's `wait_for` or a disconnect cancelled the caller, and the provider call ran on as an orphan task: it kept spending and held its budget reservation. `test_first_person_bounded_cancel.py` failed before dcfb3a5 (orphan left running). The same review found `execute()` waiting on the scheduled `aexecute` with no bound, so a wedged read held the caller's thread forever (`test_first_person_execute_bound.py` hung for 30 s).
+- **Rule:** When you wrap a task in `asyncio.wait`, catch `CancelledError` around it and cancel the inner task before you re-raise; or use `asyncio.wait_for`, which cancels it. Every sync-over-async wait needs a timeout that cancels the run. Test the outer cancel, not only the inner timeout.
+
+### L-NEW-ENUM-VALUE-EVERY-VOCABULARY-1. A new reason string must be added to every bounded vocabulary that reads it.
+- **What:** NEW-AI-5 (aba9bf4) added the harness abstain reason `injection_screen`. The harness metric bounds reasons to `_ALLOWED_ABSTAIN_REASONS` and maps anything else to "other", so a drop-mode spike would have been invisible on the dashboard. The tests checked the decision, not the metric label. Fixed in c609c6f.
+- **Rule:** When you add a reason, cause or status string, search for every set or enum that bounds that field (`grep -rn "_REASONS\|_CAUSES\|frozenset(" backend/`) and add a test that the new value survives each one.
+
+
+## Nov 6, 2026 — T7-02 async teaching lane
+
+### L-ASYNC-SYNC-WRAPPER-DEADLOCK-1. A sync wrapper over an async pipeline deadlocks when both share the default executor.
+- **What:** `execute()` became a sync wrapper that runs `aexecute` on the request loop, and `aexecute` moved its Qdrant and Redis calls to `asyncio.to_thread`. A route that still calls `await asyncio.to_thread(pipeline.execute)` holds one default-executor thread per request while it waits. In the c20 stub test, with 4 threads, all 4 threads waited on `aexecute`, and `aexecute` waited for a free thread. The test hung.
+- **Rule:** The async lane's own sync I/O runs on a dedicated pool (`_fp_io_executor`), never on the default executor that its sync callers block on. Any "sync wrapper over async core" needs a concurrency test at saturation (more callers than executor threads), not only an output test.
+
+### L-GOLDEN-STUBS-HIDE-CONVERTED-CODE-1. Golden snapshots prove nothing about code they stub out.
+- **What:** The T7-01 golden matrix replaces every LLM helper with a sync lambda and pins speculative parallelism off. A suite-wide `conftest.py` stub does the same for `_answerability_check` and `_relevance_select`. So none of the 17 goldens ran the code T7-02 converts. The real-helper scenarios (`test_first_person_pipeline_golden_llm.py`) need the `answerability_real` and `relevance_real` markers to bypass the stubs.
+- **Rule:** Before a refactor that relies on goldens, list which functions the golden harness and `conftest.py` replace. Record extra goldens that run the real code paths you will change, on the unchanged code, first.
+
+### L-SHARED-CHECKOUT-ONE-BRANCH-1. Two agents in one checkout cannot each switch branches.
+- **What:** The brief asked for `feature/t7-02`. Another session in the same folder switched the branch back within a minute and kept committing to the PR branch. A `git checkout` moves the working tree for every agent in it.
+- **Rule:** In a shared checkout, never switch branches. Work on the branch the owner names (here the PR branch). To save work off-branch without touching the tree, use `GIT_INDEX_FILE` + `git commit-tree` + `git update-ref`. Stage by path only.
+
+
+## Nov 5, 2026 — Lessons and documentation review (audit final pass)
+
+### L-DOC-PROSE-HAS-NO-PIN-TEST-1. A lesson that says "put a check behind the invariant" did not get a check, and the drift came back.
+- **What:** L-DOCS-DRIFT-CODE-WINS-1 (Nov 4) listed stage order and the served collection as drifted. One day later `CLAUDE.md` still differs from code in four places. (a) Its "Pipeline" chain ends `... CasualShortCircuit -> Distress` with no `KillSwitchStage` and no `OffTopicStage`; `backend/app/pipeline/stages/pipeline_builder.py:53-77` runs KillSwitch, CacheCheck, RequestState, InputGuardrail, Distress, CircuitBreaker, DoctrineCache, CasualShortCircuit, OffTopic, BoundedComparison, Personalize. The PR #76 section of the same file already says Distress precedes CircuitBreaker. (b) Invariant 24 says the relevance scorer has a 12 s budget; `backend/app/config.py:478` defaults to 25.0 and `config.py:476` defaults the scorer model to empty. (c) The Services line lists Neo4j on :7474; `backend/docker-compose.yml:49-50` publishes Memgraph on 7687 and 7444, and no compose file under `backend/` maps 7474 (`backend/infrastructure/k8s.yaml` does, for k8s). (d) The CI line names 5 workflows; `.github/workflows/` holds 23 files.
+- **Rule:** A documented value that code owns (order, default, timeout, port, workflow list) needs a test that reads both. Start with one test that parses `build_default_pipeline()` and the chain line in `CLAUDE.md`. `backend/tests/test_architecture_drift.py` already pins the code order (InputGuardrail before CircuitBreaker, Cache before routers); nothing pins the prose. Put an owner and a task ID in the lesson, or it stays prose. Findings: CQ-009, SYS-006. Detail: `audits/audit-output-2026-11-04/FINAL_LESSONS_AND_DOCUMENTATION_REVIEW.md`.
+
+- **Update 2026-11-06:** after this lesson was written, commit `2c81a2d1` (T1-15, CQ-009) added a doc-versus-code check of the pipeline stage order; see L-DOC-VS-CODE-PIPELINE-ORDER-GUARD-1 (Batch 12) below. Re-check the other drifted values listed above (scorer budget, gate budget) before relying on this lesson.
+
+### L-LESSON-ID-UNIQUE-1. This file reuses lesson IDs, so "see L-MEM-1" can point to five different lessons.
+- **What:** A regex over line starts (`- **L-`, `### L-`, `**L-`) finds 1,139 lesson headings but 1,056 distinct IDs. 61 IDs occur more than once (`L-MEM-1` and `L-LATENCY-2` five times each, `L-MEM-2`, `L-LATENCY-3`, `L-LATENCY-1`, `L-INGEST-1` four times each). The count is approximate: some headings join two IDs.
+- **Rule:** Before you add a lesson, search for the ID and take the next free number. Cite a lesson by ID and date. A later guard in `scripts/guards/lesson_guards.py` can fail on a new duplicate ID in added lines; it must not rewrite old entries.
+
+### L-LESSON-NAMES-RETIRED-CONFIG-1. Old lessons still tell the reader to edit `railway.json`, which no longer exists.
+- **What:** `lessons.md` lines 4217-4247 (Sep 2026 cost rules) and 11383-11387 (line numbers as of 2026-11-05; "RULE 1 - Never define HTTP healthchecks globally in `railway.json`") name a file that commit `040e7c28` removed on 2026-09-19. `.railway/railway.ts` is the config source now (its header declares the service, health path `/api/healthz` and timeout 330). The lead reported on 2026-11-05 from docs.railway.com that `railway.json` and `railway.toml` are deprecated and stop working on 2026-12-01 [lead-reported, not re-fetched here]. Live references remain in a comment at `backend/docker-compose.yml:877` and in `scripts/deploy/deploy_all.sh:305`; `backend/tests/test_prod_compose_invariants.py:4` still lists it in its docstring while its code at line 102 reads `.railway/railway.ts`.
+- **Rule:** When a config file or command is retired, search `lessons.md`, `docs/` and `scripts/` for its name in the same commit. Because this file is insert-only, add a new lesson that marks the old ones historical. Do not follow the old `railway.json` rules; read `.railway/railway.ts`. Ref: `audits/audit-output-2026-11-04/22b-railway-deployment-readiness-runbook.md`.
+
+### L-ABSENCE-CLAIM-NEEDS-SEARCH-1. "X does not exist" needs a search in the same turn, or it is a guess.
+- **What:** The lead's first draft of `audits/audit-output-2026-11-04/FINAL_PRODUCTION_RELEASE_READINESS.md` said "no alert rules exist" and "no runbook exists" [lead-reported]. `infrastructure/prometheus/alerting-rules.yml` holds 14 `alert:` rules, and `docs/runbooks/` holds `ONCALL.md`, `ALERTING.md`, `BACKUP_RESTORE_DRILL.md`, `CAPACITY.md` and others. A claim of absence was written without a search. Close lessons: L-PROC-3 ("md files are claims, grep is evidence") and the dead-file rule in `AGENTS.md` (prove it by import resolution) cover claims of presence and of deadness, not absence.
+- **Rule:** Before you write "no X exists", run `git ls-files | grep -i X` and a content search for its likely names, and cite the command or its empty result. If you did not search, write "not checked".
+
+
 ## Nov 5, 2026 — Final verification pass: budget and spec completeness
 
 - **L-COMPACTION-BUDGET-1.** A context compaction late in a long session can use the remaining budget before any new work starts. Evidence: the session meter read 93.29 USD before the compaction and 100.02 USD right after it, against a 100 USD budget. Rule: write the handoff file before a long session nears its budget, and read the meter again after every compaction before you plan work. Ref: `audits/audit-output-2026-11-04/FINAL_USAGE_AND_VERIFICATION_LOG.md` §1 (values from `get_session` `cost_usd`).

@@ -1,6 +1,29 @@
 <!-- lessons.md — newest lesson at the TOP, directly below this line (CLAUDE.md: "newest on top").
      Add new entries here; never append to the bottom of this file. -->
 
+## Nov 25, 2026 — Two-Stage Quantized ONNX Cascade, Memgraph Sizing, Atomic Multi-Video Verification & Scope Separation
+
+### L-COLBERT-DECOMMISSION-ONNX-CASCADE-1. Decommission unoptimized CPU late-interaction token models in favor of two-stage quantized CrossEncoder cascades.
+- **What:** ColBERT on CPU in containerized and cloud environments incurred prohibitive memory footprints (~1.2GB) and severe CPU stalls under load. Replaced with Option C Two-Stage Cascade: Stage 1 candidate pool expanded to 40 (`_limit_rerank_candidates`), and Stage 2 quantized INT8 ONNX CrossEncoder (`temsa/mmarco-mMiniLMv2-L12-H384-v1-onnx-cpu-qint8`) scoring top 10 candidates to select top 5. Cut rerank latency from ~1.8s to ~220ms. Disabled ColBERT (`ENABLE_COLBERT=false`) across Docker, Railway, and runtime configs.
+- **Rule:** Decommission CPU-bound token-level late-interaction models when quantized ONNX cross-encoders achieve equal or superior MRR at <= 1/5 latency and zero OOM risk.
+
+### L-MEMGRAPH-HARNESS-DYNAMIC-SIZING-1. Context harness evaluation window must be dynamically sized via graph topology rather than static constants.
+- **What:** Static context sizing (k=5) in `FirstPersonContextHarness` either under-retrieved complex discourse chains or over-retrieved brief aphorisms. Implemented `MemgraphHarnessSizer` in `backend/services/first_person_graph_sizing.py` querying Memgraph C++ MAGE on Bolt port 7687 (`container.memgraph_driver`). Computes k in [3, 12] based on `TU_CONTINUES`/`TU_PRECEDES` discourse chaining, concept neighborhood density, and comparative presence.
+- **Rule:** Candidate context sizing must be dynamically derived from graph topology (discourse chaining, concept neighborhood density) rather than static constants; the harness must fall back gracefully to default k on graph query timeout or disconnection.
+
+### L-MULTIVIDEO-ATOMIC-FAIL-CLOSED-1. Multi-video quote sets are atomic evidence and must fail closed on mixed verification.
+- **What:** In `QuoteWeaver._filter_verified_clips` (PR #106), when candidate clips across different videos were evaluated, partial verification failures permitted serving an incomplete quote set, risking presentation of a disjointed synthesis stripped of its qualifying context.
+- **Rule:** Multi-video quote synthesis must treat candidate clip sets as atomic evidence: if any clip in the set fails verification (`speaker_verified=False` or `relevance=False`), the entire quote set fails closed (`return []`), forcing clean abstention or single-clip fallback rather than degraded partial citation.
+
+### L-READINESS-SCOPE-CONTRACT-SEPARATION-1. Pre-deployment readiness verification must separate staging validation from production authorization via explicit scope contracts.
+- **What:** In `scripts/ops/predeployment_checklist.py` (PR #105), staging CI runs failed because production-only deployment gates (such as production certificate signatures, production replica status, or live domain DNS) were evaluated unconditionally without scope differentiation.
+- **Rule:** Pre-deployment checklists must enforce explicit `--scope {staging,production}` CLI contracts. Staging validation gates functional contracts, RLS policies, and artifact integrity without demanding production-only infrastructure invariants. Shared script paths across `scripts/` and `backend/scripts/` must remain byte-identical per Invariant X1/X2.
+
+### L-COLLECTIVE-FOUNDER-IDENTITY-SCALING-1. Dual-founder traditions require canonical lineage entity mapping across both ingestion pipelines and serving stores, deprecating ad-hoc accepted-role string lists.
+- **What:** In traditions with co-founders (Sri Krishnaji and Sri Preethaji of Oneness/Ekam), maintaining fragmented role strings across WhisperX diarization (`"teacher"`), ingestion catalogs (`"guru"`), and Qdrant payloads caused queries to drop valid teaching units. Hardcoding ad-hoc whitelist lists at individual gate boundaries does not scale.
+- **Rule:** Ingestion catalogs and retrieval stores must model dual founders as a unified collective lineage entity (`_shared_guru_scope`, `_is_same_or_shared_guru`) mapped at ingestion and verified at serving, rather than relying on disparate string comparisons across individual pipeline stages.
+
+
 ## Nov 24–25, 2026 — Co-Guru Context Hydration, Diarization Roles, Turn-Budget Ceiling & Sub-10s SLA Hardening
 
 ### L-CO-GURU-PARENT-CONTEXT-HYDRATION-1. Joint teaching units must accept co-guru founders; strict parent-guru equality drops co-authored candidate contexts.
@@ -1398,62 +1421,6 @@ Report: `docs/analysis/ENGINEERING_READINESS_AUDIT_2026-11-13.md`.
 ### L-DANGLING-RHETORICAL-QUESTION-BOUNDARY-1. Dangling question detectors must catch general rhetorical question endings.
 - **What:** In `q061` and `q086`, clips cut off at *"When you are deeply hurt, what do you do?"* were served. The dual judge marked both `not_showable` for ending mid-thought without answering the rhetorical question. `_DANGLING_QUESTION_TAIL_RE` only matched three specific strings (`why is that?`, `how do we?`, `what about you?`), allowing unclosed rhetorical questions to pass.
 - **Rule:** The standalone boundary gate must check for any terminal rhetorical question ending without an answer span, ensuring that the answer either includes the resolution or abstains.
-
-
-
-## Nov 7, 2026 - Sonnet platform thread
-
-### L-PLAYWRIGHT-REDUCEDMOTION-BEFORE-EVIDENCE-1. A "before" run proves nothing until the setting is shown to take effect.
-- **What:** `test.use({ reducedMotion: "reduce" })` did not change `matchMedia("(prefers-reduced-motion: reduce)")` in this setup, so the first "before the fix" run of the reduced-motion test measured a normal-motion page and could not have shown the defect.
-- **Rule:** When a test depends on a browser setting, assert the setting inside the test (`page.evaluate(() => matchMedia(...).matches)`) and use `page.emulateMedia({ reducedMotion: "reduce" })`. Take the failing "before" run against the real unfixed code with that assertion in place.
-
-
-
-## Nov 6, 2026 — Opus final review of the audit branch
-
-### L-ASYNC-WAIT-OUTER-CANCEL-1. `asyncio.wait` does not cancel what it waits on when the caller is cancelled.
-- **What:** T7-02's `_bounded` awaited the provider call with `asyncio.wait(..., timeout=...)`. A pipeline timeout, the breath route's `wait_for` or a disconnect cancelled the caller, and the provider call ran on as an orphan task: it kept spending and held its budget reservation. `test_first_person_bounded_cancel.py` failed before dcfb3a5 (orphan left running). The same review found `execute()` waiting on the scheduled `aexecute` with no bound, so a wedged read held the caller's thread forever (`test_first_person_execute_bound.py` hung for 30 s).
-- **Rule:** When you wrap a task in `asyncio.wait`, catch `CancelledError` around it and cancel the inner task before you re-raise; or use `asyncio.wait_for`, which cancels it. Every sync-over-async wait needs a timeout that cancels the run. Test the outer cancel, not only the inner timeout.
-
-### L-NEW-ENUM-VALUE-EVERY-VOCABULARY-1. A new reason string must be added to every bounded vocabulary that reads it.
-- **What:** NEW-AI-5 (aba9bf4) added the harness abstain reason `injection_screen`. The harness metric bounds reasons to `_ALLOWED_ABSTAIN_REASONS` and maps anything else to "other", so a drop-mode spike would have been invisible on the dashboard. The tests checked the decision, not the metric label. Fixed in c609c6f.
-- **Rule:** When you add a reason, cause or status string, search for every set or enum that bounds that field (`grep -rn "_REASONS\|_CAUSES\|frozenset(" backend/`) and add a test that the new value survives each one.
-
-
-## Nov 6, 2026 — T7-02 async teaching lane
-
-### L-ASYNC-SYNC-WRAPPER-DEADLOCK-1. A sync wrapper over an async pipeline deadlocks when both share the default executor.
-- **What:** `execute()` became a sync wrapper that runs `aexecute` on the request loop, and `aexecute` moved its Qdrant and Redis calls to `asyncio.to_thread`. A route that still calls `await asyncio.to_thread(pipeline.execute)` holds one default-executor thread per request while it waits. In the c20 stub test, with 4 threads, all 4 threads waited on `aexecute`, and `aexecute` waited for a free thread. The test hung.
-- **Rule:** The async lane's own sync I/O runs on a dedicated pool (`_fp_io_executor`), never on the default executor that its sync callers block on. Any "sync wrapper over async core" needs a concurrency test at saturation (more callers than executor threads), not only an output test.
-
-### L-GOLDEN-STUBS-HIDE-CONVERTED-CODE-1. Golden snapshots prove nothing about code they stub out.
-- **What:** The T7-01 golden matrix replaces every LLM helper with a sync lambda and pins speculative parallelism off. A suite-wide `conftest.py` stub does the same for `_answerability_check` and `_relevance_select`. So none of the 17 goldens ran the code T7-02 converts. The real-helper scenarios (`test_first_person_pipeline_golden_llm.py`) need the `answerability_real` and `relevance_real` markers to bypass the stubs.
-- **Rule:** Before a refactor that relies on goldens, list which functions the golden harness and `conftest.py` replace. Record extra goldens that run the real code paths you will change, on the unchanged code, first.
-
-### L-SHARED-CHECKOUT-ONE-BRANCH-1. Two agents in one checkout cannot each switch branches.
-- **What:** The brief asked for `feature/t7-02`. Another session in the same folder switched the branch back within a minute and kept committing to the PR branch. A `git checkout` moves the working tree for every agent in it.
-- **Rule:** In a shared checkout, never switch branches. Work on the branch the owner names (here the PR branch). To save work off-branch without touching the tree, use `GIT_INDEX_FILE` + `git commit-tree` + `git update-ref`. Stage by path only.
-
-
-## Nov 5, 2026 — Lessons and documentation review (audit final pass)
-
-### L-DOC-PROSE-HAS-NO-PIN-TEST-1. A lesson that says "put a check behind the invariant" did not get a check, and the drift came back.
-- **What:** L-DOCS-DRIFT-CODE-WINS-1 (Nov 4) listed stage order and the served collection as drifted. One day later `CLAUDE.md` still differs from code in four places. (a) Its "Pipeline" chain ends `... CasualShortCircuit -> Distress` with no `KillSwitchStage` and no `OffTopicStage`; `backend/app/pipeline/stages/pipeline_builder.py:53-77` runs KillSwitch, CacheCheck, RequestState, InputGuardrail, Distress, CircuitBreaker, DoctrineCache, CasualShortCircuit, OffTopic, BoundedComparison, Personalize. The PR #76 section of the same file already says Distress precedes CircuitBreaker. (b) Invariant 24 says the relevance scorer has a 12 s budget; `backend/app/config.py:478` defaults to 25.0 and `config.py:476` defaults the scorer model to empty. (c) The Services line lists Neo4j on :7474; `backend/docker-compose.yml:49-50` publishes Memgraph on 7687 and 7444, and no compose file under `backend/` maps 7474 (`backend/infrastructure/k8s.yaml` does, for k8s). (d) The CI line names 5 workflows; `.github/workflows/` holds 23 files.
-- **Rule:** A documented value that code owns (order, default, timeout, port, workflow list) needs a test that reads both. Start with one test that parses `build_default_pipeline()` and the chain line in `CLAUDE.md`. `backend/tests/test_architecture_drift.py` already pins the code order (InputGuardrail before CircuitBreaker, Cache before routers); nothing pins the prose. Put an owner and a task ID in the lesson, or it stays prose. Findings: CQ-009, SYS-006. Detail: `audits/audit-output-2026-11-04/FINAL_LESSONS_AND_DOCUMENTATION_REVIEW.md`.
-
-- **Update 2026-11-06:** after this lesson was written, commit `2c81a2d1` (T1-15, CQ-009) added a doc-versus-code check of the pipeline stage order; see L-DOC-VS-CODE-PIPELINE-ORDER-GUARD-1 (Batch 12) below. Re-check the other drifted values listed above (scorer budget, gate budget) before relying on this lesson.
-
-### L-LESSON-ID-UNIQUE-1. This file reuses lesson IDs, so "see L-MEM-1" can point to five different lessons.
-- **What:** A regex over line starts (`- **L-`, `### L-`, `**L-`) finds 1,139 lesson headings but 1,056 distinct IDs. 61 IDs occur more than once (`L-MEM-1` and `L-LATENCY-2` five times each, `L-MEM-2`, `L-LATENCY-3`, `L-LATENCY-1`, `L-INGEST-1` four times each). The count is approximate: some headings join two IDs.
-- **Rule:** Before you add a lesson, search for the ID and take the next free number. Cite a lesson by ID and date. A later guard in `scripts/guards/lesson_guards.py` can fail on a new duplicate ID in added lines; it must not rewrite old entries.
-
-### L-LESSON-NAMES-RETIRED-CONFIG-1. Old lessons still tell the reader to edit `railway.json`, which no longer exists.
-- **What:** `lessons.md` lines 4217-4247 (Sep 2026 cost rules) and 11383-11387 (line numbers as of 2026-11-05; "RULE 1 - Never define HTTP healthchecks globally in `railway.json`") name a file that commit `040e7c28` removed on 2026-09-19. `.railway/railway.ts` is the config source now (its header declares the service, health path `/api/healthz` and timeout 330). The lead reported on 2026-11-05 from docs.railway.com that `railway.json` and `railway.toml` are deprecated and stop working on 2026-12-01 [lead-reported, not re-fetched here]. Live references remain in a comment at `backend/docker-compose.yml:877` and in `scripts/deploy/deploy_all.sh:305`; `backend/tests/test_prod_compose_invariants.py:4` still lists it in its docstring while its code at line 102 reads `.railway/railway.ts`.
-- **Rule:** When a config file or command is retired, search `lessons.md`, `docs/` and `scripts/` for its name in the same commit. Because this file is insert-only, add a new lesson that marks the old ones historical. Do not follow the old `railway.json` rules; read `.railway/railway.ts`. Ref: `audits/audit-output-2026-11-04/22b-railway-deployment-readiness-runbook.md`.
-
-### L-ABSENCE-CLAIM-NEEDS-SEARCH-1. "X does not exist" needs a search in the same turn, or it is a guess.
-- **What:** The lead's first draft of `audits/audit-output-2026-11-04/FINAL_PRODUCTION_RELEASE_READINESS.md` said "no alert rules exist" and "no runbook exists" [lead-reported]. `infrastructure/prometheus/alerting-rules.yml` holds 14 `alert:` rules, and `docs/runbooks/` holds `ONCALL.md`, `ALERTING.md`, `BACKUP_RESTORE_DRILL.md`, `CAPACITY.md` and others. A claim of absence was written without a search. Close lessons: L-PROC-3 ("md files are claims, grep is evidence") and the dead-file rule in `AGENTS.md` (prove it by import resolution) cover claims of presence and of deadness, not absence.
-- **Rule:** Before you write "no X exists", run `git ls-files | grep -i X` and a content search for its likely names, and cite the command or its empty result. If you did not search, write "not checked".
 
 
 > **Older lessons are archived** (2026-11-07, "lessons.md archive"): everything below this line was moved, unchanged, to `docs/agent/lessons-archive/lessons-archive-2026-11-07.md`. Look an ID up with
