@@ -1165,7 +1165,7 @@ class FirstPersonBridgeStage(Stage):
             needs_addiction_support_boundary,
             needs_relationship_safety_boundary,
         )
-        from rag.meditation import is_meditation_imperative
+        from rag.meditation import is_meditation_imperative, is_meditation_practice_query
 
         _has_promise_or_boundary = bool(
             _PROMISE_OR_OUTCOME_TRAP_RE.search(query)
@@ -1184,6 +1184,16 @@ class FirstPersonBridgeStage(Stage):
                 "[FirstPersonBridge] Step-by-step meditation instruction inquiry; GraphStage runs."
             )
             return None
+        if (
+            not getattr(settings, "first_person_llm_fallback_enabled", False)
+            and not _has_promise_or_boundary
+            and "serene mind" in query.lower()
+            and is_meditation_practice_query(query)
+        ):
+            logger.info(
+                "[FirstPersonBridge] Serene Mind practice how-to fast-pathed to deterministic script."
+            )
+            return self._scripted_meditation_result(ctx, query)
         if _PRACTICE_HOWTO_RE.search(query) and getattr(
             settings, "first_person_llm_fallback_enabled", False
         ):
@@ -1687,11 +1697,17 @@ class FirstPersonBridgeStage(Stage):
                     not is_meditation_imperative(_query_str)
                     and not _is_allowed_practice_or_diff
                 ):
+                    _mild_compassion = (
+                        not distress_compassion
+                        and status not in ("error", "blocked")
+                        and level_value == 1
+                        and not boundaries
+                    )
                     return await self._abstain(
                         ctx,
                         status,
                         boundaries,
-                        compassion=distress_compassion,
+                        compassion=distress_compassion or _mild_compassion,
                         related=await self._safe_related(ctx, related, distress_compassion),
                         # NEW-ANS-2: keep why the pipeline abstained.
                         reason=getattr(result, "abstain_reason", None),

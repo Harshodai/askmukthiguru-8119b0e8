@@ -1209,6 +1209,23 @@ async def test_first_person_only_serene_mind_howto_abstain_serves_scripted_medit
     assert result.model_used is None
     assert result.verification["method"] == "meditation_short_circuit"
     assert "Serene Mind Meditation" in result.final_answer
+    fp_pipeline.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_mild_distress_abstain_uses_compassion_framing(fp_pipeline, monkeypatch):
+    """De-escalated bereavement/MILD turns receive warm compassion framing rather than cold abstain."""
+    monkeypatch.setattr(settings, "first_person_llm_fallback_enabled", False)
+    fp_pipeline.execute.return_value = _fp_result(status="abstained", is_direct=False)
+    ctx = _ctx(_container(), msg="My father passed away and I feel completely empty inside. How do I cope?")
+    ctx.assessment = SimpleNamespace(level=DistressLevel.MILD, recommended_response_type="compassionate")
+
+    result = await FirstPersonBridgeStage().run(ctx)
+
+    assert result is not None
+    assert result.route_decision == "first_person_abstain"
+    assert result.verification["method"] == "first_person_distress_compassion"
+    assert "no verified verbatim teaching" not in result.final_answer.lower()
 
 
 @pytest.mark.asyncio
