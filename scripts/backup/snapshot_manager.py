@@ -510,7 +510,10 @@ def backup_neo4j():
     with open(NEO4J_BACKUP_PATH, "w", encoding="utf-8") as f:
         f.write(backup_text)
     with open(f"{NEO4J_BACKUP_PATH}.sha256", "w", encoding="utf-8") as f:
-        f.write(f"{_graph_backup_checksum(backup_text)}  {os.path.basename(NEO4J_BACKUP_PATH)}\n"
+        f.write(
+            f"{_graph_backup_checksum(backup_text)}  "
+            f"{os.path.basename(NEO4J_BACKUP_PATH)}\n"
+        )
     print(
         f"  [✅] Graph backup saved: {NEO4J_BACKUP_PATH} "
         f"({nodes} nodes, {len(dump.splitlines())} statements, engine={engine})"
