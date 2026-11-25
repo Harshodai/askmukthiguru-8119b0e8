@@ -1,6 +1,9 @@
 name: Main Hard Gates
 
 on:
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -55,7 +58,7 @@ jobs:
           python-version: '3.12'
       - name: Install contract test dependencies
         run: |
-          pip install pytest pytest-asyncio pydantic pyyaml
+          pip install pytest pytest-asyncio pydantic pydantic-settings pyyaml numpy
       - name: Validate required source contracts and execute active test suites
         run: |
           set -euo pipefail
@@ -66,6 +69,13 @@ jobs:
           # Active execution steps replacing passive existence checks:
           PYTHONPATH=backend pytest backend/tests/test_repo_layout.py -v
           PYTHONPATH=backend pytest backend/tests/test_first_person_serving_contract.py -v
+
+          # Focused regression coverage for source evidence, tenant scope,
+          # rights/consent gates, ontology resolution and media composition.
+          PYTHONPATH=backend pytest backend/tests/test_guru_kg_governance.py -v
+          PYTHONPATH=backend pytest backend/tests/test_video_composition.py -v
+          PYTHONPATH=backend pytest backend/tests/test_kg_expansion_async_resolution.py -v
+          PYTHONPATH=backend pytest backend/tests/test_speaker_verification_policy.py -v
           if [ -f backend/tests/test_p0_remediation.py ]; then
             PYTHONPATH=backend pytest backend/tests/test_p0_remediation.py -v
           else

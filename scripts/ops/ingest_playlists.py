@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Playlist Ingestion CLI for Guru Brain — Neo4j Knowledge Graph + Qdrant Dual-Stream Indexing.
+Legacy Playlist Transcript Candidate Preview — read-only, no knowledge-store writes.
 
 Target Playlists:
 1. `PLOVU2e0ZosYCTKE3_cQvMGNUwB4LeXXjI` (Sri Preethaji & Sri Krishnaji Direct Seeker Interactions & Satsangs)
 2. `PLOVU2e0ZosYBGXFR_4jCmVntbgBa3sx1y` (Sri Preethaji & Sri Krishnaji Live Q&A and Discourses)
 
-Extracts verbatim transcripts, builds Neo4j KG ontology nodes, and embeds tone vectors into Qdrant `guru_tone_podcast`.
+Extracts untrusted transcript-derived candidate exemplars for human review only. This legacy path does not establish rights clearance or speaker identity, so it cannot write tone vectors to Qdrant or ontology records to Memgraph.
 """
 
 import asyncio
@@ -35,11 +35,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"
 
 from youtube_transcript_api import YouTubeTranscriptApi
 
-from services.embedding_service import EmbeddingService
-from services.guru_brain.guru_brain_service import get_guru_brain_service
-from services.guru_brain.guru_kg_service import get_guru_kg_service
 from services.guru_brain.tone_extractor import ToneExtractor
-from services.qdrant_service import QdrantService
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("ingest_playlists")
@@ -76,13 +72,9 @@ def extract_playlist_video_ids(playlist_url: str) -> list[str]:
 
 
 async def main():
-    logger.info("Starting Playlist Ingestion CLI for Guru Brain (KG + Qdrant)...")
-
-    # Connect to live Qdrant in Docker
-    qdrant = QdrantService()
-    embedder = EmbeddingService()
-    guru_brain = get_guru_brain_service(qdrant_service=qdrant, embedding_service=embedder)
-    guru_kg = get_guru_kg_service()
+    logger.info(
+        "Starting legacy playlist candidate preview (NO QDRANT OR MEMGRAPH WRITES)..."
+    )
     extractor = ToneExtractor()
 
     # Step 1: Discover all video IDs across playlists
@@ -109,43 +101,27 @@ async def main():
                 await asyncio.sleep(0.5)
                 continue
 
-            # Determine speaker role & context
-            guru_name = "combined"
-            if "preethaji" in text.lower() and "krishnaji" not in text.lower():
-                guru_name = "preethaji"
-            elif "krishnaji" in text.lower() and "preethaji" not in text.lower():
-                guru_name = "krishnaji"
-
+            # Mentioning a teacher's name in transcript text is not speaker
+            # attribution. Preserve uncertainty; this produces review candidates only.
             exemplars = await extractor.extract_exemplars_from_transcript(
                 transcript_text=text,
                 source_id=vid,
-                default_guru=guru_name,
+                default_guru="unknown",
             )
             logger.info(
                 f"Extracted {len(exemplars)} direct interaction exemplars from video {vid}."
             )
             total_extracted_exemplars.extend(exemplars)
 
-            # Step 3: Populate Neo4j Knowledge Graph & OKF Ontology Nodes
-            for ex in exemplars:
-                guru_kg.populate_ontology_arc(
-                    seeker_dilemma=ex.seeker_emotional_state,
-                    limiting_belief="Habitual mind identification",
-                    teaching=ex.teaching_concept or "Present Moment Awareness",
-                    target_state="Beautiful State",
-                    practice_step="Observe thoughts without judgment",
-                    guru_speaker="Sri Preethaji & Sri Krishnaji",
-                )
+            # No knowledge-store mutation: this legacy extractor has no signed
+            # source-rights evidence or independent speaker-attribution packet.
             await asyncio.sleep(0.5)
         except Exception as exc:
             logger.warning(f"Could not fetch/process transcript for video {vid}: {exc}")
             await asyncio.sleep(0.5)
 
-    # Step 4: Index into Docker Qdrant collection `guru_tone_podcast`
-    logger.info(
-        f"Upserting {len(total_extracted_exemplars)} persona exemplars into Docker Qdrant collection `guru_tone_podcast`..."
-    )
-    indexed_count = await guru_brain.index_exemplars(total_extracted_exemplars)
+    # Candidate extraction is not an approved ingestion decision.
+    indexed_count = 0
 
     report_dir = os.path.join(
         os.path.dirname(__file__), "..", "..", "backend", "data", "guru_transcripts"
@@ -154,19 +130,24 @@ async def main():
     report_path = os.path.join(report_dir, "playlist_ingestion_report.json")
 
     report = {
-        "status": "success",
+        "status": "dry_run_candidates_only",
+        "promotion_eligible": False,
+        "reason": "missing_source_rights_and_independent_speaker_certification",
         "total_video_ids": len(all_video_ids),
-        "total_exemplars_extracted": len(total_extracted_exemplars),
+        "total_candidate_exemplars": len(total_extracted_exemplars),
         "qdrant_indexed_count": indexed_count,
-        "neo4j_kg_nodes_populated": len(total_extracted_exemplars),
-        "sample_exemplars": [e.to_dict() for e in total_extracted_exemplars[:3]],
+        "neo4j_kg_nodes_populated": 0,
+        "knowledge_store_writes": 0,
+        "sample_candidates": [e.to_dict() for e in total_extracted_exemplars[:3]],
     }
 
     with open(report_path, "w") as f:
         json.dump(report, f, indent=2)
 
     logger.info(
-        f"\nSUCCESS: Playlist Ingestion Complete! Extracted {len(total_extracted_exemplars)} exemplars. Report written to {report_path}"
+        "\nCandidate preview complete: candidates=%d, Qdrant writes=0, Memgraph writes=0, report=%s",
+        len(total_extracted_exemplars),
+        report_path,
     )
 
 
