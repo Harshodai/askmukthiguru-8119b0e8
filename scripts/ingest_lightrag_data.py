@@ -406,7 +406,10 @@ async def main():
         print(f"   Source Qdrant collection: {source_collection} ({total_points:,} points)")
         print(f"   LightRAG working directory: {Path(working_dir).resolve()}")
         print(f"   Extraction model: OpenRouter inference ({settings.openrouter_classify_model})")
-        print(f"   Target concurrency: {target_concurrency} workers | insert timeout: {insert_timeout}s")
+        print(
+            f"   Target concurrency: {target_concurrency} workers | "
+            f"insert timeout: {insert_timeout}s"
+        )
         print(
             "   Checkpoint: "
             f"{counters['processed']:,}/{total_points:,} processed "
