@@ -370,6 +370,14 @@ def is_meditation_imperative(message: str) -> bool:
     return any(verb in text for verb in _IMPERATIVE_VERBS)
 
 
+_NAMED_PRACTICE_HOWTO_RE = re.compile(
+    r"\b(?:how\s+(?:do|can|should|would|to)\s+(?:i|we|one|you|someone)\s+(?:do|practice|perform|start|begin)\s+(?:the\s+)?|"
+    r"guide\s+me\s+(?:in|on|through)\s+(?:the\s+)?|walk\s+me\s+through\s+(?:the\s+)?|"
+    r"teach\s+me\s+(?:how\s+to\s+)?(?:do|practice)\s+(?:the\s+)?)"
+    r"(?:soul\s*sync|serene\s*mind)\b",
+    re.IGNORECASE,
+)
+
 _PRACTICE_HOWTO_RE = re.compile(
     r"\b(how|steps?|guide|teach me|instructions?|walk\s+(?:me\s+)?through)\b.{0,40}"
     r"\b(soul\s*sync|serene\s*mind|meditat\w*|breath\w*)",
@@ -399,6 +407,6 @@ def is_meditation_practice_query(message: str) -> bool:
         return False
     return (
         is_meditation_imperative(message)
-        or bool(_PRACTICE_HOWTO_RE.search(message))
+        or bool(_NAMED_PRACTICE_HOWTO_RE.search(message))
         or bool(_STEP_INSTRUCTION_RE.search(message))
     )

@@ -5100,6 +5100,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 editorial_facets = replace(editorial_facets, teacher_scope=editorial_teacher_id)
             else:
                 editorial_teacher_id = editorial_facets.teacher_scope
+        elif editorial_teacher_id is None:
+            editorial_teacher_id = get_default_planner().plan(
+                retrieval_query or query
+            ).teacher_scope
         candidate_pool = int(getattr(settings, "first_person_context_candidate_limit", 0) or 0)
         if candidate_pool > 0 and not editorial_set_enabled:
             harness_candidate_limit = candidate_pool
@@ -5192,7 +5196,7 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                 )
             elif not contexts and (
                 harness_enabled
-                and getattr(settings, "first_person_adaptive_try2_enabled", True) is True
+                and getattr(settings, "first_person_adaptive_try2_enabled", False) is True
                 and not is_distress
                 and ctx_store is not None
                 and query_dense_vector

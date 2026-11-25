@@ -390,6 +390,32 @@ async def test_false_abstention_recovery_soul_sync_instructions():
     assert "golden light" in final_answer
     assert "heartfelt intention" in final_answer
 
+    # 4. Named Serene Mind practice how-to also routes to MEDITATION -> deterministic 6-step script,
+    # whereas informational benefit questions stay out of is_meditation_practice_query.
+    from rag.meditation import is_meditation_practice_query
+
+    assert is_meditation_practice_query("How do I practice Serene Mind meditation?") is True
+    assert is_meditation_practice_query("How does Ekam meditation help relieve mental stress?") is False
+    assert classify_with_reason("How do I practice Serene Mind meditation?")[0] == "MEDITATION"
+    sm_res = await handle_meditation(
+        {"question": "How do I practice Serene Mind meditation?", "meditation_step": 0}
+    )
+    assert sm_res["intent"] == "MEDITATION"
+    assert "Serene Mind Meditation" in sm_res["final_answer"]
+    assert "Settle into a comfortable seat" in sm_res["final_answer"]
+
+    from services.first_person_facet_planner import get_default_planner
+
+    planner = get_default_planner()
+    assert planner.plan("What does Sri Krishnaji teach about fear?").teacher_scope == "krishnaji"
+    assert planner.plan("What does Sri Preethaji teach about relationships?").teacher_scope == "preethaji"
+    assert (
+        planner.plan(
+            "What is the root cause of all human suffering according to Sri Krishnaji and Sri Preethaji?"
+        ).teacher_scope
+        is None
+    )
+
 
 @pytest.mark.asyncio
 async def test_false_abstention_recovery_difference_synthesis():

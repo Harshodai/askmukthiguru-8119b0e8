@@ -39,6 +39,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+_EMPTY_INSIDE_EXPRESSION_RE = re.compile(
+    r"\b(?:feel(?:ing)?|felt|am|'m|are|still)\s+(?:[a-z]+\s+){0,2}empty\s+inside\b",
+    re.IGNORECASE,
+)
+
+
 def classify_existential_vs_severe_distress(text: str) -> str:
     """Remediates `FINDING-SAFETY-001` (Query A17)."""
     low = (text or "").lower()
@@ -58,7 +64,7 @@ def classify_existential_vs_severe_distress(text: str) -> str:
     )
     if any(m in low for m in acute_ideation):
         return "CRISIS"
-    if "feel empty inside" in low or "feeling empty inside" in low:
+    if _EMPTY_INSIDE_EXPRESSION_RE.search(low):
         return "MILD_EXISTENTIAL"
     return "NONE"
 

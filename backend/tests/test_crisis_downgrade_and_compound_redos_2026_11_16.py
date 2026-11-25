@@ -47,6 +47,9 @@ def test_crisis_message_is_never_downgraded(message: str) -> None:
 
 def test_existential_burnout_still_downgrades() -> None:
     assert _would_downgrade("achieved success in my career but still feel empty inside")
+    assert _would_downgrade(
+        "My father passed away last month and I feel completely empty inside. How do I cope?"
+    )
 
 
 def test_extra_signal_blocks_downgrade() -> None:
