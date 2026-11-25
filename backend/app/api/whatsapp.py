@@ -109,10 +109,7 @@ async def meta_webhook_verification(
     Verification challenge endpoint for Meta WhatsApp Cloud API Webhook.
     Meta sends GET request with hub.mode, hub.challenge, hub.verify_token.
     """
-    expected_token = (
-        getattr(settings, "meta_verify_token", "")
-        or os.environ.get("META_VERIFY_TOKEN", os.environ.get("WHATSAPP_VERIFY_TOKEN", ""))
-    ).strip()
+    expected_token = getattr(settings, "meta_verify_token", "").strip()
 
     if hub_mode == "subscribe" and hub_verify_token and hub_verify_token == expected_token:
         logger.info("Meta webhook verification challenge succeeded")
@@ -133,10 +130,7 @@ async def meta_webhook_receiver(
     Validates HMAC-SHA256 signature, deduplicates events, and routes through Celery.
     """
     raw_body = await request.body()
-    app_secret = (
-        getattr(settings, "meta_app_secret", "")
-        or os.environ.get("META_APP_SECRET", "")
-    ).strip()
+    app_secret = getattr(settings, "meta_app_secret", "").strip()
 
     # If secret is configured, strictly enforce signature verification fail-closed
     if app_secret:
@@ -159,10 +153,7 @@ async def meta_webhook_receiver(
         for change in changes:
             val = change.get("value") or {}
             phone_number_id = (val.get("metadata") or {}).get("phone_number_id", "")
-            configured_phone_id = (
-                getattr(settings, "meta_phone_number_id", "")
-                or os.environ.get("META_PHONE_NUMBER_ID", "")
-            ).strip()
+            configured_phone_id = getattr(settings, "meta_phone_number_id", "").strip()
             if configured_phone_id and phone_number_id and str(phone_number_id).strip() != configured_phone_id:
                 logger.warning(
                     "Mismatched phone_number_id rejected: received=%s, configured=%s",
@@ -512,10 +503,7 @@ async def verify_account_link(
             sync_consent = bool(link.get("sync_history_consent", False))
             memory_consent = bool(link.get("memory_write_consent", False))
 
-        waba_phone = (
-            getattr(settings, "meta_phone_number", "")
-            or os.environ.get("META_PHONE_NUMBER", os.environ.get("WHATSAPP_PHONE_NUMBER", ""))
-        ).strip().lstrip("+")
+        waba_phone = getattr(settings, "meta_phone_number", "").strip().lstrip("+")
         return_url = f"https://wa.me/{waba_phone}?text=START" if waba_phone else "https://wa.me/?text=START"
 
         return {

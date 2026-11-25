@@ -1821,11 +1821,13 @@ openSereneMind('audio', true);
           streamAbortedByUser = true;
           // User clicked Stop — keep whatever streamed, append a clear marker.
           const stopped = (fullContent || '').trimEnd() + t('chat.stoppedMarker', '\n\n_Stopped by you._');
-          setMessages((prev) =>
-            prev.map((m) =>
+          setMessages((prev) => {
+            const next = prev.map((m) =>
               m.id === streamingGuruId ? { ...m, content: stopped } : m,
-            ),
-          );
+            );
+            messagesRef.current = next;
+            return next;
+          });
           streamingWorked = true;
         } else {
           // T1-18 (UX-005): Never persist or display unlabelled teacher text on an
@@ -1855,13 +1857,15 @@ openSereneMind('audio', true);
               setConversationContextExhausted(true);
               setInputValue(textToSend.trim());
             }
-            setMessages((prev) =>
-              prev.map((m) =>
+            setMessages((prev) => {
+              const next = prev.map((m) =>
                 m.id === streamingGuruId
                   ? { ...m, content: '', error: msgError }
                   : m,
-              ),
-            );
+              );
+              messagesRef.current = next;
+              return next;
+            });
             streamingWorked = true;
             chatErrorBus.publishFromMessage(msgError, streamingGuruId);
           }
@@ -1913,8 +1917,10 @@ openSereneMind('audio', true);
           });
         }
         hapticAudio.playCompletionChime();
-        drainNextQueuedMessage();
       }
+      // Drain unconditionally so queued messages are not stranded on
+      // abort, block, error, or context-exhausted paths.
+      drainNextQueuedMessage();
       isSubmittingRef.current = false;
       return;
     }
@@ -2047,7 +2053,11 @@ openSereneMind('audio', true);
               : undefined,
           relatedClips: response.relatedClips?.length ? response.relatedClips : undefined,
         };
-        setMessages((prev) => [...prev, guruMessage]);
+        setMessages((prev) => {
+          const next = [...prev, guruMessage];
+          messagesRef.current = next;
+          return next;
+        });
         if (!responseError) {
           jsonCompletedSuccessfully = !response.blocked && Boolean(response.content);
           if (!isIncognito && !currentConversation?.isTemporary) {
@@ -2116,14 +2126,17 @@ openSereneMind('audio', true);
       timestamp: new Date(),
       error: msgError,
     };
-    setMessages((prev) => [...prev, fallbackMsg]);
+    setMessages((prev) => {
+      const next = [...prev, fallbackMsg];
+      messagesRef.current = next;
+      return next;
+    });
   } finally {
     setIsTyping(false);
     setShowInstantPill(false);
     isSubmittingRef.current = false;
-    if (jsonCompletedSuccessfully) {
-      drainNextQueuedMessage();
-    }
+    // Drain unconditionally — queued messages must not be stranded by errors.
+    drainNextQueuedMessage();
   }
 };
 

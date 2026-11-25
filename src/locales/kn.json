@@ -953,7 +953,8 @@
     "tabExplore": "ಅನ್ವೇಷಣೆ",
     "relatedTeachings": {
       "heading": "ಸಂಬಂಧಿತ ಬೋಧನೆಗಳು, ನೇರ ಉತ್ತರವಲ್ಲ"
-    }
+    },
+    "checkService": "ಸೇವೆ ಪರಿಶೀಲಿಸಿ"
   },
   "notFound": {
     "message": "ಹೇಳಿಕೊಳ್ಳಲು ಸಾಧ್ಯವಿಲ್ಲ!",

@@ -2,6 +2,7 @@
 
 Single source of truth to prevent hardcoding mismatches across the codebase.
 """
+from __future__ import annotations
 
 from enum import Enum
 

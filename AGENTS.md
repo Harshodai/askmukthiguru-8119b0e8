@@ -30,11 +30,11 @@ Verbatim from the entries archived in `docs/agent/claude-md-archive/AGENTS-hando
 **X4** (from "Repository dead-code sweep + script-tree drift closure — Oct 22, 2026", was line 10)
 - **How to verify a file is dead:** resolved-import check only — `ast.parse` for Python, import-specifier resolution for TypeScript. A name grep is not evidence: `form` matches `chat.py`, `security` matches every skill doc, and a doc mention is a reference to *update*, not a reason to keep the file. **Rule:** prove no import resolves to it before deleting it.
 
-**X5** (from "First-person v10 public-release remediation — Phase 0/1 done, Phase 2+ not started — Oct 21, 2026", was line 14)
-- **Binding:** the public-release verdict is **NO-GO** and unchanged. `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false` in `backend/.env` **and** inside the container (re-verified at Phase 0). Do not enable it until B1–B7 in `docs/FIRST_PERSON_PUBLIC_RELEASE_STATUS_2026-10-21.md` are closed and recorded.
+**X5** (from "First-person v10 public-release remediation — Phase 0/1 done, Phase 2+ not started — Oct 21, 2026", was line 14; **superseded 2026-11-25 by owner decision**)
+- **Owner override (2026-11-25):** `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` is required and enabled in `.env` and `backend/.env` (harness is needed). Historical Oct 21 note had `false` pending B1–B7 in `docs/FIRST_PERSON_PUBLIC_RELEASE_STATUS_2026-10-21.md`.
 
-**X6** (from "First-person v10 — the three evidence defects fixed + owner-only preview live in Docker — Oct 22, 2026", was line 24)
-- **Binding:** the public-release verdict is **NO-GO and unchanged**. `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false` in `backend/.env` **and** in the container; the public `first_person` alias still points at `first_person_v10` (4,197 points); **no Qdrant write, no alias change, no Redis mutation, no deployment, no Railway action.** The local-review flag (`FIRST_PERSON_LOCAL_REVIEW_ENABLED`) is the only first-person flag that is on, and only in the local container.
+**X6** (from "First-person v10 — the three evidence defects fixed + owner-only preview live in Docker — Oct 22, 2026", was line 24; **superseded 2026-11-25 by owner decision**)
+- **Owner override (2026-11-25):** `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` is enabled in `.env` and `backend/.env`. The public `first_person` alias still points at `first_person_v10` (4,197 points); **no Qdrant write, no alias change, no Redis mutation, no deployment, no Railway action without explicit request.**
 
 **X7** (from "First-person v10 — the three evidence defects fixed + owner-only preview live in Docker — Oct 22, 2026", was line 25)
 Schema is now `first-person-speaker-conflict-v2`: `audio_duration_ms` is **removed** (never repurposed) and replaced by `audio_file_duration_ms` + `audio_slice_duration_ms` + `audio_start_ms` + `audio_end_ms`.

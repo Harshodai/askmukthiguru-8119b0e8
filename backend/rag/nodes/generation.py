@@ -4303,7 +4303,8 @@ async def _polish_and_weave_clips(
                 )
             return body_to_polish
 
-        effective_timeout = min(float(timeout_s or 2.5), 2.5)
+        configured_timeout = getattr(settings, "rag_verbatim_polishing_timeout_s", timeout_s)
+        effective_timeout = min(float(configured_timeout or timeout_s or 2.5), 2.5)
         polished = await asyncio.wait_for(_call(), timeout=effective_timeout)
         polished = polished.strip()
 
@@ -5705,7 +5706,10 @@ async def format_final_answer(state: GraphState, config: Optional[RunnableConfig
 
     # Polish sentence boundaries, remove URL-stripping debris, and weave multi-clip transitions
     llm_provider = state.get("llm_provider")
-    _weave_timeout = float(getattr(settings, "polish_and_weave_timeout_s", 2.5) or 2.5)
+    _weave_timeout = float(
+        getattr(settings, "rag_verbatim_polishing_timeout_s", getattr(settings, "polish_and_weave_timeout_s", 2.5))
+        or 2.5
+    )
     answer = await _polish_and_weave_clips(
         answer,
         relevant_docs,

@@ -958,7 +958,8 @@
     "tabExplore": "Explore",
     "relatedTeachings": {
       "heading": "Related teachings, not a direct answer"
-    }
+    },
+    "checkService": "Check service"
   },
   "notFound": {
     "message": "Oops! Page not found",

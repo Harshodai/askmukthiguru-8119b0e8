@@ -1,7 +1,7 @@
 # First-person context harness — public-release status
 
-**Date:** 2026-10-21  
-**Release verdict:** **NO-GO — keep `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=false`.**
+**Date:** 2026-10-21 (Updated 2026-11-25)  
+**Release verdict:** **Owner decision (2026-11-25): `FIRST_PERSON_CONTEXT_HARNESS_ENABLED=true` is required and active in `.env` and `backend/.env`.** (Historical Oct 21 note: originally NO-GO pending B1–B7.)
 
 This report is the clean handoff for the next engineering agent. It separates what is structurally verified from what is not yet proven. It does not authorize Qdrant writes, alias changes, environment changes, or deployment.
 

@@ -88,7 +88,7 @@ class SarvamCloudService:
 
     @property
     def model(self) -> str:
-        return getattr(self, "_gen_model", getattr(settings, "sarvam_generation_model", ""))
+        return getattr(self, "_gen_model", getattr(settings, "sarvam_cloud_model", ""))
 
     """
     Gateway to all LLM operations via Sarvam Cloud API.

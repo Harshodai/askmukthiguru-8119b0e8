@@ -81,11 +81,11 @@ const BackendHealthBanner = () => {
             type="button"
             onClick={handleRetry}
             disabled={retrying}
-            aria-label={retrying ? t('chat.checkingHealth', 'Checking service') : t('chat.retryConnection', 'Retry connection')}
+            aria-label={retrying ? t('chat.checkingHealth', 'Checking service') : t('chat.checkService', 'Check service')}
             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-background/80 hover:bg-background border border-border/50 text-muted-foreground hover:text-foreground transition-colors text-[11px]"
           >
             <RefreshCw className={cn("w-3 h-3", retrying && "motion-safe:animate-spin")} />
-            <span>{retrying ? t('chat.checkingHealth', 'Checking…') : t('chat.retryConnection', 'Retry')}</span>
+            <span>{retrying ? t('chat.checkingHealth', 'Checking…') : t('chat.checkService', 'Check service')}</span>
           </button>
         </div>
       </div>

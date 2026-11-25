@@ -1279,7 +1279,7 @@ class CorrelationIDMiddleware:
         cid_token = correlation_id_var.set(cid)
         from app.context import request_id_var as _req_id_var
 
-        req_token = _req_id_var.set(cid)
+        req_token = set_request_id(cid)
 
         async def send_wrapper(message):
             if message["type"] == "http.response.start":

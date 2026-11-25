@@ -953,7 +953,8 @@
     "tabExplore": "अन्वेषण करें",
     "relatedTeachings": {
       "heading": "संबंधित शिक्षाएँ, प्रत्यक्ष उत्तर नहीं"
-    }
+    },
+    "checkService": "सेवा जाँचें"
   },
   "notFound": {
     "message": "अरे! पृष्ठ नहीं मिला",

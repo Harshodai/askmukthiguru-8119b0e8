@@ -70,7 +70,7 @@ async def resolve_query_concepts_llm_async(
         # Use fast model if available
         try:
             from app.config import settings
-            model = getattr(settings, "first_person_relevance_model", None) or getattr(settings, "fast_model", "anthropic/claude-haiku-5.5")
+            model = getattr(settings, "first_person_relevance_model", None) or getattr(settings, "openrouter_fast_model", "meta-llama/llama-3.1-8b-instruct")
             kwargs["model"] = model
         except Exception:
             pass

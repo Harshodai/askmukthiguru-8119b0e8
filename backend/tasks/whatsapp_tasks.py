@@ -17,12 +17,12 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import re
 import urllib.parse
 import uuid
 from typing import Any
 
+from app.config import settings
 from celery_config import celery_app
 from services.whatsapp_service import (
     CRISIS_HELPLINE_COPY,
@@ -36,9 +36,9 @@ from services.whatsapp_service import (
 
 logger = logging.getLogger(__name__)
 
-BACKEND_INTERNAL_URL = os.environ.get("BACKEND_INTERNAL_URL", "http://127.0.0.1:8000")
+BACKEND_INTERNAL_URL = getattr(settings, "backend_internal_url", "http://127.0.0.1:8000")
 META_GRAPH_HOST = "graph.facebook.com"
-META_GRAPH_VERSION = os.environ.get("META_GRAPH_VERSION", "v21.0")
+META_GRAPH_VERSION = getattr(settings, "meta_graph_version", "v21.0")
 _PHONE_NUMBER_ID_RE = re.compile(r"^\d{1,32}$")
 
 
@@ -85,12 +85,12 @@ def _send_meta_outbound(phone_number_id: str, to_number: str, message_text: str)
     """Send message via Meta Cloud API with strict SSRF guard and Graph v21+."""
     import requests
 
-    token = os.environ.get("META_ACCESS_TOKEN", os.environ.get("WHATSAPP_TOKEN", ""))
+    token = getattr(settings, "meta_access_token", "")
     if not token:
         logger.error("Missing META_ACCESS_TOKEN; cannot send outbound WhatsApp message")
         return False
 
-    clean_id = str(phone_number_id or os.environ.get("META_PHONE_NUMBER_ID", "")).strip()
+    clean_id = str(phone_number_id or getattr(settings, "meta_phone_number_id", "")).strip()
     if not clean_id.isdigit() or not _PHONE_NUMBER_ID_RE.match(clean_id):
         logger.error("Invalid phone_number_id rejected: %s", clean_id)
         return False
@@ -131,12 +131,12 @@ def _send_meta_interactive(phone_number_id: str, payload: dict[str, Any]) -> boo
     """Send interactive message (e.g. quick reply buttons) via Meta Cloud API."""
     import requests
 
-    token = os.environ.get("META_ACCESS_TOKEN", os.environ.get("WHATSAPP_TOKEN", ""))
+    token = getattr(settings, "meta_access_token", "")
     if not token:
         logger.error("Missing META_ACCESS_TOKEN; cannot send interactive WhatsApp message")
         return False
 
-    clean_id = str(phone_number_id or os.environ.get("META_PHONE_NUMBER_ID", "")).strip()
+    clean_id = str(phone_number_id or getattr(settings, "meta_phone_number_id", "")).strip()
     if not clean_id.isdigit() or not _PHONE_NUMBER_ID_RE.match(clean_id):
         logger.error("Invalid phone_number_id rejected: %s", clean_id)
         return False
@@ -162,9 +162,9 @@ def _send_twilio_outbound(to_number: str, message_text: str) -> bool:
     """Send message via Twilio REST API."""
     import requests
 
-    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
-    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
-    from_number = os.environ.get("TWILIO_FROM", "")
+    account_sid = getattr(settings, "twilio_account_sid", "")
+    auth_token = getattr(settings, "twilio_auth_token", "")
+    from_number = getattr(settings, "twilio_from", "")
     if not (account_sid and auth_token and from_number):
         logger.warning("Twilio credentials not configured; skipping outbound send")
         return False
@@ -207,7 +207,7 @@ def process_whatsapp_turn_task(
     """
     meta = metadata or {}
     clean_p = clean_phone(phone)
-    phone_id = meta.get("phone_number_id") or os.environ.get("META_PHONE_NUMBER_ID", "")
+    phone_id = meta.get("phone_number_id") or getattr(settings, "meta_phone_number_id", "")
 
     # 1. Crisis Preemption
     if likely_crisis(user_message):

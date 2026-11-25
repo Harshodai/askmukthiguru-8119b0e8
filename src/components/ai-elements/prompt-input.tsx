@@ -993,16 +993,20 @@ export const PromptInputTextarea = forwardRef<
         if (e.shiftKey) {
           return;
         }
-        e.preventDefault();
-
-        // Check if the submit button is disabled before submitting
+        // Only submit if the textarea has actual content — guards empty Enter presses.
+        if (!e.currentTarget.value.trim()) {
+          return;
+        }
+        // Also respect an explicitly-disabled submit button (e.g. while a stream
+        // is in-flight and the button has [disabled] set synchronously).
         const { form } = e.currentTarget;
         const submitButton = form?.querySelector(
-          'button[type="submit"]'
+          'button[type="submit"]',
         ) as HTMLButtonElement | null;
         if (submitButton?.disabled) {
           return;
         }
+        e.preventDefault();
 
         try {
           if (typeof form?.requestSubmit === "function") {

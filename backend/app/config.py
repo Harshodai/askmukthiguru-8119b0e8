@@ -598,9 +598,9 @@ class Settings(BaseSettings):
     # clip scoring >= min_score or abstain (fail closed). Standalone: deterministic backstop
     # rejecting clips that end/start mid-thought or announce a one-off event.
     first_person_relevance_gate_enabled: bool = True
-    # Owner decision 2026-11-16: 3 everywhere (code default, compose, Railway). The
-    # 2026-11-10 calibration to 2 (SOTA plan WS3, weak_match band) is withdrawn.
-    first_person_relevance_min_score: int = 3
+    # Owner decision 2026-11-25: restored to 2 (SOTA plan WS3, weak_match band).
+    # The 2026-11-16 revert to 3 is itself reverted after audit confirmed it over-filters.
+    first_person_relevance_min_score: int = 2
     # Optional stronger model for the relevance scorer ONLY (one ~24-token reply per query);
     # empty = the provider's default generation model. 2026-10-11: the default model rated
     # same-theme clips 3/3, so precision was poor.
@@ -687,6 +687,12 @@ class Settings(BaseSettings):
     meta_verify_token: str = ""
     meta_access_token: str = ""
     meta_phone_number_id: str = ""
+    meta_phone_number: str = ""
+    meta_graph_version: str = "v21.0"
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from: str = ""
+    backend_internal_url: str = "http://127.0.0.1:8000"
     whatsapp_link_base_url: str = "https://askmukthiguru.com"
     whatsapp_link_expiry_minutes: int = 15
 

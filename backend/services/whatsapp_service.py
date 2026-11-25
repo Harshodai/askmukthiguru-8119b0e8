@@ -453,8 +453,7 @@ async def resume_account_by_phone(supabase: Any, phone: str) -> bool:
 
 def get_whatsapp_redis():
     """Get Redis client for WhatsApp session and pause state management."""
-    import os
-    redis_url = getattr(settings, "redis_url", None) or os.environ.get("REDIS_URL")
+    redis_url = getattr(settings, "redis_url", None)
     if not redis_url:
         return None
     try:

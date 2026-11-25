@@ -953,7 +953,8 @@
     "tabExplore": "అన్వేషించండి",
     "relatedTeachings": {
       "heading": "సంబంధిత బోధనలు, నేరుగా జవాబు కాదు"
-    }
+    },
+    "checkService": "సేవను తనిఖీ చేయండి"
   },
   "notFound": {
     "message": "అప్పుడు! పేజీ కనుగొనబడలేదు",

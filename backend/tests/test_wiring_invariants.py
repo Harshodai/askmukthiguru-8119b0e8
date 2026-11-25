@@ -66,6 +66,14 @@ KNOWN_EXTRA_DEAD: dict[str, str] = {
     "redis_password": (
         "Redis auth password parameter reserved for authenticated cloud Redis clusters"
     ),
+    "meta_app_id": (
+        "2026-11-25 audit: WhatsApp/Meta integration not yet wired; "
+        "declared for future use but no caller reads it (open: wire or delete)"
+    ),
+    "whatsapp_link_expiry_minutes": (
+        "2026-11-25 audit: WhatsApp deep-link expiry parameter declared but not "
+        "consumed by any active handler (open: wire to link generator or delete)"
+    ),
 }
 
 # Newly-added settings that must NEVER be flagged dead. If any of these shows
@@ -342,6 +350,11 @@ ALLOWED_DEAD_REGISTRATION_HOOKS: dict[str, str] = {
         "always uses get_verifier() which builds the real verifier. Not the "
         "failure class this guard targets — flagging it here documents the "
         "distinction rather than hiding it."
+    ),
+    "services/spiritual_expansion.py::set_spiritual_concept_expansion": (
+        "Test-only isolation hook (docstring says 'used for test isolation'). "
+        "Production uses get_spiritual_concept_expansion() which lazily builds "
+        "the singleton."
     ),
 }
 
