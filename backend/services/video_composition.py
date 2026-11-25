@@ -23,6 +23,7 @@ import hashlib
 import inspect
 import json
 import logging
+import math
 import re
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
@@ -49,8 +50,19 @@ class MediaSegment:
     verbatim_text: str
     role: str = "teaching"  # "obstacle", "insight_shift", "practice_invitation", "guided_action", "reflection"
     visual_asset_url: Optional[str] = None
-    speaker_verified: bool = True
+    speaker_verified: bool = False
+    rights_cleared: bool = False
     guru_id: str = "unknown"
+
+    def __post_init__(self) -> None:
+        if not self.clip_id.strip() or not self.video_id.strip() or not self.source_url.strip():
+            raise ValueError("MediaSegment requires clip_id, video_id, and source_url")
+        if not self.speaker.strip() or not self.verbatim_text.strip():
+            raise ValueError("MediaSegment requires an attributed speaker and verbatim text")
+        if self.start_ms < 0 or self.end_ms <= self.start_ms:
+            raise ValueError("MediaSegment timestamps must satisfy 0 <= start_ms < end_ms")
+        if not isinstance(self.speaker_verified, bool) or not isinstance(self.rights_cleared, bool):
+            raise TypeError("MediaSegment speaker_verified and rights_cleared must be booleans")
 
     @property
     def duration_ms(self) -> int:
@@ -79,6 +91,7 @@ class MediaSegment:
             "role": self.role,
             "visual_asset_url": self.visual_asset_url,
             "speaker_verified": self.speaker_verified,
+            "rights_cleared": self.rights_cleared,
             "guru_id": self.guru_id,
         }
 
@@ -253,13 +266,18 @@ def build_composition_manifest(
         cid = str(c.get("point_id") or f"seg_{i}")
         vid = str(c.get("video_id") or "unknown")
         url = str(c.get("source_url") or (f"https://youtu.be/{vid}" if vid != "unknown" else ""))
-        start_ms = int(c.get("audio_start_ms") or c.get("start_ms") or 0)
-        end_ms = int(c.get("audio_end_ms") or c.get("end_ms") or (start_ms + 10000))
-        speaker = str(c.get("speaker") or "Teacher")
-        text = str(c.get("verbatim_text") or "")
+        start_raw = c.get("audio_start_ms", c.get("start_ms"))
+        end_raw = c.get("audio_end_ms", c.get("end_ms"))
+        if start_raw is None or end_raw is None:
+            raise ValueError(f"Clip {cid!r} is missing source start/end timestamps")
+        start_ms = int(start_raw)
+        end_ms = int(end_raw)
+        speaker = str(c.get("speaker") or "").strip()
+        text = str(c.get("verbatim_text") or "").strip()
         role = c.get("role") or classify_segment_role(text)
         vis_url = c.get("visual_asset_url")
-        spk_ok = bool(c.get("speaker_verified", True))
+        spk_ok = bool(c.get("speaker_verified", False))
+        rights_ok = bool(c.get("rights_cleared", False))
         guru_id = str(c.get("guru_id") or "unknown")
 
         segments.append(
@@ -274,6 +292,7 @@ def build_composition_manifest(
                 role=role,
                 visual_asset_url=vis_url,
                 speaker_verified=spk_ok,
+                rights_cleared=rights_ok,
                 guru_id=guru_id,
             )
         )
@@ -326,6 +345,16 @@ def generate_ffmpeg_concat_filter(
     """
     if not manifest.segments:
         raise ValueError("Cannot generate FFmpeg command for empty manifest")
+    ineligible = [
+        segment.clip_id
+        for segment in manifest.segments
+        if not segment.speaker_verified or not segment.rights_cleared
+    ]
+    if ineligible:
+        raise ValueError(
+            "Cannot render media with unverified speakers or uncleared rights: "
+            + ", ".join(ineligible)
+        )
 
     inputs: list[str] = []
     v_filters: list[str] = []
@@ -444,8 +473,48 @@ class FirstPersonVideoJudge:
                 reason="no_segments_in_manifest",
             )
 
+        # Every modality, including a one-clip result, must pass the same
+        # speaker and rights contract before it can be approved or rendered.
+        ineligible_reasons: set[str] = set()
+        eligible_segments = []
+        for segment in manifest.segments:
+            segment_ok = True
+            if not segment.speaker_verified:
+                ineligible_reasons.add("unverified_speaker")
+                segment_ok = False
+            if not segment.rights_cleared:
+                ineligible_reasons.add("rights_not_cleared")
+                segment_ok = False
+            if segment_ok:
+                eligible_segments.append(segment)
+
+        if len(eligible_segments) != len(manifest.segments):
+            reason = "source_gate:" + ",".join(sorted(ineligible_reasons))
+            if eligible_segments:
+                logger.info(
+                    "[FirstPersonVideoJudge] Falling back to one eligible segment; "
+                    "%d/%d segments failed source gates",
+                    len(manifest.segments) - len(eligible_segments),
+                    len(manifest.segments),
+                )
+                return CompositionVerdict(
+                    status="FALLBACK_TO_TOP_SINGLE",
+                    narrative_continuity_score=3.0,
+                    transition_cleanliness_score=3.0,
+                    verbatim_integrity_score=3.0,
+                    reason=reason,
+                    selected_segment_ids=(eligible_segments[0].clip_id,),
+                )
+            return CompositionVerdict(
+                status="ABSTAIN",
+                narrative_continuity_score=0.0,
+                transition_cleanliness_score=0.0,
+                verbatim_integrity_score=0.0,
+                reason=reason,
+                selected_segment_ids=(),
+            )
+
         if len(manifest.segments) == 1:
-            # Single video segment sufficiency
             seg = manifest.segments[0]
             return CompositionVerdict(
                 status="COMPOSITE_APPROVED",
@@ -454,22 +523,6 @@ class FirstPersonVideoJudge:
                 verbatim_integrity_score=5.0,
                 reason="single_source_sufficient",
                 selected_segment_ids=(seg.clip_id,),
-            )
-
-        # Check speaker verification on all segments
-        unverified = [s for s in manifest.segments if not s.speaker_verified]
-        if unverified:
-            logger.info(
-                "[FirstPersonVideoJudge] Rejecting composite due to %d unverified segments",
-                len(unverified),
-            )
-            return CompositionVerdict(
-                status="FALLBACK_TO_TOP_SINGLE",
-                narrative_continuity_score=3.0,
-                transition_cleanliness_score=3.0,
-                verbatim_integrity_score=1.0,
-                reason="unverified_speaker_in_multi_segment",
-                selected_segment_ids=(manifest.segments[0].clip_id,),
             )
 
         # Build prompt for LLM judge
@@ -498,60 +551,90 @@ class FirstPersonVideoJudge:
                 match = re.search(r"\{.*\}", raw, re.DOTALL)
                 if match:
                     parsed = json.loads(match.group(0))
-                    narrative = float(parsed.get("narrative_continuity", 4.0))
-                    transition = float(parsed.get("transition_cleanliness", 4.0))
-                    integrity = float(parsed.get("verbatim_integrity", 5.0))
-                    status = str(parsed.get("status", "COMPOSITE_APPROVED"))
-                    reason = str(parsed.get("reason", "llm_approved"))
+                    required_fields = (
+                        "narrative_continuity",
+                        "transition_cleanliness",
+                        "verbatim_integrity",
+                        "status",
+                    )
+                    if any(field not in parsed for field in required_fields):
+                        return self._fallback_to_single(
+                            manifest,
+                            reason="llm_judge_incomplete_response",
+                        )
+                    raw_scores = (
+                        parsed["narrative_continuity"],
+                        parsed["transition_cleanliness"],
+                        parsed["verbatim_integrity"],
+                    )
+                    if any(
+                        isinstance(value, bool) or not isinstance(value, (int, float))
+                        for value in raw_scores
+                    ):
+                        return self._fallback_to_single(
+                            manifest,
+                            reason="llm_judge_invalid_score_types",
+                        )
+                    narrative, transition, integrity = (float(value) for value in raw_scores)
+                    status = str(parsed["status"]).strip().upper()
+                    reason = str(parsed.get("reason") or "llm_judged")[:240]
+                    scores = (narrative, transition, integrity)
+                    if any(not math.isfinite(score) or not 1.0 <= score <= 5.0 for score in scores):
+                        return self._fallback_to_single(
+                            manifest,
+                            reason="llm_judge_invalid_scores",
+                        )
+                    if status not in {"COMPOSITE_APPROVED", "FALLBACK_TO_TOP_SINGLE", "ABSTAIN"}:
+                        return self._fallback_to_single(
+                            manifest,
+                            reason="llm_judge_invalid_status",
+                            scores=scores,
+                        )
+                    selected_ids = (
+                        tuple(s.clip_id for s in manifest.segments)
+                        if status == "COMPOSITE_APPROVED"
+                        else (manifest.segments[0].clip_id,)
+                        if status == "FALLBACK_TO_TOP_SINGLE"
+                        else ()
+                    )
                     return CompositionVerdict(
                         status=status,
                         narrative_continuity_score=narrative,
                         transition_cleanliness_score=transition,
                         verbatim_integrity_score=integrity,
                         reason=reason,
-                        selected_segment_ids=tuple(s.clip_id for s in manifest.segments),
+                        selected_segment_ids=selected_ids,
                     )
             except Exception as e:
                 logger.debug("[FirstPersonVideoJudge] LLM evaluation exception: %s", e)
+                return self._fallback_to_single(
+                    manifest,
+                    reason="llm_judge_unavailable",
+                )
 
-        # Deterministic offline evaluation fallback
-        return self._offline_evaluate(manifest)
+        # A sentence-ending heuristic cannot certify multi-source narrative
+        # continuity or verbatim integrity. Without a valid judge verdict, keep
+        # only the best already-gated source instead of approving a composite.
+        return self._fallback_to_single(
+            manifest,
+            reason="llm_judge_unavailable",
+        )
 
-    def _offline_evaluate(self, manifest: CompositionManifest) -> CompositionVerdict:
-        """Deterministic rule-based evaluator when LLM judge is offline or in test."""
-        # 1. Check for complete sentence endings on all but the last segment
-        clean_transitions = True
-        for seg in manifest.segments[:-1]:
-            text = seg.verbatim_text.strip()
-            if not text.endswith((".", "!", "?", '"', "'")):
-                clean_transitions = False
-                break
-
-        # 2. Check for pedagogical progression (e.g. not putting practice before explanation)
-        roles = [s.role for s in manifest.segments]
-        has_inverted_practice = False
-        if "practice_invitation" in roles and "obstacle" in roles:
-            if roles.index("practice_invitation") < roles.index("obstacle"):
-                has_inverted_practice = True
-
-        if clean_transitions and not has_inverted_practice:
-            return CompositionVerdict(
-                status="COMPOSITE_APPROVED",
-                narrative_continuity_score=4.8,
-                transition_cleanliness_score=4.5,
-                verbatim_integrity_score=5.0,
-                reason="offline_rule_verified_continuity",
-                selected_segment_ids=tuple(s.clip_id for s in manifest.segments),
-            )
-        else:
-            return CompositionVerdict(
-                status="FALLBACK_TO_TOP_SINGLE",
-                narrative_continuity_score=2.8,
-                transition_cleanliness_score=2.5,
-                verbatim_integrity_score=5.0,
-                reason="transition_or_order_defect_fallback",
-                selected_segment_ids=(manifest.segments[0].clip_id,),
-            )
+    @staticmethod
+    def _fallback_to_single(
+        manifest: CompositionManifest,
+        *,
+        reason: str,
+        scores: tuple[float, float, float] = (3.0, 3.0, 3.0),
+    ) -> CompositionVerdict:
+        return CompositionVerdict(
+            status="FALLBACK_TO_TOP_SINGLE",
+            narrative_continuity_score=scores[0],
+            transition_cleanliness_score=scores[1],
+            verbatim_integrity_score=scores[2],
+            reason=reason,
+            selected_segment_ids=(manifest.segments[0].clip_id,),
+        )
 
 
 # ---------------------------------------------------------------------------

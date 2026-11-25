@@ -72,6 +72,7 @@ def test_build_composition_manifest() -> None:
             "speaker": "Sri Preethaji",
             "verbatim_text": "Suffering is self-centric thinking.",
             "speaker_verified": True,
+            "rights_cleared": True,
         },
         {
             "point_id": "pt_2",
@@ -82,6 +83,7 @@ def test_build_composition_manifest() -> None:
             "speaker": "Sri Krishnaji",
             "verbatim_text": "When you observe the division, peace arises.",
             "speaker_verified": True,
+            "rights_cleared": True,
         },
     ]
     manifest = build_composition_manifest(
@@ -113,6 +115,8 @@ def test_generate_ffmpeg_concat_filter_multi_segment() -> None:
                 start_ms=5000,
                 end_ms=15000,
                 speaker="Sri Preethaji",
+                speaker_verified=True,
+                rights_cleared=True,
                 verbatim_text="Fear arises in the conditioned mind.",
             ),
             MediaSegment(
@@ -122,6 +126,8 @@ def test_generate_ffmpeg_concat_filter_multi_segment() -> None:
                 start_ms=20000,
                 end_ms=35000,
                 speaker="Sri Krishnaji",
+                speaker_verified=True,
+                rights_cleared=True,
                 verbatim_text="Breathe deeply and witness the sensation.",
             ),
         ],
@@ -159,6 +165,8 @@ async def test_video_judge_single_clip_sufficient() -> None:
                 start_ms=0,
                 end_ms=20000,
                 speaker="Sri Preethaji",
+                speaker_verified=True,
+                rights_cleared=True,
                 verbatim_text="Love is the absence of division.",
             )
         ],
@@ -185,8 +193,9 @@ async def test_video_judge_rejects_unverified_speaker() -> None:
                 start_ms=0,
                 end_ms=20000,
                 speaker="Sri Preethaji",
-                verbatim_text="Anger is hurt expressing itself.",
                 speaker_verified=True,
+                rights_cleared=True,
+                verbatim_text="Anger is hurt expressing itself.",
             ),
             MediaSegment(
                 clip_id="c2",
@@ -197,6 +206,7 @@ async def test_video_judge_rejects_unverified_speaker() -> None:
                 speaker="Guest",
                 verbatim_text="I feel that way too.",
                 speaker_verified=False,
+                rights_cleared=True,
             ),
         ],
     )
@@ -221,8 +231,9 @@ async def test_video_judge_llm_approved() -> None:
                 start_ms=0,
                 end_ms=10000,
                 speaker="Sri Preethaji",
-                verbatim_text="Meditation begins with bringing attention to the breath.",
                 speaker_verified=True,
+                rights_cleared=True,
+                verbatim_text="Meditation begins with bringing attention to the breath.",
             ),
             MediaSegment(
                 clip_id="c2",
@@ -231,8 +242,9 @@ async def test_video_judge_llm_approved() -> None:
                 start_ms=0,
                 end_ms=10000,
                 speaker="Sri Krishnaji",
-                verbatim_text="As the breath slows, the mind dissolves into stillness.",
                 speaker_verified=True,
+                rights_cleared=True,
+                verbatim_text="As the breath slows, the mind dissolves into stillness.",
             ),
         ],
     )
@@ -252,6 +264,238 @@ async def test_video_judge_llm_approved() -> None:
     assert verdict.status == "COMPOSITE_APPROVED"
     assert verdict.narrative_continuity_score == 4.8
     assert verdict.reason == "flawless_teaching_continuity"
+
+
+@pytest.mark.asyncio
+async def test_single_unverified_clip_abstains_instead_of_bypassing_speaker_gate() -> None:
+    manifest = CompositionManifest(
+        composition_id="comp_unverified_single",
+        query="What is love?",
+        title="What is love?",
+        segments=[
+            MediaSegment(
+                clip_id="c1",
+                video_id="v1",
+                source_url="https://youtu.be/v1",
+                start_ms=0,
+                end_ms=20000,
+                speaker="Sri Preethaji",
+                verbatim_text="Love is the absence of division.",
+                rights_cleared=True,
+            )
+        ],
+    )
+
+    verdict = await FirstPersonVideoJudge().judge_composition(manifest)
+
+    assert verdict.status == "ABSTAIN"
+    assert verdict.is_approved is False
+    assert verdict.selected_segment_ids == ()
+    assert "unverified_speaker" in verdict.reason
+
+
+def test_composition_manifest_never_invents_missing_timestamps() -> None:
+    with pytest.raises(ValueError, match="missing source start/end timestamps"):
+        build_composition_manifest(
+            query="What is awareness?",
+            clips=[
+                {
+                    "point_id": "pt_missing_end",
+                    "video_id": "vid_missing_end",
+                    "source_url": "https://youtu.be/vid_missing_end",
+                    "start_ms": 1000,
+                    "speaker": "Sri Krishnaji",
+                    "verbatim_text": "Awareness is the beginning of understanding.",
+                    "speaker_verified": True,
+                    "rights_cleared": True,
+                }
+            ],
+        )
+
+
+def test_ffmpeg_renderer_refuses_unverified_or_uncleared_media() -> None:
+    manifest = CompositionManifest(
+        composition_id="comp_blocked",
+        query="What is peace?",
+        title="What is peace?",
+        segments=[
+            MediaSegment(
+                clip_id="c1",
+                video_id="v1",
+                source_url="/tmp/clip.mp4",
+                start_ms=0,
+                end_ms=10000,
+                speaker="Sri Preethaji",
+                verbatim_text="Peace begins within.",
+                speaker_verified=True,
+                rights_cleared=False,
+            )
+        ],
+    )
+
+    with pytest.raises(ValueError, match="uncleared rights"):
+        generate_ffmpeg_concat_filter(manifest)
+
+
+@pytest.mark.asyncio
+async def test_llm_cannot_approve_a_composite_with_out_of_range_score() -> None:
+    manifest = CompositionManifest(
+        composition_id="comp_low_score",
+        query="How does awareness transform suffering?",
+        title="Awareness and Suffering",
+        segments=[
+            MediaSegment(
+                clip_id="c1",
+                video_id="v1",
+                source_url="https://youtu.be/v1",
+                start_ms=0,
+                end_ms=10000,
+                speaker="Sri Preethaji",
+                verbatim_text="Suffering begins with inner division.",
+                speaker_verified=True,
+                rights_cleared=True,
+            ),
+            MediaSegment(
+                clip_id="c2",
+                video_id="v2",
+                source_url="https://youtu.be/v2",
+                start_ms=0,
+                end_ms=10000,
+                speaker="Sri Krishnaji",
+                verbatim_text="Awareness allows you to observe the movement.",
+                speaker_verified=True,
+                rights_cleared=True,
+            ),
+        ],
+    )
+    llm = MagicMock()
+    llm.generate.return_value = json.dumps(
+        {
+            "narrative_continuity": 4.6,
+            "transition_cleanliness": 5.1,
+            "verbatim_integrity": 5.0,
+            "status": "COMPOSITE_APPROVED",
+            "reason": "model_claimed_approval",
+        }
+    )
+
+    verdict = await FirstPersonVideoJudge(llm_service=llm).judge_composition(manifest)
+
+    assert verdict.status == "FALLBACK_TO_TOP_SINGLE"
+    assert verdict.selected_segment_ids == ("c1",)
+    assert verdict.reason == "llm_judge_invalid_scores"
+
+
+@pytest.mark.asyncio
+async def test_multi_clip_composition_falls_back_to_one_clip_without_judge() -> None:
+    manifest = CompositionManifest(
+        composition_id="comp_no_judge",
+        query="What is compassion?",
+        title="Compassion",
+        segments=[
+            MediaSegment(
+                clip_id="c1",
+                video_id="v1",
+                source_url="https://youtu.be/v1",
+                start_ms=0,
+                end_ms=10000,
+                speaker="Sri Preethaji",
+                verbatim_text="Compassion begins with understanding.",
+                speaker_verified=True,
+                rights_cleared=True,
+            ),
+            MediaSegment(
+                clip_id="c2",
+                video_id="v2",
+                source_url="https://youtu.be/v2",
+                start_ms=0,
+                end_ms=10000,
+                speaker="Sri Krishnaji",
+                verbatim_text="Understanding dissolves separation.",
+                speaker_verified=True,
+                rights_cleared=True,
+            ),
+        ],
+    )
+
+    verdict = await FirstPersonVideoJudge().judge_composition(manifest)
+
+    assert verdict.status == "FALLBACK_TO_TOP_SINGLE"
+    assert verdict.selected_segment_ids == ("c1",)
+    assert verdict.reason == "llm_judge_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_incomplete_llm_judge_response_cannot_approve_composite() -> None:
+    manifest = CompositionManifest(
+        composition_id="comp_incomplete_judge",
+        query="What is awareness?",
+        title="Awareness",
+        segments=[
+            MediaSegment(
+                clip_id="c1",
+                video_id="v1",
+                source_url="https://youtu.be/v1",
+                start_ms=0,
+                end_ms=10000,
+                speaker="Sri Preethaji",
+                verbatim_text="Awareness begins with observation.",
+                speaker_verified=True,
+                rights_cleared=True,
+            ),
+            MediaSegment(
+                clip_id="c2",
+                video_id="v2",
+                source_url="https://youtu.be/v2",
+                start_ms=0,
+                end_ms=10000,
+                speaker="Sri Krishnaji",
+                verbatim_text="Observation ends inner conflict.",
+                speaker_verified=True,
+                rights_cleared=True,
+            ),
+        ],
+    )
+    llm = MagicMock()
+    llm.generate.return_value = json.dumps(
+        {
+            "narrative_continuity": 5.0,
+            "status": "COMPOSITE_APPROVED",
+        }
+    )
+
+    verdict = await FirstPersonVideoJudge(llm_service=llm).judge_composition(manifest)
+
+    assert verdict.status == "FALLBACK_TO_TOP_SINGLE"
+    assert verdict.selected_segment_ids == ("c1",)
+    assert verdict.reason == "llm_judge_incomplete_response"
+
+
+@pytest.mark.asyncio
+async def test_video_judge_abstains_when_all_sources_fail_rights_gate() -> None:
+    manifest = CompositionManifest(
+        composition_id="comp_rights_blocked",
+        query="What is stillness?",
+        title="Stillness",
+        segments=[
+            MediaSegment(
+                clip_id="c1",
+                video_id="v1",
+                source_url="https://youtu.be/v1",
+                start_ms=0,
+                end_ms=10000,
+                speaker="Sri Preethaji",
+                verbatim_text="Stillness is not forced.",
+                speaker_verified=True,
+                rights_cleared=False,
+            )
+        ],
+    )
+
+    verdict = await FirstPersonVideoJudge().judge_composition(manifest)
+
+    assert verdict.status == "ABSTAIN"
+    assert "rights_not_cleared" in verdict.reason
 
 
 def test_recommend_next_teachings() -> None:

@@ -31,6 +31,7 @@ from scripts.ops.windowed_ecapa_v1_scorer import (
     load_embedder,
     score_span_windows,
     windowed_verdict,
+    is_verified_windowed_verdict,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -182,16 +183,22 @@ def main():
         v_p, _, stats_p = windowed_verdict(scores_p, "preethaji", cosine_floor, margin_threshold, max_failing_windows=0)
 
         # Check who won
-        mean_k = stats_k.get("mean_cosine") or (np.mean([s["scores"]["krishnaji"] for s in scores_k]) if scores_k else -1.0)
-        mean_p = stats_p.get("mean_cosine") or (np.mean([s["scores"]["preethaji"] for s in scores_p]) if scores_p else -1.0)
+        mean_k = stats_k.get("span_cosine_mean")
+        if mean_k is None:
+            mean_k = float(np.mean([s.get("cosine", -1.0) for s in scores_k])) if scores_k else -1.0
+        mean_p = stats_p.get("span_cosine_mean")
+        if mean_p is None:
+            mean_p = float(np.mean([s.get("cosine", -1.0) for s in scores_p])) if scores_p else -1.0
 
         best_guru = "krishnaji" if mean_k >= mean_p else "preethaji"
         best_verdict = v_k if best_guru == "krishnaji" else v_p
         best_stats = stats_k if best_guru == "krishnaji" else stats_p
         best_score = float(mean_k if best_guru == "krishnaji" else mean_p)
 
-        is_verified = (best_verdict == "verified") or (best_score >= cosine_floor)
-        current_sv = pl.get("speaker_verified")
+        # The calibrated window-level verdict is authoritative. A mean cosine
+        # must never override a failed window, host mismatch, or margin failure.
+        is_verified = is_verified_windowed_verdict(best_verdict)
+        best_margin = float(best_stats.get("span_margin_min") or 0.0)
 
         # Enrich tags & entities
         new_topics = sorted(list(set(pl.get("topic_ids") or []) | set(extract_tags(text))))
@@ -213,22 +220,26 @@ def main():
             patch["voice_calibration_id"] = "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e"
             patch["voice_threshold_applied"] = {"cosine_floor": cosine_floor, "margin_threshold": margin_threshold}
             patch["voice_score"] = float(best_score)
-            patch["voice_margin"] = float(max(1e-4, abs(mean_k - mean_p)))
+            patch["voice_margin"] = best_margin
             patch["voice_window_check"] = "pass"
             patch["speaker_verification_status"] = "verified"
             verified_count += 1
-        elif current_sv is True and best_score >= (cosine_floor - 0.05):
-            # Preserve existing verified status if within margin of noise
-            patch["speaker_verified"] = True
+        else:
+            # Reverification is also allowed to revoke a stale positive. Never
+            # preserve an old speaker_verified=True after the calibrated gate fails.
+            patch["speaker_verified"] = False
+            patch["speaker_verification_status"] = (
+                "pending_voice_check" if best_verdict == "indeterminate_no_windows" else "ecapa_failed"
+            )
             patch["voice_verification_method"] = "ecapa_voxceleb_windowed_v1"
             patch["voice_model_revision"] = "0f99f2d0ebe89ac095bcc5903c4dd8f72b367286"
             patch["voice_calibration_id"] = "a40b315babe98a75ee9328b4789b8df1895d124de60a5c7ef6c961224679ed2e"
             patch["voice_threshold_applied"] = {"cosine_floor": cosine_floor, "margin_threshold": margin_threshold}
             patch["voice_score"] = float(best_score)
-            patch["voice_margin"] = float(max(1e-4, abs(mean_k - mean_p)))
-            patch["voice_window_check"] = "pass"
-            patch["speaker_verification_status"] = "verified"
-            verified_count += 1
+            patch["voice_margin"] = best_margin
+            patch["voice_window_check"] = (
+                "indeterminate" if best_verdict == "indeterminate_no_windows" else "fail"
+            )
 
         if args.apply:
             client.set_payload(

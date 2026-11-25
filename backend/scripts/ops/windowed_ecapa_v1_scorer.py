@@ -237,6 +237,11 @@ def windowed_verdict(
     return VERDICT_VERIFIED, VERDICT_VERIFIED, stats
 
 
+def is_verified_windowed_verdict(verdict: object) -> bool:
+    """Accept only the scorer's exact positive terminal verdict."""
+    return isinstance(verdict, str) and verdict.strip().lower() == VERDICT_VERIFIED
+
+
 def calibrate_windowed_floor(
     positive_windows: list[dict[str, Any]],
     negative_windows: list[dict[str, Any]],

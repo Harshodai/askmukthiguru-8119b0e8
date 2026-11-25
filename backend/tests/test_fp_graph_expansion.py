@@ -107,3 +107,18 @@ def test_zero_max_neighbors_short_circuits(monkeypatch):
 
     monkeypatch.setattr("app.dependencies.get_container", _explode)
     assert expand_query_concepts(QUERY, max_neighbors=0) == []
+
+
+
+def test_throwaway_loop_disables_dynamic_llm_resolution(monkeypatch):
+    monkeypatch.setattr("app.dependencies.get_container", lambda: _container_with(_fake_driver()))
+    seen: dict[str, object] = {}
+
+    async def _capture(query, driver, **kwargs):
+        seen.update(kwargs)
+        return ["Meditation"]
+
+    monkeypatch.setattr("rag.kg_expansion.expand_query_via_kg", _capture)
+
+    assert expand_query_concepts(QUERY) == ["Meditation"]
+    assert seen["allow_dynamic_concepts"] is False
