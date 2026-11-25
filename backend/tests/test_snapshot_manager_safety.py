@@ -91,6 +91,31 @@ def test_legacy_graph_manifest_without_relationship_count_remains_readable():
     assert SNAPSHOT._recorded_graph_counts(text) == (17, None)
 
 
+
+def test_backup_graph_writes_count_manifest_and_checksum(tmp_path, monkeypatch):
+    path = tmp_path / "backup.cypher"
+    monkeypatch.setattr(SNAPSHOT, "NEO4J_BACKUP_PATH", str(path))
+    monkeypatch.setattr(SNAPSHOT, "NEO4J_CONTAINER", "scratch-memgraph")
+    monkeypatch.setattr(SNAPSHOT, "_container_running", lambda _name: True)
+    monkeypatch.setattr(SNAPSHOT, "_graph_engine", lambda: "memgraph")
+    monkeypatch.setattr(SNAPSHOT, "_graph_node_count", lambda _engine: 17)
+    monkeypatch.setattr(SNAPSHOT, "_graph_relationship_count", lambda _engine: 29)
+    monkeypatch.setattr(
+        SNAPSHOT,
+        "_graph_run",
+        lambda *_args: SimpleNamespace(stdout="CREATE (:TestNode {id: 1});\\n"),
+    )
+
+    assert SNAPSHOT.backup_neo4j() is True
+    content = path.read_text(encoding="utf-8")
+    assert SNAPSHOT._recorded_graph_counts(content) == (17, 29)
+    checksum_file = Path(f"{path}.sha256")
+    assert checksum_file.is_file()
+    assert checksum_file.read_text(encoding="utf-8").split()[0] == hashlib.sha256(
+        content.encode("utf-8")
+    ).hexdigest()
+
+
 def test_restore_refuses_nonempty_target_instead_of_returning_success(tmp_path, monkeypatch):
     path = tmp_path / "backup.cypher"
     _write_graph_backup(path, 17, 29)
