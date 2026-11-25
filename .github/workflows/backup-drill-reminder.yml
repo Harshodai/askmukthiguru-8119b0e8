@@ -38,18 +38,24 @@ jobs:
             Run the procedure in [docs/runbooks/BACKUP_RESTORE_DRILL.md](../blob/main/docs/runbooks/BACKUP_RESTORE_DRILL.md) and post the result log as a comment below.
 
             ### Checklist
-            - [ ] Postgres schema restore
-            - [ ] Postgres data restore (critical tables)
-            - [ ] Qdrant snapshot restore
-            - [ ] Memgraph dump restore
-            - [ ] Redis RDB restore
-            - [ ] Smoke tests pass
-            - [ ] Backup freshness verified
-            - [ ] Result log appended to this issue
+            - [ ] Local Postgres schema/data backup and isolated restore, or record NOT COVERED
+            - [ ] Hosted Supabase roles/schema/data artifact and isolated restore, or record NOT COVERED
+            - [ ] Qdrant snapshots for each active collection and isolated restore
+            - [ ] Memgraph dump/checksum and isolated graph restore
+            - [ ] Redis RDB/checksum and isolated Redis restore
+            - [ ] Railway Qdrant/Memgraph/Redis off-host backup coverage verified, or record NOT COVERED
+            - [ ] Smoke tests pass against the isolated restored stack
+            - [ ] Backup freshness and off-host copy verified
+            - [ ] Evidence log appended to this issue
+
+            ### Required evidence
+            For every store, record the artifact path, byte size, SHA-256, backup timestamp, restore target, and before/after counts. A missing backup or an unverified restore must be recorded as NOT COVERED / FAIL, never PASS.
 
             ### Notes
-            - Use a non-production restore target.
-            - If any step fails, file a P1 incident issue and do not close this issue until re-run passes.
+            - Use an isolated non-production restore target; never overwrite the source service.
+            - The hosted Supabase workflow is expected to fail while the repository is public because its database artifact privacy gate is fail-closed. Do not weaken that gate to make the workflow green.
+            - Redis RDB export currently has no scheduled job; manually run the documented utility and report the scheduling gap.
+            - If any required restore fails, file a P1 incident issue and do not close this issue until re-run passes.
         with:
           script: |
             const {
