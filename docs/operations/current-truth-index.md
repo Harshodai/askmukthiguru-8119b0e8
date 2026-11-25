@@ -23,6 +23,7 @@ First-person public release and first-person generation fallback remain disabled
 | Prompt-data isolation | `backend/services/untrusted.py` and focused prompt tests | Attachment, retrieved, memory, summary, and research fields are fenced as data and cannot close their own fence. |
 | Readiness scope semantics | `scripts/ops/predeployment_checklist.py` | A staging pass cannot return a production-scoped success without explicit owner authorization. |
 | Memory-plane lifecycle inventory | [`docs/operations/memory-plane-inventory.json`](memory-plane-inventory.json), `backend/tasks/retention_tasks.py` | Scheduled retention names every purge surface, its window, executor, result key, and protected ledger; it does not prove a hosted run occurred. |
+| Human-gate packet integrity | `scripts/ops/validate_human_review_packets.py` | Source hashes, packet presence, and filled decision fields are reported read-only; the validator never converts a row into approval or establishes reviewer identity. |
 | Safety and serving contracts | Focused backend tests and startup gates | Deterministic safety, rights, speaker, integrity, relevance, and serving-contract behavior remains fail-closed in the tested paths. |
 
 ## What remains open and cannot be closed by code alone
