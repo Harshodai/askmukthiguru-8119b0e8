@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Create and verify Redis RDB backups without modifying the running dataset.
 
-This tool copies the Redis server's configured RDB file only after a completed
-BGSAVE. It never performs FLUSHDB/FLUSHALL and has no automatic restore command.
-Restore must happen against a fresh, isolated Redis instance using the runbook.
+The tool requests BGSAVE through redis-py, copies the configured RDB file from
+the Docker container only after a confirmed new save, and writes a SHA-256
+sidecar. It never performs FLUSHDB/FLUSHALL and has no automatic restore path.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlparse
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BACKUP_DIR = REPO_ROOT / "backups" / "redis"
@@ -30,47 +31,53 @@ class RedisBackupError(RuntimeError):
     """A Redis backup could not be proven complete and intact."""
 
 
-def _docker(args: list[str], *, timeout: int = 60, check: bool = True) -> subprocess.CompletedProcess:
-    command = ["docker", *args]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
-    if check and result.returncode != 0:
-        detail = (result.stderr or result.stdout).strip()
+def _build_redis_client(
+    *,
+    redis_url: str | None = None,
+    host: str | None = None,
+    port: int | None = None,
+    db: int | None = None,
+    password: str | None = None,
+):
+    try:
+        import redis
+    except ImportError as exc:
         raise RedisBackupError(
-            f"Command failed ({result.returncode}): docker {' '.join(args[:4])}: {detail}"
+            "redis-py is required; run this tool with the backend virtual environment"
+        ) from exc
+
+    resolved_url = redis_url if redis_url is not None else os.environ.get("REDIS_URL", "")
+    if resolved_url:
+        parsed = urlparse(resolved_url)
+        if parsed.scheme not in {"redis", "rediss"} or not parsed.hostname:
+            raise RedisBackupError("REDIS_URL must be a redis:// or rediss:// URL with a host")
+        client = redis.Redis.from_url(resolved_url, decode_responses=True, socket_timeout=10)
+    else:
+        client = redis.Redis(
+            host=host or os.environ.get("REDIS_HOST", "127.0.0.1"),
+            port=port or int(os.environ.get("REDIS_PORT", "6379")),
+            db=db if db is not None else int(os.environ.get("REDIS_DB", "0")),
+            password=password if password is not None else os.environ.get("REDIS_PASSWORD") or None,
+            decode_responses=True,
+            socket_timeout=10,
         )
-    return result
+    try:
+        client.ping()
+    except Exception as exc:
+        raise RedisBackupError(f"Cannot connect to Redis: {exc}") from exc
+    return client
 
 
-def _redis_cli(container: str, password: str, *args: str, timeout: int = 30) -> str:
-    command = ["exec"]
-    if password:
-        command.extend(["-e", f"REDISCLI_AUTH={password}"])
-    command.extend([container, "redis-cli", "--no-auth-warning", "--raw", *args])
-    result = _docker(command, timeout=timeout)
-    return result.stdout.strip()
-
-
-def _parse_config_pair(output: str, key: str) -> str:
-    rows = [line.strip() for line in output.splitlines() if line.strip()]
-    if len(rows) < 2:
-        raise RedisBackupError(f"Redis CONFIG GET {key} returned an unexpected response")
-    if rows[0].lower() != key.lower():
-        raise RedisBackupError(f"Redis CONFIG GET {key} returned {rows[0]!r}")
-    value = rows[1]
-    if not value:
-        raise RedisBackupError(f"Redis CONFIG GET {key} returned an empty value")
-    return value
-
-
-def _parse_info(info: str) -> dict[str, str]:
-    parsed: dict[str, str] = {}
-    for line in info.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        parsed[key.strip()] = value.strip()
-    return parsed
+def _docker_cp(container: str, source_path: str, destination: Path, timeout: int = 60) -> None:
+    result = subprocess.run(
+        ["docker", "cp", f"{container}:{source_path}", str(destination)],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip()
+        raise RedisBackupError(f"docker cp failed: {detail}")
 
 
 def _sha256(path: Path) -> str:
@@ -113,49 +120,51 @@ def backup(
     *,
     container: str = DEFAULT_CONTAINER,
     backup_dir: Path = DEFAULT_BACKUP_DIR,
+    redis_url: str | None = None,
     password: str | None = None,
     timeout: float = 180.0,
 ) -> Path:
-    password = password if password is not None else os.environ.get("REDIS_PASSWORD", "")
-    info_before = _parse_info(_redis_cli(container, password, "INFO", "persistence"))
-    if info_before.get("rdb_bgsave_in_progress") == "1":
+    client = _build_redis_client(redis_url=redis_url, password=password)
+    info_before = client.info("persistence")
+    if int(info_before.get("rdb_bgsave_in_progress", 0)) == 1:
         raise RedisBackupError(
             "A Redis background save is already in progress; retry after it completes"
         )
 
-    before_last_save = int(info_before.get("rdb_last_save_time", "0"))
-    directory = _parse_config_pair(
-        _redis_cli(container, password, "CONFIG", "GET", "dir"), "dir"
-    )
-    filename = _parse_config_pair(
-        _redis_cli(container, password, "CONFIG", "GET", "dbfilename"), "dbfilename"
-    )
+    stats_before = client.info("stats")
+    before_saves = int(stats_before.get("rdb_saves", 0))
+    config = client.config_get("dir")
+    directory = config.get("dir")
+    if not isinstance(directory, str) or not directory:
+        raise RedisBackupError("Redis CONFIG GET dir returned an empty/invalid value")
+    config = client.config_get("dbfilename")
+    filename = config.get("dbfilename")
+    if not isinstance(filename, str) or not filename:
+        raise RedisBackupError("Redis CONFIG GET dbfilename returned an empty/invalid value")
     if PurePosixPath(filename).name != filename:
         raise RedisBackupError(f"Redis dbfilename must be a simple filename, got {filename!r}")
     source_path = str(PurePosixPath(directory) / filename)
 
-    response = _redis_cli(container, password, "BGSAVE")
-    if not (
-        response.startswith("Background saving started")
-        or response.startswith("Background saving scheduled")
-    ):
+    response = client.bgsave()
+    if response is not True:
         raise RedisBackupError(f"Redis did not acknowledge BGSAVE: {response!r}")
 
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         time.sleep(1)
-        info = _parse_info(_redis_cli(container, password, "INFO", "persistence"))
-        if info.get("rdb_bgsave_in_progress") == "1":
+        info = client.info("persistence")
+        stats = client.info("stats")
+        if int(info.get("rdb_bgsave_in_progress", 0)) == 1:
             continue
         if info.get("rdb_last_bgsave_status") != "ok":
             raise RedisBackupError(
                 "Redis background save did not finish successfully: "
                 f"{info.get('rdb_last_bgsave_status', 'unknown')}"
             )
-        if int(info.get("rdb_last_save_time", "0")) > before_last_save:
+        if int(stats.get("rdb_saves", 0)) > before_saves:
             break
     else:
-        raise RedisBackupError("Timed out waiting for a confirmed Redis BGSAVE completion")
+        raise RedisBackupError("Timed out waiting for a confirmed new Redis BGSAVE")
 
     backup_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
@@ -163,7 +172,7 @@ def backup(
     temp_path = backup_dir / f".{final_path.name}.tmp"
 
     try:
-        _docker(["cp", f"{container}:{source_path}", str(temp_path)], timeout=int(timeout))
+        _docker_cp(container, source_path, temp_path, timeout=int(timeout))
         verify_rdb(temp_path, require_sidecar=False)
         checksum = _sha256(temp_path)
         os.replace(temp_path, final_path)
