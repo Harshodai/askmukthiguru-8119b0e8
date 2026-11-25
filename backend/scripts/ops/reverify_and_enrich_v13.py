@@ -32,6 +32,7 @@ from scripts.ops.windowed_ecapa_v1_scorer import (
     score_span_windows,
     windowed_verdict,
     is_verified_windowed_verdict,
+    pending_voice_check_patch,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -137,8 +138,35 @@ def main():
     logger.info("Found %d points to examine.", len(all_points))
 
     verified_count = 0
+    pending_count = 0
     updated_points = 0
     audio_cache: dict[str, tuple[np.ndarray, int]] = {}
+
+    def mark_pending_voice_check(pt, reason: str) -> None:
+        nonlocal pending_count, updated_points
+        patch = pending_voice_check_patch(
+            cosine_floor,
+            margin_threshold,
+            reason=reason,
+        )
+        if args.apply:
+            client.set_payload(
+                collection_name=COLLECTION,
+                payload=patch,
+                points=[pt.id],
+                wait=False,
+            )
+        pending_count += 1
+        updated_points += 1
+        logger.warning(
+            "Point %s remains unverified (%s)%s",
+            str(pt.id)[:12],
+            reason,
+            " — cleared stale speaker_verified=True" if pl_was_verified(pt) else "",
+        )
+
+    def pl_was_verified(pt) -> bool:
+        return (pt.payload or {}).get("speaker_verified") is True
 
     for pt in all_points:
         pl = pt.payload
@@ -157,6 +185,7 @@ def main():
 
         wav_path = AUDIO_DIR / f"{vid}.wav"
         if not wav_path.is_file():
+            mark_pending_voice_check(pt, "audio_file_missing")
             continue
 
         if vid not in audio_cache:
@@ -165,12 +194,14 @@ def main():
                 audio_cache[vid] = (data.astype(np.float32), sr)
             except Exception as e:
                 logger.warning("Failed to load audio for %s: %s", vid, e)
+                mark_pending_voice_check(pt, "audio_load_failed")
                 continue
 
         audio_data, sr = audio_cache[vid]
         start_sample = max(0, int(audio_start_ms * sr / 1000))
         end_sample = min(len(audio_data), int(audio_end_ms * sr / 1000))
         if end_sample - start_sample < int(0.5 * sr):
+            mark_pending_voice_check(pt, "audio_window_too_short")
             continue
 
         slice_audio = audio_data[start_sample:end_sample]
@@ -251,9 +282,10 @@ def main():
         updated_points += 1
 
     logger.info(
-        "Complete: processed %d points, %d verified (%s)",
+        "Complete: processed %d points, %d verified, %d pending/unscorable (%s)",
         updated_points,
         verified_count,
+        pending_count,
         "APPLIED" if args.apply else "DRY-RUN",
     )
 
