@@ -28,6 +28,9 @@ _CROSS_LINGUAL_RESCUE_MIN_RERANK = 0.40
 
 def _limit_rerank_candidates(documents: list[dict], query_tier: str) -> list[dict]:
     """Bound cross-encoder input for tiers without changing retrieval order."""
+    if getattr(settings, "rag_quantized_reranker_enabled", True) and getattr(settings, "reranker_backend", "") == "onnx_int8":
+        pool_cap = int(getattr(settings, "rag_stage1_candidate_pool", 40) or 40)
+        return documents[:pool_cap]
     cap = 8 if query_tier == "tier2_simple" else (10 if query_tier == "standard" else None)
     if cap is None or len(documents) <= cap:
         return documents
@@ -162,7 +165,7 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
                 reverse=True,
             )[:rerank_top_k]
             rerank_bypassed = True
-        elif settings.use_flashrank and reranker is not None and not force_cross_encoder:
+        elif (settings.use_flashrank or settings.reranker_backend == "onnx_int8") and reranker is not None:
             reranked_db = await reranker.rerank(
                 question,
                 rerank_candidates,
@@ -173,7 +176,6 @@ async def rerank_documents(state: GraphState, config: Optional[RunnableConfig] =
             reranked_db = await embedder.cascaded_rerank(
                 question,
                 rerank_candidates,
-                colbert_top_k=rerank_top_k * 2,
                 cross_top_k=rerank_top_k,
                 min_score=threshold,
             )

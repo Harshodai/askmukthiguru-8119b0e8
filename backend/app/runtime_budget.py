@@ -321,6 +321,7 @@ _RUNTIME_CONFIG_FINGERPRINT_FIELDS: tuple[str, ...] = (
     "first_person_teaching_unit_graph_enabled",
     "first_person_multipart_enabled",
     "first_person_abstain_related_clips_enabled",
+    "first_person_memgraph_sizing_enabled",
 )
 
 

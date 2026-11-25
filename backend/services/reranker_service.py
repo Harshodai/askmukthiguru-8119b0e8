@@ -73,6 +73,11 @@ class RerankerService:
             if self._ranker is not None or self._fallback_reranker is not None:
                 return
 
+            if getattr(settings, "reranker_backend", "") == "onnx_int8":
+                logger.info("Reranker backend is onnx_int8; loading ONNX INT8 CrossEncoder directly.")
+                self._load_fallback()
+                return
+
             if not settings.use_flashrank:
                 logger.info(
                     "FlashRank is explicitly disabled in settings. Loading sentence-transformers fallback reranker."
@@ -369,7 +374,12 @@ class RerankerService:
 
         cross_encoder_cutoff = getattr(settings, "cross_encoder_cutoff", 20)
         use_cross_primary = (
-            len(documents) <= cross_encoder_cutoff or settings.use_cross_encoder_only
+            len(documents) <= cross_encoder_cutoff
+            or settings.use_cross_encoder_only
+            or (
+                getattr(settings, "rag_quantized_reranker_enabled", True)
+                and getattr(settings, "reranker_backend", "") == "onnx_int8"
+            )
         )
 
         # Whether the cross-encoder already raised *in this call*. The

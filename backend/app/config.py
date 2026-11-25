@@ -453,6 +453,13 @@ class Settings(BaseSettings):
     # and concept-expansion results. The TU graph must be built offline first
     # via scripts/ops/build_teaching_unit_graph.py. OFF by default everywhere.
     first_person_teaching_unit_graph_enabled: bool = False
+    # --- Memgraph-Driven Dynamic Harness Sizing & Quantized Cascade (2026-11-25) ---
+    first_person_memgraph_sizing_enabled: bool = True
+    first_person_memgraph_sizing_min_k: int = 3
+    first_person_memgraph_sizing_max_k: int = 12
+    first_person_memgraph_sizing_timeout_ms: float = 25.0
+    rag_stage1_candidate_pool: int = 40
+    rag_quantized_reranker_enabled: bool = True
     # Local editorial set selection over already-gated fp-context parents.
     # The pipeline additionally requires IS_PRODUCTION=false and the context
     # harness flag; default off and never activates graph expansion or synthesis.
@@ -1038,6 +1045,7 @@ class Settings(BaseSettings):
     # rerank_documents node in a live 2026-09-17 run. 8 keeps the largest
     # single allocation near 100MB. Raise only with measured memory headroom.
     reranker_batch_size: int = Field(default=8, ge=1, le=64)
+    # Decommissioned 2026-11-25: ColBERT is permanently disabled across Docker & Railway in favor of Two-Stage Quantized ONNX INT8 Reranker
     enable_colbert: bool = False
 
     # --- Whisper / Transcription ---

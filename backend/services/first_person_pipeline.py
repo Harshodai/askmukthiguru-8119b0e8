@@ -3241,7 +3241,10 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                         merged = merged + (_widen(bounded_tu) if enrich_enabled else bounded_tu)
 
         # SLA Latency Protection: Bound merged candidate pool so downstream judge does not fan out.
-        max_total_contexts = int(getattr(settings, "first_person_max_evaluated_contexts", 4) or 4)
+        if getattr(settings, "first_person_memgraph_sizing_enabled", True):
+            max_total_contexts = int(getattr(settings, "first_person_memgraph_sizing_max_k", 12)) * 2
+        else:
+            max_total_contexts = int(getattr(settings, "first_person_max_evaluated_contexts", 4) or 4)
         return merged[:max_total_contexts]
 
     @staticmethod
@@ -5089,6 +5092,13 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
         candidate_pool = int(getattr(settings, "first_person_context_candidate_limit", 0) or 0)
         if candidate_pool > 0 and not editorial_set_enabled:
             harness_candidate_limit = candidate_pool
+        elif getattr(settings, "first_person_memgraph_sizing_enabled", True):
+            # Dynamic candidate pool sizing: fetch enough parent candidates (up to max_k * 2)
+            # so Memgraph-selected k contexts can be evaluated from a diverse candidate pool.
+            harness_candidate_limit = max(
+                int(getattr(settings, "first_person_memgraph_sizing_max_k", 12)) * 2,
+                int(max_clips) * 4,
+            )
         else:
             # A4 Latency Bounding: cap candidate pool to <= 6 to ensure parallel relevance
             # checks stay within provider concurrent worker quotas without triggering 429 stalls.
@@ -5238,8 +5248,29 @@ class FirstPersonPipeline(LegacyStoreServingMixin):
                     )
 
             if contexts:
-                # SLA Latency Protection: hard cap candidate contexts evaluated by judge to prevent fan-out
-                _max_eval = int(getattr(settings, "first_person_max_evaluated_contexts", 4) or 4)
+                # Dynamic candidate sizing using Memgraph Knowledge Graph signals
+                _sizing_ms = 0.0
+                if getattr(settings, "first_person_memgraph_sizing_enabled", True):
+                    from services.first_person_graph_sizing import MemgraphHarnessSizer
+
+                    _sizer = MemgraphHarnessSizer()
+                    _seed_ids = [
+                        getattr(s, "source_span_id", "") or getattr(s, "span_id", "")
+                        for ctx in contexts
+                        for s in (getattr(ctx, "spans", None) or ())
+                    ]
+                    _seed_ids = [s for s in _seed_ids if s]
+                    _concepts = list(getattr(editorial_facets, "all_facets", None) or [])
+                    _decision = await _sizer.calculate_candidate_size(
+                        seed_span_ids=_seed_ids,
+                        query=retrieval_query or query,
+                        concepts=_concepts,
+                        teacher_id=editorial_teacher_id,
+                    )
+                    _max_eval = _decision.k
+                    _sizing_ms = _decision.duration_ms
+                else:
+                    _max_eval = int(getattr(settings, "first_person_max_evaluated_contexts", 4) or 4)
                 contexts = contexts[:_max_eval]
                 t_ans_start = time.monotonic()
                 context_answerability_enabled = bool(
