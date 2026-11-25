@@ -130,6 +130,7 @@ def test_backup_copies_only_after_confirmed_new_bgsave(monkeypatch, tmp_path):
     assert path.exists()
     assert Path(f"{path}.sha256").exists()
     client.bgsave.assert_called_once()
+    assert all(call.args == ("persistence",) for call in client.info.call_args_list)
 
 
 def test_backup_fails_when_bgsave_not_acknowledged(monkeypatch, tmp_path):
