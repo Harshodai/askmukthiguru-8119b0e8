@@ -5,6 +5,10 @@
 
 name: Monthly Backup Restore Drill Reminder
 
+concurrency:
+  group: monthly-backup-restore-drill
+  cancel-in-progress: false
+
 on:
   # Cron day-of-month/day-of-week fields are ORed by standard cron.
   # Run each Monday, then enforce "first Monday" in the script below.
